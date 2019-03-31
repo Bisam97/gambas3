@@ -2,7 +2,7 @@
 
   gapplication.h
 
-  (c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -98,6 +98,9 @@ public:
 	static void setEventFilter(X11_EVENT_FILTER filter);
 
 	static void setButtonGrab(gControl *grab) { _button_grab = grab; }
+	
+	static bool fix_breeze;
+	static bool fix_oxygen;
 
 	//"Private"
 	static bool _init;

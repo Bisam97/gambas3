@@ -2,7 +2,7 @@
 
   gcontrol.h
 
-  (c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -258,6 +258,7 @@ public:
 	unsigned _inside : 1;                  // if we got an enter event, but not a leave event yet.
 	unsigned _no_auto_grab : 1;            // do not automatically grab widget on button press event
 	unsigned _no_background : 1;           // Don't draw the background automatically
+	unsigned _use_wheel : 1;               // Do not propagate the mouse wheel event
 	
   void removeParent() { pr = NULL; }
 	void initSignals();

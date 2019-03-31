@@ -2,7 +2,7 @@
 
 	gb.db.h
 
-	(c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+	(c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -62,7 +62,7 @@ typedef
 			unsigned no_blob : 1;         /* Blob fields are not supported */
 			unsigned no_seek : 1;         /* Cannot seek anywhere in a Result */
 			unsigned no_nest : 1;         /* Cannot nest transactions */
-			unsigned no_case : 1;         /* table, field and index names must be converted to lower case */
+			//unsigned no_case : 1;         /* table, field and index names must be converted to lower case */
 			unsigned schema : 1;          /* If table names can be prefixed by a schema name and a dot */
 			unsigned no_collation : 1;    /* No collation support at field level */
 			unsigned system : 1;          /* system database */
@@ -151,6 +151,7 @@ typedef
 		int (*Rollback)(DB_DATABASE *db);
 		GB_ARRAY (*GetCollations)(DB_DATABASE *db);
 		const char *(*GetQuote)(void);
+		int64_t (*GetLastInsertId)(DB_DATABASE *db);
 
 		struct {
 			void (*Init)(DB_RESULT result, DB_INFO *info, int *count);

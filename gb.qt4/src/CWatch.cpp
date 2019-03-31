@@ -2,7 +2,7 @@
 
 	CWatch.cpp
 
-	(c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+	(c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -35,7 +35,7 @@ void CWatch::watch(int fd, int type, GB_WATCH_CALLBACK callback, intptr_t param)
 {
 	CWatch *watch;
 
-	//qDebug("CWatch::watch: %d %d", fd, type);
+	//qDebug("CWatch::watch: %d %d %p", fd, type, callback);
 
 	switch (type)
 	{

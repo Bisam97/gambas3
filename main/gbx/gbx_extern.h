@@ -2,7 +2,7 @@
 
   gbx_extern.h
 
-  (c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -39,19 +39,11 @@
 
 #include "gbx_value.h"
 
-typedef
-	struct EXTERN_FUNC_INFO {
-		void *call;
-		char *alias;
-	}
-	EXTERN_FUNC_INFO;
-
-
 void EXTERN_release(void);
 void EXTERN_exit(void);
-EXTERN_FUNC_INFO EXTERN_get_function_info(CLASS_EXTERN *ext);
 void EXTERN_call(void);
 void *EXTERN_make_callback(VALUE_FUNCTION *value);
 void *EXTERN_get_symbol(const char *library, const char *symbol);
+void *EXTERN_get_addr(CLASS_EXTERN *ext);
 
 #endif

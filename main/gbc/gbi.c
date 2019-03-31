@@ -2,7 +2,7 @@
 
 	gbi.c
 
-	(c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+	(c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -45,7 +45,7 @@
 
 #include <dlfcn.h>
 
-#if defined(OS_LINUX) || defined(OS_GNU) || defined(OS_OPENBSD) || defined(OS_FREEBSD) || defined(OS_CYGWIN)
+#ifdef DONT_USE_LTDL
 	#define lt_dlinit() (0)
 	#define lt_dlhandle void *
 	#define lt_dlopenext(_path) dlopen(_path, RTLD_LAZY)
@@ -70,8 +70,8 @@
 static char _root[PATH_MAX + 1] = { 0 };
 static char _lib_path[PATH_MAX + 1];
 static char _info_path[PATH_MAX + 1];
-static char _buffer[PATH_MAX + 1];
-static char _env[PATH_MAX + 16];
+static char _buffer[PATH_MAX + 16];
+static char _env[PATH_MAX + 32];
 
 static FILE *out_info;
 static FILE *out_list;
@@ -86,7 +86,7 @@ static char **_components = NULL;
 
 static TABLE *_classes = NULL;
 
-static void analyze(const char *comp, bool include);
+static bool analyze(const char *comp, bool include);
 
 #if HAVE_GETOPT_LONG
 static struct option LongOptions[] =
@@ -414,7 +414,15 @@ static void analyze_include(char *include_list)
 	}
 	
 	for (i = 0; i < nincludes; i++)
-		analyze(includes[i], TRUE);
+	{
+		include = strtok(includes[i], "|");
+		while (include)
+		{
+			if (!analyze(include, TRUE))
+				break;
+			include = strtok(NULL, "|");
+		}
+	}
 		
 	STR_free(include_list);
 }
@@ -580,7 +588,7 @@ static bool find_native_component(const char *name)
 	return (access(_buffer, F_OK) == 0);
 }
 
-static void analyze(const char *comp, bool include)
+static bool analyze(const char *comp, bool include)
 {
 	bool native, gambas;
 	char *name;
@@ -605,7 +613,7 @@ static void analyze(const char *comp, bool include)
 		if (!include || !_no_include_warning)
 			warning("component %s not found", name);
 		STR_free(name);
-		return;
+		return TRUE;
 	}
 
 	if (!include)
@@ -617,14 +625,14 @@ static void analyze(const char *comp, bool include)
 		if (!out_info)
 		{
 			error(FALSE, "Cannot write file: %s", path_info);
-			return;
+			return TRUE;
 		}
 	
 		out_list = fopen(path_list, "w");
 		if (!out_list)
 		{
 			error(FALSE, "Cannot write file: %s", path_list);
-			return;
+			return TRUE;
 		}
 
 		TABLE_create(&_classes, sizeof(SYMBOL), TF_IGNORE_CASE);
@@ -632,7 +640,6 @@ static void analyze(const char *comp, bool include)
 	
 	fflush(stdout);
 	ok = TRUE;
-
 
 	if (native)
 	{
@@ -674,6 +681,8 @@ static void analyze(const char *comp, bool include)
 	}
 	
 	STR_free(name);
+	
+	return FALSE;
 }
 
 static void run_myself(const char *path, const char *name)
@@ -756,12 +765,6 @@ int main(int argc, char **argv)
 	int opt;
 	int ind = 0;
 
-	/*#ifdef __FreeBSD__
-	optind = 1;
-	#else
-	optind = 0;
-	#endif*/
-
 	//dup(STDOUT_FILENO);
 
 	//_verbose = TRUE;
@@ -809,7 +812,7 @@ int main(int argc, char **argv)
 				
 			case 'L':
 				printf(
-					"\nGAMBAS Component Informer version " VERSION " " __DATE__ " " __TIME__ "\n"
+					"\nGAMBAS Component Informer version " VERSION "\n"
 					COPYRIGHT
 					);
 				exit(0);

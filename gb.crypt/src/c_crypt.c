@@ -2,7 +2,7 @@
 
   c_crypt.c
 
-  (c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -23,16 +23,12 @@
 
 #define __C_CRYPT_C
 
+#include "gb_common.h"
+
 #include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
 #include <time.h>
-
-#include "gb_common.h"
-
-#ifndef OS_BSD
-  #include <crypt.h>
-#endif
 
 #include "c_crypt.h"
 #include "main.h"

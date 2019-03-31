@@ -2,7 +2,7 @@
 
   gbx.c
 
-  (c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -54,6 +54,7 @@
 #include "gb_common_buffer.h"
 #include "gbx_api.h"
 #include "gbx_signal.h"
+#include "gbx_jit.h"
 
 #if USE_PROFILE
 #include "gbx_profile.h"
@@ -116,12 +117,15 @@ static void init(const char *file, int argc, char **argv)
 
 static void main_exit(bool silent)
 {
+	silent |= EXEC_task;
+	
 	// If the stack has not been initialized because the project could not be started, do it now
 	if (!SP)
 		STACK_init();
 
 	TRY
 	{
+		JIT_abort();
 		SIGNAL_exit();
 		EXTERN_release();
 		STREAM_exit();
@@ -144,6 +148,7 @@ static void main_exit(bool silent)
 		EVENT_exit();
 		FILE_exit();
 		STACK_exit();
+		JIT_exit();
 		ERROR_exit();
 	}
 	CATCH
@@ -239,6 +244,7 @@ int main(int argc, char *argv[])
 				"  -p <path>        activate profiling and debugging mode\n"
 				"  -k               do not unload shared libraries\n"
 				"  -H --httpd       run through an embedded http server\n"
+				"  -j               disable just-in-time compiler\n"
 				);
 
 			if (!EXEC_arch)
@@ -269,7 +275,7 @@ int main(int argc, char *argv[])
 		else if (is_long_option(argv[1], 'L', "license"))
 		{
 			printf(
-				"\nGambas interpreter version " VERSION " " __DATE__ " " __TIME__ "\n"
+				"\nGambas interpreter version " VERSION "\n"
 				COPYRIGHT
 				);
 			my_exit(0);
@@ -338,6 +344,10 @@ int main(int argc, char *argv[])
 		else if (is_long_option(argv[i], 'H', "httpd"))
 		{
 			PROJECT_run_httpd = TRUE;
+		}
+		else if (is_option(argv[i], 'j'))
+		{
+			JIT_disabled = TRUE;
 		}
 		else if (is_option(argv[i], '-'))
 		{
@@ -466,10 +476,11 @@ int main(int argc, char *argv[])
 
 	main_exit(FALSE);
 
-	MEMORY_exit();
+	if (!EXEC_task)
+		MEMORY_exit();
 
 	fflush(NULL);
-
+	
 	return ret;
 }
 

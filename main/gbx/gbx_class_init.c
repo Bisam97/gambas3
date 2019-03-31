@@ -2,7 +2,7 @@
 
   gbx_class_init.c
 
-  (c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -60,6 +60,7 @@ CLASS *CLASS_Process = NULL;
 CLASS *CLASS_Component = NULL;
 CLASS *CLASS_Observer = NULL;
 CLASS *CLASS_Timer = NULL;
+CLASS *CLASS_BoxedString = NULL;
 
 CLASS *CLASS_Array = NULL;
 CLASS *CLASS_BooleanArray = NULL;
@@ -111,8 +112,10 @@ static const CLASS_INIT init_list[] =
   { NATIVE_App, &CLASS_Application },
   { NATIVE_Process, &CLASS_Process },
   { NATIVE_System, NULL },
+  { NATIVE_Jit, NULL },
   { NATIVE_User, NULL },
-  { NATIVE_String, NULL },
+  { StringDesc, NULL },
+	{ BoxedStringDesc, &CLASS_BoxedString, CQA_STRING },
   { TaskDesc, NULL },
   { NATIVE_Timer, &CLASS_Timer },
   { NATIVE_Observer, &CLASS_Observer },

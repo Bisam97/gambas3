@@ -2,7 +2,7 @@
 
   gbx_watch.h
 
-  (c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -36,7 +36,8 @@ enum {
 	WP_NOTHING = 0,
 	WP_END = 1,
 	WP_OUTPUT = 2,
-	WP_TIMEOUT = 4
+	WP_ERROR = 4,
+	WP_TIMEOUT = 8
 };
 	
 typedef
@@ -58,13 +59,15 @@ typedef
 
 void WATCH_init(void);
 void WATCH_exit(void);
+void WATCH_transfer_watch(void);
+void WATCH_transfer_timer(void);
 
 void WATCH_watch(int fd, int flag, void *callback, intptr_t param);
 bool WATCH_one_loop(int);
 void WATCH_loop(void);
 void WATCH_wait(int);
 int WATCH_loop_signal(const sigset_t *sig);
-int WATCH_process(int fd_end, int fd_output, int timeout);
+int WATCH_process(int fd_end, int fd_output, int fd_error, int timeout);
 void WATCH_timer(void *t, int on);
 double WATCH_get_timeout(GB_TIMER *timer);
 void WATCH_little_sleep(void);

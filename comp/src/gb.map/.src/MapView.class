@@ -6,17 +6,15 @@ Inherits UserControl
 Public Const _Properties As String = "*,Border{Border.*},AllowEffect=true,ShowControls=true"
 Public Const _Group As String = "View"
 
-
+Property Read {Map} As Map                  '' Returns the inner Map object
+'Property Read DefaultProxy As _MapProxy    '' Returns or sets Default Proxy parameters.
 Property Lock As Boolean
-Property Border As Integer
-Property Read {Map} As Map
-Property AllowEffect As Boolean
-Property ShowControls As Boolean
-Property Mode As Integer
-Private $iMode As Integer
+Property Border As Integer                  '' Returns or sets the border type of the control.
+Property AllowEffect As Boolean             '' Returns or sets this Control visual effects.
+Property ShowControls As Boolean            '' Returns or sets Zoom control.
+' Property Mode As Integer
+' Private $iMode As Integer
 Private $bShowControls As Boolean = True
-
-
 Private $hCenter As MapPoint
 Private $hMap As New Map As "Map"
 Private $hView As DrawingArea
@@ -41,11 +39,12 @@ Private $bAllowEffect As Boolean = True
 Private $hViewLayer As New _ViewLayer As "ViewLayer"
 Private $tX As Integer
 Private $tY As Integer
+' Public _Proxy As _MapProxy
 Event Click
 Event Draw
 
 Public Sub _new()
-  
+
   $hPan.Arrangement = Arrange.Fill
   $hView = New DrawingArea($hPan) As "View"
   Me.Proxy = $hView
@@ -56,36 +55,35 @@ Public Sub _new()
   $hView.Background = Color.DarkGray
   $tmrZoom.Delay = 30
   $tmrOnMove.Delay = 30
-  
+
   '$hmap.Padding = 256
-  
+
 End
 
 Public Sub _GetMaxZoom() As Integer
-  
-  Return $hmap.MaxZoom
-  
-End
 
+  Return $hmap.MaxZoom
+
+End
 
 
 Public Sub SetCenter(hMapPoint As MapPoint)
-  
+
   $hCenter = hMapPoint
-  
+
 End
 
 Private Function Map_Read() As Map
-  
+
   Return $hMap
-  
+
 End
 
 Public Sub View_Draw()
-  
-  If Not $bZoomEffect Then 
-    
-    If $iZoomWay <> 0 Then 
+
+  If Not $bZoomEffect Then
+
+    If $iZoomWay <> 0 Then
       Paint.DrawImage($hZoomBuffer, 0, 0)
     Endif
     $hMap.Draw
@@ -93,11 +91,11 @@ Public Sub View_Draw()
     If $bShowControls Then $hViewLayer._Draw
   Else
     If $iZoomWay = 1 Then
-      
+
       Paint.DrawImage($hZoomBuffer, ($ZX - $ZX * $fZoomEffect), ($ZY - $ZY * $fZoomEffect), $hZoomBuffer.Width * $fZoomEffect, $hZoomBuffer.Height * $fZoomEffect)
       $fZoomEffect += 0.1
-      If $fZoomEffect < 2 Then 
-        
+      If $fZoomEffect < 2 Then
+
       Else
         $bZoomEffect = False
         $fZoomEffect -= 0.1
@@ -112,7 +110,7 @@ Public Sub View_Draw()
     Else
       Paint.DrawImage($hZoomBuffer, (Paint.Width - $hZoomBuffer.Width * $fZoomEffect) / 2, (Paint.Height - $hZoomBuffer.Height * $fZoomEffect) / 2, $hZoomBuffer.Width * $fZoomEffect, $hZoomBuffer.Height * $fZoomEffect)
       $fZoomEffect -= 0.04
-      If $fZoomEffect > 0.5 Then 
+      If $fZoomEffect > 0.5 Then
         '$tmrZoom.Trigger
       Else
         $bZoomEffect = False
@@ -129,31 +127,71 @@ Public Sub View_Draw()
     Endif
     If $bShowControls Then $hViewLayer._Draw
   Endif
-  
+
 End
 
 Public Sub View_MouseWheel()
-  
+
+  Dim hCenter As MapPoint
+  Dim iMidViewX, iMidViewY As Integer
+
   If $bLock Then Return
+
   Draw.Begin($hZoomBuffer)
   Draw.FillRect(0, 0, Draw.Width, Draw.Height, Color.Transparent)
   $hmap.Draw
   Draw.End
-  
+
   If Mouse.Delta > 0 Then
     _ZoomUp(Mouse.X, Mouse.Y)
     $hMap.Center = Geo.PixelToMapPoint(Point($hMap.PixelBox.X + Mouse.X, $hMap.PixelBox.Y + Mouse.Y), $hmap.Zoom)
   Else
-    '$hMap.Center = Geo.PixelToMapPoint(Point($hMap.PixelBox.X - Mouse.X, $hMap.PixelBox.Y - Mouse.Y), $hmap.Zoom)
+
+    iMidViewX = $hView.ClientW / 2
+    iMidViewY = $hView.ClientH / 2
+
+
+    hCenter = $hmap.PixelToMapPointRel(Point(Mouse.x, Mouse.y))
+
     _ZoomDown(Mouse.X, Mouse.Y)
+
+    $hMap.Center = hCenter
+    hcenter = $hmap.PixelToMapPointRel(Point(iMidViewX - (Mouse.X - iMidViewX), iMidViewY - (Mouse.Y - iMidViewY)))
+    $hmap.Center = hcenter
+
   Endif
-  
+
   $hView.Refresh
-  
+
 End
 
+'' Saves actual MapView picture as file
+'' - For file format and quality check
+''   [http://gambaswiki.org/wiki/comp/gb.qt4/image/save]
+' Public Sub Save(Path As String, Optional Quality As Integer)
+'   'http://sourceforge.net/p/gambas/mailman/message/32083180/
+' 
+'   Dim hPicture As New Picture($hView.W, $hView.H)
+'   Dim bControlState As Boolean = Me.ShowControls
+' 
+'   If bControlState = True Then Me.ShowControls = False
+' 
+'   Paint.Begin(hPicture)
+'   '  DrawMap()
+'   Paint.End()
+' 
+'   Me.ShowControls = bControlState
+' 
+'   If Exist(Path) Then
+'     Error.Raise("File already exists: " & Path)
+'   Else
+'     hPicture.Save(Path, Quality)
+'   Endif
+' 
+' End
+
 Public Sub _ZoomUp(X As Integer, Y As Integer)
-  
+
   $ZX = X
   $ZY = Y
   If $bAllowEffect Then
@@ -161,26 +199,26 @@ Public Sub _ZoomUp(X As Integer, Y As Integer)
     Draw.FillRect(0, 0, Draw.Width, Draw.Height, Color.Transparent)
     $hmap.Draw
     Draw.End
-    If $hmap.Zoom <= $hmap.MaxZoom Then 
+    If $hmap.Zoom <= $hmap.MaxZoom Then
       $iZoomWay = 1
       $bZoomEffect = True
       $tmrZoom.Start
     Endif
   Endif
   Inc $hMap.Zoom
-  
+
 End
 
 Public Sub _ZoomDown(X As Integer, Y As Integer)
-  
+
   $ZX = X
   $ZY = Y
-  If $bAllowEffect Then 
+  If $bAllowEffect Then
     Draw.Begin($hZoomBuffer)
     Draw.FillRect(0, 0, Draw.Width, Draw.Height, Color.Transparent)
     $hmap.Draw
     Draw.End
-    If $hmap.Zoom > 1 Then 
+    If $hmap.Zoom > 1 Then
       $iZoomWay = -1
       $bZoomEffect = True
       $tmrZoom.Start
@@ -188,52 +226,52 @@ Public Sub _ZoomDown(X As Integer, Y As Integer)
   Endif
   Dec $hMap.Zoom
   '$hmap.Center = $hmap.Center
-  
+
 End
 
 Public Sub Map_Refresh()
-  
+
   $hView.Refresh
-  
+
 End
 
 Public Sub View_MouseDown()
-  
+
   $hView.Mouse = Mouse.Pointing
-  $iX = Mouse.X 
-  $iY = Mouse.Y 
-  $pCurCenterPx = Geo.MapPointToPixel($hmap.Center, $hmap.Zoom) 
+  $iX = Mouse.X
+  $iY = Mouse.Y
+  $pCurCenterPx = Geo.MapPointToPixel($hmap.Center, $hmap.Zoom)
   $bShowInertia = False
-  $tmrOnMove.Stop 
+  $tmrOnMove.Stop
   If $bShowControls Then $hViewLayer._MouseDown()
-  
+
   'Raise MouseDown
-  
+
 End
 
 Public Sub View_MouseUp()
-  
+
   Last.Mouse = Mouse.Default
   If $bAllowEffect Then
     If Abs($fSpeedx) > 4 Or If Abs($fSpeedY) > 4 Then $tmrOnMove.Start
   Endif
   If $bShowControls Then $hViewLayer._MouseUp()
-  
+
   'Raise MouseUp
-  
+
 End
 
 Public Sub View_MouseMove()
-  
+
   Dim hPix As Point
-  
+
   If Mouse.Left And Not $bLock Then
-    
+
     hPix = New Point($pCurCenterPx.X, $pCurCenterPx.Y)
-    
+
     $fSpeedX = $tx - Mouse.X
     $fSpeedY = $ty - Mouse.y
-    
+
     hPix.X += $ix - Mouse.X
     hPix.Y += $iY - Mouse.Y
     $hmap.Center = Geo.PixelToMapPoint(hpix, $hmap.Zoom)
@@ -244,7 +282,7 @@ Public Sub View_MouseMove()
   $ty = Mouse.y
   If $bShowControls Then $hViewLayer._MouseMove()
   'Raise MouseMove
-  
+
 End
 
 Public Sub View_Arrange()
@@ -254,99 +292,99 @@ Public Sub View_Arrange()
   $iZoomWay = 0
   $hmap.Refresh
   $hView.Refresh
-  
+
 End
 
 Private Function Lock_Read() As Boolean
-  
+
   Return $bLock
-  
+
 End
 
 Private Sub Lock_Write(Value As Boolean)
-  
+
   $bLock = Value
-  
+
 End
 
 Public Sub Refresh()
-  
+
   $hView.Refresh
-  
+
 End
 
 Private Function Border_Read() As Integer
-  
+
   Return $hPan.Border
-  
+
 End
 
 Private Sub Border_Write(Value As Integer)
-  
+
   $hPan.Border = Value
-  
+
 End
 
 Public Sub tmrZoom_Timer()
-  
+
   'Wait 3
   $hView.Refresh
-  
+
 End
 
 Public Sub tmrOnMove_Timer()
-  
+
   Dim hpix As Point
   'Print "triger"
   hPix = Geo.MapPointToPixel($hmap.Center, $hmap.Zoom)
   $fSpeedX *= $fInertia
   $fSpeedY *= $fInertia
-  
-  If Abs($fSpeedX) < (1 - $fInertia) Or If Abs($fSpeedY) < (1 - $fInertia) Then 
+
+  If Abs($fSpeedX) < (1 - $fInertia) Or If Abs($fSpeedY) < (1 - $fInertia) Then
     $tmrOnMove.stop
     $bShowInertia = False
   Endif
-  
+
   hPix.X += $fSpeedX
   hPix.Y += $fSpeedY
   $hmap.Center = Geo.PixelToMapPoint(hpix, $hmap.Zoom)
   $hView.Refresh
-  
+
 End
 
 Private Function AllowEffect_Read() As Boolean
-  
-  Return $bAllowEffect 
-  
+
+  Return $bAllowEffect
+
 End
 
 Private Sub AllowEffect_Write(Value As Boolean)
-  
+
   $bAllowEffect = Value
   If Not $bAllowEffect Then $iZoomWay = 0
-  
+
 End
 
 Private Function ShowControls_Read() As Boolean
-  
+
   Return $bShowControls
-  
+
 End
 
 Private Sub ShowControls_Write(Value As Boolean)
-  
-  $bShowControls = Value
-  
-End
 
-Private Function Mode_Read() As Integer
-
-  
+  $bShowControls = Value 
 
 End
 
-Private Sub Mode_Write(Value As Integer)
-
-  
-
-End
+' Private Function Mode_Read() As Integer
+' 
+' 
+' 
+' End
+' 
+' Private Sub Mode_Write(Value As Integer)
+' 
+' 
+' 
+' End

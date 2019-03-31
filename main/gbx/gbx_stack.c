@@ -2,7 +2,7 @@
 
   gbx_stack.c
 
-  (c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -112,12 +112,16 @@ bool STACK_check(int need)
 bool STACK_has_error_handler(void)
 {
   int i;
+	STACK_CONTEXT *sc;
 
   for (i = 0; i < STACK_frame_count; i++)
-    if (STACK_frame[i].ec != NULL)
-      return TRUE;
-
-  return FALSE;
+	{
+		sc = &STACK_frame[i];
+		if (sc->ec || sc->ep)
+			return TRUE;
+	}
+	
+	return FALSE;
 }
 
 STACK_CONTEXT *STACK_get_frame(int frame)

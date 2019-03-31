@@ -2,7 +2,7 @@
 
   gambas.h
 
-  (c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -28,7 +28,9 @@
 #include <strings.h>
 #endif
 
+#ifndef NO_CONFIG_H
 #include "config.h"
+#endif
 #include <stdint.h>
 #include <stddef.h>
 #include <sys/types.h>
@@ -65,10 +67,7 @@
 #define EXPORT
 #endif
 
-#if defined(__cplusplus) && !defined(__clang__)
-/*	#undef NULL
-	#define NULL ((intptr_t)0)*/
-#else
+#if !defined(__cplusplus)
 	#ifdef bool
 		#undef bool
 	#endif
@@ -94,6 +93,8 @@
 #define GB_T_CSTRING      10
 #define GB_T_POINTER      11
 #define GB_T_VARIANT      12
+#define GB_T_FUNCTION     13
+#define GB_T_CLASS        14
 #define GB_T_NULL         15
 #define GB_T_OBJECT       16
 
@@ -317,6 +318,7 @@ typedef
 #define GB_ERR_TYPE       ((char *)6)
 #define GB_ERR_OVERFLOW   ((char *)7)
 #define GB_ERR_NSYMBOL    ((char *)11)
+#define GB_ERR_NOBJECT    ((char *)12)
 #define GB_ERR_NWRITE     ((char *)16)
 #define GB_ERR_NPROPERTY  ((char *)17)
 #define GB_ERR_ARG        ((char *)20)
@@ -592,7 +594,7 @@ typedef
 
 #define CALL_HOOK_MAIN(_hook, _pargc, _pargv) do { if (_hook) { ((void (*)(int *, char ***))(_hook))((_pargc), (_pargv)); } } while (0);
 
-/* Constants that represent interpreter signals catched by GB_SIGNAL function */
+/* Constants that represent interpreter signals caught by GB_SIGNAL function */
 
 #define GB_SIGNAL_DEBUG_BREAK         1
 #define GB_SIGNAL_DEBUG_CONTINUE      2
@@ -743,7 +745,6 @@ typedef
 		int (*open)(struct GB_STREAM *stream, const char *path, int mode, void *data);
 		int (*close)(struct GB_STREAM *stream);
 		int (*read)(struct GB_STREAM *stream, char *buffer, int len);
-		int (*getchar)(struct GB_STREAM *stream, char *buffer);
 		int (*write)(struct GB_STREAM *stream, char *buffer, int len);
 		int (*seek)(struct GB_STREAM *stream, int64_t pos, int whence);
 		int (*tell)(struct GB_STREAM *stream, int64_t *pos);
@@ -926,6 +927,7 @@ typedef
 
 		struct {
 			bool (*Load)(const char *);
+			bool (*CanLoadLibrary)(const char *);
 			bool (*Exist)(const char *);
 			bool (*IsLoaded)(const char *);
 			char *(*Current)(void);
@@ -978,6 +980,7 @@ typedef
 		GB_CLASS (*FindClassLocal)(const char *);
 		GB_TYPE (*GetArrayType)(GB_CLASS);
 		GB_CLASS (*GetArrayClass)(GB_CLASS);
+		GB_CLASS (*LoadClassFrom)(const char *, const char*);
 		bool (*Is)(void *, GB_CLASS);
 		void (*Ref)(void *);
 		void (*Unref)(void **);
@@ -1025,6 +1028,7 @@ typedef
 		char *(*NewString)(const char *, int);
 		char *(*NewZeroString)(const char *);
 		char *(*TempString)(const char *, int);
+		char *(*RefString)(char *);
 		void (*FreeString)(char **);
 		char *(*FreeStringLater)(char *);
 		char *(*ExtendString)(char *, int);
@@ -1100,6 +1104,7 @@ typedef
 		struct {
 			char *(*Charset)(void);
 			char *(*Language)(void);
+			void (*SetLanguage)(const char *);
 			char *(*DomainName)(void);
 			bool (*IsRightToLeft)(void);
 			char *(*Path)(void);
@@ -1136,12 +1141,12 @@ typedef
 			void (*Remove)(GB_HASHTABLE, const char *, int);
 			bool (*Get)(GB_HASHTABLE, const char *, int, void **);
 			void (*Enum)(GB_HASHTABLE, GB_HASHTABLE_ENUM_FUNC);
+			bool (*First)(GB_HASHTABLE, void **);
 			}
 		HashTable;
 
 		struct {
 			GB_STREAM *(*Get)(void *object);
-			void (*SetBytesRead)(GB_STREAM *stream, int length);
 			void (*SetSwapping)(GB_STREAM *stream, int swap);
 			void (*SetAvailableNow)(GB_STREAM *stream, int available_now);
 			bool (*Block)(GB_STREAM *stream, int block);

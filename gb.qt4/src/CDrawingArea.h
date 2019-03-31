@@ -2,7 +2,7 @@
 
   CDrawingArea.h
 
-  (c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -141,5 +141,7 @@ private:
 	int _draw_event;
 	static int _in_any_draw_event;
 };
+
+void CDRAWINGAREA_send_change_event(void);
 
 #endif

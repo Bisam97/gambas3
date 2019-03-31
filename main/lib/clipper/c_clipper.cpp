@@ -2,7 +2,7 @@
 
   c_clipper.cpp
 
-  (c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -27,7 +27,7 @@
 #include "gb.geom.h"
 #include "c_clipper.h"
 
-#define SCALE 1000000.0
+#define SCALE 1048576.0
 
 static IntPoint to_point_xy(double x, double y)
 {

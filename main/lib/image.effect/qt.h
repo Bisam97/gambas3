@@ -2,7 +2,7 @@
 
   qt.h
 
-  (c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -33,9 +33,6 @@
 
 #define QT_STATIC_CONST static const
 #define QT_STATIC_CONST_IMPL const
-
-#define FALSE false
-#define TRUE true
 
 #define QMAX(a, b)	((b) < (a) ? (a) : (b))
 #define QMIN(a, b)	((a) < (b) ? (a) : (b))

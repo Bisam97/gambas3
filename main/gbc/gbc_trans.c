@@ -2,7 +2,7 @@
 
 	gbc_trans.c
 
-	(c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+	(c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -43,8 +43,9 @@
 
 #define IS_PURE_INTEGER(_int64_val) ((_int64_val) == ((int)(_int64_val)))
 
-int TRANS_in_affectation = 0;
-bool TRANS_in_try = FALSE;
+short TRANS_in_assignment = 0;
+short TRANS_in_left_value = 0;
+short TRANS_in_try = RS_NONE;
 
 void TRANS_reset(void)
 {
@@ -67,6 +68,7 @@ static bool read_integer(char *number, int base, bool minus, int64_t *result)
 	switch (base)
 	{
 		case 2: nmax = 64; break;
+		case 8: nmax = 21; break;
 		case 16: nmax = 16; break;
 		case 10: default: nmax = 19; break;
 	}
@@ -291,6 +293,11 @@ bool TRANS_get_number(int index, TRANS_NUMBER *result)
 			base = 2;
 			c = *number++;
 		}
+		else if (c == 'O' || c == 'o')
+		{
+			base = 8;
+			c = *number++;
+		}
 		else
 			base = 16;
 	}
@@ -376,7 +383,7 @@ static PATTERN *trans_embedded_array(PATTERN *look, int mode, TRANS_DECL *result
 
 	look++;
 
-	if (mode && TT_CAN_ARRAY)
+	if (mode & TT_CAN_ARRAY)
 	{
 		for (i = 0;; i++)
 		{
@@ -419,6 +426,7 @@ static int TRANS_get_class(PATTERN pattern, bool array)
 {
 	int index = PATTERN_index(pattern);
 	int index_array;
+	//CLASS_REF *cref;
 
 	if (!CLASS_exist_class(JOB->class, index))
 	{
@@ -441,10 +449,22 @@ static int TRANS_get_class(PATTERN pattern, bool array)
 					if (TABLE_find_symbol(JOB->class->table, sym->symbol.name, i, &index_array))
 					{
 						index_array = TRANS_get_class(PATTERN_make(RT_CLASS, index_array), TRUE);
+						
 						if (JOB->class->class[index_array].exported)
-							return CLASS_add_class_exported(JOB->class, index);
+							index = CLASS_add_class_exported(JOB->class, index);
 						else
-							return CLASS_add_class(JOB->class, index);
+							index = CLASS_add_class(JOB->class, index);
+						
+						JOB->class->class[index].type = TYPE_make(T_OBJECT, index_array, 0);
+						
+						/*cref = &JOB->class->class[index];
+						if (TYPE_is_null(cref->array))
+						{
+							cref->array.t.id = T_OBJECT;
+							cref->array.t.value = index_array;
+						}*/
+						
+						return index;
 					}
 				}
 			}
@@ -667,11 +687,10 @@ bool TRANS_check_declaration(void)
 }
 
 
-
 PATTERN *TRANS_get_constant_value(TRANS_DECL *decl, PATTERN *current)
 {
 	int index;
-	TRANS_NUMBER number;
+	TRANS_NUMBER number = {0};
 	int type;
 	PATTERN value;
 
@@ -780,7 +799,6 @@ PATTERN *TRANS_get_constant_value(TRANS_DECL *decl, PATTERN *current)
 }
 
 
-
 void TRANS_want(int reserved, char *msg)
 {
 	if (!PATTERN_is(*JOB->current, reserved))
@@ -795,13 +813,6 @@ void TRANS_want_newline()
 }
 
 
-void TRANS_ignore(int reserved)
-{
-	if (PATTERN_is(*JOB->current, reserved))
-		JOB->current++;
-}
-
-
 bool TRANS_is_end_function(bool is_proc, PATTERN *look)
 {
 	if (PATTERN_is_newline(*look))
@@ -813,10 +824,11 @@ bool TRANS_is_end_function(bool is_proc, PATTERN *look)
 		return PATTERN_is(*look, RS_FUNCTION);
 }
 
-char *TRANS_get_num_desc(int num)
+
+char *TRANS_get_num_desc(ushort num)
 {
 	static const char *num_desc[3] = { "first", "second", "third" };
-	static char desc[6];
+	static char desc[8];
 
 	if (num < 1)
 		return NULL;

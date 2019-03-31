@@ -2,7 +2,7 @@
 
   c_color.h
 
-  (c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -46,5 +46,7 @@ void COLOR_hsv_to_rgb(int h, int s, int v, int *R, int *G, int *B);
 GB_COLOR COLOR_merge(GB_COLOR col1, GB_COLOR col2, double weight);
 GB_COLOR COLOR_lighter(GB_COLOR color);
 GB_COLOR COLOR_darker(GB_COLOR color);
+int COLOR_get_luminance(GB_COLOR color);
+GB_COLOR COLOR_set_luminance(GB_COLOR color, int l);
 
 #endif

@@ -2,7 +2,7 @@
 
   gb.form.const.h
 
-  (c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -97,5 +97,16 @@ enum {
 	POINTER_ERASER = 2,
 	POINTER_CURSOR = 3
 };
+
+enum {
+	MOUSE_LEFT = 1,
+	MOUSE_MIDDLE = 2,
+	MOUSE_RIGHT = 4,
+	MOUSE_SHIFT = 256,
+	MOUSE_CTRL = 512,
+	MOUSE_ALT = 1024,
+	MOUSE_META = 2048
+};
+
 
 #endif

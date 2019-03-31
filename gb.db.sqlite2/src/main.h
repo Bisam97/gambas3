@@ -2,7 +2,7 @@
 
   main.h
 
-  (c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -38,8 +38,6 @@ extern DB_INTERFACE DB;
 #define QUOTE_STRING "'"
 
 #define MAX_PATH 132 /* MAX LENGTH OF FILENAME PATH */
-#define TRUE 1
-#define FALSE 0
 
 #include "gb.db.proto.h"
 

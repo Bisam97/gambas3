@@ -2,7 +2,7 @@
 
   main.h
 
-  (c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -41,7 +41,7 @@ bool DB_Open(DB_DESC *desc, DB_DRIVER **driver, DB_DATABASE *db);
 char *DB_MakeQuery(DB_DRIVER *driver, const char *pattern, int len, int narg, GB_VALUE *arg);
 void DB_Format(DB_DRIVER *driver, GB_VALUE *arg, DB_FORMAT_CALLBACK func);
 void DB_FormatVariant(DB_DRIVER *driver, GB_VARIANT_VALUE *arg, DB_FORMAT_CALLBACK func);
-char *DB_GetQuotedTable(DB_DRIVER *driver, DB_DATABASE *db, const char *table);
+char *DB_GetQuotedTable(DB_DRIVER *driver, DB_DATABASE *db, const char *table, int len_table);
 
 void DB_LowerString(char *s);
 int DB_CheckNameWith(const char *name, const char *msg, const char *more);

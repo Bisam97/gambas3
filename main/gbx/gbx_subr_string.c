@@ -2,7 +2,7 @@
 
   gbx_subr_string.c
 
-  (c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -38,23 +38,8 @@
 #include "gbx_c_array.h"
 #include "gbx_local.h"
 #include "gbx_compare.h"
-#include "gb.pcre.h"
 
 //static int _count = 0;
-
-static PCRE_INTERFACE PCRE;
-
-static void init_pcre()
-{
-	static bool init = FALSE;
-
-	if (init)
-		return;
-
-	COMPONENT_load(COMPONENT_create("gb.pcre"));
-	LIBRARY_get_interface_by_name("gb.pcre", PCRE_INTERFACE_VERSION, &PCRE);
-	init = TRUE;
-}
 
 //---------------------------------------------------------------------------
 
@@ -404,11 +389,6 @@ void SUBR_upper(ushort code)
 	}
 }
 
-void SUBR_lower(void)
-{
-	SUBR_upper(1);
-}
-
 void SUBR_chr(void)
 {
 	int car;
@@ -455,12 +435,11 @@ void SUBR_instr(ushort code)
 {
 	bool right, nocase = FALSE;
 	int is, pos;
+	//int pos2;
 	char *ps, *pp;
 	int ls, lp;
 
 	SUBR_ENTER();
-
-	/* Knuth Morris Pratt one day maybe ? */
 
 	pos = 0;
 
@@ -489,6 +468,13 @@ void SUBR_instr(ushort code)
 	pp = PARAM[1]._string.addr + PARAM[1]._string.start;
 
 	pos = STRING_search(ps, ls, pp, lp, is, right, nocase);
+	/*pos2 = STRING_search2(ps, ls, pp, lp, is, right, nocase);
+	
+	if (pos != pos2)
+	{
+		for(;;)
+			usleep(1000);
+	}*/
 
 __FOUND:
 
@@ -539,8 +525,7 @@ __ENDS:
 
 __MATCH:
 
-	init_pcre();
-	ret = PCRE.Match(string, len_string, pattern, len_pattern, 0, 0);
+	ret = REGEXP_match_pcre(pattern, len_pattern, string, len_string);
 	goto __RETURN;
 
 __RETURN:
@@ -620,21 +605,51 @@ void SUBR_replace(ushort code)
 		return;
 	}
 
-	if (lp == 1 && lr == 1)
+	if (lp == lr)
 	{
-		char cp = *pp;
-		char cr = *pr;
-
 		ps = STRING_new_temp(ps, ls);
-
-		for (pos = 0; pos < ls; pos++)
-		{
-			if (ps[pos] == cp)
-				ps[pos] = cr;
-		}
-
 		RETURN->_string.addr = ps;
 		RETURN->_string.len = ls;
+
+		if (lp == 1)
+		{
+			char cp = *pp;
+			char cr = *pr;
+
+			if (nocase)
+			{
+				char cpl = tolower(cp);
+				cp = toupper(cp);
+				
+				for (pos = 0; pos < ls; pos++)
+				{
+					if (ps[pos] == cp || ps[pos] == cpl)
+						ps[pos] = cr;
+				}
+			}
+			else
+			{
+				for (pos = 0; pos < ls; pos++)
+				{
+					if (ps[pos] == cp)
+						ps[pos] = cr;
+				}
+			}
+		}
+		else
+		{
+			for(;;)
+			{
+				pos = STRING_search(ps, ls, pp, lp, 0, FALSE, nocase);
+				if (pos == 0)
+					break;
+				pos--;
+				memcpy(&ps[pos], pr, lp);
+				pos += lp;
+				ps += pos;
+				ls -= pos;
+			}
+		}
 	}
 	else
 	{
@@ -756,7 +771,7 @@ void SUBR_iconv(void)
 	STRING_conv(&result, str, len, src, dst, TRUE);
 
 	if (!result)
-		RETURN->type = T_NULL;
+		VALUE_null(RETURN);
 	else
 	{
 		RETURN->type = T_STRING;
@@ -798,7 +813,7 @@ void SUBR_sconv(ushort code)
 	STRING_conv(&result, str, len, src, dst, TRUE);
 
 	if (!result)
-		RETURN->type = T_NULL;
+		VALUE_null(RETURN);
 	else
 	{
 		RETURN->type = T_STRING;

@@ -353,7 +353,7 @@ Private Sub LoadUser(sUser As String) As Collection
   Dim sField As String
   Dim sValue As String
 
-  sPath = User.Home &/ "data/@/.user" &/ UCase(sUser)
+  sPath = User.Home &/ "guygle/data/@/.user" &/ UCase(sUser)
   If Not Exist(sPath) Then Return
   
   cUser = New Collection
@@ -477,6 +477,10 @@ Public Sub Main()
     Response.Begin
     Print Replace(File.Load(".public/style.css"), "<%/%>", Application.Root);
     Response.End
+    Return
+  Else If File.Name(Path) = "playground.js" Then
+    SetLanguage(Request["l"])
+    SendPlayground
     Return
   Else If Path And If Exist(".public" &/ Path) Then
     AddCacheHeaders
@@ -673,6 +677,10 @@ Public Sub Main()
 
     Endif
     
+    If Request["search"] Then
+      SearchWiki(Request["search"])
+    Endif
+    
   Endif
 
   If Image Then
@@ -699,6 +707,8 @@ End
 Public Sub SolvePath(sPath As String) As String
   
   Dim sData As String
+  
+  If sPath Not Begins "/" And If sPath Not Begins "." Then sPath = "/" & sPath
   
   Do
   
@@ -752,11 +762,11 @@ Public Sub IsImage(sPath As String) As Boolean
   Dim sExt As String
   
   sExt = File.Ext(sPath)
-  Return ["png", "jpg", "jpeg", "gif"].Exist(sExt)
+  Return ["png", "jpg", "jpeg", "gif", "webm"].Exist(sExt)
   
 End
 
-Private Sub GetContentTypeFrom(sPath As String) As String
+Public Sub GetContentTypeFrom(sPath As String) As String
   
   Select Case Lower(File.Ext(sPath))
     Case "css"
@@ -769,6 +779,8 @@ Private Sub GetContentTypeFrom(sPath As String) As String
       Return "image/gif"
     Case "tiff", "tif"
       Return "image/tiff"
+    Case "webm"
+      Return "video/webm"
     Case "odt"
       Return "application/vnd.oasis.opendocument.text"
     Case "doc"
@@ -1040,7 +1052,8 @@ Public Sub GetToDo() As String[]
   Dim aAllow As String[] = ["_new", "_put", "_get", "_call", "_next"]
   Dim sPath As String
   Dim aResult As New String[]
-
+  Dim aIndex As New String[]
+  
   aIgnore = GetIgnore()
 
   CComponent.Init
@@ -1092,7 +1105,8 @@ Public Sub GetToDo() As String[]
         If Not ExistPage(sPath) Then
           
           If bPrintComponent Then
-            aResult.Add("## [" & sComp & "] (/comp" &/ sComp & ")")
+            aResult.Add("## [[" & sComp & "] (/comp" &/ sComp & ")]")
+            aIndex.Add("- [" & sComp & "](#t" & CStr(aIndex.Count + 1) & ")")
             bPrintComponent = False
           Endif
           If bPrintClass Then
@@ -1108,6 +1122,9 @@ Public Sub GetToDo() As String[]
   Next
 
   aResult.Insert([Subst("There are &1 symbols to document yet.", CStr(iCpt)), ""], 0)
+  aIndex.Add("<div class=\"index\">", 0)
+  aIndex.Add("</div>")
+  aResult.Insert(aIndex, 1)
   Return aResult
   
 End
@@ -1430,3 +1447,88 @@ Public Sub GetTranslatorTable() As String[]
 End
 
 
+Private Sub SearchWiki(sText As String)
+
+  Dim sDir As String
+  Dim sFile As String
+  Dim sPath As String
+  Dim aFind As String[]
+  Dim sData As String
+  Dim iPos As Integer
+  Dim sCar As String
+
+  sText = Trim(sText)
+  If Not sText Then Return
+  
+  Session["search-query"] = sText
+  'sText = String.RemoveDiacritics(sText)
+  
+  aFind = New String[]
+  sDir = Root &/ "data" &/ Lang 
+  For Each sFile In RDir(sDir, "*", gb.Directory)
+    
+    sPath = GetPagePathFrom(sFile)
+    If Not Exist(sPath) Then Continue
+    
+    sData = File.Load(sPath)
+    iPos = 0
+    
+    Do
+      
+      iPos = InStr(sData, sText, iPos + 1, gb.IgnoreCase)
+      If iPos = 0 Then Break
+      
+      If iPos > 1 Then
+        sCar = Mid$(sData, iPos - 1, 1)
+        If IsLetter(sCar) Or If IsDigit(sCar) Or If Not IsAscii(sCar) Then Goto NEXT_SEARCH
+      Endif
+      
+      If iPos < Len(sData) Then
+        sCar = Mid$(sData, iPos + Len(sText), 1)
+        If IsLetter(sCar) Or If IsDigit(sCar) Or If Not IsAscii(sCar) Then Goto NEXT_SEARCH
+      Endif
+      
+      Break
+      
+    NEXT_SEARCH:
+      iPos += Len(sText)
+      
+    Loop
+    
+    If iPos Then aFind.Add("/" & sFile)
+    
+  Next
+  
+  Session["search-result"] = aFind
+  
+  Response.Redirect("/wiki/search")
+  Return
+  
+End
+
+Public Sub GetImageHTML(sPath As String) As String
+
+  If Main.GetContentTypeFrom(sPath) Begins "video/" Then
+    Return "<video src=\"" & Html(Application.Root &/ sPath) & "?v\" autoplay></video>"
+  Else
+    Return "<img src=\"" & Html(Application.Root &/ sPath) & "?v\" />"
+  Endif
+  
+End
+
+Private Sub SendPlayground()
+
+  Dim sData As String
+
+  sData = File.Load(".public/playground.js")
+  sData = Replace(sData, "((\"Run\"))", Quote(("Run")))
+  sData = Replace(sData, "((\"Play\"))", Quote(("Play")))
+  sData = Replace(sData, "((\"Loading...\"))", Quote(("Loading") & "..."))
+
+  Response.ContentType = "text/javascript"
+  AddCacheHeaders
+  Response.Begin
+  Print sData;
+  Response.End  
+
+End

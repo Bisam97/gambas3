@@ -2,7 +2,7 @@
 
   gbx_c_file.c
 
-  (c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -31,7 +31,7 @@
 #include <pwd.h>
 #include <grp.h>
 #include <sys/stat.h>
-#include <pty.h>
+#include <sys/ioctl.h>
 #include <termios.h>
 
 #include "gb_common.h"
@@ -95,10 +95,10 @@ static void watch_stream(CSTREAM *_object, int mode, bool on)
 	STREAM *stream = &THIS_STREAM->stream;
 	int fd = STREAM_handle(stream);
 	
-	if (mode & ST_READ)
+	if (mode & STO_READ)
 		GB_Watch(fd, GB_WATCH_READ, (void *)(on ? callback_read : NULL), (intptr_t)THIS);
 
-	if (mode & ST_WRITE)
+	if (mode & STO_WRITE)
 		GB_Watch(fd, GB_WATCH_WRITE, (void *)(on ? callback_write : NULL), (intptr_t)THIS);
 }
 
@@ -112,7 +112,7 @@ CFILE *CFILE_create(STREAM *stream, int mode)
 		*CSTREAM_stream(file) = *stream;
 		//file->watch_fd = -1;
 
-		if (mode & ST_WATCH)
+		if (mode & STO_WATCH)
 		{
 			watch_stream(&file->ob, mode, TRUE);
 			OBJECT_attach((OBJECT *)file, OP ? (OBJECT *)OP : (OBJECT *)CP, "File");
@@ -142,9 +142,9 @@ static CFILE *create_default_stream(FILE *file, int mode)
 
 void CFILE_init(void)
 {
-	CFILE_in = create_default_stream(stdin, ST_READ);
-	CFILE_out = create_default_stream(stdout, ST_WRITE);
-	CFILE_err = create_default_stream(stderr, ST_WRITE);
+	CFILE_in = create_default_stream(stdin, STO_READ);
+	CFILE_out = create_default_stream(stdout, STO_WRITE);
+	CFILE_err = create_default_stream(stderr, STO_WRITE);
 }
 
 void CFILE_exit(void)
@@ -609,12 +609,9 @@ BEGIN_METHOD(File_SetBaseName, GB_STRING path; GB_STRING new_basename)
 
 END_METHOD
 
-static STREAM *_stream;
-
-static void error_CFILE_load_save(void)
+static void error_CFILE_load_save(STREAM *stream)
 {
-	if (_stream)
-		STREAM_close(_stream);
+	STREAM_close(stream);
 }
 
 BEGIN_METHOD(File_Load, GB_STRING path)
@@ -622,21 +619,19 @@ BEGIN_METHOD(File_Load, GB_STRING path)
 	STREAM stream;
 	int64_t len;
 	int rlen;
-	char *str;
+	char *str = NULL;
 
-	ON_ERROR(error_CFILE_load_save)
+	STREAM_open(&stream, STRING_conv_file_name(STRING(path), LENGTH(path)), STO_READ);
+	
+	ON_ERROR_1(error_CFILE_load_save, &stream)
 	{
-		_stream = NULL;
-		STREAM_open(&stream, STRING_conv_file_name(STRING(path), LENGTH(path)), ST_READ);
-		_stream = &stream;
-
 		STREAM_lof(&stream, &len);
 		if (len >> 31)
 			THROW(E_MEMORY);
 		
 		if (len == 0)
 		{
-			char buffer[4096];
+			char buffer[256];
 			
 			str = NULL;
 			
@@ -647,8 +642,6 @@ BEGIN_METHOD(File_Load, GB_STRING path)
 				if (len < sizeof(buffer))
 					break;
 			}
-			
-			if (str) STRING_free_later(str);
 		}
 		else
 		{
@@ -657,12 +650,11 @@ BEGIN_METHOD(File_Load, GB_STRING path)
 			str = STRING_new(NULL, rlen);
 			rlen = STREAM_read_max(&stream, str, rlen);
 			str = STRING_extend(str, rlen);
-			STRING_free_later(str);
 		}
 		
 		STREAM_close(&stream);
-		_stream = NULL;
 
+		STRING_free_later(str);
 		GB_ReturnString(str);
 	}
 	END_ERROR
@@ -673,11 +665,10 @@ BEGIN_METHOD(File_Save, GB_STRING path; GB_STRING data)
 
 	STREAM stream;
 
-	ON_ERROR(error_CFILE_load_save)
+	STREAM_open(&stream, STRING_conv_file_name(STRING(path), LENGTH(path)), STO_CREATE);
+	
+	ON_ERROR_1(error_CFILE_load_save, &stream)
 	{
-		_stream = NULL;
-		STREAM_open(&stream, STRING_conv_file_name(STRING(path), LENGTH(path)), ST_CREATE);
-		_stream = &stream;
 		STREAM_write(&stream, STRING(data), LENGTH(data));
 		STREAM_close(&stream);
 	}
@@ -736,6 +727,22 @@ BEGIN_METHOD(File_IsHidden, GB_STRING path)
 	}
 	
 	GB_ReturnBoolean(FALSE);
+
+END_METHOD
+
+BEGIN_METHOD(File_RealPath, GB_STRING path)
+
+	char *path = STRING_conv_file_name(STRING(path), LENGTH(path));
+	char *rpath = NULL;
+	
+	if (!FILE_is_relative(path))
+	{
+		rpath = realpath(path, NULL);
+		path = rpath;
+	}
+	
+	GB_ReturnNewZeroString(path);
+	if (rpath) free(rpath);
 
 END_METHOD
 
@@ -867,9 +874,9 @@ BEGIN_METHOD(Stream_Watch, GB_INTEGER mode; GB_BOOLEAN on)
 	int mode = VARG(mode);
 	
 	if (mode == R_OK)
-		mode = ST_READ;
+		mode = STO_READ;
 	else if (mode == W_OK)
-		mode = ST_WRITE;
+		mode = STO_WRITE;
 	else
 	{
 		GB_Error("Unknown watch");
@@ -1123,6 +1130,8 @@ GB_DESC FileDesc[] =
 	GB_STATIC_METHOD("Load", "s", File_Load, "(FileName)s"),
 	GB_STATIC_METHOD("Save", NULL, File_Save, "(FileName)s(Data)s"),
 
+	GB_STATIC_METHOD("RealPath", "s", File_RealPath, "(Path)s"),
+	
 	GB_EVENT("Read", NULL, NULL, &EVENT_Read),
 	GB_EVENT("Write", NULL, NULL, &EVENT_Write),
 	GB_EVENT("Resize", NULL, NULL, &EVENT_Resize),

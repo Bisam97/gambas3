@@ -2,7 +2,7 @@
 
   gb.form.arrangement.h
 
-  (c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -405,7 +405,7 @@ void FUNCTION_NAME(void *_object) //(QFrame *cont)
 							//w = autoresize ? GET_WIDGET_W(wid) : wc;
 							w = wc;
 
-							if (h > 0 && w > 0)
+							if (h >= 0 && w >= 0)
 							{
 								if (w != GET_WIDGET_W(wid) || h != GET_WIDGET_H(wid))
 									redo = true;
@@ -438,7 +438,7 @@ void FUNCTION_NAME(void *_object) //(QFrame *cont)
 							//h = autoresize ? GET_WIDGET_H(wid) : hc;
 							h = hc;
 
-							if (w > 0 && h > 0)
+							if (w >= 0 && h >= 0)
 							{
 								if (w != GET_WIDGET_W(wid) || h != GET_WIDGET_H(wid))
 									redo = true;

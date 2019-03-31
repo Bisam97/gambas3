@@ -2,7 +2,7 @@
 
   gbc_read.c
 
-  (c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -523,6 +523,8 @@ static bool add_number()
 			goto READ_HEXA;
 		else if (car == 'X')
 			goto READ_BINARY;
+		else if (car == 'O')
+			goto READ_OCTAL;
 		else
 		{
 			source_ptr--;
@@ -542,7 +544,20 @@ READ_BINARY:
 	for (;;)
 	{
 		car = next_char();
-		if (UNLIKELY(car != '0' && car != '1'))
+		if (car != '0' && car != '1')
+			break;
+		has_digit = TRUE;
+	}
+	
+	goto END_BINARY_HEXA;
+
+READ_OCTAL:
+
+	has_digit = FALSE;
+	for (;;)
+	{
+		car = next_char();
+		if (car < '0' || car > '7')
 			break;
 		has_digit = TRUE;
 	}
@@ -555,7 +570,7 @@ READ_HEXA:
 	for (;;)
 	{
 		car = next_char();
-		if (UNLIKELY(!isxdigit(car)))
+		if (!isxdigit(car))
 			break;
 		has_digit = TRUE;
 	}
@@ -837,19 +852,24 @@ static void add_quoted_identifier(void)
 	type = RT_IDENTIFIER;
 
 	start = source_ptr;
-	len = 1;
+	len = 0;
 
 	for(;;)
 	{
-		source_ptr++;
-		car = get_char();
+		car = next_char();
 		if (!ident_car[car])
 			break;
 		len++;
 	}
 
-	if (get_char() == '}')
-		source_ptr++;
+	if (car != '}')
+		THROW("Missing '}'");
+	
+	if (len == 0)
+		THROW("Void identifier");
+	
+	source_ptr++;
+	start++;
 
 	if (PATTERN_is(last_pattern, RS_EVENT) || PATTERN_is(last_pattern, RS_RAISE))
 	{
@@ -921,6 +941,7 @@ static int xdigit_val(unsigned char c)
 	else
 		return (-1);
 }
+
 
 static void add_string()
 {
@@ -1027,7 +1048,7 @@ static void add_string()
 		add_pattern(RT_STRING, index);
 	}
 	else
-		add_pattern(RT_STRING, VOID_STRING);
+		add_pattern(RT_STRING, VOID_STRING_INDEX);
 
 	source_ptr = end + 1;
 	//for (i = 0; i < newline; i++)
@@ -1146,7 +1167,6 @@ void READ_do(void)
 
 	__QUOTED_IDENT:
 	
-		source_ptr++;
 		add_quoted_identifier();
 		_begin_line = FALSE;
 		continue;

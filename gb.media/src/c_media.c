@@ -4,7 +4,7 @@
 
   gb.media component
 
-  (c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -30,6 +30,13 @@
 #include <gst/base/gstbasesink.h>
 #include <gst/video/video.h>
 #include <gst/video/videooverlay.h>
+
+#if GST_CHECK_VERSION(1, 16, 0)
+#else
+#define GST_SEEK_FLAG_TRICKMODE GST_SEEK_FLAG_SKIP
+#define GST_SEEK_FLAG_TRICKMODE_KEY_UNITS (1 << 7)
+#define GST_SEEK_FLAG_TRICKMODE_NO_AUDIO (1 << 8)
+#endif
 
 static void *_from_element = NULL;
 
@@ -526,11 +533,13 @@ GB_IMG *MEDIA_get_image_from_sample(GstSample *sample, bool convert)
 	switch (IMAGE.GetDefaultFormat())
 	{
 		case GB_IMAGE_BGRA:
+		case GB_IMAGE_BGRP:
 			format = "BGR";
 			gb_format = GB_IMAGE_BGR;
 			break;
 
 		case GB_IMAGE_RGBA:
+		case GB_IMAGE_RGBP:
 			format = "RGB";
 			gb_format = GB_IMAGE_RGB;
 			break;
@@ -629,6 +638,100 @@ static GB_IMG *get_last_image(void *_object)
 		return NULL;
 
 	return MEDIA_get_image_from_sample(sample, TRUE);
+}
+
+static GstIteratorResult iterator_next_pad(GstIterator *iter, GstPad **pad)
+{
+	GstIteratorResult ret;
+	GValue value = G_VALUE_INIT;
+	
+	ret = gst_iterator_next(iter, &value);
+	if (ret == GST_ITERATOR_OK)
+	{
+		if (G_VALUE_HOLDS_BOXED(&value))
+			*pad = g_value_get_boxed(&value);
+		else
+			*pad = (GstPad *)g_value_get_object(&value);
+	}
+	
+	return ret;
+}
+
+static GstElement *find_sink(GstElement *pipeline)
+{
+	int i;
+	GstIterator *iter;
+	GstElement *element;
+	GstPad *pad;
+	bool done;
+	bool got_pad;
+	
+	for (i = 0; i < gst_child_proxy_get_children_count(GST_CHILD_PROXY(pipeline)); i++)
+	{
+		element = (GstElement *)gst_child_proxy_get_child_by_index(GST_CHILD_PROXY(pipeline), i);
+	
+		iter = gst_element_iterate_src_pads(element);
+
+		done = FALSE;
+		got_pad = FALSE;
+		while (!done) 
+		{
+			switch (iterator_next_pad(iter, &pad)) 
+			{
+				case GST_ITERATOR_OK:
+					gst_object_unref(pad);
+					got_pad = TRUE;
+					done = TRUE;
+					break;
+				case GST_ITERATOR_RESYNC:
+					gst_iterator_resync(iter);
+					break;
+				case GST_ITERATOR_ERROR:
+				case GST_ITERATOR_DONE:
+					done = TRUE;
+					break;
+			}
+		}
+		
+		gst_iterator_free(iter);
+		
+		if (!got_pad)
+			return element;
+		
+		gst_object_unref(element);
+	}
+	
+	GB.Error("Unable to find sink");
+	return NULL;
+}
+
+static void set_pipeline_rate(void *_object)
+{
+	gint64 pos;
+	GstElement *sink;
+	double rate;
+
+	if (THIS->state != GST_STATE_PLAYING && THIS->state != GST_STATE_PAUSED)
+		return;
+	
+	rate = THIS_PIPELINE->next_rate;
+	if (rate == THIS_PIPELINE->rate)
+		return;
+	
+	sink = find_sink(ELEMENT);
+	if (!sink)
+		return;
+	
+	gst_element_query_position(ELEMENT, GST_FORMAT_TIME, &pos);
+	
+	if (rate > 0)
+		gst_element_seek(sink, rate, GST_FORMAT_TIME, GST_SEEK_FLAG_FLUSH | GST_SEEK_FLAG_ACCURATE, GST_SEEK_TYPE_SET, pos, GST_SEEK_TYPE_END, 0);
+	else
+		gst_element_seek(sink, rate, GST_FORMAT_TIME, GST_SEEK_FLAG_FLUSH | GST_SEEK_FLAG_ACCURATE, GST_SEEK_TYPE_SET, 0, GST_SEEK_TYPE_SET, pos);
+
+	gst_object_unref(sink);
+
+	THIS_PIPELINE->rate = THIS_PIPELINE->next_rate;	
 }
 
 #if 0
@@ -1177,23 +1280,6 @@ BEGIN_METHOD(MediaControl_LinkLaterTo, GB_OBJECT dest)
 
 END_METHOD
 
-static GstIteratorResult iterator_next_pad(GstIterator *iter, GstPad **pad)
-{
-	GstIteratorResult ret;
-	GValue value = G_VALUE_INIT;
-	
-	ret = gst_iterator_next(iter, &value);
-	if (ret == GST_ITERATOR_OK)
-	{
-		if (G_VALUE_HOLDS_BOXED(&value))
-			*pad = g_value_get_boxed(&value);
-		else
-			*pad = (GstPad *)g_value_get_object(&value);
-	}
-	
-	return ret;
-}
-
 static void fill_pad_list(GB_ARRAY array, GstIterator *iter)
 {
 	bool done = FALSE;
@@ -1551,6 +1637,7 @@ DECLARE_EVENT(EVENT_Tag);
 DECLARE_EVENT(EVENT_Event);
 DECLARE_EVENT(EVENT_Buffering);
 DECLARE_EVENT(EVENT_Duration);
+DECLARE_EVENT(EVENT_Position);
 DECLARE_EVENT(EVENT_Progress);
 DECLARE_EVENT(EVENT_AboutToFinish);
 
@@ -1676,7 +1763,7 @@ static int cb_message(CMEDIAPIPELINE *_object)
 					break;
 				}
 				case GST_MESSAGE_BUFFERING: GB.Raise(THIS, EVENT_Buffering, 0); break;
-				case GST_MESSAGE_DURATION: GB.Raise(THIS, EVENT_Duration, 0); break;
+				case GST_MESSAGE_DURATION_CHANGED: GB.Raise(THIS, EVENT_Duration, 0); break;
 				case GST_MESSAGE_PROGRESS: GB.Raise(THIS, EVENT_Progress, 0); break;
 				
 				case GST_MESSAGE_STREAM_START:
@@ -1697,16 +1784,21 @@ static int cb_message(CMEDIAPIPELINE *_object)
 	
 	THIS_PIPELINE->in_message = FALSE;
 	
-	if (THIS->state == GST_STATE_PLAYING && !THIS->error)
+	if ((THIS->state == GST_STATE_PLAYING || THIS->state == GST_STATE_PAUSED) && !THIS->error)
 	{
-		gst_element_query_position(ELEMENT, GST_FORMAT_TIME, &THIS_PIPELINE->pos);
-		//fprintf(stderr, "%" PRId64 " / %" PRId64 "\n", THIS_PIPELINE->pos, THIS_PIPELINE->duration);
-		if (!THIS_PIPELINE->about_to_finish && THIS_PIPELINE->pos > (THIS_PIPELINE->duration - 2000000000))
+		gint64 pos;
+		gst_element_query_position(ELEMENT, GST_FORMAT_TIME, &pos);
+		if (pos >= 0 && pos != THIS_PIPELINE->pos)
 		{
-			THIS_PIPELINE->about_to_finish = TRUE;
-			GB.Raise(THIS, EVENT_AboutToFinish, 0);
+			THIS_PIPELINE->pos = pos;
+			GB.Raise(THIS, EVENT_Position, 0);
+			//fprintf(stderr, "%" PRId64 " / %" PRId64 "\n", THIS_PIPELINE->pos, THIS_PIPELINE->duration);
+			if (!THIS_PIPELINE->about_to_finish && THIS_PIPELINE->pos > (THIS_PIPELINE->duration - 2000000000))
+			{
+				THIS_PIPELINE->about_to_finish = TRUE;
+				GB.Raise(THIS, EVENT_AboutToFinish, 0);
+			}
 		}
-			
 	}
 	
 	return FALSE;
@@ -1755,6 +1847,8 @@ BEGIN_METHOD(MediaPipeline_new, GB_INTEGER polling)
 		THIS_PIPELINE->polling = polling;
 		THIS_PIPELINE->watch = GB.Every(polling, (GB_TIMER_CALLBACK)cb_message, (intptr_t)THIS);
 	}
+	
+	THIS_PIPELINE->rate = THIS_PIPELINE->next_rate = 1.0;
 
 END_METHOD
 
@@ -1774,6 +1868,7 @@ BEGIN_METHOD_VOID(MediaPipeline_Play)
 	THIS->eos = FALSE;
 	MEDIA_set_state(THIS, GST_STATE_PLAYING, TRUE);
 	cb_message(THIS_PIPELINE);
+	set_pipeline_rate(THIS);
 
 END_METHOD
 
@@ -1800,6 +1895,24 @@ BEGIN_METHOD_VOID(MediaPipeline_Pause)
 
 END_METHOD
 
+static void pipeline_seek(void *_object, gint64 pos, GstSeekFlags flags)
+{
+	if (pos < 0) 
+		pos = 0;
+
+	gst_element_seek(ELEMENT, THIS_PIPELINE->rate, GST_FORMAT_TIME, GST_SEEK_FLAG_FLUSH | flags, GST_SEEK_TYPE_SET, pos, GST_SEEK_TYPE_NONE, 0);
+	cb_message(THIS_PIPELINE);
+}
+
+BEGIN_METHOD(MediaPipeline_Seek, GB_FLOAT position; GB_INTEGER flag)
+
+	gint64 pos = VARG(position) * 1E9;
+	GstSeekFlags flags = (GstSeekFlags)VARGOPT(flag, GST_SEEK_FLAG_NONE);
+	
+	pipeline_seek(THIS, pos, flags);
+
+END_METHOD
+
 BEGIN_PROPERTY(MediaPipeline_Position)
 
 	if (READ_PROPERTY)
@@ -1809,11 +1922,7 @@ BEGIN_PROPERTY(MediaPipeline_Position)
 	else
 	{
 		gint64 pos = VPROP(GB_FLOAT) * 1E9;
-		
-		if (pos < 0) 
-			pos = 0;
-
-		gst_element_seek_simple(ELEMENT, GST_FORMAT_TIME, GST_SEEK_FLAG_FLUSH | GST_SEEK_FLAG_KEY_UNIT, (guint64)pos);
+		pipeline_seek(THIS, pos, GST_SEEK_FLAG_ACCURATE);
 	}
 
 END_PROPERTY
@@ -1823,6 +1932,41 @@ BEGIN_PROPERTY(MediaPipeline_Duration)
 	GB.ReturnFloat((double)(THIS_PIPELINE->duration / 1000) / 1E6);
 
 END_PROPERTY
+
+BEGIN_PROPERTY(MediaPipeline_Speed)
+
+	if (READ_PROPERTY)
+		GB.ReturnFloat(THIS_PIPELINE->rate);
+	else
+	{
+		double rate = VPROP(GB_FLOAT);
+		if (fabs(rate) <= 1E-6)
+		{
+			GB.Error(GB_ERR_ARG);
+			return;
+		}
+		
+		THIS_PIPELINE->next_rate = rate;
+		set_pipeline_rate(THIS);
+	}
+
+END_PROPERTY
+
+BEGIN_METHOD(MediaPipeline_Forward, GB_INTEGER count)
+
+	GstElement *sink;
+	int count = VARGOPT(count, 1);
+	
+	if (count <= 0)
+		return;
+	
+	sink = find_sink(ELEMENT);
+	if (!sink)
+		return;
+	
+	gst_element_send_event(sink, gst_event_new_step(GST_FORMAT_BUFFERS, fabs(count), 1.0, TRUE, FALSE));
+	
+END_METHOD
 
 //---- Media --------------------------------------------------------------
 
@@ -2033,12 +2177,17 @@ GB_DESC MediaPipelineDesc[] =
 	
 	GB_PROPERTY("Position", "f", MediaPipeline_Position),
 	GB_PROPERTY_READ("Duration", "f", MediaPipeline_Duration),
+	GB_PROPERTY("Pos", "f", MediaPipeline_Position),
 	GB_PROPERTY_READ("Length", "f", MediaPipeline_Duration),
 	
 	GB_METHOD("Play", NULL, MediaPipeline_Play, NULL),
 	GB_METHOD("Stop", NULL, MediaPipeline_Stop, NULL),
 	GB_METHOD("Pause", NULL, MediaPipeline_Pause, NULL),
 	GB_METHOD("Close", NULL, MediaPipeline_Close, NULL),
+
+	GB_METHOD("Seek", NULL, MediaPipeline_Seek, "(Position)f[(Flags)i]"),
+	GB_PROPERTY("Speed", "f", MediaPipeline_Speed),
+	GB_METHOD("Forward", NULL, MediaPipeline_Forward, "[(Frames)i]"),
 	
 	GB_EVENT("Start", NULL, NULL, &EVENT_Start),
 	GB_EVENT("End", NULL, NULL, &EVENT_End),
@@ -2047,6 +2196,7 @@ GB_DESC MediaPipelineDesc[] =
 	GB_EVENT("Event", NULL, "(Message)MediaMessage;", &EVENT_Event),
 	GB_EVENT("Buffering", NULL, NULL, &EVENT_Buffering),
 	GB_EVENT("Duration", NULL, NULL, &EVENT_Duration),
+	GB_EVENT("Position", NULL, NULL, &EVENT_Position),
 	GB_EVENT("Progress", NULL, NULL, &EVENT_Progress),
 	GB_EVENT("AboutToFinish", NULL, NULL, &EVENT_AboutToFinish),
 	
@@ -2068,6 +2218,15 @@ GB_DESC MediaDesc[] =
 	GB_CONSTANT("Warning", "i", 1),
 	GB_CONSTANT("Error", "i", 2),
 
+	GB_CONSTANT("SeekAccurate", "i", GST_SEEK_FLAG_ACCURATE),
+	GB_CONSTANT("SeekKeyUnit", "i", GST_SEEK_FLAG_KEY_UNIT),
+	GB_CONSTANT("SeekTrickMode", "i", GST_SEEK_FLAG_TRICKMODE),
+	GB_CONSTANT("SeekSnapBefore", "i", GST_SEEK_FLAG_SNAP_BEFORE),
+	GB_CONSTANT("SeekSnapAfter", "i", GST_SEEK_FLAG_SNAP_AFTER),
+	GB_CONSTANT("SeekSnapNearest", "i", GST_SEEK_FLAG_SNAP_NEAREST),
+	GB_CONSTANT("SeekTrickModeKeyUnit", "i", GST_SEEK_FLAG_TRICKMODE_KEY_UNITS),
+	GB_CONSTANT("SeekTrickModeNoAudio", "i", GST_SEEK_FLAG_TRICKMODE_NO_AUDIO),
+	
 	GB_STATIC_METHOD("Link", NULL, Media_Link, "(FirstControl)MediaControl;(SecondControl)MediaControl;."),
 	GB_STATIC_METHOD("Time", "l", Media_Time, "(Seconds)f"),
 	GB_STATIC_METHOD("URL", "s", Media_URL, "(Path)s"),

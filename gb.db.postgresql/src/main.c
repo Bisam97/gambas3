@@ -2,7 +2,7 @@
 
   main.c
 
-  (c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
   (c) 2011-2012 Bruce Bruen <bbruen@paddys-hill.net>
 
   This program is free software; you can redistribute it and/or modify
@@ -40,6 +40,14 @@
 	#undef PACKAGE_TARNAME
 	#undef PACKAGE_VERSION
 	#undef PACKAGE_URL
+#endif
+
+#ifdef Max
+	#undef Max
+#endif
+
+#ifdef Min
+	#undef Min
 #endif
 
 #include "gb.db.proto.h"
@@ -177,8 +185,8 @@ static char *get_quoted_table(const char *table)
 	}
 	else
 	{
-		res = GB.TempString(NULL, len + 2);
-		sprintf(res, "%.*s.\"%s\"", (int)(point - table), table, point + 1);
+		res = GB.TempString(NULL, len + 4);
+		sprintf(res, "\"%.*s\".\"%s\"", (int)(point - table), table, point + 1);
 	}
 
 	return res;
@@ -187,6 +195,7 @@ static char *get_quoted_table(const char *table)
 static bool get_table_schema(const char **table, char **schema)
 {
 	char *point;
+	int len;
 
 	//fprintf(stderr, "get_table_schema: %s\n", *table);
 
@@ -201,14 +210,19 @@ static bool get_table_schema(const char **table, char **schema)
 	point = strchr(*table, '.');
 	if (!point)
 	{
-		//fprintf(stderr, "get_table_schema: -> No point\n");
 		*schema = "public";
-		return FALSE;
 	}
-
-	*schema = GB.TempString(*table, point - *table);
-	*table = point + 1;
-	//fprintf(stderr, "get_table_schema: -> %s / %s\n", *schema, *table);
+	else
+	{
+		len = point - *table;
+		if (len >= 3 && **table == '"' && (*table)[len - 1] == '"')
+			*schema = GB.TempString(*table + 1, len - 2);
+		else
+			*schema = GB.TempString(*table, len);
+		
+		*table = point + 1;
+	}
+		
 	return FALSE;
 }
 
@@ -515,8 +529,7 @@ static void query_get_param(int index, char **str, int *len, char quote)
 
 /* Internal function to run a query */
 
-static int do_query(DB_DATABASE *db, const char *error, PGresult **pres,
-										const char *qtemp, int nsubst, ...)
+static int do_query(DB_DATABASE *db, const char *error, PGresult **pres, const char *qtemp, int nsubst, ...)
 {
 	PGconn *conn = (PGconn *)db->handle;
 	va_list args;
@@ -757,7 +770,7 @@ static int open_database(DB_DESC *desc, DB_DATABASE *db)
 
 	db->flags.no_table_type = TRUE;
 	//db->flags.no_nest = TRUE;
-	db->flags.no_case = TRUE;
+	//db->flags.no_case = TRUE;
 	db->flags.schema = TRUE;
 	db->flags.no_collation = db->version < 90100;
 
@@ -951,6 +964,25 @@ static int exec_query(DB_DATABASE *db, const char *query, DB_RESULT *result, con
 }
 
 
+/*****************************************************************************
+
+	get_last_insert_id()
+
+	Return the value of the last serial field used in an INSERT statement
+
+	<db> is the database handle, as returned by open_database()
+
+*****************************************************************************/
+
+static int64_t get_last_insert_id(DB_DATABASE *db)
+{
+	PGresult *res;
+
+	if (do_query(db, "Unable to retrieve last insert id: &1", &res, "select lastval()", 0))
+		return -1;
+
+	return atoll(PQgetvalue(res, 0, 0));
+}
 
 
 /*****************************************************************************
@@ -1104,9 +1136,9 @@ static char *field_name(DB_RESULT result, int field)
 
 *****************************************************************************/
 
-static int field_index(DB_RESULT Result, const char *name, DB_DATABASE *db)
+static int field_index(DB_RESULT result, const char *name, DB_DATABASE *db)
 {
-	PGresult *result = (PGresult *)Result;
+	PGresult *res = (PGresult *)result;
 
 	char *fld;
 	int index;
@@ -1116,6 +1148,7 @@ static int field_index(DB_RESULT Result, const char *name, DB_DATABASE *db)
 		"select oid from pg_class where relname = '&1' "
 		"and ((relnamespace not in (select oid from pg_namespace where nspname = 'information_schema')))";
 
+	numfields = PQnfields(res);
 	fld = strrchr(name, (int)FLD_SEP);
 
 	if (fld)
@@ -1133,54 +1166,66 @@ static int field_index(DB_RESULT Result, const char *name, DB_DATABASE *db)
 			/* Need to find the OID for the table */
 			PGresult *oidres;
 
-			if (do_query(db, "Unable to get OID for table &1", &oidres, qfield, 1, table)){
-			GB.FreeString(&table);
-			return -1;
+			if (do_query(db, "Unable to get OID for table &1", &oidres, qfield, 1, table))
+			{
+				GB.FreeString(&table);
+				return -1;
+			}
+
+			if ( PQntuples(oidres) != 1)
+			{
+				/* Not unique table identifier */
+				GB.Error("Table &1 not unique in pg_class", table);
+				PQclear(oidres);
+				GB.FreeString(&table);
+				return -1;
+			}
+
+			oid = atoi(PQgetvalue(oidres, 0, 0));
+			PQclear(oidres);
+			index = PQfnumber(res, fld);
+
+			if (PQftable(res, index) != oid)
+			{
+				while ( ++index < numfields)
+				{
+					if (strcasecmp(PQfname(res, index), fld) == 0)
+					{ //Check Fieldname
+						if (PQftable(res, index) == oid)
+						{ //check oid
+							break; // is the required table oid
+						}
+					}
 				}
 
-				if ( PQntuples(oidres) != 1){
-				/* Not unique table identifier */
-					GB.Error("Table &1 not unique in pg_class", table);
-					PQclear(oidres);
+				if ( index == numfields )
+				{
+					/* field not found for OID */
+					GB.Error("Field &1.&2 not found", table, fld);
 					GB.FreeString(&table);
 					return -1;
 				}
 
-	oid = atoi(PQgetvalue(oidres, 0, 0));
-				PQclear(oidres);
-	numfields = PQnfields((PGresult *)result);
-				index = PQfnumber((PGresult *)result, fld);
-
-	if (PQftable((PGresult *)result, index) != oid){
-		numfields = PQnfields((PGresult *)result);
-		while ( ++index < numfields){
-				if (strcasecmp(PQfname((PGresult *)result, index),
-							fld) == 0){ //Check Fieldname
-						if (PQftable((PGresult *)result, index) == oid){ //check oid
-				break; // is the required table oid
-						}
-				}
+			}
+		
+			GB.FreeString(&table);
 		}
-
-		if ( index == numfields ){
-		/* field not found for OID */
-							GB.Error("Field &1.&2 not found", table, fld);
-				GB.FreeString(&table);
-				return -1;
-		}
-
-	}
-		GB.FreeString(&table);
-		}
-		else {
-		/* Using tablename and fieldname in a non supported
-		* version */
-					GB.Error("Field &1.&2 not supported below 7.4.1", table, fld);
-		return -1;
+		else
+		{
+			/* Using tablename and fieldname in a non supported version */
+			GB.Error("Field &1.&2 not supported below 7.4.1", table, fld);
+			return -1;
 		}
 	}
-	else {
-			index = PQfnumber((PGresult *)result, name);
+	else 
+	{
+		for (index = 0; index < numfields; index++)
+		{
+			if (strcasecmp(PQfname(res, index), name) == 0)
+				break;
+		}
+		if (index >= numfields)
+			index = -1;
 	}
 
 	return index;
@@ -1259,7 +1304,7 @@ static int begin_transaction(DB_DATABASE *db)
 	{
 		char buffer[8];
 		sprintf(buffer, "%d", trans - 1);
-		return do_query(db, "Unable to begin transaction: &1", NULL, "SAVEPOINT t&1", 1, buffer);
+		return do_query(db, "Unable to begin transaction: Unable to define savepoint: &1", NULL, "SAVEPOINT t&1", 1, buffer);
 	}
 }
 
@@ -1290,7 +1335,7 @@ static int commit_transaction(DB_DATABASE *db)
 	{
 		char buffer[8];
 		sprintf(buffer, "%d", trans);
-		return do_query(db, "Unable to begin transaction: &1", NULL, "RELEASE SAVEPOINT t&1", 1, buffer);
+		return do_query(db, "Unable to commit transaction: Unable to release savepoint: &1", NULL, "RELEASE SAVEPOINT t&1", 1, buffer);
 	}
 }
 
@@ -1943,7 +1988,7 @@ static int table_create(DB_DATABASE *db, const char *table, DB_FIELD *fields, ch
 			comma = TRUE;
 
 		DB.Query.Add(QUOTE_STRING);
-		DB.Query.AddLower(fp->name);
+		DB.Query.Add(fp->name);
 		DB.Query.Add(QUOTE_STRING);
 
 		if (fp->type == DB_T_SERIAL)
@@ -2010,7 +2055,7 @@ static int table_create(DB_DATABASE *db, const char *table, DB_FIELD *fields, ch
 				DB.Query.Add(",");
 
 			DB.Query.Add(QUOTE_STRING);
-			DB.Query.AddLower(primary[i]);
+			DB.Query.Add(primary[i]);
 			DB.Query.Add(QUOTE_STRING);
 		}
 

@@ -2,7 +2,7 @@
 
 	CFont.cpp
 
-	(c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+	(c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -131,7 +131,12 @@ static void set_font_from_string(CFONT *_object, QString &str)
 			size = elt.toDouble(&number);
 
 			if (flag == "BOLD")
+			{
 				f.setBold(true);
+#if QT_VERSION >= QT_VERSION_CHECK(4, 8, 0)
+				f.setStyleName("Bold");
+#endif
+			}
 			else if (flag == "ITALIC")
 				f.setItalic(true);
 			else if (flag == "UNDERLINE")
@@ -152,6 +157,9 @@ static void set_font_from_string(CFONT *_object, QString &str)
 				f.setUnderline(false);
 				f.setStrikeOut(false);
 				f.setFamily(elt);
+#if QT_VERSION >= QT_VERSION_CHECK(4, 8, 0)
+				f.setStyleName("");
+#endif
 			}
 		}
 	}
@@ -219,10 +227,6 @@ static void CFONT_manage(int prop, CFONT *_object, void *_param)
 					GB.ReturnFloat(SIZE_REAL_TO_VIRTUAL(f->pointSizeF()));
 				break;
 			case CFONT::Grade:
-				/*{
-					float r = logf(f->pointSizeFloat()) / logf(qApp->font().pointSizeFloat());
-					GB.ReturnInteger((int)(10 * r + 0.5) - 10);
-				}*/
 				GB.ReturnInteger(SIZE_TO_GRADE(f->pointSizeF(), qApp->font().pointSizeF()));
 				break;
 			case CFONT::Bold: GB.ReturnBoolean(f->bold()); break;
@@ -253,11 +257,10 @@ static void CFONT_manage(int prop, CFONT *_object, void *_param)
 			case CFONT::Grade:
 				{
 					int g = VPROP(GB_INTEGER);
-					if (g < -4)
-						g = -4;
-					else if (g > 24)
-						g = 24;
-					//f->setPointSizeFloat((int)(powf(qApp->font().pointSizeFloat(), 1.0 + ((int)g / 16.0)) + 0.5));
+					if (g < FONT_GRADE_MIN)
+						g = FONT_GRADE_MIN;
+					else if (g > FONT_GRADE_MAX)
+						g = FONT_GRADE_MAX;
 					f->setPointSizeF(GRADE_TO_SIZE(g, qApp->font().pointSizeF()));
 				}
 				break;

@@ -2,7 +2,7 @@
 
   gbc_class.c
 
-  (c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -228,18 +228,26 @@ void CLASS_check_unused_global(CLASS *class)
 		sym = CLASS_get_symbol(class, i);
 		type = sym->global.type;
 		
-		if (sym->global_used)
+		if (sym->global_used && sym->global_assigned)
 			continue;
 		
 		if (TYPE_is_null(type) || TYPE_is_public(type))
 			continue;
 		
-		if (TYPE_get_kind(type) == TK_VARIABLE)
-			COMPILE_print(MSG_WARNING, sym->global.line, "unused global variable: &1", SYMBOL_get_name(&sym->symbol));
-		else if (TYPE_get_kind(type) == TK_FUNCTION)
-			COMPILE_print(MSG_WARNING, sym->global.line, "unused function: &1", SYMBOL_get_name(&sym->symbol));
-		else if (TYPE_get_kind(type) == TK_EXTERN)
-			COMPILE_print(MSG_WARNING, sym->global.line, "unused extern function: &1", SYMBOL_get_name(&sym->symbol));
+		if (!sym->global_used)
+		{
+			if (TYPE_get_kind(type) == TK_VARIABLE)
+				COMPILE_print(MSG_WARNING, sym->global.line, "unused global variable: &1", SYMBOL_get_name(&sym->symbol));
+			else if (TYPE_get_kind(type) == TK_FUNCTION)
+				COMPILE_print(MSG_WARNING, class->function[sym->global.value].line - 1, "unused function: &1", SYMBOL_get_name(&sym->symbol));
+			else if (TYPE_get_kind(type) == TK_EXTERN)
+				COMPILE_print(MSG_WARNING, sym->global.line, "unused extern function: &1", SYMBOL_get_name(&sym->symbol));
+		}
+		else
+		{
+			if (TYPE_get_kind(type) == TK_VARIABLE)
+				COMPILE_print(MSG_WARNING, sym->global.line, "uninitialized global variable: &1", SYMBOL_get_name(&sym->symbol));
+		}
 	}
 }
 
@@ -303,6 +311,7 @@ void CLASS_add_function(CLASS *class, TRANS_FUNC *decl)
 	func->npmin = -1;
 	func->vararg = decl->vararg;
 	func->fast = decl->fast;
+	func->unsafe = decl->unsafe;
 
 	// Function startup
 
@@ -579,6 +588,7 @@ int CLASS_get_array_class(CLASS *class, int type, int value)
 		};
 
 	int index;
+	//CLASS_REF *cref;
 
 	if (value < 0)
 	{
@@ -593,7 +603,6 @@ int CLASS_get_array_class(CLASS *class, int type, int value)
 				index = CLASS_add_symbol(class, names[type]);
 			index = CLASS_add_class_exported(class, index);
 			_array_class[type] = index;
-			//printf("%s -> %ld\n", name[type], index);
 		}
 	}
 	else
@@ -617,6 +626,15 @@ int CLASS_get_array_class(CLASS *class, int type, int value)
 			index = CLASS_add_class(JOB->class, index);
 	}
 
+	JOB->class->class[index].type = TYPE_make(type, value, 0);
+	
+	/*cref = &class->class[index];
+	if (TYPE_is_null(cref->array))
+	{
+		cref->array.t.id = type;
+		cref->array.t.value = value;
+	}*/
+	
 	return index;
 }
 
@@ -721,6 +739,7 @@ void CLASS_add_declaration(CLASS *class, TRANS_DECL *decl)
 			FUNCTION_add_all_pos_line();
 			TRANS_init_var(decl);
 			CODE_pop_global(sym->global.value, TRUE);
+			sym->global_assigned = TRUE;
 		}
 		class->has_static = TRUE;
 	}
@@ -747,6 +766,7 @@ void CLASS_add_declaration(CLASS *class, TRANS_DECL *decl)
 			FUNCTION_add_all_pos_line();
 			TRANS_init_var(decl);
 			CODE_pop_global(sym->global.value, FALSE);
+			sym->global_assigned = TRUE;
 		}
 	}
 }
@@ -944,6 +964,50 @@ void CLASS_check_properties(CLASS *class)
 				prop->write = NO_SYMBOL;
 		}
 	}
+}
+
+
+CLASS_SYMBOL *CLASS_get_local_symbol(int local)
+{
+	PARAM *param;
+	
+	param = &JOB->func->local[local];
+	return (CLASS_SYMBOL *)TABLE_get_symbol(JOB->class->table, param->index);
+}
+
+
+char *TYPE_get_desc(TYPE type)
+{
+  static char buf[256];
+
+  TYPE_ID id;
+  int value;
+	CLASS_SYMBOL *sym;
+
+  id = TYPE_get_id(type);
+  value = TYPE_get_value(type);
+
+  if (id == T_ARRAY)
+  {
+    strcpy(buf, TYPE_name[JOB->class->array[value].type.t.id]);
+    strcat(buf, "[]");
+  }
+  else if (id == T_OBJECT)
+	{
+		if (value == -1)
+			strcpy(buf, "Object");
+		else
+		{
+			sym = CLASS_get_symbol(JOB->class, JOB->class->class[value].index);
+			sprintf(buf, "%.*s", sym->symbol.len, sym->symbol.name);
+		}
+	}
+  else
+  {
+    strcpy(buf, TYPE_name[id]);
+  }
+  
+  return buf;
 }
 
 

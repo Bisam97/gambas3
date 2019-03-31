@@ -2,7 +2,7 @@
 
 	CImage.c
 
-	(c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+	(c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -386,6 +386,13 @@ BEGIN_METHOD(Image_Opacity, GB_FLOAT opacity)
 
 END_METHOD
 
+BEGIN_METHOD(Image_Invert, GB_BOOLEAN keep_color)
+
+	IMAGE_invert(THIS_IMAGE, VARGOPT(keep_color, FALSE));
+	GB.ReturnObject(THIS);
+
+END_METHOD
+
 BEGIN_METHOD(Image_Blur, GB_INTEGER radius)
 
 	IMAGE_blur(THIS_IMAGE, VARGOPT(radius, 8));
@@ -559,6 +566,7 @@ GB_DESC CImageDesc[] =
 	GB_METHOD("Colorize", "Image", Image_Colorize, "(Color)i"),
 	GB_METHOD("Mask", "Image", Image_Mask, "(Color)i"),
 	GB_METHOD("Opacity", "Image", Image_Opacity, "(Opacity)f"),
+	GB_METHOD("Invert", "Image", Image_Invert, "[(KeepColor)b]"),
 	
 	GB_METHOD("Copy", "Image", Image_Copy, "[(X)i(Y)i(Width)i(Height)i]"),
 	GB_METHOD("Resize", "Image", Image_Resize, "(Width)i(Height)i"),

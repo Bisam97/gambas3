@@ -45,6 +45,7 @@ End
 Public Sub Clear()
 
   trmOutput.Clear
+  btnSuspend.Value = False
   txtEnter.Clear
   $iHistory = $aHistory.Count
   SetFocus
@@ -63,7 +64,7 @@ Public Sub Insert(sText As String, Optional bCurrent As Boolean)
     'edtOutput.Goto(edtOutput.Lines.Count, 10000)
   Endif
   
-  If Not Action["console"].Value Then Action["console"].Value = True
+  'If Not Action["console"].Value Then Action["console"].Value = True
 
   trmOutput.Print(Replace(sText, "\n", "\r\n"))
   
@@ -71,7 +72,7 @@ End
 
 Public Sub ReadConfig()
 
-  trmOutput.Font = Font[Settings["/ConsoleFont", Project.DEFAULT_FONT]]
+  Project.SetConsoleFont(trmOutput)
   MTheme.InitControl(trmOutput)
 
   Project.SetSmallFont(panToolbar)
@@ -119,6 +120,7 @@ End
 
 Public Sub Form_Show()
 
+  trmOutput.AutoResize = True
   'Action["console"].Value = TRUE
 
 End
@@ -188,7 +190,13 @@ Public Sub OnProjectDebugState()
   txtEnter.ReadOnly = Design.IsRunning()  
   If txtEnter.HasFocus Then trmOutput.SetFocus
   
-  If Design.IsStop() Then trmOutput.Reset()
+  If Design.IsStop() Then 
+    trmOutput.Reset(True)
+    btnSuspend.Value = False
+    btnSuspend.Hide
+  Else
+    btnSuspend.Show
+  Endif
   
 End
 
@@ -284,7 +292,7 @@ End
 Public Sub txtEnter_Activate()
 
   Dim sText As String
-  Dim bSemiColon As Boolean
+  'Dim bSemiColon As Boolean
   Dim sVal As String
 
   sText = txtEnter.Text
@@ -327,8 +335,8 @@ Public Sub txtEnter_Activate()
         $bGotError = True
       Else
         sVal = DConv$(sVal)
-        If Not bSemiColon Then sVal &= "\n"
-        Insert(sVal)
+        'If Not bSemiColon Then sVal &= "\n"
+        Insert(sVal & "\n")
       Endif
       Stop Event
 
@@ -484,5 +492,20 @@ End
 Public Sub GetTerminal() As TerminalView
   
   Return trmOutput
+  
+End
+
+Public Sub btnSuspend_Click()
+
+  trmOutput.Suspended = btnSuspend.Value
+
+End
+
+Public Sub UpdateWidth(W As Integer)
+  
+  If trmOutput.AutoResize Then Return
+  If Me.W <> W Then
+    trmOutput.ScreenWidth = (W - Style.ScrollbarSize) \ trmOutput.CharWidth
+  Endif
   
 End

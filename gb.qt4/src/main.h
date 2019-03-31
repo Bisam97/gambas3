@@ -2,7 +2,7 @@
 
 	main.h
 
-	(c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+	(c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -51,12 +51,14 @@ extern int MAIN_loop_level;
 extern int MAIN_scale;
 extern bool MAIN_debug_busy;
 extern bool MAIN_init;
+extern bool MAIN_key_debug;
 #ifndef NO_X_WINDOW
 extern int MAIN_x11_last_key_code;
 #endif
 
 extern GB_CLASS CLASS_Control;
 extern GB_CLASS CLASS_Container;
+extern GB_CLASS CLASS_ContainerChildren;
 extern GB_CLASS CLASS_UserControl;
 extern GB_CLASS CLASS_UserContainer;
 extern GB_CLASS CLASS_TabStrip;
@@ -67,7 +69,6 @@ extern GB_CLASS CLASS_Drawing;
 extern GB_CLASS CLASS_DrawingArea;
 extern GB_CLASS CLASS_ScrollArea;
 extern GB_CLASS CLASS_Printer;
-extern GB_CLASS CLASS_ScrollView;
 extern GB_CLASS CLASS_Image;
 extern GB_CLASS CLASS_SvgImage;
 extern GB_CLASS CLASS_TextArea;

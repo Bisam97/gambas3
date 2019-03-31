@@ -2,7 +2,7 @@
 
   gbc_compile.c
 
-  (c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -678,7 +678,7 @@ void COMPILE_print(int type, int line, const char *msg, ...)
 			fprintf(stderr, "%s: ", name);
 	}
 	else
-		fprintf(stderr, "gbc: ");
+		fprintf(stderr, "gbc" GAMBAS_VERSION_STRING ": ");
 
 	fprintf(stderr, "%s: ", type ? "warning" : "error");
 

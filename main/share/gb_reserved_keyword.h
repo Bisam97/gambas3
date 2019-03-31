@@ -2,7 +2,7 @@
 
   gb_reserved_keyword.h
 
-  (c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -48,6 +48,7 @@ COMP_INFO COMP_res_info[] =
 	{ "Public",       RSF_IDENT|RSF_PUB,                          },
 	{ "Static",       RSF_PUB                                     },
 	{ "Fast",         RSF_PUB                                     },
+	{ "Unsafe",       RSF_PUB                                     },
 	{ "Property",     RSF_IDENT                                   },
 	{ "Event",        RSF_IDENT|RSF_EVENT                         },
 	{ "Inherits",     RSF_CLASS|RSF_AS                            },
@@ -141,6 +142,7 @@ COMP_INFO COMP_res_info[] =
 	{ "Unlock"                                                    },
 	{ "Library"                                                   },
 	{ "Debug"                                                     },
+	{ "Assert"                                                    },
 	{ "Pipe"                                                      },
 	{ "Randomize"                                                 },
 	{ "ByRef"                                                     },
@@ -182,7 +184,7 @@ COMP_INFO COMP_res_info[] =
 	{ ">=",           RSF_OP2S,                 OP_GE,        0,   4,   T_BOOLEAN,      C_GE          },
 	{ "<=",           RSF_OP2S,                 OP_LE,        0,   4,   T_BOOLEAN,      C_LE          },
 	{ "<>",           RSF_OP2S,                 OP_NE,        0,   4,   T_BOOLEAN,      C_NE          },
-	{ "[",            RSF_OPP,                  OP_LSQR,      0,   12,  T_VARIANT                     },
+	{ "[",            RSF_OPP,                  OP_LSQR,      0,   12,  RST_GET                       },
 	{ "]",            RSF_NONE,                 OP_RSQR,      0,   0,   T_OBJECT                      },  // Use for the immediate array syntax
 	{ "And",          RSF_OP2SM,                OP_AND,       0,   2,   RST_AND,        C_AND         },
 	{ "Or",           RSF_OP2SM,                OP_OR,        0,   2,   RST_AND,        C_OR          },
@@ -190,8 +192,8 @@ COMP_INFO COMP_res_info[] =
 	{ "Xor",          RSF_OP2SM,                OP_XOR,       0,   2,   RST_AND,        C_XOR         },
 	{ "\\",           RSF_OP2S,                 OP_DIV,       0,   6,   T_INTEGER,      C_QUO         },
 	{ "Div",          RSF_OP2S,                 OP_DIV,       0,   6,   T_INTEGER,      C_QUO         },
-	{ "%",            RSF_OP2S,                 OP_MOD,       0,   6,   RST_AND,        C_REM         },
-	{ "Mod",          RSF_OP2S,                 OP_MOD,       0,   6,   RST_AND,        C_REM         },
+	{ "%",            RSF_OP2S,                 OP_MOD,       0,   6,   RST_MOD,        C_REM         },
+	{ "Mod",          RSF_OP2S,                 OP_MOD,       0,   6,   RST_MOD,        C_REM         },
 	{ "Is",           RSF_OP2|RSF_AS|RSF_NOT,   OP_IS,        0,   11,  T_BOOLEAN,      C_IS,   0     },
 	{ "",             RSF_OP2|RSF_AS,           OP_IS,        0,   11,  T_BOOLEAN,      C_IS,   1     },
 	{ "Like",         RSF_OP2S|RSF_NOT,         OP_LIKE,      0,   4,   T_BOOLEAN,      C_LIKE, 0     },
@@ -254,7 +256,8 @@ SUBR_INFO COMP_subr_info[] =
 	{ "LCase$",             7,  1, T_STRING,       1     },
 	{ "LCase",              7,  1, T_STRING,       1     },
 	
-	// 8 is available
+	{ "Oct$",               8,  0, T_STRING,       1,  2 },  // CODE_OCT
+	{ "Oct",                8,  0, T_STRING,       1,  2 },
 
 	{ "Chr$",               9,  0, T_STRING,       1     },
 	{ "Chr",                9,  0, T_STRING,       1     },
@@ -263,7 +266,7 @@ SUBR_INFO COMP_subr_info[] =
 
 	{ "InStr",             11,  0, T_INTEGER,      2,  4 },
 
-	{ "RInStr",            12,  0, T_INTEGER,      2,  4 },   /* CODE_RINSTR */
+	{ "RInStr",            12,  0, T_INTEGER,      2,  4 },   // CODE_RINSTR
 
 	{ "Subst$",            13,  0, T_STRING,       1, 63 },
 	{ "Subst",             13,  0, T_STRING,       1, 63 },
@@ -274,7 +277,7 @@ SUBR_INFO COMP_subr_info[] =
 	{ "Split",             15,  0, T_OBJECT,       1,  5 },
 	{ "Scan",              16,  0, T_OBJECT,       2     },
 
-	{ "Comp",              17,  0, T_BOOLEAN,      2,  3 },
+	{ "Comp",              17,  0, T_INTEGER,      2,  3 },
 
 	{ "Conv",              18,  0, T_STRING,       3     },
 	{ "Conv$",             18,  0, T_STRING,       3     },
@@ -283,7 +286,7 @@ SUBR_INFO COMP_subr_info[] =
 	{ "DConv",             19,  1, T_STRING,       1     },
 	{ "DConv$",            19,  1, T_STRING,       1     },
 
-	{ "Abs",               20,  0, RST_SAME,       1     },   /* CODE_ABS */
+	{ "Abs",               20,  0, RST_SAME,       1     },   // CODE_ABS
 	{ "Int",               21,  0, RST_SAME,       1     },
 	{ "Fix",               22,  0, RST_SAME,       1     },
 	{ "Sgn",               23,  0, T_INTEGER,      1     },
@@ -329,13 +332,13 @@ SUBR_INFO COMP_subr_info[] =
 #endif
 	{ "Rnd",               28,  0, T_FLOAT,        0,  2 },
 	{ "Min",               29,  0, RST_MIN,        2,    },
-	{ "Max",               30,  0, RST_MIN,        2,    },   /* CODE_MAX */
+	{ "Max",               30,  0, RST_MIN,        2,    },   // CODE_MAX
 
-	{ "If",                31,  0, RST_SAME,       3,    },
-	{ "IIf",               31,  0, RST_SAME,       3,    },
+	{ "If",                31,  0, T_VARIANT,      3,    },
+	{ "IIf",               31,  0, T_VARIANT,      3,    },
 	{ "Choose",            32,  0, T_VARIANT,      1, 63 },
 
-	{ ".Array",            33,  0, T_OBJECT,       0, 63 },   /* Needed for Eval("[...]") */
+	{ ".Array",            33,  0, T_OBJECT,       0, 63 },   // Needed for Eval("[...]")
 
 	{ "ATan2",             34,  1, T_FLOAT,        2     },
 	{ "Atn2",              34,  1, T_FLOAT,        2     },
@@ -354,6 +357,7 @@ SUBR_INFO COMP_subr_info[] =
 	{ "IsSpace",           35,  7, T_BOOLEAN,      1     },
 	{ "IsBlank",           35,  8, T_BOOLEAN,      1     },
 	{ "IsPunct",           35,  9, T_BOOLEAN,      1     },
+	{ "IsAlnum",           35, 10, T_BOOLEAN,      1     },
 
 	{ "BClr",              36,  1, RST_BCLR,       2     },
 	{ "BSet",              36,  2, RST_BCLR,       2     },
@@ -397,7 +401,7 @@ SUBR_INFO COMP_subr_info[] =
 	{ "Bin$",              40,  0, T_STRING,       1,  2 },  // CODE_BIN
 	{ "Bin",               40,  0, T_STRING,       1,  2 },
 
-	{ "Hex$",              41,  0, T_STRING,       1,  2 },
+	{ "Hex$",              41,  0, T_STRING,       1,  2 },  // CODE_HEX
 	{ "Hex",               41,  0, T_STRING,       1,  2 },
 
 	{ "Val",               42,  0, T_VARIANT,      1     },
@@ -430,19 +434,19 @@ SUBR_INFO COMP_subr_info[] =
 	{ "Eval",              52,  0, T_VARIANT,      1,  2 },
 
 #ifndef __EVAL_RESERVED_C
-	{ ".Error",            53,  0, T_VOID,         0,  2 },
-	{ ".Debug",            54,  0, T_VOID,         0     },
+	{ ".Error",            53,  0, T_BOOLEAN,      0     },
+	{ ".Debug",            54,  0, T_VOID,         0,  1 },  // CODE_DEBUG
 
 	{ ".Wait",             55,  0, T_VOID,         0,  1 },
 
-	{ ".Open",             56,  0, T_VOID,         2     },
-	{ ".OpenMemory",       56,  1, T_VOID,         2     },
+	{ ".Open",             56,  0, T_OBJECT,       2     },
+	{ ".OpenMemory",       56,  1, T_OBJECT,       2     },
 	{ ".Close",            57,  0, T_VOID,         1     },
-	{ ".Input",            58,  0, T_VOID,         0,  1 },
-	{ ".LineInput",        59,  0, T_VOID,         1     },
+	{ ".Input",            58,  0, T_STRING,       0,  1 },
+	{ ".LineInput",        59,  0, T_STRING,       1     },
 	{ ".Print",            60,  0, T_VOID,         1, 63 },
-	{ ".Read",             61,  0, T_VOID,         2,    },
-	{ ".ReadBytes",        61,  1, T_VOID,         2,    },
+	{ ".Read",             61,  0, RST_READ,       2,    },
+	{ ".ReadBytes",        61,  1, T_STRING,       2,    },
 	{ ".Write",            62,  0, T_VOID,         3,    },
 	{ ".WriteBytes",       62,  1, T_VOID,         3,    },
 	{ ".Flush",            63,  0, T_VOID,         1     },
@@ -497,8 +501,8 @@ SUBR_INFO COMP_subr_info[] =
 	{ "RDir",              82,  0, T_OBJECT,       1,  4 },
 
 #ifndef __EVAL_RESERVED_C
-	{ ".Exec",             83,  0, T_VOID,         4     },
-	{ ".Shell",            83,  1, T_VOID,         4     },
+	{ ".Exec",             83,  0, RST_EXEC,       4     },
+	{ ".Shell",            83,  1, RST_EXEC,       4     },
 #endif
 
 	{ "Alloc",             84,  0, T_POINTER,      1,  2 },
@@ -516,7 +520,7 @@ SUBR_INFO COMP_subr_info[] =
 	{ "VarPtr",            89,  0, T_POINTER,      1     },
 	{ "IsMissing",         89,  1, T_BOOLEAN,      1     },
 
-	{ ".Collection",       90,  0, T_VOID,         1, 63 },
+	{ ".Collection",       90,  0, RST_COLLECTION, 1, 63 },
 	
 	{ "Tr",                91,  0, T_STRING,       1     },
 	{ "Tr$",               91,  0, T_STRING,       1     },

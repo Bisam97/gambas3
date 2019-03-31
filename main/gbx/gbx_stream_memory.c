@@ -2,7 +2,7 @@
 
   gbx_stream_memory.c
 
-  (c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -72,7 +72,7 @@ static int stream_close(STREAM *stream)
 
 static int stream_read(STREAM *stream, char *buffer, int len)
 {
-	/*if ((stream->common.mode & ST_READ) == 0)
+	/*if ((stream->common.mode & STO_READ) == 0)
 		THROW(E_ACCESS);*/
 	
   CHECK_enter();
@@ -85,21 +85,18 @@ static int stream_read(STREAM *stream, char *buffer, int len)
   if (CHECK_got_error())
   {
     errno = EIO;  
-    return TRUE;
+    return -1;
   }
   else
   {
     stream->memory.pos += len;
-    STREAM_eff_read = len;
-    return FALSE;
+    return len;
   }
 }
 
-#define stream_getchar NULL
-
 static int stream_write(STREAM *stream, char *buffer, int len)
 {
-	if ((stream->common.mode & ST_WRITE) == 0)
+	if ((stream->common.mode & STO_WRITE) == 0)
 		THROW(E_ACCESS);
 	
   CHECK_enter();
@@ -112,12 +109,12 @@ static int stream_write(STREAM *stream, char *buffer, int len)
   if (CHECK_got_error())
   {
     errno = EIO;  
-    return TRUE;
+    return -1;
   }
   else
   {
     stream->memory.pos += len;
-    return FALSE;
+    return len;
   }
 }
 

@@ -2,7 +2,7 @@
 
   gbc.c
 
-  (c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -165,7 +165,7 @@ static void get_arguments(int argc, char **argv)
 			case 'r':
 				if (COMP_root)
 				{
-					fprintf(stderr, "gbc: option '-r' already specified.\n");
+					fprintf(stderr, "gbc" GAMBAS_VERSION_STRING ": option '-r' already specified.\n");
 					exit(1);
 				}
 				COMP_root = STR_copy(optarg);
@@ -174,14 +174,14 @@ static void get_arguments(int argc, char **argv)
 			case 'e':
 				ERROR_translate = TRUE;
 				break;
-
+				
 			case 1:
 				main_no_old_read_syntax = TRUE;
 				break;
 
 			case 'L':
 				printf(
-					"\nGAMBAS Compiler version " VERSION " " __DATE__ " " __TIME__ "\n"
+					"\nGAMBAS Compiler version " VERSION "\n"
 					COPYRIGHT
 					);
 				exit(0);
@@ -197,13 +197,14 @@ static void get_arguments(int argc, char **argv)
 					"  -v  --verbose              verbose output\n"
 					"  -a  --all                  compile all\n"
 					"  -w  --warnings             display warnings\n"
-					"  -t  --translate            output translation files\n"
+					"  -t  --translate            output translation files and compile them if needed\n"
 					"  -p  --public-control       form controls are public\n"
 					"  -m  --public-module        module symbols are public by default\n"
 					"  -s  --swap                 swap endianness\n"
+
 					"  -r  --root <directory>     gives the gambas installation directory\n"
 					"  -e  --translate-errors     display translatable error messages\n"
-					"  -x  --exec                 define the 'Exec' preprocessor constant\n"
+					"  -x  --exec                 executable mode (define the 'Exec' preprocessor constant and remove assertions)\n"
 					"  -V  --version              display version\n"
 					"  -L  --license              display license\n"
 					"  -h  --help                 display this help\n"
@@ -213,13 +214,13 @@ static void get_arguments(int argc, char **argv)
 					"  -v                         verbose output\n"
 					"  -a                         compile all\n"
 					"  -w                         display warnings\n"
-					"  -t                         output translation files\n"
+					"  -t                         output translation files and compile them if needed\n"
 					"  -p                         form controls are public\n"
 					"  -m                         module symbols are public by default\n"
 					"  -s                         swap endianness\n"
 					"  -r <directory>             gives the gambas installation directory\n"
 					"  -e                         display translatable error messages\n"
-					"  -x                         define the 'Exec' preprocessor constant\n"
+					"  -x                         executable mode (define the 'Exec' preprocessor constant and remove assertions)\n"
 					"  -V                         display version\n"
 					"  -L                         display license\n"
 					"  -h                         display this help\n"
@@ -237,7 +238,7 @@ static void get_arguments(int argc, char **argv)
 
 	if (optind < (argc - 1))
 	{
-		fprintf(stderr, "gbc: too many arguments.\n");
+		fprintf(stderr, "gbc" GAMBAS_VERSION_STRING ": too many arguments.\n");
 		exit(1);
 	}
 
@@ -248,7 +249,7 @@ static void get_arguments(int argc, char **argv)
 	dir = FILE_get_current_dir();
 	if (!dir)
 	{
-		fprintf(stderr, "gbc: no current directory.\n");
+		fprintf(stderr, "gbc" GAMBAS_VERSION_STRING ": no current directory.\n");
 		exit(1);
 	}
 
@@ -256,7 +257,7 @@ static void get_arguments(int argc, char **argv)
 
 	if (!FILE_exist(COMP_project))
 	{
-		fprintf(stderr, "gbc: project file not found: %s\n", COMP_project);
+		fprintf(stderr, "gbc" GAMBAS_VERSION_STRING ": project file not found: %s\n", COMP_project);
 		exit(1);
 	}
 }
@@ -361,7 +362,7 @@ static void compile_file(const char *file)
 
 	OUTPUT_do(main_swap);
 	CLASS_export();
-
+	
 _FIN:
 	COMPILE_end();
 }
@@ -378,7 +379,6 @@ static void fill_files(const char *root, bool recursive)
 	char *path;
 	struct dirent *dirent;
 	char *file_name;
-	const char *name;
 	const char *file;
 	struct stat info;
 	const char *ext;
@@ -388,7 +388,7 @@ static void fill_files(const char *root, bool recursive)
 	dir = opendir(path);
 	if (!dir)
 	{
-		fprintf(stderr, "gbc: cannot browse directory: %s\n", path);
+		fprintf(stderr, "gbc" GAMBAS_VERSION_STRING ": cannot browse directory: %s\n", path);
 		exit(1);
 	}
 
@@ -402,7 +402,7 @@ static void fill_files(const char *root, bool recursive)
 
 		if (stat(file, &info))
 		{
-			fprintf(stderr, "gbc: warning: cannot stat file: %s\n", file);
+			ERROR_warning("cannot stat file: %s", file);
 			continue;
 		}
 
@@ -419,9 +419,6 @@ static void fill_files(const char *root, bool recursive)
 					|| (strcmp(ext, "class") == 0))
 			{
 				*((char **)ARRAY_add(&_files)) = STR_copy(file);
-				// Add the class to the list of classes
-				name = FILE_get_basename(file_name);
-				COMPILE_add_class(name, strlen(name));
 			}
 		}
 	}
@@ -433,6 +430,8 @@ static void fill_files(const char *root, bool recursive)
 static void init_files(const char *first)
 {
 	bool recursive;
+	const char *name;
+	int i, n;
 
 	ARRAY_create(&_files);
 
@@ -444,7 +443,15 @@ static void init_files(const char *first)
 	if (recursive) FILE_chdir("..");
 
 	// Sort paths
-	qsort(_files, ARRAY_count(_files), sizeof(*_files), (int (*)(const void *, const void *))compare_path);
+	n = ARRAY_count(_files);
+	qsort(_files, n, sizeof(*_files), (int (*)(const void *, const void *))compare_path);
+
+	// Add the classes to the list of classes
+	for (i = 0; i < n; i++)
+	{
+		name = FILE_get_basename(_files[i]);
+		COMPILE_add_class(name, strlen(name));
+	}
 
 	// End the list of classes
 	COMPILE_end_class();
@@ -459,6 +466,79 @@ static void exit_files(void)
 		STR_free(_files[i]);
 
 	ARRAY_delete(&_files);
+}
+
+
+static void compile_lang(void)
+{
+	DIR *dir;
+	char *path;
+	struct dirent *dirent;
+	char *file_name;
+	char *file_po;
+	const char *file_mo;
+	time_t time_po, time_mo;
+	int i;
+	char c;
+	char *cmd;
+	int ret;
+
+	path = STR_copy(FILE_cat(FILE_get_dir(COMP_project), ".lang", NULL));
+	FILE_chdir(path);
+	
+	dir = opendir(".");
+	if (!dir)
+	{
+		ERROR_warning("cannot browse directory: %s", path);
+		return;
+	}
+
+	while ((dirent = readdir(dir)) != NULL)
+	{
+		file_name = dirent->d_name;
+		if (*file_name == '.')
+			continue;
+
+		if (strcmp(FILE_get_ext(file_name), "po"))
+			continue;
+		
+		for (i = 0; i < strlen(file_name); i++)
+		{
+			c = file_name[i];
+			if (c == '.')
+				break;
+			if (!isalnum(c))
+				continue;
+		}
+		
+		file_po = file_name;
+		time_po = FILE_get_time(file_po);
+		
+		if (time_po == ((time_t)-1))
+			continue;
+		
+		file_mo = FILE_set_ext(file_po, "mo");
+		
+		if (!main_compile_all)
+		{
+			time_mo = FILE_get_time(file_mo);
+			if (time_mo >= time_po)
+				continue;
+		}
+		
+		unlink(file_mo);
+		// Shell "msgfmt -o " & Shell$(sPath) & " " & Shell(sTrans) Wait
+		cmd = STR_print("msgfmt -o %s %s", file_mo, file_po);
+		if (main_verbose)
+			printf("running: %s\n", cmd);
+		ret = system(cmd);
+		if (!WIFEXITED(ret) || WEXITSTATUS(ret))
+			ERROR_warning("unable to compile translation file with 'msgfmt': %s", file_po);
+		STR_free(cmd);
+	}
+
+	closedir(dir);
+	STR_free(path);
 }
 
 
@@ -492,7 +572,10 @@ int main(int argc, char **argv)
 			compile_file(_files[i]);
 
 		exit_files();
-
+		
+		if (main_trans)
+			compile_lang();
+		
 		COMPILE_exit();
 		FILE_exit();
 

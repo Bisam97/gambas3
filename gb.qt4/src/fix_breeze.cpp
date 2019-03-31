@@ -2,7 +2,7 @@
 
 	fix_breeze.cpp
 
-	(c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+	(c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -29,6 +29,7 @@
 #include <QApplication>
 
 #include "gb_common.h"
+#include "CStyle.h"
 #include "fix_breeze.h"
 
 QFontMetrics *FixBreezeStyle::fm = NULL;
@@ -64,8 +65,13 @@ QRect FixBreezeStyle::subControlRect(ComplexControl element, const QStyleOptionC
 
 			// remove right side line editor margins
 			const int frameWidth( pixelMetric( PM_SpinBoxFrameWidth, option, widget ) );
-			if( !flat)
-				labelRect.adjust( frameWidth, 2, 0, -2 );
+			if (!flat)
+			{
+				if (CSTYLE_fix_breeze)
+					labelRect.adjust(frameWidth, 2, 0, -2 );
+				else if (CSTYLE_fix_oxygen)
+					labelRect.adjust(frameWidth, 4, 0, -4 );
+			}
 
 			return visualRect( option, labelRect );
 		}
@@ -107,11 +113,30 @@ QRect FixBreezeStyle::subControlRect(ComplexControl element, const QStyleOptionC
 					rect.height() );
 
 			// remove margins
-			if( !flat)
-				labelRect.adjust(frameWidth, 2, 0, -2 );
+			if (!flat)
+			{
+				if (CSTYLE_fix_breeze)
+					labelRect.adjust(frameWidth, 2, 0, -2 );
+				else if (CSTYLE_fix_oxygen)
+					labelRect.adjust(frameWidth, 4, 0, -4 );
+			}
 
 			return visualRect( option, labelRect );
 		}
+	}
+	else if (element == CC_Slider)
+	{
+		const QStyleOptionSlider *sliderOption( qstyleoption_cast<const QStyleOptionSlider*>( option ) );
+		const bool horizontal( sliderOption->orientation == Qt::Horizontal );
+		
+		QRect result(QProxyStyle::subControlRect(element, option, subControl, widget));
+		
+		if (horizontal)
+			result.moveTop((widget->height() - result.height()) / 2);
+		else
+			result.moveLeft((widget->width() - result.width()) / 2);
+		
+		return result;
 	}
 	
 	return QProxyStyle::subControlRect(element, option, subControl, widget);
@@ -174,12 +199,8 @@ void FixBreezeStyle::drawComplexControl(ComplexControl element, const QStyleOpti
 				}
 			}
 		}
-		
-		QProxyStyle::drawComplexControl(element, option, painter, widget);
-		return;
 	}
-	
-	if (element == CC_ComboBox)
+	else if (element == CC_ComboBox)
 	{
 		QStyleOptionComboBox newOption;	
 		const QStyleOptionComboBox* comboBoxOption( qstyleoption_cast<const QStyleOptionComboBox*>( option ) );
@@ -198,9 +219,30 @@ void FixBreezeStyle::drawComplexControl(ComplexControl element, const QStyleOpti
 				}
 			}
 		}
+	}
+	else if (element == CC_Slider)
+	{
+		//QStyleOptionSlider newOption;
+		const QStyleOptionSlider *sliderOption( qstyleoption_cast<const QStyleOptionSlider*>( option ) );
+		const bool horizontal( sliderOption->orientation == Qt::Horizontal );
 		
-		QProxyStyle::drawComplexControl(element, option, painter, widget);
-		return;
+		if (!(sliderOption->subControls & SC_SliderTickmarks))
+		{
+			QRect handle(QProxyStyle::subControlRect(element, option, SC_SliderHandle, widget));
+			//newOption = *sliderOption;
+			//option = &newOption;
+			
+			painter->save();
+			if (horizontal)
+				painter->translate(0, (widget->height() - handle.height()) / 2);
+			else
+				painter->translate((option->rect.width() - handle.width()) / 2, 0);
+				//newOption.rect = QRect(newOption.rect.x(), (newOption.rect.height() - handle.height()) / 2, newOption.rect.width(), handle.height());
+			
+			QProxyStyle::drawComplexControl(element, option, painter, widget);
+			painter->restore();
+			return;
+		}
 	}
 	
 	QProxyStyle::drawComplexControl(element, option, painter, widget);

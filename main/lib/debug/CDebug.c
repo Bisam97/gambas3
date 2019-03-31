@@ -2,7 +2,7 @@
 
 	CDebug.c
 
-	(c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+	(c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -129,13 +129,13 @@ static void callback_read(int fd, int type, intptr_t param)
 
 static char *input_fifo(char *path)
 {
-	sprintf(path, "/tmp/gambas.%d/%d.in", getuid(), getpid());
+	sprintf(path, FILE_TEMP_PREFIX "/%d.in", getuid(), getpid());
 	return path;
 }
 
 static char *output_fifo(char *path)
 {
-	sprintf(path, "/tmp/gambas.%d/%d.out", getuid(), getpid());
+	sprintf(path, FILE_TEMP_PREFIX "/%d.out", getuid(), getpid());
 	return path;
 }
 
@@ -146,16 +146,14 @@ BEGIN_METHOD_VOID(CDEBUG_begin)
 
 	signal(SIGPIPE, SIG_IGN);
 
-	input_fifo(path);
-	unlink(path);
+	unlink(input_fifo(path));
 	if (mkfifo(path, 0600))
 	{
 		GB.Error("Cannot create input fifo in /tmp: &1", strerror(errno));
 		return;
 	}
 
-	output_fifo(path);
-	unlink(path);
+	unlink(output_fifo(path));
 	if (mkfifo(path, 0600))
 	{
 		GB.Error("Cannot create output fifo in /tmp: &1", strerror(errno));

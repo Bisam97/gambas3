@@ -1,5 +1,7 @@
 ' Gambas class file
 
+Public CloseButton As Boolean 
+
 Private $aWindow As New CWindow[]
 Private $hCurrent As CWindow
 Private $hLast As CWindow
@@ -75,6 +77,8 @@ Public Sub Add(hWin As Window, Optional bResize As Boolean, Optional iGrid As In
   Dim iInd As Integer
   Dim hWindow As CWindow
   Dim hPrev As Workspace
+  Dim hObserver As Observer
+  Dim hTabButton As Container
 
   If GetIndex(hWin) >= 0 Then Return
 
@@ -102,10 +106,13 @@ Public Sub Add(hWin As Window, Optional bResize As Boolean, Optional iGrid As In
   
     iInd = tabWorkspace.Count
     Object.Lock(tabWorkspace)
+    
     Inc tabWorkspace.Count
     tabWorkspace.Index = iInd
     tabWorkspace.Current.Text = ""
+    
     Object.Unlock(tabWorkspace)
+    
     UpdateSize
     
   Else
@@ -115,6 +122,9 @@ Public Sub Add(hWin As Window, Optional bResize As Boolean, Optional iGrid As In
   Endif
   
   'DEBUG "ADD "; hWin
+  
+  hTabButton = tabWorkspace._GetButton(tabWorkspace.Count - 1)
+  hObserver = New Observer(hTabButton.Children[0]) As "Button"
   
   hWindow.Observer = New Observer(hWin, True) As "Watcher"
   UpdateTitle(hWin)
@@ -525,7 +535,11 @@ Public Sub UpdateSize()
 
   Endif
 
-  tabWorkspace.CloseButton = $aWindow.Count >= 1
+  If CloseButton Then 
+    tabWorkspace.CloseButton = $aWindow.Count >= 1
+  Else 
+    tabWorkspace.CloseButton = False
+  Endif
   
   'DEBUG tabWorkspace.Visible;; "Index =";; tabWorkspace.Index;; "ClientY =";; tabWorkspace.ClientY
 
@@ -572,6 +586,8 @@ Private Sub CloseWindows(iMode As Integer)
   
   'CheckWindow
   {Unlock}
+  
+  If iMode = CLOSE_ALL Then GetParent()._RaiseCloseAll()
   
 End
 
@@ -1012,3 +1028,26 @@ Public Sub tabWorkspace_CloseAll()
   CloseWindows(CLOSE_ALL)
 
 End
+
+Public Sub Button_MouseDown()
+  
+  If Mouse.Middle And If Not tabWorkspace.Closable Then
+    tabWorkspace_Close(tabWorkspace._GetIndex(Last.Parent))
+    Stop Event ' BUG: Needed, as sometimes the MouseDown event is raised twice
+  Endif
+  
+End
+
+Public Sub SetCloseWithMouse(bVal As Boolean)
+  
+  tabWorkspace.Closable = Not bVal
+  
+End
+
+Public Sub IsCloseWithMouse() As Boolean
+  
+  Return Not tabWorkspace.Closable
+  
+End
+
+

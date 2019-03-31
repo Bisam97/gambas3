@@ -2,7 +2,7 @@
 
   gbx_struct.c
 
-  (c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@
 
 #define __GBX_STRUCT_C
 
+#include "gb_alloc.h"
 #include "gbx_struct.h"
 
 void *CSTRUCT_create_static(void *ref, CLASS *class, char *addr)

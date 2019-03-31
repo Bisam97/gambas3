@@ -2,7 +2,7 @@
 
 	gbx_stream.h
 
-	(c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+	(c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -34,7 +34,6 @@ typedef
 		int (*open)(union STREAM *stream, const char *path, int mode, void *data);
 		int (*close)(union STREAM *stream);
 		int (*read)(union STREAM *stream, char *buffer, int len);
-		int (*getchar)(union STREAM *stream, char *buffer);
 		int (*write)(union STREAM *stream, char *buffer, int len);
 		int (*seek)(union STREAM *stream, int64_t pos, int whence);
 		int (*tell)(union STREAM *stream, int64_t *pos);
@@ -84,6 +83,8 @@ typedef
 		int64_t size;
 		int fd;
 		unsigned watch : 1;
+		unsigned has_size : 1;
+		unsigned use_size : 1;
 		}
 	STREAM_DIRECT;
 
@@ -144,19 +145,19 @@ typedef
 	STREAM;
 
 enum {
-	ST_READ        = (1 << 0),
-	ST_WRITE       = (1 << 1),
-	ST_READ_WRITE  = ST_READ + ST_WRITE,
-	ST_MODE        = 0x3,
-	ST_APPEND      = (1 << 2),
-	ST_CREATE      = (1 << 3),
-	ST_ACCESS      = 0xF,
-	ST_DIRECT      = (1 << 4),
-	ST_LINE        = (1 << 5),
-	ST_WATCH       = (1 << 6),
-	ST_PIPE        = (1 << 7),
-	ST_MEMORY      = (1 << 8),
-	ST_STRING      = (1 << 9)
+	STO_READ        = (1 << 0),
+	STO_WRITE       = (1 << 1),
+	STO_READ_WRITE  = STO_READ + STO_WRITE,
+	STO_MODE        = 0x3,
+	STO_APPEND      = (1 << 2),
+	STO_CREATE      = (1 << 3),
+	STO_ACCESS      = 0xF,
+	STO_DIRECT      = (1 << 4),
+	STO_LOCK        = (1 << 5),
+	STO_WATCH       = (1 << 6),
+	STO_PIPE        = (1 << 7),
+	STO_MEMORY      = (1 << 8),
+	STO_STRING      = (1 << 9)
 	};
 
 enum {
@@ -165,11 +166,12 @@ enum {
 	ST_EOL_MAC = 2
 	};
 
-EXTERN int STREAM_eff_read;
+//EXTERN int STREAM_eff_read;
 
 #ifndef __STREAM_IMPL_C
 
 EXTERN STREAM_CLASS STREAM_direct;
+EXTERN STREAM_CLASS STREAM_lock;
 EXTERN STREAM_CLASS STREAM_buffer;
 EXTERN STREAM_CLASS STREAM_pipe;
 EXTERN STREAM_CLASS STREAM_memory;
@@ -186,7 +188,6 @@ STREAM_CLASS stream = \
 	(void *)stream_open, \
 	(void *)stream_close, \
 	(void *)stream_read, \
-	(void *)stream_getchar, \
 	(void *)stream_write, \
 	(void *)stream_seek, \
 	(void *)stream_tell, \
@@ -212,7 +213,7 @@ char *STREAM_line_input(STREAM *stream, char *escape);
 char *STREAM_input(STREAM *stream);
 int64_t STREAM_tell(STREAM *stream);
 void STREAM_seek(STREAM *stream, int64_t pos, int whence);
-void STREAM_read(STREAM *stream, void *addr, int len);
+int STREAM_read(STREAM *stream, void *addr, int len);
 int STREAM_read_max(STREAM *stream, void *addr, int len);
 bool STREAM_read_ahead(STREAM *stream);
 //char STREAM_getchar(STREAM *stream);
@@ -225,16 +226,14 @@ void STREAM_flush(STREAM *stream);
 int STREAM_handle(STREAM *stream);
 void STREAM_lof(STREAM *stream, int64_t *len);
 bool STREAM_eof(STREAM *stream);
+bool STREAM_default_eof(STREAM *stream);
 
 void STREAM_load(const char *path, char **buffer, int *len);
 
 bool STREAM_map(const char *path, char **paddr, int *plen);
 void STREAM_unmap(char *addr, int len);
 
-int STREAM_read_direct(int fd, char *buffer, int len);
-int STREAM_write_direct(int fd, char *buffer, int len);
-
-bool STREAM_lock(STREAM *stream);
+bool STREAM_lock_all(STREAM *stream);
 
 #define STREAM_is_closed(_stream) ((_stream)->type == NULL)
 #define STREAM_is_closed_for_writing(_stream) (STREAM_is_closed(_stream) && !(_stream)->common.redirected)

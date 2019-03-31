@@ -2,7 +2,7 @@
 
 	CTextBox.h
 
-	(c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+	(c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -44,6 +44,7 @@ extern GB_DESC CComboBoxItemDesc[];
 
 #define TEXTBOX ((QLineEdit *)((CWIDGET *)_object)->widget)
 #define COMBOBOX ((MyComboBox *)((CWIDGET *)_object)->widget)
+#define THIS ((CTEXTBOX *)_object)
 
 #endif
 
@@ -103,7 +104,7 @@ public slots:
 	void onChange(void);
 	void onActivate(void);
 	void onClick(void);
-	void onSelectionChanged(void);
+	//void onSelectionChanged(void);
 
 };
 

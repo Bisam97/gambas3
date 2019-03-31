@@ -2,7 +2,7 @@
 
 	gbx_local.h
 
-	(c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+	(c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -67,16 +67,17 @@ typedef
 	struct {
 		char decimal_point;
 		char currency_decimal_point;
-		char thousand_sep;
-		char currency_thousand_sep;
+		const char *thousand_sep;
+		int len_thousand_sep;
+		const char *currency_thousand_sep;
+		int len_currency_thousand_sep;
 		char group_size;
 		char currency_group_size;
 		unsigned char currency_flag;
-		char _reserved[3];
 		uint date_sep;
 		uint time_sep;
-		char *currency_symbol;
-		char *intl_currency_symbol;
+		const char *currency_symbol;
+		const char *intl_currency_symbol;
 		char date_order[4];
 		char time_order[4];
 		char long_date[20];

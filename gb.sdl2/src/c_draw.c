@@ -2,7 +2,7 @@
 
   c_draw.c
 
-  (c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -327,11 +327,13 @@ BEGIN_METHOD(Draw_Image, GB_OBJECT image; GB_INTEGER x; GB_INTEGER y; GB_INTEGER
 	else
 		rect = NULL;
 	
+	SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
+	
 	if (MISSING(opacity) && MISSING(angle))
 		SDL_RenderCopy(RENDERER, texture, rect, &dest);
 	else
 	{
-		SDL_SetTextureAlphaMod(texture, 255 - VARGOPT(opacity, 1.0) * 255);
+		SDL_SetTextureAlphaMod(texture, VARGOPT(opacity, 1.0) * 255);
 		SDL_RenderCopyEx(RENDERER, texture, rect, &dest, VARGOPT(angle, 0.0), NULL, SDL_FLIP_NONE);
 		SDL_SetTextureAlphaMod(texture, 255);
 	}

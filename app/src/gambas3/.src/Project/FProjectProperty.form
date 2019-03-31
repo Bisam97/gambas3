@@ -1,7 +1,7 @@
 # Gambas Form File 3.0
 
 { Form Form
-  MoveScaled(0,2,112,80)
+  MoveScaled(0,0,112,75)
   Text = ("Project properties")
   Icon = Picture["icon:/small/edit"]
   Persistent = True
@@ -61,17 +61,17 @@
     }
     { Menu13 Menu
     }
+    { Menu5 Menu mnuInsertEnv
+      Name = "Menu5"
+      #Translate = False
+      Text = "LANGUAGE=C ; LANG=C ; LC_ALL=C"
+      Tag = "LANGUAGE=C,LANG=C,LC_ALL=C"
+    }
     { Menu8 Menu mnuInsertEnv
       Name = "Menu8"
       #Translate = False
       Text = "GB_REVERSE=1"
       Tag = "GB_REVERSE=1"
-    }
-    { Menu5 Menu mnuInsertEnv
-      Name = "Menu5"
-      #Translate = False
-      Text = "LANG=C ; LC_ALL=C"
-      Tag = "LANG=C,LC_ALL=C"
     }
     { Menu11 Menu
     }
@@ -82,6 +82,11 @@
       Tag = "GB_STOCK_DEBUG=1"
     }
     { Menu15 Menu
+    }
+    { Menu21 Menu mnuInsertEnv
+      Name = "Menu21"
+      Text = ("GB_NO_JIT=1")
+      Tag = "GB_NO_JIT=1"
     }
     { Menu4 Menu mnuInsertEnv
       Name = "Menu4"
@@ -105,14 +110,15 @@
     }
   }
   { ipnProject IconPanel
-    MoveScaled(1,1,108,69)
+    MoveScaled(1,1,108,66)
     Expand = True
     Arrangement = Arrange.Vertical
     Spacing = True
-    Count = 8
+    Count = 9
     Border = True
     Index = 0
     Text = ("General")
+    Picture = Picture["icon:/medium/gambas"]
     { Panel1 Panel
       MoveScaled(1,0,85,9)
       { btnIcon ToolButton
@@ -126,7 +132,7 @@
       }
     }
     { panGeneral HPanel
-      MoveScaled(1,10,84,59)
+      MoveScaled(1,10,84,56)
       Expand = True
       AutoResize = True
       Spacing = True
@@ -196,25 +202,26 @@
         Text = ("Description")
       }
       { txtDesc TextArea
-        MoveScaled(18,20,60,19)
+        MoveScaled(18,20,60,16)
         Expand = True
         Wrap = True
       }
       { Label11 Label
-        MoveScaled(0,39,16,4)
+        MoveScaled(0,37,16,4)
         Font = Font["Bold"]
         Text = ("Authors")
       }
       { txtAuthor TextArea
-        MoveScaled(18,40,57,19)
+        MoveScaled(18,37,57,15)
         Expand = True
         Wrap = True
       }
     }
     Index = 1
     Text = ("Information")
+    Picture = Picture["icon:/medium/info"]
     { Panel5 VBox
-      MoveScaled(1,1,82,68)
+      MoveScaled(1,1,82,65)
       Expand = True
       Spacing = True
       { lblInfo Label
@@ -223,7 +230,7 @@
         Text = ("Information")
       }
       { HBox15 HBox
-        MoveScaled(0,8,78,4)
+        MoveScaled(0,4,78,4)
         Spacing = True
         Indent = True
         { Label26 Label
@@ -237,21 +244,20 @@
         }
       }
       { HBox16 HBox
-        MoveScaled(0,13,71,4)
+        MoveScaled(0,9,71,4)
         Spacing = True
         Indent = True
         { Label25 Label
           MoveScaled(0,0,33,4)
           Text = ("This component is hidden")
         }
-        { cmbHidden ComboBox
-          MoveScaled(34,0,10,4)
-          ReadOnly = True
-          List = [("Yes"), ("No")]
+        { btnHidden SwitchButton
+          MoveScaled(34,0,8,4)
+          Animated = True
         }
       }
       { panCompatible HBox
-        MoveScaled(0,18,71,4)
+        MoveScaled(0,14,71,4)
         Spacing = True
         Indent = True
         { chkCompat CheckBox
@@ -275,7 +281,7 @@
         }
       }
       { HBox14 HBox
-        MoveScaled(0,23,71,4)
+        MoveScaled(0,19,71,4)
         Spacing = True
         Indent = True
         { Label13 Label
@@ -288,12 +294,12 @@
         }
       }
       { Label15 Label
-        MoveScaled(0,28,79,3)
+        MoveScaled(0,24,79,3)
         Font = Font["Bold"]
         Text = ("Required features")
       }
       { HBox7 HBox
-        MoveScaled(0,32,75,12)
+        MoveScaled(0,28,75,12)
         Indent = True
         { panNeed Panel
           MoveScaled(1,0,37,12)
@@ -331,7 +337,7 @@
         }
       }
       { Panel12 HBox
-        MoveScaled(0,45,80,3)
+        MoveScaled(0,41,80,3)
         { Label14 Label
           MoveScaled(0,0,35,3)
           Font = Font["Bold"]
@@ -340,7 +346,7 @@
         }
       }
       { HBox10 HBox
-        MoveScaled(0,49,81,18)
+        MoveScaled(0,45,81,18)
         Expand = True
         Spacing = True
         { lvwRequire ListView
@@ -376,12 +382,14 @@
     }
     Index = 2
     Text = ("Components")
+    Picture = Picture["icon:/medium/component"]
     { choComponent ComponentChooser
       MoveScaled(6,9,67,37)
       Expand = True
     }
     Index = 3
     Text = ("Libraries")
+    Picture = Picture["icon:/medium/plugin"]
     { Panel4 Panel
       MoveScaled(3,2,80,7)
       Visible = False
@@ -392,8 +400,8 @@
       Border = Border.Plain
       { PictureBox1 PictureBox
         MoveScaled(1,1,6,6)
-        Picture = Picture["icon:/32/warning"]
         AutoResize = True
+        Picture = Picture["icon:/32/warning"]
         Alignment = Align.Left
       }
       { TextLabel1 TextLabel
@@ -445,6 +453,7 @@
     }
     Index = 4
     Text = ("Environment")
+    Picture = Picture["icon:/medium/select"]
     { tvwEnv TableView
       MoveScaled(3,6,68,20)
       Expand = True
@@ -468,21 +477,16 @@
     }
     Index = 5
     Text = ("Arguments")
-    { Panel8 Panel
-      MoveScaled(2,1,83,43)
+    Picture = Picture["icon:/medium/play"]
+    { svwArgList ScrollView
+      MoveScaled(3,2,80,40)
+      Background = Color.TextBackground
       Expand = True
-      Arrangement = Arrange.Fill
-      Border = Border.Plain
-      { svwArgList ScrollView
-        MoveScaled(1,1,80,40)
-        Background = Color.TextBackground
-        Expand = True
-        Arrangement = Arrange.Vertical
-        Spacing = True
-        Margin = True
-        Border = False
-        ScrollBar = Scroll.Vertical
-      }
+      Arrangement = Arrange.Vertical
+      Spacing = True
+      Margin = True
+      ScrollBar = Scroll.Vertical
+      Focus = True
     }
     { HBox2 HBox
       MoveScaled(3,47,77,4)
@@ -511,8 +515,9 @@
     }
     Index = 6
     Text = ("Options")
+    Picture = Picture["icon:/medium/options"]
     { Panel6 VBox
-      MoveScaled(0,0,86,66)
+      MoveScaled(0,0,86,47)
       Spacing = True
       { Label7 Label
         MoveScaled(0,0,84,3)
@@ -539,78 +544,87 @@
           Text = ("space(s)")
         }
       }
+      { HBox4 HBox
+        MoveScaled(1,9,83,4)
+        Spacing = True
+        Indent = True
+        { Label2 Label
+          MoveScaled(0,0,46,4)
+          Text = ("Show deprecated components and controls")
+        }
+        { btnShowDeprecated SwitchButton
+          MoveScaled(47,0,8,4)
+          Animated = True
+        }
+      }
       { Label8 Label
-        MoveScaled(0,9,84,3)
+        MoveScaled(0,14,84,3)
         Font = Font["Bold"]
         Expand = True
         Text = ("Compilation")
         Alignment = Align.BottomNormal
       }
       { HBox12 HBox
-        MoveScaled(1,13,83,4)
+        MoveScaled(1,18,83,4)
         Spacing = True
         Indent = True
         { Label21 Label
           MoveScaled(0,0,46,4)
           Text = ("Module symbols are public by default")
         }
-        { cmbModulePublic ComboBox
-          MoveScaled(47,0,10,4)
-          ReadOnly = True
-          List = [("Yes"), ("No")]
+        { btnModulePublic SwitchButton
+          MoveScaled(47,0,8,4)
+          Animated = True
         }
       }
       { HBox11 HBox
-        MoveScaled(1,18,83,4)
+        MoveScaled(1,23,83,4)
         Spacing = True
         Indent = True
         { Label22 Label
           MoveScaled(0,0,46,4)
           Text = ("Form controls are public")
         }
-        { cmbControlPublic ComboBox
-          MoveScaled(47,0,10,4)
-          ReadOnly = True
-          List = [("Yes"), ("No")]
+        { btnControlPublic SwitchButton
+          MoveScaled(47,0,8,4)
+          Animated = True
         }
       }
       { HBox5 HBox
-        MoveScaled(1,23,83,4)
+        MoveScaled(1,28,83,4)
         Spacing = True
         Indent = True
         { Label4 Label
           MoveScaled(0,0,46,4)
           Text = ("Activate warnings")
         }
-        { cmbWarning ComboBox
-          MoveScaled(47,0,10,4)
-          ReadOnly = True
-          List = [("Yes"), ("No")]
+        { btnWarning SwitchButton
+          MoveScaled(47,0,8,4)
+          Animated = True
         }
       }
       { Label19 Label
-        MoveScaled(0,28,84,3)
+        MoveScaled(0,33,84,3)
         Font = Font["Bold"]
         Expand = True
         Text = ("Translation")
         Alignment = Align.BottomNormal
       }
       { HBox9 HBox
-        MoveScaled(1,32,83,4)
+        MoveScaled(1,37,83,4)
         Spacing = True
         Indent = True
         { Label24 Label
           MoveScaled(0,0,46,4)
           Text = ("Project is translatable")
         }
-        { cmbTranslate ComboBox
-          MoveScaled(47,0,10,4)
-          ReadOnly = True
-          List = [("Yes"), ("No")]
+        { btnTranslate SwitchButton
+          MoveScaled(47,0,8,4)
+          Animated = True
         }
       }
       { HBox8 HBox
-        MoveScaled(1,37,83,4)
+        MoveScaled(1,42,83,4)
         Spacing = True
         Indent = True
         { Label20 Label
@@ -624,82 +638,27 @@
           Sorted = True
         }
       }
-      { Label27 Label
-        MoveScaled(0,42,84,3)
-        Font = Font["Bold"]
-        Expand = True
-        Text = ("Debugging")
-        Alignment = Align.BottomNormal
-      }
-      { HBox4 HBox
-        MoveScaled(1,46,83,4)
-        Spacing = True
-        Indent = True
-        { Label2 Label
-          MoveScaled(0,0,46,4)
-          Text = ("Activate profiling")
-        }
-        { cmbProfile ComboBox
-          MoveScaled(47,0,10,4)
-          ReadOnly = True
-          List = [("Yes"), ("No")]
-        }
-      }
-      { HBox17 HBox
-        MoveScaled(1,51,83,4)
-        Spacing = True
-        Indent = True
-        { Label28 Label
-          MoveScaled(0,0,46,4)
-          Text = ("Use a terminal emulator")
-        }
-        { cmbTerminal ComboBox
-          MoveScaled(47,0,10,4)
-          ReadOnly = True
-          List = [("Yes"), ("No")]
-        }
-      }
-      { HBox6 HBox
-        MoveScaled(1,56,83,4)
-        Spacing = True
-        Indent = True
-        { Label9 Label
-          MoveScaled(0,0,46,4)
-          Text = ("Redirect standard error output")
-        }
-        { cmbRedirect ComboBox
-          MoveScaled(47,0,10,4)
-          ReadOnly = True
-          List = [("Yes"), ("No")]
-        }
-      }
-      { panHttpServer HBox
-        MoveScaled(1,61,83,4)
-        Enabled = False
-        Spacing = True
-        Indent = True
-        { Label6 Label
-          MoveScaled(0,0,46,4)
-          Text = ("Use embedded HTTP server")
-        }
-        { cmbHttpServer ComboBox
-          MoveScaled(47,0,10,4)
-          ReadOnly = True
-          List = [("Yes"), ("No")]
-        }
-      }
     }
     Index = 7
     Text = ("Statistics")
+    Picture = Picture["icon:/medium/monitor"]
     { gvwStat GridView
       MoveScaled(10,7,62,25)
       Expand = True
-      Padding = 8
+      Padding = 4
+    }
+    Index = 8
+    Text = ("Version control")
+    Picture = Picture["icon:/medium/record"]
+    { gvwVcInfo GridView
+      MoveScaled(3,7,62,25)
+      Expand = True
+      Padding = 4
     }
     Index = 0
   }
   { Panel10 HBox
-    MoveScaled(29,72,81,4)
+    MoveScaled(27,69,81,4)
     Spacing = True
     { Panel11 Panel
       MoveScaled(0,1,14,3)

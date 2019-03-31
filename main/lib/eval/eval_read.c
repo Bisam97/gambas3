@@ -2,7 +2,7 @@
 
   eval_read.c
 
-  (c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -324,6 +324,8 @@ static bool add_number()
 			goto READ_HEXA;
 		else if (car == 'X')
 			goto READ_BINARY;
+		else if (car == 'O')
+			goto READ_OCTAL;
 		else
 		{
 			source_ptr--;
@@ -344,6 +346,19 @@ READ_BINARY:
 	{
 		car = next_char();
 		if (car != '0' && car != '1')
+			break;
+		has_digit = TRUE;
+	}
+
+	goto END_BINARY_HEXA;
+
+READ_OCTAL:
+
+	has_digit = FALSE;
+	for (;;)
+	{
+		car = next_char();
+		if (car < '0' || car > '7')
 			break;
 		has_digit = TRUE;
 	}
@@ -646,20 +661,27 @@ static void add_identifier()
 	type = RT_IDENTIFIER;
 
 	start = source_ptr;
-	len = 1;
+	for(;;)
+	{
+		source_ptr++;
+		if (!ident_car[get_char()])
+			break;
+	}
+	
+	len = source_ptr - start;
 
 	last_class = (flag & RSF_CLASS) != 0;
 	last_type = (flag & RSF_AS) != 0;
 
 	if (last_type)
 	{
+		source_ptr--;
+		
 		for(;;)
 		{
 			source_ptr++;
 			len++;
 			car = get_char();
-			if (ident_car[car])
-				continue;
 			if (car == '[')
 			{
 				car = get_char_offset(1);
@@ -674,17 +696,6 @@ static void add_identifier()
 
 			len--;
 			break;
-		}
-	}
-	else
-	{
-		for(;;)
-		{
-			source_ptr++;
-			car = get_char();
-			if (!ident_car[car])
-				break;
-			len++;
 		}
 	}
 
@@ -854,6 +865,7 @@ static void add_quoted_identifier(void)
 	PATTERN last_pattern;
 
 	last_pattern = get_last_pattern();
+	
 	type = RT_IDENTIFIER;
 
 	start = source_ptr;
@@ -863,29 +875,27 @@ static void add_quoted_identifier(void)
 	{
 		source_ptr++;
 		car = get_char();
-		if (!car || car == '\n')
-			break;
 		len++;
-		if (car == '}')
-		{
-			source_ptr++;
+		if (!ident_car[car])
 			break;
-		}
 	}
 
-	/*if (car == '}')
+	source_ptr++;
+	
+	if (!EVAL->analyze)
 	{
-		source_ptr++;
-		len++;
-	}*/
-
-	/*if (PATTERN_is(last_pattern, RS_EVENT) || PATTERN_is(last_pattern, RS_RAISE))
+		if (car != '}')
+			THROW("Missing '}'");
+		
+		if (len == 2)
+			THROW("Void identifier");
+	}
+	else
 	{
-		start--;
-		len++;
-		*((char *)start) = ':';
-	}*/
-
+		if (!car)
+			len--;
+	}
+	
 	if (!EVAL->analyze && PATTERN_is(last_pattern, RS_EXCL))
 	{
 		TABLE_add_symbol(EVAL->string, start + 1, len - 2, &index);
@@ -931,7 +941,8 @@ static void add_operator()
 		}
 
 		car = get_char();
-		if (!isascii(car) || !ispunct(car))
+		//if (!isascii(car) || !ispunct(car))
+		if (noop_car[car])
 			break;
 		len++;
 	}
@@ -967,7 +978,7 @@ static void add_string()
 	const char *start;
 	int len;
 	int index;
-	int newline;
+	ushort newline;
 	bool jump;
 	char *p;
 	int i;
@@ -1069,7 +1080,7 @@ static void add_string()
 		add_pattern(RT_STRING, index);
 	}
 	else
-		add_pattern(RT_STRING, VOID_STRING);
+		add_pattern(RT_STRING, VOID_STRING_INDEX);
 
 	for (i = 0; i < newline; i++)
 		add_newline();
@@ -1307,7 +1318,6 @@ PUBLIC void EVAL_read(void)
 
 		_begin_line = FALSE;
 		continue;
-
 
 	__STRING:
 

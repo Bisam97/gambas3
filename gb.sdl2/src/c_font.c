@@ -2,7 +2,7 @@
 
   c_font.c
 
-  (c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -245,9 +245,9 @@ SDL_Image *FONT_render_text(CFONT *_object, CWINDOW *window, char *text, int len
 	{
 		SDL_Color color = { 0xFF, 0xFF, 0xFF, 0xFF };
 		char c = text[len];
-		text[len] = 0;
+		if (c) text[len] = 0;
 		surface = TTF_RenderUTF8_Blended(THIS->font, text, color);
-		text[len] = c;
+		if (c) text[len] = c;
 		*w = surface->w;
 		*h = surface->h;
 	}
@@ -320,7 +320,7 @@ BEGIN_METHOD(Font_get, GB_STRING font)
 	int val;
 	bool bold = FALSE;
 	bool italic = FALSE;
-	int size = 0;
+	int size = 10;
 	char *name = NULL;
 
 	for (elt = strtok(desc, ","); elt; elt = strtok(NULL, ","))

@@ -2,7 +2,7 @@
 
   gb_file_temp.h
 
-  (c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -39,11 +39,7 @@
 
 #ifdef PROJECT_EXEC
 
-#if defined(OS_FREEBSD) || defined(OS_OPENBSD)
-#include <sys/mount.h>
-#else
-#include <sys/statfs.h>
-#endif
+#include <sys/statvfs.h>
 
 #include <sys/types.h>
 #include <grp.h>
@@ -603,7 +599,7 @@ mode_t FILE_mode_from_string(mode_t mode, const char *str)
 		if (!c)
 			break;
 
-		for (i = 0; i < 3; i++)
+		for (i = 0; i <= 3; i++)
 		{
 			test = d->test[i];
 			if (!test)
@@ -835,7 +831,7 @@ void FILE_recursive_dir(const char *dir, void (*found)(const char *), void (*aft
 	char *temp;
 	bool is_dir;
 	#if OPT_NLINK
-	bool no_subdir = FALSE;
+	int nsubdir = -1;
 	#endif
 
 	if (!dir || *dir == 0)
@@ -849,11 +845,15 @@ void FILE_recursive_dir(const char *dir, void (*found)(const char *), void (*aft
 	FILE_dir_first(dir, NULL, attr != GB_STAT_DIRECTORY ? 0 : GB_STAT_DIRECTORY);
 
 	#if OPT_NLINK
-	if (file_dir)
+	if (file_dir && !FILE_is_relative(dir))
 	{
 		struct stat dinfo;
 		fstat(dirfd(file_dir), &dinfo);
-		no_subdir = dinfo.st_nlink == 2;
+		// If the number of links N to the directory:
+		// - Is > 2, then the directory has N - 2 sub-directories
+		// - Is = 2, then the directory has no sub-directory
+		// - Is < 2, then the file system is not POSIX, so we must scan everything
+		nsubdir = dinfo.st_nlink - 2;
 	}
 	#endif
 
@@ -863,7 +863,7 @@ void FILE_recursive_dir(const char *dir, void (*found)(const char *), void (*aft
 		path = (char *)FILE_cat(file_rdir_path, temp, NULL);
 
 		#if OPT_NLINK
-		if (!no_subdir || follow)
+		if (nsubdir || follow)
 		#endif
 		{
 			#ifdef _DIRENT_HAVE_D_TYPE
@@ -880,6 +880,7 @@ void FILE_recursive_dir(const char *dir, void (*found)(const char *), void (*aft
 
 			if (is_dir)
 			{
+				nsubdir--;
 				push_path(&dir_list, path);
 				continue;
 			}
@@ -998,8 +999,8 @@ void FILE_copy(const char *src, const char *dst)
 
 	TRY
 	{
-		STREAM_open(&stream_src, src, ST_READ);
-		STREAM_open(&stream_dst, dst, ST_CREATE);
+		STREAM_open(&stream_src, src, STO_READ);
+		STREAM_open(&stream_dst, dst, STO_CREATE);
 
 		STREAM_lof(&stream_src, &len);
 
@@ -1077,12 +1078,12 @@ void FILE_link(const char *src, const char *dst)
 
 int64_t FILE_free(const char *path)
 {
-	struct statfs info;
+	struct statvfs info;
 
 	if (FILE_is_relative(path))
 		return 0;
 
-	statfs(path, &info);
+	statvfs(path, &info);
 	return (int64_t)(getuid() == 0 ? info.f_bfree : info.f_bavail) * info.f_bsize;
 }
 
@@ -1284,3 +1285,4 @@ char *FILE_get_home(void)
 
 	return _home;
 }
+

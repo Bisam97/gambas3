@@ -2,7 +2,7 @@
 
   gbx_c_array.c
 
-  (c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -44,6 +44,7 @@
 #include "gbx_api.h"
 #include "gbx_c_file.h"
 #include "gbx_struct.h"
+#include "gbx_math.h"
 #include "gbx_c_array.h"
 
 static bool _create_static_array;
@@ -76,7 +77,7 @@ static bool check_start_length(int count, int *start, int *length)
 {
 	if (*start < 0)
 	{
-		GB_Error((char *)E_BOUND);
+		CARRAY_out_of_bounds();
 		return TRUE;
 	}
 
@@ -88,7 +89,7 @@ static bool check_start_length(int count, int *start, int *length)
 
 	if (*length < 0 || (*start + *length) > count)
 	{
-		GB_Error((char *)E_BOUND);
+		CARRAY_out_of_bounds();
 		return TRUE;
 	}
 	
@@ -171,7 +172,7 @@ CLASS *CARRAY_get_array_class(CLASS *class, CTYPE ctype)
 }
 
 
-void *CARRAY_out_of_bound()
+void *CARRAY_out_of_bounds()
 {
 	GB_Error((char *)E_BOUND);
 	return NULL;
@@ -213,10 +214,7 @@ void *CARRAY_get_data_multi(CARRAY *_object, GB_INTEGER *arg, int nparam)
 			d = arg[i].value;
 
 			if (d < 0 || d >= max)
-			{
-				GB_Error((char *)E_BOUND);
-				return NULL;
-			}
+				return CARRAY_out_of_bounds();
 
 			index *= max;
 			index += d;
@@ -242,10 +240,7 @@ void *CARRAY_get_data_multi(CARRAY *_object, GB_INTEGER *arg, int nparam)
 		index = arg->value;
 
 		if ((index < 0) || (index >= THIS->count))
-		{
-			GB_Error((char *)E_BOUND);
-			return NULL;
-		}
+			return CARRAY_out_of_bounds();
 	}
 
 	return (void *)((char *)(THIS->data) + index * THIS->size);
@@ -703,6 +698,152 @@ BEGIN_METHOD(Array_Resize, GB_INTEGER size)
 	
 END_METHOD
 
+/*
+BEGIN_METHOD(Array_Swap, GB_INTEGER index; GB_INTEGER index2)
+
+	int size = THIS->size;
+	int i1, i2;
+	void *p1, *p2;
+
+	if (check_not_multi(THIS))
+		return;
+	
+	i1 = VARG(index);
+	i2 = VARG(index2);
+	
+	p1 = get_data(THIS, i1);
+	if (!p1)
+		return;
+	p2 = get_data(THIS, i2);
+	if (!p2)
+		return;
+	
+	switch(size)
+	{
+		case 1:
+		{
+			char t = *(char *)p1;
+			*(char *)p1 = *(char *)p2;
+			*(char *)p2 = t;
+			break;
+		}
+			
+		case 2:
+		{
+			short t = *(short *)p1;
+			*(short *)p1 = *(short *)p2;
+			*(short *)p2 = t;
+			break;
+		}
+			
+		case 4:
+		{
+			int t = *(int *)p1;
+			*(int *)p1 = *(int *)p2;
+			*(int *)p2 = t;
+			break;
+		}
+			
+		case 8:
+		{
+			int64_t t = *(char *)p1;
+			*(char *)p1 = *(char *)p2;
+			*(char *)p2 = t;
+			break;
+		}
+			
+		default:
+		{
+			unsigned char *p;
+			unsigned char *q;
+			unsigned char *const end = (unsigned char *)p1 + size;
+
+			for (p = p1, q = p2; p < end; ++p, ++q ) {
+				const unsigned char t = *p;
+				*p = *q;
+				*q = t;
+			}			
+		}
+	}
+	
+END_METHOD
+*/
+
+BEGIN_METHOD_VOID(Array_Shuffle)
+
+	int count = THIS->count;
+	int size = THIS->size;
+	void *p1, *p2;
+	int i, j;
+	void *swap;
+
+	if (check_not_multi(THIS) || count <= 1)
+		return;
+	
+	switch (size)
+	{
+		case 1: swap = &&__SWAP_BYTE; break;
+		case 2: swap = &&__SWAP_SHORT; break;
+		case 4: swap = &&__SWAP_INT; break;
+		case 8: swap = &&__SWAP_LONG; break;
+		default: swap = &&__SWAP_ANY;
+	}
+	
+	for (i = count - 1; i >= 1; i--)
+	{
+		j = (int)(rnd() * (i + 1));
+		p1 = CARRAY_get_data_unsafe(THIS, i);
+		p2 = CARRAY_get_data_unsafe(THIS, j);
+		
+		goto *swap;
+	
+	__SWAP_BYTE:
+		{
+			char t = *(char *)p1;
+			*(char *)p1 = *(char *)p2;
+			*(char *)p2 = t;
+			continue;
+		}
+				
+	__SWAP_SHORT:
+		{
+			short t = *(short *)p1;
+			*(short *)p1 = *(short *)p2;
+			*(short *)p2 = t;
+			continue;
+		}
+				
+	__SWAP_INT:
+		{
+			int t = *(int *)p1;
+			*(int *)p1 = *(int *)p2;
+			*(int *)p2 = t;
+			continue;
+		}
+				
+	__SWAP_LONG:
+		{
+			int64_t t = *(int64_t *)p1;
+			*(int64_t *)p1 = *(int64_t *)p2;
+			*(int64_t *)p2 = t;
+			continue;
+		}
+			
+	__SWAP_ANY:
+		{
+			unsigned char *p;
+			unsigned char *q;
+			unsigned char *const end = (unsigned char *)p1 + size;
+
+			for (p = p1, q = p2; p < end; ++p, ++q ) {
+				const unsigned char t = *p;
+				*p = *q;
+				*q = t;
+			}			
+		}
+	}
+	
+END_METHOD
 
 static void add(CARRAY *_object, GB_VALUE *value, int index)
 {
@@ -895,22 +1036,17 @@ BEGIN_METHOD(Array_get, GB_INTEGER index)
 
 END_METHOD
 
-#if 0
-BEGIN_PROPERTY(Array_Last)
 
+static void array_first_last(CARRAY *_object, void *_param, bool last)
+{
 	void *data;
-	int index = THIS->count - 1;
+	int index = last ? THIS->count - 1 : 0;
 
 	if (check_not_multi(THIS))
 		return;
 
-	if (index < 0)
-	{
-		GB_Error((char *)E_ARG);
-		return;
-	}
-
 	data = get_data(THIS, index);
+	if (!data) return;
 	
 	if (READ_PROPERTY)
 	{
@@ -920,16 +1056,27 @@ BEGIN_PROPERTY(Array_Last)
 	{
 		GB_VALUE *value;
 		
-		value = (GB_VALUE *)(void *)ARG(value);
+		value = PROP(GB_VALUE);
 		GB_Conv(value, THIS->type);	
-		
-		if (!data) return;
 		
 		GB_Store(THIS->type, value, data);
 	}
+}
+
+
+BEGIN_PROPERTY(Array_First)
+
+	array_first_last(_object, _param, FALSE);
 
 END_PROPERTY
-#endif
+
+
+BEGIN_PROPERTY(Array_Last)
+
+	array_first_last(_object, _param, TRUE);
+
+END_PROPERTY
+
 
 BEGIN_METHOD_VOID(Array_next)
 
@@ -947,14 +1094,84 @@ END_METHOD
 
 BEGIN_METHOD(Array_Sort, GB_INTEGER mode)
 
-	COMPARE_FUNC compare;
-	int mode = VARGOPT(mode, 0);
-	void *data = THIS->data;
-
 	if (THIS->count > 1)
+		qsort(THIS->data, THIS->count, THIS->size, COMPARE_get_func(THIS->type, VARGOPT(mode, 0)));
+
+	GB_ReturnObject(THIS);
+
+END_METHOD
+
+static void *_using_data;
+static int _using_size;
+static COMPARE_FUNC _using_func;
+
+static int compare_using(const int *a, const int *b)
+{
+	return _using_func(_using_data + *a * _using_size, _using_data + *b * _using_size);
+}
+
+BEGIN_METHOD(Array_SortUsing, GB_OBJECT order; GB_INTEGER mode)
+
+	CARRAY *order = VARG(order);
+	int *sort;
+	int i, j, k;
+	void *data;
+	int count;
+	int size;
+	char old[sizeof(VARIANT)];
+	
+	if (!order)
 	{
-		compare = COMPARE_get(THIS->type, mode);
-		qsort(data, THIS->count, THIS->size, compare);
+		GB_Error((char *)E_NULL);
+		return;
+	}
+	
+	if (check_not_multi(order))
+		return;
+		
+	if (order->count < THIS->count)
+	{
+		CARRAY_out_of_bounds();
+		return;
+	}
+
+	data = THIS->data;
+	count = THIS->count;
+	size = THIS->size;
+	
+	if (count > 1)
+	{
+		ALLOC(&sort, sizeof(int) * count);
+		for (i = 0; i < count; i++)
+			sort[i] = i;
+
+		_using_data = order->data;
+		_using_size = order->size;
+		_using_func = COMPARE_get_func(order->type, VARGOPT(mode, 0));
+		
+		qsort(sort, count, sizeof(int), (COMPARE_FUNC)compare_using);
+		
+		for (i = 0; i < count; i++) 
+		{
+			j = i;
+			k = sort[j];
+			if (k < 0)
+				continue;
+			
+			while (k != i)
+			{
+				memcpy(old, data + j * size, size);
+				memcpy(data + j * size, data + k * size, size);
+				memcpy(data + k * size, old, size);
+				sort[j] = -1;
+				j = k;
+				k = sort[k];
+			}
+			
+			sort[j] = -1;
+		}
+
+		IFREE(sort);
 	}
 
 	GB_ReturnObject(THIS);
@@ -964,7 +1181,7 @@ END_METHOD
 
 static int find(CARRAY *_object, int mode, void *value, int start)
 {
-	COMPARE_FUNC compare = COMPARE_get(THIS->type, mode);
+	COMPARE_FUNC compare = COMPARE_get_func(THIS->type, mode);
 	int i;
 
 	if (start < 0)
@@ -1133,11 +1350,12 @@ static int find_string(CARRAY *_object, int mode, const char *value, int len_val
 	}
 	else
 	{
-		COMPARE_FUNC compare = COMPARE_get(THIS->type, mode);
+		COMPARE_STRING_FUNC compare = COMPARE_get_string_func(mode);
+		bool nocase = mode & GB_COMP_NOCASE;
 		
 		for (i = start; i < THIS->count; i++)
 		{
-			if ((*compare)(&data[i], &value) == 0)
+			if ((*compare)(data[i], STRING_length(data[i]), value, len_value, nocase, FALSE) == 0)
 				return i;
 		}
 	}
@@ -1356,7 +1574,7 @@ BEGIN_METHOD(Array_Bounds_get, GB_INTEGER index)
 
 	if (index < 0 || index >= dim)
 	{
-		GB_Error((char *)E_BOUND);
+		CARRAY_out_of_bounds();
 		return;
 	}
 
@@ -1374,7 +1592,7 @@ BEGIN_METHOD(Array_Byte_ToString, GB_INTEGER start; GB_INTEGER length)
 	
 	if (start < 0)
 	{
-		GB_Error((char *)E_BOUND);
+		CARRAY_out_of_bounds();
 		return;
 	}
 
@@ -1426,23 +1644,13 @@ BEGIN_METHOD(ArrayOfStruct_get, GB_INTEGER index)
 
 END_METHOD
 
-
-BEGIN_METHOD(ArrayOfStruct_put, GB_OBJECT value; GB_INTEGER index)
-
+static void array_of_struct_put(CARRAY *_object, void *data, void *object)
+{
 	int i;
 	CLASS *class = (CLASS *)THIS->type;
-	char *addr;
-	void *object = VARG(value);
-	void *data;
-	VALUE temp;
 	CLASS_DESC *desc;
-	
-	if (GB_CheckObject(object))
-		return;
-	
-	data = get_data_multi(THIS, ARG(index), GB_NParam() + 1);
-	if (!data)
-		return;
+	char *addr;
+	VALUE temp;
 	
 	for (i = 0; i < class->n_desc; i++)
 	{
@@ -1458,31 +1666,59 @@ BEGIN_METHOD(ArrayOfStruct_put, GB_OBJECT value; GB_INTEGER index)
 		addr = (char *)data + desc->variable.offset;
 		VALUE_write(&temp, (void *)addr, desc->variable.type);
 	}
+}
 
+BEGIN_METHOD(ArrayOfStruct_put, GB_OBJECT value; GB_INTEGER index)
+
+	void *object = VARG(value);
+	void *data;
+	
+	if (GB_CheckObject(object))
+		return;
+	
+	data = get_data_multi(THIS, ARG(index), GB_NParam() + 1);
+	if (!data)
+		return;
+	
+	array_of_struct_put(THIS, data, object);
+	
 END_METHOD
 
 
-#if 0
-BEGIN_PROPERTY(ArrayOfStruct_Last)
-
-	int index = THIS->count - 1;
+static void array_of_struct_first_last(void *_object, void *_param, bool last)
+{
+	int index = last ? THIS->count - 1 : 0;
 
 	if (check_not_multi(THIS))
 		return;
 
-	if (index < 0)
-	{
-		GB_Error((char *)E_ARG);
-		return;
-	}
-
 	void *data = get_data(THIS, index);
+	if (!data) return;
 
-	if (data)
+	if (READ_PROPERTY)
+	{
 		GB_ReturnObject(CSTRUCT_create_static(THIS, (CLASS *)THIS->type, data));
+	}
+	else
+	{
+		array_of_struct_put(THIS, data, VPROP(GB_OBJECT));
+	}
 	
 END_PROPERTY
-#endif
+
+
+BEGIN_PROPERTY(ArrayOfStruct_First)
+
+	array_of_struct_first_last(_object, _param, FALSE);
+
+END_PROPERTY
+
+	
+BEGIN_PROPERTY(ArrayOfStruct_Last)
+
+	array_of_struct_first_last(_object, _param, TRUE);
+
+END_PROPERTY
 
 	
 BEGIN_METHOD_VOID(ArrayOfStruct_next)
@@ -1499,11 +1735,9 @@ BEGIN_METHOD_VOID(ArrayOfStruct_next)
 
 END_METHOD
 
-static CARRAY *_converted_array;
-
-static void error_convert()
+static void error_convert(CARRAY *array)
 {
-	OBJECT_UNREF(_converted_array);
+	OBJECT_UNREF(array);
 }
 
 static bool _convert(CARRAY *src, CLASS *class, VALUE *conv)
@@ -1519,17 +1753,17 @@ static bool _convert(CARRAY *src, CLASS *class, VALUE *conv)
 	
 	CLASS_load(class); // Force creation of array classes
 	
-	if (!class->is_array) //CLASS_inherits(class, CLASS_Array))
+	if (!class->is_array)
 		return TRUE;
 	
-	_converted_array = array = OBJECT_create(class, NULL, NULL, 0);
+	array = OBJECT_create(class, NULL, NULL, 0);
 	
 	if (src->count)
 	{
 		ARRAY_add_many_void(&array->data, src->count);
 		array->count = src->count;
 		
-		ON_ERROR(error_convert)
+		ON_ERROR_1(error_convert, array)
 		{
 			for (i = 0; i < src->count; i++)
 			{
@@ -1565,6 +1799,9 @@ static bool _convert(CARRAY *src, CLASS *class, VALUE *conv)
 #endif /* #ifndef GBX_INFO */
 
 
+//---------------------------------------------------------------------------
+
+
 GB_DESC NATIVE_ArrayBounds[] =
 {
 	GB_DECLARE(".Array.Bounds", sizeof(CARRAY)), GB_NOT_CREATABLE(),
@@ -1593,21 +1830,9 @@ GB_DESC NATIVE_Array[] =
 	GB_METHOD("Remove", NULL, Array_Remove, "(Index)i[(Length)i]"),
 	GB_METHOD("Clear", NULL, Array_Clear, NULL),
 	GB_METHOD("Resize", NULL, Array_Resize, "(Size)i"),
+	//GB_METHOD("Swap", NULL, Array_Swap, "(Index)i(Index2)i"),
+	GB_METHOD("Shuffle", NULL, Array_Shuffle, NULL),
 
-	//GB_METHOD("Add", NULL, Array_Add, "(Value)v[(Index)i]"),
-	//GB_METHOD("Push", NULL, Array_Push, "(Value)v"),
-	//GB_METHOD("_put", NULL, Array_put, "(Value)v(Index)i."),
-
-	//GB_METHOD("Pop", "v", Array_Pop_variant, NULL), // Does not work
-	//GB_METHOD("_get", "v", Array_get_variant, "(Index)i."),
-	//GB_METHOD("_next", "v", Array_next_variant, NULL),
-	//GB_PROPERTY_READ("Last", "v", Array_Last),
-
-	/*GB_METHOD("Copy", "Array", Array_Copy, "[(Start)i(Length)i]"),
-	GB_METHOD("Extract", "Array", Array_Extract, "(Start)i[(Length)i]"),
-	GB_METHOD("Delete", "Array", Array_Extract, "(Start)i[(Length)i]"),
-	GB_METHOD("Fill", NULL, Array_Fill, "(Value)v[(Start)i(Length)i]"),*/
-	
 	GB_INTERFACE("_convert", _convert),
 
 	GB_END_DECLARE
@@ -1629,7 +1854,9 @@ GB_DESC NATIVE_BooleanArray[] =
 	GB_METHOD("Pop", "b", Array_Pop, NULL),
 	GB_METHOD("_get", "b", Array_get, "(Index)i."),
 	GB_METHOD("_next", "b", Array_next, NULL),
-	//GB_PROPERTY_READ("Last", "b", Array_Last),
+
+	GB_PROPERTY("First", "b", Array_First),
+	GB_PROPERTY("Last", "b", Array_Last),
 
 	GB_METHOD("Read", NULL, Array_Read, "(Stream)Stream;[(Start)i(Length)i]"),
 	GB_METHOD("Write", NULL, Array_Write, "(Stream)Stream;[(Start)i(Length)i]"),
@@ -1639,6 +1866,7 @@ GB_DESC NATIVE_BooleanArray[] =
 	GB_METHOD("Extract", "Boolean[]", Array_Extract, "(Start)i[(Length)i]"),
 	GB_METHOD("Delete", "Boolean[]", Array_Extract, "(Start)i[(Length)i]"),
 	GB_METHOD("Sort", "Boolean[]", Array_Sort, "[(Mode)i]"),
+	GB_METHOD("SortUsing", "Boolean[]", Array_SortUsing, "(Order)Array;[(Mode)i]"),
 	GB_METHOD("Reverse", "Boolean[]", CARRAY_reverse, NULL),
 	GB_METHOD("Fill", NULL, Array_Fill, "(Value)b[(Start)i(Length)i]"),
 
@@ -1662,6 +1890,9 @@ GB_DESC NATIVE_ByteArray[] =
 	GB_METHOD("_get", "c", Array_get, "(Index)i."),
 	GB_METHOD("_next", "c", Array_next, NULL),
 
+	GB_PROPERTY("First", "c", Array_First),
+	GB_PROPERTY("Last", "c", Array_Last),
+
 	GB_METHOD("Read", NULL, Array_Read, "(Stream)Stream;[(Start)i(Length)i]"),
 	GB_METHOD("Write", NULL, Array_Write, "(Stream)Stream;[(Start)i(Length)i]"),
 
@@ -1670,6 +1901,7 @@ GB_DESC NATIVE_ByteArray[] =
 	GB_METHOD("Extract", "Byte[]", Array_Extract, "(Start)i[(Length)i]"),
 	GB_METHOD("Delete", "Byte[]", Array_Extract, "(Start)i[(Length)i]"),
 	GB_METHOD("Sort", "Byte[]", Array_Sort, "[(Mode)i]"),
+	GB_METHOD("SortUsing", "Byte[]", Array_SortUsing, "(Order)Array;[(Mode)i]"),
 	GB_METHOD("Reverse", "Byte[]", CARRAY_reverse, NULL),
 	GB_METHOD("Fill", NULL, Array_Fill, "(Value)c[(Start)i(Length)i]"),
 
@@ -1695,7 +1927,9 @@ GB_DESC NATIVE_ShortArray[] =
 	GB_METHOD("Pop", "h", Array_Pop, NULL),
 	GB_METHOD("_get", "h", Array_get, "(Index)i."),
 	GB_METHOD("_next", "h", Array_next, NULL),
-	//GB_PROPERTY_READ("Last", "h", Array_Last),
+
+	GB_PROPERTY("First", "h", Array_First),
+	GB_PROPERTY("Last", "h", Array_Last),
 
 	GB_METHOD("Read", NULL, Array_Read, "(Stream)Stream;[(Start)i(Length)i]"),
 	GB_METHOD("Write", NULL, Array_Write, "(Stream)Stream;[(Start)i(Length)i]"),
@@ -1705,6 +1939,7 @@ GB_DESC NATIVE_ShortArray[] =
 	GB_METHOD("Extract", "Short[]", Array_Extract, "(Start)i[(Length)i]"),
 	GB_METHOD("Delete", "Short[]", Array_Extract, "(Start)i[(Length)i]"),
 	GB_METHOD("Sort", "Short[]", Array_Sort, "[(Mode)i]"),
+	GB_METHOD("SortUsing", "Short[]", Array_SortUsing, "(Order)Array;[(Mode)i]"),
 	GB_METHOD("Reverse", "Short[]", CARRAY_reverse, NULL),
 	GB_METHOD("Fill", NULL, Array_Fill, "(Value)h[(Start)i(Length)i]"),
 
@@ -1727,7 +1962,9 @@ GB_DESC NATIVE_IntegerArray[] =
 	GB_METHOD("Pop", "i", Array_Pop, NULL),
 	GB_METHOD("_get", "i", Array_get, "(Index)i."),
 	GB_METHOD("_next", "i", Array_next, NULL),
-	//GB_PROPERTY_READ("Last", "i", Array_Last),
+
+	GB_PROPERTY("First", "i", Array_First),
+	GB_PROPERTY("Last", "i", Array_Last),
 
 	GB_METHOD("Read", NULL, Array_Read, "(Stream)Stream;[(Start)i(Length)i]"),
 	GB_METHOD("Write", NULL, Array_Write, "(Stream)Stream;[(Start)i(Length)i]"),
@@ -1737,6 +1974,7 @@ GB_DESC NATIVE_IntegerArray[] =
 	GB_METHOD("Extract", "Integer[]", Array_Extract, "(Start)i[(Length)i]"),
 	GB_METHOD("Delete", "Integer[]", Array_Extract, "(Start)i[(Length)i]"),
 	GB_METHOD("Sort", "Integer[]", Array_Sort, "[(Mode)i]"),
+	GB_METHOD("SortUsing", "Integer[]", Array_SortUsing, "(Order)Array;[(Mode)i]"),
 	GB_METHOD("Reverse", "Integer[]", CARRAY_reverse, NULL),
 	GB_METHOD("Fill", NULL, Array_Fill, "(Value)i[(Start)i(Length)i]"),
 
@@ -1759,7 +1997,9 @@ GB_DESC NATIVE_LongArray[] =
 	GB_METHOD("Pop", "l", Array_Pop, NULL),
 	GB_METHOD("_get", "l", Array_get, "(Index)i."),
 	GB_METHOD("_next", "l", Array_next, NULL),
-	//GB_PROPERTY_READ("Last", "l", Array_Last),
+
+	GB_PROPERTY("First", "l", Array_First),
+	GB_PROPERTY("Last", "l", Array_Last),
 
 	GB_METHOD("Read", NULL, Array_Read, "(Stream)Stream;[(Start)i(Length)i]"),
 	GB_METHOD("Write", NULL, Array_Write, "(Stream)Stream;[(Start)i(Length)i]"),
@@ -1770,6 +2010,7 @@ GB_DESC NATIVE_LongArray[] =
 	GB_METHOD("Extract", "Long[]", Array_Extract, "(Start)i[(Length)i]"),
 	GB_METHOD("Delete", "Long[]", Array_Extract, "(Start)i[(Length)i]"),
 	GB_METHOD("Sort", "Long[]", Array_Sort, "[(Mode)i]"),
+	GB_METHOD("SortUsing", "Long[]", Array_SortUsing, "(Order)Array;[(Mode)i]"),
 	GB_METHOD("Reverse", "Long[]", CARRAY_reverse, NULL),
 	GB_METHOD("Fill", NULL, Array_Fill, "(Value)l[(Start)i(Length)i]"),
 
@@ -1805,7 +2046,9 @@ GB_DESC NATIVE_PointerArray[] =
 	GB_METHOD("Pop", "p", Array_Pop, NULL),
 	GB_METHOD("_get", "p", Array_get, "(Index)i."),
 	GB_METHOD("_next", "p", Array_next, NULL),
-	//GB_PROPERTY_READ("Last", "p", Array_Last),
+
+	GB_PROPERTY("First", "p", Array_First),
+	GB_PROPERTY("Last", "p", Array_Last),
 
 	GB_METHOD("Read", NULL, Array_Read, "(Stream)Stream;[(Start)i(Length)i]"),
 	GB_METHOD("Write", NULL, Array_Write, "(Stream)Stream;[(Start)i(Length)i]"),
@@ -1816,6 +2059,7 @@ GB_DESC NATIVE_PointerArray[] =
 	GB_METHOD("Extract", "Pointer[]", Array_Extract, "(Start)i[(Length)i]"),
 	GB_METHOD("Delete", "Pointer[]", Array_Extract, "(Start)i[(Length)i]"),
 	GB_METHOD("Sort", "Pointer[]", Array_Sort, "[(Mode)i]"),
+	GB_METHOD("SortUsing", "Pointer[]", Array_SortUsing, "(Order)Array;[(Mode)i]"),
 	GB_METHOD("Reverse", "Pointer[]", CARRAY_reverse, NULL),
 	GB_METHOD("Fill", NULL, Array_Fill, "(Value)p[(Start)i(Length)i]"),
 
@@ -1838,7 +2082,9 @@ GB_DESC NATIVE_StringArray[] =
 	GB_METHOD("Pop", "s", Array_Pop, NULL),
 	GB_METHOD("_get", "s", Array_get, "(Index)i."),
 	GB_METHOD("_next", "s", Array_next, NULL),
-	//GB_PROPERTY_READ("Last", "s", Array_Last),
+
+	GB_PROPERTY("First", "s", Array_First),
+	GB_PROPERTY("Last", "s", Array_Last),
 
 	GB_METHOD("Insert", "String[]", Array_Insert, "(Array)String[];[(Pos)i]"),
 
@@ -1848,6 +2094,7 @@ GB_DESC NATIVE_StringArray[] =
 	GB_METHOD("Extract", "String[]", Array_Extract, "(Start)i[(Length)i]"),
 	GB_METHOD("Delete", "String[]", Array_Extract, "(Start)i[(Length)i]"),
 	GB_METHOD("Sort", "String[]", Array_Sort, "[(Mode)i]"),
+	GB_METHOD("SortUsing", "String[]", Array_SortUsing, "(Order)Array;[(Mode)i]"),
 	GB_METHOD("Reverse", "String[]", CARRAY_reverse, NULL),
 	GB_METHOD("Fill", NULL, Array_Fill, "(Value)s[(Start)i(Length)i]"),
 
@@ -1870,7 +2117,9 @@ GB_DESC NATIVE_FloatArray[] =
 	GB_METHOD("Pop", "f", Array_Pop, NULL),
 	GB_METHOD("_get", "f", Array_get, "(Index)i."),
 	GB_METHOD("_next", "f", Array_next, NULL),
-	//GB_PROPERTY_READ("Last", "f", Array_Last),
+
+	GB_PROPERTY("First", "f", Array_First),
+	GB_PROPERTY("Last", "f", Array_Last),
 
 	GB_METHOD("Read", NULL, Array_Read, "(Stream)Stream;[(Start)i(Length)i]"),
 	GB_METHOD("Write", NULL, Array_Write, "(Stream)Stream;[(Start)i(Length)i]"),
@@ -1881,6 +2130,7 @@ GB_DESC NATIVE_FloatArray[] =
 	GB_METHOD("Extract", "Float[]", Array_Extract, "(Start)i[(Length)i]"),
 	GB_METHOD("Delete", "Float[]", Array_Extract, "(Start)i[(Length)i]"),
 	GB_METHOD("Sort", "Float[]", Array_Sort, "[(Mode)i]"),
+	GB_METHOD("SortUsing", "Float[]", Array_SortUsing, "(Order)Array;[(Mode)i]"),
 	GB_METHOD("Reverse", "Float[]", CARRAY_reverse, NULL),
 	GB_METHOD("Fill", NULL, Array_Fill, "(Value)f[(Start)i(Length)i]"),
 
@@ -1903,7 +2153,9 @@ GB_DESC NATIVE_SingleArray[] =
 	GB_METHOD("Pop", "g", Array_Pop, NULL),
 	GB_METHOD("_get", "g", Array_get, "(Index)i."),
 	GB_METHOD("_next", "g", Array_next, NULL),
-	//GB_PROPERTY_READ("Last", "g", Array_Last),
+
+	GB_PROPERTY("First", "g", Array_First),
+	GB_PROPERTY("Last", "g", Array_Last),
 
 	GB_METHOD("Read", NULL, Array_Read, "(Stream)Stream;[(Start)i(Length)i]"),
 	GB_METHOD("Write", NULL, Array_Write, "(Stream)Stream;[(Start)i(Length)i]"),
@@ -1914,6 +2166,7 @@ GB_DESC NATIVE_SingleArray[] =
 	GB_METHOD("Extract", "Single[]", Array_Extract, "(Start)i[(Length)i]"),
 	GB_METHOD("Delete", "Single[]", Array_Extract, "(Start)i[(Length)i]"),
 	GB_METHOD("Sort", "Single[]", Array_Sort, "[(Mode)i]"),
+	GB_METHOD("SortUsing", "Single[]", Array_SortUsing, "(Order)Array;[(Mode)i]"),
 	GB_METHOD("Reverse", "Single[]", CARRAY_reverse, NULL),
 	GB_METHOD("Fill", NULL, Array_Fill, "(Value)g[(Start)i(Length)i]"),
 
@@ -1936,7 +2189,9 @@ GB_DESC NATIVE_DateArray[] =
 	GB_METHOD("Pop", "d", Array_Pop, NULL),
 	GB_METHOD("_get", "d", Array_get, "(Index)i."),
 	GB_METHOD("_next", "d", Array_next, NULL),
-	//GB_PROPERTY_READ("Last", "d", Array_Last),
+
+	GB_PROPERTY("First", "d", Array_First),
+	GB_PROPERTY("Last", "d", Array_Last),
 
 	GB_METHOD("Read", NULL, Array_Read, "(Stream)Stream;[(Start)i(Length)i]"),
 	GB_METHOD("Write", NULL, Array_Write, "(Stream)Stream;[(Start)i(Length)i]"),
@@ -1947,6 +2202,7 @@ GB_DESC NATIVE_DateArray[] =
 	GB_METHOD("Extract", "Date[]", Array_Extract, "(Start)i[(Length)i]"),
 	GB_METHOD("Delete", "Date[]", Array_Extract, "(Start)i[(Length)i]"),
 	GB_METHOD("Sort", "Date[]", Array_Sort, "[(Mode)i]"),
+	GB_METHOD("SortUsing", "Date[]", Array_SortUsing, "(Order)Array;[(Mode)i]"),
 	GB_METHOD("Reverse", "Date[]", CARRAY_reverse, NULL),
 	GB_METHOD("Fill", NULL, Array_Fill, "(Value)d[(Start)i(Length)i]"),
 
@@ -1971,7 +2227,9 @@ GB_DESC NATIVE_ObjectArray[] =
 	GB_METHOD("Pop", "o", Array_Pop, NULL),
 	GB_METHOD("_get", "o", Array_get, "(Index)i."),
 	GB_METHOD("_next", "o", Array_next, NULL),
-	//GB_PROPERTY_READ("Last", "o", Array_Last),
+
+	GB_PROPERTY("First", "o", Array_First),
+	GB_PROPERTY("Last", "o", Array_Last),
 
 	GB_METHOD("Insert", "Object[]", Array_Insert, "(Array)Object[];[(Pos)i]"),
 
@@ -1981,6 +2239,7 @@ GB_DESC NATIVE_ObjectArray[] =
 	GB_METHOD("Fill", NULL, Array_Fill, "(Value)o[(Start)i(Length)i]"),
 	GB_METHOD("Reverse", "Object[]", CARRAY_reverse, NULL),
 	GB_METHOD("Sort", "Object[]", Array_Sort, "[(Mode)i]"),
+	GB_METHOD("SortUsing", "Object[]", Array_SortUsing, "(Order)Array;[(Mode)i]"),
 
 	GB_END_DECLARE
 };
@@ -2000,8 +2259,10 @@ GB_DESC NATIVE_VariantArray[] =
 	GB_METHOD("Pop", "v", Array_Pop, NULL),
 	GB_METHOD("_get", "v", Array_get, "(Index)i."),
 	GB_METHOD("_next", "v", Array_next, NULL),
-	//GB_PROPERTY_READ("Last", "v", Array_Last),
 
+	GB_PROPERTY("First", "v", Array_First),
+	GB_PROPERTY("Last", "v", Array_Last),
+	
 	GB_METHOD("Insert", "Variant[]", Array_Insert, "(Array)Variant[];[(Pos)i]"),
 
 	GB_METHOD("Copy", "Variant[]", Array_Copy, "[(Start)i(Length)i]"),
@@ -2009,6 +2270,8 @@ GB_DESC NATIVE_VariantArray[] =
 	GB_METHOD("Delete", "Variant[]", Array_Extract, "(Start)i[(Length)i]"),
 	GB_METHOD("Fill", NULL, Array_Fill, "(Value)v[(Start)i(Length)i]"),
 	GB_METHOD("Reverse", "Variant[]", CARRAY_reverse, NULL),
+	GB_METHOD("Sort", "Variant[]", Array_Sort, "[(Mode)i]"),
+	GB_METHOD("SortUsing", "Variant[]", Array_SortUsing, "(Order)Array;[(Mode)i]"),
 
 	GB_END_DECLARE
 };
@@ -2032,7 +2295,9 @@ GB_DESC NATIVE_TemplateArray[ARRAY_TEMPLATE_NDESC] =
 	GB_METHOD("Pop", "*", Array_Pop, NULL),
 	GB_METHOD("_get", "*", Array_get, "(Index)i."),
 	GB_METHOD("_next", "*", Array_next, NULL),
-	//GB_PROPERTY_READ("Last", "*", Array_Last),
+
+	GB_PROPERTY("First", "*", Array_First),
+	GB_PROPERTY("Last", "*", Array_Last),
 
 	GB_METHOD("Insert", "*", Array_Insert, "(Array)*[];[(Pos)i]"),
 
@@ -2041,6 +2306,7 @@ GB_DESC NATIVE_TemplateArray[ARRAY_TEMPLATE_NDESC] =
 	GB_METHOD("Delete", "*[]", Array_Extract, "(Start)i[(Length)i]"),
 	GB_METHOD("Fill", NULL, Array_Fill, "(Value)*;[(Start)i(Length)i]"),
 	GB_METHOD("Sort", "*[]", Array_Sort, "[(Mode)i]"),
+	GB_METHOD("SortUsing", "*[]", Array_SortUsing, "(Order)Array;[(Mode)i]"),
 	GB_METHOD("Reverse", "*[]", CARRAY_reverse, NULL),
 
 	GB_END_DECLARE
@@ -2065,7 +2331,9 @@ GB_DESC NATIVE_TemplateArrayOfStruct[ARRAY_OF_STRUCT_TEMPLATE_NDESC] =
 	GB_METHOD("_get", "*", ArrayOfStruct_get, "(Index)i."),
 	GB_METHOD("_put", NULL, ArrayOfStruct_put, "(Value)*;(Index)i."),
 	GB_METHOD("_next", "*", ArrayOfStruct_next, NULL),
-	//GB_PROPERTY_READ("Last", "b", ArrayOfStruct_Last),
+
+	GB_PROPERTY("First", "*", ArrayOfStruct_First),
+	GB_PROPERTY("Last", "*", ArrayOfStruct_Last),
 
 	GB_END_DECLARE
 };
@@ -2118,7 +2386,5 @@ void GB_ArrayRemove(GB_ARRAY array, int index)
 {
 	copy_remove((CARRAY *)array, index, 1, FALSE, TRUE);
 }
-
-
 
 #endif

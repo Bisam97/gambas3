@@ -2,7 +2,7 @@
 
 	gbx_stream_buffer.c
 
-	(c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+	(c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -49,11 +49,11 @@ static int stream_open(STREAM *stream, const char *path, int mode)
 	struct stat info;
 	int fd;
 
-	if (mode & ST_CREATE)
+	if (mode & STO_CREATE)
 		fmode = "w+";
-	else if (mode & ST_APPEND)
+	else if (mode & STO_APPEND)
 		fmode = "a+";
-	else if (mode & ST_WRITE)
+	else if (mode & STO_WRITE)
 		fmode = "r+";
 	else
 		fmode = "r";
@@ -87,22 +87,34 @@ static int stream_open(STREAM *stream, const char *path, int mode)
 
 static int stream_close(STREAM *stream)
 {
-	if (FD == NULL)
-		return FALSE;
-
-	if (fclose(FD) < 0)
+	FILE *f = FD;
+	
+	if (!f)
 		return TRUE;
 
 	FD = NULL;
-	return FALSE;
+	
+	return fclose(f) < 0;
 }
 
 
 static int stream_read(STREAM *stream, char *buffer, int len)
 {
-	size_t eff_read;
-	size_t len_read;
+	int eff;
+	
+	if (!FD)
+		return TRUE;
 
+	eff = (int)fread(buffer, 1, len, FD);
+	if (eff < len)
+	{
+		if (ferror(FD) == 0)
+			errno = 0;
+	}
+	
+	return eff;
+
+	/*
 	while (len > 0)
 	{
 		len_read = Min(len, MAX_IO);
@@ -128,33 +140,27 @@ static int stream_read(STREAM *stream, char *buffer, int len)
 	}
 
 	return FALSE;
-}
-
-
-static int stream_getchar(STREAM *stream, char *buffer)
-{
-	int c = getc(FD);
-
-	if (c == EOF)
-		return TRUE;
-
-	*buffer = (char)c;
-	return FALSE;
+	*/
 }
 
 
 static int stream_flush(STREAM *stream)
 {
+	if (!FD)
+		return TRUE;
+
 	return (fflush(FD) != 0);
 }
 
 
 static int stream_write(STREAM *stream, char *buffer, int len)
 {
-	size_t eff_write;
-	size_t len_write;
+	if (!FD)
+		return TRUE;
 
-	while (len > 0)
+	return fwrite(buffer, 1, len, FD);
+
+	/*while (len > 0)
 	{
 		len_write = Min(len, MAX_IO);
 		eff_write = fwrite(buffer, 1, len_write, FD);
@@ -172,18 +178,24 @@ static int stream_write(STREAM *stream, char *buffer, int len)
 	if (EXEC_debug)
 		return stream_flush(stream);
 	else
-		return FALSE;
+		return FALSE;*/
 }
 
 
 static int stream_seek(STREAM *stream, int64_t pos, int whence)
 {
+	if (!FD)
+		return TRUE;
+
 	return (fseek(FD, (off_t)pos, whence) != 0);
 }
 
 
 static int stream_tell(STREAM *stream, int64_t *pos)
 {
+	if (!FD)
+		return TRUE;
+
 	*pos = (int64_t)ftell(FD);
 	return (*pos < 0);
 }
@@ -192,6 +204,9 @@ static int stream_tell(STREAM *stream, int64_t *pos)
 static int stream_eof(STREAM *stream)
 {
 	int c;
+
+	if (!FD)
+		return TRUE;
 
 	c = fgetc(FD);
 	if (c == EOF)
@@ -209,7 +224,7 @@ static int stream_lof(STREAM *stream, int64_t *len)
 	if (!stream->common.available_now)
 		return TRUE;
 	
-	if (fstat(fileno(FD), &info) < 0)
+	if (!FD || fstat(fileno(FD), &info) < 0)
 		return TRUE;
 
 	*len = info.st_size;
@@ -219,7 +234,10 @@ static int stream_lof(STREAM *stream, int64_t *len)
 
 static int stream_handle(STREAM *stream)
 {
-	return fileno(FD);
+	if (FD)
+		return fileno(FD);
+	else
+		return -1;
 }
 
 

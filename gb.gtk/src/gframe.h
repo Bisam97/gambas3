@@ -2,7 +2,7 @@
 
   gframe.h
 
-  (c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -49,12 +49,14 @@ public:
 	const char *text();
 	void setText(const char *vl);
 
-	virtual int containerX();
-	virtual int containerY();
 	virtual int clientX();
 	virtual int clientY();
 	virtual int clientWidth();
 	virtual int clientHeight();
+	virtual int containerX();
+	virtual int containerY();
+	virtual int containerWidth();
+	virtual int containerHeight();
 
 	virtual void updateFont();
 #ifdef GTK3
@@ -63,6 +65,8 @@ public:
 	virtual void setRealForeground(gColor color);
 #endif
 
+	virtual void resize(int w, int h);
+	
 //"Private"
 	GtkWidget *fr;
 };

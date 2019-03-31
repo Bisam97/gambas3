@@ -2,7 +2,7 @@
 
   gclipboard.h
 
-  (c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -49,6 +49,7 @@ public:
 	static char *getText(int *len, const char *format);
 	static void setImage(gPicture *image);
 	static gPicture *getImage();
+	static bool hasChanged();
 };
 
 #endif

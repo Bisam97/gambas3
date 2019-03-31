@@ -12,7 +12,7 @@ Public Const TYPE_SPECIAL As Integer = 6
 Public Const TYPE_COMPONENT As Integer = 7
 Public Const TYPE_FILE As Integer = 8
 
-Public Enum OFFLINE_NO_NETWORK, OFFLINE_NOT_AVAILABLE, OFFLINE_UP_TO_DATE, OFFLINE_NEW_AVAILABLE, OFFLINE_NO_WGET
+Public Enum OFFLINE_NO_NETWORK, OFFLINE_NOT_AVAILABLE, OFFLINE_UP_TO_DATE, OFFLINE_NEW_AVAILABLE
 
 Public $PopupHelpCache As Collection
 
@@ -58,7 +58,7 @@ End
 
 Public Sub SetLanguage(sLang As String)
   
-  Settings["/HelpLanguage"] = sLang
+  Settings["/Help/Language"] = sLang
   
 End
 
@@ -67,7 +67,7 @@ Public Sub GetLanguage(Optional bReturnVoidIfDefault As Boolean) As String
   Dim sLang As String
   Dim iPos As Integer
   
-  sLang = Settings["/HelpLanguage"]
+  sLang = Settings["/Help/Language"]
   If sLang Then Return sLang
   If bReturnVoidIfDefault Then Return
   
@@ -370,7 +370,7 @@ Public Sub InitWebViewWith(hWebView As WebView, iType As Integer, sSymbol As Str
   Dim bHelpBrowser As Boolean
   
   If Not hWebView Then 
-    If Not FHelpBrowser.Visible Then Return
+    If Not Class.IsLoaded("FHelpBrowser") Or If Not FHelpBrowser.Visible Then Return
     bHelpBrowser = True
     hWebView = FHelpBrowser.GetBrowser()
   Endif
@@ -476,6 +476,17 @@ Public Sub InitWebViewWith(hWebView As WebView, iType As Integer, sSymbol As Str
   
 End
 
+Public Sub LoadHelpBrowser()
+  
+  If Not Class.IsLoaded("FHelpBrowser") Then
+    Inc Application.Busy
+    FHelpBrowser.Load
+    Dec Application.Busy
+  Endif
+  
+End
+
+
 '' # Description
 '' 
 '' Initialize the help browser with the help on a specific symbol, and show it automatically.
@@ -502,6 +513,7 @@ End
 
 Public Sub ShowHelpBrowserWith(iType As Integer, sSymbol As String, Optional sClass As String, Optional sMore As String)
   
+  LoadHelpBrowser
   FHelpBrowser.Show
   InitWebViewWith(Null, iType, sSymbol, sClass, sMore)
   
@@ -853,13 +865,9 @@ Public Sub GetOfflineState() As Integer
   Dim sDate As String
 
   If Not Desktop.NetworkAvailable Then Return OFFLINE_NO_NETWORK
-
-  If Not System.Exist("wget") Then Return OFFLINE_NO_WGET
   
   Inc Application.Busy
-  
-  Exec ["wget", "-q", "-O", "-", "http://gambaswiki.org/timestamp"] To sTimestamp
-  
+  sTimestamp = HttpClient.Download("http://gambaswiki.org/timestamp")
   Dec Application.Busy
   
   sTimestamp = Trim(sTimestamp)
@@ -904,7 +912,7 @@ Public Sub MakeOffline(hWebView As WebView, sUrl As String, Optional bNoHeader A
       Copy "help/wiki" &/ sFile To GetOfflineDir() &/ sFile
     Next
   
-    File.Save(GetOfflineDir() &/ "style.css", Replace(File.Load("help/wiki/style.css"), "<%/%>", GetOfflineDir()) & "\n.login { display: none !important; }")
+    File.Save(GetOfflineDir() &/ "style.css", Replace(File.Load("help/wiki/style.css"), "<%/%>", GetOfflineDir()) & "\n" & File.Load("help/wiki/style-offline.css"))
     
     $bInitOffline = True
     
@@ -974,4 +982,17 @@ Catch
   Output To Default
   hWebView.Html = "<h2>" & ("This page does not exist.") & "</h2>"
   
+End
+
+Public Sub LoadCustom(sPage As String) As String
+
+  Dim sHtml As String
+
+  sHtml = File.Load("help" &/ sPage)
+  sHtml = Replace(sHtml, "$(style)", File.Load("help/wiki/style.css") & File.Load("help/wiki/style-custom.css"))
+  
+  Return sHtml
+
+  
+
 End

@@ -24,8 +24,10 @@ Private Sub LoadConnection()
 
   txtHost.Text = hConfig["Connection/Host"] 
   txtPort.Text = hConfig["Connection/Port"] 
-  txtUser.Text = hConfig["Connection/User"] 
-  txtPath.Text = hConfig["Connection/Path"] 
+  txtUser.Text = hConfig["Connection/User"]
+  txtPath.Text = MConnection.MakeAbsolutePath(hConfig["Connection/Path"])
+  
+  chkNoPassword.Value = If(hConfig["Connection/NoPassword"], 1, 0)
   chkRememberPassword.Value = If(hConfig["Connection/RememberPassword"], 1, 0)
   chkIgnoreCharset.Value = If(hConfig["Connection/IgnoreCharset"], 1, 0)
   chkDisplayMetadata.Value = If(hConfig["Connection/DisplayMetadata"], 1, 0)
@@ -47,11 +49,23 @@ End
 
 Private Sub FillConfig(hConfig As Object)
   
+  Dim sPath As String
+  
   hConfig["Connection/Type"] = LCase(cmbType.Text)
   hConfig["Connection/Host"] = txtHost.Text
   hConfig["Connection/Port"] = txtPort.Text
   hConfig["Connection/User"] = txtUser.Text
-  hConfig["Connection/Path"] = txtPath.Text
+  
+  sPath = txtPath.Text
+  If Project.InsideDirectory(sPath, Project.Dir) Then
+    sPath = Mid$(sPath, Len(Project.Dir) + 1)
+    If sPath Begins "/" Then sPath = Mid$(sPath, 2)
+  Else If Project.InsideDirectory(sPath, User.Home) Then
+    sPath = "~" &/ Mid$(sPath, Len(User.Home) + 1)
+  Endif
+  
+  hConfig["Connection/Path"] = sPath
+  hConfig["Connection/NoPassword"] = CBool(chkNoPassword.Value)
   hConfig["Connection/RememberPassword"] = CBool(chkRememberPassword.Value)
   hConfig["Connection/IgnoreCharset"] = CBool(chkIgnoreCharset.Value)
   hConfig["Connection/DisplayMetadata"] = CBool(chkDisplayMetadata.Value)
@@ -147,7 +161,7 @@ Public Sub Form_Open()
     txtName.Text = Project.GetNewName("Connection", Project.Dir &/ ".connection")
     txtName.SetFocus
   Endif
-
+  
 End
 
 Private Sub ResetDatabase()
@@ -259,13 +273,21 @@ Private Sub FillDatabaseList()
 
   lvwDatabase.Clear
   For Each sName In aName
-    lvwDatabase.Add(sName, sName, Picture["img/16/database.png"]).Selected = sName = Trim(txtDatabase.Text)
+    lvwDatabase.Add(sName, sName, Picture["icon:/16/database"]).Selected = sName = Trim(txtDatabase.Text)
   Next
   Try lvwDatabase[Trim(txtDatabase.Text)].Selected = True
   UpdateCreateDatabase
   
 End
 
+Private Sub UpdateDatabasePanelHeight()
+
+  Dim hChild As Control
+
+  hChild = panDatabase.Children[panDatabase.Children.Count - 1]
+  panDatabase.H = hChild.Y + hChild.H
+
+End
 
 Public Sub txtDatabase_Click()
 
@@ -289,7 +311,9 @@ Public Sub txtDatabase_Click()
     $hConn.Close
   
   Endif
-
+  
+  UpdateDatabasePanelHeight
+  
 Catch
 
   Application.Busy = 0
@@ -394,5 +418,17 @@ End
 Public Sub chkCreateFrom_Click()
 
   cmbCreateFrom.Enabled = chkCreateFrom.Value
+
+End
+
+Public Sub panDatabase_Arrange()
+
+  UpdateDatabasePanelHeight
+
+End
+
+Public Sub chkNoPassword_Click()
+
+  panPassword.Visible = Not chkNoPassword.Value
 
 End

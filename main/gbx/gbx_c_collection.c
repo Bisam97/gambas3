@@ -2,7 +2,7 @@
 
   gbx_c_collection.c
 
-  (c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -69,6 +69,7 @@ static void remove_key(CCOLLECTION *col, const char *key, int len)
 {
 	void *value;
 	HASH_NODE *last;
+	HASH_NODE *save;
 	void *save_enum;
 
 	if (len == 0)
@@ -77,11 +78,15 @@ static void remove_key(CCOLLECTION *col, const char *key, int len)
 		return;
 	}
 
-	value = HASH_TABLE_lookup(col->hash_table, key, len, FALSE);
+	save = col->hash_table->last;
+	
+	value = HASH_TABLE_lookup(col->hash_table, key, len, TRUE);
+	
+	last = col->hash_table->last;
+	col->hash_table->last = save;
+	
 	if (value == NULL)
 		return;
-
-	last = col->hash_table->last;
 
 	if (last)
 	{

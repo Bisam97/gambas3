@@ -2,7 +2,7 @@
 
 	eval_trans_expr.c
 
-	(c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+	(c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -104,7 +104,7 @@ static void push_string(int index, bool trans)
 	SYMBOL *sym;
 	int len;
 
-	if (index == VOID_STRING)
+	if (index == VOID_STRING_INDEX)
 		len = 0;
 	else
 	{

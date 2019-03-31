@@ -2,7 +2,7 @@
 
   gbx_component.h
 
-  (c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -64,6 +64,7 @@ void COMPONENT_delete(COMPONENT *comp);
 
 COMPONENT *COMPONENT_find(const char *name);
 bool COMPONENT_exist(const char *name);
+bool COMPONENT_can_load_library(const char *name);
 
 void COMPONENT_load(COMPONENT *comp);
 void COMPONENT_unload(COMPONENT *comp);

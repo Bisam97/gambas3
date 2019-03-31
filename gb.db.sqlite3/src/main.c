@@ -2,7 +2,7 @@
 
   main.c
 
-  (c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -788,6 +788,27 @@ static int exec_query(DB_DATABASE *db, const char *query, DB_RESULT *result, con
 {
 	_need_field_type = TRUE;
 	return do_query(db, err, (SQLITE_RESULT **)result, query, 0);
+}
+
+
+/*****************************************************************************
+
+	get_last_insert_id()
+
+	Return the value of the last serial field used in an INSERT statement
+
+	<db> is the database handle, as returned by open_database()
+
+*****************************************************************************/
+
+static int64_t get_last_insert_id(DB_DATABASE *db)
+{
+	SQLITE_RESULT *res;
+
+	if (do_query(db, "Unable to retrieve last insert id", &res, "select last_insert_rowid();", 0))
+		return -1;
+
+	return atoll(sqlite_query_get_string(res, 0, 0));
 }
 
 
@@ -2235,6 +2256,7 @@ static int database_delete(DB_DATABASE * db, const char *name)
 {
 	SQLITE_DATABASE *conn = (SQLITE_DATABASE *)db->handle;
 	char *fullpath = NULL;
+	char *other;
 	bool err;
 
 	fullpath = find_database(name, conn->host);
@@ -2244,13 +2266,25 @@ static int database_delete(DB_DATABASE * db, const char *name)
 		GB.Error("Cannot find database: &1", name);
 		err = TRUE;
 	}
-	else if (remove(fullpath) != 0)
+	else if (unlink(fullpath) != 0)
 	{
 		GB.Error("Unable to delete database  &1", fullpath);
 		err = TRUE;
 	}
 	else
+	{
+		other = GB.NewString(fullpath, GB.StringLength(fullpath));
+		other = GB.AddString(other, "-shm", 4);
+		unlink(other);
+		GB.FreeString(&other);
+		
+		other = GB.NewString(fullpath, GB.StringLength(fullpath));
+		other = GB.AddString(other, "-wal", 4);
+		unlink(other);
+		GB.FreeString(&other);
+		
 		err = FALSE;
+	}
 
 	GB.FreeString(&fullpath);
 	return err;

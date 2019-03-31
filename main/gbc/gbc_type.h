@@ -2,7 +2,7 @@
 
   gbc_type.h
 
-  (c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -84,6 +84,7 @@ EXTERN char *TYPE_name[];
 #define TYPE_get_kind(type)      ((type).t.flag & 0x7)
 #define TYPE_get_id(type)        ((type).t.id)
 #define TYPE_is_null(type)       ((type).l == 0)
+#define TYPE_is_void(type)       ((type).t.id == 0)
 
 #define TYPE_set_value(type, _value)     ((type)->t.value = (_value))
 #define TYPE_set_id(type, _id)           ((type)->t.id = (_id))
@@ -100,7 +101,6 @@ EXTERN char *TYPE_name[];
 
 /*PUBLIC long TYPE_get_class(TYPE type);*/
 //TYPE TYPE_make(TYPE_ID id, short value, int flag);
-char *TYPE_get_desc(TYPE type);
 const char *TYPE_get_short_desc(TYPE type);
 size_t TYPE_sizeof(TYPE type);
 

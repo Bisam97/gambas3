@@ -4,7 +4,7 @@
 
   gb.mime component
 
-  (c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -46,7 +46,11 @@ GB_DESC *GB_CLASSES[] EXPORT =
 
 int EXPORT GB_INIT()
 {
-	g_mime_init(0);
+	g_mime_init(
+	#if GMIME_MAJOR_VERSION < 3
+		0
+	#endif
+	);
 	return 0;
 }
 

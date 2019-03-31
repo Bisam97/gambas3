@@ -3,7 +3,7 @@
   CCurl.c
 
   (c) 2003-2008 Daniel Campos Fernández <dcamposf@gmail.com>
-  (c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -162,9 +162,7 @@ int CCURL_stream_read(GB_STREAM *stream, char *buffer, int len)
 	GB.FreeString(&THIS->data);
 	THIS->data = new_data;
 
-	GB.Stream.SetBytesRead(stream, len);
-	
-	return 0;
+	return len;
 }
 
 static void raise_event(void *_object, int event)
@@ -271,7 +269,7 @@ void CURL_init_options(void *_object)
 	curl_easy_setopt(THIS_CURL, CURLOPT_SSL_VERIFYPEER, THIS->ssl_verify_peer ? 1 : 0);
 	curl_easy_setopt(THIS_CURL, CURLOPT_SSL_VERIFYHOST , THIS->ssl_verify_host ? 2 : 0);
 
-	CURL_proxy_set(&THIS->proxy.proxy, THIS_CURL);
+	CURL_proxy_set(&THIS->proxy, THIS_CURL);
 	CURL_user_set(&THIS->user, THIS_CURL);
 	curl_easy_setopt(THIS_CURL, CURLOPT_URL, THIS_URL);
 }
@@ -291,7 +289,7 @@ static int curl_progress(void *_object, double dltotal, double dlnow, double ult
 	CHECK_PROGRESS_VAL(ulnow);
 	
 	if (raise)
-		GB.Raise(THIS, EVENT_Progress, 0);
+		GB.RaiseLater(THIS, EVENT_Progress);
 	
 	return 0;
 }
@@ -446,12 +444,12 @@ bool CURL_copy_from(CCURL *dest, CCURL *src)
 	COPY_STRING(user.userpwd);
 	COPY_STRING(user.pwd);
 
-	dest->proxy.proxy.type = src->proxy.proxy.type;
-	dest->proxy.proxy.auth = src->proxy.proxy.auth;
-	COPY_STRING(proxy.proxy.host);
-	COPY_STRING(proxy.proxy.user);
-	COPY_STRING(proxy.proxy.pwd);
-	COPY_STRING(proxy.proxy.userpwd);
+	dest->proxy.type = src->proxy.type;
+	dest->proxy.auth = src->proxy.auth;
+	COPY_STRING(proxy.host);
+	COPY_STRING(proxy.user);
+	COPY_STRING(proxy.pwd);
+	COPY_STRING(proxy.userpwd);
 
 	return FALSE;
 }
@@ -569,9 +567,6 @@ END_PROPERTY
 
 BEGIN_PROPERTY(Curl_URL)
 
-	char *url, *tmp;
-	char *protocol;
-	
 	if (READ_PROPERTY)
 	{
 		GB.ReturnString(THIS_URL);
@@ -581,41 +576,7 @@ BEGIN_PROPERTY(Curl_URL)
 	if (CURL_check_active(THIS))
 		return;
 
-	if (PLENGTH() == 0)
-		goto UNKNOWN_PROTOCOL;
-	
-	url = GB.NewString(PSTRING(), PLENGTH());
-	
-	if (GB.Is(THIS, GB.FindClass("FtpClient")))
-	{
-		protocol = CURL_get_protocol(url, "ftp://");
-		if (strcmp(protocol, "ftp://") && strcmp(protocol, "ftps://"))
-			goto UNKNOWN_PROTOCOL;
-	}
-	else if (GB.Is(THIS, GB.FindClass("HttpClient")))
-	{
-		protocol = CURL_get_protocol(url, "http://");
-		if (strcmp(protocol, "http://") && strcmp(protocol, "https://"))
-			goto UNKNOWN_PROTOCOL;
-	}
-	else
-		goto UNKNOWN_PROTOCOL;
-
-	if (strncmp(url, protocol, strlen(protocol)))
-	{
-		tmp = GB.NewZeroString(protocol);
-		tmp = GB.AddString(tmp, url, GB.StringLength(url));
-		GB.FreeString(&url);
-		url = tmp;
-	}
-	
-	GB.FreeString(&THIS_URL);
-	THIS_URL = url;
-	return;
-	
-UNKNOWN_PROTOCOL:
-
-	GB.Error("Unknown protocol");
+	CURL_set_url(THIS, PSTRING(), PLENGTH());
 	
 END_PROPERTY
 
@@ -626,13 +587,11 @@ BEGIN_METHOD_VOID(Curl_new)
 	#endif
 
 	CURL_user_init(&THIS->user);
-	CURL_proxy_init(&THIS->proxy.proxy);
+	CURL_proxy_init(&THIS->proxy);
 
 	THIS->ssl_verify_peer = TRUE;
 	THIS->ssl_verify_host = TRUE;
 
-	THIS->proxy.parent_status = (int*)&THIS_STATUS;
-	
 END_METHOD
 
 BEGIN_METHOD_VOID(Curl_free)
@@ -644,9 +603,10 @@ BEGIN_METHOD_VOID(Curl_free)
 	CURL_stop(THIS);
 	
 	GB.FreeString(&THIS_URL);
+	GB.FreeString(&THIS->target);
 	
 	CURL_user_clear(&THIS->user);
-	CURL_proxy_clear(&THIS->proxy.proxy);
+	CURL_proxy_clear(&THIS->proxy);
 	
 END_METHOD
 
@@ -680,6 +640,8 @@ BEGIN_METHOD_VOID(Curl_exit)
 	#endif
 	
 	curl_multi_cleanup(CCURL_multicurl);
+	
+	CURL_default_proxy_clear();
 
 END_METHOD
 
@@ -721,6 +683,16 @@ BEGIN_PROPERTY(Curl_TotalUploaded)
 	GB.ReturnLong(THIS->ultotal);
 
 END_PROPERTY
+
+BEGIN_PROPERTY(Curl_TargetFile)
+
+	if (READ_PROPERTY)
+		GB.ReturnString(THIS->target);
+	else
+		GB.StoreString(PROP(GB_STRING), &THIS->target);
+
+END_PROPERTY
+
 
 //---------------------------------------------------------------------------
 
@@ -771,6 +743,7 @@ GB_DESC CurlDesc[] =
 
 	GB_METHOD("_new", NULL, Curl_new, NULL),
 	GB_METHOD("_free", NULL, Curl_free, NULL),
+	
 	GB_METHOD("Peek","s", Curl_Peek, NULL),
 	
 	GB_PROPERTY("URL", "s", Curl_URL),
@@ -778,12 +751,14 @@ GB_DESC CurlDesc[] =
 	GB_PROPERTY("Password", "s", Curl_Password),  
 	GB_PROPERTY("Async", "b", Curl_Async),
 	GB_PROPERTY("Timeout", "i", Curl_Timeout),
+	GB_STATIC_PROPERTY_SELF("DefaultProxy", ".Curl.Proxy"),
 	GB_PROPERTY_SELF("Proxy", ".Curl.Proxy"),
 	GB_PROPERTY_SELF("SSL", ".Curl.SSL"),
 	GB_PROPERTY_READ("Status", "i", Curl_Status),
 	GB_PROPERTY_READ("ErrorText", "s", Curl_ErrorText),
 	GB_PROPERTY("Debug", "b", Curl_Debug),
 	GB_PROPERTY("BufferSize", "i", Curl_BufferSize),
+	GB_PROPERTY("TargetFile", "s", Curl_TargetFile),
 
 	GB_PROPERTY_READ("Downloaded", "l", Curl_Downloaded),
 	GB_PROPERTY_READ("Uploaded", "l", Curl_Uploaded),

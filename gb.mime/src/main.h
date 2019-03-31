@@ -4,7 +4,7 @@
 
   gb.mime component
 
-  (c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -33,6 +33,14 @@
 
 #ifndef __MAIN_C
 extern GB_INTERFACE GB;
+#endif
+
+#if GMIME_MAJOR_VERSION < 3
+#define NULLGM3
+#define GM3NULL
+#else
+#define NULLGM3 ,NULL
+#define GM3NULL NULL,
 #endif
 
 #endif /* __MAIN_H */

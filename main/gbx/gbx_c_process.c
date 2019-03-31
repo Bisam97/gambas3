@@ -2,7 +2,7 @@
 
   gbx_c_process.c
 
-  (c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -37,13 +37,6 @@
 #include <sys/wait.h>
 #include <sys/time.h>
 #include <sys/resource.h>
-
-#ifdef OS_OPENBSD
-/* granpt(), unlockpt() and ptsname() unavailable under OpenBSD
-	and are replaced with openpty() implementation because of security
-	issues */
-#include <util.h>
-#endif
 
 #include "gb_replace.h"
 #include "gb_limit.h"
@@ -201,6 +194,24 @@ static void callback_error(int fd, int type, CPROCESS *process)
 	#ifdef DEBUG_ME
 	fprintf(stderr, "callback_error: %d %p\n", fd, process);
 	#endif
+
+	if (process->to_string && process->with_error)
+	{
+		int n;
+
+		for(;;)
+		{
+			n = read(fd, COMMON_buffer, 256);
+			if (n >= 0 || errno != EINTR)
+				break;
+		}
+
+		if (n > 0)
+		{
+			process->result = STRING_add(process->result, COMMON_buffer, n);
+			return;
+		}
+	}
 
 	if (GB_CanRaise(process, EVENT_Error))
 	{
@@ -581,24 +592,19 @@ static void run_process(CPROCESS *process, int mode, void *cmd, CARRAY *env)
 	if (mode & PM_STRING)
 	{
 		process->to_string = TRUE;
+		process->with_error = (mode & PM_ERROR) != 0;
 		process->result = NULL;
 		mode |= PM_READ;
 	}
 
 	if (mode & PM_TERM)
 	{
-		#ifdef OS_OPENBSD
-		int fd_slave;
-		if (openpty(&fd_master, &fd_slave, NULL, NULL, NULL) < 0)
-			goto __ABORT_ERRNO;
-		#else
 		fd_master = posix_openpt(O_RDWR | O_NOCTTY);
 		if (fd_master < 0)
 			goto __ABORT_ERRNO;
 
 		grantpt(fd_master);
 		unlockpt(fd_master);
-		#endif
 		slave = ptsname(fd_master);
 		#ifdef DEBUG_ME
 		fprintf(stderr, "run_process: slave = %s\n", slave);
@@ -853,12 +859,13 @@ void CPROCESS_check(void *_object)
 static bool wait_child(CPROCESS *process)
 {
 	int status;
-
+	int ret;
+	
 	#ifdef DEBUG_ME
 	fprintf(stderr, "wait_child: check process %d\n", process->pid);
 	#endif
 
-	if (wait4(process->pid, &status, WNOHANG, NULL) == process->pid)
+	if ((ret = waitpid(process->pid, &status, WNOHANG)) == process->pid)
 	{
 		process->status = status;
 		process->wait = TRUE;
@@ -871,23 +878,18 @@ static bool wait_child(CPROCESS *process)
 		return TRUE;
 	}
 	else
+	{
+		#ifdef DEBUG_ME
+		fprintf(stderr, "wait_child: waitpid() has returned %d\n", ret);
+		#endif
+
 		return FALSE;
+	}
 }
 
 static void callback_child(int signum, intptr_t data)
 {
 	CPROCESS *process, *next;
-	//int buffer;
-
-#if 0
-	for(;;)
-	{
-		if (read(fd, (char *)&buffer, 1) == 1)
-			break;
-		if (errno != EINTR)
-			ERROR_panic("Cannot read from SIGCHLD pipe: %s", strerror(errno));
-	}
-#endif
 
 	#ifdef DEBUG_ME
 	fprintf(stderr, ">> callback_child\n");
@@ -900,7 +902,7 @@ static void callback_child(int signum, intptr_t data)
 			stop_process(process);
 		process = next;
 	}
-
+	
 	throw_last_child_error();
 
 	#ifdef DEBUG_ME
@@ -937,21 +939,19 @@ static void exit_child(void)
 }
 
 
-static CPROCESS *_CPROCESS_create_process;
-
-static void error_CPROCESS_create()
+static void error_CPROCESS_create(CPROCESS *process)
 {
-	OBJECT_UNREF(_CPROCESS_create_process);
+	OBJECT_UNREF(process);
 }
 
 CPROCESS *CPROCESS_create(int mode, void *cmd, char *name, CARRAY *env)
 {
 	CPROCESS *process;
 
-	_CPROCESS_create_process = process = OBJECT_new(CLASS_Process, name, OP  ? (OBJECT *)OP : (OBJECT *)CP);
+	process = OBJECT_new(CLASS_Process, name, OP  ? (OBJECT *)OP : (OBJECT *)CP);
 	//fprintf(stderr, "CPROCESS_create: %p\n", process);
 
-	ON_ERROR(error_CPROCESS_create)
+	ON_ERROR_1(error_CPROCESS_create, process)
 	{
 		init_process(process);
 		run_process(process, mode, cmd, env);
@@ -966,11 +966,6 @@ CPROCESS *CPROCESS_create(int mode, void *cmd, char *name, CARRAY *env)
 	return process;
 }
 
-static void error_CPROCESS_wait_for(CPROCESS *process)
-{
-	OBJECT_UNREF(process);
-}
-
 void CPROCESS_wait_for(CPROCESS *process, int timeout)
 {
 	int ret;
@@ -980,7 +975,7 @@ void CPROCESS_wait_for(CPROCESS *process, int timeout)
 	fprintf(stderr, "Waiting for %d\n", process->pid);
 	#endif
 	
-	// If CPROCESS_check() catched the process end, process->running is not set yet, because 
+	// If CPROCESS_check() caught the process end, process->running is not set yet, because
 	// stop_process() will be raised at the next event loop. So no need to wait for it.
 	
 	if (process->wait)
@@ -990,20 +985,23 @@ void CPROCESS_wait_for(CPROCESS *process, int timeout)
 
 	sigfd = SIGNAL_get_fd();
 
-	ON_ERROR_1(error_CPROCESS_wait_for, process)
+	ON_ERROR_1(error_CPROCESS_create, process)
 	{
 		while (process->running)
 		{
 			#ifdef DEBUG_ME
 			fprintf(stderr, "Watch process %d\n", process->pid);
 			#endif
-			ret = WATCH_process(sigfd, process->out, timeout);
+			ret = WATCH_process(sigfd, process->out, process->err, timeout);
 			#ifdef DEBUG_ME
-			fprintf(stderr, "Watch process %d ->%s%s%s\n", process->pid, ret & WP_END ? " END" : "", ret & WP_OUTPUT ? " OUTPUT" : "", ret & WP_TIMEOUT ? " TIMEOUT" : "");
+			fprintf(stderr, "Watch process %d ->%s%s%s%s\n", process->pid, ret & WP_END ? " END" : "", ret & WP_OUTPUT ? " OUTPUT" : "", ret & WP_ERROR ? " ERROR" : "", ret & WP_TIMEOUT ? " TIMEOUT" : "");
 			#endif
 
 			if (ret & WP_OUTPUT)
 				callback_write(process->out, GB_WATCH_READ, process);
+
+			if (ret & WP_ERROR)
+				callback_error(process->err, GB_WATCH_READ, process);
 
 			if (ret & WP_END)
 				SIGNAL_raise_callbacks(sigfd, GB_WATCH_READ, 0);
@@ -1193,6 +1191,7 @@ END_PROPERTY
 
 BEGIN_METHOD(Process_Wait, GB_FLOAT timeout)
 
+	// FIXME: Does not work if Ignore is set
 	CPROCESS_wait_for(THIS, (int)(VARGOPT(timeout, 0.0) * 1000));
 
 END_METHOD

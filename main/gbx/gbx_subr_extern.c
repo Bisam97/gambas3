@@ -2,7 +2,7 @@
 
   gbx_subr_extern.c
 
-  (c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -145,7 +145,7 @@ void SUBR_strptr(ushort code)
     
 	if (err)
 	{
-		RETURN->type = T_NULL;
+		VALUE_null(RETURN);
 	}
 	else
 	{ 

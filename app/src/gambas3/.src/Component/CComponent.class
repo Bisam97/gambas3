@@ -656,14 +656,11 @@ Public Sub Load()
       'If Key = PROJECT_NAME Then Continue
       
       sSymbol = sLig
-      hSym = New CSymbolInfo(Documentation)
+      hSym = New CSymbolInfo(Documentation, sSymbol, aLine[iLine])
+      Inc iLine
       
-      hSym.Name = sSymbol
       hSym.Class = sClass
       hSym.Component = Key
-      
-      hSym.Kind = aLine[iLine]
-      Inc iLine
       
       hSym.Type = aLine[iLine]
       Inc iLine
@@ -1579,8 +1576,7 @@ Public Sub GetHelpHTML() As String
     Return
   Endif
 
-  sHtml = File.Load("help/component-help.html")
-  
+  sHtml = MHelp.LoadCustom("component-help.html")
   sHtml = Replace(sHtml, "$(help)", sHelp)
   
   sDesc = ""

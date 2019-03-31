@@ -2,7 +2,7 @@
 
   gb_error_common.h
 
-  (c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -153,6 +153,33 @@ do { \
 	ERROR_current = _err; \
 } while(0)
 
+#ifdef GB_JIT
+
+static void _error_leave(ERROR_CONTEXT *_err)
+{
+	ERROR_CONTEXT *_prev = _err;
+	if (_prev->prev != ERROR_LEAVE_DONE)
+	{
+		ERROR_current = _prev->prev;
+		if (ERROR_current)
+		{
+			if (_prev->info.code)
+			{
+				ERROR_reset(&ERROR_current->info);
+				ERROR_current->info = _prev->info;
+				ERROR_current->info.native = FALSE;
+			}
+		}
+		else
+			ERROR_reset(&_prev->info);
+		_prev->prev = ERROR_LEAVE_DONE;
+	}
+}
+
+#define ERROR_leave(_err) _error_leave(_err)
+
+#else
+
 #define ERROR_leave(_err) \
 do { \
 	ERROR_CONTEXT *_prev = (_err); \
@@ -173,6 +200,8 @@ do { \
 		_prev->prev = ERROR_LEAVE_DONE; \
 	} \
 } while(0)
+
+#endif
 
 #endif
 

@@ -2,7 +2,7 @@
 
   profile.c
 
-  (c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -148,7 +148,7 @@ static void check_size()
 static void add_line(ushort line, uint64_t time)
 {
 	int n;
-	char buf[32], num[16];
+	char buf[32], num[32];
 	char *p;
 	
 	n = line - _last_line;

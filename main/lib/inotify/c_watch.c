@@ -128,17 +128,23 @@ static void destroy_watch_list(WATCH_LIST *list)
 
 static void exit_inotify(void)
 {
+	WATCH_LIST *list;
+	int fd = _ino.fd; // prevent a recursion
+	
 	if (_ino.fd < 0)
 		return;
+	
+	_ino.fd = -1;
 	
 #if DEBUG_ME
 	fprintf(stderr, "exit_inotify\n");
 #endif
 	
-	GB.HashTable.Enum(_ino.watches, (GB_HASHTABLE_ENUM_FUNC)destroy_watch_list);
-	GB.Watch(_ino.fd, GB_WATCH_NONE, NULL, 0);
-	close(_ino.fd);
-	_ino.fd = -1;
+	while (!GB.HashTable.First(_ino.watches, (void **)&list))
+		destroy_watch_list(list);
+	
+	GB.Watch(fd, GB_WATCH_NONE, NULL, 0);
+	close(fd);
 	GB.HashTable.Free(&_ino.watches);
 }
 
@@ -646,6 +652,14 @@ BEGIN_METHOD(WatchEvents_get, GB_INTEGER events)
 
 END_METHOD
 
+#define update_events(obj_events_p, events, value)	\
+do {							\
+	if (value)					\
+		*(obj_events_p) |=  (events);		\
+	else						\
+		*(obj_events_p) &= ~(events);		\
+} while (0)
+
 /**G
  * Set or clear a flag. You can combine multiple flags to set or clear them
  * en masse.
@@ -655,32 +669,36 @@ BEGIN_METHOD(WatchEvents_put, GB_BOOLEAN value; GB_INTEGER events)
 	WATCH_LIST *list = (WATCH_LIST *)THIS->root;
 	int i;
 	int events = VARG(events);
-	bool old, new;
-	
+	int value = VARG(value);
+
 	if (!THIS->paused)
 	{
 		for (i = 0; i < NUM_EV; i++)
 		{
-			new = (events & (1 << i)) != 0;
-			old = (THIS->events & (1 << i)) != 0;
-			if (new != old)
-			{
-				if (new)
-					list->events[i]++;
-				else
-					list->events[i]--;
-			}
+			/* events is the bitmask of events to operate on,
+			 * value is what to set all of them to. */
+			if ((events & (1 << i)) == 0)
+				continue;
+			/* Don't update counts unless the value
+			 * actually changed. */
+			if (!!value == !!(THIS->events & (1 << i)))
+				continue;
+
+			if (value)
+				list->events[i]++;
+			else
+				list->events[i]--;
 		}
-		
-		THIS->events = events;
+
+		update_events(&THIS->events, events, value);
 		update_watch_list(list);
 	}
 	else
-		THIS->save_events = events;
+		update_events(&THIS->save_events, events, value);
 
 END_METHOD
 
-GB_DESC CWatchEvents[] = 
+GB_DESC CWatchEvents[] =
 {
 	GB_DECLARE_VIRTUAL(".Watch.Events"),
 

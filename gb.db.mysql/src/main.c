@@ -2,7 +2,7 @@
 
   main.c
 
-  (c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -943,6 +943,29 @@ static void format_blob(DB_BLOB *blob, DB_FORMAT_CALLBACK add)
 static int exec_query(DB_DATABASE *db, const char *query, DB_RESULT *result, const char *err)
 {
 	return do_query(db, err, (MYSQL_RES **)result, query, 0);
+}
+
+
+/*****************************************************************************
+
+	get_last_insert_id()
+
+	Return the value of the last serial field used in an INSERT statement
+
+	<db> is the database handle, as returned by open_database()
+
+*****************************************************************************/
+
+static int64_t get_last_insert_id(DB_DATABASE *db)
+{
+	MYSQL_RES *res;
+	MYSQL_ROW row;
+
+	if (do_query(db, "Unable to retrieve last insert id", &res, "select last_insert_id();", 0))
+		return -1;
+
+	row = mysql_fetch_row(res);
+	return atoll(row[0]);
 }
 
 

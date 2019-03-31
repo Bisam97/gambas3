@@ -2,7 +2,7 @@
 
   CStyle.cpp
 
-  (c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -42,6 +42,7 @@
 #endif
 
 bool CSTYLE_fix_breeze = false;
+bool CSTYLE_fix_oxygen = false;
 
 static char *_style_name = NULL;
 
@@ -61,6 +62,10 @@ static char *get_style_name()
 		if (CSTYLE_fix_breeze)
 		{
 			_style_name = GB.NewZeroString("Breeze");
+		}
+		else if (CSTYLE_fix_oxygen)
+		{
+			_style_name = GB.NewZeroString("Oxygen");
 		}
 		else
 		{
@@ -327,17 +332,15 @@ END_PROPERTY
 
 BEGIN_PROPERTY(Style_BoxFrameWidth)
 
-	if (::strcmp(get_style_name(), "Breeze") == 0)
-		GB.ReturnInteger(2);
-	else
-	{
-		int w = qApp->style()->pixelMetric(QStyle::QStyle::PM_ComboBoxFrameWidth);
-		
-		if (::strcmp(get_style_name(), "Oxygen") == 0)
-			w++;
-		
-		GB.ReturnInteger(w);
-	}
+	int w = qApp->style()->pixelMetric(QStyle::QStyle::PM_ComboBoxFrameWidth);
+	GB.ReturnInteger(w);
+
+END_PROPERTY
+
+BEGIN_PROPERTY(Style_BoxFrameHeight)
+
+	int w = qApp->style()->pixelMetric(QStyle::QStyle::PM_ComboBoxFrameWidth);
+	GB.ReturnInteger(w);
 
 END_PROPERTY
 
@@ -495,7 +498,7 @@ GB_DESC StyleDesc[] =
 	GB_STATIC_PROPERTY_READ("FrameWidth", "i", Style_FrameWidth),
 	GB_STATIC_PROPERTY_READ("TextBoxFrameWidth", "i", Style_FrameWidth),
 	GB_STATIC_PROPERTY_READ("BoxFrameWidth", "i", Style_BoxFrameWidth),
-	GB_STATIC_PROPERTY_READ("BoxFrameHeight", "i", Style_BoxFrameWidth),
+	GB_STATIC_PROPERTY_READ("BoxFrameHeight", "i", Style_BoxFrameHeight),
 	GB_STATIC_PROPERTY_READ("Name", "s", Style_Name),
 	
 	GB_STATIC_METHOD("PaintArrow", NULL, Style_PaintArrow, "(X)i(Y)i(Width)i(Height)i(Type)i[(Flag)i]"),

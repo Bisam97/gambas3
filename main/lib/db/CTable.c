@@ -2,7 +2,7 @@
 
 	CTable.c
 
-	(c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+	(c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -179,7 +179,10 @@ BEGIN_PROPERTY(CTABLE_primary_key)
 				field = *((char **)GB.Array.Get(primary, i));
 				if (!CFIELD_exist(THIS, field))
 				{
-					GB.Error("Unknown field: &1", field);
+					if (!field)
+						GB.Error("Void field name");
+					else
+						GB.Error("Unknown field: &1", field);
 					return;
 				}
 			}

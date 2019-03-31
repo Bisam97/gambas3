@@ -2,7 +2,7 @@
 
 	CEditor.cpp
 
-	(c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+	(c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -1058,13 +1058,14 @@ END_METHOD
 BEGIN_METHOD(CEDITOR_new, GB_OBJECT parent)
 
 	GEditor *wid = new GEditor(QT.GetContainer(VARG(parent)));
-
+	
 	QObject::connect(wid, SIGNAL(cursorMoved()), &CEditor::manager, SLOT(moved()));
 	QObject::connect(wid, SIGNAL(textChanged()), &CEditor::manager, SLOT(changed()));
 	QObject::connect(wid, SIGNAL(marginDoubleClicked(int)), &CEditor::manager, SLOT(marginDoubleClicked(int)));
 	QObject::connect(wid, SIGNAL(contentsMoving(int, int)), &CEditor::manager, SLOT(scrolled(int, int)));
 
 	QT.InitWidget(wid, _object, true);
+	QT.SetWheelFlag(_object);
 
 	THIS->line = -1;
 

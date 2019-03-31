@@ -10,9 +10,14 @@ Private $aMode As New Boolean[13]
 'Private $aSavedMode As New Boolean[13]
 Private $sLeft As String
 
+Private $sLastChar As String
+
+'Private $iCpt As Integer
+
 Public Sub Reset()
   
   $aMode.Fill(False)
+  $sLastChar = ""
   
 End
 
@@ -27,7 +32,7 @@ Public Sub OutputTo(hView As TerminalView, hScreen As TerminalScreen, hOutput As
   Dim sCmd As String
   Dim sStr As String
   Dim iNum As Integer
-  Dim iPosEraseScreen As Integer
+  'Dim iPosEraseScreen As Integer
   
   If hView._DisableFilter Then
     $sLeft &= sData
@@ -43,8 +48,10 @@ Public Sub OutputTo(hView As TerminalView, hScreen As TerminalScreen, hOutput As
     For iPos = Len(sData) DownTo 1
       If Asc(sData, iPos) >= 192 Then Break 
     Next
-    'Debug "not valid";; iPos; " / "; Len(sData)
-    'Debug Quote(Right(sData, 256))
+    If TerminalScreen.DEBUG_FILTER Then
+      Debug "not valid";; iPos; " / "; Len(sData)
+      Debug Quote(Right(sData, 256))
+    Endif
     If iPos = 0 Then Return
     $sLeft = Mid$(sData, iPos)
     sData = Left(sData, iPos - 1)
@@ -55,7 +62,7 @@ Public Sub OutputTo(hView As TerminalView, hScreen As TerminalScreen, hOutput As
   'Debug If(hProcess.Term.GetAttr().ONLCR, "+", "-"); "ONLCR"
   
   'If Len(sData) >= 4096 Then
-    iPosEraseScreen = RInStr(sData, "\e[2J")
+    'iPosEraseScreen = RInStr(sData, "\e[2J")
     'If iPosEraseScreen > 0 Then Debug "erase screen at "; iPosEraseScreen
   'Endif
   
@@ -68,10 +75,15 @@ Public Sub OutputTo(hView As TerminalView, hScreen As TerminalScreen, hOutput As
     iPos2 = InStr(sData, Chr$(27), iPos)
     If iPos2 = 0 Then
       hScreen.Print(Mid$(sData, iPos))
+      $sLastChar = String.Right(sData)
       Break
     Endif
     
-    If iPos2 > iPos And If iPos > iPosEraseScreen Then hScreen.Print(Mid$(sData, iPos, iPos2 - iPos))
+    'If iPos2 > iPos And If iPos > iPosEraseScreen Then hScreen.Print(Mid$(sData, iPos, iPos2 - iPos))
+    If iPos2 > iPos Then 
+      hScreen.Print(Mid$(sData, iPos, iPos2 - iPos))
+      $sLastChar = String.Right(Mid$(sData, iPos, iPos2 - iPos))
+    Endif
     
     iPos = iPos2
     Inc iPos
@@ -152,7 +164,7 @@ Public Sub OutputTo(hView As TerminalView, hScreen As TerminalScreen, hOutput As
   
 NOT_IMPLEMENTED:
   
-  Debug "Not implemented: "; Quote(sStr)
+  Error "gb.form.terminal: warning: not implemented: "; Quote(sStr)
   Return
   
 End
@@ -173,14 +185,21 @@ Private Sub Escape(hView As TerminalView, hScreen As TerminalScreen, hOutput As 
   
   sStr = Mid$(sData, iPos, iLen)
   
-  If hScreen.DEBUG_FILTER Then
-    Debug "ESC";
-    For I = 1 To Len(sStr)
-      Error " "; Mid$(sStr, I, 1);
-    Next
-    Error
-    hScreen.DebugRefresh
-  Endif
+  ' If 'hScreen.DEBUG_FILTER Then
+  '   Inc $iCpt
+  '   Error Format($iCpt, "######0"); " | ";
+  '   Error "ESC";
+  '   For I = 1 To Len(sStr)
+  '     Error " "; Mid$(sStr, I, 1);
+  '   Next
+  '   Error
+  '   If $iCpt > 5120 Then 
+  '     hScreen.DebugRefresh
+  '     hView.Suspended = True
+  '     Stop
+  '     hView.Suspended = False
+  '   Endif
+  ' Endif
   
   Select Case Left(sStr)
       
@@ -477,7 +496,7 @@ Private Sub Escape(hView As TerminalView, hScreen As TerminalScreen, hOutput As 
                   Case "12"
                     'Ignored
                   Case "25" ' Hide cursor
-                    hScreen.HideCursor = True
+                    If Not hScreen.DEBUG_FILTER Then hScreen.HideCursor = True
                   Case "47"
                     $aMode[MODE_AppScreen] = False
                     hView.AlternateScreen = False
@@ -572,6 +591,11 @@ Private Sub Escape(hView As TerminalView, hScreen As TerminalScreen, hOutput As 
           
           hScreen.RestoreCursor
           
+        Case "b"
+        
+          GoSub GET_COUNT
+          If $sLastChar Then hScreen.Print(String$(N, $sLastChar))
+          
         Default
           
           Goto NOT_IMPLEMENTED
@@ -647,7 +671,7 @@ GET_ARGS:
   
 NOT_IMPLEMENTED:
   
-  Debug "Not implemented: "; Quote(sStr)
+  Error "gb.form.terminal: warning: not implemented: "; Quote(sStr)
   
 End
 

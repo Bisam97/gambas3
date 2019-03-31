@@ -2,7 +2,7 @@
 
 	csignal.c
 
-	(c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+	(c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -131,7 +131,7 @@ static void handle_signal(int num, char state)
 	{
 		if (num == SIGKILL || num == SIGSTOP)
 		{
-			GB.Error("SIGKILL and SIGSTOP cannot be catched");
+			GB.Error("SIGKILL and SIGSTOP cannot be caught");
 			return;
 		}
 

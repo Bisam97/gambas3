@@ -2,7 +2,7 @@
 
 	CButton.cpp
 
-	(c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+	(c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -510,7 +510,7 @@ void MyPushButton::calcMinimumSize()
 	CBUTTON *_object = (CBUTTON *)CWidget::getReal(this);
 	QSize size;
 
-	if (!THIS || CWIDGET_test_flag(THIS, WF_DESIGN))
+	if (!THIS || CWIDGET_test_flag(THIS, WF_DESIGN_LEADER))
 		return;
 
 	if (text().length() > 0)

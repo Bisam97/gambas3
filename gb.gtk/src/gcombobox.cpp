@@ -138,7 +138,13 @@ void gComboBox::create(bool readOnly)
 	lock();
 	
 	if (first)
+	{
+#if GTK3
+		border = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0); //gtk_event_box_new();
+#else
 		border = gtk_alignment_new(0, 0, 1, 1); //gtk_event_box_new();
+#endif
+	}
 	else
 	{
 		save = g_strdup(text());
@@ -167,6 +173,10 @@ void gComboBox::create(bool readOnly)
 		g_object_set(cell, "ypad", 0, (void *)NULL);
 
 		gtk_cell_layout_set_cell_data_func(GTK_CELL_LAYOUT(widget), cell, (GtkCellLayoutDataFunc)combo_cell_text, (gpointer)tree, NULL);
+
+#ifdef GTK3
+		gtk_widget_set_hexpand(widget, TRUE);
+#endif
 	}
 	else
 	{
@@ -177,8 +187,9 @@ void gComboBox::create(bool readOnly)
 		widget = gtk_combo_box_entry_new_with_model(GTK_TREE_MODEL(tree->store), 0);
 #endif
 		entry = gtk_bin_get_child(GTK_BIN(widget));
+
 #ifdef GTK3
-		gtk_widget_set_hexpand(entry, FALSE);
+		gtk_widget_set_hexpand(entry, TRUE);
 #endif
 
 		g_signal_handler_disconnect(widget, g_signal_handler_find(widget, G_SIGNAL_MATCH_ID, g_signal_lookup("changed", G_OBJECT_TYPE(widget)), 0, 0, 0, 0));
@@ -254,6 +265,7 @@ gComboBox::gComboBox(gContainer *parent) : gTextBox(parent, true)
 	entry = NULL;
 	_button = NULL;
 	cell = NULL;
+	_use_wheel = true;
 	
 	g_typ = Type_gComboBox;
 	
@@ -543,9 +555,6 @@ void gComboBox::remove(int pos)
 void gComboBox::resize(int w, int h)
 {
 	gControl::resize(w,h);
-
-	/*if (entry)
-		gtk_widget_set_size_request(entry, 4, 4);*/
 }
 
 void gComboBox::updateFont()
@@ -553,10 +562,8 @@ void gComboBox::updateFont()
 	gControl::updateFont();
 	if (cell)
 		g_object_set(G_OBJECT(cell), "font-desc", font()->desc(), (void *)NULL);
-	if (entry)
-#ifdef GTK3
-		gtk_widget_override_font(entry, font()->desc());
-#else
+#ifndef GTK3
+	else
 		gtk_widget_modify_font(entry, font()->desc());
 #endif
 }
@@ -628,7 +635,7 @@ bool gComboBox::hasBorder() const
 {
 	gboolean v;
 	
-	g_object_get(G_OBJECT(widget), "has-frame", &v, 	(void *)NULL);
+	g_object_get(G_OBJECT(widget), "has-frame", &v, (void *)NULL);
 	return v;
 }
 

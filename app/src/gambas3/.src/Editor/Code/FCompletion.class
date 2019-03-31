@@ -31,11 +31,26 @@ Private $bGambas As Boolean
 Private $bHideLater As Boolean
 
 Private $cFindStrings As Collection
+Static Private $sWordSeparators As String
+Private $bStatic As Boolean
+
+Static Public Sub _init()
+
+  Dim I As Integer
+  Dim sCar As String
+  
+  For I = 0 To 127
+    sCar = Chr$(I)
+    If IsDigit(sCar) Or If IsLetter(sCar) Or If sCar = "_" Or If sCar = "$" Then Continue
+    $sWordSeparators &= sCar
+  Next
+  
+End
+
 
 Public Sub _new()
   
   gvwComp.Columns.Count = 1
-  webHelp.Zoom = 0.7
 
 End
 
@@ -54,7 +69,7 @@ Private Function GetClass() As String
   
 End
 
-Public Sub Open(hForm As Object, sMode As String, Optional sClass As String, Optional bStatic As Boolean, Optional bPrivate As Boolean)
+Public Sub Open(hForm As Object, sMode As String, Optional sClass As String, Optional bStatic As Boolean, Optional bHidden As Boolean)
 
   Dim iX As Integer
   Dim iY As Integer
@@ -68,8 +83,9 @@ Public Sub Open(hForm As Object, sMode As String, Optional sClass As String, Opt
   $bHideLater = False
 
   $hForm = hForm
+  
   $hEditor = hForm.GetEditor()
-  Me.Font = $hEditor.Font
+  ReadConfig
 
   Inc Application.Busy
 
@@ -92,7 +108,9 @@ Public Sub Open(hForm As Object, sMode As String, Optional sClass As String, Opt
         Return
       Endif 
       $sClass = sClass
-      FillWithSymbol(sClass, bStatic, bPrivate)
+      $bStatic = bStatic
+      '$bPrivate = bPrivate
+      FillWithSymbol(sClass, bStatic, False, bHidden)
     Case " "
       $bGambas = True
       $sText = ""
@@ -161,6 +179,8 @@ Public Sub Open(hForm As Object, sMode As String, Optional sClass As String, Opt
   
   If $bShowHelp Then
     sepHelp.Show
+    webHelp.Enabled = False
+    timEnable.Start
     webHelp.Show
     panResizeTop.Show
     panResizeBottom.Show
@@ -226,10 +246,15 @@ Public Sub Open(hForm As Object, sMode As String, Optional sClass As String, Opt
 End
 
 
-Public Sub SetText(sText As String)
+Public Sub SetText(sText As String, Optional bInsert As Boolean) As Boolean
   
   $sText = sText
-  FindItem(True)
+  
+  If $sMode = "." And If $sText Begins "_" Then
+    FillWithSymbol($sClass, $bStatic, False, True)
+  Endif
+
+  Return FindItem(Not bInsert)
   
 End
 
@@ -386,12 +411,13 @@ End
 '   }
 ' }
 
-Private Sub FillWithSymbol(sClass As String, bStatic As Boolean, bPrivate As Boolean)
+Private Sub FillWithSymbol(sClass As String, bStatic As Boolean, bPrivate As Boolean, Optional bHidden As Boolean)
 
   Dim cSymbol As Collection
   Dim hSymbol As CSymbolInfo
   Dim aSymbol As New String[]
   Dim sSymbol As String
+  Dim sName As String
 
   ClearRows
 
@@ -401,16 +427,31 @@ Private Sub FillWithSymbol(sClass As String, bStatic As Boolean, bPrivate As Boo
   If Project.Documentation.IsAutoCreatable(sClass) Then bStatic = False
 
   For Each hSymbol In cSymbol
+    
     If hSymbol.NotPublic <> bPrivate Then Continue
-    If Left(hSymbol.Name) = "_" And If hSymbol.Component Then Continue
-    If hSymbol.Kind = "m" And If InStr(hSymbol.Name, "_") Then Continue
+    
+    sName = hSymbol.Name
+    
+    If bHidden Then
+      If Left(sName) = "_" And If hSymbol.Component Then Continue
+    Else
+      If LCase(hSymbol.Kind) <> "m" Then
+        If sName Begins "_" Then Continue
+      Else
+        If InStr(sName, "_") Then Continue
+      Endif
+    Endif
+    
     If hSymbol.Kind = ":" Then Continue
+    
     If bStatic Then
       If UCase(hSymbol.Kind) <> hSymbol.Kind Then
         Continue
       Endif
     Endif
-    aSymbol.Add(hSymbol.Name)
+    
+    aSymbol.Add(sName)
+    
   Next
 
   aSymbol.Sort(gb.IgnoreCase + gb.Natural)
@@ -478,7 +519,6 @@ Private Sub FillWithIdent(sWord As String)
 
   Dim sLine As String
   Dim iPos As Integer
-  Dim iPos2 As Integer
   Dim sCar As String
   Dim aResult As New String[]
   Dim cKey As New Collection
@@ -486,9 +526,13 @@ Private Sub FillWithIdent(sWord As String)
   Dim cSymbol As Collection
   Dim sOrg As String
   Dim iLine As Integer
-  Dim sUCaseLine As String
   Dim aKeywords As String[]
   Dim aFind As Integer[]
+  Dim fTimer As Float
+  Dim sSearchLine As String
+  Dim sSearchWord As String
+  Dim aSearchWord As String[]
+  Dim aResultWord As String[]
 
   ClearRows
 
@@ -546,10 +590,14 @@ Private Sub FillWithIdent(sWord As String)
     Next
   Endif
   
-  If Not $hEditor.IsSameFindStrings(Left(sWord, 3)) Then
+  If Not $hEditor.IsSameFindStrings(String.Left(sWord, 3)) Then
+  
+    fTimer = Timer
   
     $cFindStrings = New Collection
-    aFind = $hEditor.FindStrings(Left(sWord, 3))
+    aFind = $hEditor.FindStrings(String.Left(sWord, 3))
+    
+    fTimer = Timer
     
     For Each iLine In aFind
     
@@ -559,31 +607,48 @@ Private Sub FillWithIdent(sWord As String)
       'Else
         sLine = $hEditor[iLine].Text
       'Endif
-      sUCaseLine = String.UCase(sLine) ' Only ASCII characters are interesting there...
-    
-      iPos = 0
+      
+      sSearchLine = String.RemoveDiacritics(sLine)
+      sSearchWord = LCase(String.RemoveDiacritics(sWord))
+      
+      aSearchWord = Split(sSearchLine, $sWordSeparators, "", True)
+      aResultWord = Split(sLine, $sWordSeparators, "", True)
+      
+      iPos = -1
       Do
-        Inc iPos
-        iPos = String.InStr(sUCaseLine, sWord, iPos)
-        If iPos = 0 Then Break
-        If iPos > 1 Then
-          sCar = String.Mid$(sLine, iPos - 1, 1)
-          If $hForm.IsWordChar(sCar) Then Break
-        Endif
-        For iPos2 = iPos + String.Len(sWord) To String.Len(sLine)
-          sCar = String.Mid$(sLine, iPos2, 1)
-          If Not $hForm.IsWordChar(sCar) Then Break
-        Next
-        sCar = String.Mid$(sLine, iPos, iPos2 - iPos)
+        iPos = aSearchWord.Find(sSearchWord & "*", gb.Like, iPos + 1)
+        If iPos < 0 Then Break
+        sCar = aResultWord[iPos]
         If IsDigit(Left$(sCar)) Then Continue 
-        
         If $cFindStrings.Exist(sCar) Then Continue
         $cFindStrings[sCar] = True
-        
       Loop
+      
+      ' sUCaseLine = String.UCase(sLine) ' Only ASCII characters are interesting there...
+      ' 
+      ' iPos = 0
+      ' Do
+      '   Inc iPos
+      '   iPos = String.InStr(sUCaseLine, sWord, iPos)
+      '   If iPos = 0 Then Break
+      '   If iPos > 1 Then
+      '     sCar = String.Mid$(sLine, iPos - 1, 1)
+      '     If $hForm.IsWordChar(sCar) Then Break
+      '   Endif
+      '   For iPos2 = iPos + String.Len(sWord) To String.Len(sLine)
+      '     sCar = String.Mid$(sLine, iPos2, 1)
+      '     If Not $hForm.IsWordChar(sCar) Then Break
+      '   Next
+      '   sCar = String.Mid$(sLine, iPos, iPos2 - iPos)
+      '   If IsDigit(Left$(sCar)) Then Continue 
+      '   
+      '   If $cFindStrings.Exist(sCar) Then Continue
+      '   $cFindStrings[sCar] = True
+      '   
+      ' Loop
     
     Next
-  
+    
   Endif
     
   For Each $cFindStrings
@@ -619,7 +684,7 @@ End
 Private Sub FillWithSpecial()
 
   Dim sName As String
-  Dim hPict As Picture = Picture["img/16/point.png"]
+  Dim hPict As Picture = Picture["img/symbol/special.png"]
   
   ClearRows
   
@@ -637,6 +702,8 @@ Private Sub FillWithFiles(sWord As String)
   Dim hPictFile As Picture = Picture["icon:/16/file"]
   Dim hPictDir As Picture = Picture["icon:/16/directory"]
   Dim aDir As String[]
+  Dim bProject As Boolean
+  Dim hPict As Picture
   
   ClearRows
   
@@ -644,7 +711,7 @@ Private Sub FillWithFiles(sWord As String)
   
   If sDir = "icon:/" Then
     
-    aDir = ["small", "medium", "large", "huge", "16", "22", "32", "48", "96", "128", "256"]
+    aDir = Stock.Sizes.Insert(["16", "22", "32", "48", "96", "128", "256"])
     
     For Each sName In aDir.Sort(gb.Natural)
       'hPict = Desktop.GetFileIcon(sDir &/ sName, 16)
@@ -668,20 +735,25 @@ Private Sub FillWithFiles(sWord As String)
     
     If sDir And If Left(sDir) <> "/" And If sDir Not Begins "~/" Then
       sDir = Project.Dir &/ sDir
+      bProject = True
     Endif
     
     iPos = RInStr(sDir, "/")
     sDir = Left(sDir, iPos)
     If Not IsDir(sDir) Then Return
     
-    aDir = Dir(sDir, "*").Sort(gb.IgnoreCase + gb.Natural)
-  
-    For Each sName In aDir
-      'hPict = Desktop.GetFileIcon(sDir &/ sName, 16)
-      'If Not hPict Then hPict = hPictFile
-      AddRow(CStr(MHelp.TYPE_FILE) & sName, sName, If(IsDir(sDir &/ sName), hPictDir, hPictFile))
-      $iMaxLen = Max($iMaxLen, String.Len(sName))
-    Next
+    Try aDir = Dir(sDir, "*").Sort(gb.IgnoreCase + gb.Natural)
+    If Not Error Then
+      For Each sName In aDir
+        If bProject Then
+          If sName Ends "~" Then Continue
+        Endif
+        hPict = Desktop.GetFileIcon(sDir &/ sName, 16, True)
+        If Not hPict Then hPict = hPictFile
+        AddRow(CStr(MHelp.TYPE_FILE) & sName, sName, If(IsDir(sDir &/ sName), hPictDir, hPict))
+        $iMaxLen = Max($iMaxLen, String.Len(sName))
+      Next
+    Endif
   
   Endif
   
@@ -752,8 +824,7 @@ Public Function ManageKey() As Boolean
     Case Key.Backspace
       'Debug $iLen;; $sText
       If String.Len($sText) > $iLen Then
-        $sText = String.Left$($sText, -1)
-        FindItem
+        SetText(String.Left$($sText, -1))
       Else
         $bHideLater = True
         timHideLater.Trigger
@@ -773,25 +844,37 @@ Public Function ManageKey() As Boolean
       If Key.Text Then
 
         If $sMode = "/" Then
+          
           $sText &= Key.Text
           Return FindItem()
+          
         Else If InStr(FEditor.IDENT_CAR, Key.Text) Then
+          
           If Key.Text = "_" Then 
             If GetEvents($sText) Then 
               Me.Hide
               Return 
             Endif
           Endif
-          $sText &= Key.Text
-          Return FindItem()
+        
+          Return SetText($sText & Key.Text, True)
+          
         Else If Key.Text = "[" And If Not $sText Then
+          
           Me.Hide
+          
         Else If $bGambas And If InStr("([.!", Key.Text) > 0 And If InStr(". A<", $sMode) Then
+          
           InsertItem
+          
         Else
+          
           Me.Hide
+          
         Endif
+        
         Return False
+        
       Endif
 
   End Select
@@ -1062,4 +1145,18 @@ Public Sub panComp_Arrange()
   panResizeTop.Raise
   panResizeBottom.Raise
 
+End
+
+Public Sub timEnable_Timer()
+
+  webHelp.Enabled = True
+  timEnable.Stop
+
+End
+
+Public Sub ReadConfig()
+  
+  webHelp.Zoom = Settings["/Help/Zoom", 80] / 100
+  If $hEditor Then Me.Font = $hEditor.Font
+  
 End

@@ -116,7 +116,7 @@ Static Public Sub GetIcon(sClass As String, sComp As String, Optional iSize As I
     Paint.Background = Color.White
     Paint.Fill
     
-    Paint.Rectangle(0.5, F + 0.5, hImage.W - 1, hImage.H - F * 2 - 1, 2)
+    Paint.Rectangle(0.5, F + 0.5, hImage.W - 1, hImage.H - F * 2 - 1)
     Paint.Background = Color.Gray
     Paint.LineWidth = 1
     Paint.Stroke
@@ -128,32 +128,10 @@ Static Public Sub GetIcon(sClass As String, sComp As String, Optional iSize As I
     Paint.Background = Color.Black
     Paint.DrawText(sClass, 0, 0, hImage.W, hImage.H, Align.Center)
     
-    ' Paint.Font.Size = 8 * (hImage.H - 6) / (Paint.Font.Height - 1) / 3
-    ' Paint.AntiAlias = False
-    ' Paint.Brush = Paint.Color(Color.Black)
-    ' sText = sClass
-    ' While Len(sText) < 48
-    '   sText &= sClass
-    ' Wend
-    ' X = 3
-    ' Y = Paint.Font.Ascent + 3
-    ' 
-    ' For I = 1 To 3
-    '   
-    '   Paint.DrawText(sText, X, Y)
-    '   'Paint.Fill
-    '   Y += Paint.Font.Height - 1
-    '   
-    '   For iInd = 1 To Len(sText)
-    '     If Paint.TextExtents(Left$(sText, iInd)).Width >= (hImage.W - 6) Then Break
-    '   Next
-    '   sText = Mid$(sText, iInd)
-    ' 
-    ' Next
-    
     Paint.End
     
     hPict = hImage.Picture
+    
   Endif
 
   If iSize Then
@@ -211,7 +189,7 @@ Private Function CreateControl(sName As String, sClass As String, hParent As Obj
 
     Case "picturebox"
       hCtrl = New PictureBox(hParent)
-      hCtrl.Picture = Picture["img/control/picturebox.png"]
+      'hCtrl.Picture = Picture["img/control/picturebox.png"]
 
     Case "treeview"
       hCtrl = New TreeView(hParent)
@@ -267,7 +245,7 @@ Private Function CreateControl(sName As String, sClass As String, hParent As Obj
         hCtrl = New Splitter(hParent)
       Endif
 
-    Case "-", "drawingarea", "panel", "vbox", "hbox", "vpanel", "hpanel", "vsplit", "hsplit", "embedder", "datasource"
+    Case "-", "drawingarea", "panel", "spring", "vbox", "hbox", "vpanel", "hpanel", "vsplit", "hsplit", "embedder", "datasource"
       hCtrl = New DrawingArea(hParent)
       hCtrl.NoBackground = True
       
@@ -593,7 +571,14 @@ Public Function SetProperty(sProp As String, vVal As Variant, Optional bDoNotApp
   
   If bDoNotApply Then Goto _DO_NOT_APPLY
   
+  If Control Is DrawingArea Or If IsContainer() Then
+    If sProp = "Enabled" Then 
+      Goto _DO_NOT_APPLY
+    Endif
+  Endif
+
   If Unknown Then 
+    
     hClass = Object.Class(Control)
     If Not hClass.Exist(sProp) Then Goto _DO_NOT_APPLY
     With hClass[sProp]
@@ -1548,6 +1533,8 @@ Public Procedure Panel_MouseMove()
 
   Endif
 
+  GetForm().UpdateInfo(Me)
+
   CControl.SetGrid(True)
 
 End
@@ -1748,7 +1735,7 @@ Public Function GetEachProperty(DX As Integer, DY As Integer, Optional bNoScale 
     sLine = sProp & " = "
 
     If hProp.Translate Then
-      bTranslate = GetPropertyDefault("Translate")
+      bTranslate = GetPropertyDefault(CPropertyInfo.TRANSLATE_NAME)
     Else
       bTranslate = False
     Endif
@@ -2037,7 +2024,9 @@ Public Sub AddToolbar(cToolbarSet As Collection, cForm As Collection)
     Else If hCtrl.Kind = "Separator"
       sAction = "|"
     Else If hCtrl.Kind = "Panel" And If Container(hCtrl.Control).Children.Count = 0 Then
-      sAction = "-"
+      sAction = If(hCtrl.GetProperty("Expand"), "~", "-")
+    Else If hCtrl.Kind = "Spring" Then
+      sAction = "~"
     Else
       sAction = "$" & hCtrl.Name
     Endif

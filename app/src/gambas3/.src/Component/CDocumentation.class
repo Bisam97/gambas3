@@ -85,6 +85,7 @@ Static Private Sub InitComponentNames()
   $cName["gb.gui"] = ("QT/GTK+ switcher component")
   $cName["gb.gui.opengl"] = ("OpenGL with QT/GTK+ switcher component")
   $cName["gb.gui.qt"] = ("QT4/QT5 switcher component")
+  $cName["gb.gui.qt.opengl"] = ("QT4/QT5 OpenGL switcher component")
   $cName["gb.gui.qt.webkit"] = ("QT4/QT5 WebKit switcher component")
   $cName["gb.gui.trayicon"] = ("System tray icon management component")
   $cName["gb.httpd"] = ("Embedded HTTP server")
@@ -183,12 +184,11 @@ Public Sub GetSimilars(sCtrl As String) As String[]
   
 End
 
-Private Sub InitComponent(sFile As String)
+Private Sub InitComponent(sFile As String, Optional sKey As String)
   
   Dim hComponent As CComponent
   Dim hFic As File
   Dim sLig As String
-  Dim sKey As String
   Dim sPath As String
   Dim iPos As Integer
   Dim sGroup As String
@@ -207,7 +207,8 @@ Private Sub InitComponent(sFile As String)
   If sLig = "[Component]" Then
     
     hComponent = New CComponent(Me)
-    hComponent.Key = File.BaseName(sFile)
+    If Not sKey Then sKey = File.BaseName(sFile)
+    hComponent.Key = sKey
     hComponent.ThirdParty = Not $cName.Exist(hComponent.key)
     hComponent.Name = $cName[hComponent.Key]
     
@@ -296,10 +297,10 @@ End
 
 Static Public Sub _init()
   
-  $cRescue["3.0:form"] = "gb.qt4"
-  $cRescue["3.0:openglviewer"] = "gb.qt4.opengl"
+  $cRescue["3.0:form"] = "gb.gui"
+  $cRescue["3.0:openglviewer"] = "gb.gui.opengl"
   $cRescue["3.0:imageio"] = "gb.image.io"
-  $cRescue["3.0:eventloop"] = "gb.qt4"
+  $cRescue["3.0:eventloop"] = "gb.gui"
   $cRescue["3.0:xml"] = "gb.xml"
 
   $cName = New Collection
@@ -312,6 +313,8 @@ Public Sub _new(Optional sName As String)
   Dim aComp As String[]
   Dim sFile As String
   Dim hComp As CComponent
+  Dim sComp As String
+  Dim sCompSubst As String
   
   Name = sName
   
@@ -322,6 +325,19 @@ Public Sub _new(Optional sName As String)
     'If Not $cName.Exist(File.BaseName(sFile)) Then Continue
     InitComponent(sFile)
   Next
+  
+  For Each sCompSubst In ["gb.qt4", "gb.qt5", "gb.gtk", "gb.gtk3"]
+    If Components.Exist(sCompSubst) Then Break
+    sCompSubst = ""
+  Next
+  
+  If sCompSubst Then
+    For Each sComp In ["gb.qt4", "gb.qt5", "gb.gtk", "gb.gtk3"]
+      If Not Components.Exist(sComp) Then 
+        InitComponent(sCompSubst & ".component", sComp)
+      Endif
+    Next
+  Endif
   
   hComp = New CComponent(Me)
   hComp.Key = CComponent.PROJECT_NAME
@@ -385,7 +401,7 @@ Public Sub MakeInheritance(hModule As Object, cSymbol As Collection, sParent As 
   If cClassSymbol Then
     For Each hSymbol In cClassSymbol
       cSymbol[hSymbol.Name] = hSymbol
-      If hSymbol.IsEvent() And If Not hSymbol.IsHidden() Then $bScanFoundEvent = True
+      If hSymbol.IsEvent And If Not hSymbol.IsHidden Then $bScanFoundEvent = True
     Next
   Endif
   
@@ -465,11 +481,9 @@ Private Sub ScanStruct(hModule As Object, iLine As Integer) As Integer
     If aSym.Count = 0 Then Continue
     If Highlight.Types[0] <> Highlight.Symbol Then Continue
     
-    hSymbol = New CSymbolInfo(Me)
+    hSymbol = New CSymbolInfo(Me, aSym[0], "v")
     With hSymbol
-      .Name = aSym[0]
       .Class = sClass
-      .Kind = "v"
       .NotPublic = False
       .LineNumber = iLine + 1
       .Type = FEditor.ReadSymbolType(aSym, 1)
@@ -642,11 +656,9 @@ Private Sub ScanClass(hModule As Object, cSymbol As Collection, bModule As Boole
       For iInd = iInd To aSym.Count - 1
         If Highlight.Types[iInd] = Highlight.Symbol Then
           
-          hSymbol = New CSymbolInfo(Me)
+          hSymbol = New CSymbolInfo(Me, aSym[iInd], "C")
           With hSymbol
-            .Name = aSym[iInd]
             .Class = hModule.Name
-            .Kind = "C"
             .NotPublic = Not bPublic
             .LineNumber = iLine + 1
             .Type = "i"
@@ -718,11 +730,9 @@ Private Sub ScanClass(hModule As Object, cSymbol As Collection, bModule As Boole
     
     If sKind = ":" Then sName = ":" & sName
     
-    hSymbol = New CSymbolInfo(Me)
+    hSymbol = New CSymbolInfo(Me, sName, sKind)
     With hSymbol
-      .Name = sName
       .Class = hModule.Name
-      .Kind = sKind
       .NotPublic = Not bPublic
       .LineNumber = iLine + 1
       
@@ -788,7 +798,10 @@ Private Sub ScanClass(hModule As Object, cSymbol As Collection, bModule As Boole
         
       Endif
       
-      If bStatic Then .Kind = UCase(.Kind)
+      If bStatic Then 
+        .Kind = UCase(.Kind)
+        .IsStatic = True
+      Endif
       
       cSymbol[.Name] = hSymbol
 
@@ -854,12 +867,11 @@ Private Sub ScanForm(hForm As FForm, cSymbol As Collection)
   
   For Each hControl In hForm.Control
     If hControl.Name = hForm.Name Then Continue
-    hSymbol = New CSymbolInfo(Me)
+    hSymbol = New CSymbolInfo(Me, hControl.Name, "t")
     With hSymbol
       .Name = hControl.Name
       .Type = hControl.Kind
       .Class = hForm.Name
-      .Kind = "t"
       .NotPublic = (Not Project.ControlPublic) And Not hControl.Public
       cSymbol[.Name] = hSymbol
     End With

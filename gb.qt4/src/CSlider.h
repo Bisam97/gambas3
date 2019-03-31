@@ -2,7 +2,7 @@
 
   CSlider.h
 
-  (c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -25,9 +25,8 @@
 #define __CSLIDER_H
 
 #include "gambas.h"
-#include "gb.qt.h"
-#include <qslider.h>
-//Added by qt3to4:
+#include "CWidget.h"
+#include <QSlider>
 #include <QResizeEvent>
 
 #ifndef __CSLIDER_CPP
@@ -43,7 +42,7 @@ extern GB_DESC CSliderDesc[];
 
 typedef
   struct {
-    QT_WIDGET widget;
+    CWIDGET widget;
     }
   CSLIDER;
 

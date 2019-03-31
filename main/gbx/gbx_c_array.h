@@ -2,7 +2,7 @@
 
   gbx_c_array.h
 
-  (c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -75,7 +75,7 @@ void CARRAY_reverse(void *_object, void *_param);
 void CARRAY_get_value(CARRAY *_object, int index, VALUE *value);
 #define CARRAY_invert(_array) CARRAY_reverse(_array, NULL)
 void *CARRAY_get_data_multi(CARRAY *_object, GB_INTEGER *arg, int nparam);
-void *CARRAY_out_of_bound();
+void *CARRAY_out_of_bounds();
 CLASS *CARRAY_get_array_class(CLASS *class, CTYPE ctype);
 int *CARRAY_get_array_bounds(CARRAY *_object);
 void CARRAY_resize(CARRAY *_object, int size);
@@ -85,13 +85,20 @@ int CARRAY_get_static_count(CLASS_ARRAY *desc);
 size_t CARRAY_get_static_size(CLASS *class, CLASS_ARRAY *desc);
 void CARRAY_release_static(CLASS *class, CLASS_ARRAY *desc, void *data);
 
+#define CARRAY_get_data_unsafe(_array, _index) \
+({ \
+	int __index = (_index); \
+	CARRAY *__array = (CARRAY *)(_array); \
+	(void *)((char *)(__array->data) + __index * __array->size); \
+})
+
 #define CARRAY_get_data(_array, _index) \
 ({ \
 	int __index = (_index); \
 	CARRAY *__array = (CARRAY *)(_array); \
 	void *__data; \
   if ((__index < 0) || (__index >= __array->count)) \
-  	__data = CARRAY_out_of_bound(); \
+  	__data = CARRAY_out_of_bounds(); \
   else \
  		__data = (void *)((char *)(__array->data) + __index * __array->size); \
  	__data; \
@@ -109,7 +116,7 @@ void CARRAY_release_static(CLASS *class, CLASS_ARRAY *desc, void *data);
 
 #endif  // #ifndef __GBX_CLASS_INFO_C 
 
-#define ARRAY_TEMPLATE_NDESC 21
-#define ARRAY_OF_STRUCT_TEMPLATE_NDESC 13
+#define ARRAY_TEMPLATE_NDESC 24
+#define ARRAY_OF_STRUCT_TEMPLATE_NDESC 15
 
 #endif

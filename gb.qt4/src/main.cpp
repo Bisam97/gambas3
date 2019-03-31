@@ -2,7 +2,7 @@
 
   main.cpp
 
-  (c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -66,7 +66,6 @@
 #include "CLabel.h"
 #include "CTextBox.h"
 #include "CTextArea.h"
-#include "CPictureBox.h"
 #include "CMenu.h"
 #include "CPanel.h"
 #include "CMouse.h"
@@ -83,13 +82,11 @@
 #include "CClipboard.h"
 #include "CDraw.h"
 #include "CWatch.h"
-#include "CScrollView.h"
 #include "CDrawingArea.h"
 #include "CMessage.h"
 #include "CSlider.h"
 #include "CScrollBar.h"
 #include "CMovieBox.h"
-#include "CSpinBox.h"
 #include "CWatcher.h"
 #include "cprinter.h"
 #include "csvgimage.h"
@@ -116,7 +113,6 @@
 /*#define DEBUG*/
 
 extern "C" {
-
 const GB_INTERFACE *GB_PTR EXPORT;
 IMAGE_INTERFACE IMAGE EXPORT;
 GEOM_INTERFACE GEOM EXPORT;
@@ -131,9 +127,11 @@ int MAIN_x11_last_key_code = 0;
 #endif
 bool MAIN_debug_busy = false;
 bool MAIN_init = false;
+bool MAIN_key_debug = false;
 
 GB_CLASS CLASS_Control;
 GB_CLASS CLASS_Container;
+GB_CLASS CLASS_ContainerChildren;
 GB_CLASS CLASS_UserControl;
 GB_CLASS CLASS_UserContainer;
 GB_CLASS CLASS_TabStrip;
@@ -143,7 +141,6 @@ GB_CLASS CLASS_Picture;
 GB_CLASS CLASS_Drawing;
 GB_CLASS CLASS_DrawingArea;
 GB_CLASS CLASS_Printer;
-GB_CLASS CLASS_ScrollView;
 GB_CLASS CLASS_Image;
 GB_CLASS CLASS_SvgImage;
 GB_CLASS CLASS_TextArea;
@@ -169,6 +166,22 @@ static QByteArray _utf8_buffer[UTF8_NBUF];
 static int _utf8_count = 0;
 static int _utf8_length = 0;
 
+static void QT_Init(void);
+
+#ifdef QT5
+
+static QtMessageHandler _previousMessageHandler;
+
+static void myMessageHandler(QtMsgType type, const QMessageLogContext &context, const QString &msg )
+{
+	//fprintf(stderr, "---- `%s'\n", QT_ToUtf8(msg));
+	
+	if (msg == "QXcbClipboard: SelectionRequest too old")
+		return;
+
+	_previousMessageHandler(type, context, msg);
+}
+#endif
 
 //static MyApplication *myApp;
 
@@ -871,66 +884,6 @@ static void QT_InitEventLoop(void)
 
 //extern void qt_x11_set_global_double_buffer(bool);
 
-static void QT_Init(void)
-{
-	static bool init = false;
-	QFont f;
-
-	if (init)
-		return;
-
-	//qApp->setAttribute(Qt::AA_ImmediateWidgetCreation);
-
-	X11_init(QX11Info::display(), QX11Info::appRootWindow());
-
-	/*QX11Info::setAppDpiX(0, 92);
-	QX11Info::setAppDpiY(0, 92);*/
-
-	/*fcntl(ConnectionNumber(qt_xdisplay()), F_SETFD, FD_CLOEXEC);*/
-
-	if (::strcmp(qApp->style()->metaObject()->className(), "Breeze::Style") == 0)
-	{
-		char *env = getenv("GB_QT_NO_BREEZE_FIX");
-		if (!env || atoi(env) == 0)
-		{
-			CSTYLE_fix_breeze = TRUE;
-			qApp->setStyle(new FixBreezeStyle);
-		}
-	}
-	else if (::strcmp(qApp->style()->metaObject()->className(), "Oxygen::Style") == 0)
-	{
-		char *env = getenv("GB_QT_NO_OXYGEN_FIX");
-		if (!env || atoi(env) == 0)
-		{
-			CSTYLE_fix_breeze = TRUE;
-			qApp->setStyle(new FixBreezeStyle);
-		}
-	}
-
-
-	MAIN_update_scale(qApp->desktop()->font());
-
-	qApp->installEventFilter(&CWidget::manager);
-#ifdef QT5
-	qApp->installNativeEventFilter(&MyNativeEventFilter::manager);
-#endif
-
-	MyApplication::setEventFilter(true);
-
-	if (GB.GetFunction(&_application_keypress_func, (void *)GB.Application.StartupClass(), "Application_KeyPress", "", "") == 0)
-	{
-		_application_keypress = true;
-		MyApplication::setEventFilter(true);
-	}
-
-	//qt_x11_set_global_double_buffer(false);
-
-	qApp->setQuitOnLastWindowClosed(false);
-
-	MyApplication::initClipboard();
-
-	init = true;
-}
 
 static bool try_to_load_translation(QString &locale)
 {
@@ -1161,10 +1114,91 @@ static void hook_error(int code, char *error, char *where)
 	//qApp->exit();
 }
 
+static void QT_Init(void)
+{
+	static bool init = false;
+	QFont f;
+	char *env;
+
+	if (init)
+		return;
+
+	//qApp->setAttribute(Qt::AA_ImmediateWidgetCreation);
+
+	X11_init(QX11Info::display(), QX11Info::appRootWindow());
+
+#ifdef QT5
+	_previousMessageHandler = qInstallMessageHandler(myMessageHandler);
+#endif
+	
+	/*QX11Info::setAppDpiX(0, 92);
+	QX11Info::setAppDpiY(0, 92);*/
+
+	/*fcntl(ConnectionNumber(qt_xdisplay()), F_SETFD, FD_CLOEXEC);*/
+
+	if (::strcmp(qApp->style()->metaObject()->className(), "Breeze::Style") == 0)
+	{
+		env = getenv("GB_QT_NO_BREEZE_FIX");
+		if (!env || atoi(env) == 0)
+		{
+			CSTYLE_fix_breeze = TRUE;
+			qApp->setStyle(new FixBreezeStyle);
+		}
+	}
+	else if (::strcmp(qApp->style()->metaObject()->className(), "Oxygen::Style") == 0)
+	{
+		env = getenv("GB_QT_NO_OXYGEN_FIX");
+		if (!env || atoi(env) == 0)
+		{
+			CSTYLE_fix_oxygen = TRUE;
+			qApp->setStyle(new FixBreezeStyle);
+		}
+	}
+
+	MAIN_update_scale(qApp->desktop()->font());
+
+	qApp->installEventFilter(&CWidget::manager);
+#ifdef QT5
+	qApp->installNativeEventFilter(&MyNativeEventFilter::manager);
+#endif
+
+	MyApplication::setEventFilter(true);
+
+	if (GB.GetFunction(&_application_keypress_func, (void *)GB.Application.StartupClass(), "Application_KeyPress", "", "") == 0)
+	{
+		_application_keypress = true;
+		MyApplication::setEventFilter(true);
+	}
+
+	//qt_x11_set_global_double_buffer(false);
+
+	qApp->setQuitOnLastWindowClosed(false);
+
+	MyApplication::initClipboard();
+
+	env = getenv("GB_QT_KEY_DEBUG");
+	if (env && atoi(env) != 0)
+		MAIN_key_debug = TRUE;
+	
+	GB.Hook(GB_HOOK_WAIT, (void *)hook_wait);
+	GB.Hook(GB_HOOK_TIMER, (void *)hook_timer);
+	GB.Hook(GB_HOOK_WATCH, (void *)hook_watch);
+	GB.Hook(GB_HOOK_POST, (void *)hook_post);
+	GB.Hook(GB_HOOK_LOOP, (void *)hook_loop);
+
+	init = true;
+}
+
+
 static void QT_InitWidget(QWidget *widget, void *object, int fill_bg)
 {
 	((CWIDGET *)object)->flag.fillBackground = fill_bg;
 	CWIDGET_new(widget, object);
+}
+
+static void QT_SetWheelFlag(void *object)
+{
+	((CWIDGET *)object)->flag.wheel = true;
 }
 
 void *QT_GetObject(QWidget *widget)
@@ -1286,19 +1320,18 @@ GB_DESC *GB_CLASSES[] EXPORT =
 	CClipboardDesc, CDragDesc,
 	StyleDesc, ScreenDesc, ScreensDesc, DesktopDesc,
 	ApplicationDesc,
-	CControlDesc, CChildrenDesc, CContainerDesc,
-	CUserControlDesc, CUserContainerDesc,
+	CControlDesc, ContainerChildrenDesc, ContainerDesc,
+	UserControlDesc, UserContainerDesc,
 	CMenuChildrenDesc, CMenuDesc,
-	CLabelDesc, CTextLabelDesc, CPictureBoxDesc, CSeparatorDesc,
+	CLabelDesc, CTextLabelDesc, CSeparatorDesc,
 	CButtonDesc, CToggleButtonDesc, CToolButtonDesc,
 	CCheckBoxDesc, CRadioButtonDesc,
 	CTextBoxSelectionDesc, CTextBoxDesc, CComboBoxItemDesc, CComboBoxDesc,
 	CTextAreaSelectionDesc, CTextAreaDesc,
 	CFrameDesc, CPanelDesc, CHBoxDesc, CVBoxDesc, CHPanelDesc, CVPanelDesc,
 	CTabStripContainerChildrenDesc, CTabStripContainerDesc, CTabStripDesc,
-	CScrollViewDesc,
 	CDrawingAreaDesc,
-	CSliderDesc, CSpinBoxDesc, CMovieBoxDesc, CScrollBarDesc,
+	CSliderDesc, CMovieBoxDesc, CScrollBarDesc,
 	CWindowMenusDesc, CWindowControlsDesc, CWindowDesc, CWindowsDesc, CFormDesc,
 	CDialogDesc,
 #ifndef QT5
@@ -1321,6 +1354,7 @@ void *GB_QT4_1[] EXPORT =
 	(void *)QT_InitEventLoop,
 	(void *)QT_Init,
 	(void *)QT_InitWidget,
+	(void *)QT_SetWheelFlag,
 	(void *)QT_GetObject,
 	(void *)QT_GetContainer,
 	(void *)CWIDGET_border_simple,
@@ -1348,23 +1382,6 @@ void *GB_QT4_1[] EXPORT =
 	NULL
 };
 
-#if 0
-#if QT_VERSION >= 0x030304
-static void myMessageHandler(QtMsgType type, const char *msg )
-{
-	if ((::strncmp(msg, "QMultiInputContext::", strlen("QMultiInputContext::")) == 0)
-			|| (::strncmp(msg, "sending IM", strlen("sending IM")) == 0)
-			|| (::strncmp(msg, "receiving IM", strlen("receiving IM")) == 0)
-			|| (::strncmp(msg, "QInputContext: ", strlen("QInputContext: ")) == 0))
-		return;
-
-	fprintf(stderr, "%s\n", msg);
-	if (type == QtFatalMsg)
-		abort();
-}
-#endif
-#endif
-
 const char *GB_INCLUDE EXPORT = "gb.draw,gb.gui.base";
 
 int EXPORT GB_INIT(void)
@@ -1373,9 +1390,9 @@ int EXPORT GB_INIT(void)
 
 	// Do not disable GLib support
 
-	env = getenv("KDE_FULL_SESSION");
+	/*env = getenv("KDE_FULL_SESSION");
 	if (env && !strcasecmp(env, "true"))
-		putenv((char *)"QT_NO_GLIB=1");
+		putenv((char *)"QT_NO_GLIB=1");*/
 
 	env = getenv("GB_GUI_BUSY");
 	if (env && atoi(env))
@@ -1384,11 +1401,6 @@ int EXPORT GB_INIT(void)
 	//putenv((char *)"QT_SLOW_TOPLEVEL_RESIZE=1");
 
 	_old_hook_main = GB.Hook(GB_HOOK_MAIN, (void *)hook_main);
-	GB.Hook(GB_HOOK_LOOP, (void *)hook_loop);
-	GB.Hook(GB_HOOK_WAIT, (void *)hook_wait);
-	GB.Hook(GB_HOOK_TIMER, (void *)hook_timer);
-	GB.Hook(GB_HOOK_WATCH, (void *)hook_watch);
-	GB.Hook(GB_HOOK_POST, (void *)hook_post);
 	GB.Hook(GB_HOOK_QUIT, (void *)hook_quit);
 	GB.Hook(GB_HOOK_ERROR, (void *)hook_error);
 	GB.Hook(GB_HOOK_LANG, (void *)hook_lang);
@@ -1406,6 +1418,7 @@ int EXPORT GB_INIT(void)
 
 	CLASS_Control = GB.FindClass("Control");
 	CLASS_Container = GB.FindClass("Container");
+	CLASS_ContainerChildren = GB.FindClass("ContainerChildren");
 	CLASS_UserControl = GB.FindClass("UserControl");
 	CLASS_UserContainer = GB.FindClass("UserContainer");
 	CLASS_TabStrip = GB.FindClass("TabStrip");
@@ -1415,7 +1428,6 @@ int EXPORT GB_INIT(void)
 	CLASS_Drawing = GB.FindClass("Drawing");
 	CLASS_DrawingArea = GB.FindClass("DrawingArea");
 	CLASS_Printer = GB.FindClass("Printer");
-	CLASS_ScrollView = GB.FindClass("ScrollView");
 	CLASS_Image = GB.FindClass("Image");
 	CLASS_SvgImage = GB.FindClass("SvgImage");
 	CLASS_TextArea = GB.FindClass("TextArea");

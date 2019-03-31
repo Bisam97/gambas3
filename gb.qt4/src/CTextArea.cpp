@@ -2,7 +2,7 @@
 
   CTextArea.cpp
 
-  (c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -174,6 +174,7 @@ BEGIN_METHOD(CTEXTAREA_new, GB_OBJECT parent)
 	wid->setLineWrapMode(QTextEdit::NoWrap);
 	wid->setAcceptRichText(false);
 	
+	THIS->widget.flag.wheel = true;
 	THIS->widget.flag.fillBackground = true;
 	CWIDGET_new(wid, (void *)_object);
 	

@@ -2,7 +2,7 @@
 
 	gbx_api.c
 
-	(c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+	(c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -62,6 +62,7 @@
 #include "gbx_math.h"
 #include "gbx_struct.h"
 #include "gbx_signal.h"
+#include "gbx_jit.h"
 
 #include "gambas.h"
 #include "gbx_api.h"
@@ -82,6 +83,7 @@ const void *const GAMBAS_Api[] =
 	(void *)GB_Hook,
 
 	(void *)GB_LoadComponent,
+	(void *)COMPONENT_can_load_library,
 	(void *)COMPONENT_exist,
 	(void *)COMPONENT_is_loaded,
 	(void *)GB_CurrentComponent,
@@ -132,6 +134,7 @@ const void *const GAMBAS_Api[] =
 	(void *)CLASS_find,
 	(void *)GB_GetArrayType,
 	(void *)CLASS_get_array_class,
+	(void *)CLASS_find_load_from,
 	(void *)GB_Is,
 	(void *)GB_Ref,
 	(void *)GB_Unref,
@@ -179,6 +182,7 @@ const void *const GAMBAS_Api[] =
 	(void *)STRING_new,
 	(void *)GB_NewZeroString,
 	(void *)GB_TempString,
+	(void *)GB_RefString,
 	(void *)GB_FreeString,
 	(void *)STRING_free_later,
 	(void *)STRING_extend,
@@ -250,6 +254,7 @@ const void *const GAMBAS_Api[] =
 
 	(void *)GB_SystemCharset,
 	(void *)LOCAL_get_lang,
+	(void *)LOCAL_set_lang,
 	(void *)GB_SystemDomainName,
 	(void *)GB_IsRightToLeft,
 	(void *)GB_SystemPath,
@@ -277,9 +282,9 @@ const void *const GAMBAS_Api[] =
 	(void *)GB_HashTableRemove,
 	(void *)GB_HashTableGet,
 	(void *)GB_HashTableEnum,
+	(void *)GB_HashTableFirst,
 
 	(void *)GB_StreamGet,
-	(void *)GB_StreamSetBytesRead,
 	(void *)GB_StreamSetSwapping,
 	(void *)GB_StreamSetAvailableNow,
 	(void *)GB_StreamBlock,
@@ -306,7 +311,7 @@ const void *const GAMBAS_Api[] =
 	NULL
 };
 
-const void *GAMBAS_DebugApi[] =
+const void *const GAMBAS_DebugApi[] =
 {
 	(void *)GB_DebugGetExec,
 	(void *)STACK_get_frame,
@@ -330,168 +335,51 @@ const void *GAMBAS_DebugApi[] =
 	NULL
 };
 
-void *GAMBAS_JitApi[] =
+const void *const GAMBAS_JitApi[] =
 {
-	(void *)EXEC_release,
-	(void *)RELEASE_many,
-
-	(void *)EXEC_push_unknown,
+	(void *)&SP,
+	(void *)&EXEC_current,
+	(void *)&TEMP,
+	(void *)&EXEC_debug,
+	(void *)&EXEC_super,
+	(void *)JIT_debug,
+	(void *)JIT_get_code,
+	(void *)THROW,
+	(void *)THROW_TYPE,
+	(void *)JIT_get_constant,
+	(void *)JIT_get_class_ref,
+	(void *)EXEC_subr_table,
+	(void *)STRING_char_table,
+	(void *)UNBORROW,
+	(void *)EXEC_new,
 	(void *)EXEC_push_array,
-
-	(void *)EXEC_pop_unknown,
 	(void *)EXEC_pop_array,
-
-	(void *)CENUM_create,
+	(void *)VALUE_convert,
+	(void *)EXEC_push_unknown,
+	(void *)JIT_call_unknown,
+	(void *)EXEC_pop_unknown,
 	(void *)EXEC_enum_first,
 	(void *)EXEC_enum_next,
-
-	(void *)EXEC_new,
-	(void *)EXEC_enter_quick,
-	(void *)EXEC_enter,
-	(void *)EXEC_native_quick,
-	(void *)EXEC_native,
-	(void *)EXEC_call_native,
-	(void *)EXEC_function_real,
-	(void *)EXEC_leave_keep,
-	(void *)EXEC_leave_drop,
-	(void *)EXEC_function_loop,
-
-	(void *)EXEC_special,
-	(void *)EXEC_object_variant,
-	(void *)EXEC_object_other,
-
-	(void *)EXTERN_get_function_info,
-	(void *)EXTERN_call,
-	(void *)EXTERN_make_callback,
-
-	(void *)STRING_new,
-	(void *)STRING_new_temp_value,
-	(void *)STRING_free_real,
-	(void *)STRING_free_later,
-	(void *)STRING_compare,
-	(void *)STRING_equal_ignore_case_same,
-	(void *)STRING_conv,
-
-	(void *)OBJECT_comp_value,
-	(void *)COMPARE_object,
-	(void *)CLASS_inherits,
-	(void *)OBJECT_create,
-	(void *)CLASS_free,
 	(void *)SYMBOL_find,
-
-	(void *)CARRAY_get_array_class,
-	(void *)CARRAY_get_data_multi,
-	(void *)CARRAY_create_static,
-	(void *)CSTRUCT_create_static,
-
-	(void *)REGEXP_scan,
-
-	(void *)VALUE_convert,
-	(void *)VALUE_to_string,
-	(void *)VALUE_convert_float,
-	(void *)VALUE_convert_variant,
-	(void *)VALUE_convert_string,
-	(void *)VALUE_is_null,
-	(void *)VALUE_undo_variant,
-
-	(void *)NUMBER_from_string,
-	(void *)NUMBER_int_to_string,
-
-	(void *)LOCAL_format_number,
-
-	(void *)DATE_to_string,
-	(void *)DATE_from_string,
-	(void *)DATE_comp,
-	(void *)DATE_timer,
-	(void *)DATE_now,
-	(void *)DATE_add,
-	(void *)DATE_diff,
-
-	(void *)randomize,
-	(void *)rnd,
-
-	(void *)THROW,
-	(void *)ERROR_panic,
-	(void *)ERROR_propagate,
+	(void *)JIT_load_class,
+	(void *)CLASS_load_without_init,
+	(void *)&ERROR_current,
+	(void *)&ERROR_handler,
 	(void *)ERROR_reset,
 	(void *)ERROR_set_last,
-	(void *)ERROR_lock,
-	(void *)ERROR_unlock,
-
-	(void *)TYPE_get_name,
-
-	(void *)SUBR_not,
-	(void *)SUBR_and_,
-	(void *)SUBR_cat,
-	(void *)SUBR_file,
-	(void *)SUBR_like,
-	(void *)SUBR_string,
-	(void *)SUBR_upper,
-	(void *)SUBR_instr,
-	(void *)SUBR_subst,
-	(void *)SUBR_replace,
-	(void *)SUBR_split,
-	(void *)SUBR_strcomp,
-	(void *)SUBR_sconv,
-	(void *)SUBR_abs,
-	(void *)SUBR_int,
-	(void *)SUBR_fix,
-	(void *)SUBR_sgn,
-	(void *)SUBR_min_max,
-	(void *)SUBR_choose,
-	(void *)SUBR_bit,
-	(void *)SUBR_is_type,
-	(void *)SUBR_hex_bin,
-	(void *)SUBR_val,
-	(void *)SUBR_format,
-	(void *)SUBR_year,
-	(void *)SUBR_week,
-	(void *)SUBR_date,
-	(void *)SUBR_time,
-	(void *)SUBR_eval,
-	(void *)SUBR_debug,
-	(void *)SUBR_wait,
-	(void *)SUBR_open,
-	(void *)SUBR_close,
-	(void *)SUBR_input,
-	(void *)SUBR_linput,
-	(void *)SUBR_print,
-	(void *)SUBR_read,
-	(void *)SUBR_write,
-	(void *)SUBR_flush,
-	(void *)SUBR_lock,
-	(void *)SUBR_inp_out,
-	(void *)SUBR_eof,
-	(void *)SUBR_lof,
-	(void *)SUBR_seek,
-	(void *)SUBR_kill,
-	(void *)SUBR_move,
-	(void *)SUBR_exist,
-	(void *)SUBR_access,
-	(void *)SUBR_stat,
-	(void *)SUBR_dfree,
-	(void *)SUBR_temp,
-	(void *)SUBR_isdir,
-	(void *)SUBR_dir,
-	(void *)SUBR_rdir,
-	(void *)SUBR_exec,
-	(void *)SUBR_alloc,
-	(void *)SUBR_free,
-	(void *)SUBR_realloc,
-	(void *)SUBR_strptr,
-	(void *)SUBR_collection,
-	(void *)SUBR_tr,
-	(void *)SUBR_quote,
-	(void *)SUBR_unquote,
-	(void *)SUBR_ptr,
-
-	(void *)CLASS_load_from_jit,
-	(void *)CLASS_run_inits,
-
-	(void *)DEBUG_get_current_position,
-	(void *)NULL, // Later set to DEBUG.Profile.Add
-
+	(void *)&EXEC_got_error,
+	(void *)&EVENT_Last,
+	(void *)EXEC_push_complex,
+	(void *)EXEC_push_vargs,
+	(void *)EXEC_drop_vargs,
 	(void *)EXEC_quit,
+	(void *)EXEC_push_unknown_event,
+	(void *)EXTERN_get_addr,
+	(void *)DEBUG_get_position,
+	(void *)RELEASE_many,
+	(void *)CSTRUCT_create_static,
+	(void *)CARRAY_create_static,
+	(void *)CARRAY_get_array_class,
 	NULL
 };
 
@@ -552,6 +440,15 @@ void *GB_Hook(int type, void *hook)
 	if (hook)
 		phook[type] = hook;
 
+	type++;
+	if (type == GB_HOOK_LOOP && !old_hook)
+	{
+		if (phook[GB_HOOK_WATCH])
+			WATCH_transfer_watch();
+		if (phook[GB_HOOK_TIMER])
+			WATCH_transfer_timer();
+	}
+	
 	return old_hook;
 }
 
@@ -927,11 +824,9 @@ static bool raise_event(OBJECT *observer, void *object, int func_id, int nparam)
 
 static GB_RAISE_HANDLER *_GB_Raise_handler = NULL;
 
-static void error_GB_Raise()
+static void error_GB_Raise(void *object, intptr_t nparam)
 {
-	void *object = (void *)ERROR_handler->arg1;
-
-	RELEASE_MANY(SP, (int)(ERROR_handler->arg2));
+	RELEASE_MANY(SP, (int)nparam);
 	OBJECT_UNREF(object);
 
 	_raise_event_level--;
@@ -1798,7 +1693,7 @@ void GB_ReturnNewZeroString(const char *src)
 
 void GB_ReturnNull(void)
 {
-	TEMP.type = T_NULL;
+	VALUE_null(&TEMP);
 }
 
 void GB_ReturnVoidString(void)
@@ -2136,22 +2031,37 @@ bool GB_HashTableGet(GB_HASHTABLE hash, const char *key, int len, void **data)
 		return TRUE;
 }
 
-
 void GB_HashTableEnum(GB_HASHTABLE hash, GB_HASHTABLE_ENUM_FUNC func)
 {
 	HASH_ENUM iter;
-	void **data;
+	void **pdata;
 
 	CLEAR(&iter);
 
 	for(;;)
 	{
-		data = (void **)HASH_TABLE_next((HASH_TABLE *)hash, &iter, FALSE);
-		if (!data)
+		pdata = (void **)HASH_TABLE_next((HASH_TABLE *)hash, &iter, FALSE);
+		if (!pdata)
 			break;
 
-		(*func)(*data);
+		(*func)(*pdata);
 	}
+}
+
+bool GB_HashTableFirst(GB_HASHTABLE hash, void **data)
+{
+	HASH_ENUM iter;
+	void **pdata;
+
+	CLEAR(&iter);
+	pdata = (void **)HASH_TABLE_next((HASH_TABLE *)hash, &iter, FALSE);
+	if (pdata)
+	{
+		*data = *pdata;
+		return FALSE;
+	}
+	else
+		return TRUE;
 }
 
 void GB_NewArray(void *pdata, int size, int count)
@@ -2181,6 +2091,12 @@ char *GB_NewZeroString(char *src)
 char *GB_TempString(char *src, int len)
 {
 	return STRING_new_temp(src, len);
+}
+
+char *GB_RefString(char *str)
+{
+	STRING_ref(str);
+	return str;
 }
 
 void GB_FreeString(char **str)
@@ -2251,11 +2167,6 @@ GB_STREAM *GB_StreamGet(void *object)
 	return (GB_STREAM *)CSTREAM_stream(object);
 }
 
-void GB_StreamSetBytesRead(GB_STREAM *stream, int length)
-{
-	STREAM_eff_read += length;
-}
-
 void GB_StreamSetSwapping(GB_STREAM *stream, int v)
 {
 	((STREAM *)stream)->common.swap = v;
@@ -2281,10 +2192,7 @@ int GB_StreamRead(GB_STREAM *stream, void *addr, int len)
 		if (len < 0)
 			ret = STREAM_read_max((STREAM *)stream, addr, -len);
 		else
-		{
-			STREAM_read((STREAM *)stream, addr, len);
-			ret = STREAM_eff_read;
-		}
+			ret = STREAM_read((STREAM *)stream, addr, len);
 	}
 	END_CATCH_ERROR_INT
 }
@@ -2468,8 +2376,8 @@ bool GB_SystemDebug(void)
 void GB_SystemHasForked(void)
 {
 	MATH_init();
-	
 	FILE_init();
+	LOCAL_init();
 	
 	if (EXEC_profile)
 		DEBUG.Profile.Cancel();
@@ -2540,7 +2448,7 @@ bool GB_Serialize(const char *path, GB_VALUE *value)
 
 	CATCH_ERROR
 	{
-		STREAM_open(&stream, path, ST_CREATE);
+		STREAM_open(&stream, path, STO_CREATE);
 		STREAM_write_type(&stream, T_VARIANT, (VALUE *)value);
 		STREAM_close(&stream);
 	}
@@ -2553,7 +2461,7 @@ bool GB_UnSerialize(const char *path, GB_VALUE *value)
 
 	CATCH_ERROR
 	{
-		STREAM_open(&stream, path, ST_READ);
+		STREAM_open(&stream, path, STO_READ);
 		STREAM_read_type(&stream, T_VARIANT, (VALUE *)value);
 		STREAM_close(&stream);
 	}

@@ -2,7 +2,7 @@
 
   main.h
 
-  (c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -28,7 +28,9 @@
 #include "gb_common.h"
 
 #ifndef __MAIN_C
-extern GB_INTERFACE GB;
+extern const GB_INTERFACE *GB_PTR;
 #endif
+
+#define GB (*GB_PTR)
 
 #endif

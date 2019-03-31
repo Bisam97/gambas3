@@ -2,7 +2,7 @@
 
   gbx_extern.c
 
-  (c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -220,12 +220,10 @@ static EXTERN_FUNC *get_function(CLASS_EXTERN *ext)
 	return func;
 }
 
-EXTERN_FUNC_INFO EXTERN_get_function_info(CLASS_EXTERN *ext)
+void *EXTERN_get_addr(CLASS_EXTERN *ext)
 {
 	EXTERN_FUNC *func = get_function(ext);
-	EXTERN_FUNC_INFO func_info = { func->call, func->alias };
-	
-	return func_info;
+	return func->call;
 }
 
 
@@ -593,7 +591,7 @@ static void callback(ffi_cif *cif, void *result, void **args, void *user_data)
 	__VOID:
 	__CLASS:
 	__FUNCTION:
-		arg->type = T_NULL;
+		VALUE_null(arg);
 	}
 
 	EXEC = cb->exec;

@@ -2,7 +2,7 @@
 
 	main.c
 
-	(c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+	(c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -30,9 +30,9 @@
 #include "eval_analyze.h"
 #include "main.h"
 
-#include "CExpression.h"
-#include "CSystem.h"
-#include "CHighlight.h"
+#include "c_expression.h"
+#include "c_system.h"
+#include "c_highlight.h"
 
 GB_INTERFACE GB EXPORT;
 

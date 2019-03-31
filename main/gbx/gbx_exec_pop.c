@@ -2,7 +2,7 @@
 
   gbx_exec_pop.c
 
-  (c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -293,6 +293,7 @@ _FIN:
   PC++;
 }
 
+#if 0
 void EXEC_pop_array(ushort code)
 {
   CLASS *class;
@@ -315,3 +316,4 @@ void EXEC_pop_array(ushort code)
 
 	POP(); /* free the object */
 }
+#endif

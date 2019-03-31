@@ -46,16 +46,14 @@ End
 
 Public Sub Main()
 
-  Dim hFile As File
+  Dim hHighlighter As TextHighlighter
 
-  hFile = Open "~/test.html" For Create
-  '  <meta http-equiv="content-type" content="text/html; charset=utf-8">
-  Print #hFile, "<html><head><meta http-equiv=\"content-type\" content=\"text/html; charset=utf-8\"></head><body>"
-  Print #hFile, "<div style=\"font-family:monospace;\">";
-  Print #hFile, TextHighlighter["javascript"].ToHTML(File.Load("~/er/WebRadio/WebRadio/erfm.js"))
-  Print #hFile, "</div>"
-  Print #hFile, "</body></html>"
-  hFile.Close
-
+  hHighlighter = TextHighlighter["gambas"]
+  
+  'Print hHighlighter.ToHTML(File.Load("src.txt"))
+  
+  ' TextHighlighter._Highlight = New Byte[]
+  ' hHighlighter.Run("Label:")
+  ' Print TextHighlighter._Highlight.Count
 
 End

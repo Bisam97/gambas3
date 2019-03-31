@@ -53,13 +53,6 @@ extern GB_STREAM_DESC CurlStream;
 #define THIS_FILE       THIS->file
 
 typedef
-	struct {
-		int *parent_status;
-		CURL_PROXY proxy;
-	}
-	CPROXY;
-
-typedef
 	void (*CURL_FIX_PROGRESS_CB)(void *, double *, double *, double *, double *);
 
 typedef  
@@ -71,12 +64,13 @@ typedef
 		CURL *curl;
 		char *url;
 		FILE *file;
-		CPROXY proxy;
+		CURL_PROXY proxy;
 		CURL_USER user;
 		int timeout;
 		int buffer_size;
 		int method; // 0->Get, 1->Put
 		char *data;
+		char *target;
 		int64_t dltotal;
 		int64_t dlnow;
 		int64_t ultotal;

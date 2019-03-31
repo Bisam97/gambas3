@@ -2,7 +2,7 @@
 
 	gbx_subr_math.c
 
-	(c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+	(c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -165,7 +165,7 @@ __ASINH: PARAM->_float.value = __builtin_asinh(PARAM->_float.value); goto __END;
 __ACOSH: PARAM->_float.value = __builtin_acosh(PARAM->_float.value); goto __END;
 __ATANH: PARAM->_float.value = __builtin_atanh(PARAM->_float.value); goto __END;
 __EXP2: PARAM->_float.value = __builtin_exp2(PARAM->_float.value); goto __END;
-#if defined(OS_FREEBSD) || defined(__clang__)
+#if defined(__clang__)
 	__EXP10: PARAM->_float.value = exp10(PARAM->_float.value); goto __END;
 #else
 	__EXP10: PARAM->_float.value = __builtin_exp10(PARAM->_float.value); goto __END;
@@ -373,9 +373,9 @@ __LONG:
 
 __SINGLE:
 __FLOAT:
-__DATE:
 	goto __ERROR;
 
+__DATE:
 __STRING:
 __OBJECT:
 __NULL:
@@ -424,7 +424,7 @@ __END:
 void SUBR_and_(ushort code)
 {
 	static void *jump[] = {
-		&&__VARIANT, &&__BOOLEAN, &&__BYTE, &&__SHORT, &&__INTEGER, &&__LONG, &&__ERROR, &&__ERROR, &&__ERROR
+		&&__UNKNOWN, &&__BOOLEAN, &&__BYTE, &&__SHORT, &&__INTEGER, &&__LONG, &&__OTHER, &&__VARIANT, &&__ERROR
 		};
 
 	TYPE type;
@@ -502,34 +502,51 @@ __LONG:
 		__XOR_L: P1->_long.value ^= P2->_long.value; goto *jump_end;
 	}
 
-__VARIANT:
+	goto *jump_end;
+	
+__UNKNOWN:
 
 	type = Max(P1->type, P2->type);
 
-	if (TYPE_is_number_date(type))
+	if (!TYPE_is_integer_long(type))
 	{
-		*PC |= type;
-		goto *jump[type];
+		if (P1->type != T_VARIANT && P2->type != T_VARIANT)
+			type = 6;
+		else
+			type = 7;
 	}
+	
+	*PC |= type;
+	goto *jump[type];
+
+__OTHER:
+	
+	if (!TYPE_is_integer_long(P1->type))
+		VALUE_convert_boolean(P1);
+
+	if (!TYPE_is_integer_long(P2->type))
+		VALUE_convert_boolean(P2);
+	
+	type = Max(P1->type, P2->type);
+	goto *jump[type];
+
+__VARIANT:
 
 	if (TYPE_is_variant(P1->type))
 		VARIANT_undo(P1);
 
 	if (TYPE_is_variant(P2->type))
 		VARIANT_undo(P2);
-
-	if (TYPE_is_string(P1->type))
+	
+	if (!TYPE_is_integer_long(P1->type))
 		VALUE_convert_boolean(P1);
 
-	if (TYPE_is_string(P2->type))
+	if (!TYPE_is_integer_long(P2->type))
 		VALUE_convert_boolean(P2);
 
-	if (TYPE_is_null(P1->type) || TYPE_is_null(P2->type))
-		type = T_NULL;
-	else
-		type = Max(P1->type, P2->type);
+	type = Max(P1->type, P2->type);
 
-	if (TYPE_is_number_date(type))
+	if (TYPE_is_integer_long(type))
 	{
 		jump_end = &&__VARIANT_END;
 		goto *jump[type];

@@ -34,7 +34,7 @@
 #ifndef __CHTTPCLIENT_C
 
 
-extern GB_DESC CHttpClientDesc[];
+extern GB_DESC HttpClientDesc[];
 extern GB_STREAM_DESC HttpStream;
 
 #else
@@ -57,10 +57,10 @@ typedef
 		int return_code;
 		char *return_string;
 		char *data;
-		char *target;
 		size_t len_data;
 		size_t len_sent;
-		bool send_file;
+		unsigned send_file : 1;
+		unsigned redirect : 1;
 		}
 	CHTTPCLIENT;
 

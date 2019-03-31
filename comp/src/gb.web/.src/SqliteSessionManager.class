@@ -11,12 +11,22 @@ Private $hConn As Connection
 Private $cValues As Collection
 Private $cDelete As Collection
 
-Private Sub GetPath(Optional sId As String) As String
+Public Sub GetPath(Optional sId As String) As String
 
   Dim sPath As String
+  Dim I As Integer
+  Dim sCar As String
+  Dim sName As String
   
   sPath = "/tmp/gambas." & System.User.Id &/ "session" 
-  If sId Then sPath &/= Replace(sId, ":", "_") & ".db"
+  If sId Then 
+    For I = 1 To Len(sId)
+      sCar = Mid(sId, I, 1)
+      If Not IsDigit(sCar) And If Not IsLetter(sCar) Then sCar = "_"
+      sName &= sCar
+    Next
+    sPath &/= sName & ".db"
+  Endif
   Return sPath
   
 End
@@ -278,7 +288,7 @@ Public Sub _get(Key As String) As Variant
 
   If $cDelete.Exist(Key) Then Return
   vVal = $cValues[Key]
-  If vVal Then Return vVal
+  If Not IsNull(vVal) Then Return vVal
 
   rValue = $hConn.Find("values", "sKey = &1", Key)
   If rValue.Available Then 
@@ -295,7 +305,7 @@ Public Sub Exist(Key As String) As Boolean
   If $cDelete.Exist(Key) Then Return
   If $cValues.Exist(Key) Then Return True
   
-  Return $hConn.Exec("SELECT 1 FROM values WHERE sKey = &1", Key).Available
+  Return $hConn.Exec("SELECT 1 FROM \"values\" WHERE sKey = &1", Key).Available
   
 End
 

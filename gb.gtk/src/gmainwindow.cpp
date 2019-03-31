@@ -377,7 +377,8 @@ gMainWindow::gMainWindow(gContainer *par) : gContainer(par)
 	g_typ = Type_gMainWindow;
 	
 #ifdef GTK3
-	border = gtk_fixed_new(); //gtk_event_box_new();
+	//border = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+	border = gtk_fixed_new();
 #else
 	border = gtk_alignment_new(0, 0, 1, 1);
 #endif
@@ -787,6 +788,7 @@ bool gMainWindow::isModal() const
 void gMainWindow::showModal()
 {
   gMainWindow *save;
+  gMainWindow *parent;
 	
 	if (!isTopLevel()) return;
 	if (isModal()) return;
@@ -798,8 +800,16 @@ void gMainWindow::showModal()
 	//show();
 	gtk_grab_add(border);
 	
-	if (_active)
-		gtk_window_set_transient_for(GTK_WINDOW(border), GTK_WINDOW(_active->topLevel()->border));
+	parent = _current;
+	if (!parent)
+	{
+		parent = gApplication::mainWindow();
+		if (!parent)
+			parent = _active;
+	}
+	
+	if (parent)
+		gtk_window_set_transient_for(GTK_WINDOW(border), GTK_WINDOW(parent->topLevel()->border));
 	
 	save = _current;
 	_current = this;
@@ -1420,7 +1430,11 @@ void gMainWindow::setUtility(bool v)
 	// TODO: works only if the window is not mapped!
 
 	_utility = v;
+#if GTK_CHECK_VERSION(2, 20, 0)
 	if (gtk_widget_get_mapped(border))
+#else
+    if (GTK_WIDGET_MAPPED(border))
+#endif
 	{
 		remap = true;
 		gtk_widget_unmap(border);

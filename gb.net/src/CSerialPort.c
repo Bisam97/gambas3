@@ -59,8 +59,6 @@ GB_STREAM_DESC SerialStream =
 	seek: CSerialPort_stream_seek,
 	tell: CSerialPort_stream_tell,
 	flush: CSerialPort_stream_flush,
-	eof: CSerialPort_stream_eof,
-	lof: CSerialPort_stream_lof,
 	handle: CSerialPort_stream_handle
 };
 
@@ -232,7 +230,7 @@ int CSerialPort_stream_close(GB_STREAM *stream)
 	return 0;
 }
 
-int CSerialPort_stream_lof(GB_STREAM *stream, int64_t *len)
+/*int CSerialPort_stream_lof(GB_STREAM *stream, int64_t *len)
 {
 	void *_object = stream->tag;
 	int bytes;
@@ -255,9 +253,15 @@ int CSerialPort_stream_eof(GB_STREAM *stream)
 	if (ioctl(THIS->port,FIONREAD,&bytes)) return -1;
 	if (!bytes) return -1;
 	return 0;
-}
+}*/
 
 int CSerialPort_stream_read(GB_STREAM *stream, char *buffer, int len)
+{
+	void *_object = stream->tag;
+	return read(THIS->port, (void*)buffer, len);
+}
+
+/*int CSerialPort_stream_read(GB_STREAM *stream, char *buffer, int len)
 {
 	void *_object = stream->tag;
 	int npos = -1;
@@ -284,9 +288,16 @@ int CSerialPort_stream_read(GB_STREAM *stream, char *buffer, int len)
 		return -1;
 
 	return 0;
-}
+}*/
 
 int CSerialPort_stream_write(GB_STREAM *stream, char *buffer, int len)
+{
+	void *_object = stream->tag;
+	return write(THIS->port, (void*)buffer, len);
+}
+
+
+/*int CSerialPort_stream_write(GB_STREAM *stream, char *buffer, int len)
 {
 	void *_object = stream->tag;
 	int npos = -1;
@@ -306,7 +317,7 @@ int CSerialPort_stream_write(GB_STREAM *stream, char *buffer, int len)
 		return -1;
 
 	return 0;
-}
+}*/
 
 static bool check_open(CSERIALPORT *_object)
 {
@@ -491,7 +502,7 @@ BEGIN_PROPERTY(SerialPort_FlowControl)
 		flow = VPROP(GB_INTEGER);
 		if (flow < 0 || flow > 3)
 		{
-			GB.Error("Invalid flow control value");
+			GB.Error(GB_ERR_ARG);
 			return;
 		}
 
@@ -516,7 +527,7 @@ BEGIN_PROPERTY(SerialPort_Parity)
 		parity = VPROP(GB_INTEGER);
 		if (parity < 0 || parity > 2)
 		{
-			GB.Error("Invalid parity");
+			GB.Error(GB_ERR_ARG);
 			return;
 		}
 
@@ -540,8 +551,8 @@ BEGIN_PROPERTY(SerialPort_Speed)
 
 		speed = VPROP(GB_INTEGER);
 
-		if (ConvertBaudRate(speed) == -1)
-			GB.Error("Invalid speed value");
+		if (speed < 0)
+			GB.Error(GB_ERR_ARG);
 		else
 			THIS->speed = speed;
 	}
@@ -564,7 +575,7 @@ BEGIN_PROPERTY(SerialPort_DataBits)
 		value = VPROP(GB_INTEGER);
 
 		if (ConvertDataBits(value) == -1)
-			GB.Error("Invalid data bits value");
+			GB.Error(GB_ERR_ARG);
 		else
 			THIS->dataBits = value;
 	}
@@ -587,7 +598,7 @@ BEGIN_PROPERTY(SerialPort_StopBits)
 		value = VPROP(GB_INTEGER);
 
 		if (ConvertStopBits(value) == -1)
-			GB.Error("Invalid stop bits value");
+			GB.Error(GB_ERR_ARG);
 		else
 			THIS->stopBits = value;
 	}
@@ -620,8 +631,6 @@ END_METHOD
 
 BEGIN_METHOD(SerialPort_Open, GB_INTEGER polling)
 
-	int err;
-	char buffer[8];
 	int polling = VARGOPT(polling, 50);
 
 	if (THIS->status)
@@ -630,12 +639,8 @@ BEGIN_METHOD(SerialPort_Open, GB_INTEGER polling)
 		return;
 	}
 
-	if ((err = OpenSerialPort(&THIS->port, THIS->flow, &THIS->oldtio, THIS->portName, THIS->speed, THIS->parity, THIS->dataBits, THIS->stopBits)))
-	{
-		sprintf(buffer, "#%d", err);
-		GB.Error("Cannot open serial port (&1)", buffer);
+	if (OpenSerialPort(THIS))
 		return;
-	}
 
 	THIS->signals = get_signals(THIS);
 	THIS->stream.desc = &SerialStream;

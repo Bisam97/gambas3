@@ -100,8 +100,8 @@ Public Sub InitEvents()
   Events = New String[]
   
   For Each hSym In Symbols
-    If hSym.IsHidden() Then Continue
-    If hSym.IsEvent() Then 
+    If hSym.IsHidden Then Continue
+    If hSym.IsEvent Then 
       If Left$(hSym.Name) = ":" Then
         Events.Add(Mid$(hSym.Name, 2))
       Else
@@ -539,11 +539,11 @@ Public Sub GetHelpHTML() As String
       
       sComp = GetSymbolLink(hSymbol, sSymbolName)
       
-      If hSymbol.NotPublic Or If hSymbol.IsHidden() Then Continue
+      If hSymbol.NotPublic Or If hSymbol.IsHidden Then Continue
       If hSymbol.Class = sClass Then sComp = "<u>" & sComp & "</u>"
 
       If IsLetter(hSymbol.Kind) Then
-        If hSymbol.IsStatic() Then 
+        If hSymbol.IsStatic Then 
           'sComp = "<b>" & sComp & "</b>"
         Else
           bHasDynamic = True
@@ -701,7 +701,7 @@ Public Sub GetHelpHTML() As String
   sTitle = sClass
   If sWhere Then sTitle = "<a href=\"" & sWhere & "\">" & sTitle & "</a>"
   
-  sHtml = File.Load("help/class-help.html")
+  sHtml = MHelp.LoadCustom("class-help.html")
   sHtml = Replace(sHtml, "$(help)", sHelp)
   
   If sInfo Then 
@@ -777,7 +777,7 @@ Public Function WikiGetSymbols() As String[]
   Dim bDynamic As Boolean
   Dim bStatic As Boolean
   Dim sBreak As String
-  Dim sPrefix As String
+  Dim sPrefix As String = ""
   Dim aArray As String[]
   Dim bHasSymbols As Boolean
   Dim bHasDynamicVariable As Boolean
@@ -791,7 +791,7 @@ Public Function WikiGetSymbols() As String[]
     Next
 
     For Each hSym In Symbols
-      If hSym.IsHidden() Then Continue
+      If hSym.IsHidden Then Continue
       If Right$(hSym.Name) = "$" Then Continue
 
       bHasSymbols = True
@@ -815,7 +815,7 @@ Public Function WikiGetSymbols() As String[]
           Print hSym.Kind; " ?"
       End Select
       'IF InStr("rpm", hSym.Kind) THEN bDynamic = TRUE
-      If hSym.IsStatic() Then
+      If hSym.IsStatic Then
         'If bParent Then
         '  bParentStatic = True
         'Else
@@ -894,7 +894,7 @@ Public Function WikiGetSymbols() As String[]
 
   hSym = Symbols["_get"]
   If hSym Then
-    If hSym.IsStatic() Then
+    If hSym.IsStatic Then
       If Symbols.Exist("_put") Then
         aResult.Add(Subst(("This class acts like a &1 / &2 static array."), Wiki.GetSymbolLink(Me, "_get", ("read")), Wiki.GetSymbolLink(Me, "_put", ("write"))) & "\\")
       Else
@@ -982,7 +982,7 @@ End
 Public Sub AddSymbol(hSym As CSymbolInfo)
 
   Symbols[hSym.Name] = hSym
-  If hSym.IsEvent() And Not hSym.IsHidden() Then HasEvents = True
+  If hSym.IsEvent And Not hSym.IsHidden Then HasEvents = True
   
 End
 
@@ -1028,5 +1028,12 @@ Public Sub ConstructorNeedParent() As Boolean
   
   hClass = Documentation.Classes[ParentComponent &/ Parent]
   Return hClass.ConstructorNeedParent()
+  
+End
+
+
+Public Sub _compare(Other As CClassInfo) As Integer
+  
+  Return Comp(Name, Other.Name)
   
 End

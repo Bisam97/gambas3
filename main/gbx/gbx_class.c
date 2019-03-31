@@ -2,7 +2,7 @@
 
   gbx_class.c
 
-  (c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -167,8 +167,6 @@ static void unload_class(CLASS *class)
 		if (class->load)
 			FREE(&class->load->prof);
 
-		FREE(&class->jit_functions);
-
 		FREE(&class->load);
 		//if (!class->mmapped)
 		FREE(&class->data);
@@ -201,91 +199,58 @@ static void class_replace_global(CLASS *class)
 	char *old_name;
 	CLASS *old_class;
 	int len;
-	//int index;
 	CLASS swap;
 	char *swap_name;
 	bool swap_free_name;
 	int nprefix;
 	int i;
 
-	if (CLASS_is_loaded(class))
+	if (!CLASS_is_loaded(class))
+		return;
+		
+	name = class->name;
+	len = strlen(name);
+
+	parent = class->parent;
+	if (parent)
 	{
-		//fprintf(stderr, "class_replace_global: %p %s\n", class, name);
-
-		name = class->name;
-		len = strlen(name);
-
-		nprefix = 0;
-		parent = class;
-		do
+		for (nprefix = 0;; nprefix++)
 		{
-			nprefix++;
-			parent = parent->parent;
-		}
-		while (parent);
-
-		ALLOC(&old_name, len + nprefix + 1);
-		for (i = 0; i < nprefix; i++)
-			old_name[i] = '>';
-		strcpy(&old_name[i], name);
-
-		old_class = CLASS_find_global(old_name);
-		//fprintf(stderr, "-> %p %s\n", old_class, old_name);
-
-		FREE(&old_name);
-		/*FREE(&old_class->name, "class_replace_global");
-		old_class->free_name = FALSE;
-		old_class->name = class->name;*/
-
-		//new_name = (char *)new_class->name;
-
-		/*if (TABLE_find_symbol(&_global_table, name, len, &index))
-		{
-			csym = (CLASS_SYMBOL *)TABLE_get_symbol(&_global_table, index);
-			csym->class = new_class;
-		}
-
-		if (TABLE_find_symbol(&_global_table, new_name, len + 1, &index))
-		{
-			csym = (CLASS_SYMBOL *)TABLE_get_symbol(&_global_table, index);
-			csym->class = class;
-		}
-
-		new_class->name = class->name;
-		class->name = new_name;*/
-
-		swap = *class;
-		*class = *old_class;
-		*old_class = swap;
-
-		SWAP_FIELD(swap_name, class, old_class, name);
-		SWAP_FIELD(swap_free_name, class, old_class, free_name);
-		SWAP_FIELD(parent, class, old_class, next);
-		SWAP_FIELD(i, class, old_class, count);
-		SWAP_FIELD(i, class, old_class, ref);
-
-		for (i = 0; i < old_class->n_desc; i++)
-		{
-			cds = &old_class->table[i];
-			if (cds->desc && cds->desc->method.class == class)
-				cds->desc->method.class = old_class;
-		}
-
-		CLASS_inheritance(class, old_class, FALSE);
-
-		/*for(;;)
-		{
-			class->override = new_class;
-			parent = class->parent;
-			if (!parent || parent->override != class)
+			if (parent->name[nprefix] != '^')
 				break;
-			class = parent;
 		}
+		nprefix++;
+	}
+	else
+		nprefix = 1;
+	
+	ALLOC(&old_name, len + nprefix + 1);
+	for (i = 0; i < nprefix; i++)
+		old_name[i] = '^';
+	strcpy(&old_name[i], name);
 
-		class = new_class;*/
+	old_class = CLASS_find_global(old_name);
+	
+	FREE(&old_name);
+
+	swap = *class;
+	*class = *old_class;
+	*old_class = swap;
+
+	SWAP_FIELD(swap_name, class, old_class, name);
+	SWAP_FIELD(swap_free_name, class, old_class, free_name);
+	SWAP_FIELD(parent, class, old_class, next);
+	SWAP_FIELD(i, class, old_class, count);
+	SWAP_FIELD(i, class, old_class, ref);
+
+	for (i = 0; i < old_class->n_desc; i++)
+	{
+		cds = &old_class->table[i];
+		if (cds->desc && cds->desc->method.class == class)
+			cds->desc->method.class = old_class;
 	}
 
-	//return class;
+	CLASS_inheritance(class, old_class);
 }
 
 static void release_class(CLASS *class)
@@ -455,12 +420,6 @@ CLASS *CLASS_look(const char *name, int len)
 	fprintf(stderr, "CLASS_look: %s in %s", name, _global ? "global" : "local");
 	#endif
 
-	/*if (strncasecmp(name, "listbox", 7) == 0)
-	{
-		name = "MyListBox";
-		len = 9;
-	}*/
-
 	//if (CP && CP->component && CP->component->archive)
 	if (!_global && !ARCHIVE_get_current(&arch))
 	{
@@ -553,6 +512,9 @@ CLASS *CLASS_find(const char *name)
 	class->class = _first;
 
 	class->global = global;
+	
+	if (arch)
+		class->component = arch->current_component;
 
 	return class;
 }
@@ -567,7 +529,7 @@ CLASS *CLASS_get(const char *name)
 {
 	CLASS *class = CLASS_find(name);
 
-	if (!CLASS_is_loaded(class))
+	if (!CLASS_is_loaded(class) && !class->in_load)
 		CLASS_load(class);
 
 	return class;
@@ -736,10 +698,9 @@ char *CLASS_DESC_get_signature(CLASS_DESC *cd)
 
 // NOTE: The _free method can be called during a conversion, so we must save the EXEC structure
 
-static void error_CLASS_free()
+static void error_CLASS_free(void *object, EXEC_GLOBAL *save)
 {
-	void *object = (void *)ERROR_handler->arg1;
-	EXEC = *((EXEC_GLOBAL *)ERROR_handler->arg2);
+	EXEC = *save;
 	((OBJECT *)object)->ref = 0;
 	OBJECT_release(OBJECT_class(object), object);
 }
@@ -747,17 +708,23 @@ static void error_CLASS_free()
 void CLASS_free(void *object)
 {
 	CLASS *class = OBJECT_class(object);
-	EXEC_GLOBAL save = EXEC;
+	EXEC_GLOBAL save;
+	
+	if (!class->has_free)
+	{
+		OBJECT_release(class, object);
+		return;
+	}
+	
+	save = EXEC;
 
 	ON_ERROR_2(error_CLASS_free, object, &save)
 	{
 		((OBJECT *)object)->ref = 1; // Prevents anybody from freeing the object!
-
 		EXEC_special_inheritance(SPEC_FREE, class, object, 0, TRUE);
-
-		((OBJECT *)object)->ref = 0;
-		EXEC = save;
-		OBJECT_release(class, object);
+		if (((OBJECT *)object)->ref != 1)
+			THROW(E_FREEREF);
+		error_CLASS_free(object, &save);
 	}
 	END_ERROR
 }
@@ -955,7 +922,7 @@ void CLASS_sort(CLASS *class)
 	#endif
 }
 
-void CLASS_inheritance(CLASS *class, CLASS *parent, bool in_jit_compilation)
+void CLASS_inheritance(CLASS *class, CLASS *parent)
 {
 	if (class->parent != NULL)
 		THROW_CLASS(class, "Multiple inheritance", "");
@@ -965,10 +932,7 @@ void CLASS_inheritance(CLASS *class, CLASS *parent, bool in_jit_compilation)
 
 	TRY
 	{
-		if (!in_jit_compilation)
-			CLASS_load(class->parent);
-		else
-			JIT.LoadClass(class->parent);
+		CLASS_load(class->parent);
 	}
 	CATCH
 	{
@@ -981,6 +945,10 @@ void CLASS_inheritance(CLASS *class, CLASS *parent, bool in_jit_compilation)
 		class->check = class->parent->check;
 		class->must_check = class->parent->must_check;
 	}
+	
+	if (!class->has_free)
+		class->has_free = class->parent->has_free;
+	
 	// CREATE STATIC is inherited, but not CREATE PRIVATE
 
 	if (parent->auto_create)
@@ -1047,6 +1015,11 @@ static bool check_signature(char type, const CLASS_DESC *desc, const CLASS_DESC 
 			sp = pdesc->ext.signature;
 			nsp = pdesc->ext.npmax;
 			break;
+			
+		case CD_VARIABLE:
+		case CD_STATIC_VARIABLE:
+			
+			return TRUE;
 
 		default:
 
@@ -1390,6 +1363,8 @@ void CLASS_search_special(CLASS *class)
 		class->unknown_static = CLASS_DESC_get_type(CLASS_get_desc(class, class->special[SPEC_UNKNOWN])) == CD_STATIC_METHOD;
 	if (class->special[SPEC_PROPERTY] != NO_SYMBOL)
 		class->property_static = CLASS_DESC_get_type(CLASS_get_desc(class, class->special[SPEC_PROPERTY])) == CD_STATIC_METHOD;
+	if (class->special[SPEC_FREE] != NO_SYMBOL)
+		class->has_free = TRUE;
 }
 
 
@@ -1454,8 +1429,6 @@ void CLASS_create_array_class(CLASS *class)
 	char *name_joker;
 	GB_DESC *desc;
 	CLASS *array_type = (CLASS *)class->array_type;
-
-	//fprintf(stderr, "CLASS_create_array_class: create %s\n", class->name);
 
 	name_joker = STRING_new(class->name, strlen(class->name) - 2);
 
@@ -1558,8 +1531,32 @@ char *CLASS_get_name(CLASS *class)
 {
 	char *name = class->name;
 
-	while (*name == '>')
+	while (*name == '^')
 		name++;
 
 	return name;
 }
+
+
+CLASS *CLASS_find_load_from(const char *name, const char *from)
+{
+	COMPONENT *save;
+	CLASS *save_cp;
+	COMPONENT *comp = NULL;
+	CLASS *class;
+	
+	comp = COMPONENT_find(from);
+	
+	save = COMPONENT_current;
+	save_cp = CP;
+	
+	COMPONENT_current = comp;
+	CP = NULL;
+	class = CLASS_get(name);
+	
+	COMPONENT_current = save;
+	CP = save_cp;
+	
+	return class;
+}
+

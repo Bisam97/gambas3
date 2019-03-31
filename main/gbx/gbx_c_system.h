@@ -2,7 +2,7 @@
 
   gbx_c_system.h
 
-  (c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -29,6 +29,7 @@
 #ifndef __GBX_C_SYSTEM_C
 extern GB_DESC NATIVE_User[];
 extern GB_DESC NATIVE_System[];
+extern GB_DESC NATIVE_Jit[];
 #endif
 
 #endif

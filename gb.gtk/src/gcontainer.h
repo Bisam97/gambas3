@@ -2,7 +2,7 @@
 
   gcontainer.h
 
-  (c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -63,6 +63,8 @@ public:
 	virtual int clientY();
 	virtual int containerX();
 	virtual int containerY();
+	virtual int containerWidth();
+	virtual int containerHeight();
 
 	void setArrange(int vl);
 	void setUser(bool vl);
@@ -77,6 +79,8 @@ public:
 	virtual gControl *child(int index) const;
 	
 	int childIndex(gControl *ch) const;
+	
+	void clear();
 	
 	virtual gControl *find(int x, int y);
 	
@@ -103,7 +107,9 @@ public:
 	virtual void setVisible(bool vl);
 
 	gContainer *proxyContainer() { return _proxyContainer ? _proxyContainer : this; }
-	void setProxyContainer(gContainer *proxy) { if (_proxyContainer != this) _proxyContainer = proxy; else _proxyContainer = 0; }
+	void setProxyContainer(gContainer *proxy) { if (_proxyContainer != this) _proxyContainer = proxy; else _proxyContainer = NULL; }
+	gContainer *proxyContainerFor() { return _proxyContainerFor; }
+	void setProxyContainerFor(gContainer *proxy) { if (proxy != this) _proxyContainerFor = proxy; else _proxyContainerFor = NULL; }
 	
 	void disableArrangement();
 	void enableArrangement();
@@ -133,6 +139,7 @@ private:
   void initialize();
 	gContainerArrangement arrangement;
   gContainer *_proxyContainer;
+  gContainer *_proxyContainerFor;
 	unsigned _did_arrangement : 1;
 	unsigned _no_arrangement : 7;
 };

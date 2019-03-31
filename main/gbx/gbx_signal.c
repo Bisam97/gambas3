@@ -2,7 +2,7 @@
 
   gbx_signal.c
 
-  (c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@
 
 #define __GBX_SIGNAL_C
 
+#include "gb_alloc.h"
 #include "gb_error.h"
 #include "gb_array.h"
 #include "gbx_api.h"
@@ -195,6 +196,10 @@ void SIGNAL_raise_callbacks(int fd, int type, void *data)
 			return;
 		}
 		
+		#if DEBUG_ME
+		fprintf(stderr, "SIGNAL_raise_callbacks: signum = %d\n", signum);
+		#endif
+
 		handler = find_handler(signum);
 		if (!handler)
 		{

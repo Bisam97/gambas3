@@ -2,7 +2,7 @@
 
   gb_limit.h
 
-  (c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -98,6 +98,9 @@
 
 /* Maximum number of digits in a Float */
 #define MAX_FLOAT_DIGIT     15
+
+/* Maximum length of the System.Language property */
+#define MAX_LANG            16
 
 #endif
 

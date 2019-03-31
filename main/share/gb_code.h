@@ -2,7 +2,7 @@
 
   gb_code.h
 
-  (c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -28,6 +28,7 @@
 
 #ifndef __CODE_C
 EXTERN short CODE_stack_usage;
+EXTERN unsigned char CODE_disabled;
 #endif
 
 
@@ -35,6 +36,8 @@ EXTERN short CODE_stack_usage;
 #define CODE_INSTR_INC 1024
 #define CODE_NO_POS (ushort)0xFFFF
 
+#define CODE_disable() (CODE_disabled++)
+#define CODE_enable() (CODE_disabled--)
 
 #ifdef PROJECT_EXEC
 

@@ -2,7 +2,7 @@
 
 	CMenu.h
 
-	(c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+	(c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -80,6 +80,7 @@ typedef
 		unsigned disabled : 1;
 		unsigned visible : 1;
 		unsigned init_shortcut : 1;
+		unsigned opened : 1;
 		}
 	CMENU;
 

@@ -2,7 +2,7 @@
 
 	gbc_trans_common.h
 
-	(c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+	(c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -32,7 +32,7 @@ typedef
 		short value;
 		unsigned ignore : 1;
 		}
-	TRANS_PARAM;  /* must be the same as PARAM in class.h */
+	TRANS_PARAM;
 
 typedef
 	PATTERN TRANS_TREE;
@@ -83,6 +83,7 @@ typedef
 		int line;
 		uint64_t byref;
 		unsigned fast : 1;
+		unsigned unsafe : 1;
 		}
 	PACKED
 	TRANS_FUNC;

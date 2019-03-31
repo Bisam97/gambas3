@@ -3,20 +3,41 @@
 Event Change
 
 Property Color As Integer
+Property Background As Integer
 Property Bold As Boolean
 Property Underline As Boolean
+Property Dotted As Boolean
 
 Private $iColor As Integer
+Private $iBg As Integer = Color.Default
 Private $bBold As Boolean
 Private $bUnderline As Boolean
+Private $bDotted As Boolean
 
-Public Sub _new((Color) As Integer, Optional Bold As Boolean, Underline As Boolean)
+Public Sub _new(Optional (Color) As Integer, Optional Bold As Boolean, Underline As Boolean, Dotted As Boolean)
 
   $iColor = Color
   $bBold = Bold
   $bUnderline = Underline
+  $bDotted = Dotted
   
 End
+
+Public Sub Copy() As TextEditorStyle
+
+  Dim hStyle As TextEditorStyle
+  
+  hStyle = New TextEditorStyle
+  With hStyle
+    .Background = $iBg
+    .Bold = $bBold
+    .Color = $iColor
+    .Underline = $bUnderline
+    .Dotted = $bDotted
+  End With
+  
+End
+
 
 Private Function Color_Read() As Integer
 
@@ -26,6 +47,7 @@ End
 
 Private Sub Color_Write(Value As Integer)
 
+  If $iColor = Value Then Return
   $iColor = Value
   Raise Change
 
@@ -39,6 +61,7 @@ End
 
 Private Sub Bold_Write(Value As Boolean)
 
+  If $bBold = Value Then Return
   $bBold = Value
   Raise Change
 
@@ -52,7 +75,36 @@ End
 
 Private Sub Underline_Write(Value As Boolean)
 
+  If $bUnderline = Value Then Return
   $bUnderline = Value
+  Raise Change
+
+End
+
+Private Function Background_Read() As Integer
+
+  Return $iBg
+
+End
+
+Private Sub Background_Write(Value As Integer)
+
+  If $iBg = Value Then Return
+  $iBg = Value
+  Raise Change
+
+End
+
+Private Function Dotted_Read() As Boolean
+
+  Return $bDotted
+
+End
+
+Private Sub Dotted_Write(Value As Boolean)
+
+  If $bDotted = Value Then Return
+  $bDotted = Value
   Raise Change
 
 End

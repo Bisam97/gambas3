@@ -23,7 +23,6 @@ Private $fLastWait As Float
 Public Sub _new()
   
   $hDrawingArea = New DrawingArea(Me) As "DrawingArea"
-  Start
   
 End
 
@@ -32,7 +31,7 @@ Public Sub Start()
   $fStartTime = Timer
   $hTimer = New Timer As "Timer"
   $hTimer.Delay = 50
-  $hTimer.Start
+  $hDrawingArea.Refresh
   
 End
 
@@ -57,7 +56,7 @@ End
 
 Public Sub DrawingArea_Draw()
   
-  Dim iFlag As Integer
+  'Dim iFlag As Integer
   Dim A As Float
   Dim X As Float
   Dim Y As Float
@@ -113,13 +112,18 @@ Public Sub DrawingArea_Draw()
   
 DRAW_BORDER:
   
-  If $bBorder Then Style.PaintPanel(0, 0, Paint.W, Paint.H, Border.Plain, iFlag)
+  If $bBorder Then Style.PaintPanel(0, 0, Paint.W, Paint.H, Border.Plain) ', iFlag)
+  
+  If $hTimer And If Not $hTimer.Enabled And If Me.Enabled Then 
+    $hTimer.Start
+  Endif
   
 End
 
 Public Sub Timer_Timer()
   
   $hDrawingArea.Refresh
+  $hTimer.Stop
   
 End
 
@@ -172,10 +176,6 @@ Private Sub Enabled_Write(Value As Boolean)
 
   If Value = Me.Enabled Then Return
   Super.Enabled = Value
-  If Value Then
-    Start
-  Else
-    Me.Stop
-  Endif
+  $hDrawingArea.Refresh
 
 End

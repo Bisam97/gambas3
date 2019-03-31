@@ -2,7 +2,7 @@
 
   gbx_number.c
 
-  (c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -47,85 +47,141 @@
 #define get_current COMMON_get_current
 #define buffer_pos COMMON_pos
 #define get_size_left COMMON_get_size_left
+#define has_string COMMON_has_string
 
 #define IS_PURE_INTEGER(_int64_val) ((_int64_val) == ((int)(_int64_val)))
+
+static uint64_t _pow_10[18] = { 
+	10, 
+	100, 
+	1000, 
+	10000, 
+	100000, 
+	1000000, 
+	10000000, 
+	100000000, 
+	1000000000, 
+	10000000000, 
+	100000000000, 
+	1000000000000, 
+	10000000000000, 
+	100000000000000, 
+	1000000000000000, 
+	10000000000000000,
+	100000000000000000, 
+	1000000000000000000
+};
+
 
 static bool read_integer(int base, bool minus, int64_t *result, bool local)
 {
 	uint64_t nbr2, nbr;
-	int d, n, c; //, nmax;
-	char thsep;
+	int d, n, c, nmax;
+	const char *thsep;
+	int lthsep;
 	int ndigit_thsep;
 	bool first_thsep;
 
 	thsep = LOCAL_get(local)->thousand_sep;
+	lthsep = LOCAL_get(local)->len_thousand_sep;
 	ndigit_thsep = 0;
 	first_thsep = FALSE;
 
 	n = 0;
 	nbr = 0;
 	
-	/*switch (base)
+	switch (base)
 	{
 		case 2: nmax = 64; break;
 		case 8: nmax = 21; break;
-		case 10: nmax = 19; break;
 		case 16: nmax = 16; break;
-	}*/
-
-	c = last_char();
-
-	for(;;)
-	{
-		if (local && base == 10)
-		{
-			if (c == thsep && (ndigit_thsep == 3 || (!first_thsep && ndigit_thsep >= 1 && ndigit_thsep <= 3)))
-			{
-				c = get_char();
-				first_thsep = TRUE;
-				ndigit_thsep = 0;
-			}
-		}
-
-		if (c >= '0' && c <= '9')
-		{
-			d = c - '0';
-			if (local && base == 10)
-				ndigit_thsep++;
-		}
-		else if (c >= 'A' && c <='Z')
-			d = c - 'A' + 10;
-		else if (c >= 'a' && c <='z')
-			d = c - 'a' + 10;
-		else
-			break;
-
-		if (d >= base)
-			break;
-
-		n++;
-		
-		nbr2 = nbr * base + d;
-		
-		if ((nbr2 / base) != nbr || nbr2 > ((uint64_t)LLONG_MAX + minus))
-			return TRUE;
-		
-		nbr = nbr2;
-
-		c = get_char();
-		if (c < 0)
-			break;
+		case 10: default: nmax = 19; break;
 	}
 
 	c = last_char();
 
 	if (base == 10)
 	{
+		for(;;)
+		{
+			if (local)
+			{
+				COMMON_pos--;
+				
+				if (has_string(thsep, lthsep) && (ndigit_thsep == 3 || (!first_thsep && ndigit_thsep >= 1 && ndigit_thsep <= 3)))
+				{
+					COMMON_pos += lthsep;
+					c = get_char();
+					first_thsep = TRUE;
+					ndigit_thsep = 0;
+				}
+				else
+					COMMON_pos++;
+			}
+
+			if (c >= '0' && c <= '9')
+			{
+				d = c - '0';
+				if (local)
+					ndigit_thsep++;
+			}
+			else
+				break;
+
+			n++;
+			if (n < nmax)
+			{
+				nbr = nbr * 10 + d;
+			}
+			else
+			{
+				nbr2 = nbr * 10 + d;
+			
+				if ((nbr2 / base) != nbr || nbr2 > ((uint64_t)LLONG_MAX + minus))
+					return TRUE;
+			
+				nbr = nbr2;
+			}
+
+			c = get_char();
+			if (c < 0)
+				break;
+		}
+
+		c = last_char();
+
 		if (local && first_thsep && ndigit_thsep != 3)
 			return TRUE;
 	}
 	else
 	{
+		for(;;)
+		{
+			if (c >= '0' && c <= '9')
+				d = c - '0';
+			else if (c >= 'A' && c <='Z')
+				d = c - 'A' + 10;
+			else if (c >= 'a' && c <='z')
+				d = c - 'a' + 10;
+			else
+				break;
+
+			if (d >= base)
+				break;
+
+			n++;
+			if (n > nmax)
+				return TRUE;
+			
+			nbr = nbr * base + d;
+			
+			c = get_char();
+			if (c < 0)
+				break;
+		}
+
+		c = last_char();
+
 		if ((c == '&' || c == 'u' || c == 'U') && base != 10)
 			c = get_char();
 		else
@@ -142,7 +198,7 @@ static bool read_integer(int base, bool minus, int64_t *result, bool local)
 			}
 		}
 	}
-
+	
 	if (c > 0 && !isspace(c))
 		return TRUE;
 	
@@ -158,13 +214,14 @@ static bool read_float(double *result, bool local)
 {
 	LOCAL_INFO *local_info;
 	char point;
-	char thsep;
+	const char *thsep;
+	int lthsep;
 	int ndigit_thsep;
 	bool first_thsep;
 	int c, n;
 
 	uint64_t mantisse, mantisse_int;
-	int ndigit_frac;
+	int ndigit_frac, ndigit_frac_zero;
 	bool frac;
 	bool frac_null;
 	bool nozero;
@@ -175,44 +232,92 @@ static bool read_float(double *result, bool local)
 	local_info = LOCAL_get(local);
 	point = local_info->decimal_point;
 	thsep = local_info->thousand_sep;
+	lthsep = local_info->len_thousand_sep;
 	ndigit_thsep = 0;
 	first_thsep = FALSE;
 
 	c = last_char();
 	
-	/* Integer and decimal part */
-
 	n = 0;
 	mantisse = 0;
 	mantisse_int = 0;
 	frac = FALSE;
 	frac_null = TRUE;
 	ndigit_frac = 0;
+	ndigit_frac_zero = 0;
 	nexp = 0;
 	nexp_minus = FALSE;
 	nozero = FALSE;
+	
+	// Integer part
 	
 	for(;;)
 	{
 		if (c == point)
 		{
-			if (frac)
-				break;
 			c = get_char();
 			frac = TRUE;
 			mantisse_int = mantisse;
+			break;
 		}
 
-		if (local && !frac)
+		if (local)
 		{
-			if (c == thsep && (ndigit_thsep == 3 || (!first_thsep && ndigit_thsep >= 1 && ndigit_thsep <= 3)))
+			COMMON_pos--;
+			
+			if (has_string(thsep, lthsep) && (ndigit_thsep == 3 || (!first_thsep && ndigit_thsep >= 1 && ndigit_thsep <= 3)))
 			{
-				c = get_char();
+				COMMON_pos += lthsep;
 				first_thsep = TRUE;
 				ndigit_thsep = 0;
+				c = get_char();
 			}
+			else
+				COMMON_pos++;
 		}
 		
+		if (!isdigit(c) || (c < 0))
+			break;
+		
+		if (c != '0')
+			nozero = TRUE;
+		
+		if (nozero)
+			n++;
+		
+		if (n > MAX_FLOAT_DIGIT)
+		{
+			if (n == (MAX_FLOAT_DIGIT + 1) && (c >= '5'))
+				mantisse++;
+			ndigit_frac--; // ???
+			c = get_char();
+			continue;
+		}
+
+		if (c == '0')
+			mantisse *= 10;
+		else
+			mantisse = mantisse * 10 + (c - '0');
+		
+		if (local)
+			ndigit_thsep++;
+
+		c = get_char();
+
+		if (c == 'e' || c == 'E')
+			break;
+
+		if (c < 0)
+			goto __END;
+	}
+
+	// Decimal part
+	
+	for(;;)
+	{
+		if (c == point)
+			break;
+
 		if (!isdigit(c) || (c < 0))
 			break;
 		
@@ -233,19 +338,15 @@ static bool read_float(double *result, bool local)
 		}
 
 		if (c == '0')
-			mantisse *= 10;
+			ndigit_frac_zero++;
 		else
 		{
-			if (frac)
-				frac_null = FALSE;
-			mantisse = mantisse * 10 + (c - '0');
+			frac_null = FALSE;
+			ndigit_frac += ndigit_frac_zero + 1;
+			mantisse = mantisse * _pow_10[ndigit_frac_zero] + (c - '0');
+			ndigit_frac_zero = 0;
 		}
 		
-		if (frac)
-			ndigit_frac++;
-		else if (local)
-			ndigit_thsep++;
-
 		c = get_char();
 
 		if (c == 'e' || c == 'E')
@@ -255,7 +356,7 @@ static bool read_float(double *result, bool local)
 			goto __END;
 	}
 
-	/* Exponent */
+	// Exponant
 
 	if (c == 'e' || c == 'E')
 	{

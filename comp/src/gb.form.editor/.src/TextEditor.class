@@ -4,7 +4,7 @@ Export
 
 Inherits UserControl
 
-Public Const _Properties As String = "*,Border=True,ShowPreview,ScrollBar{Scroll.*}=Both,Highlight{None;Custom;Gambas;HTML;CSS;WebPage;Diff;JavaScript;SQL}=None,ReadOnly,TabSize{Range:2;64}=2,Wrap,ShowPosition,ShowLimit,ShowCurrent,ShowLineNumber,ShowModified,ShowBraces,ShowIcon,ShowExpand,ShowCursor=True,ShowSpaces,ShowIndent"
+Public Const _Properties As String = "*,Border=True,ShowPreview,ScrollBar{Scroll.*}=Both,Highlight{None;Custom;Gambas;HTML;CSS;WebPage;Diff;JavaScript;SQL}=None,Mode{None;Gambas;HTML;CSS;WebPage;JavaScript;SQL}=None,ReadOnly,TabSize{Range:2;64}=2,TabIndent,Wrap,ShowPosition,ShowLimit,ShowCurrent,ShowLineNumber,ShowModified,ShowBraces,ShowIcon,ShowExpand,ShowCursor=True,ShowSpaces,ShowIndent,CloseBraces,CloseStrings"
 Public Const _DrawWith As String = "-"
 Public Const _DefaultEvent As String = "Change"
 Public Const _Similar As String = "TextArea"
@@ -22,13 +22,17 @@ Property Read Line As Integer
 Property Read Column As Integer
 Property Read SelectionLine As Integer
 Property Read SelectionColumn As Integer
+Property Read LastLine As Integer
+Property Read LastColumn As Integer
 Property Read Selected As Boolean
 Property Read SelectedText As String
 Property ReadOnly As Boolean
 Property ShowPreview As Boolean
+Property Mode As String
 Property Highlight As String
 Property LineNumberOffset As Integer
 Property TabSize As Integer
+Property TabIndent As Boolean
 Property Read Length As Integer
 Property Border As Boolean
 Property ScrollBar As Integer
@@ -39,6 +43,7 @@ Property Font As Font
 Property StopLine As Integer
 Property EndOfLine As Integer
 Property Breakpoints As Integer[]
+Property DisabledBreakpoints As Integer[]
 Property Bookmarks As Integer[]
 Property Read Styles As _TextEditor_Styles
 Property View As TextEditor
@@ -61,6 +66,8 @@ Property ShowCursor As Boolean
 Property ShowExpand As Boolean
 Property ShowSpaces As Boolean
 Property ShowIndent As Boolean
+Property CloseBraces As Boolean
+Property CloseStrings As Boolean
 
 Private Const MATCH_STRING As String = "()[]{}"
 
@@ -73,7 +80,7 @@ Public _Views As TextEditor[]
 Private $hPanel As Panel
 Private $hView As ScrollArea
 Private $hSideBar As DrawingArea
-Private $imgSideBar As Image
+Private $hImageSideBar As Image
 Private $hLabelFrame As Panel
 Private $hLabel As Label
 
@@ -86,14 +93,17 @@ Private $bStyleChanged As Boolean
 Private $iLargestLine As Integer
 Private $iWidth As Integer
 Private $LH As Integer
+Private $BW As Integer ' bold width
 Private $MW As Integer
 Private $iWidthLineNumber As Integer
+Private $iWidthModified As Integer
 Private $iPosIcon As Integer
 
 Private $iTabSize As Integer = 2
 Private $iTabWidth As Integer
 Private $fTabSymbolSize As Float
 Private $iSpaceWidth As Integer
+Private $bTabIndent As Boolean
 
 Private $X As Integer
 Private $X0 As Integer
@@ -120,15 +130,20 @@ Private $YM As Integer = -1
 Private $XMO As Integer
 Private $YMO As Integer
 
+Private $IY1 As Integer
+Private $IY2 As Integer
+Private $IP As Integer
+
 Private $bReadOnly As Boolean
 Private $bOverwrite As Boolean
-Private $bTerminal As Boolean
+'Private $bTerminal As Boolean
 
 Private $iBackground As Integer
 Private $iForeground As Integer
 Private $iSelectedBackground As Integer
 Private $iLimitColor As Integer
 Private $iIndentColor As Integer
+Private $iMatchColor As Integer
 
 Private $iLineNumberOffset As Integer
 Private $hTabImage As Image
@@ -180,123 +195,133 @@ Private $bPrint As Boolean
 Private $sPrintBuffer As String
 Private $iMarginColor As Integer
 
-Private $iSideBarStyle As Integer
-Private $hTimerSideBarMDHold As Timer
+Private $hTimerSideBarMouse As Timer
 Private $hTimerSideBarRefresh As Timer
 Private $rectSideBar As Rect
 Private $fBarLineHeight As Float
 Private $bShowPreview As Float
 Private $hSideBarViewer As TextEditor
 
-Private $hTimerSideBarViewer As Timer
+'Private $hTimerSideBarViewer As Timer
 Private $iScrollBar As Integer
 Private $iMD As Integer
 Private $iMY As Integer = -1
 Private $bSideBarLockViewer As Boolean
-Private $iSideBarNBLines As Integer
-'Private System.RightToLeft As Boolean = True
-Private $bSideBarMouseDown As Boolean
-Private $imgSmallARrow As Image
+Private $iSideBarWhere As Integer
+Private $iSideBarClick As Integer
+Private Enum SIDEBAR_NONE, SIDEBAR_VIEW, SIDEBAR_UP, SIDEBAR_DOWN
+
+Private $sHighlightString As String
+Private $iHighlightStringMode As Integer
+Private $iHighlightStringLen As Integer
+Private $bHighlightWordOnly As Boolean
 
 Public Sub _new()
-
+  
   Dim sDisplay As String
-
+  
   If Not $cShortcut Then
     $cShortcut = [
       "CTRL+A": "SelectAll",
       "CTRL+C": "Copy",
-      "CTRL+Ins": "Copy",
+      "CTRL+INS": "Copy",
       "CTRL+V": "Paste",
-      "SHIFT+Ins": "Paste",
+      "SHIFT+INS": "Paste",
       "CTRL+X": "Cut",
-      "SHIFT+Del": "Cut",
+      "SHIFT+DEL": "Cut",
       "CTRL+Y": "Redo",
       "CTRL+Z": "Undo"]
   Endif
-
+  
   If Not $bRemoteDisplayChecked Then
-    sDisplay = Env["DISPLAY"]
-    If sDisplay And If Left(sDisplay) <> ":" Then $bRemoteDisplay = True
+    If Env["XDG_SESSION_TYPE"] <> "wayland" Then
+      sDisplay = Env["DISPLAY"]
+      If sDisplay And If Left(sDisplay) <> ":" Then $bRemoteDisplay = True
+    Endif
     $bRemoteDisplayChecked = True
   Endif
-
+  
   $hPanel = New Panel(Me) As "ViewPanel"
   $hPanel.Arrangement = Arrange.Horizontal
   $hPanel.Border = Border.Plain
-
+  
   $hView = New ScrollArea($hPanel) As "View"
   $hView.Border = False
   $hView.Focus = True
   $hView.Tracking = True
   $hView.Mouse = Mouse.Text
   $hView.Expand = True
-  ' If $bShowPreview Then
-  '   InitSideBar
-  ' Endif
-  $imgSmallARrow = Image.Load("./smallarrow.png")
-
+  
   Me.Proxy = $hView
   $iScrollBar = $hView.ScrollBar
   $hTimerCursor = New Timer As "TimerCursor"
   $hTimerCursor.Delay = 500
-
+  
   $hTimerCacheLine = New Timer As "TimerCacheLine"
   $hTimerCacheLine.Delay = 5000
-
+  
   $hRows = New _TextEditor_Rows As "Rows"
   $hStyles = New _TextEditor_Styles As "Styles"
-
+  
   '$hPanel.Background = $hStyles[Highlight.Background].Color
-
+  
   _SetDocument(Null)
-
+  
 End
 
 Private Function Text_Read() As String
-
+  
   Return $hDoc.Text
-
+  
 End
 
 Private Sub CalcSizes()
-
-  Dim I As Integer
-  Dim sText As String
-
+  
+  Dim hParent As Control
+  
   $hFont = $hView.Font
-
+  
   '$hFontBold = $hView.Font.Copy()
   '$hFontBold.Bold = True
-
+  
   $LH = $hFont.Height + 1
+  $BW = 1 + $LH \ 6
   $hRows.Height = $LH
-
-  $hFontNumber = Me.Parent.Font.Copy()
+  
+  hParent = Me
+  Do
+    hParent = hParent.Parent
+    If Not hParent Is TextEditor Then 
+      $hFontNumber = hParent.Font.Copy()
+      Break
+    Endif
+  Loop
+  
   $hFontNumber.Size *= $LH / $hFontNumber.Height
-
+  
   $iAscent = $hFont.Ascent
   $iLargestLine = -1
   $iSpaceWidth = $hFont.TextWidth(" ")
   $iTabWidth = $hFont.TextWidth("m") * $iTabSize
   $fTabSymbolSize = Max(1, $hRows.H / 5)
   $hTabImage = Null
-
-  $fCharWidth = $iSpaceWidth
-  For I = 33 To 255
-    If I > 126 And If I < 160 Then Continue
-    If I = 173 Then Continue
-    If $hFont.TextWidth(String.Chr$(I)) <> $iSpaceWidth Then
-      $fCharWidth = 0
-      Break
-    Endif
-  Next
-
-  If $fCharWidth Then
-    sText = String$(4, "AbCdEfGh01#@WwmM")
-    $fCharWidth = $hFont.TextWidth(sText) / Len(sText)
-  Endif
-
+  
+  $fCharWidth = Paint._EstimateFixedFontCharWidth($hFont)
+  ' $fCharWidth = $iSpaceWidth
+  ' For I = 33 To 255
+  '   If I > 126 And If I < 160 Then Continue
+  '   If I = 173 Then Continue
+  '   If $hFont.TextWidth(String.Chr$(I)) <> $iSpaceWidth Then
+  '     $fCharWidth = 0
+  '     Break
+  '   Endif
+  ' Next
+  ' 
+  ' If $fCharWidth Then
+  '   sText = String$(4, "AbCdEfGh01#@WwmM")
+  '   $fCharWidth = $hFont.TextWidth(sText) / Len(sText)
+  ' Endif
+  
   If Not $bRemoteDisplay Then
     $sCacheTextKey = $hFont.ToString()
     $cCacheText = $cGlobalCacheText[$sCacheTextKey]
@@ -305,17 +330,17 @@ Private Sub CalcSizes()
       $cGlobalCacheText[$sCacheTextKey] = $cCacheText
     Endif
   Endif
-
+  
   _ClearCachePos
   UpdateMargin
   UpdateWidth
-
+  
   Refresh
-
+  
 End
 
 Private Sub Init()
-
+  
   $bStyleChanged = True
   $X = 0
   $Y = 0
@@ -325,80 +350,80 @@ Private Sub Init()
   $SY = 0
   $SXY = New Point
   $YM = -1
-
+  
   $hRows.Clear
   $hRows.Count = $hDoc.Count
-
+  
   CalcSizes
-
+  
   $cCachePos.Clear
   $cCacheView.Clear
-
+  
   If Not $bRemoteDisplay Then
     ClearCacheText
     ClearCacheLine
   Endif
-
+  
   $bShowCursor = True
   GotoCenter(0, 0)
-
+  
   Refresh
-
+  
 End
 
 Private Sub Text_Write(Value As String)
-
-  Goto(0, 0)
+  
   $hDoc.Text = Value
   Init
-  If $bShowPreview Then $hTimerSideBarRefresh.Start
-
+  If $bShowPreview Then $hTimerSideBarRefresh.Trigger
+  
 End
 
 Public Sub Load(Path As String, Optional AddNewLine As Boolean)
-
+  
   Inc Application.Busy
   Goto(0, 0)
   $hDoc.Load(Path, AddNewLine)
   Init
+  If $bShowPreview Then $hTimerSideBarRefresh.Trigger
   Dec Application.Busy
-  If $bShowPreview Then $hTimerSideBarRefresh.Start
-  'Catch
 
-  '  Dec Application.Busy
-  '  Error.Propagate
-
+Catch
+  
+  Dec Application.Busy
+  Error.Propagate
+  
 End
 
 Public Sub Save(Path As String)
-
+  
   Inc Application.Busy
   $hDoc.HighlightFrom($Y)
   $hDoc.Save(Path)
   $hTimerChange = Null
   Dec Application.Busy
-
+  
 Catch
-
+  
   Dec Application.Busy
   Error.Propagate
-
+  
 End
 
 Public Sub Clear()
-
+  
   Me.Text = ""
-
+  
 End
 
 Private Sub UpdateMargin()
-
+  
   Dim MW As Integer
-
+  
   MW = 0
   $iWidthLineNumber = 0
   $iPosIcon = 0
-
+  
   If $bShowLineNumber Then
     $iWidthLineNumber = (CInt(Log10($hDoc.Count + $iLineNumberOffset)) + 1) * Me.Parent.Font.TextWidth("9") * $LH / Me.Parent.Font.Height + 8
     MW += $iWidthLineNumber
@@ -407,61 +432,65 @@ Private Sub UpdateMargin()
     $iPosIcon = MW
     MW += $LH
   Endif
-  If $bShowModified Then MW += 4
-
+  If $bShowModified Then
+    $iWidthModified = $hFont.H \ 2
+    MW += $iWidthModified
+  Endif
+  
   If MW <> $MW Then
     $MW = MW
+    '$hView._SetShadowOffset(0, 0, $MW - $iWidthModified, 0)
     If $cLineLayout Then
       _UpdateAllHeight
       UpdateWidth
     Endif
   Endif
-
+  
 End
 
 Public Sub View_Font()
-
+  
   CalcSizes
   UpdateSideBarFont
-
+  
 End
 
 Private Sub HasSelection() As Boolean
-
+  
   If $X <> $SX Or If $Y <> $SY Then Return True
-
+  
 End
 
 Private Sub DrawText(sText As String, SX As Integer, X As Integer, Y As Integer)
-
+  
   Dim iTab, iTab2, iLen As Integer
   Dim YT As Integer
   Dim XX, YY As Float
-
+  
   YT = Y + $iAscent
-
+  
   Do
-
+    
     iTab2 = InStr(sText, "\t", iTab + 1)
     If iTab2 = 0 Then
       Paint.DrawText(Mid$(sText, iTab + 1), X, YT)
       Return
     Endif
-
+    
     iLen = iTab2 - iTab - 1
     If iLen > 0 Then
       Paint.DrawText(Mid$(sText, iTab + 1, iLen), X, YT)
       X += $hFont.TextWidth(Mid$(sText, iTab + 1, iTab2 - iTab - 1))
     Endif
-
+    
     If Not $hTabImage Then
-
+      
       $hTabImage = New Image($fTabSymbolSize * 2.5, $hFont.Height, Color.Transparent)
       Paint.Begin($hTabImage)
-
+      
       XX = $hTabImage.W / 2
       YY = $hTabImage.H / 2
-
+      
       Paint.LineWidth = $fTabSymbolSize / 4
       Paint.Background = Color.SetAlpha(Color.TextForeground, 192)
       Paint.MoveTo(XX - $fTabSymbolSize, YY - $fTabSymbolSize)
@@ -471,30 +500,30 @@ Private Sub DrawText(sText As String, SX As Integer, X As Integer, Y As Integer)
       Paint.LineTo(XX + $fTabSymbolSize, YY)
       Paint.LineTo(XX, YY + $fTabSymbolSize)
       Paint.Stroke
-
+      
       Paint.End
-
+      
     Endif
-
+    
     Paint.DrawImage($hTabImage, X, Y)
-
+    
     X = SX + (((X - SX) + $iTabWidth) \ $iTabWidth) * $iTabWidth
     iTab = iTab2
-
+    
   Loop
-
+  
 End
 
 Private Sub DrawMatch(X As Integer, Y As Integer, H As Integer, XM As Integer, YM As Integer)
-
+  
   'Dim sCar As String
   Dim XY As Point
   Dim WW As Integer
-
+  
   XY = LinePos(YM, XM)
   WW = TextWidth($hDoc.Lines[YM], XM + 1, 1)
-  Paint.FillRect(X + XY.X, Y + XY.Y, WW, H, $hStyles[Highlight.Highlight].Color)
-
+  Paint.FillRect(X + XY.X, Y + XY.Y + H - 1, WW, 1, $iForeground)
+  
 End
 
 ' Public Sub PrintCache()
@@ -514,8 +543,8 @@ End
 ' End
 '
 
-Private Sub DrawHighlightedText(Row As Integer, sText As String, aColor As Byte[], X As Integer, Y As Integer, H As Integer, aLayout As Integer[])
-
+Private Sub DrawHighlightedText(Row As Integer, sText As String, aColor As Byte[], X As Integer, Y As Integer, H As Integer, aLayout As Integer[], iNextState As Integer)
+  
   Dim I As Integer
   Dim hStyle As TextEditorStyle
   Dim bAlt As Boolean
@@ -528,8 +557,8 @@ Private Sub DrawHighlightedText(Row As Integer, sText As String, aColor As Byte[
   Dim XMax As Integer
   Dim aStyle As TextEditorStyle[]
   Dim hImage As Image
-
-  Dim XX, YY As Integer
+  
+  Dim XX, YY, XB, LB As Integer
   Dim hPos As Point
   Dim iNextBreak As Integer
   Dim iLayout As Integer
@@ -539,30 +568,34 @@ Private Sub DrawHighlightedText(Row As Integer, sText As String, aColor As Byte[
   Dim W As Integer
   Dim iLayoutCount As Integer
   Dim iCol As Integer
-
+  Dim iBg As Integer
+  
   'Dim hTemp As Image
-
+  
   XMin = X + $hView.ScrollX
   XMax = XMin + $hView.ClientW
   aStyle = $hStyles._GetStyles()
-
+  iBg = aStyle[iNextState].Background
+  
   XX = X
   YY = Y
-
+  
   If aLayout Then
     iLayoutCount = aLayout.Count
     iNextBreak = aLayout[0]
   Else
     iLayoutCount = 0
-    iNextBreak = Len(sText) + 1 ' Always greater than String.Len(), and faster
+     ' Always greater than String.Len(), and faster
+     ' Add a big number in the case of an incorrect highlighting
+    iNextBreak = Len(sText) + 1000000
   Endif
-
+  
   For I = 0 To aColor.Max Step 2
-
+    
     If Not aLayout Then
       If XX > XMax Then Break
     Endif
-
+    
     iState = aColor[I] And 31
     hStyle = aStyle[iState]
     bAlt = aColor[I] >= 128
@@ -572,43 +605,46 @@ Private Sub DrawHighlightedText(Row As Integer, sText As String, aColor As Byte[
     Else
       iLen = aColor[I + 1]
     Endif
-
+    
     If bBreak Then
+      If iBg <> Color.Default Then Paint.FillRect(XX, YY, Paint.W, H, iBg)
       XX = X + LinePos(Row, P).X
       YY += H
       bBreak = False
     Endif
-
+    
     If P + iLen >= iNextBreak Then
-
+      
       bBreak = True
-
+      
       iRest = P + iLen - iNextBreak
       iLen = iNextBreak - P
-
+      
       Inc iLayout
-
+      
       If iLayout < iLayoutCount Then
         iNextBreak += aLayout[iLayout]
       Else
         iNextBreak = Len(sText) + 1
       Endif
-
+      
       If iRest Then I -= 2
-
+      
       If iLen = 0 Then Goto NEXT_PATTERN
-
+      
     Endif
-
+    
     hPos = LinePos(Row, P + iLen)
     X2 = X + hPos.X 'LineWidth(Row, P + iLen)
-
+    
     If Not aLayout Then
       If X2 < XMin Then Goto NEXT_PATTERN
     Endif
-
+    
+    iBg = hStyle.Background
+    If iBg <> Color.Default Then Paint.FillRect(XX, YY, X2 - XX, H, iBg)
     If bAlt Then Paint.FillRect(XX, YY, X2 - XX, H, Color.SetAlpha(&HD0D0D0&, 192))
-
+    
     sStr = String.Mid$(sText, P + 1, iLen)
     ' If hStyle.Bold Then
     '   hTemp = New Image(X2 - X, H, Color.Transparent)
@@ -616,47 +652,40 @@ Private Sub DrawHighlightedText(Row As Integer, sText As String, aColor As Byte[
     '   Paint.Font = $hFont
     '   Paint.Translate(- X, - Y)
     ' Endif
-
+    
     'If hStyle.Bold Then Paint.Font = $hFontBold
     If InStr(sStr, "\t") Then
-      iCol = hStyle.Color
-      Paint.Background = iCol
-      If hStyle.Bold Then
-        'Paint.Background = Color.Gradient(iCol, $iBackground)
-        DrawText(sStr, X, XX + 1, YY)
-      Endif
-      'Paint.Background = iCol
-      DrawText(sStr, X, XX, YY)
+      GoSub DRAW_TEXT_WITH_TAB
     Else If Trim(sStr) Then
       If Not $bRemoteDisplay And If iLen <= 16 Then
         sKey = Chr$(iState) & sStr
         hImage = $cCacheText[sKey]
         If Not hImage Then
-
+          
           W = X2 - XX
           If W <= 0 Then W = TextWidth(sStr, 1, iLen)
-          If hStyle.Bold Then Inc W
+          If hStyle.Bold Then W += ($BW + 1) \ 2
           hImage = New Image(W, H, Color.Transparent)
-
+          
           Paint.Begin(hImage)
           Paint.Font = $hFont
           Paint.Translate(- XX, - YY)
           GoSub DRAW_TEXT
           Paint.End
-
+          
           If $cCacheText.Count > 256 Then
             For Each $cCacheText
               $cCacheText.Remove($cCacheText.Key)
               Break
             Next
           Endif
-
+          
         Else
-
+          
           $cCacheText.Remove(sKey)
-
+          
         Endif
-
+        
         $cCacheText[sKey] = hImage
         Paint.DrawImage(hImage, XX, YY)
       Else
@@ -664,81 +693,132 @@ Private Sub DrawHighlightedText(Row As Integer, sText As String, aColor As Byte[
       Endif
     Endif
     'If hStyle.Bold Then Paint.Font = $hFont
-
+    
     ' If hStyle.Bold Then
     '   Paint.End
     '   'hTemp.Save("~/temp.png")
     '   Paint.DrawImage(hTemp, X, Y)
     '   Paint.DrawImage(hTemp, X + 1, Y)
     ' Endif
-
-    If hStyle.Underline Then Paint.FillRect(XX, YY + H - 1, X2 - XX, 1, Color.SetAlpha(hStyle.Color, 128))
-
+    
+    If hStyle.Underline Then 
+      Paint.FillRect(XX, YY + H - 1, X2 - XX, 1, Color.SetAlpha(hStyle.Color, 128))
+    Else If hStyle.Dotted Then
+      Paint.Background = Color.SetAlpha(hStyle.Color, 128)
+      Paint.LineWidth = 1
+      Paint.Dash = [1]
+      Paint.MoveTo(XX, YY + H - 0.5)
+      Paint.RelLineTo(X2 - XX, 0)
+      Paint.Stroke
+    Endif
+    
     ' If $YM >= 0 Then
     '   If Row = $YMO And If $XMO >= P And If $XMO < (P + iLen) Then DrawMatch(SX, Y, H, $XMO, $YMO)
     '   If Row = $YM And If $XM >= P And If $XM < (P + iLen) Then DrawMatch(SX, Y, H, $XM, $YM)
     ' Endif
-
+    
   NEXT_PATTERN:
-
+    
     P += iLen
     XX = X2
-
+    
   Next
-
+  
   sStr = String.Mid$(sText, P + 1)
   If sStr And If XX <= XMax Then
-
+    
     Paint.Background = $iForeground
     DrawText(sStr, X, XX, YY)
-
+    
   Endif
-
+  
+  If iBg <> Color.Default Then Paint.FillRect(XX, YY, Paint.W, H, iBg)
+  
   Return
-
+  
 DRAW_TEXT:
+  
+  iCol = hStyle.Color
+  Paint.Background = iCol
+  If hStyle.Bold Then
+    LB = $BW
+    XB = XX
+    While LB >= 2
+      Paint.DrawText(sStr, XB, YY + $iAscent) 'DrawText(sStr, SX, X + 1, Y)
+      Inc XB
+      LB -= 2
+    Wend
+    If LB Then
+      Paint.Background = Color.SetAlpha(iCol, 128)
+      Paint.DrawText(sStr, XB, YY + $iAscent) 'DrawText(sStr, SX, X + 1, Y)
+    Endif
+  Else
+    Paint.DrawText(sStr, XX, YY + $iAscent) 'DrawText(sStr, SX, X, Y)
+  Endif
+  
+  Return
+  
+DRAW_TEXT_WITH_TAB:
 
   iCol = hStyle.Color
   Paint.Background = iCol
   If hStyle.Bold Then
-    'Paint.Background = Color.Gradient(iCol, $iBackground)
-    Paint.DrawText(sStr, XX + 1, YY + $iAscent) 'DrawText(sStr, SX, X + 1, Y)
+    LB = $BW
+    XB = 0
+    While LB >= 2
+      'Paint.DrawText(sStr, XB, YY + $iAscent) 'DrawText(sStr, SX, X + 1, Y)
+      DrawText(sStr, X + XB, XX + XB, YY)
+      Inc XB
+      LB -= 2
+    Wend
+    If LB Then
+      Paint.Background = Color.SetAlpha(iCol, 128)
+      'Paint.DrawText(sStr, XB, YY + $iAscent) 'DrawText(sStr, SX, X + 1, Y)
+      DrawText(sStr, X + XB, XX + XB, YY)
+    Endif
+  Else
+    'Paint.DrawText(sStr, XX, YY + $iAscent) 'DrawText(sStr, SX, X, Y)
+    DrawText(sStr, X, XX, YY)
   Endif
-  'Paint.Background = iCol
-  Paint.DrawText(sStr, XX, YY + $iAscent) 'DrawText(sStr, SX, X, Y)
 
+  ' If hStyle.Bold Then
+  '   'Paint.Background = Color.Gradient(iCol, $iBackground)
+  '   DrawText(sStr, X, XX + 1, YY)
+  ' Endif
+  ' 'Paint.Background = iCol
+  ' DrawText(sStr, X, XX, YY)
   Return
-
+  
 End
 
 Private Sub GetTabSizeAround(Row As Integer) As Integer
-
+  
   Dim iBefore As Integer
   Dim Y As Integer
   Dim iAfter As Integer
-
+  
   Y = Row
   While Y > 0
     Dec Y
-    iBefore = GetIndent(Y, True)
+    iBefore = GetLineIndent(Y, True)
     If iBefore >= 0 Then Break
   Wend
-
+  
   Y = Row
   Do
     Inc Y
     If Y >= $hDoc.Count Then Break
-    iAfter = GetIndent(Y, True)
+    iAfter = GetLineIndent(Y, True)
     If iAfter >= 0 Then Break
   Loop
-
+  
   If iBefore = iAfter Then Return iAfter - 1
   Return Min(iBefore, iAfter)
-
+  
 End
 
-Private Sub DrawLine(X As Integer, Y As Integer, Width As Integer, Height As Integer, Row As Integer, RY As Integer)
-
+Private Sub DrawLine(X As Integer, Y As Integer, Width As Integer, Height As Integer, Row As Integer)
+  
   Dim X1 As Integer
   Dim Y1 As Integer
   Dim X2 As Integer
@@ -749,7 +829,8 @@ Private Sub DrawLine(X As Integer, Y As Integer, Width As Integer, Height As Int
   Dim sCar As String
   Dim aLayout As Integer[]
   Dim I As Integer
-  Dim P As Integer
+  Dim P, L As Integer
+  Dim D As Float
   Dim sText As String
   Dim YY As Integer
   Dim H As Integer
@@ -761,55 +842,87 @@ Private Sub DrawLine(X As Integer, Y As Integer, Width As Integer, Height As Int
   Dim XX As Integer
   Dim hPos As Point
   Dim iEndingSpaceLimit As Integer
-
+  Dim XP, IP As Integer
+  Dim XY As Point
+  
   'Debug Row
   H = $LH
-
+  
   ' Current line or stop line
-
+  
   Try aLayout = $cLineLayout[Row]
   If Row = $Y And If aLayout Then
     Paint.FillRect(X, Y, Width, Height, $iMarginColor)
   Endif
-
+  
   If Row = $iStopLine Then
     Paint.FillRect(X, Y, Width, Height, $hStyles[Highlight.Current].Color)
   Else If $bShowCurrent And If Row = $Y Then
     Paint.FillRect(X, Y + $XY.Y, Width, H, $hStyles[Highlight.CurrentLine].Color)
   Endif
-
+  
+  hInfo = $hDoc.Info(Row)
+  
   Paint.Rectangle($MW, Y, Width - $MW, Height)
   Paint.Clip
-
+  
   Paint.Translate($MW, 0)
-
-  hInfo = $hDoc.Info(Row)
-
+  
+  sText = $hDoc.Lines[Row]
+  
+  ' Highlighted string
+  
+  If $sHighlightString Then
+    
+    P = 0
+    L = $hDoc.LineLength[Row]
+    
+    Do
+      
+      P = String.InStr(sText, $sHighlightString, P + 1, $iHighlightStringMode)
+      If P = 0 Then Break
+      
+      If $bHighlightWordOnly Then
+        If P > 1 And If Not IsWordLimit(String.Mid$(sText, P - 1, 1)) Then Goto NEXT_SEARCH
+        If (P + $iHighlightStringLen) < L And If Not IsWordLimit(String.Mid$(sText, P + $iHighlightStringLen, 1)) Then Goto NEXT_SEARCH
+      Endif
+      
+      XY = LinePos(Row, P - 1)
+      Paint.FillRect(X + XY.X, Y + XY.Y, TextWidth(sText, P, $iHighlightStringLen), H, $iMatchColor)
+      
+    NEXT_SEARCH:
+    
+      P += $iHighlightStringLen
+      
+    Loop
+    
+  Endif
+  
   ' Selection
-
+  
   If HasSelection() Then
-
+    
     X1 = $X
     Y1 = $Y
     XY1X = $XY.X
     XY1Y = $XY.Y
-
+    
     X2 = $SX
     Y2 = $SY
     XY2X = $SXY.X
     XY2Y = $SXY.Y
-
+    
     If Y1 > Y2 Or If Y1 = Y2 And X1 > X2 Then
       Swap X1, X2
       Swap Y1, Y2
       Swap XY1X, XY2X
       Swap XY1Y, XY2Y
     Endif
-
+    
     If Row >= Y1 And If Row <= Y2 Then
-
+      
       iCol = Color.SetAlpha($iSelectedBackground, 32)
-
+      
       ' If Y1 = Y2 Then
       '   Paint.FillRect(X + X1X, Y, X2X - X1X, Height, iCol)
       ' Else If Row = Y1 Then
@@ -819,17 +932,17 @@ Private Sub DrawLine(X As Integer, Y As Integer, Width As Integer, Height As Int
       ' Else
       '   Paint.FillRect(X, Y, Width, Height, iCol)
       ' Endif
-
+      
       If Y1 < Row Then
         XY1X = 0
         XY1Y = 0
       Endif
-
+      
       If Y2 > Row Then
         XY2X = 0
         XY2Y = Height
       Endif
-
+      
       If XY2Y = XY1Y Then
         Paint.FillRect(X + XY1X, Y + XY1Y, XY2X - XY1X, H, iCol)
       Else
@@ -837,39 +950,30 @@ Private Sub DrawLine(X As Integer, Y As Integer, Width As Integer, Height As Int
         Paint.FillRect(X, Y + XY1Y + H, Width, XY2Y - XY1Y - H, iCol)
         If XY2Y < Height Then Paint.FillRect(X, Y + XY2Y, XY2X, H, iCol)
       Endif
-
+      
     Endif
-
+    
   Endif
-
+  
   ' Matching characters
-
+  
   If $YM >= 0 Then
     If Row = $YMO Then DrawMatch(X, Y, H, $XMO, $YMO)
     If Row = $YM Then DrawMatch(X, Y, H, $XM, $YM)
   Endif
-
-  ' ' Tab
-  '
-  ' If Row = $Y Then
-  '   XX = LineStartPos(Row)
-  '   If XX Then Paint.FillRect(X, Y, XX - X, Height, Color.SetAlpha($iMultiLineColor, 128))
-  ' Endif
-
+  
   ' Text
-
-  sText = $hDoc.Lines[Row]
-
+  
   If hInfo.Colors Then
-
-    DrawHighlightedText(Row, sText, hInfo.Colors, X, Y, H, aLayout)
-
+    
+    DrawHighlightedText(Row, sText, hInfo.Colors, X, Y, H, aLayout, hInfo.State)
+    
   Else
-
+    
     Paint.Background = $iForeground
-
+    
     If aLayout Then
-
+      
       P = 1
       YY = Y
       XX = X
@@ -881,47 +985,75 @@ Private Sub DrawLine(X As Integer, Y As Integer, Width As Integer, Height As Int
         P += aLayout[I]
       Next
       DrawText(String.Mid$(sText, P), X, XX, YY)
-
+      
     Else
-
+      
       DrawText(sText, X, X, Y)
-
+      
     Endif
-
+    
   Endif
-
+  
   ' Indent vertical lines
-
+  
   If $bShowIndent Then
-
-    P = Len(LTrim(sText))
-
-    If P = 0 Then
-      P = GetTabSizeAround(Row) + 1
-      P = LinePos(Row, String.Len(sText)).X + (P - String.Len(sText)) * $iSpaceWidth
-    Else
-      P = Len(sText) - P
-      P = LinePos(Row, P).X
-    Endif
-
-    Paint.Background = $iLimitColor
-    Paint.Dash = [2]
-    Paint.DashOffset = RY
-    XX = $iTabWidth + X + $iSpaceWidth \ 2
-    While XX < P
-      Paint.MoveTo(XX + 0.5, Y + 0.5)
-      Paint.RelLineTo(0, Height)
-      Paint.Stroke
+    
+    P = GetLineIndentMark(Row, sText)
+    D = $iSpaceWidth / 4
+    If $IP And If Row >= $IY1 And If Row <= $IY2 Then IP = X + $IP
+    
+    Paint.Translate($iSpaceWidth \ 2, 0)
+    
+    XP = 0
+    Do
+      
+      If $bTabIndent Then
+        Inc XP
+        XX = X + XP * $iTabWidth
+      Else
+        XP += $iTabSize
+        If $fCharWidth Then
+          XX = X + CInt($fCharWidth * XP)
+        Else
+          XX = X + $hFont.TextWidth(String$(XP, " "))
+        Endif
+      Endif
+      
+      If XX >= P Then Break
+      
+      If IP And If XX = IP Then
+        IP = 0
+        Paint.Rectangle(XX, Y, D, Height)
+        Paint.Background = Color.SetAlpha($iMatchColor, 64)
+        Paint.Fill
+        'Paint.FillRect(XX + D, Y, D, Height, $iMatchColor)
+      Else
+        Paint.Rectangle(XX, Y, D / 2, Height)
+        Paint.Background = $iIndentColor
+        Paint.Fill
+      Endif
       iEndingSpaceLimit = XX
-      XX += $iTabWidth
-    Wend
-
+      
+    Loop
+    
+    Paint.Translate(- $iSpaceWidth \ 2, 0)
+    
+    ' If IP Then
+    '   If Row = $IY1 Then
+    '     Paint.FillRect(IP - D * 3, Y + H \ 2, D, Height - H \ 2, $iMatchColor)
+    '     Paint.FillRect(IP - D * 3, Y + H \ 2, D * 2, D, $iMatchColor)
+    '   Else If Row = $IY2 Then
+    '     Paint.FillRect(IP - D * 3, Y, D, Height - H \ 2, $iMatchColor)
+    '     Paint.FillRect(IP - D * 3, Y + Height - H \ 2 - D, D * 2, D, $iMatchColor)
+    '   Endif
+    ' Endif
+    
   Endif
-
+  
   ' Ending spaces
-
+  
   If $bShowSpaces And If sText Ends " " Then
-
+    
     XX = X + $iSpaceWidth \ 2 - 1
     YY = Y + H \ 2 - 1
     For P = String.Len(sText) DownTo 1
@@ -930,11 +1062,11 @@ Private Sub DrawLine(X As Integer, Y As Integer, Width As Integer, Height As Int
       If (XX + hPos.X) <= iEndingSpaceLimit Then Break
       Paint.FillRect(XX + hPos.X, YY + hPos.Y, 2, 2, $iLimitColor)
     Next
-
+    
   Endif
-
+  
   ' Cursor
-
+  
   If Row = $Y And If $bShowCursor And If Me.HasFocus And If Not $bHideCursor Then
     If $bOverwrite Then
       sCar = String.Mid$($hDoc.Lines[$Y], $X + 1, 1)
@@ -948,11 +1080,11 @@ Private Sub DrawLine(X As Integer, Y As Integer, Width As Integer, Height As Int
     Endif
     Paint.FillRect(X + $XY.X, Y + $XY.Y, WC, H, Color.SetAlpha($iForeground, 128))
   Endif
-
+  
 End
 
 Private Sub DrawMargin(X As Integer, Y As Integer, Width As Integer, Height As Integer, Row As Integer)
-
+  
   Dim iCol As Integer
   Dim hInfo As CLineInfo
   Dim YL As Integer
@@ -960,84 +1092,70 @@ Private Sub DrawMargin(X As Integer, Y As Integer, Width As Integer, Height As I
   Dim H As Integer
   Dim sStr As String
   Dim bLimit As Boolean
-
+  Dim X1 As Float
+  Dim X2 As Integer
+  
   hInfo = $hDoc.Info(Row)
   bLimit = $hDoc.HasLimit(Row)
   X += $hView.ScrollX
   H = $hRows.H
-
+  
   ' Limit
-
+  
   YL = -1
-
+  
   If $bShowLimit And If Row > 0 Then
     If Not RTrim($hDoc.Lines[Row]) And If Row < $hDoc.Max Then
       If $hDoc.HasLimit(_ViewToReal(_RealToView(Row) + 1)) Then YL = Y + Height \ 2
     Else
-      If bLimit And RTrim($hDoc.Lines[_ViewToReal(_RealToView(Row) - 1)]) Then YL = Y
+      If bLimit And If RTrim($hDoc.Lines[_ViewToReal(_RealToView(Row) - 1)]) Then YL = Y
     Endif
   Endif
-
+  
   ' Margin
-
+  
   'Paint.FillRect(X, Y, $MW, Height, $iBackground)
-
-  If $bShowModified Then
-    If hInfo.Modified Or If hInfo.Saved Then
-      If hInfo.Modified Then
-        iCol = Color.Merge($iBackground, Color.Red, 0.2)
-      Else If hInfo.Saved Then
-        iCol = Color.Merge($iBackground, Color.Green, 0.2)
-      Endif
-      Paint.FillRect(X + $MW - 5, Y, 4, Height, iCol)
-    Endif
-  Endif
-
-  If YL < 0 Or If YL = Y Then
-    If $bShowLineNumber Then
-      If (Row + 1) Mod 10 = 0 Then
-        iCol = $iForeground
-      Else
-        iCol = $iLimitColor
-      Endif
-      Paint.Background = iCol
-      sStr = CStr(Row + 1 + $iLineNumberOffset)
-      Paint.DrawText(sStr, X, Y, $iWidthLineNumber - 4, H, Align.Right)
-      ' If Row = $Y Then
-      '   Paint.Background = Color.SetAlpha(iCol, 128)
-      '   Paint.DrawText(sStr, X + 1, Y, $iWidthLineNumber - 4, H, Align.Right)
-      ' Endif
-    Endif
-  Endif
-
-  If YL >= 0 Then Paint.FillRect(X, YL, Width, 1, $iLimitColor)
-
+  
   If $bShowIcon Or If $bShowExpand Then
-
-    If hInfo.Breakpoint Or If hInfo.Bookmark Or If hInfo.Limit Then
-
+    
+    If $hDoc.HasBreakpoint(Row) Or If $hDoc.HasBookmark(Row) Or If hInfo.Limit Then
+      
+      If $hDoc.HasBookmark(Row) Then
+        ' SS = S / 3
+        ' Paint.MoveTo(0, SS)
+        ' Paint.RelLineTo(SS, SS)
+        ' Paint.RelLineTo(2 * SS, - SS * 2)
+        ' Paint.LineWidth = SS / 2
+        ' Paint.Background = $hStyles[Highlight.Current].Color
+        ' Paint.Stroke
+        X1 = X + $MW - $LH / 2 - $iWidthModified
+        X2 = X + $MW - $iWidthModified
+        Paint.MoveTo(X, Y)
+        Paint.LineTo(X1, Y)
+        Paint.LineTo(X2, Y + Height / 2)
+        Paint.LineTo(X1, Y + Height)
+        Paint.LineTo(X, Y + Height)
+        Paint.LineTo(X, Y)
+        Paint.Background = $hStyles[Highlight.Selection].Color
+        Paint.Fill
+      Endif
+      
       Paint.Save
       Paint.Translate(X + $iPosIcon + H / 4, Y + H / 4)
       S = H / 2
       Paint.LineWidth = S / 6
-
-      If hInfo.Breakpoint Then
+      
+      If $hDoc.HasBreakpoint(Row) Then
         Paint.Ellipse(0, 0, S, S)
-        Paint.Background = Color.SetAlpha($hStyles[Highlight.Breakpoint].Color, 128)
+        If $hDoc.IsBreakpointDisabled(Row) Then
+          Paint.Background = Color.SetAlpha($hStyles[Highlight.Normal].Color, 228)
+        Else
+          Paint.Background = Color.SetAlpha($hStyles[Highlight.Breakpoint].Color, 128)
+        Endif
         Paint.Fill(True)
         Paint.Stroke
       Endif
-
-      If hInfo.Bookmark Then
-        SS = S / 3
-        Paint.MoveTo(0, SS)
-        Paint.RelLineTo(SS, SS)
-        Paint.RelLineTo(2 * SS, - SS * 2)
-        Paint.LineWidth = SS / 2
-        Paint.Background = $hStyles[Highlight.Current].Color
-        Paint.Stroke
-      Endif
-
+      
       If $bShowExpand Then
         If hInfo.Limit Then
           SS = S / 2
@@ -1054,23 +1172,53 @@ Private Sub DrawMargin(X As Integer, Y As Integer, Width As Integer, Height As I
           Paint.Stroke
         Endif
       Endif
-
+      
       Paint.Restore
-
+      
     Endif
-
+    
   Endif
-
+  
+  If $bShowModified Then
+    If hInfo.Modified Or If hInfo.Saved Then
+      If hInfo.Modified Then
+        iCol = Color.Merge($iBackground, Color.Red, 0.2)
+      Else If hInfo.Saved Then
+        iCol = Color.Merge($iBackground, Color.Green, 0.2)
+      Endif
+      Paint.FillRect(X + $MW - $iWidthModified, Y, $iWidthModified - 1, Height, iCol)
+    Endif
+  Endif
+  
+  If YL >= 0 Then Paint.FillRect(X, YL, Width, 1, $iLimitColor)
+  
+  If YL < 0 Or If YL = Y Then
+    If $bShowLineNumber Then
+      If (Row + 1) Mod 10 = 0 Then
+        iCol = $iForeground
+      Else
+        iCol = $iLimitColor
+      Endif
+      Paint.Background = iCol
+      sStr = CStr(Row + 1 + $iLineNumberOffset)
+      Paint.DrawText(sStr, X, Y, $iWidthLineNumber - 4, H, Align.Right)
+      ' If Row = $Y Then
+      '   Paint.Background = Color.SetAlpha(iCol, 128)
+      '   Paint.DrawText(sStr, X + 1, Y, $iWidthLineNumber - 4, H, Align.Right)
+      ' Endif
+    Endif
+  Endif
+  
 End
 
 Fast Private Sub TextWidth(sText As String, iStart As Integer, iLength As Integer) As Integer
-
+  
   Dim aText As String[]
   Dim I As Integer
   Dim W As Float
-
+  
   I = InStr(sText, "\t", iStart) - iStart
-
+  
   If I < 0 Or If I >= iLength Then
     If $fCharWidth Then
       Return $fCharWidth * iLength
@@ -1078,34 +1226,34 @@ Fast Private Sub TextWidth(sText As String, iStart As Integer, iLength As Intege
       Return $hFont.TextWidth(String.Mid$(sText, iStart, iLength))
     Endif
   Endif
-
+  
   If iLength <= 0 Then Return 0
   aText = Split(String.Mid$(sText, iStart, iLength), "\t")
-
+  
   If $fCharWidth Then
-
+    
     For I = 0 To aText.Max - 1
       W += $fCharWidth * String.Len(aText[I])
       W = (CInt(W + $iTabWidth) \ $iTabWidth) * $iTabWidth
     Next
     W += $fCharWidth * String.Len(aText[aText.Max])
-
+    
   Else
-
+    
     For I = 0 To aText.Max - 1
       W += $hFont.TextWidth(aText[I])
       W = (CInt(W + $iTabWidth) \ $iTabWidth) * $iTabWidth
     Next
     W += $hFont.TextWidth(aText[aText.Max])
-
+    
   Endif
-
+  
   Return Ceil(W)
-
+  
 End
 
 Private Sub LinePos(Y As Integer, Optional X As Integer = -1) As Point
-
+  
   Dim aLayout As Integer[]
   Dim I As Integer
   Dim P As Integer
@@ -1113,11 +1261,11 @@ Private Sub LinePos(Y As Integer, Optional X As Integer = -1) As Point
   Dim cCache As Collection
   Dim XO As Integer
   Dim XX As Integer
-
+  
   XO = X
   Try hPos = $cCachePos[Y][XO]
   If hPos Then Goto RETURN_POS
-
+  
   If $cLineLayout Then
     aLayout = $cLineLayout[Y]
     If aLayout Then
@@ -1132,16 +1280,16 @@ Private Sub LinePos(Y As Integer, Optional X As Integer = -1) As Point
       Goto CACHE_POS
     Endif
   Endif
-
+  
   hPos = New Point
   If X < 0 Then
     hPos.X = TextWidth($hDoc.Lines[Y], 1, $hDoc.LineLength[Y])
   Else
     hPos.X = TextWidth($hDoc.Lines[Y], 1, X)
   Endif
-
+  
 CACHE_POS:
-
+  
   cCache = $cCachePos[Y]
   If Not cCache Then
     If $cCachePos.Count > 80 Then
@@ -1154,35 +1302,35 @@ CACHE_POS:
     $cCachePos[Y] = cCache
   Endif
   cCache[XO] = hPos
-
+  
   'If Y = 28 Then Debug "calc";; X;; Y;; "->";; hPos;; hPos.X;; hPos.Y
-
+  
 RETURN_POS:
-
+  
   Return hPos
-
+  
 End
 
 Private Sub LineStartPos(Y As Integer) As Integer
-
+  
   Dim S As Integer
   Dim aLayout As Integer[]
-
+  
   S = Len($hDoc.Lines[Y]) - Len(LTrim($hDoc.Lines[Y]))
   Try aLayout = $cLineLayout[Y]
   If aLayout And If S >= aLayout[0] Then S = aLayout[0] - 1
   Return LinePos(Y, S).X
-
+  
 End
 
 Private Sub FindLargestLine() As Integer
-
+  
   Dim I As Integer
   Dim W As Integer
   Dim WM As Integer = -1
-
+  
   If $hDoc.Count >= 10000 Then Inc Application.Busy
-
+  
   For I = 0 To $hDoc.Count - 1
     W = LinePos(I).X
     If W > WM Then
@@ -1190,17 +1338,17 @@ Private Sub FindLargestLine() As Integer
       $iLargestLine = I
     Endif
   Next
-
+  
   If $hDoc.Count >= 10000 Then Dec Application.Busy
-
+  
   Return WM
-
+  
 End
 
 Private Sub UpdateWidth(Optional Y As Integer = -1)
-
+  
   Dim W As Integer
-
+  
   If $cLineLayout Then
     If $iWidth <> $hView.ClientWidth Then
       $iWidth = $hView.ClientWidth
@@ -1208,17 +1356,17 @@ Private Sub UpdateWidth(Optional Y As Integer = -1)
     Endif
     Return
   Endif
-
+  
   If $iLargestLine < 0 Or If $iLargestLine > $hDoc.Max Then
     FindLargestLine
     Y = -1
   Endif
-
+  
   If Y < 0 Then
     W = LinePos($iLargestLine).X + $MW + 2
     Goto UPDATE_WIDTH
   Endif
-
+  
   W = LinePos(Y).X + $MW + 2
   If W > $iWidth Then
     $iLargestLine = Y
@@ -1227,26 +1375,26 @@ Private Sub UpdateWidth(Optional Y As Integer = -1)
     W = FindLargestLine() + $MW + 2
     Goto UPDATE_WIDTH
   Endif
-
+  
   Return
-
+  
 UPDATE_WIDTH:
-
+  
   $iWidth = Max($hView.ClientWidth, W)
   _ResizeContents
-
+  
 End
 
 Public Sub TimerCursor_Timer()
-
+  
   If $bMouseDown Then Return
   $bShowCursor = Not $bShowCursor
   _RefreshLine($Y)
-
+  
 End
 
 Public Sub View_KeyPress()
-
+  
   Dim Y As Integer
   Dim sAction As String
   Dim sTab As String
@@ -1254,12 +1402,12 @@ Public Sub View_KeyPress()
   Dim aLayout As Integer[]
   Dim I, P As Integer
   Dim bSaveOverwrite As Boolean = $bOverwrite
-
+  
   bCancel = Raise KeyPress
   If bCancel Then Goto STOP_EVENT
-
-  Try sAction = $cShortcut[Shortcut.FromKey()]
-  If sAction Then
+  
+  Try sAction = $cShortcut[String.UCase(Shortcut.FromKey())]
+  If sAction Then 
     Select Case sAction
       Case "Copy"
         Copy()
@@ -1280,14 +1428,16 @@ Public Sub View_KeyPress()
     End Select
     Goto STOP_EVENT
   Endif
-
+  
   If Key.Text And If Asc(Key.Text) >= 32 And If Asc(Key.Text) <> 127 Then
-    If Not $bReadOnly Then Insert(Key.Text)
+    If $bReadOnly Then Goto STOP_EVENT
+    If $hDoc._Mode And If $hDoc._Mode.OnKeyPress(Me) Then Goto STOP_EVENT
+    Insert(Key.Text)
     Goto STOP_EVENT
   Endif
-
+  
   Select Case Key.Code
-
+      
     Case Key.Right
       If Key.Control Then
         If $X >= $hDoc.LineLength[$Y] Then
@@ -1302,7 +1452,7 @@ Public Sub View_KeyPress()
           Goto($X + 1, $Y, Key.Shift)
         Endif
       Endif
-
+      
     Case Key.Left
       '$X = NormalizeColumn($X, $Y)
       If Key.Control Then
@@ -1318,7 +1468,7 @@ Public Sub View_KeyPress()
           Goto($X - 1, $Y, Key.Shift)
         Endif
       Endif
-
+      
     Case Key.Up
       If Key.Alt Then
         MoveSelection(True)
@@ -1334,7 +1484,7 @@ Public Sub View_KeyPress()
         'Y = RealToView($Y)
         GotoXY($X0 + $MW - $hView.ScrollX, $hRows._GetRowY($Y) - $hView.ScrollY + $XY.Y - $hRows.H, Key.Shift)
       Endif
-
+      
     Case Key.Down
       If Key.Alt Then
         MoveSelection(False)
@@ -1350,14 +1500,14 @@ Public Sub View_KeyPress()
         'Y = RealToView($Y)
         GotoXY($X0 + $MW - $hView.ScrollX, $hRows._GetRowY($Y) - $hView.ScrollY + $XY.Y + $hRows.H, Key.Shift)
       Endif
-
+      
     Case Key.Home
       If Key.Control Then
         Goto(0, 0, Key.Shift)
       Else
         Try aLayout = $cLineLayout[$Y]
         If Not aLayout Or If $X < aLayout[0] Then
-          P = GetIndent($Y)
+          P = GetLineIndent($Y)
           If P = $X Then P = 0
           Goto(P, $Y, Key.Shift)
         Else
@@ -1366,11 +1516,11 @@ Public Sub View_KeyPress()
             If $X < P + aLayout[I] Then Break
             P += aLayout[I]
           Next
-          If P = $X Then P = GetIndent($Y)
+          If P = $X Then P = GetLineIndent($Y)
           Goto(P, $Y, Key.Shift)
         Endif
       Endif
-
+      
     Case Key.End
       If Key.Control Then
         Goto(-1, $hDoc.Max, Key.Shift)
@@ -1391,7 +1541,7 @@ Public Sub View_KeyPress()
           Goto(P, $Y, Key.Shift)
         Endif
       Endif
-
+      
     Case Key.PageUp
       'Y = RealToView($Y)
       'Y = $hRows._FindRowFromPos($hRows._GetRowY($Y) + $hRows._GetRowHeight($Y) - $hView.ClientH)
@@ -1402,7 +1552,7 @@ Public Sub View_KeyPress()
           Goto(0, 0, Key.Shift)
         Endif
       Endif
-
+      
     Case Key.PageDown
       'Y = RealToView($Y)
       'Y = $hRows._FindRowFromPos($hRows._GetRowY($Y) + $hView.ClientH)
@@ -1417,9 +1567,9 @@ Public Sub View_KeyPress()
           Goto(-1, $hDoc.Max, Key.Shift)
         Endif
       Endif
-
+      
     Case Key.Enter, Key.Return
-
+      
       If $bShowExpand Then
         If Key.Control Then
           Y = FindPreviousLimit($Y + 1)
@@ -1437,24 +1587,30 @@ Public Sub View_KeyPress()
           Goto STOP_EVENT
         Endif
       Endif
-
+      
       If $bReadOnly Then Goto STOP_EVENT
-
+      
       If Not $bPrint Then $bOverwrite = False
-      sTab = GetIndentText($Y)
-      Insert("\n" & String.Left(sTab, $X))
+      sTab = GetLineIndentText($Y)
+      If $hDoc._Mode.BetweenBraces(Me) Then
+        Insert("\n" & String.Left(sTab, $X) & GetTab() & "\n" & String.Left(sTab, $X))
+        Goto(-1, $Y - 1)
+      Else
+        Insert("\n" & String.Left(sTab, $X))
+      Endif
       'If Not $bPrint Then $bOverwrite = True
       $bOverwrite = bSaveOverwrite
-
+      
     Case Key.BackSpace
       If Key.Control Then
         If $bReadOnly Then Goto STOP_EVENT
         DeleteWordLeft
       Else If Key.Normal Then
         If $bReadOnly Then Goto STOP_EVENT
+        If $hDoc._Mode And If $hDoc._Mode.OnKeyPress(Me) Then Goto STOP_EVENT
         DeleteLeft
       Endif
-
+      
     Case Key.Delete
       If Key.Control Then
         If $bReadOnly Then Goto STOP_EVENT
@@ -1463,7 +1619,7 @@ Public Sub View_KeyPress()
         If $bReadOnly Then Goto STOP_EVENT
         DeleteRight
       Endif
-
+      
     Case Key.Tab
       If Key.Control Then
         If $bReadOnly Then Goto STOP_EVENT
@@ -1471,60 +1627,61 @@ Public Sub View_KeyPress()
       Else
         DoIndent(Key.Shift)
       Endif
-
+      
     Case Key.BackTab
       DoIndent(True)
-
+      
     Case Key.Insert
       Me.Overwrite = Not $bOverwrite
-
+      
   End Select
-
+  
 STOP_EVENT:
-
+  
   Stop Event
-
+  
 End
 
 Public Sub HideSelection()
-
+  
   If HasSelection() Then Refresh
   $SX = $X
   $SY = $Y
   $SXY = $XY.Copy()
-
+  
 End
 
 Public Sub _RaiseCursor()
-
+  
   If $iSaveCursor Then Return
   If $X = $LX And If $Y = $LY Then Return
   If $hDoc.IsLocked() Then Return
-
-  $LX = $X
-  $LY = $Y
+  
   EnsureVisible
   If $bShowPosition Then UpdatePosition
+  
+  TimerChange_Timer
   Raise Cursor
-
+  $LX = $X
+  $LY = $Y
+  
 End
 
 Public Sub Goto(NX As Integer, NY As Integer, Optional Mark As Boolean)
-
-  Dim bRaiseCursor As Boolean
+  
   Dim SX As Integer
   Dim SY As Integer
   Dim SXY As Point
   Dim iLen As Integer
-
+  
   If NY < 0 Then Return
   If NY > $hDoc.Max Then
     NY = $hDoc.Max
     NX = -1
   Endif
-
+  
   NY = CheckFolded(NY)
-
+  
   If NY <> $Y Then
     SX = $SX
     SY = $SY
@@ -1538,33 +1695,32 @@ Public Sub Goto(NX As Integer, NY As Integer, Optional Mark As Boolean)
       Endif
     Endif
   Endif
-
+  
   iLen = $hDoc.LineLength[NY]
   If NX < 0 Or If NX > iLen Then NX = iLen
-
+  
   If Not Mark Then HideSelection
-
+  
   _RefreshLine($Y)
-
+  
   'Debug "$XY.X =";; $XY.X
   If NX <> $X Or If NY <> $Y Then
-
+    
     If Not Mark Then
       _RefreshLine(NY)
     Else
       _RefreshLine(Min(NY, $Y), Max(NY, $Y) - Min(NY, $Y) + 1)
     Endif
-
+    
     $X = NX
     $Y = NY
     $XY = LinePos($Y, $X)
     '$XM = 0
     '$YM = -1
-    bRaiseCursor = True
   Endif
-
+  
   $X0 = $XY.X
-
+  
   If Not Mark Then
     $SX = $X
     $SY = $Y
@@ -1574,57 +1730,59 @@ Public Sub Goto(NX As Integer, NY As Integer, Optional Mark As Boolean)
     Copy()
     Clipboard.Current = Clipboard.Default
   Endif
-
+  
   $bShowCursor = True
   If Not $bReadOnly Then $hTimerCursor.Start
-
+  
   CheckMatch
+  CheckIndentMark
   _RaiseCursor
-
+  
 End
 
 Private Sub EnsureVisible(Optional bCenter As Boolean)
-
+  
   Dim Y As Integer
   Dim H As Integer
-
+  
   'Y = RealToView($Y)
   H = $hRows.H '_GetRowHeight(Y)
   Y = $hRows._GetRowY($Y) + $XY.Y
-
+  
   If bCenter Then
     Y = Y - $hView.ClientH \ 2 + H \ 2
     H = $hView.ClientH
   Endif
-
+  
   If $bMouseDown Or If $XY.X > ($hView.ClientW - $MW) Then
     $hView.EnsureVisible($XY.X, Y, $iSpaceWidth + $MW, H)
   Else
     $hView.EnsureVisible(0, Y, $hView.ClientW, H)
   Endif
-
+  
 End
 
 Public Sub GotoCenter(NX As Integer, NY As Integer)
-
+  
   Goto(NX, NY)
-  If Not $hTimerEnsureVisible Then
-    $hTimerEnsureVisible = New Timer As "EnsureVisible"
-    $hTimerEnsureVisible.Trigger
-  Endif
-
+  EnsureVisible(True)
+  ' If Not $hTimerEnsureVisible Then
+  '   $hTimerEnsureVisible = New Timer As "EnsureVisible"
+  '   $hTimerEnsureVisible.Trigger
+  ' Endif
+  
 End
 
 Public Sub EnsureVisible_Timer()
-
+  
   EnsureVisible(True)
   $hTimerEnsureVisible.Stop
   $hTimerEnsureVisible = Null
-
+  
 End
 
 Private Sub PosToColumn(Y As Integer, PX As Integer, RY As Integer, Optional bIgnoreMargin As Boolean) As Integer
-
+  
   Dim I As Integer
   Dim iLen As Integer
   Dim D As Integer
@@ -1632,36 +1790,36 @@ Private Sub PosToColumn(Y As Integer, PX As Integer, RY As Integer, Optional bIg
   Dim sStr As String
   Dim LP As Point
   Dim J As Integer
-
+  
   sStr = $hDoc.Lines[Y]
   iLen = $hDoc.LineLength[Y]
-
+  
   If Not bIgnoreMargin Then
     If PX < $MW Then Return 0
   Endif
-
+  
   '   if (px < margin || px >= visibleWidth())
   '     _posOutside = true;
   '
   If iLen = 0 Then Return PX \ $hFont.TextWidth("m")
-
+  
   PX += $hView.ScrollX - $MW
   RY = (RY \ $hRows.H) * $hRows.H
-
+  
   '   px += contentsX();
   '
   D = 0
   F = iLen
   J = -1
-
+  
   Do
-
+    
     I = (D + F) \ 2
     If I = J Then Break
     J = I
-
+    
     LP = LinePos(Y, I)
-
+    
     If RY < LP.Y Or If RY = LP.Y And PX < LP.X Then
       F = I
     Else If RY > LP.Y Or If PX > LP.X Then
@@ -1670,7 +1828,7 @@ Private Sub PosToColumn(Y As Integer, PX As Integer, RY As Integer, Optional bIg
       D = I
       Break
     Endif
-
+    
     ' 'LP = LinePos(Y, I + 1)
     ' If RY > LP.Y Or If PX >= LP.X Then
     '   D = I '+ 1
@@ -1679,9 +1837,9 @@ Private Sub PosToColumn(Y As Integer, PX As Integer, RY As Integer, Optional bIg
     '
     ' D = I
     ' Break
-
+    
   Loop
-
+  
   If LP Then
     If LP.Y < RY Then
       D = Min(iLen, D + 1)
@@ -1691,30 +1849,33 @@ Private Sub PosToColumn(Y As Integer, PX As Integer, RY As Integer, Optional bIg
   Endif
   '   _posOutside = d > len;
   Return D
-
+  
 End
 
 Private Sub PosToLine(PY As Integer) As Integer
-
+  
   Return $hRows._FindRowFromPos(PY + $hView.ScrollY)
-
+  
 End
 
 Public Sub View_MouseDown()
-
+  
   Dim Y As Integer
   Dim X As Integer
   Dim RY As Integer
-
+  Dim MW As Integer
+  
   $bFirstFocus = True
-
+  
   If Mouse.Right Then Return
-
+  
   Y = PosToLine(Mouse.Y)
   RY = $hRows.RelativeY
-
+  
   If Y >= 0 Then
-    If Mouse.X < $MW And If Mouse.X >= $iPosIcon Then
+    MW = $MW
+    If $bShowModified Then MW -= $iWidthModified
+    If Mouse.X < MW And If Mouse.X >= $iPosIcon Then
       If Mouse.Left Then
         Goto(0, Y, Mouse.Shift)
         If Mouse.Normal And If $bShowExpand And If $hDoc.Info(Y).Limit Then
@@ -1723,21 +1884,21 @@ Public Sub View_MouseDown()
       Endif
     Else
       'X = NormalizeColumn(PosToColumn(Y, Mouse.X, RY), Y)
-      X = PosToColumn(Y, Mouse.X - 4, RY)
+      X = PosToColumn(Y, Mouse.X - $iSpaceWidth \ 2, RY)
       Goto(X, Y, Mouse.Shift)
     Endif
   Endif
-
+  
   $bMouseDown = True
-
+  
 End
 
 Public Sub View_DblClick()
-
+  
   Dim X, Y As Integer
-
+  
   If Mouse.Right Then Return
-
+  
   If $bShowIcon Or If $bShowExpand Then
     Y = PosToLine(Mouse.Y)
     If Mouse.X < $MW And If Mouse.X >= $iPosIcon Then
@@ -1754,44 +1915,44 @@ Public Sub View_DblClick()
       Endif
     Endif
   Endif
-
+  
   If Mouse.X >= $MW Then
     X = $X
     If $X >= 0 Then Goto($hDoc.WordLeft($X, $Y, True), $Y)
     If $X < $hDoc.LineLength[$Y] Then X = $hDoc.WordRight($X, $Y, True)
     Goto(X, $Y, True)
   Endif
-
+  
 End
 
 Public Sub View_MouseDrag()
-
+  
   If Mouse.Right Then Return
-
+  
   If Not $hTimerScroll Then
     $hTimerScroll = New Timer As "TimerScroll"
     $hTimerScroll.Delay = 50
     $hTimerScroll.Start
   Endif
-
+  
 End
 
 Public Sub View_MouseMove()
-
+  
   Dim Y, RY As Integer
   Dim X As Integer
   Dim PX As Integer
-
+  
   PX = Mouse.ScreenX - $hView.ScreenX
-
+  
   If PX < $MW Then
     $hView.Mouse = Mouse.Default
   Else
     $hView.Mouse = Mouse.Text
   Endif
-
+  
   If $bMouseDown Then
-
+    
     Y = PosToLine(Mouse.ScreenY - $hView.ScreenY)
     RY = $hRows.RelativeY
     If Y >= 0 Then
@@ -1799,71 +1960,71 @@ Public Sub View_MouseMove()
       X = PosToColumn(Y, PX, RY, True)
       Goto(X, Y, True)
     Endif
-
+    
   Endif
-
+  
 End
 
 Public Sub View_MouseUp()
-
+  
   If $hTimerScroll Then
     $hTimerScroll.Stop
     $hTimerScroll = Null
   Endif
-
+  
   If Mouse.Middle Then
     Clipboard.Current = Clipboard.Selection
     Paste
     Clipboard.Current = Clipboard.Default
   Endif
-
+  
   $bMouseDown = False
-
+  
 End
 
 Public Sub TimerScroll_Timer()
-
+  
   View_MouseMove
-
+  
 End
 
 Private Function Line_Read() As Integer
-
+  
   Return $Y
-
+  
 End
 
 Private Function Column_Read() As Integer
-
+  
   Return $X
-
+  
 End
 
 Private Function SelectionLine_Read() As Integer
-
+  
   Return $SY
-
+  
 End
 
 Private Function SelectionColumn_Read() As Integer
-
+  
   Return $SX
-
+  
 End
 
 Private Function Selected_Read() As Boolean
-
+  
   Return HasSelection()
-
+  
 End
 
 Private Sub DeleteSelection() As Boolean
-
+  
   If HasSelection() Then
     Remove($SX, $SY, $X, $Y)
     Return True
   Endif
-
+  
 End
 
 ' Private Sub NormalizeColumn(X As Integer, Y As Integer) As Integer
@@ -1873,147 +2034,150 @@ End
 ' End
 
 Public Sub Insert(Text As String)
-
+  
   Dim aText As String[]
   Dim I As Integer
-
-  DeleteSelection
-  If Not Text Then Return
-
-  '$X = NormalizeColumn($X, $Y)
-
+  
   $hDoc.Begin
-
-  If $bOverwrite Then
-
-    aText = Split(Text, "\n")
-
-    For I = 0 To aText.Max - 1
-      Remove($X, $Y, $X + String.Len(aText[I]), $Y)
-      If $Y = $hDoc.Max Then
-        $hDoc.Insert(aText[I] & "\n", $X, $Y)
-      Else
-        $hDoc.Insert(aText[I], $X, $Y)
-      Endif
-      Goto(0, $Y + 1)
-    Next
-
-    Remove($X, $Y, $X + String.Len(aText[aText.Max]), $Y)
-    $hDoc.Insert(aText[aText.Max], $X, $Y)
-
-  Else
-
-    $hDoc.Insert(Text, $X, $Y)
-
+  
+  DeleteSelection
+  If Text Then 
+  
+    '$X = NormalizeColumn($X, $Y)
+    
+    If $bOverwrite Then
+      
+      aText = Split(Text, "\n")
+      
+      For I = 0 To aText.Max - 1
+        Remove($X, $Y, $X + String.Len(aText[I]), $Y)
+        If $Y = $hDoc.Max Then
+          $hDoc.Insert(aText[I] & "\n", $X, $Y)
+        Else
+          $hDoc.Insert(aText[I], $X, $Y)
+        Endif
+        Goto(0, $Y + 1)
+      Next
+      
+      Remove($X, $Y, $X + String.Len(aText[aText.Max]), $Y)
+      $hDoc.Insert(aText[aText.Max], $X, $Y)
+      
+    Else
+      
+      $hDoc.Insert(Text, $X, $Y)
+      
+    Endif
+    
+    Goto($hDoc.XAfter, $hDoc.YAfter)
+    
   Endif
-
-  Goto($hDoc.XAfter, $hDoc.YAfter)
+  
   $hDoc.End
-
+  
 End
 
 Public Sub _BeforeInsert(Y1 As Integer, N As Integer)
-
+  
   $hRows._BeforeInsert(Y1, N, $cLineLayout)
-
+  
 End
 
 Public Sub _AfterInsert(Y1 As Integer, Y2 As Integer, N As Integer)
-
+  
   Dim Y As Integer
-
+  
   _ExpandInsert(Y1, N)
-
+  
   If Not $cLineLayout Then
-
+    
     If $iLargestLine >= Y1 Then $iLargestLine += N
-
+    
     For Y = Y1 To Y2
       UpdateWidth(Y)
     Next
-
+    
   Endif
-
+  
   If $cLineLayout Then
-
+    
     'If N > 0 Then _UpdateAllHeight(True)
-
+    
   Endif
-
+  
   UpdateMargin
   UpdateCount
-
+  
 End
 
 Private Function SelectedText_Read() As String
-
+  
   If Not HasSelection() Then Return
   Return $hDoc.GetText($X, $Y, $SX, $SY)
-
+  
 End
 
 Public Sub Copy()
-
+  
   If Not HasSelection() Then Return
   Clipboard.Copy(Me.SelectedText)
-
+  
 End
 
 Public Sub Paste()
-
+  
   Dim sText As String
-
+  
   If Clipboard.Type <> Clipboard.Text Then Return
   sText = Clipboard.Paste("text/plain")
   If Not sText Then Return
-
+  
   Insert(sText)
-
+  
 End
 
 Public Sub SelectAll()
-
+  
   Goto(0, 0)
   Goto(-1, $hDoc.Max, True)
-
+  
 End
 
 Public Sub Remove(X1 As Integer, Y1 As Integer, X2 As Integer, Y2 As Integer)
-
+  
   'Goto(X1, Y1)
-
+  
   $hDoc.Begin
   $hDoc.Remove(X1, Y1, X2, Y2)
-
+  
   Goto($hDoc.XAfter, $hDoc.YAfter)
   $hDoc.End
-
+  
 End
 
 Public Sub _AfterRemove(Y1 As Integer, Y2 As Integer)
-
+  
   Dim X As Integer
   Dim Y As Integer
-
+  
   If Y1 > Y2 Then Swap Y1, Y2
-
+  
   _ClearCachePos
-
+  
   If Y2 > Y1 Then
     $hRows._AfterRemove(Y1, Y2, $cLineLayout)
   Endif
-
+  
   _ExpandRemove(Y1, Y2)
-
+  
   Y = Min($Y, $hDoc.Max)
   X = Min($X, $hDoc.LineLength[Y])
   If X <> $X Or If Y <> $Y Then Goto(X, Y)
-
+  
   $SX = $X
   $SY = $Y
-
+  
   If Not $cLineLayout Then
-
+    
     If $iLargestLine >= Y1 Then
       If $iLargestLine <= Y2 Then
         $iLargestLine = -1
@@ -2022,91 +2186,93 @@ Public Sub _AfterRemove(Y1 As Integer, Y2 As Integer)
         $iLargestLine -= Y2 - Y1
       Endif
     Endif
-
+    
   Else
-
+    
     'If Y2 > Y1 Then _UpdateAllHeight(True)
-
+    
   Endif
-
+  
   UpdateMargin
   UpdateCount
-
+  
 End
 
 Private Sub DeleteLeft()
-
+  
   Dim sTab As String
-
+  
   If DeleteSelection() Then Return
-
+  
   '$X = NormalizeColumn($X, $Y)
-
+  
   If $X = 0 Then
     If $Y > 0 Then
       Remove($hDoc.LineLength[$Y - 1], $Y - 1, 0, $Y)
     Endif
   Else
-    sTab = GetIndentText($Y)
+    sTab = GetLineIndentText($Y)
     If Len(sTab) = Len($hDoc.Lines[$Y]) Then
       If Right(sTab) = "\t" Then
         Remove($X - 1, $Y, $X, $Y)
-      Else
+      Else If Not $bTabIndent Then
         Remove((($X - 1) \ $iTabSize) * $iTabSize, $Y, $X, $Y)
+      Else
+        Remove($X - 1, $Y, $X, $Y)
       Endif
     Else
       Remove($X - 1, $Y, $X, $Y)
     Endif
   Endif
-
+  
 End
 
 Private Sub DeleteWordLeft()
-
+  
   Dim X As Integer
-
+  
   If DeleteSelection() Then Return
-
+  
   If $X = 0 Then
     DeleteLeft
     Return
   Endif
-
+  
   X = $hDoc.WordLeft($X, $Y)
   If X = $X Then Return
-
+  
   Begin()
   Goto(X, $Y, True)
   DeleteSelection()
   End()
-
+  
 End
 
 Private Sub DeleteWordRight()
-
+  
   Dim X As Integer
-
+  
   If DeleteSelection() Then Return
-
+  
   If $X >= $hDoc.LineLength[$Y] Then
     DeleteRight
     Return
   Endif
-
+  
   X = $hDoc.WordRight($X, $Y)
   If X = $X Then Return
-
+  
   Begin()
   Goto(X, $Y, True)
   DeleteSelection()
   End()
-
+  
 End
 
 Private Sub DeleteRight()
-
+  
   If DeleteSelection() Then Return
-
+  
   If $X >= $hDoc.LineLength[$Y] Then
     If $Y < $hDoc.Max Then
       Remove($X, $Y, 0, $Y + 1)
@@ -2114,30 +2280,30 @@ Private Sub DeleteRight()
   Else
     Remove($X, $Y, $X + 1, $Y)
   Endif
-
+  
 End
 
-Private Sub GetIndent(Y As Integer, Optional bIgnoreEmpty As Boolean) As Integer
-
+Private Sub GetLineIndent(Y As Integer, Optional bIgnoreEmpty As Boolean) As Integer
+  
   Dim sText As String
   Dim I As Integer
   Dim sCar As String
-
+  
   sText = $hDoc.Lines[Y]
   For I = 1 To Len(sText)
     sCar = Mid$(sText, I, 1)
     If sCar <> " " And If sCar <> "\t" Then Break
   Next
-
+  
   If bIgnoreEmpty And If I > Len(sText) Then Return -1
   Return I - 1
-
+  
 End
 
-Private Sub GetIndentText(Y As Integer) As String
-
-  Return String.Left($hDoc.Lines[Y], GetIndent(Y))
-
+Private Sub GetLineIndentText(Y As Integer) As String
+  
+  Return String.Left($hDoc.Lines[Y], GetLineIndent(Y))
+  
 End
 
 ' Private Sub IsVisible(Y As Integer) As Boolean
@@ -2149,7 +2315,7 @@ End
 ' End
 
 Private Sub CheckMatch()
-
+  
   Dim sCar As String
   Dim X, Y As Integer
   Dim iMatch As Integer
@@ -2158,88 +2324,88 @@ Private Sub CheckMatch()
   Dim sLine As String
   Dim iLen As Integer
   Dim iOldXM, iOldYM As Integer
-
+  
   iOldXM = $XM
   iOldYM = $YM
-
+  
   $XM = 0
   $YM = -1
-
+  
   If $bShowBraces Then
-
+    
     Y = $Y
     X = Min($hDoc.LineLength[Y], $X)
-
+    
     If X > 0 Then
       sCar = String.Mid$($hDoc.Lines[Y], X, 1)
       iMatch = InStr(MATCH_STRING, sCar)
       If iMatch Then Goto FIND_MATCH
     Endif
-
+    
     Inc X
     sCar = String.Mid$($hDoc.Lines[Y], X, 1)
     iMatch = InStr(MATCH_STRING, sCar)
     If iMatch Then Goto FIND_MATCH
-
+    
   Endif
-
+  
   Goto FOUND
-
+  
 FIND_MATCH:
-
+  
   If Odd(iMatch) Then
     sOther = Mid$(MATCH_STRING, iMatch + 1, 1)
   Else
     sOther = Mid$(MATCH_STRING, iMatch - 1, 1)
   Endif
-
+  
   L = 1
   Dec X
   $XMO = X
   $YMO = Y
-
+  
   sLine = $hDoc.Lines[Y]
   iLen = $hDoc.LineLength[Y]
-
+  
   Do
-
+    
     If Odd(iMatch) Then
-
+      
       Inc X
-
+      
       While X >= iLen
-
+        
         X = 0
         Inc Y
         If Y > $hDoc.Max Then Goto FOUND
         Inc N
         If N > 1000 Then Goto FOUND
-
+        
         sLine = $hDoc.Lines[Y]
         iLen = $hDoc.LineLength[Y]
-
+        
       Wend
-
+      
     Else
-
+      
       Dec X
-
+      
       While X < 0
-
+        
         Dec Y
         If Y < 0 Then Goto FOUND
         Inc N
         If N > 1000 Then Goto FOUND
-
+        
         sLine = $hDoc.Lines[Y]
         X = $hDoc.LineLength[Y] - 1
-
+        
       Wend
-
+      
     Endif
-
+    
     Select Case String.Mid$(sLine, X + 1, 1)
-
+        
       Case sOther
         Dec L
         If L = 0 Then
@@ -2247,33 +2413,162 @@ FIND_MATCH:
           $YM = Y
           Goto FOUND
         Endif
-
+        
       Case sCar
         Inc L
-
+        
     End Select
-
+    
   Loop
-
+  
 FOUND:
-
+  
   If $XM <> iOldXM Or If $YM <> iOldYM Then
     _RefreshLine(iOldYM)
     _RefreshLine($Y)
     _RefreshLine($YM)
   Endif
-
+  
 End
 
-Public Sub _RefreshLine(Y As Integer, Optional N As Integer = 1)
+Private Sub GetLineIndentMark(Y As Integer, Optional sText As String) As Integer
+  
+  Dim P As Integer
+  
+  If IsMissing(sText) Then sText = $hDoc.Lines[Y]
+  
+  P = Len(LTrim(sText))
+  
+  If P = 0 Then
 
+    P = GetTabSizeAround(Y) + 1
+    P = LinePos(Y, String.Len(sText)).X + (P - String.Len(sText)) * $iSpaceWidth
+
+  Else
+
+    P = Len(sText) - P
+    P = LinePos(Y, P).X
+
+  Endif
+  
+  Return P
+  
+End
+
+Private Sub CheckIndentMark()
+
+  Dim Y1, Y2 As Integer
+  Dim IM1, IM2 As Integer
+  Dim IY1 As Integer
+  Dim IY2 As Integer
+  Dim IP As Integer
+  Dim IM0 As Integer
+  Dim bStop As Boolean
+  Dim bLimit1 As Boolean
+  Dim bLimit2 As Boolean
+  Dim bEqual2 As Boolean
+  Dim bEqual1 As Boolean
+  
+  'If $Y = 501 Then Stop
+  
+  IM0 = GetLineIndentMark($Y)
+  If IM0 = 0 Then Goto SET_RESULT
+  
+  bStop = False
+  Y1 = $Y
+  While Y1 > 0
+    Dec Y1
+    If Not Trim($hDoc.Lines[Y1]) Then Continue
+    IM1 = GetLineIndentMark(Y1)
+    If IM1 < IM0 Then 
+      bLimit1 = True
+      Break
+    Else If IM1 > IM0 Then
+      If Not bEqual1 Then bStop = True
+    Else
+      If bStop Then 
+        bLimit1 = True
+        Break
+      Endif
+      bEqual1 = True
+    Endif
+  Wend
+  
+  bStop = False
+  Y2 = $Y
+  While Y2 < $hDoc.Max
+    Inc Y2
+    If Not Trim($hDoc.Lines[Y2]) Then Continue
+    IM2 = GetLineIndentMark(Y2)
+    If IM2 < IM0 Then 
+      bLimit2 = True
+      Break
+    Else If IM2 > IM0 Then
+      If Not bEqual2 Then bStop = True
+    Else
+      If bStop Then 
+        bLimit2 = True
+        Break
+      Endif
+      bEqual2 = True
+    Endif
+  Wend
+  
+  'Debug "----"
+  'Debug "Y1=";; Y1 + 1;; "Y2=";; Y2 + 1;; "bLimit1=";; bLimit1;; "bLimit2=";; bLimit2;; "bEqual1=";; bEqual1;; "bEqual2=";; bEqual2
+  
+  If bLimit1 And If bLimit2 Then
+    IM1 = GetLineIndentMark(Y1)
+    IM2 = GetLineIndentMark(Y2)
+    If IM1 < IM2 Then
+      If IM2 = IM0 Then Y1 = $Y
+    Else If IM1 > IM2 Then
+      If IM1 = IM0 Then Y2 = $Y
+    Endif
+  Else If bLimit1 Then
+    Y2 = $Y
+  Else If bLimit2 Then
+    Y1 = $Y
+  Endif
+  
+  'If bEqual1 Or If bEqual2 Then
+    IP = Max(GetLineIndentMark(Y1), GetLineIndentMark(Y2))
+  'Else
+    'IP = Min(GetLineIndentMark(Y1), GetLineIndentMark(Y2))
+  'Endif
+  
+  If IP = 0 Then
+    IY1 = 0
+    IY2 = 0
+  Else
+    IY1 = Y1
+    IY2 = Y2
+  Endif
+  
+  'Debug "=> "; IY1 + 1;; IY2 + 1;; IP
+  
+SET_RESULT:
+  
+  If IP <> $IP Or If IY1 <> $IY1 Or If IY2 <> $IY2 Then
+    If $IP Then _RefreshLine($IY1, $IY2 - $IY1 + 1)
+    $IP = IP
+    $IY1 = IY1
+    $IY2 = IY2
+    If $IP Then _RefreshLine($IY1, $IY2 - $IY1 + 1)
+  Endif
+    
+End
+
+
+Public Sub _RefreshLine(Y As Integer, Optional N As Integer = 1)
+  
   Dim I As Integer
   Dim hPict As Picture
-
+  
   If Y < 0 Or If Y > $hDoc.Max Or If N <= 0 Then Return
-
+  
   N = Min(N, $hDoc.Count - Y)
-
+  
   If Not $bRemoteDisplay Then
     For I = Y To Y + N - 1
       hPict = $cCacheLine[I]
@@ -2283,188 +2578,204 @@ Public Sub _RefreshLine(Y As Integer, Optional N As Integer = 1)
       Endif
     Next
   Endif
-
+  
   If N = 1 Then
     $hView.RefreshRect(0, $hRows._GetRowY(Y), $hView.ScrollW, $hRows._GetRowHeight(Y))
   Else
     $hView.RefreshRect(0, $hRows._GetRowY(Y), $hView.ScrollW, $hRows._GetRowY(Y + N) - $hRows._GetRowY(Y))
   Endif
-
+  
 End
 
 Private Function ReadOnly_Read() As Boolean
-
+  
   Return $bReadOnly
-
+  
 End
 
 Private Sub ReadOnly_Write(Value As Boolean)
-
+  
   $bReadOnly = Value
   $hTimerCursor.Enabled = Not Value
   $hView.Mouse = If($bReadOnly, Mouse.Default, Mouse.Text)
-
+  
 End
 
 Private Function Highlight_Read() As String
-
+  
   Return $hDoc.Highlight
-
+  
 End
 
 Private Sub Highlight_Write(Value As String)
-
+  
   $hDoc.Highlight = Value
   If $bShowPreview Then $hSideBarViewer.Highlight = Value
-
+  
 End
 
 Private Function LineNumberOffset_Read() As Integer
-
+  
   Return $iLineNumberOffset
-
+  
 End
 
 Private Sub LineNumberOffset_Write(Value As Integer)
-
+  
   $iLineNumberOffset = Value
   UpdateMargin
   Refresh
-
+  
 End
 
 Private Function TabSize_Read() As Integer
-
+  
   Return $iTabSize
-
+  
 End
 
 Private Sub TabSize_Write(Value As Integer)
-
-  $iTabSize = Max(2, Value)
+  
+  $iTabSize = Max(1, Value)
   CalcSizes
-
+  
 End
 
 Private Sub GetSelection(ByRef X1 As Integer, ByRef Y1 As Integer, ByRef X2 As Integer, ByRef Y2 As Integer)
-
+  
   X1 = $X
   Y1 = $Y
   X2 = $SX
   Y2 = $SY
-
+  
   If Y1 > Y2 Then
     Swap X1, X2
     Swap Y1, Y2
   Endif
-
+  
   If X1 > X2 Then
     Swap X1, X2
   Endif
-
+  
 End
 
-Private Sub DoIndent(bBack As Boolean)
+Private Sub GetTab(Optional X As Integer) As String
+  
+  If $bTabIndent Then 
+    Return "\t"
+  Else
+    Return Space$($iTabSize - X Mod $iTabSize)
+  Endif
+  
+End
 
+
+
+Private Sub DoIndent(bBack As Boolean)
+  
   Dim X1, Y1, X2, Y2 As Integer
   Dim Y As Integer
   Dim iInd As Integer
   Dim sTab As String
   Dim I As Integer
-
+  
   If Not HasSelection() Then
-
+    
     If Not bBack Then
-      Insert(Space$($iTabSize - $X Mod $iTabSize))
+      Insert(GetTab($X))
       Return
     Endif
-
+    
     Goto(0, $Y)
     Goto(-1, $Y, True)
-
+    
   Endif
-
+  
   GetSelection(ByRef X1, ByRef Y1, ByRef X2, ByRef Y2)
   If X2 = 0 Then Dec Y2
-
+  
   iInd = 1024
   For Y = Y1 To Y2
-    I = GetIndent(Y, True)
+    I = GetLineIndent(Y, True)
     If I >= 0 Then iInd = Min(iInd, I)
     If iInd = 0 Then Break
   Next
-
+  
   If bBack And iInd = 0 Then Return
-
+  
   $hDoc.Begin
-
+  
   If Not bBack Then
-
-    sTab = Space$($iTabSize - (iInd Mod $iTabSize))
-
+    
+    sTab = GetTab(iInd)
+    
     For Y = Y1 To Y2
       Goto(0, Y)
       Insert(sTab)
     Next
-
+    
   Else
-
-    sTab = Space$(Min(iInd, $iTabSize))
-
+    
+    If $bTabIndent Then
+      sTab = "\t"
+    Else
+      sTab = Space$(Min(iInd, $iTabSize))
+    Endif
+    
     For Y = Y1 To Y2
       If $hDoc.Lines[Y] Begins sTab Then Remove(0, Y, Len(sTab), Y)
     Next
-
+    
   Endif
-
+  
   Goto(0, Y1)
   Goto(0, Y2 + 1, True)
-
+  
   $hDoc.End
-
+  
 End
 
 Public Sub Begin()
-
+  
   $hDoc.Begin
-
+  
 End
 
 Public Sub End()
-
+  
   $hDoc.End
-
+  
 End
 
 Private Function Length_Read() As Integer
-
+  
   Return $hDoc.Length
-
+  
 End
 
 Private Function Border_Read() As Boolean
-
+  
   Return $hPanel.Border <> Border.None
-
+  
 End
 
 Private Sub Border_Write(Value As Boolean)
-
+  
   $hPanel.Border = If(Value, Border.Plain, Border.None)
-
+  
 End
 
 Private Function ScrollBar_Read() As Integer
-
+  
   Return $iScrollBar '$hView.ScrollBar
-
+  
 End
 
 Private Sub ScrollBar_Write(Value As Integer)
-
+  
   $iScrollBar = Value
   Select Case $iScrollBar
-
+      
     Case Scroll.None, Scroll.Horizontal
       $hView.ScrollBar = $iScrollBar
       If $bShowPreview Then $hSideBar.Hide
@@ -2482,38 +2793,38 @@ Private Sub ScrollBar_Write(Value As Integer)
       Else
         $hView.ScrollBar = $iScrollBar
       Endif
-
+      
   End Select
-
+  
 End
 
 Public Sub _ClearCachePos(Optional Y As Integer = -1)
-
+  
   If Y >= 0 Then
     Try $cCachePos.Remove(Y)
   Else
     $cCachePos.Clear
   Endif
-
+  
 End
 
 Public Sub _ResizeContents()
-
+  
   If $bNoResizeContents Then Return
-
+  
   If $iWidth < $hView.ScrollWidth Then
     _UpdateAllHeight
   Else If $iWidth > $hView.ScrollWidth And If $cLineLayout And If $cLineLayout.Count Then
     _UpdateAllHeight
   Endif
-
+  
   ClearCacheLine
   $hView.ResizeContents($iWidth, $hRows._GetHeight())
-
+  
 End
 
 Public Sub View_Draw()
-
+  
   Dim I As Integer
   Dim XO, YO, XX, YY, X, Y, H As Integer
   Dim iRow, iRow2 As Integer
@@ -2524,71 +2835,77 @@ Public Sub View_Draw()
   Dim W, NL As Integer
   'Dim hImage As Image
   Dim hPict As Picture
-
+  Dim iCount As Integer
+  
   If Not $bUpdateHeightAllowed Then
     $bUpdateHeightAllowed = True
     _UpdateAllHeight(True)
   Endif
-
+  
   If $bStyleChanged Then
     $iBackground = $hStyles[Highlight.Background].Color
     $iForeground = $hStyles[Highlight.Normal].Color
     $iSelectedBackground = $hStyles[Highlight.Selection].Color
     $iLimitColor = Color.Gradient($iBackground, $hStyles[Highlight.Comment].Color)
-    $iIndentColor = Color.Gradient($iBackground, $iForeground)
+    $iIndentColor = Color.SetAlpha($iLimitColor, 160)
+    $iMatchColor = $hStyles[Highlight.Highlight].Color
+    '$iIndentColor = Color.Gradient($iBackground, $iForeground)
     $iMarginColor = Color.Merge($iLimitColor, $iBackground, 0.8)
     $bStyleChanged = False
   Endif
-
+  
   'Debug Me.Font.ToString();; Draw.Font.ToString()
-
+  
+  iCount = $hDoc.Count
   NL = $hView.ClientH \ $hRows.H + 1
-
+  
   hClip = Paint.ClipRect
-  If $hDoc.Count < NL Then Paint.FillRect(hClip.X, hClip.Y, hClip.W, hClip.H, $iBackground)
-
+  If iCount < NL Then Paint.FillRect(hClip.X, hClip.Y, hClip.W, hClip.H, $iBackground)
+  
   iRow = $hRows._FindRowFromPos($hView.ScrollY + hClip.Y)
   If iRow < 0 Then Return
   iRow2 = $hRows._FindRowFromPos($hView.ScrollY + hClip.Y + hClip.H - 1)
   If iRow2 < 0 Then iRow2 = $hRows.Count - 1
-
+  
   XO = - $hView.ScrollX
   XX = XO
   YO = - $hView.ScrollY
   YY = YO + $hRows._GetRowY(iRow)
-
+  
   hClip = Paint.ClipRect
-
+  
   Y = YY
   If System.RightToLeft Then
     X = $hView.ClientW
   Else
     X = 0
   Endif
-
+  
   ' Cells
-
+  
   hRect = New Rect($hView.ClientX - $hView.Proxy.X, $hView.ClientY, $hView.ClientW, $hView.ClientH)
   hClip = hClip.Intersection(hRect)
   If Not hClip Then Return
-
+  
   iRow = _RealToView(iRow)
   iRow2 = _RealToView(iRow2)
-
+  
   iMaxRow = iRow2 - iRow
   aRow = New Integer[iMaxRow + 1]
   For I = 0 To iMaxRow
     aRow[I] = _ViewToReal(iRow + I)
   Next
-
+  
   Y = YY
   For I = 0 To iMaxRow
     iRow = aRow[I]
+    If iRow >= iCount Then Break
+    
     H = $hRows._GetRowHeight(iRow)
-
+  
     If H >= $hView.ClientH Or If $bRemoteDisplay Then
       Paint.Save
-      DrawLine(XX, Y, $iWidth, H, iRow, Y)
+      DrawLine(XX, Y, $iWidth, H, iRow) ',Y)
       Paint.Restore
     Else
       hPict = $cCacheLine[iRow]
@@ -2597,12 +2914,12 @@ Public Sub View_Draw()
         hPict.Fill($iBackground)
         Paint.Begin(hPict)
         Paint.Font = $hFont
-        DrawLine(0, 0, $iWidth, H, iRow, Y)
+        DrawLine(0, 0, $iWidth, H, iRow) ', Y)
         Paint.End
         $cCacheLine[iRow] = hPict
         $iCacheLineH += H
         Paint.DrawPicture(hPict, XX, Y)
-
+        
         While $iCacheLineH > $hView.ClientH
           For Each hPict In $cCacheLine
             $iCacheLineH -= hPict.H
@@ -2610,179 +2927,184 @@ Public Sub View_Draw()
             Break
           Next
         Wend
-
+        
       Else
         Paint.DrawPicture(hPict, XX, Y)
       Endif
     Endif
     Y += H
   Next
-
+  
   W = $MW
-  If $bShowModified Then W -= 4
+  If $bShowModified Then W -= $iWidthModified
   If W > 0 Then Paint.FillRect(XX + $hView.ScrollX, hClip.Y, W, hClip.H, $iMarginColor)
-
+  
   If $MW Then
-
+    
     Paint.Font = $hFontNumber
-
+    
     Y = YY
     For I = 0 To iMaxRow
+      iRow = aRow[I]
+      If iRow >= iCount Then Break
       Paint.Save
-      H = $hRows._GetRowHeight(aRow[I])
-      DrawMargin(XX, Y, $iWidth, H, aRow[I])
+      H = $hRows._GetRowHeight(iRow)
+      DrawMargin(XX, Y, $iWidth, H, iRow)
       Paint.Restore
       Y += H
     Next
-
+    
   Endif
-
+  
   $hTimerCacheLine.Stop
   $hTimerCacheLine.Start
-
+  
   'PrintCache
-
+  
 End
 
 Public Sub View_Resize()
-
+  
   UpdateWidth
-
+  
 End
 
 Private Function ShowLimit_Read() As Boolean
-
+  
   Return $bShowLimit
-
+  
 End
 
 Private Sub ShowLimit_Write(Value As Boolean)
-
+  
   $bShowLimit = Value
   Refresh
-
+  
 End
 
 Private Function ShowCurrent_Read() As Boolean
-
+  
   Return $bShowCurrent
-
+  
 End
 
 Private Sub ShowCurrent_Write(Value As Boolean)
-
+  
   $bShowCurrent = Value
   Refresh
-
+  
 End
 
 Private Function ShowLineNumber_Read() As Boolean
-
+  
   Return $bShowLineNumber
-
+  
 End
 
 Private Sub ShowLineNumber_Write(Value As Boolean)
-
+  
   $bShowLineNumber = Value
   UpdateMargin
   Refresh
-
+  
 End
 
 Private Function ShowModified_Read() As Boolean
-
+  
   Return $bShowModified
-
+  
 End
 
 Private Sub ShowModified_Write(Value As Boolean)
-
+  
   $bShowModified = Value
   Refresh
-
+  
 End
 
 Public Sub _get(({Line}) As Integer) As _TextEditor_Line
-
+  
   Dim hLine As _TextEditor_Line
-
+  
   hLine = New _TextEditor_Line
   Object.Attach(hLine, Me, "Line")
   hLine._Line = {Line}
   Return hLine
-
+  
 End
 
 Private Function Count_Read() As Integer
-
-  Return $hDoc.Count
-
+  
+  Try Return $hDoc.Count
+  
 End
 
 Public Sub View_Scroll()
-
+  
   If $hView.ScrollX <> $iLastScrollX Then
     ClearCacheLine
     $iLastScrollX = $hView.ScrollX
   Endif
   If $bShowPreview Then $hSideBar.Refresh
   Raise Scroll
-
+  
 End
 
 Public Sub _RaiseChange()
-
+  
   If $hTimerChange Then Return
   $hTimerChange = New Timer As "TimerChange"
-  If $bShowPreview Then $hTimerSideBarRefresh.Start
+  RefreshSideBar
   $hTimerChange.Trigger
-
+  
 End
 
 Public Sub TimerChange_Timer()
-
+  
   If Not $hTimerChange Then Return
   $hTimerChange = Null
   Raise Change
-
+  
 End
 
 Private Function ShowPosition_Read() As Boolean
-
+  
   Return $bShowPosition
-
+  
 End
 
 Private Sub UpdatePosition()
-
+  
   Dim sText As String
-
+  
   If $hLabel And If $hLabel.Visible Then
-
+    
     If $bOverwrite Then sText &= "  Overwrite"
     sText &= "  " & CStr($X + 1) & " : " & CStr($Y + 1)
     $hLabel.Text = "  " & Trim(sText) & "  "
     $hLabelFrame.Move($hView.ClientW - $hLabel.W, $hView.ClientH - $hLabel.H, $hLabel.W, $hLabel.H)
     $hLabel.Move(0, 0)
-
+    
   Endif
-
+  
 End
 
 Private Sub ShowPosition_Write(Value As Boolean)
-
+  
+  Dim hSave As Container
+  
   $bShowPosition = Value
   If $bShowPosition Then
     If Not $hLabel Then
-      $hLabelFrame = New Panel(Me)
+      hSave = $hView._Container
+      $hView._Container = Null
+      $hLabelFrame = New Panel($hView)
+      $hView._Container = hSave
       $hLabelFrame.Background = Color.SetAlpha($hStyles[Highlight.Background].Color, 64)
       $hLabelFrame.Ignore = True
       $hLabel = New Label($hLabelFrame) ' TODO: NULL + gb.gtk => crash!
       $hLabel.AutoResize = True
-      '$hLabel.Padding = 0
-      $hLabel.Font = Me.Parent.Font
-      '$hLabel.Font.Bold = True
+      $hLabel.Font = Font[Me.Parent.Font.ToString()] ' TODO: Setting font directly sets nothing
       $hLabel.Foreground = $hStyles[Highlight.Normal].Color
       $hLabel.Show
     Endif
@@ -2794,186 +3116,186 @@ Private Sub ShowPosition_Write(Value As Boolean)
       $hLabelFrame = Null
     Endif
   Endif
-
+  
 End
 
 Public Sub View_Arrange()
-
+  
   UpdatePosition
   If $cLineLayout Then UpdateWidth
-
+  
 End
 
 Private Function Overwrite_Read() As Boolean
-
+  
   Return $bOverwrite
-
+  
 End
 
 Private Sub Overwrite_Write(Value As Boolean)
-
+  
   $bOverwrite = Value
   UpdatePosition
   _RefreshLine($Y)
-
+  
 End
 
 Private Function ShowIcon_Read() As Boolean
-
+  
   Return $bShowIcon
-
+  
 End
 
 Private Sub ShowIcon_Write(Value As Boolean)
-
+  
   $bShowIcon = Value
   UpdateMargin
   Refresh
-
+  
 End
 
 Private Function LineHeight_Read() As Integer
-
+  
   Return $LH
-
+  
 End
 
 Private Function Font_Read() As Font
-
+  
   Return $hView.Font
-
+  
 End
 
 Private Sub Font_Write(Value As Font)
-
+  
   $hView.Font = Value
-
+  
 End
 
 Private Function Current_Read() As _TextEditor_Line
-
+  
   Return _get($Y)
-
+  
 End
 
 Private Function StopLine_Read() As Integer
-
+  
   Return $iStopLine
-
+  
 End
 
 Private Sub StopLine_Write(Value As Integer)
-
+  
   $iStopLine = Value
   Refresh
-
+  
 End
 
 Private Function EndOfLine_Read() As Integer
-
+  
   Return $hDoc.EndOfLine
-
+  
 End
 
 Private Sub EndOfLine_Write(Value As Integer)
-
+  
   $hDoc.EndOfLine = Value
-
+  
 End
 
 Private Function Breakpoints_Read() As Integer[]
-
+  
   Return $hDoc.Breakpoints
-
+  
 End
 
 Private Sub Breakpoints_Write(Value As Integer[])
-
+  
   $hDoc.Breakpoints = Value
-
+  
 End
 
 Private Function Bookmarks_Read() As Integer[]
-
+  
   Return $hDoc.Bookmarks
-
+  
 End
 
 Private Sub Bookmarks_Write(Value As Integer[])
-
+  
   $hDoc.Bookmarks = Value
-
+  
 End
 
 Public Sub Select(Column As Integer, ({Line}) As Integer, Column2 As Integer, Line2 As Integer)
-
+  
   Goto(Column, {Line})
   Goto(Column2, {Line2}, True)
-
+  
 End
 
 Private Function ShowBraces_Read() As Boolean
-
+  
   Return $bShowBraces
-
+  
 End
 
 Private Sub ShowBraces_Write(Value As Boolean)
-
+  
   $bShowBraces = Value
   CheckMatch
   Refresh
-
+  
 End
 
 Private Function Styles_Read() As _TextEditor_Styles
-
+  
   Return $hStyles
-
+  
 End
 
 Public Sub FindPreviousLimit(Y As Integer) As Integer
-
+  
   Do
     Dec Y
     If Y < 0 Then Return -1
     If $hDoc.Info(Y).Limit Then Return Y
   Loop
-
+  
 End
 
 Public Sub FindNextLimit(Y As Integer) As Integer
-
+  
   Do
     Inc Y
     If Y > $hDoc.Max Then Return -1
     If $hDoc.Info(Y).Limit Then Return Y
   Loop
-
+  
 End
 
 Private Function View_Read() As TextEditor
-
+  
   Return Object.Parent($hDoc)
-
+  
 End
 
 Private Sub View_Write(Value As TextEditor)
-
+  
   Me.View._RemoveView(Me)
   Value._AddView(Me)
   GotoCenter(Value.Column, Value.Line)
-
+  
 End
 
 Public Sub _GetDocument() As CDocument
-
+  
   Return $hDoc
-
+  
 End
 
 Public Sub _SetDocument(hDoc As CDocument)
-
+  
   If hDoc Then
     If hDoc = $hDoc Then Return
     $hDoc = hDoc
@@ -2982,210 +3304,215 @@ Public Sub _SetDocument(hDoc As CDocument)
     Object.Attach($hDoc, Me, "Document")
   Endif
   Init
-
+  
 End
 
 Public Sub _AddView(hOther As TextEditor)
-
+  
   If hOther = Me Then Return
-
+  
   If Not _Views Then _Views = New TextEditor[]
   _Views.Add(hOther)
-
+  
   hOther._SetDocument($hDoc)
-
+  
 End
 
 Public Sub _RemoveView(hOther As TextEditor)
-
+  
   If Not _Views Then Return
   Try _Views.Remove(_Views.FindByRef(hOther))
   If _Views.Count = 0 Then _Views = Null
-
+  
 End
 
 Public Sub View_GotFocus()
-
+  
   $hTimerCursor.Start
-
+  
   If Not $bFirstFocus Then
     $bFirstFocus = True
     EnsureVisible(True)
   Endif
-
+  
   If Object.Parent($hDoc) <> Me Then
-
+    
     _Views = Me.View._Views
     _RemoveView(Me)
     _AddView(Me.View)
     Me.View._Views = Null
     Object.Attach($hDoc, Me, "Document")
-
+    
   Endif
-
+  
 End
 
 Public Sub View_LostFocus()
-
+  
   $hTimerCursor.Stop
   $hDoc.HighlightFrom($Y)
   $hTimerCacheLine.Trigger
-
+  
 End
 
 Public Sub _GetViews() As TextEditor[]
-
+  
   Dim aView As New TextEditor[]
-
-  aView.Add(Me)
-  If _Views Then aView.Insert(_Views)
+  Dim hView As TextEditor
+  
+  If Object.IsValid(Me) Then aView.Add(Me)
+  
+  If _Views Then
+    For Each hView In _Views
+      If Object.IsValid(hView) Then aView.Add(hView)
+    Next
+  Endif
+  
   Return aView
-
+  
 End
 
 Public Sub ToPosX(Optional Column As Integer = $X, ({Line}) As Integer = $Y) As Integer
-
+  
   Return LinePos({Line}, Column).X - $hView.ScrollX + $MW
-
+  
 End
 
 Public Sub ToPosY(Optional ({Line}) As Integer = $Y) As Integer
-
+  
   Return $hRows._GetRowY({Line}) - $hView.ScrollY
-
+  
 End
 
 Public Sub ToPos(Optional ({Line}) As Integer, Column As Integer) As Point
-
+  
   Dim hPoint As Point
-
+  
   If IsMissing({Line}) Then
     {Line} = $Y
     If IsMissing(Column) Then Column = $X
   Endif
-
+  
   hPoint = LinePos({Line}, Column).Copy()
   hPoint.X += $MW - $hView.ScrollX
   hPoint.Y += $hRows._GetRowY({Line}) - $hView.ScrollY
   Return hPoint
-
+  
 End
 
 Public Sub CursorAt(Optional ({Line}) As Integer, Column As Integer) As Point
-
+  
   If IsMissing({Line}) Then
     {Line} = $Y
     If IsMissing(Column) Then Column = $X
   Endif
-
+  
   Return ToPos({Line}, Column)
-
+  
 End
 
 Public Sub ToColumn(X As Integer, Y As Integer) As Integer
-
+  
   Dim L As Integer
   Dim RY As Integer
-
+  
   L = PosToLine(Y)
   RY = $hRows.RelativeY
-
+  
   If L < 0 Then Return L
   Return PosToColumn(L, X, RY)
-
+  
 End
 
 Public Sub ToLine(Y As Integer) As Integer
-
+  
   Return PosToLine(Y)
-
+  
 End
 
 Private Sub GotoXY(X As Integer, Y As Integer, bMark As Boolean) As Boolean
-
+  
   Dim L As Integer
   Dim RY As Integer
   Dim X0 As Integer
-
+  
   L = PosToLine(Y)
   If L < 0 Then Return True
-
+  
   RY = $hRows.RelativeY
   X0 = $X0
   Goto(PosToColumn(L, X, RY), L, bMark)
   $X0 = X0
-
+  
 End
 
 Public Sub Indent()
-
+  
   DoIndent(False)
-
+  
 End
 
 Public Sub Unindent()
-
+  
   DoIndent(True)
-
+  
 End
 
 Private Function Keywords_Read() As String[]
-
+  
   Return $hDoc.Keywords
-
+  
 End
 
 Public Sub Undo()
-
+  
   $hDoc.Undo
-
+  
 End
 
 Public Sub Redo()
-
+  
   $hDoc.Redo
-
+  
 End
 
 Public Sub UpperCase()
-
+  
   Dim X As Integer
   Dim Y As Integer
-
+  
   If Not HasSelection() Then Return
-
+  
   X = $SX
   Y = $SY
   Insert(String.UCase($hDoc.GetText($X, $Y, $SX, $SY)))
   Goto($SX, $SY)
   Goto(X, Y, True)
-
+  
 End
 
 Public Sub LowerCase()
-
+  
   Dim X As Integer
   Dim Y As Integer
-
+  
   If Not HasSelection() Then Return
-
+  
   X = $SX
   Y = $SY
   Insert(String.LCase($hDoc.GetText($X, $Y, $SX, $SY)))
   Goto($SX, $SY)
   Goto(X, Y, True)
-
+  
 End
 
 Private Sub PrintNewLine()
-
-  Dim X As Integer
-
-  X = $X
+  
+  'Dim X As Integer = $X
   Goto(-1, $Y)
   Insert("\n")
-  If $bTerminal Then Goto(X, $Y)
-
+  'If $bTerminal Then Goto(X, $Y)
+  
 End
 
 ' static void print_text(void *_object, const char *str, int lstr, bool esc = false)
@@ -3437,16 +3764,16 @@ End
 '
 
 Private Sub PrintAnsi(Text As String, I As Integer) As Integer
-
+  
   Dim C As String
   Dim N As Integer
   Dim aParam As New Integer[]
   Dim bDigit As Boolean
-
+  
   C = Mid$(Text, I, 1)
-
+  
   If C = "[" Then ' [
-
+    
     N = 1
     Inc I
     While I <= Len(Text)
@@ -3465,42 +3792,42 @@ Private Sub PrintAnsi(Text As String, I As Integer) As Integer
       Endif
       Inc I
     Wend
-
+    
     If I > Len(Text) Then
       $sPrintBuffer = Chr$(27) & Mid$(Text, I, N)
       Return N
     Endif
-
+    
     Select Case C
-
+        
       Case "A"
         If aParam.Count Then
           RelGoto(0, - aParam[0])
         Else
           RelGoto(0, -1)
         Endif
-
+        
       Case "B"
         If aParam.Count Then
           RelGoto(0, aParam[0])
         Else
           RelGoto(0, 1)
         Endif
-
+        
       Case "C"
         If aParam.Count Then
           RelGoto(aParam[0], 0)
         Else
           RelGoto(1, 0)
         Endif
-
+        
       Case "D"
         If aParam.Count Then
           RelGoto(- aParam[0], 0)
         Else
           RelGoto(-1, 0)
         Endif
-
+        
       Case "K"
         aParam.Resize(1)
         Select Case aParam[0]
@@ -3511,41 +3838,41 @@ Private Sub PrintAnsi(Text As String, I As Integer) As Integer
           Case 2
             ClearLine(True, True)
         End Select
-
+        
     End Select
-
+    
   Endif
-
+  
   Return N
-
+  
 End
 
 Public Sub Print(Text As String)
-
+  
   Dim I, J, C As Integer
   Dim bSaveOverwrite As Boolean
-
+  
   $hDoc.DisableUndo
   bSaveOverwrite = $bOverwrite
   $bOverwrite = True
   $bPrint = True
-
+  
   If $sPrintBuffer Then
     Text = $sPrintBuffer & Text
     $sPrintBuffer = ""
   Endif
-
+  
   J = 1
   For I = 1 To Len(Text)
-
+    
     C = Asc(Text, I)
-
+    
     If C < 32 Then
-
+      
       If I > J Then Insert(Mid$(Text, J, I - J))
-
+      
       J = I + 1
-
+      
       If C = 9 Then
         Insert("\t")
       Else If C = 13 Then
@@ -3564,17 +3891,17 @@ Public Sub Print(Text As String)
       Else
         Insert("^" & Chr$(64 + C))
       Endif
-
+      
     Endif
-
+    
   Next
-
+  
   If I > J Then Insert(Mid$(Text, J, I - J))
-
+  
   $bOverwrite = bSaveOverwrite
   $bPrint = False
   $hDoc.EnableUndo
-
+  
 End
 
 '       else if (c == 27)
@@ -3602,72 +3929,80 @@ End
 '
 
 Public Sub FindNextString(Search As String, Start As Integer) As Integer
-
-  Do
-    If Start >= $hDoc.Count Then Return -1
-    If String.InStr($hDoc.Lines[Start], Search, 1, gb.IgnoreCase) Then Return Start
-    Inc Start
-  Loop
-
+  
+  If IsAscii(Search) Then
+    Do
+      If Start >= $hDoc.Count Then Return -1
+      If InStr($hDoc.Lines[Start], Search, 1, gb.IgnoreCase) Then Return Start
+      Inc Start
+    Loop
+  Else
+    Do
+      If Start >= $hDoc.Count Then Return -1
+      If String.InStr($hDoc.Lines[Start], Search, 1, gb.IgnoreCase) Then Return Start
+      Inc Start
+    Loop
+  Endif
+  
 End
 
 Private Function ScrollX_Read() As Integer
-
+  
   Return $hView.ScrollX
-
+  
 End
 
 Private Sub ScrollX_Write(Value As Integer)
-
+  
   $hView.ScrollX = Value
-
+  
 End
 
 Private Function ScrollY_Read() As Integer
-
+  
   Return $hView.ScrollY
-
+  
 End
 
 Private Sub ScrollY_Write(Value As Integer)
-
+  
   $hView.ScrollY = Value
-
+  
 End
 
 Private Function ScrollWidth_Read() As Integer
-
+  
   Return $hView.ScrollWidth
-
+  
 End
 
 Private Function ScrollHeight_Read() As Integer
-
+  
   Return $hView.ScrollHeight
-
+  
 End
 
 Public Sub Scroll(X As Integer, Y As Integer)
-
+  
   $hView.Scroll(X, Y)
-
+  
 End
 
 Private Function ShowCursor_Read() As Boolean
-
+  
   Return Not $bHideCursor
-
+  
 End
 
 Private Sub ShowCursor_Write(Value As Boolean)
-
+  
   $bHideCursor = Not Value
   Refresh
-
+  
 End
 
 Public Sub Cut()
-
+  
   If Not HasSelection() Then
     Goto(0, $Y)
     If $Y < $hDoc.Max Then
@@ -3678,46 +4013,46 @@ Public Sub Cut()
   Endif
   Copy()
   DeleteSelection()
-
+  
 End
 
 Public Sub Refresh()
-
+  
   ClearCacheLine
   $hView.Refresh
-  If $bShowPreview Then $hTimerSideBarRefresh.Start
-
+  RefreshSideBar
+  
 End
 
 Public Sub Reset()
-
+  
   $hTimerChange = Null
   $hDoc.Reset
-
+  
 End
 
 Public Sub _RaiseHighlight(sText As String)
-
+  
   Raise Highlight(sText)
-
+  
 End
 
 Public Sub _ViewToReal(Y As Integer) As Integer
-
+  
   Dim I As Integer
   Dim M As Integer
   Dim J As Integer
   Dim YO As Integer
-
+  
   YO = Y
-
+  
   If $aFold Then
-
+    
     Try Y = $cCacheView[Y]
     If Error Then
-
+      
       M = $hDoc.Max
-
+      
       For I = 0 To $aFold.Max Step 2
         If Y <= $aFold[I] Then Break
         J = I + 1
@@ -3727,33 +4062,33 @@ Public Sub _ViewToReal(Y As Integer) As Integer
           Y = M + 1
         Endif
       Next
-
+      
       $cCacheView[YO] = Y
-
+      
     Endif
-
+    
   Endif
-
+  
   Return Y
-
+  
 End
 
 Public Sub _RealToView(Y As Integer) As Integer
-
+  
   Dim I As Integer
   Dim YY As Integer
   Dim J As Integer
   Dim YO As Integer
-
+  
   YO = Y
-
+  
   If $aFold Then
-
+    
     Try Y = $cCacheView[- Y]
     If Error Then
-
+      
       YY = Y
-
+      
       For I = 0 To $aFold.Max Step 2
         If Y < $aFold[I] Then Continue
         J = I + 1
@@ -3763,16 +4098,16 @@ Public Sub _RealToView(Y As Integer) As Integer
           YY -= $aFold[J] - $aFold[I]
         Endif
       Next
-
+      
       Y = YY
       $cCacheView[- YO] = Y
-
+      
     Endif
-
+    
   Endif
-
+  
   Return Y
-
+  
 End
 
 ' int GEditor::realToView(int row) const
@@ -3803,28 +4138,29 @@ End
 '
 
 Private Sub UpdateCount()
-
+  
   Dim Y As Integer
   'Dim X As Integer
-
+  
   _ClearCachePos
   $hRows.Count = _RealToView($hDoc.Max) + 1
-
+  
   Y = _ViewToReal(_RealToView($Y))
   'X = NormalizeColumn($X, Y)
   Goto($X, Y)
-
+  
   $hView.Refresh
-
+  RefreshSideBar
+  
 End
 
 Public Sub _CheckRowWithFolding(Y As Integer) As Integer
-
+  
   Dim NY As Integer
   Dim I As Integer
-
+  
   If Not $aFold Then Return Y
-
+  
   NY = Y
   For I = 0 To $aFold.Max Step 2
     If Y > $aFold[I] And If Y <= $aFold[I + 1] Then
@@ -3832,9 +4168,9 @@ Public Sub _CheckRowWithFolding(Y As Integer) As Integer
       Break
     Endif
   Next
-
+  
   Return NY
-
+  
   ' int GEditor::checkCursor(int y)
   ' {
   '   uint i;
@@ -3855,43 +4191,23 @@ Public Sub _CheckRowWithFolding(Y As Integer) As Integer
   '   return ny;
   ' }
   '
-
+  
 End
 
 Public Sub _CollapseRow(Y As Integer, Optional bNoRefresh As Boolean)
-
+  
   Dim iStart As Integer
   Dim iEnd As Integer
   Dim iPos As Integer
   Dim I As Integer
   Dim NY As Integer
-
+  
   If Not $hDoc.Info(Y).Limit Then
     Y = FindPreviousLimit(Y)
   Endif
-
-  ' void GEditor::foldLine(int row, bool no_refresh)
-  ' {
-  '   uint i;
-  '   int pos;
-  '   int start, end;
-  '   GFoldedProc *fp;
-  '   int ny;
-  '
-  '   if (getFlag(NoFolding))
-  '     return;
-  '
-  '   if (!doc->hasLimit(row))
-  '     row = doc->getPreviousLimit(row);
-  '
+  
   If Y < 0 Or If Y >= $hDoc.Count Then Return
-
-  '   if (row < 0 || row >= numLines())
-  '     return;
-  '
-  '   //fprintf(stderr, "foldLine %d\n", row);
-  '
-
+  
   iStart = Y
   iEnd = FindNextLimit(iStart)
   If iEnd < 0 Then
@@ -3899,47 +4215,18 @@ Public Sub _CollapseRow(Y As Integer, Optional bNoRefresh As Boolean)
   Else
     Dec iEnd
   Endif
-
-  '   start = row;
-  '   end = doc->getNextLimit(row);
-  '   if (end < 0)
-  '     end = numLines() - 1;
-  '   else
-  '     end--;
-  '   /*else
-  '   {
-  '     while (end > start)
-  '     {
-  '       end--;
-  '       l = doc->lines.at(end);
-  '       //qDebug("[%d] state = %d %d", end, l->highlight ? l->highlight[0].state : -1, l->highlight ? l->highlight[0].len : -1);
-  '       if (!l->highlight || (l->highlight[0].state != GLine::Comment && l->highlight[0].state != GLine::Help))
-  '         break;
-  '     }
-  '   }*/
-  '
+  
   iPos = -1
-
+  
   If Not $aFold Then $aFold = New Integer[]
-
+  
   For I = 0 To $aFold.Max Step 2
     If iEnd >= $aFold[I] And If iStart <= $aFold[I + 1] Then Return
     If iPos < 0 And If iStart < $aFold[I] Then
       iPos = I
     Endif
   Next
-
-  '   pos = -1;
-  '   for (i = 0; i < fold.count(); i++)
-  '   {
-  '     fp = fold.at(i);
-  '     if (end >= fp->start && start <= fp->end)
-  '       return;
-  '     if (pos < 0 && start < fp->start)
-  '       pos = i;
-  '   }
-  '
-
+  
   If iPos < 0 Then
     $aFold.Add(iStart)
     $aFold.Add(iEnd)
@@ -3947,53 +4234,21 @@ Public Sub _CollapseRow(Y As Integer, Optional bNoRefresh As Boolean)
     $aFold.Add(iStart, iPos)
     $aFold.Add(iEnd, iPos + 1)
   Endif
-
-  '   fp = new GFoldedProc;
-  '   fp->start = start;
-  '   fp->end = end;
-  '
-  '   if (pos < 0)
-  '     fold.append(fp);
-  '   else
-  '     fold.insert(pos, fp);
-  '
-  '   //dump_fold(fold);
-  '
-
+  
   NY = _CheckRowWithFolding(Y)
   If NY <> Y Then Goto($X, NY)
-
-  '   ny = checkCursor(y);
-  '   if (ny != y)
-  '     cursorGoto(ny, x, false);
-  '
-
+  
   If Not bNoRefresh Then
     $cCacheView.Clear
     UpdateCount
   Endif
-
-  '   if (!no_refresh)
-  '   {
-  '     setNumRows(numLines());
-  '     //redrawContents();
-  '   }
-  ' }
-
+  
 End
 
 Public Sub _ExpandRow(Y As Integer)
-
-  '
-  ' void GEditor::unfoldLine(int row)
-  ' {
-  '   uint i;
-  '   GFoldedProc *fp;
-  '
-  '   //fprintf(stderr, "unfoldLine %d\n", row);
-  '
+  
   Dim I As Integer
-
+  
   For I = 0 To $aFold.Max Step 2
     If Y >= $aFold[I] And If Y <= $aFold[I + 1] Then
       $aFold.Remove(I, 2)
@@ -4002,53 +4257,36 @@ Public Sub _ExpandRow(Y As Integer)
       Break
     Endif
   Next
-
-  '   for (i = 0; i < fold.count(); i++)
-  '   {
-  '     fp = fold.at(i);
-  '     if (row >= fp->start && row <= fp->end)
-  '     {
-  '       fold.remove(i);
-  '       //dump_fold(fold);
-  '       setNumRows(numLines());
-  '       //redrawContents();
-  '       return;
-  '     }
-  '   }
-  '
-  ' }
-  '
-  '
-
+  
 End
 
 Private Function ShowExpand_Read() As Boolean
-
+  
   Return $bShowExpand
-
+  
 End
 
 Private Sub ShowExpand_Write(Value As Boolean)
-
+  
   If Not Value Then ExpandAll
   $bShowExpand = Value
   UpdateMargin
-
+  
 End
 
 Public Sub _IsRowExpanded(Y As Integer) As Boolean
-
+  
   Dim D As Integer
   Dim F As Integer
   Dim I As Integer
-
+  
   If Not $aFold Then Return True
-
+  
   D = 0
   F = $aFold.Count
-
+  
   While F > D
-
+    
     I = ((F + D) \ 4) * 2
     If $aFold[I] = Y Then Return
     If $aFold[I] < Y Then
@@ -4056,26 +4294,26 @@ Public Sub _IsRowExpanded(Y As Integer) As Boolean
     Else
       F = I
     Endif
-
+    
   Wend
-
+  
   Return True
-
+  
 End
 
 Fast Public Sub _IsRowVisible(Y As Integer) As Boolean
-
+  
   Dim D As Integer
   Dim F As Integer
   Dim I As Integer
-
+  
   If Not $aFold Then Return True
-
+  
   D = 0
   F = $aFold.Count
-
+  
   While F > D
-
+    
     I = ((F + D) \ 4) * 2
     If $aFold[I] = Y Then Return True
     If $aFold[I] < Y Then
@@ -4084,33 +4322,33 @@ Fast Public Sub _IsRowVisible(Y As Integer) As Boolean
     Else
       F = I
     Endif
-
+    
   Wend
-
+  
   Return True
-
+  
 End
 
 Public Sub _GetLastVisibleRow() As Integer
-
+  
   Dim N As Integer
-
+  
   N = $hDoc.Max
   If _IsRowVisible(N) Then Return N
   Return $aFold[$aFold.Max - 1]
-
+  
 End
 
 Private Sub ToggleRow(Y As Integer)
-
+  
   If _IsRowExpanded(Y) Then
     _CollapseRow(Y)
   Else
     _ExpandRow(Y)
   Endif
-
-  If $bShowPreview Then $hTimerSideBarRefresh.Start
-
+  
+  RefreshSideBar
+  
 End
 
 ' bool GEditor::isFolded(int row)
@@ -4140,20 +4378,20 @@ End
 '
 
 Private Sub CheckFolded(Y As Integer) As Integer
-
+  
   Dim I As Integer
-
+  
   If Not $aFold Then Return Y
-
+  
   For I = 0 To $aFold.Max Step 2
     If Y <= $aFold[I + 1] Then
       If Y > $aFold[I] Then Return $aFold[I]
       Break
     Endif
   Next
-
+  
   Return Y
-
+  
 End
 
 ' int GEditor::checkFolded(int row)
@@ -4178,20 +4416,22 @@ End
 '
 
 Public Sub CollapseAll()
-
+  
   Dim Y As Integer
-
+  
   Y = 0
   Do
     _CollapseRow(Y, True)
     Y = FindNextLimit(Y)
     If Y < 0 Then Break
   Loop
-
+  
   $cCacheView.Clear
   UpdateCount
   EnsureVisible(True)
 
+  RefreshSideBar
+  
 End
 
 ' void GEditor::foldAll()
@@ -4216,12 +4456,14 @@ End
 '
 
 Public Sub ExpandAll()
-
+  
   $aFold = Null
   UpdateCount
   $cCacheView.Clear
   EnsureVisible(True)
-
+  
+  RefreshSideBar
+  
 End
 
 ' void GEditor::unfoldAll()
@@ -4235,19 +4477,19 @@ End
 '
 
 Private Sub _ExpandRemove(Y1 As Integer, Y2 As Integer)
-
+  
   Dim N As Integer
   Dim I As Integer
-
+  
   If Not $aFold Then Return
-
+  
   If Y2 <= Y1 Then
     _ExpandRow(Y1)
     Return
   Endif
-
+  
   N = Y2 - Y1
-
+  
   While I < $aFold.Count
     If Y2 < $aFold[I] Then
       $aFold[I] -= N
@@ -4259,9 +4501,9 @@ Private Sub _ExpandRemove(Y1 As Integer, Y2 As Integer)
       $aFold.Remove(I, 2)
     Endif
   Wend
-
+  
   $cCacheView.Clear
-
+  
 End
 
 ' void GEditor::foldRemove(int y1, int y2)
@@ -4301,16 +4543,16 @@ End
 '
 
 Private Sub _ExpandInsert(Y As Integer, N As Integer)
-
+  
   Dim I As Integer
-
+  
   If Not $aFold Then Return
-
+  
   If N = 0 Then
     _ExpandRow(Y)
     Return
   Endif
-
+  
   While I < $aFold.Count
     If $aFold[I] > Y Then
       $aFold[I] += N
@@ -4323,9 +4565,9 @@ Private Sub _ExpandInsert(Y As Integer, N As Integer)
       I += 2
     Endif
   Wend
-
+  
   $cCacheView.Clear
-
+  
 End
 '
 ' void GEditor::foldInsert(int y, int n)
@@ -4361,15 +4603,15 @@ End
 '
 
 Private Sub MoveSelection(bUp As Boolean)
-
+  
   Dim X, Y As Integer
   Dim X1, Y1, X2, Y2 As Integer
   Dim sText As String
   Dim bSelect As Boolean
-
+  
   X = $X
   Y = $Y
-
+  
   If Not HasSelection() Then
     X1 = 0
     Y1 = $Y
@@ -4389,18 +4631,18 @@ Private Sub MoveSelection(bUp As Boolean)
       X2 = 0
     Endif
   Endif
-
+  
   If bUp Then
     If Y1 = 0 Then Return
   Else
     If Y2 = $hDoc.Max Then Return
   Endif
-
+  
   Goto(X1, Y1)
   Goto(X2, Y2, True)
-
+  
   $hDoc.Begin
-
+  
   sText = $hDoc.GetText(X1, Y1, X2, Y2)
   Remove(X1, Y1, X2, Y2)
   If bUp Then
@@ -4412,7 +4654,7 @@ Private Sub MoveSelection(bUp As Boolean)
   Endif
   Goto(X1, Y1)
   Insert(sText)
-
+  
   If bSelect Then
     Goto(X1, Y1)
     Goto(X2, Y2, True)
@@ -4423,39 +4665,39 @@ Private Sub MoveSelection(bUp As Boolean)
       Goto(X, Y + 1)
     Endif
   Endif
-
+  
   $hDoc.HighlightFrom($Y)
-
+  
   $hDoc.End
-
+  
 End
 
-Public Sub _SaveCursor()
-
+Public Sub SaveCursor()
+  
   If $iSaveCursor = 0 Then $aSaveCursor = [$X, $Y, $SX, $SY]
   Inc $iSaveCursor
-
+  
 End
 
-Public Sub _RestoreCursor()
-
+Public Sub RestoreCursor()
+  
   Dim X, Y, SX, SY As Integer
-
+  
   Dec $iSaveCursor
   If $iSaveCursor Then Return
-
+  
   X = $aSaveCursor[0]
   Y = $aSaveCursor[1]
   SX = $aSaveCursor[2]
   SY = $aSaveCursor[3]
-
+  
   Goto(SX, SY)
   If X <> SX Or If Y <> SY Then Goto(X, Y, True)
-
+  
 End
 
 Public Sub _UpdateLineHeight(Y As Integer)
-
+  
   Dim sText As String
   Dim WMax As Integer
   Dim D, F, P As Integer
@@ -4463,26 +4705,26 @@ Public Sub _UpdateLineHeight(Y As Integer)
   Dim W As Integer
   Dim L As Integer
   Dim S As Integer
-
+  
   If Not $cLineLayout Then Return
-
+  
   sText = $hDoc.Lines[Y]
   WMax = $hView.ClientW - $MW - 8
-
+  
   'Print Y;
-
+  
   aLayout = New Integer[]
-
+  
   S = 1
   L = $hDoc.LineLength[Y]
-
+  
   Do
-
+    
     D = S
     F = L + 1
-
+    
     While F > D + 1
-
+      
       P = (D + F) \ 2
       W = TextWidth(sText, S, P - S + 1)
       If W > WMax Then
@@ -4490,11 +4732,11 @@ Public Sub _UpdateLineHeight(Y As Integer)
       Else
         D = P
       Endif
-
+      
     Wend
-
+    
     If D >= L Then Break
-
+    
     If String.Code(sText, D) > 32 Then
       ' For P = D - 1 DownTo S
       '   If InStr(" ,.;:-([])", String.Mid$(sText, P, 1)) Then
@@ -4505,16 +4747,16 @@ Public Sub _UpdateLineHeight(Y As Integer)
       P = String.RInStr(sText, " ", D - 1)
       If P >= S And If Trim(String.Mid(sText, S, P - S + 1)) Then D = P
     Endif
-
+    
     If aLayout.Count = 0 Then WMax -= LineStartPos(Y)
     aLayout.Add(D - S + 1)
     S = D + 1
-
+    
     'sText = String.Mid$(sText, D + 1)
     'If Not sText Then Break
-
+    
   Loop
-
+  
   If aLayout.Count >= 1 Then
     $cLineLayout[Y] = aLayout
     $hRows._SetRowHeight(Y, aLayout.Count + 1)
@@ -4528,22 +4770,22 @@ Public Sub _UpdateLineHeight(Y As Integer)
     $hRows._SetRowHeight(Y, 1)
     'Print
   Endif
-
+  
   If Y = $Y Then $XY = LinePos($Y, $X)
   If Y = $SY Then $SXY = LinePos($Y, $X)
-
+  
   Try $cCachePos.Remove(Y)
-
+  
 End
 
 Public Sub _UpdateAllHeight(Optional bNow As Boolean)
-
+  
   Dim TY As Integer
-
+  
   If Not $bUpdateHeightAllowed Then Return
-
+  
   If Not $cLineLayout Then
-
+    
     TY = $hRows._GetRowY($Y) - $hView.ScrollY
     $hRows.Clear
     _ClearCachePos
@@ -4551,30 +4793,31 @@ Public Sub _UpdateAllHeight(Optional bNow As Boolean)
     $SXY = LinePos($SY, $SX)
     $hView.ScrollY = $hRows._GetRowY($Y) - TY
     Return
-
+    
   Endif
-
+  
   If Not $hTimerHeight Then
     $hTimerHeight = New Timer As "TimerHeight"
     $hTimerHeight.Delay = 50
   Endif
-
+  
   If bNow Then
-    '$hTimerHeight.Trigger
     TimerHeight_Timer
   Else
     $hTimerHeight.Start
   Endif
-
+  
 End
 
 Public Sub TimerHeight_Timer()
-
+  
   Dim Y As Integer
   Dim CY, TY As Integer
-
+  
   'Debug Me.Window.Title;; $iWidth;; $hView.ClientW
-
+  
+  If $hView.Scrolling Then Return
+  
   Y = $hRows._GetRowY($Y)
   If Y < $hView.ScrollY Then
     TY = 0
@@ -4586,9 +4829,9 @@ Public Sub TimerHeight_Timer()
     TY = Y - $hView.ScrollY
     CY = $Y
   Endif
-
+  
   If $hDoc.Count >= 10000 Then Inc Application.Busy
-
+  
   $bNoResizeContents = True
   For Y = 0 To $hDoc.Max
     _UpdateLineHeight(Y)
@@ -4596,32 +4839,32 @@ Public Sub TimerHeight_Timer()
   $bNoResizeContents = False
   _ClearCachePos
   _ResizeContents
-
+  
   $hView.ScrollY = $hRows._GetRowY(CY) - TY
-
+  
   'EnsureVisible
   $hView.Refresh
-
+  
   $XY = LinePos($Y, $X)
   $SXY = LinePos($SY, $SX)
-
+  
   If $hTimerHeight Then
     $hTimerHeight.Stop
     $hTimerHeight = Null
   Endif
-
+  
   If $hDoc.Count >= 10000 Then Dec Application.Busy
-
+  
 End
 
 Private Function Wrap_Read() As Boolean
-
+  
   Return $cLineLayout
-
+  
 End
 
 Private Sub Wrap_Write(Value As Boolean)
-
+  
   If Value Then
     If $cLineLayout Then Return
     $cLineLayout = New Collection
@@ -4629,11 +4872,11 @@ Private Sub Wrap_Write(Value As Boolean)
     If Not $cLineLayout Then Return
     $cLineLayout = Null
   Endif
-
+  
   _UpdateAllHeight(True)
   CalcSizes
   EnsureVisible
-
+  
 End
 
 ' Public Sub Test()
@@ -4653,9 +4896,9 @@ End
 ' End
 
 Public Sub _GetRowHeight(Y As Integer) As Integer
-
+  
   Return $hRows._GetRowHeight(Y)
-
+  
 End
 
 ' Public Sub _Lock()
@@ -4674,7 +4917,8 @@ End
 ' End
 '
 Public Sub Styles_Change()
-
+  
+  If $bStyleChanged Then Return
   $bStyleChanged = True
   ClearCacheText
   If $hLabelFrame Then
@@ -4684,35 +4928,35 @@ Public Sub Styles_Change()
   If $bShowPreview Then
     $hSideBar.Background = $hStyles[Highlight.Background].Color
     SyncSideBarViewerStyles
-    $hTimerSideBarRefresh.Start
+    $hTimerSideBarRefresh.Trigger
   Endif
-
+  
 End
 
 Private Function ShowSpaces_Read() As Boolean
-
+  
   Return $bShowSpaces
-
+  
 End
 
 Private Sub ShowSpaces_Write(Value As Boolean)
-
+  
   $bShowSpaces = Value
   $hView.Refresh
-
+  
 End
 
 Private Function ShowIndent_Read() As Boolean
-
+  
   Return $bShowIndent
-
+  
 End
 
 Private Sub ShowIndent_Write(Value As Boolean)
-
+  
   $bShowIndent = Value
   $hView.Refresh
-
+  
 End
 
 ' void GEditor::clearLine(bool before, bool after)
@@ -4742,209 +4986,174 @@ End
 '
 
 Private Sub ClearLine(bBefore As Boolean, bAfter As Boolean)
-
+  
   Dim OX As Integer
-
+  
   OX = $X
-
+  
   $hDoc.Begin()
-
+  
   If bBefore Then
     $hDoc.Remove(0, $Y, $X + 1, 0)
     $hDoc.Insert(Space$(OX + 1), 0, $Y)
     $X = OX
   Endif
-
+  
   If bAfter Then
     $hDoc.Remove($X, $Y, $hDoc.LineLength[$Y], $Y)
   Endif
-
+  
   $hDoc.End()
-
+  
 End
 
 Private Sub RelGoto(DX As Integer, DY As Integer)
-
+  
   Goto(Max(0, $X + DX), Max(0, $Y + DY))
-
+  
 End
 
 Public Sub TimerCacheLine_Timer()
-
+  
   ClearCacheLine
   $hTimerCacheLine.Stop
-
+  
 End
 
 Private Sub ClearCacheLine()
-
+  
   If $bRemoteDisplay Then Return
   $cCacheLine.Clear
   $iCacheLineH = 0
-
+  
 End
 
 Private Sub ClearCacheText()
-
+  
   If $bRemoteDisplay Then Return
   $cCacheText.Clear
-
+  
 End
 
 Public Sub _HasFolding() As Boolean
-
+  
   If $aFold And If $aFold.Count Then Return True
-
+  
 End
 
-Private Sub DrawBarImage2(fRowHeight As Float)
+Private Sub DrawBarImage3()
 
-  Dim i As Integer
-  Dim iMax As Integer
+  Dim aLines As String[]
+  Dim H, F As Integer
+  Dim I As Integer
+  Dim N As Integer
   Dim iRow As Integer
-  'Dim aRow As Integer[]
-  Dim s As String
-  Dim x, y, j As Integer
-  Dim aDash As Float[][] = [[1, 0.25, 1, 0.5], [2, 0.5, 1, 0.25], [1, 0.3, 2, 0.3]]
+  Dim aLineLength As Integer[]
+  Dim iLen As Integer
+  Dim Y As Integer
+  Dim X As Integer
+  Dim sLine As String
+  Dim sIndent As String
+  Dim aLinesInfo As CLineInfo[]
+  Dim hInfo As CLineInfo
+  Dim iCol As Integer
+  Dim J As Integer
+  Dim FX As Float
+  Dim bModified As Boolean
+  Dim bSaved As Boolean
+  Dim iAlpha As Integer
+  Dim iColComment As Integer
+  Dim iColNormal As Integer
+  Dim iColModified As Integer
+  Dim iColSaved As Integer
 
-  $imgSideBar = New Image(Paint.Width - 1, Paint.Height, $hStyles[Highlight.Background].Color)
-  Paint.Begin($imgSideBar)
-  Paint.Background = Color.Gray
-  Paint.AntiAlias = True
-  iMax = _RealToView($hDoc.Lines.Max)
+  aLines = $hDoc.Lines
+  aLineLength = $hDoc.LineLength
+  aLinesInfo = $hDoc.LinesInfo
+  
+  N = _RealToView(aLines.Max)
 
-  For i = 0 To iMax
-    iRow = _ViewToReal(i)
-    Inc j
-    If j = 3 Then j = 0
+  If N <= Paint.H Then
+    F = 1
+    H = Max(N, CInt(Paint.H / 2))
+  Else
+    F = CInt(N / Paint.H)
+    H = (N + F - 1) \ F
+  Endif
+  
+  FX = (Paint.w - 4) / 100 'Max(4, Min(8, F))
+  
+  iAlpha = 255 - 128 \ F
+  iColComment = Color.SetAlpha($hStyles[Highlight.Comment].Color, iAlpha)
+  iColNormal = Color.SetAlpha($hStyles[Highlight.Normal].Color, iAlpha)
+  iColModified = Color.SetAlpha(Color.Merge($iBackground, Color.Red, 0.4), 128)
+  iColSaved = Color.SetAlpha(Color.Merge($iBackground, Color.Green, 0.4), 128)
+  
+  $hImageSideBar = New Image(Paint.Width - 1, H, $hStyles[Highlight.Background].Color)
+  Paint.Begin($hImageSideBar)
+  
+  For I = 0 To N Step F
+    
+    bModified = False
+    bSaved = False
 
-    Paint.LineWidth = fRowHeight
-    s = $hDoc.Lines[iRow]
-    'Print s
-    y = i * fRowHeight
-    If Not LTrim(s) = "" Then
-      Paint.Dash = aDash[j]
-      x = 6 + ((String.Len(s) - String.Len(LTrim(s)))) * 60 / 100
-
-      Paint.MoveTo(x, y)
-      Paint.RelLineTo(Len(s) * 60 / 100, 0)
-      If Not IsNull($hDoc.LinesInfo[iRow]) And If $hDoc.LinesInfo[iRow].Comment Then
-        Paint.Background = Color.SetAlpha($hStyles[Highlight.Comment].Color, 180) 'Color.Lighter($hStyles[Highlight.Comment].Color)
-      Else
-        Paint.Background = Color.SetAlpha($hStyles[Highlight.Normal].Color, 180) 'Color.Lighter($hStyles[Highlight.Normal].Color)
+    Paint.FillRect(0, Y, 4, 1, $iMarginColor)
+    
+    For J = I To Min(N, I + F - 1)
+    
+      iRow = _ViewToReal(J)
+      sLine = RTrim(aLines[iRow])
+      iLen = Min(String.Len(sLine), 100)
+      
+      If sLine Then 
+        
+        sLine = RTrim(aLines[iRow])
+        hInfo = aLinesInfo[iRow]
+        
+        X = 0
+        
+        If IsSpace(Left(sLine)) Then
+          sIndent = GetLineIndentText(iRow)
+          sIndent = Replace(sIndent, "\t", Space$($iTabSize))
+          X = Len(sIndent)
+        Endif
+        
+        If hInfo And If hInfo.Comment Then
+          iCol = iColComment
+        Else
+          iCol = iColNormal
+        Endif
+        
+        Paint.FillRect(X * FX + 5, Y, (iLen - X) * FX, 1, iCol)
+        
       Endif
-      Paint.Stroke
-    Endif
-    Paint.Dash = Null
-
-    If Not IsNull($hDoc.LinesInfo[iRow]) Then
-      Paint.AntiAlias = False
-      If $hDoc.LinesInfo[iRow].Modified Then
-        Paint.Background = Color.Merge($iBackground, Color.Red, 0.2)
-        Paint.Rectangle(0, y, 3, fRowHeight + 1)
-        Paint.Fill
-      Endif
-      If $hDoc.LinesInfo[iRow].Saved Then
-        Paint.Background = Color.Merge($iBackground, Color.Green, 0.2)
-        Paint.Rectangle(0, y, 3, fRowHeight + 1)
-        Paint.Fill
-      Endif
-      If $hDoc.LinesInfo[iRow].Bookmark Then
-        Paint.MoveTo(0, y)
-        Paint.RelLineTo(Paint.Width, 0)
-
-        Paint.Background = Color.yellow
-        Paint.Stroke
-      Endif
-      If $bShowLimit Then
-        If $hDoc.Count <= 600 And If $hDoc.LinesInfo[iRow].Limit Then
-          Paint.LineWidth = 1.2
-          Paint.MoveTo(6, y - fRowHeight)
-          Paint.RelLineTo(Paint.Width - 6, 0)
-          Paint.Background = $iMarginColor
-          Paint.Stroke
-          Paint.DrawImage($imgSmallARrow, 0, y - fRowHeight - 1)
-
+      
+      If $bShowModified Then
+        If Not bModified Then
+          If hInfo Then
+            If hInfo.Modified Then
+              bModified = True
+              Paint.FillRect(0, Y, Paint.W, 1, iColModified)
+            Else If hInfo.Saved And If Not bSaved Then
+              bSaved = True
+              Paint.FillRect(0, Y, Paint.W, 1, iColSaved)
+            Endif
+          Endif
         Endif
       Endif
-    Endif
+      
+    Next
+    
+    Inc Y
+      
   Next
-
-  Paint.end
+  
+  Paint.End
 
 End
 
-' Private Sub DrawBarImage(fRowHeight As Float)
-' 
-'   Dim i As Integer
-'   Dim s As String
-'   Dim x, y, j As Integer
-'   Dim aDash As Float[][] = [[1, 0.25, 1, 0.5], [2, 0.5, 1, 0.25], [1, 0.3, 2, 0.3]]
-' 
-'   $imgSideBar = New Image(Paint.Width - 1, Paint.Height, $hStyles[Highlight.Background].Color)
-'   Paint.Begin($imgSideBar)
-'   Paint.Background = Color.Gray
-'   Paint.AntiAlias = True
-' 
-'   For i = 0 To $hDoc.Lines.Max
-'     Inc j
-'     If j = 3 Then j = 0
-' 
-'     Paint.LineWidth = fRowHeight
-'     s = $hDoc.Lines[i]
-'     y = i * fRowHeight
-'     If Not LTrim(s) = "" Then
-'       Paint.Dash = aDash[j]
-'       x = 6 + ((String.Len(s) - String.Len(LTrim(s)))) * 60 / 100
-' 
-'       Paint.MoveTo(x, y)
-'       Paint.RelLineTo(Len(s) * 60 / 100, 0)
-'       If Not IsNull($hDoc.LinesInfo[i]) And If $hDoc.LinesInfo[i].Comment Then
-'         Paint.Background = Color.SetAlpha($hStyles[Highlight.Comment].Color, 180) 'Color.Lighter($hStyles[Highlight.Comment].Color)
-'       Else
-'         Paint.Background = Color.SetAlpha($hStyles[Highlight.Normal].Color, 180) 'Color.Lighter($hStyles[Highlight.Normal].Color)
-'       Endif
-'       Paint.Stroke
-'     Endif
-'     Paint.Dash = Null
-' 
-'     If Not IsNull($hDoc.LinesInfo[i]) Then
-'       Paint.AntiAlias = False
-'       If $hDoc.LinesInfo[i].Modified Then
-'         Paint.Background = Color.Merge($iBackground, Color.Red, 0.2)
-'         Paint.Rectangle(0, y, 3, fRowHeight + 1)
-'         Paint.Fill
-'       Endif
-'       If $hDoc.LinesInfo[i].Saved Then
-'         Paint.Background = Color.Merge($iBackground, Color.Green, 0.2)
-'         Paint.Rectangle(0, y, 3, fRowHeight + 1)
-'         Paint.Fill
-'       Endif
-'       If $hDoc.LinesInfo[i].Bookmark Then
-'         Paint.MoveTo(0, y)
-'         Paint.RelLineTo(Paint.Width, 0)
-' 
-'         Paint.Background = Color.yellow
-'         Paint.Stroke
-'       Endif
-'       If $bShowLimit Then
-'         If $hDoc.Count <= 600 And If $hDoc.LinesInfo[i].Limit Then
-'           Paint.LineWidth = 1.2
-'           Paint.MoveTo(6, y - fRowHeight)
-'           Paint.RelLineTo(Paint.Width - 6, 0)
-'           Paint.Background = $iMarginColor
-'           Paint.Stroke
-'         Endif
-'       Endif
-'     Endif
-'   Next
-' 
-'   Paint.end
-' 
-' End
-
 Public Sub SideBar_Draw()
-
+  
   Dim D As Integer = Desktop.Scale * 2
   Dim NL, Row As Integer
   Dim X, Y, W, H As Integer
@@ -4954,17 +5163,17 @@ Public Sub SideBar_Draw()
   NL = $hView.ClientH \ $hRows.H + 1
   Row = _RealToView($hRows._FindRowFromPos($hView.ScrollY))
   $fBarLineHeight = Min(2, Paint.Height / (iCount + 1))
-
+  
   Paint.AntiAlias = False
   'Barre Cache
-  If Not $imgSideBar Then DrawBarImage2($fBarLineHeight)
-  Paint.DrawImage($imgSideBar, iBorder, 0)
-
+  If Not $hImageSideBar Then DrawBarImage3()
+  Paint.DrawImage($hImageSideBar, iBorder, 0, Paint.W - 1, Paint.H)
+  
   'Border Line
   Paint.FillRect(If(System.RightToLeft, Paint.W - 1, 0), 0, 1, Paint.H, $iLimitColor)
-
+  
   'Arrow Buttons
-  If $iSideBarStyle > 0 Then
+  If $iSideBarClick <> SIDEBAR_VIEW And If $hSideBar.Hovered Then
     If $hView.ScrollY > 0 Then
       Paint.FillRect(iBorder, 0, Paint.W - 1, D, Color.Background)
       Style.PaintArrow((Paint.W - D) / 2, 0, D, D, Align.Top) ' If($iSideBarStyle = 1, Style.Hovered, 0))
@@ -4974,204 +5183,259 @@ Public Sub SideBar_Draw()
       Style.PaintArrow((Paint.W - D) / 2, Paint.H - D, D, D, Align.Bottom) ', If($iSideBarStyle = 2, Style.Hovered, 0))
     Endif
   Endif
-
+  
   'ViewPort Rectangle
-  Paint.LineWidth = 1
-  $rectSideBar = Rect(iBorder, $fBarLineHeight * Row, Paint.Width - 1, $fBarLineHeight * NL)
-  Paint.Rectangle(iBorder, $fBarLineHeight * Row, Paint.Width - 1, $fBarLineHeight * NL)
-  Paint.Background = Color.SetAlpha(Color.SelectedBackground, 200)
+  $rectSideBar = Rect(iBorder, $fBarLineHeight * Row, Paint.Width - 1, Max($fBarLineHeight * NL, 10))
+  Paint.Rectangle(iBorder, $fBarLineHeight * Row, Paint.Width - 1, $rectSideBar.Height)
+  Paint.Background = Color.SetAlpha(Color.SelectedBackground, 128)
   Paint.Fill()
-
+  
   'Draw the Tooltip
-  If $bSideBarMouseDown Then
+  If $iSideBarClick Then
     Paint.AntiAlias = True
     Paint.Background = Color.TooltipBackground
-    W = Paint.Font.TextWidth(Str(Row) & "00")
-    H = Paint.Font.H * 3 + 6
-    Y = IIf(Paint.Height - ($iMY + (Paint.Font.H * 3 + 6)) < 0, $iMY - ((Paint.Font.H * 3 + 6)), $iMY - y)
+    W = Paint.Font.TextWidth(CStr(Row) & "00")
+    H = Paint.Font.H * 2.8
+    
+    Y = $iMY + D
+    If Y + H > Paint.H Then Y = Max(0, $iMY - H - D)
+    
+    'Y = Max(0, IIf(Paint.Height - ($iMY + (Paint.Font.H * 3 + 6)) < 0, $iMY - ((Paint.Font.H * 3 + 6)), $iMY - H))
     X = IIf(System.RightToLeft, Paint.Width - W - 3, 3)
-    Paint.Rectangle(X, Y, W, H, 5)
+    Paint.Rectangle(X, Y, W, H, Paint.Font.H / 4)
     Paint.Fill
     'Paint.Font.Grade = - 1
     Paint.Background = Color.TooltipForeground
-    Paint.DrawText(_ViewToReal((Row + 1)) & "\n-\n" & _ViewToReal(Min((Row + NL), iCount)), X + 3, y + 3, W - 6, H - 6, Align.Center)
+    'Paint.DrawText(_ViewToReal((Row + 1)) & "\n-\n" & _ViewToReal(Min((Row + NL), iCount)), X + 3, y + 3, W - 6, H - 6, Align.Center)
+    Paint.DrawText(CStr(PosToLine(0) + 1), X, Y, W, H \ 2, Align.Center)
+    Paint.DrawText(CStr(PosToLine($hView.ClientH - $LH \ 2) + 1), X, Y + H - H \ 2, W, H \ 2, Align.Center)
+    Paint.FillRect(X + D / 4, Y + H \ 2, W - D / 2, 1, Color.SetAlpha(Color.TooltipForeground, 128))
   Endif
+  
+End
 
+Private Sub SideBarClick(Y As Integer)
+  
+  $iMY = Y
+  Y = Min(Max(0, Floor(((Y - $iMD)) / $fBarLineHeight)), _RealToView($hDoc.Max))
+  Me.GotoCenter(0, _ViewToReal(Y))
+  
 End
 
 Public Sub SideBar_MouseMove()
-
+  
   Dim iCurLine As Integer
-  Dim iStyle As Integer
   Dim X As Integer
   Dim D As Integer = Desktop.Scale * 2
-  Dim iCount As Integer = _RealToView($hDoc.Count)
-
+  Dim iCount As Integer = _RealToView($hDoc.Max)
+  Dim iWhere As Integer
+  
   If Mouse.Y < D Then
-    iStyle = 1
+    iWhere = SIDEBAR_UP
+  Else If Mouse.Y > Last.ClientH - D Then
+    iWhere = SIDEBAR_DOWN
   Else
-
-    If Mouse.Y > Last.ClientH - D Then
-      iStyle = 2
-    Endif
+    iWhere = SIDEBAR_VIEW
   Endif
-
-  If $iSideBarStyle <> iStyle Then
-    $iSideBarStyle = iStyle
+  
+  If iWhere <> $iSideBarWhere Then
+    $iSideBarWhere = iWhere
     $hSideBar.Refresh
   Endif
 
-  If $iMD > 0 Then
-    $hView.Scrolly = $hRows._GetRowY(_ViewToReal(Min(Max(0, Floor((Mouse.Y - $iMD) / $fBarLineHeight)), iCount)))
-  Endif
+  Select Case $iSideBarClick
 
-  If Mouse.Y > $fBarLineHeight * iCount Then
-    If Not $bSideBarLockViewer Then $hSideBarViewer.Hide
-  Else
-    If $iMD > 0 Then
-      If Not $bSideBarLockViewer Then $hSideBarViewer.Hide
-    Else
-      If Not $bSideBarLockViewer Then
-        If Not $hSideBarViewer.Visible Then $hTimerSideBarViewer.Start
-        If $hSideBarViewer.Visible Then
-          X = IIf(System.RightToLeft, $hSideBar.Left + $hSideBar.Width, $hSideBar.Left - $hView.Width / 2)
-          $hSideBarViewer.Move(X, Min(Max(1, Mouse.Y - ($hView.Height / 5) / 2), $hSideBar.Height - $hSideBarViewer.Height))
-          $hSideBarViewer.Raise
-          'iCurLine = Min(Max(0, Floor(((Mouse.y - $iMD)) / $fBarLineHeight)), iCount)
-          iCurLine = _ViewToReal(Min(Max(0, Floor((Mouse.Y - $iMD) / $fBarLineHeight)), iCount))
-          'If $hSideBarViewer.Line <> iCurLine Then
-            $hSideBarViewer.GotoCenter(0, iCurLine)
-            '$hSideBarViewer.Tag = iCurLine
-          'Endif
-        Endif
-      Endif
-    Endif
+    Case SIDEBAR_VIEW 
+      $hSideBarViewer.Hide
+      SideBarClick(Mouse.Y)    
 
-    $iMY = Mouse.Y
-    If Mouse.Left Then
-      $bSideBarMouseDown = True
-      If $iMD = 0 Then
-        If $rectSideBar.Contains(Mouse.x, Mouse.y) Then
-          If Not $bSideBarLockViewer Then $hSideBarViewer.Hide
-          $iMD = Mouse.y - $rectSideBar.Top
-        Endif
-      Endif
-    Endif
+    Case SIDEBAR_UP, SIDEBAR_DOWN
+      $hSideBarViewer.Hide
+      
+    Case Else
+      
+      If Not $hSideBarViewer.Visible Then UpdatePreviewViewer
+      iCurLine = _ViewToReal(Min(Max(0, Floor((Mouse.Y - $iMD) / $fBarLineHeight)), iCount))
+      $hSideBarViewer.GotoCenter(0, iCurLine)
+      X = IIf(System.RightToLeft, $hSideBar.Left + $hSideBar.Width, $hSideBar.Left - $hView.Width / 2)
+      $hSideBarViewer.Move(X, Min(Max(1, Mouse.Y - ($hView.Height / 5) / 2), $hSideBar.Height - $hSideBarViewer.Height))
+      $hSideBarViewer.Raise
+      $hSideBarViewer.Show
+      
+  End Select
 
-  Endif
-
+  ' If Mouse.Y > $fBarLineHeight * iCount Then
+  '   If Not $bSideBarLockViewer Then $hSideBarViewer.Hide
+  ' Else
+  '   If $iMD > 0 Then
+  '     If Not $bSideBarLockViewer Then $hSideBarViewer.Hide
+  '   Else
+  '     If Not $bSideBarLockViewer Then
+  '       If $hSideBarViewer.Visible Then
+  '         X = IIf(System.RightToLeft, $hSideBar.Left + $hSideBar.Width, $hSideBar.Left - $hView.Width / 2)
+  '         $hSideBarViewer.Move(X, Min(Max(1, Mouse.Y - ($hView.Height / 5) / 2), $hSideBar.Height - $hSideBarViewer.Height))
+  '         $hSideBarViewer.Raise
+  '         'iCurLine = Min(Max(0, Floor(((Mouse.y - $iMD)) / $fBarLineHeight)), iCount)
+  '         iCurLine = _ViewToReal(Min(Max(0, Floor((Mouse.Y - $iMD) / $fBarLineHeight)), iCount))
+  '         'If $hSideBarViewer.Line <> iCurLine Then
+  '         $hSideBarViewer.GotoCenter(0, iCurLine)
+  '         '$hSideBarViewer.Tag = iCurLine
+  '         'Endif
+  '       Endif
+  '     Endif
+  '   Endif
+  '   
+  '   $iMY = Mouse.Y
+  '   If Mouse.Left Then
+  '     $bSideBarMouseDown = True
+  '     If $iMD = 0 Then
+  '       If $rectSideBar.Contains(Mouse.x, Mouse.y) Then
+  '         If Not $bSideBarLockViewer Then $hSideBarViewer.Hide
+  '         $iMD = Mouse.y - $rectSideBar.Top
+  '       Endif
+  '     Endif
+  '   Endif
+  '   
+  ' Endif
+  
 End
+
+Public Sub SideBar_Enter()
+  
+  $hSideBar.Refresh
+  
+End
+
 
 Public Sub SideBar_Leave()
-
-  If $iSideBarStyle > 0 Then
-    $iSideBarStyle = 0
-    $hSideBar.Refresh
-  Endif
-  $hTimerSideBarViewer.Stop
+  
+  $iSideBarWhere = SIDEBAR_NONE
+  $iSideBarClick = SIDEBAR_NONE
+  $hSideBar.Refresh
+  '$hTimerSideBarViewer.Stop
   If Not $bSideBarLockViewer Then $hSideBarViewer.Hide
-
+  
 End
 
-Public Sub TimerSideBarMDHold_Timer()
+Public Sub TimerSideBarMouse_Timer()
 
-  $hTimerSideBarMDHold.Delay = 10
-  If $iSideBarStyle = 2 Then
-    $hView.ScrollY += $LH
-    If $hView.ScrollY >= $hView.scrollH Then
-      $hTimerSideBarMDHold.Stop
-      $hTimerSideBarMDHold = Null
-    Endif
+  Dim DY As Integer
+  
+  DY = If($iSideBarClick = SIDEBAR_DOWN, $LH, - $LH)
+  
+  If $hView.ScrollY + DY < 0 Or If $hView.ScrollY + DY >= $hView.ScrollH Then
+    Try $hTimerSideBarMouse.Stop
+    $hTimerSideBarMouse = Null
   Else
-    If $iSideBarStyle = 1 Then
-      $hView.ScrollY -= $LH
-      If $hView.ScrollY <= 0 Then
-        $hTimerSideBarMDHold.Stop
-        $hTimerSideBarMDHold = Null
-      Endif
+    $hView.ScrollY += DY
+    If Not $hTimerSideBarMouse Then
+      $hTimerSideBarMouse = New Timer As "TimerSideBarMouse"
+      $hTimerSideBarMouse.Delay = 250
+      $hTimerSideBarMouse.Start
+    Else If $hTimerSideBarMouse.Delay <> 10 Then
+      $hTimerSideBarMouse.Delay = 10
+      $hTimerSideBarMouse.Restart
     Endif
   Endif
-
+  
 End
 
 Public Sub SideBar_MouseDown()
-
-  Dim Y As Integer
-
+  
   If Mouse.Left Then
-    If $iSideBarStyle > 0 Then
-      $hTimerSideBarMDHold = New Timer As "TimerSideBarMDHold"
-      $hTimerSideBarMDHold.Delay = 500
-      $hTimerSideBarMDHold.Start
-      If Not $bSideBarLockViewer Then $hSideBarViewer.Hide
-      Select Case $iSideBarStyle
-        Case 1
-          $hView.ScrollY -= $LH
-        Case 2
-          $hView.ScrollY += $LH
-      End Select
-    Else
-
-      If $rectSideBar.Contains(Mouse.x, Mouse.y) Then
-        If Not $bSideBarLockViewer Then $hSideBarViewer.Hide
-        $iMD = Mouse.y - $rectSideBar.Top
-      Else
-        Y = Min(Max(0, Floor(((Mouse.y - $iMD)) / $fBarLineHeight)), $hDoc.Count)
-        Me.GotoCenter(0, _ViewToReal(y))
-        $bSideBarMouseDown = True
-        $iMY = Mouse.Y
-      Endif
-
-    Endif
+    
+    SideBar_MouseMove
+    $iSideBarClick = $iSideBarWhere
+    
+    Select Case $iSideBarClick
+      
+      Case SIDEBAR_UP, SIDEBAR_DOWN
+        TimerSideBarMouse_Timer
+        
+      Case Else
+        SideBarClick(Mouse.Y)
+        
+    End Select
+    
+    ' If $iSideBarStyle > 0 Then
+    '   If Not $bSideBarLockViewer Then $hSideBarViewer.Hide
+    '   Select Case $iSideBarStyle
+    '     Case 1
+    '       $hView.ScrollY -= $LH
+    '     Case 2
+    '       $hView.ScrollY += $LH
+    '   End Select
+    ' Else
+    '   
+    '   If $rectSideBar.Contains(Mouse.x, Mouse.y) Then
+    '     If Not $bSideBarLockViewer Then $hSideBarViewer.Hide
+    '     $iMD = Mouse.y - $rectSideBar.Top
+    '   Else
+    '     SideBarClick(Mouse.Y)
+    '     $bSideBarMouseDown = True
+    '     $iMY = Mouse.Y
+    '   Endif
+    '   
+    ' Endif
   Endif
-
-  If Mouse.Middle Then
-    If $hSideBarViewer.Visible Then $bSideBarLockViewer = Not $bSideBarLockViewer
-  Endif
-
-
+  
+  ' If Mouse.Middle Then
+  '   If $iSideBarStyle > 0 Then
+  '     If $iSideBarStyle = 1 Then
+  '       Me.GotoCenter($SX, 0)    
+  '     Else
+  '       Me.GotoCenter($SX, $hDoc.Count)
+  '     Endif
+  '   Else
+  '     If $hSideBarViewer.Visible Then $bSideBarLockViewer = Not $bSideBarLockViewer
+  '   Endif
+  ' Endif
+  
 End
 
 Public Sub SideBar_MouseUp()
-
+  
+  $iSideBarClick = SIDEBAR_NONE
   $iMD = 0
   '$iMY = -1
-  $bSideBarMouseDown = False
-  Try $hTimerSideBarMDHold.Stop
-  $hTimerSideBarMDHold = Null
+  Try $hTimerSideBarMouse.Stop
+  $hTimerSideBarMouse = Null
   $hSideBar.Refresh
-
+  
 End
 
 Public Sub SideBar_MouseWheel()
   'C'est po bien !!!! Mais bon.
-
+  
   $hView.DrawingArea_MouseWheel
-
+  
 End
 
 Public Sub TimerRefreshBar_Timer()
-
-  $imgSideBar = Null
-  $hTimerSideBarRefresh.Stop
-  $hSideBar.Refresh
-
+  
+  $hImageSideBar = Null
+  If $bShowPreview Then
+    $hTimerSideBarRefresh.Stop
+    $hSideBar.Refresh
+    UpdatePreviewViewer
+  Endif
+  
 End
 
 Public Sub SideBar_Arrange()
-
-  $hTimerSideBarRefresh.Start
-
+  
+  $hTimerSideBarRefresh.Restart
+  
 End
 
 Private Function ShowPreview_Read() As Boolean
-
+  
   Return $bShowPreview
-
+  
 End
 
 Private Sub UpdateSideBarFont()
-
+  
   Dim hFont As Font
   
   If Not $hSideBarViewer Then Return
@@ -5179,19 +5443,19 @@ Private Sub UpdateSideBarFont()
   hFont = Me.Font.Copy()
   hFont.Grade -= 2
   $hSideBarViewer.Font = hFont
-
+  
 End
 
 Private Sub ShowPreview_Write(Value As Boolean)
-
+  
   If $bShowPreview = Value Then Return
   $bShowPreview = Value
   If Value Then
     $hTimerSideBarRefresh = New Timer As "TimerRefreshBar"
     $hTimerSideBarRefresh.Delay = 250
-    $hTimerSideBarViewer = New Timer As "TimerShowPreviewViewer"
-    $hTimerSideBarViewer.Delay = 100
-
+    ' $hTimerSideBarViewer = New Timer As "TimerShowPreviewViewer"
+    ' $hTimerSideBarViewer.Delay = 100
+    
     $hSideBarViewer = New TextEditor(Me) As "SideBarViewer"
     $hSideBarViewer.Hide
     $hSideBarViewer.ReadOnly = True
@@ -5200,10 +5464,11 @@ Private Sub ShowPreview_Write(Value As Boolean)
     $hSideBarViewer.Ignore = True
     $hSideBarViewer.Enabled = False
     $hSideBarViewer.ScrollBar = Scroll.None
-
+    ScrollArea($hSideBarViewer.Proxy).NoShadow = True
+    
     $hSideBar = New DrawingArea($hPanel) As "SideBar"
     $hSideBar.Width = Desktop.Scale * 8
-    $hSideBar.Background = $hStyles[Highlight.BackGround].Color
+    $hSideBar.Background = $hStyles[Highlight.Background].Color
     $hSideBar.Tracking = True
     
     UpdateSideBarFont
@@ -5219,18 +5484,18 @@ Private Sub ShowPreview_Write(Value As Boolean)
       $hTimerSideBarRefresh = Null
       $hSideBarViewer.Delete
       $hSideBarViewer = Null
-      $hTimerSideBarViewer.Stop
-      $hTimerSideBarViewer = Null
+      '$hTimerSideBarViewer.Stop
+      '$hTimerSideBarViewer = Null
       ScrollBar_Write($iScrollBar)
     Endif
   Endif
-
+  
 End
 
 Private Sub SyncSideBarViewerStyles()
-
+  
   Dim i As Integer
-
+  
   For i = 0 To 31
     If IsNull($hSideBarViewer.Styles[i]) Or If IsNull($hStyles[i]) Then Continue
     $hSideBarViewer.Styles[i].Underline = $hStyles[i].Underline
@@ -5248,37 +5513,49 @@ Private Sub SyncSideBarViewerStyles()
     .ShowSpaces = Me.ShowSpaces
     .Highlight = Me.Highlight
   End With
-
+  
 End
 
-Public Sub TimerShowPreviewViewer_Timer()
+' Public Sub TimerShowPreviewViewer_Timer()
+'   
+'   $hSideBarViewer.Move($hSideBar.Left - $hView.Width / 2, Min(Max(1, $iMY - ($hView.Height / 5) / 2), $hSideBar.Height - $hSideBarViewer.Height), $hView.Width / 2, $hView.Height / 5)
+'   $iSideBarNBLines = Ceil(($hSideBarViewer.ClientH / $hSideBarViewer.LineHeight) / 2)
+'   $hSideBarViewer.View = Me
+'   $hSideBarViewer._SyncFolding()
+'   $hSideBarViewer.Show
+'   '$hSideBarViewer.ShowExpand = True
+'   $hSideBarViewer.Raise
+'   $hTimerSideBarViewer.Stop
+'   
+' End
 
-  $hSideBarViewer.Move($hSideBar.Left - $hView.Width / 2, Min(Max(1, $iMY - ($hView.Height / 5) / 2), $hSideBar.Height - $hSideBarViewer.Height), $hView.Width / 2, $hView.Height / 5)
-  $iSideBarNBLines = Ceil(($hSideBarViewer.ClientH / $hSideBarViewer.LineHeight) / 2)
+Public Sub UpdatePreviewViewer()
+  
+  $hSideBarViewer.Resize($hView.Width / 2, $hView.Height / 5)
   $hSideBarViewer.View = Me
   $hSideBarViewer._SyncFolding()
-  $hSideBarViewer.Show
-  '$hSideBarViewer.ShowExpand = True
-  $hSideBarViewer.Raise
-  $hTimerSideBarViewer.Stop
-
+  ' $hSideBarViewer.Show
+  ' '$hSideBarViewer.ShowExpand = True
+  ' $hSideBarViewer.Raise
+  ' '$hTimerSideBarViewer.Stop
+  
 End
 
 Public Sub SideBarViewer_MouseDown()
-
+  
   $hSideBarViewer.Hide
   $bSideBarLockViewer = False
-
+  
 End
 
 Public Sub SideBar_Menu()
-
+  
   Stop Event
-
+  
 End
 
 Public Sub _SyncFolding()
-
+  
   Dim I As Integer
   Dim hSrc As TextEditor
   
@@ -5293,4 +5570,134 @@ Public Sub _SyncFolding()
     I = hSrc.FindNextLimit(I)
   Until I < 0
   
+End
+
+Private Function Mode_Read() As String
+
+  Return $hDoc.Mode
+
+End
+
+Private Sub Mode_Write(Value As String)
+
+  $hDoc.Mode = Value
+
+End
+
+Private Function CloseBraces_Read() As Boolean
+
+  Return $hDoc.CloseBraces
+
+End
+
+Private Sub CloseBraces_Write(Value As Boolean)
+
+  $hDoc.CloseBraces = Value
+
+End
+
+Private Function TabIndent_Read() As Boolean
+
+  Return $bTabIndent
+
+End
+
+Private Sub TabIndent_Write(Value As Boolean)
+
+  $bTabIndent = Value
+
+End
+
+Private Sub RefreshSideBar()
+
+  If $bShowPreview Then $hTimerSideBarRefresh.Restart
+
+End
+
+Public Sub GetIndent(StartLine As Integer, Optional EndLine As Integer) As String
+  
+  If EndLine = 0 Then EndLine = StartLine + 1
+  Return $hDoc.GetIndentText(StartLine, EndLine)
+  
+End
+
+Public Sub GetHighlight(Y As Integer, ByRef Symbols As String[], ByRef Types As Integer[])
+  
+  Dim aColors As Byte[]
+  Dim sLine As String
+  Dim I As Integer
+  Dim P As Integer
+  
+  $hDoc.HighlightFrom(Y)
+  Try aColors = $hDoc.LinesInfo[Y].Colors
+  If Not aColors Then Return
+  
+  Symbols = New String[]
+  Types = New Integer[]
+  
+  sLine = $hDoc.Lines[Y]
+  P = 1
+  For I = 0 To aColors.Max Step 2
+    Types.Add(aColors[I])
+    Symbols.Add(String.Mid$(sLine, P, aColors[I + 1]))
+    P += aColors[I + 1]
+  Next
+  
+End
+
+Private Function DisabledBreakpoints_Read() As Integer[]
+
+  Return $hDoc.DisabledBreakpoints  
+
+End
+
+Private Sub DisabledBreakpoints_Write(Value As Integer[])
+
+  $hDoc.DisabledBreakpoints = Value
+
+End
+
+Public Sub HighlightString(Text As String, Optional IgnoreCase As Boolean, Optional WordOnly As Boolean)
+  
+  $sHighlightString = Text
+  $iHighlightStringLen = String.Len(Text)
+  $iHighlightStringMode = If(IgnoreCase, gb.IgnoreCase, gb.Binary)
+  $bHighlightWordOnly = WordOnly
+  
+  ClearCacheLine
+  $hView.Refresh
+  
+End
+
+Private Sub IsWordLimit(sCar As String) As Boolean
+  
+  sCar = String.RemoveDiacritics(sCar)
+  If IsLetter(sCar) Or IsDigit(sCar) Or If InStr("_$", sCar) Then Return
+  Return True
+  
+End
+
+
+Private Function LastLine_Read() As Integer
+
+  Return $LY
+
+End
+
+Private Function LastColumn_Read() As Integer
+
+  Return $LX
+
+End
+
+Private Function CloseStrings_Read() As Boolean
+
+  Return $hDoc.CloseStrings
+
+End
+
+Private Sub CloseStrings_Write(Value As Boolean)
+
+  $hDoc.CloseStrings = Value
+
 End

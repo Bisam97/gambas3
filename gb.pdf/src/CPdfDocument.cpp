@@ -47,6 +47,9 @@
 #include <GlobalParams.h>
 #include <UnicodeMap.h>
 
+#if POPPLER_VERSION_0_72
+#define getCString c_str
+#endif
 
 /***************************************************************************/
 
@@ -99,7 +102,7 @@ END_PROPERTY
 
 ****************************************************************************/
 
-static void return_unicode_string(Unicode *unicode, int len)
+static void return_unicode_string(const Unicode *unicode, int len)
 {
 	static UnicodeMap *uMap = NULL;
 	
@@ -128,15 +131,23 @@ static void aux_return_string_info(void *_object, const char *key)
 {
 	Object obj;
 	Object dst;
-	GooString *goo_value;
+	const_GooString *goo_value;
 	Dict *info_dict;
 	char *tmpstr;
 
+	#if POPPLER_VERSION_0_58
+	obj = THIS->doc->getDocInfo ();
+	#else
 	THIS->doc->getDocInfo (&obj);
+	#endif
 	if (!obj.isDict()) { GB.ReturnNewZeroString(""); return; }
 		
 	info_dict=obj.getDict();
+	#if POPPLER_VERSION_0_58
+	dst = info_dict->lookup ((char *)key);
+	#else
 	info_dict->lookup ((char *)key, &dst);
+	#endif
 	if (!dst.isString ()) { GB.ReturnNewZeroString(""); }
 	else {
 		goo_value = dst.getString();
@@ -149,8 +160,10 @@ static void aux_return_string_info(void *_object, const char *key)
 		else
 			GB.ReturnNewString(goo_value->getCString(),goo_value->getLength());		
 	}
+	#if ! POPPLER_VERSION_0_58
 	dst.free();
 	obj.free();		
+	#endif
 }
 
 static void aux_return_date_info(void *_object, const char *key)
@@ -160,18 +173,26 @@ static void aux_return_date_info(void *_object, const char *key)
 	GB_DATE ret;
 	Object obj;
 	Object dst;
-	GooString *goo;
+	const_GooString *goo;
 	Dict *info_dict;
 	char *datestr=NULL,*tofree=NULL;
 	int nnum;
 
 	GB.ReturnDate(NULL);
 	
+	#if POPPLER_VERSION_0_58
+	obj = THIS->doc->getDocInfo ();
+	#else
 	THIS->doc->getDocInfo (&obj);
+	#endif
 	if (!obj.isDict()) return;
 
 	info_dict=obj.getDict();
+	#if POPPLER_VERSION_0_58
+	dst = info_dict->lookup ((char *)key);
+	#else
 	info_dict->lookup ((char *)key, &dst);
+	#endif
 	if (dst.isString ())
 	{
 		goo = dst.getString();
@@ -197,11 +218,13 @@ static void aux_return_date_info(void *_object, const char *key)
 	}
 
 	if (tofree) GB.FreeString(&tofree);
+	#if ! POPPLER_VERSION_0_58
 	dst.free();
 	obj.free();
+	#endif
 }
 
-static LinkDest *get_dest(LinkAction *act)
+static const_LinkDest *get_dest(const_LinkAction *act)
 {
 	if (!act)
 		return 0;
@@ -214,12 +237,12 @@ static LinkDest *get_dest(LinkAction *act)
 	}
 }
 
-static uint32_t aux_get_page_from_action(void *_object, LinkAction *act)
+static uint32_t aux_get_page_from_action(void *_object, const_LinkAction *act)
 {
 	Ref pref;       
-	LinkDest *dest = get_dest(act);
+	const_LinkDest *dest = get_dest(act);
 	#if POPPLER_VERSION_0_6
-	GooString *name;
+	const_GooString *name;
 	#else
 	UGooString *name;
 	#endif
@@ -232,8 +255,15 @@ static uint32_t aux_get_page_from_action(void *_object, LinkAction *act)
 		if (act->getKind () == actionGoTo)
 		{
 			name = ((LinkGoTo*)act)->getNamedDest();
-			if (name)
+			if (name) {
+			#if POPPLER_VERSION_0_64
 				dest = THIS->doc->findDest(name);
+			#elif POPPLER_VERSION_0_6
+				dest = THIS->doc->findDest((GooString *) name);
+			#else
+				dest = THIS->doc->findDest((UGooString *) name);
+			#endif
+			}
 		}
 	}
 
@@ -250,9 +280,9 @@ static uint32_t aux_get_page_from_action(void *_object, LinkAction *act)
 }
 
 
-static void aux_get_dimensions_from_action(LinkAction *act, CPDFRECT *rect)
+static void aux_get_dimensions_from_action(const_LinkAction *act, CPDFRECT *rect)
 {
-	LinkDest *dest = get_dest(act);
+	const_LinkDest *dest = get_dest(act);
 	if (!dest)
 		return;
 	
@@ -262,20 +292,20 @@ static void aux_get_dimensions_from_action(LinkAction *act, CPDFRECT *rect)
 	rect->h = dest->getBottom() - rect->y;
 }
 
-static double aux_get_zoom_from_action(LinkAction *act)
+static double aux_get_zoom_from_action(const_LinkAction *act)
 {
-	LinkDest *dest = get_dest(act);
+	const_LinkDest *dest = get_dest(act);
 	if (dest)
 		return dest->getZoom();
 	else
 		return 1;
 }
 
-static char* aux_get_target_from_action(LinkAction *act)
+static char* aux_get_target_from_action(const_LinkAction *act)
 {
 	char *vl=NULL;
 	char *uni=NULL;	
-	GooString *tmp=NULL;
+	const_GooString *tmp=NULL;
 
 	switch (act->getKind())
 	{
@@ -426,8 +456,12 @@ int32_t open_document (void *_object, char *sfile, int32_t lfile)
 
 	if ( GB.LoadFile(sfile,lfile,&buf,&len) ) return -1;
 
+	#if POPPLER_VERSION_0_58
+	stream=new MemStream(buf,0,(uint)len,std::move(obj));
+	#else
 	obj.initNull();
-	stream=new MemStream(buf,0,(Guint)len,&obj);
+	stream=new MemStream(buf,0,(uint)len,&obj);
+	#endif
 	test=new PDFDoc (stream,0,0);
 
 	if (!test->isOk())
@@ -447,7 +481,7 @@ int32_t open_document (void *_object, char *sfile, int32_t lfile)
 	THIS->len=len;
 
 	white[0] = 0xFF; white[1] = 0xFF; white[2] = 0xFF;
-	THIS->dev=new SplashOutputDev(splashModeRGB8, 3, gFalse, white);
+	THIS->dev=new SplashOutputDev(splashModeRGB8, 3, false, white);
 
 	#if POPPLER_VERSION_0_20
 	THIS->dev->startDoc(THIS->doc);
@@ -891,17 +925,17 @@ static uint32_t *get_page_data(CPDFDOCUMENT *_object, int32_t x, int32_t y, int3
 	#if POPPLER_VERSION_0_20
 	THIS->page->displaySlice(THIS->dev,72.0*scale,72.0*scale,
 			   rotation,
-			   gFalse,
-			   gTrue,
+			   false,
+			   true,
 			   x,y,w,h,
-			   gFalse);
+			   false);
 	#else
 	THIS->page->displaySlice(THIS->dev,72.0*scale,72.0*scale,
 			   rotation,
-			   gFalse,
-			   gTrue,
+			   false,
+			   true,
 			   x,y,w,h,
-			   gFalse,
+			   false,
 			   THIS->doc->getCatalog ());
 	#endif
 	
@@ -963,11 +997,11 @@ BEGIN_METHOD(PDFPAGE_select, GB_INTEGER X; GB_INTEGER Y; GB_INTEGER W; GB_INTEGE
 	h = VARGOPT(H, (int32_t)THIS->page->getMediaHeight());
 
 	#if POPPLER_VERSION_0_20
-	dev = new TextOutputDev (NULL, gTrue, 0, gFalse, gFalse);
-	gfx = THIS->page->createGfx(dev,72.0,72.0,0,gFalse,gTrue,-1, -1, -1, -1, gFalse, NULL, NULL);
+	dev = new TextOutputDev (NULL, true, 0, false, false);
+	gfx = THIS->page->createGfx(dev,72.0,72.0,0,false,true,-1, -1, -1, -1, false, NULL, NULL);
 	#else
-	dev = new TextOutputDev (NULL, gTrue, gFalse, gFalse);
-	gfx = THIS->page->createGfx(dev,72.0,72.0,0,gFalse,gTrue,-1, -1, -1, -1, gFalse,THIS->doc->getCatalog (),NULL, NULL, NULL, NULL);
+	dev = new TextOutputDev (NULL, true, false, false);
+	gfx = THIS->page->createGfx(dev,72.0,72.0,0,false,true,-1, -1, -1, -1, false,THIS->doc->getCatalog (),NULL, NULL, NULL, NULL);
 	#endif
 
 	THIS->page->display(gfx);
@@ -1195,9 +1229,9 @@ BEGIN_METHOD (PDFPAGE_find,GB_STRING Text; GB_BOOLEAN Sensitive;)
 
 	count = 0;
 	#if POPPLER_VERSION_0_20
-	while (textdev->findText (block,nlen,gFalse,gTrue,gTrue,gFalse,sensitive,gFalse,gFalse,&x0,&y0,&x1,&y1))
+	while (textdev->findText (block,nlen,false,true,true,false,sensitive,false,false,&x0,&y0,&x1,&y1))
 	#else
-	while (textdev->findText (block,nlen,gFalse,gTrue,gTrue,gFalse,sensitive,gFalse,&x0,&y0,&x1,&y1))
+	while (textdev->findText (block,nlen,false,true,true,false,sensitive,false,&x0,&y0,&x1,&y1))
 	#endif
 	{
 		if (!THIS->Found)

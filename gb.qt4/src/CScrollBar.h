@@ -2,7 +2,7 @@
 
   CScrollBar.h
 
-  (c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -29,6 +29,7 @@
 #include <QResizeEvent>
 #include "gb.qt.h"
 #include "gambas.h"
+#include "CWidget.h"
 
 #ifndef __CSCROLLBAR_CPP
 
@@ -44,7 +45,7 @@ extern GB_DESC CScrollBarDesc[];
 
 typedef
   struct {
-    QT_WIDGET widget;
+    CWIDGET widget;
     }
   CSCROLLBAR;
 

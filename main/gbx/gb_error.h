@@ -2,7 +2,7 @@
 
   gb_error.h
 
-  (c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -108,7 +108,9 @@ enum {
 	E_CHILD,
 	E_USER,
 	E_NEMPTY,
-	E_UTYPE
+	E_UTYPE,
+	E_FREEREF,
+	E_ASSERT
 	};
 
 #ifndef __GB_ERROR_C

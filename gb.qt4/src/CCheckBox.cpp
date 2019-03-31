@@ -2,7 +2,7 @@
 
   CCheckBox.cpp
 
-  (c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -27,6 +27,7 @@
 
 #include <QResizeEvent>
 
+#include "CStyle.h"
 #include "CCheckBox.h"
 
 /** MyCheckBox *************************************************************/
@@ -82,6 +83,7 @@ BEGIN_METHOD(CCHECKBOX_new, GB_OBJECT parent)
 	wid->setMinimumHeight(wid->sizeHint().height());
 
   CWIDGET_new(wid, (void *)_object);
+	THIS->widget.flag.fillBackground = CSTYLE_fix_breeze;
 
 END_METHOD
 

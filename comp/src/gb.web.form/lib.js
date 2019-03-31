@@ -442,6 +442,7 @@ gw = {
     {
       clearInterval(gw.timers[id]);
       gw.timers[id] = undefined;
+      gw.timers[id + '!'] = undefined;
     }
   },
   
@@ -483,6 +484,16 @@ gw = {
     return { found: found, left: left, top: top, width: width, height: height, right: left + width, bottom: top + height };
   },
 
+  copy: function(elt)
+  {
+    navigator.clipboard.writeText(elt.value)
+      .then(() => {
+        // Success!
+      })
+      .catch(err => {
+        console.log('Unable to copy to the clipboard: ', err);
+      });
+  },
   /*ensureVisible: function(id, x, y, w, h)
   {
     var elt = typeof(id) == 'string' ? $(id) : id;
@@ -1374,9 +1385,14 @@ gw = {
   {
     onactivate: function(id, e)
     {
-      gw.log('textbox.onactivate');
       if (e.keyCode == 13)
-        setTimeout(function() { gw.raise(id, 'activate', [], false); }, 50);
+        setTimeout(function() { gw.update(id, 'text', $(id + ':entry').value); gw.raise(id, 'activate', [], false); }, 50);
+    },
+    
+    onchange: function(id)
+    {
+      if ($(id).gw_timer) clearTimeout($(id).gw_timer);
+      $(id).gw_timer = setTimeout(function() { gw.update(id, 'change', $(id + ':entry').value, null); }, 50);
     },
     
     getText: function(id)
@@ -1398,7 +1414,27 @@ gw = {
       gw.textbox.setText(id, '');
       gw.setFocus(id);
       gw.raise(id, 'activate', [], false);
+    },
+    
+    copy: function(id)
+    {
+      gw.copy($(id + ':entry'));
+    }
+  },
+
+  textarea:
+  {
+    onchange: function(id)
+    {
+      if ($(id).gw_timer) clearTimeout($(id).gw_timer);
+      $(id).gw_timer = setTimeout(function() { gw.update(id, 'change', $(id).value, null); }, 50);
+    },
+    
+    copy: function(id)
+    {
+      gw.copy($(id));
     }
   }
+  
 }
 

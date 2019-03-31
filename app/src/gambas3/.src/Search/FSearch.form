@@ -1,7 +1,7 @@
 # Gambas Form File 3.0
 
 { Form Form
-  MoveScaled(0,0,88,38)
+  MoveScaled(0,0,102,37)
   Visible = False
   Action = "find"
   Text = ("Search & Replace")
@@ -66,11 +66,6 @@
           MoveScaled(0,9,25,4)
           Text = Shortcut(("Regular expression"), "x")
         }
-        { chkHighlight CheckBox
-          MoveScaled(0,12,25,4)
-          Visible = False
-          Text = Shortcut(("Highlight result"), "H")
-        }
         { chkIgnoreStrings CheckBox
           MoveScaled(0,15,25,4)
           Text = Shortcut(("Ignore strings"), "I")
@@ -108,23 +103,21 @@
           MoveScaled(0,12,25,4)
           Text = Shortcut(("Source files"), "S")
         }
+        { radDataFileOnly RadioButton radSearch
+          Name = "radDataFileOnly"
+          MoveScaled(0,16,25,4)
+          Text = Shortcut(("Data files"), "D")
+        }
         { radEverywhere RadioButton radSearch
           Name = "radEverywhere"
-          MoveScaled(0,16,25,4)
+          MoveScaled(0,20,25,4)
           Text = Shortcut(("All files"), "l")
         }
       }
     }
   }
-  { timRefresh #Timer
-    #MoveScaled(53,2)
-    Delay = 500
-  }
-  { Panel2 Panel
-    MoveScaled(61,16,1,4)
-  }
   { HBox5 VBox
-    MoveScaled(62,1,25,35)
+    MoveScaled(62,1,23,35)
     Spacing = True
     { btnNext Button
       MoveScaled(0,0,22,4)
@@ -153,19 +146,17 @@
       Picture = Picture["icon:/small/wizard"]
     }
     { Panel1 Panel
-      MoveScaled(7,22,3,1)
+      MoveScaled(7,22,3,3)
       Expand = True
     }
-    { PictureBox1 PictureBox
-      MoveScaled(3,23,17,9)
-      Picture = Picture["img/search.png"]
-      AutoResize = True
-      Alignment = Align.Top
+    { chkHighlight CheckBox
+      MoveScaled(0,29,25,4)
+      Text = Shortcut(("Highlight search"), "H")
     }
-    { Panel4 Panel
-      MoveScaled(9,32,3,1)
-      Expand = True
-    }
+  }
+  { timRefresh #Timer
+    #MoveScaled(53,2)
+    Delay = 500
   }
 }
 

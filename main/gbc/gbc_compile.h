@@ -2,7 +2,7 @@
 
   gbc_compile.h
 
-  (c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -105,7 +105,7 @@ void COMPILE_begin(const char *file, bool trans, bool debug);
 void COMPILE_end(void);
 void COMPILE_export_class(char *name);
 void COMPILE_add_class(const char *name, int len);
-void COMPILE_end_class();
+void COMPILE_end_class(void);
 void COMPILE_enum_class(char **name, int *len);
 void COMPILE_print(int type, int line, const char *msg, ...);
 

@@ -2,7 +2,7 @@
 
   CTextEdit.cpp
 
-  (c) 2000-2017 Benoît Minisini <gambas@users.sourceforge.net>
+  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -506,12 +506,13 @@ BEGIN_METHOD(CTEXTEDIT_new, GB_OBJECT parent)
 
   QTextEdit *wid = new QTextEdit(QT.GetContainer(VARG(parent)));
 
-  QObject::connect(wid, SIGNAL(textChanged()), &CTextArea::manager, SLOT(changed()));
+	QObject::connect(wid, SIGNAL(textChanged()), &CTextArea::manager, SLOT(changed()));
   QObject::connect(wid, SIGNAL(cursorPositionChanged()), &CTextArea::manager, SLOT(cursor()));
 
   wid->setLineWrapMode(QTextEdit::NoWrap);
 	
   QT.InitWidget(wid, _object, true);
+	QT.SetWheelFlag(_object);
 	
 	THIS->length = -1;
 	
