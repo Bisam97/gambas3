@@ -206,7 +206,7 @@ Public HasAdded As Integer
 Private $bTesting As Boolean
 
 ' All possible packager target systems
-Private $aSystems As String[] = ["archlinux", "autotools", "debian", "fedora", "mageia", "mandriva", "slackware", "suse", "ubuntu"]
+Private $aSystems As String[] = ["archlinux", "autotools", "debian", "fedora", "mageia", "slackware", "suse", "ubuntu"]
 
 ' Pretty background
 Public DEFAULT_BACKGROUND As String = "gambas"
@@ -711,7 +711,6 @@ _INIT_AGAIN:
       Design.ReadBreakpoints
     Endif
   Endif
-  
   
   ReadProject
 
@@ -4478,7 +4477,7 @@ Public Function CheckProjectName(sName As String, Optional sDir As String) As St
     Endif
 
     If Asc(sCar) > 127 Then Return ("Non-ASCII characters are forbidden in a project name.")
-    If InStr(" ?*/\\", sCar) Then Return ("The following characters are forbidden in a project name: ? * / \\ SPACE")
+    If InStr(" ?*/<>(){}\\", sCar) Then Return ("The following characters are forbidden in a project name:") & "\n\n<tt>? * / \\ " & ("SPACE") & " ( ) &lt; > { }</tt>"
 
   Next
 
