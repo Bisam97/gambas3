@@ -314,6 +314,9 @@ Public Sub Debug_Read(Data As String)
   Dim iPos As Integer
   Dim sComp As String
   Dim bLineChanged As Boolean
+  Dim iPid As Integer
+
+  'Debug ">>> "; Quote(Data)
 
   $sBuffer &= Data
   iPos = InStr($sBuffer, "\n") 
@@ -353,17 +356,18 @@ Public Sub Debug_Read(Data As String)
       '   [3] Local variables
       '   [4] Current object
     
-      If ProcessId = 0 Then
-        Try ProcessId = CInt(Scan(aData[0], "?[[]*]")[0])
-        If ProcessId Then
-          ProcessFiles = -1
-          ProcessMemory = -1
+      Try iPid = CInt(Scan(aData[0], "?[[]*]")[0])
+      If iPid And If iPid <> ProcessId Then
+        ProcessId = iPid
+        ProcessFiles = -1
+        ProcessMemory = -1
+        If Not $hTimerWatch Then
           $hTimerWatch = New Timer As "TimerWatch"
           $hTimerWatch.Delay = 1000
-          $hTimerWatch.Start
-          TimerWatch_Timer
-          FDebugger.UpdateProcessInfo(ProcessId, ProcessFiles, ProcessMemory)
         Endif
+        $hTimerWatch.Start
+        TimerWatch_Timer
+        FDebugger.UpdateProcessInfo(ProcessId, ProcessFiles, ProcessMemory)
       Endif
     
       aPos = Split(Trim(aData[2]), " ")
