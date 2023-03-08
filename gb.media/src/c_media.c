@@ -25,6 +25,8 @@
 
 #define __C_MEDIA_C
 
+#define GLIB_DISABLE_DEPRECATION_WARNINGS
+
 #include "c_media.h"
 //#include <gst/interfaces/xoverlay.h>
 #include <gst/base/gstbasesink.h>
@@ -283,6 +285,7 @@ static void return_value(const GValue *value)
 	  GB.ReturnNull();
 	  return;
 	}
+
 	GType type = G_VALUE_TYPE(value);
 	
 	switch (type)
@@ -372,7 +375,7 @@ static void return_value(const GValue *value)
 
 				GB.ReturnObject(array);
 			}
-#if defined(G_TYPE_VALUE_ARRAY) && !GLIB_CHECK_VERSION(2, 32, 0)
+#if defined(G_TYPE_VALUE_ARRAY) //&& !GLIB_CHECK_VERSION(2, 32, 0)
 			else if (G_VALUE_HOLDS(value, G_TYPE_VALUE_ARRAY))
 			{
 				GValueArray *garray = (GValueArray *)g_value_get_boxed(value);
@@ -876,7 +879,7 @@ END_PROPERTY
 
 //---- MediaMessage -------------------------------------------------------
 
-#define MESSAGE_DATA (gst_message_get_structure(THIS_MESSAGE->message))
+#define MESSAGE_DATA (THIS_MESSAGE->structure)
 
 static int MediaMessage_check(void *_object)
 {
@@ -889,15 +892,23 @@ static CMEDIAMESSAGE *create_message(GstMessage *message)
 	
 	ob = GB.New(GB.FindClass("MediaMessage"), NULL, NULL);
 	ob->message = message;
+	ob->structure = gst_message_get_structure(message);
 	ob->lastKey = NULL;
 	return ob;
 }
 
 BEGIN_METHOD(MediaMessage_get, GB_STRING name)
 
-	char *name = GB.ToZeroString(ARG(name));
+	char *name;
 	const GValue *value;
 
+	if (!MESSAGE_DATA)
+	{
+		GB.ReturnNull();
+		return;
+	}
+
+	name = GB.ToZeroString(ARG(name));
 	value = gst_structure_get_value(MESSAGE_DATA, name);
 	return_value(value);
 	
@@ -911,7 +922,7 @@ BEGIN_PROPERTY(MediaMessage_Keys)
 	const GstStructure *data = MESSAGE_DATA;
 	int nfields, i;
 	
-	nfields = gst_structure_n_fields(data);
+	nfields = data ? gst_structure_n_fields(data) : 0;
 	
 	GB.Array.New(&array, GB_T_STRING, nfields);
 	
@@ -923,47 +934,58 @@ BEGIN_PROPERTY(MediaMessage_Keys)
 END_PROPERTY
 
 BEGIN_PROPERTY(MediaMessage_Type)
-    
-    GB.ReturnInteger(GST_MESSAGE_TYPE(THIS_MESSAGE->message));
-    
+
+  GB.ReturnInteger(GST_MESSAGE_TYPE(THIS_MESSAGE->message));
+
 END_PROPERTY
 
+/*
+BEGIN_PROPERTY(MediaMessage_TypeName)
+
+  GB.ReturnConstZeroString(gst_message_type_get_name(GST_MESSAGE_TYPE(THIS_MESSAGE->message)));
+
+END_PROPERTY
+*/
+
 BEGIN_PROPERTY(MediaMessage_Name)
-    
-    GB.ReturnNewZeroString(gst_structure_get_name(MESSAGE_DATA));
+
+	if (MESSAGE_DATA)
+		GB.ReturnNewZeroString(gst_structure_get_name(MESSAGE_DATA));
+	else
+		GB.ReturnVoidString();
     
 END_PROPERTY
 
 BEGIN_PROPERTY(MediaMessage_Count)
-    
-    GB.ReturnInteger(gst_structure_n_fields(MESSAGE_DATA));
-    
+
+	GB.ReturnInteger(MESSAGE_DATA ? gst_structure_n_fields(MESSAGE_DATA) : 0);
+
 END_PROPERTY
 
 BEGIN_PROPERTY(MediaMessage_Key)
     
-    GB.ReturnNewZeroString(THIS_MESSAGE->lastKey);
+	GB.ReturnNewZeroString(THIS_MESSAGE->lastKey);
     
 END_PROPERTY
 
 BEGIN_METHOD_VOID(MediaMessage_next)
     
-    const GstStructure *data = MESSAGE_DATA;
-    int count = gst_structure_n_fields(data);
-    int *index = (int *)GB.GetEnum();
+	const GstStructure *data = MESSAGE_DATA;
+	int count = data ? gst_structure_n_fields(data) : 0;
+	int *index = (int *)GB.GetEnum();
 
-    if (*index < 0 || *index >= count)
-            GB.StopEnum();
-    else
-    {
-            THIS_MESSAGE->lastKey = gst_structure_nth_field_name(data, *index);
-            const GValue *value = gst_structure_get_value(data, THIS_MESSAGE->lastKey);
-            return_value(value);
-            
-            GB.ReturnConvVariant();
-            (*index)++;
-    }
-    
+	if (*index < 0 || *index >= count)
+		GB.StopEnum();
+	else
+	{
+		THIS_MESSAGE->lastKey = gst_structure_nth_field_name(data, *index);
+		const GValue *value = gst_structure_get_value(data, THIS_MESSAGE->lastKey);
+		return_value(value);
+
+		GB.ReturnConvVariant();
+		(*index)++;
+	}
+
 END_PROPERTY
 
 //---- MediaLink ----------------------------------------------------------
@@ -1727,6 +1749,7 @@ static int cb_message(CMEDIAPIPELINE *_object)
 				GB.Raise(THIS, EVENT_Event, 1, GB_T_OBJECT, ob);
 				
 				ob->message = NULL;
+				ob->structure = NULL;
 				GB.Unref(POINTER(&ob));
 			}
 			
@@ -2067,6 +2090,7 @@ GB_DESC MediaMessageDesc[] =
 	GB_HOOK_CHECK(MediaMessage_check),
 	
 	GB_PROPERTY_READ("Type", "i", MediaMessage_Type),
+	//GB_PROPERTY_READ("TypeName", "s", MediaMessage_TypeName),
 	GB_PROPERTY_READ("Name", "s", MediaMessage_Name),
 	
 	GB_METHOD("_get", "v", MediaMessage_get, "(Name)s"),

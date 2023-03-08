@@ -105,6 +105,7 @@ typedef
 	struct {
 		GB_BASE ob;
 		GstMessage *message;
+		const GstStructure *structure;
 		const char *lastKey;
 	}
 	CMEDIAMESSAGE;
