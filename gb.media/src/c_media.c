@@ -1085,12 +1085,28 @@ static MEDIA_TYPE _types[] =
 static void cb_pad_added(GstElement *element, GstPad *pad, CMEDIACONTROL *_object)
 {
 	char *name;
+	CMEDIACONTROL *target;
 
-	if (!THIS->dest)
+	if (!THIS->dest || GB.Count(THIS->dest) == 0)
 		return;
 	
+	target = (CMEDIACONTROL *)THIS->dest[0];
+
 	name = gst_pad_get_name(pad);
-	gst_element_link_pads(ELEMENT, name, ((CMEDIACONTROL *)THIS->dest)->elt, NULL);
+
+	if (!gst_element_link_pads(ELEMENT, name, target->elt, NULL))
+	{
+		if (MAIN_debug)
+			fprintf(stderr, "gb.media: warning: unable to link later element '%s' to output '%s.%s'\n", gst_element_get_name(target->elt), gst_element_get_name(ELEMENT), name);
+	}
+	else
+	{
+		if (MAIN_debug)
+			fprintf(stderr, "gb.media: info: link later element '%s' to output '%s.%s'\n", gst_element_get_name(target->elt), gst_element_get_name(ELEMENT), name);
+		GB.Unref(POINTER(&target));
+		GB.Remove(&THIS->dest, 0, 1);
+	}
+
 	g_free(name);
 }
 
@@ -1188,8 +1204,7 @@ BEGIN_METHOD_VOID(MediaControl_free)
 
 	//fprintf(stderr, "MediaControl_free: %p\n", THIS);
 
-	GB.Unref(POINTER(&THIS->dest));
-	//GB.FreeString(&THIS->type);
+	GB.FreeArray(POINTER(&THIS->dest));
 	GB.StoreVariant(NULL, &THIS->tag);
 	
 	if (ELEMENT)
@@ -1331,10 +1346,14 @@ BEGIN_METHOD(MediaControl_LinkLaterTo, GB_OBJECT dest)
 	if (GB.CheckObject(dest))
 		return;
 
-	GB.Unref(POINTER(&THIS->dest));
+	if (!THIS->dest)
+	{
+		GB.NewArray(&THIS->dest, sizeof(void *), 0);
+		g_signal_connect(ELEMENT, "pad-added", G_CALLBACK(cb_pad_added), THIS);
+	}
+
 	GB.Ref(dest);
-	THIS->dest = dest;
-	g_signal_connect(ELEMENT, "pad-added", G_CALLBACK(cb_pad_added), THIS);
+	*(void **)GB.Add(&THIS->dest) = dest;
 
 END_METHOD
 

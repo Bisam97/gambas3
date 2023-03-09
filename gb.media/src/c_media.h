@@ -68,7 +68,7 @@ typedef
 	struct {
 		GB_BASE ob;
 		GstElement *elt;
-		void *dest;
+		void **dest;
 		GB_VARIANT_VALUE tag;
 		unsigned state : 3;
 		unsigned error : 1;
