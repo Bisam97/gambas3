@@ -68,7 +68,7 @@
 
 static void send_change_event(CWIDGET *_object)
 {
-	if (GB.Is(THIS, CLASS_UserControl))
+	if (THIS_ARRANGEMENT->paint)
 		CALL_FUNCTION(THIS_USERCONTROL, change_func);
 }
 
@@ -885,9 +885,12 @@ void MyContainer::paintEvent(QPaintEvent *event)
 
 	handler.handler = (GB_CALLBACK)cleanup_drawing;
 
-	GB.OnErrorBegin(&handler);
-	CALL_FUNCTION(THIS_USERCONTROL, paint_func);
-	GB.OnErrorEnd(&handler);
+	if (THIS_ARRANGEMENT->paint)
+	{
+		GB.OnErrorBegin(&handler);
+		CALL_FUNCTION(THIS_USERCONTROL, paint_func);
+		GB.OnErrorEnd(&handler);
+	}
 
 	PAINT_end();
 }
@@ -907,7 +910,8 @@ void MyContainer::changeEvent(QEvent *e)
 	
 	if (e->type() == QEvent::FontChange)
 	{
-		CALL_FUNCTION(THIS_USERCONTROL, font_func);
+		if (THIS_ARRANGEMENT->paint)
+			CALL_FUNCTION(THIS_USERCONTROL, font_func);
 	}
 	else if (e->type() == QEvent::EnabledChange)
 	{
@@ -918,7 +922,8 @@ void MyContainer::changeEvent(QEvent *e)
 void MyContainer::resizeEvent(QResizeEvent *e)
 {
 	void *_object = CWidget::get(this);
-	CALL_FUNCTION(THIS_USERCONTROL, resize_func);
+	if (THIS_ARRANGEMENT->paint)
+		CALL_FUNCTION(THIS_USERCONTROL, resize_func);
 }
 
 
