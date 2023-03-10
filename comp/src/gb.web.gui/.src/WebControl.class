@@ -178,6 +178,7 @@ Public Sub _attach((Parent) As Object, (EventName) As String)
   If Not $sName Then Return
   bOldKeyPress = $cNeedKeyPress.Exist($sName)
   bKeyPress = Object.CanRaise(Me, "KeyPress")
+  
   If bKeyPress <> bOldKeyPress Then
     If bKeyPress Then
       $cNeedKeyPress[$sName] = True
@@ -191,9 +192,9 @@ Public Sub _attach((Parent) As Object, (EventName) As String)
   
 End
 
-Static Public Sub _PrintNeedKeyPress()
+Static Public Sub _PrintNeedKeyPress(Optional bForce As Boolean)
   
-  If Not $bSendNeedKeyPress Then Return
+  If Not $bSendNeedKeyPress And If Not bForce Then Return
   
   $bSendNeedKeyPress = False
   Print "gw.needKeyPress = "; JSON.ToString($cNeedKeyPress); ";"
