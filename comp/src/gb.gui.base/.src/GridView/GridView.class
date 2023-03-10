@@ -994,7 +994,6 @@ Private Sub StartScrollTimer()
   
 End
 
-
 Public Sub ScrollArea_MouseMove()
   
   Dim I, MX, MY, X, Y, iRow, iCol As Integer
@@ -1178,6 +1177,8 @@ Public Sub TimerScroll_Timer()
     $hTimerScroll.Stop
     Return
   Endif
+  
+  If $iRow < 0 Then Return
   
   X = $SX - If(Me.RightToLeft, 0, $hRows.W) + $hView.ScrollX
   Y = $SY - $hColumns.Height + $hView.ScrollY

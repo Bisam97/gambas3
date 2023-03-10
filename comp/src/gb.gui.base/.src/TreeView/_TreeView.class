@@ -102,6 +102,7 @@ Private $bSortRoot As Boolean
 Private $hSortTimer As Timer
 Private $bNoRoot As Boolean
 Private $iLock As Integer
+Private $sLastKeyClick As String
 
 Private $hSelection As TreeViewSelection
 Private $iSaveSelection As Integer
@@ -839,7 +840,12 @@ Public Sub GridView_MouseDown()
 
   iRow = $hView.RowAt(Mouse.Y)
   hItem = _RowToItem(iRow)
-  If Not hItem Then Return
+  If Not hItem Then
+    $sLastKeyClick = ""
+    Return
+  Else 
+    $sLastKeyClick = hItem.Key
+  Endif
   
   If Mouse.Right And If Not $bShowCheck Then
     _SetItemSelected(hItem, True) '.Rows[iRow].Selected = True
@@ -867,7 +873,7 @@ Public Sub GridView_MouseDown()
     Endif
     Stop Event
   Else
-    If Not hItem.Selectable Then Stop Event
+    'If Not hItem.Selectable Then Stop Event
   Endif
   
 End
@@ -1163,7 +1169,8 @@ End
 Public Sub GridView_Click()
   
   Dim sSave As String = $sCursor
-  MoveCurrent()
+  $sCursor = $sLastKeyClick
+  'MoveCurrent()
   Raise Click
   $sCursor = sSave
   
