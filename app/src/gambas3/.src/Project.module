@@ -2835,6 +2835,7 @@ Public Function MakeExecutable(bDoNotIncVersion As Boolean, bSilent As Boolean, 
   Dim sPath As String
   Dim I As Integer
   Dim sDir As String
+  Dim sOptions As String
 
   If CheckStartupClass() Then Return True
 
@@ -2911,8 +2912,11 @@ Public Function MakeExecutable(bDoNotIncVersion As Boolean, bSilent As Boolean, 
       Next
       
     Endif
+    
+    sOptions = ""
+    If Config["/Executable/NoPublicDirectory", False] Then sOptions &= " -p"
 
-    sExec = System.Path &/ "bin/gba" & System.Version & " -o " & Shell$(sExecPath) & " " & Shell$(Project.Dir) & " > " & OUTPUT_FILE & " 2>&1"
+    sExec = System.Path &/ "bin/gba" & System.Version & sOptions & " -o " & Shell$(sExecPath) & " " & Shell$(Project.Dir) & " > " & OUTPUT_FILE & " 2>&1"
     Shell sExec Wait
     
     If CompressFiles And If CompressedFiles.Count Then
