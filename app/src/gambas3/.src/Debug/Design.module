@@ -642,8 +642,8 @@ Private Sub AfterStop()
     $hBrowser = Null
   Endif
 
-  For Each hForm In Project.Workspace.Windows
-    Try hForm.OnProjectDebug 
+  For Each hForm In Project.Files
+    Try hForm.OnProjectDebug()
   Next
 
   FMain.OnProjectDebug
@@ -1103,8 +1103,8 @@ Private Sub Start(sCmd As String)
   $bStart = True
   Project.Running = True
 
-  For Each hForm In Project.Workspace.Windows
-    Try hForm.OnProjectDebug
+  For Each hForm In Project.Files
+    Try hForm.OnProjectDebug()
   Next
   FOutput.OnProjectDebug
   FMain.OnProjectDebug
