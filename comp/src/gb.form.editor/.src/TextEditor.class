@@ -1916,8 +1916,9 @@ Public Sub View_KeyPress()
   Dim bSaveOverwrite As Boolean = $bOverwrite
   Dim X As Integer
   
+  Stop Event
   bCancel = Raise KeyPress
-  If bCancel Then Goto STOP_EVENT
+  If bCancel Then Return
 
   Try sAction = $cShortcut[String.UCase(Shortcut.FromKey())]
   If sAction Then 
@@ -1925,16 +1926,16 @@ Public Sub View_KeyPress()
       Case "Copy"
         Copy()
       Case "Paste"
-        If $bReadOnly Then Goto STOP_EVENT
+        If $bReadOnly Then Return
         Paste()
       Case "Undo"
-        If $bReadOnly Then Goto STOP_EVENT
+        If $bReadOnly Then Return
         Undo()
       Case "Redo"
-        If $bReadOnly Then Goto STOP_EVENT
+        If $bReadOnly Then Return
         Redo()
       Case "Cut"
-        If $bReadOnly Then Goto STOP_EVENT
+        If $bReadOnly Then Return
         Cut()
       Case "SelectAll"
         SelectAll
@@ -1943,14 +1944,14 @@ Public Sub View_KeyPress()
       Case "Goto"
         ShowGotoPanel
     End Select
-    Goto STOP_EVENT
+    Return
   Endif
   
   If Key.Text And If Asc(Key.Text) >= 32 And If Asc(Key.Text) <> 127 Then
-    If $bReadOnly Then Goto STOP_EVENT
-    If $hDoc._Mode And If $hDoc._Mode.OnKeyPress(Me) Then Goto STOP_EVENT
+    If $bReadOnly Then Return
+    If $hDoc._Mode And If $hDoc._Mode.OnKeyPress(Me) Then Return
     Insert(Key.Text)
-    Goto STOP_EVENT
+    Return
   Endif
   
   Select Case Key.Code
@@ -1969,7 +1970,6 @@ Public Sub View_KeyPress()
           Goto($X + 1, $Y, Key.Shift)
         Endif
       Endif
-      Goto STOP_EVENT
       
     Case Key.Left
       '$X = NormalizeColumn($X, $Y)
@@ -1986,7 +1986,6 @@ Public Sub View_KeyPress()
           Goto($X - 1, $Y, Key.Shift)
         Endif
       Endif
-      Goto STOP_EVENT
       
     Case Key.Up
       If Key.Alt Then
@@ -1994,7 +1993,7 @@ Public Sub View_KeyPress()
           Y = $hDoc.FindPreviousDiff($Y)
           If Y >= 0 Then Goto($X, Y, Key.Shift)
         Else
-          If $bReadOnly Then Goto STOP_EVENT
+          If $bReadOnly Then Return
           MoveSelection(True)
         Endif
       Else If Key.Control Then
@@ -2007,7 +2006,6 @@ Public Sub View_KeyPress()
       Else
         GotoXY($X0 + $MW - $hView.ScrollX, $hRows._GetRowY($Y) - $hView.ScrollY + $XY.Y - $hRows.H, Key.Shift)
       Endif
-      Goto STOP_EVENT
       
     Case Key.Down
       If Key.Alt Then
@@ -2015,7 +2013,7 @@ Public Sub View_KeyPress()
           Y = $hDoc.FindNextDiff($Y)
           If Y >= 0 Then Goto($X, Y, Key.Shift)
         Else
-          If $bReadOnly Then Goto STOP_EVENT
+          If $bReadOnly Then Return
           MoveSelection(False)
         Endif
       Else If Key.Control Then
@@ -2031,7 +2029,6 @@ Public Sub View_KeyPress()
         GotoXY(X, $hRows._GetRowY($Y) - $hView.ScrollY + $XY.Y + $hRows.H, Key.Shift)
         ' ?? If $Y = Y Then GotoXY(X, $hRows._GetRowY($Y + 1) - $hView.ScrollY, Key.Shift)
       Endif
-      Goto STOP_EVENT
       
     Case Key.Home
       If Key.Control Then
@@ -2052,7 +2049,6 @@ Public Sub View_KeyPress()
           Goto(P, $Y, Key.Shift)
         Endif
       Endif
-      Goto STOP_EVENT
       
     Case Key.End
       If Key.Control Then
@@ -2074,7 +2070,6 @@ Public Sub View_KeyPress()
           Goto(P, $Y, Key.Shift)
         Endif
       Endif
-      Goto STOP_EVENT
       
     Case Key.PageUp
       'Y = RealToView($Y)
@@ -2084,7 +2079,6 @@ Public Sub View_KeyPress()
       If Not Key.Control And If Not Key.Alt And If Not Key.Meta Then
         If GotoXY($X0 + $MW - $hView.ScrollX, $hRows._GetRowY($Y) + $XY.Y - $hView.ClientH - $hView.ScrollY, Key.Shift) Then
           Goto(0, 0, Key.Shift)
-          Goto STOP_EVENT
         Endif
       Endif
       
@@ -2100,7 +2094,6 @@ Public Sub View_KeyPress()
       If Not Key.Control And If Not Key.Alt And If Not Key.Meta Then
         If GotoXY($X0 + $MW - $hView.ScrollX, $hRows._GetRowY($Y) + $XY.Y + $hView.ClientH - $hView.ScrollY, Key.Shift) Then
           Goto(-1, $hDoc.Max, Key.Shift)
-          Goto STOP_EVENT
         Endif
       Endif
       
@@ -2120,11 +2113,11 @@ Public Sub View_KeyPress()
               ToggleRow(Y)
             Endif
           Endif
-          Goto STOP_EVENT
+          Return
         Endif
       Endif
       
-      If $bReadOnly Then Goto STOP_EVENT
+      If $bReadOnly Then Return
       
       If Not $bPrint Then $bOverwrite = False
       sTab = GetLineIndentText($Y)
@@ -2136,54 +2129,42 @@ Public Sub View_KeyPress()
       Endif
       'If Not $bPrint Then $bOverwrite = True
       $bOverwrite = bSaveOverwrite
-      Goto STOP_EVENT
       
     Case Key.BackSpace
       If Key.Control Then
-        If $bReadOnly Then Goto STOP_EVENT
+        If $bReadOnly Then Return
         DeleteWordLeft
       Else If Key.Normal Then
-        If $bReadOnly Then Goto STOP_EVENT
-        If $hDoc._Mode And If $hDoc._Mode.OnKeyPress(Me) Then Goto STOP_EVENT
+        If $bReadOnly Then Return
+        If $hDoc._Mode And If $hDoc._Mode.OnKeyPress(Me) Then Return
         DeleteLeft
       Endif
-      Goto STOP_EVENT
       
     Case Key.Delete
       If Key.Control Then
-        If $bReadOnly Then Goto STOP_EVENT
+        If $bReadOnly Then Return
         DeleteWordRight
       Else If Key.Normal Then
-        If $bReadOnly Then Goto STOP_EVENT
+        If $bReadOnly Then Return
         DeleteRight
       Endif
-      Goto STOP_EVENT
       
     Case Key.Tab
-      If $bReadOnly Then Goto STOP_EVENT
+      If $bReadOnly Then Return
       If Key.Control Then
         Insert("\t")
       Else
         DoIndent(Key.Shift)
       Endif
-      Goto STOP_EVENT
       
     Case Key.BackTab
-      If $bReadOnly Then Goto STOP_EVENT
+      If $bReadOnly Then Return
       DoIndent(True)
-      Goto STOP_EVENT
       
     Case Key.Insert
       If Not $bReadOnly Then Me.Overwrite = Not $bOverwrite
-      Goto STOP_EVENT
       
   End Select
-  
-  Return
-  
-STOP_EVENT:
-  
-  Stop Event
   
 End
 
