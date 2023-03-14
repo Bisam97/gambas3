@@ -345,6 +345,13 @@ BEGIN_PROPERTY(Application_Task)
 
 END_PROPERTY
 
+
+BEGIN_PROPERTY(Application_TempDir)
+
+	GB_ReturnNewZeroString(FILE_make_temp(NULL, NULL));
+
+END_PROPERTY
+
 #endif
 
 //-------------------------------------------------------------------------
@@ -394,6 +401,7 @@ GB_DESC NATIVE_App[] =
   GB_STATIC_PROPERTY_READ("ParentHandle", "i", Application_ParentHandle),
   GB_STATIC_PROPERTY_READ("Version", "s", Application_Version),
   GB_STATIC_PROPERTY_READ("Dir", "s", Application_Dir),
+  GB_STATIC_PROPERTY_READ("TempDir", "s", Application_TempDir),
   GB_STATIC_PROPERTY("Daemon", "b", Application_Daemon),
   GB_STATIC_PROPERTY_READ("Startup", "Class", Application_Startup),
 	GB_STATIC_PROPERTY("Priority", "i", Application_Priority),
