@@ -692,6 +692,8 @@ Public Sub Stop()
     If $bGnomeTerminal Then Pause()
     Try $hProcess.Kill
     $hProcess.Wait(1)
+  Else If $bExtern Then
+    If ProcessId > 0 Then Signal.Send(ProcessId, Signal.SIGKILL)
   Endif
   AfterStop
 
