@@ -61,6 +61,7 @@ Private Sub LoadSettings()
   
   btnRedirectStderr.Value = Project.Config["/Debug/RedirectStderr"]
   btnUseHttpServer.Value = Project.Config["/Debug/UseHttpServer"]
+  btnUseHttpServer.Enabled = Not Project.Components.Exist("gb.web.gui")
   cmbBrowser.Index = Design.Browsers.Find(Project.Config["/Debug/Browser"])
   
   btnResetOtherProjects.Visible = Not IsNull(Project.Config["/Debug/Projects"])
