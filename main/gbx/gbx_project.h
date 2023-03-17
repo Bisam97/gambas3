@@ -40,6 +40,7 @@ typedef
 EXTERN char *PROJECT_path;
 EXTERN char *PROJECT_exec_path;
 EXTERN char *PROJECT_name;
+EXTERN char *PROJECT_source;
 EXTERN char *PROJECT_title;
 EXTERN char *PROJECT_version;
 EXTERN const char *PROJECT_startup;

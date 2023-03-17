@@ -47,6 +47,7 @@
 char *PROJECT_path = NULL;
 char *PROJECT_exec_path = NULL;
 char *PROJECT_name = NULL;
+char *PROJECT_source = NULL;
 char *PROJECT_title = NULL;
 const char *PROJECT_startup = NULL;
 char *PROJECT_version = NULL;
@@ -83,6 +84,16 @@ static void project_title(char *name, int len)
 {
 	name[len] = 0;
 	PROJECT_title = name;
+}
+
+
+static void project_source(char *name, int len)
+{
+	if (name[0] == '#')
+	{
+		name[len] = 0;
+		PROJECT_source = &name[1];
+	}
 }
 
 
@@ -178,7 +189,8 @@ void PROJECT_analyze_startup(char *addr, int len, PROJECT_COMPONENT_CALLBACK cb)
 			project_startup(p, l);
 		if (get_line(&addr, end, &p, &l))
 			project_title(p, l);
-		get_line(&addr, end, &p, &l); // Deprecated "Stack"
+		if (get_line(&addr, end, &p, &l))
+			project_source(p, l);
 		get_line(&addr, end, &p, &l); // Deprecated "StackTrace"
 		if (get_line(&addr, end, &p, &l))
 			project_version(p, l);

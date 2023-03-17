@@ -388,7 +388,12 @@ static void create_startup_file()
 
 	startup_print(fs, "Startup=", "");
 	startup_print(fs, "Title=", "");
-	startup_print(fs, "Stack=", "0");
+
+	fputc('#', fs);
+	fputs(COMP_project_name, fs);
+	fputc('\n', fs);
+
+	//startup_print(fs, "Stack=", "0");
 	startup_print(fs, "StackTrace=", "0");
 
 	startup_print_version(fs);
