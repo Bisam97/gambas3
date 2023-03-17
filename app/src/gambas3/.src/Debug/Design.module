@@ -693,7 +693,7 @@ Public Sub Stop()
     Try $hProcess.Kill
     $hProcess.Wait(1)
   Else If $bExtern Then
-    If ProcessId > 0 Then Signal.Send(ProcessId, Signal.SIGKILL)
+    If ProcessId > 0 Then Try Signal.Send(ProcessId, Signal.SIGKILL)
   Endif
   AfterStop
 
