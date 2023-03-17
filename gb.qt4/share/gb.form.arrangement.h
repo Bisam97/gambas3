@@ -42,7 +42,6 @@ the following fields:
 - indent: if the arrangement area must have an indentation of Desktop.Scale
 - autoresize : if the container must try to fit its contents.
 - locked : if the container is being arranged.
-- user : if the container is a UserControl or a UserContainer.
 
 #define IS_RIGHT_TO_LEFT(_object)
 If the control is right to left written
@@ -66,6 +65,9 @@ Returns if the control is in design mode.
 
 #define IS_WIDGET_VISIBLE(_widget)
 Returns if a widget is visible to the screen.
+
+#define IS_USER(_object)
+Returns if the control is a UserControl or a UserContainer
 
 #define GET_WIDGET_CONTENTS(_widget, _x, _y, _w, _h)
 Sets the _x, _y, _w & _h variables with the dimensions of the area
@@ -189,7 +191,7 @@ void FUNCTION_NAME(void *_object) //(QFrame *cont)
 		// g_debug("arrange: %s (%d %d) (%d %d)", ((gControl *)_object)->name(), ((gContainer *)_object)->width(), ((gContainer *)_object)->height(), ((gContainer *)_object)->clientWidth(), ((gContainer *)_object)->clientHeight());
 		//usleep(50000);
 
-		if (arr->user)
+		if (IS_USER(_object))
 			cont = (CONTAINER_TYPE)GET_WIDGET(_object);
 
 		// INIT_CHECK_CHILDREN_LIST() can return

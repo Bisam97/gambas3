@@ -37,17 +37,16 @@ void CUSERCONTROL_cb_resize(gContainer *sender);
 struct gContainerArrangement
 {
 	unsigned mode : 4;
-	unsigned user : 1;
 	unsigned locked : 1;
+	unsigned dirty : 1;
 	unsigned margin : 1;
 	unsigned spacing : 1;
 	unsigned padding : 8;
 	unsigned indent : 1;
 	unsigned centered : 1;
-	unsigned dirty : 1;
 	unsigned autoresize : 1;
 	unsigned invert : 1;
-	unsigned _reserved: 11;
+	unsigned _reserved: 12;
 }; 
 
 class gContainer : public gControl
@@ -59,7 +58,6 @@ public:
 
 	int arrange() const { return arrangement.mode; }
 	bool autoResize() const { return arrangement.autoresize; }
-	bool isUser() const { return arrangement.user; }
 	int padding() const { return arrangement.padding; }
 	bool spacing() const { return arrangement.spacing; }
 	bool margin() const { return arrangement.margin; }
@@ -79,7 +77,6 @@ public:
 	virtual int containerHeight();
 
 	void setArrange(int vl);
-	void setUser();
 	void setAutoResize(bool vl);
 	void setPadding(int vl);
 	void setSpacing(bool vl);
@@ -87,6 +84,9 @@ public:
 	void setIndent(bool vl);
 	void setInvert(bool vl);
 	void setCentered(bool vl);
+
+	void setUser();
+	bool isUser() const { return _user; }
 
 	void setUserContainer() { _user_container = true; }
 	bool isUserContainer() const { return _user_container; }
@@ -169,6 +169,7 @@ private:
   gContainer *_proxyContainer;
   gContainer *_proxyContainerFor;
 	unsigned _did_arrangement : 1;
+	unsigned _user : 1;
 	unsigned _user_container : 1;
 	unsigned _shown : 1;
 	unsigned _arrange_later : 1;

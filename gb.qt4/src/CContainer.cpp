@@ -68,7 +68,7 @@
 
 static void send_change_event(CWIDGET *_object)
 {
-	if (GB.Is(THIS, CLASS_Container) && THIS_ARRANGEMENT->user)
+	if (GB.Is(THIS, CLASS_Container) && THIS->widget.flag.user)
 		CALL_FUNCTION(THIS_USERCONTROL, change);
 }
 
@@ -279,6 +279,7 @@ static void resize_container(void *_object, QWidget *cont, int w, int h)
 #define IS_EXPAND(_object) (((CWIDGET *)_object)->flag.expand)
 #define IS_IGNORE(_object) (((CWIDGET *)_object)->flag.ignore)
 #define IS_DESIGN(_object) (CWIDGET_is_design(_object))
+#define IS_USER(_object) (((CWIDGET *)_object)->flag.user)
 //#define IS_WIDGET_VISIBLE(_widget) (_widget)->isVisible()
 
 //#define CAN_ARRANGE(_object) ((_object) && !CWIDGET_test_flag(_object, WF_DELETED) && (!GB.Is(_object, CLASS_Window) || (((CWINDOW *)_object)->opened)))
@@ -541,7 +542,7 @@ void CCONTAINER_update_design(void *_object)
 	if (!THIS->widget.flag.design)
 		return;
 	
-	if (!THIS_ARRANGEMENT->user && !THIS->widget.flag.design_ignore)
+	if (!THIS->widget.flag.user && !THIS->widget.flag.design_ignore)
 		return;
 	
 	//fprintf(stderr, "CCONTAINER_update_design: %s %d\n", THIS->widget.name, THIS->widget.flag.design_ignore);
@@ -863,7 +864,7 @@ void MyContainer::paintEvent(QPaintEvent *event)
 	QRect r;
 	GB_ERROR_HANDLER handler;
 	
-	if (!THIS_ARRANGEMENT->user)
+	if (!THIS->widget.flag.user)
 	{
 		MyFrame::paintEvent(event);
 		return;
@@ -895,7 +896,7 @@ void MyContainer::changeEvent(QEvent *e)
 	if (e->type() == QEvent::LayoutDirectionChange)
 		CCONTAINER_arrange(THIS);
 	
-	if (!THIS_ARRANGEMENT->user)
+	if (!THIS->widget.flag.user)
 	{
 		MyFrame::changeEvent(e);
 		return;
@@ -914,7 +915,7 @@ void MyContainer::changeEvent(QEvent *e)
 void MyContainer::resizeEvent(QResizeEvent *e)
 {
 	void *_object = CWidget::get(this);
-	if (THIS_ARRANGEMENT->user)
+	if (THIS->widget.flag.user)
 		CALL_FUNCTION(THIS_USERCONTROL, resize);
 }
 
@@ -1263,9 +1264,9 @@ BEGIN_METHOD(UserControl_new, GB_OBJECT parent)
 
 	MyContainer *wid = new MyContainer(QCONTAINER(VARG(parent)));
 
+	THIS->widget.flag.user = true;
 	THIS->container = wid;
 	THIS_ARRANGEMENT->mode = ARRANGE_FILL;
-	THIS_ARRANGEMENT->user = true;
 
 	CWIDGET_new(wid, (void *)_object);
 	
@@ -1396,7 +1397,6 @@ BEGIN_PROPERTY(UserContainer_Design)
 		CCONTAINER *cont = (CCONTAINER *)CWidget::get(CONTAINER);
 		
 		cont->arrangement = 0;
-		((CCONTAINER_ARRANGEMENT *)cont)->user = true;
 		THIS_USERCONTAINER->save = cont->arrangement;
 	}
 

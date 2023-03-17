@@ -88,6 +88,7 @@ typedef
 			unsigned orientation : 1;          // for scrollbars & similar widgets
 			unsigned inverted : 1;             // if layout has been inverted
 			unsigned direction : 2;            // text direction
+			unsigned user : 1;                 // UserControl or UserContainer
 			} flag;
 		char *name;
 		void *font;
@@ -102,18 +103,16 @@ typedef
 		CWIDGET widget;
 		QWidget *container;
 		unsigned mode : 4;
-		unsigned user : 1;
 		unsigned locked : 1;
+		unsigned dirty : 1;
 		unsigned margin : 1;
 		unsigned spacing : 1;
 		unsigned padding : 8;
 		unsigned indent : 1;
 		unsigned centered : 1;
-		unsigned dirty : 1;
 		unsigned autoresize : 1;
 		unsigned invert : 1;
-		unsigned paint : 1;
-		unsigned _reserved: 10;
+		unsigned _reserved: 12;
 		}
 	CCONTAINER_ARRANGEMENT;
 

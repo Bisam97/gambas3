@@ -122,6 +122,7 @@ static void resize_container(gContainer *cont, int w, int h)
 #define IS_EXPAND(_object) (((gControl*)_object)->isExpand())
 #define IS_IGNORE(_object) (((gControl*)_object)->isIgnore())
 #define IS_DESIGN(_object) (((gControl*)_object)->isDesign())
+#define IS_USER(_object) (((gContainer *)_object)->isUser())
 #define IS_WIDGET_VISIBLE(_widget)  (((gControl*)_widget)->isVisible())
 
 #define CAN_ARRANGE(_object) (((gContainer *)_object)->isShown() && !((gControl *)_object)->isDestroyed())
@@ -293,6 +294,7 @@ void gContainer::initialize()
 	_no_arrangement = 0;
 	_did_arrangement = false;
 	_is_container = true;
+	_user = false;
 	_user_container = false;
 	_shown = false;
 	_arrange_later = false;
@@ -302,7 +304,6 @@ void gContainer::initialize()
 	arrangement.padding = 0;
 	arrangement.autoresize = false;
 	arrangement.locked = false;
-	arrangement.user = false;
 	arrangement.margin = false;
 	arrangement.indent = false;
 	arrangement.centered = false;
@@ -439,7 +440,7 @@ void gContainer::setAutoResize(bool vl)
 
 void gContainer::setUser()
 {
-	arrangement.user = true;
+	_user = true;
 	performArrange();
 	updateDesignChildren();
 	ON_DRAW_BEFORE(border, this, cb_expose, cb_draw);

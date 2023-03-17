@@ -39,17 +39,16 @@
 typedef
 	struct {
 		unsigned mode : 4;
-		unsigned user : 1;
 		unsigned locked : 1;
+		unsigned dirty : 1;
 		unsigned margin : 1;
 		unsigned spacing : 1;
 		unsigned padding : 8;
 		unsigned indent : 1;
 		unsigned centered : 1;
-		unsigned dirty : 1;
 		unsigned autoresize : 1;
 		unsigned invert : 1;
-		unsigned _reserved: 11;
+		unsigned _reserved: 12;
 		}
 	CARRANGEMENT;
 
