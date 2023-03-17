@@ -424,6 +424,12 @@ void gMenu::update()
 		
 		//setColor();
 		setFont();
+
+		if (_disabled)
+		{
+			gtk_widget_set_sensitive(GTK_WIDGET(menu), FALSE);
+			updateShortcutRecursive();
+		}
 	}
 
 	//g_debug("%p: END UPDATE", this);	
