@@ -47,8 +47,7 @@ struct gContainerArrangement
 	unsigned dirty : 1;
 	unsigned autoresize : 1;
 	unsigned invert : 1;
-	unsigned paint : 1;
-	unsigned _reserved: 10;
+	unsigned _reserved: 11;
 }; 
 
 class gContainer : public gControl
@@ -67,7 +66,6 @@ public:
 	bool indent() const { return arrangement.indent; }
 	bool invert() const { return arrangement.invert; }
 	bool centered() const { return arrangement.centered; }
-	bool isPaint() const { return arrangement.paint; }
 	bool isArranging() const { return arrangement.locked; }
 	bool isDirty() const { return arrangement.dirty; }
 	
@@ -82,7 +80,6 @@ public:
 
 	void setArrange(int vl);
 	void setUser();
-	void setPaint();
 	void setAutoResize(bool vl);
 	void setPadding(int vl);
 	void setSpacing(bool vl);

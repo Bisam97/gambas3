@@ -57,19 +57,19 @@
 
 #define CALL_FUNCTION(_this, _func) \
 { \
-	if ((_this)->_func) \
+	if ((_this)->func._func) \
 	{ \
 		GB_FUNCTION func; \
 		func.object = (_this); \
-		func.index = (_this)->_func; \
+		func.index = (_this)->func._func; \
 		GB.Call(&func, 0, TRUE); \
 	} \
 }
 
 static void send_change_event(CWIDGET *_object)
 {
-	if (THIS_ARRANGEMENT->paint)
-		CALL_FUNCTION(THIS_USERCONTROL, change_func);
+	if (GB.Is(THIS, CLASS_Container) && THIS_ARRANGEMENT->user)
+		CALL_FUNCTION(THIS_USERCONTROL, change);
 }
 
 void CUSERCONTROL_send_change_event()
@@ -860,39 +860,32 @@ static void cleanup_drawing(intptr_t arg1, intptr_t arg2)
 void MyContainer::paintEvent(QPaintEvent *event)
 {
 	void *_object = CWidget::get(this);
-	//QPainter *p;
 	QRect r;
-	//GB_COLOR bg;
 	GB_ERROR_HANDLER handler;
 	
-	if (!THIS_ARRANGEMENT->paint)
+	if (!THIS_ARRANGEMENT->user)
 	{
 		MyFrame::paintEvent(event);
 		return;
 	}
 	
-	r = event->rect();
-	
-	PAINT_begin(THIS);
-	//p = PAINT_get_current();
-
-	/*bg = CWIDGET_get_background((CWIDGET *)THIS);
-	if (bg != COLOR_DEFAULT)
-		p->fillRect(0, 0, width(), height(), TO_QCOLOR(bg));*/
-
-	//fprintf(stderr, "paintEvent: %s: %d %d %d %d\n", THIS->widget.name, r.x(), r.y(), r.width(), r.height());
-	PAINT_clip(r.x(), r.y(), r.width(), r.height());
-
-	handler.handler = (GB_CALLBACK)cleanup_drawing;
-
-	if (THIS_ARRANGEMENT->paint)
+	if (THIS_USERCONTROL->func.paint)
 	{
-		GB.OnErrorBegin(&handler);
-		CALL_FUNCTION(THIS_USERCONTROL, paint_func);
-		GB.OnErrorEnd(&handler);
-	}
+		r = event->rect();
 
-	PAINT_end();
+		PAINT_begin(THIS);
+
+		//fprintf(stderr, "paintEvent: %s: %d %d %d %d\n", THIS->widget.name, r.x(), r.y(), r.width(), r.height());
+		PAINT_clip(r.x(), r.y(), r.width(), r.height());
+
+		handler.handler = (GB_CALLBACK)cleanup_drawing;
+
+		GB.OnErrorBegin(&handler);
+		CALL_FUNCTION(THIS_USERCONTROL, paint);
+		GB.OnErrorEnd(&handler);
+
+		PAINT_end();
+	}
 }
 
 void MyContainer::changeEvent(QEvent *e)
@@ -902,7 +895,7 @@ void MyContainer::changeEvent(QEvent *e)
 	if (e->type() == QEvent::LayoutDirectionChange)
 		CCONTAINER_arrange(THIS);
 	
-	if (!THIS_ARRANGEMENT->paint)
+	if (!THIS_ARRANGEMENT->user)
 	{
 		MyFrame::changeEvent(e);
 		return;
@@ -910,8 +903,7 @@ void MyContainer::changeEvent(QEvent *e)
 	
 	if (e->type() == QEvent::FontChange)
 	{
-		if (THIS_ARRANGEMENT->paint)
-			CALL_FUNCTION(THIS_USERCONTROL, font_func);
+		CALL_FUNCTION(THIS_USERCONTROL, font);
 	}
 	else if (e->type() == QEvent::EnabledChange)
 	{
@@ -922,8 +914,8 @@ void MyContainer::changeEvent(QEvent *e)
 void MyContainer::resizeEvent(QResizeEvent *e)
 {
 	void *_object = CWidget::get(this);
-	if (THIS_ARRANGEMENT->paint)
-		CALL_FUNCTION(THIS_USERCONTROL, resize_func);
+	if (THIS_ARRANGEMENT->user)
+		CALL_FUNCTION(THIS_USERCONTROL, resize);
 }
 
 
@@ -1257,9 +1249,18 @@ BEGIN_PROPERTY(Container_Centered)
 END_PROPERTY
 
 
+static void declare_special_event_handler(void *_object, ushort *index, const char *suffix)
+{
+	GB_FUNCTION func;
+	char name[128];
+
+	snprintf(name, sizeof(name), "%s_%s", GB.Is(THIS, CLASS_UserContainer) ? "UserContainer" : "UserControl", suffix);
+	if (!GB.GetFunction(&func, THIS, name, NULL, NULL))
+		*index = func.index;
+}
+
 BEGIN_METHOD(UserControl_new, GB_OBJECT parent)
 
-	GB_FUNCTION func;
 	MyContainer *wid = new MyContainer(QCONTAINER(VARG(parent)));
 
 	THIS->container = wid;
@@ -1268,18 +1269,11 @@ BEGIN_METHOD(UserControl_new, GB_OBJECT parent)
 
 	CWIDGET_new(wid, (void *)_object);
 	
-	if (!GB.GetFunction(&func, THIS, "UserControl_Draw", NULL, NULL))
-	{
-		THIS_ARRANGEMENT->paint = true;
-		THIS_USERCONTROL->paint_func = func.index;
-		if (!GB.GetFunction(&func, THIS, "UserControl_Font", NULL, NULL))
-			THIS_USERCONTROL->font_func = func.index;
-		if (!GB.GetFunction(&func, THIS, "UserControl_Change", NULL, NULL))
-			THIS_USERCONTROL->change_func = func.index;
-		if (!GB.GetFunction(&func, THIS, "UserControl_Resize", NULL, NULL))
-			THIS_USERCONTROL->resize_func = func.index;
-	}
-	
+	declare_special_event_handler(THIS, &THIS_USERCONTROL->func.paint, "Draw");
+	declare_special_event_handler(THIS, &THIS_USERCONTROL->func.font, "Font");
+	declare_special_event_handler(THIS, &THIS_USERCONTROL->func.change, "Change");
+	declare_special_event_handler(THIS, &THIS_USERCONTROL->func.resize, "Resize");
+
 	GB.Error(NULL);
 	
 END_METHOD
@@ -1656,7 +1650,7 @@ GB_DESC UserControlDesc[] =
 	USERCONTROL_DESCRIPTION,
 	
 	GB_INTERFACE("Paint", &PAINT_Interface),
-	
+
 	GB_END_DECLARE
 };
 
@@ -1683,6 +1677,8 @@ GB_DESC UserContainerDesc[] =
 	GB_PROPERTY("Design", "b", UserContainer_Design),
 
 	//GB_PROPERTY("Focus", "b", UserContainer_Focus),
+
+	GB_INTERFACE("Paint", &PAINT_Interface),
 
 	USERCONTAINER_DESCRIPTION,
 	

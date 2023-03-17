@@ -121,7 +121,7 @@ static bool _internal_paint = false;
 
 static gFont *get_default_font(GB_PAINT *d)
 {
-	if (GB.Is(d->device, CLASS_DrawingArea) || GB.Is(d->device, CLASS_UserControl))
+	if (GB.Is(d->device, CLASS_DrawingArea) || GB.Is(d->device, CLASS_UserControl) || GB.Is(d->device, CLASS_UserContainer))
 	{
 		gControl *wid = (gControl *)((CWIDGET *)d->device)->widget;
 		return wid->font()->copy();
@@ -362,9 +362,9 @@ static int Begin(GB_PAINT *d)
 
 		cairo_translate(CONTEXT(d), dx, dy);
 	}
-	else if (GB.Is(device, CLASS_UserControl))
+	else if (GB.Is(device, CLASS_UserControl) || GB.Is(device, CLASS_UserContainer))
 	{
-		gContainer *wid = (gDrawingArea *)((CWIDGET *)device)->widget;
+		gContainer *wid = (gContainer *)((CWIDGET *)device)->widget;
 		double dx = 0, dy = 0;
 
 		w = wid->width();
@@ -377,7 +377,7 @@ static int Begin(GB_PAINT *d)
 		}
 
 #ifdef GTK3
-		EXTRA(d)->context = ((CUSERCONTROL *)device)->context;
+		EXTRA(d)->context = ((CUSERCONTROL *)device)->func.context;
 		cairo_reference(CONTEXT(d));
 #else
 		GdkDrawable *dr;

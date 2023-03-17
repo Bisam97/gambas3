@@ -77,27 +77,34 @@ typedef
 	}  
 	CCONTAINERCHILDREN;
 
-typedef  
-	struct
-	{
-		CWIDGET widget;
-		gContainerArrangement save;
-	}
-	CUSERCONTAINER;
-
-typedef  
-	struct
-	{
-		CWIDGET widget;
+typedef
+	struct {
 	#ifdef GTK3
 		cairo_t *context;
 	#endif
-		ushort paint_func;
-		ushort font_func;
-		ushort change_func;
-		ushort resize_func;
+		ushort paint;
+		ushort font;
+		ushort change;
+		ushort resize;
+	}
+	CUSERCONTROL_FUNC;
+
+typedef
+	struct
+	{
+		CWIDGET widget;
+		CUSERCONTROL_FUNC func;
 	}
 	CUSERCONTROL;
+
+typedef
+	struct
+	{
+		CWIDGET widget;
+		CUSERCONTROL_FUNC func;
+		gContainerArrangement save;
+	}
+	CUSERCONTAINER;
 
 DECLARE_PROPERTY(Container_ClientX);
 DECLARE_PROPERTY(Container_ClientY);

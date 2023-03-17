@@ -1809,6 +1809,7 @@ bool gApplication::eventsPending()
 		
 }
 
+#ifdef GTK3
 bool gApplication::hasMiddleClickPaste()
 {
   gboolean enabled;
@@ -1820,4 +1821,10 @@ bool gApplication::hasMiddleClickPaste()
 
   return enabled;
 }
+#else
+bool gApplication::hasMiddleClickPaste()
+{
+	return TRUE;
+}
+#endif
 

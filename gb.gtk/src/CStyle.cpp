@@ -193,7 +193,7 @@ static bool begin_draw(int *x, int *y)
 
 		_widget = wid->widget;
 	}
-	else if (GB.Is(device, CLASS_UserControl))
+	else if (GB.Is(device, CLASS_UserControl) || GB.Is(device, CLASS_UserContainer))
 	{
 		gContainer *wid;
 		GtkAllocation *a;

@@ -307,7 +307,6 @@ void gContainer::initialize()
 	arrangement.indent = false;
 	arrangement.centered = false;
 	arrangement.invert = false;
-	arrangement.paint = false;
 }
 
 gContainer::gContainer() 
@@ -440,17 +439,9 @@ void gContainer::setAutoResize(bool vl)
 
 void gContainer::setUser()
 {
-	if (arrangement.user)
-		return;
-	
 	arrangement.user = true;
 	performArrange();
 	updateDesignChildren();
-}
-
-void gContainer::setPaint()
-{
-	arrangement.paint = true;
 	ON_DRAW_BEFORE(border, this, cb_expose, cb_draw);
 }
 
@@ -781,7 +772,7 @@ bool gContainer::resize(int w, int h, bool no_decide)
 	_client_w = 0;
 	_client_h = 0;
 	
-	if (arrangement.paint)
+	if (isUser())
 		CUSERCONTROL_cb_resize(this);
 
 	performArrange();
@@ -831,7 +822,7 @@ void gContainer::updateFont()
 	for (i = 0; i < childCount(); i++)
 		child(i)->updateFont();
 
-	if (arrangement.paint)
+	if (isUser())
 		CUSERCONTROL_cb_font(this);
 }
 

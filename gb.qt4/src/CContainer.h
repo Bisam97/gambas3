@@ -49,8 +49,7 @@ typedef
 		unsigned dirty : 1;
 		unsigned autoresize : 1;
 		unsigned invert : 1;
-		unsigned paint : 1;
-		unsigned _reserved: 10;
+		unsigned _reserved: 11;
 		}
 	CARRANGEMENT;
 
@@ -79,17 +78,24 @@ extern GB_DESC UserContainerDesc[];
 
 typedef
 	struct {
+		ushort paint;
+		ushort font;
+		ushort change;
+		ushort resize;
+	}
+	CUSERCONTROL_FUNC;
+
+typedef
+	struct {
 		CCONTAINER parent;
-		ushort paint_func;
-		ushort font_func;
-		ushort change_func;
-		ushort resize_func;
+		CUSERCONTROL_FUNC func;
 		}
 	CUSERCONTROL;
 	
 typedef
 	struct {
 		CCONTAINER parent;
+		CUSERCONTROL_FUNC func;
 		int32_t save;
 		}
 	CUSERCONTAINER;
