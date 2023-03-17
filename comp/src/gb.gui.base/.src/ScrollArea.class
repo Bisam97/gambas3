@@ -72,7 +72,8 @@ Private $hShadowS As DrawingArea
 Private $hShadowW As DrawingArea
 Private $hShadowE As DrawingArea
 Private $hCorner As DrawingArea
-Private $hBorder As DrawingArea
+'Private $hBorder As DrawingArea
+Private $bBorder As Boolean
 
 Private $iScrollX As Integer
 Private $iScrollY As Integer
@@ -179,7 +180,7 @@ Private Sub LayoutScrollbars()
   
   SB = Style.ScrollbarSize
   SP = 0 'Style.ScrollbarSpacing
-  If $hBorder Then 
+  If $bBorder Then 
     FW = 1
     X = 1
     Y = 1
@@ -453,16 +454,6 @@ End
 Public Sub ScrollArea_Arrange()
   
   LayoutScrollbars
-  If $hBorder Then 
-    $hBorder.Move(0, 0, Me.W, Me.H)
-    '' GTK+ does not like if Lower() is called during the Arrange event!
-    ' $hBorder.Lower
-  Endif
-  
-  ' If Not $hTimerArrange Then
-  '   $hTimerArrange = New Timer As "TimerArrange"
-  '   $hTimerArrange.Trigger
-  ' Endif
   
 End
 
@@ -668,27 +659,15 @@ End
 
 Private Function Border_Read() As Boolean
 
-  Return $hBorder
+  Return $bBorder
 
 End
 
 Private Sub Border_Write(Value As Boolean)
 
-  Dim hSave As Container
+  If $bBorder = Value Then Return
   
-  If Border_Read() = Value Then Return
-  
-  If Value Then
-    hSave = Me._Container
-    Me._Container = Null
-    $hBorder = New DrawingArea(Me) As "Border"
-    $hBorder.Lower '' GTK+ does not like if Lower() is called during the Arrange event!
-    Me._Container = hSave
-  Else
-    $hBorder.Delete
-    $hBorder = Null
-  Endif
-  
+  $bBorder = Value
   ScrollArea_Arrange
 
 End
@@ -1073,9 +1052,9 @@ Private Sub Foreground_Write(Value As Integer)
 
 End
 
-Public Sub Border_Draw()
+Public Sub UserContainer_Draw()
   
-  Style.PaintPanel(0, 0, $hBorder.W, $hBorder.H, Border.Plain, Style.StateOf($hDrawingArea)) 'If(Me.HasFocus, Draw.Focus, Draw.Normal))
+  If $bBorder Then Style.PaintPanel(0, 0, Me.W, Me.H, Border.Plain, Style.StateOf($hDrawingArea))
   
 End
 
