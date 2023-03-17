@@ -130,12 +130,12 @@ Private Sub SetCurrent(iIndex As Integer)
     If $aTab[I].Visible = bShow Then Continue
     $aTab[I].Visible = bShow
     'If Not bShow Then
-    WebForm._AddJavascript("gw.setVisible(" & JS($aTab[I].Name) & "," & JS(bShow) & ");")
+    Me._AddRefresh("gw.setVisible(" & JS($aTab[I].Name) & "," & JS(bShow) & ");")
   Next
   Dec Me._NoRefresh
   
   Me._SetContainer($aTab[iIndex])
-  WebForm._AddJavascript("gw.setOuterHtml(" & JS(Me.Name & ":header") & "," & JS(GetHeaderHTML()) & ");")
+  Me._AddRefresh("gw.setOuterHtml(" & JS(Me.Name & ":header") & "," & JS(GetHeaderHTML()) & ");")
   'WebForm._AddJavascript("gw.setVisible(" & JS($aTab[iIndex].Name) & ",true);")  
   '$aTab[iIndex].Refresh
 

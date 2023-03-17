@@ -47,8 +47,8 @@ Private Sub Value_Write(Value As Float)
   $fValue = Min(1, Max(0, Value))
   
   If Me._CanRefresh() Then
-    WebForm._AddJavascript("$_(" & JS(Me.Name & ":p") & ").style.width = '" & CStr(CInt($fValue * 100)) & "." & CStr(CInt(Frac($fValue * 100) * 10)) & "%';")
-    If $bLabel Then WebForm._AddJavascript("gw.setInnerHtml(" & JS(Me.Name & ":l") & "," & JS(Html(Format($fValue, "0%"))) & ");")
+    Me._AddRefresh("$_(" & JS(Me.Name & ":p") & ").style.width = '" & CStr(CInt($fValue * 100)) & "." & CStr(CInt(Frac($fValue * 100) * 10)) & "%';")
+    If $bLabel Then Me._AddRefresh("gw.setInnerHtml(" & JS(Me.Name & ":l") & "," & JS(Html(Format($fValue, "0%"))) & ");")
   Else
     WebForm.PrintLog("Cannot refresh " & Me.Name & ": " & WebForm._InMessage & " / " & Me._NoRefresh & " / " & Me.IsHidden() & " / " & Me._Refresh)
   Endif

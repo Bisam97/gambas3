@@ -98,6 +98,8 @@ Static Public _NextName As String
 
 Static Public _Shortcuts As New Collection
 
+Static Public _RefreshJavascript As New Collection
+
 Static Private $hCellParent As WebControl
 Static Private $sCellId As String
 
@@ -642,6 +644,7 @@ Public Sub Refresh()
   
   _Refresh = True
   WebForm._HasRefresh = True
+  _RefreshJavascript.Remove($iId)
   
   Me._CancelChildrenRefresh()
   
@@ -651,6 +654,7 @@ Public Sub _CancelRefresh()
   
   'WebForm.PrintLog("Cancel refresh: " & Me.Name)
   _Refresh = False
+  _RefreshJavascript.Remove($iId)
   Me._CancelChildrenRefresh()
   
 End
@@ -679,8 +683,6 @@ Public Sub _RefreshReply() As Boolean
   
   sResult = Close #hFile
   Output To Default
-  
-  'WebForm._AddRefresh("$_(" & JS(Me.Name) & ").outerHTML = " & JS(sResult) & ";")
   
   If _Naked Then
     Print "gw.setInnerHtml("; JS(Me.Name); ","; JS(sResult); ");"
@@ -790,7 +792,7 @@ Private Sub Visible_Write(Value As Boolean)
   $bHidden = Not Value
   
   If bCanRefresh Then 
-    WebForm._AddJavascript("gw.setVisible(" & JS(Me.Name) & "," & JS(Not $bHidden) & ");")
+    Me._AddRefresh("gw.setVisible(" & JS(Me.Name) & "," & JS(Not $bHidden) & ");")
     If Me.Parent Then 
       Me.Parent.Refresh
     Else If Me Is WebContainer Then 
@@ -1294,5 +1296,11 @@ Public Sub _RaiseMouseEvent(sEvent As String, cEvent As Variant)
   
   Mouse._Define(sEvent, cEvent)
   Object.Raise(Me, sEvent)
+  
+End
+
+Public Sub _AddRefresh(sJavascript As String)
+  
+  _RefreshJavascript[$iId] &= sJavascript
   
 End

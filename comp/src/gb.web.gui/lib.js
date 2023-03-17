@@ -283,7 +283,14 @@ gw = {
           else
             gw.log('--> ' + expr);
         }
-        eval(expr);
+        try {
+          eval(expr);
+          }
+        catch(e)
+        {
+          gw.log('eval: ' + expr);
+          throw e;
+        }
         
         if (!gw.focus)
           gw.restoreFocus(save);

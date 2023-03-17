@@ -66,9 +66,9 @@ Private Sub Enabled_Write(Value As Boolean)
 
   If Me._CanRefresh() Then
     If $bEnabled Then
-      WebForm._AddJavascript("gw.addTimer(" & JS(Me.Name) & "," & CStr($iDelay) & ");")
+      Me._AddRefresh("gw.addTimer(" & JS(Me.Name) & "," & CStr($iDelay) & ");")
     Else
-      WebForm._AddJavascript("gw.removeTimer(" & JS(Me.Name) & ");")
+      Me._AddRefresh("gw.removeTimer(" & JS(Me.Name) & ");")
     Endif
   Endif
 

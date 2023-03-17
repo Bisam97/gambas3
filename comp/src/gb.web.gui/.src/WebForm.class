@@ -748,15 +748,26 @@ End
 
 Static Private Sub PrintJavascript()
   
+  Dim sJavascript As Variant
+  
   If $aJavascriptBefore.Count Then 
     Print $aJavascriptBefore.Join("\n")
     $aJavascriptBefore.Clear
   Endif
   
+  ' Handle full refreshes
+  
   If _HasRefresh Then
     _HasRefresh = False
     _Current._RefreshReply()
   Endif
+  
+  ' Handle small refreshes done by javascript, and that were not cancelled by a full refreh
+  
+  For Each sJavascript In WebControl._RefreshJavascript
+    Print sJavascript
+  Next
+  WebControl._RefreshJavascript.Clear
   
   If $aJavascript.Count Then 
     Print $aJavascript.Join("\n")
@@ -1345,7 +1356,6 @@ Public Sub ShowPopup(Control As WebControl) As Variant
   If _Window Then 
     hWindow = WebControl.FromId(_Window)
     If hWindow.Visible Then Return
-    hWindow.Show()
   Endif
   
   If Not hWindow Then hWindow = New WebWindow(_Current._GetWindowContainer())
@@ -1356,6 +1366,8 @@ Public Sub ShowPopup(Control As WebControl) As Variant
   hWindow.Modal = True
   
   _Window = hWindow.Id
+  
+  hWindow.Show()
   
   hPrevious = _CurrentPopup
   _CurrentPopup = Me

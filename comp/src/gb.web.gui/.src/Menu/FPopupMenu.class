@@ -80,7 +80,7 @@ Public Sub _UpdateProperty(sProp As String, vValue As Variant)
     WebForm._AddJavascript("$_(" & JS(vValue) & ").parentNode.addClass('gw-active');")
     hMenu = WebForm.FromName(vValue)
     sClick = PopupMenu(hMenu)
-    WebForm._AddJavascript("$_(" & JS(vValue) & ").parentNode.removeClass('gw-active');")
+    WebForm._AddJavascript("$_(" & JS(vValue) & ") && $_(" & JS(vValue) & ").parentNode.removeClass('gw-active');")
     If sClick Then Me.Close(sClick)
     
   Endif
