@@ -166,12 +166,30 @@ Private Sub OpenProject()
   
 End
 
-Public Sub tvwProject_Activate()
+Public Sub OpenFile(sPath As String)
   
-  Dim sKey As String
   Dim sMime As String
   Dim hProgList As DesktopFile[]
   Dim hProcess As Process
+
+  Project.OpenFileIgnoreUnknown = True
+  Project.Activate(Project.OpenFile(sPath))
+  If Project.FileWasUnknown() Then
+    sMime = MMime.GetMime(sPath)
+    If sMime Then
+      hProgList = DesktopFile.FromMime(sMime)
+      If hProgList.Count Then
+        hProcess = hProgList[0].Run(sPath)
+        hProcess.Ignore = True
+      Endif
+    Endif
+  Endif
+  
+End
+
+Public Sub tvwProject_Activate()
+  
+  Dim sKey As String
   Dim sKeyClass As String
   
   sKey = tvwProject.Key
@@ -187,18 +205,7 @@ Public Sub tvwProject_Activate()
           If Project.IsSourcePath(sKeyClass) Then sKey = sKeyClass
         Endif
       Endif
-      Project.OpenFileIgnoreUnknown = True
-      Project.OpenFile(sKey)
-      If Project.FileWasUnknown() Then
-        sMime = MMime.GetMime(sKey)
-        If sMime Then
-          hProgList = DesktopFile.FromMime(sMime)
-          If hProgList.Count Then
-            hProcess = hProgList[0].Run(sKey)
-            hProcess.Ignore = True
-          Endif
-        Endif
-      Endif
+      OpenFile(sKey)
     Endif
   Endif
   
@@ -2282,7 +2289,8 @@ Public Sub CreateRunWithMenu(hParent As Menu)
   hParent.Children.Clear
   
   For Each hProg In hParent.Tag
-    hMenu = New Menu(hParent) As "mnuEditWithProg"
+    hMenu = New Menu(hParent) 'As "mnuEditWithProg"
+    Object.Attach(hMenu, Object.Parent(hParent), "mnuEditWithProg")
     hMenu.Caption = hProg.Name & " (" & hProg.ProgramName & ")"
     Try hMenu.Picture = hProg.GetIcon().Picture
     hMenu.Tag = hProg
@@ -2298,17 +2306,21 @@ Public Sub mnuEditWith_Show()
   
 End
 
-Public Sub mnuEditWithProg_Click()
+Public Sub OpenFileWith(sPath As String, hMenu As Menu)
   
   Dim hProcess As Process
   Dim hDesktopFile As DesktopFile
-  Dim sPath As String
   
-  sPath = GetCurrent()
   If Not sPath Then Return
-  hDesktopFile = Last.Tag
+  hDesktopFile = hMenu.Tag
   hProcess = hDesktopFile.Run(sPath)
   hProcess.Ignore = True
+  
+End
+
+Public Sub mnuEditWithProg_Click()
+  
+  OpenFileWith(GetCurrent(), Last)
   
 End
 
