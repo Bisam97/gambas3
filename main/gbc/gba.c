@@ -349,12 +349,15 @@ int main(int argc, char **argv)
 			len_prefix = strlen(file);
 			path_init(file);
 
-			/* .startup and .project file always first ! */
+			// '.startup', '.project' and '.environment' files are always first!
 			
 			path = FILE_cat(FILE_get_dir(ARCH_project), ".startup", NULL);
 			if (FILE_exist(path)) ARCH_add_file(path);
-			
+
 			path = FILE_cat(FILE_get_dir(ARCH_project), ".project", NULL);
+			if (FILE_exist(path)) ARCH_add_file(path);
+
+			path = FILE_cat(FILE_get_dir(ARCH_project), ".environment", NULL);
 			if (FILE_exist(path)) ARCH_add_file(path);
 
 			for(;;)

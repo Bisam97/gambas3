@@ -70,6 +70,9 @@ bool COMP_do_not_lock = TRUE;
 
 #define STARTUP_MAX_LINE 256
 
+static FILE *_file = NULL;
+static const char *_file_name = NULL;
+
 const FORM_FAMILY COMP_form_families[] =
 {
 	{ "form", FORM_NORMAL },
@@ -260,7 +263,7 @@ static bool line_begins_with(const char *line, const char *key, int len)
 	return strncmp(line, key, len) == 0;
 }
 
-static void startup_print(FILE *fs, const char *key, const char *def)
+static void find_lines(const char *key, const char *def, void (*print_func)(const char *line))
 {
 	FILE *fp;
 	char line[256];
@@ -276,7 +279,7 @@ static void startup_print(FILE *fs, const char *key, const char *def)
 
 		if (line_begins_with(line, key, len))
 		{
-			fprintf(fs, "%s\n", &line[len]);
+			(*print_func)(&line[len]);
 			print = TRUE;
 		}
 	}
@@ -284,7 +287,7 @@ static void startup_print(FILE *fs, const char *key, const char *def)
 	fclose(fp);
 
 	if (!print && def)
-		fprintf(fs, "%s\n", def);
+		(*print_func)(def);
 }
 
 static char *find_version_in_file(void)
@@ -329,7 +332,7 @@ static char *find_version_in_file(void)
 	return STR_copy(line);
 }
 
-static void startup_print_version(FILE *fs)
+static void print_version()
 {
 	FILE *fp;
 	char line[256];
@@ -363,48 +366,88 @@ static void startup_print_version(FILE *fs)
 
 	if (version)
 	{
-		fputs(version, fs);
+		fputs(version, _file);
 		if (add_branch && branch)
-			fputs(branch, fs);
-		fputc('\n', fs);
+			fputs(branch, _file);
+		fputc('\n', _file);
 		STR_free(version);
 	}
 	else
-		fputs("0.0.0\n", fs);
+		fputs("0.0.0\n", _file);
 }
+
+
+static void create_file(const char *file)
+{
+	const char *path = FILE_cat(FILE_get_dir(COMP_project), file, NULL);
+
+	_file_name = file;
+	_file = fopen(path, "w");
+
+	if (!_file)
+		THROW("Cannot create '&1' file", _file_name);
+
+	FILE_set_owner(path, COMP_project);
+}
+
+
+static void close_file()
+{
+	const char *path = FILE_cat(FILE_get_dir(COMP_project), _file_name, NULL);
+
+	if (fclose(_file))
+		THROW("Cannot create '&1' file", _file_name);
+
+	_file = NULL;
+	_file_name = NULL;
+
+	if (FILE_get_size(path) == 0)
+		FILE_unlink(path);
+}
+
+
+static void print_line(const char *line)
+{
+	fputs(line, _file);
+	fputc('\n', _file);
+}
+
+
+static void print_environment(const char *line)
+{
+	if (*line && *line != ' ')
+		print_line(line);
+}
+
 
 static void create_startup_file()
 {
-	const char *name;
-	FILE *fs;
+	create_file(".startup");
 
-	name = FILE_cat(FILE_get_dir(COMP_project), ".startup", NULL);
-	fs = fopen(name, "w");
-	if (!fs)
-		THROW("Cannot create .startup file");
+	find_lines("Startup=", "", print_line);
+	find_lines("Title=", "", print_line);
 
-	// Do that now, otherwise file buffer can be erased
-	FILE_set_owner(name, COMP_project);
-
-	startup_print(fs, "Startup=", "");
-	startup_print(fs, "Title=", "");
-
-	fputc('#', fs);
-	fputs(COMP_project_name, fs);
-	fputc('\n', fs);
+	fputc('#', _file);
+	fputs(COMP_project_name, _file);
+	fputc('\n', _file);
 
 	//startup_print(fs, "Stack=", "0");
-	startup_print(fs, "StackTrace=", "0");
+	find_lines("StackTrace=", "0", print_line);
 
-	startup_print_version(fs);
+	print_version();
 
-	fputc('\n', fs);
-	startup_print(fs, "Component=", NULL);
-	startup_print(fs, "Library=", NULL);
-	fputc('\n', fs);
+	fputc('\n', _file);
+	find_lines("Component=", NULL, print_line);
+	find_lines("Library=", NULL, print_line);
+	fputc('\n', _file);
 
-	if (fclose(fs))
-		THROW("Cannot create .startup file");
+	close_file();
+
+	create_file(".environment");
+
+	find_lines("StartupEnvironment=", NULL, print_environment);
+
+	close_file();
 }
 
 #undef isdigit
@@ -824,5 +867,4 @@ void COMPILE_create_file(FILE **fw, const char *file)
 			THROW("Cannot create file: &1: &2", FILE_cat(FILE_get_dir(COMP_project), file, NULL), strerror(errno));
 	}
 }
-
 
