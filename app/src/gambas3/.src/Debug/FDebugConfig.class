@@ -1,5 +1,7 @@
 ' Gambas class file
 
+Static Private $hEnvChooser As EnvChooser
+
 Static Public Sub Run() As Boolean
   
   Return Not FDebugConfig.ShowModal()
@@ -25,7 +27,7 @@ Public Sub Form_Open()
   Settings.Read(Me)
   Project.SetEditorFont(lstArg)
   panEnvDbDebug.Visible = Project.Components.Exist("gb.db")
-
+  GetEnvironmentMenu(choEnv)
   LoadSettings
 
 End
@@ -188,10 +190,9 @@ Public Sub mnuInsertEnv_Click()
   
   Dim sNewEnv As String = Last.Tag
   If Not sNewEnv Then Return
-  choEnv.Insert(Split(sNewEnv))
+  $hEnvChooser.Insert(Split(sNewEnv))
   
 End
-
 
 Public Sub btnSetEnv_Click()
 
@@ -231,4 +232,11 @@ Public Sub btnResetOtherProjects_Click()
   Project.Config["/Debug/Projects"] = Null
   btnResetOtherProjects.Hide
 
+End
+
+Public Sub GetEnvironmentMenu(hEnvChooser As EnvChooser) As Menu
+  
+  $hEnvChooser = hEnvChooser
+  Return mnuInsertEnv
+  
 End

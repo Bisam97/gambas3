@@ -135,6 +135,9 @@ Public Sub Form_Open()
 
   End With
   
+  mnuInsertEnv.Proxy = FDebugConfig.GetEnvironmentMenu(choEnv)
+  choEnv.Menu = "mnuInsertEnv"
+  
   choComponent.Checkable = True
   choComponent.CheckedComponents = Project.Components
   choComponent.Libraries = $aLibraries
@@ -1243,3 +1246,12 @@ Public Sub cmbDefaultLanguage_Click()
   picDefaultLanguage.Picture = Picture["flag:/small/" & Language[sLang].Country]
 
 End
+
+Public Sub mnuInsertEnv_Click()
+  
+  Dim sNewEnv As String = Last.Tag
+  If Not sNewEnv Then Return
+  choEnv.Insert(Split(sNewEnv))
+  
+End
+
