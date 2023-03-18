@@ -99,6 +99,7 @@ static int _fdw;
 static FILE *_out;
 static FILE *_in = NULL;
 static bool _fifo;
+static bool _debug = FALSE;
 
 #define EXEC_current (*(STACK_CONTEXT *)GB_DEBUG.GetExec())
 
@@ -230,6 +231,7 @@ static bool calc_position_from_line(CLASS *class, ushort line, FUNCTION **functi
 
 DEBUG_INFO *DEBUG_init(GB_DEBUG_INTERFACE *debug, bool fifo, const char *fifo_name)
 {
+	char *env;
 	char path[DEBUG_FIFO_PATH_MAX];
 
 	DEBUG_interface = debug;
@@ -275,6 +277,10 @@ DEBUG_INFO *DEBUG_init(GB_DEBUG_INTERFACE *debug, bool fifo, const char *fifo_na
 	signal(SIGPIPE, SIG_IGN);
 
 	setlinebuf(_out);
+
+	env = getenv("GB_DEBUG_DEBUG");
+	if (env && env[0] == '1' && env[1] == 0)
+		_debug = TRUE;
 
 	return &DEBUG_info;
 }
@@ -1456,7 +1462,11 @@ void DEBUG_main(bool error)
 			if (errno)
 				fprintf(stderr, "gb.debug: warning: unable to read debugger input: %s\n", strerror(errno));
 			else
+			{
+				if (_debug)
+					fprintf(stderr, "gb.debug: input has been closed, reopen it.\n");
 				usleep(1000);
+			}
 
 			fclose(_in);
 			open_read_fifo();
@@ -1478,7 +1488,7 @@ void DEBUG_main(bool error)
 
 		if (len == 0)
 		{
-			if (last_command == TC_NONE)
+			if (last_command == TC_NONE || _fifo)
 				continue;
 
 			for (tc = Command; tc->pattern; tc++)

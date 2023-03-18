@@ -293,7 +293,7 @@ __ERROR:
 		goto __TRY_AGAIN;
 	}
 
-	fprintf(stderr, "gb.debug: warning: unable to send data to the debugger: %s\n", strerror(errno));
+	GB.Error("Unable to send date to the debugger: &1", strerror(errno));
 
 END_METHOD
 
