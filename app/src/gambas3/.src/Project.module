@@ -41,6 +41,7 @@ Public ReadOnly As Boolean
 
 Public Title As String
 Public Startup As String
+Public StartupEnvironment As String[]
 Public (Components) As String[]
 Public Libraries As String[]
 Public ExtraReferences As String[]
@@ -3065,6 +3066,7 @@ Public Sub ReadProject(Optional bConvert As Boolean)
 
   hFic = Open Path For Input
 
+  StartupEnvironment = New String[]
   Components = New String[]
   Libraries = New String[]
   ExtraReferences = New String[]
@@ -3126,6 +3128,7 @@ Public Sub ReadProject(Optional bConvert As Boolean)
   DoNotTranslate = New String[]
   CompressedFiles = New String[]
   PreviewStyleSheet = ""
+  
   UnknownOptions = New Collection
 
   For Each sLig In hFic.Lines
@@ -3158,6 +3161,9 @@ Public Sub ReadProject(Optional bConvert As Boolean)
           If Not Components.Exist(sVal) Then Components.Add(sVal)
         Endif
 
+      Case "startupenvironment"
+        StartupEnvironment.Add(sVal)
+
       Case "library"
         If bConvert Then
           For Each sVal In MConvert.ConvertComponent(sVal)
@@ -3189,7 +3195,7 @@ Public Sub ReadProject(Optional bConvert As Boolean)
         
       Case "environment"
         aEnv = Split(UnQuote(sVal), "\n")
-
+        
       Case "version"
         iPos = InStr(sVal, " ")
         If iPos Then
@@ -3561,6 +3567,10 @@ Public Sub WriteProject(Optional bComponentDoNotChange As Boolean, Optional bMak
     If Components.Find(hComp.Key) >= 0 Then
       Print #hFile, "Component="; hComp.Key
     Endif
+  Next
+  
+  For Each sVal In StartupEnvironment
+    Print #hFile, "StartupEnvironment="; sVal
   Next
 
   If LibraryPath Then Print #hFile, "LibraryPath="; LibraryPath

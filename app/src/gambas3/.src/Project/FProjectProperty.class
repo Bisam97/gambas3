@@ -130,6 +130,8 @@ Public Sub Form_Open()
     $aComponents = .Components.Copy()
     
     lstReferences.List = .ExtraReferences
+    
+    choEnv.Environment = .StartupEnvironment
 
   End With
   
@@ -245,6 +247,8 @@ Private Function DoApply() As Boolean
     .ExtraReferences = lstReferences.List
     
     If VersionControl.Enabled Then .VersionAddBranch = btnVersionAddBranch.Value
+    
+    .StartupEnvironment = choEnv.Environment
       
   End With
 
