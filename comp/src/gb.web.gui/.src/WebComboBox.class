@@ -94,6 +94,8 @@ Public Sub _Render()
   If Not $bReadOnly Then
     Print "</div>";
     WebForm._AddJavascript("gw.combobox.resize(" & JS(Me.Name) & ");")
+  Else
+    If $iIndex < 0 Then WebForm._AddJavascript("gw.combobox.update(" & JS(Me.Name) & ",-1);")
   Endif
   Print
   
