@@ -1571,9 +1571,6 @@ void gControl::setAcceptDrops(bool vl)
 		return;
 	}
 	
-	if (vl == _accept_drops)
-		return;
-
 	_accept_drops = vl;
 	updateAcceptDrops();
 }
