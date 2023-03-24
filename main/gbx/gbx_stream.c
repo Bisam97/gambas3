@@ -1050,6 +1050,8 @@ static int read_length(STREAM *stream)
 
 static STREAM *enter_temp_stream(STREAM *stream)
 {
+	STREAM *temp;
+
 	if (!_temp_stream || stream != CSTREAM_TO_STREAM(_temp_stream))
 	{
 		_temp_save = stream;
@@ -1057,7 +1059,14 @@ static STREAM *enter_temp_stream(STREAM *stream)
 		
 		OBJECT_UNREF(_temp_stream);
 		_temp_stream = OBJECT_new(CLASS_File, NULL, NULL);
-		STREAM_open(CSTREAM_TO_STREAM(_temp_stream), NULL, GB_ST_STRING | GB_ST_WRITE);
+
+		temp = CSTREAM_TO_STREAM(_temp_stream);
+
+		STREAM_open(temp, NULL, GB_ST_STRING | GB_ST_WRITE);
+
+		temp->common.swap = stream->common.swap;
+		temp->common.eol = stream->common.eol;
+		temp->common.null_terminated = stream->common.null_terminated;
 	}
 
 	_temp_level++;
