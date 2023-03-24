@@ -1050,7 +1050,7 @@ static int read_length(STREAM *stream)
 
 static STREAM *enter_temp_stream(STREAM *stream)
 {
-	if (stream != CSTREAM_TO_STREAM(_temp_stream))
+	if (!_temp_stream || stream != CSTREAM_TO_STREAM(_temp_stream))
 	{
 		_temp_save = stream;
 		_temp_level = 0;
