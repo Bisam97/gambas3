@@ -4673,54 +4673,118 @@ End
 ' END_METHOD
 '
 
-'' Find the previous line containing a specific string.
+'' Find the previous line containing a specific string or find the previous occurence of a string.
 ''
 '' - ~String~ is the string to search. The search is case insensitive.
 '' - ~Start~ is the line position where the search starts.
+'' - ~Column~ (ByRef) is the optional line position to search from.
+''
+'' If Column is suplied then the string is searched from the position and Start and Column will indicate the next string position.
 ''
 '' If no string is found, '-1' is returned.
 
-Public Sub FindPreviousString(Search As String, Start As Integer) As Integer
-  
-  If IsAscii(Search) Then
-    Do
-      If Start < 0 Then Return -1
-      If InStr($hDoc.Lines[Start], Search, 1, gb.IgnoreCase) Then Return Start
-      Dec Start
-    Loop
-  Else
-    Do
-      If Start < 0 Then Return -1
-      If String.InStr($hDoc.Lines[Start], Search, 1, gb.IgnoreCase) Then Return Start
-      Dec Start
-    Loop
+Public Sub FindPreviousString(Search As String, ByRef Start As Integer, Optional ByRef Column As Integer) As Integer
+
+  If IsMissing(Column) Then
+    If IsAscii(Search) Then
+      Do
+        If Start < 0 Then Return -1
+        If InStr($hDoc.Lines[Start], Search, 1, gb.IgnoreCase) Then Return Start
+        Dec Start
+      Loop
+    Else
+      Do
+        If Start < 0 Then Return -1
+        If String.InStr($hDoc.Lines[Start], Search, 1, gb.IgnoreCase) Then Return Start
+        Dec Start
+      Loop
+    Endif
   Endif
-  
+
+  Return SearchString(Search, True, ByRef Start, ByRef Column)
+
 End
 
-'' Find the next line containing a specific string.
+'' Find the next line containing a specific string or find the next occurence of a string.
 ''
 '' - ~String~ is the string to search. The search is case insensitive.
 '' - ~Start~ is the line position where the search starts.
+'' - ~Column~ (ByRef) is the optional line position to search from.
+''
+'' If Column is suplied then the string is searched from the position and Start and Column will indicate the next string position.
 ''
 '' If no string is found, '-1' is returned.
 
-Public Sub FindNextString(Search As String, Start As Integer) As Integer
-  
+Public Sub FindNextString(Search As String, ByRef Start As Integer, Optional ByRef Column As Integer) As Integer
+
+  If IsMissing(Column) Then
+    If IsAscii(Search) Then
+      Do
+        If Start >= $hDoc.Count Then Return -1
+        If InStr($hDoc.Lines[Start], Search, 1, gb.IgnoreCase) Then Return Start
+        Inc Start
+      Loop
+    Else
+      Do
+        If Start >= $hDoc.Count Then Return -1
+        If String.InStr($hDoc.Lines[Start], Search, 1, gb.IgnoreCase) Then Return Start
+        Inc Start
+      Loop
+    Endif
+    Return
+  Endif
+
+Return SearchString(Search, False, ByRef Start, ByRef Column)
+
+End
+
+Private Sub SearchString(Search As String, Previous As Boolean, ByRef SearchLine As Integer, ByRef Column As Integer) As Integer
+
+  Dim iX As Integer = Column
+  Dim iY As Integer = SearchLine
+  Dim iNewPos As Integer = iX
+
   If IsAscii(Search) Then
-    Do
-      If Start >= $hDoc.Count Then Return -1
-      If InStr($hDoc.Lines[Start], Search, 1, gb.IgnoreCase) Then Return Start
-      Inc Start
-    Loop
+
+    If Previous Then
+        iNewPos = RInStr($hDoc.Lines[iY], Search, iX, gb.IgnoreCase)
+        If Not iNewPos Or If iNewPos > iX Then 
+          iY = FindPreviousString(Search, iY - 1)
+          If iY = -1 Then Return -1
+          iNewPos = RInStr($hDoc.Lines[iY], Search, 0, gb.IgnoreCase)
+        Endif
+    Else
+        iNewPos = InStr($hDoc.Lines[iY], Search, If(IsMissing(Previous), iX + 1, iX + 2), gb.IgnoreCase)
+        If Not iNewPos Then 
+          iY = FindNextString(Search, iY + 1)
+          If iY = -1 Then Return -1
+          iNewPos = InStr($hDoc.Lines[iY], Search, 0, gb.IgnoreCase)
+        Endif
+    Endif
+
   Else
-    Do
-      If Start >= $hDoc.Count Then Return -1
-      If String.InStr($hDoc.Lines[Start], Search, 1, gb.IgnoreCase) Then Return Start
-      Inc Start
-    Loop
+
+    If Previous Then
+        iNewPos = String.RInStr($hDoc.Lines[iY], Search, iX, gb.IgnoreCase)
+        If Not iNewPos Or If iNewPos > iX Then 
+          iY = FindPreviousString(Search, iY - 1)
+          If iY = -1 Then Return -1
+          iNewPos = String.RInStr($hDoc.Lines[iY], Search, 0, gb.IgnoreCase)
+        Endif
+    Else
+        iNewPos = String.InStr($hDoc.Lines[iY], Search, If(IsMissing(Previous), iX + 1, iX + 2), gb.IgnoreCase)
+        If Not iNewPos Then 
+          iY = FindNextString(Search, iY + 1)
+          If iY = -1 Then Return -1
+          iNewPos = String.InStr($hDoc.Lines[iY], Search, 0, gb.IgnoreCase)
+        Endif
+    Endif
   Endif
   
+  SearchLine = iY
+  Column = iNewPos 
+  Return iY
+
 End
 
 Private Function ScrollX_Read() As Integer
@@ -6732,7 +6796,7 @@ End
 Public Sub _Search(sText As String, Optional bMoveNext As Boolean) As Boolean
   
   Dim HH As Integer
-  Dim Y As Integer
+  Dim Y As Integer = $Y
   Dim X As Integer
   Dim YY As Integer
   
@@ -6745,14 +6809,16 @@ Public Sub _Search(sText As String, Optional bMoveNext As Boolean) As Boolean
   If IsMissing(bMoveNext) Then
     Y = FindNextString(sText, $Y)
   Else If bMoveNext Then
-    Y = FindNextString(sText, $Y + 1)
+    X = $X + 1
+    Y = FindNextString(sText, ByRef Y, ByRef X)
   Else
-    Y = FindPreviousString(sText, $Y - 1)
+    X = $X 
+    Y = FindPreviousString(sText, ByRef Y, ByRef X)
   Endif
   
   If Y < 0 Then Return True
   
-  X = String.InStr($hDoc.Lines[Y], sText) - 1
+  If Not X Then X = String.InStr($hDoc.Lines[Y], sText) - 1 Else Dec X
   
   If IsMissing(bMoveNext) Then
     HH = $hRows.H
