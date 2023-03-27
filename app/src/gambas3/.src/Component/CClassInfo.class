@@ -251,7 +251,9 @@ Public Sub InitControl()
         Endif
       Endif
 
-      If Family <> "Form" Then 
+      If Component = CComponent.PROJECT_NAME Then
+        bDoNotApply = True
+      Else If Family <> "Form" Then 
         If MultiContainer Then
           bDoNotApply = Not CPropertyInfo.ALLOWED_MULTI_CONTAINER_PROP.Exist(sProp)
         Else
