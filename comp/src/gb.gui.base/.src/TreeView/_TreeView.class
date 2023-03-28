@@ -559,10 +559,16 @@ Public Sub GridView_Draw(X As Integer, Y As Integer, W As Integer, H As Integer,
   Dim hParent As _TreeView_Item
   Dim bStopEvent As Boolean
   Dim iFg As Integer
+  Dim HC As Integer
+  Dim XD As Integer
+  Dim XS As Integer
+  Dim X0 As Integer
   
   If Not hItem Then Return
   
   iFg = Paint.Background
+  X0 = X
+  XS = X * 2 + W
   
   bStopEvent = Raise Draw(X, Y, W, H, hItem.Key, Column)
   If bStopEvent Then
@@ -573,195 +579,100 @@ Public Sub GridView_Draw(X As Integer, Y As Integer, W As Integer, H As Integer,
   If Column = 0 Then
   
     If Me.RightToLeft Then
-
-      W -= hItem._Depth * $iDepthW '+ $iDepthW
-      
-      If Not $bNoRoot Then
-      
-        Paint.Save
-        
-        If $bShowLines And If hItem._Depth Then
-          
-          Paint.Background = _Gui.GetForeground(Me, Color.SetAlpha(Color.LightForeground, 128))
-          
-          bHasNext = GetSibling(hItem.Key, 1)
-          
-          If hItem.Count Then
-            Paint.MoveTo(X + W + $iDepthW, Y + H / 2)
-          Else
-            Paint.MoveTo(X + W + $iDepthW / 4, Y + H / 2)
-          Endif
-          Paint.LineTo(X + W + $iDepthW + $iDepthW / 2, Y + H / 2)
-          Paint.RelMoveTo(0, -H)
-          Paint.RelLineTo(0, H)
-          If bHasNext Then Paint.RelLineTo(0, H)
-          
-          XA = X + W + $iDepthW + $iDepthW / 2
-          hParent = hItem
-          While hParent.ParentKey
-            hParent = $cItem[hParent.ParentKey]
-            XA += $iDepthW 
-            If GetSibling(hParent.Key, 1) Then
-              Paint.MoveTo(XA, Y - H / 2)
-              Paint.RelLineTo(0, H * 2)
-            Endif
-          Wend
-          
-          Paint.AntiAlias = False
-          Paint.LineWidth = 1
-          Paint.Stroke
-          Paint.AntiAlias = True
-          
-        Endif
-      
-        If hItem.Count Then
-          
-          HA = H / 2
-          If HA < Desktop.Scale Then HA = Min(H, Desktop.Scale)
-          WA = HA
-          XA = X + W + ($iDepthW + WA) / 4
-          YA = Y + CInt(H - HA) \ 2
-          
-          Paint.Background = Color.SetAlpha(_Gui.GetForeground(Me, Style.ForegroundOf($hView)), 32)
-          Paint.LineWidth = $iDepthW / 12
-          Paint.LineCap = Paint.LineCapRound
-          Paint.Arrow(XA, YA, WA, HA, If(hItem.Expanded, Align.Bottom, Align.Left))
-          Paint.Stroke
-          
-        Endif
-        
-        Paint.Restore
-        W -= $iDepthW 
-        
-      Endif
-      
-      If $bShowCheck And If $hView.Mode Then
-        
-        ' If hItem.Selected Then
-        '   XA = X + W + $iDepthW / 4
-        '   YA = Y + $iDepthW / 4
-        '   WA = $iDepthW / 2
-        '   HA = H - $iDepthW / 2
-        '   Paint.Background = Color.SetAlpha(Style.ForegroundOf($hView), 64)
-        '   Paint.LineWidth = $iDepthW / 12
-        '   Paint.LineCap = Paint.LineCapSquare
-        '   Paint.Check(XA, YA, WA, HA)
-        '   Paint.Stroke
-        ' Endif
-        ' Paint.DrawRect(X + W, Y, H, H, Color.SetAlpha(Style.ForegroundOf($hView), 64), $iDepthW / 18)
-        
-        If $hView.Mode = Select.Single Then
-          Style.PaintOption(X + W, Y, H, H, hItem.Selected)
-        Else
-          Style.PaintCheck(X + W, Y, H, H, hItem.Selected)
-        Endif
-        
-        W -= $iDepthW + Desktop.Scale \ 2
-        
-      Endif
-      
-      If hItem.Picture Then
-        'W -= hItem.Picture.W
-        Paint.DrawPicture(hItem.Picture, X + W, Y + (H - hItem.Picture.H) / 2)
-        W -= Desktop.Scale \ 2
-      Endif
-
-    Else
+      Paint.Save
+      Paint.Translate((X + W / 2), 0)
+      Paint.Scale(-1, 1)
+      Paint.Translate(-(X + W / 2), 0)
+    Endif
   
-      X += hItem._Depth * $iDepthW
+    X += hItem._Depth * $iDepthW
+    
+    If Not $bNoRoot Then
+    
+      Paint.Save
       
-      If Not $bNoRoot Then
-      
-        Paint.Save
+      If $bShowLines And If hItem._Depth Then
         
-        If $bShowLines And If hItem._Depth Then
-          
-          Paint.Background = Color.SetAlpha(_Gui.GetForeground(Me, Color.LightForeground), 128)
-          
-          bHasNext = GetSibling(hItem.Key, 1)
-          
-          If hItem.Count Then
-            Paint.MoveTo(X, Y + H / 2)
-          Else
-            Paint.MoveTo(X + $iDepthW - $iDepthW / 4, Y + H / 2)
-          Endif
-          Paint.LineTo(X - $iDepthW / 2, Y + H / 2)
-          Paint.RelMoveTo(0, -H)
-          Paint.RelLineTo(0, H)
-          If bHasNext Then Paint.RelLineTo(0, H)
-          
-          XA = X - $iDepthW / 2
-          hParent = hItem
-          While hParent.ParentKey
-            hParent = $cItem[hParent.ParentKey]
-            XA -= $iDepthW 
-            If GetSibling(hParent.Key, 1) Then
-              Paint.MoveTo(XA, Y - H / 2)
-              Paint.RelLineTo(0, H * 2)
-            Endif
-          Wend
-          
-          Paint.AntiAlias = False
-          Paint.LineWidth = 1
-          Paint.Stroke
-          Paint.AntiAlias = True
-          
-        Endif
-      
+        Paint.Background = Color.SetAlpha(_Gui.GetForeground(Me, Color.LightForeground), 128)
+        
+        bHasNext = GetSibling(hItem.Key, 1)
+        
         If hItem.Count Then
-          
-          'Paint.Background = Color.LightForeground
-          'HA = H / 2
-          'If HA < Desktop.Scale Then HA = Min(H, Desktop.Scale)
-          WA = Min(H, $iDepthW \ 2)
-          HA = WA
-          XA = X + ($iDepthW - WA) / 2
-          YA = Y + (H - HA) / 2
-          Paint.LineWidth = HA / 6
-          Paint.Background = Color.SetAlpha(iFg, 32)
-          Paint.LineCap = Paint.LineCapRound
-          Paint.Arrow(XA, YA, WA, HA, If(hItem.Expanded, Align.Bottom, Align.Right))
-          Paint.Stroke
-          
-        Endif
-        
-        Paint.Restore
-        
-        X += $iDepthW
-        
-      Endif
-      
-      If $bShowCheck And If $hView.Mode Then
-        
-        ' If hItem.Selected Then
-        '   XA = X + $iDepthW / 4
-        '   YA = Y + $iDepthW / 4
-        '   WA = H - $iDepthW / 2
-        '   HA = H - $iDepthW / 2
-        '   Paint.Background = Color.SetAlpha(Style.ForegroundOf($hView), 64)
-        '   Paint.LineWidth = $iDepthW / 12
-        '   Paint.LineCap = Paint.LineCapSquare
-        '   Paint.Check(XA, YA, WA, HA)
-        '   Paint.Stroke
-        ' Endif
-        ' Paint.DrawRect(X, Y, H, H, Color.SetAlpha(Style.ForegroundOf($hView), 64), $iDepthW / 18)
-        
-        'Paint.FillRect(X, Y, H, H, Color.Yellow)
-        If $hView.Mode = Select.Single Then
-          Style.PaintOption(X, Y, H, H, hItem.Selected)
+          Paint.MoveTo(X, Y + H / 2)
         Else
-          Style.PaintCheck(X, Y, H, H, hItem.Selected)
+          Paint.MoveTo(X + $iDepthW - $iDepthW / 4, Y + H / 2)
         Endif
+        Paint.LineTo(X - $iDepthW / 2, Y + H / 2)
+        Paint.RelMoveTo(0, -H)
+        Paint.RelLineTo(0, H)
+        If bHasNext Then Paint.RelLineTo(0, H)
         
-        X += $iDepthW + Desktop.Scale \ 2
+        XA = X - $iDepthW / 2
+        hParent = hItem
+        While hParent.ParentKey
+          hParent = $cItem[hParent.ParentKey]
+          XA -= $iDepthW 
+          If GetSibling(hParent.Key, 1) Then
+            Paint.MoveTo(XA, Y - H / 2)
+            Paint.RelLineTo(0, H * 2)
+          Endif
+        Wend
         
-      Endif
-      
-      If hItem.Picture Then
-        Paint.DrawPicture(hItem.Picture, X, Y + (H - hItem.Picture.H) / 2)
-        X += hItem.Picture.W + Desktop.Scale \ 2
+        Paint.AntiAlias = False
+        Paint.LineWidth = 1
+        Paint.Stroke
+        Paint.AntiAlias = True
+        
       Endif
     
+      If hItem.Count Then
+        
+        'Paint.Background = Color.LightForeground
+        'HA = H / 2
+        'If HA < Desktop.Scale Then HA = Min(H, Desktop.Scale)
+        WA = Min(H, $iDepthW \ 2)
+        HA = WA
+        XA = X + ($iDepthW - WA) / 2
+        YA = Y + (H - HA) / 2
+        Paint.LineWidth = HA / 6
+        Paint.Background = Color.SetAlpha(iFg, 32)
+        Paint.LineCap = Paint.LineCapRound
+        Paint.Arrow(XA, YA, WA, HA, If(hItem.Expanded, Align.Bottom, Align.Right))
+        Paint.Stroke
+        
+      Endif
+      
+      Paint.Restore
+      
+      X += $iDepthW
+      
+    Endif
+    
+    If Me.RightToLeft Then Paint.Restore
+    
+    If $bShowCheck And If $hView.Mode Then
+      
+      HC = Min(H, $iDepthW)
+      XD = X
+      If Me.RightToLeft Then XD = XS - XD - HC
+      
+      If $hView.Mode = Select.Single Then
+        Style.PaintOption(XD, Y + (H - HC) \ 2, HC, HC, hItem.Selected)
+      Else
+        Style.PaintCheck(XD, Y + (H - HC) \ 2, HC, HC, hItem.Selected)
+      Endif
+      
+      Paint.DrawRect(XD, Y + (H - HC) \ 2, HC, HC, Color.Red)
+      
+      X += $iDepthW + Desktop.Scale \ 2
+      
+    Endif
+    
+    If hItem.Picture Then
+      XD = X
+      If Me.RightToLeft Then XD = XS - XD - hItem.Picture.W
+      Paint.DrawPicture(hItem.Picture, XD, Y + (H - hItem.Picture.H) / 2)
+      X += hItem.Picture.W + Desktop.Scale \ 2
     Endif
     
     If hItem.Foreground <> Color.Default Then
@@ -775,9 +686,18 @@ Public Sub GridView_Draw(X As Integer, Y As Integer, W As Integer, H As Integer,
     'Draw.Text(hItem.Text & " (" & hItem._Index & ") [" & hItem._Rows & "] {" & hItem._GrandChildren & "}", X, Y, W, H, $hView.Columns[Column].Alignment)
     sText = hItem.RichText
     If sText Then
-      Paint.DrawRichText(sText, X, Y, 65536, H, Align.Normal)
+      If Me.RightToLeft Then
+        XD = XS - X
+        Paint.DrawRichText(sText, XD - 65535, Y, 65535, H, Align.Normal)
+      Else
+        Paint.DrawRichText(sText, X, Y, 65535, H, Align.Normal)
+      Endif
     Else
-      Paint.DrawText(hItem.Text, X, Y, W, H, Align.Normal)
+      If Me.RightToLeft Then
+        Paint.DrawText(hItem.Text, XS - W, Y, W - X, H, Align.Normal)
+      Else 
+        Paint.DrawText(hItem.Text, X, Y, W - X, H, Align.Normal)
+      Endif
     Endif
     
   Else
