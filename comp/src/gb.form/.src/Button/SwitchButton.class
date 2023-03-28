@@ -74,8 +74,9 @@ Public Sub DrawingArea_Draw()
   Dim Y As Integer
   Dim DS As Integer
   Dim F As Integer
+  Dim S As Integer
 
-  iCol = Color.Merge(Color.Merge(Color.TextForeground, Color.SelectedBackground, $fValue), Color.Background)
+  iCol = Color.Merge(Color.LightForeground, Color.SelectedBackground, $fValue)
   iCol = Color.SetHSV(iCol, Color[Color.SelectedBackground].Hue)
   If iFlag And Style.Disabled Then iCol = Color.Merge(Color.Background, Color.Desaturate(iCol))
   
@@ -84,23 +85,24 @@ Public Sub DrawingArea_Draw()
   Paint.Background = iCol
   Paint.Fill
   
-  X = (Paint.W - DS * 4) * $fValue + DS / 2
-  Y = (Paint.H - DS * 3) / 2
+  S = DS * 2.5
   
-  Paint.Ellipse(X, Y, DS * 3, DS * 3)
-  Paint.Background = Color.LightForeground
+  X = (Paint.W - S - DS) * $fValue + DS / 2
+  Y = (Paint.H - S) / 2
+  
+  Paint.Ellipse(X, Y, S, S)
+  Paint.Background = iCol
   Paint.Fill()
   
-  iCol = Color.Merge(Color.ButtonBackground, Color.SelectedBackground, $fValue)
-  If iFlag And Style.Disabled Then iCol = Color.Merge(Color.Background, Color.Desaturate(iCol))
+  iCol = Color.Merge(Color.ButtonBackground, iCol)
 
   F = Max(1, DS \ 4)
-  Paint.Ellipse(X + F, Y + F, DS * 3 - F * 2, DS * 3 - F * 2)
+  Paint.Ellipse(X + F, Y + F, S - F * 2, S - F * 2)
   Paint.Background = iCol
   Paint.Fill()
   
   If iFlag And Style.HasFocus Then
-    Paint.Ellipse(X - DS / 2, Y - DS / 2, DS * 4, DS * 4)
+    Paint.Ellipse(X - DS / 2, Y - DS / 2, S + DS, S + DS)
     Paint.Background = Color.SetAlpha(Color.SelectedBackground, 200)
     Paint.Fill
   Endif
