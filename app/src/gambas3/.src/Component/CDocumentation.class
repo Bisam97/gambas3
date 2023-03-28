@@ -874,6 +874,7 @@ Private Sub ScanClass(hModule As Object, cSymbol As Collection, bModule As Boole
         If aSym[aSym.Count - 2] == "USE" Then
           sName = aSym[aSym.Max]
           hSymbol2 = hSymbol.Copy()
+          hSymbol2.Kind = If(IsUCase(sKind), "V", "v")
           hSymbol2.Name = sName
           hSymbol2.LineNumber = hSymbol.LineNumber
           hSymbol2.NotPublic = True
