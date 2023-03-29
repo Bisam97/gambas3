@@ -1145,7 +1145,7 @@ _JUMP_IF_FALSE_FAST:
 _RETURN:
 
 	{
-		static const void *return_jump[] = { &&__RETURN_GOSUB, &&__RETURN_VALUE, &&__RETURN_VOID, &&__INIT_BYTECODE_CHECK };
+		static const void *return_jump[] = { &&__RETURN_GOSUB, &&__RETURN_VALUE, &&__RETURN_VOID, &&__INIT_BYTECODE_CHECK, &&__RETURN_VALUE_OR_VOID };
 
 		goto *return_jump[GET_UX()];
 
@@ -1170,6 +1170,11 @@ _RETURN:
 		GP = (VALUE *)GP->_void.value[1];
 
 		goto _MAIN;
+
+	__RETURN_VALUE_OR_VOID:
+
+		if (SP[-1].type == T_VOID)
+			goto __RETURN_VOID;
 
 	__RETURN_VALUE:
 

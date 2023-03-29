@@ -30,7 +30,7 @@
 EXTERN const char *READ_source_ptr;
 #endif
 
-PUBLIC void EVAL_read(void);
-PUBLIC char *READ_get_pattern(PATTERN *pattern);
+void EVAL_read(void);
+char *READ_get_pattern(PATTERN *pattern);
 
 #endif
