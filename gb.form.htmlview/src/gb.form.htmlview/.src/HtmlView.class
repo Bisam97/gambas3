@@ -327,7 +327,11 @@ Private Sub Zoom_Write(Value As Float)
   $fZoom = Value
   
   View_Arrange
-  $hView.Scroll(fX * $hView.ScrollW - $hView.ClientW / 2, fY * $hView.ScrollH - $hView.ClientH / 2)
+  If $hView.ScrollX = 0 Then
+    $hView.Scroll(0, fY * $hView.ScrollH - $hView.ClientH / 2)
+  Else
+    $hView.Scroll(fX * $hView.ScrollW - $hView.ClientW / 2, fY * $hView.ScrollH - $hView.ClientH / 2)
+  Endif
   $hView.Refresh
 
 End

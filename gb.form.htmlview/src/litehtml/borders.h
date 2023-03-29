@@ -3,6 +3,7 @@
 
 #include "css_length.h"
 #include "types.h"
+#include "web_color.h"
 
 namespace litehtml
 {
@@ -31,6 +32,8 @@ namespace litehtml
 			color	= val.color;
 			return *this;
 		}
+
+		string to_string() const;
 	};
 
 	struct border
@@ -199,7 +202,7 @@ namespace litehtml
 			bottom_right_y	= val.bottom_right_y;
 			return *this;
 		}
-		border_radiuses calc_percents(int width, int height)
+		border_radiuses calc_percents(int width, int height) const
 		{
 			border_radiuses ret;
 			ret.bottom_left_x = bottom_left_x.calc_percent(width);
@@ -224,10 +227,10 @@ namespace litehtml
 
 		css_borders() = default;
 
-        bool is_visible() const
-        {
-            return left.width.val() != 0 || right.width.val() != 0 || top.width.val() != 0 || bottom.width.val() != 0;
-        }
+		bool is_visible() const
+		{
+			return left.width.val() != 0 || right.width.val() != 0 || top.width.val() != 0 || bottom.width.val() != 0;
+		}
 
 		css_borders(const css_borders& val)
 		{
@@ -246,6 +249,13 @@ namespace litehtml
 			bottom	= val.bottom;
 			radius	= val.radius;
 			return *this;
+		}
+		string to_string() const
+		{
+			return	"left: " + left.to_string() +
+					", top: " + top.to_string() +
+					", right: " + top.to_string() +
+					", bottom: " + bottom.to_string();
 		}
 	};
 
@@ -276,10 +286,10 @@ namespace litehtml
 			bottom = val.bottom;
 		}
 
-        bool is_visible() const
-        {
-            return left.width != 0 || right.width != 0 || top.width != 0 || bottom.width != 0;
-        }
+		bool is_visible() const
+		{
+			return left.width != 0 || right.width != 0 || top.width != 0 || bottom.width != 0;
+		}
 
 		borders& operator=(const borders& val)
 		{

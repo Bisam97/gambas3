@@ -41,8 +41,8 @@ typedef
 	struct {
 		GB_BASE ob;
 		char *html;
-		litehtml::context *context;
 		html_document *doc;
+		char *css;
 		char *default_font_name;
 		char *monospace_font_name;
 		int default_font_size;
