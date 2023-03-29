@@ -5846,7 +5846,8 @@ Public Sub SendMail()
   sTemp = File.SetName(sTemp, GetDefaultArchiveBaseName()) & ".tar.gz"
   Try Kill sTemp
   MakeSourcePackageTo(sTemp)
-  Desktop.SendMail(Null,,, If(Project.Title, Project.Title, Project.Name),, sTemp)
+  Try Desktop.SendMail(Null,,, If(Project.Title, Project.Title, Project.Name),, sTemp)
+  If Error Then FMain.ShowErrorWith(("Unable to send project by mail."))
 
 End
 
