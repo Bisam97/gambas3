@@ -338,11 +338,11 @@ BEGIN_METHOD(Container_unknown, GB_VALUE x; GB_VALUE y)
 END_METHOD
 
 
-BEGIN_PROPERTY(Container_Dirty)
+/*BEGIN_PROPERTY(Container_Dirty)
 
 	GB.ReturnBoolean(WIDGET->isDirty());
 
-END_PROPERTY
+END_PROPERTY*/
 
 //---------------------------------------------------------------------------
 
@@ -468,7 +468,7 @@ GB_DESC ContainerDesc[] =
 
 	GB_PROPERTY_READ("Children", "ContainerChildren", Container_Children),
 
-	GB_PROPERTY_READ("Dirty", "b", Container_Dirty),
+	//GB_PROPERTY_READ("Dirty", "b", Container_Dirty),
 
 	GB_PROPERTY_READ("ClientX", "i", Container_ClientX),
 	GB_PROPERTY_READ("ClientY", "i", Container_ClientY),
