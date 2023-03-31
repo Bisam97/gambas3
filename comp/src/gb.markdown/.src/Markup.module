@@ -497,7 +497,7 @@ Private Sub ConvertMarkup(aLine As String[], Optional bNoLineAnchors As Boolean)
           If Left(sLine) = "[" And If Right(sLine) = "]" Then
             sLine = ConvertLine(Mid$(sLine, 2, -1))
             $aIndex.Add(String$(I - 1, "  ") & "- [" & sLine & "] (#t" & CStr($aIndex.Count + 1) & ")")
-            sLine = "<a id=\"t" & CStr($aIndex.Count) & "\"></a>" & "<h" & CStr(I) & ">" & sLine & "</h" & CStr(I) & ">"
+            sLine = "<h" & CStr(I) & ">" & "<a id=\"t" & CStr($aIndex.Count) & "\"></a>" & ConvertLine(sLine) & "</h" & CStr(I) & ">"
           Else
             sLine = "<h" & CStr(I) & ">" & ConvertLine(sLine) & "</h" & CStr(I) & ">"
           Endif
