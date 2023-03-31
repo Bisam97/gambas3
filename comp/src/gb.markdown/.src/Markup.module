@@ -53,9 +53,9 @@ Private Sub ConvertMarkup(aLine As String[], Optional bNoLineAnchors As Boolean)
   Dim bCode As Boolean
   Dim iBlockQuote As Integer
   Dim sCar As String
-  Dim bInsidePar As Boolean
-  Dim bIgnorePar As Boolean
-  Dim bAddPar As Boolean
+  'Dim bInsidePar As Boolean
+  'Dim bIgnorePar As Boolean
+  'Dim bAddPar As Boolean
   Dim iIndent, iCurrentIndent As Integer
   Dim hMarkupList As MarkupList
   Dim bJustList As Boolean
@@ -76,6 +76,7 @@ Private Sub ConvertMarkup(aLine As String[], Optional bNoLineAnchors As Boolean)
   Dim cLine As Collection
   Dim J As Integer
   Dim iNextLine As Integer
+  Dim sLast As String
   
   aResult = New String[]
   
@@ -162,6 +163,7 @@ Private Sub ConvertMarkup(aLine As String[], Optional bNoLineAnchors As Boolean)
     ' Special command alone on its line
     
     If Left(sLine, 2) = "@{" And If Right(sLine) = "}" Then
+      GoSub ADD_PARA
       If sLine = "@{index}" Then 
         iIndexPos = aResult.Count
         aResult.Add(sLine)
@@ -225,7 +227,7 @@ Private Sub ConvertMarkup(aLine As String[], Optional bNoLineAnchors As Boolean)
       If Left(sLine) = "-" And If Right(sLine) = "-" Then
         'sText = Replace(sLine, " ", "")
         If Len(sLine) >= 3 And If sLine = String$(Len(sLine), "-") Then
-          GoSub CLOSE_PARA
+          'GoSub CLOSE_PARA
           aResult.Add("<hr>")
           Continue
         Endif
@@ -254,7 +256,7 @@ Private Sub ConvertMarkup(aLine As String[], Optional bNoLineAnchors As Boolean)
           Endif
           aResult.Remove(aResult.Max)
         Else
-          GoSub CLOSE_PARA
+          'GoSub CLOSE_PARA
           aResult.Add(Space$(iCurrentIndent) & "<ul>")
         Endif
         iCurrentIndent = hMarkupList.iIndent
@@ -277,7 +279,7 @@ Private Sub ConvertMarkup(aLine As String[], Optional bNoLineAnchors As Boolean)
           Endif
           aResult.Remove(aResult.Max)
         Else
-          GoSub CLOSE_PARA
+          'GoSub CLOSE_PARA
           aResult.Add(Space$(iCurrentIndent) & "<ol>")
         Endif
         iCurrentIndent = hMarkupList.iIndent
@@ -312,7 +314,7 @@ Private Sub ConvertMarkup(aLine As String[], Optional bNoLineAnchors As Boolean)
     
     If sLine = "[[" Or If sLine Begins "[[ " Then
       
-      GoSub CLOSE_PARA
+      'GoSub CLOSE_PARA
       iIndent = GetIndent(sLine)
       GoSub CLOSE_LIST
       GoSub CLOSE_CODE
@@ -329,9 +331,9 @@ Private Sub ConvertMarkup(aLine As String[], Optional bNoLineAnchors As Boolean)
           If aCommand Then aResult.Insert(aCommand)
         Endif
       Endif
-      'aResult.Add("<tr><th>")
-      bIgnorePar = False
-      bInsidePar = False
+
+      'bIgnorePar = False
+      'bInsidePar = False
       Continue
       
     Endif
@@ -340,7 +342,7 @@ Private Sub ConvertMarkup(aLine As String[], Optional bNoLineAnchors As Boolean)
       
       If sLine = "]]" Then
         
-        GoSub CLOSE_PARA
+        'GoSub CLOSE_PARA
         iIndent = GetIndent(sLine)
         GoSub CLOSE_LIST
         GoSub CLOSE_CODE
@@ -352,15 +354,17 @@ Private Sub ConvertMarkup(aLine As String[], Optional bNoLineAnchors As Boolean)
         aCommand = aResult.Extract(iPos, -1)
         
         If Left(sClass) <> " " Then
-          aResult.Add("<div class=\"table\"><div class=\"" & sClass & "\">")
           If sClass Begins "code " Then
             aTemp = ProcessCode(sClass, aCommand)
           Else
             aTemp = $hMarkdown.Process(sClass, aCommand)
           Endif
           If aTemp Then aCommand = aTemp
-          aResult.Insert(aCommand)
-          aResult.Add("</div></div>")
+          If aCommand.Count Then
+            aCommand[0] = "<div class=\"table " & sClass & "\">" & aCommand[0]
+            aResult.Insert(aCommand)
+            aResult.Add("</div>")
+          Endif
         Else
           sClass = Trim(sClass)
           If Not sClass Then sClass = "table"
@@ -386,7 +390,7 @@ Private Sub ConvertMarkup(aLine As String[], Optional bNoLineAnchors As Boolean)
       
       Else If sLine = "--" Then
         
-        GoSub CLOSE_PARA
+        'GoSub CLOSE_PARA
         iIndent = GetIndent(sLine)
         GoSub CLOSE_LIST
         GoSub CLOSE_CODE
@@ -397,14 +401,14 @@ Private Sub ConvertMarkup(aLine As String[], Optional bNoLineAnchors As Boolean)
         Else
           aResult.Add("</td><td>")
         Endif
-        bIgnorePar = True
-        bInsidePar = True
+        'bIgnorePar = True
+        'bInsidePar = True
         $aTableClass[$aTableClass.Max] = " " & Trim($aTableClass[$aTableClass.Max])
         Continue
         
       Else If sLine = "==" Then
         
-        GoSub CLOSE_PARA
+        'GoSub CLOSE_PARA
         iIndent = GetIndent(sLine)
         GoSub CLOSE_LIST
         GoSub CLOSE_CODE
@@ -418,8 +422,8 @@ Private Sub ConvertMarkup(aLine As String[], Optional bNoLineAnchors As Boolean)
         aResult.Add("<tr><td>")
         $aTable[$aTable.Max] = "=="
         $aTableClass[$aTableClass.Max] = " " & Trim($aTableClass[$aTableClass.Max])
-        bIgnorePar = True
-        bInsidePar = True
+        'bIgnorePar = True
+        'bInsidePar = True
         Continue
         
       Endif
@@ -429,25 +433,21 @@ Private Sub ConvertMarkup(aLine As String[], Optional bNoLineAnchors As Boolean)
     If sLine Begins "==" And If sLine = String$(Len(sLine), "=") Then
       sLine = aResult[aResult.Max]
       If sLine Not Begins "<h" Then
-        If sLine Begins "<p>" Then
-          sLine = Mid$(sLine, 4)
-          bInsidePar = False
-        Endif
-        GoSub CLOSE_PARA
+        ' If sLine Begins "<p>" Then
+        '   sLine = Mid$(sLine, 4)
+        '   bInsidePar = False
+        ' Endif
+        ' GoSub CLOSE_PARA
         aResult[aResult.Max] = "<h1>" & sLine & "</h1>"
       Endif
       Continue
     Endif
     
-    If sLine Begins "--" And If sLine = String$(Len(sLine), "-") And If bInsidePar Then
+    If sLine Begins "--" And If sLine = String$(Len(sLine), "-") Then 'And If bInsidePar Then
       sLine = Trim(aResult[aResult.Max])
       If sLine Then
-        If sLine Not Begins "<h" Then
-          If sLine Begins "<p>" Then
-            sLine = Mid$(sLine, 4)
-            bInsidePar = False
-          Endif
-          GoSub CLOSE_PARA
+        If sLine Not Begins "<h" And If sLine Not Begins "<p>" Then
+          'GoSub CLOSE_PARA
           aResult[aResult.Max] = "<h2>" & sLine & "</h2>"
         Endif
         Continue
@@ -470,7 +470,7 @@ Private Sub ConvertMarkup(aLine As String[], Optional bNoLineAnchors As Boolean)
           sLine = Html$(sLine)
         Endif
         If Not bCode Then
-          GoSub CLOSE_PARA
+          'GoSub CLOSE_PARA
           bCode = True
           sLine = "<div><pre><code>" & sLine
         Endif
@@ -501,42 +501,47 @@ Private Sub ConvertMarkup(aLine As String[], Optional bNoLineAnchors As Boolean)
           Else
             sLine = "<h" & CStr(I) & ">" & ConvertLine(sLine) & "</h" & CStr(I) & ">"
           Endif
-          GoSub CLOSE_PARA
+          'GoSub CLOSE_PARA
           aResult.Add(sLine)
           Continue
         Endif
       Endif
     Endif
       
-    If Trim(sLine) Then
-      If Not bInsidePar And If LTrim(sLine) Not Begins "<h" Then
-        If bIgnorePar Then
-          bIgnorePar = False
-        Else 'If Not bJustList Then
-          bAddPar = True
-        'Else
-        '  bAddPar = Not Trim(aLine[iLine - 1])
-        Endif
-      Endif
-    Else
-      bJustList = False
-      GoSub CLOSE_PARA
+    ' If Trim(sLine) Then
+    '   If Not bInsidePar And If LTrim(sLine) Not Begins "<h" Then
+    '     If bIgnorePar Then
+    '       bIgnorePar = False
+    '     Else 'If Not bJustList Then
+    '       bAddPar = True
+    '     'Else
+    '     '  bAddPar = Not Trim(aLine[iLine - 1])
+    '     Endif
+    '   Endif
+    ' Else
+    '   bJustList = False
+    '   GoSub CLOSE_PARA
+    '   Continue
+    ' Endif
+    
+    If Not Trim(sLine) Then
+      GoSub ADD_PARA
       Continue
     Endif
     
     sLine = ConvertLine(sLine)
     
-    If bAddPar Then
-      sLine = Left(sLine, GetIndent(sLine)) & "<p>" & LTrim(sLine)
-      bInsidePar = True
-      bAddPar = False
-    Endif
+    ' If bAddPar Then
+    '   sLine = Left(sLine, GetIndent(sLine)) & "<p>" & LTrim(sLine)
+    '   bInsidePar = True
+    '   bAddPar = False
+    ' Endif
     
     aResult.Add(sLine)
     
   Wend
   
-  GoSub CLOSE_PARA
+  'GoSub CLOSE_PARA
   GoSub CLOSE_CODE
   GoSub CLOSE_BLOCKQUOTE
   iIndent = 0
@@ -605,9 +610,10 @@ CLOSE_BLOCKQUOTE:
 CLOSE_LIST:
 
   While iIndent < iCurrentIndent
-    GoSub CLOSE_PARA
+    'GoSub CLOSE_PARA
     GoSub CLOSE_CODE
     'aResult.Add(Space$(iCurrentIndent) & "</li>")
+    GoSub ADD_PARA
     aResult[aResult.Max] &= "</li>"
     bJustList = False
     aResult.Add(Space$(aList[aList.Max].iIndent) & "</" & aList[aList.Max].sType & ">")
@@ -620,17 +626,28 @@ CLOSE_LIST:
   Wend
   Return
 
-CLOSE_PARA:
+ADD_PARA:
 
-  If bInsidePar Then
-    If Not bIgnorePar Then aResult[aResult.Max] &= "</p>"
-    'aResult.Add("")
-    bInsidePar = False
-    bIgnorePar = False
-  'Else If iLine > 0 And If aResult[aResult.Max] Then
-  '  'aResult.Add("")
+  bJustList = False
+  If aResult.Count Then
+    sLast = aResult.Last
+    If sLast <> "<p></p>" And If sLast Not Begins "<h" Then
+      aResult.Add("<p></p>")
+    Endif
   Endif
   Return
+
+' CLOSE_PARA:
+' 
+'   If bInsidePar Then
+'     If Not bIgnorePar Then aResult[aResult.Max] &= "</p>"
+'     'aResult.Add("")
+'     bInsidePar = False
+'     bIgnorePar = False
+'   'Else If iLine > 0 And If aResult[aResult.Max] Then
+'   '  'aResult.Add("")
+'   Endif
+'   Return
   
 ADD_LINE:
 

@@ -1,0 +1,50 @@
+# Eval
+
+[[ syntax
+~Value~ **= Eval (** ~Expression~ AS String \[ **,** ~Context~ AS Collection ] **)** AS Variant
+]]
+
+Evaluates an expression and returns its value. This expression can use almost all the operators and subroutines of Gambas.
+
+The optional context  is a collection that must contain the value of each undefined symbol of ~Expression~.
+
+### Examples
+[[ code gambas
+DIM Context AS New Collection
+
+Context["X"] = 2
+Context["Y"] = "Gambas"
+
+PRINT Eval("X * Len(Y)", Context)
+]]
+[[ result
+    12
+]]
+
+## Assignments
+By starting the expression with the [../let] keyword, you can evaluate an assignment. In that case, the assigned value is returned.
+
+The assignment expression can use any assignment operators, but cannot use the instructions that return something, like [../open], [../new]...
+
+This assigned expression can use almost all operators and subroutines of Gambas.
+
+### Examples
+[[ code gambas
+Dim Context AS New Collection
+
+Context["X"] = "Liberation Serif"
+
+Print Application.Font.ToString()
+Print Eval("Let Application.Font = Font[X]", Context)
+Print Application.Font.ToString()
+]]
+[[ result
+    Sans,10
+    (Font 0x8fae9e8)
+    Liberation Serif,10
+]]
+
+### See also
+[[ seealso
+* [../../comp/gb.eval]
+]]
