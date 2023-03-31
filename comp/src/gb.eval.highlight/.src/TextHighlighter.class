@@ -133,8 +133,6 @@ Public Sub ToHTML(Text As String, Optional Theme As Variant) As String
   aText = Split(Text, "\n")
   
   iColor = 0
-  aResult.Add("<tt><span style=\"color:#000000;\">")
-  sOldStyle = "color:#000000;"
   
   For Y = 0 To aText.Max
     
@@ -177,8 +175,8 @@ Public Sub ToHTML(Text As String, Optional Theme As Variant) As String
       If hStyle.Dotted Then sStyle &= "text-decoration:underline dotted;"
       
       If sStyle <> sOldStyle Then
+        sHtml = If(sOldStyle, "</span>", "") & "<span style=\"" & sStyle & "\">" & sHtml
         sOldStyle = sStyle
-        sHtml = "</span><span style=\"" & sStyle & "\">" & sHtml
       Endif
       
       sLineHtml &= sHtml
@@ -199,7 +197,7 @@ Public Sub ToHTML(Text As String, Optional Theme As Variant) As String
     
   Next
   
-  Return aResult.Join("<br>") & "</span></tt>"
+  Return "<tt><span style=\"color:#000000;\">" & aResult.Join("<br>") & "</span></tt>"
   
  End
 
