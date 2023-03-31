@@ -1,6 +1,6 @@
 // Gambas Wiki - Javascript to Run Examples in Playground
 // Written by: Matthew Collins - Feb 2019
-// Modified by: Benoît Minisini - Feb 2019
+// Modified by: Benoît Minisini - Feb 2019, Mar 2023
 
 // Add this into the wiki: <script type="text/javascript" src="http://gambas.one/playground/wiki.js"></script>
 
@@ -19,19 +19,19 @@ document.addEventListener("DOMContentLoaded", function() {
 
     // Get and loop all "code gambas" elements
     
-    var gcs = document.getElementsByClassName("code gambas");
+    var gcs = document.getElementsByClassName("table code gambas");
     var next;
     
     for (i = 0; i < gcs.length; i++) {
     
-        next = gcs[i].parentElement.nextElementSibling;
+        next = gcs[i].nextElementSibling;
     
-        if (!next || !next.firstElementChild || next.firstElementChild.className != 'result')
+        if (!next || next.className != 'table result')
           continue;
 
         // Add Outer Div with look of Result Box
         var divOuter = document.createElement("div");
-        divOuter.className = "playground";
+        divOuter.className = "table playground";
         //divOuter.style = "border:solid 1px #D8D8D8; border-top:none; background-color:#F8F8F8";
         gcs[i].parentElement.insertBefore(divOuter, gcs[i].nextSibling);
 

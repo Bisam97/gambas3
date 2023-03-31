@@ -489,6 +489,15 @@ Public Sub Main()
       CComponent.Exit
       Return
       
+    Case "-html"
+      Lang = Args[2]
+      Path = Args[3]
+      Print Main.GetPagePath()
+      Print
+      Print WikiMarkdown.ToHTML(File.Load(Main.GetPagePath()))
+      CComponent.Exit
+      Return
+      
   End Select
   
   Try Mkdir Root
@@ -517,6 +526,8 @@ Public Sub Main()
   ' Consequently, no "~" character is allowed in the url path.
   ' Each page modification is archived in a "~page.<date>.<user>" file, allowing changes to be undone.
   
+  'Main.Log("==== " & Path,, "/tmp/wiki.debug")  
+ 
   Path = Request.Path
   If Right(Path) = "/" Then Path = Left(Path, -1)
   
@@ -525,6 +536,7 @@ Public Sub Main()
   If File.Name(Path) = "style.css" Then
     Response.ContentType = "text/css"
     AddCacheHeaders
+    'AddFrameHeader
     Response.Begin
     Print Replace(File.Load(".public/style.css"), "<%/%>", Application.Root);
     Response.End
@@ -539,10 +551,21 @@ Public Sub Main()
     Return
   Endif
   
+  'Main.Log("(1) " & Path,, "/tmp/wiki.debug")  
+ 
   If Request.Exist("lang") Then
+    
+    'Main.Log("(1.1) " & Path,, "/tmp/wiki.debug")  
+ 
     sLang = Request["lang"]
+
+    'Main.Log("(1.2) " & Path,, "/tmp/wiki.debug")  
+
     If sLang = DEFAULT_LANG Then sLang = ""
     If sLang <> Request["l"] Then
+  
+      'Main.Log("(1.3) " & Path,, "/tmp/wiki.debug")  
+ 
       If sLang Then
         Redirect("l=" & sLang)
       Else
@@ -551,6 +574,8 @@ Public Sub Main()
     Endif
   Endif
 
+  'Main.Log("(2) " & Path,, "/tmp/wiki.debug")  
+ 
   SetLanguage(Request["l"])
   If Request.Exist("v") Or If Request.Exist("nh") Then AddLinkSuffix("nh")
   If Request.Exist("nl") Then AddLinkSuffix("nl")
@@ -568,6 +593,8 @@ Public Sub Main()
   '   Return
   ' Endif
   
+  'Main.Log("(3) " & Path,, "/tmp/wiki.debug")  
+ 
   If Path = "/~stat" Then
     HttpStat.Render
     Return
@@ -589,6 +616,8 @@ Public Sub Main()
     Return
   Endif
   
+  'Main.Log("(4) " & Path,, "/tmp/wiki.debug")  
+  
   ' Reject pages whose url includes a "~" character.
   
   If InStr(Path, "~") Then
@@ -599,6 +628,8 @@ Public Sub Main()
     Return
   Endif
   
+  'Main.Log("(5) " & Path,, "/tmp/wiki.debug")  
+ 
   If Request.Exist("logout") Then
     
     Session.CookiePath = "/"
@@ -684,6 +715,7 @@ Public Sub Main()
     
     Else If Request.Exist("preview") Then
       
+      'If Main.UserName = "bminisini" Then Main.Log("Wiki.Render",, "/tmp/wiki.debug")
       Preview = True
       
     Else If Request.Exist("delete") Then
@@ -757,6 +789,8 @@ Public Sub Main()
 Catch
   
   sMsg = Error.Where & ": " & Error.Text & "\n" & Error.Backtrace.Join("\n")
+  'Main.Log(sMsg,, "/tmp/wiki.debug")  
+  'Response.AddFrameHeader
   Response.Begin
   Response.ContentType = "text/plain;charset=utf-8"
   Print "<pre>"; sMsg; "</pre>"
@@ -1201,7 +1235,7 @@ Public Sub GetToDo() As String[]
   
   Next
 
-  aResult.Insert([Subst("There are &1 symbols to document yet.", CStr(iCpt)), ""], 0)
+  aResult.Insert([Subst("<div>There are &1 symbols to document yet.</div>", CStr(iCpt))], 0)
   aIndex.Add("<div class=\"index\">", 0)
   aIndex.Add("</div>")
   aResult.Insert(aIndex, 1)
@@ -1285,10 +1319,11 @@ Public Sub GetChanges() As String[]
 End
 
 
-Public Sub Log(sText As String, Optional sUser As String)
+Public Sub Log(sText As String, Optional sUser As String, Optional sLog As String)
 
-  Dim sLog As String = Main.Root &/ "wiki.log"
   Dim hFile As File
+
+  If Not sLog Then sLog = Main.Root &/ "wiki.log"
 
   If Exist(sLog) And If Stat(sLog).Size > 50000000 Then
     Try Kill sLog & ".old"
@@ -1667,6 +1702,7 @@ Private Sub SendPlayground()
 
   Response.ContentType = "text/javascript"
   AddCacheHeaders
+  'AddFrameHeader
   Response.Begin
   Print sData;
   Response.End  

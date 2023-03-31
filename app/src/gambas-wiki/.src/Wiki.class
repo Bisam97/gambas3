@@ -140,7 +140,6 @@ Public Sub RewriteExample(sData As String) As String
 
 End
 
-
 Private Sub _PrintPage()
 
   Dim sPath As String
@@ -374,7 +373,7 @@ DISPLAY_PAGE:
   Endif
   
   Print WikiMarkdown.ToHTML(sData)
-  
+
 Catch
   
   Print "<pre>"; Html(Error.Text); " at line #"; WikiMarkdown.Line + 1; ":\n\n"; Html(WikiMarkdown.Current); "\n\nStack backtrace:\n\n"; Error.Backtrace.Join("\n")
@@ -412,3 +411,57 @@ Private Sub _PrintLang()
   Endif
 
 End
+
+Private Sub _PrintIndex()
+
+  PrintIndexPath("/")
+
+End
+
+Private Sub PrintIndexPath(Optional sLink As String, Optional iIndent As Integer)
+
+  Dim sSubDir As String
+  Dim bCurrent As Boolean
+  Dim aSubDir As String[]
+  Dim aSort As String[]
+  Dim I As Integer
+  Dim sTitle As String
+  
+  If Not sTitle Then sTitle = Main.GetPageTitle(sLink)
+  
+  If sTitle Then
+  
+    If sLink = "/" Then
+      bCurrent = Main.Path = ""
+    Else
+      bCurrent = sLink = Main.Path
+    Endif
+    
+    Print "<div class=\"entry";
+    If bCurrent Then Print " current";
+    Print "\" style=\"padding-left:"; CStr(iIndent + 1); "em;\"";
+    If bCurrent Then Print " id=\"current-entry\"";
+    Print ">";
+    Print "<a href=\""; Application.Root &/ sLink; Main.LinkSuffix; "\">"; Html(sTitle); "</a></div>"
+    
+  Endif
+  
+  If sLink = "/" Or If Main.Path & "/" Begins sLink & "/" Then
+  
+    aSubDir = Dir(File.Dir(Main.GetPagePathFrom(sLink)), "", gb.Directory)
+    aSort = New String[aSubDir.Count]
+    For I = 0 To aSubDir.Max
+      aSort[I] = Main.GetPageTitle(sLink &/ aSubDir[I])
+    Next
+    aSubDir.SortUsing(aSort, gb.Language + gb.IgnoreCase)
+    
+    For Each sSubDir In aSubDir
+      PrintIndexPath(sLink &/ sSubDir, iIndent + 1)
+    Next
+    
+  Endif
+  
+  Print "</ul>"
+
+End
+

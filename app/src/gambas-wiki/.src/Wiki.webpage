@@ -27,8 +27,9 @@ H1 { display: none; }
 </style>
 <%Endif%>
 
-<div id="page-frame">
 <form name="form" method="post" enctype="multipart/form-data">
+
+<div class="view-frame">
 
 <%If Not Main.Edit And If Request["ident"] Then%>
   <%If Not Session.Id Then%>
@@ -55,17 +56,17 @@ H1 { display: none; }
     </div>
   </div>
   
-  <div class="page" style="top:1.5em;">
+  <div class="page">
   
   <%Else%>
   
-  <div class="page" style="top:1em;">
+  <div class="page">
 
   <%Endif%>
   
 <%Else If Request.Exist("w") Then%>
   
-  <div class="page" style="padding: 8px 16px;">
+  <div class="page">
 
 <%Else%>
 
@@ -74,13 +75,17 @@ H1 { display: none; }
   <div class="header-inside">
   
     <div class="header-bar">
-      <div class="up">
-        <%If Main.Edit Then%>
-          <img src="<%/%>/edit.png">
-        <%Else%>
-          <a href="<%_PrintParent()%>"><img src="<%/%>/up.png"></a>
-        <%Endif%>
-      </div>
+      <div class="root-title">G<span style="font-size:smaller;">AMBAS</span> D<span style="font-size:smaller;">OCUMENTATION</span></div>
+      <%If Main.Path Or If Main.Edit Then%>
+        <div class="up">
+          <%If Main.Edit Then%>
+            <img src="<%/%>/edit.png">
+          <%Else%>
+            <a href="<%_PrintParent()%>"><img src="<%/%>/up.png"></a>
+          <%Endif%>
+        </div>
+      <%Endif%>
+      
       <%If Main.Path Then%>
       <div class="title">
         <%_PrintLink%>
@@ -128,7 +133,7 @@ H1 { display: none; }
           <input id="search" name="search" type="text" placeholder="<%=("Enter a word to search through the wiki...")%>" onblur="this.value='';"/>
         </div>
       <%Endif%>
-      <div style="float:right;">
+      <div class="header-right">
       <%If Session.Id Then%>
         <div class="user-name"><%=Main.FullName%></div>
         <div class="command"><input type="submit" name="logout" value="<%= ("Logout")%>"></div>
@@ -163,6 +168,14 @@ H1 { display: none; }
 </div>
 
 
+<div class="page-frame">
+
+<div class="page-index">
+<%_PrintIndex()%>
+<script type="text/javascript">
+try { document.getElementById('current-entry').scrollIntoView({'block':'center'}); } catch(e) {}
+</script>
+</div>
 
 <%If Main.Edit Then%>
 <div class="page-edit">
@@ -211,9 +224,11 @@ H1 { display: none; }
 <div></div>
 
 </div>
+</div>
+
+</div>
 
 </form>
-</div>
 
 </body>
 </html>
