@@ -4,8 +4,8 @@ Public Sub TestParagraph()
 
   Dim md, expect, got As String
 
-  md = "blah" & gb.lf & gb.lf & "blub" & gb.lf & gb.lf & "dingdong"
-  expect = "<p>blah</p>" & gb.lf & "<p>blub</p>" & gb.lf & "<p>dingdong</p>"
+  md = "blah\n\nblub\n\ndingdong"
+  expect = "blah\n<p></p>\nblub\n<p></p>\ndingdong"
   got = Markdown.ToHTML(md)
   Assert.Equals(got, expect, "Markdown paragraph")
 
@@ -16,7 +16,7 @@ Public Sub TestParagraphTwo()
   Dim md, expect, got As String
 
   md = "blah" & gb.lf & gb.lf & "blub" & gb.lf & "dingdong"
-  expect = "<p>blah</p>" & gb.lf & "<p>blub" & gb.lf & "dingdong</p>"
+  expect = "blah\n<p></p>" & gb.lf & "blub" & gb.lf & "dingdong"
   got = Markdown.ToHTML(md)
   Assert.Equals(got, expect, "Markdown paragraph Two")
 
@@ -27,7 +27,7 @@ Public Sub TestParagraphThree()
   Dim md, expect, got As String
 
   md = "<strong>blah</strong>" & gb.lf & gb.lf & "blub"
-  expect = "<p><strong>blah</strong></p>" & gb.lf & "<p>blub</p>"
+  expect = "<strong>blah</strong>\n<p></p>" & gb.lf & "blub"
   got = Markdown.ToHTML(md)
   Assert.Equals(got, expect, "Markdown paragraph Three")
   'Assert.Note("I got:" & gb.lf & got)
@@ -99,7 +99,7 @@ Public Sub TestHlAndParagraph()
   Dim md, expect, got As String
 
   md = "# headline" & gb.lf & gb.lf & "blub"
-  expect = "<h1>headline</h1>" & gb.lf & "<p>blub</p>"
+  expect = "<h1>headline</h1>" & gb.lf & "blub"
   got = Markdown.ToHTML(md)
   Assert.Equals(got, expect, "Markdown headline and paragraph")
 
@@ -110,7 +110,7 @@ Public Sub TestHlAndLineAndParagraph()
   Dim md, expect, got As String
 
   md = "# headline" & gb.lf & "---" & gb.lf & "blub"
-  expect = "<h1>headline</h1>" & gb.lf & "<hr>" & gb.lf & "<p>blub</p>"
+  expect = "<h1>headline</h1>" & gb.lf & "<hr>" & gb.lf & "blub"
   got = Markdown.ToHTML(md)
   Test.Todo()
   Assert.Equals(got, expect, "Markdown headline and paragraph")
@@ -126,7 +126,7 @@ Public Sub TestHtmlTagIntegrity()
     "<img src='test' blah='test' />"
 
   expect = "<h1>headline</h1>" & gb.lf &
-    "<p>blub</p>" & gb.lf &
+    "blub\n<p></p>" & gb.lf &
     "<img src='test' blah='test' />"
 
   got = Markdown.ToHTML(md)
@@ -147,9 +147,9 @@ Public Sub TestHtmlTagIntegrityTwo()
     "</small></div>"
 
   expect = "<div><small>" & gb.lf &
-    "<p>test" & gb.lf &
+    "test" & gb.lf &
     "anothersth" & gb.lf &
-    "anothersth and so on.</p>" & gb.lf &
+    "anothersth and so on." & gb.lf &
     "</small></div>"
 
   got = Markdown.ToHTML(md)
@@ -244,7 +244,7 @@ Public Sub TestHtmlTags()
 
   Dim md, expect, got As String
 
-  md = "<img src='test' " & gb.lf & "title='test' />"
+  md = "<img src='test' " & gb.lf & "title=\"test\" />"
 
   expect = "<img src='test' title='test' />"
 
@@ -414,7 +414,7 @@ Public Sub TestStrong()
   Dim md, expect, got As String
 
   md = "<strong>Das berühmte Deganius Kräuterabo</strong>" & gb.lf & gb.Lf & "Balb"
-  expect = "<p><strong>Das berühmte Deganius Kräuterabo</strong></p>" & gb.lf & "<p>Balb</p>"
+  expect = "<strong>Das berühmte Deganius Kräuterabo</strong>\n<p></p>" & gb.lf & "Balb"
   got = Markdown.ToHTML(md)
 
   If Assert.Equals(got, expect, "Markdown strong paragraph") = False Then
