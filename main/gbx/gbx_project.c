@@ -432,6 +432,8 @@ void PROJECT_exit(void)
 {
 	if (project_buffer)
 		FREE(&project_buffer);
+	if (environment_buffer)
+		FREE(&environment_buffer);
 
 	//STRING_free(&PROJECT_argname);
 	STRING_free(&PROJECT_name);
