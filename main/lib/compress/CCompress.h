@@ -29,8 +29,7 @@
 
 #ifndef __CCOMPRESS_C
 
-
-extern GB_DESC CCompressDesc[];
+extern GB_DESC CompressDesc[];
 extern GB_STREAM_DESC CCompressStream;
 
 #else
@@ -38,14 +37,13 @@ extern GB_STREAM_DESC CCompressStream;
 #define THIS ((CCOMPRESS *)_object)
 
 #endif
-typedef  struct
-{
-    GB_BASE ob;
-    GB_STREAM stream;
-    COMPRESS_DRIVER *driver;
-    
-    
-}  CCOMPRESS;
-
+typedef
+	struct
+	{
+		GB_BASE ob;
+		GB_STREAM stream;
+		COMPRESS_DRIVER *driver;
+	}
+	CCOMPRESS;
 
 #endif

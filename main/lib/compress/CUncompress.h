@@ -30,20 +30,21 @@
 #ifndef __CUNCOMPRESS_C
 
 
-extern GB_DESC CUncompressDesc[];
+extern GB_DESC UncompressDesc[];
 
 #else
 
 #define THIS ((CUNCOMPRESS *)_object)
 
 #endif
-typedef  struct
-{
-    GB_BASE ob;
-    GB_STREAM stream;
-    COMPRESS_DRIVER *driver;
 
-}  CUNCOMPRESS;
-
+typedef
+	struct
+	{
+		GB_BASE ob;
+		GB_STREAM stream;
+		COMPRESS_DRIVER *driver;
+	}
+	CUNCOMPRESS;
 
 #endif
