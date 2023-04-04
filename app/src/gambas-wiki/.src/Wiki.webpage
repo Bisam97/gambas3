@@ -8,9 +8,6 @@
   <%If System.RightToLeft Then%>
   <link rel="stylesheet" href="<%/%>/style-rtl.css">
   <%Endif%>
-  <%If Request.Exist("nh") Then%>
-  <link rel="stylesheet" href="<%/%>/style-nh.css">
-  <%Endif%>
   <link rel="icon" href="<%/%>/logo.png" type="image/png">
   <title><%_PrintTitle%> - <%=("Gambas Documentation")%></title>
   <script type="text/javascript" src="<%/%>/playground.js?l=<%=Request["l"]%>"></script>
@@ -19,7 +16,7 @@
   <%Endif%>
 </head>
 
-<body<%If Main.Edit Then%> style="overflow:hidden;"<%Endif%><%If Request["ht"]%> onload="highlight_check()"<%Endif%>>
+<body<%If Main.Edit Then%> style="overflow:hidden;"<%Endif%><%If Not Main.Edit And If Request["ht"]%> onload="highlight_check()"<%Endif%>>
 
 <%If Request.Exist("nt")%>
 <style type="text/css">
@@ -39,58 +36,40 @@ H1 { display: none; }
 
 <%If Request.Exist("v") Or If Request.Exist("nh") Then%>
 
-  <%If Not Request.Exist("nh") Then%>
-  
-  <style type="text/css">
-  BODY { letter-spacing: 1px; line-height: 1.4em; }
-  </style>
-  
-  <div class="header">
-    <div class="header-inside-v">
-      <div class="header-bar">
-        <table border="0" cellpadding="0" cellspacing="0">
-          <tr valign="top"><td><a href="<%_PrintParent()%>"><img src="<%/%>/up-gray.png" style="vertical-align:top;"></a>&nbsp;</td>
-          <td><div class="title-v"><%_PrintLink%></div></td></tr>
-        </table>
-      </div>
-    </div>
-  </div>
-  
+  <div class="page-frame">
   <div class="page">
-  
-  <%Else%>
-  
-  <div class="page">
-
-  <%Endif%>
   
 <%Else If Request.Exist("w") Then%>
   
+  <div class="page-frame">
   <div class="page">
 
 <%Else%>
 
+<div class="index-frame">
+  
+  <!--<div class="root-title"><%=("Gambas Documentation")%></div>-->
+  
+  <div class="page-index">
+  <%_PrintIndex()%>
+  <script type="text/javascript">
+  try { document.getElementById('current-entry').scrollIntoView({'block':'center'}); } catch(e) {}
+  </script>
+  </div>
+  
+</div>
+
+<div class="page-frame">
+
+<%If Session.Id Then%>
 <div class="header<%If Main.Edit Then%> header-edit<%Endif%>">
+<%Else%>
+<div class="header header-small">
+<%Endif%>
 
   <div class="header-inside">
   
     <div class="header-bar">
-      <div class="root-title">G<span style="font-size:smaller;">AMBAS</span> D<span style="font-size:smaller;">OCUMENTATION</span></div>
-      <%If Main.Path Or If Main.Edit Then%>
-        <div class="up">
-          <%If Main.Edit Then%>
-            <img src="<%/%>/edit.png">
-          <%Else%>
-            <a href="<%_PrintParent()%>"><img src="<%/%>/up.png"></a>
-          <%Endif%>
-        </div>
-      <%Endif%>
-      
-      <%If Main.Path Then%>
-      <div class="title">
-        <%_PrintLink%>
-      </div>
-      <%Endif%>
       <%If Main.Edit Then%>
         <div class="command">
           <input type="submit" id="preview" name="preview" value="<%=("Preview")%>">
@@ -109,12 +88,12 @@ H1 { display: none; }
               <%If Main.History < GetMaxHistory() Then%>
                 <input type="submit" name="prev" value="<%= ("<")%>">
               <%Else%>
-                <input type="submit" name="prev" value="<%= ("<")%>" disabled style="color:gray">
+                <input type="submit" name="prev" value="<%= ("<")%>" disabled>
               <%Endif%>
               <%If Main.History > 1 Then%>
                 <input type="submit" name="next" value="<%= (">")%>">
               <%Else%>
-                <input type="submit" name="next" value="<%= (">")%>" disabled style="color:gray">
+                <input type="submit" name="next" value="<%= (">")%>" disabled>
               <%Endif%>
               <input type="submit" name="exit" value="<%= ("Exit")%>">
             <%Else%>
@@ -125,13 +104,27 @@ H1 { display: none; }
                 <input type="submit" name="historic" value="<%= ("Historic")%>">
               <%Endif%>
             <%Endif%>
-          <% Else%>
-            <input type="submit" name="create" value="<%= ("Create")%>">
-            <input type="submit" name="undo" value="<%= ("Undo")%>">
-            <%--<input type="submit" name="undo" value="<%= ("Undo")%>">--%>
+          <%Else%>
+            <input type="submit" name="create" value="<%=("Create")%>">
+            <input type="submit" name="undo" value="<%=("Undo")%>">
+            <%If Exist(File.Dir(Main.GetPagePath())) Then%>
+              <input type="submit" name="purge" value="<%=("Purge")%>">
+            <%Endif%>
           <%Endif%>
-          <input id="search" name="search" type="text" placeholder="<%=("Enter a word to search through the wiki...")%>" onblur="this.value='';"/>
+          <%If Main.History = 0 Then%>
+            <%If Main.Path Then %>
+              <input type="submit" name="select" value="<%=("Select")%><%_PrintSelectionCount%>" title="<%_PrintSelectionList%>">
+            <%Endif%>
+            <%If Main.HasSelection() Then%>
+              <input type="submit" name="unselect" value="<%=("Unselect")%>">
+              <input type="submit" name="move" value="<%=("Move selection")%>">
+            <%Endif%>
+          <%Endif%>
         </div>
+      <%Endif%>
+      <div class="header-expand"></div>
+      <%If Session.Id Then%>
+        <div class="last-modified"><%_PrintLastModified%></div>
       <%Endif%>
       <div class="header-right">
       <%If Session.Id Then%>
@@ -145,81 +138,80 @@ H1 { display: none; }
     </div>
   </div>
 
-  <%If Not Main.Edit And If Request["ident"] Then%>
-    <div class="login"><div>
-      <%If Session.Id Then%>
-        <div id="user" class="label-login" align="left"><%=Main.UserName%></div>
-        <div class="command"><input type="submit" name="logout" value="<%=("Logout")%>"></div>
+</div>
+
+<%If Not Main.Edit And If Request["ident"] Then%>
+  <div class="login"><div>
+    <%If Session.Id Then%>
+      <div id="user" class="label-login" align="left"><%=Main.UserName%></div>
+      <div class="command"><input type="submit" name="logout" value="<%=("Logout")%>"></div>
+    <%Else%>
+      <div id="welcome">Gambas Wiki</div>
+      <div align="center"><img id="logo" src="<%/%>/gambas.png"></div>
+      <div class="label-login" align="left"><%=("Login")%>&nbsp;</div>
+      <input type="text" name="login" id="login" maxlength="16" tabindex="0"><br>
+      <div class="label-login" align="left"><%=("Password")%>&nbsp;</div>
+      <input type="password" name="password" id="password" maxlength="16"><br>
+      <div id="login-buttons">
+        <input type="submit" name="ok" id="ok" value="<%=("OK")%>">
+        <input type="submit" id="cancel" value="<%=("Cancel")%>">
+      </div>
+    <%Endif%>
+  </div></div>
+<%Endif%>
+
+<div id="page" class="page <%If Main.Edit Then%>page-edit<%Endif%>" tabindex="2">
+
+<%Endif%>
+
+<%_PrintMessage()%>
+
+<%If Session.Id And If Not Main.Edit Then%>
+<div class="page-link">
+  <%If Main.Path Or If Main.Edit Then%>
+    <div class="up">
+      <%If Main.Edit Then%>
+        <img src="<%/%>/edit.png">
       <%Else%>
-        <div id="welcome">Gambas Wiki</div>
-        <div align="center"><img id="logo" src="<%/%>/gambas.png"></div>
-        <div class="label-login" align="left"><%=("Login")%>&nbsp;</div>
-        <input type="text" name="login" id="login" maxlength="16" autofocus><br>
-        <div class="label-login" align="left"><%=("Password")%>&nbsp;</div>
-        <input type="password" name="password" id="password" maxlength="16"><br>
-        <div id="login-buttons">
-          <input type="submit" name="ok" id="ok" value="<%=("OK")%>">
-          <input type="submit" id="cancel" value="<%=("Cancel")%>">
-        </div>
+        <a href="<%_PrintParent()%>"><img src="<%/%>/up.png"></a>
       <%Endif%>
-    </div></div>
+    </div>
   <%Endif%>
-
+  
+  <%If Main.Path Then%>
+  <div class="title">
+    <%_PrintLink%>
+  </div>
+  <%Endif%>
 </div>
-
-
-<div class="page-frame">
-
-<div class="page-index">
-<%_PrintIndex()%>
-<script type="text/javascript">
-try { document.getElementById('current-entry').scrollIntoView({'block':'center'}); } catch(e) {}
-</script>
-</div>
+<%Endif%>
 
 <%If Main.Edit Then%>
-<div class="page-edit">
-<%Else%>
-<div id="page" class="page">
-<%Endif%>
-
-<%Endif%>
-
-<%If Session["message"] Then%>
-<div class="message">
-<%Print Session["message"];%>
-</div>
-<%Endif%>
-
-  <%If Main.Edit Then%>
-    <%If Main.Image Then%>
-      <div style="margin-top:8px;"></div>
-      <%Print Main.GetImageHTML(Main.Path);%>
-      <p> <%=("Select the image file to upload...")%></p>
-      <p><input type="file" name="file" /></p>
-    <%Else%>
-      <div class="edit-frame">
-      <textarea class="edit" id="page" name="page"><%_PrintPage%></textarea>
-      </div>
-      <script type="text/javascript">
-        document.getElementById('page').focus();
-      </script>
-    <%Endif%>
-    <script type="text/javascript">
-      document.getElementById('save').style.display = '';
-    </script>
-  <%Else If Main.Preview Then%>
-    <%_PrintPage%>
-    <input type="hidden" id="page" name="page" value="<%=Request["page"]%>">
+  <%If Main.Image Then%>
+    <div style="margin-top:8px;"></div>
+    <%Print Main.GetImageHTML(Main.Path);%>
+    <p> <%=("Select the image file to upload...")%></p>
+    <p><input type="file" name="file"></p>
   <%Else%>
-    <%_PrintPage%>
-    <p></p>
-    <%If Not Session.Id Then%>
-      <script type="text/javascript">
-        try { document.getElementById('login').focus(); } catch(e) {}
-      </script>
-    <%Endif%>
+    <div class="edit-frame">
+    <textarea class="edit" id="page-editor" name="page" tabindex="1"><%_PrintPage%></textarea>
+    </div>
   <%Endif%>
+  <script type="text/javascript">
+    document.getElementById('save').style.display = '';
+  </script>
+<%Else If Main.Preview Then%>
+  <%_PrintPage%>
+  <input type="hidden" name="page" value="<%=Request["page"]%>">
+<%Else%>
+  <%_PrintPage%>
+  <p></p>
+  <%If Not Session.Id Then%>
+    <!--<script type="text/javascript">
+      try { document.getElementById('login').focus(); } catch(e) {}
+    </script>-->
+  <%Endif%>
+<%Endif%>
 
 <div></div>
 
@@ -229,6 +221,19 @@ try { document.getElementById('current-entry').scrollIntoView({'block':'center'}
 </div>
 
 </form>
+
+<script type="text/javascript">
+  try {
+  <%If Main.Edit Then%>
+  document.getElementById('page-editor').focus();
+  <%Else If Request["ident"] Then%>
+  document.getElementById('login').focus();
+  <%Else%>
+  document.getElementById('page').focus();
+  <%Endif%>
+  }
+  catch(e) {}
+</script>
 
 </body>
 </html>

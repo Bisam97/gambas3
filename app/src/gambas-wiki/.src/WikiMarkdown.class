@@ -92,6 +92,7 @@ Public Sub Command(sCommand As String) As String[]
   Dim aSearch As String[]
   Dim sLink As String
   Dim sSort As String
+  Dim sQuery As String
   
   aArg = Split(sCommand, " ", Chr$(34))
   sCommand = aArg[0]
@@ -250,28 +251,53 @@ Public Sub Command(sCommand As String) As String[]
     
     Return Main.GetProjectDependencies(aArg[1])
 
-  Else If sCommand = "search-query" Then
+  Else If sCommand = "search-entry" Then
     
-    Return [Session["search-query"]]
+    aResult = New String[]
+    
+    If Session.Id Then
+    
+      aResult.Add("<div class=\"search\"><input id=\"search\" name=\"search\" type=\"text\" placeholder=\"" & ("Enter a word to search through the wiki...") & "\" onfocus=\"this.value ='';\" value=\"" & Html(Session["search-query"]) & "\" /></div>")
+      
+    Else 
+      
+      aResult.Add("<div class=\"unknown\">" & ("Search is not available if you are not identified.") & "</div>")
+      
+    Endif
+    
+    Return aResult
 
   Else If sCommand = "search-result" Then
 
     aResult = New String[]
-    aSearch = Session["search-result"]
-    If aSearch And If aSearch.Count Then
-      aResult.Add("[[")
-      For Each sLink In aSearch
-        aResult.Add("==")
-        sTitle = Main.GetPageTitle(sLink)
-        aResult.Add("<a href=\"" & Html(Application.Root &/ sLink & "?ht=" & URL.Encode(Session["search-query"])) & "\">" & Html(sTitle) & "</a>")
-        'aResult.Add("[" & Main.GetPageTitle(sLink) & "](" & sLink & "?ht=" & URL.Encode(Session["search-query"]) & ")")
-        aResult.Add("--")
-        aResult.Add("`" & sLink & "`")
-      Next
-      aResult.Add("]]")
-    Else
-      aResult.Add(("No match found."))
+
+    If Session.Id Then
+
+      sQuery = Session["search-query"]
+  
+      If sQuery Then
+        
+        aResult.Add("### " & ("Result"))
+        aSearch = Session["search-result"]
+        If aSearch And If aSearch.Count Then
+          aResult.Add("[[")
+          For Each sLink In aSearch
+            aResult.Add("==")
+            sTitle = Main.GetPageTitle(sLink)
+            aResult.Add("<a href=\"" & Html(Application.Root &/ sLink & "?ht=" & URL.Encode(Session["search-query"])) & "\">" & Html(sTitle) & "</a>")
+            'aResult.Add("[" & Main.GetPageTitle(sLink) & "](" & sLink & "?ht=" & URL.Encode(Session["search-query"]) & ")")
+            aResult.Add("--")
+            aResult.Add("`" & sLink & "`")
+          Next
+          aResult.Add("]]")
+        Else
+          aResult.Add(("No match found."))
+        Endif
+        
+      Endif
+      
     Endif
+      
     Return aResult
     
   Else If sCommand = "class" Then

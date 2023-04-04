@@ -1,8 +1,11 @@
 ' Gambas class file
 
+Private $aSel As String[]
+
 Public Sub _new()
   
   Me.Buffered = True
+  If Session.Id Then Response.AddHeader("Cache-Control", "no-store")
   
 End
 
@@ -29,6 +32,8 @@ Private Sub _PrintLink()
     sPath &= "/" & sElt
     Print "<a href=\""; Application.Root &/ sPath; Main.LinkSuffix; "\">"; sElt; "</a>";
   Next
+  
+  If Main.Link Then Print "&nbsp;⟶&nbsp;"; Main.Link
   
 End
 
@@ -329,7 +334,7 @@ Private Sub _PrintPage()
       hStat = Stat(Main.GetPagePathFrom(Main.Path))
       hStatDef = Stat(Main.GetPagePathFrom(Main.Path, Main.DEFAULT_LANG))
       If hStat And If hStatDef And If hStatDef.LastModified > hStat.LastModified Then
-        Print "<div class=\"unknown\"><i><a target=\"_blank\" href=\"" & Html(URL.UnsetQuery("http://" & Application.Host &/ Application.Root &/ Request.Path & Main.LinkSuffix, "l")) & "\">" & Html(("The english page is more recent.")) & "</a></i></div>"
+        Print "<div class=\"more-recent\"><i><a target=\"_blank\" href=\"" & Html(URL.UnsetQuery("http://" & Application.Host &/ Application.Root &/ Request.Path & Main.LinkSuffix, "l")) & "\">" & Html(("The english page is more recent.")) & "</a></i></div>"
       Endif
     Endif
     
@@ -414,54 +419,111 @@ End
 
 Private Sub _PrintIndex()
 
-  PrintIndexPath("/")
+  $aSel = Main.GetSelection()
+  PrintIndexPath()
 
 End
 
 Private Sub PrintIndexPath(Optional sLink As String, Optional iIndent As Integer)
 
-  Dim sSubDir As String
   Dim bCurrent As Boolean
-  Dim aSubDir As String[]
-  Dim aSort As String[]
-  Dim I As Integer
   Dim sTitle As String
+  Dim bNoTitle As Boolean
+  Dim bImage As Boolean
+  Dim aChildren As String[]
+  Dim sChild As String
   
   If Not sTitle Then sTitle = Main.GetPageTitle(sLink)
   
+  aChildren = Main.GetPageChildren(sLink)
+
+  bNoTitle = Not sTitle
+  If bNoTitle And If Session.Id Then 
+    sTitle = File.Name(sLink)
+    If Main.IsImage(sLink) Then
+      bNoTitle = False
+      bImage = True
+    Endif
+  Endif
+  
   If sTitle Then
   
-    If sLink = "/" Then
-      bCurrent = Main.Path = ""
-    Else
-      bCurrent = sLink = Main.Path
-    Endif
+    bCurrent = sLink = Main.Path
     
     Print "<div class=\"entry";
     If bCurrent Then Print " current";
+    If Main.IsSelected(sLink) Then Print " selected";
+    If bNoTitle Then Print " deleted";
+    If sLink And If aChildren.Count Then Print " children";
     Print "\" style=\"padding-left:"; CStr(iIndent + 1); "em;\"";
     If bCurrent Then Print " id=\"current-entry\"";
     Print ">";
-    Print "<a href=\""; Application.Root &/ sLink; Main.LinkSuffix; "\">"; Html(sTitle); "</a></div>"
+    Print "<a href=\""; 
+    If bCurrent And If Main.Path Then
+      Print Html(Application.Root &/ File.Dir(sLink)); 
+    Else
+      Print Html(Application.Root &/ sLink); 
+    Endif
+    Print Main.LinkSuffix; "\">";
+    If bImage Then Print "□&nbsp;";
+    Print sTitle; 
+    Print "</a></div>"
     
   Endif
   
-  If sLink = "/" Or If Main.Path & "/" Begins sLink & "/" Then
+  If Not sLink Or If Main.Path & "/" Begins sLink & "/" Then
   
-    aSubDir = Dir(File.Dir(Main.GetPagePathFrom(sLink)), "", gb.Directory)
-    aSort = New String[aSubDir.Count]
-    For I = 0 To aSubDir.Max
-      aSort[I] = Main.GetPageTitle(sLink &/ aSubDir[I])
-    Next
-    aSubDir.SortUsing(aSort, gb.Language + gb.IgnoreCase)
-    
-    For Each sSubDir In aSubDir
-      PrintIndexPath(sLink &/ sSubDir, iIndent + 1)
+    For Each sChild In aChildren
+      PrintIndexPath("/" &/ sLink &/ sChild, iIndent + 1)
     Next
     
   Endif
   
-  Print "</ul>"
+End
+
+Private Sub _PrintSelectionCount()
+
+  Dim aSel As String[]
+
+  aSel = Main.GetSelection()
+  If aSel.Count = 0 Then Return
+  Print " ("; CStr(aSel.Count); ")";
 
 End
 
+Private Sub _PrintSelectionList()
+
+  Dim aSel As String[]
+
+  aSel = Main.GetSelection()
+  If aSel.Count = 0 Then Return
+  Print Html(aSel.Join("\n"));
+
+End
+
+Private Sub _PrintMessage()
+
+  Dim aMsg As String[]
+  Dim sMsg As String
+
+  aMsg = Session["message"]
+  If Not aMsg Or If aMsg.Count = 0 Then Return
+
+  Print "<div class=\"message\">"
+  For Each sMsg In aMsg
+    Print "<div>"; sMsg; "</div>"
+  Next
+  Print "</div>"
+  
+  Session["message"] = Null
+
+End
+
+Private Sub _PrintLastModified()
+
+  Dim dDate As Date
+
+  dDate = Main.GetPageLastModified()
+  If dDate Then Print Html(Format(dDate, gb.GeneralDate));
+
+End
