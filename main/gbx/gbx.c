@@ -106,13 +106,14 @@ static void init(const char *file, int argc, char **argv)
 	WATCH_init();
 	MATH_init();
 	PROJECT_init(file);
-	DEBUG_init();
 
 	LOCAL_init();
+	STACK_init();
 
 	if (file)
 	{
 		PROJECT_load();
+		DEBUG_init();
 
 		if (PROJECT_run_httpd)
 			COMPONENT_exec("gb.httpd", argc, argv);
@@ -120,7 +121,8 @@ static void init(const char *file, int argc, char **argv)
 		PROJECT_load_finish();
 	}
 	else
-		STACK_init();
+		DEBUG_init();
+
 
 	if (EXEC_debug)
 	{
