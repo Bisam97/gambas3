@@ -1615,7 +1615,7 @@ _JUMP_FIRST:
 
 		// loop mode is stored in the inc type. It must be strictly lower than T_STRING
 
-		if (type == T_INTEGER && inc->_integer.value == 1 && !CP->not_3_18)
+		if (type == T_INTEGER && PC[-1] == (C_PUSH_QUICK + 1) && !CP->not_3_18)
 		{
 			PC++;
 			*PC = C_JUMP_NEXT_INTEGER | ind;
