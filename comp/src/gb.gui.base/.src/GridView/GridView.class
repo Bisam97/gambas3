@@ -122,6 +122,7 @@ Private $bDoNotRaiseSelect As Boolean
 
 Private $hTimerClick As Timer
 Private $bMoveRaiseSelect As Boolean
+Private $bRightToLeft As Boolean
 
 Public Sub _new()
   
@@ -143,6 +144,8 @@ Public Sub _new()
   Me.Proxy = $hView
   
   $hTimerClick = New Timer As "GridViewClick"
+  
+  $bRightToLeft = Me.RightToLeft
   
 End
 
@@ -359,7 +362,7 @@ DRAW_GRID:
   iColor = Color.Merge(Color.LightForeground, $hView.Background)
   If $bGrid Then
     If Me.RightToLeft Then
-      If iCol > 0 Then Paint.FillRect(hRect.X, hRect.Y, 1, hRect.H, iColor)
+      If iCol < $hColumns.Max Then Paint.FillRect(hRect.X, hRect.Y, 1, hRect.H, iColor)
     Else
       If iCol < $hColumns.Max Or If hRect.X + hRect.W < $hView.ClientW Then Paint.FillRect(hRect.X + hRect.W - 1, hRect.Y, 1, hRect.H, iColor)
     Endif
@@ -421,6 +424,11 @@ Public Sub ScrollArea_Draw()
   Dim iBgSel As Integer
   Dim iPadding As Integer
   Dim iFg As Integer
+  
+  If Me.RightToLeft <> $bRightToLeft Then
+    $bRightToLeft = Me.RightToLeft
+    $hColumns._Layout
+  Endif
   
   If $iBg <> Color.Transparent Then
     If $iBg = Color.Default Then 
@@ -1061,17 +1069,8 @@ Public Sub ScrollArea_MouseMove()
       If Not Me.RightToLeft Then X -= $hRows.Width
       
       If Me.RightToLeft Then
-        ' For I = $hColumns.Count - 2 DownTo 0
-        '   With $hColumns[I]
-        '     If $hColumns[I + 1].Resizable And If X >= (.X - 1) And If X <= (.X + 2) Then
-        '       iMouse = Mouse.SizeE
-        '       $iColResize = I + 1
-        '       $iDimResize = $hColumns[$iColResize].Width
-        '       Break
-        '     Endif
-        '   End With
-        ' Next
-        For I = 1 To $hColumns.Count - 1
+        
+        For I = 0 To $hColumns.Max
           With $hColumns[I]
             If $hColumns[I].Resizable And If X >= (.X - HW) And If X <= (.X + HW) Then
               iMouse = Mouse.SizeE
@@ -1081,8 +1080,10 @@ Public Sub ScrollArea_MouseMove()
             Endif
           End With
         Next
+      
       Else
-        For I = 1 To $hColumns.Count - 1
+
+        For I = 1 To $hColumns.Max
           With $hColumns[I]
             If $hColumns[I - 1].Resizable And If X >= (.X - HW) And If X <= (.X + HW) Then
               iMouse = Mouse.SizeE
@@ -1092,20 +1093,13 @@ Public Sub ScrollArea_MouseMove()
             Endif
           End With
         Next
-      Endif
-      
-      If Me.RightToLeft Then
-        If $iColResize < 0 And If $hColumns[0].Resizable And If X >= ($hColumns._GetWidth() - HW) And If X <= ($hColumns._GetWidth() + HW) Then
-          iMouse = Mouse.SizeE
-          $iColResize = 0
-          $iDimResize = $hColumns[$iColResize].Width
-        Endif
-      Else
+        
         If $iColResize < 0 And If $hColumns[$hColumns.Count - 1].Resizable And If X >= ($hColumns._GetWidth() - HW) And If X <= ($hColumns._GetWidth() + HW) Then
           iMouse = Mouse.SizeE
           $iColResize = $hColumns.Count - 1
           $iDimResize = $hColumns[$iColResize].Width
         Endif
+        
       Endif
       
     Endif
@@ -1567,8 +1561,6 @@ Public Sub _EnsureVisible(iRow As Integer, iCol As Integer)
   
   $iRowEV = iRow
   $iColEV = iCol
-  
-  'Debug iRow;; iCol
   
 End
 
