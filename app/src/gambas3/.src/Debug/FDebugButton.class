@@ -124,13 +124,13 @@ Public Sub dwgStatus_Draw()
     DS = Desktop.Scale
     Paint.Font.Grade = -1
     'Paint.Font.Bold = True
-    W = Paint.TextSize($sMessage).W + DS * 3
+    W = Paint.RichTextSize($sMessage).W + DS * 3
     X = dwgStatus.W - W - DS \ 2
     Paint.Rectangle(X, DS \ 2, W, dwgStatus.H - DS, DS * 2)
     Paint.Background = Color.SelectedBackground
     Paint.Fill
     Paint.Background = Color.SelectedForeground
-    Paint.DrawText($sMessage, X, DS \ 2, W, dwgStatus.H - DS, Align.Center)
+    Paint.DrawRichText($sMessage, X, DS \ 2, W, dwgStatus.H - DS, Align.Center)
   Else
     FMain.PaintStatus()
   Endif

@@ -2003,14 +2003,14 @@ Private Sub CompileError(sMsg As String)
     Try hEditor = hForm.GetEditor()
 
     If iLine >= 100000 Then
-      SetMessage(File.BaseName(sFile) & ": " & sErr & " " & ("in form definition"))
+      SetMessage(File.BaseName(sFile) & ": " & Html(sErr) & " " & ("in form definition"))
       sMsg = FormatError(sErr, ("in form definition"))
     Else If iLine >= 1 Then
       If hEditor Then iLine = Min(iLine, hEditor.Count)
-      SetMessage(File.BaseName(sFile) & "." & CStr(iLine) & ": " & sErr)
+      SetMessage(File.BaseName(sFile) & "." & CStr(iLine) & ": " & Html(sErr))
       sMsg = FormatError(sErr, File.Name(sFile) & ":" & CStr(iLine))
     Else
-      SetMessage(File.BaseName(sFile) & ": " & sErr)
+      SetMessage(File.BaseName(sFile) & ": " & Html(sErr))
       sMsg = FormatError(sErr, File.Name(sFile))
     Endif
 
@@ -2976,7 +2976,7 @@ Public Function MakeExecutable(bDoNotIncVersion As Boolean, bSilent As Boolean, 
   
   ExecTimeStamp = TimeStamp
   
-  SetMessage(("Making executable...") & ("OK"))
+  SetMessage(("Making executable...") & " <tt>" & sExecPath & "</tt>... " & ("OK"))
   
   Return Not bOK
 
