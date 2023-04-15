@@ -491,6 +491,8 @@ static bool set_value(GValue *value, GB_VALUE *v, GParamSpec *desc)
 				}
 				else
 				{
+					GB.Error(NULL);
+
 					if (GB.Conv(v, GB_T_STRING))
 						return TRUE;
 
@@ -1781,7 +1783,6 @@ static int cb_message(CMEDIAPIPELINE *_object)
 				
 				case GST_MESSAGE_ERROR: 
 				case GST_MESSAGE_WARNING: 
-				case GST_MESSAGE_INFO:
 				{
 					gchar *debug;
 					GError *error;
@@ -2131,17 +2132,21 @@ GB_DESC MediaMessageDesc[] =
 	GB_CONSTANT("ClockLost", "i", GST_MESSAGE_CLOCK_LOST),
 	GB_CONSTANT("NewClock", "i", GST_MESSAGE_NEW_CLOCK),
 	GB_CONSTANT("Status", "i", GST_MESSAGE_STREAM_STATUS),
+	GB_CONSTANT("StreamStatus", "i", GST_MESSAGE_STREAM_STATUS),
 	GB_CONSTANT("Element", "i", GST_MESSAGE_ELEMENT),
 	GB_CONSTANT("SegmentDone", "i", GST_MESSAGE_SEGMENT_DONE),
 	GB_CONSTANT("DurationChanged", "i", GST_MESSAGE_DURATION_CHANGED),
 	GB_CONSTANT("Latency", "i", GST_MESSAGE_LATENCY),
 	GB_CONSTANT("StateAsync", "i", GST_MESSAGE_ASYNC_DONE),
+	GB_CONSTANT("AsyncStart", "i", GST_MESSAGE_ASYNC_START),
+	GB_CONSTANT("AsyncDone", "i", GST_MESSAGE_ASYNC_DONE),
 	GB_CONSTANT("RequestState", "i", GST_MESSAGE_REQUEST_STATE),
 	GB_CONSTANT("Qos", "i", GST_MESSAGE_QOS),
 	GB_CONSTANT("Progress", "i", GST_MESSAGE_PROGRESS),
 	GB_CONSTANT("Toc", "i", GST_MESSAGE_TOC),
 	GB_CONSTANT("Start", "i", GST_MESSAGE_STREAM_START),
-	
+	GB_CONSTANT("StreamStart", "i", GST_MESSAGE_STREAM_START),
+
 	GB_END_DECLARE
 };
 
