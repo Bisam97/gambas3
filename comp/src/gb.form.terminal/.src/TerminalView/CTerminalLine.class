@@ -63,6 +63,10 @@ Private Sub Compress(bFull As Boolean)
   
   If bFull And If Attr.Count < Length Then
     iCount = Length - Attr.Count
+    While iCount > 128
+      aAttr.Add(Lsl(127, 9))
+      iCount -= 128
+    Wend
     aAttr.Add(Lsl(iCount - 1, 9))
   Endif
   
@@ -72,33 +76,6 @@ Private Sub Compress(bFull As Boolean)
   
 End
 
-
-' Public Sub GetAttr(hAttr As TerminalAttr, X As Integer)
-'   
-'   Dim iAttr As Integer
-'   
-'   Try iAttr = Attr[X]
-'   
-'   If BTst(iAttr, FLAG_BG) Then
-'     hAttr.Background = Lsr(iAttr, 16) And 255
-'   Else
-'     hAttr.Background = Color.Default
-'   Endif
-' 
-'   If BTst(iAttr, FLAG_FG) Then
-'     hAttr.Foreground = Lsr(iAttr, 24) And 255
-'   Else
-'     hAttr.Foreground = Color.Default
-'   Endif
-'   
-'   hAttr.Bold = BTst(iAttr, FLAG_BOLD)
-'   hAttr.Dim = BTst(iAttr, FLAG_DIM)
-'   hAttr.Reverse = BTst(iAttr, FLAG_REV)
-'   hAttr.Underscore = BTst(iAttr, FLAG_UND)
-'   hAttr.Blink = BTst(iAttr, FLAG_BLK)
-'   
-' End
-' 
 Public Sub SetAttr(hAttr As TerminalAttr, X As Integer, L As Integer, bInsert As Boolean)
   
   Dim iAttr As Long
@@ -214,4 +191,4 @@ End
 '   Print
 '   
 ' End
-
+' 
