@@ -55,7 +55,7 @@ Public Sub IsVoid() As Boolean
   
 End
 
-Public Sub _FillFrom(iAttr As Long)
+Public Sub _FillFrom(iAttr As Long) As Integer
 
   Background = Color.Default
   BackgroundRGB = Color.Default
@@ -80,6 +80,8 @@ Public Sub _FillFrom(iAttr As Long)
   Reverse = BTst(iAttr, FLAG_REV)
   Underscore = BTst(iAttr, FLAG_UND)
   Blink = BTst(iAttr, FLAG_BLK)
+  
+  Return (Lsr(iAttr, 9) And 127) + 1
   
 End
 

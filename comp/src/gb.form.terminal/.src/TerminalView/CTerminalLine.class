@@ -28,7 +28,7 @@ Private Sub Uncompress()
     aAttr.Insert(aTemp)
   Next
   
-  'If aAttr.Count > String.Len(Text) Then Stop
+  'If aAttr.Count > Length Then Stop
   
   Attr = aAttr
   $bCompressed = False
@@ -43,7 +43,7 @@ Private Sub Compress(bFull As Boolean)
   Dim iCount As Integer
   Dim aAttr As New Long[]
   
-  For I = 0 To Attr.Max
+  For I = 0 To Min(Length - 1, Attr.Max)
     
     iAttr = Attr[I]
     If iAttr = iOldAttr And If iCount < 128 Then
@@ -198,3 +198,20 @@ Public Sub Clear()
   $bCompressed = False
   
 End
+
+' Public Sub _Dump()
+'   
+'   Dim I As Integer
+'   Dim hAttr As New TerminalAttr
+'   Dim iLen As Integer
+'   
+'   Compress(False)
+'   Print "<"; Length; "> ";
+'   For I = 0 To Attr.Max
+'     iLen = hAttr._FillFrom(Attr[I])
+'     Print Hex(hAttr._ToValue(), 16);; "["; iLen; "]";;
+'   Next
+'   Print
+'   
+' End
+

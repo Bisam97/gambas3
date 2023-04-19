@@ -932,8 +932,8 @@ Private Sub DrawLine(hView As TerminalView, L As Integer, X As Integer, Y As Int
     
     If P > iMaxLen Then Break
     
-    hAttr._FillFrom(aAttr[I])
-    iLen = Min((Lsr(aAttr[I], 9) And 127), iMaxLen - P) + 1
+    iLen = hAttr._FillFrom(aAttr[I])
+    iLen = Min(iLen, iMaxLen - P + 1)
     
     iBg = hAttr.BackgroundRGB
     If iBg < 0 Then
