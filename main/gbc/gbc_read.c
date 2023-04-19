@@ -47,7 +47,7 @@
 #include "gbc_help.h"
 #include "gbc_read.h"
 
-#define DEBUG
+//#define DEBUG
 
 static bool is_init = FALSE;
 static COMPILE *comp;
