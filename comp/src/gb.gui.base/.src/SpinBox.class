@@ -312,12 +312,19 @@ Private Sub SetValue(iValue As Integer, Optional bFocus As Boolean)
     iValue = If($bWrap, $iMin, $iMax)
   Endif
   
-  sValue = CStr(iValue)
-  nZero = Max(Len(CStr($iMin)), Len(CStr($iMax)))
+  sValue = CStr(Abs(iValue))
+  nZero = Max(Len(CStr(Abs($iMin))), Len(CStr(Abs($iMax))))
   If $bShowZero Then
     If nZero > Len(sValue) Then sValue = String$(nZero - Len(sValue), "0") & sValue
   Endif
-  If $bShowSign And If iValue > 0 Then sValue = "+" & sValue
+  
+  If iValue < 0 Or If $bShowSign Then
+    If iValue < 0 Then
+      sValue = "-" & sValue
+    Else If iValue > 0 Then
+      sValue = "+" & sValue
+    Endif
+  Endif
   
   ComputeMinWidth
   
