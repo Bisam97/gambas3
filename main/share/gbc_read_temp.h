@@ -398,7 +398,7 @@ static void add_identifier()
 			{
 				can_be_reserved = (index >= RS_COLON || index == RS_NEW || index == RS_OPEN || index == RS_CLOSE || index == RS_SHELL || index == RS_EXEC || index == RS_RAISE || index == RS_PIPE || index == RS_LOCK || index == RS_MEMORY || index == RS_READ || index == RS_PEEK);
 			}
-			else if (!_begin_line && !last_type && index < RS_P_IF && PATTERN_is_reserved(last_pattern) && !RES_is_identifier(PATTERN_index(last_pattern)) && !PATTERN_is(last_pattern, RS_RBRA) && !PATTERN_is(last_pattern, RS_RSQR))
+			else if (!_begin_line && !last_type && index < RS_P_IF && PATTERN_is_reserved(last_pattern) && !RES_is_identifier(PATTERN_index(last_pattern)) && !PATTERN_is(last_pattern, RS_PINF) && !PATTERN_is(last_pattern, RS_MINF) && !PATTERN_is(last_pattern, RS_RBRA) && !PATTERN_is(last_pattern, RS_RSQR))
 				can_be_reserved = FALSE;
 			break;
 		}
