@@ -227,7 +227,7 @@ build:fedora-latest:
        dnf install -y libtool libtool-ltdl-devel gcc make autoconf dumb-devel gmime-devel gmime30-devel libffi-devel mariadb-devel postgresql-devel unixODBC-devel sqlite2-devel libsqlite3x-devel libxslt-devel libv4l-devel glew-devel poppler-devel poppler-glib-devel poppler-cpp-devel qt-devel qt5-qtbase-devel qt5-qtbase-private-devel qt5-qtwebengine-devel qt5-qtx11extras-devel qt5-qtsvg-devel SDL_ttf-devel SDL_mixer-devel SDL-devel SDL2_ttf-devel SDL2_mixer-devel SDL2_image-devel SDL2-devel cairo-devel gtk2-devel gtk3-devel imlib2-devel librsvg2-devel qt-webkit-devel qt5-qtwebkit qt5-qtwebkit-devel openal-soft-devel libjpeg-turbo-devel gtkglext-devel gmp-devel libxml2-devel libXtst-devel gsl-devel pcre-devel dbus-devel libcurl-devel alure-devel gstreamermm-devel libgnome-keyring-devel bzip2-devel libzstd-devel webkit2gtk3-devel ncurses-devel
   script:
     - ./reconf-all
-    - GAMBAS_CONFIG_FAILURE=1 ./configure -C
+    - GAMBAS_CONFIG_FAILURE=1 ./configure -C --disable-pdf
     - make -j$(nproc)
     - make install
 
