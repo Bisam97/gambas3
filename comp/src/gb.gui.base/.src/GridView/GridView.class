@@ -462,9 +462,11 @@ Public Sub ScrollArea_Draw()
   Else
     XO = $hRows.Width - $hView.ScrollX + F
   Endif
-  XX = XO + $hColumns[iCol].X
+  XX = XO
+  If iCol >= 0 Then XX += $hColumns[iCol].X
   YO = $hColumns.Height - $hView.ScrollY + F
-  YY = YO + $hRows._GetRowY(iRow)
+  YY = YO
+  If iRow >= 0 Then YY += $hRows._GetRowY(iRow)
   
   If $bGrid Then
     iGrid = Color.Merge(Color.LightForeground, Color.TextBackground)
