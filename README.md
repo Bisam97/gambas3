@@ -47,6 +47,10 @@ The following pieces of code were borrowed and adapted:
 - The 'gb.hash' component embeds the code of the hashing routines of BusyBox made
   by Denys Vlasenko and Bernhard Reutner-Fischer. See https://www.busybox.net/
   for more details.
+
+- The stock icons flags were generated from SVG files taken from
+  https://github.com/smucode/react-world-flags. They are published under the MIT
+  license.
   
 If I forget some borrowed code in the list above, just tell me.
 
