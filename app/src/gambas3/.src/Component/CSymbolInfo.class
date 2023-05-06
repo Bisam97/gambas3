@@ -402,6 +402,45 @@ Public Function GetNativeSignature() As String
   
 End
 
+Public Sub GetArgumentTypes() As String[]
+
+  Dim sSign As String
+  Dim I As Integer
+  Dim sCar As String
+  Dim bPar As Boolean
+  Dim bNewArg As Boolean
+  Dim aArg As New String[]
+  
+  sSign = GetNativeSignature()
+  bNewArg = True
+  
+  For I = 1 To Len(sSign)
+    
+    sCar = Mid$(sSign, I, 1)
+    
+    If bPar Then
+      If sCar = ")" Then bPar = False
+    Else If sCar = "(" Then
+      bPar = True
+      bNewArg = True
+    Else If sCar = ";" Then
+      bNewArg = True
+    Else
+      If bNewArg Then
+        aArg.Add(sCar)
+        bNewArg = False
+      Else
+        aArg[aArg.Max] &= sCar
+      Endif
+    Endif
+    
+  Next
+  
+  Return aArg
+  
+End
+
+
 Private Sub SplitSignature(sSign As String) As String[]
   
   Dim iPos As Integer
@@ -430,7 +469,6 @@ Private Sub MergeSignature(sSign As String, sParentSign As String) As String
   Return sSign
   
 End
-
 
 Public Function GetSignature(bBalise As Boolean, Optional iShowArg As Integer = -1) As String
 

@@ -2064,10 +2064,52 @@ Public Sub CheckCompletion()
 
 End
 
+Private Sub AnalyzeMethodCall(aExpr As String[], aType As Integer[], iFrom As Integer, Optional ByRef nArg As Integer, Optional ByRef cByRef As Collection) As Integer
+
+  Dim I As Integer
+  Dim sPattern As String
+  Dim aWait As New String[]
+  Dim sKey As String
+  
+  If Not IsMissing(cByRef) Then cByRef = New Collection
+  
+  For I = iFrom DownTo 0
+
+    sPattern = aExpr[I]
+
+    If sPattern = ")" Then
+      aWait.Push("(")
+    Else If sPattern = "]" Then
+      aWait.Push("[")
+    Else If aWait.Count Then
+      If sPattern = aWait[aWait.Max] Then
+        aWait.Pop
+      Endif
+    Else If sPattern = "(" Or sPattern = "[" Then
+      Break
+    Else If sPattern = "," Then
+      Inc nArg
+    Else If cByRef And If sPattern == "BYREF" And If I < iFrom Then
+      If aType[I + 1] = Highlight.Symbol Then
+        cByRef[aExpr[I + 1]] = nArg
+      Endif
+    Endif
+
+  Next
+  
+  If cByRef Then
+    For Each sKey In cByRef.Keys
+      cByRef[sKey] = nArg - cByRef[sKey]
+    Next
+  Endif
+  
+  Return I
+  
+End
+
 Private Function GetExpressionSignature(aExpr As String[], aType As Integer[]) As CSymbolInfo
 
   Dim iInd As Integer
-  Dim sWait As New String[]
   Dim sPattern As String
   Dim sType As String
   Dim bNew As Boolean
@@ -2075,31 +2117,7 @@ Private Function GetExpressionSignature(aExpr As String[], aType As Integer[]) A
   $hSymbol = Null
   $iArgSignature = 0
 
-  For iInd = aExpr.Count - 1 DownTo 0
-
-    sPattern = aExpr[iInd]
-    If sPattern = ")" Then
-      sWait.Push("(")
-      'bLastSymbol = FALSE
-      Continue
-    Else If sPattern = "]" Then
-      sWait.Push("[")
-      'bLastSymbol = FALSE
-      Continue
-    Else If sWait.Count Then
-      If sPattern = sWait[sWait.Count - 1] Then
-        sWait.Pop
-      Endif
-      'bLastSymbol = FALSE
-      Continue
-    Else If sPattern = "(" Or sPattern = "[" Then
-      Break
-    Else If sPattern = "," Then
-      Inc $iArgSignature
-    Endif
-
-  Next
-
+  iInd = AnalyzeMethodCall(aExpr, aType, aExpr.Max, ByRef $iArgSignature)
   If iInd < 1 Then Return
 
   $iPosSignature = Highlight.Positions[iInd - 1]
@@ -3498,7 +3516,6 @@ Private Sub FindNextBracket(aSym As String[], I As Integer, sCar1 As String, sCa
   
 End
 
-
 Private Sub GetExpressionTypeWithEval(aSym As String[], aType As Integer[]) As String
   
   Dim I, I2, N As Integer
@@ -3509,6 +3526,8 @@ Private Sub GetExpressionTypeWithEval(aSym As String[], aType As Integer[]) As S
   Dim hType As CDatatype
   Dim vVal As Variant
   Dim bMakeArray As Boolean
+  Dim cByRef As Collection
+  Dim aArg As String[]
   
   While I < aSym.Count
     
@@ -3536,6 +3555,12 @@ Private Sub GetExpressionTypeWithEval(aSym As String[], aType As Integer[]) As S
           sType = GetSymbolType(aSym[I])
           If $hSymbol And If $hSymbol.IsFunction And If I < aSym.Max And If aSym[I + 1] = "(" Then
             I = FindNextBracket(aSym, I, "(", ")")
+            AnalyzeMethodCall(aSym, aType, I - 1,, ByRef cByRef)
+            aArg = $hSymbol.GetArgumentTypes()
+            For Each I2 In cByRef
+              If GetSymbolType(cByRef.Key) Then Continue
+              AddVariable(cByRef.Key, aArg[I2])
+            Next
           Endif
         Endif
         
@@ -3571,9 +3596,13 @@ Private Sub GetExpressionTypeWithEval(aSym As String[], aType As Integer[]) As S
       sExpr &= " __" & CStr(N)
       cExpr["__" & CStr(N)] = CDatatype.__Get(sType)
       
+    Else If aSym[I] == "BYREF" Then
+    
     Else
+      
       If InStr(".!()[],;", aSym[I]) = 0 Then sExpr &= " "
       sExpr &= aSym[I]
+      
     Endif
     
     Inc I
@@ -3711,6 +3740,20 @@ Private Sub AddGlobalVariable(sName As String, sType As String, bStatic As Boole
   
 End
 
+Private Sub AddVariable(sName As String, sType As String) As Boolean
+
+  If Not sType Then Return
+  
+  $hEditor.Begin
+  If Left(sName) = "$" Then
+    AddGlobalVariable(sName, CSymbolInfo.GetType(sType), IsCurrentProcStatic())
+  Else
+    AddLocalVariable(sName, CSymbolInfo.GetType(sType))
+  Endif
+  $hEditor.End
+  Return True
+
+End
 
 Private Sub CreateLocalVariable() As Boolean
 
@@ -3740,8 +3783,7 @@ Private Sub CreateLocalVariable() As Boolean
   If aSym.Count >= 3 And If aType[0] = Highlight.Symbol And If Len(aSym[1]) <= 2 And If Right(aSym[1]) = "=" Then
     
     sName = aSym[0]
-    sType = GetSymbolType(sName)
-    If sType Then Return
+    ' We check that the symbol is declared later, because a method call with ByRef is possible.
     
     aSym.Remove(0, 2)
     aType.Remove(0, 2)
@@ -3768,6 +3810,8 @@ Private Sub CreateLocalVariable() As Boolean
     Else
       sType = GetExpressionTypeWithEval(aSym, aType)
     Endif
+    
+    If GetSymbolType(sName) Then Return
 
   ' For ... To
   Else If aSym.Count >= 6 And If aSym[0] == "FOR" And If aType[1] = Highlight.Symbol And If aSym[2] = "=" Then
@@ -3835,20 +3879,15 @@ Private Sub CreateLocalVariable() As Boolean
     sType = GetSymbolType(sName)
     If sType Then Return
     sType = "s"
+    
+  Else
+    
+    GetExpressionTypeWithEval(aSym, aType)
   
   Endif
+  
+  Return AddVariable(sName, sType)
 
-  If sType Then
-    $hEditor.Begin
-    If Left(sName) = "$" Then
-      AddGlobalVariable(sName, CSymbolInfo.GetType(sType), IsCurrentProcStatic())
-    Else
-      AddLocalVariable(sName, CSymbolInfo.GetType(sType))
-    Endif
-    $hEditor.End
-    Return True
-  Endif
-  
 End
 
 Public Sub mnuBookmark_Show()
