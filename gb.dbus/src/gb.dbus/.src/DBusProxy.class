@@ -40,6 +40,7 @@ Private $sInterface As String
 Private $sIntrospection As String
 Private $cPos As Collection
 Private $cSignature As Collection
+Private $cRealName As Collection
 
 Private Sub Introspect()
 
@@ -59,9 +60,10 @@ Private Sub Introspect()
     $sIntrospection = Mid$($sIntrospection, iPos, iPos2 - iPos)
   Endif
   
-  $cSignature = New Collection
-  $cPos = New Collection
+  $cSignature = New Collection(gb.IgnoreCase)
+  $cPos = New Collection(gb.IgnoreCase)
   $cPos.Default = 0
+  $cRealName = New Collection(gb.IgnoreCase)
   
   hIntr = New CIntrospection($sIntrospection)
   While Not hIntr.MoveNext()
@@ -128,6 +130,7 @@ Public Sub _GetSignature(sSymbol As String, Optional bFormat As Boolean) As Stri
   Dim sArg As String
   Dim sComment As String
   Dim hIntr As CIntrospection
+  Dim sRealName As String
   
   sType = $cSignature[sSymbol]
   If sType Then Goto RETURN_SIGNATURE
@@ -202,6 +205,8 @@ Public Sub _GetSignature(sSymbol As String, Optional bFormat As Boolean) As Stri
   Endif
   
   $cSignature[sSymbol] = sType
+  sRealName = hIntr.GetAttribute("name")
+  If sRealName <> sSymbol Then $cRealName[sSymbol] = sRealName
   
 RETURN_SIGNATURE:
 
@@ -313,6 +318,8 @@ Public Sub _Invoke(sName As String, aArg As Variant[]) As Variant
   Dim sSign As String
   Dim bProperty As Boolean
   Dim hVariant As DBusVariant
+  
+  If $cRealName.Exist(sName) Then sName = $cRealName[sName]
   
   hApp = DBus._ApplicationCache[$hAppIndex]
   

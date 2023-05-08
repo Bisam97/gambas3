@@ -8,9 +8,13 @@ Property Enabled As Boolean
 
 Private $hObserver As DBusObserver
 
-Public Sub _new(Connection As DBusConnection, Interface As String, Optional Every As Boolean)
+Public Sub _new(Connection As DBusConnection, Interface As String, Optional Object As String, Optional Signal As String, Optional Every As Boolean)
 
-  $hObserver = New DBusObserver(Connection, DBus.Signal, "", "", Interface, If(Every, "*", "")) As "DBusObserver"
+  If Object = CStr(True) And If IsMissing(Signal) And If IsMissing(Every) Then
+    Every = True
+    Object = ""
+  Endif
+  $hObserver = New DBusObserver(Connection, DBus.Signal, Object, Signal, Interface, If(Every, "*", "")) As "DBusObserver"
   
 End
 
