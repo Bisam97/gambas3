@@ -465,7 +465,8 @@ Private Sub RefreshView()
     For Each sFile In aDir
       If Not $bShowHidden And If Left(sFile) = "." Or Right(sFile) = "~" Then Continue
       'With Stat(sDir &/ sFile)
-      hInfo = hCache.GetInfo(sFile)
+      Try hInfo = hCache.GetInfo(sFile)
+      If Error Then Continue
       If bFilter Then
         bCancel = Raise Filter(sFile, hInfo)
         If bCancel Then Continue
