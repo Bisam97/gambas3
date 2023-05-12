@@ -58,3 +58,10 @@ Public Sub _get((Application) As String) As DBusApplication
   
 End
 
+'' Check if a specific application name is used
+
+Public Sub Exist((Application) As String) As Boolean
+  
+  Try Return DBus["org.freedesktop.DBus"]["/", "org.freedesktop.DBus"].NameHasOwner(Application)
+  
+End
