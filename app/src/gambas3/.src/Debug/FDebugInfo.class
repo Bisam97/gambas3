@@ -1046,3 +1046,41 @@ Public Sub btnRepository_Click()
   FRepository.ShowDialog
 
 End
+
+Public Sub tvwDbusExplorer_Activate()
+
+  Dim sPath As String
+  Dim sSym As String
+  Dim hEditor As TextEditor
+  
+  Try hEditor = Project.ActiveForm.GetEditor()
+  If Not hEditor Then Return
+
+  Try sPath = Last.Current.Key
+  If Not sPath Then Return 
+  
+  sSym = File.Name(sPath)
+  
+  Select Left(sSym)
+    Case "m"
+      sSym = Mid$(sSym, 3) & "()"
+    Case "p"
+      sSym = Mid$(sSym, 3)
+    Case Else
+      sSym = ""
+  End Select
+  
+  If Not sSym Then Return
+  
+  sPath = File.Dir(sPath)
+  
+  hEditor.Insert("DBus[" & Quote(lstDbusExplorer.Current.Text) & "][" & Quote(File.Dir(sPath)) & "," & Quote(File.Name(sPath)) & "]." & sSym)
+  hEditor.SetFocus
+
+End
+
+Public Sub btnDbusPasteSymbol_Click()
+
+  tvwDbusExplorer_Activate
+
+End

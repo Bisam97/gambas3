@@ -706,11 +706,12 @@ Public Sub btnRunQuery_Click()
     Try datRequest.Table = sReq
   Else
     Try $hConn.Exec(sReq)
-    If Error Then
-      sErr = Error.Text
-    Else
-      LoadList($sTable)
-    Endif
+  Endif
+  
+  If Error Then
+    sErr = Error.Text
+  Else
+    LoadList($sTable)
   Endif
   
   Dec Application.Busy
