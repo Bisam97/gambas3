@@ -89,6 +89,7 @@ End
 Public Sub ResponseSignal_Signal(Method As String, Arguments As Variant[])
   
   Debug Method
+  Last.Enabled = False
   
 End
 
@@ -172,9 +173,12 @@ Public Sub Main()
   'Print DBus["org.mpris.MediaPlayer2.gplayer"]["/org/mpris/MediaPlayer2", "org.mpris.MediaPlayer2"].CanQuit
   
   hSignal = New DBusSignal(DBus.Session, "org.freedesktop.portal.Request", "/org/freedesktop/portal/desktop/request/" & Replace(Mid$(DBus.Session._Name, 2), ".", "_") & "/Gambas1972") As "ResponseSignal"
-  
-  Print DBus["org.freedesktop.portal.Desktop"]["/org/freedesktop/portal/desktop", "org.freedesktop.portal.Screenshot"].PickColor("", ["handle_token": "Gambas1972", "interactive": True])
 
+  Dim hFile As File 
+  hFile = Open "~/03.FDR_OAPP_2023_12.05_bois_harpe et piano.pdf"
+  
+  Print DBus["org.freedesktop.portal.Desktop"]["/org/freedesktop/portal/desktop", "org.freedesktop.portal.OpenURI"].OpenFile("", DBusFile(hFile), ["handle_token": "Gambas1972", "interactive": True])
+  
 End
 
 Public Sub Test(Input As String, Output As String)

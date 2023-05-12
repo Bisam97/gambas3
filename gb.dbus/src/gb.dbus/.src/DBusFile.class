@@ -1,0 +1,16 @@
+' Gambas class file
+
+Export
+Inherits DBusVariant
+
+Public Const Signature As String = "h"
+
+Static Public Sub _call(Stream As Stream) As DBusFile
+
+  Dim hFile As DBusFile
+  
+  hFile = New DBusFile
+  hFile.Value = Stream.Handle
+  Return hFile
+  
+End
