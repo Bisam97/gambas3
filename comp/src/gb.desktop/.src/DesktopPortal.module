@@ -1,0 +1,117 @@
+' Gambas module file
+
+Class DBus
+Class DBusSignal
+
+Property Read Available As Boolean
+
+Private $bCheckAvailable As Boolean
+Private $iToken As Integer
+
+Private $hScreenshotSignal As DBusSignal
+Private $hScreenshot As Image
+Private $cResult As Collection
+
+Public Sub _init()
+  
+  Component.Load("gb.dbus")
+  
+End
+
+Private Sub GetPortal(sInterface As String) As DBusProxy
+
+  If Not $bCheckAvailable Then
+    If Not DesktopPortal.Available Then Error.Raise("Desktop portal is not available")
+    $bCheckAvailable = True
+  Endif
+  Return DBus["org.freedesktop.portal.Desktop"]["/org/freedesktop/portal/desktop", "org.freedesktop.portal." & sInterface]
+
+End
+
+Private Sub GetToken(ByRef sToken As String) As DBusSignal
+  
+  Dim hSignal As DBusSignal
+
+  $cResult = Null
+  Inc $iToken
+  sToken = "gb_" & Application.Id & "_" & CStr($iToken)
+  hSignal = New DBusSignal(DBus.Session, "org.freedesktop.portal.Request", "/org/freedesktop/portal/desktop/request/" & Replace(Mid$(DBus.Session._Name, 2), ".", "_") &/ sToken) As "Request"
+  Return hSignal
+
+End
+
+Private Sub WaitForResult()
+  
+  While Not $cResult
+    Wait Next
+  Wend
+  
+End
+
+Private Sub FromUri(sUri As String) As String
+  
+  If sUri Begins "file://" Then sUri = Mid$(sUri, 8)
+  Return FromUrl(sUri)
+  
+End
+
+Public Sub Request_Signal((Method) As String, Arguments As Variant[])
+  
+  $cResult = Arguments[1]
+  Last.Enabled = False
+  
+End
+
+Public Sub Screenshot_Signal((Method) As String, Arguments As Variant[])
+
+  Dim cResult As Collection
+  Dim sPath As String
+  
+  cResult = Arguments[1]
+  sPath = FromUri(cResult["uri"])
+  Try $hScreenshot = Image.Load(sPath)
+  
+  $hScreenshotSignal.Enabled = False
+  $hScreenshotSignal = Null
+  
+End
+
+Public Sub Screenshot() As Image
+
+  Dim sToken As String
+
+  If Not $hScreenshotSignal Then
+    
+    $hScreenshotSignal = GetToken(ByRef sToken)
+    Object.Attach($hScreenshotSignal, Me, "Screenshot")
+    GetPortal("Screenshot").Screenshot("", ["handle_token": sToken, "interactive": False])
+    
+    While Not $hScreenshot
+      Wait Next
+    Wend
+    
+  Endif
+  
+  Return $hScreenshot
+  
+End
+
+Private Function Available_Read() As Boolean
+
+  Return DBus.Session.Exist("org.freedesktop.portal.Desktop")
+
+End
+
+Public Sub PickColor() As Integer
+
+  Dim sToken As String
+  Dim aColor As Float[]
+  
+  GetToken(ByRef sToken)
+  GetPortal("Screenshot").PickColor("", ["handle_token": sToken, "interactive": False])
+  WaitForResult
+  
+  aColor = $cResult["color"]
+  Return Color.RGB(aColor[0] * 255, aColor[1] * 255, aColor[2] * 255)
+  
+End

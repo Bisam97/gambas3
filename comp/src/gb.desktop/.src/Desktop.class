@@ -602,3 +602,22 @@ Static Private Function RemoteDisplay_Read() As Boolean
   Return $bRemoteDisplay
   
 End
+
+Static Public Sub Screenshot(Optional X As Integer, Y As Integer, Width As Integer, Height As Integer) As Picture
+  
+  Dim hScreenshot As Image
+  
+  If Desktop.Platform <> "x11" Then
+    hScreenshot = DesktopPortal.Screenshot()
+    Return hScreenshot.Copy(X, Y, Width, Height).Picture
+  Endif
+  
+  Try Return Super.Screenshot(X, Y, Width, Height)
+  
+End
+
+Static Public Sub PickColor() As Integer
+  
+  Return DesktopPortal.PickColor()
+  
+End
