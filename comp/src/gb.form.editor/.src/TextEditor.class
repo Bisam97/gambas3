@@ -799,21 +799,21 @@ Private Sub DrawText(sText As String, SX As Integer, X As Integer, Y As Integer)
   
 End
 
-Private Sub DrawMatch(X As Integer, Y As Integer, H As Integer, XM As Integer, YM As Integer, bOther As Boolean)
-  
-  Dim XY As Point
-  Dim WW As Integer
-  
-  XY = LinePos(YM, XM)
-  WW = TextWidth($hDoc.Lines[YM], XM + 1, 1)
-  
-  If Not bOther Or If Not $bShowCursor Then
-    Paint.FillRect(X + XY.X, Y + XY.Y + H - 2, WW, 2, $iMatchColor)
-  Else
-    Paint.FillRect(X + XY.X, Y + XY.Y, WW, H, $iMatchColor)
-  Endif
-  
-End
+' Private Sub DrawMatch(X As Integer, Y As Integer, H As Integer, XM As Integer, YM As Integer, bOther As Boolean)
+'   
+'   Dim XY As Point
+'   Dim WW As Integer
+'   
+'   XY = LinePos(YM, XM)
+'   WW = TextWidth($hDoc.Lines[YM], XM + 1, 1)
+'   
+'   If Not bOther Or If Not $bShowCursor Then
+'     Paint.FillRect(X + XY.X, Y + XY.Y + H - 2, WW, 2, $iMatchColor)
+'   Else
+'     Paint.FillRect(X + XY.X, Y + XY.Y, WW, H, $iMatchColor)
+'   Endif
+'   
+' End
 
 ' Public Sub PrintCache()
 '
@@ -1280,6 +1280,38 @@ Private Sub DrawLine(X As Integer, Y As Integer, Width As Integer, Height As Int
     
   Endif
   
+  ' Matching characters
+  
+  If $YM >= 0 Then
+    
+    X1 = $XMO
+    Y1 = $YMO
+    With LinePos(Y1, X1)
+      XY1X = .X
+      XY1Y = .Y
+    End With
+
+    X2 = $XM
+    Y2 = $YM
+    With LinePos(Y2, X2)
+      XY2X = .X
+      XY2Y = .Y
+    End With
+    
+    If Y1 > Y2 Or If Y1 = Y2 And X1 > X2 Then
+      Swap X1, X2
+      Swap Y1, Y2
+      Swap XY1X, XY2X
+      Swap XY1Y, XY2Y
+    Endif
+    
+    iCol = Color.SetAlpha($iMatchColor, 128)
+    GoSub HIGHLIGHT_RECT
+    ' If Row = $YMO Then DrawMatch(X, Y, H, $XMO, $YMO, False)
+    ' If Row = $YM Then DrawMatch(X, Y, H, $XM, $YM, True)
+    
+  Endif
+  
   ' Selection
   
   If HasSelection() Then
@@ -1294,44 +1326,9 @@ Private Sub DrawLine(X As Integer, Y As Integer, Width As Integer, Height As Int
     XY2X = $SXY.X
     XY2Y = $SXY.Y
     
-    If Y1 > Y2 Or If Y1 = Y2 And X1 > X2 Then
-      Swap X1, X2
-      Swap Y1, Y2
-      Swap XY1X, XY2X
-      Swap XY1Y, XY2Y
-    Endif
+    iCol = Color.SetAlpha($iSelectedBackground, 32)
+    GoSub HIGHLIGHT_RECT
     
-    If Row >= Y1 And If Row <= Y2 Then
-      
-      iCol = Color.SetAlpha($iSelectedBackground, 32)
-      
-      If Y1 < Row Then
-        XY1X = 0
-        XY1Y = 0
-      Endif
-      
-      If Y2 > Row Then
-        XY2X = 0
-        XY2Y = HH
-      Endif
-      
-      If XY2Y = XY1Y Then
-        Paint.FillRect(X + XY1X, Y + XY1Y, XY2X - XY1X, H, iCol)
-      Else
-        Paint.FillRect(X + XY1X, Y + XY1Y, Width, H, iCol)
-        Paint.FillRect(X, Y + XY1Y + H, Width, XY2Y - XY1Y - H, iCol)
-        If XY2Y < HH Then Paint.FillRect(X, Y + XY2Y, XY2X, H, iCol)
-      Endif
-      
-    Endif
-    
-  Endif
-  
-  ' Matching characters
-  
-  If $YM >= 0 Then
-    If Row = $YMO Then DrawMatch(X, Y, H, $XMO, $YMO, False)
-    If Row = $YM Then DrawMatch(X, Y, H, $XM, $YM, True)
   Endif
   
   ' Text
@@ -1507,6 +1504,41 @@ TOP_DIFF:
     Next
       
   Endif
+  
+  Return
+  
+HIGHLIGHT_RECT:
+
+  If Y1 > Y2 Or If Y1 = Y2 And X1 > X2 Then
+    Swap X1, X2
+    Swap Y1, Y2
+    Swap XY1X, XY2X
+    Swap XY1Y, XY2Y
+  Endif
+  
+  If Row >= Y1 And If Row <= Y2 Then
+    
+    If Y1 < Row Then
+      XY1X = 0
+      XY1Y = 0
+    Endif
+    
+    If Y2 > Row Then
+      XY2X = 0
+      XY2Y = HH
+    Endif
+    
+    If XY2Y = XY1Y Then
+      Paint.FillRect(X + XY1X, Y + XY1Y, XY2X - XY1X, H, iCol)
+    Else
+      Paint.FillRect(X + XY1X, Y + XY1Y, Width, H, iCol)
+      Paint.FillRect(X, Y + XY1Y + H, Width, XY2Y - XY1Y - H, iCol)
+      If XY2Y < HH Then Paint.FillRect(X, Y + XY2Y, XY2X, H, iCol)
+    Endif
+    
+  Endif
+
+  Return
   
 End
 
@@ -2928,16 +2960,21 @@ Private Sub CheckMatch()
   Dim sLine As String
   Dim iLen As Integer
   Dim iOldXM, iOldYM As Integer
+  Dim iOldXMO, iOldYMO As Integer
+  Dim Y1 As Integer
+  Dim Y2 As Integer
   
   If $iSaveCursor Then Return
   
   iOldXM = $XM
   iOldYM = $YM
+  iOldXMO = $XMO
+  iOldYMO = $YMO
   
   $XM = 0
   $YM = -1
   
-  If $bShowBraces Then
+  If $bShowBraces And If Not HasSelection() Then
     
     Y = $Y
     X = Min($hDoc.LineLength[Y], $X)
@@ -3029,10 +3066,31 @@ FIND_MATCH:
   
 FOUND:
   
+  If $YM >= $YMO Then
+    If $YM > $YMO Or If $XM > $XMO Then
+      Inc $XM
+    Else
+      Inc $XMO
+    Endif
+  Else
+    Inc $XMO
+  Endif
+  
   If $XM <> iOldXM Or If $YM <> iOldYM Then
-    _RefreshLine(iOldYM)
-    _RefreshLine($Y)
-    _RefreshLine($YM)
+    If iOldYM >= 0 Then
+      Y1 = Min(iOldYMO, iOldYM)
+      Y2 = Max(iOldYMO, iOldYM)
+      For Y = Y1 To Y2
+        _RefreshLine(Y)
+      Next
+    Endif
+    If $YM >= 0 Then
+      Y1 = Min($YMO, $YM)
+      Y2 = Max($YMO, $YM)
+      For Y = Y1 To Y2
+        _RefreshLine(Y)
+      Next
+    Endif
   Endif
   
 End
