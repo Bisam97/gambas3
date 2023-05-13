@@ -2,6 +2,7 @@
 
 Class DBus
 Class DBusSignal
+Class DBusFile
 
 Property Read Available As Boolean
 
@@ -86,9 +87,10 @@ Public Sub Screenshot() As Image
     Object.Attach($hScreenshotSignal, Me, "Screenshot")
     GetPortal("Screenshot").Screenshot("", ["handle_token": sToken, "interactive": False])
     
-    While Not $hScreenshot
+    Do
+      If Not $hScreenshotSignal Or If $hScreenshot Then Break
       Wait Next
-    Wend
+    Loop
     
   Endif
   
@@ -98,7 +100,7 @@ End
 
 Private Function Available_Read() As Boolean
 
-  Return DBus.Session.Exist("org.freedesktop.portal.Desktop")
+  Try Return DBus.Session.Exist("org.freedesktop.portal.Desktop")
 
 End
 
@@ -112,6 +114,28 @@ Public Sub PickColor() As Integer
   WaitForResult
   
   aColor = $cResult["color"]
-  Return Color.RGB(aColor[0] * 255, aColor[1] * 255, aColor[2] * 255)
+  If aColor Then
+    Return Color.RGB(aColor[0] * 255, aColor[1] * 255, aColor[2] * 255)
+  Else 
+    Return Color.Default 
+  Endif
+  
+End
+
+Public Sub OpenURI(sUrl As String)
+  
+  Dim cOption As New Collection
+  Dim hFile As File
+  
+  If sUrl Begins "file://" Then sUrl = FromUri(Mid$(sUrl, 8))
+  
+  cOption["ask"] = False
+  
+  If InStr(sUrl, "://") Then
+    GetPortal("OpenURI").OpenURI("", sUrl, cOption)
+  Else
+    hFile = Open sUrl For Read
+    GetPortal("OpenURI").OpenFile("", DBusFile(hFile), cOption)
+  Endif
   
 End

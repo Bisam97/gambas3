@@ -79,13 +79,13 @@ End
 
 Static Public Sub {Open}(Url As String, Optional {Wait} As Boolean)
 
-  If Url = "~" Then
-    Url = User.Home
-  Else If Url Begins "~/" Then
-    Url = User.Home & Mid$(Url, 2)
-  Endif
+  Url = File.RealPath(Url)
 
-  Main.RunXdgUtil("xdg-open", [Url], {Wait})
+  If DesktopPortal.Available Then
+    DesktopPortal.OpenURI(Url)
+  Else
+    Main.RunXdgUtil("xdg-open", [Url], {Wait})
+  Endif
 
 End
 
@@ -609,6 +609,8 @@ Static Public Sub Screenshot(Optional X As Integer, Y As Integer, Width As Integ
   
   If Desktop.Platform <> "x11" Then
     hScreenshot = DesktopPortal.Screenshot()
+    If Width <= 0 Then Width = Desktop.Width - X
+    If Height <= 0 Then Height = Desktop.Height - Y
     Return hScreenshot.Copy(X, Y, Width, Height).Picture
   Endif
   
