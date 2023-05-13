@@ -108,12 +108,12 @@ static int stream_open(STREAM *stream, const char *path, int mode)
 			return TRUE;
 		}
 
-		if (S_ISDIR(info.st_mode))
+		/*if (S_ISDIR(info.st_mode))
 		{
 			close(fd);
 			errno = EISDIR;
 			return TRUE;
-		}
+		}*/
 
 		if (!S_ISREG(info.st_mode))
 		{
