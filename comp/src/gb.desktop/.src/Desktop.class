@@ -41,9 +41,22 @@ Static Private Sub LoadPlatform() As String
   
 End
 
-Static Public Sub SendMail({To} As String[], Optional Cc As String[], Optional Bcc As String[], Optional Subject As String, Optional Body As String, Optional Attachment As String)
+Static Public Sub SendMail({To} As String[], Optional Cc As String[], Optional Bcc As String[], Optional Subject As String, Optional Body As String, Optional Attachments As Variant)
 
   Dim aArg As String[]
+  Dim aAttach As String[]
+  
+  Try aAttach = Attachments
+  If Error Then 
+    aAttach = New String[]
+    Try aAttach.Add(Attachments)
+  Endif
+  
+  If DesktopPortal.Available Then
+    DesktopPortal.SendMail({To}, {Cc}, {Bcc}, Subject, Body, aAttach)
+    Return
+  Endif
+  
   'xdg-email [--utf8] [--cc address] [--bcc address] [--subject text] [--body text
   ' ] [--attach file] { mailto-uri | address(es) }
 
@@ -64,9 +77,9 @@ Static Public Sub SendMail({To} As String[], Optional Cc As String[], Optional B
     aArg.Add("--body")
     aArg.Add(Body)
   Endif
-  If Attachment Then
+  If aAttach And If aAttach.Count >= 1 Then
     aArg.Add("--attach")
-    aArg.Add(Attachment)
+    aArg.Add(aAttach[0])
   Endif
 
   If {To} And If To.Count Then

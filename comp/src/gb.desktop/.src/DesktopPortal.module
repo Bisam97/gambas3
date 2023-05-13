@@ -139,3 +139,32 @@ Public Sub OpenURI(sUrl As String)
   Endif
   
 End
+
+Public Sub SendMail(aTo As String[], aCc As String[], aBcc As String[], sSubject As String, sBody As String, aAttach As String[])
+
+  Dim aFile As DBusFile[]
+  Dim sAttach As String
+  Dim hFile As File
+  Dim cOption As New Collection
+  
+  If aAttach And If aAttach.Count Then
+    aFile = New DBusFile[]
+    For Each sAttach In aAttach
+      Try hFile = Open sAttach For Read
+      If Error Then Continue
+      aFile.Add(DBusFile(hFile))
+    Next
+  Endif
+  
+  cOption = New Collection
+  
+  If aTo Then cOption["addresses"] = aTo
+  If aCc Then cOption["cc"] = aCc
+  If aBcc Then cOption["bcc"] = aBcc
+  cOption["subject"] = sSubject
+  cOption["body"] = sBody
+  If aFile Then cOption["attachment_fds"] = aFile
+  
+  GetPortal("Email").ComposeEmail("", cOption)
+  
+End
