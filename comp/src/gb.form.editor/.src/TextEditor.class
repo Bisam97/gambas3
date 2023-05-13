@@ -1298,17 +1298,8 @@ Private Sub DrawLine(X As Integer, Y As Integer, Width As Integer, Height As Int
       XY2Y = .Y
     End With
     
-    If Y1 > Y2 Or If Y1 = Y2 And X1 > X2 Then
-      Swap X1, X2
-      Swap Y1, Y2
-      Swap XY1X, XY2X
-      Swap XY1Y, XY2Y
-    Endif
-    
-    iCol = Color.SetAlpha($iMatchColor, 128)
+    iCol = Color.SetAlpha($iMatchColor, 32)
     GoSub HIGHLIGHT_RECT
-    ' If Row = $YMO Then DrawMatch(X, Y, H, $XMO, $YMO, False)
-    ' If Row = $YM Then DrawMatch(X, Y, H, $XM, $YM, True)
     
   Endif
   
@@ -1712,7 +1703,7 @@ Private Sub DrawMargin(X As Integer, Y As Integer, Width As Integer, Height As I
     Endif
   Endif
   
-  If YL >= 0 Then Paint.FillRect(X, YL, Width, 1, Color.SetAlpha($iMatchColor, 64))
+  If YL >= 0 Then Paint.FillRect(X, YL, Width, 1, $iLimitColor)
   
   If YL < 0 Or If YL = Y Then
     If $bShowLineNumber Then

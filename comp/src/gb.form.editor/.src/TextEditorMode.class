@@ -179,6 +179,8 @@ Public Sub OnKeyPress(hEditor As TextEditor) As Boolean
     iPos = InStr(sSearch, sCar)
     If iPos = 0 Then Return
     
+    If InStr(Me.STRING_DELIM, sCar) And If String.Mid$(sLine, X - 1, 1) = Me.ESCAPE_CHAR Then Return
+    
     sSearch = ""
     If CloseBraces Then sSearch = Me.BRACES_CLOSE
     If CloseStrings Then sSearch &= Me.STRING_DELIM
@@ -190,7 +192,7 @@ Public Sub OnKeyPress(hEditor As TextEditor) As Boolean
     hEditor.Select(X - 1, hEditor.Line, X + 1, hEditor.Line)
     hEditor.Insert("")
     hEditor.RestoreCursor()
-    hEditor.Goto(X - 1, hEditor.Line)    
+    hEditor.Goto(X - 1, hEditor.Line)
     Return True
     
   Endif
@@ -269,10 +271,10 @@ Public Sub OnKeyPress(hEditor As TextEditor) As Boolean
             Return True
           Endif
         
-          If IsSpacePunctCar(hEditor.Current.Text, hEditor.Column) And If IsSpacePunctCar(hEditor.Current.Text, hEditor.Column + 1) Then
+          'If IsSpacePunctCar(hEditor.Current.Text, hEditor.Column) And If IsSpacePunctCar(hEditor.Current.Text, hEditor.Column + 1) Then
             GoSub INSERT_STRING
             Return True
-          Endif
+          'Endif
             
         Endif
         
