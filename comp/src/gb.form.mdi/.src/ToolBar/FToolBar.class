@@ -398,8 +398,6 @@ Private Sub Update()
   
   'dwgHandle.Refresh
   
-  $bLock = False
-
   If sepToolbar.Visible Then 
     If $bReallyVertical Then
       Inc W
@@ -416,6 +414,8 @@ Private Sub Update()
     Me.Parent.Resize(W, H)
   Endif
   
+  $bLock = False
+
   SetArrangement
   
 End
@@ -426,19 +426,19 @@ Public Sub TimerUpdate_Timer()
   
 End
 
-
 Public Sub Form_Resize()
   
+  If $bLock Then Return
   $hTimerUpdate.Trigger
   
 End
  
 Public Sub Container_Arrange()
   
+  If $bLock Then Return
   $hTimerUpdate.Trigger
   
 End
-
 
 Public Sub panToolbar_BeforeArrange()
 
