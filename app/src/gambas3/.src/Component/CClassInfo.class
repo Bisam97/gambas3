@@ -165,6 +165,9 @@ Public Sub InitControl()
     If hSym Then DefaultText = hSym.Value
   Endif
 
+  Try DrawWith = Symbols["_DrawWith"].Value
+  If Family <> "Form" And If MultiContainer And If Not DrawWith Then DrawWith = "TabStrip"
+
   hSym = Symbols["_Similar"]
   If hSym Then Similars = Split(hSym.Value, ",")
 
@@ -250,8 +253,10 @@ Public Sub InitControl()
           Continue
         Endif
       Endif
+      
+      If sProp = "Count" Then Stop
 
-      If hSym.Component = CComponent.PROJECT_NAME Then
+      If hSym.Component = CComponent.PROJECT_NAME And If Not DrawWith Then
         bDoNotApply = True
       Else If Family <> "Form" Then 
         If MultiContainer Then
@@ -334,8 +339,6 @@ Public Sub InitControl()
   CPropertyInfo.CreatingSpecialProperty = False
   
   'IF Name = "Timer" THEN
-  Try DrawWith = Symbols["_DrawWith"].Value
-  If Family <> "Form" And If MultiContainer And If Not DrawWith Then DrawWith = "TabStrip"
   'IF DrawWith THEN ?Me. <= CRASH!
   '  PRINT ME.Name;; "->";; DrawWith
   'ENDIF
