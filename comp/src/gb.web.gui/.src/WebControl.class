@@ -1017,7 +1017,9 @@ End
 Static Public Sub _GetLink(sLink As String) As String
   
   If sLink Begins "http://" Or If sLink Begins "https://" Then
-    Return sLink 'Application.Protocol &/ Mid$(sLink, InStr(sLink, ":"))
+    Return sLink
+  Else If sLink Begins "icon:/" Or If sLink Begins "flag:/" Then
+    Return "/" &/ Application.Root &/ "icon:" & Replace(sLink, "/", ":")
   Else
     Return "/" &/ Application.Root &/ sLink
   Endif
@@ -1026,11 +1028,7 @@ End
 
 Static Public Sub _GetImageLink(sImage As String) As String
 
-  If InStr(sImage, ":/") Then
-    Return "/" &/ Application.Root &/ "icon:" & Replace(sImage, "/", ":")
-  Else 
-    Return _GetLink(sImage)
-  Endif
+  Return _GetLink(sImage)
   
 End
 
