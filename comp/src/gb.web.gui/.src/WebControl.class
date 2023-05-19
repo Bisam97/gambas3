@@ -593,10 +593,10 @@ Public Sub _CanRefreshDyn() As Boolean
     Return
   Endif
   
-  If IsHidden() Then 
-    'WebForm.PrintLog("_CanRefresh " & Me.Name & " --> no (IsHidden)")
-    Return
-  Endif
+  ' If IsHidden() Then 
+  '   'WebForm.PrintLog("_CanRefresh " & Me.Name & " --> no (IsHidden)")
+  '   Return
+  ' Endif
 
   If Not Form_Read()._Loaded Then
     'WebForm.PrintLog("_CanRefresh " & Me.Name & " --> no (Form not loaded)")
@@ -635,7 +635,7 @@ End
 
 Public Sub Refresh()
 
-  If Not _CanRefresh() Then
+  If $bHidden Or If Not _CanRefresh() Then
     'WebForm.PrintLog("Cannot refresh " & Me.Name & ": " & WebForm._InMessage & " / " & _NoRefresh & " / " & IsHidden() & " / " & _Refresh)
     Return  
   Else
