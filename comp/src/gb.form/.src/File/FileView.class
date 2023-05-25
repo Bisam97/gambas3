@@ -747,7 +747,7 @@ End
 
 Public Sub Refresh_Timer()
   
-  If Not $bRefreshTriggered And Not $hRefresh.Enabled Then Return
+  If Not $bRefreshTriggered And If Not $hRefresh.Enabled Then Return
   RefreshView
   $hRefresh.Stop
   
@@ -829,7 +829,7 @@ End
 Private Sub EnsureRefresh()
 
   Try $hRefresh.Stop
-  RefreshView
+  If $bRefreshTriggered Then RefreshView
 
 End
 
