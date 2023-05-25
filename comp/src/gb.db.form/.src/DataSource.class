@@ -7,6 +7,7 @@ Inherits Panel
 Event Change
 Event BeforeSave(Data As Result)
 Event BeforeDelete(Keys As Variant[])
+Event Invalid(Field As String)
 
 Property Connection As Connection
 Property Table As String
@@ -421,7 +422,8 @@ Public Function Save(Optional bMessage As Boolean = True) As Boolean
     If Common.IsControl(hChild) Then
       If Not hChild.Valid Then
         Dec Application.Busy
-        Message.Warning(("Invalid value."))
+        bCancel = Raise Invalid(hChild.Field)
+        If Not bCancel Then Message.Warning(("Invalid value."))
         hChild.SetFocus
         Return True
       Endif

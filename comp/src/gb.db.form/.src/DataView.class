@@ -638,23 +638,23 @@ End
 
 Private Sub _Warning(sTitle As String, Optional sMsg As String, Optional bError As Boolean, iRow As Integer, iCol As Integer)
   
-  Dim X, Y As Integer
-  
+  ' Dim X, Y As Integer
+   
   If Right(sTitle) <> "." Then sTitle &= "."
   If sMsg Then sMsg = "<p>" & sMsg
   sMsg = "<b>" & sTitle & "</b>" & sMsg
   
-  X = $hCtrl.Rows.Width - $hCtrl.ScrollX + $hCtrl.ClientX
-  Y = $hCtrl.Columns.Height - $hCtrl.ScrollY + $hCtrl.ClientY
+  ' X = $hCtrl.Rows.Width - $hCtrl.ScrollX + $hCtrl.ClientX
+  ' Y = $hCtrl.Columns.Height - $hCtrl.ScrollY + $hCtrl.ClientY
   
   If IsMissing(iRow) Then iRow = $hCtrl.Row
   If IsMissing(iCol) Then iCol = $hCtrl.Column
   
   With $hCtrl[iRow, iCol]
     If bError Then
-      Balloon.Error(sMsg, $hCtrl, X + .X + .W \ 2, Y + .Y + .H \ 2) 
+      Message.Error(sMsg) ', $hCtrl, X + .X + .W \ 2, Y + .Y + .H \ 2) 
     Else
-      Balloon.Warning(sMsg, $hCtrl, X + .X + .W \ 2, Y + .Y + .H \ 2) 
+      Message.Warning(sMsg) ', $hCtrl, X + .X + .W \ 2, Y + .Y + .H \ 2) 
     Endif
   End With
 
@@ -674,6 +674,7 @@ Public Sub TableView_Save(Row As Integer, Column As Integer, Value As String)
   Dim hField As DataField
   Dim bPrintError As Boolean
   Dim iRow, iCol As Integer
+  Dim bCancel As Boolean
   
   If Not CanEdit() Then Return
   
@@ -742,7 +743,8 @@ Catch
   If bPrintError Then
     _Warning(("Unable to save value."), Error.Text,, Row, Column)
   Else
-    _Warning(("Invalid value."), Error.Where & ": " & Error.Text,, Row, Column)
+    bCancel = Object.Raise(hSrc, "Invalid", [hField.Name])
+    If Not bCancel Then _Warning(("Invalid value."),,, Row, Column)
   Endif
   Stop Event
 
