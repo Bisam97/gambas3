@@ -1211,7 +1211,7 @@ End
 
 Private Sub IsWordChar(sCar As String) As Boolean
   
-  Return _Mode.IsIdentCar(sCar)
+  Return _Mode.IsWordChar(sCar)
   
 End
 
@@ -1223,15 +1223,21 @@ Public Sub WordLeft(X As Integer, Y As Integer, Optional bWord As Boolean) As In
   
   X2 = X
   
-  If Not bWord Then
-    While X2 > 0
-      If Not IsSpace(String.Mid$(sLine, X2, 1)) Then Break
-      Dec X2
-    Wend
-  Endif
+  ' If Not bWord Then
+  '   While X2 > 0
+  '     If Not IsSpace(String.Mid$(sLine, X2, 1)) Then Break
+  '     Dec X2
+  '   Wend
+  ' Endif
   
   If X2 > 0 Then
-    If IsWordChar(String.Mid$(sLine, X2, 1)) Then
+    sCar = String.Mid$(sLine, X2, 1)
+    If Not bWord And If IsSpace(sCar) Then
+      Do
+        Dec X2
+        If X2 <= 0 Or If Not IsSpace(String.Mid$(sLine, X2, 1)) Then Break
+      Loop
+    Else If IsWordChar(sCar) Then
       Do
         Dec X2
         If X2 <= 0 Or If Not IsWordChar(String.Mid$(sLine, X2, 1)) Then Break
@@ -1241,7 +1247,7 @@ Public Sub WordLeft(X As Integer, Y As Integer, Optional bWord As Boolean) As In
         Dec X2
         If X2 <= 0 Then Break
         sCar = String.Mid$(sLine, X2, 1)
-        If IsWordChar(sCar) Or If IsSpace(sCar) Then Break
+        If IsWordChar(sCar) Or IsSpace(sCar) Then Break
       Loop
     Endif
   Endif
@@ -1249,43 +1255,6 @@ Public Sub WordLeft(X As Integer, Y As Integer, Optional bWord As Boolean) As In
   Return X2
   
 End
-
-' int GDocument::wordLeft(int y, int x, bool word)
-' {
-'   int xw = x;
-'   GString s = lines.at(y)->s;
-' 
-'   if (!word)
-'   {
-'     while (xw > 0 && s.isSpace(xw - 1))
-'       xw--;
-'   }
-'   
-'   if (xw > 0)
-'   {
-'     if (s.isWordChar(xw - 1))
-'     {
-'       for(;;)
-'       {
-'         xw--;
-'         if (xw <= 0 || !s.isWordChar(xw - 1))
-'           break;
-'       }
-'     }
-'     else if (!word)
-'     {
-'       for(;;)
-'       {
-'         xw--;
-'         if (xw <= 0 || s.isWordChar(xw - 1) || s.isSpace(xw - 1))
-'           break;
-'       }
-'     }
-'   }
-' 
-'   return xw;
-' }
-' 
 
 Public Sub WordRight(X As Integer, Y As Integer, Optional bWord As Boolean) As Integer
 
@@ -1298,7 +1267,14 @@ Public Sub WordRight(X As Integer, Y As Integer, Optional bWord As Boolean) As I
   
   If X2 < iLen Then
     
-    If IsWordChar(String.Mid$(sLine, X2 + 1, 1)) Then
+    sCar = String.Mid$(sLine, X2 + 1, 1)
+    
+    If Not bWord And If IsSpace(sCar) Then
+      Do
+        Inc X2
+        If X2 >= iLen Or If Not IsSpace(String.Mid$(sLine, X2 + 1, 1)) Then Break
+      Loop
+    Else If IsWordChar(sCar) Then
       Do
         Inc X2
         If X2 >= iLen Or If Not IsWordChar(String.Mid$(sLine, X2 + 1, 1)) Then Break
@@ -1312,57 +1288,18 @@ Public Sub WordRight(X As Integer, Y As Integer, Optional bWord As Boolean) As I
       Loop
     Endif
     
-    If Not bWord Then
-      While X2 < iLen
-        If Not IsSpace(String.Mid$(sLine, X2 + 1, 1)) Then Break
-        Inc X2
-      Wend
-    Endif
+    ' If Not bWord Then
+    '   While X2 < iLen
+    '     If Not IsSpace(String.Mid$(sLine, X2 + 1, 1)) Then Break
+    '     Inc X2
+    '   Wend
+    ' Endif
     
   Endif
   
   Return X2
   
 End
-
-
-' int GDocument::wordRight(int y, int x, bool word)
-' {
-'   int xw = x;
-'   GString s = lines.at(y)->s;
-'   int len = s.length();
-' 
-'   if (xw < len)
-'   {
-'     if (s.isWordChar(xw))
-'     {
-'       for(;;)
-'       {
-'         xw++;
-'         if (xw >= len || !s.isWordChar(xw))
-'           break;
-'       }
-'     }
-'     else if (!word)
-'     {
-'       for(;;)
-'       {
-'         xw++;
-'         if (xw >= len || s.isWordChar(xw) || s.isSpace(xw))
-'           break;
-'       }
-'     }
-'   }
-' 
-'   if (!word)
-'   {
-'     while (xw < len && s.isSpace(xw))
-'       xw++;
-'   }
-'   
-'   return xw;
-' }
-' 
 
 Public Sub Reset(Optional bSave As Boolean)
 
