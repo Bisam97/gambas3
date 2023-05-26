@@ -62,6 +62,19 @@ End
 
 Public Sub Exist((Application) As String) As Boolean
   
-  Try Return DBus["org.freedesktop.DBus"]["/", "org.freedesktop.DBus"].NameHasOwner(Application)
+  Try Return Me["org.freedesktop.DBus"]["/", "org.freedesktop.DBus"].NameHasOwner(Application)
+  
+End
+
+Public Sub Start((Application) As String)
+  
+  Dim fTime As Float
+  
+  Me["org.freedesktop.DBus"]["/", "org.freedesktop.DBus"].StartServiceByName(Application, 0)
+  fTime = Timer
+  While Not {Exist}(Application)
+    Sleep 0.05
+    If (Timer - fTime) > 1 Then Error.Raise("Cannot start service")
+  Wend
   
 End
