@@ -2,7 +2,6 @@
 
 'Static Private $bShowUsed As Boolean
 Static Private $bShowLibraries As Boolean
-Static Private $bShowArguments As Boolean
 
 Private $sIcon As String
 
@@ -15,7 +14,6 @@ Private $aLibraries As String[]
 
 Private Const COMPONENT_PROPERTIES_TAB As Integer = 1
 Private Const LIBRARY_TAB As Integer = 3
-Private Const ARGUMENT_TAB As Integer = 5
 Private Const VERSION_CONTROL_TAB As Integer = 6
 Private Const STAT_TAB As Integer = 7
 
@@ -35,13 +33,6 @@ End
 Static Public Function ShowLibraries() As Boolean
 
   $bShowLibraries = True
-  Return Not FProjectProperty.ShowModal()
-
-End
-
-Static Public Function ShowArguments() As Boolean
-
-  $bShowArguments = True
   Return Not FProjectProperty.ShowModal()
 
 End
@@ -163,9 +154,6 @@ Public Sub Form_Activate()
   If $bShowLibraries Then 
     $bShowLibraries = False
     ipnProject.Index = LIBRARY_TAB
-  Else If $bShowArguments Then
-    $bShowArguments = False
-    ipnProject.Index = ARGUMENT_TAB
   Endif
   
 End

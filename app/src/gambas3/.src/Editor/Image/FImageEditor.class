@@ -1420,7 +1420,13 @@ Public Sub imvImage_MouseMove()
                 
                 A = Max(-1, Min(1, A))
                 A = ACos(A)
-                If ($hCurrentPoint.X - XC) / ($hLastPoint.X - XC) > ($hCurrentPoint.Y - YC) / ($hLastPoint.Y - YC) Then A = -A
+                If $hLastPoint.X = XC Then
+                  If Sgn($hCurrentPoint.X - YC) > Sgn(($hCurrentPoint.Y - YC) / ($hLastPoint.Y - YC)) Then A = -A
+                Else If $hLastPoint.Y = YC Then
+                  If Sgn($hCurrentPoint.Y - YC) < Sgn(($hCurrentPoint.X - XC) / ($hLastPoint.X - XC)) Then A = -A
+                Else If ($hCurrentPoint.X - XC) / ($hLastPoint.X - XC) > ($hCurrentPoint.Y - YC) / ($hLastPoint.Y - YC) Then 
+                  A = -A
+                Endif
               
                 If $bAlt Then A = Rad(Int(Deg(A) / 15) * 15)
               

@@ -3570,10 +3570,20 @@ Private Sub GetExpressionTypeWithEval(aSym As String[], aType As Integer[]) As S
     Else If aType[I] = Highlight.Function Then
       
       I2 = FindNextBracket(aSym, I, "(", ")")
-      hSymbol = Project.Documentation.GetClassSymbols(".")[aSym[I]]
-      Try sType = hSymbol.Type
-      If sType Then I = I2
+      
+      If aSym[I] == "Min" Or If aSym[I] == "Max" Then
         
+        sExpr &= "CDatatype.__MinMax"
+        aSym[I] = ""
+
+      Else
+      
+        hSymbol = Project.Documentation.GetClassSymbols(".")[aSym[I]]
+        Try sType = hSymbol.Type
+        If sType Then I = I2
+        
+      Endif
+      
     Else If aSym[I] = "[" Then
       
       bMakeArray = True
@@ -3583,7 +3593,7 @@ Private Sub GetExpressionTypeWithEval(aSym As String[], aType As Integer[]) As S
       
       If bMakeArray Then
         I2 = FindNextBracket(aSym, I, "[", "]")
-        sExpr &= "CDatatype.__Make("
+        sExpr &= "CDatatype.__MakeArray("
         aSym.Add(")", I2 + 1)
         aType.Add(Highlight.Operator, I2 + 1)
       Endif
@@ -3610,37 +3620,7 @@ Private Sub GetExpressionTypeWithEval(aSym As String[], aType As Integer[]) As S
   
   'Print sExpr
   vVal = Eval(sExpr, cExpr)
-  Try hType = vVal
-  If Error Then 
-    Select TypeOf(vVal)
-      Case gb.Boolean
-        Return "b"
-      Case gb.Byte
-        Return "c"
-      Case gb.Date
-        Return "d"
-      Case gb.Float
-        Return "f"
-      Case gb.Integer
-        Return "i"
-      Case gb.Long
-        Return "l"
-      Case gb.Object
-        Return "o"
-      Case gb.Pointer
-        Return "p"
-      Case gb.Short
-        Return "h"
-      Case gb.Single
-        Return "g"
-      Case gb.String
-        Return "s"
-      Case gb.Variant
-        Return "v"
-    End Select
-  Else
-    Return hType.__GetType()
-  Endif
+  Return CDatatype.__TypeOf(vVal)
   
 Catch
   
@@ -3742,13 +3722,55 @@ End
 
 Private Sub AddVariable(sName As String, sType As String) As Boolean
 
+  Dim sStr As String
+  Dim sClass As String
+  Dim bArray As Boolean
+  
   If Not sType Then Return
+  
+  If sType = "v" Then
+    
+    sStr = sName
+    If sStr Begins "$" Then sStr = Mid$(sStr, 2)
+    
+    If Left(sStr) = "a" Then
+      bArray = True
+      sStr = Mid$(sStr, 2)
+    Endif
+    
+    Select Case Left(sStr)
+      Case "s", "i", "f", "b", "d", "p"
+        sType = Left(sStr)
+      Case "c"
+        sType = "Collection"
+      Case "h"
+        sType = "o"
+        sClass = Mid$(sStr, 2)
+      Case Else
+        If bArray Then sClass = sStr
+    End Select
+    
+    If sClass Then
+      If Project.Documentation.Classes.Exist(sClass) Then
+        sType = Project.Documentation.Classes[sClass].Name
+      Else If Project.ExistClass(sClass) Then 
+        sType = File.BaseName(Project.Tree.FindPath(sClass))
+      Endif
+    Endif
+    
+    If bArray Then
+      sType = CSymbolInfo.GetType(sType) & "[]"
+    Endif
+    
+  Endif
+  
+  sType = CSymbolInfo.GetType(sType)
   
   $hEditor.Begin
   If Left(sName) = "$" Then
-    AddGlobalVariable(sName, CSymbolInfo.GetType(sType), IsCurrentProcStatic())
+    AddGlobalVariable(sName, sType, IsCurrentProcStatic())
   Else
-    AddLocalVariable(sName, CSymbolInfo.GetType(sType))
+    AddLocalVariable(sName, sType)
   Endif
   $hEditor.End
   Return True
