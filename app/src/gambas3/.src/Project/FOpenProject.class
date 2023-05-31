@@ -12,6 +12,9 @@ Private $hSoft As CProjectList
 Private $hExample As CProjectList
 Private $sLocate As String
 
+Private $hTemplate As CProjectList
+Private $sTemplate As String
+
 Public Sub Run(Optional bAnother As Boolean) As String
 
   $bAnother = bAnother
@@ -141,6 +144,11 @@ Public Sub tabProject_Click()
       txtFilterExample.Editor.SelectAll()
       txtFilterExample.SetFocus
       
+    Case ("New")
+      
+      InitNewProject
+      txtProjectName.SetFocus
+      
   End Select
 
 End
@@ -230,5 +238,19 @@ End
 Public Sub Form_KeyPress()
 
   If Key.Code = Key.Escape Then Me.Close
+
+End
+
+Private Sub InitNewProject()
+
+  dchProject.Bookmarks = Project.GetBookmarks()
+  Settings.Read(dchProject, "dchProject")
+
+  ProjectBox.ShowButton = False
+  $hTemplate = New CProjectList(svwTemplate, txtFilterType, CProjectList.TYPE_TEMPLATE, Arrange.Row) As "ProjectTemplate"
+  $hTemplate.Fill
+  txtFilter.SetFocus
+
+  $sTemplate = ""
 
 End
