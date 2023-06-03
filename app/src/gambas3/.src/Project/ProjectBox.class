@@ -237,11 +237,13 @@ Public Sub DrawingArea_Draw()
     Else
       sText = .Name
     Endif
-    'Paint.Font = Font["+1"]
+    
     Paint.Background = iCol 'Color.SetAlpha(iCol, 128)
-    'Paint.DrawTextShadow(sText, X, Y, W, H, Align.TopLeft)
     Paint.Font.Bold = True
+    
+    If Template Then sText = Paint.TrimText(sText, W, Paint.Font.Height * 2 + 2)
     Paint.DrawText(sText, X, Y, W, H, Align.TopLeft)
+    
     WT = Paint.Font.TextWidth(sText)
     Paint.Font.Bold = False
     
@@ -252,10 +254,12 @@ Public Sub DrawingArea_Draw()
       sText = .GetTranslatedDescription()
       Paint.Font = Font["-1"]
       
+      HT = Paint.Font.Height * 2
+      
       W = W - X - P * 2
-      H = H - Y - ICON_SIZE
+      H = H - Y - HT - P * 2
       sText = Paint.TrimText(sText, W, H)
-      Paint.DrawText(sText, X, Y + ICON_SIZE + P, W, H)
+      Paint.DrawText(sText, X, Y + HT + P * 2, W, H)
       
     Else If bSmall Then
     

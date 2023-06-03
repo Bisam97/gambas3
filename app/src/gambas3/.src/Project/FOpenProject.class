@@ -142,6 +142,8 @@ End
 
 Public Sub tabProject_Click()
 
+  ProjectBox.ShowButton = $bAnother
+
   Select Case tabProject.Text
 
     Case ("Recent") 
@@ -171,6 +173,7 @@ Public Sub tabProject_Click()
       
     Case ("New")
       
+      ProjectBox.ShowButton = False
       InitNewProject
       txtProjectName.SetFocus
       
@@ -273,12 +276,16 @@ Private Sub InitNewProject()
   dchProject.Bookmarks = Project.GetBookmarks()
   Settings.Read(dchProject, "dchProject")
 
-  ProjectBox.ShowButton = False
   $hTemplate = New CProjectList(svwTemplate, txtFilterType, CProjectList.TYPE_TEMPLATE, Arrange.Row) As "ProjectTemplate"
   $hTemplate.Fill
   $hTemplate.Current = svwTemplate.Children[0]
-  txtFilter.SetFocus
 
+End
+
+Public Sub ProjectTemplate_Click(sPath As String, bAnother As Boolean)
+  
+  txtProjectName.SetFocus
+  
 End
 
 Public Sub btnCancel_Click()
