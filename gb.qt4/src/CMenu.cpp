@@ -170,14 +170,6 @@ static void unregister_menu(CMENU *_object)
 	}
 }
 
-static void set_menu_visible(void *_object, bool v)
-{
-	THIS->visible = v;
-	ACTION->setVisible(v);
-	refresh_menubar(THIS);
-	//update_accel_recursive(THIS);
-}
-
 static void delete_menu(CMENU *_object)
 {
 	if (THIS->deleted)
@@ -245,7 +237,7 @@ static bool is_fully_enabled(CMENU *_object)
 		if (THIS->exec)
 			return true;
 
-		if (THIS->disabled)
+		if (THIS->disabled || !THIS->visible)
 			return false;
 
 		if (CMENU_is_toplevel(THIS))
@@ -276,8 +268,8 @@ static void update_accel(CMENU *_object)
 
 static void update_accel_recursive(CMENU *_object)
 {
-	if (THIS->exec)
-		return;
+	/*if (THIS->exec)
+		return;*/
 
 	update_accel(THIS);
 
@@ -288,6 +280,14 @@ static void update_accel_recursive(CMENU *_object)
 		for (i = 0; i < THIS->menu->actions().count(); i++)
 			update_accel_recursive(CMenu::dict[THIS->menu->actions().at(i)]);
 	}
+}
+
+static void set_menu_visible(void *_object, bool v)
+{
+	THIS->visible = v;
+	ACTION->setVisible(v);
+	refresh_menubar(THIS);
+	update_accel_recursive(THIS);
 }
 
 static void update_check(CMENU *_object)
@@ -761,26 +761,21 @@ END_METHOD
 
 void CMENU_popup(CMENU *_object, const QPoint &pos)
 {
-	bool disabled;
 	void *save;
 
 	HANDLE_PROXY(_object);
 	
 	if (THIS->menu && !THIS->exec)
 	{
-		disabled = THIS->disabled;
-		if (disabled)
-		{
-			THIS->disabled = false;
-			update_accel_recursive(THIS);
-			THIS->disabled = true;
-		}
-
 		//qDebug("CMENU_popup: %p: open", THIS);
 
 		// The Click event is posted, it does not occur immediately.
 		save = CWIDGET_enter_popup();
 		THIS->exec = true;
+
+		update_accel_recursive(THIS);
+
+		//update_accel_recursive(THIS);
 		_popup_immediate = true;
 		THIS->menu->exec(pos);
 		_popup_immediate = false;

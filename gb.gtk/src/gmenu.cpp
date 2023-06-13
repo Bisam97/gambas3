@@ -669,7 +669,7 @@ bool gMenu::isFullyEnabled() const
 		if (menu->_exec)
 			return true;
 
-		if (!menu->isEnabled())
+		if (!menu->isEnabled() || !menu->isVisible())
 			return false;
 
 		if (menu->isTopLevel())
@@ -694,7 +694,7 @@ void gMenu::updateShortcut()
 		_shortcut_key = 0;
 	}
 	
-	if (isFullyEnabled() && _shortcut)
+	if (isVisible() && isFullyEnabled() && _shortcut)
 	{
 		gt_shortcut_parse(_shortcut, &_shortcut_key, &_shortcut_mods);
 		if (_shortcut_key)
@@ -710,8 +710,8 @@ void gMenu::updateShortcutRecursive()
 	gMenu *ch;
 	int i;
 	
-	if (_exec)
-		return;
+	/*if (_exec)
+		return;*/
 
 	updateShortcut();
 
@@ -735,7 +735,7 @@ void gMenu::setText(const char *text)
 	update();
 }
 
-bool gMenu::isVisible()
+bool gMenu::isVisible() const
 {
 	if (!menu) return false;
 	return _visible;	
@@ -751,6 +751,7 @@ void gMenu::updateVisible()
 	//fprintf(stderr, "gMenu::updateVisible: %s '%s' %d\n", name(), text(), vl);
 	
 	gtk_widget_set_visible(GTK_WIDGET(menu), vl);
+	updateShortcutRecursive();
 	//g_object_set(G_OBJECT(menu),"visible",vl,(void *)NULL);
 	
 	if (_toplevel && pr)
@@ -857,7 +858,8 @@ void gMenu::doPopup(bool move, int x, int y)
 	_in_popup++;
 	_popup_count++;
 	_exec = true;
-	
+	updateShortcutRecursive();
+
 #if GTK_CHECK_VERSION(3, 22, 0)
 
 	GdkWindow *win;
@@ -926,6 +928,7 @@ void gMenu::doPopup(bool move, int x, int y)
 		MAIN_do_iteration(false);
 
 	_exec = false;
+	updateShortcutRecursive();
 
 	_current_popup = save_current_popup;
 	gApplication::_popup_grab = save_grab;

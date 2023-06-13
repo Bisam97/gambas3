@@ -54,7 +54,7 @@ public:
 	int childCount() const;
 	char* shortcut() const { return _shortcut; }
 	char* text() const { return _text; }
-	bool isVisible();
+	bool isVisible() const;
 	gPicture* picture() const { return _picture; }
 	gMainWindow* window();
 	char *name() const { return _name; }
