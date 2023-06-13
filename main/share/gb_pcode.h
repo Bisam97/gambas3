@@ -190,6 +190,7 @@ typedef
   ushort PCODE;
 
 #define PCODE_is(pcode, value)  (((pcode) & 0xFF00) == (value))
+#define PCODE_is_xxx(pcode, value)  (((pcode) & 0xF800) == (value))
 #define PCODE_get_nparam(pcode) ((pcode) & 0x3F)
 
 #define PCODE_is_variant(pcode)  ((pcode) & CODE_CALL_VARIANT)

@@ -89,12 +89,12 @@ void SUBR_cat(ushort code)
 						pp->_string.addr = str;
 						pp->_string.len += len2;
 					}
-					else if (PCODE_is(PC[1], C_POP_STATIC))
+					else if (PCODE_is_xxx(PC[1], C_POP_STATIC))
 					{
 						CLASS_VAR *var = &CP->load->stat[PC[1] & 0x7FF];
 						*(char **)((char *)CP->stat + var->pos) = str;
 					}
-					else if (PCODE_is(PC[1], C_POP_DYNAMIC))
+					else if (PCODE_is_xxx(PC[1], C_POP_DYNAMIC))
 					{
 						CLASS_VAR *var = &CP->load->dyn[PC[1] & 0x7FF];
 						*(char **)(OP + var->pos) = str;
