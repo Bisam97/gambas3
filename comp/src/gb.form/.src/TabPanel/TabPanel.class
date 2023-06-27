@@ -3,7 +3,7 @@
 Export
 Inherits UserContainer
 
-Public Const _Properties As String = "*,Border=True,Count{Range:1;256}=1,Index,Text,TextFont,Picture,Orientation{Align.Top;Bottom}=Top,Closable,CloseButton,Moveable,Highlight"
+Public Const _Properties As String = "*,Border=True,Count{Range:1;256}=1,Index,Text,TextFont,Picture,Orientation{Align.Top;Bottom}=Top,Closable,CloseButton,Moveable,Highlight,ShowTabBar=True"
 Public Const _Similar As String = "TabStrip"
 Public Const _IsMultiContainer As Boolean = True
 Public Const _DefaultEvent As String = "Click"
@@ -27,13 +27,14 @@ Property Read Current As _TabPanelContainer
 Property Background As Integer
 Property Moveable As Boolean
 Property CloseButton As Boolean
+Property Read TabBarSize As Integer
+Property TabBarPaddingStart As Integer
+Property TabBarPaddingEnd As Integer
+Property ShowTabBar As Boolean
 
 Private $hTabBar As DrawingArea
 Private $hTabBarContainer As DrawingArea
-'Private $hLeftArrow As DrawingArea
-'Private $hRightArrow As DrawingArea
 Private $X As Integer
-'Private $bArrow As Boolean
 
 Private $aCont As New _TabPanelContainer[]
 Private $aButton As New _TabPanelButton[]
@@ -59,18 +60,14 @@ Private $hClosePanel As DrawingArea
 Private $hObserver As Observer
 Private $iTabBarContainerH As Integer
 
+Private $hTabBarLeft As DrawingArea
+Private $hTabBarRight As DrawingArea
+Private $bUpdateLayout As Boolean
+Private $bShowTabBar As Boolean = True
+
 Public Sub _new()
 
   $hTabBar = New DrawingArea(Me) As "TabBar"
-  '$hTabBar.Arrangement = Arrange.Fill
-  
-  ' $hLeftArrow = New DrawingArea($hTabBar) As "Arrow"
-  ' $hLeftArrow.Ignore = True
-  ' $hLeftArrow.Hide
-  ' 
-  ' $hRightArrow = New DrawingArea($hTabBar) As "Arrow"
-  ' $hRightArrow.Ignore = True
-  ' $hRightArrow.Hide
 
   $hTabBarContainer = New DrawingArea($hTabBar) As "TabBarContainer"
   $hTabBarContainer.Name = Me.Name & "_TabBarContainer"
@@ -113,13 +110,14 @@ Public Sub EnsureCurrentVisible_Timer()
   
   Dim X, W As Integer
   Dim iLeftIndex, iRightIndex As Integer
+  Dim iMax As Integer
   
   $hTimerEnsureVisible = Null
   
   If $iCurrent < 0 Or If $iCurrent > $aButton.Max Then Return
   If Not $aButton[$iCurrent].Visible Then Return
   
-  If System.RightToLeft Then
+  If Me.RightToLeft Then
     
     $X = 0
     
@@ -180,7 +178,8 @@ Public Sub EnsureCurrentVisible_Timer()
     
       Endif
       
-      $X = Max($hTabBar.W - ($aButton[$aButton.Max].X + $aButton[$aButton.Max].W), $X)
+      iMax = GetLastIndex()
+      $X = Max($hTabBar.W - ($aButton[iMax].X + $aButton[iMax].W), $X)
       $X = Min(0, $X)
       
     Endif
@@ -193,13 +192,13 @@ Public Sub EnsureCurrentVisible_Timer()
   
   ' If $bArrow Then
   '   W -= ARROW_WIDTH
-  '   If System.RightToLeft Then $X += ARROW_WIDTH
+  '   If Me.RightToLeft Then $X += ARROW_WIDTH
   ' Endif
 
   $hTabBarContainer.Move($X, 0, W, $hTabBar.H)
   
   If $hTabBar.W >= (ARROW_WIDTH * 3) And If $aButton.Count Then
-    If System.RightToLeft Then
+    If Me.RightToLeft Then
       iLeftIndex = GetLastIndex()
       iRightIndex = _GetFirstIndex()
     Else
@@ -236,34 +235,69 @@ Private Sub UpdateLayout()
   Dim W As Integer
   Dim H As Integer
   Dim X As Integer
+  Dim PL, PR As Integer
+  Dim Y As Integer
+  Dim HT As Integer
   
-  $hTabBar.Height = $hTabBar.Font.Height + Desktop.Scale * 2
+  If $bUpdateLayout Then Return
+  $bUpdateLayout = True
   
+  $hTabBar.Visible = $bShowTabBar
+
   W = Me.W
-  H = $hTabBar.H
-  
-  If Not $hClosePanel Or If W < H * 3 Then
-    H = 0
-    If $hClosePanel Then $hClosePanel.Hide
-  Else
-    X = If(System.RightToLeft, H, 0)
-    W -= H
-    $hClosePanel.Show
-    $hClosePanel.Raise
+  H = TabBarSize_Read()
+  If H Then
+    HT = H + 1
+    $hTabBar.H = HT
+  Else 
+    HT = 0
   Endif
   
+  Y = If($iOrientation = Align.Top, 0, Me.H - HT)
+  
+  If $hClosePanel Then
+    If W >= H And If H > 0 Then
+      W -= H
+      If Me.RightToLeft Then
+        $hClosePanel.Move(X, Y, H, H + 1)
+        X += H
+      Else
+        $hClosePanel.Move(X + W, Y, H, H + 1)
+      Endif
+      $hCloseAll.Move(0, 0, H, H)
+      $hClosePanel.Visible = $bShowTabBar
+      $hClosePanel.Raise
+    Else
+      $hClosePanel.Hide
+    Endif
+  Endif
+  
+  PL = TabBarPaddingStart_Read()
+  PR = TabBarPaddingEnd_Read()
+  
+  If Me.RightToLeft Then 
+    If $hTabBarLeft Then $hTabBarLeft.Move(W - PL, Y, PL, H + 1)
+    If $hTabBarRight Then $hTabBarRight.Move(0, Y, PR, H + 1)
+    Swap PL, PR
+  Else
+    If $hTabBarLeft Then $hTabBarLeft.Move(0, Y, PL, H + 1)
+    If $hTabBarRight Then $hTabBarRight.Move(W - PR, Y, PR, H + 1)
+  Endif
+  
+  X += PL
+  W -= PL + PR
+  W = Max(W, 0)
+
   Me._Arrangement = Arrange.None
   
   Select Case $iOrientation
     Case Align.Top
-      $hTabBar.Move(X, 0, W, $hTabBar.H)
-      If H And If $hClosePanel Then $hClosePanel.Move(If(System.RightToLeft, 0, W), 0, H, H)
-      $hPanel.Move(0, $hTabBar.H, Me.W, Me.H - $hTabBar.H)
+      $hTabBar.Move(X, 0, W, HT)
+      $hPanel.Move(0, HT, Me.W, Me.H - HT)
       '$hTabBar.Next = $hPanel
     Case Align.Bottom
-      $hTabBar.Move(X, Me.H - $hTabBar.H, W, $hTabBar.H)
-      If H And If $hClosePanel Then $hClosePanel.Move(If(System.RightToLeft, 0, W), $hTabBar.Y, H, H)
-      $hPanel.Move(0, 0, Me.W, Me.H - $hTabBar.H)
+      $hTabBar.Move(X, Me.H - HT, W, HT)
+      $hPanel.Move(0, 0, Me.W, Me.H - HT)
       'Me._Arrangement = Arrange.Vertical
       '$hPanel.Next = $hTabBar
   End Select
@@ -282,6 +316,8 @@ Private Sub UpdateLayout()
   $hTabBarContainer.Arrangement = Arrange.Horizontal
   _EnsureCurrentVisible
   
+  $bUpdateLayout = False
+
 End
 
 Public Sub TabBar_Arrange()
@@ -326,7 +362,7 @@ Public Sub Arrow_MouseDown()
   
   If Mouse.Left Then
     
-    If Last = $hRightArrow Xor System.RightToLeft Then
+    If Last = $hRightArrow Xor Me.RightToLeft Then
       Try _MoveNext()
       $iRepeatInc = 1
     Else
@@ -365,19 +401,17 @@ Public Sub TimerRepeat_Timer()
 End
 
 
-Public Sub Arrow_DblClick()
-  
-  If Mouse.Left Then
-    If Last = $hRightArrow Then
-      Try Me.Index = GetLastIndex()
-    Else
-      Try Me.Index = _GetFirstIndex()
-    Endif
-  Endif
-  
-End
-
-
+' Public Sub Arrow_DblClick()
+'   
+'   If Mouse.Left Then
+'     If Last = $hRightArrow Then
+'       Try Me.Index = GetLastIndex()
+'     Else
+'       Try Me.Index = _GetFirstIndex()
+'     Endif
+'   Endif
+'   
+' End
 
 Private Function Count_Read() As Integer
 
@@ -469,20 +503,22 @@ End
 
 Private Sub UpdateCurrentContainer()
   
+  Dim D As Integer
+  
   If $iCurrent < 0 Then Return
   
   If $bBorder Then
+    If Not $hTabBar.Visible Then D = 1
     If $iOrientation = Align.Top Then
-      $aCont[$iCurrent].Move(1, 0, $hPanel.W - 2, $hPanel.H - 1)
+      $aCont[$iCurrent].Move(1, D, $hPanel.W - 2, $hPanel.H - D - 1)
     Else
-      $aCont[$iCurrent].Move(1, 1, $hPanel.W - 2, $hPanel.H - 1)
+      $aCont[$iCurrent].Move(1, 1, $hPanel.W - 2, $hPanel.H - D - 1)
     Endif
   Else
     $aCont[$iCurrent].Move(0, 0, $hPanel.W, $hPanel.H)
   Endif
   
 End
-
 
 Private Sub UpdateContainer()
 
@@ -625,42 +661,49 @@ End
 Public Sub TabBarContainer_Draw()
   
   Dim hLast As _TabPanelButton
+  Dim iCol As Integer
+  Dim Y As Integer
+  Dim W As Integer
   
   Try hLast = $aButton[GetLastIndex()]
   If Error Then Return
   
-  Draw.Foreground = Color.LightForeground
+  iCol = Color.LightForeground
+  
   Select Case $iOrientation
     Case Align.Top
-      If System.RightToLeft Then
-        Draw.Line(0, $hTabBarContainer.H - 1, hLast.X - 1, $hTabBar.H - 1)
-      Else
-        Draw.Line(hLast.X + hLast.W, $hTabBarContainer.H - 1, $hTabBarContainer.W, $hTabBar.H - 1)
-      Endif
+      Y = $hTabBarContainer.H - 1
     Case Align.Bottom
-      If System.RightToLeft Then
-        Draw.Line(0, 0, hLast.X - 1, 0)
-      Else
-        Draw.Line(hLast.X + hLast.W, 0, $hTabBarContainer.W, 0)
-      Endif
+      Y = 0
   End Select
+  
+  If Me.RightToLeft Then
+    Paint.FillRect(0, Y, hLast.X, 1, iCol)
+  Else
+    W = $hTabBarContainer.W - (hLast.X + hLast.W)
+    If W > 0 Then Paint.FillRect(hLast.X + hLast.W, Y, W, 1, iCol)
+  Endif
   
 End
 
 Public Sub Panel_Draw()
   
   If $bBorder Then
-    Draw.Foreground = Color.LightForeground
-    Select Case $iOrientation
-      Case Align.Top
-        Draw.Line(0, 0, 0, $hPanel.H - 1)
-        Draw.Line(0, $hPanel.H - 1, $hPanel.W - 1, $hPanel.H - 1)
-        Draw.Line($hPanel.W - 1, $hPanel.H - 1, $hPanel.W - 1, 0)
-      Case Align.Bottom
-        Draw.Line(0, $hPanel.H - 1, 0, 0)
-        Draw.Line(0, 0, $hPanel.W - 1, 0)
-        Draw.Line($hPanel.W - 1, 0, $hPanel.W - 1, $hPanel.H - 1)
-    End Select
+    If $hTabBar.Visible Then
+      Draw.Foreground = Color.LightForeground
+      Select Case $iOrientation
+        Case Align.Top
+          Draw.Line(0, 0, 0, $hPanel.H - 1)
+          Draw.Line(0, $hPanel.H - 1, $hPanel.W - 1, $hPanel.H - 1)
+          Draw.Line($hPanel.W - 1, $hPanel.H - 1, $hPanel.W - 1, 0)
+        Case Align.Bottom
+          Draw.Line(0, $hPanel.H - 1, 0, 0)
+          Draw.Line(0, 0, $hPanel.W - 1, 0)
+          Draw.Line($hPanel.W - 1, 0, $hPanel.W - 1, $hPanel.H - 1)
+      End Select
+    Else 
+      Paint.DrawRect(0, 0, $hPanel.W, $hPanel.H, Color.LightForeground)
+    Endif
   Endif
   
 End
@@ -683,6 +726,7 @@ Private Sub Orientation_Write(Value As Integer)
 
   $iOrientation = Value
   UpdateLayout
+  UpdateCurrentContainer
 
 End
 
@@ -839,7 +883,7 @@ Public Sub TabBarContainer_KeyPress()
   Select Case Key.Code
     
     Case Key.Left, Key.PageUp
-      If System.RightToLeft Then
+      If Me.RightToLeft Then
         Try _MoveNext
       Else
         Try _MovePrevious
@@ -847,7 +891,7 @@ Public Sub TabBarContainer_KeyPress()
       Stop Event
       
     Case Key.Right, Key.PageDown
-      If System.RightToLeft Then
+      If Me.RightToLeft Then
         Try _MovePrevious
       Else
         Try _MoveNext
@@ -940,7 +984,6 @@ Private Sub CloseButton_Write(Value As Boolean)
     Me._Container = Null
     
     $hClosePanel = New DrawingArea(Me) As "ClosePanel"
-    $hClosePanel.Arrangement = Arrange.Fill
     $hCloseAll = New ToolButton($hClosePanel) As "CloseAll"
     $hCloseAll.Picture = Picture["icon:/small/close"]
     $hCloseAll.Show
@@ -948,12 +991,15 @@ Private Sub CloseButton_Write(Value As Boolean)
     Me._Container = hSave
     
   Else
+    
     $hClosePanel.Delete
     $hClosePanel = Null
     $hCloseAll = Null
+    
   Endif
   
   TabBar_Arrange
+  UpdateLayout
 
 End
 
@@ -980,3 +1026,95 @@ Public Sub CloseAll_Click()
   
 End
 
+Private Function TabBarPaddingStart_Read() As Integer
+
+  If $hTabBarLeft Then Return $hTabBarLeft.W
+
+End
+
+Private Sub TabBarPaddingStart_Write(Value As Integer)
+
+  Dim hSave As Container
+  
+  If TabBarPaddingStart_Read() = Value Then Return
+  If Value > 0 Then
+    If Not $hTabBarLeft Then 
+      hSave = Me._Container
+      Me._Container = Null
+      $hTabBarLeft = New DrawingArea(Me) As "ClosePanel"
+      Me._Container = hSave
+      $hTabBarLeft.Ignore = True
+    Endif
+    $hTabBarLeft.W = Value
+  Else
+    If $hTabBarLeft Then
+      $hTabBarLeft.Delete
+      $hTabBarLeft = Null
+    Endif
+  Endif
+  UpdateLayout
+
+End
+
+Private Function TabBarPaddingEnd_Read() As Integer
+
+  If $hTabBarRight Then Return $hTabBarRight.W
+
+End
+
+Private Sub TabBarPaddingEnd_Write(Value As Integer)
+
+  Dim hSave As Container
+  
+  If TabBarPaddingEnd_Read() = Value Then Return
+  If Value > 0 Then
+    If Not $hTabBarRight Then 
+      hSave = Me._Container
+      Me._Container = Null
+      $hTabBarRight = New DrawingArea(Me) As "ClosePanel"
+      Me._Container = hSave
+      $hTabBarRight.Ignore = True
+    Endif
+    $hTabBarRight.W = Value
+  Else
+    If $hTabBarRight Then 
+      $hTabBarRight.Delete
+      $hTabBarRight = Null
+    Endif
+  Endif
+  UpdateLayout
+
+End
+
+Private Function TabBarSize_Read() As Integer
+
+  If $bShowTabBar Then Return $hTabBar.Font.Height + Desktop.Scale * 1.75
+
+End
+
+Private Function ShowTabBar_Read() As Boolean
+
+  Return $bShowTabBar
+
+End
+
+Private Sub ShowTabBar_Write(Value As Boolean)
+
+  If $bShowTabBar = Value Then Return 
+  $bShowTabBar = Value
+  UpdateLayout
+
+End
+
+Public Sub FindPanel(Text As String) As Integer
+
+  Dim I As Integer
+  Dim hCont As _TabPanelContainer
+  
+  For I = 0 To $aCont.Max
+    hCont = $aCont[I]
+    If hCont.Text = Text Then Return I
+  Next
+  Return -1
+  
+End

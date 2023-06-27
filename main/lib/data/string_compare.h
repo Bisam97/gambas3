@@ -2,7 +2,7 @@
 
   gb_common_string_temp.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -28,16 +28,16 @@ int STRING_compare(const char *str1, int len1, const char *str2, int len2)
 	uint i;
 	int len = len1 < len2 ? len1 : len2;
 	int diff;
-	register unsigned char c1, c2;
+	unsigned char c1, c2;
 
 	for (i = 0; i < len; i++)
 	{
 		c1 = str1[i];
 		c2 = str2[i];
-		if (LIKELY(c1 > c2)) return 1;
-		if (LIKELY(c1 < c2)) return -1;
+		if (c1 > c2) return 1;
+		if (c1 < c2) return -1;
 	}
 
 	diff = len1 - len2;
-	return LIKELY(diff < 0) ? (-1) : LIKELY(diff > 0) ? 1 : 0;
+	return diff < 0 ? (-1) : diff > 0 ? 1 : 0;
 }

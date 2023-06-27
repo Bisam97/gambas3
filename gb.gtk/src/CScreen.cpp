@@ -26,6 +26,7 @@
 #include "CWindow.h"
 #include "CPicture.h"
 #include "CFont.h"
+#include "CContainer.h"
 #include "CDrawingArea.h"
 #include "CScreen.h"
 
@@ -33,7 +34,6 @@
 #include "gapplication.h"
 #include "gmainwindow.h"
 #include "cpaint_impl.h"
-#include "desktop.h"
 
 extern int CWINDOW_Embedder;
 extern bool CWINDOW_Embedded;
@@ -42,6 +42,7 @@ extern int MAIN_scale;
 
 char *CAPPLICATION_Theme = 0;
 GB_ARRAY CAPPLICATION_Restart = NULL;
+bool CAPPLICATION_MiddleClickPaste = TRUE;
 
 static int _busy = 0;
 
@@ -50,6 +51,15 @@ static CSCREEN *_screens[MAX_SCREEN] = { NULL };
 
 static bool _animations = FALSE;
 static bool _shadows = FALSE;
+
+//-------------------------------------------------------------------------
+
+static void send_change_event()
+{
+	CDRAWINGAREA_send_change_event();
+	CUSERCONTROL_send_change_event();
+}
+
 
 static CSCREEN *get_screen(int num)
 {
@@ -145,11 +155,22 @@ BEGIN_PROPERTY(Desktop_HasSystemTray)
 
 END_PROPERTY
 
-BEGIN_PROPERTY(Desktop_Type)
+BEGIN_PROPERTY(Desktop_Scale)
 
-	GB.ReturnConstZeroString(DESKTOP_get_type());
+	GB.ReturnInteger(MAIN_scale);
 
 END_PROPERTY
+
+BEGIN_PROPERTY(Desktop_Platform)
+
+	#ifdef GTK3
+		GB.ReturnConstZeroString(MAIN_platform);
+	#else
+		GB.ReturnConstZeroString("x11");
+	#endif
+
+END_PROPERTY
+
 
 //-------------------------------------------------------------------------
 
@@ -164,7 +185,10 @@ BEGIN_PROPERTY(Application_Font)
 	if (READ_PROPERTY)
 		GB.ReturnObject(CFONT_create(gDesktop::font()->copy(), set_font));
 	else if (VPROP(GB_OBJECT))
-		set_font(((CFONT*)VPROP(GB_OBJECT))->font);
+	{
+		CFONT *font = (CFONT*)VPROP(GB_OBJECT);
+		set_font(font ? font->font : NULL);
+	}
 
 END_PROPERTY
 
@@ -199,6 +223,8 @@ BEGIN_PROPERTY(Application_Busy)
 	else
 	{
 		busy = VPROP(GB_INTEGER);
+		if (busy < 0)
+			busy = 0;
 
 		if (_busy == 0 && busy != 0)
 			gApplication::setBusy(true);
@@ -209,13 +235,6 @@ BEGIN_PROPERTY(Application_Busy)
 		if (MAIN_debug_busy)
 			fprintf(stderr, "%s: Application.Busy = %d\n", GB.Debug.GetCurrentPosition(), busy);
 	}
-
-END_PROPERTY
-
-
-BEGIN_PROPERTY(Desktop_Scale)
-
-	GB.ReturnInteger(MAIN_scale);
 
 END_PROPERTY
 
@@ -237,8 +256,18 @@ BEGIN_PROPERTY(Application_Animations)
 	else if (_animations != VPROP(GB_BOOLEAN))
 	{
 		_animations = VPROP(GB_BOOLEAN);
-		CDRAWINGAREA_send_change_event();
+		send_change_event();
 	}
+
+END_PROPERTY
+
+
+BEGIN_PROPERTY(Application_MiddleClickPaste)
+
+	if (READ_PROPERTY)
+		GB.ReturnBoolean(CAPPLICATION_MiddleClickPaste);
+	else
+		CAPPLICATION_MiddleClickPaste = VPROP(GB_BOOLEAN);
 
 END_PROPERTY
 
@@ -250,7 +279,7 @@ BEGIN_PROPERTY(Application_Shadows)
 	else if (_shadows != VPROP(GB_BOOLEAN))
 	{
 		_shadows = VPROP(GB_BOOLEAN);
-		CDRAWINGAREA_send_change_event();
+		send_change_event();
 	}
 
 END_PROPERTY
@@ -272,6 +301,7 @@ END_PROPERTY
 BEGIN_METHOD_VOID(Application_exit)
 
 	GB.FreeString(&CAPPLICATION_Theme);
+	GB.StoreObject(NULL, POINTER(&CAPPLICATION_Restart));
 	free_screens();
 
 END_METHOD
@@ -299,6 +329,33 @@ BEGIN_PROPERTY(Application_Theme)
 
 	if (READ_PROPERTY) { GB.ReturnString(CAPPLICATION_Theme); return; }
 	GB.StoreString(PROP(GB_STRING), &CAPPLICATION_Theme);
+
+END_PROPERTY
+
+
+BEGIN_PROPERTY(Application_DarkTheme)
+
+	static bool _init = FALSE;
+	static bool _dark = FALSE;
+	
+	uint bg;
+	char *env;
+	
+	if (!_init)
+	{
+		_init = TRUE;
+		bg = gDesktop::getColor(gDesktop::BACKGROUND);
+		if (IMAGE.GetLuminance(bg) >= 128)
+		{
+			env = getenv("GB_GUI_DARK_THEME");
+			if (env && atoi(env))
+				_dark = TRUE;
+		}
+		else
+			_dark = TRUE;
+	}
+
+	GB.ReturnBoolean(_dark);
 
 END_PROPERTY
 
@@ -399,6 +456,22 @@ BEGIN_PROPERTY(Screen_AvailableHeight)
 
 END_PROPERTY
 
+BEGIN_PROPERTY(Screen_ResolutionX)
+
+	double r;
+	gDesktop::screenResolution(SCREEN->index, &r, NULL);
+	GB.ReturnFloat(r);
+
+END_PROPERTY
+
+BEGIN_PROPERTY(Screen_ResolutionY)
+
+	double r;
+	gDesktop::screenResolution(SCREEN->index, NULL, &r);
+	GB.ReturnFloat(r);
+
+END_PROPERTY
+
 //-------------------------------------------------------------------------
 
 GB_DESC ScreenDesc[] =
@@ -417,6 +490,9 @@ GB_DESC ScreenDesc[] =
 	GB_PROPERTY_READ("AvailableWidth", "i", Screen_AvailableWidth),
 	GB_PROPERTY_READ("AvailableHeight", "i", Screen_AvailableHeight),
 
+	GB_PROPERTY_READ("ResolutionX", "f", Screen_ResolutionX),
+	GB_PROPERTY_READ("ResolutionY", "f", Screen_ResolutionY),
+	
 	GB_END_DECLARE
 };
 
@@ -449,7 +525,7 @@ GB_DESC DesktopDesc[] =
 	
 	GB_STATIC_METHOD("Screenshot", "Picture", Desktop_Screenshot, "[(X)i(Y)i(Width)i(Height)i]"),
 
-	GB_STATIC_PROPERTY_READ("Type", "s", Desktop_Type),
+	GB_STATIC_PROPERTY_READ("Platform", "s", Desktop_Platform),
 
 	GB_END_DECLARE
 };
@@ -469,8 +545,10 @@ GB_DESC ApplicationDesc[] =
 	GB_STATIC_PROPERTY("ShowTooltips", "b", Application_ShowTooltips),
 	GB_STATIC_PROPERTY("Animations", "b", Application_Animations),
 	GB_STATIC_PROPERTY("Shadows", "b", Application_Shadows),
+	GB_STATIC_PROPERTY("MiddleClickPaste", "b", Application_MiddleClickPaste),
 	GB_STATIC_PROPERTY("Embedder", "i", Application_Embedder),
 	GB_STATIC_PROPERTY("Theme", "s", Application_Theme),
+	GB_STATIC_PROPERTY_READ("DarkTheme", "s", Application_DarkTheme),
 	GB_STATIC_PROPERTY("Restart", "String[]", Application_Restart),
 	GB_STATIC_PROPERTY_READ("DblClickTime", "i", Application_DblClickTime),
 	

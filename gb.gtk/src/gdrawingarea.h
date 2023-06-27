@@ -2,7 +2,7 @@
 
   gdrawingarea.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -28,7 +28,7 @@ class gDrawingArea : public gContainer
 {
 public:
 	gDrawingArea(gContainer *parent);
-	~gDrawingArea();
+	virtual ~gDrawingArea();
 
 	int getBorder() const { return getFrameBorder(); }
 	bool cached() const { return _cached; }
@@ -45,25 +45,19 @@ public:
 
 //"Methods"
 	void clear();
-	virtual void resize(int w, int h);
-	virtual void setEnabled(bool vl);
+#ifndef GTK3
+	virtual void setBackground(gColor color = COLOR_DEFAULT);
+#endif
 	virtual void setRealBackground(gColor color);
 	virtual void updateFont();
+	virtual long handle();
 
-//"Events"
-#ifdef GTK3
-	void (*onExpose)(gDrawingArea *sender, cairo_t *cr);
-#else
-	void (*onExpose)(gDrawingArea *sender, GdkRegion *region, int dx, int dy);
-#endif
-	void (*onFontChange)(gDrawingArea *sender);
 
 //"Private"
 	void create();
 	void updateCache();
 	void resizeCache();
 	void refreshCache();
-	void updateEventMask();
 	void setCache();
 	void updateUseTablet();
 
@@ -73,14 +67,22 @@ public:
 	GdkPixmap *buffer;
 #endif
 	GtkWidget *box;
-	uint _event_mask;
-	uint _old_bg_id;
 	unsigned _cached : 1;
 	unsigned _resize_cache : 1;
 	unsigned _in_draw_event : 1;
-	unsigned _no_background : 1;
 	unsigned _use_tablet : 1;
+	unsigned _own_window : 1;
 	static int _in_any_draw_event;
 };
+
+
+// Callbacks
+
+#ifdef GTK3
+	void CB_drawingarea_expose(gDrawingArea *sender, cairo_t *cr);
+#else
+	void CB_drawingarea_expose(gDrawingArea *sender, GdkRegion *region, int dx, int dy);
+#endif
+	void CB_drawingarea_font(gDrawingArea *sender);
 
 #endif

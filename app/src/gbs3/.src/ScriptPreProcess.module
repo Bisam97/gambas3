@@ -1,0 +1,238 @@
+' Gambas module file
+
+Export 
+
+''' This function will process any compiler options provided
+''' verify if they are valid and format info to be added to the project file
+''' Or other #Script commands
+''' in the script file add the following format
+''' For plugins all Project information entries become
+''' read properties of the plugin generated class 
+''' This interface may be called from user callbacks to add properties to the propery table
+
+''  #Script      type="Library"
+''  #Script      Vendor="mycompany"
+''  #SCript      Version="1.0.3"
+
+''  Only for Plugins define any extra properties needed
+''  #Script      Property=MyProp:MyPropValue
+
+
+Public isLibrary As Boolean = False
+Public isComponent As Boolean = False
+Public isInstall As Boolean = False
+Public hasVendor As Boolean = False
+Public hasAuthor As Boolean = False
+Public hasVersion As Boolean = False
+Public hasOptions As Boolean = False
+
+Public PublicFiles As New String[] 
+
+Public ProjectInfo As Collection
+Public PropertyRW As New String[]
+
+Public Enum eType, eVersion, eDescription, eMaintainer, eAuthor, eVendor, eLicense, eInstall, eTitle, eName, eNotFound, eIgnored, eStartup, eUseHttpServer, ePublic, eProperty, eError, eScript
+' On  Goto SYMTYPE, SYMVERSION, SYMDESCRIPTION, SYMMAINTAINER, SYMAUTHORS, SYMVENDOR, SYMLICENSE, SYMINSTALL, SYMTITLE, SYMNAME, SYNOTFOUND, SYMIGNORED, SYMSTARTUP
+Public KeyWords As Collection = ["TYPE": eType, "VERSION": eVersion, "DESCRIPTION": eDescription, 
+                                 "MAINTAINER": eMaintainer, "AUTHORS": eAuthor, "AUTHOR": eAuthor, 
+                                 "VENDOR": eVendor, "LICENSE": eLicense,
+                                 "INSTALL": eInstall, "TITLE": eTitle, "NAME": eName, "ERROR": eError,
+                                 "SCRIPT": eScript, "STARTUP": eStartup, "USEHTTPSERVER": eUseHttpServer,
+                                 "PUBLIC": ePublic, "PROPERTY": eProperty]
+                                 
+Public CompTypes As Collection = ["LIBRARY": 0, "COMPONENT": 1, "PROGRAM": 2]
+'Private processLine As String[]
+
+
+Public Sub _init()
+
+  CompTypes.default = 3
+  KeyWords.default = eNotFound
+
+  ProjectInfo = New Collection(gb.ignorecase)
+  ProjectInfo.Add("# Gambas Project File 3.0", "Header")
+  ProjectInfo.Add("Gambas Script", "Title")
+  ProjectInfo.Add("MMain", "Startup")
+  ProjectInfo.Add("Ordinary", "Vendor")
+  ProjectInfo.Add("0.0.1", "Version")
+  ProjectInfo.Add("General Public License 2.0", "License")
+  ProjectInfo.Add("", "Type")
+
+End
+
+Public Sub reset()
+
+  _init()
+
+End
+
+'' Script Preprocessor entries  will look like this
+'' #Script name="xxxx"
+'' #Script startup="MySub" 
+'' #Script Version ="0.2.3" , ...
+'' #Script Property=AppSet:"2.0.0.1"
+
+Public Sub _call(aSymbols As String[], aTypes As Integer[], LineNumber As Integer, sPath As String)
+
+  'Dim inLine As String
+  Dim KeyIndex As Integer
+  Dim i As Integer
+
+  ' If hasOptions Then ' options have already been defined
+  '   ScriptMain.CompileError("Options", LineNumber, "Project Options already defined")
+  ' Endif
+  
+  If aSymbols.count < 2 Then Return
+ 
+  For i = 1 To aSymbols.Max
+    If aSymbols[i] = "," Then Continue
+    KeyIndex = KeyWords[Upper(aSymbols[i])]
+    Inc i
+    
+    If aSymbols[i] <> "=" Or If aTypes[i + 1] <> Highlight.string And aTypes[i + 1] <> Highlight.symbol Then
+       CompileError(sPath, LineNumber, "Invalid #Script PreProcess Command Format :" & aSymbols.Join(" "))
+       Return
+    Endif
+    Inc i
+    
+    On KeyIndex Goto SYMTYPE, SYMVERSION, SYMDESCRIPTION, SYMMAINTAINER, SYMAUTHORS, SYMVENDOR, SYMLICENSE, SYMINSTALL, SYMTITLE, SYMNAME, SYNOTFOUND, SYMIGNORED, SYMSTARTUP, 
+                                        SYMUSEHTTPSERVER, SYMPUBLIC, SYMPROPERTY
+    Continue
+
+  SYNOTFOUND:
+    CompileError(sPath, LineNumber, "Invalid #Script PreProcess Command:" & aSymbols[i])
+    Break
+
+  SYMTYPE:
+    Dim TypeIndex As Integer
+    TypeIndex = CompTypes[Upper(UnQuote(aSymbols[i]))]
+    Select Case TypeIndex
+      Case 0 'Library
+        ProjectInfo["Type"] = UnQuote(aSymbols[i])
+        isLibrary = True
+      Case 1 'Component
+        ProjectInfo["Type"] = UnQuote(aSymbols[i])
+        isComponent = True
+      Case 2 'program
+        ' does nothing
+      Case 3 ' unknown thingy
+        CompileError(sPath, LineNumber, "Invalid #Script  'Type' Definition:" & aSymbols[i])
+    End Select
+    Continue
+
+  SYMVERSION:
+    ProjectInfo["Version"] = UnQuote(aSymbols[i])
+    Continue
+
+  SYMDESCRIPTION:
+    ProjectInfo["Description"] = UnQuote(aSymbols[i])
+    Continue
+
+  SYMMAINTAINER:
+    ProjectInfo["Maintainer"] = UnQuote(aSymbols[i])
+    Continue
+
+  SYMAUTHORS:
+    ProjectInfo["Authors"] = UnQuote(aSymbols[i])
+    Continue
+
+  SYMVENDOR:
+    ProjectInfo["Vendor"] = UnQuote(aSymbols[i])
+    Continue
+
+  SYMLICENSE:
+    ProjectInfo["License"] = UnQuote(aSymbols[i])
+    Continue
+
+  SYMNAME:
+    ProjectInfo["Name"] = UnQuote(aSymbols[i])
+    Continue
+
+  SYMINSTALL:
+    isInstall = IIf(Upper(UnQuote(aSymbols[i])) = "TRUE", True, False)
+    Continue
+
+  SYMTITLE:
+    ProjectInfo["Title"] = UnQuote(aSymbols[i])
+    Continue
+    
+  SYMSTARTUP:
+    ProjectInfo["Startup"] = UnQuote(aSymbols[i])
+    Continue
+    
+  SYMUSEHTTPSERVER:
+    ProjectInfo["UseHttpServer"] = UnQuote(aSymbols[i])
+    Continue
+    
+  SYMPUBLIC:
+    Dim sPublicFilePath As String = UnQuote(aSymbols[i])
+    Dim sPPATH As String = File.Dir(sPublicFilePath)
+    If sPpath = "" Then 
+        sPublicFilePath = Env["PWD"] &/ sPublicFilePath
+    Endif
+    If Not Exist(sPublicFilePath) Then 
+       CompileError(sPath, LineNumber, "Unable to find Public file:" & sPublicFilePath)
+    Endif
+    PublicFiles.Add(sPublicFilePath)
+    Continue 
+    
+  SYMPROPERTY: ' Define a Plugin property and value Format #Script Property=Propertyname:value 
+    If aSymbols[i + 1] <> ":" Or If aTypes[i + 2] <> Highlight.String Then 
+      CompileError(sPath, LineNumber, "Invalid Plugin Property Declaration")
+    Endif
+    PropertyRW.Add(aSymbols[i])
+    ProjectInfo[aSymbols[i]] = UnQuote(aSymbols[i + 2])
+    i += 2
+    
+  SYMIGNORED:
+
+  Next
+
+  If (isLibrary Or isComponent) And If ProjectInfo["vendor"] = "" Then
+    ProjectInfo["vendor"] = IIf(isLibrary, "(unknown)", "gb")
+    Warning("Using default project vendor (unknown)")
+  Endif
+
+End
+
+
+Public Sub GetProjectOptions() As String
+
+  Dim sOptOut As String = ProjectInfo["Header"] & "\n"
+
+  For Each s As String In ProjectInfo
+    If s <> "" And If ProjectInfo.key <> "Header" Then
+      sOptOut &= ProjectInfo.key & "=" & s & "\n"
+    Endif
+  Next
+  Return sOptOut
+
+End
+
+Public Sub SetStartup(StartupName As String)
+
+     ProjectInfo["Startup"] = StartUpName
+     
+End
+
+Public Sub GetStartup() As String
+  
+  Return ProjectInfo["Startup"]
+  
+End
+
+Public Sub _put(value As Variant, index As String)
+  
+   ProjectInfo[index] = value
+  
+End
+
+Public Sub _get(index As String) As Variant
+  
+  Return ProjectInfo[index]
+  
+End
+
+
+
+

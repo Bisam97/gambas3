@@ -79,12 +79,11 @@ Private Sub LoadTranslation(sLang As String)
   Dim sMsgComment As String
   Dim iMode As Integer
   Dim bFuzzy As Boolean
-  Dim iPos As Integer
   Dim cCache As New Collection
   Dim cKey As New Collection
   Dim bIgnore As Boolean
   
-  sPath = Language.GetPath(sLang, "po")
+  sPath = MyLanguage.GetPath(sLang, "po")
   If Not Exist(sPath) Then Return 
   
   hFile = Open sPath 
@@ -92,14 +91,12 @@ Private Sub LoadTranslation(sLang As String)
   While Not Eof(hFile)
     Line Input #hFile, sLine
     If Not sLine Then Break
+    If sLine Begins "#," And If Trim(Mid$(sLine, 3)) = "fuzzy" Then Continue
+    If sLine Begins "msg" Then Continue
     Header &= sLine & "\n"
   Wend
 
-  iPos = InStr(Header, "#, fuzzy")
-  If iPos = 0 Then iPos = InStr(Header, "#,fuzzy")
-  If iPos Then Header = Left(Header, iPos - 1)
-
-  Header &= SubstHeader(File.Load("po-header.txt"), sLang)
+  Header = SubstHeader(File.Load("po-header.txt"), sLang)
 
   Do
 
@@ -282,6 +279,7 @@ Static Public Sub FindTranslation(sPath As String, sFind As String) As String
       Else
         If sMsgId = sFind Then 
           If sMsgStr = "-" Then sMsgStr = sMsgId
+          Close #hFile
           Return Replace(sMsgStr, "\\n", "\n")
         Endif
       Endif

@@ -1,0 +1,205 @@
+' Gambas class file
+
+Inherits Task
+
+Public Search As String
+
+Public IgnoreCase As Boolean
+Public WordsOnly As Boolean
+Public RegularExpression As Boolean
+
+Public Where As String
+Public Update As String[]
+
+Public Const ALL_FILES As String = "*"
+Public Const SOURCE_FILES As String = "$"
+Public Const DATA_FILES As String = "@"
+
+Private $aExt As String[] = ["jpg", "jpeg", "bmp", "gif", "png", "ico", "xpm", "tga", "gambas", "wav", "ogg", "mp3", "mp4", "avi", "webm"]
+
+Public Sub Main()
+  
+  Dim sDir As String
+  Dim sFile As String
+  Dim sPath As String
+  Dim sName As String
+  Dim sExt As String
+  Dim aFile As String[]
+  Dim aSort As String[]
+  
+  Application.Priority = 10
+  
+  If Update Then
+    
+    sDir = ""
+    aFile = Update
+    
+  Else
+
+    Select Case Where 
+      
+      Case ALL_FILES, DATA_FILES
+        sDir = Project.Dir
+        
+      Case SOURCE_FILES
+        sDir = Project.SourceDir
+        
+      Case Else
+        sDir = File.Dir(Where)
+        aFile = [File.Name(Where)]
+      
+    End Select
+    
+  Endif
+  
+  If Not aFile Then
+    aFile = Project.Browse(sDir, True)
+    aFile.Sort(gb.Natural)
+    aSort = New String[]
+    For Each sPath In aFile
+      aSort.Add(File.Name(sPath))
+    Next
+    aFile.SortUsing(aSort)
+  Endif
+  
+  For Each sFile In aFile
+  
+    If Right(sFile) = "~" Then Continue
+    
+    sPath = sDir &/ sFile
+  
+    sFile = Mid$(sPath, Len(Project.Dir) + 1)
+    If Left(sFile) = "/" Then sFile = Mid$(sFile, 2)
+    
+    If Left(sFile) = "." And If sFile Not Begins ".public/" Then
+      If Where = DATA_FILES Then Continue
+      If sFile Not Begins ".src/" Then Continue
+    Endif
+    
+    If IsDir(sPath) Then Continue
+    
+    sExt = LCase(File.Ext(sFile))
+    If $aExt.Exist(sExt) Then Continue
+    
+    sName = File.Name(sPath)
+    If sName Begins "core." Then Continue
+    If sName Begins "vgcore." Then Continue
+    If sName Begins "callgrind.out." Then Continue
+    If sName Begins "cachegrind.out." Then Continue
+    
+    If Not Project.IsTextFile(sPath) Then Continue
+    
+    ' TODO: If bReplace And If Not Access(sPath) Then Continue
+    
+    Print "/" &/ Mid$(sPath, Len(Project.Dir) + 1)
+    
+    ' If sFile Begins ".src/" Then
+    '   FDebugInfo.SetSearchListInfo(sName)
+    ' Else
+    '   FDebugInfo.SetSearchListInfo(sFile)
+    ' Endif
+  
+    GrepFile(sPath) ', bReplace)
+    
+    'Debug sName
+  Next
+  
+  
+End
+
+Private Sub GrepFile(sPath As String, Optional bUseReplaceString As Boolean)
+  
+  Dim sText As String
+  Dim aGrep As String[]
+  Dim sGrep As String
+  Dim sFind As String
+  Dim sTemp As String
+  ' Dim iAge As Integer
+  ' Dim hGrepResult As CGrepResult
+  Dim iPos As Integer
+  Dim sSearch As String
+  Dim hFile As Object
+  Dim sResult As String
+  Dim iFilePos As Integer
+  Dim hEditor As TextEditor
+
+  hFile = Project.Files[sPath]
+  
+  If sPath Then
+    If Not hFile Or If Not hFile.IsModified() Then
+      sTemp = sPath 'Project.GetUncompressedPath(sPath, True)
+    Endif
+  Endif
+    
+  If Not sTemp Then
+    Try hEditor = hFile.GetEditor()
+    If hEditor Then Object.Lock(hEditor)
+    Try sText = hFile.GetText()
+    If hEditor Then Object.Unlock(hEditor)
+    If Not sText Then Return
+    sTemp = Temp$("grep")
+    File.Save(sTemp, sText)
+  Endif
+
+  aGrep = ["grep", "-nobs"]
+  
+  If bUseReplaceString Then
+    ' aGrep.Add("-F")
+    ' aGrep.Add("--")
+    ' aGrep.Add(ReplaceString)
+  Else
+    If IgnoreCase Then aGrep.Add("-i")
+    If RegularExpression Then 
+      aGrep.Add("-E")
+    Else If WordsOnly Then 
+      aGrep.Add("-E")
+    Else
+      aGrep.Add("-F")
+    Endif
+    aGrep.Add("--")
+    
+    sSearch = Search
+    If WordsOnly Then sSearch = "(^|[^_$[:alnum:]])" & Project.GrepQuote(Search) & "($|[^_$[:alnum:]])"
+    aGrep.Add(sSearch)
+  Endif
+  
+  aGrep.Add(sTemp)
+  
+  'grep -nR -F -I -i -w -ob --exclude=*~ --exclude-dir=.svn -s -- "Date" * .src
+  
+  Exec aGrep To sGrep
+
+  For Each sFind In Split(sGrep, "\n", "", True)
+    
+    iPos = InStr(sFind, ":")
+    If iPos = 0 Then Continue
+    
+    sResult = CStr(CInt(Left(sFind, iPos - 1)))
+    sFind = Mid$(sFind, iPos + 1)
+    
+    iPos = InStr(sFind, ":")
+    If iPos = 0 Then Continue
+    
+    iFilePos = CInt(Left(sFind, iPos - 1))
+    sFind = Mid$(sFind, iPos + 1)
+
+    If WordsOnly Then
+      If IgnoreCase Then
+        If String.LCase(sFind) Not Begins String.LCase(Search) Then iFilePos += String.Len(String.Left(sFind))
+      Else
+        If sFind Not Begins Search Then iFilePos += String.Len(String.Left(sFind))
+      Endif
+      sFind = Search
+    Endif
+    
+    sResult &= ":" & CStr(iFilePos)
+
+    sResult &= ":" & CStr(Len(sFind)) & ":" & CStr(String.Len(sFind)) '& ":" & sFind
+    Print sResult
+    Flush
+    'Sleep 0.005
+    
+  Next
+  
+End
+

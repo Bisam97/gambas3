@@ -2,7 +2,7 @@
 
   cfaketrayicon.cpp
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -76,7 +76,7 @@ GB_DESC FakeTrayIconDesc[] =
 	GB_CONSTANT("_IsVirtual", "b", TRUE),
 	GB_CONSTANT("_Group", "s", "Special"),
 	GB_CONSTANT("_DefaultEvent", "s", "Click"),
-	GB_CONSTANT("_Properties", "s", "Visible=False,Tag,Tooltip,Picture,PopupMenu{Menu}"),
+	GB_CONSTANT("_Properties", "s", "Visible=False,Tag,Tooltip,Picture{Picture:NoCache},PopupMenu{Menu}"),
 
 	GB_END_DECLARE
 };

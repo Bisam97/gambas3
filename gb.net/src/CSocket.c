@@ -51,25 +51,25 @@
 #define MAX_CLIENT_BUFFER_SIZE 65536
 #define UNIXPATHMAX 108
 
-DECLARE_EVENT (EVENT_Error);
-DECLARE_EVENT (EVENT_Close);
-DECLARE_EVENT (EVENT_Found);
-DECLARE_EVENT (EVENT_Ready);
-DECLARE_EVENT (EVENT_Read);
-DECLARE_EVENT (EVENT_Write);
+DECLARE_EVENT(EVENT_Error);
+DECLARE_EVENT(EVENT_Close);
+DECLARE_EVENT(EVENT_Found);
+DECLARE_EVENT(EVENT_Ready);
+DECLARE_EVENT(EVENT_Read);
+DECLARE_EVENT(EVENT_Write);
 
 GB_STREAM_DESC SocketStream = 
 {
-	open: CSocket_stream_open,
-	close: CSocket_stream_close,
-	read: CSocket_stream_read,
-	write: CSocket_stream_write,
-	seek: CSocket_stream_seek,
-	tell: CSocket_stream_tell,
-	flush: CSocket_stream_flush,
-	/*eof: CSocket_stream_eof,
-	lof: CSocket_stream_lof,*/
-	handle: CSocket_stream_handle
+	.open = CSocket_stream_open,
+	.close = CSocket_stream_close,
+	.read = CSocket_stream_read,
+	.write = CSocket_stream_write,
+	.seek = CSocket_stream_seek,
+	.tell = CSocket_stream_tell,
+	.flush = CSocket_stream_flush,
+	/*.eof = CSocket_stream_eof,
+	.lof = CSocket_stream_lof,*/
+	.handle = CSocket_stream_handle
 };
 
 #if DEBUG_ME
@@ -157,11 +157,11 @@ static void CSocket_close(CSOCKET *_object)
 {
 	int fd;
 	
-	if (THIS->DnsTool)
+	if (THIS->dns_client)
 	{
-		dns_close_all(THIS->DnsTool);
-		GB.Unref(POINTER(&THIS->DnsTool));
-		THIS->DnsTool = NULL;
+		dns_close_all(THIS->dns_client);
+		GB.Unref(POINTER(&THIS->dns_client));
+		THIS->dns_client = NULL;
 	}
 
 	fd = SOCKET->socket;
@@ -177,10 +177,18 @@ static void CSocket_close(CSOCKET *_object)
 		set_status(THIS, NET_INACTIVE);
 	}
 	
+	if (THIS->timer)
+		GB.Unref(POINTER(&THIS->timer));
+	
 	if (THIS->OnClose)
 		THIS->OnClose(_object);
 }
 
+static int connect_timeout(void *_object)
+{
+	CSocket_stream_internal_error(THIS, NET_CONNECTION_TIMEOUT, TRUE);
+	return TRUE;
+}
 
 /*
 	This function is called by DnsClient to inform
@@ -194,32 +202,34 @@ void CSocket_CallBackFromDns(void *_object)
 	if (SOCKET->status != NET_SEARCHING) 
 		return;
 	
-	if (!THIS->DnsTool->sHostIP)
+	if (!THIS->dns_client->sHostIP)
 	{
 		// Host not found
 		CSocket_stream_internal_error(THIS, NET_HOST_NOT_FOUND, TRUE);
 		return;
 	}
 
-	GB.FreeString (&THIS->sRemoteHostIP);
-	THIS->sRemoteHostIP = GB.NewZeroString (THIS->DnsTool->sHostIP);
+	GB.FreeString (&THIS->remote_host_ip);
+	THIS->remote_host_ip = GB.NewZeroString (THIS->dns_client->sHostIP);
 
 	// We connect to the socket
 	
-	THIS->Server.sin_family = AF_INET;
-	THIS->Server.sin_port = htons(THIS->iPort);
-	THIS->Server.sin_addr.s_addr = inet_addr(THIS->DnsTool->sHostIP);
-	bzero(&(THIS->Server.sin_zero), 8);
+	THIS->tcp_server.sin_family = AF_INET;
+	THIS->tcp_server.sin_port = htons(THIS->port);
+	THIS->tcp_server.sin_addr.s_addr = inet_addr(THIS->dns_client->sHostIP);
+	bzero(&(THIS->tcp_server.sin_zero), 8);
 	
 	// Don't block, so that connect() returns immediately
 	
 	SOCKET_set_blocking(SOCKET, FALSE);
-	myval = connect(SOCKET->socket,(struct sockaddr*)&(THIS->Server), sizeof(struct sockaddr));
+	myval = connect(SOCKET->socket,(struct sockaddr*)&(THIS->tcp_server), sizeof(struct sockaddr));
 	SOCKET_set_blocking(SOCKET, TRUE);
 	
-	if (!myval || errno == EINPROGRESS) // Rhis is the good answer : connect in progress
+	if (!myval || errno == EINPROGRESS) // this is the good answer : connect in progress
 	{
 		set_status(THIS, NET_CONNECTING);
+		if (SOCKET->timeout > 0)
+			THIS->timer = GB.Every(SOCKET->timeout, (GB_TIMER_CALLBACK)connect_timeout, (intptr_t)THIS);
 		GB.Watch(SOCKET->socket, GB_WATCH_WRITE, (void *)CSocket_CallBackConnecting, (intptr_t)THIS);
 	}
 	else
@@ -231,11 +241,11 @@ void CSocket_CallBackFromDns(void *_object)
 		set_status(THIS, NET_INACTIVE);
 	}
 	
-	if (THIS->DnsTool)
+	if (THIS->dns_client)
 	{
-		dns_close_all(THIS->DnsTool);
-		GB.Unref(POINTER(&THIS->DnsTool));
-		THIS->DnsTool = NULL;
+		dns_close_all(THIS->dns_client);
+		GB.Unref(POINTER(&THIS->dns_client));
+		THIS->dns_client = NULL;
 	}
 	
 	if (SOCKET->status <= NET_INACTIVE)
@@ -285,15 +295,17 @@ void CSocket_CallBackConnecting(int t_sock,int type,intptr_t param)
 	
 	mylen=sizeof(struct sockaddr);
 	getsockname (SOCKET->socket,(struct sockaddr*)&myhost,(socklen_t *)&mylen);
-	THIS->iLocalPort=ntohs(myhost.sin_port);
-	GB.FreeString( &THIS->sLocalHostIP);
-	THIS->sLocalHostIP  = GB.NewZeroString(inet_ntoa(myhost.sin_addr));
+	THIS->local_port = ntohs(myhost.sin_port);
+	GB.FreeString(&THIS->local_host_ip);
+	THIS->local_host_ip = GB.NewZeroString(inet_ntoa(myhost.sin_addr));
 
 	CSOCKET_init_connected(THIS);
 	GB.Stream.SetSwapping(&SOCKET->stream, htons(1234) != 1234);
 	
 	GB.Ref(THIS);
 	GB.Post(CSocket_post_connected,(intptr_t)THIS);
+	
+	GB.Unref(POINTER(&THIS->timer));
 }
 
 /*******************************************************************
@@ -494,11 +506,11 @@ int CSocket_connect_unix(void *_object,char *sPath, int lenpath)
 	if (!sPath) return 7;
 	if ( (lenpath<1) || (lenpath>UNIXPATHMAX) ) return 7;
 
-	GB.FreeString(&THIS->sRemoteHostIP);
-	GB.FreeString(&THIS->sLocalHostIP);
+	GB.FreeString(&THIS->remote_host_ip);
+	GB.FreeString(&THIS->local_host_ip);
 
-	THIS->UServer.sun_family=AF_UNIX;
-	strcpy(THIS->UServer.sun_path,sPath);
+	THIS->unix_server.sun_family=AF_UNIX;
+	strcpy(THIS->unix_server.sun_path,sPath);
 	if ( (SOCKET->socket=socket(AF_UNIX,SOCK_STREAM,0))==-1 )
 	{
 		set_status(THIS, NET_CANNOT_CREATE_SOCKET);
@@ -507,12 +519,12 @@ int CSocket_connect_unix(void *_object,char *sPath, int lenpath)
 		return 2;
 	}
 
-	GB.FreeString(&THIS->sPath);
-	THIS->sPath = GB.NewZeroString(THIS->UServer.sun_path);
+	//GB.FreeString(&THIS->sPath);
+	//THIS->sPath = GB.NewZeroString(THIS->unix_server.sun_path);
 	
 	THIS->conn_type = NET_TYPE_INTERNET;
 	
-	ret = connect(SOCKET->socket,(struct sockaddr*)&THIS->UServer,sizeof(struct sockaddr_un));
+	ret = connect(SOCKET->socket,(struct sockaddr*)&THIS->unix_server,sizeof(struct sockaddr_un));
 	
 	// Set socket to blocking mode, after the connect() call!
 	SOCKET_set_blocking(SOCKET, TRUE);
@@ -523,10 +535,10 @@ int CSocket_connect_unix(void *_object,char *sPath, int lenpath)
 		CSOCKET_init_connected(THIS);
 
 		// $BM
-		if (THIS->Host) GB.FreeString(&THIS->Host);
-		if (THIS->Path) GB.FreeString(&THIS->Path);
+		if (THIS->host) GB.FreeString(&THIS->host);
+		if (THIS->path) GB.FreeString(&THIS->path);
 
-		THIS->Path = GB.NewZeroString(sPath);
+		THIS->path = GB.NewZeroString(sPath);
 		GB.Ref (THIS);
 		CSocket_post_connected(_object);
 
@@ -536,7 +548,7 @@ int CSocket_connect_unix(void *_object,char *sPath, int lenpath)
 	// Error
 	SOCKET->stream.desc = NULL;
 	close(SOCKET->socket);
-	GB.FreeString(&THIS->sPath);
+	//GB.FreeString(&THIS->sPath);
 	set_status(THIS, NET_CONNECTION_REFUSED);
 
 	GB.Ref (THIS);
@@ -555,8 +567,8 @@ int CSocket_connect_socket(void *_object,char *sHost,int lenhost,int myport)
 	if (!sHost)   return 9;
 	if ( (myport<1) || (myport>65535) ) return 8;
 
-	GB.FreeString(&THIS->sRemoteHostIP);
-	GB.FreeString(&THIS->sLocalHostIP);
+	GB.FreeString(&THIS->remote_host_ip);
+	GB.FreeString(&THIS->local_host_ip);
 
 	if ( (SOCKET->socket=socket(AF_INET,SOCK_STREAM,0))==-1 )
 	{
@@ -569,24 +581,24 @@ int CSocket_connect_socket(void *_object,char *sHost,int lenhost,int myport)
 	// Set socket to blocking mode
 	SOCKET_set_blocking(SOCKET, TRUE);
 
-	THIS->iPort=myport;
+	THIS->port=myport;
 	THIS->conn_type = NET_TYPE_INTERNET;
 	
 	/******************************************
 	Let's turn hostname into host IP
 	*******************************************/
-	if (!THIS->DnsTool)
+	if (!THIS->dns_client)
 	{
-		THIS->DnsTool = GB.New(GB.FindClass("DnsClient"), NULL, NULL);
-		THIS->DnsTool->CliParent=_object;
+		THIS->dns_client = GB.New(GB.FindClass("DnsClient"), NULL, NULL);
+		THIS->dns_client->CliParent=_object;
 	}
 
-	if (THIS->DnsTool->iStatus > 0 ) dns_close_all(THIS->DnsTool);
+	if (THIS->dns_client->iStatus > 0 ) dns_close_all(THIS->dns_client);
 
-	dns_set_async_mode(1,THIS->DnsTool);
-	GB.FreeString (&(THIS->DnsTool->sHostName));
-	THIS->DnsTool->sHostName = GB.NewString(sHost,lenhost);
-	THIS->DnsTool->finished_callback=CSocket_CallBackFromDns;
+	dns_set_async_mode(1,THIS->dns_client);
+	GB.FreeString (&(THIS->dns_client->sHostName));
+	THIS->dns_client->sHostName = GB.NewString(sHost,lenhost);
+	THIS->dns_client->finished_callback=CSocket_CallBackFromDns;
 	
 	/********************************************
 	We start DNS lookup, when it is finished
@@ -594,17 +606,17 @@ int CSocket_connect_socket(void *_object,char *sHost,int lenhost,int myport)
 	and we'll continue there connection proccess
 	********************************************/
 	set_status(THIS, NET_SEARCHING); /* looking for IP */
-	dns_thread_getip(THIS->DnsTool);
+	dns_thread_getip(THIS->dns_client);
 	SOCKET->stream.desc=&SocketStream;
-	THIS->iUsePort=THIS->iPort;
+	THIS->use_port = THIS->port;
 
 	// $BM
-	if (THIS->Path) GB.FreeString(&THIS->Path);
+	if (THIS->path) GB.FreeString(&THIS->path);
 
-	if (sHost != THIS->Host)
+	if (sHost != THIS->host)
 	{
-		if (THIS->Host) GB.FreeString(&THIS->Host);
-		THIS->Host = GB.NewZeroString(sHost);
+		if (THIS->host) GB.FreeString(&THIS->host);
+		THIS->host = GB.NewZeroString(sHost);
 	}
 
 	return 0;
@@ -683,7 +695,7 @@ BEGIN_PROPERTY(Socket_Port)
 
 	if (READ_PROPERTY)
 	{
-		GB.ReturnInteger(THIS->iUsePort);
+		GB.ReturnInteger(THIS->use_port);
 		return;
 	}
 
@@ -701,7 +713,7 @@ BEGIN_PROPERTY(Socket_Port)
 		return;
 	}
 	
-	THIS->iUsePort = port;
+	THIS->use_port = port;
 
 END_PROPERTY
 
@@ -713,18 +725,18 @@ END_PROPERTY
 BEGIN_PROPERTY (Socket_Host)
 
 	if (READ_PROPERTY)
-		GB.ReturnNewZeroString(THIS->Host);
+		GB.ReturnNewZeroString(THIS->host);
 	else
-		GB.StoreString(PROP(GB_STRING), &THIS->Host);
+		GB.StoreString(PROP(GB_STRING), &THIS->host);
 
 END_PROPERTY
 
 BEGIN_PROPERTY (Socket_Path)
 
 	if (READ_PROPERTY)
-		GB.ReturnNewZeroString(THIS->Path);
+		GB.ReturnNewZeroString(THIS->path);
 	else
-		GB.StoreString(PROP(GB_STRING), &THIS->Path);
+		GB.StoreString(PROP(GB_STRING), &THIS->path);
 
 END_PROPERTY
 
@@ -736,7 +748,7 @@ BEGIN_PROPERTY(Socket_RemotePort)
 	if (SOCKET->status != NET_CONNECTED || THIS->conn_type != NET_TYPE_INTERNET)
 		GB.ReturnInteger(0);
 	else
-		GB.ReturnInteger(THIS->iPort);
+		GB.ReturnInteger(THIS->port);
 
 END_PROPERTY
 
@@ -748,7 +760,7 @@ BEGIN_PROPERTY(Socket_LocalPort)
 	if (SOCKET->status != NET_CONNECTED || THIS->conn_type != NET_TYPE_INTERNET)
 		GB.ReturnInteger(0);
 	else
-		GB.ReturnInteger(THIS->iLocalPort);
+		GB.ReturnInteger(THIS->local_port);
 
 END_PROPERTY
 
@@ -760,7 +772,7 @@ BEGIN_PROPERTY(Socket_RemoteHost)
 	if (SOCKET->status != NET_CONNECTED || THIS->conn_type != NET_TYPE_INTERNET)
 		GB.ReturnVoidString();
 	else
-		GB.ReturnString(THIS->sRemoteHostIP);
+		GB.ReturnString(THIS->remote_host_ip);
 
 END_PROPERTY
 
@@ -772,7 +784,7 @@ BEGIN_PROPERTY(Socket_LocalHost)
 	if (SOCKET->status != NET_CONNECTED || THIS->conn_type != NET_TYPE_INTERNET)
 		GB.ReturnVoidString();
 	else
-		GB.ReturnString(THIS->sLocalHostIP);
+		GB.ReturnString(THIS->local_host_ip);
 
 END_PROPERTY
 
@@ -782,7 +794,7 @@ Gambas object "Constructor"
 BEGIN_METHOD_VOID(Socket_new)
 
 	SOCKET->stream.tag = THIS;
-	THIS->iUsePort = 80;
+	THIS->use_port = 80;
 	SOCKET->socket = -1;
 
 END_METHOD
@@ -794,11 +806,11 @@ BEGIN_METHOD_VOID(Socket_free)
 
 	CSocket_close(THIS);
 	
-	GB.FreeString(&THIS->sPath);
-	GB.FreeString(&THIS->sLocalHostIP);
-	GB.FreeString(&THIS->sRemoteHostIP);
-	GB.FreeString(&THIS->Host);
-	GB.FreeString(&THIS->Path);
+	//GB.FreeString(&THIS->sPath);
+	GB.FreeString(&THIS->local_host_ip);
+	GB.FreeString(&THIS->remote_host_ip);
+	GB.FreeString(&THIS->host);
+	GB.FreeString(&THIS->path);
 
 END_METHOD
 
@@ -846,19 +858,19 @@ BEGIN_METHOD(Socket_Connect, GB_STRING HostOrPath; GB_INTEGER Port)
 	int port;
 	int err;
 
-	port = VARGOPT(Port, THIS->iUsePort);
+	port = VARGOPT(Port, THIS->use_port);
 
 	if (!port)
 	{
 		if (MISSING(HostOrPath))
-			err = CSocket_connect_unix(_object,THIS->Path,GB.StringLength(THIS->Path));
+			err = CSocket_connect_unix(_object,THIS->path,GB.StringLength(THIS->path));
 		else
 			err = CSocket_connect_unix(_object,STRING(HostOrPath),LENGTH(HostOrPath));
 	}
 	else
 	{
 		if (MISSING(HostOrPath))
-			err = CSocket_connect_socket(_object,THIS->Host,GB.StringLength(THIS->Host),port);
+			err = CSocket_connect_socket(_object,THIS->host,GB.StringLength(THIS->host),port);
 		else
 			err = CSocket_connect_socket(_object,STRING(HostOrPath),LENGTH(HostOrPath),port);
 	}

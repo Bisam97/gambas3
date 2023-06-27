@@ -1,0 +1,335 @@
+' Gambas module file
+
+''' This module extends the Assert instruction, which checks
+''' that Expression is TRUE, and if the Expression is FALSE,
+''' an uncatchable "Assertion failed" error is raised, the
+''' PRINT or ERROR instruction is executed, and the program stops immediately.
+
+Export
+
+Public _IntendedFailure As Boolean
+
+Private $aIgnore As String[] = ["Assert", "Test", "TestCase", "TestSuite", "TapPrinter"]
+
+'' Assert that Result = True
+Public Sub Ok(Result As Boolean, Optional Description As String) As Boolean
+
+    Dim bRes As Boolean
+    Dim bt As String[]
+    Dim sStack As String
+    Dim iPos As Integer
+
+    If Test._InSetup = True Then
+        Test.BailOut(("Failure: Assertion forbidden inside _Setup or _Teardown."))
+    Endif
+
+    If _IntendedFailure Then Result = Not Result
+    _IntendedFailure = False
+
+    bt = System.Backtrace
+    
+    ' While bt[0] Begins "Assert." Or bt[0] Begins "Test." Or bt[0] Begins "TestCase." Or bt[0] Begins "TestSuite." Or bt[0] Begins "TapPrinter."
+    '     bt.Remove(0)
+    '     If bt.Count = 0 Then
+    '         Goto DAWAI
+    '     Endif
+    ' Wend
+
+    While bt.Count
+        sStack = bt[0]
+        If sStack Like "[[]*].*" Then sStack = Mid$(sStack, InStr(sStack, "]") + 2)
+        iPos = InStr(sStack, ".")
+        If iPos Then sStack = Left(sStack, iPos - 1)
+        If Not $aIgnore.Exist(sStack) Then Break
+        bt.Remove(0)
+    Wend
+    
+DAWAI:
+    If bt.Count > 0 Then
+        Test._Next.Line = bt[0]
+    Endif
+
+    Test._Next.Ok = Result
+    Test._Next.Description = Description
+    bRes = Test._Printer.Assert(Test._Next).Ok
+    Test._Next = New TestAssertion
+    Return bRes
+
+End
+
+' -------------------- High-level test functions --------------------
+'' Assert that a test is passed. Reports Ok
+Public Sub Pass(Optional Description As String) As Boolean
+
+    Return Ok(True, Description)
+
+End
+
+'' Assert fail. Reports not ok.
+Public Sub Fail(Optional Description As String) As Boolean
+
+    Return Ok(False, Description)
+
+End
+
+'' Assert that Result = False.
+Public Sub NotOk(Result As Boolean, Optional Description As String) As Boolean
+
+    Return Ok(Not Result, Description)
+
+End
+
+'' Assert that Got = Expected
+Public Sub Equals(Got As Variant, Expected As Variant, Optional Description As String) As Boolean
+
+    Dim bRes As Boolean
+
+    bRes = Ok(Got = Expected, Description)
+    If Not bRes Then
+        NoteGotAndExpected(Got, Expected)
+    Endif
+    Return bRes
+
+End
+
+'' Assert that Got <> Expected
+Public Sub Notequals(Got As Variant, UnExpected As Variant, Optional Description As String) As Boolean
+
+    Return Ok(Got <> UnExpected, Description)
+
+End
+
+'' Assert that Got <= Bound
+Public Sub LessEqual(Got As Variant, Bound As Variant, Optional Description As String) As Boolean
+
+    Dim bRes As Boolean
+
+    bRes = Ok(Got <= Bound, Description)
+    If Not bRes Then
+        NoteGotAndExpected(Got, Bound)
+    Endif
+    Return bRes
+
+End
+
+'' Assert that Got < Bound
+Public Sub Less(Got As Variant, Bound As Variant, Optional Description As String) As Boolean
+
+    Dim bRes As Boolean
+
+    bRes = Ok(Got < Bound, Description)
+    If Not bRes Then
+        NoteGotAndExpected(Got, Bound)
+    Endif
+    Return bRes
+
+End
+
+'' Assert that Got >= Bound
+Public Sub GreaterEqual(Got As Variant, Bound As Variant, Optional Description As String) As Boolean
+
+    Dim bRes As Boolean
+
+    bRes = Ok(Got >= Bound, Description)
+    If Not bRes Then
+        NoteGotAndExpected(Got, Bound)
+    Endif
+    Return bRes
+
+End
+
+'' Assert that Got > Bound
+Public Sub Greater(Got As Variant, Bound As Variant, Optional Description As String) As Boolean
+
+    Dim bRes As Boolean
+
+    bRes = Ok(Got > Bound, Description)
+    If Not bRes Then
+        NoteGotAndExpected(Got, Bound)
+    Endif
+    Return bRes
+
+End
+
+'' Asserts that _Got_ has an [absolute error](https://en.wikipedia.org/wiki/Approximation_error) to _Expected_ of at most _Precision_.
+Public Sub Approximate(Got As Float, Expected As Float, Precision As Float, Optional Description As String) As Boolean
+
+    Dim bRes As Boolean
+    Dim fAbsError As Float
+
+    fAbsError = Abs(Got - Expected)
+    bRes = Ok(fAbsError <= Precision, Description)
+    If Not bRes Then
+        Test.Note(Null)
+        Test.Note(Subst$(("------------- Expected -------------" & gb.lf & "AbsError(&1, &2) <= &3"), Got, Expected, Precision))
+        Test.Note(Null)
+        Test.Note(Subst$(("---------------- Got ---------------" & gb.lf & "Got = &1" & gb.lf & "Expected = &2" & gb.lf & "|Got - Expected| = &3"), Got, Expected, fAbsError))
+        Test.Note("------------------------------------")
+        Test.Note(Null)
+    Endif
+    Return bRes
+
+End
+
+'' Asserts that _Got_ has a [relative error](https://en.wikipedia.org/wiki/Approximation_error) to _Expected_ of at most _RelPrecision_.
+'' _Expected_ may not be zero, unless _Got_ is also zero in which case the test succeeds.
+Public Sub RelativeApproximate(Got As Float, Expected As Float, RelPrecision As Float, Optional Description As String) As Boolean
+
+    Dim bRes As Boolean
+    Dim fRelError As Float
+
+    If Abs(Expected) = 0.0 Then
+        bRes = Ok(Abs(Got) = 0.0, Description)
+        Test.Note(("Expected value in RelativeApproximate is 0.0. Comparing value with 0.0 exactly..."))
+        Return bRes
+    Endif
+
+    fRelError = Abs((Got - Expected) / Expected)
+    bRes = Ok(fRelError <= RelPrecision)
+    If Not bRes Then
+        Test.Note(Null)
+        Test.Note(Subst$(("------------- Expected -------------" & gb.lf & "RelError(&1, &2) <= &3"), Got, Expected, RelPrecision))
+        Test.Note(Null)
+        Test.Note(Subst$(("---------------- Got ---------------" & gb.lf & "Got = &1" & gb.lf & "Expected = &2" & gb.lf & "|Got - Expected|/|Expected| = &3"), Got, Expected, fRelError))
+        Test.Note("------------------------------------")
+        Test.Note(Null)
+    Endif
+    Return bRes
+
+End
+
+'' Assert that Got is of the type Type
+Public Sub IsType(Got As Variant, Type As Integer, Optional Description As String) As Boolean
+
+    Return Equals(TypeOf(Got), Type, Description)
+
+End
+
+'' Assert that Got = Null
+Public Sub Null(Got As Variant, Optional Description As String) As Boolean
+
+    Return Equals(Got, Null, Description)
+
+End
+
+'' Assert that Got <> Null
+Public Sub NotNull(Got As Variant, Optional Description As String) As Boolean
+
+    Return Notequals(Got, Null, Description)
+
+End
+
+'' Assert that Got Like Pattern. See also the Like string operator.
+Public Sub Like(Got As String, Pattern As String, Optional Description As String) As Boolean
+
+    Dim bRes As Boolean
+
+    bRes = Ok(Got Like Pattern, Description)
+    If Not bRes Then
+        NoteGotAndExpected(Got, Pattern)
+    Endif
+    Return bRes
+
+End
+
+'' Assert that Got Match Pattern. See also the Match string operator.
+Public Sub Match(Got As String, Pattern As String, Optional Description As String) As Boolean
+
+    Dim bRes As Boolean
+
+    bRes = Ok(Got Match Pattern, Description)
+    If Not bRes Then
+        NoteGotAndExpected(Got, Pattern)
+    Endif
+    Return bRes
+
+End
+
+'' Assert that Got = Expected. On failure reports hints about the difference.
+Public Sub StringEquals(Got As String, Expected As String, Optional Description As String) As Boolean
+
+    Dim bRes As Boolean
+    Dim iPos As Integer
+
+    bRes = Equals(Got, Expected, Description)
+    If Not bRes Then
+        If Len(Got) <> Len(Expected) Then
+            Test.Note(Subst$(("Strings are of different lengths &1 and &2, respectively."), Len(Got), Len(Expected)))
+        Endif
+        For iPos = 1 To Min(Len(Got), Len(Expected))
+            If Mid$(Got, iPos, 1) <> Mid$(Expected, iPos, 1) Then Break
+        Next
+        Test.Note(Subst$(("Strings differ at position &1."), iPos))
+    Endif
+    Return bRes
+
+End
+
+'' Assert that an error happened. Reports not ok if no error happened.
+''
+'' Example:
+'' Try 2/0
+'' Assert.Error("division by zero")
+Public Sub Error(Optional Description As String) As Boolean
+
+    Return Ok(Error, Description)
+
+End
+
+'' Assert that an error happened with error code. Reports not ok
+'' if no error happend or if the error code is wrong.
+''
+'' Example:
+'' Try Print 2 / 0
+'' Assert.ErrorCode(26, "division by zero with code 26")
+Public Sub ErrorCode(Code As Integer, Optional Description As String) As Boolean
+
+    Dim bRes As Boolean
+
+    If Not Error Then
+        bRes = Fail(Description)
+        Test.Note(("No error happened"))
+    Else
+        bRes = Equals(Error.Code, Code, Description)
+        If Not bRes Then
+            Test.Note(Subst$(("Error was: &1 (code: &2) at &3"), Error.Text, Error.Code, Error.Where))
+        Endif
+    Endif
+
+    Error.Clear()
+    Return bRes
+
+End
+
+'' Assert that no error happened.
+''
+''Example:
+''
+''Try Print 2 / 2
+''Assert.Noterror("Division ok")
+Public Sub Noterror(Optional Description As String) As Boolean
+
+    Dim bRes As Boolean
+
+    bRes = Ok(Not Error, Description)
+    If Not bRes Then
+        Test.Note(Subst$(("Error was: &1 (code: &2) at &3"), Error.Text, Error.Code, Error.Where))
+    Endif
+
+    Error.Clear()
+    Return bRes
+
+End
+
+' ------------------------------------------------- Helper functions
+
+Private Sub NoteGotAndExpected(Got As String, Expected As String)
+
+    Test.Note(Null)
+    Test.Note(Subst$(("------------- Expected -------------" & gb.lf & "&1"), Expected))
+    Test.Note(Null)
+    Test.Note(Subst$(("---------------- Got ---------------" & gb.lf & "&1"), Got))
+    Test.Note("------------------------------------")
+    Test.Note(Null)
+
+End

@@ -2,7 +2,7 @@
 
   gbx_exec_push.c
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -192,7 +192,13 @@ _PUSH_GENERIC:
 			}
 			else
 			{
-				if (defined) *PC |= 2;
+				if (defined)
+				{
+					if (!CP->not_3_18 && TYPE_is_pure_object(val->type) && !VALUE_is_super(val) && class->is_simple)
+						*PC = C_PUSH_VARIABLE;
+					else
+						*PC |= 2;
+				}
 			}
 
 			if (defined)
@@ -218,7 +224,8 @@ _PUSH_GENERIC:
 			if (object)
 				THROW(E_STATIC, CLASS_get_name(class), name);
 
-			if (defined) *PC |= 3;
+			if (defined)
+				*PC |= 3;
 
 			if (defined)
 				PC[1] = index;
@@ -306,6 +313,11 @@ _PUSH_GENERIC:
 				PC[1] = index;
 
 			goto _PUSH_EXTERN_2;
+
+    case CD_PROPERTY_WRITE:
+    case CD_STATIC_PROPERTY_WRITE:
+
+      THROW(E_NREAD, CLASS_get_name(class), name);
 
 		default:
 
@@ -396,7 +408,7 @@ _PUSH_STRUCT_FIELD_2:
 _READ_VARIABLE:
 
 	VALUE_class_read(desc->variable.class, &SP[-1], (void *)addr, desc->variable.ctype, ref);
-	goto _FIN_DEFINED;
+	goto _FIN_DEFINED_NO_BORROW;
 
 
 _PUSH_PROPERTY_AUTO:
@@ -541,171 +553,6 @@ _FIN:
 
 	PC++;
 }
-
-#if 0
-void EXEC_push_array(ushort code)
-{
-	static const void *jump[] = { &&__PUSH_GENERIC, &&__PUSH_QUICK_ARRAY, &&__PUSH_QUICK_COLLECTION, &&__PUSH_ARRAY };
-
-	CLASS *class;
-	OBJECT *object;
-	GET_NPARAM(np);
-	//int dim[MAX_ARRAY_DIM];
-	int i;
-	void *data;
-	bool defined;
-	VALUE *val;
-	int fast;
-	//ARRAY_DESC *desc;
-
-	val = &SP[-np];
-	np--;
-
-	goto *jump[((unsigned char)code) >> 6];
-
-__PUSH_GENERIC:
-
-	defined = EXEC_object(val, &class, &object);
-
-	fast = 3;
-
-	if (defined)
-	{
-		if (class->quick_array == CQA_ARRAY)
-			fast = 1;
-		else if (class->quick_array == CQA_COLLECTION)
-			fast = 2;
-		else
-		{
-			// Check the symbol existance, but *not virtually*
-			if (object && !VALUE_is_super(val))
-			{
-				CLASS *nvclass = val->_object.class;
-
-				if (nvclass->special[SPEC_GET] == NO_SYMBOL)
-					THROW(E_NARRAY, CLASS_get_name(nvclass));
-			}
-		}
-	}
-
-	*PC |= fast << 6;
-
-	goto __PUSH_ARRAY_2;
-
-/*__PUSH_STATIC_ARRAY:
-
-	for (i = 1; i <= np; i++)
-	{
-		VALUE_conv_integer(&val[i];
-		dim[i - 1] = val[i]._integer.value;
-	}
-
-	SP = val;
-
-	desc = (ARRAY_DESC *)SP->_array.class->load->array[SP->_array.index];
-	data = ARRAY_get_address(desc, SP->_array.addr, np, dim);
-
-	VALUE_read(SP, data, CLASS_ctype_to_type(SP->_array.class, desc->type));
-
-	PUSH();
-	return;*/
-
-__PUSH_QUICK_ARRAY:
-
-	// Optimization test
-
-	//EXEC_object_fast(val, &class, &object);
-	EXEC_object_array(val, class, object);
-
-	VALUE_conv_integer(&val[1]);
-
-	if (np == 1)
-	{
-		data = CARRAY_get_data((CARRAY *)object, val[1]._integer.value);
-	}
-	else
-	{
-		for (i = 2; i <= np; i++)
-			VALUE_conv_integer(&val[i]);
-
-		data = CARRAY_get_data_multi((CARRAY *)object, (GB_INTEGER *)&val[1], np);
-	}
-
-	if (!data)
-		PROPAGATE();
-
-	//VALUE_read(val, data, ((CARRAY *)object)->type);
-	if (TYPE_is_object(((CARRAY *)object)->type))
-		fast = T_OBJECT;
-	else
-		fast = ((CARRAY *)object)->type;
-
-	VALUE_read_inline_type(val, data, fast);
-
-	goto __PUSH_QUICK_END;
-
-__PUSH_QUICK_COLLECTION:
-
-	EXEC_object_fast(val, &class, &object);
-
-	VALUE_conv_string(&val[1]);
-	//fprintf(stderr, "GB_CollectionGet: %p '%.*s'\n", val[1]._string.addr, val[1]._string.len, val[1]._string.addr + val[1]._string.start);
-	GB_CollectionGet((GB_COLLECTION)object, val[1]._string.addr + val[1]._string.start, val[1]._string.len, (GB_VARIANT *)val);
-
-	RELEASE_STRING(&val[1]);
-
-__PUSH_QUICK_END:
-
-	SP = val;
-	PUSH();
-	OBJECT_UNREF(object);
-	return;
-
-__PUSH_ARRAY:
-
-	defined = EXEC_object(val, &class, &object);
-
-__PUSH_ARRAY_2:
-
-	if (EXEC_special(SPEC_GET, class, object, np, FALSE))
-		THROW(E_NARRAY, CLASS_get_name(class));
-
-	OBJECT_UNREF(object);
-	SP--;
-	//SP[-1] = SP[0];
-	VALUE_copy(&SP[-1], &SP[0]);
-
-	if (!defined)
-		VALUE_conv_variant(&SP[-1]);
-}
-#endif
-
-#if 0
-// JIT needs it
-void EXEC_push_array(ushort code)
-{
-	CLASS *class;
-	OBJECT *object;
-	GET_NPARAM(np);
-	bool defined;
-	VALUE *val;
-
-	val = &SP[-np];
-	np--;
-	defined = EXEC_object(val, &class, &object);
-
-	if (EXEC_special(SPEC_GET, class, object, np, FALSE))
-		THROW(E_NARRAY, CLASS_get_name(class));
-
-	OBJECT_UNREF(object);
-	SP--;
-	//SP[-1] = SP[0];
-	VALUE_copy(&SP[-1], &SP[0]);
-
-	if (!defined)
-		VALUE_conv_variant(&SP[-1]);
-}
-#endif
 
 int EXEC_push_unknown_event(bool unknown)
 {

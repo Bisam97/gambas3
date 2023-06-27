@@ -170,24 +170,34 @@ End
 Private Sub Border_Write(Value As Boolean)
   
   $bBorder = Value
-  $hBackground.Padding = If(Value, Style.TextBoxFrameWidth, 0)
+  $hBackground.Padding = If(Value, Style.FrameWidth, 0)
   Me.Refresh
   
 End
 
 Public Sub Background_Draw()
   
-  Dim iBg As Integer = Color.TextBackground
+  Dim iCol As Integer
+  Dim iState As Integer
   
-  If Me.Background <> Color.Default Then iBg = Me.Background
+  iCol = Style.BackgroundOf($hTextBox)
   
-  If $bBorder Then 
-    Style.PaintBox(0, 0, Me.W, Me.H, Style.StateOf($hTextBox), iBg)
+  If $bBorder Then  
+    
+    iState = Style.StateOf($hBackground)
+    If $hTextBox.HasFocus Then iState = iState Or Style.HasFocus
+    If $hBackground.Hovered Then iState = iState Or Style.Hovered
+    Style.PaintBox(0, 0, Paint.W, Paint.H, iState, iCol)
+    
   Else
-    Paint.FillRect(0, 0, Me.W, Me.H, iBg)
+    
+    Paint.FillRect(0, 0, Paint.W, Paint.H, iCol)
+
   Endif
   
 End
+
+
 
 Private Function Editor_Read() As MaskBox
   

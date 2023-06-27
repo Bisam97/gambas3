@@ -8,6 +8,13 @@ Static Public Const STRING_DELIM As String = "\"'"
 
 Static Private $aDoNotClose As String[] = ["area", "base", "br", "col", "command", "embed", "hr", "img", "input", "keygen", "link", "meta", "param", "source", "track", "wbr"]
 
+Public Sub IsWordChar(sCar As String) As Boolean
+  
+  If sCar = "-" Or If sCar = "_" Then Return True
+  Return Super.IsWordChar(sCar)
+  
+End
+
 Private Sub InsertClosingMarkup(hEditor As TextEditor)
 
   Dim sLine As String

@@ -63,95 +63,18 @@ BEGIN_PROPERTY(Dialog_Filter)
 			for (i = 0; i < (GB.Array.Count(dialog_filter) - 1); i += 2)
 			{
 				filter = *((char **)GB.Array.Get(dialog_filter, i));
-				if (filter && !strcmp(filter, "*"))
-					continue;
 				*((char **)GB.Add(&filters)) = filter;
 				filter = *((char **)GB.Array.Get(dialog_filter, i + 1));
 				*((char **)GB.Add(&filters)) = filter;
 			}
 		}
     
-    *((char **)GB.Add(&filters)) = (char *)"*";
-    *((char **)GB.Add(&filters)) = GB.Translate("All Files");
-      
     gDialog::setFilter(filters, GB.Count(filters));
     GB.FreeArray(&filters);
   }
 
 END_PROPERTY
 
-#if 0
-BEGIN_PROPERTY(Dialog_Filter)
-
-	GB_ARRAY Array=NULL;
-	char **buf=NULL;
-	char *ctmp;
-	long count=0;
-	long bucle;
-	long tmp=0;
-	
-	if (READ_PROPERTY)
-	{
-		buf=gDialog::filter(&count);
-		if (buf)
-		{
-			GB.Array.New(&Array,GB_T_STRING,count);
-			for (bucle=0;bucle<count;bucle++)
-			{
-				ctmp=NULL;
-				GB.NewString(&ctmp,buf[bucle],strlen(buf[bucle]));
-				*((char **)GB.Array.Get(Array,bucle)) = ctmp;
-			}
-			GB.ReturnObject(Array);
-		}
-		return;
-	}
-	
-	if (!VPROP(GB_OBJECT))
-	{
-		gDialog::setFilter(NULL,0);
-		return;
-	}
-	
-	GB.StoreObject(PROP(GB_OBJECT),(void**)&Array);
-	count=GB.Array.Count(Array);
-	for (bucle=0;bucle<count;bucle++)
-	{
-		ctmp=*((char **)GB.Array.Get(Array,bucle));
-		if (ctmp)
-			if (strlen(ctmp))
-				tmp++;
-	}
-	
-	if (tmp)
-	{
-		GB.Alloc((void**)&buf,sizeof(char*)*tmp);
-		tmp=0;
-		for (bucle=0;bucle<count;bucle++)
-		{
-			ctmp=*((char **)GB.Array.Get(Array,bucle));
-			if (ctmp)
-				if (strlen(ctmp))
-				{
-					GB.Alloc((void**)&buf[tmp],sizeof(char)*( strlen(ctmp)+1 ));
-					strcpy(buf[tmp],ctmp);
-					tmp++;
-				}
-		}
-		
-	}
-
-	gDialog::setFilter(buf,tmp);
-	
-	if (buf)
-	{
-		for (bucle=0;bucle<tmp;bucle++) GB.Free((void**)&buf[bucle]);
-		GB.Free((void**)&buf);
-	}
-	
-
-END_PROPERTY
-#endif
 
 BEGIN_PROPERTY(Dialog_Paths)
 
@@ -267,6 +190,16 @@ BEGIN_METHOD_VOID(Dialog_SelectFont)
 END_METHOD
 
 
+BEGIN_PROPERTY(Dialog_FilterIndex)
+
+	if (READ_PROPERTY)
+		GB.ReturnInteger(gDialog::filterIndex());
+	else
+		gDialog::setFilterIndex(VPROP(GB_INTEGER));
+
+END_PROPERTY
+
+
 GB_DESC CDialogDesc[] =
 {
   GB_DECLARE("Dialog", 0), GB_VIRTUAL_CLASS(),
@@ -284,6 +217,7 @@ GB_DESC CDialogDesc[] =
   GB_STATIC_PROPERTY("Title", "s", Dialog_Title),
   GB_STATIC_PROPERTY("Path", "s", Dialog_Path),
   GB_STATIC_PROPERTY("Filter", "String[]", Dialog_Filter),
+	GB_STATIC_PROPERTY("FilterIndex", "i", Dialog_FilterIndex),
   GB_STATIC_PROPERTY("Color", "i", Dialog_Color),
   GB_STATIC_PROPERTY("Font", "Font", Dialog_Font),
   GB_STATIC_PROPERTY("ShowHidden", "b", Dialog_ShowHidden),

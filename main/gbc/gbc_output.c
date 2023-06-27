@@ -2,7 +2,7 @@
 
   gbc_output.c
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -46,10 +46,10 @@
 #include "gbc_output.h"
 
 
-/*#define DEBUG*/
-/*#define DEBUG_MORE*/
+//#define DEBUG
+//#define DEBUG_MORE
 
-static CLASS *Class;
+static CLASS *_class;
 
 static int StringAddr;
 static TABLE *StringTable;
@@ -62,11 +62,28 @@ static bool _swap;
 static FILE *_file;
 
 static int _pos;
-static char _buffer[OUTPUT_BUFFER_SIZE + 8];
+static char _buffer[OUTPUT_BUFFER_SIZE + 16];
 static const char * const _mbuffer = &_buffer[OUTPUT_BUFFER_SIZE];
 static char *_pbuffer;
 
 static OUTPUT_CHANGE *_change = NULL;
+
+static char *_const_buffer = NULL;
+
+static const char *get_symbol_name(TABLE *table, int index, int *len)
+{
+	if (index < 0 || index >= ARRAY_count(table->symbol))
+	{
+		*len = 1;
+		return "?";
+	}
+	else
+	{
+		SYMBOL *sym = TABLE_get_symbol(table, index);
+		*len = sym->len;
+		return sym->name;
+	}
+}
 
 static void output_init(void)
 {
@@ -76,6 +93,7 @@ static void output_init(void)
 	_pos = 0;
 	_pbuffer = _buffer;
 	ARRAY_create(&_change);
+	BUFFER_create(&_const_buffer);
 }
 
 
@@ -83,6 +101,7 @@ static void output_exit(void)
 {
 	TABLE_delete(&StringTable);
 	ARRAY_delete(&_change);
+	BUFFER_delete(&_const_buffer);
 }
 
 
@@ -147,7 +166,7 @@ static void write_byte(unsigned char val)
 static void write_short(ushort val)
 {
 	#ifdef DEBUG_MORE
-	printf("%ld : i %u 0x%X\n", get_pos(), val, val);
+	printf("%ld : h %u 0x%X\n", get_pos(), val, val);
 	#endif
 
 	if (_swap)
@@ -165,7 +184,7 @@ static void write_short(ushort val)
 static void write_int(uint val)
 {
 	#ifdef DEBUG_MORE
-	printf("%ld : l %lu 0x%lX\n", get_pos(), val, val);
+	printf("%ld : i %lu 0x%lX\n", get_pos(), val, val);
 	#endif
 
 	if (_swap)
@@ -330,7 +349,7 @@ static void output_header(void)
 	/* magic */
 	write_int(OUTPUT_MAGIC);
 	/* version */
-	write_int(COMPILE_version);
+	write_int(COMP_version);
 	/* endianness */
 	write_int(OUTPUT_ENDIAN);
 	/* flag */
@@ -346,28 +365,30 @@ static void output_header(void)
 static void output_class(void)
 {
 	short flag;
-	begin_section("Class", 1);
+	begin_section("_class", 1);
 
 	// Parent class
-	write_short(Class->parent);
+	write_short(_class->parent);
 	
 	// Class flags
 	flag = 0;
-	if (Class->exported) flag |= 1;
-	if (Class->autocreate) flag |= 2;
-	if (Class->optional) flag |= 4;
-	if (Class->nocreate) flag |= 8;
-	if (Class->has_fast) flag |= 16;
+	if (_class->exported) flag |= 1;
+	if (_class->autocreate) flag |= 2;
+	if (_class->optional) flag |= 4;
+	if (_class->nocreate) flag |= 8;
+	if (_class->has_fast) flag |= 16;
+	if (JOB->is_test) flag |= 32;
+
 	write_short(flag);
 	
 	// Static size
-	write_int(Class->size_stat);
+	write_int(_class->size_stat);
 	
 	// Dynamic size
-	write_int(Class->size_dyn);
+	write_int(_class->size_dyn);
 	
 	// Number of structures
-	write_short(ARRAY_count(Class->structure));
+	write_short(ARRAY_count(_class->structure));
 	
 	// reserved
 	write_short(0);
@@ -383,14 +404,14 @@ static void output_desc(void)
 	TYPE type;
 	short out_type;
 
-	n = TABLE_count(Class->table);
+	n = TABLE_count(_class->table);
 
 	begin_section("Description", 6 * sizeof(int));
 
 	for (i = 0; i < n; i++)
 	{
-		csym = (CLASS_SYMBOL *)TABLE_get_symbol_sort(Class->table, i);
-		//csym = (CLASS_SYMBOL *)TABLE_get_symbol(Class->table, csym->symbol.sort);
+		csym = (CLASS_SYMBOL *)TABLE_get_symbol_sort(_class->table, i);
+		//csym = (CLASS_SYMBOL *)TABLE_get_symbol(_class->table, csym->symbol.sort);
 
 		type = csym->global.type;
 
@@ -423,9 +444,9 @@ static void output_desc(void)
 				case TK_PROPERTY:
 
 					/* read */
-					write_int(Class->prop[csym->global.value].read);
+					write_int(_class->prop[csym->global.value].read);
 					/* write */
-					write_int(Class->prop[csym->global.value].write);
+					write_int(_class->prop[csym->global.value].write);
 					/* flag */
 					write_int(0);
 
@@ -506,7 +527,6 @@ static void output_desc(void)
 }
 
 
-
 static void output_constant(void)
 {
 	int i, n;
@@ -514,13 +534,13 @@ static void output_constant(void)
 	SYMBOL *sym;
 	//TABLE *table;
 
-	n = ARRAY_count(Class->constant);
+	n = ARRAY_count(_class->constant);
 
 	begin_section("Constants", 3 * sizeof(int));
 
 	for (i = 0; i < n; i++)
 	{
-		constant = &Class->constant[i];
+		constant = &_class->constant[i];
 
 		/* type */
 		write_type(constant->type);
@@ -539,10 +559,27 @@ static void output_constant(void)
 				break;
 
 			case T_SINGLE: case T_FLOAT:
-
-				sym = TABLE_get_symbol(Class->table, constant->value);
-				write_int(get_string(sym->name, sym->len));
-				write_int(sym->len);
+				
+				if (constant->is_integer)
+				{
+					char buffer[8];
+					int len;
+					offset_t pos;
+					
+					len = sprintf(buffer, "%d", constant->value);
+					
+					pos = BUFFER_add(&_const_buffer, buffer, len);
+					//fprintf(stderr, "output_constant: integer: %.*s\n", len, buffer);
+					write_int(get_string(&_const_buffer[pos], len));
+					write_int(len);
+				}
+				else
+				{
+					sym = TABLE_get_symbol(_class->table, constant->value);
+					//fprintf(stderr, "output_constant: float: %.*s\n", sym->len, sym->name);
+					write_int(get_string(sym->name, sym->len));
+					write_int(sym->len);
+				}
 				break;
 
 			case T_STRING: case T_CSTRING:
@@ -554,7 +591,7 @@ static void output_constant(void)
 				}
 				else
 				{
-					sym = TABLE_get_symbol(Class->string, constant->value);
+					sym = TABLE_get_symbol(_class->string, constant->value);
 					write_int(get_string(sym->name, sym->len));
 					write_int(sym->len);
 				}
@@ -572,14 +609,14 @@ static void output_class_ref(void)
 	SYMBOL *sym;
 	CLASS_REF *ref;
 
-	n = ARRAY_count(Class->class);
+	n = ARRAY_count(_class->class);
 
 	begin_section("External classes", sizeof(int));
 
 	for (i = 0; i < n; i++)
 	{
-		ref = &Class->class[i];
-		sym = TABLE_get_symbol(Class->table, ref->index);
+		ref = &_class->class[i];
+		sym = TABLE_get_symbol(_class->table, ref->index);
 		if (ref->used)
 		{
 			if (ref->exported)
@@ -589,7 +626,7 @@ static void output_class_ref(void)
 		}
 		else
 		{
-			if (JOB->verbose)
+			if (COMP_verbose)
 				printf("Ignoring class %.*s\n", sym->len, sym->name);
 			write_int(-1);
 		}
@@ -604,13 +641,13 @@ static void output_unknown_ref(void)
 	int i, n;
 	SYMBOL *sym;
 
-	n = ARRAY_count(Class->unknown);
+	n = ARRAY_count(_class->unknown);
 
 	begin_section("External symbols", sizeof(int));
 
 	for (i = 0; i < n; i++)
 	{
-		sym = TABLE_get_symbol(Class->table, Class->unknown[i]);
+		sym = TABLE_get_symbol(_class->table, _class->unknown[i]);
 		write_int(get_string(sym->name, sym->len));
 	}
 
@@ -623,18 +660,18 @@ static void output_static(void)
 	int i, n;
 	VARIABLE *var;
 
-	n = ARRAY_count(Class->stat);
+	n = ARRAY_count(_class->stat);
 
 	begin_section("Static variables", 2 * sizeof(int));
 
 	for (i = 0; i < n; i++)
 	{
-		var = &Class->stat[i];
+		var = &_class->stat[i];
 
 		/* type */
 		write_type(var->type);
 		/* addr */
-		write_int(var->pos);
+		write_int(0);
 	}
 
 	end_section();
@@ -646,18 +683,18 @@ static void output_dynamic(void)
 	int i, n;
 	VARIABLE *var;
 
-	n = ARRAY_count(Class->dyn);
+	n = ARRAY_count(_class->dyn);
 
 	begin_section("Dynamic variables", 2 * sizeof(int));
 
 	for (i = 0; i < n; i++)
 	{
-		var = &Class->dyn[i];
+		var = &_class->dyn[i];
 
 		/* type */
 		write_type(var->type);
 		/* addr */
-		write_int(var->pos);
+		write_int(0);
 	}
 
 	end_section();
@@ -670,13 +707,13 @@ static void output_event(void)
 	EVENT *event;
 	SYMBOL *sym;
 
-	n = ARRAY_count(Class->event);
+	n = ARRAY_count(_class->event);
 
 	begin_section("Events", 4 * sizeof(int));
 
 	for (i = 0; i < n; i++)
 	{
-		event = &Class->event[i];
+		event = &_class->event[i];
 
 		/* type */
 		write_type(event->type);
@@ -687,7 +724,7 @@ static void output_event(void)
 		/* desc_param */
 		write_int(0);
 		/* name */
-		sym = TABLE_get_symbol(Class->table, event->name);
+		sym = TABLE_get_symbol(_class->table, event->name);
 		write_int(get_string(sym->name, sym->len));
 	}
 
@@ -701,13 +738,13 @@ static void output_extern(void)
 	EXTFUNC *ext;
 	SYMBOL *sym;
 
-	n = ARRAY_count(Class->ext_func);
+	n = ARRAY_count(_class->ext_func);
 
 	begin_section("Extern functions", 5 * sizeof(int));
 
 	for (i = 0; i < n; i++)
 	{
-		ext = &Class->ext_func[i];
+		ext = &_class->ext_func[i];
 
 		/* type */
 		write_type(ext->type);
@@ -720,16 +757,16 @@ static void output_extern(void)
 		/* desc_param */
 		write_int(0);
 		/* name */
-		/*sym = TABLE_get_symbol(Class->table, ext->name);
+		/*sym = TABLE_get_symbol(_class->table, ext->name);
 		write_int(get_string(sym->name, sym->len));*/
 		/* alias name */
 		if (ext->alias == NO_SYMBOL)
-			sym = TABLE_get_symbol(Class->table, ext->name);
+			sym = TABLE_get_symbol(_class->table, ext->name);
 		else
-			sym = TABLE_get_symbol(Class->string, ext->alias);
+			sym = TABLE_get_symbol(_class->string, ext->alias);
 		write_int(get_string(sym->name, sym->len));
 		/* library name */
-		sym = TABLE_get_symbol(Class->string, ext->library);
+		sym = TABLE_get_symbol(_class->string, ext->library);
 		write_int(get_string(sym->name, sym->len));
 	}
 
@@ -744,13 +781,13 @@ static void output_method(void)
 	uchar flag;
 	/*SYMBOL *sym;*/
 
-	n = ARRAY_count(Class->function);
+	n = ARRAY_count(_class->function);
 
 	begin_section("Methods", 8 * sizeof(int));
 
 	for (i = 0; i < n; i++)
 	{
-		func = &Class->function[i];
+		func = &_class->function[i];
 
 		write_type(func->type);
 		write_byte(func->nparam);
@@ -802,33 +839,25 @@ static void output_param_local(void)
 
 	begin_section("Parameters", sizeof(int));
 
-	for (i = 0; i < ARRAY_count(Class->function); i++)
+	for (i = 0; i < ARRAY_count(_class->function); i++)
 	{
-		func = &Class->function[i];
+		func = &_class->function[i];
 
-		if (func->name != NO_SYMBOL)
+		for (j = 0; j < func->nparam; j++)
 		{
-			/* Les param�res sont remis dans les variables locales !
-			for (j = 0; j < func->nparam; j++)
-			{
-				param = &func->param[j];
-				write_int(param->type);
-			}
-			*/
-
-			for (j = 0; j < func->nlocal + func->nparam; j++)
-			{
-				param = &func->local[j];
-
-				/* type */
-				write_type(param->type);
-			}
+			param = &func->param[j];
+			write_type(param->type);
+		}
+		for (j = 0; j < func->nlocal; j++)
+		{
+			param = &func->local[j + func->nparam];
+			write_type(param->type);
 		}
 	}
 
-	for (i = 0; i < ARRAY_count(Class->event); i++)
+	for (i = 0; i < ARRAY_count(_class->event); i++)
 	{
-		event = &Class->event[i];
+		event = &_class->event[i];
 
 		for (j = 0; j < event->nparam; j++)
 		{
@@ -839,9 +868,9 @@ static void output_param_local(void)
 		}
 	}
 
-	for (i = 0; i < ARRAY_count(Class->ext_func); i++)
+	for (i = 0; i < ARRAY_count(_class->ext_func); i++)
 	{
-		ext = &Class->ext_func[i];
+		ext = &_class->ext_func[i];
 
 		for (j = 0; j < ext->nparam; j++)
 		{
@@ -863,18 +892,18 @@ static void output_array(void)
 
 	begin_section("Arrays", sizeof(int));
 
-	p = ARRAY_count(Class->array) * sizeof(int);
+	p = ARRAY_count(_class->array) * sizeof(int);
 
-	for (i = 0; i < ARRAY_count(Class->array); i++)
+	for (i = 0; i < ARRAY_count(_class->array); i++)
 	{
-		array = &Class->array[i];
+		array = &_class->array[i];
 		write_int(p);
 		p += sizeof(int) + array->ndim * sizeof(int);
 	}
 
-	for (i = 0; i < ARRAY_count(Class->array); i++)
+	for (i = 0; i < ARRAY_count(_class->array); i++)
 	{
-		array = &Class->array[i];
+		array = &_class->array[i];
 
 		write_type(array->type);
 
@@ -899,14 +928,14 @@ static void output_structure(void)
 	VARIABLE *field;
 	SYMBOL *sym;
 
-	for (i = 0; i < ARRAY_count(Class->structure); i++)
+	for (i = 0; i < ARRAY_count(_class->structure); i++)
 	{
-		structure = &Class->structure[i];
+		structure = &_class->structure[i];
 		
 		begin_section("Structure", sizeof(int));
 		
 		// Structure name
-		sym = TABLE_get_symbol(Class->table, structure->index);
+		sym = TABLE_get_symbol(_class->table, structure->index);
 		write_int(get_string(sym->name, sym->len));
 		
 		for (j = 0; j < structure->nfield; j++)
@@ -914,7 +943,7 @@ static void output_structure(void)
 			field = &structure->field[j];
 			
 			// Field name
-			sym = TABLE_get_symbol(Class->table, field->index);
+			sym = TABLE_get_symbol(_class->table, field->index);
 			write_int(get_string(sym->name, sym->len));
 			
 			// Field datatype
@@ -931,9 +960,9 @@ static void output_code()
 	int n;
 	FUNCTION *func;
 
-	for (i = 0; i < ARRAY_count(Class->function); i++)
+	for (i = 0; i < ARRAY_count(_class->function); i++)
 	{
-		func = &Class->function[i];
+		func = &_class->function[i];
 
 		n = func->ncode;
 
@@ -958,10 +987,10 @@ static void output_debug_global()
 
 	begin_section("Global symbol table", 4 * sizeof(int));
 
-	for (i = 0; i < TABLE_count(Class->table); i++)
+	for (i = 0; i < TABLE_count(_class->table); i++)
 	{
-		csym = (CLASS_SYMBOL *)TABLE_get_symbol_sort(Class->table, i);
-		//csym = (CLASS_SYMBOL *)TABLE_get_symbol(Class->table, csym->symbol.sort);
+		csym = (CLASS_SYMBOL *)TABLE_get_symbol_sort(_class->table, i);
+		//csym = (CLASS_SYMBOL *)TABLE_get_symbol(_class->table, csym->symbol.sort);
 
 		type = csym->global.type;
 		switch (TYPE_get_kind(type))
@@ -1004,21 +1033,21 @@ static void output_debug_global()
 static void output_debug_method()
 {
 	int i, j, n;
-	SYMBOL *sym;
 	OUTPUT_SYMBOL *osym;
-	CLASS_SYMBOL *csym;
 	PARAM *param;
 	FUNCTION *func;
 	TABLE *table;
 	int index;
+	const char *name;
+	int len;
 
 	begin_section("Debug method info", 5 * sizeof(int));
 
-	for (i = 0; i < ARRAY_count(Class->function); i++)
+	for (i = 0; i < ARRAY_count(_class->function); i++)
 	{
-		func = &Class->function[i];
+		func = &_class->function[i];
 
-		if (func->pos_line != NULL && func->line < FORM_FIRST_LINE)
+		if (func->pos_line != NULL && func->line < FORM_FIRST_LINE && func->name != NO_SYMBOL)
 		{
 			/* line */
 			write_short(func->line);
@@ -1026,8 +1055,8 @@ static void output_debug_method()
 			/* pos_line */
 			write_int(0);
 			/* nom */
-			sym = TABLE_get_symbol(Class->table, func->name);
-			write_int(get_string(sym->name, sym->len));
+			name = get_symbol_name(_class->table, func->name, &len);
+			write_int(get_string(name, len));
 			/* local symbols */
 			write_int(0);
 			/* n_local */
@@ -1037,6 +1066,7 @@ static void output_debug_method()
 		}
 		else
 		{
+			func->no_debug = TRUE;
 			write_short(0);
 			write_short(0);
 			write_int(0);
@@ -1049,44 +1079,55 @@ static void output_debug_method()
 
 	end_section();
 
-	for (i = 0; i < ARRAY_count(Class->function); i++)
+	for (i = 0; i < ARRAY_count(_class->function); i++)
 	{
-		func = &Class->function[i];
-
-		n = func->pos_line ? ARRAY_count(func->pos_line) : 0;
+		func = &_class->function[i];
 
 		begin_section("Debug method lines", sizeof(short));
-
-		if (_swap)
+		
+		if (!func->no_debug)
 		{
-			for (j = 0; j < n; j++)
-				write_short(func->pos_line[j]);
+			n = func->pos_line ? ARRAY_count(func->pos_line) : 0;
+
+			if (_swap)
+			{
+				for (j = 0; j < n; j++)
+					write_short(func->pos_line[j]);
+			}
+			else
+				write_buffer(func->pos_line, n * sizeof(short));
 		}
-		else
-			write_buffer(func->pos_line, n * sizeof(short));
 
 		end_section();
 	}
 
-	for (i = 0; i < ARRAY_count(Class->function); i++)
+	for (i = 0; i < ARRAY_count(_class->function); i++)
 	{
-		func = &Class->function[i];
+		func = &_class->function[i];
 
 		begin_section("Debug method local symbols", sizeof(int) * 3);
 
-		if (func->name != NO_SYMBOL)
+		if (!func->no_debug)
 		{
-			sym = (SYMBOL *)TABLE_get_symbol(Class->table, func->name);
-			/*printf("%.*s()\n", sym->len, sym->name);*/
-
 			TABLE_create(&table, sizeof(OUTPUT_SYMBOL), TF_IGNORE_CASE);
 
-			for (j = 0; j < func->nlocal + func->nparam; j++)
+			//for (j = 0; j < func->nlocal + func->nparam; j++)
+			for (j = 0; j < ARRAY_count(func->local); j++)
 			{
 				param = &func->local[j];
-				csym = (CLASS_SYMBOL *)TABLE_get_symbol(Class->table, param->index);
+				
+				name = get_symbol_name(_class->table, param->index, &len);
+				index = TABLE_add_symbol(table, name, len);
+				osym = (OUTPUT_SYMBOL *)TABLE_get_symbol(table, index);
+				osym->value = param->value;/*TYPE_long(param->type);*/
+			}
 
-				index = TABLE_add_symbol(table, csym->symbol.name, csym->symbol.len);
+			for (j = 0; j < ARRAY_count(func->stat); j++)
+			{
+				param = &func->stat[j];
+				
+				name = get_symbol_name(_class->table, param->index, &len);
+				index = TABLE_add_symbol(table, name, len);
 				osym = (OUTPUT_SYMBOL *)TABLE_get_symbol(table, index);
 				osym->value = param->value;/*TYPE_long(param->type);*/
 			}
@@ -1118,16 +1159,16 @@ static void output_debug_method()
 
 static void output_debug_filename(void)
 {
-	char *path;
-	int n;
-
 	begin_section("Debug file name", 1);
 
+	// file name is ignored, don't put it in the file anymore
+
+	/*
 	path = (char *)FILE_get_name(JOB->name);
 
 	n = strlen(path);
 	write_buffer(path, n);
-	/*write_pad();*/
+	*/
 
 	end_section();
 }
@@ -1247,15 +1288,15 @@ static void output_translation(void)
 		"\"Content-Type: text/plain; charset=UTF-8\\n\"\n"
 		"\"Content-Transfer-Encoding: 8bit\\n\"\n\n");
 
-	n = ARRAY_count(Class->constant);
+	n = ARRAY_count(_class->constant);
 
 	for (i = 0; i < n; i++)
 	{
-		constant = &Class->constant[i];
+		constant = &_class->constant[i];
 		if (TYPE_get_id(constant->type) != T_CSTRING)
 			continue;
 
-		sym = TABLE_get_symbol(Class->string, constant->value);
+		sym = TABLE_get_symbol(_class->string, constant->value);
 		if (sym->len == 0)
 			continue;
 
@@ -1340,7 +1381,7 @@ void OUTPUT_do(bool swap)
 	if (!_file)
 		THROW("Cannot create file: &1", name);
 
-	Class = JOB->class;
+	_class = JOB->class;
 
 	#ifdef DEBUG
 	printf("pos = %lu\n", get_pos());

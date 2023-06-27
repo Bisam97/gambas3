@@ -2,7 +2,7 @@
 
   c_key.c
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -163,6 +163,92 @@ BEGIN_PROPERTY(Key_Repeat)
 
 END_PROPERTY
 
+
+static int convert_keycode_to_scancode(int code)
+{
+	if (code & SDLK_SCANCODE_MASK)
+		return code & ~SDLK_SCANCODE_MASK;
+
+	switch(code)
+	{
+		case SDLK_RETURN: return SDL_SCANCODE_RETURN;
+		case SDLK_ESCAPE: return SDL_SCANCODE_ESCAPE;
+		case SDLK_BACKSPACE: return SDL_SCANCODE_BACKSPACE;
+		case SDLK_TAB: return SDL_SCANCODE_TAB;
+		case SDLK_SPACE: return SDL_SCANCODE_SPACE;
+		case SDLK_COMMA: return SDL_SCANCODE_COMMA;
+		case SDLK_MINUS: return SDL_SCANCODE_MINUS;
+		case SDLK_PERIOD: return SDL_SCANCODE_PERIOD;
+		case SDLK_SLASH: return SDL_SCANCODE_SLASH;
+		case SDLK_0: return SDL_SCANCODE_0;
+		case SDLK_1: return SDL_SCANCODE_1;
+		case SDLK_2: return SDL_SCANCODE_2;
+		case SDLK_3: return SDL_SCANCODE_3;
+		case SDLK_4: return SDL_SCANCODE_4;
+		case SDLK_5: return SDL_SCANCODE_5;
+		case SDLK_6: return SDL_SCANCODE_6;
+		case SDLK_7: return SDL_SCANCODE_7;
+		case SDLK_8: return SDL_SCANCODE_8;
+		case SDLK_9: return SDL_SCANCODE_9;
+		case SDLK_SEMICOLON: return SDL_SCANCODE_SEMICOLON;
+		case SDLK_EQUALS: return SDL_SCANCODE_EQUALS;
+		case SDLK_LEFTBRACKET: return SDL_SCANCODE_LEFTBRACKET;
+		case SDLK_BACKSLASH: return SDL_SCANCODE_BACKSLASH;
+		case SDLK_RIGHTBRACKET: return SDL_SCANCODE_RIGHTBRACKET;
+		case SDLK_a: return SDL_SCANCODE_A;
+		case SDLK_b: return SDL_SCANCODE_B;
+		case SDLK_c: return SDL_SCANCODE_C;
+		case SDLK_d: return SDL_SCANCODE_D;
+		case SDLK_e: return SDL_SCANCODE_E;
+		case SDLK_f: return SDL_SCANCODE_F;
+		case SDLK_g: return SDL_SCANCODE_G;
+		case SDLK_h: return SDL_SCANCODE_H;
+		case SDLK_i: return SDL_SCANCODE_I;
+		case SDLK_j: return SDL_SCANCODE_J;
+		case SDLK_k: return SDL_SCANCODE_K;
+		case SDLK_l: return SDL_SCANCODE_L;
+		case SDLK_m: return SDL_SCANCODE_M;
+		case SDLK_n: return SDL_SCANCODE_N;
+		case SDLK_o: return SDL_SCANCODE_O;
+		case SDLK_p: return SDL_SCANCODE_P;
+		case SDLK_q: return SDL_SCANCODE_Q;
+		case SDLK_r: return SDL_SCANCODE_R;
+		case SDLK_s: return SDL_SCANCODE_S;
+		case SDLK_t: return SDL_SCANCODE_T;
+		case SDLK_u: return SDL_SCANCODE_U;
+		case SDLK_v: return SDL_SCANCODE_V;
+		case SDLK_w: return SDL_SCANCODE_W;
+		case SDLK_x: return SDL_SCANCODE_X;
+		case SDLK_y: return SDL_SCANCODE_Y;
+		case SDLK_z: return SDL_SCANCODE_Z;
+
+		default: return SDL_SCANCODE_UNKNOWN;
+	}
+}
+
+
+BEGIN_METHOD(Key_IsPressed, GB_INTEGER key; GB_BOOLEAN ignore)
+
+	int code = VARG(key);
+	bool pressed = FALSE;
+
+	if (VARGOPT(ignore, FALSE))
+		code = convert_keycode_to_scancode(code);
+	else
+		code = SDL_GetScancodeFromKey(code);
+
+	if (code != SDL_SCANCODE_UNKNOWN)
+	{
+		int count;
+		const Uint8 *keystate = SDL_GetKeyboardState(&count);
+		if (code >= 0 && code < count)
+			pressed = keystate[code];
+	}
+
+	GB.ReturnBoolean(pressed);
+
+END_METHOD
+
 //-------------------------------------------------------------------------
 
 GB_DESC KeyDesc[] =
@@ -180,6 +266,8 @@ GB_DESC KeyDesc[] =
   GB_STATIC_PROPERTY_READ("Normal", "b", Key_Normal),
   GB_STATIC_PROPERTY_READ("Text", "s", Key_Text),
 	GB_STATIC_PROPERTY("Repeat", "b", Key_Repeat),
+
+	GB_STATIC_METHOD("IsPressed", "b", Key_IsPressed, "(Key)i[(IgnoreLayout)b]"),
 
 	GB_CONSTANT("Backspace", "i", SDLK_BACKSPACE),
 	GB_CONSTANT("Tab", "i", SDLK_TAB),

@@ -37,7 +37,7 @@ Public Sub scrText_Draw()
   
   Paint.FillRect(0, 0, Draw.W, Draw.H, Color.TextBackground)
   Try Paint.Font = Font[txtFontText.Text]
-  Paint.Translate(- scrText.ScrollX, - scrText.ScrollY)
+  Paint.Translate(-scrText.ScrollX, -scrText.ScrollY)
   Paint.Background = Color.TextForeground
   Paint.DrawRichText(sText, 8, 8, scrText.ClientW - 16, scrText.ClientH - 16, Align.TopNormal)
   'Debug Paint.ResolutionY;; ":";; Paint.TextSize("toto").Height;; Paint.TextExtents("toto").Height;; "/";; Paint.RichTextSize(sText, scrText.ClientW - 16).Height;; Paint.RichTextExtents(sText, scrText.ClientW - 16).Height
@@ -108,6 +108,10 @@ Public Sub prtText_Draw()
   Dim PRINT_MARGIN As Float = Paint.Width / prtText.PaperWidth * 10
     
   Debug "Printing page";; prtText.Page
+  Debug "Paint.FontScale = "; Paint.FontScale
+  Debug "Paint.Font.Size = "; Paint.Font.Size
+  Debug "Paint.Width = "; Paint.Width
+  Debug "Printer.PaperWidth = "; prtText.PaperWidth
   
   Paint.Font = Font[txtFontText.Text]
   Paint.Rectangle(PRINT_MARGIN / 2, PRINT_MARGIN / 2, Paint.Width - PRINT_MARGIN, Paint.Height - PRINT_MARGIN)
@@ -135,7 +139,7 @@ End
 
 Public Sub scrImage_Draw()
   
-  If $hImage Then Draw.Image($hImage, - scrImage.ScrollX, - scrImage.ScrollY)
+  If $hImage Then Draw.Image($hImage, -scrImage.ScrollX, -scrImage.ScrollY)
   
 End
 

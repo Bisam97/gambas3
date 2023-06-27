@@ -1,8 +1,14 @@
 ' Gambas class file
 
+Public Sub ReadConfig()
+  
+  webShortcut.ReadConfig
+  
+End
 
 Public Sub Form_Open()
 
+  ReadConfig
   tabShortcut_Click
   
   Settings.Read(Me)
@@ -26,7 +32,7 @@ Public Sub tabShortcut_Click()
       sURL = "project-shortcuts"
   End Select
 
-  webShortcut.URL = Project.WIKI_ROOT &/ "ide" &/ sURL & "?v&nh&nt&l=" & MHelp.GetLanguage()
+  webShortcut.Url = Project.WIKI_ROOT &/ "ide" &/ sURL & "?v&nh&nt&l=" & MHelp.GetLanguage()
   
 End
 

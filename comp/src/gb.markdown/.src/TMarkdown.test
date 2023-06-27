@@ -1,0 +1,424 @@
+' Gambas test file
+
+Public Sub TestParagraph()
+
+  Dim md, expect, got As String
+
+  md = "blah\n\nblub\n\ndingdong"
+  expect = "blah\n<p></p>\nblub\n<p></p>\ndingdong"
+  got = Markdown.ToHTML(md)
+  Assert.Equals(got, expect, "Markdown paragraph")
+
+End
+
+Public Sub TestParagraphTwo()
+
+  Dim md, expect, got As String
+
+  md = "blah" & gb.lf & gb.lf & "blub" & gb.lf & "dingdong"
+  expect = "blah\n<p></p>" & gb.lf & "blub" & gb.lf & "dingdong"
+  got = Markdown.ToHTML(md)
+  Assert.Equals(got, expect, "Markdown paragraph Two")
+
+End
+
+Public Sub TestParagraphThree()
+
+  Dim md, expect, got As String
+
+  md = "<strong>blah</strong>" & gb.lf & gb.lf & "blub"
+  expect = "<strong>blah</strong>\n<p></p>" & gb.lf & "blub"
+  got = Markdown.ToHTML(md)
+  Assert.Equals(got, expect, "Markdown paragraph Three")
+  'Assert.Note("I got:" & gb.lf & got)
+
+End
+
+Public Sub TestHeadline()
+
+  Dim md, expect, got As String
+
+  md = "# dingdong midhl endhl"
+  expect = "<h1>dingdong midhl endhl</h1>"
+  got = Markdown.ToHTML(md)
+  Assert.Equals(got, expect, "Markdown headline 1-1")
+  'Assert.Note("I got:" & gb.lf & got)
+
+  md = "# dingdong midhl endhl #"
+  expect = "<h1>dingdong midhl endhl</h1>"
+  got = Markdown.ToHTML(md)
+  Assert.Equals(got, expect, "Markdown headline 1-2 alternative")
+  'Assert.Note("I got:" & gb.lf & got)
+
+  md = "## dingdong midhl endhl"
+  expect = "<h2>dingdong midhl endhl</h2>"
+  got = Markdown.ToHTML(md)
+  Assert.Equals(got, expect, "Markdown headline 2")
+  'Assert.Note("I got:" & gb.lf & got)
+
+  md = "### dingdong midhl endhl"
+  expect = "<h3>dingdong midhl endhl</h3>"
+  got = Markdown.ToHTML(md)
+  Assert.Equals(got, expect, "Markdown headline 3")
+  'Assert.Note("I got:" & gb.lf & got)
+
+  md = "#### dingdong midhl endhl"
+  expect = "<h4>dingdong midhl endhl</h4>"
+  got = Markdown.ToHTML(md)
+  Assert.Equals(got, expect, "Markdown headline 4")
+  'Assert.Note("I got:" & gb.lf & got)
+
+  md = "##### dingdong midhl endhl"
+  expect = "<h5>dingdong midhl endhl</h5>"
+  got = Markdown.ToHTML(md)
+  Assert.Equals(got, expect, "Markdown headline 5")
+  'Assert.Note("I got:" & gb.lf & got)
+
+  md = "###### dingdong midhl endhl"
+  expect = "<h6>dingdong midhl endhl</h6>"
+  got = Markdown.ToHTML(md)
+  Assert.Equals(got, expect, "Markdown headline 6")
+  'Assert.Note("I got:" & gb.lf & got)
+
+End
+
+Public Sub TestHeadlineThree()
+
+  Dim md, got As String
+
+  md = "#dingdong"
+  Try got = Markdown.ToHTML(md)
+  Test.Todo()
+  Assert.Error("Markdown headline error")
+  'Assert.Note("I got:" & gb.lf & got)
+
+End
+
+Public Sub TestHlAndParagraph()
+
+  Dim md, expect, got As String
+
+  md = "# headline" & gb.lf & gb.lf & "blub"
+  expect = "<h1>headline</h1>" & gb.lf & "blub"
+  got = Markdown.ToHTML(md)
+  Assert.Equals(got, expect, "Markdown headline and paragraph")
+
+End
+
+Public Sub TestHlAndLineAndParagraph()
+
+  Dim md, expect, got As String
+
+  md = "# headline" & gb.lf & "---" & gb.lf & "blub"
+  expect = "<h1>headline</h1>" & gb.lf & "<hr>" & gb.lf & "blub"
+  got = Markdown.ToHTML(md)
+  Test.Todo()
+  Assert.Equals(got, expect, "Markdown headline and paragraph")
+  ' Assert.Note("I got:" & gb.lf & got)
+
+End
+
+Public Sub TestHtmlTagIntegrity()
+
+  Dim md, expect, got As String
+
+  md = "# headline" & gb.lf & gb.lf & "blub" & gb.lf & gb.lf &
+    "<img src='test' blah='test' />"
+
+  expect = "<h1>headline</h1>" & gb.lf &
+    "blub\n<p></p>" & gb.lf &
+    "<img src='test' blah='test' />"
+
+  got = Markdown.ToHTML(md)
+  Test.Todo()
+  Assert.Equals(got, expect, "Markdown TestHtmlTagIntegrity")
+  'Assert.Note("I got:" & gb.lf & got)
+
+End
+
+Public Sub TestHtmlTagIntegrityTwo()
+
+  Dim md, expect, got As String
+
+  md = "<div><small>" & gb.lf &
+    "test" & gb.lf &
+    "anothersth" & gb.lf &
+    "anothersth and so on." & gb.lf &
+    "</small></div>"
+
+  expect = "<div><small>" & gb.lf &
+    "test" & gb.lf &
+    "anothersth" & gb.lf &
+    "anothersth and so on." & gb.lf &
+    "</small></div>"
+
+  got = Markdown.ToHTML(md)
+  Test.Todo()
+  Assert.Equals(got, expect, "Markdown headline and paragraph")
+  'Assert.Note("I got:" & gb.lf & got)
+
+End
+
+Public Sub TestUL()
+
+  Dim md, expect, got As String
+
+  md = "* One" & gb.lf &
+    "* Two" & gb.Lf &
+    "* Three"
+
+  expect = "<ul>" & gb.Lf &
+    "  <li>" & gb.Lf &
+    "    One" & gb.Lf &
+    "  </li>" & gb.Lf &
+    "  <li>" & gb.Lf &
+    "    Two" & gb.Lf &
+    "  </li>" & gb.Lf &
+    "  <li>" & gb.Lf &
+    "    Three" & gb.Lf &
+    "  </li>" & gb.Lf &
+    "</ul>"
+
+  got = Markdown.ToHTML(md)
+  Test.Todo()
+  Assert.Equals(got, expect, "Markdown UL")
+  ' Assert.Note("I got:" & gb.lf & got)
+
+End
+
+Public Sub TestOL()
+
+  Dim md, expect, got As String
+
+  md = "1. One" & gb.lf &
+    "1. Two" & gb.Lf &
+    "1. Three"
+
+  expect = "<ol>" & gb.Lf &
+    "  <li>" & gb.Lf &
+    "    One" & gb.Lf &
+    "  </li>" & gb.Lf &
+    "  <li>" & gb.Lf &
+    "    Two" & gb.Lf &
+    "  </li>" & gb.Lf &
+    "  <li>" & gb.Lf &
+    "    Three" & gb.Lf &
+    "  </li>" & gb.Lf &
+    "</ol>"
+
+  got = Markdown.ToHTML(md)
+  Test.Todo()
+  Assert.Equals(got, expect, "Markdown OL")
+
+End
+
+Public Sub TestOLWithImage()
+
+  Dim md, expect, got As String
+
+  md = "1. One" & gb.lf &
+    "1. <img src='test' title='test' />" & gb.Lf &
+    "1. Three"
+
+  expect = "<ol>" & gb.Lf &
+    "  <li>" & gb.Lf &
+    "    One" & gb.Lf &
+    "  </li>" & gb.Lf &
+    "  <li>" & gb.Lf &
+    "    <img src='test' title='test' />" & gb.Lf &
+    "  </li>" & gb.Lf &
+    "  <li>" & gb.Lf &
+    "    Three" & gb.Lf &
+    "  </li>" & gb.Lf &
+    "</ol>"
+
+  got = Markdown.ToHTML(md)
+  Test.Todo()
+  Assert.Equals(got, expect, "Markdown OL with image")
+  ' Assert.Note("I expected:" & gb.lf & expect)
+  'Assert.Note("I got:" & gb.lf & got)
+
+End
+
+Public Sub TestHtmlTags()
+
+  Dim md, expect, got As String
+
+  md = "<img src='test' " & gb.lf & "title=\"test\" />"
+
+  expect = "<img src='test' title='test' />"
+
+  got = Markdown.ToHTML(md)
+  Test.Todo()
+  Assert.Equals(got, expect, "Markdown image")
+
+  ' Assert.Note("I expected:" & gb.lf & expect)
+  'Assert.Note("I got:" & gb.lf & got)
+
+End
+
+Public Sub TestTable()
+
+  Dim md, expect, got As String
+
+  md = "<table class='degtab wmax20em'>" & gb.Lf &
+    "<tr>" & gb.Lf &
+    "<th>" & gb.Lf &
+    "Bis kg" &
+    "</th>" & gb.Lf &
+    "<th>" & gb.Lf &
+    "Versandpreis" &
+    "</th>" & gb.Lf &
+    "</tr>" & gb.Lf &
+    "<tr class='tabcol1'>" & gb.Lf &
+    "<td>" & gb.Lf &
+    "1,6 kg" &
+    "</td>" & gb.Lf &
+    "<td>" & gb.Lf &
+    "4,50 €" &
+    "</td>" & gb.Lf &
+    "</tr>" & gb.Lf &
+    "</table>"
+
+  expect = "<table class='degtab wmax20em'>" & gb.Lf &
+    "<tr>" & gb.Lf &
+    "<th>" & gb.Lf &
+    "Bis kg" &
+    "</th>" & gb.Lf &
+    "<th>" & gb.Lf &
+    "Versandpreis" &
+    "</th>" & gb.Lf &
+    "</tr>" & gb.Lf &
+    "<tr class='tabcol1'>" & gb.Lf &
+    "<td>" & gb.Lf &
+    "1,6 kg" &
+    "</td>" & gb.Lf &
+    "<td>" & gb.Lf &
+    "4,50 €" &
+    "</td>" & gb.Lf &
+    "</tr>" & gb.Lf &
+    "</table>"
+
+  got = Markdown.ToHTML(md)
+  Test.Todo()
+  Assert.Equals(got, expect, "Markdown preserve table")
+  'Assert.Note(got)
+
+End
+
+Public Sub TestParInTable()
+
+  Dim md, expect, got As String
+
+  md = "<table class='degtab wmax20em'>" & gb.Lf &
+    "<tr>" & gb.Lf &
+    "<th>" & gb.Lf &
+    "<p>Bis kg</p>" &
+    "</th>" & gb.Lf &
+    "<th>" & gb.Lf &
+    "Versandpreis" &
+    "</th>" & gb.Lf &
+    "</tr>" & gb.Lf &
+    "<tr class='tabcol1'>" & gb.Lf &
+    "<td>" & gb.Lf &
+    "1,6 kg" &
+    "</td>" & gb.Lf &
+    "<td>" & gb.Lf &
+    "4,50 €" &
+    "</td>" & gb.Lf &
+    "</tr>" & gb.Lf &
+    "</table>"
+
+  expect = "<table class='degtab wmax20em'>" & gb.Lf &
+    "<tr>" & gb.Lf &
+    "<th>" & gb.Lf &
+    "<p>Bis kg</p>" &
+    "</th>" & gb.Lf &
+    "<th>" & gb.Lf &
+    "Versandpreis" &
+    "</th>" & gb.Lf &
+    "</tr>" & gb.Lf &
+    "<tr class='tabcol1'>" & gb.Lf &
+    "<td>" & gb.Lf &
+    "1,6 kg" &
+    "</td>" & gb.Lf &
+    "<td>" & gb.Lf &
+    "4,50 €" &
+    "</td>" & gb.Lf &
+    "</tr>" & gb.Lf &
+    "</table>"
+
+  got = Markdown.ToHTML(md)
+  Test.Todo()
+  Assert.Equals(got, expect, "Markdown preserve p in table")
+  'Assert.Note(got)
+
+End
+
+Public Sub TestPreserverUL()
+
+  Dim md, expect, got As String
+
+  md = "<ul class='ulist'>" & gb.Lf &
+    "  <li>First li</li> " & gb.Lf &
+    "  <li>Second li</li> " & gb.Lf &
+    "  <li>Third li</li> " & gb.Lf &
+    "  <li>Fourth li</li> " & gb.Lf &
+    "  <li>Mambo no five</li> " & gb.Lf &
+    "</ul>"
+
+  expect = "<ul class='ulist'>" & gb.Lf &
+    Trim("  <li>First li</li> ") & gb.Lf &
+    Trim("  <li>Second li</li> ") & gb.Lf &
+    Trim("  <li>Third li</li> ") & gb.Lf &
+    Trim("  <li>Fourth li</li> ") & gb.Lf &
+    Trim("  <li>Mambo no five</li> ") & gb.Lf &
+    "</ul>"
+
+  got = Markdown.ToHTML(md)
+  Test.Todo()
+  Assert.Equals(got, expect, "Markdown preserve ul")
+  'Assert.Note(got)
+
+End
+
+Public Sub TestPreserverOL()
+
+  Dim md, expect, got As String
+
+  md = "<ol class='ulist'>" & gb.Lf &
+    "  <li>First li</li> " & gb.Lf &
+    "  <li>Second li</li> " & gb.Lf &
+    "  <li>Third li</li> " & gb.Lf &
+    "  <li>Fourth li</li> " & gb.Lf &
+    "  <li>Mambo no five</li> " & gb.Lf &
+    "</ol>"
+
+  expect = "<ol class='ulist'>" & gb.Lf &
+    Trim("  <li>First li</li> ") & gb.Lf &
+    Trim("  <li>Second li</li> ") & gb.Lf &
+    Trim("  <li>Third li</li> ") & gb.Lf &
+    Trim("  <li>Fourth li</li> ") & gb.Lf &
+    Trim("  <li>Mambo no five</li> ") & gb.Lf &
+    "</ol>"
+
+  got = Markdown.ToHTML(md)
+  Test.Todo()
+  Assert.Equals(got, expect, "Markdown preserve ol")
+  'Assert.Note(got)
+
+End
+
+Public Sub TestStrong()
+
+  Dim md, expect, got As String
+
+  md = "<strong>Das berühmte Deganius Kräuterabo</strong>" & gb.lf & gb.Lf & "Balb"
+  expect = "<strong>Das berühmte Deganius Kräuterabo</strong>\n<p></p>" & gb.lf & "Balb"
+  got = Markdown.ToHTML(md)
+
+  If Assert.Equals(got, expect, "Markdown strong paragraph") = False Then
+    Test.Note(got)
+  Endif
+
+End

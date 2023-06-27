@@ -1,0 +1,40 @@
+' Gambas class file
+
+Export
+
+Static Public $sLastError As String = ""
+
+
+Static Public Sub _call(ScriptName As String, ScriptSource As String, Optional CompileParameters As String[] = [], ScriptParameters As String[] = []) As Variant
+
+  ScriptMain._ResetAll()
+
+  If Not Component.IsLoaded("gb.eval") Then Component.Load("gb.eval")
+  If Not Class.IsLoaded("ScriptMain") Then Class.load("ScriptMain")
+  If Not Class.IsLoaded("Highlight") Then Class.load("ScriptMain")
+
+  ScriptMain.$bRunAsPlugin = True
+
+  Dim WorkFile As String = Temp(ScriptName)
+  $sLastError = ""
+  Try File.Save(WorkFile, ScriptSource)
+  If Error Then
+    $sLastError = ("Unable to Create Temp Workfile : ") & Error.text
+    CompileError(ScriptName, 0, $sLastError)
+  Endif
+
+  Dim aParms As String[] = CompileParameters
+  aParms.Add("gbs" & System.version, 0)
+  aParms.Push(WorkFile)
+  aParms.insert(ScriptParameters)
+
+  Dim result As Variant = ScriptMain.ScripterMain(aParms)
+  $sLastError = ScriptMain.$sLastCompileError
+  Return result
+
+Catch
+  $sLastError = Str(127) & ":" & Error.text & " : " & Error.where
+  ScriptMain._ResetAll()
+  Return $sLastError
+
+End

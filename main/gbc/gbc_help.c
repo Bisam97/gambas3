@@ -2,7 +2,7 @@
 
   gbc_help.c
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -109,6 +109,9 @@ void HELP_search_and_print(FILE *file, int line)
 	#if DEBUG_ME
 	fprintf(stderr, "HELP_search_and_print: %s: %d\n", FILE_get_name(JOB->name), line);
 	#endif
+	
+	if (line >= FORM_FIRST_LINE)
+		return;
 	
 	i = line - JOB->help_first_line;
 	

@@ -58,6 +58,7 @@ Private $cCustomHeaders As New String[]
 Private $sMessageId As String
 Private $sInReplyTo As String
 Private $iAuth As Integer
+Private $iRemovePart As Integer
 
 Static Public Sub _init()
   
@@ -66,6 +67,13 @@ Static Public Sub _init()
   
 End
 
+'' Clear the attachments.
+
+Public Sub Clear()
+  
+  $aPart.Clear
+  
+End
 
 Public Sub Add(Data As String, Optional MimeType As String, Name As String)
   
@@ -251,11 +259,14 @@ Private Sub BeginSession()
   
   '$hSession._Debug = $bDebug
 
+  $iRemovePart = 0
+
   If $sBody Then
   
     hPart = New SmtpPart
     hPart.Data = $sBody
     $aPart.Add(hPart, 0)
+    Inc $iRemovePart
   
   Endif
 
@@ -265,15 +276,25 @@ Private Sub BeginSession()
     hPart.Data = "This is a MIME " & hPart.Mime & " message."
     $aPart.Add(hPart, 0)
     bParent = True
+    Inc $iRemovePart
     
   Endif
 
 End
 
+Private Sub CleanUpSession()
+  
+  $aPart.Remove(0, $iRemovePart)
+  $iRemovePart = 0
+  
+End
+
+
 Private Sub EndSession()
 
   $hSession.Send("QUIT")
   $hSession.Disconnect
+  CleanUpSession
 
 End
 
@@ -447,12 +468,12 @@ Private Sub SendHeaders()
 
   $hSession.PrintHeader("Date", FormatDate(Now))
 
-  $hSession.PrintHeader("From", FormatAddress($sFrom))
+  $hSession.PrintHeader("From", FormatAddress($sFrom), True)
 
   $hSession.PrintHeader("Subject", $sSubject)
 
-  If $aTo.Count Then $hSession.PrintHeader("To", $aTo.Join(","))
-  If $aCc.Count Then $hSession.PrintHeader("CC", $aCc.Join(","))
+  If $aTo.Count Then $hSession.PrintHeader("To", $aTo.Join(","), True)
+  If $aCc.Count Then $hSession.PrintHeader("CC", $aCc.Join(","), True)
 
   If $sInReplyTo Then
     $hSession.PrintHeader("References", "<" & $sInReplyTo & ">")
@@ -524,6 +545,7 @@ Catch
   
   sErr = Error.Text
   Try $hSession.Disconnect
+  CleanUpSession
   Error.Raise("Unable to send mail: " & sErr)
     
 End
@@ -551,7 +573,6 @@ End
 Private Sub MessageId_Write(Value As String)
 
   $sMessageId = Value
-  
 
 End
 

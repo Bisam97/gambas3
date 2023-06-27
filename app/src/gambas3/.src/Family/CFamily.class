@@ -19,6 +19,9 @@ Public Const EmbedContainer As String = ""              ' Default container clas
 Public Const AutomaticArrangement As Boolean = False    ' If controls are always automatically arranged
 Public Const ForceGrid As Integer = 0                   ' Force grid
 Public Const UseMoveScaled As Boolean = False
+Public Const MenuClass As String = ""                   ' The name of the menu class
+Public Const SelectImagePublic As Boolean = False       ' If images are stored in ".public" directory
+Public Const ToolBarClass As String = ""                ' Name of the toolbar class
 
 Public AllowedProperties As String[]
 
@@ -71,19 +74,34 @@ End
 
 '' Draw event implementation of a specific control
 '' Return TRUE if the control is not managed: then a default frame with the control icon and the control name will be drawn.
-Public Sub DrawControl((hCtrl) As CControl) As Boolean
+Public Sub DrawControl(hCtrl As CControl) As Boolean
 
-  Return True
+  If hCtrl.IsContainer() Then
+    PaintContainer(hCtrl)
+  Else If hCtrl.HasProperty("Border") Then
+    If hCtrl["Border"] Then
+      Paint.DrawRect(Paint.X, Paint.Y, Paint.W, Paint.H, Color.LightForeground)
+    Else
+      Paint.Dash = [1]
+      'Paint.DrawRect(Paint.X, Paint.Y, Paint.W, Paint.H, Color.LightForeground)
+      Paint.Background = Color.LightForeground
+      Paint.Rectangle(Paint.X, Paint.Y, Paint.W, Paint.H)
+      Paint.Stroke
+      Paint.Dash = Null
+    Endif
+  Endif
 
+  PaintIcon(hCtrl)
+  
 End
 
-Public Sub DeleteIcon(hCCtrl As CControl)
+Public Sub DeleteIcon(hCtrl As CControl)
   
-  Dim hIcon As Control = hCCtrl["#icon"]
+  Dim hIcon As Control = hCtrl["#icon"]
   
   If Not hIcon Then Return
   
-  hCCtrl["#icon"] = Null
+  hCtrl["#icon"] = Null
   $cCtrlFromIcon[Str(hIcon)] = Null
   ' Apparently hIcon can be invalid: maybe when closing forms on project changes?
   Try hIcon.Delete
@@ -361,6 +379,7 @@ Public Sub ActionDialog(sAction As String) As Boolean
       Return True
   
   End Select
+  
 End
 
 Private Sub ToggleFont(sFont As String, sProp As String) As String
@@ -499,12 +518,31 @@ Public Sub SelectImage((sPropertyType) As String, sImage As String) As String
   
 End
 
-Static Public Sub PaintContainer(X As Float, Y As Float, W As Float, H As Float)
+Public Sub SelectAudio((sPropertyType) As String, sAudio As String) As String
   
-  Paint.Background = Color.SetAlpha(&HFFB0B0, 128)
-  Paint.LineWidth = 1
-  Paint.Rectangle(X + 0.5, Y + 0.5, W - 1, H - 1)
-  Paint.Stroke
+  Return FSelectIcon.Run(sAudio, FSelectIcon.SELECT_AUDIO)
+  
+End
+
+Static Public Sub PaintContainer(hCCtrl As CControl, Optional X As Float = Paint.X, Y As Float = Paint.Y, W As Float = Paint.W, H As Float = Paint.H)
+  
+  Dim iCol As Integer
+  
+  If W < 1 Or If H < 1 Then Return
+  
+  If hCCtrl And If hCCtrl.HasProperty("Border") And If hCCtrl.GetPropertyReal("Border") Then
+    Paint.DrawRect(X, Y, W, H, Color.LightForeground)
+    If W < 3 Or If H < 3 Then Return
+    Inc X
+    Inc Y
+    W -= 2
+    H -= 2
+    iCol = &HFF8080
+  Else
+    iCol = Color.SetAlpha(&HFF8080, 128)
+  Endif
+  
+  Paint.DrawRect(X, Y, W, H, iCol)
   
 End
 
@@ -571,11 +609,16 @@ Static Public Sub PaintImage(hCtrl As CControl, sRoot As String, Optional iAlign
     hCtrl["#ImagePath"] = sPath
     hCtrl["#Image"] = Null
     hCtrl["#SvgImage"] = Null
-    sExt = File.Ext(sPath)
-    If sExt = "svg" Or If sExt = "svgz" Then
-      Try hCtrl["#SvgImage"] = SvgImage.Load(Project.Dir &/ sRoot &/ sPath)
+    
+    If sPath Begins "icon:/" Or If sPath Begins "flag:/" Then
+      Try hCtrl["#Image"] = Picture[sPath].Image
     Else
-      Try hCtrl["#Image"] = Image.Load(Project.Dir &/ sRoot &/ sPath)
+      sExt = File.Ext(sPath)
+      If sExt = "svg" Or If sExt = "svgz" Then
+        Try hCtrl["#SvgImage"] = SvgImage.Load(Project.Dir &/ sRoot &/ sPath)
+      Else
+        Try hCtrl["#Image"] = Image.Load(Project.Dir &/ sRoot &/ sPath)
+      Endif
     Endif
   Endif
   
@@ -639,5 +682,38 @@ End
 Public Sub ConvertCoord(iCoord As Integer, (bViewToCoord) As Boolean) As Integer
   
   Return iCoord
+  
+End
+
+Public Sub GetPicture(sPict As String) As Picture
+  
+  If Not sPict Then Return
+
+  If sPict Begins "icon:/" Or If sPict Begins "flag:/" Then
+    Return Picture[sPict]
+  Else If Me.SelectImagePublic Then
+    Return Picture.Load(Project.Dir &/ ".public" &/ sPict)
+  Else
+    Return Picture.Load(Project.Dir &/ sPict)
+  Endif
+
+End
+
+Static Public Sub PaintIcon(hCtrl As CControl)
+
+  Dim DS As Integer
+  Dim hPict As Picture
+  Dim W As Float
+  
+  Paint.Background = Color.TextForeground
+  DS = Desktop.Scale
+  hPict = Picture[".control" &/ LCase(hCtrl.Kind)]
+  If hPict Then
+    W = DS * 4 * hPict.Width / hPict.Height
+    Paint.DrawPicture(hPict, DS, DS, W, DS * 4)
+    Paint.DrawText(hCtrl.Name, CInt(W + DS * 2), DS, Paint.W, Paint.H, Align.TopLeft)
+  Else
+    Paint.DrawText(hCtrl.Name, DS, DS, Paint.W, Paint.H, Align.TopLeft)
+  Endif
   
 End

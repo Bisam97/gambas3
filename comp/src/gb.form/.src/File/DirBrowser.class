@@ -1,0 +1,170 @@
+' Gambas class file
+
+''' This control implements an horizontal directory browser.
+
+Export
+
+Inherits UserControl
+
+Public Const _Properties As String = "*,Border=True,Dir,Root,Text,Picture"
+Public Const _DefaultEvent As String = "Click"
+Public Const _Group As String = "View"
+
+'' Raise when the user clicks on one of the directory buttons.
+''
+'' - ~Dir~ is the path of the directory associated with the clicked button.
+
+Event Click(Dir As String)
+
+'' Return or set the directory displayed by the control.
+''
+'' ### See also
+'' [../root]
+
+Property Dir As String
+
+'' Return or set the root directory, i.e. the directory of the first button.
+''
+'' The [../dir] directory must be a sub-directory of the root directory.
+
+Property Root As String
+
+'' Return or set the text of the root button.
+''
+'' If not specified, the name of the root directory is used.
+
+Property Text As String
+
+'' Return or set the icon associated with the root button.
+
+Property Picture As Picture
+
+'' Return or set if the control has a border.
+
+Property Border As Boolean
+
+Private $sRoot As String
+Private $sText As String
+Private $hPict As Picture
+Private $sDir As String
+Private $hBorder As Panel
+
+Public Sub _new()
+  
+  $hBorder = New Panel(Me)
+  $hBorder.Border = Border.Plain
+  $hBorder.Arrangement = Arrange.Horizontal
+  
+  UpdateBrowser
+  
+End
+
+Private Function Root_Read() As String
+
+  Return $sRoot
+
+End
+
+Private Sub Root_Write(Value As String)
+
+  $sRoot = Value
+  UpdateBrowser
+
+End
+
+Private Function Text_Read() As String
+
+  Return $sText
+
+End
+
+Private Sub Text_Write(Value As String)
+
+  $sText = Value
+  UpdateBrowser
+
+End
+
+Private Function Picture_Read() As Picture
+
+  Return $hPict
+
+End
+
+Private Sub Picture_Write(Value As Picture)
+
+  $hPict = Value
+  UpdateBrowser
+
+End
+
+Private Sub UpdateBrowser()
+
+  Dim sPath As String
+  Dim sName As String
+  Dim hDirButton As DirButton
+  Dim sDir As String
+  Dim sRoot As String
+  
+  $hBorder.Children.Clear
+  
+  sDir = $sDir
+  If Not sDir Then sDir = User.Home
+  
+  sRoot = $sRoot
+  If Not sRoot Then sRoot = "/"
+  
+  hDirButton = New DirButton($hBorder) As "DirButton"
+  hDirButton.Path = sRoot
+  If $sText Then hDirButton.Label = $sText
+  If $hPict Then
+    hDirButton.Picture = $hPict
+  Else 
+    hDirButton.Picture = Picture["icon:/small/harddisk-root"]
+  Endif
+
+  sPath = "/"
+  For Each sName In Split(Mid$(sDir, 2), "/")
+    
+    sPath &/= sName
+    
+    If sRoot Begins sPath Then Continue
+    
+    hDirButton = New DirButton($hBorder) As "DirButton"
+    hDirButton.Path = sPath
+    
+  Next
+
+End
+
+Private Function Dir_Read() As String
+
+  Return $sDir
+
+End
+
+Private Sub Dir_Write(Value As String)
+
+  $sDir = Value
+  UpdateBrowser
+
+End
+
+Private Function Border_Read() As Boolean
+
+  Return $hBorder.Border <> Border.None
+
+End
+
+Private Sub Border_Write(Value As Boolean)
+
+  $hBorder.Border = If(Value, Border.Plain, Border.None)
+
+End
+
+Public Sub DirButton_Click()
+  
+  Raise Click(Last.Path)
+  
+End
+

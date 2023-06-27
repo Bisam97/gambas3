@@ -55,8 +55,8 @@ End
 
 Public Sub SetHidden(bHidden As Boolean)
 
-  Dim DY As Integer
-  Dim eTime As Float
+  ' Dim DY As Integer
+  ' Dim eTime As Float
 
   If Me.Parent.Design Then Return
   If bHidden = $bHidden Then Return 
@@ -68,14 +68,14 @@ Public Sub SetHidden(bHidden As Boolean)
 
     $H = Me.Parent.H
 
-    If $bAnim Then     
-      eTime = Timer
-      DY = $H - dwgTitle.H
-      While Timer < (eTime + HIDE_TIME)
-        Me.Parent.H = $H - ((Timer - eTime) / HIDE_TIME) * DY
-        Wait
-      Wend
-    Endif
+    ' If $bAnim And If Application.Animations Then     
+    '   eTime = Timer
+    '   DY = $H - dwgTitle.H
+    '   While Timer < (eTime + HIDE_TIME)
+    '     Me.Parent.H = $H - ((Timer - eTime) / HIDE_TIME) * DY
+    '     Wait
+    '   Wend
+    ' Endif
 
     Me.Parent.H = dwgTitle.H
 
@@ -87,14 +87,14 @@ Public Sub SetHidden(bHidden As Boolean)
     GetParent()._Show()
     panContainer.Show
     
-    If $bAnim Then 
-      eTime = Timer
-      DY = $H - dwgTitle.H
-      While Timer < (eTime + HIDE_TIME)
-        Me.Parent.H = dwgTitle.H + ((Timer - eTime) / HIDE_TIME) * DY
-        Wait
-      Wend
-    Endif
+    ' If $bAnim And If Application.Animations Then 
+    '   eTime = Timer
+    '   DY = $H - dwgTitle.H
+    '   While Timer < (eTime + HIDE_TIME)
+    '     Me.Parent.H = dwgTitle.H + ((Timer - eTime) / HIDE_TIME) * DY
+    '     Wait
+    '   Wend
+    ' Endif
 
     Me.Parent.H = $H
   Endif
@@ -187,7 +187,7 @@ Public Sub dwgTitle_Draw()
   If Not Me.Enabled Then iFlag += Draw.Disabled
   If $bInside And If Me.Enabled Then iFlag += Draw.Hover
   
-  If System.RightToLeft Then
+  If Me.RightToLeft Then
     Style.PaintArrow(Paint.W - W, Y, W, W, If($bHidden, Align.Left, Align.Bottom), iFlag)
     If $bInside Then Paint.DrawTextShadow($sText, 0, 0, Paint.W - W - D, Paint.H, Align.Normal)
     Paint.DrawText($sText, 0, 0, Paint.W - W - D, Paint.H, Align.Normal)

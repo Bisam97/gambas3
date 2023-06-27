@@ -1,7 +1,7 @@
 ' Gambas module file
 
-Private $cOpen As New Collection
-Private $cClose As New Collection
+Private $cOpen As Collection
+Private $cClose As Collection
 
 Private $iLine As Integer
 Private $iLevel As Integer
@@ -21,9 +21,11 @@ Public Sub _init()
   
   Dim sStr As String
   
+  $cOpen = New Collection(gb.IgnoreCase)
   For Each sStr In ["DO", "FOR", "ELSE", "SELECT", "CASE", "DEFAULT", "WHILE", "REPEAT", "WITH", "CATCH", "FINALLY"]
     $cOpen[sStr] = True
   Next
+  $cClose = New Collection(gb.IgnoreCase)
   For Each sStr In ["LOOP", "NEXT", "ENDIF", "END IF", "ELSE", "CASE", "DEFAULT", "WEND", "UNTIL", "END WITH", "CATCH", "FINALLY"]
     $cClose[sStr] = True
   Next
@@ -57,6 +59,63 @@ Private Sub InsertLine(aPos As Integer[], iLine As Integer, Optional iCount As I
   
 End
 
+Private Sub InsertText(hEditor As TextEditor, aText As String[])
+
+  Dim sOld As String
+  Dim sNew As String
+  Dim sResult As String
+  Dim sLine As String
+  Dim sAction As String
+  Dim iStart As Integer
+  Dim iCount As Integer
+  Dim iStartRemove As Integer
+  Dim iCountRemove As Integer
+
+  sOld = Temp$()
+  sNew = Temp$()
+  
+  File.Save(sOld, hEditor.Text)
+  File.Save(sNew, aText.Join("\n"))
+  
+  Exec ["diff", "-U0", sOld, sNew] To sResult
+  
+  For Each sLine In Split(sResult, "\n")
+    
+    If sLine Not Begins "@@" Then Continue
+    
+    For Each sLine In Split(sLine, " @", "", True)
+      
+      sAction = Left(sLine)
+      With Split(Mid$(sLine, 2), ",")
+        iStart = CInt(.[0]) - 1
+        If .Count = 2 Then
+          iCount = CInt(.[1])
+        Else
+          iCount = 1
+        Endif
+      End With
+      
+      Select Case sAction
+        Case "-"
+          iStartRemove = iStart
+          iCountRemove = iCount
+        Case "+"
+          If iCountRemove Then
+            If iCount = 0 Then Inc iStart
+            hEditor.Remove(0, iStart, 0, iStart + iCountRemove)
+          Endif
+          If iCount Then 
+            hEditor.Goto(0, iStart)
+            hEditor.Insert(aText.Copy(iStart, iCount).Join("\n") & "\n")
+          Endif
+      End Select
+      
+    Next
+    
+  Next
+  
+End
+
 
 Public Sub Run(hModule As Object)
   
@@ -75,10 +134,12 @@ Public Sub Run(hModule As Object)
   Dim aTypes As Integer[]
   Dim iStart, iEnd As Integer
   Dim hEditor As TextEditor
+  Dim sPath As String
   
   Inc Application.Busy
   
   hEditor = hModule.GetEditor()
+  sPath = hModule.Path
   
   If hEditor.Selected Then
     iStart = Min(hEditor.Line, hEditor.SelectionLine)
@@ -94,6 +155,8 @@ Public Sub Run(hModule As Object)
   $bIndentDim = Settings["/FormatCode/IndentLocal", 1]
   $bRemoveSpace = Settings["/FormatCode/RemoveSpaces", 0]
   $bKeepVoidLine = Settings["/FormatCode/KeepVoidLines", 0]
+  
+  If LCase(File.Ext(sPath)) = "md" Then $bRemoveSpace = False
   
   $iLevel = 0
   If hEditor.TabIndent Then
@@ -214,8 +277,10 @@ Public Sub Run(hModule As Object)
     
     hEditor.Begin
     
-    hEditor.SelectAll
-    hEditor.Insert(aText.Join("\n"))
+    InsertText(hEditor, aText)
+    
+    'hEditor.SelectAll
+    'hEditor.Insert(aText.Join("\n"))
     
     hEditor.Bookmarks = aBookmark
     hEditor.Breakpoints = aBreakpoint
@@ -237,8 +302,8 @@ Private Sub IsStruct() As Boolean
   Dim iInd As Integer
   
   If aSym.Count >= 3 Then
-    If aSym[iInd] = "PUBLIC" Then Inc iInd
-    Return aSym[iInd] = "STRUCT"
+    If aSym[iInd] == "PUBLIC" Then Inc iInd
+    Return aSym[iInd] == "STRUCT"
   Endif
   
 End
@@ -247,7 +312,7 @@ Private Sub IsEndStruct() As Boolean
   
   Dim aSym As String[] = Highlight.Symbols
   
-  If aSym.Count = 2 And If aSym[0] = "END" And If aSym[1] = "STRUCT" Then Return True
+  If aSym.Count = 2 And If aSym[0] == "END" And If aSym[1] == "STRUCT" Then Return True
   
 End
 
@@ -273,6 +338,7 @@ Private Sub IndentLineGambas(sLine As String) As String
   Dim iLastType As Integer
   Dim iLevel As Integer
   Dim bNextIndent As Boolean
+  Dim I As Integer
 
   sLine = LTrim(sLine)
   
@@ -300,8 +366,23 @@ Private Sub IndentLineGambas(sLine As String) As String
     ' $bLastString = iLastType = Highlight.String
     
     If iLastType = Highlight.Operator Then
-      If InStr(":]);.!", aSym[aSym.Max]) = 0 Then 'And If aSym[0] <> "PRINT" Then 
+      sSym = aSym.Last
+      If InStr(":]);.!", sSym) = 0 Then 'And If aSym[0] <> "PRINT" Then 
+      
         $bNextIndent = True
+        
+        If sSym = "," Then
+          For I = aSym.Max - 1 DownTo 0
+            sSym = aSym[I]
+            If sSym = "PRINT" Then
+              $bNextIndent = False
+              Break
+            Else If InStr("[(", sSym) Then
+              Break
+            Endif
+          Next
+        Endif
+        
       Endif
     Else If iLastType = Highlight.String And If Highlight.Types[0] = Highlight.String Then
       bNextIndent = True
@@ -338,9 +419,9 @@ Private Sub IndentLineGambas(sLine As String) As String
       sSym = aSym[0]
       If aSym.Count > 2 Then sFuncSym = LCase(aSym[2])
       
-      If sSym = "END" And If aSym.Count >= 2 Then sSym &= " " & aSym[1]
+      If sSym == "END" And If aSym.Count >= 2 Then sSym &= " " & aSym[1]
       
-      If sSym = "DIM" And If Not $bLocalDeclDone Then
+      If sSym == "DIM" And If Not $bLocalDeclDone Then
         
         $iLastDim = $iLine
         If Not $bIndentDim Then $iLevel = 0
@@ -358,23 +439,23 @@ Private Sub IndentLineGambas(sLine As String) As String
           Endif
         Endif
       
-        If sSym = "END SELECT" Then
+        If sSym == "END SELECT" Then
           $iLevel -= 2
           iNextLevel = $iLevel
         Else If Right(aSym[0]) = ":" Then
           iNextLevel = $iLevel
           $iLevel = 0
-        Else If sSym = "IF" Then
+        Else If sSym == "IF" Then
           iNextLevel = $iLevel
-          iPos = aSym.Find("THEN")
+          iPos = aSym.Find("THEN", gb.IgnoreCase)
           If iPos < 0 Or If iPos = aSym.Max Then Inc iNextLevel
-        Else If sSym = "SELECT" Then
+        Else If sSym == "SELECT" Then
           '$iLastSelect = $iLine
           iNextLevel = $iLevel + 2
         Else
-          If $cClose.Exist(sSym) Then Dec $iLevel
+          If Highlight.Types[0] = Highlight.Keyword And If $cClose.Exist(sSym) Then Dec $iLevel
           iNextLevel = $iLevel
-          If $cOpen.Exist(sSym) Then Inc iNextLevel
+          If Highlight.Types[0] = Highlight.Keyword And If $cOpen.Exist(sSym) Then Inc iNextLevel
         Endif
         
       Endif
@@ -490,3 +571,4 @@ Private Sub IndentLineBraces(sLine As String, aSymbols As String[], aTypes As St
   Return sLine
 
 End
+

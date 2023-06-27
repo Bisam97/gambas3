@@ -1,0 +1,101 @@
+' Gambas class file
+
+Export
+Inherits WebContainer
+
+Public Const _Group As String = "Container"
+Public Const _Properties As String = "*,-Arrangement,-Margin,-Spacing,-Border,Text,Image{WebImage},Shortcut"
+Public Const _DefaultArrangement As String = "V"
+Public Const _DefaultEvent As String = "Click"
+
+Event Click
+
+Property Text, Title As String
+Property Image As String
+Property Shortcut As String
+
+Private $sText As String
+Private $sImage As String
+Private $sShortcut As String
+
+Public Sub _BeforeRender()
+  
+  Print "<div"; Me._GetClassId(); 
+  If Me.HasChildren() And If Me.Enabled Then Print Me._GetUpdateJS("onmousedown", "#popup"); 
+  Me._RenderStyleSheet()
+  Print ">";
+
+End
+
+Public Sub _Render()
+  
+  Print Html($sText);
+ 
+End
+
+Private Function Image_Read() As String
+
+  Return $sImage
+
+End
+
+Private Sub Image_Write(Value As String)
+
+  $sImage = Value
+  Me.Refresh
+  If $sImage Then WebForm._AddPreload(Me._GetImageLink($sImage))
+
+End
+
+Private Function Shortcut_Read() As String
+
+  Return $sShortcut
+
+End
+
+Private Sub Shortcut_Write(Value As String)
+
+  If $sShortcut = Value Then Return
+  Me._RegisterShortcut(Value, $sShortcut)
+  $sShortcut = Value
+  Me.Refresh
+
+End
+
+Private Function Text_Read() As String
+
+  Return $sText
+
+End
+
+Private Sub Text_Write(Value As String)
+
+  If $sText = Value Then Return
+  $sText = Value
+  Me.Refresh
+
+End
+
+Public Sub _UpdateProperty(sProp As String, (vValue) As Variant)
+
+  If sProp = "#popup" Then 
+    Me.Class = "gw-active"
+    Popup(Me)
+    Me.Class = ""
+  Endif
+  
+End
+
+Public Sub Popup(Control As WebControl) As Boolean
+  
+  Dim sClick As String
+  Dim hPopup As FPopupMenu
+  
+  hPopup = New FPopupMenu(Me)
+  sClick = hPopup.ShowPopup(Control)
+  If sClick Then 
+    Object.Raise(WebControl.FromName(sClick), "Click")
+    Return True
+  Endif
+  
+End

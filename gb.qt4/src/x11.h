@@ -2,7 +2,7 @@
 
   x11.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -27,6 +27,8 @@
 #include <X11/Xlib.h>
 #include <X11/Xatom.h>
 #include <X11/Xutil.h>
+
+#ifdef QT_VERSION
 //#include <X11/extensions/shape.h>
 const int XFocusIn = FocusIn;
 #undef FocusIn
@@ -36,6 +38,7 @@ const int XKeyPress = KeyPress;
 #undef KeyPress
 const int XKeyRelease = KeyRelease;
 #undef KeyRelease
+#endif
 
 #include "gambas.h"
 #include "gb_common.h"

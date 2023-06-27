@@ -1,0 +1,42 @@
+' Gambas module file
+
+Export 
+'' Allow user to define keyword filter, this will allow to stop certain functions from
+'' being allowed inside a script file. as need by the pluging user
+'' This filter set is a set of regular expressions which will be used to match program lines
+'' Entry would be : "Message if matched":"Regular expression"
+'' example "File IO not permitted":"*Open* For * Write"
+'' to prevent opening a file for or input output would look like
+Public Sub _Call(KeyManagement As Collection)
+  
+  If IsNull(KeyManagement) Then 
+     Reader.$sScriptFilter.Clear()
+     Return
+  Endif
+  
+  If Not Class.IsLoaded("RegExp") Then 
+    Try Component.Load("gb.pcre")
+    If Error Then 
+        Warning("Component gb.pcre not found, filter will be ignored")
+        Return 
+    Endif
+    Try Class.Load("RegExp")
+    If Error Then 
+      Warning("Unable to load regexp, filter will be ignored")
+      Return
+    Endif
+    Reader.$sScriptFilter = KeyManagement
+  Else 
+    Reader.$sScriptFilter = KeyManagement
+  Endif
+  
+End
+
+'' Clear the Script Filters
+Public Sub Clear()
+  
+  Reader.$sScriptFilter.Clear()
+  
+End
+
+

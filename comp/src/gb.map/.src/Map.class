@@ -93,27 +93,27 @@ Private Sub SetBoxes()
 
   Dim ptCenter As Point
   ' Dim iMaxSize As Integer
-  If Not $PrevBox Then 
+  If Not $PrevBox Then
     $PrevBox = $PixelBox.Copy()
     tmrLoad.Trigger
   Endif
 
   'Create the pixBox
   ptCenter = Geo.MapPointToPixel($mpCenter, $iZoom)
-  
+
   'trying to understand why "square surface"...
   ' 'Set a square surface on max size
   ' iMaxSize = Max($iWidth, $iHeight)
-  ' 
+  '
   '   $PixelBox.X = ptCenter.X - (iMaxSize / 2)
   '   $PixelBox.Y = ptCenter.Y - (iMaxSize / 2)
   '   $PixelBox.Right = ptCenter.x + (iMaxSize / 2)
   '   $PixelBox.Bottom = ptCenter.Y + (iMaxSize / 2)
-    $PixelBox.X = ptCenter.X - ($iWidth / 2)
-    $PixelBox.Y = ptCenter.Y - ($iHeight / 2)
-    $PixelBox.Right = ptCenter.x + ($iWidth / 2)
-    $PixelBox.Bottom = ptCenter.Y + ($iHeight / 2)
-  
+  $PixelBox.X = ptCenter.X - ($iWidth / 2)
+  $PixelBox.Y = ptCenter.Y - ($iHeight / 2)
+  $PixelBox.Right = ptCenter.x + ($iWidth / 2)
+  $PixelBox.Bottom = ptCenter.Y + ($iHeight / 2)
+
   $Bounds.TopLeft = Geo.PixelToMapPoint(Point($PixelBox.x, $PixelBox.y), $iZoom)
   $Bounds.BottomRight = Geo.PixelToMapPoint(Point($PixelBox.Right, $PixelBox.Bottom), $iZoom)
 
@@ -170,7 +170,8 @@ End
 
 Private Sub Center_Write(Value As MapPoint)
 
-  'Print Value.Lat, Value.Lon
+  'Can't be null
+  If IsNull(Value) Then Return
   $mpCenter = Value
   SetBoxes
 
@@ -202,7 +203,7 @@ End
 ''   If CacheName is provided, stores and load Tiles in/from local cache path defined by *DefaultCache* property.
 Public Sub AddTile(Name As String, Pattern As String, Optional Args As Collection, Optional CacheName As String) As _MapTile
 
-  Dim hLayer As New _MapTile(CacheName, Me)
+  Dim hLayer As New _MapTile(Me, CacheName)
 
   'hLayer.Pattern = Pattern
   hLayer.SetPattern(Pattern, Args)
@@ -229,6 +230,14 @@ Public Function AddShape(Name As String) As _MapShape
 
 End
 
+'' Add a generic map layer
+Public Sub _AddMapLayer(Name As String, MapLayer As _MapLayer)
+
+  $aLayers.Add(MapLayer)
+  $aLayerNames.Add(Name)
+
+End
+
 '' Removes a Layer
 '' - Name is any Tile or Shape Layer
 Public Sub Remove(Name As String)
@@ -236,6 +245,7 @@ Public Sub Remove(Name As String)
   'If Not $aLayerNames.Exist(Name) Then Error.Raise("Layer not found: " & Name)
 
   Dim iRet As Integer = $aLayerNames.Find(Name)
+
   $aLayers.Remove(iRet)
   $aLayerNames.Remove(iRet)
 
@@ -298,7 +308,7 @@ Public Sub Draw()
   Dim iTextHeight, iTextWidth As Integer
   'Draw.Rect(0, 0, Me.Width, Me.Height)
   For Each hLayer In $aLayers
-    If hLayer.Visible Then 
+    If hLayer.Visible Then
       hLayer.Draw
       sCopyright &/= hLayer.Copyright
     Endif
@@ -336,11 +346,11 @@ Public Sub Refresh()
 End
 
 ' Private Function Preload_Read() As Boolean
-'   
+'
 ' End
-' 
+'
 ' Private Sub Preload_Write(Value As Boolean)
-'   
+'
 ' End
 
 Private Function Bounds_Read() As MapBounds
@@ -365,7 +375,7 @@ Public Function Grab(Bounds As MapBounds, iWidth As Integer, iHeight As Integer,
   Me.Center = hBndCenter
   Me.Resize(iwidth, iHeight)
 
-  If Zoom Then 
+  If Zoom Then
 
     Me.Zoom = Zoom
 
@@ -379,7 +389,7 @@ Public Function Grab(Bounds As MapBounds, iWidth As Integer, iHeight As Integer,
       Endif
     Next
 
-    Me.Zoom = i 
+    Me.Zoom = i
   Endif
 
   tmrLoad_Timer
@@ -404,6 +414,7 @@ End
 Public Function MapPointToPixelRel(hMapPoint As MapPoint) As Point
 
   Dim hPoint As Point
+
   hPoint = Geo.MapPointToPixel(hMapPoint, $iZoom)
   hPoint.X -= $PixelBox.X
   hPoint.Y -= $PixelBox.Y
@@ -415,6 +426,7 @@ End
 Public Function PixelToMapPointRel(hPoint As Point) As MapPoint
 
   Dim pt As Point = hPoint.Copy()
+
   pt.X += $PixelBox.X
   pt.Y += $PixelBox.Y
   Return Geo.PixelToMapPoint(pt, $iZoom)
@@ -457,4 +469,10 @@ Private Sub DefaultCache_Write(Value As String)
 
   $sCachePath = Value
 
+End
+
+Public Sub _GetLayers() As _MapLayer[]
+  
+  Return $aLayers
+  
 End

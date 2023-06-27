@@ -2,7 +2,7 @@
 
   cpaint_impl.cpp
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -37,10 +37,6 @@
 #include <QVector>
 #include <QTextDocument>
 
-#ifndef NO_X_WINDOW
-#include <QX11Info>
-#endif
-
 #include "gambas.h"
 
 #include "CConst.h"
@@ -50,6 +46,7 @@
 #include "CPicture.h"
 #include "CImage.h"
 #include "CDrawingArea.h"
+#include "CContainer.h"
 #include "CColor.h"
 #include "CDraw.h"
 #include "cprinter.h"
@@ -87,6 +84,8 @@ typedef
 #define PAINTER(d) EXTRA(d)->painter
 #define PATH(d) EXTRA(d)->path
 //#define CLIP(d) EXTRA(d)->clip
+	
+static bool _internal_paint = false;
 
 static inline qreal to_deg(float angle)
 {
@@ -96,6 +95,7 @@ static inline qreal to_deg(float angle)
 static bool init_painting(GB_PAINT *d, QPaintDevice *device)
 {
 	QPen pen;
+	GB_COLOR col;
 
 	d->area.width = device->width();
 	d->area.height = device->height();
@@ -128,17 +128,23 @@ static bool init_painting(GB_PAINT *d, QPaintDevice *device)
 	PAINTER(d)->setRenderHints(QPainter::Antialiasing, true);
 	PAINTER(d)->setRenderHints(QPainter::TextAntialiasing, true);
 	PAINTER(d)->setRenderHints(QPainter::SmoothPixmapTransform, true);
-	if (MAIN_right_to_left)
-		PAINTER(d)->setLayoutDirection(Qt::RightToLeft);
+	PAINTER(d)->setLayoutDirection(Qt::LayoutDirectionAuto);
 
+	if (GB.Is(d->device, CLASS_Control))
+		col = CWIDGET_get_real_foreground((CWIDGET *)d->device);
+	else
+		col = 0;
+	
 	pen = PAINTER(d)->pen();
 	pen.setCapStyle(Qt::FlatCap);
 	pen.setJoinStyle(Qt::MiterJoin);
 	pen.setMiterLimit(10.0);
 	pen.setWidthF(1.0);
+	pen.setColor(CCOLOR_make(col));
 	PAINTER(d)->setPen(pen);
-	PAINTER(d)->setBrush(Qt::black);
 
+	PAINTER(d)->setBrush(CCOLOR_make(col));
+	
 	return FALSE;
 }
 
@@ -147,7 +153,7 @@ static QColor get_color(GB_PAINT *d, GB_COLOR col)
 	if (col == GB_COLOR_DEFAULT)
 	{
 		if (GB.Is(d->device, CLASS_Control))
-			col = CWIDGET_get_real_background((CWIDGET *)d->device);
+			col = CWIDGET_get_real_foreground((CWIDGET *)d->device);
 		else
 			col = 0xFFFFFF;
 	}
@@ -237,8 +243,26 @@ static int Begin(GB_PAINT *d)
 		if (init_painting(d, target))
 			return TRUE;
 
-		if (wid->isCached())
-			PAINTER(d)->initFrom(wid);
+		d->area.width = wid->width();
+		d->area.height = wid->height();
+		return FALSE;
+	}
+	else if (GB.Is(device, CLASS_UserControl) || GB.Is(device, CLASS_UserContainer))
+	{
+		MyContainer *wid;
+
+		wid = (MyContainer *)(((CWIDGET *)device)->widget);
+
+		if (!_internal_paint)
+		{
+			GB.Error("Cannot paint outside of Draw event handler");
+			return TRUE;
+		}
+
+		target = wid;
+
+		if (init_painting(d, target))
+			return TRUE;
 
 		d->area.width = wid->width();
 		d->area.height = wid->height();
@@ -255,6 +279,15 @@ static int Begin(GB_PAINT *d)
 		}
 
 		target = printer->printer;
+		
+		if (init_painting(d, target))
+			return TRUE;
+		// Paint.W / $hPrinter.PaperWidth * 25.4  / $hPrinter.Resolution
+		QSizeF size = CPRINTER_get_page_size(printer);
+		//qDebug("d->area.width = %g / paper width = %g / resolution = %d", d->area.width, (floor((double)size.width() * 1E6) / 1E6), printer->printer->resolution());
+		d->fontScale = 25.4 * d->area.width / (floor((double)size.width() * 1E6) / 1E6) / printer->printer->resolution();
+		
+		return FALSE;
 	}
 	else if (GB.Is(device, CLASS_SvgImage))
 	{
@@ -363,34 +396,61 @@ static void Antialias(GB_PAINT *d, int set, int *antialias)
 		*antialias = PAINTER(d)->testRenderHint(QPainter::Antialiasing) ? 1 : 0;
 }
 
+static void set_painter_font(QPainter *p, const QFont &f)
+{
+	QFont pf;
+
+	pf.setFamily(f.family());
+	pf.setPointSizeF(f.pointSizeF());
+	pf.setWeight(f.weight());
+	pf.setStyle(f.style());
+	pf.setUnderline(f.underline());
+	pf.setStrikeOut(f.strikeOut());
+
+	p->setFont(pf);
+
+	// Strange bug of QT. Sometimes the font does not apply (cf. DrawTextShadow)
+		
+	/*if (pf != p->font())
+	{
+		fprintf(stderr, "set_painter_font: %s / %s\n", TO_UTF8(f.toString()), TO_UTF8(p->font().toString()));
+		QFont f2;
+		f2.fromString(f.toString());
+		p->setFont(f2);
+	}*/
+}
+
 static void apply_font(QFont &font, void *object = 0)
 {
 	GB_PAINT *d = (GB_PAINT *)DRAW.Paint.GetCurrent();
+	QFont f = font;
+	
+	if (d->fontScale != 1)
+		f.setPointSizeF(f.pointSizeF() * d->fontScale);
 
-	PAINTER(d)->setFont(font);
+	set_painter_font(PAINTER(d), f);
 }
 
 static void Font(GB_PAINT *d, int set, GB_FONT *font)
 {
+	QFont f;
+	
 	if (set)
 	{
-		QFont f;
-
 		if (*font)
 			f = QFont(*((CFONT *)(*font))->font);
-		else if ((GB.Is(d->device, CLASS_DrawingArea)))
+		else if ((GB.Is(d->device, CLASS_DrawingArea) || GB.Is(d->device, CLASS_UserControl) || GB.Is(d->device, CLASS_UserContainer)))
 			f = (((CWIDGET *)d->device)->widget)->font();
-		PAINTER(d)->setFont(f);
-
-		// Strange bug of QT. Sometimes the font does not apply (cf. DrawTextShadow)
-		if (f != PAINTER(d)->font())
-		{
-			f.fromString(f.toString());
-			PAINTER(d)->setFont(f);
-		}
+		
+		apply_font(f);
 	}
 	else
-		*font = CFONT_create(PAINTER(d)->font(), apply_font);
+	{
+		f = PAINTER(d)->font();
+		if (d->fontScale != 1)
+			f.setPointSizeF(f.pointSizeF() / d->fontScale);
+		*font = CFONT_create(f, apply_font);
+	}
 }
 
 static void init_path(GB_PAINT *d)
@@ -900,21 +960,30 @@ static void CurveTo(GB_PAINT *d, float x1, float y1, float x2, float y2, float x
 }
 
 static QStringList text_sl;
-static QVector<int> text_w;
-static int text_line;
+static QVector<float> text_w;
+static float text_line;
 
-static int get_text_width(QPainter *dp, QString &s)
+static float get_text_width(QPainter *p, QString &s)
 {
-	int w, width = 0;
+	float w, width = 0;
 	int i;
+	QFontMetricsF fm(p->font());
 
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 14, 0))
+	text_sl = s.split('\n', Qt::KeepEmptyParts);
+#else
 	text_sl = s.split('\n', QString::KeepEmptyParts);
+#endif
 
 	text_w.resize(text_sl.count());
 
 	for (i = 0; i < (int)text_sl.count(); i++)
 	{
-		w = dp->fontMetrics().width(text_sl[i]);
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 11, 0))
+		w = fm.horizontalAdvance(text_sl[i]);
+#else
+		w = fm.width(text_sl[i]);
+#endif
 		if (w > width) width = w;
 		text_w[i] = w;
 	}
@@ -922,9 +991,10 @@ static int get_text_width(QPainter *dp, QString &s)
 	return width;
 }
 
-static int get_text_height(QPainter *dp, QString &s)
+static int get_text_height(QPainter *p, QString &s)
 {
-	text_line = dp->fontMetrics().height();
+	QFontMetricsF fm(p->font());
+	text_line = fm.height();
 	return text_line * (1 + s.count('\n'));
 }
 
@@ -960,7 +1030,7 @@ static void draw_text(GB_PAINT *d, bool rich, const char *text, int len, float w
 		MyPaintDevice device;
 		QPainter p(&device);
 
-		p.setFont(PAINTER(d)->font());
+		set_painter_font(&p, PAINTER(d)->font());
 		p.setPen(PAINTER(d)->pen());
 		p.setBrush(PAINTER(d)->brush());
 
@@ -989,8 +1059,10 @@ static void get_text_extents(GB_PAINT *d, bool rich, const char *text, int len, 
 	QPainterPath path;
 	MyPaintDevice device;
 	QPainter p(&device);
+	QFont f = PAINTER(d)->font();
 
-	p.setFont(PAINTER(d)->font());
+	set_painter_font(&p, f);
+	
 	_draw_path = &path;
 	GetCurrentPoint(d, &_draw_x, &_draw_y);
 	_draw_y -= PAINTER(d)->fontMetrics().ascent();
@@ -1018,18 +1090,25 @@ static void RichTextExtents(GB_PAINT *d, const char *text, int len, GB_EXTENTS *
 
 static void TextSize(GB_PAINT *d, const char *text, int len, float *w, float *h)
 {
+	if (len == 0)
+	{
+		if (w) *w = 0;
+		if (h) *h = 0;
+		return;
+	}
+	
 	QString s = QString::fromUtf8((const char *)text, len);
-	*w = get_text_width(PAINTER(d), s);
-	*h = get_text_height(PAINTER(d), s);
+	if (w) *w = get_text_width(PAINTER(d), s);
+	if (h) *h = get_text_height(PAINTER(d), s);
 }
 
 static void RichTextSize(GB_PAINT *d, const char *text, int len, float sw, float *w, float *h)
 {
 	QTextDocument rt;
 
-	rt.setDocumentMargin(0);
+	DRAW_init_rich_text(&rt, PAINTER(d)->font());
+	
 	rt.setHtml(QString::fromUtf8((const char *)text, len));
-	rt.setDefaultFont(PAINTER(d)->font());
 
 	if (sw > 0)
 		rt.setTextWidth(sw);
@@ -1421,7 +1500,9 @@ GB_PAINT_MATRIX_DESC PAINT_MATRIX_Interface =
 
 void PAINT_begin(void *device)
 {
+	_internal_paint = true;
 	DRAW.Paint.Begin(device);
+	_internal_paint = false;
 }
 
 void PAINT_end()
@@ -1452,7 +1533,7 @@ void PAINT_clip(int x, int y, int w, int h)
 
 /*************************************************************************/
 
-MyPaintEngine::MyPaintEngine() : QPaintEngine(0) {}
+MyPaintEngine::MyPaintEngine() : QPaintEngine() {}
 MyPaintEngine::~MyPaintEngine() {}
 
 void MyPaintEngine::patchFeatures()
@@ -1581,6 +1662,10 @@ int MyPaintDevice::metric(PaintDeviceMetric m) const
 		case PdmDpiY: return d->logicalDpiY();
 		case PdmPhysicalDpiX: return d->physicalDpiX();
 		case PdmPhysicalDpiY: return d->physicalDpiY();
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 6, 0))
+		case PdmDevicePixelRatio: return d->devicePixelRatio();
+		case PdmDevicePixelRatioScaled: return d->devicePixelRatioFScale();
+#endif
 		default: return 0;
 	}
 }

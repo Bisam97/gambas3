@@ -12,12 +12,49 @@ Property Expanded As Boolean
 Property Read X As Integer
 Property Read Y As Integer
 Property Read Width, W As Integer
-Property Read Height, H As Integer
+Property Height, H As Integer
 Property Editable As Boolean
 Property Selected As Boolean
+Property Span As Boolean
+Property Selectable As Boolean
+
+'' @{since 3.11}
+'' 
+'' Return or set the item background color.
+''
+'' If that property is 'NULL', the background color of the TreeView is used.
+
 Property Background As Integer
+
+'' @{since 3.11}
+'' 
+'' Return or set the item foreground color.
+''
+'' If that property is 'NULL', the foreground color of the TreeView is used.
+
 Property Foreground As Integer
+
+'' @{since 3.11}
+'' 
+'' Return or set the item font.
+''
+'' If that property is 'NULL', the font of the TreeView is used.
+
 Property Font As Font
+
+'' @{since 3.16}
+''
+'' Return or set the tag associated with a cell.
+''
+'' This property is intended for the programmer and is never used by the component. It can contain any Variant value.
+
+Property Tag As Variant
+
+'' @{since 3.16}
+''
+'' Return the depth of an item.
+
+Property Read Depth As Integer
 
 Private $sKey As String
 Private $sParent As String
@@ -26,12 +63,16 @@ Private $sRichText As String
 Private $hPicture As Picture
 Private $bExpanded As Boolean
 Private $bEditable As Boolean
+Private $bNotSelectable As Boolean
 Private $iBg As Integer = Color.Default
 Private $iFg As Integer = Color.Default
 Private $hFont As Font
+Private $vTag As Variant
 
 Private $aChildren As String[]
 Private $aText As String[]
+
+Private $H As Integer
 
 Static Public _Tree As _TreeView
 
@@ -41,7 +82,9 @@ Public _Index As Integer
 Public _GrandChildren As Integer
 
 Event _Refresh
+
 Private $iLock As Integer
+Private $bSpan As Boolean
 
 Private Sub GetTree() As _TreeView
   
@@ -295,7 +338,7 @@ Private Sub Expanded_Write(Value As Boolean)
 
   hTree._RestoreSelection
   
-  If Value Then hTree._EnsureVisible(Me, True)
+  hTree._EnsureVisible(Me, Value)
   
   hTree._RaiseExpand($sKey, $bExpanded)
   
@@ -305,7 +348,7 @@ Private Function X_Read() As Integer
 
   Dim hView As GridView = GetView()
   'Dim FW As Integer = hView._GetFrameWidth()
-  Return GetTree()._GetItemX(Me) - hView.ScrollX + hView.ClientX + hView.Padding '+ FW
+  Return GetTree()._GetItemX(Me) - hView.ScrollX + hView.ClientX + hView.Padding + hView.Columns.Padding'+ FW
 
 End
 
@@ -339,6 +382,8 @@ Public Sub _GetHeight() As Integer
   
   Dim PH As Integer
   Dim hFont As Font
+
+  If $H > 0 Then Return $H
 
   hFont = $hFont
   If Not hFont Then hFont = GetTree().Font
@@ -555,7 +600,16 @@ End
 
 Private Sub Font_Write(Value As Font)
 
-  $hFont = Value.Copy()
+  Dim hTree As _TreeView = GetTree()
+
+  If Value Then
+    $hFont = Value.Copy()
+  Else
+    $hFont = Null
+  Endif
+  
+  hTree._UpdateItemHeight(Me)
+  hTree._RefreshView
 
 End
 
@@ -577,4 +631,62 @@ Public Sub _Unlock()
     hTree._RefreshView
   Endif
   
+End
+
+Private Function Tag_Read() As Variant
+
+  Return $vTag
+
+End
+
+Private Sub Tag_Write(Value As Variant)
+
+  $vTag = Value
+
+End
+
+Private Sub Height_Write(Value As Integer)
+
+  Dim hTree As _TreeView
+  
+  If $H = Value Then Return
+  $H = Value
+
+  hTree = GetTree()
+  hTree._UpdateItemHeight(Me)
+  hTree._RefreshView
+
+End
+
+Private Function Depth_Read() As Integer
+
+  Return _Depth
+
+End
+
+
+Private Function Selectable_Read() As Boolean
+
+  Return Not $bNotSelectable
+
+End
+
+Private Sub Selectable_Write(Value As Boolean)
+
+  $bNotSelectable = Not Value
+
+End
+
+Private Function Span_Read() As Boolean
+
+  Return $bSpan
+
+End
+
+Private Sub Span_Write(Value As Boolean)
+
+  If Value = $bSpan Then Return
+  $bSpan = Value
+  GetTree()._UpdateSpan()
+
 End

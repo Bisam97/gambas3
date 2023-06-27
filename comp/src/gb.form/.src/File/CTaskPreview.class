@@ -2,37 +2,420 @@
 
 Inherits Task
 
+Class Hash
+Class PdfDocument
+
+Public Preview As String[]
+
 Private $sDir As String
 Private $iSize As Integer
-Private $aPreview As String[]
+Private $iMaxFileSize As Integer
+Private $sCache As String
+Private $sFFmpeg As String
+Private $sUnzip As String
+Private $cIcon As New Collection
+Private $bIgnoreCache As Boolean
 
-Public Sub _new(sDir As String, iSize As Integer, aPreview As String[])
+Public Sub _new(sDir As String, iSize As Integer, iMaxFileSize As Integer, aPreview As String[], sTempDir As String, bIgnoreCache As Boolean)
   
   $sDir = sDir
   $iSize = iSize
-  $aPreview = aPreview
+  $iMaxFileSize = iMaxFileSize
+  If $iMaxFileSize = 0 Then $iMaxFileSize = 4194304
+  Preview = aPreview
+  $sCache = sTempDir &/ "gb.form/thumbnails"
+  Main.MkDir($sCache)
+  $bIgnoreCache = bIgnoreCache
   
 End
 
-Private Sub PrintIcon(sFile As String, hImage As Image)
+Private Sub IsTextFile(sPath As String) As Boolean
+
+  Dim hFile As File
+  Dim sStr As String
+  Dim sCar As String
+  Dim iCode As Integer
+  Dim sTest As String
+
+  Try hFile = Open sPath
+  If Error Then Return
+  
+  sStr = Read #hFile, -256
+
+  While sStr
+    sCar = String.Left(sStr)
+    sStr = Mid$(sStr, Len(sCar) + 1)
+    If Not sCar Then Break
+    If Len(sCar) = 1 Then
+      iCode = Asc(sCar)
+      If iCode = &HFE Then Return False
+      If iCode = &HFF Then Return False
+      If iCode < 32 And If iCode <> 10 And If iCode <> 13 And If iCode <> 9 Then Return False
+    Else If sStr Then
+      Try sTest = Conv(sCar, "UTF-8", "UCS-4LE")
+      If Error Then Return False
+    Endif
+  Wend
+
+  Return True
+
+End
+
+Private Sub PaintRoundText(sText As String, sIcon As String, X As Float, Y As Float, W As Float, H As Float)
+
+  Dim hRect As RectF
+  Dim iSize As Integer
+  Dim HT As Float
+  Dim hImage As Image
+  
+  HT = $iSize / 8
+  Paint.Font.Size *= HT / Paint.TextHeight
+  Paint.Font.Size = Min(Paint.Font.Size, Application.Font.Size)
+  HT = Paint.TextHeight
+  If HT < 12 Then Return
+  
+  X += 2
+  Y -= 2
+  W -= 4
+  
+  Paint.Rectangle(X, Y + H - HT, W, HT)
+  Paint.Background = Color.Merge(Color.LightForeground, Color.TextBackground)
+  Paint.Fill
+
+  iSize = CInt(HT * 0.7)
+  hImage = $cIcon[sIcon]
+  If Not hImage Then 
+    hImage = Image.Load("img/" & sIcon & ".png").Stretch(iSize, iSize)
+    If Application.DarkTheme Then hImage = hImage.Invert(True)
+    $cIcon[sIcon] = hImage
+  Endif
+  
+  hRect = Paint.TextSize(sText)
+  hRect.W += iSize + HT / 4
+  hRect.H = HT
+  hRect.X = Max(0, X + (W - hRect.W) / 2)
+  hRect.Y = Y + H - hRect.H
+  
+  Paint.DrawImage(hImage, CInt(hRect.X), hRect.Y + (hRect.H - iSize) / 2)
+
+  Paint.Background = Color.TextForeground
+  Paint.DrawText(sText, CInt(hRect.X + iSize + HT / 4), hRect.Y, hRect.W, hRect.H, Align.Normal)
+  
+End
+
+Private Sub PrintIcon(hImage As Image, sThumb As String, Optional bVideo As Boolean, Optional nPage As Integer) As Rect
 
   Dim hIcon As Image
-  Dim sTemp As String
+  Dim X As Integer
+  Dim Y As Integer
+  Dim W As Integer
+  Dim I As Integer
+  Dim iSize As Integer
+  Dim iSizeBinding As Integer
 
-  hIcon = New Image(hImage.W + 4, hImage.H + 4, Color.Transparent)
-  Paint.Begin(hIcon)
-  Paint.AntiAlias = False
-  Paint.LineWidth = 2
-  Paint.Rectangle(0, 0, hIcon.W, hIcon.H)
-  Paint.Background = Color.Gray
-  Paint.Stroke
-  Paint.End
-  hIcon.DrawImage(hImage, 2, 2)
+  If nPage < 0 Then
+    iSizeBinding = $iSize \ 16
+  Else If nPage > 1 Then
+    iSizeBinding = Min(Min($iSize / 8, Max(1, nPage / 512 * $iSize)), (nPage - 1))
+    iSizeBinding = Min(iSizeBinding, 16)
+  Endif
   
-  sTemp = File.SetExt(Temp$(), "png")
-  hIcon.Save(sTemp)
-  Print sFile; "\t"; sTemp
+  iSize = $iSize - 4 - iSizeBinding * 2
+
+  If hImage.W > hImage.H Then
+    hImage = hImage.Stretch(iSize, (iSize * hImage.H) \ hImage.W)
+  Else
+    hImage = hImage.Stretch((iSize * hImage.W) \ hImage.H, iSize)
+  Endif
+  
+  X = ($iSize - hImage.W - iSizeBinding) \ 2 
+  Y = ($iSize - hImage.H - iSizeBinding) \ 2 
+
+  hIcon = New Image($iSize, $iSize)
+  
+  Paint.Begin(hIcon)
+  Paint.DrawImage(hImage, X, Y)
+  
+  'hRect = Paint.StretchImage(hImage, 0, 0, $iSize, $iSize)
+  
+  If bVideo Then
     
+    W = $iSize \ 16
+    Paint.FillRect(X, Y, W, hImage.H, Color.SetAlpha(Color.Black, 128))
+    Paint.FillRect(X + hImage.W - W, Y, W, hImage.H, Color.SetAlpha(Color.Black, 128))
+    Paint.Background = Color.White
+    Paint.Save()
+    Paint.ClipRect = Rect(X, Y, hImage.W, hImage.H)
+    For I = 0 To hImage.H Step W
+      Paint.Ellipse(X + W \ 4, Y + I + W \ 4, W \ 2, W \ 2)
+      Paint.Ellipse(X + hImage.W - W + W \ 4, Y + I + W \ 4, W \ 2, W \ 2)
+      Paint.Fill()
+    Next
+    Paint.Restore()
+    
+  Endif
+  
+  X -= 2
+  Y -= 2
+  
+  Paint.Rectangle(X + 0.5, Y + 0.5, hImage.W + 3, hImage.H + 3)
+  Paint.Background = Color.LightForeground
+  Paint.Stroke
+  
+  If iSizeBinding Then
+    
+    For I = 1 To iSizeBinding Step 2
+      Paint.FillRect(X + hImage.W + 4 + I, Y + I + 1, 1, hImage.H + 4, Color.LightForeground)
+      Paint.FillRect(X + I + 1, Y + hImage.H + 4 + I, hImage.W + 4, 1, Color.LightForeground)
+    Next
+    
+    If nPage > 1 Then PaintRoundText(CStr(nPage), "page", X, Y, hImage.W + 4, hImage.H + 4)
+    
+  Endif
+  
+  Paint.End
+  
+  Try hIcon.Save(sThumb)
+  
+  Return Rect(X, Y, hImage.W + 4, hImage.H + 4)
+
+Catch
+  
+  Error Error.Where;; Error.Text
+  
+End
+
+Private Sub PrintTextFile(sPath As String, sThumb As String) As Rect
+
+  Dim hImage As Image
+  Dim hFile As File
+  Dim sLine As String
+  Dim X, Y As Integer
+  Dim fSize As Float
+  Dim sData As String
+  Dim iPos As Integer
+  Dim nLines As Integer
+  Dim T As Float
+  Dim nLinesMax As Integer
+
+  If $iSize <= 16 Then Return
+
+  hImage = New Image($iSize, $iSize, Color.Merge(Color.TextBackground, Color.TextForeground, 0.025))
+  
+  hFile = Open sPath
+
+  Paint.Begin(hImage)
+  
+  fSize = Min($iSize / 16, Desktop.Scale * 0.8)
+  
+  X = CInt(fSize) + 1
+  Y = X
+  
+  Paint.Save
+  Paint.ClipRect = Rect(X, Y, hImage.W - X * 2, hImage.H - Y * 2)
+  
+  If fSize >= 4 Then
+    
+    Paint.Font = Font["monospace"]
+    Paint.Font.Size = fSize
+  
+    While Not Eof(hFile)
+      Line Input #hFile, sLine
+      Paint.DrawText(sLine, X, Y + Paint.Font.Ascent)
+      Y += Paint.Font.Height
+      If Y > hImage.H Then Break
+    Wend
+    
+  Else
+    
+    hFile = Open sPath
+    While Not Eof(hFile)
+      Line Input #hFile, sLine
+      Paint.FillRect(X, Y, String.Len(sLine), 1, Color.LightForeground)
+      Y += 2
+      If Y > hImage.H Then Break
+    Wend
+
+  Endif
+
+  Paint.Restore
+    
+  Paint.Rectangle(0.5, 0.5, hImage.W - 1, hImage.H - 1)
+  Paint.Background = Color.LightForeground
+  Paint.Stroke
+  
+  If $iSize >= 64 Then
+
+    T = Timer
+    nLinesMax = 10000
+
+    Seek #hFile, 0
+    While Not Eof(hFile)
+      sData = Read #hFile, -4096
+      iPos = 0
+      Do
+        iPos = InStr(sData, "\n", iPos + 1)
+        If iPos = 0 Then Break
+        Inc nLines
+      Loop
+      
+      If nLines > nLinesMax Then
+        If nLinesMax = 100000 Or If Timer - T >= 0.25 Then
+          Break 
+        Else 
+          nLinesMax += 10000
+        Endif
+      Endif
+    Wend
+    
+    If sData Not Ends "\n" Then Inc nLines
+  
+    If nLines > nLinesMax Then 
+      PaintRoundText(Format(nLinesMax, ",0") & "+", "line", 0, 0, hImage.W, hImage.H)
+    Else
+      PaintRoundText(Format(nLines, ",0"), "line", 0, 0, hImage.W, hImage.H)
+    Endif
+    
+  Endif
+
+  Paint.End
+
+  Close #hFile
+    
+  Try hImage.Save(sThumb)
+  
+  Return Rect(0, 0, $iSize, $iSize)
+  
+End
+
+Private Sub PrintPdfFile(sPath As String, sThumb As String) As Rect
+
+  Dim hPdf As PdfDocument
+  Dim hPage As Image
+  
+  Try Component.Load("gb.poppler")
+  If Error Then Return
+  
+  Try hPdf = New PdfDocument(sPath)
+  If Error Then 
+    'Error File.Name(sPath); ": "; Error.Text
+    Return
+  Endif
+  If hPdf.Count = 0 Then Return
+  
+  hPage = hPdf[0].Render()
+  Return PrintIcon(hPage, sThumb,, hPdf.Count)
+
+End
+
+Private Sub PrintVideo(sPath As String, sThumb As String) As Rect
+
+  Dim sFile As String
+  Dim hImage As Image
+  
+  If Not $sFFmpeg Then Return
+  sFile = File.SetExt(Temp$("ffmpeg"), "png")
+  Exec [$sFFmpeg, "-nostdin", "-hide_banner", "-loglevel", "error", "-i", sPath, "-frames:v", "1", "-y", "-t", "00:00:03", "-vf", "scale=" & CStr($iSize) & ":-1", sFile] Wait
+  'Exec [$sFFmpeg, "-nostdin", "-hide_banner", "-i", sPath, "-frames:v", "1", "-y", "-t", "00:00:03", sFile] Wait
+  Try hImage = Image.Load(sFile)
+  Try Kill sFile
+  If Error Then Return
+  Return PrintIcon(hImage, sThumb, True)
+  
+End
+
+Private Sub PrintLibreOffice(sPath As String, sThumb As String) As Rect
+
+  Dim sData As String
+  Dim hImage As Image
+  Dim nPage As Integer
+  
+  If Not $sUnzip Then Return
+  Exec [$sUnzip, "-p", sPath, "Thumbnails/thumbnail.png"] To sData
+  Try hImage = Image.FromString(sData)
+  If Error Then Return
+
+  sData = ""
+  Exec [$sUnzip, "-p", sPath, "meta.xml"] To sData
+  If sData Then Try nPage = CInt(Scan(sData, "*meta:page-count=\"*\"*")[1])
+
+  Return PrintIcon(hImage, sThumb,, nPage)
+  
+End
+
+Private Sub PrintEPub(sPath As String, sThumb As String) As Rect
+
+  Dim sData As String
+  Dim hImage As Image
+  Dim sCover As String
+  Dim iPos As Integer
+  Dim iPos2 As Integer
+  Dim sContent As String
+  
+  If Not $sUnzip Then Return
+  
+  Exec [$sUnzip, "-p", "-C", sPath, "META-INF/container.xml"] To sData
+  Try sContent = Scan(sData, "*full-path=\"*\"*")[1]
+  If Not sContent Then Return  
+
+  Exec [$sUnzip, "-p", "-C", sPath, sContent] To sData
+  If Not sData Then Return
+  
+  Try sCover = Scan(sData, "*<meta name=\"cover\" content=\"*\"*")[1]
+  
+  If Not sCover Then
+  
+    iPos = InStr(sData, "media-type=\"image/")
+    If iPos = 0 Then Return
+    iPos = RInStr(sData, "<item", iPos)
+    If iPos = 0 Then Return
+    iPos2 = InStr(sData, "/>", iPos)
+    If iPos2 = 0 Then Return
+    Try sCover = Scan(Mid$(sData, iPos, iPos2 - iPos), "*id=\"*\"*")[1]
+    If Not sCover Then Return
+    
+  Endif
+  
+  If sCover Then
+    iPos = InStr(sData, "id=\"" & sCover & "\"")
+    If iPos Then
+      iPos2 = InStr(sData, "/>", iPos)
+      iPos = RInStr(sData, "<item ", iPos - 1)
+      Try sCover = File.Dir(sContent) &/ Scan(Mid$(sData, iPos, iPos2 - iPos), "*href=\"*\"*")[1]
+      If Not Error Then 
+        sCover = Main.UrlUnquote(sCover)
+      Else 
+        sCover = ""
+      Endif
+    Endif
+  Endif
+  
+  'Error File.Name(sPath) & " -> " & sCover
+  
+  sData = ""
+  
+  If sCover Then
+    Exec [$sUnzip, "-p", "-C", sPath, sCover] To sData
+    If Not sData Then Exec [$sUnzip, "-p", "-C", sPath, sCover & ".jpg"] To sData
+    If Not sData Then Exec [$sUnzip, "-p", "-C", sPath, sCover & ".jpeg"] To sData
+  Endif
+  If Not sData Then Exec [$sUnzip, "-p", "-C", sPath, "cover.jpg"] To sData
+  If Not sData Then Exec [$sUnzip, "-p", "-C", sPath, "cover.jpeg"] To sData
+  If Not sData Then Exec [$sUnzip, "-p", "-C", sPath, "OEBPS/images/cover.jpg"] To sData
+  If Not sData Then Exec [$sUnzip, "-p", "-C", sPath, "OEBPS/images/cover.jpeg"] To sData
+  
+  Try hImage = Image.FromString(sData)
+  If Error Then Return
+
+  Return PrintIcon(hImage, sThumb,, -1)
+  
+End
+
+Private Sub GetThumbnailPath(sPath As String) As String
+  
+  sPath &= "." & CStr(Stat(sPath).LastModified)
+  Try Return $sCache &/ Hash.Sha256(sPath) & "." & CStr($iSize) & ".png"
+  
 End
 
 Public Sub Main()
@@ -42,50 +425,101 @@ Public Sub Main()
   Dim sPath As String
   Dim hImage As Image
   Dim hSvgImage As SvgImage
+  Dim sThumb As String
+  Dim sType As String
+  Dim hRect As Rect
+  Dim sRect As String
 
   Application.Priority += 10
+  
+  $sFFmpeg = System.Find("ffmpeg")
+  $sUnzip = System.Find("unzip")
 
-  For Each sFile In $aPreview
+  For Each sFile In Preview
     
     sPath = $sDir &/ sFile
     sExt = LCase(File.Ext(sFile))
     
-    If sExt = "jpg" Or If sExt = "jpeg" Or If sExt = "png" Or If sExt = "gif" Or If sExt = "bmp" Or If sExt = "xpm" Then
-      
-      If Stat(sPath).Size > 4194304 Then Continue
-      
-      Try hImage = Image.Load(sPath)
-      If Error Then Continue
-      
-      If Not (hImage.Width = $iSize And hImage.Height = $iSize) Then 
-        If hImage.Width > hImage.Height Then 
-          hImage = hImage.Stretch($iSize, ($iSize * hImage.Height) \ hImage.Width)
-        Else
-          hImage = hImage.Stretch(($iSize * hImage.Width) \ hImage.Height, $iSize)
-        Endif
-      Endif
-      
-      PrintIcon(sFile, hImage)
-    
-    Else If sExt = "svg" Or If sExt = "svgz" Then
-      
-      Try hSvgImage = SvgImage.Load(sPath)
-      If Error Then Continue
-      
-      If hSvgImage.Width > hSvgImage.Height Then 
-        hSvgImage.Resize($iSize, $iSize * hSvgImage.Height / hSvgImage.Width)
+    sThumb = GetThumbnailPath(sPath)
+    If Exist(sThumb) Then
+      If $bIgnoreCache Then
+        Try Kill sThumb
       Else
-        hSvgImage.Resize($iSize * hSvgImage.Width / hSvgImage.Height, $iSize)
+        Print sFile; "\t"; sThumb; "\t"; 
+        Try Print File.Load(File.SetExt(sThumb, "inf"));
+        Print
+        Continue
       Endif
-
-      hImage = New Image(hSvgImage.Width, hSvgImage.Height, Color.Transparent)
-      Paint.Begin(hImage)
-      hSvgImage.Paint()
-      Paint.End
-    
-      PrintIcon(sFile, hImage)
-      
     Endif
+    
+    If sExt Ends "~" Then sExt = Left(sExt, -1)
+    sType = Main.Ext[sExt]
+    
+    If sType = "image" Then
+      
+      If $iMaxFileSize > 0 And If Stat(sPath).Size > $iMaxFileSize Then Goto NEXT_FILE
+        
+      If sExt = "svg" Or If sExt = "svgz" Then
+        
+        Try hSvgImage = SvgImage.Load(sPath)
+        If Not Error Then
+        
+          If hSvgImage.Width > hSvgImage.Height Then 
+            hSvgImage.Resize($iSize, $iSize * hSvgImage.Height / hSvgImage.Width)
+          Else
+            hSvgImage.Resize($iSize * hSvgImage.Width / hSvgImage.Height, $iSize)
+          Endif
+    
+          hImage = New Image(hSvgImage.Width, hSvgImage.Height)
+          Paint.Begin(hImage)
+          hSvgImage.Paint()
+          Paint.End
+          
+          hRect = PrintIcon(hImage, sThumb)
+        
+        Endif
+      
+      Else
+      
+        Try hImage = Image.Load(sPath)
+        If Not Error Then hRect = PrintIcon(hImage, sThumb)
+        
+      Endif
+    
+    Else If sExt = "pdf" Then
+      
+      If $iMaxFileSize > 0 And If Stat(sPath).Size > $iMaxFileSize Then Goto NEXT_FILE
+      hRect = PrintPdfFile(sPath, sThumb)
+    
+    Else If sType = "video" Then
+    
+      hRect = PrintVideo(sPath, sThumb)
+      
+    Else If sType Begins "office" And If sExt Begins "od" Then
+      
+      hRect = PrintLibreOffice(sPath, sThumb)
+      
+    Else If sExt = "epub" Then
+      
+      hRect = PrintEPub(sPath, sThumb)
+    
+    Else If sType Not Begins "office" And If IsTextFile(sPath) Then
+      
+      hRect = PrintTextFile(sPath, sThumb)
+        
+    Endif
+    
+  NEXT_FILE:
+    
+    Print sFile; "\t";
+    If Exist(sThumb) Then Print sThumb;
+    Print "\t";
+    If hRect Then
+      sRect = CStr(hRect.X) & "," & CStr(hRect.Y) & "," & CStr(hRect.W) & "," & CStr(hRect.H)
+      File.Save(File.SetExt(sThumb, "inf"), sRect)
+      Print sRect;
+    Endif 
+    Print
     
   Next
   

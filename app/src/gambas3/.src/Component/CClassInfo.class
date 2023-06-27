@@ -28,6 +28,7 @@ Public HasEvents As Boolean
 Public Container As Boolean
 Public (Form) As Boolean
 Public MultiContainer As Boolean
+Public DefaultText As String
 
 Public Sub _new(hDoc As CDocumentation, sName As String, sComp As String, Optional sParent As String)
 
@@ -40,7 +41,7 @@ Public Sub _new(hDoc As CDocumentation, sName As String, sComp As String, Option
   Component = sComp
   Symbols = New Collection(gb.IgnoreCase)
 
-  If {Parent} Then
+  If sParent Then
     'IF Parent = "GridView" THEN STOP
     'IF ERROR THEN
     '  STOP
@@ -49,6 +50,8 @@ Public Sub _new(hDoc As CDocumentation, sName As String, sComp As String, Option
     hParent = Documentation.Classes[sComp &/ sParent]
     If Not hParent Then hParent = hDoc.Classes[sParent]
     ParentComponent = hParent.Component
+    
+    AutoCreatable = hParent.AutoCreatable
 
     For Each hSym In Documentation.GetClassSymbols(sParent, ParentComponent)
       Symbols[hSym.Name] = hSym
@@ -152,14 +155,18 @@ Public Sub InitControl()
   If hSym Then VirtualControl = hSym.Value
 
   hSym = Symbols["_IsContainer"]
-  If hSym Then 
-    Container = hSym.Value
-  Endif
+  If hSym Then Container = hSym.Value
   
   hSym = Symbols["_IsMultiContainer"]
-  If hSym Then 
-    MultiContainer = hSym.Value
+  If hSym Then MultiContainer = hSym.Value
+
+  If MultiContainer Then
+    hSym = Symbols["_DefaultText"]
+    If hSym Then DefaultText = hSym.Value
   Endif
+
+  Try DrawWith = Symbols["_DrawWith"].Value
+  If Family <> "Form" And If MultiContainer And If Not DrawWith Then DrawWith = "TabStrip"
 
   hSym = Symbols["_Similar"]
   If hSym Then Similars = Split(hSym.Value, ",")
@@ -246,8 +253,10 @@ Public Sub InitControl()
           Continue
         Endif
       Endif
-
-      If Family <> "Form" Then 
+      
+      If hSym.Component = CComponent.PROJECT_NAME And If Not DrawWith Then
+        bDoNotApply = True
+      Else If Family <> "Form" Then 
         If MultiContainer Then
           bDoNotApply = Not CPropertyInfo.ALLOWED_MULTI_CONTAINER_PROP.Exist(sProp)
         Else
@@ -267,7 +276,7 @@ Public Sub InitControl()
 
   ' Taille par défaut
   
-  'IF Name = "Button" THEN STOP
+  'If Name = "Timer" Then Stop
   Try sStr = Symbols["_DefaultSize"].Value 
   If sStr Then 
     aCont = Split(sStr)
@@ -328,8 +337,6 @@ Public Sub InitControl()
   CPropertyInfo.CreatingSpecialProperty = False
   
   'IF Name = "Timer" THEN
-  Try DrawWith = Symbols["_DrawWith"].Value
-  If Family <> "Form" And If MultiContainer And If Not DrawWith Then DrawWith = "TabStrip"
   'IF DrawWith THEN ?Me. <= CRASH!
   '  PRINT ME.Name;; "->";; DrawWith
   'ENDIF
@@ -339,8 +346,13 @@ Public Sub InitControl()
   ' ENDIF
   
   If DefaultWidth = 0 Or If DefaultHeight = 0 Then
-    DefaultWidth = 9 * Desktop.Scale
-    DefaultHeight = 3 * Desktop.Scale
+    If VirtualControl Then
+      DefaultWidth = CControl.GetVirtualSize() * Desktop.Scale
+      DefaultHeight = DefaultWidth
+    Else
+      DefaultWidth = 9 * Desktop.Scale
+      DefaultHeight = 3 * Desktop.Scale
+    Endif
   Endif
   
 End
@@ -412,6 +424,7 @@ Public Sub GetSimilars() As String[]
   Dim cSimilar As New Collection(gb.IgnoreCase)
   Dim sSimilar As String
   Dim aSimilar As New String[]
+  Dim hClass As CClassInfo
   
   For Each sSimilar In Documentation.GetSimilars(Name)
     cSimilar[sSimilar] = True
@@ -427,6 +440,9 @@ Public Sub GetSimilars() As String[]
   Endif
   
   For Each sSimilar In cSimilar
+    hClass = Project.Documentation.Classes[cSimilar.Key]
+    If Not hClass Then Continue
+    If hClass.IsDeprecated() And If Not FToolBox.IsDeprecatedVisible() Then Continue
     aSimilar.Add(cSimilar.Key)
   Next
   aSimilar.Sort(gb.IgnoreCase)
@@ -448,24 +464,25 @@ Public Sub GetHelpMarkup() As String
   
   If Structure Then
     
-    hForm = Project.LoadFile(Project.FindPath(DeclareIn))
+    hForm = Project.LoadFile(Project.FindPath(DeclareIn), True)
+    If Not hForm Then Return
     Try hEdit = hForm.GetEditor()
-    
     If Not hEdit Then Return  
   
     Return MHelp.FindMarkup(hEdit, DeclareAtLine)
   
   Else
   
-    hForm = Project.LoadFile(Project.FindPath(Name))
-    Try hEdit = hForm.GetEditor()
+    hForm = Project.LoadFile(Project.FindPath(Name, True), True)
+    If Not hForm Then Return
     
+    Try hEdit = hForm.GetEditor()
     If Not hEdit Then Return  
   
     For I = 0 To hEdit.Count - 1
       sLine = Trim(hEdit[I].Text)
       If sLine Begins "''' " Then
-        sMarkup &= Trim(Mid$(sLine, 4)) & "\n"
+        sMarkup &= RTrim(Mid$(sLine, 5)) & "\n"
       Else
         If sMarkup Then Break
         If Not sLine Then Continue
@@ -495,10 +512,13 @@ End
 
 Private Sub GetSymbolLink(hSymbol As CSymbolInfo, sName As String) As String
   
-  Return Subst("<a class=\"none\" href=\"&1\">&2</a>", Html(hSymbol.GetHelpURL()), sName)
+  If hSymbol.HasHelp() Then
+    Return Subst("<!--&2--><a class=\"none\" href=\"&1\">&2</a>", Html(hSymbol.GetHelpURL()), Html(sName))
+  Else 
+    Return Subst("<!--&1-->&1", Html(sName))
+  Endif
   
 End
-
 
 Public Sub GetHelpHTML() As String
   
@@ -518,12 +538,9 @@ Public Sub GetHelpHTML() As String
   Dim sParent As String
   Dim hParentClass As CClassInfo
   Dim sStr As String
+  Dim sSpace As String
 
-  ' sHelp = GetHelpMarkup()
-  ' sHelp &= "\n" & WikiGetSymbols().Join("\n")
-  ' Return WikiMarkdown.ToHTML(sHelp)
-
-  sHelp = Markup.Convert(GetHelpMarkup())
+  sHelp = WikiMarkdown.ToHTML(GetHelpMarkup())
   
   hClassInfo = Documentation.GetClassDescription(sClass)
   cClassSymbols = hClassInfo.Symbols 'CComponent.GetClassSymbols(sClass)
@@ -595,6 +612,7 @@ Public Sub GetHelpHTML() As String
     ' Endif
     
     sSymbols = ""
+    sSpace = "&nbsp;&nbsp; "
     
     If aStaticMethod.Count + aStaticProperty.Count + aStaticVar.Count + aConst.Count Then
       
@@ -607,10 +625,10 @@ Public Sub GetHelpHTML() As String
 
       sSymbols &= "</tr><tr valign=\"top\">"
 
-      If aStaticProperty.Count Then sSymbols &= "<td>" & aStaticProperty.Join(" ") & "</td><td width=\"32\">&nbsp;</td>"
-      If aStaticVar.Count Then sSymbols &= "<td>" & aStaticVar.Join(" ") & "</td><td width=\"32\">&nbsp;</td>"
-      If aStaticMethod.Count Then sSymbols &= "<td>" & aStaticMethod.Join(" ") & "</td><td width=\"32\">&nbsp;</td>"
-      If aConst.Count Then sSymbols &= "<td>" & aConst.Join(" ") & "</td><td width=\"32\">&nbsp;</td>"
+      If aStaticProperty.Count Then sSymbols &= "<td>" & aStaticProperty.Join(sSpace) & "</td><td width=\"32\">&nbsp;</td>"
+      If aStaticVar.Count Then sSymbols &= "<td>" & aStaticVar.Join(sSpace) & "</td><td width=\"32\">&nbsp;</td>"
+      If aStaticMethod.Count Then sSymbols &= "<td>" & aStaticMethod.Join(sSpace) & "</td><td width=\"32\">&nbsp;</td>"
+      If aConst.Count Then sSymbols &= "<td>" & aConst.Join(sSpace) & "</td><td width=\"32\">&nbsp;</td>"
       
       sSymbols &= "</tr></table>"
       
@@ -627,10 +645,10 @@ Public Sub GetHelpHTML() As String
       
       sSymbols &= "</tr><tr valign=\"top\">"
       
-      If aProperty.Count Then sSymbols &= "<td>" & aProperty.Join(" ") & "</td><td width=\"32\">&nbsp;</td>"
-      If aVar.Count Then sSymbols &= "<td>" & aVar.Join(" ") & "</td><td width=\"32\">&nbsp;</td>"
-      If aMethod.Count Then sSymbols &= "<td>" & aMethod.Join(" ") & "</td><td width=\"32\">&nbsp;</td>"
-      If aEvent.Count Then sSymbols &= "<td>" & aEvent.Join(" ") & "</td><td width=\"32\">&nbsp;</td>"
+      If aProperty.Count Then sSymbols &= "<td>" & aProperty.Join(sSpace) & "</td><td width=\"32\">&nbsp;</td>"
+      If aVar.Count Then sSymbols &= "<td>" & aVar.Join(sSpace) & "</td><td width=\"32\">&nbsp;</td>"
+      If aMethod.Count Then sSymbols &= "<td>" & aMethod.Join(sSpace) & "</td><td width=\"32\">&nbsp;</td>"
+      If aEvent.Count Then sSymbols &= "<td>" & aEvent.Join(sSpace) & "</td><td width=\"32\">&nbsp;</td>"
       
       sSymbols &= "</tr></table>"
       
@@ -701,37 +719,8 @@ Public Sub GetHelpHTML() As String
   sTitle = sClass
   If sWhere Then sTitle = "<a href=\"" & sWhere & "\">" & sTitle & "</a>"
   
-  sHtml = MHelp.LoadCustom("class-help.html")
-  sHtml = Replace(sHtml, "$(help)", sHelp)
-  
-  If sInfo Then 
-    sHtml = Replace(sHtml, "<!--$(info)-->", sInfo)
-  Endif
-  
-  ' If hClassInfo.Parent Then 
-  '   
-  '   sParent = hClassInfo.Parent
-  '   
-  '   hParentClass = CComponent.Classes[hClassInfo.ParentComponent &/ sParent]
-  '   If Not hParentClass Then hParentClass = CComponent.GetClassDescription(sParent)
-  '   
-  '   sHtml = SubstPart(sHtml, "ShowInherits", True)
-  '   sHtml = SubstPart(sHtml, "ShowParConst", aParentConst.Count > 0)
-  '   sHtml = Replace(sHtml, "$(ParConst)", aParentConst.Join(" "))
-  '   
-  '   sHtml = Replace(sHtml, "$(Inherits)", Subst(("This class inherits &1."), Subst("<a href=\"&1\">&2</a>", Html(hParentClass.GetHelpURL()), sParent)))
-  '   sHtml = Replace(sHtml, "$(ParSymbols)", sParSymbols)
-  '   
-  ' Else
-  '   
-  '   sHtml = SubstPart(sHtml, "ShowInherits", False)
-  '   
-  ' Endif
-  
-  sHtml = Replace(sHtml, "$(title)", sTitle)
-  sHtml = Replace(sHtml, "$(symbols)", sSymbols)
+  sHtml = MHelp.MakePage("help/class-help.html", ["help": sHelp, "title": sTitle, "symbols": sSymbols, "info": sInfo])
   sHtml = SubstPart(sHtml, "ShowSymbols", bHasSymbol)
-  sHtml = Replace(sHtml, "$(hide-title)", "")
   
   Return sHtml
 
@@ -743,23 +732,33 @@ Public Function IsVirtual() As Boolean
 
 End
 
+Public Sub IsDeprecated() As Boolean
+  
+  Return Group = "Deprecated"
+  
+End
+
+
 Private Function GetSymbolType(aSym As String[]) As String
 
   Dim sRes As String
   Dim hSym As CSymbolInfo
   Dim sName As String
+  Dim sTitle As String
 
   If aSym.Count = 0 Then Return
 
   For Each sName In aSym
     hSym = Symbols[sName]
     sName = Replace(sName, ":", ".")
+    sTitle = sName
+    If hSym.IsEvent Then sTitle = Mid$(sTitle, 2)
     If hSym.Class <> Name Or If hSym.Component <> Component Then
-      sRes &= "[/comp" &/ LCase(hSym.Component &/ hSym.Class &/ sName) & "]&nbsp;&nbsp;\n"
+      sRes &= "[" & sTitle & "](/comp" &/ LCase(hSym.Component &/ hSym.Class &/ sName) & ")&nbsp;&nbsp;\n"
     Else If hSym.Class <> Wiki.Class Or If hSym.Component <> Wiki.Component Then
-      sRes &= "<span class=\"inherit\">~[/comp" &/ LCase(hSym.Component &/ hSym.Class &/ sName) & "]~</span>&nbsp;&nbsp;\n"
+      sRes &= "<span class=\"inherit\">~[" & sTitle & "](/comp" &/ LCase(hSym.Component &/ hSym.Class &/ sName) & ")~</span>&nbsp;&nbsp;\n"
     Else
-      sRes &= "<span class=\"inherit\">~[./" & LCase(sName) & "]~</span>&nbsp;&nbsp;\n"
+      sRes &= "<span class=\"inherit\">~[" & sTitle & "](./" & LCase(sName) & ")~</span>&nbsp;&nbsp;\n"
     Endif
   Next
 

@@ -52,17 +52,18 @@ typedef
 	struct
 	{
 		CSOCKET_COMMON common;
-		int type;
-		int iPort;
-		char *sPath;
-		int iPause;
-		int iMaxConn;
-		int iCurConn;
+		unsigned type : 2;
+		unsigned pause : 1;
+		unsigned short port;
+		char *path;
+		int num_conn;
+		int max_conn;
 		st_so_sock so_server;
 		st_so_sock so_client;
-		int Client;
+		int client;
 		CSOCKET **children;
 		char *interface;
+		GB_VARIANT_VALUE tag;
 	}  
 	CSERVERSOCKET;
 

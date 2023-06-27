@@ -2,7 +2,7 @@
 
   gbx_extern.c
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -331,32 +331,7 @@ void EXTERN_call(void)
 		continue;
 	
 	__OBJECT:	
-		{
-			void *ob = value->_object.object;
-			void *addr;
-			CLASS *class;
-			
-			if (!ob)
-				goto __NULL;
-			
-			class = OBJECT_class(ob);
-			
-			if (class == CLASS_Class && !CLASS_is_native((CLASS *)ob))
-				addr = ((CLASS *)ob)->stat;
-			else if (CLASS_is_array(class))
-				addr = ((CARRAY *)ob)->data;
-			else if (CLASS_is_struct(class))
-			{
-				if (((CSTRUCT *)ob)->ref)
-					addr = (char *)((CSTATICSTRUCT *)ob)->addr;
-				else
-					addr = (char *)ob + sizeof(CSTRUCT);
-			}
-			else
-				addr = (char *)ob + sizeof(OBJECT);
-			
-			*((void **)tmp) = addr;
-		}
+		*((void **)tmp) = OBJECT_get_addr(value->_object.object);
 		continue;
 	
 	__POINTER:
@@ -777,12 +752,10 @@ void *EXTERN_get_symbol(const char *library, const char *symbol)
 	return NULL;
 }
 
-
-EXTERN_FUNC_INFO EXTERN_get_function_info(CLASS_EXTERN *ext)
+void *EXTERN_get_addr(CLASS_EXTERN *ext)
 {
-	EXTERN_FUNC_INFO func_info = { NULL, NULL };
-	
-	return func_info;
+	return NULL;
 }
+
 #endif
 

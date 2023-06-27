@@ -1,0 +1,31 @@
+' Gambas class file
+
+Private $sValue As String
+
+Public Sub Run(sPrompt As String, sTitle As String, Optional sValue As String) As String
+
+  Me.Title = sTitle
+  lblMessage.Text = sPrompt
+  If sValue Then
+    txtValue.Text = sValue
+  Endif
+  txtValue.SetFocus
+
+  If Me.ShowModal() Then 
+    Return $sValue
+  Endif
+
+End
+
+Public Sub btnCancel_Click()
+
+  Me.Close
+
+End
+
+Public Sub btnOK_Click()
+
+  $sValue = txtValue.Text
+  Me.Close(True)
+
+End

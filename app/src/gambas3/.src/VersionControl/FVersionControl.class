@@ -1,16 +1,16 @@
 ' Gambas class file
 
-Public Sub Run() As Boolean
+Public Sub Run()
 
-  Return Not Me.ShowModal()
+  Me.ShowModal()
 
 End
 
-Public Sub btnOK_Click()
+Private Sub GetChanges() As String
 
   Dim sChange As String
   Dim iPos As Integer
-
+  
   sChange = Trim(edtJournal.Text)
   iPos = InStr(sChange, "- " & VersionControl.DELIM_CHANGE & " -")
   If iPos Then
@@ -21,20 +21,48 @@ Public Sub btnOK_Click()
       sChange = ""
     Endif
   Endif
+
+  Return sChange  
   
-  If Not Trim(sChange) Then
-    tabVersionControl.Index = 0
-    edtJournal.Goto(0, 0)
-    edtJournal.SetFocus
-    Balloon.Warning(("Please enter the journal."), btnOK)
-    Return
-  Endif
+End
+
+Private Sub DoCommit()
   
-  Project.Config["/FCommit/LastCommit"] = RTrim(sChange)
+  Dim sChange As String
+  Dim bCommit As Boolean
+  Dim bPush As Boolean
+
+  If Last = btnCommit Or If Last = btnCommitPush Then bCommit = True
+  If Last = btnCommitPush Or If Last = btnPush Then bPush = True
+
+  If bPush And If Not bCommit Then
+    
+    Me.Close
+    VersionControl.Commit("", False)
+    
+  Else
   
-  If VersionControl.Commit(sChange, chkDoNotPush.Value) Then Return
+    sChange = GetChanges()
+    
+    If Not Trim(sChange) Then
+      tabVersionControl.Index = 0
+      edtJournal.Goto(0, 0)
+      edtJournal.SetFocus
+      Message.Warning(("Please enter the journal."))
+      Return
+    Endif
+    
+    Me.Close
+    VersionControl.Commit(sChange, Not bPush)
+
+  Endif  
   
-  Me.Close(True)
+End
+
+
+Public Sub btnCommit_Click()
+
+  DoCommit
 
 End
 
@@ -47,36 +75,33 @@ End
 
 Public Sub Form_Open()
 
-  Dim sDiff As String
   Dim DS As Integer
   
-  Inc Application.Busy
-  sDiff = VersionControl.Diff()
-  edtDiff.Text = sDiff
+  Me.Title = ("Version control") & " (" & VersionControl.Name & ")"
   
   edtJournal.ReadConfig
   edtDiff.ReadConfig
-  Project.SetEditorFont(trmShell)
+  edtHistory.ReadConfig
+  edtHistory.ShowModified = False
+  edtHistory.Wrap = False
 
   edtJournal.Text = RTrim(Project.Config["/FCommit/LastCommit"]) & "\n\n" & VersionControl.GetDefaultJournal()
   edtJournal.Goto(0, 0)
   
+  LoadDiff
+  
   tabVersionControl_Click
-  Dec Application.Busy
   
-  chkDoNotPush.Visible = VersionControl.DoNotPush And VersionControl.HasRemote()
-  
-  If Not sDiff Then
-    If chkDoNotPush.Visible Then
-      If Message.Question(("There is nothing to commit.") & "\n\n" & ("Do you want to push the repository?"), ("Push"), ("Cancel")) = 1 Then 
-        VersionControl.Commit("", False)
-      Endif
-    Else
-      Message.Info(("There is nothing to commit."))
-    Endif
-    Me.Close
-    Return
+  btnCommit.Visible = edtDiff.Visible
+  If VersionControl.DoNotPush And VersionControl.HasRemote() Then
+    btnCommitPush.Visible = edtDiff.Visible
+    btnPush.Visible = Not edtDiff.Visible
+  Else
+    btnCommitPush.Hide
+    btnPush.Hide
   Endif
+  
+  'chkDoNotPush.Visible = VersionControl.DoNotPush And VersionControl.HasRemote()
   
   DS = Desktop.Scale
   Me.Resize(FMain.W - DS * 16, FMain.H - DS * 16)
@@ -85,21 +110,107 @@ End
 
 Public Sub Form_Close()
   
-  Try trmShell.Kill
+  Project.Config["/FCommit/LastCommit"] = RTrim(GetChanges())
+  
+  edtHistory.StopFillWithHistory
   
 End
 
+Private Sub LoadDiff()
+
+  Dim sDiff As String
+  Dim aDiff As String[]
+  Dim sLine As String
+  Dim bHide As Boolean
+  
+  If edtDiff.IsVoid() Then
+    Inc Application.Busy
+    
+    sDiff = VersionControl.Diff()
+    
+    If chkHideTrans.Value Then
+      
+      aDiff = New String[]
+      For Each sLine In Split(sDiff, "\n")
+        If sLine Begins "diff " Then
+          bHide = InStr(sLine, "/.lang/") > 0
+          aDiff.Add(sLine)
+        Else If Not bHide Then
+          aDiff.Add(sLine)
+        Endif
+      Next
+      sDiff = aDiff.Join("\n")
+      
+    Endif
+    
+    If sDiff Then
+      edtDiff.Text = sDiff
+      edtDiff.Show
+      'panNothing.Hide
+    Else
+      edtDiff.Text = "-"
+      edtDiff.Hide
+      'panNothing.Show
+    Endif
+    
+    tabVersionControl[0].Visible = edtDiff.Visible
+    tabVersionControl[1].Visible = edtDiff.Visible
+  
+    Dec Application.Busy
+    
+  Endif
+
+End
 
 Public Sub tabVersionControl_Click()
 
   Select Case tabVersionControl.Index
+    
     Case 0
       edtJournal.SetFocus
+      
     Case 1
-      edtDiff.SetFocus
+      Try edtDiff.SetFocus
+      
     Case 2
-      Try trmShell.Exec(["bash"], ["PWD=" & Project.Dir])
-      trmShell.SetFocus
+      If edtHistory.IsVoid() Then edtHistory.FillWithHistory(Project.Dir, spnChange)
+      
   End Select
+  
+  chkHideTrans.Visible = tabVersionControl.Index = 1 And edtDiff.Visible
+  panChange.Visible = tabVersionControl.Index = 2
 
 End
+
+Public Sub edtHistory_Highlight(Text As String)
+
+  VersionControl.HighlightHistory(Text)
+
+End
+
+Public Sub btnPush_Click()
+
+  DoCommit
+
+End
+
+Public Sub btnCommitPush_Click()
+
+  DoCommit
+
+End
+
+
+Public Sub chkHideTrans_Click()
+
+  edtDiff.Clear
+  LoadDiff
+
+End
+
+Public Sub chkShowHistoryChanges_Click()
+
+  edtHistory.FillWithHistory(Project.Dir, spnChange,, chkShowHistoryChanges.Value)
+
+End
+

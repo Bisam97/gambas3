@@ -1,5 +1,14 @@
 ' Gambas class file
 
+Private $bNoSelectButton As Boolean
+Private $sMessage As String
+
+Public Sub _new()
+  
+  btnDbusExplorer.Picture = Picture["img/32/dbus.png"].Stretch(Stock.GetSize("small"))
+  
+End
+
 Public Sub ReadConfig()
   
   Project.SetSmallFont(Me)
@@ -21,7 +30,7 @@ Public Sub OnVisibilityChange()
   If FMain.IsDebugVisible() Then
     SelectButton(FDebugInfo.GetCurrentTab())
   Else
-    For Each hButton In Me.Children
+    For Each hButton In panButton.Children
       hButton.Value = False
     Next
   Endif
@@ -38,8 +47,8 @@ Public Sub btnDebug_Click()
     
     FMain.ShowDebug(True)
     
-    For I = 0 To Me.Children.Count - 1
-      hButton = Me.Children[I]
+    For I = 0 To panButton.Children.Count - 1
+      Try hButton = panButton.Children[I]
       If hButton <> hLast Then
         Object.Lock(hButton)
         hButton.Value = False
@@ -60,22 +69,159 @@ End
 
 Public Sub SelectButton(iTab As Integer)
 
-  Dim hButton As ToolButton = Me.Children[iTab]
-  If hButton.Value Then Return
-  hButton.Value = True
+  Dim hButton As ToolButton = panButton.Children[iTab]
+  
+  If $bNoSelectButton Then Return
+
+  $bNoSelectButton = True
+  If Not hButton.Value Then hButton.Value = True
+  $bNoSelectButton = False
   
 End
 
 Public Sub ShowButton(iTab As Integer, bShow As Boolean)
   
-  Dim hButton As ToolButton = Me.Children[iTab]
+  Dim hButton As ToolButton = panButton.Children[iTab]
   If hButton.Value And If Not bShow Then FMain.ShowDebug(False)
   hButton.Visible = bShow
   
 End
 
-Public Sub Form_Arrange()
+' Public Sub Form_Arrange()
+' 
+'   FOutput.UpdateWidth(Me.W)
+' 
+' End
 
-  FOutput.UpdateWidth(Me.W)
+Public Sub OnRefreshSources()
+  
+  btnTest.Visible = Project.HasTest()
+  
+End
 
+Public Sub OnProjectActivate()
+  
+  If Not $sMessage Then SetMessage()
+  
+End
+
+Public Sub UpdateStatus(bForce As Boolean)
+  
+  If bForce Or If Not $sMessage Then
+    SetMessage()
+  Endif
+  
+End
+
+
+Public Sub dwgStatus_Draw()
+  
+  Dim W As Integer
+  Dim X As Integer
+  Dim DS As Integer
+  
+  If $sMessage Then
+    DS = Desktop.Scale
+    Paint.Font.Grade = -1
+    'Paint.Font.Bold = True
+    W = Paint.RichTextSize($sMessage).W + DS * 3
+    X = dwgStatus.W - W - DS \ 2
+    Paint.Rectangle(X, DS \ 2, W, dwgStatus.H - DS, DS * 2)
+    Paint.Background = Color.SelectedBackground
+    Paint.Fill
+    Paint.Background = Color.SelectedForeground
+    Paint.DrawRichText($sMessage, X, DS \ 2, W, dwgStatus.H - DS, Align.Center)
+  Else
+    FMain.PaintStatus()
+  Endif
+  
+End
+
+Public Sub SetMessage(Optional sText As String, bAdd As Boolean)
+  
+  If bAdd Then 
+    $sMessage = Trim($sMessage) & " " & sText
+  Else
+    $sMessage = sText
+  Endif
+  
+  dwgStatus.Refresh
+  If $sMessage Then
+    If Project.NoWait = 0 Then Wait
+  Endif
+  
+  If Not $sMessage Then
+    timMessage.Stop
+  Else
+    timMessage.Restart
+  Endif
+  
+End
+
+Public Sub timMessage_Timer()
+  
+  SetMessage()
+  
+End
+
+Public Sub UpdateProfile()
+  
+  Dim aProf As FProfile[]
+  Dim hProf As FProfile
+  Dim hSeparator As Separator
+  Dim hButton As ToolButton
+  Dim W As Integer
+  
+  aProf = FProfile.FindAll()
+  
+  panProfile.Children.Clear
+   
+  If aProf.Count = 0 Then
+    panProfile.Hide
+    Return
+  Endif
+  
+  hSeparator = New Separator(panProfile)
+  hSeparator.W = 1
+  
+  ' hButton = New ToolButton(panProfile) As "btnCloseProfile"
+  ' hButton.Picture = Picture["icon:/small/close"]
+  ' hButton.AutoResize = True
+  
+  W = 1
+  For Each hProf In aProf
+    hButton = New ToolButton(panProfile) As "btnShowProfile"
+    hButton.Tag = hProf.Path
+    hButton.Text = hProf.GetName()
+    hButton.Picture = Picture["icon:/small/clock"]
+    hButton.AutoResize = True
+    W += hButton.W
+  Next
+  
+  panProfile.W = W
+  panProfile.Show
+  
+End
+
+Public Sub btnShowProfile_Click()
+
+  Dim hProf As FProfile
+  
+  hProf = FProfile.Find(Last.Tag)
+  If hProf Then
+    hProf.Minimized = Not hProf.Minimized
+  Endif
+  
+End
+
+Public Sub OnVersionControlChange()
+
+  If VersionControl.Enabled Then btnVersionControl.Text = ("Version control") & " (" & VersionControl.Name & ")"
+  
+End
+
+Public Sub OnRefreshComponents()
+  
+  btnDbusExplorer.Visible = Project.Components.Exist("gb.dbus")
+  
 End

@@ -55,7 +55,7 @@ static CFONT *get_default_font()
 
 static bool check_graphic(void)
 {
-	if (UNLIKELY(THIS == NULL))
+	if (THIS == NULL)
 	{
 		GB.Error("No device");
 		return true;

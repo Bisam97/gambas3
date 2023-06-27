@@ -2,7 +2,7 @@
 
   gambas.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -29,11 +29,21 @@
 #endif
 
 #ifndef NO_CONFIG_H
+#ifdef PACKAGE_NAME
+	#undef PACKAGE_NAME
+	#undef PACKAGE_BUGREPORT
+	#undef PACKAGE_STRING
+	#undef PACKAGE_TARNAME
+	#undef PACKAGE_VERSION
+	#undef PACKAGE_URL
+#endif
 #include "config.h"
 #endif
+
 #include <stdint.h>
 #include <stddef.h>
 #include <sys/types.h>
+#include <sys/time.h>
 
 /* Gambas API Version */
 
@@ -321,6 +331,7 @@ typedef
 #define GB_ERR_NOBJECT    ((char *)12)
 #define GB_ERR_NWRITE     ((char *)16)
 #define GB_ERR_NPROPERTY  ((char *)17)
+#define GB_ERR_MATH       ((char *)19)
 #define GB_ERR_ARG        ((char *)20)
 #define GB_ERR_BOUND      ((char *)21)
 #define GB_ERR_ZERO       ((char *)26)
@@ -402,6 +413,9 @@ typedef
 #define GB_PROPERTY_SELF(symbol, type) \
 	{ "r" symbol, (intptr_t)type, (intptr_t)(-1) }
 
+#define GB_PROPERTY_WRITE(symbol, type, proc) \
+	{ "w" symbol, (intptr_t)type, (intptr_t)proc }
+
 #define GB_METHOD(symbol, type, exec, signature) \
 	{ "m" symbol, (intptr_t)type, (intptr_t)exec, (intptr_t)signature }
 
@@ -416,6 +430,9 @@ typedef
 
 #define GB_STATIC_PROPERTY_SELF(symbol, type) \
 	{ "R" symbol, (intptr_t)type, (-1) }
+
+#define GB_STATIC_PROPERTY_WRITE(symbol, type, proc) \
+	{ "W" symbol, (intptr_t)type, (intptr_t)proc }
 
 #define GB_STATIC_METHOD(symbol, type, exec, signature) \
 	{ "M" symbol, (intptr_t)type, (intptr_t)exec, (intptr_t)signature }
@@ -629,7 +646,7 @@ typedef
 /* Type of the GB.SubstStringAdd() callback */
 
 typedef
-	void (*GB_SUBST_ADD_CALLBACK)(int);
+	void (*GB_SUBST_ADD_CALLBACK)(int, char, char);
 
 
 /* Type of the GB.BrowseProject() callback */
@@ -677,11 +694,11 @@ typedef
 typedef
 	struct {
 		void *object;
-		void *desc;
+		ushort index;
 		}
 	GB_FUNCTION;
 
-#define GB_FUNCTION_IS_VALID(_func) ((_func)->desc)
+#define GB_FUNCTION_IS_VALID(_func) ((_func)->index != 0)
 
 
 /* Opaque type of a Gambas Array */
@@ -691,12 +708,15 @@ typedef
 
 typedef
 	struct {
-		int size;
+		unsigned size : 24;
+		unsigned read_only : 1;
+		unsigned n_dim : 3;
 		int count;
 		GB_TYPE type;
 		void *data;
 		int *dim;
 		void *ref;
+		
 		}
 	GB_ARRAY_BASE;
 
@@ -758,9 +778,11 @@ typedef
 typedef
 	struct {
 		GB_STREAM_DESC *desc;
-		int64_t _reserved;
+		int _reserved;
+		#if __WORDSIZE == 64
+			int _reserved1;
+		#endif
 		intptr_t _reserved2;
-		intptr_t _reserved3;
 		void *tag;
 		}
 	GB_STREAM_BASE;
@@ -768,18 +790,39 @@ typedef
 typedef
 	struct GB_STREAM {
 		GB_STREAM_DESC *desc;
-		int64_t _reserved;
+		int _reserved;
+		#if __WORDSIZE == 64
+			int _reserved1;
+		#endif
 		intptr_t _reserved2;
-		intptr_t _reserved3;
 		void *tag;
 		#if __WORDSIZE == 64
 		int _free[4];
 		#else
 		int _free[5];
 		#endif
-		GB_VARIANT_VALUE _reserved4;
+		GB_VARIANT_VALUE _reserved3;
 		}
 	GB_STREAM;
+
+
+/* File constants */
+
+#define GB_ST_READ         1
+#define GB_ST_WRITE        2
+#define GB_ST_READ_WRITE   3
+#define GB_ST_MODE         3
+#define GB_ST_EXEC         4
+#define GB_ST_APPEND       4
+#define GB_ST_CREATE       8
+#define GB_ST_ACCESS       15
+#define GB_ST_BUFFERED     16
+#define GB_ST_LOCK         32
+#define GB_ST_WATCH        64
+#define GB_ST_PIPE         128
+#define GB_ST_MEMORY       256
+#define GB_ST_STRING       512
+#define GB_ST_NULL         1024
 
 
 /* Constants used by the GB.NumberFromString() API function */
@@ -793,13 +836,22 @@ typedef
 #define GB_NB_LOCAL           16
 
 
-/* Constants used by the GB.Collection.New() and GB.HashTable.New() API function */
+/* Comparison constants. Used by the GB.Collection.New() and GB.HashTable.New() API function */
 
-#define GB_COMP_BINARY      0
-#define GB_COMP_NOCASE      1
+#define GB_COMP_BINARY        0
+#define GB_COMP_NOCASE        1
+#define GB_COMP_LANG          2
+#define GB_COMP_LIKE          4
+#define GB_COMP_MATCH         5
+#define GB_COMP_NATURAL       8
+
+#define GB_COMP_TYPE_MASK     15
+
+#define GB_COMP_ASCENT        0
+#define GB_COMP_DESCENT       16
 
 
-/* Constant used by GB.ConvString to convert to 32 bits Unicode (that needs some special processing) */
+/* Constant used by GB.ConvString to convert to 32 bits Unicode (it needs some special processing) */
 
 #define GB_SC_UNICODE ((char *)-1)
 
@@ -810,13 +862,11 @@ typedef
 	struct {
 		GB_BASE object;
 		intptr_t id;
-		intptr_t tag;
+		void *ext;
 		unsigned delay : 31;
 		unsigned triggered : 1;
-		#if __WORDSIZE == 64
-		int _pad;
-		#endif
-		GB_TIMER_CALLBACK callback;
+		unsigned task : 1;
+		unsigned ignore : 1;
 		}
 	GB_TIMER;
 
@@ -902,7 +952,10 @@ typedef
 		int64_t size;
 		uid_t uid;
 		gid_t gid;
-		char hidden;
+		dev_t device;
+		unsigned hidden : 1;
+		unsigned blkdev : 1;
+		unsigned chrdev : 1;
 		}
 	GB_FILE_STAT;
 
@@ -941,7 +994,7 @@ typedef
 		bool (*GetFunction)(GB_FUNCTION *, void *, const char *, const char *, const char *);
 		GB_VALUE *(*Call)(GB_FUNCTION *, int, int);
 		void *(*GetClassInterface)(GB_CLASS, const char *);
-		void *(*GetProperty)(void *, const char *);
+		GB_VALUE *(*GetProperty)(void *, const char *);
 		bool (*SetProperty)(void *, const char *, GB_VALUE *value);
 		bool (*Serialize)(const char *path, GB_VALUE *value);
 		bool (*UnSerialize)(const char *path, GB_VALUE *value);
@@ -960,13 +1013,17 @@ typedef
 		int (*GetEvent)(GB_CLASS, const char *);
 		char *(*GetLastEventName)(void);
 		void (*RaiseTimer)(void *);
+		bool (*HasActiveTimer)(void);
 		bool (*Stopped)(void);
+		bool (*IsRaiseLocked)(void *);
 
 		int (*NParam)(void);
 		bool (*Conv)(GB_VALUE *, GB_TYPE);
 		char *(*GetUnknown)(void);
 		
 		void (*Error)(const char *, ...);
+		bool (*HasError)(void);
+		char *(*GetErrorMessage)(void);
 		void (*Propagate)(void);
 		void (*Deprecated)(const char *, const char *, const char *);
 		void (*OnErrorBegin)(GB_ERROR_HANDLER *);
@@ -992,6 +1049,7 @@ typedef
 		void *(*New)(GB_CLASS, char *, void *);
 		void *(*AutoCreate)(GB_CLASS, int);
 		bool (*CheckObject)(void *);
+		bool (*IsLocked)(void *);
 
 		void *(*GetEnum)(void);
 		void (*StopEnum)(void);
@@ -999,6 +1057,7 @@ typedef
 		void (*EndEnum)(void *);
 		bool (*NextEnum)(void);
 		void (*StopAllEnum)(void *);
+		void (*OnFreeEnum)(GB_CALLBACK);
 
 		GB_VALUE *(*GetReturnValue)(void);
 		void (*Return)(GB_TYPE, ...);
@@ -1043,6 +1102,7 @@ typedef
 
 		char *(*SubstString)(const char *, int, GB_SUBST_CALLBACK);
 		char *(*SubstStringAdd)(const char *, int, GB_SUBST_ADD_CALLBACK);
+		void (*SubstStringUnquote)(void);
 		void (*SubstAddCallback)(const char *, int);
 		bool (*ConvString)(char **, const char *, int, const char *, const char *);
 		char *(*FileName)(char *, int);
@@ -1068,8 +1128,9 @@ typedef
 
 		GB_DATE_SERIAL *(*SplitDate)(GB_DATE *);
 		bool (*MakeDate)(GB_DATE_SERIAL *, GB_DATE *);
-		void (*MakeDateFromTime)(int, int, GB_DATE *);
+		void (*MakeDateFromTime)(time_t, int, GB_DATE *);
 		bool (*GetTime)(double *, int);
+		bool (*DateFromString)(const char *str, int len, GB_VALUE *val, bool local);
 
 		void (*Watch)(int, int, void *, intptr_t);
 
@@ -1121,6 +1182,7 @@ typedef
 			void *(*Add)(GB_ARRAY);
 			void *(*Get)(GB_ARRAY, int);
 			GB_TYPE (*Type)(GB_ARRAY);
+			void (*SetReadOnly)(GB_ARRAY);
 			}
 		Array;
 
@@ -1162,6 +1224,7 @@ typedef
 			void (*Start)(int length);
 			char *(*End)(void);
 			void (*Add)(const char *src, int len);
+			GB_ARRAY (*Split)(const char *str, int lstr, const char *sep, int lsep, const char *esc, int lesc, bool no_void, bool keep_esc);
 			}
 		String;
 		
@@ -1175,6 +1238,7 @@ typedef
 		struct {
 			GB_SIGNAL_CALLBACK *(*Register)(int signum, void (*func)(int, intptr_t), intptr_t data);
 			void (*Unregister)(int signum, GB_SIGNAL_CALLBACK *cb);
+			void (*MustCheck)(int signum);
 		}
 		Signal;
 		

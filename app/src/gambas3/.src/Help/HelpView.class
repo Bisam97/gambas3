@@ -1,135 +1,210 @@
 ' Gambas class file
 
-Export
+Export 
 
-Public Const _Properties As String = "*,NoHeader"
+Inherits UserControl
+
+Public Const _Properties As String = "*,Zoom"
 Public Const _DrawWith As String = "WebView"
 
-Inherits WebView
+Property Zoom As Float
+Property Url As String
+Property Read Browser As Boolean
 
-Property NoHeader As Boolean
-
-Private $hObs As Observer
-Private $hWatcher As Watcher
-Private $hSpinner As Spinner
-Private $sLastUrl As String
-Private $bNoHeader As Boolean
+Private $hView As Object
 
 Public Sub _new()
-
-  $hObs = New Observer(Me) As "WebView"
-  $hWatcher = New Watcher(Me) As "WebView"
   
-  $hSpinner = New Spinner(Me.Window)
-  $hSpinner.Hide
-  $hSpinner.Ignore = True
-  $hSpinner.ResizeScaled(8, 8)
+  ReadConfig
+  Me.Background = Color.TextBackground
   
 End
 
-Private Sub ShowWaiting(bShow As Boolean)
+Public Sub ReadConfig() As Boolean
+  
+  Dim bOffline As Boolean
+  Dim bRet As Boolean
+  Dim hDefaultFont As Font
+  Dim hFixedFont As Font
 
-  If $hSpinner.Visible = bShow Then Return
+  hDefaultFont = Font[Settings["/Help/Font"]]
+  hFixedFont = Font[Settings["/Help/FixedFont", Project.DEFAULT_FONT]]
+  
+  bOffline = Settings["/UseOfflineHelp"]
+  If Not $hView Or If bOffline Xor $hView Is HtmlView Then
+    If $hView Then $hView.Delete
+    If bOffline Then
+      $hView = New HtmlView(Me) As "HtmlView"
+      $hView.LoadCss(File.Load("help/wiki/style-offline-htmlview.css"))
+    Else
+      $hView = New HelpBrowser(Me) As "hvwHelp"
+    Endif
+    Try $hView.Border = False
+    Me.Proxy = $hView
+    '$hView.Hide
+    $hView.Show ' FIXME: Why calling Show() is needed with gb.qt5???
+    bRet = True
+  Endif
+  
+  If bOffLine Then
+    
+    $hView.Font = hDefaultFont
+    $hView.MonospaceFont = hFixedFont
+    
+  Else 
+  
+    $hView.Settings.Fonts.Default = hDefaultFont.Name
+    $hView.Settings.Fonts.Serif = hDefaultFont.Name
+    $hView.Settings.Fonts.SansSerif = hDefaultFont.Name
+    $hView.Settings.Fonts.DefaultSize = hDefaultFont.Size
+  
+    $hView.Settings.Fonts.Fixed = hFixedFont.Name
+    $hView.Settings.Fonts.DefaultFixedSize = hFixedFont.Size
+    
+  Endif
+  
+  Return bRet
+  
+End
 
-  If bShow Then
-    $hSpinner.Show
-    $hSpinner.Raise
-    $hSpinner.Start
+Public Sub HtmlView_Link(Url As String)
+
+  If MHelp.HandleSpecialURL(Me, Url) Then Stop Event
+  
+End
+
+Public Sub HtmlView_Menu()
+  
+  Back()
+  Stop Event
+  
+End
+
+
+Private Function Zoom_Read() As Float
+
+  Try Return $hView.Zoom
+
+End
+
+Private Sub Zoom_Write(Value As Float)
+
+  Try $hView.Zoom = Value
+
+End
+
+Private Function Browser_Read() As Boolean
+
+  Try Return $hView Is HelpBrowser
+
+End
+
+Public Sub Load(sPath As String, Optional sHighlight As String)
+  
+  Dim sUrl As String
+  
+  If $hView Is HelpBrowser Then
+    $hView.Clear
+    sUrl = "file://" & URL.Encode(sPath)
+    If sHighlight Then sUrl &= "?ht=" & URL.Encode(sHighlight)
+    $hView.Url = sUrl
+  Else 
+    $hView.Url = sPath
+  Endif
+  
+End
+
+Public Sub SetUrl(sUrl As String)
+  
+  If $hView Is HelpBrowser Then
+    
+    If sUrl <> $hView.Url Then
+      $hView.Clear
+      $hView.Url = sUrl
+    Endif
+    
+  Else 
+    
+    If MHelp.HandleSpecialUrl(Me, sUrl) Then
+      SetHtml("<html><body>" & Subst(("<tt>&1</tt> not found."), Html(sUrl)) & "</body></html>")
+    Endif
+    
+  Endif
+  
+End
+
+Public Sub SetHtml(sHtml As String)
+  
+  If $hView Is HelpBrowser Then
+    $hView.Stop
+    $hView.SetHtml(sHtml)
+  Else 
+    $hView.Html = sHtml
+  Endif
+  
+End
+
+Private Function Url_Read() As String
+
+  Return $hView.Url
+
+End
+
+Private Sub Url_Write(Value As String)
+
+  SetUrl(Value)
+
+End
+
+Public Sub Back() As Boolean
+  
+  If $hView Is WebView Then
+    If Not $hView.History.CanGoBack Then Return True
+    $hView.Back()
   Else
-    $hSpinner.Stop
-    $hSpinner.Hide
-  Endif
-
-
-End
-
-Public Sub WebView_Error()
-  
-  Dim sLastUrl As String
-  
-  ShowWaiting(False)
-  
-  If Not $sLastUrl Then 
-    sLastUrl = Me.Url
-  Else
-    sLastUrl = $sLastUrl
-    $sLastUrl = ""
-  Endif
-  
-  If sLastUrl Begins "/" Then sLastUrl = Project.WIKI_ROOT &/ sLastUrl
-  
-  If sLastUrl Begins "gambas://" Then 
-    
-    Me.Stop
-    MHelp.ManageSpecialLink(Me, sLastUrl)
-    Return
-  Else If sLastUrl Begins "wiki://" Then
-    
-    MHelp.MakeOffline(Me, sLastUrl, $bNoHeader)
-    Return
-    
+    Return $hView.Back()
   Endif
   
 End
 
-Public Sub WebView_Move()
+Public Sub Forward()
   
-  Dim hWin As Window
+  $hView.Forward
   
-  If Not $hSpinner Then Return
-  
-  With Me
-    hWin = $hSpinner.Window
-    $hSpinner.Move(.ScreenX - hWin.ScreenX - hWin.ClientX + (.W - $hSpinner.W) \ 2, .ScreenY - hWin.ScreenY - hWin.ClientY + (.H - $hSpinner.H) \ 2)
-  End With
-  
-End
-
-Public Sub WebView_Resize()
-
-  WebView_Move
-  
-End
-
-Public Sub WebView_Load()
-  
-  ShowWaiting(False)
-  
-End
-
-Public Sub WebView_Link(Url As String)
-  
-  $sLastUrl = Url
-  
-End
-
-Public Sub WebView_NewWindow((Modal) As Boolean)
-
-  Project.OpenWebPage($sLastUrl)
-
-End
-
-Public Sub WebView_Progress()
-
-  ShowWaiting(Me.Progress < 1)
-
-End
-
-Private Function NoHeader_Read() As Boolean
-
-  Return $bNoHeader
-
-End
-
-Private Sub NoHeader_Write(Value As Boolean)
-
-  $bNoHeader = Value
-
 End
 
 Public Sub Stop()
   
-  Super.Stop
-  ShowWaiting(False)
+  Try $hView.Stop()
+  
+End
+
+Public Sub Reload()
+  
+  $hView.Reload()
+  
+End
+
+Public Sub ZoomIn()
+  
+  $hView.Zoom = Round($hView.Zoom * 1.125, -3)
+  
+End
+
+Public Sub ZoomOut()
+  
+  $hView.Zoom = Round($hView.Zoom / 1.125, -3)
+  
+End
+
+Public Sub ZoomNormal()
+  
+  $hView.Zoom = 1
+  
+End
+
+Public Sub Clear()
+  
+  $hView.Clear()
   
 End

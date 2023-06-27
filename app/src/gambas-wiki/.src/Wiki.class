@@ -1,5 +1,15 @@
 ' Gambas class file
 
+Private $aSel As String[]
+
+Public Sub _new()
+  
+  Me.Buffered = True
+  If Session.Id Then Response.AddHeader("Cache-Control", "no-store")
+  
+End
+
+
 Private Sub _PrintTitle()
 
   If Main.Path Then
@@ -22,6 +32,8 @@ Private Sub _PrintLink()
     sPath &= "/" & sElt
     Print "<a href=\""; Application.Root &/ sPath; Main.LinkSuffix; "\">"; sElt; "</a>";
   Next
+  
+  If Main.Link Then Print "&nbsp;⟶&nbsp;"; Main.Link
   
 End
 
@@ -133,7 +145,6 @@ Public Sub RewriteExample(sData As String) As String
 
 End
 
-
 Private Sub _PrintPage()
 
   Dim sPath As String
@@ -150,16 +161,21 @@ Private Sub _PrintPage()
   Dim hStat As Stat
   Dim hStatDef As Stat
   Dim hClass As CClassInfo
+  Dim sDefaultHelp As String
+  Dim nTry As Integer
 
   If Main.Edit Then
     sPath = Main.GetPagePath()  
     If Exist(sPath) Then sData = File.Load(sPath)
-    If Not sData Then sData = OldWiki.GetPage(Main.Path)
+    ' If Not sData Then
+    '   sPath = Main.Path
+    '   'sData = OldWiki.GetPage(sPath)
+    ' Endif
     If Not sData Then
       If Main.Symbol Then
-        sData = "@{syntax}\n" & Main.GetDefaultPage()
+        sData = "@{syntax}\n@{help}\n" '& Main.GetDefaultPage()
       Else If Main.Class Then
-        sData = "@{symbols}\n"
+        sData = "@{help}\n@{symbols}\n"
       Endif
     Endif
     ' If Main.Path Begins "/comp/" Or If Main.Path Begins "/lang/" Or If Main.Path Begins "/cat/" Then
@@ -187,23 +203,39 @@ Private Sub _PrintPage()
       Main.Lang = Main.DEFAULT_LANG
       sPath = Main.SolvePath(Main.Path)
     Endif
-    
-    If Not Main.ExistPage(sPath) And If Main.Symbol Then
-      
-      Do
-        
-        hClass = CComponent.Get(Main.Component)[Main.Class]
-        If Not hClass.Parent Then Break
 
-        Main.Component = hClass.ParentComponent
-        Main.Class = hClass.Parent
-
+    If Main.Class Then    
+  
+      If Main.Class Ends "[]" And If Not CComponent.Get(Main.Component)[Main.Class] Then
+        Main.SubstClass = Main.Class
+        Main.Class = "*[]"
         sPath = Main.SolvePath("/comp/" & LCase(Main.Component &/ Main.Class &/ Main.Symbol))
-        If Main.ExistPage(sPath) Then Break
-        
-      Loop
+      Endif
       
     Endif
+      
+    If Not Main.ExistPage(sPath) And If Not Main.HasDefaultHelp() Then
+    
+      If Main.Symbol Then
+      
+        Do
+          
+          hClass = CComponent.Get(Main.Component)[Main.Class]
+          If Not hClass Or If Not hClass.Parent Then Break
+  
+          Main.Component = hClass.ParentComponent
+          Main.Class = hClass.Parent
+  
+          sPath = Main.SolvePath("/comp/" & LCase(Main.Component &/ Main.Class &/ Main.Symbol))
+          If Main.ExistPage(sPath) Or If Main.HasDefaultHelp() Then Break
+          
+        Loop
+        
+      Endif
+      
+    Endif
+    
+  TRY_AGAIN:
     
     If Not Main.ExistPage(sPath) Then
       
@@ -216,9 +248,16 @@ Private Sub _PrintPage()
         ' We use an automatic page
         Main.Lang = Main.DEFAULT_LANG
         If Main.Symbol Then
-          sData = "@{syntax}\n" & Main.GetDefaultPage()
+          sDefaultHelp = Main.GetDefaultHelp()
+          If sDefaultHelp Begins "-->" Then
+            sPath = Main.MakeAbsolute(Trim(Mid$(sDefaultHelp, 4)), sPath)
+            Inc nTry
+            If nTry < 8 Then Goto TRY_AGAIN
+          Else
+            sData = "@{syntax}\n" & sDefaultHelp
+          Endif
         Else If Main.Class Then
-          sData = "@{symbols}\n"
+          sData = Main.GetDefaultHelp() & "\n@{symbols}\n" 
         Endif
         Goto DISPLAY_PAGE
         
@@ -295,15 +334,29 @@ Private Sub _PrintPage()
       hStat = Stat(Main.GetPagePathFrom(Main.Path))
       hStatDef = Stat(Main.GetPagePathFrom(Main.Path, Main.DEFAULT_LANG))
       If hStat And If hStatDef And If hStatDef.LastModified > hStat.LastModified Then
-        Print "<div class=\"unknown\"><i><a target=\"_blank\" href=\"" & Html(URL.UnsetQuery("http://" & Application.Host &/ Application.Root &/ Request.Path & Main.LinkSuffix, "l")) & "\">" & Html(("The english page is more recent.")) & "</a></i></div>"
+        Print "<div class=\"more-recent\"><i><a target=\"_blank\" href=\"" & Html(URL.UnsetQuery("http://" & Application.Host &/ Application.Root &/ Request.Path & Main.LinkSuffix, "l")) & "\">" & Html(("The english page is more recent.")) & "</a></i></div>"
       Endif
     Endif
     
-    sData = LTrim(File.Load(Main.GetPagePathFrom(sPath)))
+    sPath = Main.GetPagePathFrom(sPath)
+    Main.AddCacheHeaders(Stat(sPath).LastModified)
+    sData = LTrim(File.Load(sPath))
     
   Endif
   
 DISPLAY_PAGE:
+  
+  If sData Begins "==>" Then
+    iPos = InStr(sData, "\n")
+    If iPos Then sData = Left(sData, iPos - 1)
+    sData = Trim(Mid$(sData, 4))
+    Print "<tt>==>"; Html(sData); "</tt>"
+    If Not Session.Id Then
+      Response.Cancel
+      Response.Redirect(Application.Root &/ sData)
+    Endif
+    Return
+  Endif
   
   If Main.Class Then
     If sData Begins "# " Then
@@ -317,10 +370,15 @@ DISPLAY_PAGE:
     Else
       sData = "# " & Main.GetClassTitle() & "\n" & sData
     Endif
+    
+    If Main.SubstClass Then
+      sData = Replace(sData, "\\*", Left(Main.SubstClass, -2)) 
+    Endif
+    
   Endif
   
   Print WikiMarkdown.ToHTML(sData)
-  
+
 Catch
   
   Print "<pre>"; Html(Error.Text); " at line #"; WikiMarkdown.Line + 1; ":\n\n"; Html(WikiMarkdown.Current); "\n\nStack backtrace:\n\n"; Error.Backtrace.Join("\n")
@@ -356,5 +414,116 @@ Private Sub _PrintLang()
     Print "</select>"  
     
   Endif
+
+End
+
+Private Sub _PrintIndex()
+
+  $aSel = Main.GetSelection()
+  PrintIndexPath()
+
+End
+
+Private Sub PrintIndexPath(Optional sLink As String, Optional iIndent As Integer)
+
+  Dim bCurrent As Boolean
+  Dim sTitle As String
+  Dim bNoTitle As Boolean
+  Dim bImage As Boolean
+  Dim aChildren As String[]
+  Dim sChild As String
+  
+  If Not sTitle Then sTitle = Main.GetPageTitle(sLink)
+  
+  aChildren = Main.GetPageChildren(sLink)
+
+  bNoTitle = Not sTitle
+  If bNoTitle And If Session.Id Then 
+    sTitle = File.Name(sLink)
+    If Main.IsImage(sLink) Then
+      bNoTitle = False
+      bImage = True
+    Endif
+  Endif
+  
+  If sTitle Then
+  
+    bCurrent = sLink = Main.Path
+    
+    Print "<div class=\"entry";
+    If bCurrent Then Print " current";
+    If Main.IsSelected(sLink) Then Print " selected";
+    If bNoTitle Then Print " deleted";
+    If sLink And If aChildren.Count Then Print " children";
+    Print "\" style=\"padding-left:"; CStr(iIndent + 1); "em;\"";
+    If bCurrent Then Print " id=\"current-entry\"";
+    Print ">";
+    Print "<a href=\""; 
+    If bCurrent And If Main.Path Then
+      Print Html(Application.Root &/ File.Dir(sLink)); 
+    Else
+      Print Html(Application.Root &/ sLink); 
+    Endif
+    Print Main.LinkSuffix; "\">";
+    If bImage Then Print "□&nbsp;";
+    Print sTitle; 
+    Print "</a></div>"
+    
+  Endif
+  
+  If Not sLink Or If Main.Path & "/" Begins sLink & "/" Then
+  
+    For Each sChild In aChildren
+      PrintIndexPath("/" &/ sLink &/ sChild, iIndent + 1)
+    Next
+    
+  Endif
+  
+End
+
+Private Sub _PrintSelectionCount()
+
+  Dim aSel As String[]
+
+  aSel = Main.GetSelection()
+  If aSel.Count = 0 Then Return
+  Print " ("; CStr(aSel.Count); ")";
+
+End
+
+Private Sub _PrintSelectionList()
+
+  Dim aSel As String[]
+
+  aSel = Main.GetSelection()
+  If aSel.Count = 0 Then Return
+  Print Html(aSel.Join("\n"));
+
+End
+
+Private Sub _PrintMessage()
+
+  Dim aMsg As String[]
+  Dim sMsg As String
+
+  aMsg = Session["message"]
+  If Not aMsg Or If aMsg.Count = 0 Then Return
+
+  Print "<div class=\"message\">"
+  For Each sMsg In aMsg
+    Print "<div>"; sMsg; "</div>"
+  Next
+  Print "</div>"
+  
+  Session["message"] = Null
+
+End
+
+Private Sub _PrintLastModified()
+
+  Dim dDate As Date
+
+  dDate = Main.GetPageLastModified()
+  If dDate Then Print Html(Format(dDate, gb.GeneralDate));
 
 End

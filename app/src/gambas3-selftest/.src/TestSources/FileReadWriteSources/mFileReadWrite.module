@@ -1,0 +1,173 @@
+' Gambas module file
+
+Private bReadOK As Boolean
+Private bWriteOK As Boolean
+Private hWatchFile As File
+Private bZeroExpected As Boolean
+Private Enum Zero, One, Two
+
+Public Sub ReadDevZero()
+
+    Dim ii As Integer
+    Dim tt As Float
+    Dim MyErrs As New String[]
+
+    bZeroExpected = True
+    ii = 0
+    Do
+
+        bReadOK = False
+        tt = Timer
+        hWatchFile = Open "/dev/zero" For Read Watch
+
+        Do
+            Wait 0.1
+        Loop Until bReadOK = True Or Timer - tt > 3
+
+        If bReadOK = False Or If bZeroExpected = False Then
+            MyErrs.Add(System.Backtrace[0])
+        Endif
+
+        Close #hWatchFile
+
+        Inc ii
+    Loop Until ii = 10
+
+    If Zero <> 0 Or One <> 1 Or Two <> 2 Then
+        MyErrs.Add(System.Backtrace[0])
+    Endif
+
+    Assert.Equals(MyErrs.Count, 0, "Read from /dev/zero")
+
+End
+
+
+Public Sub ReadUrandom()
+
+    Dim ii As Integer
+    Dim tt As Float
+    Dim MyErrs As New String[]
+    
+    ii = 0
+    Do
+
+        bReadOK = False
+        tt = Timer
+        hWatchFile = Open "/dev/urandom" For Read Watch
+
+        Do
+            Wait 0.1
+        Loop Until bReadOK = True Or Timer - tt > 3
+
+        If bReadOK = False Then
+            MyErrs.Add(System.Backtrace[0])
+        Endif
+
+        Close #hWatchFile
+
+        Inc ii
+    Loop Until ii = 10
+
+    Assert.Equals(MyErrs.Count, 0, "ReadUrandom")
+
+End
+
+
+Fast Public Sub RWTest()
+    
+    Dim sDescription, sTemp, sStr, tmp As String
+    Dim tt As Float
+
+    bZeroExpected = False
+    bReadOK = False
+    sTemp = Temp$
+    Shell "touch " & sTemp Wait
+    hWatchFile = Open sTemp For Read Watch
+
+    Shell "echo test >> " & sTemp Wait
+
+    Close #hWatchFile
+    Kill sTemp
+
+    bWriteOK = False
+    sTemp = Temp$
+    Shell "touch " & sTemp Wait
+    hWatchFile = Open sTemp For Read Write Watch
+
+    tt = Timer
+    Do
+        Wait 0.1
+    Loop Until bWriteOK = True Or Timer - tt > 1
+    sDescription = "Timer 1"
+    If bWriteOK = False Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    bWriteOK = False
+    Shell "echo -n test >> " & sTemp Wait
+
+    tt = Timer
+    Do
+        Wait 0.1
+    Loop Until bWriteOK = True Or Timer - tt > 1
+    sDescription = "Timer 2"
+    If bWriteOK = False Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+  
+    Seek #hWatchFile, 0
+    sStr = ""
+    tmp = ""
+    Read #hWatchFile, tmp
+    sStr = tmp
+    tmp = ""
+    Seek #hWatchFile, 9
+    Read #hWatchFile, tmp
+    sStr &= tmp
+    sDescription = "Seek Read"
+    If sStr <> "testtest" Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    Close #hWatchFile
+    Kill sTemp
+    
+End
+
+
+Fast Public Sub File_Write()
+
+  If bWriteOK = True Then
+  Stop Event
+  Return
+  Endif
+  
+  Try Write #hWatchFile, "test" As String
+  
+  If Error = False Then
+  bWriteOK = True
+  Endif 
+  
+End
+
+
+Fast Public Sub File_Read()
+ 
+ Dim iTmp As Integer = Read #hWatchFile As Byte
+ 
+ If bZeroExpected = True Then
+  If iTmp <> 0 Then
+    bZeroExpected = False
+  Endif  
+ Endif
+ 
+ bReadOK = True
+  
+End
+

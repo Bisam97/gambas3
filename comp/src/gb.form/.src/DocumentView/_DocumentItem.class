@@ -1,10 +1,18 @@
 ' Gambas class file
 
+''' This virtual class represents a specific page of the preview.
+
 Export
-Property Read Height As Integer
-Property Read Width As Integer
+
+'' Return the page height in pixels.
+Property Read Height, H As Integer
+'' Return the page width in pixels.
+Property Read Width, W As Integer
+
 Public _Index As Integer
-Event Foo
+
+Event _Foo
+
 Private Function Height_Read() As Integer
 
   Return GetParent()._GetItemHeight(_Index)
@@ -13,7 +21,7 @@ End
 
 Private Function Width_Read() As Integer
 
-  Return GetParent().GetItemWidth(_Index)
+  Return GetParent()._GetItemWidth(_Index)
 
 End
 
@@ -24,6 +32,7 @@ Private Function GetParent() As DocumentView
   
 End
 
+'' Ensure that the page is visible.
 
 Public Sub EnsureVisible()
   
@@ -31,6 +40,7 @@ Public Sub EnsureVisible()
   
 End
 
+'' Return if a page preview is visible on the screen.
 
 Public Function IsVisible() As Boolean
   

@@ -35,13 +35,9 @@ Private $hTimerAnim As Timer
 Private $iTarget As Integer
 Private $bLockRefresh As Boolean
 
-' Static Public Sub _init()
-'   
-'   $hHandleH = Picture["img/handle-h.png"]
-'   $hHandleV = Picture["img/handle-v.png"]
-'   
-' End
-
+Private $hTimerAutoHide As Timer
+Private $bNoAutoHide As Boolean
+Private $bShowButtons As Boolean = True
 
 Public Sub _new()
 
@@ -52,9 +48,8 @@ Public Sub _new()
   BUTTON_H = Desktop.Scale * 0.75
   BUTTON_W = BUTTON_H * 4
   TRANS_H = Max(2, BUTTON_H * 0.5)
-
+  
 End
-
 
 Public Sub Form_Open()
 
@@ -65,7 +60,7 @@ End
 
 Private Sub GetLangOrientation(iOrientation As Integer) As Integer
   
-  If System.RightToLeft Then 
+  If Me.RightToLeft Then 
     If iOrientation = Align.Left Then 
       Return Align.Right
     Else If iOrientation = Align.Right Then 
@@ -76,7 +71,6 @@ Private Sub GetLangOrientation(iOrientation As Integer) As Integer
   Return iOrientation
   
 End
-
 
 Public Function GetOrientation() As Integer
 
@@ -99,16 +93,28 @@ Public Sub SetOrientation(iOrientation As Integer)
 
 End
 
+Private Sub IsSeparatorVisible() As Boolean
+
+  Return $bSeparator And Not HasBorder()
+
+End
+
 Private Sub RefreshPanel()
 
   Dim W As Integer
   Dim W2 As Integer
   Dim Y As Integer
   Dim D As Integer
+  Dim bSeparator As Boolean
 
   'IF NOT $bVisible THEN panSide.Hide
   If Not $bOpened Then Return
 
+  If $bShowButtons Then
+    btnSide.Show
+    btnSide2.Show
+  Endif
+  
   'If $bSeparator Then S = 1
 
   Select Case $iOrientation
@@ -198,8 +204,11 @@ Private Sub RefreshPanel()
 
   'If $bTransparent Then panSide.Move(0, 0, Me.ClientW, Me.ClientH)
   
+  bSeparator = IsSeparatorVisible()
+  sepSide.Visible = bSeparator And $bVisible
+  
   If $bTransparent Then
-    D = 0
+    D = IIf(sepSide.Visible, 1, 0)
   Else
     D = BUTTON_H
   Endif
@@ -208,7 +217,7 @@ Private Sub RefreshPanel()
 
     Case Align.Bottom
       sepSide.Move(0, 0, Me.ClientW, 1)
-      panSide.Move(0, D, Me.ClientW, Me.ClientH - D)
+      panSide.Move(0, D, Me.ClientW, Me.H - D)
 
     Case Align.Top
       sepSide.Move(0, Me.ClientH - 1, Me.ClientW, 1)
@@ -224,12 +233,10 @@ Private Sub RefreshPanel()
 
   End Select
   
-  sepSide.Visible = $bSeparator And $bVisible
-  
-  'IF $bVisible THEN panSide.Show
-  
-  'DEBUG $bVisible;; "(";; ME.X;; ME.Y;; ME.W;; ME.H;; ") (";; btnSide.X;; btnSide.Y;; btnSide.W;; btnSide.H;; btnSide.Visible;; ") (";; panSide.X;; panSide.Y;; panSide.W;; panSide.H;; panSide.Visible;; ")"
-  'STOP
+  If Not $bShowButtons Then
+    btnSide.Hide
+    btnSide2.Hide
+  Endif
   
 End
 
@@ -244,7 +251,6 @@ Private Sub GetParent() As SidePanel
   Return Me.Parent
   
 End
-
 
 Public Sub Form_Resize()
 
@@ -468,7 +474,7 @@ Public Sub RefreshAll()
     'DEBUG ME.Parent.W;; ME.CLientW
     'panSide.Hide 'Enabled = FALSE
     
-    If Not $hShowPanel And If $bTransparent Then
+    If Not $hShowPanel And If $bTransparent And If $bShowButtons Then
       
       hCont = Me.Parent.Parent
       
@@ -524,8 +530,10 @@ Private Sub AfterTogglePanel()
       H = $H
       If IsVertical() Then 
         W = Me.Parent.W
+        H = Max(H, $iMinSize)
       Else
         H = Me.Parent.H
+        W = Max(W, $iMinSize)
       Endif
       Me.Parent.Move($X, $Y, W, H)
       $W = 0
@@ -538,10 +546,13 @@ Private Sub AfterTogglePanel()
   
 End
 
-
 Private Sub TogglePanel()
 
+  Dim bAnim As Boolean
+
   If Me.Parent.Design Then Return
+
+  bAnim = _Gui.MustAnimate(Me)
 
   If $bVisible Then
 
@@ -566,9 +577,9 @@ Private Sub TogglePanel()
     
     $bVisible = False
     
-    If Application.Animations Then
+    If bAnim Then
       
-      $iTarget = If($bTransparent, 0, BUTTON_H)
+      $iTarget = If($bTransparent, 1, BUTTON_H)
       
       $hTimerAnim = New Timer As "TimerAnim"
       $hTimerAnim.Delay = 20
@@ -595,10 +606,10 @@ Private Sub TogglePanel()
       $hTimerAnim = Null
     Endif
     
-    If Application.Animations Then
+    If bAnim Then
       
       panSide.Show
-      sepSide.Visible = $bSeparator
+      sepSide.Visible = IsSeparatorVisible()
       
       If $iOrientation = Align.Top Or If $iOrientation = Align.Bottom Then
         $iTarget = $H
@@ -812,7 +823,6 @@ Public Sub SetDimension(iDim As Integer)
   
 End
 
-
 Public Function IsFixed() As Boolean
 
   Return $bFixed
@@ -860,43 +870,6 @@ Public Sub SetDesign()
   
 End
 
-
-' PUBLIC SUB panMove_Draw()
-' 
-'   IF IsVertical() THEN
-'     Draw.FillX = 0
-'     Draw.FillY = panMove.H / 2 - 2
-'     Draw.Tile($hHandleH, panMove.W * 0.1, panMove.H / 2 - 3, panMove.W * 0.8, 4)
-'   ELSE
-'     Draw.FillX = panMove.W / 2 - 2
-'     Draw.FillY = 0
-'     Draw.Tile($hHandleV, panMove.W / 2 - 3, panMove.H * 0.1, 4, panMove.H * 0.8)
-'   ENDIF   
-' 
-' END
-
-' Public Sub panMove_Enter()
-' 
-'   $iColor = panMove.Background
-' 
-'   If Not $bVisible Then Return
-'   If $bFixed Then Return
-'   If Me.Parent.Design Then Return
-' 
-'   'panMove.Background = Color.ButtonBackground
-'   'btnSide.Background = Color.ButtonBackground  
-'   'btnSide2.Background = Color.ButtonBackground  
-' 
-' End
-' 
-' Public Sub panMove_Leave()
-' 
-'   'panMove.Background = $iColor
-'   'btnSide.Background = $iColor
-'   'btnSide2.Background = $iColor
-' 
-' End
-
 Public Sub btnSide_Draw()
 
   Dim iOrientation As Integer
@@ -919,15 +892,24 @@ Public Sub btnSide_Draw()
 
 End
 
+Private Sub CheckAutoHide()
+  
+  Try $hTimerAutoHide.Trigger
+  
+End
+
+
 Public Sub btnSide_Enter()
 
   Last.Refresh
+  CheckAutoHide()
 
 End
 
 Public Sub btnSide_Leave()
 
   Last.Refresh
+  CheckAutoHide()
 
 End
 
@@ -985,6 +967,7 @@ Public Sub panMove_Enter()
   $bInside = True
   'UpdateBackground
   RefreshButtons
+  CheckAutoHide()
   
 End
 
@@ -994,6 +977,7 @@ Public Sub panMove_Leave()
   $bInside = False
   'UpdateBackground
   RefreshButtons
+  CheckAutoHide()
   
 End
 
@@ -1138,10 +1122,21 @@ Public Sub panMove_Menu()
   hMenu = New Menu(hPopup) As "mnuHidden"
   hMenu.Text = ("Hidden")
   hMenu.Checked = IsHidden()
+  hMenu.Enabled = Not IsAutoHide()
+  
+  hMenu = New Menu(hPopup)
   
   hMenu = New Menu(hPopup) As "mnuTransparent"
-  hMenu.Text = ("Transparent")
+  hMenu.Text = ("Transparent handle")
   hMenu.Checked = IsTransparent()
+  
+  ' hMenu = New Menu(hPopup) As "mnuShowButtons"
+  ' hMenu.Text = ("Show buttons")
+  ' hMenu.Checked = MustShowButtons()
+  
+  hMenu = New Menu(hPopup) As "mnuAutoHide"
+  hMenu.Text = ("Hide automatically")
+  hMenu.Checked = IsAutoHide()
   
   hMenu = New Menu(hPopup)
   
@@ -1149,9 +1144,13 @@ Public Sub panMove_Menu()
   hMenu.Text = ("Cancel")
   hMenu.Picture = Picture["icon:/small/close"]
 
+  $bNoAutoHide = True
   hPopup.Popup
   hPopup.Delete
-
+  $bNoAutoHide = False
+  
+  CheckAutoHide()
+  
 End
 
 Public Sub mnuHidden_Click()
@@ -1166,6 +1165,18 @@ Public Sub mnuTransparent_Click()
   
 End
 
+' Public Sub mnuShowButtons_Click()
+'   
+'   SetShowButtons(Not MustShowButtons())
+'   
+' End
+
+Public Sub mnuAutoHide_Click()
+  
+  SetAutoHide(Not IsAutoHide())
+  
+End
+
 Public Sub GetMinSize() As Integer
   
   Return $iMinSize
@@ -1175,5 +1186,77 @@ End
 Public Sub SetMinSize(iMinSize As Integer)
   
   $iMinSize = Max(Desktop.Scale, iMinSize)
+  
+End
+
+Public Sub IsAutoHide() As Boolean
+  
+  Return $hTimerAutoHide
+  
+End
+
+Public Sub SetAutoHide(Value As Boolean)
+  
+  If IsAutoHide() = Value Then Return
+  
+  If Value Then
+    $hTimerAutoHide = New Timer As "TimerAutoHide"
+    CheckAutoHide()
+  Else
+    $hTimerAutoHide.Stop
+    $hTimerAutoHide = Null
+  Endif
+  
+End
+
+Public Sub Form_Enter()
+
+  CheckAutoHide()
+
+End
+
+Public Sub Form_Leave()
+
+  CheckAutoHide()
+
+End
+
+Public Sub TimerAutoHide_Timer()
+  
+  If $bNoAutoHide Then Return 
+  
+  'Debug $bInside;; panMove.Hovered;; Me.Hovered;; btnSide.Hovered;; btnSide2.Hovered
+  If $bInside Or If panMove.Hovered Or If Me.Hovered Or If btnSide.Hovered Or If btnSide2.Hovered Then
+    SetHidden(False)
+  Else
+    SetHidden(True)
+  Endif
+  
+End
+
+Public Sub SetBorder(bBorder As Boolean)
+  
+  panSide.Border = If(bBorder, Border.Plain, Border.None)
+  RefreshPanel
+  
+End
+
+Public Sub HasBorder() As Boolean
+  
+  Return panSide.Border <> Border.None
+  
+End
+
+Public Sub SetShowButtons(bShow As Boolean)
+  
+  If $bShowButtons = bShow Then Return
+  $bShowButtons = bShow
+  RefreshPanel
+  
+End
+
+Public Sub MustShowButtons() As Boolean
+  
+  Return $bShowButtons
   
 End

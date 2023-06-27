@@ -62,21 +62,21 @@ typedef
 	struct
 	{
 		CSOCKET_COMMON common;
-		struct sockaddr_in Server;  /* struct for TCP connections  */
-		struct sockaddr_un UServer; /* struct for UNIX connections */
-		int iUsePort;
-		int iPort;
-		int iLocalPort;
-		int conn_type;
-		char *sPath;
-		char *sLocalHostIP;
-		char *sRemoteHostIP;
-		char *Host;
-		char *Path;
-		CDNSCLIENT *DnsTool;
+		struct sockaddr_in tcp_server; // struct for TCP connections
+		struct sockaddr_un unix_server; // struct for UNIX connections
+		unsigned short use_port;
+		unsigned short port;
+		unsigned short local_port;
+		unsigned conn_type : 2;
+		unsigned watch_write : 1;
+		char *local_host_ip;
+		char *remote_host_ip;
+		char *host;
+		char *path;
+		CDNSCLIENT *dns_client;
+		GB_TIMER *timer;
 		void *parent;
 		void (*OnClose)(void *sck);
-		bool watch_write;
 	}  
 	CSOCKET;
 

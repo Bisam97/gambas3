@@ -26,12 +26,12 @@ Private $bInit As Boolean
 Public Sub _new(iId As Integer, sFarm As String) ', sLogin As String, sPassword As String)
   
   If Not $hVote Then
-    $hVote = Picture["icon:/16/bookmark"].Image
+    $hVote = Picture["icon:/small/bookmark"].Image
     $hVoteOff = $hVote.Copy().Desaturate()
-    $hInstall = Picture["icon:/16/download"].Image
+    $hInstall = Picture["icon:/small/download"].Image
   Endif
   
-  Me.Foreground = Color.TextForeground
+  'Me.Foreground = Color.TextForeground
   
   $sFarm = sFarm
   $iId = iId
@@ -169,9 +169,9 @@ Public Sub DrawingArea_Draw()
   If Not $hSoft Then Return
   
   If $hSoft.CanUpgrade() Then
-    iCol = &HDF6B00&
+    iCol = Project.COLOR_ORANGE
   Else If $hSoft.IsReallyInstalled() Then
-    iCol = &H3398C3&
+    iCol = Project.COLOR_BLUE
   Else
     iCol = 0
   Endif
@@ -208,8 +208,8 @@ Public Sub DrawingArea_Draw()
       X += CSoftware.IconSize + P
     Endif
     
-    Paint.Font.Grade = 2
-    HN = $hSoft.PaintName(X, Y)
+    Paint.Font.Grade = 1
+    HN = $hSoft.PaintName(X, Y, W - X + P)
       
     X = P '-= CSoftware.ICON_SIZE + P
     
@@ -278,7 +278,7 @@ Static Private Sub GetBackgroundColor() As Integer
 End
 
 
-Static Public Sub PaintStat(hSoft As CSoftware, iBg As Integer, Optional (bWithSize) As Boolean)
+Static Public Sub PaintStat(hSoft As CSoftware, (iBg) As Integer, Optional (bWithSize) As Boolean)
 
   Dim sDownload As String
   Dim X, Y As Integer
@@ -294,12 +294,12 @@ Static Public Sub PaintStat(hSoft As CSoftware, iBg As Integer, Optional (bWithS
       sDownload = "<b>" & CStr(.DownloadCount) & "</b>"
     Endif
     
-    Y = P
+    Y = Paint.H - P - $hInstall.H
     'W = Paint.Font.TextWidth(sVote)
     
     X = Paint.W - P - Paint.Font.RichTextWidth(sDownload) - 1 - $hInstall.W - P \ 2
     
-    Paint.FillRect(X - P, 0, Paint.W - X + P * 2, $hInstall.H + P * 2, iBg)
+    'Paint.FillRect(X - P, 0, Paint.W - X + P * 2, $hInstall.H + P * 2, iBg)
     Paint.DrawImage($hInstall, X, Y)
     X += $hInstall.W + P \ 2
     Paint.DrawRichText(sDownload, X, Y, Paint.W - X, $hInstall.H, Align.Left)

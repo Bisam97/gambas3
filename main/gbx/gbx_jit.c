@@ -2,7 +2,7 @@
 
   gbx_jit.c
 
-  (c) 2018 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2018 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -52,22 +52,34 @@ static JIT_FUNCTION *_jit_func = NULL;
 
 static bool _debug = FALSE;
 
-void JIT_exit(void)
+static void find_method(GB_FUNCTION *func, const char *method, const char *sign, const char *type)
 {
-	ARRAY_delete(&_jit_func);
+	if (GB_GetFunction(func, CLASS_find_global("Jit"), method, sign, type))
+		ERROR_panic("Unable to find JIT.&1() method", method);
+}
+
+void JIT_init(void)
+{
+	char *var = getenv("GB_NO_JIT");
+	if (var && var[0] && !(var[0] == '0' && var[1] == 0))
+		JIT_disabled = TRUE;
 }
 
 void JIT_abort(void)
 {
-	static GB_FUNCTION _func;
+	GB_FUNCTION func;
 	
 	if (!_component_loaded || JIT_disabled)
 		return;
 	
-	if (GB_GetFunction(&_func, CLASS_find_global("Jit"), "_Abort", NULL, NULL))
-		ERROR_panic("Unable to find JIT._Abort() method");
-	
-	GB_Call(&_func, 0, FALSE);
+	find_method(&func, "_Abort", NULL, NULL);
+	GB_Call(&func, 0, FALSE);
+	GB_Wait(-1);
+}
+
+void JIT_exit(void)
+{
+	ARRAY_delete(&_jit_func);
 }
 
 static int get_state(ARCHIVE *arch)
@@ -93,15 +105,10 @@ void JIT_compile(ARCHIVE *arch)
 	if (!_component_loaded)
 	{
 		char *var;
+		GB_FUNCTION init_func;
+		GB_VALUE *ret;
 		
 		_component_loaded = TRUE;
-		
-		var =  getenv("GB_NO_JIT");
-		if (var && var[0] && !(var[0] == '0' && var[1] == 0))
-		{
-			JIT_disabled = TRUE;
-			return;
-		}
 		
 		var = getenv("GB_JIT_DEBUG");
 		if (var && var[0] && !(var[0] == '0' && var[1] == 0))
@@ -111,10 +118,19 @@ void JIT_compile(ARCHIVE *arch)
 			fprintf(stderr, "gbx3: loading gb.jit component\n");
 		
 		COMPONENT_load(COMPONENT_create("gb.jit"));
-		if (GB_GetFunction(&_jit_compile_func, CLASS_find_global("Jit"), "_Compile", "s", "b"))
-			ERROR_panic("Unable to find JIT._Compile() method");
-		if (GB_GetFunction(&_jit_wait_func, CLASS_find_global("Jit"), "_Wait", "s", "s"))
-			ERROR_panic("Unable to find JIT._Wait() method");
+
+		find_method(&init_func, "_Search", NULL, NULL);
+		
+		ret = GB_Call(&init_func, 0, FALSE);
+		if (ret->_boolean.value)
+		{
+			JIT_disabled = TRUE;
+			fprintf(stderr, "gbx3: no compiler found. JIT is disabled.\n");
+			return;
+		}
+		
+		find_method(&_jit_compile_func, "_Compile", "s", "b");
+		find_method(&_jit_wait_func, "_Wait", "s", "s");
 	}
 	
 	arch ? (arch->jit_state = JIT_COMPILING) : (_jit_state = JIT_COMPILING);
@@ -128,7 +144,7 @@ void JIT_compile(ARCHIVE *arch)
 	COMPONENT_current = current;
 }
 
-bool wait_for_compilation(ARCHIVE *arch)
+static bool wait_for_compilation(ARCHIVE *arch)
 {
 	COMPONENT *current;
 	void *lib;
@@ -186,6 +202,8 @@ static bool create_function(CLASS *class, int index)
 	int i;
 	int len;
 	char *name;
+	int jit_index;
+	char c;
 	
 	arch = class->component ? class->component->archive : NULL;
 	
@@ -203,7 +221,6 @@ static bool create_function(CLASS *class, int index)
 	}
 	
 	func = &class->load->func[index];
-	func->fast_linked = TRUE;
 	
 	if (!arch)
 		lib = _jit_library;
@@ -217,7 +234,12 @@ static bool create_function(CLASS *class, int index)
 	len = sprintf(COMMON_buffer, "jit_%s_%d", name, index);
 	
 	for (i = 0; i < len; i++)
-		COMMON_buffer[i] = tolower(COMMON_buffer[i]);
+	{
+		c = tolower(COMMON_buffer[i]);
+		if (c == ':')
+			c = '$';
+		COMMON_buffer[i] = c;
+	}
 	
 	addr = dlsym(lib, COMMON_buffer);
 	if (!addr)
@@ -231,14 +253,16 @@ static bool create_function(CLASS *class, int index)
 
 	if (!_jit_func)
 		ARRAY_create(&_jit_func);
-	
+
+	jit_index = ARRAY_count(_jit_func);
 	jit = (JIT_FUNCTION *)ARRAY_add(&_jit_func);
 	
 	jit->addr = addr;
 	jit->code = func->code;
 	
-	func->code = (PCODE *)jit;
-	
+	func->code = (PCODE *)(intptr_t)jit_index;
+	func->fast_linked = TRUE;
+
 	return FALSE;
 }
 
@@ -253,9 +277,12 @@ bool JIT_exec(bool ret_on_stack)
 	VALUE ret;
 	FUNCTION *func = EXEC.func;
 	
-	if (UNLIKELY(nparam < func->npmin))
+	if (JIT_disabled)
+		return TRUE;
+	
+	if (nparam < func->npmin)
 		THROW(E_NEPARAM);
-	else if (UNLIKELY(nparam > func->n_param && !func->vararg))
+	else if (nparam > func->n_param && !func->vararg)
 		THROW(E_TMPARAM);
 
 	if (!func->fast_linked)
@@ -267,11 +294,12 @@ bool JIT_exec(bool ret_on_stack)
 	STACK_push_frame(&EXEC_current, func->stack_usage);
 	
 	CP = class;
+	EXEC_check_bytecode();
 	OP = object;
 	FP = func;
 	EC = NULL;
 	
-	jit = (JIT_FUNCTION *)(func->code);
+	jit = &_jit_func[(intptr_t)func->code];
 	
 	PROFILE_ENTER_FUNCTION();
 	
@@ -305,8 +333,6 @@ bool JIT_exec(bool ret_on_stack)
 	
 	RELEASE_MANY(SP, nparam);
 	
-	RET = ret;
-	
 	STACK_pop_frame(&EXEC_current);
 	
 	if (ret_on_stack)
@@ -320,6 +346,8 @@ bool JIT_exec(bool ret_on_stack)
 		*SP++ = ret;
 		ret.type = T_VOID;
 	}
+	else
+		RET = ret;
 	
 	return FALSE;
 }
@@ -327,7 +355,7 @@ bool JIT_exec(bool ret_on_stack)
 PCODE *JIT_get_code(FUNCTION *func)
 {
 	if (func->fast_linked)
-		return ((JIT_FUNCTION *)(func->code))->code;
+		return _jit_func[(intptr_t)func->code].code;
 	else
 		return func->code;
 }
@@ -404,3 +432,69 @@ void JIT_load_class_without_init(CLASS *class)
 	}
 	END_TRY
 }
+
+void JIT_add_string_local(GB_STRING *str, GB_STRING val)
+{
+	int len;
+	char *add;
+	int len_add;
+	
+	add = val.value.addr + val.value.start;
+	len_add = val.value.len;
+  len = str->value.len;
+	
+	if (len_add == 0)
+		return;
+
+	if (len && STRING_from_ptr(str->value.addr)->ref == 1 && str->value.start == 0)
+	{
+		str->value.addr = STRING_add(str->value.addr, add, len_add);
+	}
+	else
+	{
+		char *str_new = STRING_new(NULL, len + len_add);
+		if (len) memcpy(str_new, str->value.addr + str->value.start, len);
+		memcpy(&str_new[len], add, len_add);
+		if (str->type == T_STRING) 
+			STRING_unref(&str->value.addr);
+		else
+			str->type = T_STRING;
+		str->value.addr = str_new;
+	}
+
+	str->value.len += len_add;
+
+	if (val.type == T_STRING) STRING_unref(&val.value.addr);
+}
+
+void JIT_add_string_global(char **pstr, GB_STRING val)
+{
+	char *str;
+	int len;
+	char *add;
+	int len_add;
+	
+	add = val.value.addr + val.value.start;
+	len_add = val.value.len;
+	
+	if (len_add == 0)
+		return;
+
+	str = *pstr;
+	len = STRING_length(str);
+	
+	if (len && STRING_from_ptr(str)->ref == 1)
+		*pstr = STRING_add(str, add, len_add);
+	else
+	{
+		char *str_new = STRING_new(NULL, len + len_add);
+		if (len) memcpy(str_new, str, len);
+		memcpy(&str_new[len], add, len_add);
+		STRING_unref(pstr);
+		*pstr = str_new;
+	}
+	
+	if (val.type == T_STRING) STRING_unref(&val.value.addr);
+}
+
+

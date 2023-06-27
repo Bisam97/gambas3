@@ -28,7 +28,7 @@ Private $iLineWidth As Integer = 2
 'Private $iLineStyle As Integer
 Private $aInView As New Integer[]
 Private $aShapeNames As New String[]
-Private $aShapes As New _ShapeItem[]
+Private $aShapes As New _MapShapeItem[]
 Private $sLastKey As String
 Private $hImage As Image                  '' Stores user defined default by Property Image
 
@@ -38,18 +38,18 @@ Private $hImage As Image                  '' Stores user defined default by Prop
 'Private $colKeyShape As New Collection
 
 
-Public Sub _new(Parent As Object)
-
-  Object.Attach(Me, Parent, "Layer")
- ' $hImgPoint = Image.Load("point.png")
-
-End
+' Public Sub _new(Parent As Object)
+' 
+'   
+'   ' $hImgPoint = Image.Load("point.png")
+' 
+' End
 
 Public Sub _Load()
 
   Dim hMap As Map = Me._GetMap()
   Dim pt1, pt2 As Point
-
+  
   $aInView.Clear
   For i As Integer = 0 To $aShapes.Max
     If Not ($aShapes[i].Type = _Point) Then
@@ -58,7 +58,7 @@ Public Sub _Load()
       If pt2.x - pt1.x < 2 And If pt2.y - pt1.y < 2 Then Continue
     Endif
     With $aShapes[i].Bounds
-      If .Lon2 > hMap.Bounds.Lon Then 
+      If .Lon2 > hMap.Bounds.Lon Then
         If .lon < hMap.Bounds.lon2
           If .lat2 < hMap.Bounds.Lat Then
             If .Lat > hMap.Bounds.Lat2 Then
@@ -77,11 +77,11 @@ End
 '' Adds a Point object to current Shape
 '' - If Icon not defined, assume default Icon
 '' - If Color defined, Icon assume defined color
-Public Sub AddPoint(Key As String, Points As MapPoint, Optional {Color} As Integer, Optional Icon As Image) As _ShapeItem
+Public Sub AddPoint(Key As String, Points As MapPoint, Optional {Color} As Integer, Optional Icon As Image) As _MapShapeItem
 
   If $aShapeNames.Exist(Key) Then Error.Raise("This key already exist")
-
-  Dim hItem As New _ShapeItem(Key) As "Item"
+  If IsNull(Points) Then Error.Raise("Points is null")
+  Dim hItem As New _MapShapeItem(Key) As "Item"
 
   If Not IsMissing(Icon) Then hItem.Image = Icon
   If Not IsMissing({Color}) Then hItem.Color = {Color}
@@ -98,11 +98,11 @@ Public Sub AddPoint(Key As String, Points As MapPoint, Optional {Color} As Integ
 End
 
 '' Adds a Multipoint object to current Shape
-Public Sub AddMultipoint(Key As String, Points As MapPoint[], Optional {Color} As Integer, Optional Icon As Image) As _ShapeItem
+Public Sub AddMultipoint(Key As String, Points As MapPoint[], Optional {Color} As Integer, Optional Icon As Image) As _MapShapeItem
 
   'If $aShapeNames.Exist(Key) Then Error.Raise("Key already exist: " & Key)
 
-  Dim hItem As New _ShapeItem(Key) As "Item"
+  Dim hItem As New _MapShapeItem(Key) As "Item"
 
   If Not IsMissing(Icon) Then hItem.Image = Icon
   If Not IsMissing({Color}) Then hItem.Color = {Color}
@@ -119,11 +119,11 @@ Public Sub AddMultipoint(Key As String, Points As MapPoint[], Optional {Color} A
 End
 
 '' Adds a Polyline object to current Shape
-Public Sub AddPolyLine(Key As String, Points As MapPoint[], Optional {Color} As Integer, Optional {LineWidth} As Integer, Optional {LineStyle} As Integer) As _ShapeItem
+Public Sub AddPolyLine(Key As String, Points As MapPoint[], Optional {Color} As Integer, Optional {LineWidth} As Integer, Optional {LineStyle} As Integer) As _MapShapeItem
 
   'If $aShapeNames.Exist(Key) Then Error.Raise("Key already exist: " & Key)
 
-  Dim hItem As New _ShapeItem(Key) As "Item"
+  Dim hItem As New _MapShapeItem(Key) As "Item"
 
   If Not IsMissing({Color}) Then hItem.Color = {Color}
   If Not IsMissing({LineWidth}) Then hItem.LineWidth = {LineWidth}
@@ -141,11 +141,11 @@ Public Sub AddPolyLine(Key As String, Points As MapPoint[], Optional {Color} As 
 End
 
 '' Adds a Polygon object to current Shape
-Public Sub AddPolygon(Key As String, Points As MapPoint[][], Optional {Color} As Integer, Optional {LineWidth} As Integer, Optional {LineStyle} As Integer) As _ShapeItem
+Public Sub AddPolygon(Key As String, Points As MapPoint[][], Optional {Color} As Integer, Optional {LineWidth} As Integer, Optional {LineStyle} As Integer) As _MapShapeItem
 
   'If $aShapeNames.Exist(Key) Then Error.Raise("Key already exist: " & Key)
 
-  Dim hItem As New _ShapeItem(Key) As "Item"
+  Dim hItem As New _MapShapeItem(Key) As "Item"
 
   If Not IsMissing({Color}) Then hItem.Color = {Color}
   If Not IsMissing({LineWidth}) Then hItem.LineWidth = {LineWidth}
@@ -164,12 +164,12 @@ End
 
 '' Adds a Circle object to current Shape
 'fillcolor should come after color, but i dont want to break anything...
-Public Sub AddCircle(Key As String, Center As MapPoint, Radius As Float, Optional {Color} As Integer, Optional {LineWidth} As Integer, Optional {LineStyle} As Integer, Optional {FillColor} As Integer) As _ShapeItem
+Public Sub AddCircle(Key As String, Center As MapPoint, Radius As Float, Optional {Color} As Integer, Optional {LineWidth} As Integer, Optional {LineStyle} As Integer, Optional {FillColor} As Integer) As _MapShapeItem
 
   'If $aShapeNames.Exist(Key) Then Error.Raise("Key already exist: " & Key)
 
   Dim P1, P2, P3, P4 As MapPoint
-  Dim hItem As New _ShapeItem(Key) As "Item"
+  Dim hItem As New _MapShapeItem(Key) As "Item"
 
   If Not IsMissing({Color}) Then hItem.Color = {Color}
   If Not IsMissing({FillColor}) Then hItem.FillColor = {FillColor}
@@ -203,10 +203,11 @@ Public Sub Draw()
   Dim hMap As Map = Me._GetMap()
   Dim hPoly As Integer[]
   Dim iColor, iBack As Integer
-  Dim hShape As _ShapeItem
+  Dim hShape As _MapShapeItem
   Dim iAlpha As Integer
 
   If $aShapes.Count = 0 Then Return
+  
   For i As Integer = 0 To $aInView.Max
 
     'TODO: Check opacity
@@ -255,7 +256,7 @@ Public Sub Draw()
         If hShape.Image Then
           'Draws centralized
           If hShape.Color <> -1 Then hShape.Image.Colorize(hShape.Color)
-          Paint.DrawImage(hShape.Image, pt.X - hMap.PixelBox.X - hShape.Image.Height / 2, pt.Y - hMap.PixelBox.Y - hShape.Image.width / 2)
+          Paint.DrawImage(hShape.Image, pt.X - hMap.PixelBox.X - hShape.Image.Width / 2, pt.Y - hMap.PixelBox.Y - hShape.Image.Height / 2)
         Else
           'Draws with default "red point" icon offset
           Paint.DrawImage(Me.Image, pt.X - hMap.PixelBox.X - 16, pt.Y - hMap.PixelBox.Y - 32)
@@ -321,7 +322,7 @@ Public Sub Draw()
 End
 
 '' Returns a Shape Item
-Public Function GetItem(Key As String) As _ShapeItem
+Public Function GetItem(Key As String) As _MapShapeItem
 
   'If Not $aShapeNames.Exist(Key) Then Error.Raise("Item not found: " & Key)
   Return $aShapes[$aShapeNames.Find(Key)]
@@ -329,11 +330,12 @@ Public Function GetItem(Key As String) As _ShapeItem
 End
 
 '' Hidden method so can be an readable Array
-'' - Returns a _ShapeItem
+'' - Returns a _MapShapeItem
 '' - See GetItem
-Public Function _get(Key As String) As _ShapeItem
+Public Function _get(Key As String) As _MapShapeItem
 
   Dim iRet As Integer
+
   iRet = $aShapeNames.Find(key)
   If iRet = -1 Then
     Return Null
@@ -345,9 +347,9 @@ End
 
 ' '' Returns associated Map
 ' Private Function GetMap() As Map
-'   
+'
 '   Return Object.Parent(Me)
-'   
+'
 ' End
 
 Private Function Color_Read() As Integer
@@ -365,28 +367,30 @@ End
 '' Wrapper to MapPoint.GetCenter() since I dont want to break anything :-D
 '' - See MapPoint.GetCenter()
 Static Public Function GetCenter(hPoints As MapPoint[]) As MapPoint
+
   Return MapPoint.GetCenter(hPoints)      'just a jump...
-'   'TODO: testar essa função, comportamento estranho. considerar mover para dentro da classe MapPoint
-'   Dim tmpA, A, Gx, Gy As Float
-'   Dim j As Integer
-'   'calcul du centre
-'   A = 0
-'   gx = 0
-'   Gy = 0
-'   For k As Integer = 0 To hPoints.Max
-'     j = IIf(k + 1 <= hPoints.Max, k + 1, 0)
-'     tmpA = (hPoints[k].Lon * hPoints[j].Lat) - (hPoints[j].Lon * hPoints[k].Lat)
-'     A += tmpA
-'     Gx += tmpA * (hPoints[k].Lon + hPoints[j].Lon)
-'     Gy += tmpA * (hPoints[k].Lat + hPoints[j].Lat)
-'   Next
-'   A = A / 2
-'   gx = gx / (6 * A) 
-'   gy = gy / (6 * A) 
-' 
-'   Return MapPoint(GY, GX)
-' Catch
-' 
+  '   'TODO: testar essa função, comportamento estranho. considerar mover para dentro da classe MapPoint
+  '   Dim tmpA, A, Gx, Gy As Float
+  '   Dim j As Integer
+  '   'calcul du centre
+  '   A = 0
+  '   gx = 0
+  '   Gy = 0
+  '   For k As Integer = 0 To hPoints.Max
+  '     j = IIf(k + 1 <= hPoints.Max, k + 1, 0)
+  '     tmpA = (hPoints[k].Lon * hPoints[j].Lat) - (hPoints[j].Lon * hPoints[k].Lat)
+  '     A += tmpA
+  '     Gx += tmpA * (hPoints[k].Lon + hPoints[j].Lon)
+  '     Gy += tmpA * (hPoints[k].Lat + hPoints[j].Lat)
+  '   Next
+  '   A = A / 2
+  '   gx = gx / (6 * A)
+  '   gy = gy / (6 * A)
+  '
+  '   Return MapPoint(GY, GX)
+  ' Catch
+  '
+
 End
 
 Private Function GetPointBounds(hMapPoints As MapPoint[]) As MapBounds
@@ -418,11 +422,12 @@ End
 Public Function Remove(Key As String) As Boolean
 
   Dim iRet As Integer
+
   iRet = $aShapeNames.Find(key)
   If iRet = -1 Then Return False
   $aShapeNames.Remove(iRet)
   $aShapes.Remove(iRet)
-  _Load()
+  '_Load()
 
   Return True
 
@@ -450,7 +455,7 @@ End
 
 Public Sub Refresh()
 
-  For Each hItem As _ShapeItem In $aShapes
+  For Each hItem As _MapShapeItem In $aShapes
     Select Case hItem.Type
       Case _Point
         hItem.Center = hItem.Points
@@ -480,9 +485,9 @@ Private Function Max_Read() As Integer
 
 End
 
-Public Function GetSelected() As _ShapeItem[]
+Public Function GetSelected() As _MapShapeItem[]
 
-  Dim aShapeItem As New _ShapeItem[]
+  Dim aShapeItem As New _MapShapeItem[]
 
   For i As Integer = 0 To $aShapes.Max
     If $aShapes[i].Selected Then aShapeItem.Add($aShapes[i])
@@ -510,7 +515,7 @@ End
 
 Public Sub Item_Select()
 
-  If $sLastKey <> Last.key Then 
+  If $sLastKey <> Last.key Then
     Try _get($sLastKey).Selected = False       'Try Me._get($sLastKey).Selected = False
     $sLastKey = Last.Key
   Endif
@@ -523,16 +528,20 @@ Private Function Key_Read() As String
 
 End
 
-Public Function Find(hMp As MapPoint) As _ShapeItem
+Public Function Find(hMp As MapPoint, Optional Radius As Float) As _MapShapeItem
 
-  Dim hShape As _ShapeItem
+  Dim hShape As _MapShapeItem
   Dim hMap As Map = Me._GetMap()
+  Dim fRadius As Float = 5
+  
+  If Not IsMissing(Radius) Then fRadius = Max(0, Min(100, Radius))
+  
   'Optimize by just looking in the view zone
-  If hMap.Bounds.InBounds(hMp) Then 
+  If hMap.Bounds.InBounds(hMp) Then
     For i As Integer = 0 To $aInView.Max
-      hShape = $aInView[i]
+      hShape = $aShapes[$aInView[i]]
       If hShape.Type = _Point Then
-        If hShape.Near(hMp, hMap.Zoom, 10) Then Return hShape
+        If hShape.Near(hMp, hMap.Zoom, Radius) Then Return hShape
       Else
         If hShape.Contains(hMp) Then Return hShape
       Endif
@@ -541,7 +550,7 @@ Public Function Find(hMp As MapPoint) As _ShapeItem
     For i As Integer = 0 To $aShapes.Max
       hShape = $aShapes[i]
       If hShape.Type = _Point Then
-        If hShape.Near(hMp, hMap.Zoom, 10) Then Return hShape
+        If hShape.Near(hMp, hMap.Zoom, Radius) Then Return hShape
       Else
         If hShape.Contains(hMp) Then Return hShape
       Endif
@@ -579,5 +588,24 @@ End
 Private Sub FillColor_Write(Value As Integer)
 
   $iFillColor = Value
+
+End
+
+
+Public Sub GetItemsFromBounds(hBounds As MapBounds) As _MapShapeItem[]
+
+  Dim hShape As _MapShapeItem
+  Dim aShapes As New _MapShapeItem[]
+  Dim i As Integer
+  
+  'If MapPoint.Distance(hBounds.TopLeft, hBounds.BottomRight) > 1000000 Then Stop 
+  For i = 0 To $aShapes.Max
+    hShape = $aShapes[i]
+    If hBounds.Contain(hShape.Bounds) Then
+      aShapes.Add(hShape)
+    Endif
+  Next
+
+Return aShapes
 
 End

@@ -7,7 +7,7 @@ Static Private $sTable As String
 
 Static Private $iCpt As Integer
 Static Private $iTotal As Integer
-Static Private $eTimer As Float
+Static Private $fTimer As Float
 
 Public Sub Run(hSrc As FConnectionEditor, sTable As String, hDest As FConnectionEditor) As Boolean
 
@@ -70,7 +70,6 @@ Private Sub CopyTable(sDestTable As String)
   Dim hSrc As Connection
   Dim hDst As Connection
   Dim rSrc As Result
-  Dim sMsg As String
 
   Inc Application.Busy
 
@@ -92,7 +91,7 @@ Private Sub CopyTable(sDestTable As String)
   Endif
 
   $iCpt = 0
-  $eTimer = Timer
+  $fTimer = Timer
 
   'DB.Debug = True
   DoCopyTable(hSrc, hDst, $sTable, sDestTable)
@@ -100,16 +99,12 @@ Private Sub CopyTable(sDestTable As String)
 
 Finally
 
-  'DB.Debug = False
-  sMsg = Error.Text
   Application.Busy = 0
-  'Try hSrc.Close
-  'Try hDst.Close
 
 Catch
 
-  Message.Error(sMsg)
-
+  FMain.ShowErrorWith(("Unable to copy table."))
+  
 End
 
 
@@ -194,7 +189,7 @@ Private Sub DoCopyTable(hSrc As Connection, hDst As Connection, sSrc As String, 
 
 Catch
 
-  sMsg = Subst("Cannot copy table &1.", sSrc) & "\n\n" & Error.Text
+  sMsg = Subst("Cannot copy table &1.", sSrc) & " " & Error.Text
   Try hDst.Rollback
   Try hDst.Tables.Remove(sDst)
   Error.Raise(sMsg)
@@ -204,10 +199,10 @@ End
 Private Sub UpdateProgress(Optional bForce As Boolean)
 
   If Not bForce Then
-    If Timer < $eTimer Then Return
+    If Timer < $fTimer Then Return
   Endif
 
-  $eTimer = Timer + 0.25
+  $fTimer = Timer + 0.25
 
   If $iTotal Then
     pgbPaste.Value = CFloat($iCpt) / $iTotal

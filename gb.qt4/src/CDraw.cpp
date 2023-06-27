@@ -2,7 +2,7 @@
 
   CDraw.cpp
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -49,11 +49,13 @@
 #include <QPen>
 #include <QBrush>
 
+#include "main.h"
+
 #ifndef NO_X_WINDOW
+#ifndef QT5
 #include <QX11Info>
 #endif
-
-#include "gambas.h"
+#endif
 
 #include "CConst.h"
 #include "CFont.h"
@@ -63,6 +65,7 @@
 #include "CImage.h"
 #include "CDrawingArea.h"
 #include "CColor.h"
+#include "cprinter.h"
 #include "CDraw.h"
 
 typedef
@@ -86,18 +89,18 @@ void DRAW_init()
 	GB.GetInterface("gb.draw", DRAW_INTERFACE_VERSION, &DRAW);
 }
 
-static Qt::Alignment get_horizontal_alignment(Qt::Alignment align)
+static Qt::Alignment get_horizontal_alignment(Qt::Alignment align, QString *t = 0)
 {
 	align &= Qt::AlignHorizontal_Mask;
 	switch (align)
 	{
 		case Qt::AlignLeft:
-			if (QApplication::isRightToLeft())
+			if (t ? t->isRightToLeft() : QApplication::isRightToLeft())
 				return Qt::AlignRight;
 			break;
 			
 		case Qt::AlignRight:
-			if (QApplication::isRightToLeft())
+			if (t ? t->isRightToLeft() : QApplication::isRightToLeft())
 				return Qt::AlignLeft;
 			break;
 			
@@ -109,44 +112,50 @@ static Qt::Alignment get_horizontal_alignment(Qt::Alignment align)
 }
 
 static QStringList text_sl;
-static QVector<int> text_w;
-static int text_line;
+static QVector<float> text_w;
+static float text_line;
 
-static int get_text_width(QPainter *dp, QString &s)
+static void get_text_size(QPainter *dp, QString &s, float *tw, float *th)
 {
-	int w, width = 0;
+	float w, width = 0;
 	int i;
+	QFontMetricsF fm(dp->font());
 
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 14, 0))
+	text_sl = s.split('\n', Qt::KeepEmptyParts);
+#else
 	text_sl = s.split('\n', QString::KeepEmptyParts);
+#endif
 
 	text_w.resize(text_sl.count());
 
 	for (i = 0; i < (int)text_sl.count(); i++)
 	{
-		w = dp->fontMetrics().width(text_sl[i]);
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 11, 0))
+		w = fm.horizontalAdvance(text_sl[i]);
+#else
+		w = fm.width(text_sl[i]);
+#endif
 		if (w > width) width = w;
 		text_w[i] = w;
 	}
 
-	return width;
+	*tw = width;
+	
+	text_line = fm.height();
+	*th = text_line * (1 + s.count('\n'));
 }
 
-static int get_text_height(QPainter *dp, QString &s)
-{
-	text_line = dp->fontMetrics().height();
-	return text_line * (1 + s.count('\n'));
-}
-
-void DRAW_text(QPainter *p, const QString &text, float x, float y, float w, float h, int align, QPainter *p2)
+void DRAW_text(QPainter *p, const QString &text, float x, float y, float w, float h, int align)
 {
 	QPen pen, penm;
 	QString t = text;
-	int xx, ww;
-	int tw, th;
+	float xx, ww;
+	float tw, th;
 	int i;
+	Qt::Alignment a;
 
-	tw = get_text_width(p, t);
-	th = get_text_height(p, t);
+	get_text_size(p, t, &tw, &th);
 
 	if (w < 0) w = tw;
 	if (h < 0) h = th;
@@ -160,14 +169,14 @@ void DRAW_text(QPainter *p, const QString &text, float x, float y, float w, floa
 		default: break;
 	}
 
-	align = get_horizontal_alignment((Qt::Alignment)align);
-	
 	for (i = 0; i < (int)text_sl.count(); i++)
 	{
 		t = text_sl[i];
 		ww = text_w[i];
+		
+		a = get_horizontal_alignment((Qt::Alignment)align, &t);
 
-		switch(align)
+		switch(a)
 		{
 			case Qt::AlignRight: xx = x + w - ww; break;
 			case Qt::AlignHCenter: xx = x + (w - ww) / 2; break;
@@ -176,14 +185,30 @@ void DRAW_text(QPainter *p, const QString &text, float x, float y, float w, floa
 
 		//(*callback)(xx, y, t);
 		p->drawText(xx, y, t);
-		if (p2) 
-			p2->drawText(xx, y, t);
+		/*if (p2) 
+			p2->drawText(xx, y, t);*/
 
 		y += text_line;
 	}
 }
 
-void DRAW_rich_text(QPainter *p, const QString &text, float x, float y, float w, float h, int align, QPainter *p2)
+	//margin = 256; // * 96 / p->device()->physicalDpiY() * d->fontScale;
+	
+	/*if (GB.Is(d->device, CLASS_Printer))
+		margin = 256.0; // * ((CPRINTER *)d->device)->printer->resolution() / 96 * d->fontScale;
+	else
+		margin = 256.0 * p->device()->physicalDpiY() / 96;*/
+//	GB_PAINT *d = (GB_PAINT *)DRAW.Paint.GetCurrent();
+	
+
+void DRAW_init_rich_text(QTextDocument *doc, const QFont &font)
+{
+	doc->setDocumentMargin(0);
+	doc->setDefaultFont(font);
+	doc->setDefaultStyleSheet(QString("p { margin-bottom: %1px; } h1,h2,h3,h4,h5,h6 { margin-bottom: %1px; }").arg(QFontMetrics(font).height()));
+}
+
+void DRAW_rich_text(QPainter *p, const QString &text, float x, float y, float w, float h, int align)
 {
 	static QTextDocument *doc = NULL;
 
@@ -193,7 +218,6 @@ void DRAW_rich_text(QPainter *p, const QString &text, float x, float y, float w,
 	QString t = "<font color=\"" + fg.name() + "\">" + text + "</font>";
 	qreal opacity = 1.0;
 	bool hasAlpha = fg.alpha() < 255;
-	int margin;
 
 	switch(get_horizontal_alignment((Qt::Alignment)align))
 	{
@@ -206,21 +230,16 @@ void DRAW_rich_text(QPainter *p, const QString &text, float x, float y, float w,
 		t = "<div align=\"" + a + "\">" + t + "</div>";
 	
 	if (!doc)
-	{
 		doc = new QTextDocument;
-		doc->setDocumentMargin(0);
-	}
 
-	doc->setDefaultFont(p->font());
-	margin = p->font().pointSize() * p->device()->physicalDpiY() / 96;
-	doc->setDefaultStyleSheet(QString("p { margin-bottom: %1px; } h1,h2,h3,h4,h5,h6 { margin-bottom: %1px; }").arg(margin));
+	DRAW_init_rich_text(doc, p->font());
 	doc->setHtml(t);
 
 	if (w > 0)
 		doc->setTextWidth(w);
 		
-	tw = doc->idealWidth();
-	th = doc->size().height();
+	tw = ::ceilf(doc->idealWidth());
+	th = ::ceilf(doc->size().height());
 
 	if (w < 0) w = tw;
 	if (h < 0) h = th;
@@ -245,12 +264,12 @@ void DRAW_rich_text(QPainter *p, const QString &text, float x, float y, float w,
 	if (hasAlpha)
 		p->setOpacity(opacity);
 	
-	if (p2) 
+	/*if (p2) 
 	{
 		p2->translate(x, y);
 		doc->drawContents(p2);
 		p2->translate(-x, -y);
-	}
+	}*/
 }
 
 void DRAW_aligned_pixmap(QPainter *p, const QPixmap &pix, int x, int y, int w, int h, int align)

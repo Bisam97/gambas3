@@ -2,7 +2,7 @@
 
 	gbx_api.c
 
-	(c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+	(c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -63,16 +63,10 @@
 #include "gbx_struct.h"
 #include "gbx_signal.h"
 #include "gbx_jit.h"
-
+#include "gbx_split.h"
+#include "gbx.h"
 #include "gambas.h"
 #include "gbx_api.h"
-
-typedef
-	struct {
-		OBJECT *object;
-		CLASS_DESC_METHOD *desc;
-		}
-	GB_API_FUNCTION;
 
 const void *const GAMBAS_Api[] =
 {
@@ -105,7 +99,7 @@ const void *const GAMBAS_Api[] =
 	(void *)EVENT_post,
 	(void *)EVENT_post2,
 	(void *)CTIMER_every,
-	(void *)GB_Raise,
+	(void *)GB_RaiseEvent,
 	(void *)GB_RaiseBegin,
 	(void *)GB_RaiseEnd,
 	(void *)EVENT_post_event,
@@ -114,13 +108,17 @@ const void *const GAMBAS_Api[] =
 	(void *)GB_GetEvent,
 	(void *)GB_GetLastEventName,
 	(void *)CTIMER_raise,
+	(void *)GB_HasActiveTimer,
 	(void *)GB_Stopped,
+	(void *)GB_IsRaiseLocked,
 
 	(void *)GB_NParam,
 	(void *)GB_Conv,
 	(void *)GB_GetUnknown,
 
 	(void *)GB_Error,
+	(void *)GB_HasError,
+	(void *)GB_GetErrorMessage,
 	(void *)ERROR_propagate,
 	(void *)GB_Deprecated,
 	(void *)GB_OnErrorBegin,
@@ -129,9 +127,9 @@ const void *const GAMBAS_Api[] =
 	(void *)GB_GetClass,
 	(void *)GB_GetClassName,
 	(void *)GB_ExistClass,
-	(void *)CLASS_find_global,
+	(void *)GB_FindClass,
 	(void *)GB_ExistClassLocal,
-	(void *)CLASS_find,
+	(void *)GB_FindClassLocal,
 	(void *)GB_GetArrayType,
 	(void *)CLASS_get_array_class,
 	(void *)CLASS_find_load_from,
@@ -146,6 +144,7 @@ const void *const GAMBAS_Api[] =
 	(void *)GB_New,
 	(void *)CLASS_auto_create,
 	(void *)GB_CheckObject,
+	(void *)OBJECT_is_locked,
 
 	(void *)GB_GetEnum,
 	(void *)GB_StopEnum,
@@ -153,6 +152,7 @@ const void *const GAMBAS_Api[] =
 	(void *)GB_EndEnum,
 	(void *)GB_NextEnum,
 	(void *)GB_StopAllEnum,
+	(void *)GB_OnFreeEnum,
 
 	(void *)GB_GetReturnValue,
 	(void *)GB_Return,
@@ -197,6 +197,7 @@ const void *const GAMBAS_Api[] =
 
 	(void *)STRING_subst,
 	(void *)STRING_subst_add,
+	(void *)STRING_subst_add_unquote,
 	(void *)STRING_make,
 	(void *)GB_ConvString,
 	(void *)STRING_conv_file_name,
@@ -224,6 +225,7 @@ const void *const GAMBAS_Api[] =
 	(void *)GB_MakeDate,
 	(void *)DATE_from_time,
 	(void *)DATE_timer,
+	(void *)DATE_from_string,
 
 	(void *)GB_Watch,
 
@@ -268,6 +270,7 @@ const void *const GAMBAS_Api[] =
 	(void *)GB_ArrayAdd,
 	(void *)GB_ArrayGet,
 	(void *)GB_ArrayType,
+	(void *)GB_ArraySetReadOnly,
 
 	(void *)GB_CollectionNew,
 	(void *)GB_CollectionCount,
@@ -297,6 +300,7 @@ const void *const GAMBAS_Api[] =
 	(void *)STRING_start_len,
 	(void *)STRING_end,
 	(void *)STRING_make,
+	(void *)STRING_split,
 
 	(void *)DEBUG_get_current_position,
 	(void *)DEBUG_enter_event_loop,
@@ -304,6 +308,7 @@ const void *const GAMBAS_Api[] =
 
 	(void *)SIGNAL_register,
 	(void *)SIGNAL_unregister,
+	(void *)SIGNAL_must_check,
 
 	(void *)LIST_insert,
 	(void *)LIST_remove,
@@ -315,10 +320,10 @@ const void *const GAMBAS_DebugApi[] =
 {
 	(void *)GB_DebugGetExec,
 	(void *)STACK_get_frame,
-	(void *)ERROR_print_at,
+	(void *)ERROR_get_message,
 	(void *)ERROR_save,
 	(void *)ERROR_restore,
-	(void *)VALUE_to_string,
+	(void *)VALUE_to_local_string,
 	(void *)LOCAL_format_date,
 	(void *)LOCAL_format_number,
 	(void *)DEBUG_get_value,
@@ -332,6 +337,8 @@ const void *const GAMBAS_DebugApi[] =
 	(void *)GB_DebugBreakOnError,
 	(void *)DEBUG_enter_eval,
 	(void *)DEBUG_leave_eval,
+	(void *)GB_DebugInside,
+	(void *)GB_DebugHold,
 	NULL
 };
 
@@ -340,7 +347,6 @@ const void *const GAMBAS_JitApi[] =
 	(void *)&SP,
 	(void *)&EXEC_current,
 	(void *)&TEMP,
-	(void *)&EXEC_debug,
 	(void *)&EXEC_super,
 	(void *)JIT_debug,
 	(void *)JIT_get_code,
@@ -350,7 +356,7 @@ const void *const GAMBAS_JitApi[] =
 	(void *)JIT_get_class_ref,
 	(void *)EXEC_subr_table,
 	(void *)STRING_char_table,
-	(void *)UNBORROW,
+	(void *)EXEC_unborrow,
 	(void *)EXEC_new,
 	(void *)EXEC_push_array,
 	(void *)EXEC_pop_array,
@@ -367,7 +373,7 @@ const void *const GAMBAS_JitApi[] =
 	(void *)&ERROR_handler,
 	(void *)ERROR_reset,
 	(void *)ERROR_set_last,
-	(void *)&EXEC_got_error,
+	(void *)EXEC_set_got_error,
 	(void *)&EVENT_Last,
 	(void *)EXEC_push_complex,
 	(void *)EXEC_push_vargs,
@@ -380,12 +386,18 @@ const void *const GAMBAS_JitApi[] =
 	(void *)CSTRUCT_create_static,
 	(void *)CARRAY_create_static,
 	(void *)CARRAY_get_array_class,
+	(void *)JIT_add_string_local,
+	(void *)JIT_add_string_global,
+	(void *)VALUE_class_write,
+	(void *)SUBR_poke,
+	(void *)OBJECT_get_addr,
 	NULL
 };
 
 
 bool GAMBAS_DoNotRaiseEvent = FALSE;
 bool GAMBAS_StopEvent = FALSE;
+bool GAMBAS_RaiseEventCanPropagate = FALSE;
 
 static bool _event_stopped = FALSE;
 static int _raise_event_level = 0;
@@ -453,6 +465,12 @@ void *GB_Hook(int type, void *hook)
 }
 
 
+bool GB_HasActiveTimer(void)
+{
+	return CTIMER_active_count > 0;
+}
+
+
 bool GB_LoadComponent(const char *name)
 {
 	CATCH_ERROR
@@ -467,6 +485,7 @@ bool GB_LoadComponent(const char *name)
 static void push(int nval, va_list args)
 {
 	TYPE type;
+	GB_VARIANT_VALUE *val;
 
 	STACK_check(nval);
 
@@ -501,7 +520,14 @@ static void push(int nval, va_list args)
 
 			case T_OBJECT:
 				SP->_object.object = va_arg(args, void *);
-				OBJECT_REF(SP->_object.object);
+				OBJECT_REF_CHECK(SP->_object.object);
+				break;
+
+			case T_VARIANT:
+				val = va_arg(args, GB_VARIANT_VALUE *);
+				SP->_variant.vtype = val->type;
+				SP->_variant.value.data = val->value.data;
+				BORROW(SP);
 				break;
 
 			default:
@@ -586,6 +612,11 @@ void *GB_GetProperty(void *object, const char *name)
 			return NULL;
 		}
 	}
+	else if (type == CD_PROPERTY_WRITE || type == CD_STATIC_PROPERTY_WRITE)
+	{
+		error(E_NREAD, class, name);
+		return NULL;
+	}
 	else
 	{
 		error(E_NPROPERTY, class, name);
@@ -618,10 +649,8 @@ void *GB_GetProperty(void *object, const char *name)
 			//EXEC.func = &class->load->func[(long)desc->property.read];
 
 			EXEC_function_keep();
-
-			TEMP = *RP;
-			UNBORROW(RP);
-			RP->type = T_VOID;
+			
+			EXEC_move_ret_to_temp();
 		}
 	}
 
@@ -652,7 +681,7 @@ bool GB_SetProperty(void *object, const char *name, GB_VALUE *val)
 
 	type = CLASS_DESC_get_type(desc);
 
-	if (type == CD_PROPERTY || type == CD_VARIABLE)
+	if (type == CD_PROPERTY || type == CD_VARIABLE || type == CD_PROPERTY_WRITE)
 	{
 		if (!object)
 		{
@@ -665,7 +694,7 @@ bool GB_SetProperty(void *object, const char *name, GB_VALUE *val)
 			object = EXEC_auto_create(class, TRUE);
 		}
 	}
-	else if (type == CD_STATIC_PROPERTY || type == CD_STATIC_VARIABLE)
+	else if (type == CD_STATIC_PROPERTY || type == CD_STATIC_VARIABLE || type == CD_STATIC_PROPERTY_WRITE)
 	{
 		if (object)
 		{
@@ -747,6 +776,25 @@ bool GB_CanRaise(void *object, int event_id)
 	return (func_id != 0);
 }
 
+bool GB_IsRaiseLocked(void *object)
+{
+	COBSERVER *obs;
+
+	if (GAMBAS_DoNotRaiseEvent)
+		return TRUE;
+	
+	if (!object || !OBJECT_has_events(object))
+		return TRUE;
+
+	LIST_for_each(obs, OBJECT_event(object)->observer)
+	{
+		if (OBJECT_active_parent(obs))
+			return FALSE;
+	}
+	
+	return OBJECT_active_parent(object) == NULL;
+}
+
 
 static int get_event_func_id(ushort *event_tab, int event_id)
 {
@@ -762,13 +810,14 @@ static int get_event_func_id(ushort *event_tab, int event_id)
 	return func_id;
 }
 
-static bool raise_event(OBJECT *observer, void *object, int func_id, int nparam)
+static bool raise_event(OBJECT *observer, void *object, int func_id, int nparam, bool can_propagate)
 {
 	bool stop_event;
 	CLASS *class;
 	CLASS_DESC_METHOD *desc;
 	void *old_last;
 	bool result;
+	uint stack_barrier;
 
 	func_id--;
 
@@ -800,8 +849,43 @@ static bool raise_event(OBJECT *observer, void *object, int func_id, int nparam)
 	stop_event = GAMBAS_StopEvent;
 	GAMBAS_StopEvent = FALSE;
 
-	EXEC_public_desc(class, observer, desc, nparam);
+	stack_barrier = STACK_push_barrier();
+	
+	TRY
+	{
+		EXEC_public_desc(class, observer, desc, nparam);
+	}
+	CATCH 
+	{
+		// Errors cannot be propagated outside of an event handler, because 
+		// the event may result from a library signal that do not support 
+		// exceptions (like the glib library).
+		
+		if (ERROR->info.code && ERROR->info.code != E_ABORT && !(can_propagate && STACK_has_error_handler()))
+		{
+			ERROR_hook();
 
+			if (EXEC_debug)
+			{
+				DEBUG.Main(TRUE);
+				MAIN_exit(TRUE, 0);
+			}
+			else
+			{
+				if (!ERROR_print(TRUE))
+					MAIN_exit(TRUE, 1);
+			}
+		}
+		else
+		{
+			EVENT_Last = old_last;
+			GAMBAS_StopEvent = stop_event;
+			STACK_pop_barrier(stack_barrier);
+			PROPAGATE();
+		}
+	}
+	END_TRY
+	
 	if (RP->type == T_VOID)
 		result = FALSE;
 	else
@@ -810,10 +894,9 @@ static bool raise_event(OBJECT *observer, void *object, int func_id, int nparam)
 	if (GAMBAS_StopEvent)
 		result = TRUE;
 
-	GAMBAS_StopEvent = stop_event;
-
-	//OBJECT_UNREF(object, "raise_event");
 	EVENT_Last = old_last;
+	GAMBAS_StopEvent = stop_event;
+	STACK_pop_barrier(stack_barrier);
 
 	EXEC_release_return_value();
 
@@ -850,15 +933,19 @@ void GB_RaiseEnd(GB_RAISE_HANDLER *handler)
 	_GB_Raise_handler = handler->old;
 }
 
-bool GB_Raise(void *object, int event_id, int nparam, ...)
+bool GB_RaiseEvent(void *object, int event_id, int nparam, ...)
 {
 	OBJECT *parent;
 	int func_id;
-	int result;
+	bool result;
 	va_list args;
 	bool arg;
 	COBSERVER *obs;
+	bool can_propagate;
 
+	can_propagate = GAMBAS_RaiseEventCanPropagate;
+	GAMBAS_RaiseEventCanPropagate = FALSE;
+	
 	if (GAMBAS_DoNotRaiseEvent)
 		return FALSE;
 
@@ -906,7 +993,7 @@ bool GB_Raise(void *object, int event_id, int nparam, ...)
 			}
 
 			EXEC_dup(nparam);
-			result = raise_event(parent, object, func_id, nparam);
+			result = raise_event(parent, object, func_id, nparam, can_propagate);
 
 			if (result)
 				goto __RETURN;
@@ -932,7 +1019,7 @@ bool GB_Raise(void *object, int event_id, int nparam, ...)
 				else
 				{
 					EXEC_dup(nparam);
-					result = raise_event(parent, object, func_id, nparam);
+					result = raise_event(parent, object, func_id, nparam, can_propagate);
 					if (result)
 						goto __RETURN;
 				}
@@ -962,7 +1049,7 @@ bool GB_Raise(void *object, int event_id, int nparam, ...)
 			}
 
 			EXEC_dup(nparam);
-			result = raise_event(parent, object, func_id, nparam);
+			result = raise_event(parent, object, func_id, nparam, can_propagate);
 			if (result)
 				goto __RETURN;
 		}
@@ -980,9 +1067,8 @@ __RETURN:
 }
 
 
-bool GB_GetFunction(GB_FUNCTION *_func, void *object, const char *name, const char *sign, const char *type)
+bool GB_GetFunction(GB_FUNCTION *func, void *object, const char *name, const char *sign, const char *type)
 {
-	GB_API_FUNCTION *func = (GB_API_FUNCTION *)_func;
 	char len_min, nparam, npvar;
 	TYPE *tsign;
 	TYPE tret;
@@ -1059,11 +1145,8 @@ bool GB_GetFunction(GB_FUNCTION *_func, void *object, const char *name, const ch
 		}
 	}
 
-	func->object = kind == CD_STATIC_METHOD ? NULL : object;
-	func->desc = &desc->method;
-
-	if (!func->desc)
-		abort();
+	func->object = object;
+	func->index = index + 1;
 
 	return FALSE;
 
@@ -1071,7 +1154,7 @@ _NOT_FOUND:
 
 	GB_Error("Unable to find method &1 in class &2. &3", name, CLASS_get_name(class), err);
 	func->object = NULL;
-	func->desc = NULL;
+	func->index = 0;
 	return TRUE;
 }
 
@@ -1107,29 +1190,40 @@ __NOT_FOUND:
 }
 
 
-GB_VALUE *GB_Call(GB_FUNCTION *_func, int nparam, int release)
+GB_VALUE *GB_Call(GB_FUNCTION *func, int nparam, int release)
 {
-	GB_API_FUNCTION *func = (GB_API_FUNCTION *)_func;
 	bool stop_event;
+	CLASS *class;
+	void *object;
+	CLASS_DESC_METHOD *desc;
 
-	if (!func || !func->desc)
+	if (!func || !func->index)
 		GB_Error("Unknown function call");
 		//TEMP.type = GB_T_NULL;
 	else
 	{
+		object = func->object;
+		if (OBJECT_is_class(object))
+		{
+			class = object;
+			object = NULL;
+		}
+		else
+		{
+			class = OBJECT_class(object);
+		}
+		
+		desc = &class->table[func->index - 1].desc->method;
+		
 		stop_event = GAMBAS_StopEvent;
-		EXEC_public_desc(func->desc->class, func->object, func->desc, nparam);
+		EXEC_public_desc(class, object, desc, nparam);
 		_event_stopped = GAMBAS_StopEvent;
 		GAMBAS_StopEvent = stop_event;
 
 		if (release)
 			EXEC_release_return_value();
 		else
-		{
-			UNBORROW(RP);
-			TEMP = *RP;
-			RP->type = T_VOID;
-		}
+			EXEC_move_ret_to_temp();
 	}
 
 	return (GB_VALUE *)&TEMP;
@@ -1206,6 +1300,19 @@ void GB_Error(const char *error, ...)
 	ERROR_define(error, arg);
 	EXEC_set_native_error(TRUE);
 }
+
+
+bool GB_HasError()
+{
+	return EXEC_has_native_error();
+}
+
+
+char *GB_GetErrorMessage()
+{
+	return ERROR_last.msg;
+}
+
 
 void GB_Deprecated(const char *msg, const char *func, const char *repl)
 {
@@ -1350,6 +1457,11 @@ void GB_StopEnum(void)
 	//VALUE_default(&TEMP, *GAMBAS_ReturnType);
 	TEMP.type = T_VOID;
 	EXEC_enum->stop = TRUE;
+}
+
+void GB_OnFreeEnum(void (*cb)(void *))
+{
+	EXEC_enum->free = cb;
 }
 
 
@@ -1606,7 +1718,10 @@ void GB_ReturnPtr(GB_TYPE type, void *value)
 void GB_ReturnSelf(void *object)
 {
 	if (object)
-		GB_ReturnObject(object);
+	{
+		TEMP.type = T_OBJECT;
+		TEMP._object.object = object;
+	}
 	else
 	{
 		TEMP.type = T_CLASS;
@@ -1669,7 +1784,7 @@ void GB_ReturnNewString(const char *src, int len)
 {
 	if (len <= 0)
 	{
-		if (*src)
+		if (src && *src)
 		{
 			ERROR_warning("please use GB.ReturnNewZeroString() instead of GB.ReturnNewString()");
 			len = strlen(src);
@@ -1795,9 +1910,7 @@ void GB_StoreObject(GB_OBJECT *src, void **dst)
 	else
 		object = NULL;
 
-	if (object)
-		OBJECT_REF(object);
-
+	OBJECT_REF_CHECK(object);
 	OBJECT_UNREF(*dst);
 	*dst = object;
 }
@@ -2080,7 +2193,7 @@ int GB_CountArray(void *data)
 
 void *GB_Add(void *pdata)
 {
-	return ARRAY_add_void_size(pdata);
+	return ARRAY_add_void_size((char **)pdata);
 }
 
 char *GB_NewZeroString(char *src)
@@ -2164,7 +2277,7 @@ char *GB_SystemPath(void)
 
 GB_STREAM *GB_StreamGet(void *object)
 {
-	return (GB_STREAM *)CSTREAM_stream(object);
+	return (GB_STREAM *)CSTREAM_TO_STREAM(object);
 }
 
 void GB_StreamSetSwapping(GB_STREAM *stream, int v)
@@ -2368,6 +2481,16 @@ void GB_DebugBreakOnError(bool b)
 	EXEC_break_on_error = b;
 }
 
+void GB_DebugInside(bool b)
+{
+	EXEC_debug_inside = b;
+}
+
+void GB_DebugHold(void)
+{
+	EXEC_debug_hold = TRUE;
+}
+
 bool GB_SystemDebug(void)
 {
 	return EXEC_debug;
@@ -2385,6 +2508,8 @@ void GB_SystemHasForked(void)
 	EXEC_profile_instr = FALSE;
 
 	SIGNAL_has_forked();
+
+	FLAG.has_forked = TRUE;
 }
 
 bool GB_ExistClass(const char *name)
@@ -2398,6 +2523,16 @@ bool GB_ExistClassLocal(const char *name)
 	return CLASS_look(name, strlen(name)) != NULL;
 }
 
+void *GB_FindClass(const char *name)
+{
+	return CLASS_find_global(name);
+}
+
+void *GB_FindClassLocal(const char *name)
+{
+	return CLASS_find(name);
+}
+
 TYPE GB_GetArrayType(void *klass)
 {
   return ((CLASS *)klass)->array_type;
@@ -2408,12 +2543,13 @@ void GB_Wait(int delay)
 	struct timespec rem;
 	double wait;
 	double stop, time;
+	int duration;
 
 	DEBUG_enter_event_loop();
 
-	if (delay == 0)
+	if (delay <= 0)
 	{
-		HOOK_DEFAULT(wait, WATCH_wait)(0);
+		HOOK_DEFAULT(wait, WATCH_wait)(delay);
 	}
 	else
 	{
@@ -2424,7 +2560,8 @@ void GB_Wait(int delay)
 
 		for(;;)
 		{
-			HOOK_DEFAULT(wait, WATCH_wait)((int)(wait * 1000 + 0.5));
+			duration = (int)(wait * 1000 + 0.5);
+			HOOK_DEFAULT(wait, WATCH_wait)(duration);
 
 			if (DATE_timer(&time, FALSE))
 				break;
@@ -2444,26 +2581,34 @@ void GB_Wait(int delay)
 
 bool GB_Serialize(const char *path, GB_VALUE *value)
 {
+	CFILE *cfile;
 	STREAM stream;
 
 	CATCH_ERROR
 	{
-		STREAM_open(&stream, path, STO_CREATE);
-		STREAM_write_type(&stream, T_VARIANT, (VALUE *)value);
-		STREAM_close(&stream);
+		STREAM_open(&stream, path, GB_ST_CREATE);
+		cfile = CFILE_create(&stream, GB_ST_CREATE);
+		OBJECT_REF(cfile);
+		STREAM_write_type(&cfile->ob.stream, T_VARIANT, (VALUE *)value);
+		//STREAM_close(&cfile->ob.stream);
+		OBJECT_UNREF(cfile);
 	}
 	END_CATCH_ERROR
 }
 
 bool GB_UnSerialize(const char *path, GB_VALUE *value)
 {
+	CFILE *cfile;
 	STREAM stream;
 
 	CATCH_ERROR
 	{
-		STREAM_open(&stream, path, STO_READ);
-		STREAM_read_type(&stream, T_VARIANT, (VALUE *)value);
-		STREAM_close(&stream);
+		STREAM_open(&stream, path, GB_ST_READ);
+		cfile = CFILE_create(&stream, GB_ST_CREATE);
+		OBJECT_REF(cfile);
+		STREAM_read_type(&cfile->ob.stream, T_VARIANT, (VALUE *)value);
+		//STREAM_close(&cfile->ob.stream);
+		OBJECT_UNREF(cfile);
 	}
 	END_CATCH_ERROR
 }

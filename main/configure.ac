@@ -1,13 +1,18 @@
 dnl ---- configure.ac for main programs
 
 m4_include([../version.m4])
-AC_INIT(gambas3-main, GB_VERSION, GB_MAIL, [], GB_URL)
+AC_INIT([gambas3-main],[GB_VERSION],[GB_MAIL],[],[GB_URL])
 AC_CONFIG_MACRO_DIR([m4])
 
-GB_INIT(main)
+GB_INIT([main])
+GB_TRUNK_VERSION
 GB_MATH_FUNC
-LT_INIT 
+LT_INIT([dlopen win32-dll])
+
 AM_PROG_CC_C_O
+
+CFLAGS=$gb_save_cflags
+CXXFLAGS=$gb_save_cxxflags
 
 if test "x${GAMBAS_CONFIG_FAILURE}" != "x"; then
   SAVE_GAMBAS_CONFIG_FAILURE=${GAMBAS_CONFIG_FAILURE}
@@ -114,6 +119,7 @@ dnl ---- Create makefiles
 AC_CONFIG_FILES([\
 Makefile \
 share/Makefile \
+man/Makefile \
 gbc/Makefile \
 gbx/Makefile \
 lib/Makefile \
@@ -127,6 +133,7 @@ lib/geom/Makefile \
 lib/draw/Makefile \
 lib/gui/Makefile \
 lib/gui.opengl/Makefile \
+lib/gui.webview/Makefile \
 lib/gui.qt/Makefile \
 lib/gui.qt.webkit/Makefile \
 lib/gui.qt.opengl/Makefile \
@@ -140,6 +147,8 @@ lib/data/Makefile \
 lib/clipper/Makefile \
 lib/inotify/Makefile \
 lib/jit/Makefile \
+lib/test/Makefile \
+lib/hash/Makefile \
 ])
 AC_OUTPUT
 

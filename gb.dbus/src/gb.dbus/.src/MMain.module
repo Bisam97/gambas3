@@ -86,9 +86,10 @@ Public Sub Main2()
   
 End
 
-Public Sub MySignal_Signal(Method As String, Arguments As Variant[])
+Public Sub ResponseSignal_Signal(Method As String, Arguments As Variant[])
   
   Debug Method
+  Last.Enabled = False
   
 End
 
@@ -139,7 +140,7 @@ Public Sub Main1()
 
 End
 
-Public Sub Main()
+Public Sub Main4()
 
   Dim hDBusApplication As DBusApplication
   Dim hDBusProxy As DBusProxy
@@ -152,3 +153,37 @@ Public Sub Main()
   Print hDBusProxy.State() 'Should be invalid
 
 End
+
+Public Sub Main()
+
+ Dim hSignal As DBusSignal
+ 
+ 'Try Print DBus["system://org.freedesktop.UDisks2"]["/org/freedesktop/UDisks2", "org.freedesktop.DBus.Introspectable"].Introspect()
+ 
+ 'Try cManaged = DBus["system://org.freedesktop.UDisks2"]["/org/freedesktop/UDisks2", "org.freedesktop.DBus.ObjectManager"].GetManagedObjects()
+ 
+ 'Print DBus["system://org.freedesktop.UDisks2"]["/org/freedesktop/UDisks2/block_devices/nvme0n1p1", "org.freedesktop.UDisks2.Filesystem"]._GetSignature("Mount", True)
+ 'Print DBus["system://org.freedesktop.Accounts"]["/org/freedesktop/Accounts", "org.freedesktop.Accounts"]._GetSignature("FindUserById", True)
+ '_GetSymbols().Join("\n")
+ 
+ 'Print DBus["system://org.freedesktop.UDisks2"]["/org/freedesktop/UDisks2/drives"]._GetSymbols("node").Join("\n")
+ 
+ 'Print DBus.System._Name
+ 
+  'Print DBus["org.mpris.MediaPlayer2.gplayer"]["/org/mpris/MediaPlayer2", "org.mpris.MediaPlayer2"].CanQuit
+  
+  hSignal = New DBusSignal(DBus.Session, "org.freedesktop.portal.Request", "/org/freedesktop/portal/desktop/request/" & Replace(Mid$(DBus.Session._Name, 2), ".", "_") & "/Gambas1972") As "ResponseSignal"
+
+  Dim hFile As File 
+  hFile = Open "~/03.FDR_OAPP_2023_12.05_bois_harpe et piano.pdf"
+  
+  Print DBus.Session.Exist("org.freedesktop.portal.Desktop")
+  
+  Print DBus["org.freedesktop.portal.Desktop"]["/org/freedesktop/portal/desktop", "org.freedesktop.portal.OpenURI"].OpenFile("", DBusFile(hFile), ["handle_token": "Gambas1972", "interactive": True])
+  
+End
+
+Public Sub Test(Input As String, Output As String)
+  
+End
+

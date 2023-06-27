@@ -2,7 +2,7 @@
 
   CDrawingArea.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,12 +24,12 @@
 #ifndef __CDRAWINGAREA_H
 #define __CDRAWINGAREA_H
 
-#include "gambas.h"
-
 #include <QPaintEvent>
 #include <QPixmap>
 #include <QEvent>
 //#include <QFrame>
+
+#include "gambas.h"
 
 #include "CWidget.h"
 #include "CContainer.h"
@@ -59,7 +59,7 @@ class MyDrawingArea : public MyContainer
 
 public:
 
-	MyDrawingArea(QWidget *parent);
+	explicit MyDrawingArea(QWidget *parent);
 	~MyDrawingArea();
 
 	int drawn;
@@ -83,9 +83,6 @@ public:
 
 	void setFrozen(bool f);
 	bool isFrozen() const { return _frozen; }
-
-	void setAllowFocus(bool f);
-	bool isAllowFocus() const { return focusPolicy() != Qt::NoFocus; }
 
 	void redraw(QRect &r, bool frame = false);
 
@@ -130,14 +127,14 @@ private:
 	Qt::HANDLE _background;
 #endif
 	int _background_w, _background_h;
-	bool _frozen;
-	bool _merge;
-	bool _focus;
+	unsigned _frozen : 1;
+	unsigned _merge : 1;
+	unsigned _focus : 1;
+	unsigned _set_background : 1;
+	unsigned _cached : 1;
+	unsigned _no_background : 1;
+	unsigned _in_draw_event : 1;
 	int _event_mask;
-	bool _set_background;
-	bool _cached;
-	bool _no_background;
-	bool _in_draw_event;
 	int _draw_event;
 	static int _in_any_draw_event;
 };

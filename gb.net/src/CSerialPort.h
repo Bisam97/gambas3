@@ -29,7 +29,7 @@
 
 #ifndef __CSERIALPORT_C
 
-extern GB_DESC CSerialPortDesc[];
+extern GB_DESC SerialPortDesc[];
 extern GB_STREAM_DESC SerialStream;
 
 #else

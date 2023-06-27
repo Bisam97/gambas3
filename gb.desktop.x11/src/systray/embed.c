@@ -65,8 +65,6 @@ int embedder_embed(struct TrayIcon *ti)
 {
 	int rc;
 
-	//XSetWindowAttributes xswa;
-
 	/* If the icon is being embedded as hidden,
 	 * we just start listening for property changes 
 	 * to track _XEMBED mapped state */
@@ -93,6 +91,8 @@ int embedder_embed(struct TrayIcon *ti)
 	//xswa.win_gravity = settings.bit_gravity;
 	//XChangeWindowAttributes(tray_data.dpy, ti->mid_parent, CWWinGravity, &xswa);
 
+	XSetWindowBackground(tray_data.dpy, ti->wid, tray_data.bg);
+
 	//XSetWindowBackgroundPixmap(tray_data.dpy, ti->mid_parent, ParentRelative);
 
 	//if (!x11_ok() || ti->mid_parent == None) RETURN_STATUS(FAILURE);
@@ -111,7 +111,8 @@ int embedder_embed(struct TrayIcon *ti)
 			break;
 	}
 
-	XSetWindowBackgroundPixmap(tray_data.dpy, ti->wid, ParentRelative);
+	//XSetWindowBackgroundPixmap(tray_data.dpy, ti->wid, ParentRelative);
+	
 	
 	/* 4. Show mid-parent */
 	//XMapWindow(tray_data.dpy, ti->mid_parent);

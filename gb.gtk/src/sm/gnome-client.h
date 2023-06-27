@@ -35,6 +35,8 @@
 //#define GNOME_DISABLE_DEPRECATED
 //#define GTK_DISABLE_DEPRECATED
 
+#define GLIB_VERSION_MIN_REQUIRED GLIB_VERSION_2_26
+
 #include <glib.h>
 #include <gtk/gtk.h>
 #include <gdk/gdkprivate.h>

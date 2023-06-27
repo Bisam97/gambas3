@@ -252,9 +252,27 @@ Private Sub ReadValue() As Variant
   
 End
 
+Private Sub WriteString(sStr As String)
+  
+  Dim iPos As Integer
+  
+  sStr = Quote(sStr)
+  Do
+    iPos = InStr(sStr, "\\", iPos + 1)
+    If iPos = 0 Then Break
+    If Mid$(sStr, iPos + 1, 1) = "x" Then
+      Mid$(sStr, iPos, 4) = "\\u00" & Mid$(sStr, iPos + 2, 2)
+    Else
+      Inc iPos
+    Endif
+  Loop
+  Write #$hStream, sStr
+  
+End
+
+
 Private Sub WriteValue(vVal As Variant)
   
-  Dim sStr As String
   Dim iPos As Integer
   Dim aArray As Array
   Dim cCol As Collection
@@ -278,17 +296,7 @@ Private Sub WriteValue(vVal As Variant)
       Write #$hStream, Chr$(34) & CStr(vVal) & Chr$(34)
     
     Case gb.String
-      sStr = Quote(vVal)
-      Do
-        iPos = InStr(sStr, "\\", iPos + 1)
-        If iPos = 0 Then Break
-        If Mid$(sStr, iPos + 1, 1) = "x" Then
-          Mid$(sStr, iPos, 4) = "\\u00" & Mid$(sStr, iPos + 2, 2)
-        Else
-          Inc iPos
-        Endif
-      Loop
-      Write #$hStream, sStr
+      WriteString(vVal)
       
     Case gb.Pointer
       If vVal = JSON.Null Then
@@ -311,7 +319,7 @@ Private Sub WriteValue(vVal As Variant)
         Write #$hStream, "{"
         For Each vVal In cCol
           If iPos Then Write #$hStream, ","
-          WriteValue(cCol.Key)
+          WriteString(cCol.Key)
           Write #$hStream, ":"
           WriteValue(vVal)
           Inc iPos

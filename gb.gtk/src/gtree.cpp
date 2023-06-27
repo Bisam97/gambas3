@@ -21,10 +21,6 @@
 
 ***************************************************************************/
 
-#include <gtk/gtk.h>
-#include <string.h>
-#include <stdlib.h>
-
 #include "gpicture.h"
 #include "gtree.h"
 	

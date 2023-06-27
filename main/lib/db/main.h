@@ -2,7 +2,7 @@
 
   main.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -37,8 +37,8 @@ extern DB_DATABASE *DB_CurrentDatabase;
 
 #define MAX_DRIVER 8
 
-bool DB_Open(DB_DESC *desc, DB_DRIVER **driver, DB_DATABASE *db);
-char *DB_MakeQuery(DB_DRIVER *driver, const char *pattern, int len, int narg, GB_VALUE *arg);
+bool DB_Open(DB_DESC *desc, DB_DRIVER **driver, DB_DATABASE *db, GB_COLLECTION options);
+char *DB_MakeQuery(DB_DRIVER *driver, DB_DATABASE *db, const char *pattern, int len, int narg, GB_VALUE *arg);
 void DB_Format(DB_DRIVER *driver, GB_VALUE *arg, DB_FORMAT_CALLBACK func);
 void DB_FormatVariant(DB_DRIVER *driver, GB_VARIANT_VALUE *arg, DB_FORMAT_CALLBACK func);
 char *DB_GetQuotedTable(DB_DRIVER *driver, DB_DATABASE *db, const char *table, int len_table);
@@ -51,6 +51,7 @@ GB_ARRAY DB_StringArrayToGambasArray(char **array);
 int DB_FindStringArray(char **array, const char *elt);
 void DB_SetDebug(int debug);
 int DB_IsDebug(void);
+void DB_Debug(const char *prefix, const char *msg, ...);
 void DB_TryAnother(const char *);
 
 void q_init(void);

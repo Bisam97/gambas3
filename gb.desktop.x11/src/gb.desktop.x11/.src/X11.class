@@ -1,0 +1,131 @@
+' Gambas class file
+
+Export
+
+Inherits _X11
+
+Static Property DesktopCount As Integer
+Static Property CurrentDesktop As Integer
+Static Property ActiveWindow As Integer
+Static Property ShowDesktop As Boolean
+
+' Static Public Sub FindWindow(Optional Title As String, (Application) As String, Role As String) As Integer[]
+' 
+'   Return X11.FindWindow(Title, Application, Role)
+' 
+' End
+
+Static Public Sub SendKeys(Keys As String)
+
+  Dim iInd As Integer
+  Dim sCar As String
+  Dim iPos As Integer
+  Dim aRelease As New String[]
+  Dim bHold As Boolean
+  Dim sErr As String
+  Dim iLen As Integer = String.Len(Keys)
+
+  Do
+
+    Inc iInd
+    If iInd > iLen Then Break
+
+    sCar = String.Mid$(Keys, iInd, 1)
+
+    If sCar = "[" Then
+      iPos = String.InStr(Keys, "]", iInd)
+      If iPos = 0 Then Break
+      sCar = String.Mid$(Keys, iInd + 1, iPos - iInd - 1)
+      iInd = iPos
+      If Not sCar Then Continue
+    Else If sCar = "{" And If Not bHold Then
+      bHold = True
+      Continue
+    Else If sCar = "}" And If bHold Then
+      bHold = False
+      aRelease.Reverse
+      For Each sCar In aRelease
+        'DEBUG sCar;; FALSE
+        X11.SendKey(sCar, False)
+      Next
+      aRelease.Clear
+      Continue
+    Endif
+
+    If Len(sCar) >= 2 Then
+      Try sCar = Conv(sCar, "UTF-8", "LATIN1")
+    Endif
+
+    If bHold Then
+      'DEBUG sCar;; TRUE
+      X11.SendKey(sCar, True)
+      aRelease.Add(sCar)
+    Else
+      'DEBUG sCar;; TRUE
+      X11.SendKey(sCar, True)
+      'DEBUG sCar;; FALSE
+      X11.SendKey(sCar, False)
+    Endif
+
+  Loop
+
+Catch
+
+  sErr = Error.Text & ": '" & sCar & "'"
+
+  For Each sCar In aRelease
+    X11.SendKey(sCar, False)
+  Next
+
+  Error.Raise(sErr)
+
+End
+
+Static Private Function CurrentDesktop_Read() As Integer
+
+  Try Return X11.GetWindowProperty(X11.RootWindow, Atom["_NET_CURRENT_DESKTOP"])[0]
+
+End
+
+Static Private Sub CurrentDesktop_Write(Value As Integer)
+
+  X11.SendClientMessageToRootWindow(Atom["_NET_CURRENT_DESKTOP"], [Value])
+
+End
+
+Static Private Function DesktopCount_Read() As Integer
+
+  Try Return X11.GetWindowProperty(X11.RootWindow, Atom["_NET_NUMBER_OF_DESKTOPS"])[0]
+  Return 1
+
+End
+
+Static Private Sub DesktopCount_Write(Value As Integer)
+
+  X11.SendClientMessageToRootWindow(Atom["_NET_NUMBER_OF_DESKTOPS"], [Value])
+
+End
+
+Static Private Function ActiveWindow_Read() As Integer
+
+  Return X11.GetWindowProperty(X11.RootWindow, Atom["_NET_ACTIVE_WINDOW"])[0]
+
+End
+
+Static Private Sub ActiveWindow_Write(Value As Integer)
+
+  X11.SendClientMessageToRootWindow(Atom["_NET_ACTIVE_WINDOW"], [1, X11.Time, Value, 0, 0], Value)
+
+End
+
+Static Private Function ShowDesktop_Read() As Boolean
+
+  Try Return X11.GetWindowProperty(X11.RootWindow, Atom["_NET_SHOWING_DESKTOP"])[0]
+
+End
+
+Static Private Sub ShowDesktop_Write(Value As Boolean)
+
+  X11.SendClientMessageToRootWindow(Atom["_NET_SHOWING_DESKTOP"], [If(Value, 1, 0)])
+
+End

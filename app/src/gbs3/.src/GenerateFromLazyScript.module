@@ -1,0 +1,139 @@
+' Gambas module file
+
+Private aDefWords As Collection = ["PUBLIC": True, "STATIC": True, "STRUCT": True, "FAST": True, "UNSAFE": True, "PRIVATE": True, "ENUM": True, "EXTERN": True, "CONST": True]
+Private aDefFunc As Collection = ["SUB": True, "PROCEDURE": True, "FUNCTION": True]
+Private aSpecial As Collection = ["STRUCT": True, "ENUM": True, "EXTERN": True, "CONST": True]
+
+Private $iAdjustedOffset As Integer
+
+
+Public Sub _call(oContext As Context, Program As Reader) As String
+  aDefWords.default = False
+  aDefFunc.default = False
+  aSpecial.default = False
+  
+ ' Dim DefOutput As String = "'Gambas Module 3.15.3\n"
+  Dim DefOutput As String = ""
+  'If oContext.$bExport Then DefOutPut &= "Export\n"
+ ' If oContext.$bFast Then
+ '   DefOutPut &= "Fast" & IIf(oContext.$bUnsafe, " Unsafe\n", "\n")
+ ' Endif
+  
+  Dim MainOutput As String
+  If oContext.$bPlugin Then
+      MainOutput = "Public Sub _call(...) as Variant\n"
+  Else
+      MainOutput = "Public Sub Main()\n"
+  Endif
+  
+  $iAdjustedOffset = 0
+  For Each i As Integer In Program.GlobalItemPosition
+    If i < $iAdjustedOffset Then 
+       Warning("Warning : Block Skipped seems to be included in previous block:" & i)
+       Continue
+    Endif
+    For Each s As String In Program.ProgramSymbols[i - $iAdjustedOffset]
+      If Not aDefwords[s] Then
+         If Not aDefFunc[s] Then
+          DefOutPut &= ProcessVariable(program, i - $iAdjustedOffset)
+          Break
+         Else
+          DefOutPut &= ProcessBlock(Program, i - $iAdjustedOffset, ["END"]) & "\n"
+          Break
+         Endif
+      Else If aSpecial[s] Then
+         If s = "ENUM" Then
+            Dim DefEnum As String = ProcessVariable(Program, i - $iAdjustedOffset, True)
+            If Upper(DefEnum) Begins "ENUM" Then DefEnum = "Public " & DefEnum
+            oContext.$sProgramHeader &= DefEnum & "\n"
+            Break
+          Else If s = "CONST" Then
+            Dim DefConst As String = ProcessVariable(Program, i - $iAdjustedOffset)
+            If Upper(DefCONST) Begins "CONST" Then DefConst = "Public " & DefConst
+            oContext.$sProgramHeader &= DefConst & "\n"
+            Break
+         Else If s = "EXTERN" Then
+            Dim DefExtern As String = AdjustProgram(Program, i - $iAdjustedOffset, i - $iAdjustedOffset)
+            oContext.$sExternals &= DefExtern & "\n"
+            Break
+         Else
+            Dim DefStruct As String = ProcessBlock(Program, i - $iAdjustedOffset, ["END", "STRUCT"])
+            If Upper(DefStruct) Begins "STRUCT" Then DefStruct = "Public " & DefStruct
+            oContext.$sStructures &= DefStruct & "\n"
+            Break
+         Endif
+      Endif
+    Next
+  Next
+  
+  MainOutPut &= Program.ProgramLines.Join("\n") & "\nEND\n"
+  Verbose("Before Compile--------------------------------------------------")
+  Verbose(MakeListing.GenListing(oContext, oContext.$sProgramHeader & oContext.$sStructures & oContext.$sExternals & DefOutput & MainOutPut))
+  Verbose("_____________________________________________")
+  Return DefOutput & MainOutPut
+  
+End
+
+Private Sub ProcessBlock(Program As Reader, Index As Integer, EndWith As String[]) As String
+  Dim Matched As Boolean = False
+ 
+  For i As Integer = index To Program.ProgramLines.max
+    If index > Program.ProgramLines.max Then Break
+    'DefBlock &= Program.ProgramLines[Index] & "\n"
+    Matched = True
+    If Program.ProgramSymbols[i].count = EndWith.count Then 
+         For j As Integer = 0 To EndWith.max
+            If EndWith[j] <> Program.ProgramSymbols[i][j] Then
+               Matched = False
+               Break
+            Endif 
+         Next
+         If Matched Then Break
+    Endif
+  Next
+  
+  If i > Program.ProgramLines.max Then
+    Dim sEndBlock As String = ""
+    sEndBlock &= EndWith.Join(" ") & " "
+    CompileError(Program.sSourceFile, index, Subst("Missing &1 for :&2\n", sEndBlock, Program.ProgramLines[index]))
+  Endif
+  
+  Return AdjustProgram(Program, i, index)
+  
+End
+
+Public Sub AdjustProgram(Program As Reader, EndIndex As Integer, StartIndex As Integer) As String 
+  Dim DefOutPut As String = ""
+  
+  Dim BlockLen As Integer = (EndIndex + 1) - Startindex
+  $iAdjustedOffset += BlockLen
+  
+  DefOutPut = Program.ProgramLines.Extract(StartIndex, BlockLen).Join("\n") & "\n"
+  
+  Program.ProgramSymbols.Delete(StartIndex, BlockLen)
+  Program.ProgramTypes.Delete(StartIndex, BlockLen)
+  Return DefOutPut
+  
+End
+
+Private Sub ProcessVariable(Program As Reader, index As Integer, Optional force As Boolean = False) As String
+  Dim DefOutPut As String = ""
+  Dim aSymbols As String[] = Program.ProgramSymbols[index]
+  Dim aTypes As Integer[] = Program.ProgramTypes[index]
+  
+  For i As Integer = 0 To aSymbols.max
+    If force Then 
+      DefOutPut = ProcessAssignment(Program, index, i)
+      Return DefOutPut
+    
+    Else If aTypes[i] = Highlight.operator And If aSymbols[i] = "=" Then
+      DefOutPut = ProcessAssignment(Program, index, i)
+      Return DefOutPut
+    Endif
+  Next
+  
+  DefOutPut = Program.ProgramLines[index] & "\n"
+  AdjustProgram(Program, Index, Index)
+  Return DefOutPut
+  
+End

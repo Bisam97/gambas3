@@ -5,6 +5,7 @@
   Persistent = True
   Arrangement = Arrange.Vertical
   { mnuEditor Menu
+    Enabled = False
     { mnuUndo Menu btnUndo
       Name = "mnuUndo"
       Action = ".undo"
@@ -47,33 +48,33 @@
         Name = "mnuCrop"
         Action = ".crop"
         Text = ("Crop")
-        Picture = Picture["img/draw/crop.png"]
+        Picture = Picture["icon:/small/crop"]
         Shortcut = "Ctrl+K"
       }
       { mnuFlipH Menu btnFlipH
         Name = "mnuFlipH"
         Action = ".flip-h"
         Text = ("Horizontal flip")
-        Picture = Picture["img/draw/hflip.png"]
+        Picture = Picture["icon:/small/flip-h"]
       }
       { mnuFlipV Menu btnFlipV
         Name = "mnuFlipV"
         Action = ".flip-v"
         Text = ("Vertical flip")
-        Picture = Picture["img/draw/vflip.png"]
+        Picture = Picture["icon:/small/flip-v"]
       }
       { mnuRotateL Menu btnRotateL
         Name = "mnuRotateL"
         Action = ".rotate-left"
         Text = ("Rotate counter-clockwise")
-        Picture = Picture["img/draw/rotate-left.png"]
+        Picture = Picture["icon:/small/rotate-left"]
         Shortcut = "Ctrl+<"
       }
       { mnuRotateR Menu btnRotateR
         Name = "mnuRotateR"
         Action = ".rotate-right"
         Text = ("Rotate clockwise")
-        Picture = Picture["img/draw/rotate-right.png"]
+        Picture = Picture["icon:/small/rotate-right"]
         Shortcut = "Ctrl+>"
       }
       { Menu3 Menu
@@ -82,13 +83,13 @@
         Name = "mnuResize"
         Action = ".resize"
         Text = ("Resize") & "..."
-        Picture = Picture["img/draw/resize.png"]
+        Picture = Picture["icon:/small/resize"]
       }
       { mnuRotate Menu btnRotate
         Name = "mnuRotate"
         Action = ".rotate"
         Text = ("Rotate") & "..."
-        Picture = Picture["img/draw/rotate.png"]
+        Picture = Picture["icon:/small/rotate"]
       }
     }
     { Menu2 Menu
@@ -96,12 +97,13 @@
     { mnuSelectAll Menu
       Action = ".select-all"
       Text = Shortcut(("Select All"), "A")
+      Picture = Picture["icon:/small/select-all"]
       Shortcut = "Ctrl+A"
     }
     { mnuHideSelection Menu
       Action = ".hide"
       Text = ("Hide selection")
-      Picture = Picture["img/draw/hide.png"]
+      Picture = Picture["icon:/small/unselect"]
       Shortcut = "Esc"
     }
     { mnuSelection Menu
@@ -117,7 +119,7 @@
         Name = "mnuDuplicate"
         Action = ".duplicate"
         Text = ("Duplicate selection")
-        Picture = Picture["img/draw/duplicate.png"]
+        Picture = Picture["icon:/small/clone"]
         Shortcut = "Ctrl+D"
       }
       { mnuOffset Menu btnOffset
@@ -132,29 +134,36 @@
       { mnuUnion Menu btnUnion
         Name = "mnuUnion"
         Text = ("Union")
-        Picture = Picture["img/draw/union.png"]
+        Picture = Picture["icon:/small/union"]
       }
       { mnuDifference Menu btnDifference
         Name = "mnuDifference"
         Text = ("Difference")
-        Picture = Picture["img/draw/difference.png"]
+        Picture = Picture["icon:/small/difference"]
       }
       { mnuIntersection Menu btnIntersection
         Name = "mnuIntersection"
         Text = ("Intersection")
-        Picture = Picture["img/draw/intersection.png"]
+        Picture = Picture["icon:/small/intersection"]
       }
       { mnuExclusive Menu btnExclusive
         Name = "mnuExclusive"
         Text = ("Exclusive or")
-        Picture = Picture["img/draw/exclusive.png"]
+        Picture = Picture["icon:/small/exclusive"]
+      }
+      { Menu7 Menu
+      }
+      { mnuSaveSelection Menu btnSaveSelection
+        Name = "mnuSaveSelection"
+        Action = ".save-selection"
+        Text = ("Save selection")
+        Picture = Picture["img/draw/save-selection.png"]
       }
     }
     { Menu4 Menu
     }
     { mnuShapeGrid Menu
       Text = ("Shape grid")
-      Picture = Picture["img/draw/shgrid.png"]
       Visible = False
       { mnuDivide2 Menu mnuDivide
         Name = "mnuDivide2"
@@ -239,6 +248,14 @@
       Picture = Picture["icon:/small/save"]
       Shortcut = "Ctrl+S"
     }
+    { mnuSaveAs Menu
+      Action = ".save-as"
+      Text = ("Save as") & "..."
+      Picture = Picture["icon:/small/save-as"]
+      Shortcut = "Ctrl+Shift+S"
+    }
+    { Menu6 Menu
+    }
     { mnuClose Menu
       Action = ".close"
       Text = ("Close")
@@ -248,22 +265,22 @@
   }
   { mnuFormat Menu
     #Translate = False
-    { mnuFormatJPEG Menu mnuSaveAs
+    { mnuFormatJPEG Menu mnuSaveAsFormat
       Name = "mnuFormatJPEG"
       Text = ("Save as JPEG")
       Tag = "jpeg"
     }
-    { mnuFormatPNG Menu mnuSaveAs
+    { mnuFormatPNG Menu mnuSaveAsFormat
       Name = "mnuFormatPNG"
       Text = ("Save as PNG")
       Tag = "png"
     }
-    { mnuFormatBMP Menu mnuSaveAs
+    { mnuFormatBMP Menu mnuSaveAsFormat
       Name = "mnuFormatBMP"
       Text = ("Save as BMP")
       Tag = "bmp"
     }
-    { mnuFormatTIFF Menu mnuSaveAs
+    { mnuFormatTIFF Menu mnuSaveAsFormat
       Name = "mnuFormatTIFF"
       Action = "tiff"
       Text = ("Save as TIFF")
@@ -291,7 +308,7 @@
       MoveScaled(10,0,1.125,4)
     }
     { btnUndo ToolButton
-      MoveScaled(12,0,4,4)
+      MoveScaled(11,0,4,4)
       ToolTip = ("Undo")
       Action = ".undo"
       Picture = Picture["icon:/small/undo"]
@@ -386,7 +403,7 @@
       Tag = "move"
       ToolTip = ("Move")
       Action = ".tool-move"
-      Picture = Picture["img/draw/scroll.png"]
+      Picture = Picture["icon:/small/move"]
       Toggle = True
       Value = True
     }
@@ -414,7 +431,7 @@
       Tag = "line"
       ToolTip = ("Line")
       Action = ".tool-line"
-      Picture = Picture["img/draw/line.png"]
+      Picture = Picture["icon:/small/draw-path"]
       Toggle = True
     }
     { btnRectangle ToolButton btnTool
@@ -423,7 +440,7 @@
       Tag = "rectangle"
       ToolTip = ("Rectangle")
       Action = ".tool-rectangle"
-      Picture = Picture["img/draw/rectangle.png"]
+      Picture = Picture["icon:/small/draw-rectangle"]
       Toggle = True
     }
     { btnEllipse ToolButton btnTool
@@ -432,7 +449,7 @@
       Tag = "ellipse"
       ToolTip = ("Ellipse")
       Action = ".tool-ellipse"
-      Picture = Picture["img/draw/ellipse.png"]
+      Picture = Picture["icon:/small/draw-circle"]
       Toggle = True
     }
     { btnText ToolButton btnTool
@@ -441,7 +458,7 @@
       Tag = "text"
       ToolTip = ("Text")
       Action = ".tool-text"
-      Picture = Picture["img/draw/text.png"]
+      Picture = Picture["icon:/small/draw-text"]
       Toggle = True
     }
     { btnMagic ToolButton btnTool
@@ -450,125 +467,146 @@
       Tag = "magic"
       ToolTip = ("Magic wand")
       Action = ".tool-magic"
-      Picture = Picture["img/draw/magic.png"]
+      Picture = Picture["icon:/small/wizard"]
       Toggle = True
     }
     { btnHide ToolButton
       MoveScaled(86,0,4,4)
       ToolTip = ("Hide selection")
       Action = ".hide"
-      Picture = Picture["img/draw/hide.png"]
+      Picture = Picture["icon:/small/unselect"]
     }
     { btnEditSelection ToolButton btnTool
       Name = "btnEditSelection"
-      MoveScaled(90,0,4,4)
+      MoveScaled(91,0,4,4)
       Tag = "change"
       ToolTip = ("Edit selection")
       Action = ".tool-change"
       Picture = Picture["img/draw/move.png"]
       Toggle = True
     }
+    { btnExpandSelection ToolButton
+      MoveScaled(95,0,4,4)
+      Tag = "change"
+      ToolTip = ("Fit selection to image")
+      Action = ".expand-selection"
+      Picture = Picture["img/draw/expand.png"]
+    }
+    { btnSaveSelection ToolButton
+      MoveScaled(101,0,4,4)
+      ToolTip = ("Save selection")
+      Action = ".save-selection"
+      Picture = Picture["img/draw/save-selection.png"]
+    }
     { Separator8 Separator
-      MoveScaled(94,0,1,4)
+      MoveScaled(105,0,1,4)
     }
     { btnUnion ToolButton
-      MoveScaled(95,0,4,4)
+      MoveScaled(106,0,4,4)
       ToolTip = ("Union")
       Action = ".union"
-      Picture = Picture["img/draw/union.png"]
+      Picture = Picture["icon:/small/union"]
     }
     { btnDifference ToolButton
-      MoveScaled(98,0,4,4)
+      MoveScaled(109,0,4,4)
       ToolTip = ("Difference")
       Action = ".difference"
-      Picture = Picture["img/draw/difference.png"]
+      Picture = Picture["icon:/small/difference"]
     }
     { btnIntersection ToolButton
-      MoveScaled(101,0,4,4)
+      MoveScaled(112,0,4,4)
       Visible = False
       ToolTip = ("Intersection")
       Action = ".intersection"
-      Picture = Picture["img/draw/intersection.png"]
+      Picture = Picture["icon:/small/intersection"]
     }
     { btnExclusive ToolButton
-      MoveScaled(104,0,4,4)
+      MoveScaled(115,0,4,4)
       Visible = False
       ToolTip = ("Exclusive or")
       Action = ".exclusive"
-      Picture = Picture["img/draw/exclusive.png"]
+      Picture = Picture["icon:/small/exclusive"]
     }
     { btnInvert ToolButton
-      MoveScaled(108,0,4,4)
+      MoveScaled(119,0,4,4)
       ToolTip = ("Invert selection")
       Action = ".invert"
       Picture = Picture["img/draw/invert.png"]
     }
     { btnDuplicate ToolButton
-      MoveScaled(111,0,4,4)
+      MoveScaled(122,0,4,4)
       ToolTip = ("Duplicate selection")
       Action = ".duplicate"
-      Picture = Picture["img/draw/duplicate.png"]
+      Picture = Picture["icon:/small/clone"]
     }
     { btnOffset ToolButton
-      MoveScaled(115,0,4,4)
+      MoveScaled(126,0,4,4)
       ToolTip = ("Offset selection")
       Action = ".offset"
       Picture = Picture["img/draw/offset.png"]
     }
     { Separator5 Separator
-      MoveScaled(119,0,1,4)
+      MoveScaled(130,0,1,4)
     }
     { btnCrop ToolButton
-      MoveScaled(120,0,4,4)
+      MoveScaled(131,0,4,4)
       Visible = False
       ToolTip = ("Crop")
       Action = ".crop"
-      Picture = Picture["img/draw/crop.png"]
+      Picture = Picture["icon:/small/crop"]
     }
     { btnFlipH ToolButton
-      MoveScaled(123,0,4,4)
+      MoveScaled(134,0,4,4)
       ToolTip = ("Horizontal flip")
       Action = ".flip-h"
-      Picture = Picture["img/draw/hflip.png"]
+      Picture = Picture["icon:/small/flip-h"]
     }
     { btnFlipV ToolButton
-      MoveScaled(126,0,4,4)
+      MoveScaled(137,0,4,4)
       ToolTip = ("Vertical flip")
       Action = ".flip-v"
-      Picture = Picture["img/draw/vflip.png"]
+      Picture = Picture["icon:/small/flip-v"]
     }
     { btnRotateR ToolButton
-      MoveScaled(129,0,4,4)
+      MoveScaled(140,0,4,4)
       ToolTip = ("Rotate clockwise")
       Action = ".rotate-r"
-      Picture = Picture["img/draw/rotate-right.png"]
+      Picture = Picture["icon:/small/rotate-right"]
     }
     { btnRotateL ToolButton
-      MoveScaled(132,0,4,4)
+      MoveScaled(143,0,4,4)
       ToolTip = ("Rotate counter-clockwise")
       Action = ".rotate-l"
-      Picture = Picture["img/draw/rotate-left.png"]
+      Picture = Picture["icon:/small/rotate-left"]
     }
     { btnResize ToolButton
-      MoveScaled(135,0,4,4)
+      MoveScaled(146,0,4,4)
       ToolTip = ("Resize or stretch image")
       Action = ".resize"
       AutoResize = True
-      Picture = Picture["img/draw/resize.png"]
+      Picture = Picture["icon:/small/resize"]
     }
     { btnRotate ToolButton
-      MoveScaled(138,0,4,4)
+      MoveScaled(149,0,4,4)
       Visible = False
       ToolTip = ("Rotate image")
       Action = ".rotate"
       AutoResize = True
-      Picture = Picture["img/draw/rotate.png"]
+      Picture = Picture["icon:/small/rotate"]
+    }
+    { btnSaveAs ToolButton mnuSaveAs
+      Name = "btnSaveAs"
+      MoveScaled(154,0,4,4)
+      Visible = False
+      ToolTip = ("Save as")
+      Action = ".save-as"
+      Picture = Picture["icon:/small/save-as"]
     }
     { Spring1 Spring
-      MoveScaled(153,0,8,4)
+      MoveScaled(159,0,2,4)
     }
     { ToolButton7 ToolButton
-      MoveScaled(165,0,4,4)
+      MoveScaled(163,0,4,4)
       ToolTip = ("Lock / unlock file")
       Action = ".locked"
       Picture = Picture["icon:/small/lock"]
@@ -623,7 +661,7 @@
   { Action crop
     Text = "Crop"
     Shortcut = "Ctrl+K"
-    Picture = "img/draw/crop.png"
+    Picture = "icon:/small/crop"
   }
   { Action cut
     Text = "Cut"
@@ -632,26 +670,30 @@
   }
   { Action difference
     Text = "Difference"
-    Picture = "img/draw/difference.png"
+    Picture = "icon:/small/difference"
   }
   { Action duplicate
     Text = "Duplicate selection"
     Shortcut = "Ctrl+D"
-    Picture = "img/draw/duplicate.png"
+    Picture = "icon:/small/clone"
   }
   { Action exclusive
     Text = "Exclusive or"
-    Picture = "img/draw/exclusive.png"
+    Picture = "icon:/small/exclusive"
+  }
+  { Action expand-selection
+    Text = "Fit selection to image"
+    Picture = "img/draw/expand.png"
   }
   { Action flip-h
     Text = "Horizontal flip"
     Shortcut = ""
-    Picture = "img/draw/hflip.png"
+    Picture = "icon:/small/flip-h"
   }
   { Action flip-v
     Text = "Vertical flip"
     Shortcut = ""
-    Picture = "img/draw/vflip.png"
+    Picture = "icon:/small/flip-v"
   }
   { Action grid
     Text = "Drawing grid"
@@ -660,11 +702,11 @@
   { Action hide
     Text = "Hide selection"
     Shortcut = "Esc"
-    Picture = "img/draw/hide.png"
+    Picture = "icon:/small/unselect"
   }
   { Action intersection
     Text = "Intersection"
-    Picture = "img/draw/intersection.png"
+    Picture = "icon:/small/intersection"
   }
   { Action invert
     Text = "Invert selection"
@@ -699,39 +741,50 @@
   { Action resize
     Text = "Resize"
     Shortcut = ""
-    Picture = "img/draw/resize.png"
+    Picture = "icon:/small/resize"
   }
   { Action rotate
     Text = "Rotate"
     Shortcut = ""
-    Picture = "img/draw/rotate.png"
+    Picture = "icon:/small/rotate"
   }
   { Action rotate-l
     Text = "Rotate counter-clockwise"
-    Picture = "img/draw/rotate-left.png"
+    Picture = "icon:/small/rotate-left"
   }
   { Action rotate-left
     Text = "Rotate counter-clockwise"
     Shortcut = "Ctrl+<"
-    Picture = "img/draw/rotate-left.png"
+    Picture = "icon:/small/rotate-left"
   }
   { Action rotate-r
     Text = "Rotate clockwise"
-    Picture = "img/draw/rotate-right.png"
+    Picture = "icon:/small/rotate-right"
   }
   { Action rotate-right
     Text = "Rotate clockwise"
     Shortcut = "Ctrl+>"
-    Picture = "img/draw/rotate-right.png"
+    Picture = "icon:/small/rotate-right"
   }
   { Action save
     Text = "Save"
     Shortcut = "Ctrl+S"
     Picture = "icon:/small/save"
   }
+  { Action save-as
+    Text = "Save as"
+    Shortcut = "Ctrl+Shift+S"
+    Picture = "icon:/small/save-as"
+  }
+  { Action save-selection
+    Text = "Save selection"
+    Shortcut = ""
+    Picture = "img/draw/save-selection.png"
+  }
   { Action select-all
     Text = "Select All"
     Shortcut = "Ctrl+A"
+    Picture = "icon:/small/select-all"
   }
   { Action tiff
     Text = "Save as TIFF"
@@ -747,7 +800,7 @@
   }
   { Action tool-ellipse
     Text = "Ellipse"
-    Picture = "img/draw/ellipse.png"
+    Picture = "icon:/small/draw-circle"
   }
   { Action tool-erase
     Text = "Erase"
@@ -755,15 +808,15 @@
   }
   { Action tool-line
     Text = "Line"
-    Picture = "img/draw/line.png"
+    Picture = "icon:/small/draw-path"
   }
   { Action tool-magic
     Text = "Magic wand"
-    Picture = "img/draw/magic.png"
+    Picture = "icon:/small/wizard"
   }
   { Action tool-move
     Text = "Move"
-    Picture = "img/draw/scroll.png"
+    Picture = "icon:/small/move"
   }
   { Action tool-paste
     Text = "Paste"
@@ -771,11 +824,11 @@
   }
   { Action tool-rectangle
     Text = "Rectangle"
-    Picture = "img/draw/rectangle.png"
+    Picture = "icon:/small/draw-rectangle"
   }
   { Action tool-text
     Text = "Text"
-    Picture = "img/draw/text.png"
+    Picture = "icon:/small/draw-text"
   }
   { Action tooltip
     Text = "Toggle information tooltip"
@@ -788,7 +841,7 @@
   }
   { Action union
     Text = "Union"
-    Picture = "img/draw/union.png"
+    Picture = "icon:/small/union"
   }
   { Action zoom
     Text = "Zoom level"
@@ -819,7 +872,7 @@
 { Toolbars
   { Toolbar image
     Text = "Image editor"
-    List = "save,reload,undo,redo,zoom-in,zoom,zoom-out,zoom-normal,zoom-fit,grid,tooltip,copy,cut,tool-paste,tool-move,tool-draw,tool-erase,tool-line,tool-rectangle,tool-ellipse,tool-text,tool-magic,hide,tool-change,union,difference,intersection,exclusive,invert,duplicate,offset,crop,flip-h,flip-v,rotate-r,rotate-l,resize,rotate,locked"
-    Default = "save,reload,|,undo,redo,|,zoom-in,zoom,zoom-out,zoom-normal,zoom-fit,grid,tooltip,|,copy,cut,tool-paste,|,tool-move,tool-draw,tool-erase,tool-line,tool-rectangle,tool-ellipse,tool-text,tool-magic,hide,tool-change,|,union,difference,invert,duplicate,offset,|,flip-h,flip-v,rotate-r,rotate-l,resize,~,locked"
+    List = "save,reload,undo,redo,zoom-in,zoom,zoom-out,zoom-normal,zoom-fit,grid,tooltip,copy,cut,tool-paste,tool-move,tool-draw,tool-erase,tool-line,tool-rectangle,tool-ellipse,tool-text,tool-magic,hide,tool-change,expand-selection,save-selection,union,difference,intersection,exclusive,invert,duplicate,offset,crop,flip-h,flip-v,rotate-r,rotate-l,resize,rotate,save-as,locked"
+    Default = "save,reload,|,undo,redo,|,zoom-in,zoom,zoom-out,zoom-normal,zoom-fit,grid,tooltip,|,copy,cut,tool-paste,|,tool-move,tool-draw,tool-erase,tool-line,tool-rectangle,tool-ellipse,tool-text,tool-magic,hide,tool-change,expand-selection,save-selection,|,union,difference,invert,duplicate,offset,|,flip-h,flip-v,rotate-r,rotate-l,resize,~,locked"
   }
 }

@@ -27,6 +27,7 @@ Private $bIgnoreNextTaskError As Boolean
 Public Sub Run(sPath As String) As Boolean
   
   SetPath(sPath)
+  panClose.Show
   btnClose.Show
   panMediaClose.Show
   'tabInfo.Border = False
@@ -78,6 +79,8 @@ Private Sub RefreshPath()
 
   lblDir.Text = FormatPath(File.Dir($sPath))
   If String.Len(lblDir.Text) >= 32 Then lblDir.Tooltip = lblDir.Text
+  
+  picIcon.Picture = Picture["icon:/64/file"]
   
   If Exist($sPath) Then
   
@@ -146,6 +149,7 @@ Private Sub RefreshPath()
       UpdateSize()
       
       lblLastModified.Text = Format(.LastModified, gb.GeneralDate)
+      lblLastAccess.Text = Format(.LastAccess, gb.GeneralDate)
       
       sAuth = .Auth
       'sAuth = Left$(sAuth, 3) & " " & Mid$(sAuth, 4, 3) & " " & Right$(sAuth, 3)
@@ -212,7 +216,7 @@ Private Sub UpdateSize(Optional sDirSize As String)
     Try nDir = CInt(aDirSize[2])
   Endif
   
-  sSize = Main.GetFileSize($iSize)
+  sSize = Main.FormatSize($iSize)
   If $iSize >= 1000 Then sSize &= " (" & Subst(("&1 B"), Format($iSize, "#,###")) & ")"
   
   If sDirSize Then
@@ -259,7 +263,7 @@ Private Sub ShowError(Optional sErr As String)
     $bIgnoreNextTaskError = False
     Return
   Endif
-  If sErr Then $sError &= sErr
+  If sErr Then $sError &= sErr & "\n"
   tabInfo[TAB_ERROR].Visible = True
   txtError.Text = $sError
 
@@ -267,7 +271,7 @@ End
 
 Public Sub Task_Error(Data As String)
   
-  ShowError(Data)
+  ShowError(RTrim(Data))
   
 End
 
@@ -275,16 +279,17 @@ End
 Public Sub Task_Kill()
   
   Try UpdateSize(Last.Value)
-  If Error Then ShowError(Error.Text & "\n")
+  If Error Then ShowError(Error.Text)
   lblSize.Foreground = Color.Default
   
 End
 
-Public Sub Add(hPanel As Control, sTitle As String)
+Public Sub Add(hPanel As Control, sTitle As String) As Integer 
 
   Dim I As Integer = tabInfo.Index
   Dim N As Integer = tabInfo.Count
   
+  Object.Lock(tabInfo)
   Inc tabInfo.Count
   tabInfo[N].Text = sTitle
   tabInfo.Index = N
@@ -292,21 +297,23 @@ Public Sub Add(hPanel As Control, sTitle As String)
   HPanel.Expand = True
   hPanel.Show
   tabInfo.Index = I
+  Object.Unlock(tabInfo)
+  Return tabInfo.Count - 1
 
 End
 
-Public Sub Form_Arrange()
-
-  Dim D As Integer
-  
-  If btnClose.Visible Then 
-    D = Desktop.Scale
-    If Me.Margin Then D += Desktop.Scale
-    btnClose.Move(Me.ClientW - btnClose.W - D, Me.ClientH - btnClose.H - D)
-  Endif
-
-End
-
+' Public Sub Form_Arrange()
+' 
+'   Dim D As Integer
+'   
+'   If btnClose.Visible Then 
+'     D = Desktop.Scale
+'     If Me.Margin Then D += Desktop.Scale
+'     btnClose.Move(Me.ClientW - btnClose.W - D, Me.ClientH - btnClose.H - D)
+'   Endif
+' 
+' End
+' 
 Public Sub btnClose_Click()
 
   Me.Close
@@ -338,6 +345,8 @@ Public Sub _new()
 End
 
 Public Sub tabInfo_Click()
+
+  Dim hParent As FileProperties = Me.Parent
 
   If tabInfo.Index = TAB_IMAGE_PREVIEW Then
     
@@ -378,9 +387,11 @@ Public Sub tabInfo_Click()
     
   Endif
   
+  If hParent Then hParent._RaiseClick()
+  
 Catch
 
-  ShowError(Error.Text & "\n")
+  ShowError(Error.Text)
 
 End
 
@@ -445,4 +456,16 @@ Public Sub imvPreview_Arrange()
     If btnZoomFit.Value Then btnZoomFit_Click
   Endif
 
+End
+
+Public Sub GetIndex() As Integer
+  
+  Return tabInfo.Index
+  
+End
+
+Public Sub SetIndex(Value As Integer) As Integer
+  
+  tabInfo.Index = Value
+  
 End

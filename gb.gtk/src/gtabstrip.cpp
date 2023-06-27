@@ -76,27 +76,35 @@ static void cb_click(GtkNotebook *nb, GtkWidget *pg, guint pnum, gTabStrip *data
 {
 	data->updateFont();
 	data->performArrange();
-	data->emit(SIGNAL(data->onClick));
+	CB_tabstrip_click(data);
 }
 
 static void cb_size_allocate(GtkWidget *wid, GtkAllocation *alloc, gTabStrip *data)
 {
 	if (wid == data->getContainer() && (alloc->width != data->_client_w || alloc->height != data->_client_h))
 	{
-		int tx, ty, px, py;
+		GtkAllocation alloc_parent;
+		/*int tx, ty, px, py;
+		GdkWindow *win;*/
 
-		if (data->getScreenPos(&tx, &ty))
+		gtk_widget_get_allocation(data->widget, &alloc_parent);
+		
+		/*if (data->getScreenPos(&tx, &ty))
 			return;
 
-		gdk_window_get_origin(gtk_widget_get_window(wid), &px, &py);
+		win = gtk_widget_get_window(wid);
+		if (!win)
+			return;
+		
+		gdk_window_get_origin(win, &px, &py);
 		//fprintf(stderr, "alloc: tab = %d %d page = %d %d alloc = %d %d\n", tx, ty, px, py, alloc->x, alloc->y);
-
-		data->_client_x = px - tx + alloc->x;
-		data->_client_y = py - ty + alloc->y;
+		*/
+		
+		data->_client_x = alloc->x - alloc_parent.x;
+		data->_client_y = alloc->y - alloc_parent.y;
 		data->_client_w = alloc->width;
 		data->_client_h = alloc->height;
-		//fprintf(stderr, "alloc: %s: %d %d %d %d\n", data->name(), data->_client_x, data->_client_y, alloc->width, alloc->height);
-		data->performArrange();
+		//data->performArrange();
 	}
 }
 
@@ -172,8 +180,7 @@ static gboolean cb_button_expose(GtkWidget *wid, GdkEventExpose *e, gTabStrip *d
 
 static void cb_button_clicked(GtkWidget *wid, gTabStrip *data)
 {
-	if (data->onClose)
-		(*data->onClose)(data, data->getRealIndex((GtkWidget *)g_object_get_data(G_OBJECT(wid), "gambas-tab-page")));
+	CB_tabstrip_close(data, data->getRealIndex((GtkWidget *)g_object_get_data(G_OBJECT(wid), "gambas-tab-page")));
 }
 
 #ifdef GTK3
@@ -227,8 +234,14 @@ public:
 	void setEnabled(bool v);
 	/*int count() const;
 	gControl *child(int n) const;*/
+#ifdef GTK3
+	void updateStyleSheet();
+	void updateColors() { updateStyleSheet(); }
+	void updateFont() { updateStyleSheet(); }
+#else
 	void updateColors();
 	void updateFont();
+#endif
 	void updateButton();
 
 	GtkWidget *fix;
@@ -254,7 +267,7 @@ gTabStripPage::gTabStripPage(gTabStrip *tab)
 	
 	//fix = gtk_event_box_new(); 
 	
-	hbox = gtk_hbox_new(false, 4);
+	hbox = gtk_hbox_new(false, gDesktop::scale() * 3 / 4);
 	fix = hbox;
 	//gtk_box_set_spacing(GTK_BOX(hbox), 4);
 	//gtk_container_add(GTK_CONTAINER(fix), hbox);
@@ -267,13 +280,21 @@ gTabStripPage::gTabStripPage(gTabStrip *tab)
 	//gtk_container_add(GTK_CONTAINER(hbox), label);
 	gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
 	
+#ifdef GTK3
+	updateStyleSheet();
+#else
 	updateColors();
 	updateFont();
+#endif
 	
 	g_signal_connect_after(G_OBJECT(widget), "size-allocate", G_CALLBACK(cb_size_allocate), (gpointer)parent);
 	
 	g_object_ref(widget);
 	g_object_ref(fix);
+	
+	#ifdef GTK3
+	gt_patch_control(widget);
+	#endif
 	
 	_visible = false;
 	_picture = NULL;
@@ -303,36 +324,38 @@ gTabStripPage::~gTabStripPage()
 	g_object_unref(widget);
 }
 
+#ifdef GTK3
+
+void gTabStripPage::updateStyleSheet()
+{
+	gt_widget_update_css(widget, NULL, parent->background(), COLOR_DEFAULT);
+	gt_widget_update_css(label, parent->textFont(), COLOR_DEFAULT, COLOR_DEFAULT);
+}
+
+#else
+
 void gTabStripPage::updateColors()
 {
-#ifdef GTK3
-	gt_widget_set_color(widget, FALSE, parent->realBackground());
-#else
 	set_gdk_bg_color(widget, parent->realBackground());
 	set_gdk_fg_color(label, parent->realForeground());
-#endif
 }
 
 void gTabStripPage::updateFont()
 {
 	PangoFontDescription *desc = NULL;
-	gFont *fnt;
-	
-	fnt = parent->textFont();
+	gFont *fnt = parent->textFont();
+
 	if (!fnt)
 		fnt = parent->font();
 	
 	if (fnt)
 		desc = fnt->desc();
 
-#ifdef GTK3
-	gtk_widget_override_font(widget, desc);
-	gtk_widget_override_font(label, desc);
-#else
 	gtk_widget_modify_font(widget, desc);
 	gtk_widget_modify_font(label, desc);
-#endif
 }
+
+#endif
 
 void gTabStripPage::setText(char *text)
 {
@@ -442,7 +465,7 @@ void gTabStripPage::updateButton()
 		_button = gtk_button_new();
 		gt_set_focus_on_click(_button, false);
 		
-#if GTK3
+#ifdef GTK3
 		gtk_button_set_relief(GTK_BUTTON(_button), GTK_RELIEF_NONE);
 #else
 		g_signal_connect(G_OBJECT(_button), "expose-event", G_CALLBACK(cb_button_fix), (gpointer)this);
@@ -478,13 +501,10 @@ void gTabStripPage::updateButton()
 
 gTabStrip::gTabStrip(gContainer *parent) : gContainer(parent)
 {
-	g_typ = Type_gTabStrip;
 	_pages = g_ptr_array_new();
 	_textFont = NULL;
 	_closable = false;
-	
-	onClick = NULL;
-	onClose = NULL;
+	_no_design = true;
 	
 	//border = gtk_event_box_new();
 	//gtk_event_box_set_visible_window(GTK_EVENT_BOX(border), false);
@@ -543,7 +563,8 @@ void gTabStrip::setIndex(int vl)
 {
 	GtkWidget *page;
 	
-	if ( (vl<0) || (vl>=count()) || !get(vl)->isVisible() ) return;
+	if ((vl < 0) || (vl >= count()) || !get(vl)->isVisible())
+		return;
 	
 	page = get(vl)->widget;
 	gtk_notebook_set_current_page(GTK_NOTEBOOK(widget), getRealIndex(page));
@@ -588,6 +609,7 @@ bool gTabStrip::setCount(int vl)
 			g_ptr_array_add(_pages, (gpointer)new gTabStripPage(this));
 		setIndex(count() - 1);
 		unlock();
+		setMinimumSize();
 	}
 	
 	if (vl < count())
@@ -620,14 +642,16 @@ bool gTabStrip::setCount(int vl)
 	}
 	
 	if (ind != index())
-		emit(SIGNAL(onClick));
+		CB_tabstrip_click(this);
 	
 	return false;
 }
 
 void gTabStrip::setOrientation(int vl)
 {
-	gtk_notebook_set_tab_pos(GTK_NOTEBOOK(widget),GtkPositionType(vl));
+	_client_x = -1;
+	_client_y = -1;
+	gtk_notebook_set_tab_pos(GTK_NOTEBOOK(widget), GtkPositionType(vl));
 }
 
 gPicture* gTabStrip::tabPicture(int ind) const
@@ -749,12 +773,21 @@ GtkWidget *gTabStrip::getContainer()
 }
 
 #ifdef GTK3
+
+void gTabStrip::customStyleSheet(GString *css)
+{
+	gColor bg = background();
+	if (bg == COLOR_DEFAULT)
+		return;
+	
+	setStyleSheetNode(css, " > header");
+	gt_css_add_color(css, bg, COLOR_DEFAULT);
+	setStyleSheetNode(css, " > header tab:checked");
+	gt_css_add_color(css, bg, COLOR_DEFAULT);
+}
+
 void gTabStrip::updateColor()
 {
-	//fprintf(stderr, "%s: updateColors\n", name());
-	gt_widget_set_color(border, false, realBackground());
-	gt_widget_set_color(widget, false, realBackground());
-
 	for (int i = 0; i < count(); i++)
 		get(i)->updateColors();
 }
@@ -859,3 +892,10 @@ int gTabStrip::findIndex(gControl *child) const
 	
 	return -1;
 }
+
+void gTabStrip::setMinimumSize()
+{
+	_min_w = gDesktop::scale() * 6;
+	_min_h = _min_w;
+}
+

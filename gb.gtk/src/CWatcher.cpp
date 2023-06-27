@@ -23,8 +23,8 @@
 
 #define __CWATCHER_CPP
 
-#include <gtk/gtk.h>
 #include "main.h"
+#include "gapplication.h"
 #include "CWatcher.h"
 
 DECLARE_EVENT(EVENT_Move);
@@ -33,14 +33,35 @@ DECLARE_EVENT(EVENT_Show);
 DECLARE_EVENT(EVENT_Hide);
 //DECLARE_EVENT(EVENT_Remove);
 
+static void connect_signals(GtkWidget *wid, void *_object);
+
 static void raise_show(GtkWidget *widget, CWATCHER *_object)
 {
-	GB.Raise(THIS, EVENT_Show, 0);
+	//fprintf(stderr, "raise_show: %p %s [%d]\n", THIS->wid, THIS->wid->widget->name(), gApplication::_disable_mapping_events);
+	if (!gApplication::_disable_mapping_events && !THIS->visible)
+	{
+		THIS->visible = true;
+		GB.Raise(THIS, EVENT_Show, 0);
+	}
 }
 
 static void raise_hide(GtkWidget *widget, CWATCHER *_object)
 {
-	GB.Raise(THIS, EVENT_Hide, 0);
+	//fprintf(stderr, "raise_hide: %p %s [%d]\n", THIS->wid, THIS->wid->widget->name(), gApplication::_disable_mapping_events);
+	if (!gApplication::_disable_mapping_events && THIS->visible)
+	{
+		THIS->visible = false;
+		GB.Raise(THIS, EVENT_Hide, 0);
+	}
+}
+
+static void cb_init_later(void *_object)
+{
+	if (THIS->wid->widget->isReallyVisible())
+		raise_show(NULL, THIS);
+	else
+		raise_hide(NULL, THIS);
+	GB.Unref(&_object);
 }
 
 static void raise_configure(GtkWidget *widget, GdkEventConfigure *e, CWATCHER *_object)
@@ -66,16 +87,32 @@ static void raise_configure(GtkWidget *widget, GdkEventConfigure *e, CWATCHER *_
 
 static void cb_destroy(GtkWidget *widget, CWATCHER *_object)
 {
-	GB.Unref(POINTER(&THIS->wid));
-	THIS->wid = 0;
+	gControl *ctrl = THIS->wid->widget;
+	
+	//fprintf(stderr, "cb_destroy: %p %s\n", THIS->wid, ctrl->name());
+	if (ctrl->_no_delete)
+	{
+		connect_signals(ctrl->border, _object);
+	}
+	else
+	{
+		GB.Unref(POINTER(&THIS->wid));
+		THIS->wid = 0;
+	}
 }
 
+static void connect_signals(GtkWidget *wid, void *_object)
+{
+	g_signal_connect(G_OBJECT(wid), "map", G_CALLBACK(raise_show), _object);
+	g_signal_connect(G_OBJECT(wid), "unmap", G_CALLBACK(raise_hide), _object);
+	g_signal_connect(G_OBJECT(wid), "configure-event", G_CALLBACK(raise_configure), _object);
+	g_signal_connect(G_OBJECT(wid), "destroy", G_CALLBACK(cb_destroy), _object);
+}
 
 /** Watcher class *********************************************************/
 
 BEGIN_METHOD(CWATCHER_new, GB_OBJECT control)
 
-	GtkWidget *wid;
 	gControl *control;
 
 	THIS->wid = (CWIDGET*)VARG(control);
@@ -84,7 +121,7 @@ BEGIN_METHOD(CWATCHER_new, GB_OBJECT control)
 		return;
 
 	//fprintf(stderr, "Watcher %p: Ref %p (%s %p)\n", _object, THIS->wid, GB.GetClassName(THIS->wid), THIS->wid);
-	GB.Ref((void*)THIS->wid);
+	GB.Ref((void *)THIS->wid);
 
 	control = THIS->wid->widget;
 	
@@ -93,12 +130,13 @@ BEGIN_METHOD(CWATCHER_new, GB_OBJECT control)
 	THIS->w = control->width() - 1;
 	THIS->h = control->height() - 1;
 
-	wid = THIS->wid->widget->border;
-	g_signal_connect(G_OBJECT(wid), "map", G_CALLBACK(raise_show), _object);
-	g_signal_connect(G_OBJECT(wid), "unmap", G_CALLBACK(raise_hide), _object);
-	g_signal_connect(G_OBJECT(wid), "configure-event", G_CALLBACK(raise_configure), _object);
-	g_signal_connect(G_OBJECT(wid), "destroy", G_CALLBACK(cb_destroy), _object);
+	//fprintf(stderr, "new watcher %s %d\n", control->name(), control->isReallyVisible());
 
+	connect_signals(control->border, THIS);
+	
+	GB.Ref(THIS);
+	GB.Post((GB_CALLBACK)cb_init_later, (intptr_t)THIS);
+	
 END_METHOD
 
 BEGIN_METHOD_VOID(CWATCHER_free)

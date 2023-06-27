@@ -2,7 +2,7 @@
 
   gfont.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -30,7 +30,6 @@ class gFont : public gShare
 {
 public:
 	gFont();
-	gFont(const char *name);
 	virtual ~gFont();
   
   static void assign(gFont **dst, gFont *src = 0) { gShare::assign((gShare **)dst, src); }
@@ -44,6 +43,8 @@ public:
 	gFont *copy();
 	void copyTo(gFont *dst);
 	void mergeFrom(gFont *src);
+	bool equals(gFont *src);
+	
 	int ascent();
 	float ascentF();
 	int descent();
@@ -56,8 +57,8 @@ public:
 	char* name();
 	int resolution();
 	double size();
-	bool strikeout();
-	bool underline();
+	bool strikeout() const { return _strikeout; }
+	bool underline() const { return _underline; }
 	int grade();
 
 	void setBold(bool vl);
@@ -71,17 +72,23 @@ public:
 
 	const char *toString();
 	const char *toFullString();
+	void setFromString(const char *str);
+	
 	int width(const char *text, int len = -1);
 	int height(const char *text, int len = -1);
 	int height();
 	void textSize(const char *text, int len, float *w, float *h);
 	void richTextSize(const char *txt, int len, float sw, float *w, float *h);
+	
+	bool mustFixSpacing() const { return _must_fix_spacing; }
+	
+	static gFont *desktopFont();
+	static void setDesktopFont(gFont *vl);
+	static int desktopScale();
 
 //"Private"
-	gFont(GtkWidget *wg);
 	gFont(PangoFontDescription *fd);
-	PangoContext* ct;
-	PangoFontDescription *desc() { return pango_context_get_font_description(ct); }
+	PangoFontDescription *desc() { return pango_context_get_font_description(_context); }
 	bool isAllSet();
 	void setAll(bool v);
 	void setAllFrom(gFont *font);
@@ -93,15 +100,27 @@ public:
 	unsigned _size_set : 1;
 	unsigned _strikeout_set : 1;
 	unsigned _underline_set : 1;
-
+	
 private:
 	
-	bool uline;
-	bool strike;
-	void create();
+	bool _underline;
+	bool _strikeout;
+	
 	void realize();
 	void initFlags();
+	void checkMustFixSpacing();
+	PangoFontMetrics *metrics() {	return pango_context_get_metrics(_context, NULL, NULL); }
+	void invalidateMetrics();
+	
+	PangoContext* _context;
 	int _height;
+	unsigned _must_fix_spacing : 1;
+	
+	static gFont *_desktop_font;
+	static int _desktop_scale;
+#ifdef GTK3
+	static GtkStyleProvider *_desktop_css;
+#endif	
 };
 
 #endif

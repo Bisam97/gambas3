@@ -17,18 +17,31 @@ Static Public Sub _init()
   
 End
 
-
 Static Public Sub _get(Type As String) As TextEditorMode
 
-	Try Return Object.New("TextEditorMode_" & Type)
-	'Error.Raise("Cannot load highlighter: '" & Type & "'")
-	Return New TextEditorMode
+ Try Return Object.New("TextEditorMode_" & Type)
+ 'Error.Raise("Cannot load highlighter: '" & Type & "'")
+ Return New TextEditorMode
 
 End
 
-Public Sub IsIdentCar(sCar As String) As Boolean
+Public Sub IsWordChar(sCar As String) As Boolean
   
+  sCar = String.RemoveDiacritics(sCar)
   If IsLetter(sCar) Or If IsDigit(sCar) Then Return True
+  
+End
+
+Private Sub IsSpacePunctCar(sText As String, iPos As Integer) As Boolean
+
+  Dim sCar As String
+  
+  Try sCar = String.Mid$(sText, iPos, 1)
+  
+  If Not sCar Then Return True
+  If Len(sCar) > 1 Then Return
+  If IsPunct(sCar) Then Return True
+  If IsSpace(sCar) Then Return True
   
 End
 
@@ -113,8 +126,6 @@ Public Sub BetweenBraces(hEditor As TextEditor) As Boolean
   
 End
 
-
-
 Public Sub CanCloseBraces(hEditor As TextEditor) As Boolean
   
   Dim sLine As String
@@ -138,7 +149,6 @@ Public Sub CanCloseBraces(hEditor As TextEditor) As Boolean
   Return True
   
 End
-
 
 Public Sub OnKeyPress(hEditor As TextEditor) As Boolean
   
@@ -170,6 +180,8 @@ Public Sub OnKeyPress(hEditor As TextEditor) As Boolean
     iPos = InStr(sSearch, sCar)
     If iPos = 0 Then Return
     
+    If InStr(Me.STRING_DELIM, sCar) And If String.Mid$(sLine, X - 1, 1) = Me.ESCAPE_CHAR Then Return
+    
     sSearch = ""
     If CloseBraces Then sSearch = Me.BRACES_CLOSE
     If CloseStrings Then sSearch &= Me.STRING_DELIM
@@ -181,7 +193,7 @@ Public Sub OnKeyPress(hEditor As TextEditor) As Boolean
     hEditor.Select(X - 1, hEditor.Line, X + 1, hEditor.Line)
     hEditor.Insert("")
     hEditor.RestoreCursor()
-    hEditor.Goto(X - 1, hEditor.Line)    
+    hEditor.Goto(X - 1, hEditor.Line)
     Return True
     
   Endif
@@ -237,20 +249,19 @@ Public Sub OnKeyPress(hEditor As TextEditor) As Boolean
     iPos = InStr(Me.STRING_DELIM, sText)
     If iPos Then
       
-      If hEditor.Selected Then
-        If hEditor.SelectionLine = hEditor.Line Then
-          hEditor.Insert(sText & hEditor.SelectedText & sText)
-          Return True
-        Endif
-      Endif
+      ' If hEditor.Selected Then
+      '   If hEditor.SelectionLine = hEditor.Line Then
+      '     hEditor.Insert(sText & hEditor.SelectedText & sText)
+      '     Return True
+      '   Endif
+      ' Endif
       
       If Not InsideString(hEditor) Then
         
-        hEditor.SaveCursor()
-        hEditor.Insert(sText & sText)
-        hEditor.RestoreCursor()
-        hEditor.Goto(hEditor.Column + 1, hEditor.Line)
-        Return True
+        If IsSpacePunctCar(hEditor.Current.Text, hEditor.Column) And If IsSpacePunctCar(hEditor.Current.Text, hEditor.Column + 1) Then
+          GoSub INSERT_STRING
+          Return True
+        Endif
         
       Else If hEditor.Column < hEditor.Current.Length Then
         
@@ -261,12 +272,11 @@ Public Sub OnKeyPress(hEditor As TextEditor) As Boolean
             Return True
           Endif
         
-          hEditor.SaveCursor()
-          hEditor.Insert(sText & sText)
-          hEditor.RestoreCursor()
-          hEditor.Goto(hEditor.Column + 1, hEditor.Line)
-          Return True
-          
+          'If IsSpacePunctCar(hEditor.Current.Text, hEditor.Column) And If IsSpacePunctCar(hEditor.Current.Text, hEditor.Column + 1) Then
+            GoSub INSERT_STRING
+            Return True
+          'Endif
+            
         Endif
         
       Endif
@@ -274,6 +284,17 @@ Public Sub OnKeyPress(hEditor As TextEditor) As Boolean
     Endif
     
   Endif
+  
+  Return
+  
+INSERT_STRING:
+
+  hEditor.SaveCursor()
+  hEditor.Insert(sText & sText)
+  hEditor.RestoreCursor()
+  hEditor.Goto(hEditor.Column + 1, hEditor.Line)
+  Return
+
   
   '$bCanCloseBracesComputed = False
     

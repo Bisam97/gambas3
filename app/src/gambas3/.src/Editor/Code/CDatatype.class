@@ -45,9 +45,112 @@ Static Public Sub __Get(sType As String) As Variant
   
 End
 
-Static Public Sub __Make(hArray As Object) As CDatatype
+Static Public Sub __TypeOf(vVal As Variant) As String
+
+  Dim hType As CDatatype
   
-  Return New CDatatype(Object.Type(hArray))
+  Try hType = vVal
+  
+  If Error Then 
+    Select TypeOf(vVal)
+      Case gb.Boolean
+        Return "b"
+      Case gb.Byte
+        Return "c"
+      Case gb.Date
+        Return "d"
+      Case gb.Float
+        Return "f"
+      Case gb.Integer
+        Return "i"
+      Case gb.Long
+        Return "l"
+      Case gb.Object
+        Return "o"
+      Case gb.Pointer
+        Return "p"
+      Case gb.Short
+        Return "h"
+      Case gb.Single
+        Return "g"
+      Case gb.String
+        Return "s"
+      Case gb.Variant
+        Return "v"
+    End Select
+  Else
+    Return hType.__GetType()
+  Endif
+  
+End
+
+Static Public Sub __MakeArray(hArray As Object) As CDatatype
+
+  Dim sType As String
+  Dim I As Integer
+  Dim sEltType As String
+  
+  If hArray Is Array Then 
+    
+    For I = 0 To hArray.Max
+      
+      sEltType = __TypeOf(hArray[I])
+      If Not sType Then 
+        sType = sEltType
+      Else 
+        If sEltType <> sType Then
+          sType = "v"
+          Break
+        Endif
+      Endif
+      
+    Next
+    
+    If Len(sType) = 1 Then sType = CSymbolInfo.GetType(sType)
+    sType &= "[]"
+    
+  Else
+    
+    sType = Object.Type(hArray)
+    
+  Endif
+  
+  Return New CDatatype(sType)
+  
+End
+
+Static Public Sub __MinMax(...) As Variant
+
+  Dim sType As String
+  Dim I As Integer
+  Dim sEltType As String
+  Dim iPos As Integer
+  Dim iPos2 As Integer
+  
+  For I = 0 To Param.Max
+    
+    sEltType = __TypeOf(Param[I])
+
+    If Not sType Then 
+      sType = sEltType
+    Else 
+      If sEltType <> sType Then
+        If Len(sEltType) = 1 And If Len(sType) = 1 Then
+          iPos = InStr("chilf", sEltType)
+          iPos2 = InStr("chilf", sType)
+          If iPos And If iPos2 Then 
+            sType = Mid$("chilf", Max(iPos, iPos2), 1)
+            Continue
+          Endif
+        Endif
+        sType = "v"
+        Break
+      Endif
+    Endif
+    
+  Next
+  
+  Return CDatatype.__Get(sType)
   
 End
 

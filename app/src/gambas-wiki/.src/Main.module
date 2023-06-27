@@ -14,6 +14,7 @@ Public InfoDir As String
 Public Lang As String
 Public Path As String
 Public Exist As Boolean
+Public Link As String
 Public Edit As Boolean
 Public Image As Boolean
 Public Preview As Boolean
@@ -25,10 +26,14 @@ Public FullName As String
 Public (Component) As String
 Public (Class) As String
 Public Symbol As String
+Public SubstClass As String
 
 Private $aDeveloperTable As String[]
 Private $aTranslatorTable As String[]
 Private $bInitAuthor As Boolean
+Private $bGitLabCI As Boolean
+Private $aGitLabCI As String[]
+Private $aSelection As String[]
 
 Private Sub AddLinkSuffix(sReq As String)
 
@@ -112,11 +117,18 @@ Private Sub LockPage()
 
 End
 
-Private Sub Redirect(Optional sMore As String)
+Private Sub Redirect(Optional sMore As String, Optional sLink As String)
 
   Dim sUrl As String
 
-  sUrl = Application.Root &/ Request.Path & LinkSuffix
+  sUrl = Application.Root
+  If sLink Then
+    sUrl &/= sLink
+  Else 
+    sUrl &/= Request.Path
+  Endif
+  sUrl &= LinkSuffix
+  
   If sMore Then 
     If LinkSuffix Then
       sUrl &= "&" & sMore
@@ -130,8 +142,13 @@ Private Sub Redirect(Optional sMore As String)
 End
 
 Public Sub Message(sMsg As String)
+
+  Dim aMessage As String[]
   
-  Session["message"] = sMsg
+  aMessage = Session["message"]
+  If Not aMessage Then aMessage = New String[]
+  aMessage.Add(sMsg)
+  Session["message"] = aMessage
   
 End
 
@@ -329,17 +346,19 @@ End
 '   
 ' End
 ' 
-Private Sub AddCacheHeaders(Optional dLast As Date)
+Public Sub AddCacheHeaders(Optional dLast As Date)
 
-  'If InternetExplorer Then Return
+  ' If Session.Id Then
+  '   Response.AddHeader("Cache-Control", "no-store")
+  '   Return
+  ' Endif
 
   If Not dLast Then 
     Try dLast = Stat(Args[0]).LastModified
     If Error Then dLast = Now
   Endif
-  Response.AddHeader("Expires", CGI.FormatDate(DateAdd(Now, gb.Month, 2)))
-  Response.AddHeader("Cache-Control", "public")
-  'Response.AddHeader("Cache-Control", "max-age=5184000")
+  'Response.AddHeader("Expires", CGI.FormatDate(DateAdd(Now, gb.Month, 2)))
+  Response.AddHeader("Cache-Control", "public,max-age=86400,must-revalidate")
   Response.AddHeader("Last-Modified", CGI.FormatDate(dLast))
 
 End
@@ -416,28 +435,33 @@ Public Sub Main()
   Dim sPath As String
   Dim sText As String
   Dim cUser As Collection
-  
+  Dim sFile As String
+  Dim sSearch As String
+  Dim sReplace As String
+
+  ' Print "data:image/png;base64,"; URL.Encode(Base64$(File.Load(".public/critical.png")));
+  ' Quit
   ' If Application.Host = "gambasfarm.org" Then
   '   Response.Redirect("http://gambasfarm.org/farm")
   '   Return
   ' Endif
   
-  CGI["SCRIPT_NAME"] = "/wiki" ' Fix web server bug
+  'CGI["SCRIPT_NAME"] = "/wiki" ' Fix web server bug
   Root = User.Home &/ "wiki/gambas"
   InfoDir = User.Home &/ "wiki/info"
   If Not Exist(InfoDir) Then InfoDir = ""
 
   Select Case Args[1]
 
-    Case "-restore" 
-      If IsDir(Root) Then
-        Shell "rm -rf " & Shell$(Root & "~") & " >/dev/null 2>&1" Wait
-        Move Root To Root & "~"
-        Mkdir Root
-        'Copy "passwd" To Root &/ "passwd"
-      Endif
-      OldWiki.Restore
-      Return
+    ' Case "-restore" 
+    '   If IsDir(Root) Then
+    '     Shell "rm -rf " & Shell$(Root & "~") & " >/dev/null 2>&1" Wait
+    '     Move Root To Root & "~"
+    '     Mkdir Root
+    '     'Copy "passwd" To Root &/ "passwd"
+    '   Endif
+    '   OldWiki.Restore
+    '   Return
       
     Case "-convert-example" 
       ConvertExample
@@ -448,9 +472,62 @@ Public Sub Main()
       If Process.LastValue = 0 Then File.Save("~/cgi-bin/timestamp", Format(Now, "yyyymmdd"))
       Return
       
+    Case "-find"
+      
+      sSearch = Args[2]
+      If Not sSearch Then Quit 1
+      For Each sFile In RDir(Root &/ "data")
+        sPath = Root &/ "data" &/ sFile
+        If IsDir(sPath) Then Continue
+        sData = File.Load(sPath)
+        If InStr(sData, sSearch) Then Print sFile
+      Next
+      Return
+      
+    Case "-replace"
+      
+      sSearch = Args[2]
+      sReplace = Args[3]
+      If Not sSearch Then Quit 1
+      For Each sFile In RDir(Root &/ "data")
+        sPath = Root &/ "data" &/ sFile
+        If IsDir(sPath) Then Continue
+        sData = File.Load(sPath)
+        If InStr(sData, sSearch) Then
+          sData = Replace(sData, sSearch, sReplace)
+          File.Save(sPath, sData)
+          Print sFile
+        Endif
+      Next
+      Return
+      
+    Case "-package-table"
+      Print GetPackageTable().Join("\n")
+      CComponent.Exit
+      Return
+      
+    Case "-html"
+      Lang = Args[2]
+      Path = Args[3]
+      Print Main.GetPagePath()
+      Print
+      Print WikiMarkdown.ToHTML(File.Load(Main.GetPagePath()))
+      CComponent.Exit
+      Return
+      
   End Select
   
   Try Mkdir Root
+
+  ' Protocol
+  
+  If CGI["HTTP_X_CGI"] = "https" Or If CGI["REQUEST_SCHEME"] = "https" Or If CGI["X_CGI"] = "https" Then 
+    Application.Protocol = "https"
+  Else If CGI["HTTP_CF_VISITOR"] Then
+    If InStr(CGI["HTTP_CF_VISITOR"], "\"scheme\":\"https\"") Then
+      Application.Protocol = "https"
+    Endif
+  Endif
 
   ' All pages are stored in a "data" directory stored in the root directory.
   ' If the "data" directory does not exist, the wiki is initialized with a default root page.
@@ -466,6 +543,8 @@ Public Sub Main()
   ' Consequently, no "~" character is allowed in the url path.
   ' Each page modification is archived in a "~page.<date>.<user>" file, allowing changes to be undone.
   
+  'Main.Log("==== " & Path,, "/tmp/wiki.debug")  
+ 
   Path = Request.Path
   If Right(Path) = "/" Then Path = Left(Path, -1)
   
@@ -474,6 +553,7 @@ Public Sub Main()
   If File.Name(Path) = "style.css" Then
     Response.ContentType = "text/css"
     AddCacheHeaders
+    'AddFrameHeader
     Response.Begin
     Print Replace(File.Load(".public/style.css"), "<%/%>", Application.Root);
     Response.End
@@ -488,10 +568,21 @@ Public Sub Main()
     Return
   Endif
   
+  'Main.Log("(1) " & Path,, "/tmp/wiki.debug")  
+ 
   If Request.Exist("lang") Then
+    
+    'Main.Log("(1.1) " & Path,, "/tmp/wiki.debug")  
+ 
     sLang = Request["lang"]
+
+    'Main.Log("(1.2) " & Path,, "/tmp/wiki.debug")  
+
     If sLang = DEFAULT_LANG Then sLang = ""
     If sLang <> Request["l"] Then
+  
+      'Main.Log("(1.3) " & Path,, "/tmp/wiki.debug")  
+ 
       If sLang Then
         Redirect("l=" & sLang)
       Else
@@ -500,6 +591,8 @@ Public Sub Main()
     Endif
   Endif
 
+  'Main.Log("(2) " & Path,, "/tmp/wiki.debug")  
+ 
   SetLanguage(Request["l"])
   If Request.Exist("v") Or If Request.Exist("nh") Then AddLinkSuffix("nh")
   If Request.Exist("nl") Then AddLinkSuffix("nl")
@@ -517,6 +610,8 @@ Public Sub Main()
   '   Return
   ' Endif
   
+  'Main.Log("(3) " & Path,, "/tmp/wiki.debug")  
+ 
   If Path = "/~stat" Then
     HttpStat.Render
     Return
@@ -538,19 +633,29 @@ Public Sub Main()
     Return
   Endif
   
+  'Main.Log("(4) " & Path,, "/tmp/wiki.debug")  
+  
   ' Reject pages whose url includes a "~" character.
   
-  If InStr(Path, "~") Then
-    Response.Status = "404 Not Found"
-    Response.Begin
-    Print "<h1>404 Not Found</h1>"
-    Response.End
-    Return
+  If Path Then
+    If InStr(Path, "~") Or If Not IsAscii(Path) Then
+      Response.Status = "404 Not Found"
+      Response.Begin
+      Print "<h1>404 Not Found</h1>"
+      Response.End
+      Return
+    Endif
+    'Path = LCase(Path)
   Endif
   
+  'Main.Log("(5) " & Path,, "/tmp/wiki.debug")  
+ 
   If Request.Exist("logout") Then
     
+    Session.CookiePath = "/"
     Session.Abandon
+    Response.Redirect("/wiki" &/ Request.Path & LinkSuffix)
+    Return
     
   ' Else If Request.Exist("register") Then
   '   
@@ -563,6 +668,7 @@ Public Sub Main()
     
     cUser = LoadUser(Request["login"])
     If cUser And If cUser["password"] = Request["password"] And If cUser["activé"] Then
+      Session.CookiePath = "/"
       Session["login"] = LCase(Request["login"])
       Session["full-name"] = Trim(cUser["prénom"] & " " & cUser["nom"])
     Endif
@@ -572,7 +678,7 @@ Public Sub Main()
   UserName = Session["login"]
   FullName = Session["full-name"]
   If Not FullName Then FullName = UserName
-  {Exist} = Main.ExistPage(Path)
+  {Exist} = ExistPage(Path,, ByRef {Link})
   Image = IsImage(Path)
   Try History = CInt(Request["h"])
   
@@ -591,6 +697,11 @@ Public Sub Main()
   Endif
 
   If Session.Id Then
+  
+    If Application.Root <> "/edit" Then
+      Response.Redirect("/edit" &/ Request.Path & LinkSuffix)
+      Return
+    Endif
   
     If Request.Exist("save") Then
     
@@ -624,18 +735,19 @@ Public Sub Main()
     
     Else If Request.Exist("preview") Then
       
+      'If Main.UserName = "bminisini" Then Main.Log("Wiki.Render",, "/tmp/wiki.debug")
       Preview = True
       
     Else If Request.Exist("delete") Then
       
-      If {Exist} Then
-        sPath = GetPagePath()
-        LockPage
-        File.Save(sPath, "")
-        Copy sPath To GetPagePath(True)
-        Main.Log("Delete " & Main.Path & " (" & Main.Lang & ")")
-      Endif
-      Redirect
+      DeletePage()
+      Redirect()
+      Return
+      
+    Else If Request.Exist("purge") Then
+      
+      DeletePage(True)
+      Redirect(, File.Dir(Main.Path))
       Return
       
     Else If Request.Exist("undo") Then
@@ -674,6 +786,18 @@ Public Sub Main()
     Else If Request.Exist("exit") Then
     
       Redirect()
+      
+    Else If Request.Exist("select") Then
+      
+      SelectCurrentPage()
+
+    Else If Request.Exist("unselect") Then
+      
+      UnselectAll()
+      
+    Else If Request.Exist("move") Then
+      
+      MoveSelection()
 
     Endif
     
@@ -685,6 +809,7 @@ Public Sub Main()
 
   If Image Then
     If Not Session.Id Or If Request.Exist("v") Then
+      AddCacheHeaders(GetPageLastModified())
       Response.SendFile(GetPagePath(), GetContentTypeFrom(Path))
       Return
     Endif
@@ -697,6 +822,8 @@ Public Sub Main()
 Catch
   
   sMsg = Error.Where & ": " & Error.Text & "\n" & Error.Backtrace.Join("\n")
+  'Main.Log(sMsg,, "/tmp/wiki.debug")  
+  'Response.AddFrameHeader
   Response.Begin
   Response.ContentType = "text/plain;charset=utf-8"
   Print "<pre>"; sMsg; "</pre>"
@@ -704,7 +831,7 @@ Catch
 
 End
 
-Public Sub SolvePath(sPath As String) As String
+Public Sub SolvePath(sPath As String, Optional bFollowRedirect As Boolean) As String
   
   Dim sData As String
   
@@ -717,6 +844,8 @@ Public Sub SolvePath(sPath As String) As String
     sData = File.Load(Main.GetPagePathFrom(sPath))
     If sData Begins "-->" Then
       sPath = MakeAbsolute(Trim$(Mid$(sData, 4)), sPath)
+    Else If bFollowRedirect And If sData Begins "==>" Then
+      sPath = MakeAbsolute(Trim$(Mid$(sData, 4)), sPath)
     Else
       Return sPath
     Endif
@@ -726,17 +855,17 @@ Public Sub SolvePath(sPath As String) As String
 End
 
 
-Public Sub GetPageTitle(sPath As String) As String
+Public Sub GetPageTitle(sPath As String, Optional bForceReadFile As Boolean) As String
   
   Dim sFile As String
   Dim iPos As Integer
   Dim bComp As Boolean
   Dim sRealPath As String
   
-  sPath = SolvePath(sPath)
+  sPath = SolvePath(sPath, IsNull(Session.Id))
   bComp = sPath Begins "/comp/"
   
-  If bComp Then
+  If bComp And If Not bForceReadFile And If Not IsImage(sPath) Then
     If sPath Like "/comp/*/*/?*" Then Return GetSymbolTitle(sPath)
     If sPath Like "/comp/*/?*" Then Return GetClassTitle(sPath)
   Endif
@@ -748,14 +877,32 @@ Public Sub GetPageTitle(sPath As String) As String
   sFile = LTrim(File.Load(sRealPath))
   
   If sFile Begins "# " Then
+    
     iPos = InStr(sFile, "\n")
     If iPos = 0 Then iPos = Len(sFile) + 1
     sFile = Trim(Mid$(sFile, 3, iPos - 3))
+    
+    ' If Not bWithOrderPrefix And If sFile Begins "(" Then
+    '   iPos = InStr(sFile, " ")
+    '   If iPos And If Mid$(sFile, iPos - 1, 1) = ")" Then
+    '     sFile = Mid$(sFile, iPos + 1)
+    '   Endif
+    ' Endif
+    
     If Not bComp Then sFile = String.UCaseFirst(sFile)
+    
     Return sFile
+    
   Endif
   
 End
+
+Public Sub GetPageLastModified() As Date
+  
+  Try Return Stat(GetPagePath()).LastModified
+  
+End
+
 
 Public Sub IsImage(sPath As String) As Boolean
 
@@ -819,15 +966,19 @@ Public Sub GetContentTypeFrom(sPath As String) As String
   
 End
 
-Public Sub ExistPage(sPath As String, Optional sLang As String) As Boolean
+Public Sub ExistPage(sPath As String, Optional sLang As String, Optional ByRef sLink As String) As Boolean
 
   Dim iSize As Long
   
-  Try iSize = Stat(GetPagePathFrom(sPath, sLang)).Size
+  With Stat(GetPagePathFrom(sPath, sLang))
+    iSize = .Size
+    sLink = .Link
+  End With
   Return iSize > 0
   
+Catch
+  
 End
-
 
 Public Function GetSymbolLink(hClass As CClassInfo, sSym As String, Optional sMyTitle As String, Optional sMyStaticTitle As String) As String
 
@@ -871,7 +1022,7 @@ Public Function GetClassLinkFromName(sClass As String) As String
     sComp = CComponent.Classes[sClass].Component
   Endif
 
-  Return "<a href=\"" & Application.Root &/ LCase("comp" &/ sComp &/ sClass) & "\">" & Html(sClass) & "</a>"
+  Return "<a href=\"" & Html(Application.Root &/ LCase("comp" &/ sComp &/ sClass) & LinkSuffix) & "\">" & Html(sClass) & "</a>"
 
 Catch
 
@@ -910,7 +1061,7 @@ Public Sub GetStat() As String[]
     nClass += iCpt
     nSym += ((aFile.Count - iComment) - iCpt * 3) / 4
   Next
-
+  
   Return [Subst(("There are &1 classes and &2 symbols in all Gambas components."), nClass, nSym)]
 
 Catch
@@ -941,7 +1092,7 @@ Public Sub GetClassTitle(Optional sPath As String) As String
   
   If hClass Then
     If sPath Then Return hClass.Name
-    Return hClass.Name & " (" & sComponent & ")"
+    Return Replace(hClass.Name, "*", "\\*") & " (" & sComponent & ")"
   Else
     If sPath Then Return sClass
     Return sClass & " (" & sComponent & ")"
@@ -958,6 +1109,7 @@ Public Sub GetSymbolTitle(Optional sPath As String) As String
   Dim sClass As String
   Dim sSymbol As String
   Dim aPath As String[]
+  Dim sClassName As String
   
   If Not sPath Then
     sComponent = Main.Component
@@ -974,6 +1126,9 @@ Public Sub GetSymbolTitle(Optional sPath As String) As String
   Try hSym = CComponent.Get(sComponent)[sClass].Symbols[sSymbol]
   
   If sPath Then
+    If Not hSym And If sClass Ends "[]" Then
+      Try hSym = CComponent.Get(sComponent)["*[]"].Symbols[sSymbol]
+    Endif
     If Not hSym Then Return sSymbol & " ?"
     If InStr("e:", hSym.Kind) Then
       Return Mid$(hSym.Name, 2)
@@ -984,26 +1139,35 @@ Public Sub GetSymbolTitle(Optional sPath As String) As String
   
   If Not hSym Then Return sClass & "." & sSymbol & " (" & sComponent & ")?"
 
+  sClassName = hSym.Class
+  If Not IsLetter(Left(sClassName)) Then
+    sTitle = Trim(GetPageTitle("/comp" &/ sComponent &/ sClass, True))
+    If sTitle Then
+      If Right(sTitle) = ")" Then sTitle = Trim(Left$(sTitle, RInStr(sTitle, "(") - 1))
+      sClassName = sTitle
+    Endif
+  Endif
+
   Select Case Main.Symbol
     Case "_new"
-      sTitle = "New " & hSym.Class
+      sTitle = "New " & sClassName
     Case "_put"
-      sTitle = hSym.Class & "[] = ..."
+      sTitle = sClassName & "\\[…] = …"
     Case "_get"
-      sTitle = hSym.Class & "[]"
+      sTitle = "… = " & sClassName & "\\[…]"
     Case "_call"
-      sTitle = hSym.Class & "()"
+      sTitle = sClassName & "()"
     Case "_next"
-      sTitle = "For Each " & hSym.Class
+      sTitle = "For Each " & sClassName
     Default
       If InStr(":e", hSym.Kind) Then
-        sTitle = "Event " & hSym.Class & "." & Mid$(hSym.Name, 2)
+        sTitle = "Event " & sClassName & "." & Mid$(hSym.Name, 2)
       Else
-        sTitle = hSym.Class & "." & hSym.Name
+        sTitle = sClassName & "." & hSym.Name
       Endif
   End Select
 
-  Return sTitle & " (" & hSym.Component & ")"
+  Return Replace(sTitle, "*", "\\*") & " (" & hSym.Component & ")"
   
 End
 
@@ -1035,7 +1199,7 @@ End
 
 Private Sub GetIgnore() As String[]
 
-  Return ["gb.gui", "gb.gtk", "gb.gtk.opengl", "gb.gtk3", "gb.gtk3.opengl", "gb.gui.opengl", "gb.gui.base", "gb.option", "gb.v4l", "gb.qt5", "gb.qt5.opengl", "gb.qt5.webkit", "gb.gui.qt", "gb.gui.qt.webkit"]
+  Return ["gb.gui", "gb.gtk", "gb.gtk.opengl", "gb.gtk3", "gb.gtk3.opengl", "gb.gui.opengl", "gb.gui.base", "gb.option", "gb.v4l", "gb.qt5", "gb.qt5.opengl", "gb.qt5.webkit", "gb.gui.qt", "gb.gui.qt.webkit", "gb.qt4.webview", "gb.qt5.webview", "gb.gtk3.webview", "gb.dbus.trayicon", "gb.qt5.ext"]
 
 End
 
@@ -1079,6 +1243,8 @@ Public Sub GetToDo() As String[]
   
       'If $cCompRedirect And If $cCompRedirect.Exist(sComp) Then Continue
       If aIgnore.Find(sComp) >= 0 Then Continue
+      
+      If hClass.IsRedirected() Then Continue
   
       For Each hSymbol In hClass.Symbols
   
@@ -1105,28 +1271,29 @@ Public Sub GetToDo() As String[]
         
         sPath = "/comp" &/ LCase(sComp &/ hSymbol.Class &/ Replace(hSymbol.Name, ":", "."))
         If Not ExistPage(sPath) Then
-          
-          If bPrintComponent Then
-            aResult.Add("## [[" & sComp & "] (/comp" &/ sComp & ")]")
-            aIndex.Add("- [" & sComp & "](#t" & CStr(aIndex.Count + 1) & ")")
-            bPrintComponent = False
+          If Not HasDefaultHelp(sComp, hSymbol.Class, hSymbol.Name) Then
+            If bPrintComponent Then
+              aResult.Add("## [[" & sComp & "] (/comp" &/ sComp & ")]")
+              aIndex.Add("- [" & sComp & "](#t" & CStr(aIndex.Count + 1) & ")")
+              bPrintComponent = False
+            Endif
+            If bPrintClass Then
+              aResult.Add("* **[" & hClass.Name & "] (/comp" &/ sComp &/ LCase(hClass.Name) & ")**")
+              bPrintClass = False
+            Endif
+            aResult.Add("  * [" & sPath & "]")
+            Inc iCpt
           Endif
-          If bPrintClass Then
-            aResult.Add("* **[" & hClass.Name & "] (/comp" &/ sComp &/ LCase(hClass.Name) & ")**")
-            bPrintClass = False
-          Endif
-          aResult.Add("  * [" & sPath & "]")
-          Inc iCpt
         Endif
       Next
     Next
   
   Next
 
-  aResult.Insert([Subst("There are &1 symbols to document yet.", CStr(iCpt)), ""], 0)
+  aResult.Insert([Subst("<div>There are &1 symbols to document yet.</div>", CStr(iCpt)), ""], 0)
   aIndex.Add("<div class=\"index\">", 0)
   aIndex.Add("</div>")
-  aResult.Insert(aIndex, 1)
+  aResult.Insert(aIndex, 2)
   Return aResult
   
 End
@@ -1161,6 +1328,12 @@ Public Sub GetChanges() As String[]
     
     aCol = Split(aLine[I], "|")
     If aCol.Count < 3 Then Continue
+    
+    ' Fix a Gambas Format$() bug
+    If aCol[0] Begins "/" Then
+      aCol[0] = Mid$(aCol[0], 2, 2) & "/" & Mid$(aCol[0], 5, 2) & "/" & Mid$(aCol[0], 7, 4) & " " & Mid$(aCol[0], 13, 2) & ":" & Mid$(aCol[0], 16, 2) & ":" & Mid$(aCol[0], 18, 2)
+    Endif
+    
     aResult.Add("<tr><td>" & Left(Trim(aCol[0]), 19) & "</td><td>" & Trim(aCol[1]) & "</td>")
     
     sLink = Trim(aCol[2])
@@ -1201,10 +1374,11 @@ Public Sub GetChanges() As String[]
 End
 
 
-Public Sub Log(sText As String, Optional sUser As String)
+Public Sub Log(sText As String, Optional sUser As String, Optional sLog As String)
 
-  Dim sLog As String = Main.Root &/ "wiki.log"
   Dim hFile As File
+
+  If Not sLog Then sLog = Main.Root &/ "wiki.log"
 
   If Exist(sLog) And If Stat(sLog).Size > 50000000 Then
     Try Kill sLog & ".old"
@@ -1226,32 +1400,75 @@ Public Sub Log(sText As String, Optional sUser As String)
 
 End
 
-Public Sub GetDefaultPage() As String
+Public Sub HasDefaultHelp(Optional sComp As String, sClass As String, sSymbol As String) As Boolean
+
+  Dim hClass As CClassInfo
+  Dim hSymbol As CSymbolInfo
+
+  If Not sComp Then sComp = Main.Component
+  If Not sClass Then sClass = Main.Class
+  If Not sSymbol Then sSymbol = Main.Symbol
+
+  Try hClass = CComponent.Get(sComp)[sClass]
+  If Not hClass Then Return
+  
+  If sSymbol Then
+  
+    Try hSymbol = hClass.Symbols[sSymbol]
+    If Not hSymbol Then Return
+    
+    If hSymbol.Help Then Return True
+    
+  Else 
+    
+    If hClass.Help Then Return True
+    
+  Endif
+
+End
+
+Public Sub GetDefaultHelp(Optional sComp As String, sClass As String, sSymbol As String) As String
   
   Dim hSymbol As CSymbolInfo
   Dim sSign As String
   Dim iPos As Integer
   Dim sResult As String
   Dim iPos2 As Integer
+  Dim hClass As CClassInfo
   
-  Try hSymbol = CComponent.Get(Main.Component)[Main.Class].Symbols[Main.Symbol]
-  If Not hSymbol Then Return
+  If Not sComp Then sComp = Main.Component
+  If Not sClass Then sClass = Main.Class
+  If Not sSymbol Then sSymbol = Main.Symbol
+
+  Try hClass = CComponent.Get(sComp)[sClass]
+  If Not hClass Then Return
   
-  If hSymbol.Help Then Return hSymbol.Help
+  If sSymbol Then
   
-  sResult = "\n"
-  sSign = hSymbol.Signature
-  Do
+    Try hSymbol = hClass.Symbols[sSymbol]
+    If Not hSymbol Then Return
     
-    iPos = InStr(sSign, "(", iPos + 1)
-    If iPos = 0 Then Break
-    iPos2 = InStr(sSign, ")", iPos + 1)
-    If iPos2 = 0 Then Break
+    If hSymbol.Help Then Return hSymbol.Help
     
-    sResult &= "- ~" & Mid$(sSign, iPos + 1, iPos2 - iPos - 1) & "~\n"
-    iPos = iPos2
+    sResult = "\n"
+    sSign = hSymbol.Signature
+    Do
+      
+      iPos = InStr(sSign, "(", iPos + 1)
+      If iPos = 0 Then Break
+      iPos2 = InStr(sSign, ")", iPos + 1)
+      If iPos2 = 0 Then Break
+      
+      sResult &= "- ~" & Mid$(sSign, iPos + 1, iPos2 - iPos - 1) & "~\n"
+      iPos = iPos2
+      
+    Loop
     
-  Loop
+  Else
+    
+    If hClass.Help Then Return hClass.Help
+
+  Endif
   
   'If hSymbol.Help Then sResult = Trim(sResult) & "\n" & hSymbol.Help
   
@@ -1307,11 +1524,11 @@ Public Sub GetPackageTable() As String[]
   aResult.Add("--")
   aResult.Add("Depends on these packages")
   
-  aResult.Insert(["==", "'gambas3-devel'", "--"])
+  aResult.Insert(["==", "'gambas3-dev-tools'", "--"])
   aResult.Insert(["==", "'gambas3-runtime'", "--"])
   
-  AddProjectDependencies(aResult, "gambas3-ide", ["gambas3-devel"])
-  AddProjectDependencies(aResult, "gambas3-scripter", ["gambas3-devel"])
+  AddProjectDependencies(aResult, "gambas3-ide", ["gambas3-dev-tools"])
+  AddProjectDependencies(aResult, "gambas3-scripter", ["gambas3-dev-tools"])
   
   For Each sComp In CComponent.ListAll()
     
@@ -1372,7 +1589,7 @@ Private Sub InitAuthor()
   
   If $bInitAuthor Then Return
   
-  hFile = Open "authors.txt" For Read 
+  hFile = Open "AUTHORS" For Read 
   
   While Not Eof(hFile)
     hAuthor = New CAuthor(hFile)
@@ -1453,11 +1670,16 @@ Private Sub SearchWiki(sText As String)
 
   Dim sDir As String
   Dim sFile As String
-  Dim sPath As String
   Dim aFind As String[]
   Dim sData As String
-  Dim iPos As Integer
-  Dim sCar As String
+  Dim sRoot As String
+  Dim aDir As New String[]
+  Dim aImageExt As String[]
+  Dim aSearch As String[]
+  Dim sSearch As String
+  Dim sLink As String
+  Dim sExt As String
+  Dim sTitle As String
 
   sText = Trim(sText)
   If Not sText Then Return
@@ -1465,55 +1687,61 @@ Private Sub SearchWiki(sText As String)
   Session["search-query"] = sText
   'sText = String.RemoveDiacritics(sText)
   
+  aImageExt = ["png", "jpg", "jpeg", "gif", "webm", "mov", "mp4", "mp3"]
+  aSearch = Split(sText, " ", Chr$(34), True)
   aFind = New String[]
-  sDir = Root &/ "data" &/ Lang 
-  For Each sFile In RDir(sDir, "*", gb.Directory)
+  
+  sRoot = Root &/ "data" &/ Lang 
+  aDir.Add(sRoot)
+  
+  While aDir.Count
     
-    sPath = GetPagePathFrom(sFile)
-    If Not Exist(sPath) Then Continue
+    sDir = aDir.Pop()
+    sLink = Mid$(sDir, Len(sRoot) + 1)
+    sTitle = GetPageTitle(sLink)
+    Try sData = File.Load(sDir &/ "~page")
+    If Not Error Then
+      For Each sSearch In aSearch
+        If String.InStr(sTitle, sSearch, 1, gb.IgnoreCase) Or If String.InStr(sData, sSearch, 1, gb.IgnoreCase) Then
+          sLink = Mid$(sDir, Len(sRoot) + 1)
+          If Not sLink Then sLink = "/"
+          aFind.Add(sLink)
+          Break
+        Endif
+      Next
+    Endif
     
-    sData = File.Load(sPath)
-    iPos = 0
+    For Each sFile In Dir(sDir, "*", gb.Directory)
+      sExt = File.Ext(sFile)
+      If aImageExt.Exist(sExt) Then Continue
+      aDir.Add(sDir &/ sFile, 0)
+    Next
     
-    Do
-      
-      iPos = InStr(sData, sText, iPos + 1, gb.IgnoreCase)
-      If iPos = 0 Then Break
-      
-      If iPos > 1 Then
-        sCar = Mid$(sData, iPos - 1, 1)
-        If IsLetter(sCar) Or If IsDigit(sCar) Or If Not IsAscii(sCar) Then Goto NEXT_SEARCH
-      Endif
-      
-      If iPos < Len(sData) Then
-        sCar = Mid$(sData, iPos + Len(sText), 1)
-        If IsLetter(sCar) Or If IsDigit(sCar) Or If Not IsAscii(sCar) Then Goto NEXT_SEARCH
-      Endif
-      
-      Break
-      
-    NEXT_SEARCH:
-      iPos += Len(sText)
-      
-    Loop
-    
-    If iPos Then aFind.Add("/" & sFile)
-    
-  Next
+  Wend
   
   Session["search-result"] = aFind
   
-  Response.Redirect("/wiki/search")
+  Response.Redirect("/edit/search")
   Return
   
 End
 
 Public Sub GetImageHTML(sPath As String) As String
 
-  If Main.GetContentTypeFrom(sPath) Begins "video/" Then
-    Return "<video src=\"" & Html(Application.Root &/ sPath) & "?v\" autoplay></video>"
+  Dim sAdd As String
+  
+  If Not ExistPage(sPath) Then
+    If Not ExistPage(sPath, DEFAULT_LANG) Then
+      Return "<div class=\"unknown\">" & ("Please upload a file") & "</div>"
+    Else
+      sAdd = "&l=en"
+    Endif
+  Endif
+
+  If GetContentTypeFrom(sPath) Begins "video/" Then
+    Return "<video src=\"" & Html(Application.Root &/ sPath) & "?v" & sAdd & "\" autoplay></video>"
   Else
-    Return "<img src=\"" & Html(Application.Root &/ sPath) & "?v\" />"
+    Return "<img src=\"" & Html(Application.Root &/ sPath) & "?v" & sAdd & "\" />"
   Endif
   
 End
@@ -1527,10 +1755,294 @@ Private Sub SendPlayground()
   sData = Replace(sData, "((\"Play\"))", Quote(("Play")))
   sData = Replace(sData, "((\"Loading...\"))", Quote(("Loading") & "..."))
 
+  'Response.Buffered = True
   Response.ContentType = "text/javascript"
   AddCacheHeaders
+  'AddFrameHeader
   Response.Begin
   Print sData;
-  Response.End  
+  Response.End
 
+End
+
+Public Sub GetHowToInstall(sSystem As String) As String[]
+  
+  Dim I As Integer
+  Dim sLine As String
+  Dim sCommand As String
+  Dim aResult As String[]
+  Dim sPath As String
+  Dim sOutput As String
+  
+  If Not $bGitLabCI Then
+    
+    sPath = User.Home &/ "gitlab-ci.yml"
+    If Not Exist(sPath) Or If DateAdd(Stat(sPath).LastModified, gb.Day, 1) < Now Then
+      Try Kill sPath
+      Try Exec ["wget", "-q", "-O", "-", "https://gitlab.com/gambas/gambas/-/raw/master/.gitlab-ci.yml"] To sOutput
+      If sOutput Then File.Save(sPath, sOutput)
+    Endif
+    
+    Try $aGitLabCI = Split(File.Load(sPath), "\n")
+    $bGitLabCI = True
+    
+  Endif
+  
+  If Not $aGitLabCI Then Return ["<div class=\"error\">" & ("Unable to download configuration file from GitLab") & "</div>"]
+  
+  I = $aGitLabCI.Find("build:" & sSystem & ":")
+  If I < 0 Then Return ["<div class=\"error\">" & Subst(("Unable to find build configuration for '&1'"), sSystem) & "</div>"]
+  
+  aResult = New String[]
+  
+  Inc I
+  While I <= $aGitLabCI.Max
+    
+    sLine = $aGitLabCI[I]
+    If sLine Begins "build:" Then Break
+    
+    sLine = Trim(sLine)
+    If sLine Begins "- " Then
+      GoSub ADD_COMMAND
+      sCommand = " "
+      sLine = Mid$(sLine, 3)
+      If sLine <> ">" Then sCommand &= sLine
+    Else If sLine Ends ":" Then
+      GoSub ADD_COMMAND
+    Else
+      If sCommand And If sLine Then sCommand = Trim(sCommand & " " & sLine)
+    Endif
+    
+    Inc I
+  Wend
+  
+  GoSub ADD_COMMAND
+
+  aResult.Add("[[ code", 0)  
+  aResult.Add("]]")  
+  Return aResult
+  
+ADD_COMMAND:
+
+  If sCommand Then 
+    sCommand = Trim(Replace(sCommand, "GAMBAS_CONFIG_FAILURE=1 ", ""))
+    If sCommand Not Begins "make" Then
+      If aResult.Count Then aResult.Add("    ")
+      aResult.Add("    " & sCommand)
+    Endif
+    sCommand = ""
+  Endif
+  Return
+
+  
+End
+
+Public Sub GetSelection() As String[]
+
+  If Not $aSelection Then
+    $aSelection = Session["selection"]
+    If Not $aSelection Then $aSelection = New String[]
+  Endif
+  
+  Return $aSelection
+  
+End
+
+Public Sub HasSelection() As Boolean
+  
+  Return GetSelection().Count > 0
+  
+End
+
+
+Private Sub UpdateSelection()
+
+  If $aSelection Then Session["selection"] = $aSelection
+
+End
+
+
+Private Sub SelectCurrentPage()
+
+  Dim sSel As String
+  Dim I As Integer
+  
+  If Not Main.Path Then Return
+  
+  GetSelection()
+  
+  For I = 0 To $aSelection.Max
+    sSel = $aSelection[I]
+    If sSel = Main.Path Then 
+      $aSelection.Remove(I)
+      UpdateSelection
+      Return
+    Endif
+    If Main.Path Begins sSel &/ "/" Then
+      Message(("A parent of the page is already selected."))
+      Return
+    Endif
+  Next
+  
+  I = 0
+  While I < $aSelection.Count
+    If $aSelection[I] Begins Main.Path &/ "/" Then
+      $aSelection.Remove(I)
+    Else 
+      Inc I
+    Endif
+  Wend
+  
+  $aSelection.Add(Main.Path)
+  UpdateSelection
+  
+End
+
+Private Sub UnselectAll()
+  
+  GetSelection()
+  $aSelection.Clear
+  UpdateSelection
+  
+End
+
+Public Sub IsSelected(sLink As String) As Boolean
+  
+  Dim sSel As String
+  
+  GetSelection()
+  For Each sSel In $aSelection
+    If sSel = sLink Then Return True
+    If sLink &/ "/" Begins sSel &/ "/" Then Return True
+  Next
+  
+End
+
+Private Sub DoPurge(sPath As String)
+
+  Shell "rm " & Shell(sPath) &/ "~*" Wait 
+  Rmdir sPath
+
+End
+
+Private Sub MoveSelection()
+
+  Dim sSel As String
+  Dim sTarget As String
+  Dim sTargetPath As String
+  Dim sSrcPath As String
+  Dim aSel As New String[]
+  
+  If IsSelected(Main.Path) Then 
+    Message(("Cannot move selection into itself."))
+    Return
+  Endif
+  
+  GetSelection()
+  
+  For Each sSel In $aSelection
+    
+    sSrcPath = File.Dir(GetPagePathFrom(sSel))
+    
+    sTarget = Main.Path &/ File.Name(sSel)
+    sTargetPath = File.Dir(GetPagePathFrom(sTarget))
+    If Exist(sTargetPath) Then
+      If ExistPage(sTargetPath) Or If Dir(sTargetPath, "*", gb.Directory).Count Then
+        aSel.Add(sSel)
+        Message(Subst(("Destination already exists: &1"), sTarget))
+        Continue
+      Endif
+    Endif
+    
+    If Exist(sTargetPath) Then 
+      Try DoPurge(sTargetPath)
+      If Error Then
+        Message(Subst(("Cannot remove target directory: &1: &2"), sTarget, Error.Text))
+        aSel.Add(sSel)
+        Continue
+      Endif
+    Endif
+    
+    Try Move sSrcPath To sTargetPath
+    If Error Then
+      Message(Subst(("Cannot move directory to: &1: &2"), sTarget, Error.Text))
+      aSel.Add(sSel)
+      Continue
+    Endif
+    
+    MakeDir(sSrcPath)
+    Try File.Save(GetPagePathFrom(sSel), "--> " & sTarget)
+    If Error Then
+      Message(Subst(("Cannot link source to target: &1"), sSel))
+    Endif
+    
+    Main.Log("Move " & sSel & " to " & Main.Path & " (" & Main.Lang & ")")
+    
+  Next
+
+  $aSelection = aSel
+  UpdateSelection
+
+End
+
+Private Sub DeletePage(Optional bPurge As Boolean)
+
+  Dim sPath As String
+  
+  sPath = GetPagePath()
+   
+  If bPurge Then
+    If Dir(File.Dir(sPath), "*", gb.Directory).Count Then
+      Message(("Cannot purge a page having children."))
+      Return
+    Endif
+  Endif
+  
+  If {Exist} Then
+    LockPage
+    File.Save(sPath, "")
+    Copy sPath To GetPagePath(True)
+  Endif
+  
+  If bPurge Then
+    Try DoPurge(File.Dir(sPath))
+    If Error Then
+      Message(Subst(("Cannot purge page: &1"), Error.Text))
+    Else
+      Main.Log("Purge " & Main.Path & " (" & Main.Lang & ")")
+    Endif
+  Else
+    Main.Log("Delete " & Main.Path & " (" & Main.Lang & ")")
+  Endif
+  
+End
+
+Public Sub GetPageChildren(sPath As String) As String[]
+
+  Dim aSubDir As String[]
+  Dim aSort As String[]
+  Dim I As Integer
+  Dim sTitle As String
+  
+  aSubDir = Dir(File.Dir(Main.GetPagePathFrom(sPath)), "", gb.Directory)
+  aSort = New String[]
+  
+  While I < aSubDir.Count
+    
+    sTitle = Main.GetPageTitle(sPath &/ aSubDir[I])
+    
+    If Not Session.Id And If Not sTitle Then
+      aSubDir.Remove(I)
+      Continue
+    Endif
+    
+    If Not sTitle Then sTitle = aSubDir[I]
+    aSort.Add(sTitle)
+    Inc I
+    
+  Wend
+  
+  aSubDir.SortUsing(aSort, gb.Natural + gb.IgnoreCase)
+  Return aSubDir
+  
 End

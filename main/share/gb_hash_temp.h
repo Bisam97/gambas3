@@ -2,7 +2,7 @@
 
   gb_hash_temp.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -274,7 +274,7 @@ void *HASH_TABLE_insert(HASH_TABLE *hash_table, const char *key, int len)
 
 	node = hash_table_lookup_node(hash_table, key, len);
 
-	if (UNLIKELY(*node != NULL))
+	if (*node != NULL)
 		return NODE_value(*node);
 
 	*node = hash_node_new(hash_table, key, len);
@@ -296,7 +296,7 @@ void HASH_TABLE_remove(HASH_TABLE *hash_table, const char *key, int len)
 
 	node = hash_table_lookup_node(hash_table, key, len);
 
-	if (LIKELY(*node != NULL))
+	if (*node != NULL)
 	{
 		dest = *node;
 		(*node) = dest->next;
@@ -462,7 +462,7 @@ static HASH_NODE *hash_node_new(HASH_TABLE *hash_table, const char *key, int len
 
 	#ifdef KEEP_ORDER
 
-	if (UNLIKELY(!hash_table->sfirst))
+	if (!hash_table->sfirst)
 	{
 		hash_table->sfirst = hash_node;
 		hash_table->slast = hash_node;
@@ -494,7 +494,7 @@ static void hash_nodes_destroy(HASH_NODE *hash_node)
 
 	for(;;)
 	{
-		if (UNLIKELY(node == NULL))
+		if (node == NULL)
 			return;
 
 		next = node->next;
@@ -508,7 +508,7 @@ void HASH_TABLE_get_key(HASH_TABLE *hash_table, HASH_NODE *node, char **key, int
 {
 	HASH_KEY *node_key;
 
-	if (LIKELY(node != NULL))
+	if (node != NULL)
 	{
 		node_key = NODE_key(hash_table, node);
 		*key = node_key->key;

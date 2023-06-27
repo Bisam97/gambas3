@@ -38,8 +38,7 @@ static void cb_begin_cancel(GtkPrintOperation *operation, GtkPrintContext *conte
 {
 	if (printer->_preview)
 	{
-		if (printer->onBegin)
-			(*printer->onBegin)(printer, context);
+		CB_printer_begin(printer, context);
 		return;
 	}
 	
@@ -58,8 +57,7 @@ static void cb_begin(GtkPrintOperation *operation, GtkPrintContext *context, gPr
 	#endif
 	printer->defineSettings();
 	//gtk_print_settings_to_file(gtk_print_operation_get_print_settings(operation), "/home/benoit/settings-begin-before.txt", NULL);
-	if (printer->onBegin)
-		(*printer->onBegin)(printer, context);
+	CB_printer_begin(printer, context);
 	//gtk_print_settings_to_file(gtk_print_operation_get_print_settings(operation), "/home/benoit/settings-begin-after.txt", NULL);
 }
 
@@ -68,8 +66,8 @@ static void cb_end(GtkPrintOperation *operation, GtkPrintContext *context, gPrin
 	#if DEBUG_ME
 	fprintf(stderr, "cb_end: %d\n", printer->_preview);
 	#endif
-	if (printer->_preview && printer->onEnd)
-		(*printer->onEnd)(printer);
+	if (printer->_preview)
+		CB_printer_end(printer);
 }
 
 static gboolean cb_paginate(GtkPrintOperation *operation, GtkPrintContext *context, gPrinter *printer)
@@ -77,13 +75,8 @@ static gboolean cb_paginate(GtkPrintOperation *operation, GtkPrintContext *conte
 	#if DEBUG_ME
 	fprintf(stderr, "cb_paginate\n");
 	#endif
-	if (printer->onPaginate)
-	{
-		(*printer->onPaginate)(printer);
-		return printer->isPageCountSet();
-	}
-	else
-		return TRUE;
+	CB_printer_paginate(printer);
+	return printer->isPageCountSet();
 }
 
 static void cb_draw(GtkPrintOperation *operation, GtkPrintContext *context, int page, gPrinter *printer)
@@ -91,8 +84,7 @@ static void cb_draw(GtkPrintOperation *operation, GtkPrintContext *context, int 
 	#if DEBUG_ME
 	fprintf(stderr, "cb_draw\n");
 	#endif
-	if (printer->onDraw)
-		(*printer->onDraw)(printer, context, page);
+	CB_printer_draw(printer, context, page);
 }
 
 static gboolean cb_preview(GtkPrintOperation *operation, GtkPrintOperationPreview *preview,GtkPrintContext *context, GtkWindow *parent, gPrinter *printer)
@@ -159,11 +151,6 @@ gPrinter::gPrinter()
 
 	setPaperModel(GB_PRINT_A4);
 	setUseFullPage(false);
-	
-	onBegin = NULL;
-	onEnd = NULL;
-	onDraw = NULL;
-	onPaginate = NULL;
 }
 
 gPrinter::~gPrinter()
@@ -205,7 +192,9 @@ bool gPrinter::run(bool configure)
 	
 	#if DEBUG_ME
 	fprintf(stderr, "gPrinter::run: %d\n", configure);
+	fprintf(stderr, "name = %s\n", name());
 	fprintf(stderr, "orientation = %d\n", orientation());
+	fprintf(stderr, "isVirtual = %d\n", isVirtual());
 	#endif
 
 	operation = gtk_print_operation_new();
@@ -371,42 +360,77 @@ void gPrinter::setOrientation(int v)
 	gtk_page_setup_set_orientation(_page, orient);
 }
 
-GtkPaperSize *gPrinter::getPaperSize()
+
+static GtkPaperSize *get_paper_size(int paperSize)
 {
 	const char *name;
 	
-	switch(_paper_size)
+	switch(paperSize)
 	{
 		case GB_PRINT_A3: name = GTK_PAPER_NAME_A3; break;
-		case GB_PRINT_A4: name = GTK_PAPER_NAME_A4; break;
 		case GB_PRINT_A5: name = GTK_PAPER_NAME_A5; break;
 		case GB_PRINT_B5: name = GTK_PAPER_NAME_B5; break;
 		case GB_PRINT_LETTER: name = GTK_PAPER_NAME_LETTER; break;
 		case GB_PRINT_EXECUTIVE: name = GTK_PAPER_NAME_EXECUTIVE; break;
 		case GB_PRINT_LEGAL: name = GTK_PAPER_NAME_LEGAL; break;
-		default: name = GTK_PAPER_NAME_A4; _paper_size = GB_PRINT_A4;
+		default: name = GTK_PAPER_NAME_A4;
 	}
 	
 	return gtk_paper_size_new(name);
+}
+
+static void get_paper_dimensions(GtkPaperSize *paper, double *w, double *h)
+{
+	*w = gtk_paper_size_get_width(paper, GTK_UNIT_MM);
+	*h = gtk_paper_size_get_height(paper, GTK_UNIT_MM);
 }
 
 void gPrinter::setPaperModel(int v)
 {
 	GtkPaperSize *paper;
 	
-	_paper_size = v;
-	paper = getPaperSize();
+	paper = get_paper_size(v);
 	gtk_print_settings_set_paper_size(_settings, paper);
 	gtk_page_setup_set_paper_size(_page, paper);
 	gtk_paper_size_free(paper);
+}
+
+int gPrinter::paperModel() const
+{
+	static int modes[] = { GB_PRINT_A4, GB_PRINT_A3, GB_PRINT_A5, GB_PRINT_B5, GB_PRINT_LETTER, GB_PRINT_EXECUTIVE, GB_PRINT_LEGAL, GB_PRINT_CUSTOM };
+	
+	double w, h;
+	double wc, hc;
+	int i;
+	GtkPaperSize *paper;
+	GtkPaperSize *compare;
+	int ret = GB_PRINT_CUSTOM;
+	
+	paper = gtk_page_setup_get_paper_size(_page);
+	get_paper_dimensions(paper, &w, &h);
+	
+	for (i = 0;; i++)
+	{
+		if (modes[i] == GB_PRINT_CUSTOM)
+			break;
+		compare = get_paper_size(modes[i]);
+		get_paper_dimensions(compare, &wc, &hc);
+		gtk_paper_size_free(compare);
+		if (fabs(wc - w) < 1E-6 && fabs(hc - h) < 1E-6)
+		{
+			ret = modes[i];
+			break;
+		}
+	}
+	
+	return ret;
 }
 
 void gPrinter::getPaperSize(double *width, double *height)
 {
 	GtkPaperSize *paper = gtk_page_setup_get_paper_size(_page);
 	
-	*width = gtk_paper_size_get_width(paper, GTK_UNIT_MM);
-	*height = gtk_paper_size_get_height(paper, GTK_UNIT_MM);
+	get_paper_dimensions(paper, width, height);
 	
 	if (orientation() == GB_PRINT_LANDSCAPE)
 	{
@@ -414,33 +438,11 @@ void gPrinter::getPaperSize(double *width, double *height)
 		*width = *height;
 		*height = swap;
 	}
-	
-#if 0
-	if (_paper_size == GB_PRINT_CUSTOM)
-	{
-		*width = gtk_print_settings_get_paper_width(_settings, GTK_UNIT_MM);
-		*height = gtk_print_settings_get_paper_height(_settings, GTK_UNIT_MM);
-		//*width = gtk_page_setup_get_paper_width(_page, GTK_UNIT_MM);
-		//*height = gtk_page_setup_get_paper_height(_page, GTK_UNIT_MM);
-		
-		// orientation is taken into account
-	}
-	else
-	{
-		GtkPaperSize *paper = getPaperSize();
-		*width = gtk_paper_size_get_width(paper, GTK_UNIT_MM);
-		*height = gtk_paper_size_get_height(paper, GTK_UNIT_MM);
-		gtk_paper_size_free(paper);
-		
-	}
-#endif
 }
 
 void gPrinter::setPaperSize(double width, double height)
 {
 	GtkPaperSize *paper;
-	
-	_paper_size = GB_PRINT_CUSTOM;
 	
 	if (orientation() == GB_PRINT_LANDSCAPE)
 	{
@@ -453,16 +455,6 @@ void gPrinter::setPaperSize(double width, double height)
 	gtk_page_setup_set_paper_size(_page, paper);
 	gtk_print_settings_set_paper_size(_settings, paper);
 	gtk_paper_size_free(paper);
-
-	/*if (orientation() == GB_PRINT_LANDSCAPE)
-	{
-		double swap = width;
-		width = height;
-		height = swap;
-	}*/
-	
-	//gtk_print_settings_set_paper_width(_settings, width, GTK_UNIT_MM);
-	//gtk_print_settings_set_paper_height(_settings, height, GTK_UNIT_MM);
 }
 
 bool gPrinter::collateCopies() const
@@ -634,7 +626,8 @@ void gPrinter::setOutputFileName(const char *file)
 	else
 		format = NULL;*/
 
-	gtk_enumerate_printers((GtkPrinterFunc)find_file_printer, this, NULL, TRUE);
+	if (file && *file)
+		gtk_enumerate_printers((GtkPrinterFunc)find_file_printer, this, NULL, TRUE);
 	
 	gtk_print_settings_set(_settings, GTK_PRINT_SETTINGS_OUTPUT_URI, uri);	
 	g_free(uri);

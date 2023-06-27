@@ -27,7 +27,8 @@ Public Sub Form_Open()
     TabPanel2.Picture = Picture["icon:/32/bookmark"]
     hLabel = New Label(TabPanel2)
     hLabel.Move(8, 8, 8, 8)
-    hLabel.AutoResize = True
+    'hLabel.AutoResize = True
+    hLabel.Expand = True
     hLabel.Text = " " & CStr(I + 1) & " "
     hLabel.Font.Grade = 6
     hLabel.Border = Border.Plain
@@ -74,5 +75,18 @@ End
 Public Sub Button2_Click()
 
   TabPanel2.Orientation = If(TabPanel2.Orientation = Align.Top, Align.Bottom, Align.Top)  
+
+End
+
+Public Sub Button3_Click()
+
+  TabPanel2.TabBarPaddingStart = 16 - TabPanel2.TabBarPaddingStart
+  TabPanel2.TabBarPaddingEnd = 16 - TabPanel2.TabBarPaddingEnd
+
+End
+
+Public Sub Button4_Click()
+
+  TabPanel2.ShowTabBar = Not TabPanel2.ShowTabBar
 
 End

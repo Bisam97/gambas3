@@ -3,7 +3,7 @@
 Export
 Inherits UserControl
 
-Public Const _Properties As String = "*,List,Border=True,Mode{Select.*}=Single,ScrollBar{Scroll.*}=Vertical,Sorted"
+Public Const _Properties As String = "*,List,Border=True,Grid,Mode{Select.*}=Single,ScrollBar{Scroll.*}=Vertical,Wrap,Sorted"
 Public Const _Group As String = "View"
 Public Const _DefaultEvent As String = "Click"
 Public Const _DefaultSize As String = "16,16"
@@ -20,6 +20,12 @@ Property Read Text As String
 Property List As String[]
 Property Font As Font
 
+'' Return or set if the item text must wrap and the item height expands automatically.
+Property Wrap As Boolean
+
+'' Return or set if a grid should be displayed between the items.
+Property Grid As Boolean
+
 Property ScrollX As Integer
 Property ScrollY As Integer
 Property Read ScrollW, ScrollWidth As Integer
@@ -35,6 +41,9 @@ Private $hView As GridView
 Private $aText As New String[]
 Private $bSorted As Boolean
 Private $hSortTimer As Timer
+Private $hTimerClick As Timer
+Private $bWrap As Boolean
+Private $hResizeTimer As Timer
 
 Public Sub _new()
   
@@ -42,11 +51,12 @@ Public Sub _new()
   $hView.Columns.Count = 1
   $hView.Mode = Select.Single
   $hView.Grid = False
-  $hView.AutoResize = True
   $hView._DoNotDrawSelection = True
   $hView.ScrollBar = Scroll.Vertical
   
   Me.Proxy = $hView
+  
+  UpdateLayout
   
 End
 
@@ -58,8 +68,10 @@ End
 
 Public Sub Clear()
 
+  'Object.Lock(Me)
   $aText.Clear
   $hView.Rows.Count = 0
+  'Object.Unlock(Me)
   
 End
 
@@ -70,8 +82,18 @@ Private Sub SortLater()
     $hSortTimer.Trigger
   Endif
   
+  ResizeLater
+  
 End
 
+Private Sub ResizeLater()
+  
+  If Not $hResizeTimer Then
+    $hResizeTimer = New Timer As "Resize"
+    $hResizeTimer.Trigger
+  Endif
+  
+End
 
 Public Sub Add(Text As String, Optional Index As Integer = -1)
   
@@ -83,6 +105,13 @@ Public Sub Add(Text As String, Optional Index As Integer = -1)
   Endif
   
   $hView.Rows.Count = $aText.Count
+  
+  If Index < 0 Then
+    $hView.Rows[$aText.Max].H = -1
+  Else
+    $hView.Rows[Index].H = -1
+  Endif
+  
   SortLater
   
 End
@@ -101,6 +130,7 @@ Public Sub GridView_Data(Row As Integer, (Column) As Integer)
   
   With $hView.Data
     Try .Text = $aText[Row]
+    .WordWrap = $bWrap
     If $hView.Rows[Row].Selected Then
       .Background = Color.SelectedBackground
       .Foreground = Color.SelectedForeground
@@ -140,15 +170,46 @@ Private Function ScrollBar_Read() As Integer
 
 End
 
+Private Sub UpdateLayout()
+
+  ' Dim W As Integer
+  ' Dim sText As String
+  
+  If $bWrap Then
+    
+    $hView.AutoResize = True
+    $hView.Columns[0].Expand = True
+
+  Else
+  
+    If $hView.ScrollBar And Scroll.Horizontal Then
+      
+      $hView.AutoResize = False
+      $hView.Columns[0].W = -1
+      
+    Else
+      
+      $hView.AutoResize = True
+      $hView.Columns[0].Expand = False
+      
+    Endif
+    
+    ' For Each sText In $aText
+    '   W = Max(W, Me.Font.TextWidth(sText))
+    ' Next
+    ' 
+    ' $hView.Columns[0].W = W + 8
+  
+  Endif
+
+  ResizeLater
+
+End
+
 Private Sub ScrollBar_Write(Value As Integer)
 
   $hView.Scrollbar = Value
-  If $hView.ScrollBar And Scroll.Horizontal Then
-    $hView.AutoResize = False
-    $hView.Columns[0].W = -1
-  Else
-    $hView.AutoResize = True
-  Endif
+  UpdateLayout
 
 End
 
@@ -188,14 +249,23 @@ Public Sub GridView_Select()
   
   'If $bNoEvent Then Return
   If $hView.Row < 0 Then Return
-  
+
   Raise Select
   
 End
 
-Public Sub GridView_Click()
+Public Sub TimerClick_Timer()
   
   Raise Click
+  $hTimerClick = Null
+  
+End
+
+
+Public Sub GridView_Change()
+  
+  $hTimerClick = New Timer As "TimerClick"
+  $hTimerClick.Trigger
   
 End
 
@@ -259,6 +329,14 @@ Public Sub Sort_Timer()
   
 End
 
+Public Sub Resize_Timer()
+  
+  $hResizeTimer = Null
+  $hView.Rows.H = -1
+  $hView.Refresh
+  
+End
+
 Private Sub Sort()
 
   Dim sCurrent As String
@@ -269,15 +347,10 @@ Private Sub Sort()
     bSelect = True
   Endif
 
-  $aText.Sort
+  $aText.Sort(gb.Natural + gb.IgnoreCase)
   $hView.Refresh
   
   If bSelect Then $hView.Row = $aText.Find(sCurrent)
-  
-  If $hSortTimer Then 
-    $hSortTimer.Stop
-    $hSortTimer = Null
-  Endif
   
 End
 
@@ -358,7 +431,8 @@ End
 
 Private Sub Index_Write(Value As Integer)
 
-  Try $hView.Row = Value
+  If Value < -1 Or If Value >= $aText.Count Then Error.Raise("Bad index")
+  $hView.Row = Value
 
 End
 
@@ -396,7 +470,6 @@ Public Sub _GetText(iIndex As Integer) As String
   
 End
 
-
 Public Sub _SetText(iIndex As Integer, sText As String)
   
   Try $aText[iIndex] = sText
@@ -404,25 +477,11 @@ Public Sub _SetText(iIndex As Integer, sText As String)
   
 End
 
-Private Sub ResizeColumn()
-  
-  Dim W As Integer
-  Dim sText As String
-  
-  For Each sText In $aText
-    W = Max(W, Me.Font.TextWidth(sText))
-  Next
-  
-  $hView.Columns[0].W = W + 8
-  
-End
-
-Public Sub GridView_ColumnSize((Column) As Integer)
-  
-  ResizeColumn
-  
-End
-
+' Public Sub GridView_ColumnSize((Column) As Integer)
+'   
+'   UpdateLayout
+'   
+' End
 
 Private Function Font_Read() As Font
 
@@ -433,6 +492,39 @@ End
 Private Sub Font_Write(Value As Font)
 
   $hView.Font = Value
-  ResizeColumn
+  UpdateLayout
+
+End
+
+Private Function Wrap_Read() As Boolean
+
+  Return $bWrap
+
+End
+
+Private Sub Wrap_Write(Value As Boolean)
+
+  If $bWrap = Value Then Return
+  $bWrap = Value
+  UpdateLayout
+
+End
+
+Public Sub GridView_Arrange()
+  
+  If $bWrap Then ResizeLater
+  
+End 
+
+Private Function Grid_Read() As Boolean
+
+  Return $hView.Grid
+
+End
+
+Private Sub Grid_Write(Value As Boolean)
+
+  $hView.Grid = Value
+  $hView.Rows.Padding = If(Value, Desktop.Scale, 0)
 
 End

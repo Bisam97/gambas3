@@ -1,0 +1,1757 @@
+' Gambas class file
+
+''' This class represents the different pages and dialogs of your Web application.
+
+Export
+Create Static
+Inherits WebContainer
+
+Class Debug
+Class _DefaultStock
+
+Public Const _IsForm As Boolean = True
+Public Const _HiddenControls As String = "WebControl,WebForm,Timer,WebMenu"
+Public Const _Properties As String = "*,Title,Resizable,Persistent,Shortcuts"
+Public Const _DefaultEvent As String = "Open"
+
+Static Property Debug As Boolean Use $bDebug
+
+'' Return or set the current form, i.e. the main form of the application that fills the web page.
+''
+'' If the current form changes, the web page is automatically reloaded.
+Static Property Current As WebForm
+
+'' This event is raised when the form is opened.
+Event Open
+
+'' This event is raised each time an event is handled by the form.
+Event Event
+
+'' This event is raised when the form is closed.
+Event Close
+
+'' This title is used as HTML page title if the form is the main form.
+Property Title As String
+
+'' Return or set if the form is resizable when used as a dialog.
+Property Resizable As Boolean
+
+'' Return or set the minimum width of the form.
+''
+'' This property can take any valid CSS size. If not set, the control will have no minimum width.
+Property Width, W As String
+
+'' Return or set the minimum height of the form.
+''
+'' This property can take any valid CSS size. If not set, the control will have no minimum height.
+Property Height, H As String
+
+'' Return if the form is a popup.
+Property Read Popup As Boolean
+
+'' Return the control that owns the popup.
+Property Read PopupParent As WebControl
+
+'' Return or set if the form is persistent.
+''
+'' Closing a non-persistent form automatically destroys it.
+Property Persistent As Boolean
+
+Property Shortcuts As String[]
+
+Static Public _DisableRefresh As Integer
+Static Public _HasRefresh As Boolean
+Static Public _InMessage As Integer
+Static Public _CurrentPopup As WebForm
+Static Public _CurrentModal As WebForm
+
+Static Private _Current As WebForm
+
+'Private Const LOG_ENABLED As Boolean = True
+Static Private $bLogEnabled As Boolean
+
+Static Private $sStartupError As String
+Static Private $iRequestProcess As Integer
+Static Private $bSendCookie As Boolean
+Static Private $hTimeout As Timer
+Static Private $hRead As File
+Static Private $hWrite As File
+Static Private $bDoNotRespond As Boolean
+Static Private $iEventLoopLevel As Integer
+Static Private $sActiveControl As String
+
+Static Private $aJavascript As New String[]
+Static Private $aJavascriptBefore As New String[]
+Static Private $cPreload As New Collection
+
+Public _Loaded As Boolean
+Public _Window As Integer
+
+Private $sTitle As String
+Private $bPersistent As Boolean
+Private $bResizable As Boolean
+Private $hWindowContainer As WebContainer
+
+Private $sX As String
+Private $sY As String
+Private $sWidth As String
+Private $sHeight As String
+
+Private $vEventLoopReturn As Variant
+
+Private $hMenuBar As WebMenuBar
+Private $hContents As WebContainer
+
+Private $aJavascriptFiles As String[]
+Private $aJavascriptExternFiles As String[]
+Private $aHeaders As String[]
+
+Private $aShortcuts As String[]
+Private $iDefault As Integer
+Private $iCancel As Integer
+
+Static Private Const DEBUG_RUNNER As Boolean = False
+
+'Private $bOpened As Boolean
+
+Static Public Sub _init()
+  
+  System.Language = Request.Language
+  If Env["GB_WEB_GUI_DEBUG"] = "1" Or If Exist("/tmp/session.debug") Then $bLogEnabled = True
+  
+End
+
+Static Public Sub PrintLog(sLog As String)
+
+  Dim hFile As File
+
+  If Not $bLogEnabled Then Return
+  'If Not $bDebug Then Return
+  hFile = Open Session.Path &/ "error.log" For Append
+  For Each sLog In Split(sLog, "\n")
+    Print #hFile, Format(Application.Id, "######"); " | "; sLog
+  Next
+  Close #hFile
+
+End
+
+Static Private Sub RenderIcon(sIcon As String) As Boolean
+
+  Dim iPos As Integer
+  Dim sSize As String
+  Dim sType As String
+  Dim sPath As String
+  
+  iPos = InStr(sIcon, "::")
+  If iPos = 0 Then Return True
+  
+  sType = Left(sIcon, iPos - 1)
+  sIcon = Mid$(sIcon, iPos + 2)
+  
+  iPos = InStr(sIcon, ":")
+  If iPos = 0 Then Return True
+  
+  sSize = Left(sIcon, iPos - 1)
+  sIcon = Mid$(sIcon, iPos + 1) & ".png"
+
+  sPath = "./gb.form.stock/"
+  Component.Load("gb.form.stock")
+
+  If sType = "icon" Then
+  
+    If sSize = "huge" And If Exist(sPath & "gambas/128/" & sIcon) Then
+      sPath &= "gambas/128/" & sIcon
+    Else
+      sPath &= "gambas/32/" & sIcon
+    Endif
+  
+  Else If sType = "flag" Then
+  
+    sPath &= "flag/256" &/ sIcon
+    
+  Else 
+    
+    Return True
+  
+  Endif
+
+  Response.SendFile(sPath)
+  
+End
+
+Static Private Sub Upload(sKey As String) As Boolean
+  
+  Dim sPath As String
+  Dim sTarget As String
+  
+  PrintLog("UPLOAD " & sKey)
+  
+  sTarget = Upload.Path &/ sKey
+  
+  If Not Request.Cookies[Session.CookieName] Or If Not Exist(sTarget) Then 
+    PrintLog("UPLOAD DOES NOT EXIST")
+    Response.Status = "404 Not Found"
+    Response.Begin
+    Response.End
+    Return
+  Endif
+  
+  For Each sPath In Request.Files
+    
+    PrintLog("UPLOAD path = " & sPath)
+    PrintLog("UPLOAD target = " & sTarget)
+    Try Kill sTarget
+    Move sPath To sTarget
+    Break
+    
+  Next
+  
+  CGI["REQUEST_METHOD"] = "GET"
+  CGI["PATH_INFO"] = "/x"
+  CGI["QUERY_STRING"] = "c=" & URL.Encode(JSON.ToString(["finish", sKey]))
+
+Catch
+  
+  CGI["REQUEST_METHOD"] = "GET"
+  CGI["PATH_INFO"] = "/x"
+  CGI["QUERY_STRING"] = "c=" & URL.Encode(JSON.ToString(["error", sKey, Error.Text]))
+
+  Try Kill sTarget
+    
+End
+
+Static Private Sub GetCookieName() As String
+
+  Dim sApp As String
+  Dim I As Integer
+  Dim sCookie As String
+  
+  sApp = Application.Name
+  
+  For I = 1 To Len(sApp)
+    sCookie &= Hex$(Asc(sApp, I))
+  Next
+  
+  Return "GBSESSIONID-" & UCase(sCookie)
+  
+End
+
+
+Static Public Sub Main()
+
+  Dim hProcess As Process
+  Dim sCookie As String
+  Dim sRead As String
+  Dim sWrite As String
+  Dim sTemp As String
+  Dim sPath As String
+  Dim aLib As String[]
+  Dim sFile As String
+  Dim sVar As String
+  Dim hLock As File
+  Dim iPid As Integer
+  Dim sExec As String
+  
+  Session.CookieName = GetCookieName()
+  sTemp = Session.Path
+  
+  ' Beware that a CGI script receives the Request query in its first argument as soon as there is no "=" character in it!
+  
+  If Args.Count = 3 And If Args[1] = Application.ParentHandle Then
+  
+    If DEBUG_RUNNER Then PrintLog("Start: " & Args.All.Join(" | "))
+    
+    If Args[2] <> "TEST" Then Application.Daemon = True
+  
+    $bSendCookie = True
+    Session.Id = Args[2]
+
+    If DEBUG_RUNNER Then PrintLog("Catch SIGUSR1 signal")
+    Signal[Signal.SIGUSR1].Catch()
+
+    If DEBUG_RUNNER Then PrintLog("Create startup form")
+    Try _Current = Application.Startup.AutoCreate()
+    If Error Then
+      $sStartupError = Error.Text & "\n\n" & Error.Backtrace.Join(" ")
+    Endif
+    
+    If DEBUG_RUNNER Then PrintLog("Start request timeout")
+    $hTimeout = New Timer As "Timeout"
+    $hTimeout.Delay = Session.Timeout * 1000
+    $hTimeout.Start
+    
+    Try Kill sTemp &/ Session.Id
+    Link "/proc" &/ CStr(Application.Id) To sTemp &/ Session.Id
+    If DEBUG_RUNNER Then PrintLog("Create session file: " & sTemp &/ Session.Id)
+
+    If DEBUG_RUNNER Then PrintLog("Waiting for SIGUSR1")
+    Return
+    
+  Endif
+  
+  ' Static requests, not handled by the session process.
+  
+  sPath = Mid$(Request.Path, 2)
+
+  If sPath Then
+  
+    If sPath Begins "style:" And sPath Ends ".css" Then
+      
+      aLib = Split(Left(sPath, -4), ":")
+      If aLib.Count >= 3 Then sFile = aLib[1] & ".css"
+      If RenderStyleSheet(sFile) Then Goto NOT_FOUND
+      Return
+      
+    Else If sPath Begins "lib:" And sPath Ends ".js" Then
+      
+      aLib = Split(Left(sPath, -3), ":")
+      aLib.Remove(aLib.Max)
+      'If aLib.Count >= 3 Then sFile = aLib[1] & ".js"
+      RenderJavascript(aLib)
+      Return
+    
+    ' Else If sPath Begins "img:" Then
+    '   
+    '   Try sPath = Session[Mid$(sPath, 5)]["Image"]
+    '   If Not Error Then Response.SendFile(sPath)
+    '   Goto END_REQUEST
+    '   
+    ' Else If sPath Begins "download:" Then
+    '   
+    '   If DownloadFile(Mid$(sPath, 10)) Then Goto NOT_FOUND
+    '   Goto END_REQUEST
+      
+    Else If sPath Begins "icon:" Then
+      
+      If RenderIcon(Mid$(sPath, 6)) Then Goto NOT_FOUND
+      Return
+      
+    Else If sPath Begins "upload:" Then
+      
+      If Upload(Mid$(sPath, 8)) Then Return
+    
+    Else If sPath = "~dump" Then
+      
+      Response.ContentType = "text/plain;charset=utf-8"
+      Response.Begin
+      
+      For Each sVar In Env
+        Print sVar; " = "; Env[sVar]
+      Next
+  
+      Response.End
+      Return
+        
+    ' Else If sPath = "~logout" Then
+    ' 
+    Else If Exist("../.public/" &/ sPath) Then
+      
+      Response.SendFile("../.public/" &/ sPath)
+      Return
+      
+    Else If Exist(".public/" &/ sPath) Then
+      
+      Response.SendFile(".public/" &/ sPath)
+      Return
+      
+    Endif
+    
+  Endif
+    
+  PrintLog("================ NEW REQUEST: " & Application.Request)
+
+  sCookie = Request.Cookies[Session.CookieName]
+  If DEBUG_RUNNER Then PrintLog("COOKIE = " & If(sCookie, sCookie, "<none>"))
+  
+  If sCookie Then
+    If DEBUG_RUNNER Then PrintLog(sTemp &/ sCookie & " = " & Str(Exist(sTemp &/ sCookie, True)))
+    If Not Exist(sTemp &/ sCookie, True) Then 
+      If DEBUG_RUNNER Then PrintLog("UNKNOWN SESSION")
+      'Response.RemoveCookie("GBSESSIONID", sCookie, "", GetCookiePath())
+      Session.Abandon
+      If Request.Path = "/x" Then
+        Response.ContentType = "text/javascript;charset=utf-8"
+        Response.Begin
+        Print "window.location.reload(true)";
+        Response.End
+      Else
+        Response.Redirect(Application.Root)
+      Endif
+      Return
+    Endif
+  Endif
+  
+  If DEBUG_RUNNER Then PrintLog("CATCH SIGUSR1 SIGNAL")
+  Signal[Signal.SIGUSR1].Catch()
+  
+  If Not sCookie Then 
+    
+    'If Dir(sTemp, "*.in").Count > 
+    
+    If Class.IsLoaded("Debug") Then
+      If DEBUG_RUNNER Then PrintLog("Fifo = " & Debug.Fifo)
+    Endif
+    
+    sCookie = Session.Create()
+    Try hLock = Lock sTemp &/ sCookie & ".lock" Wait 10
+
+    If DEBUG_RUNNER Then 
+      PrintLog("EXEC Application.Path = " & Application.Path)
+      PrintLog("EXEC Args = " & Args.All.Join(" | "))
+    Endif
+
+    sExec = Application.Path &/ File.Name(Args[0])
+
+    If Not Exist(sExec) Then
+      If Class.IsLoaded("Debug") And If Debug.Fifo Then
+        If DEBUG_RUNNER Then PrintLog("---------------- EXEC gbx3 -g -f " & Debug.Fifo & " " & Application.Path & " -- " & Application.Handle & " " & sCookie)
+        hProcess = Exec ["gbx3", "-g", "-f", Debug.Fifo, Application.Path, "--", Application.Handle, sCookie] Wait
+      Else
+        If DEBUG_RUNNER Then PrintLog("---------------- EXEC gbx3 " & Application.Path & " -- " & Application.Handle & " " & sCookie)
+        hProcess = Exec ["gbx3", Application.Path, "--", Application.Handle, sCookie] Wait
+      Endif
+    Else
+      If DEBUG_RUNNER Then PrintLog("---------------- EXEC " & sExec & " " & Application.Handle & " " & sCookie)
+      hProcess = Exec [sExec, Application.Handle, sCookie] Wait
+    Endif
+    
+    If DEBUG_RUNNER Then PrintLog("Waiting for: " & sTemp &/ sCookie & "...")
+    While Not Exist(sTemp &/ sCookie, True)
+      Sleep 0.05
+    Wend
+    
+    If DEBUG_RUNNER Then PrintLog("COOKIE = " & sCookie & " [NEW]")
+    
+  Else
+    
+    Try hLock = Lock sTemp &/ sCookie & ".lock" Wait 10
+    If DEBUG_RUNNER Then PrintLog("COOKIE = " & sCookie)
+    
+  Endif
+  
+  If Error Then
+    Response.Status = "429 Too many requests"
+    Response.ContentType = "text/plain;charset=utf-8"
+    Response.Begin
+    Print Error.Text;
+    Response.End
+    Return
+  Endif
+  
+  Session.Id = sCookie
+  sRead = sTemp &/ sCookie & ".out"
+  sWrite = sTemp &/ sCookie & ".in"
+  
+  If DEBUG_RUNNER Then PrintLog("OPEN READ " & sRead)
+  $hRead = Open Pipe sRead For Read
+    
+  If DEBUG_RUNNER Then PrintLog("OPEN WRITE " & sWrite)
+  $hWrite = Open Pipe sWrite For Write
+  
+  iPid = CInt(File.Name(Stat(sTemp &/ sCookie).Link))
+  If DEBUG_RUNNER Then PrintLog("SEND SIGUSR1 TO PROCESS " & CStr(iPid))
+  Signal.Send(iPid, Signal.SIGUSR1)
+    
+  If DEBUG_RUNNER Then PrintLog("WRITE ENV")
+
+  Write #$hWrite, Application.Id As Integer
+  Write #$hWrite, CGI.All As Collection
+  
+  ' If Request.Method = "POST" Then
+  '   While Not Eof(File.In)
+  '     Wait
+  '     sData = Read -4096
+  '     Print #hWrite, sData;
+  '   Wend
+  ' Endif
+  
+  If DEBUG_RUNNER Then PrintLog("WAITING FOR SIGUSR1")
+  ' Now we wait SIGUSR1 from session process
+  Return
+  
+NOT_FOUND:
+
+  Response.Status = "404 NotFound"
+  Response.Begin
+  Response.End
+  Return
+  
+Catch
+  
+  PrintLog("**** " & Error.Text & "\n**** " & Error.Where & ": " & Error.Backtrace.Join(" "))
+  
+End
+
+Static Private Sub BeginResponse()
+
+  Dim sTemp As String
+  Dim sRead As String
+  Dim sWrite As String
+  Dim cEnv As Collection
+  Dim sVal As String
+  
+  If DEBUG_RUNNER Then PrintLog("BeginResponse")
+  
+  $hTimeout.Stop
+  
+  sTemp = Session.Path
+  sRead = sTemp &/ Session.Id & ".in"
+  sWrite = sTemp &/ Session.Id & ".out"
+  
+  If DEBUG_RUNNER Then PrintLog("Open read " & sRead)
+  $hRead = Open Pipe sRead For Read
+  Input From $hRead
+  
+  If DEBUG_RUNNER Then PrintLog("Read env")
+  $iRequestProcess = Read As Integer
+  cEnv = Read As Collection
+
+  CGI.Reset
+  For Each sVal In cEnv
+    CGI[cEnv.Key] = sVal
+  Next
+  ' To disable compression
+  CGI["HTTP_ACCEPT_ENCODING"] = ""
+  
+  If DEBUG_RUNNER Then PrintLog("Open write " & sWrite)
+  $hWrite = Open Pipe sWrite For Write
+  $hWrite.Blocking = True
+  $hWrite.Begin
+  Output To $hWrite
+  
+  If DEBUG_RUNNER Then PrintLog("Send SIGUSR1 to request process " & CStr($iRequestProcess))
+  Signal.Send($iRequestProcess, Signal.SIGUSR1)
+  
+End
+
+Static Private Sub EndResponse()
+  
+  If $bDoNotRespond Then 
+    If DEBUG_RUNNER Then PrintLog("EndResponse ignore")
+    Return
+  Endif
+  
+  $hWrite.Send
+
+  Input From Default
+  Output To Default
+  
+  If DEBUG_RUNNER Then PrintLog("Close read")
+  Close $hRead
+  $hRead = Null
+  
+  If DEBUG_RUNNER Then PrintLog("Close write")
+  Close $hWrite
+  $hWrite = Null
+  
+  $hTimeout.Restart
+  
+End
+
+Static Private Sub SendResponse()
+  
+  If $bDoNotRespond Then 
+    If DEBUG_RUNNER Then PrintLog("SendResponse ignore")
+    Return
+  Endif
+
+  If DEBUG_RUNNER Then PrintLog("SendResponse")  
+  Response.Buffered = True
+  Response.ContentType = "text/javascript;charset=utf-8"
+  Response.Begin
+  PrintJavascript
+  Response.End
+  
+End
+
+Static Public Sub Application_Signal(Num As Integer)
+  
+  Dim sData As String
+  
+  If Num <> Signal.SIGUSR1 Then Return
+  
+  If Application.Daemon Then
+    
+    If DEBUG_RUNNER Then PrintLog("Caught SIGUSR1")
+  
+    BeginResponse
+    HandleRequest
+    EndResponse
+  
+  Else
+    
+    If DEBUG_RUNNER Then PrintLog("CAUGHT SIGUSR1")
+    
+    ' sTemp = File.Dir(File.Dir(Temp$())) &/ "session"
+    ' sRead = sTemp &/ $sCookie & ".out"
+    ' 
+    ' PrintLog("OPEN READ " & sRead)
+    ' hRead = Open Pipe sRead For Read
+    
+    PrintLog("READ RESPONSE")
+    While Not Eof($hRead)
+      sData = Read #$hRead, -4096
+      Print sData;
+      If $bLogEnabled Then PrintLog("READ RESPONSE ==> " & Replace(sData, "\n", "\nREAD RESPONSE ==> "))
+    Wend
+    
+    Flush
+    Quit
+    
+  Endif
+  
+Catch
+
+  PrintLog("**** " & Error.Text & ": " & Error.Backtrace.Join(" "))  
+  Signal.Send($iRequestProcess, Signal.SIGKILL)
+  Exit()
+  
+End
+
+Static Private Sub Exit()
+
+  Dim sTemp As String
+  Dim sCookie As String
+  
+  PrintLog("---------------- QUIT " & Application.Path &/ Args[0])
+  sTemp = Session.Path
+  sCookie = Session.Id
+  Try Kill sTemp &/ sCookie
+  Try Kill sTemp &/ sCookie & ".in"
+  Try Kill sTemp &/ sCookie & ".out"
+  Try Kill sTemp &/ sCookie & ".lock"
+  Signal[Signal.SIGUSR1].Reset()
+  Flush
+  Quit
+  
+End
+
+
+Static Public Sub Timeout_Timer()
+
+  PrintLog("Timeout")
+  Exit()
+  
+End
+
+Static Public Sub _AddJavascript(sStr As String)
+  
+  $aJavascript.Add(sStr)
+  
+End
+
+Static Public Sub _AddJavascriptBefore(sStr As String)
+  
+  $aJavascriptBefore.Add(sStr)
+  
+End
+
+Static Private Sub HandleRequest()
+
+  Dim sPath As String
+
+  sPath = Mid$(Request.Path, 2)
+  PrintLog("HandleRequest: " & sPath)
+
+  If sPath = "~logout" Then
+    
+    Session.Abandon
+    
+  Else If sPath = "x" Then
+
+    PrintLog("/x: " & Request["c"])
+
+    _Current._HandleMessage()
+
+  Else If sPath Then
+    
+    Response.Status = "404 Not Found"
+    Response.Begin
+    Response.End
+    Return
+    
+  Else
+  
+    If $bSendCookie Then
+      Session._SendCookie()
+      $bSendCookie = False
+    Endif
+    
+    If $sStartupError Then
+      RenderStartupError
+    Else
+      _Current.Render()
+    Endif
+    
+  Endif
+  
+  If Not Session.Id Then
+    Response.Redirect(Application.Root)
+    EndResponse()
+    Exit()
+  Endif
+
+End
+
+Static Private Sub RenderStyleSheet(Optional sFile As String) As Boolean
+  
+  Dim sReplace As String
+  
+  If Not sFile Then sFile = "style.css"
+  
+  If Not Exist(sFile) Then Return True
+  
+  Response.Buffered = True
+  Response.ContentType = "text/css;charset=utf-8"
+  Response.Begin
+  
+  sReplace = Application.Root
+  If sReplace Then sReplace &= "/"
+  Print Replace(File.Load(sFile), "//", sReplace);
+  
+  If Exist("../.public" &/ sFile) Then Print File.Load("../.public/" &/ sFile);
+  
+  Response.End
+  
+End
+
+Static Private Sub RenderJavascript(aLib As String[])
+  
+  Dim sFile As String
+  
+  Response.ContentType = "text/javascript;charset=utf-8"
+  Response.Begin
+  
+  For Each sFile In aLib
+  
+    sFile &= ".js"
+  
+    If sFile = "lib.js" Then 
+      Print "$root = "; JS(Application.Root); ";"
+      Print File.Load(sFile)
+      Print File.Load("ac.js")
+    Else
+      If Exist(sFile) Then
+        Print File.Load(sFile)
+      Else If Exist(".." &/ sFile) Then
+        Print File.Load(".." &/ sFile)
+      Else 
+        Print "// Unable to load: "; sFile
+      Endif
+    Endif
+    
+  Next
+  
+  Response.End
+  
+End
+
+Static Private Sub PrintJavascript()
+  
+  Dim sJavascript As Variant
+  
+  If $aJavascriptBefore.Count Then 
+    Print $aJavascriptBefore.Join("\n")
+    $aJavascriptBefore.Clear
+  Endif
+  
+  ' Handle full refreshes
+  
+  If _HasRefresh Then
+    _HasRefresh = False
+    _Current._RefreshReply()
+  Endif
+  
+  ' Handle small refreshes done by javascript, and that were not cancelled by a full refreh
+  
+  For Each sJavascript In WebControl._RefreshJavascript
+    Print sJavascript
+  Next
+  WebControl._RefreshJavascript.Clear
+  
+  If $aJavascript.Count Then 
+    Print $aJavascript.Join("\n")
+    $aJavascript.Clear
+  Endif
+  
+  WebControl._PrintNeedKeyPress
+  
+End
+
+Public Sub _new()
+
+  $hMenuBar = New WebMenuBar(Me)
+  $hMenuBar.Hide
+  
+  $hContents = New WebContainer(Me)
+  $hContents.Arrangement = Arrange.Vertical
+  $hContents.Class = "gw-form-contents"
+  $hContents.Expand = True
+  
+  If Not Me.Parent Then  
+    WebControl._NextName = "$$"
+    $hWindowContainer = New WebContainer(Me)
+    $hWindowContainer.Ignore = True
+    $hWindowContainer._Naked = True
+    $hWindowContainer.Class = "gw-window-container"
+  Endif
+  
+  Me._SetContainer($hContents)
+  
+End
+
+Public Sub _ready()
+
+  If Not Me.Parent Then 
+    $hWindowContainer.Raise
+  Endif
+  
+  _Loaded = True
+
+End
+
+Public Sub _BeforeRender()
+  
+  If Me.Parent Then 
+    Super._BeforeRender()
+    Return
+  Endif
+  
+  Print "<div class=\"gw-form";
+  If Me.Class Then Print " "; Me.Class;
+  Print "\" id=\""; Me.Name; "\"";
+  Me._RenderStyleSheet()
+  Print ">"
+  
+  DisableShortcuts()
+  
+End
+
+Public Sub Render()
+
+  Dim sImage As String
+  Dim aPreload As String[]
+  
+  Response.Buffered = True
+  Response.Begin
+  
+  Header.Form = Me
+  Header.__Render()
+  'Print Header.ToString();
+  Header.Form = Null
+  
+  $aJavascript.Clear
+  
+  Print "<body onload=\"gw.body.onLoad();\" onresize=\"gw.body.onResize();\">"
+  
+  If $sActiveControl Then $aJavascript.Add("gw.setFocus(" & JS($sActiveControl) & ");")
+  
+  For Each sImage In ["error.png", "info.png", "question.png", "warning.png"]
+    _AddPreload(Application.Root &/ "message" &/ sImage)
+  Next
+  
+  For Each sImage In ["gw-arrow-down.png", "gw-arrow-left.png", "gw-arrow-right.png", "gw-arrow-up.png", "gw-close.png"]
+    _AddPreload(Application.Root &/ sImage)
+  Next
+  
+  aPreload = New String[]
+  For Each $cPreload
+    aPreload.Add($cPreload.Key)
+  Next
+  
+  $aJavascript.Add("gw.image.preload(" & JS(aPreload) & ");")
+  
+  Print "<div id=\"gw-modal\" onclick=\"gw.window.onDownModal();\" onmouseover=\"gw.window.onDownModal(true);\"></div>"
+  Print "<div id=\"gw-lock\">"
+    "<div id=\"gw-lock-animation\">"
+    "<div id=\"gw-lock-1\" class=\"gw-lock-circle\"></div>"
+    "<div id=\"gw-lock-2\" class=\"gw-lock-circle\"></div>"
+    "<div id=\"gw-lock-3\" class=\"gw-lock-circle\"></div>"
+    "</div>"
+    "</div>"
+  Print "<div id=\"gw-focus\"></div>"
+  
+  Me._Redraw()
+    
+  Print "<script type=\"text/javascript\">"
+  Print "gw.form = "; JS(Object.Type(Me)); ";"
+  Print "gw.version = "; JS(Application.Version); ";"
+  Print "gw.debug = "; JS($bDebug); ";"
+  WebControl._PrintNeedKeyPress(True)
+  PrintJavascript
+  Print "</script>"
+  
+  Print "</body>"
+  Print "</html>"
+  
+  Response.End
+  
+End
+
+Static Private Sub RenderStartupError()
+
+  StartupError.Message = $sStartupError
+  StartupError.Render()
+  
+End
+
+Static Private Sub Debug_Write(Value As Boolean)
+
+  If $bDebug = Value Then Return
+  $bDebug = Value
+  _AddJavascript("gw.debug = " & JS($bDebug) & ";")
+
+End
+
+Public Sub _GetJavascriptFiles() As String[]
+  
+  Return $aJavascriptFiles
+  
+End
+
+Public Sub _GetJavascriptExternFiles() As String[]
+  
+  Return $aJavascriptExternFiles
+  
+End
+
+'' Add a javascript file to the list of javascript ressources defined by the `<style>` markups of the page header.
+
+Public Sub AddJavascriptFile(sFile As String)
+  
+  If sFile Begins "http://" Or If sFile Begins "https://" Then
+    If Not $aJavascriptExternFiles Then $aJavascriptExternFiles = New String[]
+    $aJavascriptExternFiles.Add(sFile)
+  Else
+    If sFile Ends ".js" Then sFile = Left(sFile, -3)
+    If Not $aJavascriptFiles Then $aJavascriptFiles = New String[]
+    $aJavascriptFiles.Add(sFile)
+  Endif
+  
+End
+
+Private Function Title_Read() As String
+
+  Return $sTitle
+
+End
+
+Private Sub Title_Write(Value As String)
+
+  $sTitle = Value
+
+End
+
+Private Function Persistent_Read() As Boolean
+
+  Return $bPersistent
+
+End
+
+Private Sub Persistent_Write(Value As Boolean)
+
+  $bPersistent = Value
+
+End
+
+Private Sub UpdateSize()
+
+  If $bResizable Then
+    Me.Style["width"] = ""
+    Me.Style["height"] = ""
+  Else
+    Me.Style["width"] = Me.Style["min-width"]
+    Me.Style["height"] = Me.Style["min-height"]
+  Endif
+
+End
+
+Private Function Resizable_Read() As Boolean
+
+  Return $bResizable
+
+End
+
+Private Sub Resizable_Write(Value As Boolean)
+
+  'Dim hWindow As WebWindow = WebControl.FromId(_Window)
+  $bResizable = Value
+  UpdateSize
+  'If hWindow Then hWindow.Resizable = Value
+
+End
+
+Public Sub _HandleMessage()
+
+  Dim hCtrl As WebControl
+  Dim aCmd As Variant
+  Dim iOldInMessage As Integer
+  Dim iPos As Integer
+  Dim sCell As String
+  Dim sName As String
+  Dim hForm As WebForm
+  Dim hTarget As Object
+  Dim bSendResponse As Boolean
+  Dim sErr As String
+  
+  'Dim fTimer As Float
+  
+  'fTimer = Timer
+  
+  aCmd = JSON.Decode(Request["c"])
+  
+  iOldInMessage = _InMessage
+  Inc _InMessage
+  
+  Raise Event
+
+  Select Case aCmd[0]
+    
+    Case "raise"
+      
+      If aCmd[1] Then
+        GoSub GET_TARGET
+      Else
+        hCtrl = Me
+      Endif
+      
+      If Not hCtrl Then 
+        PrintLog("Control not found: " & aCmd[1])
+        Goto VOID_RESPONSE
+      Endif
+      
+      PrintLog("Raise event '" & aCmd[2] & "' on '" & hCtrl.Name & "'")
+      Object.Raise(hCtrl, aCmd[2], aCmd[3])
+      
+      If hTarget Then Try hTarget._RaiseCellEvent(sCell, aCmd[2], aCmd[3])
+      
+    Case "update"
+      
+      'Debug aCmd[1];; aCmd[2];; aCmd[3]
+      
+      If aCmd[1] Then
+        GoSub GET_TARGET
+        If Not hCtrl Then Goto VOID_RESPONSE
+      Else
+        hCtrl = Me
+      Endif
+      
+      hCtrl._UpdateProperty(aCmd[2], aCmd[3])
+      
+    Case "keypress"
+      
+      'Print("_HandleMessage: keypress: " & JSON.ToString(aCmd[1]) & " / " & JSON.ToString(aCmd[2]))
+      If aCmd[1] Then
+        GoSub GET_TARGET
+        If hCtrl Then
+          hForm = hCtrl.Form
+          If hForm <> hCtrl Then hForm._RaiseKeyPress(aCmd[2])
+          hCtrl._RaiseKeyPress(aCmd[2])
+        Endif
+      Else
+        hForm = _CurrentPopup
+        If Not hForm Then hForm = _CurrentModal
+        If Not hForm Then hForm = Me
+        hForm._RaiseKeyPress(aCmd[2])
+      Endif
+      
+    Case "mouse"
+      GoSub GET_TARGET
+      If hCtrl Then hCtrl._RaiseMouseEvent(aCmd[2], aCmd[3])
+      
+    Case "finish"
+      
+      Upload.Finish(aCmd[1])
+    
+    Case "error"
+      
+      Upload.Error(aCmd[1], aCmd[2])
+    
+  End Select
+  
+  _InMessage = iOldInMessage
+  
+  bSendResponse = True
+  SendResponse
+  Return
+  
+VOID_RESPONSE:
+
+  Response.Begin
+  'Print "console.log("; JS("unknown control " & aCmd[1]); ");"
+  Response.End
+  Return
+  
+GET_TARGET:
+  
+  sName = aCmd[1]
+  iPos = RInStr(sName, "|")
+  If iPos Then
+    sCell = Mid$(sName, iPos + 1)
+    sName = Left(sName, iPos - 1)
+  Endif
+  
+  hCtrl = WebControl.FromName(sName)
+  
+  If sCell Then
+    iPos = InStr(sCell, ":")
+    If iPos Then
+      hTarget = WebControl.FromId(CInt(Left(sCell, iPos - 1)))
+      sCell = Mid$(sCell, iPos + 1)
+    Endif
+  Endif
+  
+  Return
+  
+Catch
+  
+  If Not bSendResponse Then
+    sErr = Error.Text & "\n\n" & Error.Backtrace.Join(" ")
+    Response.ContentType = "text/javascript;charset=utf-8"
+    Response.Begin
+    Print "alert("; JS(sErr); ")"
+    Response.End
+  Endif
+  
+End
+
+'' Print some text to the browser javascript console.
+
+Static Public Sub Print(Text As String)
+  
+  $aJavascript.Add("console.log(" & JS(Text) & ");")
+  
+End
+
+'' Execute some javascript into the browser.
+
+Static Public Sub Exec(Javascript As String)
+  
+  $aJavascript.Add(Javascript)
+  
+End
+
+Public Sub _BeginJavascript() As Variant
+
+  Dim aJavascript As String[]
+  Dim aJavascriptBefore As String[]
+  
+  aJavascript = $aJavascript
+  aJavascriptBefore = $aJavascriptBefore
+  
+  $aJavascript = New String[]
+  $aJavascriptBefore = New String[]
+  
+  Return [aJavascript, aJavascriptBefore]
+  
+End
+
+Public Sub _EndJavascript(vSave As Variant)
+  
+  Dim aJavascript As String[]
+  Dim aJavascriptBefore As String[]
+  
+  aJavascript = $aJavascript
+  aJavascriptBefore = $aJavascriptBefore
+  
+  $aJavascript = vSave[0]
+  $aJavascriptBefore = vSave[1]
+  
+  If aJavascriptBefore.Count Then Print aJavascriptBefore.Join(";"); ";";
+  If aJavascript.Count Then Print aJavascript.Join(";"); ";";
+  
+End
+
+Private Sub ExitEventLoop(vReturnValue As Variant)
+  
+  Dec $iEventLoopLevel
+  PrintLog("ExitEventLoop -> " & $iEventLoopLevel)
+  $vEventLoopReturn = vReturnValue
+  $bDoNotRespond = True  
+  
+End
+
+Public Sub Delete()
+  
+  Super.Delete()
+  $hWindowContainer = Null
+  
+End
+
+'' Close the form.
+''
+'' If the form was a dialog or a popup, you can specify a return value with the optional ~ReturnValue~ argument.
+'' 
+'' This is the value that will be returned by the [../showmodal] or [../showpopup] method.
+
+Public Sub Close(Optional ReturnValue As Variant)
+  
+  ' Dim bCancel As Boolean
+  Dim hWindow As WebWindow
+  Dim bCancel As Boolean
+  
+  bCancel = Raise Close
+  If bCancel Then Return
+  
+  If _Window Then
+  
+    hWindow = WebControl.FromId(_Window)
+    With hWindow
+      If .Modal Then ExitEventLoop(ReturnValue)
+      .Close()
+      If $bPersistent Then .Child = Null
+      .Delete
+      _Window = 0
+    End With
+    
+  Else
+    
+    Session.Abandon()
+    _AddJavascript("window.location.reload(true);")
+    
+  Endif
+  
+    
+End
+
+'' Hide the form.
+
+Public Sub Hide()
+  
+  Dim hWindow As WebControl
+  
+  If Me.Parent Then
+    Super.Hide()
+    Return
+  Endif
+  
+  If _Window = 0 Then Return
+  
+  hWindow = WebControl.FromId(_Window)
+  If hWindow Then hWindow.Hide
+  
+End
+
+Private Sub DoShow()
+  
+  Dim hWindow As WebWindow
+  
+  If _Window Then 
+    
+    hWindow = WebControl.FromId(_Window)
+    If hWindow Then hWindow.Show
+    
+  Else
+  
+    WebControl._NextName = "$" & Me.Name
+    hWindow = New WebWindow(_Current._GetWindowContainer())
+    _Window = hWindow.Id
+    
+    hWindow.Child = Me
+    hWindow.Resizable = $bResizable
+    hWindow.Move($sX, $sY, $sWidth, $sHeight)
+    
+  Endif
+  
+End
+
+Private Sub RaiseOpen()
+  
+  Dim hWindow As WebControl
+  
+  Raise Open
+  If _Window Then
+    hWindow = WebControl.FromId(_Window)
+    hWindow._CancelChildrenRefresh()
+  Endif
+
+End
+
+
+'' Show the form.
+
+Public Sub Show()
+
+  If Me.Parent Then Return
+  DoShow  
+  RaiseOpen
+  
+End
+
+Private Sub RunEventLoop()
+
+  Dim iLevel As Integer
+  
+  Inc $iEventLoopLevel
+  iLevel = $iEventLoopLevel
+  PrintLog("RunEventLoop -> " & $iEventLoopLevel)
+  
+  RaiseOpen
+  
+  If $iEventLoopLevel = iLevel Then
+
+    PrintLog("Send response before entering event loop")
+  
+    SendResponse
+    EndResponse
+  
+    PrintLog("Entering event loop " & CStr($iEventLoopLevel) & " (" & Object.Count(Me) & ")")
+    $bDoNotRespond = False
+    While $iEventLoopLevel = iLevel
+      Wait Next
+    Wend
+    $bDoNotRespond = False
+    PrintLog("Exiting event loop " & CStr($iEventLoopLevel) & " (" & Object.Count(Me) & ")")
+    
+  Endif
+
+End
+
+'' Show the form as a modal dialog.
+''
+'' ~Parent~ is the owner of the dialog. If not specified, then the value of [/lang/last] is used as owner.
+'' 
+'' An error is raised if you try to call this method on an embedded form.
+
+Public Sub ShowModal(Optional Parent As WebControl) As Variant
+  
+  Dim hWindow As WebWindow
+  Dim vReturn As Variant
+  Dim hPrevious As WebForm
+  
+  If Me.Parent Then Error.Raise("Form is embedded")
+  If _Window = 0 Then DoShow()
+  
+  hWindow = WebControl.FromId(_Window)
+  If hWindow Then
+    hWindow.Modal = True
+    If IsMissing(Parent) Then Try Parent = Last
+    If Parent Then hWindow.ParentControl = Parent.Name
+  Endif
+  
+  hPrevious = _CurrentModal
+  _CurrentModal = Me
+  
+  RunEventLoop
+  
+  _CurrentModal = hPrevious
+  
+  vReturn = $vEventLoopReturn
+  $vEventLoopReturn = Null
+  Return vReturn
+  
+End
+
+'' Show the form as a popup.
+''
+'' - ~Control~ is the owner of the popup. It is normally the control the popup is attached to.
+
+Public Sub ShowPopup(Control As WebControl) As Variant
+  
+  Dim hWindow As WebWindow
+  Dim vReturn As Variant
+  Dim hPrevious As WebForm
+  
+  If Me.Parent Then Error.Raise("Form is embedded")
+  If _Window Then 
+    hWindow = WebControl.FromId(_Window)
+    If hWindow.Visible Then Return
+  Endif
+  
+  If Not hWindow Then hWindow = New WebWindow(_Current._GetWindowContainer())
+  hWindow.Child = Me
+  hWindow.Resizable = $bResizable
+  hWindow.PopupControl = Control.Name
+  hWindow.PopupTransient = Control.Parent Is WebMenu
+  hWindow.Modal = True
+  
+  _Window = hWindow.Id
+  
+  hWindow.Show()
+  
+  hPrevious = _CurrentPopup
+  _CurrentPopup = Me
+  
+  RunEventLoop
+  
+  _CurrentPopup = hPrevious
+  
+  vReturn = $vEventLoopReturn
+  $vEventLoopReturn = Null
+  Return vReturn
+
+End
+
+'' Move and/or resize the form.
+'' [[ warning
+'' A main form cannot be moved nor resized.
+'' ]]
+
+Public Sub Move(X As String, Y As String, Optional Width As String, Optional Height As String)
+  
+  Dim hWindow As WebWindow = WebControl.FromId(_Window)
+  
+  $sX = X
+  $sY = Y
+  If Not IsMissing(Width) Then $sWidth = Width
+  If Not IsMissing(Height) Then $sHeight = Height
+  '$bCentered = False
+  
+  If hWindow Then hWindow.Move(X, Y, Width, Height)
+  
+End
+
+'' Resize the form.
+'' [[ warning
+'' A main form cannot be resized.
+'' ]]
+
+Public Sub Resize(Width As String, Height As String)
+  
+  Dim hWindow As WebWindow = WebControl.FromId(_Window)
+  
+  $sWidth = Width
+  $sHeight = Height
+  '$bCentered = False
+  
+  If hWindow Then hWindow.Resize(Width, Height)
+  
+End
+
+Public Sub _UpdateProperty(sProp As String, vValue As Variant)
+  
+  Dim aWindows As String[]
+  Dim sName As String
+  Dim iPos As Integer
+  
+  Select Case sProp
+  
+    Case "#windows" 
+      aWindows = vValue
+      Inc _DisableRefresh
+      For Each sName In aWindows
+        Try WebControl.FromName(sName).Raise()
+      Next
+      Dec _DisableRefresh
+      
+    Case "#focus"
+      $sActiveControl = vValue
+      iPos = RInStr($sActiveControl, ":")
+      
+  End Select
+  
+End
+
+Static Public Sub Application_Error()
+  
+  PrintLog("**** " & Error.Text & ": " & Error.Backtrace.Join(" "))
+  
+End
+
+Private Function Width_Read() As String
+
+  Return Me.Style["min-width"]
+
+End
+
+Private Sub Width_Write(Value As String)
+
+  Me.Style["min-width"] = Value
+  UpdateSize
+
+End
+
+Private Function Height_Read() As String
+
+  Return Me.Style["min-height"]
+
+End
+
+Private Sub Height_Write(Value As String)
+
+  Me.Style["min-height"] = Value
+  UpdateSize
+
+End
+
+Public Sub _GetWindowContainer() As WebContainer
+
+  'If Me.Parent Then Return Me.Form._GetWindowContainer()  
+  Return $hWindowContainer
+  
+End
+
+Private Function Popup_Read() As Boolean
+
+  Dim hWindow As WebWindow = WebForm.FromId(Me._Window)
+  If hWindow Then Return hWindow.IsPopup()
+  
+End
+
+Private Function PopupParent_Read() As WebControl
+
+  Dim hWindow As WebWindow = WebForm.FromId(Me._Window)
+  If hWindow Then Return WebControl.FromName(hWindow.PopupControl)
+
+End
+
+Static Private Function Current_Read() As WebForm
+
+  Return _Current
+
+End
+
+Static Private Sub Current_Write(Value As WebForm)
+
+  If _Current = Value Then Return
+  _Current = Value
+  _Current.Reload
+
+End
+
+'' Reload the form.
+''
+'' It the form is not a main form, then it is refreshed.
+
+Public Sub Reload()
+  
+  If Me = _Current Then
+    _AddJavascript("location.reload(true);")
+  Else
+    Me.Refresh
+  Endif
+  
+End
+
+'' Change the current main form.
+''
+'' It is equivalent to set the [../current] property.
+
+Static Public Sub Goto(Form As WebForm)
+  
+  Current_Write(Form)
+  
+End
+ 
+Public Sub _GetMenuBar() As WebMenuBar
+  
+  Return $hMenuBar
+  
+End
+
+Public Sub AddHeader(Header As String)
+  
+  If Not $aHeaders Then $aHeaders = New String[]
+  $aHeaders.Add(Trim(Header))
+  
+End
+
+Public Sub _GetHeaders() As String[]
+  
+  Return $aHeaders
+  
+End
+
+Private Sub FindShortcut(hParent As WebContainer, cShortcut As Collection)
+  
+  Dim hChild As WebControl
+  Dim hMenu As WebMenu
+  Dim sShortcut As String
+
+  For Each hChild In hParent.Children
+    hMenu = hChild
+    If Not hMenu.Enabled Then Continue
+    sShortcut = hMenu.Shortcut
+    If sShortcut Then 
+      sShortcut = Key._ShortcutToDOM(sShortcut)
+      cShortcut[sShortcut] = True
+    Endif
+    If hMenu.HasChildren() Then FindShortcut(hChild, cShortcut)
+  Next
+  
+End
+
+Private Sub PurgeShortcuts()
+
+  Dim aShortcut As Integer[]
+  Dim I As Integer
+  Dim bRefresh As Boolean
+  
+  ' Remove shortcuts from deleted controls
+  
+  For Each aShortcut In WebControl._Shortcuts
+    I = 0
+    While I < aShortcut.Count
+      If WebControl.FromId(aShortcut[I]) Then
+        Inc I
+      Else 
+        aShortcut.Remove(I)
+        bRefresh = True
+      Endif
+    Wend
+  Next
+  
+  If bRefresh Then Me.Refresh
+  
+End
+
+
+Private Sub DisableShortcuts() 
+
+  Dim cShortcut As New Collection
+  Dim sShortcut As String
+  Dim aShortcut As String[]
+
+  PurgeShortcuts()
+
+  For Each aShortcut In WebControl._Shortcuts
+    If aShortcut.Count Then
+      sShortcut = WebControl._Shortcuts.Key
+      cShortcut[sShortcut] = True
+    Endif
+  Next
+
+  If $aShortcuts Then
+    For Each sShortcut In $aShortcuts
+      sShortcut = Trim(sShortcut)
+      If Not sShortcut Then Continue
+      cShortcut[sShortcut] = True
+    Next
+  Endif
+  
+  If $iDefault Then cShortcut["ENTER"] = True
+  If $iCancel Then cShortcut["ESCAPE"] = True
+  
+  If cShortcut.Count = 0 Then Return
+  
+  _AddJavascript("gw.shortcuts = " & JS(cShortcut) & ";")
+  
+End
+
+Private Sub TriggerShortcut(sShortcut As String) As Boolean
+
+  Dim aShortcut As Integer[]
+  Dim iId As Integer
+  Dim hCtrl As WebControl
+  Dim hButton As WebButton
+
+  PurgeShortcuts()
+
+  sShortcut = String.UCase(sShortcut)
+  aShortcut = WebControl._Shortcuts[sShortcut]
+  If aShortcut Then
+    
+    For Each iId In aShortcut
+      
+      hCtrl = WebControl.FromId(iId)
+      If Not hCtrl Then Continue
+      
+      If hCtrl.IsHidden() Then Continue 
+      If Not hCtrl.Enabled Then Continue
+      
+      If hCtrl Is WebMenu And If Not _CurrentPopup And If Not _CurrentModal Then
+        Object.Raise(hCtrl, "Click")
+        Return True
+      Endif
+      
+    Next
+    
+  Endif
+  
+  'WebForm.Print("TriggerShortcut: " & Me.Name & ": " & sShortcut & " / " & $iDefault & " / " & $iCancel)
+  
+  If $iDefault And If sShortcut = "ENTER" Then
+    hButton = WebControl.FromId($iDefault)
+    If hButton Then _AddJavascript("gw.button.click(" & JS(hButton.Name) & ");")
+    Return True
+  Else If $iCancel And If sShortcut = "ESCAPE" Then
+    hButton = WebControl.FromId($iCancel)
+    If hButton Then _AddJavascript("gw.button.click(" & JS(hButton.Name) & ");")
+    Return True
+  Endif
+
+End
+
+Public Sub _RaiseKeyPress(cEvent As Variant) As Boolean
+  
+  Dim cSave As Collection
+  Dim sShortcut As String
+  
+  If Super._RaiseKeyPress(cEvent) Then Return True
+  
+  cSave = Key._Event
+  Key._Event = cEvent
+  sShortcut = Key.Shortcut
+  Key._Event = cSave
+  
+  Return TriggerShortcut(sShortcut)
+  
+End
+
+Private Function Shortcuts_Read() As String[]
+
+  If Not $aShortcuts Then $aShortcuts = New String[]
+  Return $aShortcuts
+
+End
+
+Private Sub Shortcuts_Write(Value As String[])
+
+  $aShortcuts = Value
+
+End
+
+Public Sub _GetDefault() As Integer
+  
+  Return $iDefault
+  
+End
+
+Public Sub _SetDefault(hCtrl As WebControl)
+  
+  If hCtrl Then
+    $iDefault = hCtrl.Id
+  Else 
+    $iDefault = 0
+  Endif
+  
+End
+
+Public Sub _GetCancel() As Integer
+  
+  Return $iCancel
+  
+End
+
+Public Sub _SetCancel(hCtrl As WebControl)
+  
+  If hCtrl Then
+    $iCancel = hCtrl.Id
+  Else 
+    $iCancel = 0
+  Endif
+  
+End
+
+Static Public Sub _AddPreload(sLink As String)
+  
+  $cPreload[sLink] = True
+  
+End
+
+Static Public Function _GetActiveControl() As WebControl
+
+  Dim sId As String
+  Dim iPos As Integer
+  
+  If $sActiveControl Then
+    sId = $sActiveControl
+    iPos = InStr(sId, ":")
+    If iPos Then sId = Left(sId, iPos - 1)
+    
+    Return WebControl.FromName(sId)
+    
+  Endif
+
+End
+

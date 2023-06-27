@@ -2,7 +2,7 @@
 
   main.c
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
   (c) 2011-2012 Bruce Bruen <bbruen@paddys-hill.net>
 
   This program is free software; you can redistribute it and/or modify
@@ -20,27 +20,37 @@
   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
   MA 02110-1301, USA.
 
+  --------------------------------------------------------------------------
+
+  In addition, as a special exception, the copyright holders give
+  permission to link the code of portions of this program with the
+  OpenSSL library under certain conditions as described in each
+  individual source file, and distribute linked combinations
+  including the two.
+  You must obey the GNU General Public License in all respects
+  for all of the code used other than OpenSSL. If you modify
+  file(s) with this exception, you may extend this exception to
+  your version of the file(s), but you are not obligated to do so.
+  If you do not wish to do so, delete this exception statement
+  from your version. If you delete this exception statement from
+  all source files in the program, then also delete it here.
+
 ***************************************************************************/
 
 #define __MAIN_C
+
+#include <libpq-fe.h>
+
+#ifdef fprintf
+	#undef fprintf
+	#undef snprintf
+	#undef sprintf
+#endif
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
-
-#include <libpq-fe.h>
-#include <postgres.h>
-#include <pg_type.h>
-
-#ifdef PACKAGE_NAME
-	#undef PACKAGE_NAME
-	#undef PACKAGE_BUGREPORT
-	#undef PACKAGE_STRING
-	#undef PACKAGE_TARNAME
-	#undef PACKAGE_VERSION
-	#undef PACKAGE_URL
-#endif
 
 #ifdef Max
 	#undef Max
@@ -48,6 +58,14 @@
 
 #ifdef Min
 	#undef Min
+#endif
+
+#ifdef snprintf
+	#undef snprintf
+#endif
+
+#ifdef pg_snprintf
+	#undef pg_snprintf
 #endif
 
 #include "gb.db.proto.h"
@@ -62,6 +80,32 @@ static char _buffer[32];
 static DB_DRIVER _driver;
 static int _last_error;
 /*static int _print_query = FALSE;*/
+
+// PostgreSQL datatypes
+
+enum { OID_BOOL, OID_INT2, OID_INT4, OID_INT8, OID_NUMERIC, OID_FLOAT4, OID_FLOAT8, OID_ABSTIME,
+	OID_RELTIME, OID_DATE, OID_TIME, OID_TIMESTAMP, OID_DATETIME, OID_TIMESTAMPTZ, OID_BYTEA, OID_CHAR,
+	OID_BPCHAR, OID_VARCHAR, OID_TEXT, OID_NAME, OID_CASH,
+	OID_COUNT };
+
+const char *_oid_names[] = {
+	"bool", "int2", "int4", "int8", "numeric", "float4", "float8", "abstime", 
+	"reltime", "date", "time", "timestamp", "datetime", "timestamptz", "bytea", "char",
+	"bpchar", "varchar", "text", "name", "cash", NULL
+};
+
+int _oid[OID_COUNT] = { 0 };
+
+
+// Get the SQL expression returning the default value of a field
+
+static const char *get_default_value(const char *old_way)
+{
+	if (DB.GetCurrentDatabase()->version >= 90600)
+		return "pg_get_expr(adbin, adrelid) AS adsrc";
+	else
+		return old_way;
+}
 
 /* Internal function to check the result of a query */
 
@@ -318,49 +362,27 @@ static int unquote_blob(const char *data, int len, DB_FORMAT_CALLBACK add)
 
 static GB_TYPE conv_type(Oid type)
 {
-	switch(type)
-	{
-		case BOOLOID:
-			return GB_T_BOOLEAN;
+	if (type == _oid[OID_BOOL])
+		return GB_T_BOOLEAN;
+	
+	if (type == _oid[OID_INT2] || type == _oid[OID_INT4])
+		return GB_T_INTEGER;
 
-		case INT2OID:
-		case INT4OID:
-			return GB_T_INTEGER;
+	if (type == _oid[OID_INT8])
+		return GB_T_LONG;
 
-		case INT8OID:
-			return GB_T_LONG;
-
-		case NUMERICOID:
-		case FLOAT4OID:
-		case FLOAT8OID:
+	if (type == _oid[OID_NUMERIC] || type == _oid[OID_FLOAT4] || type == _oid[OID_FLOAT8])
 			return GB_T_FLOAT;
 
-		case ABSTIMEOID:
-		case RELTIMEOID:
-		case DATEOID:
-		case TIMEOID:
-		case TIMESTAMPOID:
-#ifdef DATETIMEOID
-		case DATETIMEOID:
-#endif
-#ifdef TIMESTAMPTZOID
-		case TIMESTAMPTZOID:
-#endif
-			return GB_T_DATE;
+	if (type == _oid[OID_ABSTIME] || type == _oid[OID_RELTIME] || type == _oid[OID_DATE]
+	    || type == _oid[OID_TIME] || type == _oid[OID_TIMESTAMP] || type == _oid[OID_DATETIME]
+	    || type == _oid[OID_TIMESTAMPTZ])
+		return GB_T_DATE;
 
-		case BYTEAOID:
-			return DB_T_BLOB;
+	if (type == _oid[OID_BYTEA])
+		return DB_T_BLOB;
 
-		case CHAROID:
-		case BPCHAROID:
-		case VARCHAROID:
-		case TEXTOID:
-		case NAMEOID:
-		case CASHOID:
-		default:
-			return GB_T_STRING;
-
-	}
+	return GB_T_STRING;
 }
 
 
@@ -380,140 +402,95 @@ static void conv_data(const char *data, int len, GB_VARIANT_VALUE *val, Oid type
 	double sec;
 	bool bc;
 
-	switch (type)
+	if (type == _oid[OID_BOOL])
 	{
-		case BOOLOID:
-
-			val->type = GB_T_BOOLEAN;
-			val->value._boolean = conv_boolean(data) ? -1 : 0;
-			break;
-
-		case INT2OID:
-		case INT4OID:
-
-			GB.NumberFromString(GB_NB_READ_INTEGER, data, strlen(data), &conv);
-
-			val->type = GB_T_INTEGER;
-			val->value._integer = conv._integer.value;
-
-			break;
-
-		case INT8OID:
-
-			GB.NumberFromString(GB_NB_READ_LONG, data, strlen(data), &conv);
-
-			val->type = GB_T_LONG;
-			val->value._long = conv._long.value;
-
-			break;
-
-		case NUMERICOID:
-		case FLOAT4OID:
-		case FLOAT8OID:
-
-			GB.NumberFromString(GB_NB_READ_FLOAT, data, strlen(data), &conv);
-
-			val->type = GB_T_FLOAT;
-			val->value._float = conv._float.value;
-
-			break;
-
-		case ABSTIMEOID:
-		case RELTIMEOID:
-		case DATEOID:
-		case TIMEOID:
-		case TIMESTAMPOID:
-		#ifdef DATETIMEOID
-		case DATETIMEOID:
-		#endif
-		#ifdef TIMESTAMPTZOID
-		case TIMESTAMPTZOID:
-		#endif
-
-			memset(&date, 0, sizeof(date));
-
-			if (len > 3 && strcmp(&data[len - 2], "BC") == 0)
-				bc = TRUE;
-			else
-				bc = FALSE;
-
-			switch(type)
-			{
-				case ABSTIMEOID:
-				case RELTIMEOID:
-				case DATEOID:
-
-					sscanf(data, "%4d-%2d-%2d", &date.year, &date.month, &date.day);
-					break;
-
-				case TIMEOID:
-
-					sscanf(data, "%2d:%2d:%lf", &date.hour, &date.min, &sec);
-					date.sec = (short)sec;
-					date.msec = (short)((sec - date.sec) * 1000 + 0.5);
-					break;
-
-				case TIMESTAMPOID:
-				#ifdef DATETIMEOID
-				case DATETIMEOID:
-				#endif
-				#ifdef TIMESTAMPTZOID
-				case TIMESTAMPTZOID:
-				#endif
-
-					sscanf(data, "%4d-%2d-%2d %2d:%2d:%lf", &date.year, &date.month, &date.day, &date.hour, &date.min, &sec);
-					date.sec = (short)sec;
-					date.msec = (short)((sec - date.sec) * 1000 + 0.5);
-					break;
-			}
-
-			if (bc)
-				date.year = (-date.year);
-
-			// 4713-01-01 BC is used for null dates
-
-			if (date.year == -4713 && date.month == 1 && date.day == 1)
-				date.year = date.month = date.day = 0;
-
-			GB.MakeDate(&date, (GB_DATE *)&conv);
-
-			val->type = GB_T_DATE;
-			val->value._date.date = conv._date.value.date;
-			val->value._date.time = conv._date.value.time;
-
-			break;
-
-		case BYTEAOID:
-			// The BLOB are read by the blob_read() driver function
-			// You must set NULL there.
-			val->type = GB_T_NULL;
-			break;
-
-		case CHAROID:
-		case BPCHAROID:
-		case VARCHAROID:
-		case TEXTOID:
-		case NAMEOID:
-		case CASHOID:
-		default:
-
-			val->type = GB_T_CSTRING;
-			val->value._string = (char *)data;
-			//val->_string.len = len;
-
-			break;
+		val->type = GB_T_BOOLEAN;
+		val->value._boolean = conv_boolean(data) ? -1 : 0;
 	}
+	else if (type == _oid[OID_INT2] || type == _oid[OID_INT4])
+	{
+		GB.NumberFromString(GB_NB_READ_INTEGER, data, strlen(data), &conv);
 
+		val->type = GB_T_INTEGER;
+		val->value._integer = conv._integer.value;
+	}
+	else if (type == _oid[OID_INT8])
+	{
+		GB.NumberFromString(GB_NB_READ_LONG, data, strlen(data), &conv);
+
+		val->type = GB_T_LONG;
+		val->value._long = conv._long.value;
+	}
+	else if (type == _oid[OID_NUMERIC] || type == _oid[OID_FLOAT4] || type == _oid[OID_FLOAT8])
+	{
+		GB.NumberFromString(GB_NB_READ_FLOAT, data, strlen(data), &conv);
+
+		val->type = GB_T_FLOAT;
+		val->value._float = conv._float.value;
+	}
+	else if (type == _oid[OID_ABSTIME] || type == _oid[OID_RELTIME] || type == _oid[OID_DATE]
+	         || type == _oid[OID_TIME] || type == _oid[OID_TIMESTAMP] || type == _oid[OID_DATETIME]
+	         || type == _oid[OID_TIMESTAMPTZ])
+	{
+		memset(&date, 0, sizeof(date));
+
+		if (len > 3 && strcmp(&data[len - 2], "BC") == 0)
+			bc = TRUE;
+		else
+			bc = FALSE;
+
+		if (type == _oid[OID_ABSTIME] || type == _oid[OID_RELTIME] || type == _oid[OID_DATE])
+		{
+			sscanf(data, "%4d-%2d-%2d", &date.year, &date.month, &date.day);
+		}
+		else if (type == _oid[OID_TIME])
+		{
+			sscanf(data, "%2d:%2d:%lf", &date.hour, &date.min, &sec);
+			date.sec = (short)sec;
+			date.msec = (short)((sec - date.sec) * 1000 + 0.5);
+		}
+		else
+		{
+			sscanf(data, "%4d-%2d-%2d %2d:%2d:%lf", &date.year, &date.month, &date.day, &date.hour, &date.min, &sec);
+			date.sec = (short)sec;
+			date.msec = (short)((sec - date.sec) * 1000 + 0.5);
+		}
+
+		if (bc)
+			date.year = (-date.year);
+
+		// 4713-01-01 BC is used for null dates
+
+		if (date.year == -4713 && date.month == 1 && date.day == 1)
+			date.year = date.month = date.day = 0;
+
+		GB.MakeDate(&date, (GB_DATE *)&conv);
+
+		val->type = GB_T_DATE;
+		val->value._date.date = conv._date.value.date;
+		val->value._date.time = conv._date.value.time;
+	}
+	else if (type == _oid[OID_BYTEA])
+	{
+		// The BLOB are read by the blob_read() driver function
+		// You must set NULL there.
+		val->type = GB_T_NULL;
+	}
+	else
+	{
+		val->type = GB_T_CSTRING;
+		val->value._string = (char *)data;
+	}
 }
 
 
 /* Internal function to substitute the table name into a query */
 
-static char *query_param[3];
+static char *query_param[4];
 
 static void query_get_param(int index, char **str, int *len, char quote)
 {
-	if (index > 3)
+	if (index > 4)
 		return;
 
 	index--;
@@ -541,8 +518,8 @@ static int do_query(DB_DATABASE *db, const char *error, PGresult **pres, const c
 	if (nsubst)
 	{
 		va_start(args, nsubst);
-		if (nsubst > 3)
-			nsubst = 3;
+		if (nsubst > 4)
+			nsubst = 4;
 		for (i = 0; i < nsubst; i++)
 			query_param[i] = va_arg(args, char *);
 
@@ -551,11 +528,7 @@ static int do_query(DB_DATABASE *db, const char *error, PGresult **pres, const c
 	else
 		query = qtemp;
 
-	if (DB.IsDebug())
-	{
-		fprintf(stderr, "gb.db.postgresql: %p: %s\n", conn, query);
-		fflush(stderr);
-	}
+	DB.Debug("gb.db.postgresql", "%p: %s", db, query);
 
 	res = PQexec(conn, query);
 	ret = check_result(res, error);
@@ -575,19 +548,28 @@ static int do_query(DB_DATABASE *db, const char *error, PGresult **pres, const c
 
 static int db_version(DB_DATABASE *db)
 {
-	//Check db version
-	const char *vquery =
-		"select substring(version(),12,5)";
-	int dbversion =0;
+	unsigned int verMain = 0, verMajor = 0, verMinor = 0;
+	const char *query = "select version()";
+	const char *version;
+	int dbversion = 0;
 	PGresult *res;
 
-	if (!do_query(db, NULL, &res, vquery, 0))
+	if (!do_query(db, NULL, &res, query, 0))
 	{
-		unsigned int verMain, verMajor, verMinor;
-		sscanf(PQgetvalue(res, 0, 0), "%2u.%2u.%2u", &verMain, &verMajor, &verMinor);
-		dbversion = ((verMain * 10000) + (verMajor * 100) + verMinor);
+		version = PQgetvalue(res, 0, 0);
+		
+		while (*version && !isdigit(*version))
+			version++;
+		
+		if (*version)
+		{
+			sscanf(version, "%2u.%2u.%2u", &verMain, &verMajor, &verMinor);
+			dbversion = ((verMain * 10000) + (verMajor * 100) + verMinor);
+		}
+		
 		PQclear(res);
 	}
+	
 	return dbversion;
 }
 
@@ -666,6 +648,31 @@ static void fill_field_info(DB_DATABASE *db, DB_FIELD *info, PGresult *res, int 
 		info->collation = GB.NewZeroString(PQgetvalue(res, row, col + 5));
 }
 
+// Load datatypes
+
+static bool init_datatypes(DB_DATABASE *db)
+{
+	const char *oid;
+	const char *query = "select oid from pg_type where typname = '&1'";
+	PGresult *res;
+	int i;
+	
+	for(i = 0;; i++)
+	{
+		oid = _oid_names[i];
+		if (!oid)
+			break;
+		if (do_query(db, "Unable to initialize datatypes", &res, query, 1, oid))
+			return TRUE;
+		if (PQntuples(res) == 1)
+			_oid[i] = atoi(PQgetvalue(res, 0, 0));
+
+		DB.Debug("gb.db.postgresql", "%p: --> %d", db, _oid[i]);
+		PQclear(res);
+	}
+	
+	return FALSE;
+}
 
 
 /*****************************************************************************
@@ -696,6 +703,23 @@ static const char *get_quote(void)
 
 *****************************************************************************/
 
+static const char **_options_keys;
+static const char **_options_values;
+
+static void add_option(const char *key, const char *value)
+{
+	*(const char **)GB.Add(&_options_keys) = key;
+	*(const char **)GB.Add(&_options_values) = value;
+}
+
+static void add_option_value(const char *key, GB_VALUE *value)
+{
+	if (GB.Conv(value, GB_T_STRING))
+		return;
+	
+	add_option(key, value->_string.value.addr);
+}
+
 static int open_database(DB_DESC *desc, DB_DATABASE *db)
 {
 	const char *query =
@@ -705,22 +729,34 @@ static int open_database(DB_DESC *desc, DB_DATABASE *db)
 	PGresult *res;
 	int status;
 	char *name;
-	char dbname[512];
+	char buffer[16];
 
 	if (desc->name)
 		name = desc->name;
 	else
 		name = "template1";
 
-	if (snprintf(dbname, sizeof(dbname), "dbname='%s' connect_timeout=%d", get_quote_string(name, strlen(name), '\''), db->timeout) >= sizeof(dbname))
-	{
-		GB.Error("Cannot open database: database name too long");
-		return TRUE;
-	}
-
 	//fprintf(stderr, "gb.db.postgresql: host = `%s` port = `%s` dbnname = `%s` user = `%s` password = `%s`\n", desc->host, desc->port, dbname, desc->user, desc->password);
 
-	conn = PQsetdbLogin(desc->host, desc->port, NULL, NULL, dbname, desc->user, desc->password);
+	GB.NewArray(&_options_keys, sizeof(char *), 0);
+	GB.NewArray(&_options_values, sizeof(char *), 0);
+	
+	add_option("host", desc->host);
+	add_option("port", desc->port);
+	add_option("dbname", name);
+	add_option("user", desc->user);
+	add_option("password", desc->password);
+	sprintf(buffer, "%d", db->timeout);
+	add_option("connect_timeout", buffer);
+	
+	DB.GetOptions(add_option_value);
+	
+	add_option(NULL, NULL);
+	
+	conn = PQconnectdbParams((const char *const *)_options_keys, (const char *const *)_options_values, FALSE);
+	
+	GB.FreeArray(&_options_keys);
+	GB.FreeArray(&_options_values);
 
 	if (!conn)
 	{
@@ -766,6 +802,14 @@ static int open_database(DB_DESC *desc, DB_DATABASE *db)
 		}
 	}
 
+	// datatypes
+	
+	if (init_datatypes(db))
+	{
+		PQfinish(conn);
+		return TRUE;
+	}
+
 	/* flags */
 
 	db->flags.no_table_type = TRUE;
@@ -786,7 +830,7 @@ static int open_database(DB_DESC *desc, DB_DATABASE *db)
 	}
 	else
 		db->charset = NULL;
-
+	
 	return FALSE;
 }
 
@@ -1018,10 +1062,11 @@ static void query_init(DB_RESULT result, DB_INFO *info, int *count)
 
 	<result> is the handle of the query result.
 	<info> points to the info structure.
+	<invalid> tells if the associated connection has been closed.
 
 *****************************************************************************/
 
-static void query_release(DB_RESULT result, DB_INFO *info)
+static void query_release(DB_RESULT result, DB_INFO *info, bool invalid)
 {
 	PQclear((PGresult *)result);
 }
@@ -1302,7 +1347,7 @@ static int begin_transaction(DB_DATABASE *db)
 	}
 	else
 	{
-		char buffer[8];
+		char buffer[16];
 		sprintf(buffer, "%d", trans - 1);
 		return do_query(db, "Unable to begin transaction: Unable to define savepoint: &1", NULL, "SAVEPOINT t&1", 1, buffer);
 	}
@@ -1311,7 +1356,7 @@ static int begin_transaction(DB_DATABASE *db)
 
 /*****************************************************************************
 
-	commi_transaction()
+	commit_transaction()
 
 	Commit a transaction.
 
@@ -1333,7 +1378,7 @@ static int commit_transaction(DB_DATABASE *db)
 	}
 	else
 	{
-		char buffer[8];
+		char buffer[16];
 		sprintf(buffer, "%d", trans);
 		return do_query(db, "Unable to commit transaction: Unable to release savepoint: &1", NULL, "RELEASE SAVEPOINT t&1", 1, buffer);
 	}
@@ -1364,7 +1409,7 @@ static int rollback_transaction(DB_DATABASE *db)
 	}
 	else
 	{
-		char buffer[8];
+		char buffer[16];
 		sprintf(buffer, "%d", trans);
 		return do_query(db, "Unable to begin transaction: &1", NULL, "ROLLBACK TO SAVEPOINT t&1", 1, buffer);
 	}
@@ -1383,7 +1428,7 @@ static int rollback_transaction(DB_DATABASE *db)
 
 	This function must initialize the following info fields:
 	- info->nfield must contain the number of fields in the table.
-	- info->fields is a char*[] pointing at the name of each field.
+	- info->field is an array of DB_FIELD, one element for each field.
 
 	This function returns TRUE if the command has failed, and FALSE if
 	everything was OK.
@@ -1401,10 +1446,10 @@ static int table_init(DB_DATABASE *db, const char *table, DB_INFO *info)
 	{
 		qfield_all=
 				"SELECT col.attname, col.atttypid::int, col.atttypmod, "
-						"col.attnotnull, def.adsrc, col.atthasdef "
+						"col.attnotnull, &1, col.atthasdef "
 				"FROM pg_catalog.pg_class tbl, pg_catalog.pg_attribute col "
 								"LEFT JOIN pg_catalog.pg_attrdef def ON (def.adnum = col.attnum AND def.adrelid = col.attrelid) "
-				"WHERE tbl.relname = '&1' AND "
+				"WHERE tbl.relname = '&2' AND "
 						"col.attrelid = tbl.oid AND "
 						"col.attnum > 0 AND "
 						"not col.attisdropped "
@@ -1412,11 +1457,11 @@ static int table_init(DB_DATABASE *db, const char *table, DB_INFO *info)
 
 		qfield_schema_all =
 			"select pg_attribute.attname, pg_attribute.atttypid::int, pg_attribute.atttypmod, "
-							"pg_attribute.attnotnull, pg_attrdef.adsrc, pg_attribute.atthasdef "
+							"pg_attribute.attnotnull, &1, pg_attribute.atthasdef "
 					"from pg_class, pg_attribute "
 							"LEFT JOIN pg_catalog.pg_attrdef  ON (pg_attrdef.adnum = pg_attribute.attnum AND pg_attrdef.adrelid = pg_attribute.attrelid) "
-					"where pg_class.relname = '&1' "
-							"and (pg_class.relnamespace in (select oid from pg_namespace where nspname = '&2')) "
+					"where pg_class.relname = '&2' "
+							"and (pg_class.relnamespace in (select oid from pg_namespace where nspname = '&3')) "
 							"and pg_attribute.attnum > 0 and not pg_attribute.attisdropped "
 							"and pg_attribute.attrelid = pg_class.oid ";
 	}
@@ -1424,11 +1469,11 @@ static int table_init(DB_DATABASE *db, const char *table, DB_INFO *info)
 	{
 		qfield_all=
 				"SELECT col.attname, col.atttypid::int, col.atttypmod, "
-						"col.attnotnull, def.adsrc, col.atthasdef, pg_collation.collname "
+						"col.attnotnull, &1, col.atthasdef, pg_collation.collname "
 				"FROM pg_catalog.pg_class tbl, pg_catalog.pg_attribute col "
 								"LEFT JOIN pg_catalog.pg_attrdef def ON (def.adnum = col.attnum AND def.adrelid = col.attrelid) "
 								"LEFT JOIN pg_collation ON (pg_collation.oid = col.attcollation) "
-				"WHERE tbl.relname = '&1' AND "
+				"WHERE tbl.relname = '&2' AND "
 						"col.attrelid = tbl.oid AND "
 						"col.attnum > 0 AND "
 						"not col.attisdropped "
@@ -1436,12 +1481,12 @@ static int table_init(DB_DATABASE *db, const char *table, DB_INFO *info)
 
 		qfield_schema_all =
 			"select pg_attribute.attname, pg_attribute.atttypid::int, pg_attribute.atttypmod, "
-							"pg_attribute.attnotnull, pg_attrdef.adsrc, pg_attribute.atthasdef, pg_collation.collname "
+							"pg_attribute.attnotnull, &1, pg_attribute.atthasdef, pg_collation.collname "
 					"from pg_class, pg_attribute "
 							"LEFT JOIN pg_catalog.pg_attrdef  ON (pg_attrdef.adnum = pg_attribute.attnum AND pg_attrdef.adrelid = pg_attribute.attrelid) "
 								"LEFT JOIN pg_collation ON (pg_collation.oid = pg_attribute.attcollation) "
-					"where pg_class.relname = '&1' "
-							"and (pg_class.relnamespace in (select oid from pg_namespace where nspname = '&2')) "
+					"where pg_class.relname = '&2' "
+							"and (pg_class.relnamespace in (select oid from pg_namespace where nspname = '&3')) "
 							"and pg_attribute.attnum > 0 and not pg_attribute.attisdropped "
 							"and pg_attribute.attrelid = pg_class.oid ";
 	}
@@ -1456,12 +1501,12 @@ static int table_init(DB_DATABASE *db, const char *table, DB_INFO *info)
 
 	if (get_table_schema(&table, &schema))
 	{
-		if (do_query(db,"Unable to get table fields: &1", &res, qfield_all, 1, table))
+		if (do_query(db,"Unable to get table fields: &1", &res, qfield_all, 2, get_default_value("def.adsrc"), table))
 			return TRUE;
 	}
 	else
 	{
-		if (do_query(db, "Unable to get table fields: &1", &res, qfield_schema_all, 2, table, schema))
+		if (do_query(db, "Unable to get table fields: &1", &res, qfield_schema_all, 3, get_default_value("pg_attrdef.adsrc"), table, schema))
 			return TRUE;
 	}
 
@@ -1637,16 +1682,16 @@ static void table_release(DB_DATABASE *db, DB_INFO *info)
 static int table_exist(DB_DATABASE *db, const char *table)
 {
 	const char *query =
-		"select relname from pg_class where (relkind = 'r' or relkind = 'v'or relkind = 'm') "
+		"select relname from pg_class where (relkind in ('r', 'v', 'm', 'p')) "
 		"and (relname = '&1') "
 		"and (relnamespace not in (select oid from pg_namespace where nspname = 'information_schema'))";
 
 	const char *query_schema =
-		"select relname from pg_class where (relkind = 'r' or relkind = 'v' or relkind = 'm') "
+		"select relname from pg_class where (relkind in ('r', 'v', 'm', 'p')) "
 		"and (relname = '&1') "
 		"and (relnamespace in (select oid from pg_namespace where nspname = '&2'))";
 
-		/*"select pg_class.relname,pg_namespace.nspname from pg_class,pg_namespace where (pg_class.relkind = 'r' or pg_class.relkind = 'v') "
+/*"select pg_class.relname,pg_namespace.nspname from pg_class,pg_namespace where (pg_class.relkind = 'r' or pg_class.relkind = 'v') "
 		"and (pg_namespace.oid = pg_class.relnamespace) "
 		"and (pg_class.relname = '&1') "
 		"and (pg_namespace.nspname = '&2') "
@@ -1695,7 +1740,7 @@ static int table_exist(DB_DATABASE *db, const char *table)
 static int table_list_73(DB_DATABASE *db, char ***tables)
 {
 	const char *query =
-		"select pg_class.relname,pg_namespace.nspname from pg_class,pg_namespace where (pg_class.relkind = 'r' or pg_class.relkind = 'v' or pg_class.relkind = 'm') "
+		"select pg_class.relname,pg_namespace.nspname from pg_class,pg_namespace where (pg_class.relkind in ('r', 'v', 'm', 'p')) "
 		"and (pg_namespace.oid = pg_class.relnamespace) "
 		"and (pg_namespace.oid not in (select oid from pg_namespace where nspname = 'information_schema'))";
 
@@ -1887,7 +1932,7 @@ static int table_primary_key(DB_DATABASE *db, const char *table, char ***primary
 static int table_is_system(DB_DATABASE *db, const char *table)
 {
 	const char *query =
-		"select 1 from pg_class where (relkind = 'r' or relkind = 'v'or relkind = 'm') "
+		"select 1 from pg_class where (relkind in ('r', 'v', 'm', 'p')) "
 		"and (relname = '&1') "
 		"and (relnamespace in (select oid from pg_namespace where nspname = 'pg_catalog'))";
 
@@ -2208,23 +2253,23 @@ static int field_info(DB_DATABASE *db, const char *table, const char *field, DB_
 	{
 		query =
 			"select pg_attribute.attname, pg_attribute.atttypid::int, "
-			"pg_attribute.atttypmod, pg_attribute.attnotnull, pg_attrdef.adsrc, pg_attribute.atthasdef "
+			"pg_attribute.atttypmod, pg_attribute.attnotnull, &1, pg_attribute.atthasdef "
 			"from pg_class, pg_attribute "
 			"left join pg_attrdef on (pg_attrdef.adrelid = pg_attribute.attrelid and pg_attrdef.adnum = pg_attribute.attnum) "
-			"where pg_class.relname = '&1' "
+			"where pg_class.relname = '&2' "
 			"and (pg_class.relnamespace not in (select oid from pg_namespace where nspname = 'information_schema')) "
-			"and pg_attribute.attname = '&2' "
+			"and pg_attribute.attname = '&3' "
 			"and pg_attribute.attnum > 0 and not pg_attribute.attisdropped "
 			"and pg_attribute.attrelid = pg_class.oid";
 
 		query_schema =
 			"select pg_attribute.attname, pg_attribute.atttypid::int, "
-			"pg_attribute.atttypmod, pg_attribute.attnotnull, pg_attrdef.adsrc, pg_attribute.atthasdef "
+			"pg_attribute.atttypmod, pg_attribute.attnotnull, &1, pg_attribute.atthasdef "
 			"from pg_class, pg_attribute "
 			"left join pg_attrdef on (pg_attrdef.adrelid = pg_attribute.attrelid and pg_attrdef.adnum = pg_attribute.attnum) "
-			"where pg_class.relname = '&1' "
-			"and (pg_class.relnamespace in (select oid from pg_namespace where nspname = '&3')) "
-			"and pg_attribute.attname = '&2' "
+			"where pg_class.relname = '&2' "
+			"and (pg_class.relnamespace in (select oid from pg_namespace where nspname = '&4')) "
+			"and pg_attribute.attname = '&3' "
 			"and pg_attribute.attnum > 0 and not pg_attribute.attisdropped "
 			"and pg_attribute.attrelid = pg_class.oid";
 	}
@@ -2232,25 +2277,25 @@ static int field_info(DB_DATABASE *db, const char *table, const char *field, DB_
 	{
 		query =
 			"select pg_attribute.attname, pg_attribute.atttypid::int, "
-			"pg_attribute.atttypmod, pg_attribute.attnotnull, pg_attrdef.adsrc, pg_attribute.atthasdef, pg_collation.collname "
+			"pg_attribute.atttypmod, pg_attribute.attnotnull, &1, pg_attribute.atthasdef, pg_collation.collname "
 			"from pg_class, pg_attribute "
 			"left join pg_attrdef on (pg_attrdef.adrelid = pg_attribute.attrelid and pg_attrdef.adnum = pg_attribute.attnum) "
 			"left join pg_collation on (pg_collation.oid = pg_attribute.attcollation) "
-			"where pg_class.relname = '&1' "
+			"where pg_class.relname = '&2' "
 			"and (pg_class.relnamespace not in (select oid from pg_namespace where nspname = 'information_schema')) "
-			"and pg_attribute.attname = '&2' "
+			"and pg_attribute.attname = '&3' "
 			"and pg_attribute.attnum > 0 and not pg_attribute.attisdropped "
 			"and pg_attribute.attrelid = pg_class.oid";
 
 		query_schema =
 			"select pg_attribute.attname, pg_attribute.atttypid::int, "
-			"pg_attribute.atttypmod, pg_attribute.attnotnull, pg_attrdef.adsrc, pg_attribute.atthasdef, pg_collation.collname "
+			"pg_attribute.atttypmod, pg_attribute.attnotnull, &1, pg_attribute.atthasdef, pg_collation.collname "
 			"from pg_class, pg_attribute "
 			"left join pg_attrdef on (pg_attrdef.adrelid = pg_attribute.attrelid and pg_attrdef.adnum = pg_attribute.attnum) "
 			"left join pg_collation on (pg_collation.oid = pg_attribute.attcollation) "
-			"where pg_class.relname = '&1' "
-			"and (pg_class.relnamespace in (select oid from pg_namespace where nspname = '&3')) "
-			"and pg_attribute.attname = '&2' "
+			"where pg_class.relname = '&2' "
+			"and (pg_class.relnamespace in (select oid from pg_namespace where nspname = '&4')) "
+			"and pg_attribute.attname = '&3' "
 			"and pg_attribute.attnum > 0 and not pg_attribute.attisdropped "
 			"and pg_attribute.attrelid = pg_class.oid";
 	}
@@ -2261,12 +2306,12 @@ static int field_info(DB_DATABASE *db, const char *table, const char *field, DB_
 
 	if (get_table_schema(&table, &schema))
 	{
-		if (do_query(db, "Unable to get field info: &1", &res, query, 2, table, field))
+		if (do_query(db, "Unable to get field info: &1", &res, query, 3, get_default_value("pg_attrdef.adsrc"), table, field))
 			return TRUE;
 	}
 	else
 	{
-		if (do_query(db, "Unable to get field info: &1", &res, query_schema, 3, table, field, schema))
+		if (do_query(db, "Unable to get field info: &1", &res, query_schema, 4, get_default_value("pg_attrdef.adsrc"), table, field, schema))
 			return TRUE;
 	}
 

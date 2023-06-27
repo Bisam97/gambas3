@@ -2,7 +2,7 @@
 
   gbx_number.c
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -536,9 +536,6 @@ void NUMBER_int_to_string(uint64_t nbr, int prec, int base, VALUE *value)
 	int digit, len;
 	bool neg;
 
-	//if (prec < 0)
-	//  ERROR_panic("NUMBER_int_to_string: prec < 0");
-
 	len = 0;
 	ptr = &COMMON_buffer[COMMON_BUF_MAX];
 
@@ -601,3 +598,4 @@ void NUMBER_int_to_string(uint64_t nbr, int prec, int base, VALUE *value)
 		memcpy(src, ptr, len);
 	}
 }
+

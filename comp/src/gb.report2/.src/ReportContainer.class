@@ -219,6 +219,7 @@ Private Function GetHSizeInt((AvailableW) As Float, (AvailableH) As Float, (Tota
     If Me.Children.Max > 0 Then fWidth += Me.Children[0].Margin._Top
     For i = 0 To Me.Children.Max
       hChild = Me.Children[i]
+      If Not hchild.Visible Then Continue
       hChildHints = hchild._GetSizeHints(AvailableW - fWidth, AvailableH, AvailableW, AvailableH, DataIndex)
       fMaxSpc = Max(fspc, hchild.Margin._Right)
       If i < Me.Children.Max Then fMaxSpc = Max(fMaxSpc, Me.Children[i + 1].Margin._Left)
@@ -287,6 +288,7 @@ Private Function GetVSizeInt((AvailableW) As Float, (AvailableH) As Float, (Tota
     'If Me.tag = "**" Then Stop
     For i = 0 To Me.Children.Max
       hChild = Me.Children[i]
+      If Not hchild.Visible Then Continue
       If hchild.Fixed Then
         'On ajoute la marge supérieur du premier objet fixe
         If $fFixedSize = 0 Then $fFixedSize = hchild.Margin._Top
@@ -316,6 +318,7 @@ Private Function GetVSizeInt((AvailableW) As Float, (AvailableH) As Float, (Tota
     'On définit la taille au besoins des enfants
     For i = Me._CurItem To Me.Children.Max
       hChild = Me.Children[i]
+      If Not hchild.Visible Then Continue
       For j = hchild._DataIndex To hchild._Count - 1
         'If hchild.Tag = "head" Then Print "VDataHint = " & DataIndex
         If hChild.Ignore Then Continue
@@ -458,6 +461,7 @@ Private Function SetFChildGeometry(X As Float, Y As Float, W As Float, H As Floa
   W = W - Me.Padding._Left - Me.Padding._Right - Me.Border._Left - Me.Border._Right
   H = H - Me.Padding._Top - Me.Padding._Bottom - Me.Border._Top - Me.Border._Bottom
   For Each hChild In Me.Children
+    If Not hchild.Visible Then Continue
     hChildHints = hchild._GetSizeHints(W, H, W, H)
     hTItem = New TControl
     hTItem.Ctrl = hchild
@@ -505,7 +509,7 @@ Private Function SetNChildGeometry(X As Float, Y As Float, W As Float, H As Floa
   H = H - Me.Padding._Top - Me.Padding._Bottom - Me.Border._Top - Me.Border._Bottom
 
   For Each hChild In Me.Children
-
+    If Not hchild.Visible Then Continue
     hChildHints = hchild._GetSizeHints(W, H, W, H, TCont.Index)
     hTItem = New TControl
     hTItem.Ctrl = hchild
@@ -569,9 +573,9 @@ Private Sub SetHChildGeometry(X As Float, Y As Float, W As Float, H As Float, Co
   TW = W
 
   For i = 0 To Me.Children.Max
-
+  
     hChild = Me.Children[i]
-
+    If Not hchild.Visible Then Continue
     'hchild._Index = IIf(Me.DataCount > 0, j, TCont.Index)
     hChild._Index = TCont.Index
     hChildHints = hChild._GetSizeHints(w, h, w, h, TCont.Index)
@@ -782,6 +786,7 @@ Private Sub SetVChildGeometry(X As Float, Y As Float, W As Float, H As Float, Co
   'On énumère tout les éléments an tête en ne retenant que les fixes
   For i = 0 To Me.Children.Max
     hchild = Me.Children[i]
+    If Not hchild.Visible Then Continue
     If hchild.Fixed Then
       cChildFixe[j] = hchild
       Inc j
@@ -791,6 +796,7 @@ Private Sub SetVChildGeometry(X As Float, Y As Float, W As Float, H As Float, Co
   j = 0
 
   For i = 0 To Me.Children.Max
+    If Not hchild.Visible Then Continue
     hchild = Me.Children[i]
     'If Not hchild._DataIndex.Exist(IndexKey) Then hchild._DataIndex[IndexKey] = 0
     If hchild.Fixed Then
@@ -851,6 +857,7 @@ Private Sub SetVChildGeometry(X As Float, Y As Float, W As Float, H As Float, Co
       bTop = True
     Endif
     hchild = Me.Children[i]
+    If Not hchild.Visible Then Continue
     'Je traite ici la boucle de clonage
     'On définit le point de départ
     'If ContPage = 1 And hchild.Tag = "**" Then Stop
@@ -967,6 +974,7 @@ Private Sub SetVChildGeometry(X As Float, Y As Float, W As Float, H As Float, Co
   'Pour tous les éléments fixes jusqu'à la fin du document
   For i = Max(Me._CurItem, 0) To Me.Children.Max
     hchild = Me.Children[i]
+    If Not hchild.Visible Then Continue
     If hchild.Fixed Then
       fMaxSpc = Max(hchild.Margin._Bottom, fspc)
       If i < Me.Children.Max Then fMaxSpc = Max(fMaxSpc, Me.Children[i + 1].Margin._Top)

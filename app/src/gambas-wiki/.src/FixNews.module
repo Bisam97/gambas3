@@ -1,0 +1,63 @@
+' Gambas module file
+
+Enum WANT_DATE, WANT_DAY, WANT_MONTH, WANT_YEAR, WANT_END_DATE
+
+Public Sub Main()
+
+  Dim hFile As File
+  Dim sLine As String
+  Dim aResult As String[]
+  Dim sTrim As String
+  Dim iMode As Integer
+  Dim sDate As String
+  Dim sDay As String
+
+  hFile = Open "news.txt"
+  aResult = New String[]
+  iMode = WANT_DATE
+  
+  For Each sLine In hFile.Lines
+    
+    sTrim = Trim(sLine)
+    
+    Select Case iMode
+      
+      Case WANT_DATE
+        
+        If sTrim Begins "[[ date" Then
+          sDate = "<div class=\"" & Mid$(sTrim, 4) & "\">"
+          iMode = WANT_DAY
+          Continue
+        Endif
+        
+      Case WANT_DAY
+        
+        sDay = sTrim
+        iMode = WANT_MONTH
+        Continue
+        
+      Case WANT_MONTH
+        sDate &= "<m>" & Left(Replace(sTrim, "\\", ""), 3) & "</m>"
+        sDate &= "<d>" & Format(CInt(Replace(sDay, "\\", "")), "00") & "</d>"
+        iMode = WANT_YEAR
+        Continue
+        
+      Case WANT_YEAR
+        sDate &= "<y>" & Replace(sTrim, "\\", "") & "</y></div>"
+        aResult.Add(sDate)
+        iMode = WANT_END_DATE
+        Continue
+        
+      Case WANT_END_DATE
+        iMode = WANT_DATE
+        If sTrim = "]]" Then Continue
+      
+    End Select
+    
+    aResult.Add(sLine)
+    
+  Next
+  
+  Print aResult.Join("\n")
+
+End

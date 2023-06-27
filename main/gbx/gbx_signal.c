@@ -2,7 +2,7 @@
 
   gbx_signal.c
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -27,18 +27,47 @@
 #include "gb_error.h"
 #include "gb_array.h"
 #include "gbx_api.h"
+#include "gbx_c_process.h"
+#include "gbx_c_task.h"
 #include "gbx_signal.h"
 
 //#define DEBUG_ME 1
+
+uint64_t SIGNAL_check_mask = 0;
 
 static SIGNAL_HANDLER *_handlers = NULL;
 static int _pipe[2] = { -1, -1 };
 static volatile int _count = 0;
 static int _raising_callback = 0;
 
+enum { CB_NONE = 0, CB_HANDLER = 1, CB_ACTION = 2 };
+
+static int get_callback(struct sigaction *action, void (**callback)())
+{
+	if (action->sa_handler != SIG_DFL && action->sa_handler != SIG_IGN)
+	{
+		if (action->sa_flags & SA_SIGINFO)
+		{
+			*callback = (void *)action->sa_sigaction;
+			return CB_ACTION;
+		}
+		else
+		{
+			*callback = (void *)action->sa_handler;
+			return CB_HANDLER;
+		}
+	}
+	else
+	{
+		*callback = NULL;
+		return CB_NONE;
+	}
+}
+
 void SIGNAL_install(SIGNAL_HANDLER *handler, int signum, void (*callback)(int, siginfo_t *, void *))
 {
 	struct sigaction action;
+	sigset_t sig;
 	
 	#if DEBUG_ME
 	fprintf(stderr, "SIGNAL_install: %d %p\n", signum, callback);
@@ -47,11 +76,18 @@ void SIGNAL_install(SIGNAL_HANDLER *handler, int signum, void (*callback)(int, s
 	handler->signum = signum;
 	
 	action.sa_flags = SA_SIGINFO;
+	// According to manpage, the emitting signal is blocked by default.
 	sigemptyset(&action.sa_mask);
 	action.sa_sigaction = callback;
 
 	if (sigaction(signum, NULL, &handler->old_action) != 0 || sigaction(signum, &action, NULL) != 0)
 		ERROR_panic("Cannot install signal handler: %s", strerror(errno));
+
+	// Ensure that the signal is not blocked
+	sigemptyset(&sig);
+	sigaddset(&sig, signum);
+	sigprocmask(SIG_UNBLOCK, &sig, NULL);
+
 }
 
 void SIGNAL_uninstall(SIGNAL_HANDLER *handler, int signum)
@@ -69,18 +105,20 @@ void SIGNAL_uninstall(SIGNAL_HANDLER *handler, int signum)
 
 void SIGNAL_previous(SIGNAL_HANDLER *handler, int signum, siginfo_t *info, void *context)
 {
-	if (handler->old_action.sa_handler != SIG_DFL && handler->old_action.sa_handler != SIG_IGN)
+	void (*cb)();
+	
+	switch (get_callback(&handler->old_action, &cb))
 	{
-		if (handler->old_action.sa_flags & SA_SIGINFO)
-		{
-			//fprintf(stderr, "Calling old action %p\n", _old_SIGCHLD_action.sa_sigaction);
-			(*handler->old_action.sa_sigaction)(signum, info, context);
-		}
-		else
-		{
-			//fprintf(stderr, "Calling old handler %p\n", _old_SIGCHLD_action.sa_handler);
-			(*handler->old_action.sa_handler)(signum);
-		}
+		case CB_ACTION:
+			(*cb)(signum, info, context);
+			break;
+		
+		case CB_HANDLER:
+			(*cb)(signum);
+			break;
+		
+		default:
+			; /* do nothing */
 	}
 }
 
@@ -109,8 +147,23 @@ static void handle_signal(int signum, siginfo_t *info, void *context)
 {
 	char buffer;
 	int save_errno;
+	static volatile int64_t lock = 0;
+
+	if (lock & (1 << signum))
+		return;
 
 	save_errno = errno;
+	lock |= 1 << signum;
+
+	#if DEBUG_ME	
+	char digit;
+	write(2, "[SIGNAL:", 8);
+	digit = '0' + (signum / 10);
+	write(2, &digit, 1);
+	digit = '0' + (signum % 10);
+	write(2, &digit, 1);
+	write(2, "]\n", 2);
+	#endif
 	
 	if (_count)
 	{
@@ -131,6 +184,7 @@ static void handle_signal(int signum, siginfo_t *info, void *context)
 	SIGNAL_previous(find_handler(signum), signum, info, context);
 	
 	errno = save_errno;
+	lock &= ~(1 << signum);
 }
 
 static bool _must_purge_callbacks = FALSE;
@@ -287,6 +341,10 @@ SIGNAL_CALLBACK *SIGNAL_register(int signum, void (*callback)(int, intptr_t), in
 	_count++;
 	
 	handler = find_handler(signum);
+	#if DEBUG_ME
+	fprintf(stderr, "SIGNAL_register: find_handler(%d) -> %p\n", signum, handler);
+	#endif
+	
 	if (!handler)
 	{
 		handler = add_handler();
@@ -380,6 +438,7 @@ void SIGNAL_exit(void)
 	
 	if (_handlers)
 	{
+		_raising_callback = 0;
 		for (i = 0; i < ARRAY_count(_handlers); i++)
 		{
 			handler = &_handlers[i];
@@ -404,4 +463,39 @@ void SIGNAL_has_forked(void)
 	close(_pipe[0]);
 	close(_pipe[1]);
 	create_pipe();
+}
+
+void SIGNAL_do_check(int signum)
+{
+	struct sigaction action;
+	SIGNAL_HANDLER *handler = find_handler(signum);
+	void (*cb)();
+	
+	if (!handler)
+		return;
+	
+	sigaction(signum, NULL, &action);
+	get_callback(&action, &cb);
+	
+	#if DEBUG_ME
+	fprintf(stderr, "SIGNAL_check: %d -> %d (action.sa_sigaction = %p)\n", signum, cb == handle_signal, cb);
+	if (cb != handle_signal)
+		BREAKPOINT();
+	#endif
+	
+	if (cb == handle_signal)
+		return;
+	
+	SIGNAL_install(handler, signum, handle_signal);
+
+	if (signum == SIGCHLD)
+	{
+		CPROCESS_callback_child();
+		CTASK_callback_child();
+	}
+}
+
+void SIGNAL_must_check(int signum)
+{
+	SIGNAL_check_mask |= (1 << signum);
 }

@@ -15,6 +15,9 @@ Property Border As Boolean
 Property MinValue As Date
 Property MaxValue As Date
 
+'' Return or set if the week numbers are visible.
+Property ShowWeek As Boolean
+
 Public Const DateOnly As Integer = 0
 Public Const DateTime As Integer = 1
 Public Const TimeOnly As Integer = 2
@@ -25,7 +28,7 @@ Event Activate
 Event Cancel
 Event Data({Date} As Date)
 
-Public Const _Properties As String = "*,Border=True,Mode{DateChooser.*}=DateOnly"
+Public Const _Properties As String = "*,Border=True,Mode{DateChooser.*}=DateOnly,ShowWeek"
 Public Const _DefaultEvent As String = "Change"
 Public Const _DefaultSize As String = "40,28"
 Public Const _Group As String = "Chooser"
@@ -143,7 +146,6 @@ Private Function Colors_Read() As _DateChooser_Colors
 
 End
 
-
 Public Sub SetFocus()
   
   $hCal.SetFocus
@@ -196,7 +198,6 @@ Private Sub GetKey(dDate As Date) As String
   Return CStr(Date(dDate))
   
 End
-
 
 Public Sub _GetData(dDate As Date, Optional bCreate As Boolean) As _DateChooser_Data
 
@@ -261,5 +262,17 @@ Private Sub MaxValue_Write(Value As Date)
 
   $dDateMax = Value
   $hCal.UpdateValue()
+
+End
+
+Private Function ShowWeek_Read() As Boolean
+
+  Return $hCal.GetShowWeek()
+
+End
+
+Private Sub ShowWeek_Write(Value As Boolean)
+
+  $hCal.SetShowWeek(Value)
 
 End

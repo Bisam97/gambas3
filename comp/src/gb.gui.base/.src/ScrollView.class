@@ -8,20 +8,41 @@ Public Const _DefaultEvent As String = "Draw"
 Public Const _DefaultSize As String = "24,24"
 Public Const _Similar As String = "DrawingArea,ScrollView"
 
+Static Private $bGTK2 As Boolean
+
 Private $hCont As Panel
 Private $hObs As Observer
 Private $hTimer As Timer
 Private $bLock As Boolean
+
+Static Public Sub _init()
+  
+  $bGTK2 = Component.IsLoaded("gb.gtk")
+  
+End
+
+Public Sub _OnBackgroundChange()
+
+  Dim hDrawingArea As DrawingArea
+
+  If Not $bGTK2 Then Return  
+  hDrawingArea = $hCont.Parent
+  hDrawingArea.Background = Style.BackgroundOf(hDrawingArea)
+  
+End
+
 
 Public Sub _new()
   
   $hObs = New Observer(Me.Proxy) As "Observer"
   $hCont = New Panel(Me) As "Panel"
   $hCont.Move(0, 0)
-  '$hCont.Background = Color.Yellow
+  
   Me._Container = $hCont
-  $hTimer = New Timer As "TimerArrange"
+  $hTimer = New Timer As "AutoResizeContents"
   $hTimer.Trigger
+  
+  _OnBackgroundChange()
   
 End
 
@@ -40,21 +61,20 @@ End
 Public Sub TimerArrange_Timer()
   
   AutoResizeContents
-  $hTimer = Null
   
 End
 
 
-Private Sub AutoResizeContents()
+Public Sub AutoResizeContents_Timer()
 
   Dim W, H As Integer
   Dim hChild As Control
   Dim iSaveArr As Integer
   Dim D As Integer
 
-  If $bLock Then Return
+  'If Me.Name = "Brown" Then Debug $bLock;; System.Backtrace.Join(" ")
   
-  'If Me.Name = "lstRecent" Then Debug "scroll: "; Me.ScrollW;; Me.ScrollH;; "client: "; Me.ClientW;; Me.ClientH 'System.Backtrace.Join(" ")
+  If $bLock Then Return
   
   $bLock = True
   
@@ -65,6 +85,7 @@ Private Sub AutoResizeContents()
     
     For Each hChild In $hCont.Children
       If Not hChild.Visible Then Continue
+      If hChild.Ignore Then Continue
       W = Max(W, hChild.X + hChild.W)
       H = Max(H, hChild.Y + hChild.H)
     Next
@@ -95,7 +116,7 @@ Private Sub AutoResizeContents()
   H = Max(Me.ClientH, H)
 
   If $hCont.W <> W Or If $hCont.H <> H Then
-    'If Me.Name = "svwTheme" Then Debug "Resize cont "; W;; H
+    'If Me.Name = "Brown" Then Debug "Resize cont "; W;; H
     $hCont.Resize(W, H)
     iSaveArr = $hCont.Arrangement
     $hCont.Arrangement = Arrange.None
@@ -104,6 +125,12 @@ Private Sub AutoResizeContents()
   
   $bLock = False
   
+End
+
+Private Sub AutoResizeContents()
+
+  $hTimer.Trigger
+
 End
 
 Public Sub Panel_MouseDown()

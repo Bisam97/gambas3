@@ -2,7 +2,7 @@
 
   gbx_stack.c
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -38,7 +38,8 @@ char *STACK_base = NULL;
 size_t STACK_size;
 char *STACK_limit = NULL;
 STACK_CONTEXT *STACK_frame;
-int STACK_frame_count;
+uint STACK_frame_count;
+uint STACK_frame_barrier;
 
 uintptr_t STACK_process_stack_limit;
 
@@ -71,6 +72,7 @@ void STACK_init(void)
   STACK_limit = STACK_base + STACK_size;
   STACK_frame = (STACK_CONTEXT *)STACK_limit;
   STACK_frame_count = 0;
+	STACK_frame_barrier = 0;
 	STACK_limit -= STACK_FOR_EVAL * sizeof(VALUE);
 
   SP = (VALUE *)STACK_base;
@@ -111,10 +113,11 @@ bool STACK_check(int need)
 
 bool STACK_has_error_handler(void)
 {
-  int i;
+  uint i;
 	STACK_CONTEXT *sc;
+	uint b = STACK_frame_count - STACK_frame_barrier;
 
-  for (i = 0; i < STACK_frame_count; i++)
+  for (i = 0; i < b; i++)
 	{
 		sc = &STACK_frame[i];
 		if (sc->ec || sc->ep)
@@ -124,7 +127,7 @@ bool STACK_has_error_handler(void)
 	return FALSE;
 }
 
-STACK_CONTEXT *STACK_get_frame(int frame)
+STACK_CONTEXT *STACK_get_frame(uint frame)
 {
 	if (frame >= 0 && frame < STACK_frame_count)
 		return &STACK_frame[frame];
@@ -135,7 +138,7 @@ STACK_CONTEXT *STACK_get_frame(int frame)
 STACK_BACKTRACE *STACK_get_backtrace(void)
 {
 	STACK_BACKTRACE *bt, *pbt;
-	int i;
+	uint i;
 	
 	if (STACK_frame_count == 0)
 		return NULL;
@@ -159,3 +162,26 @@ STACK_BACKTRACE *STACK_get_backtrace(void)
 	 
 	return bt;
 }
+
+STACK_BACKTRACE *STACK_copy_backtrace(STACK_BACKTRACE *bt)
+{
+	STACK_BACKTRACE *copy;
+	int i, n;
+	
+	for (i = 0;; i++)
+	{
+		if (STACK_backtrace_is_end(&bt[i]))
+		{
+			n = i + 1;
+			break;
+		}
+	}
+	
+	ALLOC(&copy, sizeof(STACK_BACKTRACE) * n);
+	
+	for (i = 0; i <n; i++)
+		copy[i] = bt[i];
+	
+	return copy;
+}
+

@@ -1,0 +1,274 @@
+' Gambas class file
+
+''' This class implements a container with a border and a title on top.
+
+Export
+
+Inherits UserContainer
+
+Public Const _Properties As String = "*,Text,TextFont,Alignment{Align.*}=Center"
+Public Const _Similar As String = "Panel"
+
+'' Return or set the Frame title.
+Property Text As String
+
+'' Return or set the Frame title as rich text.
+Property RichText As String
+
+'' Return or set the font title.
+''
+'' If not set, the control font is used.
+Property TextFont As Font
+
+'' Return or set the position of the title relative to the border.
+Property Alignment As Integer
+
+'' --> [/comp/gb.qt4/usercontainer/arrangement]
+Property Arrangement As Integer
+
+Private $hContainer As Panel
+Private $hFrame As DrawingArea
+Private $sText As String
+Private $bRichText As Boolean
+Private $hTextFont As Font
+Private $iAlign As Integer = Align.Center
+
+'' Create a new Frame.
+
+Public Sub _new()
+
+  $hFrame = New DrawingArea(Me) As "Frame"
+  '$hFrame.Margin = True
+  
+  $hContainer = New Panel($hFrame)
+  Me._Container = $hContainer
+  
+  'Me.Proxy = $hFrame
+  
+End
+
+Public Sub Frame_Arrange()
+
+  Dim DS As Integer
+  Dim H As Integer = 0
+  
+  If $sText And If Me.Arrangement Then
+    
+    DS = Desktop.Scale
+  
+    If $hTextFont Then
+      H = Max($hTextFont.H, DS)
+    Else
+      H = Max(Me.Font.H, DS)
+    Endif
+  
+    H += DS \ 2
+    
+  Endif
+  
+  $hContainer.Move(0, H, $hFrame.W, $hFrame.H - H)
+  
+End
+
+Public Sub Frame_Draw()
+
+  Dim DS As Integer
+  Dim W As Integer
+  Dim sText As String
+  Dim hRect As PaintExtents
+  Dim H As Integer
+  Dim iAlign As Integer
+  Dim Y As Integer
+  Dim X As Integer
+  
+  DS = Desktop.Scale
+  
+  If $hFrame.W < DS * 2 Or If $hFrame.H < DS * 2 Then Return
+    
+  If $sText Then
+    
+    If $hTextFont Then Paint.Font = $hTextFont
+    H = Max(Paint.Font.H, DS)
+    W = $hFrame.W
+    If Align.IsBottom($iAlign) Then 
+      W -= DS * 2
+      X = DS
+    Else If Align.IsMiddle($iAlign) Then 
+      W -= DS * 4
+      X = DS * 2
+    Endif
+    
+    If $bRichText Then
+      sText = Paint.TrimRichText($sText, W)
+      hRect = Paint.RichTextExtents(sText)
+    Else
+      sText = Paint.TrimText($sText, W)
+      hRect = Paint.TextExtents(sText)
+    Endif
+
+    'If Me.Background <> Color.Default Then Paint.FillRect(DS \ 2 + 2, H \ 2 + 2, $hFrame.W - DS - 4, $hFrame.H - (DS + H) \ 2 - 4, Me.Background)
+    
+    If Align.IsBottom($iAlign) Then
+
+      Paint.DrawRect(0, 0, $hFrame.W, $hFrame.H, Color.LightForeground)
+      Y = DS \ 2
+      
+    Else If Align.IsTop($iAlign) Then
+      
+      Paint.DrawRect(0, H + DS \ 2, $hFrame.W, $hFrame.H - H - DS \ 2, Color.LightForeground)
+
+    Else
+      
+      Paint.Background = Color.LightForeground
+  
+      If Not sText Then
+  
+        Paint.DrawRect(0, H \ 2, $hFrame.W, $hFrame.H - H \ 2, Color.LightForeground)
+
+      Else
+  
+        Paint.Translate(0.5, 0.5)
+        
+        If Align.IsLeft($iAlign) Then
+          
+          Paint.MoveTo(DS, H \ 2)
+          Paint.LineTo(0, H \ 2)
+          Paint.LineTo(0, $hFrame.H - 1)
+          Paint.LineTo($hFrame.W - 1, $hFrame.H - 1)
+          Paint.LineTo($hFrame.W - 1, H \ 2)
+          Paint.LineTo(hRect.W + DS * 3, H \ 2)
+  
+        Else If Align.IsRight($iAlign) Then
+    
+          Paint.MoveTo($hFrame.W - hRect.W - DS * 3, H \ 2)
+          Paint.LineTo(0, H \ 2)
+          Paint.LineTo(0, $hFrame.H - 1)
+          Paint.LineTo($hFrame.W - 1, $hFrame.H - 1)
+          Paint.LineTo($hFrame.W - 1, H \ 2)
+          Paint.LineTo($hFrame.W - DS, H \ 2)
+  
+        Else ' center
+    
+          Paint.MoveTo(CInt($hFrame.W - hRect.W) \ 2 - DS, H \ 2)
+          Paint.LineTo(0, H \ 2)
+          Paint.LineTo(0, $hFrame.H - 1)
+          Paint.LineTo($hFrame.W - 1, $hFrame.H - 1)
+          Paint.LineTo($hFrame.W - 1, H \ 2)
+          Paint.LineTo(CInt($hFrame.W - hRect.W) \ 2 + hRect.W + DS, H \ 2)
+          
+        Endif
+        
+        Paint.LineWidth = 1
+        Paint.Stroke()
+      
+        Paint.Translate(-0.5, -0.5)
+        
+      Endif
+          
+    Endif
+      
+    If sText Then
+
+      If Align.IsLeft($iAlign) Then
+        iAlign = Align.Left
+      Else If Align.IsRight($iAlign) Then
+        iAlign = Align.Right
+      Else
+        iAlign = Align.Center
+      Endif
+
+      Paint.Background = Style.ForegroundOf(Me)
+      
+      If $bRichText Then
+        Paint.DrawRichText(sText, X, Y, $hFrame.W - X * 2, H, iAlign)
+      Else
+        Paint.DrawText(sText, X, Y, $hFrame.W - X * 2, H, iAlign)
+      Endif
+      
+    Endif
+
+  Else
+    
+    If Me.Background <> Color.Default Then Paint.FillRect(0, 0, $hFrame.W, $hFrame.H, Me.Background)
+    Paint.DrawRect(0, 0, $hFrame.W, $hFrame.H, Color.LightForeground)
+    'Style.PaintPanel(DS \ 2, DS \ 2, $hFrame.W - DS, $hFrame.H - DS, Border.Etched)
+    
+  Endif
+  
+End
+
+Private Function Text_Read() As String
+
+  If Not $bRichText Then Return $sText
+
+End
+
+Private Sub Text_Write(Value As String)
+
+  $sText = Value
+  $bRichText = False
+  Frame_Arrange
+  $hFrame.Refresh
+
+End
+
+Private Function RichText_Read() As String
+
+  If $bRichText Then Return $sText
+
+End
+
+Private Sub RichText_Write(Value As String)
+
+  $sText = Value
+  $bRichText = True
+  Frame_Arrange
+  $hFrame.Refresh
+
+End
+
+Private Function TextFont_Read() As Font
+
+  Return $hTextFont
+
+End
+
+Private Sub TextFont_Write(Value As Font)
+
+  $hTextFont = Value
+
+End
+
+Public Sub Frame_Font()
+  
+  Frame_Arrange
+  
+End
+
+Private Function Alignment_Read() As Integer
+
+  Return $iAlign
+
+End
+
+Private Sub Alignment_Write(Value As Integer)
+
+  If $iAlign = Value Then Return
+  $iAlign = Value
+  Frame_Arrange
+  $hFrame.Refresh
+
+End
+
+Private Function Arrangement_Read() As Integer
+
+  Return Super.Arrangement
+
+End
+
+Private Sub Arrangement_Write(Value As Integer)
+
+  Super.Arrangement = Value
+  Frame_Arrange
+
+End

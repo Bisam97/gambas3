@@ -1,3 +1,6 @@
+COMPONENT = gb.geom
+include $(top_srcdir)/component.am
+
 gblib_LTLIBRARIES = gb.geom.la
 
 gb_geom_la_LIBADD = @MATH_LIB@

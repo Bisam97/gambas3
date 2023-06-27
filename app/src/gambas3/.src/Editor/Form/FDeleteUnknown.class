@@ -1,0 +1,39 @@
+' Gambas class file
+
+Public Sub _new()
+  
+  gvwUnknown.AddColumn(("Control")).Expand = True
+  gvwUnknown.AddColumn(("Class"), -1)
+  
+End
+
+Public Sub Run(hForm As FForm) As Boolean
+
+  Dim hCtrl As CControl
+  Dim I As Integer
+
+  For Each hCtrl In hForm.Control
+    If hCtrl.Locked Then
+      I = gvwUnknown.Rows.Count
+      Inc gvwUnknown.Rows.Count
+      gvwUnknown[I, 0].Text = hCtrl.Name
+      gvwUnknown[I, 1].Text = hCtrl.Kind
+    Endif
+  Next
+
+  Return Not Me.ShowModal()
+
+End
+
+Public Sub btnOK_Click()
+
+  Me.Close(True)
+
+End
+
+Public Sub btnCancel_Click()
+
+  Me.Close
+
+End
+

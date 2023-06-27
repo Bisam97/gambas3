@@ -2,7 +2,7 @@
 
 	main.c
 
-	(c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+	(c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -28,6 +28,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <ctype.h>
+#include <sys/time.h>
 
 #include "gb_common.h"
 
@@ -48,6 +49,8 @@
 GB_INTERFACE GB EXPORT;
 
 
+DB_DATABASE *DB_CurrentDatabase = NULL;
+
 static DB_DRIVER *_drivers[MAX_DRIVER];
 static int _drivers_count = 0;
 static char *_query = NULL;
@@ -59,7 +62,8 @@ static int _temp_len;
 static bool _debug = FALSE;
 static const char *_try_another = NULL;
 
-DB_DATABASE *DB_CurrentDatabase = NULL;
+static GB_COLLECTION _options;
+
 
 int DB_CheckNameWith(const char *name, const char *msg, const char *more)
 {
@@ -87,19 +91,6 @@ int DB_CheckNameWith(const char *name, const char *msg, const char *more)
 	return FALSE;
 }
 
-
-// void DB_LowerString(char *s)
-// {
-//   register char c;
-// 
-//   for(;;)
-//   {
-//     c = *s;
-//     if (!c)
-//       return;
-//     *s++ = tolower(c);
-//   }
-// }
 
 void DB_FreeStringArray(char ***parray)
 {
@@ -191,13 +182,15 @@ static DB_DRIVER *DB_GetDriver(const char *type)
 }
 
 
-bool DB_Open(DB_DESC *desc, DB_DRIVER **driver, DB_DATABASE *db)
+bool DB_Open(DB_DESC *desc, DB_DRIVER **driver, DB_DATABASE *db, GB_COLLECTION options)
 {
 	DB_DRIVER *d;
 	int res;
 	int timeout;
 	const char *type = desc->type;
 
+	_options = options;
+	
 	timeout = db->timeout;
 	CLEAR(db);
 	db->timeout = timeout;
@@ -221,6 +214,27 @@ bool DB_Open(DB_DESC *desc, DB_DRIVER **driver, DB_DATABASE *db)
 		type = _try_another;
 	}
 }
+
+
+void DB_GetOptions(DB_OPTIONS_CALLBACK cb)
+{
+	GB_COLLECTION_ITER iter;
+	GB_VALUE value;
+	char *key;
+	int len;
+	
+	GB.Collection.Enum(_options, &iter, NULL, NULL, NULL);
+	for(;;)
+	{
+		if (GB.Collection.Enum(_options, &iter, (GB_VARIANT *)&value, &key, &len))
+			break;
+		
+		GB.BorrowValue(&value);
+		(*cb)(GB.TempString(key, len), &value);
+		GB.ReleaseValue(&value);
+	}
+}
+
 
 void DB_Format(DB_DRIVER *driver, GB_VALUE *arg, DB_FORMAT_CALLBACK add)
 {
@@ -345,22 +359,47 @@ void DB_FormatVariant(DB_DRIVER *driver, GB_VARIANT_VALUE *arg, DB_FORMAT_CALLBA
 static int query_narg;
 static GB_VALUE *query_arg;
 static DB_DRIVER *query_driver;
+static DB_DATABASE *query_db;
 
-static void mq_add_param(int index)
+static void mq_add_param(int index, char before, char after)
 {
+	GB_VALUE *arg;
+
 	if (index < 1 || index > query_narg)
 		return;
 
-	DB_Format(query_driver, &query_arg[index - 1], (DB_FORMAT_CALLBACK)GB.SubstAddCallback);
+	arg = &query_arg[index - 1];
+
+	//fprintf(stderr, "mq_add_param: %d %c %c\n", index, before, after);
+
+	if (before == '[' && after == ']')
+	{
+		GB.SubstStringUnquote();
+		if (!GB.Conv(arg, GB_T_STRING))
+			GB.SubstAddCallback(DB_GetQuotedTable(query_driver, query_db, arg->_string.value.addr + arg->_string.value.start, arg->_string.value.len), -1);
+	}
+	else if ((before == '\'' || before == '`') && after == before)
+	{
+		GB.SubstStringUnquote();
+		if (!GB.Conv(arg, GB_T_STRING))
+		{
+			GB.SubstAddCallback(query_driver->GetQuote(), -1);
+			GB.SubstAddCallback(arg->_string.value.addr + arg->_string.value.start, arg->_string.value.len);
+			GB.SubstAddCallback(query_driver->GetQuote(), -1);
+		}
+	}
+	else
+		DB_Format(query_driver, arg, (DB_FORMAT_CALLBACK)GB.SubstAddCallback);
 }
 
-char *DB_MakeQuery(DB_DRIVER *driver, const char *pattern, int len, int narg, GB_VALUE *arg)
+char *DB_MakeQuery(DB_DRIVER *driver, DB_DATABASE *db, const char *pattern, int len, int narg, GB_VALUE *arg)
 {
 	char *query;
 
 	query_narg = narg;
 	query_arg = arg;
 	query_driver = driver;
+	query_db = db;
 
 	if (narg == 0)
 		query = GB.TempString(pattern, len);
@@ -465,6 +504,34 @@ int DB_IsDebug(void)
 {
 	return _debug;
 }
+
+void DB_Debug(const char *prefix, const char *msg, ...)
+{
+	va_list args;
+	struct timeval tv;
+	GB_DATE_SERIAL *date;
+	GB_DATE val;
+
+	if (!_debug)
+		return;
+
+	if (gettimeofday(&tv, NULL) == 0)
+	{
+		GB.MakeDateFromTime((time_t)tv.tv_sec, tv.tv_usec, &val);
+		date = GB.SplitDate(&val);
+		fprintf(stderr, "%04d-%02d-%02d %02d:%02d:%02d.%03d ", date->year, date->month, date->day, date->hour, date->min, date->sec, date->msec);
+	}
+	
+	fprintf(stderr, "%s: ", prefix);
+	
+	va_start(args, msg);
+	vfprintf(stderr, msg, args);
+	va_end(args);
+	
+	fputc('\n', stderr);
+	fflush(stderr);
+}
+
 
 static char *_quote;
 DB_SUBST_CALLBACK _quote_cb;
@@ -613,7 +680,6 @@ char *DB_GetQuotedTable(DB_DRIVER *driver, DB_DATABASE *db, const char *table, i
 	
 	quote = (*driver->GetQuote)();
 	
-	
 	if (!point)
 	{
 		res = GB.TempString(NULL, len + 2);
@@ -660,11 +726,13 @@ void *GB_DB_1[] EXPORT = {
 	(void *)DB_Format,
 	(void *)DB_FormatVariant,
 	(void *)DB_IsDebug,
+	(void *)DB_Debug,
 	(void *)DB_TryAnother,
 	(void *)DB_SubstString,
 	(void *)DB_QuoteString,
 	(void *)DB_UnquoteString,
 	(void *)DB_GetCurrent,
+	(void *)DB_GetOptions,
 
 	(void *)q_init,
 	(void *)q_add,

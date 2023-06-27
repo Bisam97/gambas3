@@ -2,7 +2,7 @@
 
 	CMouse.h
 
-	(c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+	(c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -63,12 +63,19 @@ typedef
 	POINTER_INFO;
 
 #ifndef __CMOUSE_CPP
+	
 extern GB_DESC CMouseDesc[];
 extern GB_DESC CCursorDesc[];
 extern GB_DESC CPointerDesc[];
 
+extern int MOUSE_click_x;
+extern int MOUSE_click_y;
+extern int MOUSE_click_count;
+extern double MOUSE_timer;
+
 extern MOUSE_INFO MOUSE_info;
 extern POINTER_INFO POINTER_info;
+
 #else
 
 #define THIS ((CCURSOR *)_object)
@@ -84,17 +91,11 @@ typedef
 		}
 	CCURSOR;
 
-#define CMOUSE_DEFAULT (-1)
-#define CMOUSE_CUSTOM  (-2)
-
-
-// ### QT_WIDGET_PROPERTIES must be modified with this constant
-
-#define MOUSE_CONSTANTS \
-	"Mouse,Default,Blank,Arrow,Cross,Wait,Text,SizeAll,SizeH,SizeV,SizeN,SizeS,SizeW,SizeE,SizeNWSE," \
-	"SizeNESW,SplitH,SplitV,Pointing"
-
 void CMOUSE_clear(int valid);
 void CMOUSE_reset_translate(void);
+void CMOUSE_set_control(void *control);
+void CMOUSE_finish_event(void);
+
+#define CMOUSE_is_valid() (MOUSE_info.valid != 0)
 
 #endif

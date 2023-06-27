@@ -147,6 +147,8 @@ Public Sub _new(sStart As String, sPattern As String)
         Inc iInd
         If sPattern Then $aPattern.Add(sPattern)
         sPattern = ""
+      Else If sCar = "\t" Then
+        If sPattern Then sPattern &= Space$(Project.TabSize)
       Else If sCar = "\n" Then
         If sPattern Then $aPattern.Add(sPattern)
         $aPattern.Add("\n")
@@ -213,6 +215,7 @@ Private Sub Make(Optional iIndent As Integer) As String
   
   Next
   
+  sMake = Replace(sMake, "\t", Space$(Project.TabSize))
   If iIndent Then sMake = Replace(sMake, "\n", "\n" & Space$(iIndent))
   Return sMake
   

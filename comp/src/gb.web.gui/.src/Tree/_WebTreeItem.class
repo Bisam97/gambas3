@@ -1,0 +1,519 @@
+' Gambas class file
+
+Export
+
+'' Return the item key
+Property Read Key As String
+
+'' Return the key of the parent item, or 'NULL' if the item has no parent.
+Property Read ParentKey As String
+
+'' Return or set the item text.
+Property Text As String
+
+'' Return or set the item HTML text.
+''
+'' If the Html property is defined, the [Text](../text) property is ignored.
+Property Html As String
+
+'' Return or set the item image.
+Property Image As String
+
+'' Return the number of children items.
+Property Read Count, Children As Integer
+
+'' Return of set if the item is expanded.
+Property Expanded As Boolean
+
+'' Return or set if the item is editable.
+''
+'' This property has no effect at the moment.
+Property Editable As Boolean
+
+'' Return or set if the item is selected.
+Property Selected As Boolean
+
+'' Return or set the item background color.
+Property Background As Integer
+
+'' Return or set the item foreground color.
+Property Foreground As Integer
+
+'' This property is intended for the programmer and is never used by the component. It can contain any [/lang/type/variant] value.
+Property Tag As Variant
+
+'' Return the item depth inside the whole tree.
+Property Read Depth As Integer
+
+Private $sKey As String
+Private $sParent As String
+Private $sText As String
+Private $sHtml As String
+Private $sImage As String
+Private $bExpanded As Boolean
+Private $bEditable As Boolean
+Private $iBg As Integer = Color.Default
+Private $iFg As Integer = Color.Default
+Private $vTag As Variant
+
+Private $aChildren As String[]
+Private $aText As String[]
+
+Static Public _Tree As WebTree
+
+Public _Depth As Integer
+Public _Rows As Integer
+Public _Index As Integer
+Public _GrandChildren As Integer
+
+Event _Refresh
+
+Private Sub GetTree() As WebTree
+  
+  Return Object.Parent(Me)
+  
+End
+
+Public Sub _IsRoot() As Boolean
+  
+  Return Not $sKey
+  
+End
+
+Public Sub _ComputeDepth()
+  
+  Dim hTree As WebTree
+  Dim iDepth As Integer
+  Dim sChild As String
+
+  If $sParent Then 
+    iDepth = GetTree()[$sParent]._Depth + 1
+  Else
+    iDepth = 0
+  Endif
+  
+  If iDepth = _Depth Then Return
+  
+  _Depth = iDepth
+  
+  If Not $aChildren Then Return
+  
+  hTree = GetTree()
+  
+  For Each sChild In $aChildren
+    hTree[sChild]._ComputeDepth()
+  Next
+  
+End
+
+Public Sub _ComputeGrandChildren()
+  
+  Dim sChild As String
+  Dim hTree As WebTree
+  
+  _GrandChildren = 0
+  If Not $aChildren Then Return
+  
+  hTree = GetTree()
+  
+  For Each sChild In $aChildren
+    If hTree[sChild].Count Then Inc _GrandChildren
+  Next
+  
+End
+
+Public Sub _SetParent(sParent As String)
+  
+  $sParent = sParent
+  _ComputeDepth()
+  
+End
+
+Public Sub _new(sKey As String, sParent As String)
+  
+  $sKey = sKey
+  $sParent = sParent
+  
+  _ComputeDepth()
+  
+  If sKey Then 
+    _Rows = 1
+    _ComputeRows(1)
+  Else
+    $bExpanded = True
+  Endif
+  
+End
+
+Public Sub _AddChild(sKey As String)
+  
+  If Not $aChildren Then $aChildren = New String[]
+  $aChildren.Add(sKey)
+  
+  If $aChildren.Count = 1 Then 
+    Try Inc GetTree()._GetParentItem(Me)._GrandChildren
+  Endif
+  
+End
+
+Public Sub _RemoveChild(hItem As _WebTreeItem)
+  
+  Dim hTree As WebTree = GetTree()
+  Dim I As Integer
+  
+  Try $aChildren.Remove(hItem._Index)
+  
+  For I = hItem._Index To $aChildren.Max
+    hTree[$aChildren[I]]._Index = I
+  Next
+  
+  If $aChildren.Count = 0 Then
+    $aChildren = Null
+    Try Dec hTree._GetParentItem(Me)._GrandChildren
+  Endif
+  
+End
+
+Public Sub _GetChildren() As String[]
+  
+  Return $aChildren
+  
+End
+
+
+Private Function Key_Read() As String
+
+  Return $sKey
+
+End
+
+Private Function ParentKey_Read() As String
+
+  Return $sParent
+
+End
+
+Private Function Text_Read() As String
+
+  Return $sText
+
+End
+
+Private Sub Text_Write(Value As String)
+
+  Dim hTree As WebTree = GetTree()
+
+  If $sText = Value Then Return
+  $sText = Value
+  'If $iLock Then Return
+
+  'If hTree.Sorted Then hTree._SortParent($sParent)
+  'hTree._UpdateItemHeight(Me)
+  hTree._RefreshView
+
+End
+
+Private Function Html_Read() As String
+
+  Return $sHtml 
+
+End
+
+Private Sub Html_Write(Value As String)
+
+  Dim hTree As WebTree = GetTree()
+
+  If $sHtml = Value Then Return
+  $sHtml = Value
+  
+  'If hTree.Sorted Then hTree._SortParent($sParent)
+  'hTree._UpdateItemHeight(Me)
+  hTree._RefreshView
+
+End
+
+Private Function Image_Read() As String
+
+  Return $sImage
+
+End
+
+Private Sub Image_Write(Value As String)
+
+  Dim hTree As WebTree = GetTree()
+  
+  If $sImage = Value Then Return
+  $sImage = Value
+  hTree._RefreshView
+  
+End
+
+Private Function Count_Read() As Integer
+
+  If $aChildren Then Return $aChildren.Count
+
+End
+
+Private Function Expanded_Read() As Boolean
+
+  Return $bExpanded
+
+End
+
+Public Sub _ComputeRows(iAdd As Integer)
+
+  Dim hTree As WebTree = GetTree()
+  Dim sKey As String
+  Dim hItem As _WebTreeItem
+  
+  sKey = $sParent
+  While sKey
+    hItem = hTree[sKey]
+    If Not hItem.Expanded Then Return
+    hItem._Rows += iAdd
+    sKey = hItem.ParentKey
+  Wend
+
+  hTree._AddCount(iAdd)
+  
+End
+
+
+Private Sub Expanded_Write(Value As Boolean)
+
+  Dim hTree As WebTree = GetTree()
+  
+  If $bExpanded = Value Then Return
+  
+  $bExpanded = Value
+  
+  'hTree._EnsureVisible(Me, Value)
+  
+  hTree._RaiseExpand($sKey, $bExpanded)
+  hTree.Refresh
+  
+End
+
+'' Remove all item children.
+
+Public Sub Clear()
+  
+  Dim hTree As WebTree = GetTree()
+  
+  While $aChildren
+    hTree.Remove($aChildren[0])
+  Wend
+  
+End
+
+'' Remove the item.
+
+Public Sub Delete()
+  
+  Dim hTree As WebTree = GetTree()
+  hTree.Remove($sKey)
+  
+End
+
+'' Ensure that the item is visible on the screen.
+
+Public Sub EnsureVisible()
+  
+  Dim hTree As WebTree = GetTree()
+  hTree._EnsureVisible(Me)
+  
+End
+
+'' Move the item just before another item.
+''
+'' - ~Key~ : key of the reference item. The reference item must have the same parent as the moved item.
+''
+'' If no reference item is specified, the item is moved so that it becomes the last child of its parent.
+
+Public Sub MoveBefore(Optional (Key) As String)
+  
+  Dim hTree As WebTree = GetTree()
+  hTree._MoveItem(Me, Key, True)
+  
+End
+
+'' Move the item just after another item.
+''
+'' - ~Key~ : key of the reference item. The reference item must have the same parent as the moved item.
+''
+'' If no reference item is specified, the item is moved so that it becomes the first child of its parent.
+
+Public Sub MoveAfter(Optional (Key) As String)
+  
+  Dim hTree As WebTree = GetTree()
+  hTree._MoveItem(Me, Key, False)
+  
+End
+
+'' Move the item so that it becomes the first child of its parent.
+
+Public Sub MoveFirst()
+  
+  MoveAfter()
+  
+End
+
+'' Move the item so that it becomes the last child of its parent.
+
+Public Sub MoveLast()
+  
+  MoveBefore()
+  
+End
+
+
+Private Function Editable_Read() As Boolean
+
+  Return $bEditable 
+
+End
+
+Private Sub Editable_Write(Value As Boolean)
+
+  $bEditable = Value
+
+End
+
+Private Function Selected_Read() As Boolean
+
+  Return GetTree()._IsSelected($sKey)
+
+End
+
+Private Sub Selected_Write(Value As Boolean)
+
+  GetTree()._SetSelected($sKey, Value)
+
+End
+
+
+' Public Sub Rename(Optional Column As Integer = 0)
+'   
+'   If Not $bEditable Then Return
+'   GetTree()._Rename(Me, Column)
+'   
+' End
+
+Public Sub _compare(hOther As _WebTreeItem) As Integer
+  
+  Dim iSort As Integer
+  Dim hTree As WebTree
+  
+  If _Tree And If Not _Tree._RaiseCompare($sKey, hOther.Key) Then 
+    Return _Tree.Compare
+  Else
+    hTree = GetTree()
+    
+    iSort = hTree.Columns.Sort
+    If iSort > 0 Then
+      Try Return String.Comp($aText[iSort - 1], hOther[iSort], gb.Natural + gb.IgnoreCase)
+      If Error Then Return 0
+    Endif
+
+    Return String.Comp($sText, hOther.Text, gb.Natural + gb.IgnoreCase)
+    
+  Endif
+  
+End
+
+'' Set the text contents of a column for the item.
+''
+'' - ~Column~ : the column index.
+
+Public Sub _put(Text As String, Column As Integer)
+  
+  Dim hTree As WebTree
+  
+  hTree = GetTree()
+  
+  If Column = 0 Then
+    $sText = Text
+  Else
+    'If Column < 0 Or If Column >= hView.Columns.Count Then Error.Raise("Out of bounds")
+    ' Be backward-compatible
+    If Column < 0 Then Error.Raise("Out of bounds")
+    
+    If Not $aText Then 
+      $aText = New String[Column + 1]
+    Else
+      If Column >= $aText.Count Then $aText.Resize(Column + 1)
+    Endif
+    
+    $aText[Column] = Text
+  Endif
+  
+  hTree._RefreshView()
+  
+End
+
+'' Return the text contents of a column for the item.
+''
+'' - ~Column~ : the column index.
+
+Public Sub _get(Column As Integer) As String
+  
+  If Column = 0 Then Return $sText
+  If Column < 0 Then Error.Raise("Out of bounds")
+  
+  Try Return $aText[Column]
+  
+End
+
+'' Change the parent of the item.
+''
+'' - ~NewParent~ : key of the new parent.
+
+Public Sub Reparent(NewParent As String)
+  
+  Dim hTree As WebTree = GetTree()
+  
+  hTree._ReparentItem(Me, NewParent)
+  
+End
+
+Private Function Background_Read() As Integer
+
+  Return $iBg
+
+End
+
+Private Sub Background_Write(Value As Integer)
+
+  $iBg = Value
+
+End
+
+Private Function Foreground_Read() As Integer
+
+  Return $iFg
+
+End
+
+Private Sub Foreground_Write(Value As Integer)
+
+  $iFg = Value
+
+End
+
+Private Function Tag_Read() As Variant
+
+  Return $vTag
+
+End
+
+Private Sub Tag_Write(Value As Variant)
+
+  $vTag = Value
+
+End
+
+Private Function Depth_Read() As Integer
+
+  Return _Depth
+
+End

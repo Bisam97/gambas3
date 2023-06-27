@@ -2,7 +2,7 @@
 
   main.c
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -51,6 +51,7 @@ void *GB_DEBUG_1[] EXPORT =
 	(void *)DEBUG_get_position,
 	(void *)DEBUG_get_current_position,
 	(void *)DEBUG_init_breakpoints,
+	(void *)DEBUG_check_watches,
 	(void *)PROFILE_init,
 	(void *)PROFILE_add,
 	(void *)PROFILE_exit,

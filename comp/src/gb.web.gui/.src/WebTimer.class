@@ -1,0 +1,109 @@
+' Gambas class file
+
+Export
+Inherits WebControl
+
+Public Const _IsControl As Boolean = True
+Public Const _IsVirtual As Boolean = True
+Public Const _Properties As String = "*,-Class,-Width,-Height,-Visible,-Expand,-Ignore,Enabled,Delay{Range:0;86400000;10;ms}=1000"
+Public Const _Group As String = "Special"
+Public Const _DefaultEvent As String = "Timer"
+
+Event Timer
+
+Property Delay As Integer
+Property Enabled As Boolean
+
+Private $iDelay As Integer = 1000
+Private $bEnabled As Boolean
+
+Public Sub _new()
+  
+End
+
+
+Private Function Delay_Read() As Integer
+
+  Return $iDelay
+
+End
+
+Private Sub Delay_Write(Value As Integer)
+
+  $iDelay = Value
+  'If $bEnabled Then Restart()
+  ' Me.Refresh
+
+End
+
+Public Sub _BeforeRender()
+  
+End
+
+
+Public Sub _Render()
+  
+  If $bEnabled Then
+    WebForm._AddJavascript("gw.addTimer(" & JS(Me.Name) & "," & CStr($iDelay) & ");")
+  Endif
+  
+End
+
+Public Sub _AfterRender()
+  
+End
+
+Private Function Enabled_Read() As Boolean
+
+  Return $bEnabled
+
+End
+
+Private Sub Enabled_Write(Value As Boolean)
+
+  If $bEnabled = Value Then Return
+  $bEnabled = Value
+
+  If Me._CanRefresh() Then
+    If $bEnabled Then
+      Me._AddRefresh("gw.addTimer(" & JS(Me.Name) & "," & CStr($iDelay) & ");")
+    Else
+      Me._AddRefresh("gw.removeTimer(" & JS(Me.Name) & ");")
+    Endif
+  Endif
+
+End
+
+Public Sub Start()
+  
+  Enabled_Write(True)
+  
+End
+
+Public Sub Stop()
+  
+  Enabled_Write(False)
+  
+End
+
+Public Sub Restart()
+  
+  Enabled_Write(False)
+  Enabled_Write(True)
+  
+End
+
+Public Sub Delete()
+  
+  If $bEnabled Then
+    $bEnabled = False
+    WebForm._AddJavascript("gw.removeTimer(" & JS(Me.Name) & ");")
+  Endif
+  
+  Super.Delete
+  
+End
+
+Public Sub Refresh()
+  
+End

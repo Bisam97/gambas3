@@ -1,18 +1,33 @@
 ' Gambas class file
 
+Static Public OpenEventHandlerFor As String
+Static Public EventName As String
+
 Static Private $hForm As FForm
 Static Private $aMenu As New CMenu[]
+Static Private $iSaveCurrent As Integer
+Static Private $iSaveScrollY As Integer
 
+Private $hFamily As CFamily
 Private $iLevel As Integer
 Private $cName As New Collection
 Private $iCurrent As Integer
 Private $bFreeze As Boolean
 Private $bModified As Boolean
 Private $iIconSize As Integer
+Private $sImageProp As String
+Private $hButtonClick As Button
 
 Static Public Sub Run(hForm As FForm)
 
-  $hForm = hForm
+  If hForm <> $hForm Then
+    $hForm = hForm
+    $iSaveCurrent = 0
+    $iSaveScrollY = 0
+  Endif
+  
+  OpenEventHandlerFor = ""
+  EventName = ""
   FMenu.ShowModal()
 
 End
@@ -39,14 +54,26 @@ End
 '   
 ' End
 
-
 Public Sub Form_Open()
 
   Settings.Read(Me)
+  Project.SetSmallFont(tlbMenu)
 
   Me.Title = $hForm.Name & " - " & ("Menu editor")
+  
+  $hFamily = $hForm.GetFamily()
 
   $iIconSize = Stock.GetSize("small")
+  
+  If Project.Documentation.Classes[$hFamily.MenuClass].Properties.Exist("Image") Then
+    $sImageProp = "Image"
+  Else
+    $sImageProp = "Picture"
+  Endif
+  
+  lblPicture.Text = $sImageProp
+  
+  dwgShortcut.Padding = Style.FrameWidth
   
   $bFreeze = True
   gvwMenu.UnSelectAll
@@ -85,6 +112,8 @@ Public Sub Form_Close()
     End Select
   Endif
   
+  $iSaveCurrent = $iCurrent
+  $iSaveScrollY = gvwMenu.ScrollY
   Settings.Write(Me)
   
 End
@@ -128,7 +157,7 @@ Private Sub CreateMenu(hCCtrl As CControl)
     .Toggle = hCCtrl.GetPropertyDefault("Toggle")
     .Radio = hCCtrl.GetPropertyDefault("Radio")
     .SetShortcut(hCCtrl.GetPropertyDefault("Shortcut"))
-    .Picture = hCCtrl.GetPropertyDefault("Picture")
+    .Picture = hCCtrl.GetPropertyDefault($sImageProp)
     .Tag = hCCtrl.GetPropertyDefault("Tag")
     .Group = hCCtrl.GetPropertyDefault(CPropertyInfo.EVENT_NAME)
     .Translate = hCCtrl.GetPropertyDefault(CPropertyInfo.TRANSLATE_NAME)
@@ -203,7 +232,8 @@ Private Sub LoadAllMenu()
   $bFreeze = False
   $bModified = False
 
-  SetCurrent(0)
+  SetCurrent($iSaveCurrent)
+  gvwMenu.ScrollY = $iSaveScrollY
 
 End
 
@@ -247,7 +277,7 @@ Private Sub SaveAllMenu()
       
       Endif
       
-      hCtrl = $hForm.CreateControl("Menu", hParent, .Name)
+      hCtrl = $hForm.CreateControl($hFamily.MenuClass, hParent, .Name)
       
       hCtrl.SetProperty("Text", .Caption)
       hCtrl.SetProperty("Action", .Action)
@@ -257,7 +287,7 @@ Private Sub SaveAllMenu()
       hCtrl.SetProperty("Toggle", .Toggle)
       hCtrl.SetProperty("Radio", .Radio)
       hCtrl.SetProperty("Shortcut", .GetShortcut())
-      hCtrl.SetProperty("Picture", .Picture)
+      hCtrl.SetProperty($sImageProp, .Picture)
       hCtrl.SetProperty("Tag", .Tag)
       hCtrl.SetProperty(CPropertyInfo.EVENT_NAME, .Group)
       hCtrl.SetProperty(CPropertyInfo.TRANSLATE_NAME, .Translate)
@@ -280,10 +310,17 @@ Public Sub gvwMenu_Change()
 
   If $bFreeze Then Return
   If gvwMenu.Row < 0 Then Return
-  SetCurrent(gvwMenu.Row)
+  If SetCurrent(gvwMenu.Row) Then Stop Event
 
 End
 
+Private Sub ShowWarning(sMsg As String, hCtrl As Control)
+
+  lblMessage.Text = sMsg
+  panMessage.Show
+  hCtrl.SetFocus
+
+End
 
 Private Sub WriteMenu() As Boolean
 
@@ -296,11 +333,13 @@ Private Sub WriteMenu() As Boolean
   '  RETURN
   'ENDIF
 
-  If $bFreeze Then Return
-
+  If $bFreeze Then Return True
+  
   iInd = $iCurrent
 
   If iInd < 0 Or iInd > $aMenu.Max Then Return 
+  
+  panMessage.Hide
 
   With $aMenu[iInd]
     
@@ -309,20 +348,17 @@ Private Sub WriteMenu() As Boolean
     sName = Trim(txtName.Text)
 
     If Not sName Then
-      Balloon.Warning(("Please enter a menu name."), txtName)
-      txtName.SetFocus
+      ShowWarning(("Please enter a menu name."), txtName)
       Return True
     Endif
 
     If CControl.CheckName(sName) Then
-      Balloon.Warning(("Bad menu name !"), txtName)
-      txtName.SetFocus
+      ShowWarning(("Bad menu name !"), txtName)
       Return True
     Endif
 
-    If CControl.CheckName(txtGroup.Text) Then
-      Balloon.Warning(("Bad group name !"), txtGroup)
-      txtGroup.SetFocus
+    If CControl.CheckName(cmbGroup.Text) Then
+      ShowWarning(("Bad group name !"), cmbGroup)
       Return True
     Endif
 
@@ -336,7 +372,7 @@ Private Sub WriteMenu() As Boolean
 
     .Caption = Trim(txtCaption.Text)
     .Action = Trim(txtAction.Text)
-    .Group = Trim(txtGroup.Text)
+    .Group = Trim(cmbGroup.Text)
     .Visible = chkVisible.Value
     .Enabled = chkEnabled.Value
     .Checked = chkChecked.Value
@@ -378,7 +414,7 @@ Private Sub ReadMenu()
       txtName.Text = .Name
       txtCaption.Text = .Caption
       txtAction.Text = .Action
-      txtGroup.Text = .Group
+      cmbGroup.Text = .Group
       chkVisible.Value = .Visible
       chkEnabled.Value = .Enabled
       chkChecked.Value = .Checked
@@ -454,6 +490,27 @@ Public Sub btnDelete_Click()
 
 End
 
+Private Sub InsertMenuAt(iIndex As Integer, sName As String, iLevel As Integer) As CMenu
+
+  Dim hCMenu As CMenu
+  
+  hCMenu = New CMenu
+  If $cName.Exist(sName) Then sName = GetName()
+  hCMenu.Name = sName
+  hCMenu.Translate = True
+  hCMenu.Level = iLevel
+  $cName[sName] = True
+
+  $aMenu.Add(hCMenu, iIndex)
+  SetModified
+  Inc gvwMenu.Rows.Count
+  gvwMenu.Refresh
+  
+  Return hCMenu
+  
+End
+
+
 Private Sub InsertMenu(bAfter As Boolean, Optional bSeparator As Boolean)
 
   Dim hCMenu As CMenu
@@ -477,20 +534,8 @@ Private Sub InsertMenu(bAfter As Boolean, Optional bSeparator As Boolean)
   
   $bFreeze = True
 
-  hCMenu = New CMenu
-  hCMenu.Name = GetName()
+  hCMenu = InsertMenuAt(iIndex, GetName(), iLevel)
   If Not bSeparator Then hCMenu.Caption = hCMenu.Name
-  hCMenu.Translate = True
-  
-  hCMenu.Level = iLevel
-  
-  $cName[hCMenu.Name] = True
-  'hCMenu.Caption = hCMenu.Name
-
-  $aMenu.Add(hCMenu, iIndex)
-  SetModified
-  Inc gvwMenu.Rows.Count
-  gvwMenu.Refresh
 
   gvwMenu.UnSelectAll
   $bFreeze = False
@@ -517,7 +562,7 @@ Private Function GetName() As String
   Do
 
     Inc iCpt
-    sName = "Menu" & CStr(iCpt)
+    sName = $hFamily.MenuClass & CStr(iCpt)
     If Not $cName.Exist(sName) Then Return sName
 
   Loop
@@ -634,22 +679,31 @@ End
 
 Public Sub cmbShortcut_Click()
   WriteMenu
+  If cmbShortcut.Index = 0 Then
+    ApplyToSelection("Shortcut", "")
+  Else
+    ApplyToSelection("Shortcut", cmbShortcut.Text)
+  Endif
 End
 
 Public Sub chkCtrl_Click()
   WriteMenu
+  ApplyToSelection("Ctrl", chkCtrl.Value)
 End
 
 Public Sub chkAlt_Click()
   WriteMenu
+  ApplyToSelection("Alt", chkCtrl.Value)
 End
 
 Public Sub chkShift_Click()
   WriteMenu
+  ApplyToSelection("Shift", chkCtrl.Value)
 End
 
 Public Sub txtCaption_Change()
   WriteMenu
+  ApplyToSelection("Caption", Trim(txtCaption.Text))
 End
 
 
@@ -737,10 +791,63 @@ Public Sub btnDown_Click()
 
 End
 
+Private Sub UpdateEvent()
 
-Private Sub SetCurrent(iCurrent As Integer)
+  Dim cSymbol As Collection
+  Dim sName As String
+  Dim hCMenu As CMenu
+  Dim sGroup As String
+  Dim hSymbol As CSymbolInfo
+  Dim hButton As Button
+  Dim hPict As PictureBox
 
-  If iCurrent <> $iCurrent Then WriteMenu
+  panEvent.Children.Clear
+  
+  If $iCurrent < 0 Then Return
+  hCMenu = $aMenu[$iCurrent]
+  
+  If Not hCMenu.Caption Then Return
+
+  cSymbol = Project.Documentation.GetClassSymbols($hForm.Name)
+  If Not cSymbol Then Return
+  
+  sGroup = hCMenu.Group
+  If Not sGroup Then sGroup = hCMenu.Name
+
+  hPict = New PictureBox(panEvent)
+  hPict.Resize(panEvent.H, panEvent.H)
+  hPict.Image = Image.Load("img/symbol/event.png")
+  hPict.Stretch = True
+  
+  $hButtonClick = Null
+  
+  For Each sName In Project.Documentation.Classes[$hFamily.MenuClass].Events
+
+    hSymbol = cSymbol[sGroup & "_" & sName]
+    
+    'If $bReadOnly Then
+    '  If Not hSymbol Or If hSymbol.Kind <> "m" Then Continue
+    'Endif
+    
+    hButton = New Button(panEvent) As "btnEvent"
+    hButton.Text = sName
+    hButton.AutoResize = True
+    
+    If sName == "Click" Then $hButtonClick = hButton
+
+    If hSymbol And If hSymbol.Kind = "m" Then hButton.Picture = Picture["icon:/small/ok"]
+
+  Next
+
+  If panEvent.Children.Count = 0 Then Return
+
+End
+
+Private Sub SetCurrent(iCurrent As Integer) As Boolean
+
+  If iCurrent <> $iCurrent Then 
+    If WriteMenu() Then Return True
+  Endif
   
   gvwMenu.Rows.UnselectAll
   If iCurrent < 0 Or iCurrent >= $aMenu.Count Then 
@@ -756,15 +863,31 @@ Private Sub SetCurrent(iCurrent As Integer)
   Endif
   
   ReadMenu
+  UpdateEvent
 
 End
 
-Public Sub btnPicture_Click()
+Private Sub ApplyToSelection(sProp As String, vValue As Variant)
 
-  Dim sPict As String
-
-  sPict = FSelectIcon.Run(txtPicture.Text)
-  If sPict Then SetPicture(sPict)
+  Dim aSel As Integer[]
+  Dim iInd As Integer
+  Dim sComp As String
+  
+  aSel = gvwMenu.Rows.Selection
+  If aSel.Count < 2 Then Return
+  
+  For Each iInd In aSel
+    
+    If iInd = $iCurrent Then Continue
+    
+    sComp = $aMenu[iInd].ToString()
+    Object.SetProperty($aMenu[iInd], sProp, vValue)
+    If sComp <> $aMenu[iInd].ToString() Then
+      SetModified
+      gvwMenu.Rows[iInd].Refresh
+    Endif
+    
+  Next
   
 End
 
@@ -772,20 +895,12 @@ End
 Private Sub SetPicture(sPict As String)
   
   txtPicture.Text = sPict
-  WriteMenu
   
 Catch
 
   Message.Error(Error.Text)
   
 End
-
-Public Sub btnKillPicture_Click()
-
-  SetPicture("")
-
-End
-
 
 Public Sub btnSave_Click()
 
@@ -860,16 +975,17 @@ End
 Private Sub UpdatePaste()
   
   btnPaste.Enabled = Clipboard.Formats.Exist(MMime.MENU)
+  btnPasteBefore.Enabled = btnPaste.Enabled
   
 End
 
-
-Public Sub btnPaste_Click()
+Public Sub btnPasteBefore_Click()
 
   Dim sData As String
   Dim aMenu As String[]
   Dim iStart As Integer
   Dim iLength As Integer
+  Dim hCMenu As CMenu
   
   sData = Trim(Clipboard.Paste(MMime.MENU))
   If Not sData Then Return
@@ -877,39 +993,41 @@ Public Sub btnPaste_Click()
   gvwMenu.Rows.UnselectAll
   
   iStart = $iCurrent
-  iLength = 0
+  If iStart < 0 Then iStart = 0
   
   For Each sData In Split(sData, "\n")
     aMenu = Split(sData, ",", Chr$(34))
-    InsertMenu(False)
-    txtName.Text = aMenu[0]
-    $aMenu[$iCurrent].Level = CInt(aMenu[1])
-    txtCaption.Text = aMenu[2]
-    txtAction.Text = aMenu[3]
-    txtGroup.Text = aMenu[4]
-    chkVisible.Value = CBool(aMenu[5])
-    chkEnabled.Value = CBool(aMenu[6])
-    chkChecked.Value = CBool(aMenu[7])
-    chkToggle.Value = CBool(aMenu[8])
-    chkRadio.Value = CBool(aMenu[9])
-    chkTranslate.Value = CBool(aMenu[10])
-    chkCtrl.Value = CBool(aMenu[11])
-    chkShift.Value = CBool(aMenu[12])
-    chkAlt.Value = CBool(aMenu[13])
-    cmbShortcut.Text = aMenu[14]
-    SetPicture(aMenu[15])
-    txtTag.Text = aMenu[16]
-    WriteMenu
-    gvwMenu.Rows[$iCurrent].Selected = True
-    Inc $iCurrent
+    hCMenu = InsertMenuAt(iStart + iLength, aMenu[0], CInt(aMenu[1]))
+    With hCMenu
+      .Caption = aMenu[2]
+      .Action = aMenu[3]
+      .Group = aMenu[4]
+      .Visible = CBool(aMenu[5])
+      .Enabled = CBool(aMenu[6])
+      .Checked = CBool(aMenu[7])
+      .Toggle = CBool(aMenu[8])
+      .Radio = CBool(aMenu[9])
+      .Translate = CBool(aMenu[10])
+      .Ctrl = CBool(aMenu[11])
+      .Shift = CBool(aMenu[12])
+      .Alt = CBool(aMenu[13])
+      .Shortcut = aMenu[14]
+      .Picture = aMenu[15]
+      .Tag = aMenu[16]
+    End With
     Inc iLength
-    ReadMenu
   Next
   
-  ReadMenu
-  
+  SetCurrent(iStart)
   gvwMenu.Select(iStart, iLength)
 
+End
+
+Public Sub btnPaste_Click()
+  
+  Inc $iCurrent
+  btnPasteBefore_Click
+  
 End
 
 Public Sub txtSearch_Click()
@@ -976,7 +1094,15 @@ Public Sub gvwMenu_Draw(X As Integer, Y As Integer, Width As Integer, Height As 
       ' Paint.Dash = Null
     Endif
     
-    If Column <> 0 Then Return
+    If Column <> 0 Then 
+      
+      If Not .Caption And If .Level Then
+        GoSub PAINT_DASH
+      Endif
+      
+      Return
+      
+    Endif
 
     iCol = GetMenuColor($aMenu[Row])
     
@@ -985,10 +1111,10 @@ Public Sub gvwMenu_Draw(X As Integer, Y As Integer, Width As Integer, Height As 
     X += D
     Width -= D
   
-    If .Picture Then
-      Try hPict = Project.GetPicture(.Picture)
+    If .Picture And If .Level Then
+      Try hPict = $hFamily.GetPicture(.Picture)
       If hPict Then hPict = hPict.Image.Stretch($iIconSize, $iIconSize).Picture
-      Paint.DrawPicture(hPict, X - $iIconSize - Desktop.Scale / 2, Y + (Height - $iIconSize) / 2)
+      If hPict Then Paint.DrawPicture(hPict, X - $iIconSize - Desktop.Scale / 2, Y + (Height - $iIconSize) / 2)
     Endif
       
     If .Level = 0 Then
@@ -1005,19 +1131,13 @@ Public Sub gvwMenu_Draw(X As Integer, Y As Integer, Width As Integer, Height As 
       sText = "  " & .Name & "  "
       
       If Width > Desktop.Scale * 2 Then
-        Paint.Dash = [1]
-        Paint.MoveTo(X, CInt(Y + Height / 2) + 0.5)
-        Paint.RelLineTo(Width - Desktop.Scale * 2, 0)
-        Paint.Background = Color.LightForeground
-        Paint.LineWidth = 1
-        Paint.Stroke
-        Paint.Dash = Null
+        GoSub PAINT_DASH
       Endif
       
       X += D
       Width -= D
       Paint.Font.Italic = True
-      Paint.FillRect(X, Y + Height / 2, Paint.TextSize(sText).Width, 1, If(Row = gvwMenu.Row, Color.SelectedBackground, Color.TextBackground))
+      Paint.FillRect(X, Y + Height / 2, Paint.TextSize(sText).Width, 1, If(Row = gvwMenu.Row, Color.LightBackground, Color.TextBackground))
       
     Else
       
@@ -1029,6 +1149,23 @@ Public Sub gvwMenu_Draw(X As Integer, Y As Integer, Width As Integer, Height As 
     Paint.DrawText(sText, X, Y, Width, Height, Align.Normal)
     
   End With
+  
+  Return
+  
+PAINT_DASH:
+
+  Paint.Dash = [1]
+  Paint.MoveTo(X, CInt(Y + Height / 2) + 0.5)
+  If Column = 1 Then
+    Paint.RelLineTo(Width - Desktop.Scale * 2, 0)
+  Else
+    Paint.RelLineTo(Width, 0)
+  Endif
+  Paint.Background = Color.LightForeground
+  Paint.LineWidth = 1
+  Paint.Stroke
+  Paint.Dash = Null
+  Return
 
 End
 
@@ -1046,7 +1183,7 @@ Public Sub gvwMenu_Data(Row As Integer, Column As Integer)
     
     gvwMenu.Data.Foreground = GetMenuColor($aMenu[Row])
     
-    If Row = gvwMenu.Row Then gvwMenu.Data.Background = Color.SelectedBackground
+    If Row = gvwMenu.Row Then gvwMenu.Data.Background = Color.LightBackground
   
     If .Level = 0 Then
       gvwMenu.Data.Font.Bold = True
@@ -1068,31 +1205,36 @@ End
 
 Public Sub chkVisible_Click()
 
-  WriteMenu
+  If WriteMenu() Then Return
+  ApplyToSelection("Visible", chkVisible.Value)
 
 End
 
 Public Sub chkEnabled_Click()
 
-  WriteMenu
+  If WriteMenu() Then Return
+  ApplyToSelection("Enabled", chkEnabled.Value)
 
 End
 
 Public Sub chkToggle_Click()
 
-  WriteMenu
+  If WriteMenu() Then Return
+  ApplyToSelection("Toggle", chkToggle.Value)
 
 End
 
 Public Sub chkRadio_Click()
 
-  WriteMenu
+  If WriteMenu() Then Return
+  ApplyToSelection("Radio", chkRadio.Value)
 
 End
 
 Public Sub chkChecked_Click()
 
-  WriteMenu
+  If WriteMenu() Then Return
+  ApplyToSelection("Checked", chkChecked.Value)
 
 End
 
@@ -1113,5 +1255,99 @@ End
 Public Sub btnInsertSeparator_Click()
 
   InsertMenu(True, True)
+
+End
+
+Public Sub gvwMenu_Activate()
+  
+  $hButtonClick.Value = True
+  
+End
+
+Public Sub btnEvent_Click()
+  
+  If WriteMenu() Then Return
+  EventName = Last.Text
+  Try OpenEventHandlerFor = $aMenu[$iCurrent].Name
+  If Not Error Then
+    Me.Close()
+    If Not Me.Closed Then OpenEventHandlerFor = ""
+  Endif
+  
+End
+
+Public Sub chkTranslate_Click()
+
+  If WriteMenu() Then Return
+  ApplyToSelection("Translate", chkTranslate.Value)
+
+End
+
+Public Sub txtAction_Change()
+
+  If WriteMenu() Then Return
+  ApplyToSelection("Action", Trim(txtAction.Text))
+
+End
+
+Public Sub txtPicture_Change()
+
+  If WriteMenu() Then Return
+  ApplyToSelection("Picture", txtPicture.Text)
+
+End
+
+Public Sub txtTag_Change()
+
+  If WriteMenu() Then Return
+  ApplyToSelection("Tag", txtTag.Text)
+
+End
+
+Public Sub cmbGroup_Change()
+
+  If WriteMenu() Then Return
+  ApplyToSelection("Group", Trim(cmbGroup.Text))
+
+End
+
+Public Sub txtPicture_Click()
+
+  Dim sPict As String
+
+  sPict = $hFamily.SelectImage("Image", txtPicture.Text)
+  If sPict Then txtPicture.Text = sPict
+  
+End
+
+
+Public Sub dwgShortcut_Draw()
+
+  Style.PaintBox(0, 0, Paint.W, Paint.H)
+
+End
+
+Private Sub GetGroupList() As String[]
+
+  Dim aGroup As New String[]
+  Dim sGroup As String
+  Dim hMenu As CMenu
+
+  For Each hMenu In $aMenu
+    sGroup = hMenu.Group
+    If Not sGroup Then Continue
+    If aGroup.ExistSorted(sGroup) Then Continue 
+    aGroup.Add(sGroup)
+    aGroup.Sort()
+  Next
+  
+  aGroup.Add("", 0)
+  Return aGroup
+  
+End
+
+Public Sub cmbGroup_GotFocus()
+
+  cmbGroup.List = GetGroupList()
 
 End

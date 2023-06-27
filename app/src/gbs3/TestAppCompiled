@@ -1,0 +1,38 @@
+Class Testit
+public a as integer = 3456
+public sub _Call() as  integer
+return a
+end
+End Class
+Class TestStatic
+Static Public sIncludeString AS string = "This is Include Too"
+Static Public sub _Call() as string
+return sIncludeString
+end
+End Class
+Project file {
+# Gambas Project File 3.0
+Title=Gambas Script
+Startup=MMain
+Vendor=Ordinary
+Version=1.0.5
+License=General Public License 2.0
+Component=gb.image
+Component=gb.gui
+Component=gb.eval
+Component=gb.eval.highlight
+Component=gb.pcre
+}
+' Gambas module file
+Public Sub main()
+' #!/usr/bin/gbs3
+'#SCRIPT Version="1.0.5"
+Dim x as string = "hello"
+dim cNew as new TestIt
+print "From Include of class ",cNew();;"Static Class Include ";TestStatic()
+'bogomips
+for i as integer = 0 to 20
+print x;;i
+next
+Print "Version Number :";;application.version
+End

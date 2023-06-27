@@ -24,7 +24,7 @@ Event Found
 Static Public Sub _init()
   
   If Not System.Exist("scanimage") Then 
-    Error.Raise("Scanner CLI tool is not detected.\nPlease Install the Sane package")
+    Error.Raise("Scanner CLI tool is not detected. Please Install the Sane package")
   Endif
    '  GetList(True)
    '$IsInit = True
@@ -151,6 +151,7 @@ Public Sub Process_kill()
   
   If hProcess.State <> hProcess.Crashed Then
     FillList($ret)
+    hProcess = Null
     Raise Found
   Endif
   

@@ -1,0 +1,94 @@
+' Gambas test file
+
+Private TestPlugin As Object
+Private ResultPlugin As Object
+Private RealPlugin As Object
+
+Private OriginalSource As String
+Private TestSource As String
+Private TestProgram As String[]
+Private ResultProgram As String[]
+
+Public Sub aLoadThePrePostProcessPlugin()
+  
+  TestPlugin = ScripterPlugin("PrePostProcessPlugin")
+  Assert.Notequals(TestPlugin, Null, "Good Compile")
+  
+  If TestPlugin Then 
+      Assert.ok(True, "Pre and Post Process plugin is loaded")
+  Else 
+      Assert.Fail("Script Load of pre and post process plugin is Unable to be compiled")
+  Endif 
+  
+End
+
+Public Sub bSetupPreAndPostTables()
+  If Not TestPlugin Then 
+     Assert.Fail("Plugin not generated")
+  Else
+      ScriptSetPreProcessCallBack([TestPlugin], [TestPlugin])
+      ScriptSetPostProcessCallBack([TestPlugin])
+  
+      Assert.Ok(ScriptSetPreProcessCallBack.HasProgramPreProcess(), "Preprocess Program Table Correctly loaded")
+      Assert.Ok(ScriptSetPreProcessCallBack.HasLinePreProcess(), "Preprocess Line Table Correctly loaded")
+      Assert.Ok(ScriptSetPostProcessCallBack.HasCallBacks(), "PostProcess Program Table Correctly loaded")
+  Endif
+  
+End
+
+Public Sub cProcessAProgram()
+
+  If Not TestPlugin Then 
+     Assert.Fail("Plugin not generated")
+  Else
+      TestProgram = Split(File.Load("TestPrePostProcess.gbs"), "\n", "\"\"", True, True)
+      TestSource = TestProgram.Join("\n")
+      Assert.Equals(TestProgram.count, 12, "Verify number of lines loaded")
+      Assert.Equals(ScriptApplyProgramCallBacks(testProgram), testprogram, "Ensure the process was called for pre process program")
+      OriginalSource = testProgram.Join("\n")
+      Assert.Equals(TestProgram.Count, 14, "Verify Callback added two lines")
+      ResultProgram = New String[]
+      For Each sLine As String In TestProgram
+          ResultProgram.Push(ScriptApplyLineCallBacks(sLine))
+      Next
+      Assert.NotEquals(testProgram, ResultProgram, "Verify we made the changes")
+      ScriptApplyPostProgCallBacks(ResultProgram)
+      Assert.Equals(ResultProgram.count, testProgram.count + 5, "Verify we have correct number of lines")
+  Endif
+  
+End
+
+Public Sub dBuildTheGeneratedCode()
+
+    ScriptSetPreProcessCallBack.Clear()
+    ScriptSetPostProcessCallBack.clear()
+    
+    ResultPlugin = ScripterPlugin.FromString("MyResult", ResultProgram.Join("\n"))
+    Assert.Notequals(ResultPlugin, Null, "Good Build")
+    If resultplugin Then 
+      Assert.Equals(ResultPlugin(), OriginalSource, "Verify Generated plugin executes returns original source")
+    Else 
+      Assert.Fail("Unable to compile new plugin")
+    Endif
+  
+End
+
+Public Sub eDoRealProcess()
+      ScriptSetPreProcessCallBack([TestPlugin], [TestPlugin])
+      ScriptSetPostProcessCallBack([TestPlugin])
+      
+      RealPLugin = ScripterPlugin.FromString("OriginalSource", TestSource)
+      
+      Assert.Notequals(ResultPlugin, Null, "Good Build")
+      If resultplugin Then 
+        Assert.Equals(RealPlugin(), OriginalSource, "Verify Generated plugin executes returns original source")
+      Else 
+        Assert.Fail("Unable to compile new plugin")
+      Endif
+      
+      ScriptSetPreProcessCallBack.Clear()
+      ScriptSetPostProcessCallBack.clear()
+   
+End
+
+

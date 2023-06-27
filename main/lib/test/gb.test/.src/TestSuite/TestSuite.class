@@ -1,0 +1,137 @@
+' Gambas class file
+
+''' The TestSuite class represents a suite of different testcases to be run. 
+
+Property Read Tests As TestCase[]
+Private $Tests As New TestCase[]
+
+'' Runs all tests contained within the collection and collects the result in the Track parameter.
+Public Sub Run()
+
+    Dim oTest As TestCase
+    Dim CurrentTestModule, LastTestModule As Class
+    Dim CurrentAction As String
+
+    Assert $Tests
+
+    $Tests.Sort()
+
+    Test.Plan($Tests.Count)
+    For Each oTest In $Tests
+        CurrentTestModule = oTest.TestModule
+        If LastTestModule Then
+            If LastTestModule <> CurrentTestModule Then
+                CurrentAction = LastTestModule.Name & ":TeardownTestModule"
+                StopTestModule(LastTestModule)
+                CurrentAction = CurrentTestModule.Name & ":SetupTestModule"
+                StartTestModule(CurrentTestModule)
+            Endif
+        Else
+            'Test.Note("-------------------- " & CurrentTestModule.Name)
+            CurrentAction = CurrentTestModule.Name & ":SetupTestModule"
+            StartTestModule(CurrentTestModule)
+        Endif
+
+        Test._Print(Null) 'better readability for humans
+        Test._Subtest(Subst$("&1.&2", oTest.TestModule.Name, oTest.Name))
+        'Debug oTest.Name
+        oTest.Run()
+        If Not Test._Finished Then Test._Finish()
+        LastTestModule = CurrentTestModule
+    Next
+
+    If LastTestModule Then
+        CurrentAction = LastTestModule.Name & ":TeardownTestModule"
+        StopTestModule(LastTestModule)
+    Endif
+
+Catch
+    If Error.Where Begins "Test.BailOut." Then Quit 1
+    Test.BailOut("Test stopped with error \"" & Error.Text & "\" caused by " & CurrentAction & " in " & Error.Where & ".")
+
+End Sub
+
+Private Sub StartTestModule(TestModule As Class)
+
+    If TestModule.Symbols.Exist("_Setup", gb.IgnoreCase) Then
+        Test._InSetup = True
+        Object.Call(TestModule, "_Setup")
+        Test._InSetup = False
+    Endif
+
+End
+
+Private Sub StopTestModule(TestModule As Class)
+
+    If TestModule.Symbols.Exist("_Teardown", gb.IgnoreCase) Then
+        Test._InSetup = True
+        Object.Call(TestModule, "_Teardown")
+        Test._InSetup = False
+    Endif
+
+End
+
+'' Create a new test case and add it to the suite.
+Public Function AddTestCase(sName As String, TestModule As Class)
+
+    Dim test As TestCase
+
+    Assert sName <> Null
+    Assert TestModule
+
+    test = New TestCase(sName, TestModule)
+    Assert $Tests
+
+    If Not $Tests.Exist(test) Then
+        $Tests.Add(test)
+    Endif
+
+End
+
+Static Public Function GetTestsFromTestModule(TestModule As Class) As String[]
+
+    Dim sSymbol As String
+    Dim NoTestSymbols As String[] = ["_Setup", "_SetupEach", "_Teardown", "_TeardownEach", "Plan"]
+    Dim asTests As New String[]
+
+    Assert TestModule
+
+    For Each sSymbol In TestModule.Symbols
+        If Not NoTestSymbols.Exist(sSymbol, gb.IgnoreCase) And If InStr(sSymbol, "_") = 0 Then
+            asTests.Add(sSymbol)
+        Endif
+    Next
+
+    Return asTests
+
+End
+
+'' Create all test cases that are contained in the specified testmodule and add them to the suite.
+Public Function AddAllTestCases(TestModule As Class)
+
+    Dim asTests As String[]
+    Dim i As Integer
+    Dim NameProcedure As String
+
+    Assert TestModule
+
+    asTests = GetTestsFromTestModule(TestModule)
+    asTests.Sort
+
+    'Assert asTests.Count > 0 Error "Failed: No tests in " & TestModule.Name
+    If asTests.Count = 0 Then
+        Assert.Todo("No tests in " & TestModule.Name)
+    Endif
+
+    For i = 0 To asTests.Count - 1
+        NameProcedure = CStr(asTests[i])
+        AddTestCase(NameProcedure, TestModule)
+    Next
+
+End
+
+Private Function Tests_Read() As TestCase[]
+
+    Return $Tests
+
+End

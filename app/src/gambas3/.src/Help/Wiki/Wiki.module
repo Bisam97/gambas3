@@ -24,6 +24,7 @@ Public UserName As String
 Public (Component) As String
 Public (Class) As String
 Public Symbol As String
+Public SubstClass As String
 
 Public Documentation As New CDocumentation("wiki")
 
@@ -342,7 +343,7 @@ Public Sub SolvePath(sPath As String) As String
 End
 
 
-Public Sub GetPageTitle(sPath As String) As String
+Public Sub GetPageTitle(sPath As String, Optional bForceReadFile As Boolean) As String
   
   Dim sFile As String
   Dim iPos As Integer
@@ -352,7 +353,7 @@ Public Sub GetPageTitle(sPath As String) As String
   sPath = SolvePath(sPath)
   bComp = sPath Begins "/comp/"
   
-  If bComp Then
+  If bComp And If Not bForceReadFile Then
     If sPath Like "/comp/*/*/?*" Then Return GetSymbolTitle(sPath)
     If sPath Like "/comp/*/?*" Then Return GetClassTitle(sPath)
   Endif
@@ -549,7 +550,7 @@ Public Sub GetClassTitle(Optional sPath As String) As String
   
   If hClass Then
     If sPath Then Return hClass.Name
-    Return hClass.Name & " (" & sComponent & ")"
+    Return Replace(hClass.Name, "*", "\\*") & " (" & sComponent & ")"
   Else
     If sPath Then Return sClass
     Return sClass & " (" & sComponent & ")"
@@ -566,6 +567,7 @@ Public Sub GetSymbolTitle(Optional sPath As String) As String
   Dim sClass As String
   Dim sSymbol As String
   Dim aPath As String[]
+  Dim sName As String
   
   If Not sPath Then
     sComponent = Wiki.Component
@@ -580,38 +582,51 @@ Public Sub GetSymbolTitle(Optional sPath As String) As String
   Endif
   
   Try hSym = Documentation.Get(sComponent)[sClass].Symbols[sSymbol]
-  
+
   If sPath Then
-    If Not hSym Then Return sSymbol & " ?"
-    If InStr("e:", hSym.Kind) Then
-      Return Mid$(hSym.Name, 2)
-    Else
-      Return hSym.Name
+    If Not hSym And If sClass Ends "[]" Then
+      Try hSym = Documentation.Get(sComponent)["*[]"].Symbols[sSymbol]
     Endif
   Endif
+  '   If Not hSym Then Return sSymbol & " ?"
+  '   sName = hSym.Name
+  '   If InStr("e:", hSym.Kind) Then sName = Mid$(sName, 2)
+  '   Return hSym.Class & "." & sName & " (" & hSym.Component & ")"
+  ' Endif
   
   If Not hSym Then Return sClass & "." & sSymbol & " (" & sComponent & ")?"
 
+  sName = hSym.Class 
+  If sName Begins "." Then
+    sTitle = Trim(GetPageTitle("/comp" &/ sComponent &/ sClass, True)) ', True))
+    If sTitle Then
+      If Right(sTitle) = ")" Then sTitle = Trim(Left$(sTitle, RInStr(sTitle, "(") - 1))
+      sName = sTitle
+    Endif
+  Else
+    sName = CSymbolInfo.GetType(sName)
+  Endif
+
   Select Case Wiki.Symbol
     Case "_new"
-      sTitle = "New " & hSym.Class
+      sTitle = "New " & sName
     Case "_put"
-      sTitle = hSym.Class & "[] = ..."
+      sTitle = sName & "[] = ..."
     Case "_get"
-      sTitle = hSym.Class & "[]"
+      sTitle = sName & "[]"
     Case "_call"
-      sTitle = hSym.Class & "()"
+      sTitle = sName & "()"
     Case "_next"
-      sTitle = "For Each " & hSym.Class
+      sTitle = "For Each " & sName
     Default
       If InStr(":e", hSym.Kind) Then
-        sTitle = "Event " & hSym.Class & "." & Mid$(hSym.Name, 2)
+        sTitle = "Event " & sName & "." & Mid$(hSym.Name, 2)
       Else
-        sTitle = hSym.Class & "." & hSym.Name
+        sTitle = sName & "." & hSym.Name
       Endif
   End Select
 
-  Return sTitle & " (" & hSym.Component & ")"
+  Return Replace(sTitle, "*", "\\*") & " (" & hSym.Component & ")"
   
 End
 
@@ -786,6 +801,7 @@ Public Sub PrintPage()
   Dim sPath As String
   Dim sData As String
   Dim iPos As Integer
+  Dim hClass As CClassInfo
 
   If Wiki.Image Then
     Print "<img src=\"" & WikiRoot &/ Wiki.Path & "?v\" />";
@@ -795,13 +811,67 @@ Public Sub PrintPage()
   sPath = Wiki.SolvePath(Wiki.Path)
   
   If Not Wiki.ExistPage(sPath) Then
-    If Wiki.Lang = Wiki.DEFAULT_LANG Then
-      Print "<div class=\"unknown\">"; ("This page does not exist."); "</div>"
-    Else
-      Print "<div class=\"unknown\">"; ("This page does not exist in that language."); "</div>"
+    
+    If Wiki.Class Then    
+  
+      If Wiki.Class Ends "[]" And If Not Documentation.Get(Wiki.Component)[Wiki.Class] Then
+        Wiki.SubstClass = Wiki.Class
+        Wiki.Class = "*[]"
+        sPath = Wiki.SolvePath("/comp/" & LCase(Wiki.Component &/ Wiki.Class &/ Wiki.Symbol))
+      Endif
+      
     Endif
-    If Not Wiki.ExistPage(sPath, Wiki.DEFAULT_LANG) Then Return
-    Wiki.Lang = Wiki.DEFAULT_LANG
+    
+  Endif
+
+  If Not Wiki.ExistPage(sPath) And If Not Wiki.HasDefaultHelp() Then
+  
+    If Wiki.Symbol Then
+    
+      Do
+        
+        hClass = Documentation.Get(Wiki.Component)[Wiki.Class]
+        If Not hClass Or If Not hClass.Parent Then Break
+
+        Wiki.Component = hClass.ParentComponent
+        Wiki.Class = hClass.Parent
+
+        sPath = SolvePath("/comp/" & LCase(Wiki.Component &/ Wiki.Class &/ Wiki.Symbol))
+        If Wiki.ExistPage(sPath) Or If Wiki.HasDefaultHelp() Then Break
+        
+      Loop
+      
+    Endif
+    
+  Endif
+
+  If Not Wiki.ExistPage(sPath) Then
+    
+    If Wiki.Lang <> Wiki.DEFAULT_LANG Then
+      Print "<div class=\"unknown\">"; ("This page does not exist in that language."); "</div>"
+    Endif 
+    
+    If Wiki.Class And If Wiki.HasDefaultHelp() Then
+    
+      If Wiki.Symbol Then
+        sData = "# " & Wiki.GetSymbolTitle() & "\n@{syntax}\n@{help}\n"
+      Else
+        sData = "# " & Wiki.GetClassTitle() & "\n@{help}\n@{symbols}\n"
+      Endif
+      
+      Goto PRINT_MARKDOWN
+
+    Else
+    
+      If Wiki.Lang = Wiki.DEFAULT_LANG Then
+        Print "<div class=\"unknown\">"; ("This page does not exist."); "</div>"
+        Return
+      Endif
+      'If Not Wiki.ExistPage(sPath, Wiki.DEFAULT_LANG) Then Return
+      Wiki.Lang = Wiki.DEFAULT_LANG
+      
+    Endif
+    
   Endif
   
   ' If Wiki.Lang <> Wiki.DEFAULT_LANG Then
@@ -829,9 +899,20 @@ Public Sub PrintPage()
     Else
       sData = "# " & Wiki.GetClassTitle() & "\n" & sData
     Endif
+    
+    If Wiki.SubstClass Then
+      sData = Replace(sData, "\\*", Left(Wiki.SubstClass, -2)) 
+    Endif
+    
   Endif
 
+PRINT_MARKDOWN:
+
   Print WikiMarkdown.ToHTML(sData)
+  
+Finally 
+  
+  Wiki.SubstClass = ""
   
 Catch
   
@@ -883,3 +964,80 @@ Public Sub AnalyzePath()
   Endif
   
 End
+
+Public Sub HasDefaultHelp(Optional sComp As String, sClass As String, sSymbol As String) As Boolean
+
+  Dim hClass As CClassInfo
+  Dim hSymbol As CSymbolInfo
+
+  If Not sComp Then sComp = Wiki.Component
+  If Not sClass Then sClass = Wiki.Class
+  If Not sSymbol Then sSymbol = Wiki.Symbol
+
+  Try hClass = Documentation.Get(sComp)[sClass]
+  If Not hClass Then Return
+  
+  If sSymbol Then
+  
+    Try hSymbol = hClass.Symbols[sSymbol]
+    If Not hSymbol Then Return
+    
+    If hSymbol.Help Then Return True
+    
+  Else 
+    
+    If hClass.Help Then Return True
+    
+  Endif
+
+End
+
+Public Sub GetDefaultHelp(Optional sComp As String, sClass As String, sSymbol As String) As String
+  
+  Dim hSymbol As CSymbolInfo
+  Dim sSign As String
+  Dim iPos As Integer
+  Dim sResult As String
+  Dim iPos2 As Integer
+  Dim hClass As CClassInfo
+  
+  If Not sComp Then sComp = Wiki.Component
+  If Not sClass Then sClass = Wiki.Class
+  If Not sSymbol Then sSymbol = Wiki.Symbol
+
+  Try hClass = Documentation.Get(sComp)[sClass]
+  If Not hClass Then Return
+  
+  If sSymbol Then
+  
+    Try hSymbol = hClass.Symbols[sSymbol]
+    If Not hSymbol Then Return
+    
+    If hSymbol.Help Then Return hSymbol.Help
+    
+    sResult = "\n"
+    sSign = hSymbol.Signature
+    Do
+      
+      iPos = InStr(sSign, "(", iPos + 1)
+      If iPos = 0 Then Break
+      iPos2 = InStr(sSign, ")", iPos + 1)
+      If iPos2 = 0 Then Break
+      
+      sResult &= "- ~" & Mid$(sSign, iPos + 1, iPos2 - iPos - 1) & "~\n"
+      iPos = iPos2
+      
+    Loop
+    
+  Else
+    
+    If hClass.Help Then Return hClass.Help
+
+  Endif
+  
+  'If hSymbol.Help Then sResult = Trim(sResult) & "\n" & hSymbol.Help
+  
+  Return sResult
+  
+End
+

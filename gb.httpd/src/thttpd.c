@@ -49,9 +49,7 @@
 #include <stdlib.h>
 #include <string.h>
 //#include <syslog.h>
-#ifdef TIME_WITH_SYS_TIME
 #include <time.h>
-#endif
 #include <unistd.h>
 
 #include "fdwatch.h"
@@ -310,7 +308,7 @@ static void handle_alrm(int sig)
 	if (!watchdog_flag)
 	{
 		/* Try changing dirs to someplace we can write. */
-		(void) chdir("/tmp");
+		if (chdir("/tmp")); // We don't care if chdir() fails.
 		/* Dump core. */
 		abort();
 	}
@@ -499,9 +497,13 @@ int thttpd_main(int argc, char **argv, bool debug)
 #endif
 
 	/* Get current directory. */
-	(void) getcwd(cwd, sizeof(cwd) - 1);
-	if (cwd[strlen(cwd) - 1] != '/')
-		(void) strcat(cwd, "/");
+	if (getcwd(cwd, sizeof(cwd) - 1))
+	{
+		if (cwd[strlen(cwd) - 1] != '/')
+			strcat(cwd, "/");
+	}
+	else
+		strcpy(cwd, "/");
 
 	if (0)												//!debug)
 	{
@@ -573,6 +575,7 @@ int thttpd_main(int argc, char **argv, bool debug)
 	max_connects -= SPARE_FDS;
 
 	/* Chroot if requested. */
+#if 0
 	if (0)												//do_chroot)
 	{
 		if (chroot(cwd) < 0)
@@ -614,6 +617,7 @@ int thttpd_main(int argc, char **argv, bool debug)
 			exit(1);
 		}
 	}
+#endif
 
 	/* Switch directories again if requested. */
 #if 0

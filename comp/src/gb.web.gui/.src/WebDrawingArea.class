@@ -1,0 +1,78 @@
+' Gambas class file
+
+Export
+Inherits WebControl
+
+Public Const _Properties As String = "*,Border"
+Public Const _DrawWith As String = "DrawingArea"
+Public Const _DefaultEvent As String = "Draw"
+
+Public _Width As Integer
+Public _Height As Integer
+
+'' This event is raised when the DrawingArea contents must be drawn.
+Event Draw
+
+'' This event is raised when a mouse button is pressed while the mouse cursor is inside the control.
+Event MouseDown
+
+'' This event is raised when a mouse button is released.
+''
+'' It is always raised for the control that triggered the corresponding [../.mouseup] event.
+Event MouseUp
+
+'' This event is raised when the mouse cursor moves.
+Event MouseMove
+
+Public Sub _new()
+  
+  Me.Border = False
+  
+End
+
+
+Public Sub _Render()
+  
+  Dim bMouseDown As Boolean
+  Dim bMouseMove As Boolean
+  Dim bMouseUp As Boolean
+  
+  Print "<canvas id=\""; Html(Me.Name & ":canvas"); "\"";
+  
+  bMouseDown = Object.CanRaise(Me, "MouseDown")
+  bMouseMove = Object.CanRaise(Me, "MouseMove")
+  bMouseUp = Object.CanRaise(Me, "MouseUp")
+
+  If bMouseDown Or If bMouseMove Or If bMouseUp Then
+    ' TODO: Replace Me.Name by GetCellName()
+    Print " onmousedown=\"gw.drawingarea.onMouseDown(event,"; JS(Me.Name); ","; JS(bMouseDown); ","; JS(bMouseMove); ","; JS(bMouseUp); ");\"";
+  Endif
+  
+  Print "></canvas>";
+  WebForm._AddJavascript("gw.drawingarea.init(" & JS(Me.Name) & ");")
+  
+End
+
+Public Sub _UpdateProperty(sProp As String, vValue As Variant)
+
+  If sProp = "#" Then
+    _Width = vValue[0]
+    _Height = vValue[1]
+    Paint.Begin(Me)
+    WebForm._AddJavascript("$_c.clearRect(0,0," & CStr(_Width) & "," & CStr(_Height) & ");")
+    Raise Draw
+    Paint.End
+  Endif
+  
+End
+
+Public Sub Refresh()
+  
+  If Not Me._CanRefresh() Then Return  
+  Paint.Begin(Me)
+  WebForm._AddJavascript("$_c.clearRect(0,0," & CStr(_Width) & "," & CStr(_Height) & ");")
+  Raise Draw
+  Paint.End
+  
+End
+

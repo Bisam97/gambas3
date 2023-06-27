@@ -2,7 +2,7 @@
 
 	CPanel.cpp
 
-	(c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+	(c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -100,15 +100,10 @@ GB_DESC CPanelDesc[] =
 	GB_DECLARE("Panel", sizeof(CPANEL)), GB_INHERITS("Container"),
 
 	GB_METHOD("_new", NULL, CPANEL_new, "(Parent)Container;"),
-
+	
 	GB_PROPERTY("Border", "i", Container_Border),
-	GB_PROPERTY("Arrangement", "i", Container_Arrangement),
-	GB_PROPERTY("AutoResize", "b", Container_AutoResize),
-	GB_PROPERTY("Spacing", "b", Container_Spacing),
-	GB_PROPERTY("Margin", "b", Container_Margin),
-	GB_PROPERTY("Padding", "i", Container_Padding),
-	GB_PROPERTY("Indent", "b", Container_Indent),
-  GB_PROPERTY("Invert", "b", Container_Invert),
+
+	ARRANGEMENT_PROPERTIES,
 
 	PANEL_DESCRIPTION,
 	
@@ -122,12 +117,7 @@ GB_DESC CHBoxDesc[] =
 
 	GB_METHOD("_new", NULL, CHBOX_new, "(Parent)Container;"),
 
-	GB_PROPERTY("AutoResize", "b", Container_AutoResize),
-	GB_PROPERTY("Spacing", "b", Container_Spacing),
-	GB_PROPERTY("Margin", "b", Container_Margin),
-	GB_PROPERTY("Padding", "i", Container_Padding),
-	GB_PROPERTY("Indent", "b", Container_Indent),
-	GB_PROPERTY("Invert", "b", Container_Invert),
+	ARRANGEMENT_FLAG_PROPERTIES,
 
 	HBOX_DESCRIPTION,
 	
@@ -141,12 +131,7 @@ GB_DESC CVBoxDesc[] =
 
 	GB_METHOD("_new", NULL, CVBOX_new, "(Parent)Container;"),
 
-	GB_PROPERTY("AutoResize", "b", Container_AutoResize),
-	GB_PROPERTY("Spacing", "b", Container_Spacing),
-	GB_PROPERTY("Margin", "b", Container_Margin),
-	GB_PROPERTY("Padding", "i", Container_Padding),
-	GB_PROPERTY("Indent", "b", Container_Indent),
-	GB_PROPERTY("Invert", "b", Container_Invert),
+	ARRANGEMENT_FLAG_PROPERTIES,
 
 	VBOX_DESCRIPTION,
 	
@@ -160,12 +145,7 @@ GB_DESC CHPanelDesc[] =
 
 	GB_METHOD("_new", NULL, CHPANEL_new, "(Parent)Container;"),
 
-	GB_PROPERTY("AutoResize", "b", Container_AutoResize),
-	GB_PROPERTY("Spacing", "b", Container_Spacing),
-	GB_PROPERTY("Margin", "b", Container_Margin),
-	GB_PROPERTY("Padding", "i", Container_Padding),
-	GB_PROPERTY("Indent", "b", Container_Indent),
-	GB_PROPERTY("Invert", "b", Container_Invert),
+	ARRANGEMENT_FLAG_PROPERTIES,
 
 	HPANEL_DESCRIPTION,
 	
@@ -179,12 +159,7 @@ GB_DESC CVPanelDesc[] =
 
 	GB_METHOD("_new", NULL, CVPANEL_new, "(Parent)Container;"),
 
-	GB_PROPERTY("AutoResize", "b", Container_AutoResize),
-	GB_PROPERTY("Spacing", "b", Container_Spacing),
-	GB_PROPERTY("Margin", "b", Container_Margin),
-	GB_PROPERTY("Padding", "i", Container_Padding),
-	GB_PROPERTY("Indent", "b", Container_Indent),
-	GB_PROPERTY("Invert", "b", Container_Invert),
+	ARRANGEMENT_FLAG_PROPERTIES,
 
 	VPANEL_DESCRIPTION,
 	

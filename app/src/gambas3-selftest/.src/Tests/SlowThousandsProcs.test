@@ -1,0 +1,75 @@
+' Gambas test file
+
+Private hProcess As Process
+Private sTest As String '
+
+Public Sub FewThousandProcesses()
+
+    'need some time, maybe i do not want it to be executed
+
+    Dim sTemp As String
+    Dim ii As Integer
+
+    Dim MyErrs As New String[]
+
+    #If True
+    sTemp = Temp$
+    File.Save(sTemp, "test" & gb.NewLine)
+
+    ii = 0
+    Do
+
+        sTest = ""
+        hProcess = Exec ["echo", "test"] For Input As "_Process"
+        hProcess.Wait
+
+        If sTest <> "test" & "\r" & gb.NewLine Then
+
+            MyErrs.Add(System.Backtrace[0])
+        Endif
+
+        sTest = ""
+        hProcess = Shell "echo test" For Input As "_Process"
+        hProcess.Wait
+
+        If sTest <> "test" & "\r" & gb.NewLine Then
+
+            MyErrs.Add(System.Backtrace[0])
+        Endif
+
+        sTest = ""
+        hProcess = Exec ["cat", sTemp] For Input As "_Process"
+        hProcess.Wait
+
+        If sTest <> "test" & "\r" & gb.NewLine Then
+
+            MyErrs.Add(System.Backtrace[0])
+        Endif
+
+        sTest = ""
+        hProcess = Shell "cat " & sTemp For Input As "_Process"
+        hProcess.Wait
+
+        If sTest <> "test" & "\r" & gb.NewLine Then
+
+            MyErrs.Add(System.Backtrace[0])
+        Endif
+
+        Inc ii
+    Loop Until ii = 1000
+
+    Kill sTemp
+
+    Assert.Equals(MyErrs.Count, 0, "A couple of 1000 processes")
+
+    #Endif
+
+End
+
+Fast Public Sub _Process_Read()
+
+    Dim sTmp As String = Read #hProcess, 1
+
+    sTest &= sTmp
+
+End

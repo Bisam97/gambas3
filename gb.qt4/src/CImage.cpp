@@ -2,7 +2,7 @@
 
   CImage.cpp
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -217,7 +217,7 @@ BEGIN_METHOD(Image_Save, GB_STRING path; GB_INTEGER quality)
 
 END_METHOD
 
-BEGIN_METHOD(Image_Stretch, GB_INTEGER width; GB_INTEGER height)
+BEGIN_METHOD(Image_Stretch, GB_INTEGER width; GB_INTEGER height; GB_BOOLEAN fast)
 
 	//static int count = 0;
 	QImage *stretch;
@@ -239,7 +239,7 @@ BEGIN_METHOD(Image_Stretch, GB_INTEGER width; GB_INTEGER height)
 		
 		if (w > 0 && h > 0)
 		{
-			*stretch = QIMAGE->scaled(w, h, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+			*stretch = QIMAGE->scaled(w, h, Qt::IgnoreAspectRatio, VARGOPT(fast, FALSE) ? Qt::FastTransformation : Qt::SmoothTransformation);
 			stretch->detach();
 		}
 	}
@@ -258,9 +258,13 @@ BEGIN_METHOD(Image_Rotate, GB_FLOAT angle)
 	
 	if (angle != 0.0)
 	{
+#ifdef QT5
+		QTransform mat;
+#else
 		QMatrix mat;
+#endif
 		mat.rotate(VARG(angle) * -360.0 / 2 / M_PI);
-		*rotate = QIMAGE->transformed(mat);
+		*rotate = QIMAGE->transformed(mat, Qt::SmoothTransformation);
 	}
 	else
 		*rotate = QIMAGE->copy();
@@ -329,7 +333,7 @@ GB_DESC CImageDesc[] =
 	GB_STATIC_METHOD("FromString", "Image", Image_FromString, "(Data)s"),
 	GB_METHOD("Save", NULL, Image_Save, "(Path)s[(Quality)i]"),
 
-	GB_METHOD("Stretch", "Image", Image_Stretch, "(Width)i(Height)i"),
+	GB_METHOD("Stretch", "Image", Image_Stretch, "(Width)i(Height)i[(Fast)b]"),
 	GB_METHOD("Rotate", "Image", Image_Rotate, "(Angle)f"),
 
 	GB_METHOD("PaintImage", NULL, Image_PaintImage, "(Image)Image;(X)i(Y)i[(Width)i(Height)i(SrcX)i(SrcY)i(SrcWidth)i(SrcHeight)i]"),

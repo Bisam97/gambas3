@@ -1,0 +1,332 @@
+' Gambas class file
+
+Private $cSuites As New Collection
+Private $bNoSelect As Boolean
+
+Public Sub btnClose_Click()
+
+  Me.Close
+
+End
+
+Public Sub Form_Open()
+
+  Settings.Read(Me)
+  LoadTests
+  LoadSuites
+
+End
+
+Private Sub LoadSuites()
+
+  Dim sName As String
+  Dim iTestWith As Integer
+  Dim I As Integer
+
+  $cSuites = MTest.LoadSuites(ByRef iTestWith)
+
+  lvwSuite.Clear
+  
+  I = 0
+  For Each $cSuites
+    
+    sName = $cSuites.Key
+    If sName = "$" Then
+      With lvwSuite.Add("$", "")
+        .RichText = "<i>" & ("Default") & "</i>"
+        .Editable = False
+      End With
+    Else
+      lvwSuite.Add(sName, sName)
+    Endif
+    
+    If I = iTestWith Then lvwSuite.Key = sName
+    
+    Inc I
+  Next
+  
+Catch
+  
+  FMain.ShowErrorWith(("Unable to load test suites."))
+
+End
+
+Private Sub LoadTests()
+
+  Dim sClass As String
+  Dim sName As String
+  Dim iPos As Integer
+  Dim sMethod As String
+
+  tvwSuite.Clear
+
+  For Each sName In MTest.GetTestModules(True)
+    
+    iPos = InStr(sName, ".")
+    If iPos = 0 Then Continue
+    
+    sClass = Left(sName, iPos - 1)
+    sMethod = Mid$(sName, iPos + 1)
+
+    If Not tvwSuite.Exist(sClass) Then tvwSuite.Add(sClass, sClass, Picture["icon:/small/directory"])
+    tvwSuite.Add(sName, sMethod, Picture["$symbol:s-method"], sClass)
+    
+  Next
+
+End
+
+Public Sub lvwSuite_Select()
+
+  Dim N As Integer
+  
+  If $cSuites.Exist(lvwSuite.Key) Then
+    tvwSuite.Selection = $cSuites[lvwSuite.Key]
+  Else
+    tvwSuite.UnselectAll
+  Endif
+  
+  btnDelete.Enabled = lvwSuite.Key <> "$"
+
+  tvwSuite.MoveFirst()
+  While tvwSuite.Available
+    
+    If tvwSuite.Item.Selected And If tvwSuite.Item.Children Then
+      
+      tvwSuite.MoveChild()
+      N = 0
+      While tvwSuite.Available
+        If tvwSuite.Item.Selected Then Inc N
+        tvwSuite.MoveNext()
+      Wend
+      
+      tvwSuite.MoveBack()
+      tvwSuite.MoveParent()
+      
+      If N > 0 And If N < tvwSuite.Item.Children Then 
+        tvwSuite.Item.Expanded = True
+      Else
+        tvwSuite.Item.Expanded = False
+      Endif
+    
+    Else
+    
+      tvwSuite.Item.Expanded = False
+
+    Endif
+    
+    tvwSuite.MoveNext()
+  Wend
+  
+  tvwSuite.MoveFirst()
+  If tvwSuite.Available Then
+    tvwSuite.Key = tvwSuite.Item.Key
+    tvwSuite.Current.EnsureVisible()
+  Endif
+  
+End
+
+Private Sub CreateSuite(Optional sCopy As String)
+
+  Dim I As Integer
+  Dim sName As String
+
+  Do
+    Inc I
+    sName = Subst(("Test suite #&1"), I)
+    If Not lvwSuite.Exist(sName) Then Break
+  Loop
+
+  If sCopy Then $cSuites[sName] = $cSuites[sCopy]
+
+  lvwSuite.Add(sName, sName).Selected = True
+  lvwSuite.Key = sName
+  
+  btnRename_Click
+  
+End
+
+Public Sub btnNew_Click()
+
+  CreateSuite()
+
+End
+
+Public Sub btnRename_Click()
+
+  Try lvwSuite.Current.Rename()
+
+End
+
+Public Sub lvwSuite_Rename()
+
+  Dim sNewName As String
+  Dim sOldName As String
+
+  sNewName = lvwSuite.Item.Text
+  sOldName = lvwSuite.Item.Key
+  
+  If sNewName = sOldName Then Return
+  
+  If lvwSuite.Exist(sNewName) Then
+    Balloon.Warning(("This test suite already exists."), lvwSuite, lvwSuite.Current.X + Desktop.Scale, lvwSuite.Current.Y)
+    Stop Event
+    Return
+  Endif
+  
+  $cSuites[sNewName] = $cSuites[sOldName]
+  $cSuites.Remove(sOldName)
+  
+  lvwSuite.Remove(sOldName)
+  lvwSuite.Add(sNewName, sNewName).Selected = True
+  
+End
+
+Public Sub btnReset_Click()
+
+  LoadSuites
+
+End
+
+Public Sub tvwSuite_Select()
+
+  Dim sKey As String
+  Dim bBefore As Boolean
+  Dim aOld As String[]
+  Dim bAfter As Boolean
+  
+  If $bNoSelect Then Return
+  
+  $bNoSelect = True
+
+  aOld = $cSuites[lvwSuite.Key]
+  
+  For Each sKey In tvwSuite.Keys
+    
+    If aOld Then
+      bBefore = aOld.Exist(sKey)
+    Else
+      bBefore = False
+    Endif
+    
+    bAfter = tvwSuite[sKey].Selected
+    
+    If bBefore = bAfter Then Continue
+    
+    With tvwSuite[sKey]
+    
+      If .ParentKey Then
+        If bAfter Then tvwSuite[.ParentKey].Selected = True
+      Else If .Children Then
+        'tvwSuite.Current.Expanded = True
+        tvwSuite.MoveTo(.Key)
+        tvwSuite.MoveChild()
+        While tvwSuite.Available
+          tvwSuite.Item.Selected = bAfter
+          tvwSuite.MoveNext()
+        Wend
+      Endif
+    
+    End With
+    
+  Next
+
+  $bNoSelect = False
+
+  $cSuites[lvwSuite.Key] = tvwSuite.Selection
+
+End
+
+Private Sub SaveSuites()
+
+  Dim I As Integer
+  Dim iIndex As Integer
+  
+  For Each $cSuites
+    If $cSuites.Key = lvwSuite.Key Then iIndex = I
+    Inc I
+  Next
+
+  MTest.SaveSuites($cSuites, iIndex)
+
+Catch
+  
+  FMain.ShowErrorWith(("Unable to save test suites."))
+
+End
+
+Public Sub btnDelete_Click()
+
+  Dim sKey As String
+
+  sKey = lvwSuite.Key
+  If Not sKey Or If sKey = "$" Then Return
+  If Message.Warning(("Do you really want to remove this test suite?"), ("Remove"), ("Cancel")) = 2 Then Return
+  $cSuites.Remove(sKey)
+  lvwSuite.Remove(sKey)
+  lvwSuite["$"].Selected = True
+
+End
+
+Public Sub lvwSuite_Cancel()
+
+  lvwSuite.Item.Text = lvwSuite.Item.Key
+
+End
+
+Public Sub btnSelectAll_Click()
+
+  tvwSuite.SelectAll
+
+End
+
+Public Sub btnUnselectAll_Click()
+
+  tvwSuite.UnselectAll
+
+End
+
+Public Sub btnCopy_Click()
+
+  CreateSuite(lvwSuite.Key)
+
+End
+
+Public Sub Form_Close()
+
+  Settings.Write(Me)
+  SaveSuites
+
+End
+
+Public Sub Form_KeyPress()
+
+  Select Case Key.Shortcut
+    Case "+"
+      btnNew.Value = True
+    Case "-", "Delete"
+      btnDelete.Value = True
+    Case "CTRL+Z"
+      btnReset.Value = True
+    Case "F4"
+      btnRunTest.Value = True
+  End Select
+
+End
+
+Public Sub lvwSuite_DblClick()
+
+  Try lvwSuite.Current.Rename()
+
+End
+
+Public Sub btnRunTest_Click()
+
+  Me.Close(True)
+
+End
+
+Public Sub lvwSuite_Activate()
+
+  btnRunTest.Value = True
+
+End

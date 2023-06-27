@@ -1,0 +1,20 @@
+' Gambas module file
+
+Export
+''' Apply each of the program callbacks
+''' listed in the Program Callback table to the provided program
+
+'' Apply the Program level callbacks
+Public Sub _call(sProgram As String[]) As String[]
+  
+  If ScriptSetPreProcessCallBack.HasProgramPreProcess() Then 
+     For Each oPreProc As Object In ScriptSetPreProcessCallBack.PreProgramCallBacks
+       sProgram = oPreProc.PreProcessProgram(sProgram)
+     Next
+  Endif
+  
+  Return sProgram
+  
+End
+
+

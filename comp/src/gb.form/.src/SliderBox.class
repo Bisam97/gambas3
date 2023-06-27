@@ -3,7 +3,7 @@
 Export
 Inherits UserControl
 
-Public Const _Properties As String = "*,MinValue=0,MaxValue=100,Step=1,DefaultValue,Value"
+Public Const _Properties As String = "*,Picture,MinValue=0,MaxValue=100,Step=1,DefaultValue,Value"
 Public Const _DefaultEvent As String = "Change"
 Public Const _DefaultSize As String = "32,4"
 Public Const _Similar As String = "Slider"
@@ -16,11 +16,14 @@ Property MaxValue As Integer
 Property Step As Integer
 Property DefaultValue As Integer
 Property Font As Font
+Property Picture As Picture
 
 Private $hSlider As Slider
 Private $hSpinBox As SpinBox
 Private $iStep As Integer = 1
 Private $iDefault As Integer
+Private $hPictureBox As PictureBox
+Private $hWatcher As Watcher
 
 Public Sub _new()
   
@@ -30,12 +33,22 @@ Public Sub _new()
   $hSlider = New Slider(Me) As "Slider"
   $hSlider.Expand = True
   $hSlider.PageStep = 1
+  $hSlider.Orientation = ScrollBar.Horizontal
   
   $hSpinBox = New SpinBox(Me) As "SpinBox"
+  $hSpinBox.Alignment = Align.Right
+  
+  $hWatcher = New Watcher(Me) As "UserControl"
+  
   UpdateSpinBoxWidth
   
 End
 
+Public Sub UserControl_Resize()
+  
+  UpdateSpinBoxWidth
+  
+End
 
 Private Function Value_Read() As Integer
 
@@ -46,6 +59,7 @@ End
 Private Sub Value_Write(Value As Integer)
 
   $hSlider.Value = Value
+  $hSpinBox.Value = Value
 
 End
 
@@ -57,12 +71,24 @@ End
 
 Private Sub UpdateSpinBoxWidth()
 
-  Dim N As Integer
+  Static bUpdating As Boolean
 
-  N = Max(Abs($hSpinBox.MinValue), Abs($hSpinBox.MaxValue))
-  'If $hSpinBox.MinValue < 0 Then N *= 10
+  Dim DS As Integer = Desktop.Scale
+  Dim W As Integer
+  Dim MW As Integer
 
-  $hSpinBox.W = Max(Desktop.Scale * 8, (2 + Len(CStr(N))) * $hSpinBox.Font.TextWidth("0") + $hSpinBox.Font.TextWidth("-") + Desktop.Scale * 2)
+  If bUpdating Then Return 
+  bUpdating = True
+
+  MW = DS * 8
+  If $hPictureBox Then MW += $hPictureBox.W
+  
+  W = $hSpinBox._GetIdealWidth(True)
+  If Me.W < MW + W Then W = $hSpinBox._GetIdealWidth(False)
+  
+  $hSpinBox.W = W
+  
+  bUpdating = False
 
 End
 
@@ -134,7 +160,7 @@ Private Sub DefaultValue_Write(Value As Integer)
 
 End
 
-Public Sub Slider_DblClick()
+Public Sub SpinBox_DblClick()
   
   $hSlider.Value = $iDefault
   Stop Event
@@ -162,4 +188,30 @@ Public Sub SpinBox_KeyPress()
     Stop Event
   Endif
   
+End
+
+Private Function Picture_Read() As Picture
+
+  If $hPictureBox Then Return $hPictureBox.Picture
+
+End
+
+Private Sub Picture_Write(Value As Picture)
+
+  If Value Then
+    If Not $hPictureBox Then 
+      $hPictureBox = New PictureBox(Me)
+      $hPictureBox.Lower
+      $hPictureBox.Mode = PictureBox.Contain
+      $hPictureBox.W = Desktop.Scale * 4
+      $hPictureBox.Padding = Desktop.Scale \ 2
+    Endif
+    $hPictureBox.Picture = Value
+  Else
+    If $hPictureBox Then 
+      $hPictureBox.Delete
+      $hPictureBox = Null
+    Endif
+  Endif
+
 End

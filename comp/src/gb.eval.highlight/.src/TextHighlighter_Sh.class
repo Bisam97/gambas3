@@ -1,0 +1,367 @@
+' Gambas class file
+
+Inherits TextHighlighter
+
+Public Const Name As String = "sh"
+Public Const FullName As String = "Shell"
+Public Const _Styles As String = "Operator,String,Keyword,Function,Number,Symbol,Escape"
+
+Private Const IDENT_CAR As String = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_"
+Private Const DIGIT_CAR As String = "0123456789"
+
+Static Private $cKeyword As New Collection
+Static Private $cOperator As New Collection
+Static Private $cType As New Collection
+Static Private $aKeywords As String[]
+
+Static Public Sub _init()
+  
+  Dim sStr As String
+  
+  $aKeywords = New String[]
+  
+  For Each sStr In ["function", "do", "else", "test", "for", "to", "in", "fi", "if", "elif", "then", "return", "exit", 
+    "while", "until", "done", "break", "continue", "select", "case", "esac"]
+
+    $cKeyword[sStr] = 0
+    $aKeywords.Add(sStr)
+  Next
+
+  For Each sStr In ["false", "null" "true"]
+    $cKeyword[sStr] = 1
+    $aKeywords.Add(sStr)
+  Next
+
+  For Each sStr In ["{", "}", "$", "#", "[", "]", "-gt", "-lt", "-ge", "-ne", "-le", "-eq", "<<<", 
+  ".", "+", "<<", "=", ">>", "==", "-", "~", "+=", "(", ",", "!=", "*", "-=", "&=", ";;",
+  ")", "<", "%", "&", "];", "@", "!", ";", ">", "|", "?", "^", ":", "<=", "/", "`"]
+
+    $cOperator[sStr] = True
+  Next
+  
+  ' As there is no datatype defining in sh we can use Type for popular commands.
+  For Each sStr In ["echo", "read", "cd", "which", "rm", "cp", "mv", "rmdir", "cat", 
+    "grep", "awk", "tr", "sed", "sleep", "clear", "sudo", "su", "source", "eval", "export",
+    "time", "date", "pwd", "set", "unset", "chown", "chmod", "exec", "alias", "unalias",
+    "bg", "bind", "builtin", "caller", "command", "compgen", "complete", "compopt", "declare",
+    "dirs", "disown", "enable", "fc", "fg", "getopts", "hash", "help", "history", "jobs", "kill",
+    "let", "local", "logout", "mapfile", "popd", "printf", "pushd", "readarray", "readonly",
+    "shift", "shopt", "suspend", "test", "times", "trap", "type", "typeset", "ulimit", "umask" "wait"]
+
+    $cType[sStr] = True
+    $aKeywords.Add(sStr)
+  Next
+  
+End
+
+Public Sub GetKeywords() As String[]
+  
+  Return $aKeywords
+  
+End
+
+Public Sub RunWith(sText As String, cKeyword As Collection, cOperator As Collection, cType As Collection)
+  
+  Dim iState As Integer
+  Dim iTag As Short
+  Dim iLenText As Integer
+  Dim iPos, iSavePos As Integer
+  Dim sCar As String
+  Dim bSingleQuoteString As Boolean
+  Dim sIdent As String
+  Dim iPosType, iPosIdent, iPosAfterIdent As Integer
+  Dim bLastExpr As Boolean
+  
+  iState = TextHighlighter.State
+  iTag = TextHighlighter.Tag
+  iLenText = String.Len(sText)
+  bLastExpr = True
+  If iState = State.Operator Then bLastExpr = False
+  
+  If Left(LTrim(sText)) = "#" Or If iState = State.Comment Then
+    
+    TextHighlighter.Add(State.Comment, iLenText)
+
+  Else
+  
+    For iPos = 1 To iLenText
+    
+      If iState = State.Normal And If iTag <> State.String Then
+      
+        sCar = String.Mid$(sText, iPos, 1)
+        If sCar = "\"" Then
+          iState = State.String
+          iTag = False
+          bSingleQuoteString = False
+        Else If sCar = "'" Then
+          iState = State.String
+          bSingleQuoteString = True
+          iTag = True
+        Else If Asc(sCar) <= 32 Then 
+        
+        Else If InStr(Trim(sText), "function") = 1 Then
+          
+          TextHighlighter.Add(State.Keyword, 9)
+          If InStr(sText, "(") Then TextHighlighter.Add(State.Function, RInStr(sText, "(") - 10)
+          Break
+
+        Else If sCar = "#" Then
+          sCar = String.Mid$(sText, iPos - 1, 1) 
+          If sCar <> "{" Then
+          TextHighlighter.Add(State.Comment, iLenText)
+          Break
+          Else
+            TextHighlighter.Add(State.Operator, 1)
+            Continue
+          Endif
+        Else If IsDigit(sCar) Then
+        
+          sIdent = sCar
+          sCar = String.Mid$(sText, iPos + 1, 1)
+          If sCar = "x" Or If sCar = "X" Then
+            sIdent &= sCar
+            Inc iPos
+            While iPos < iLenText
+              Inc iPos
+              sCar = String.Mid$(sText, iPos, 1)
+              If Not IsHexa(sCar) Then
+                Dec iPos
+                Break
+              Endif
+              sIdent &= sCar
+            Wend
+          Else
+            While iPos < iLenText
+              Inc iPos
+              sCar = String.Mid$(sText, iPos, 1)
+              If InStr(DIGIT_CAR, sCar) = 0 Then
+                Dec iPos
+                Break
+              Endif
+              sIdent &= sCar
+            Wend
+          Endif
+        
+          TextHighlighter.Add(State.Number, String.Len(sIdent))
+          iState = State.Normal
+          bLastExpr = True
+          Continue
+          
+        Else If Len(sCar) >= 2 Or If InStr(IDENT_CAR, sCar) Then
+          
+          sIdent = sCar
+          iSavePos = iPos
+          
+          While iPos < iLenText
+            Inc iPos
+            sCar = String.Mid$(sText, iPos, 1)
+            If Len(sCar) = 1 And If Not IsDigit(sCar) And If InStr(IDENT_CAR, sCar) = 0 Then
+              Dec iPos
+              Break
+            Endif
+            sIdent &= sCar
+          Wend
+          
+          If cKeyword.Exist(sIdent) Then
+            iState = State.Keyword
+            If cKeyword[sIdent] = 1 Then bLastExpr = True
+          Else If InStr(RTrim(sText), "()", String.Len(sText) - 2) Then
+             If Not InStr(RTrim(sText), "=", String.Len(sText) - 3) Then
+               iState = State.Function
+               bLastExpr = True
+               Else
+               iState = State.Symbol
+               bLastExpr = True
+             Endif
+          Else If InStr(RTrim(sText), "() {", String.Len(sText) - 4) Then
+            iState = State.Function
+            bLastExpr = True
+          Else If cType.Exist(sIdent) Then
+            iState = State.Datatype
+            bLastExpr = True
+            If iPosType = 0 Then iPosType = iSavePos
+          Else
+            iState = State.Symbol
+            If iPosAfterIdent = 0 Then 
+              iPosIdent = iSavePos
+              iPosAfterIdent = iSavePos + String.Len(sIdent)
+            Endif
+            bLastExpr = True
+          Endif
+          
+          TextHighlighter.Add(iState, String.Len(sIdent))
+          iState = State.Normal
+          Continue
+        
+        Else
+        
+          sIdent = sCar
+          
+          While iPos < iLenText
+            If cOperator.Exist(sIdent) Then 
+
+              If sIdent = "-" Then
+                sCar = String.Mid$(sText, iPos + 1, 2)
+                Select sCar
+                Case "eq", "ne", "gt", "lt", "ge", "le", "o "
+                  TextHighlighter.Add(State.Operator, String.Len(sCar) + 1)
+                  iPos += String.Len(sCar) + 1
+                  Break
+                End Select
+              Endif
+            Break
+            Endif
+            
+            Inc iPos
+            sCar = String.Mid$(sText, iPos, 1)
+            If IsLetter(sCar) Or If IsDigit(sCar) Or If IsBlank(sCar) Then
+               Dec iPos
+              Break
+            Endif
+            sIdent &= sCar
+          Wend
+          
+          If cOperator.Exist(sIdent) Then
+            iState = State.Operator
+          Else
+            iState = State.Error
+          Endif
+          
+          TextHighlighter.Add(iState, String.Len(sIdent))
+          iState = State.Normal
+          bLastExpr = False
+          
+          'Dec iPos
+          Continue
+        
+        Endif
+        
+        
+      Else If iState = State.String Then
+      
+        sCar = String.Mid$(sText, iPos, 1)
+       If sCar = "\\" Then
+          sCar = String.Mid$(sText, iPos + 1, 1)
+          If sCar <> "'" And If sCar <> "\"" Then
+          TextHighlighter.Add(State.Escape, 2)
+          Inc iPos
+          Else
+          TextHighlighter.Add(State.Escape, 1)
+          If sCar = "\"" Then Inc ipos
+          Endif
+          'Inc iPos
+          Continue
+        Else If sCar = "\"" And If Not iTag Then
+          TextHighlighter.Add(iState)
+          iState = State.Normal
+          iTag = iState
+          bLastExpr = True
+          Continue
+        Else If sCar = "'" And If iTag Then
+          TextHighlighter.Add(iState)
+          iState = State.Normal
+          iTag = iState
+          bLastExpr = True
+          Continue
+         Endif
+        
+      Endif
+      
+      TextHighlighter.Add(iState)
+      
+    Next
+  
+    
+   If iState <> State.Comment And If iState <> State.Documentation And If iState <> State.String Then
+      iState = State.Normal
+   Endif
+
+    
+  Endif
+  
+  TextHighlighter.Limit = False
+'  If iPosIdent >= 1 And If Not IsSpace(Left(sText)) Then
+'    If InStr(String.Mid$(sText, iPosAfterIdent), "(") Then
+'      If RInStr(sText, "\\") = 0 Then
+'        TextHighlighter.Limit = True
+'      Endif
+'    Endif
+'  Endif
+  
+  TextHighlighter.State = iState
+  TextHighlighter.Tag = iTag
+  
+End
+
+' Private Sub RunWith2(Text As String)
+' 
+'   Dim iState As Integer
+'   Dim iTag As Integer
+'   Dim iLenText As Integer
+'   Dim iPos As Integer
+'   Dim sCar As String
+'  
+'   iLenText = String.Len(Text)
+'   
+'   iState = TextHighlighter.State
+'   iTag = TextHighlighter.Tag
+'   
+'   Select Case iState
+'     
+'     Case Highlight.String
+'       Goto READ_STRING
+'       
+'     Default 
+'       Goto READ_NORMAL
+'     
+'   End Select
+'   
+' 
+' READ_NORMAL:
+'       
+'   GoSub READ_CHAR
+'   If Not sCar Then Goto END_LINE
+'   
+'   If InStr(IDENT_CAR, sCar) Then Goto READ_IDENT
+'   
+'   If InStr(DIGIT_CAR, sCar) Then Goto READ_NUMBER
+'   
+'   If sCar = "\"" Then
+'     iState = Highlight.String
+'     iTag = Asc(sCar)
+'     Goto READ_STRING
+'   Endif
+'   
+'   If sCar = "'" Then 
+'     iState = Highlight.String
+'     iTag = Asc(sCar)
+'     Goto READ_STRING
+'   Endif
+'   
+'   If sCar = "`" Then Goto READ_BACKQUOTE
+'   If sCar = "#" Then Goto READ_COMMENT
+'   
+' END_LINE:
+' 
+'   TextHighlighter.State = iState
+'   TextHighlighter.Tag = iTag
+'   Return
+' 
+' READ_CHAR:
+' 
+'   Inc iPos
+'   If iPos > iLenText Then
+'     sCar = ""
+'   Else
+'     sCar = String.Mid$(Text, iPos, 1)
+'   Endif
+'   Return
+' 
+' End
+
+Public Sub Run(Text As String)
+ 
+  RunWith(Text, $cKeyword, $cOperator, $cType)
+  
+End
+

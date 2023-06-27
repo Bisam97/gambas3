@@ -14,6 +14,13 @@ Private $bBuffered As Boolean
 Static Public Sub Main()
   
   Dim hObject As WebPage
+  Dim sPath As String
+
+  sPath = Mid$(Request.Path, 2)
+  If sPath And If Exist("../.public/" &/ sPath) Then
+    Response.SendFile("../.public/" &/ sPath)
+    Return
+  Endif
 
   Try hObject = Application.Startup.AutoCreate()
   If Not hObject Then Return

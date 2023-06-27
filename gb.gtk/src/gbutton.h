@@ -2,7 +2,7 @@
 
   gbutton.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -36,16 +36,16 @@ public:
 	gButton(gContainer *parent, Type type);
   ~gButton();
   
-	bool getBorder();
-	bool isCancel();
-	bool isDefault();
-	const char* text();
-	gPicture* picture();
-	bool value();
-	bool isToggle();
-	bool isRadio();
-	//bool isEnabled() const;
-	bool inconsistent();
+	bool getBorder() const;
+	bool isCancel() const;
+	bool isDefault() const;
+	const char *text() const { return bufText; }
+	bool hasText() const { return bufText && *bufText; }
+	gPicture *picture() const;
+	bool value() const;
+	bool isToggle() const;
+	bool isRadio() const;
+	bool inconsistent() const;
 	bool isStretch() { return _stretch; }
 	bool isTristate() const { return _tristate; }
 	bool isAutoResize() const { return _autoresize; }
@@ -65,16 +65,17 @@ public:
 	void setAutoResize(bool vl);
 	
 	virtual void setRealForeground(gColor color);
+	gColor defaultBackground() const;
+	
+	virtual void updateDirection();
+	
 	//virtual void setRealBackground(gColor color);
 
 //"Method"
 	void animateClick(bool on);
 
-//"Signals"
-	void (*onClick)(gControl *sender);
-
 //"Private"
-	int type;
+	char type;
 	char *bufText;
 	GtkWidget *_label;
 	GtkCellRenderer *rendtxt;
@@ -89,12 +90,14 @@ public:
 	unsigned _tristate : 1;
 	unsigned _autoresize : 1;
 	
-	bool hasShortcut();
+	bool hasShortcut() const;
 	void unsetOtherRadioButtons();
-	virtual int minimumHeight();
+	int autoHeight() const;
 	virtual void updateSize();
-	
-	static bool isButton(gControl *control) { return control->getClass() == Type_gButton && ((gButton *)control)->type == Button; }
 };
+
+// Callbacks
+void CB_button_click(gControl *sender);
+
 
 #endif

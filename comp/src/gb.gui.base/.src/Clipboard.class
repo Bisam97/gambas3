@@ -1,0 +1,32 @@
+' Gambas class file
+
+Export
+
+Static Public Sub Copy(Data As Variant, Optional Format As String)
+  
+  If IsMissing(Format) Then
+    Super.Copy(Data)
+    Return
+  Endif
+  
+  If Format = "text/uri-list" Then
+    If TypeOf(Data) = gb.String Then
+      Data = Main.PathToUrlList([CStr(Data)])
+    Else If TypeOf(Data) = gb.Object And If Data Is String[] Then
+      Data = Main.PathToUrlList(Data)
+    Endif
+  Endif
+  
+  Super.Copy(Data, Format)
+  
+End
+
+Static Public Sub Paste(Optional Format As String) As Variant
+  
+  If IsMissing(Format) Then Return Super.Paste()
+  
+  If Format = "text/uri-list" Then Return Main.UrlListToPath(Super.Paste(Format))
+    
+  Return Super.Paste(Format)
+  
+End

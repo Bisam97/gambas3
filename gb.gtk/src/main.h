@@ -27,8 +27,9 @@
 #include "gambas.h"
 #include "gb.image.h"
 #include "gb.geom.h"
-#include "gb.gtk.h"
+
 #include "widgets.h"
+#include "gb.gtk.h"
 #include "CWidget.h"
 
 #ifndef __MAIN_C
@@ -38,6 +39,8 @@ extern GEOM_INTERFACE GEOM;
 
 extern GB_CLASS CLASS_Control;
 extern GB_CLASS CLASS_ContainerChildren;
+extern GB_CLASS CLASS_UserControl;
+extern GB_CLASS CLASS_UserContainer;
 extern GB_CLASS CLASS_Picture;
 extern GB_CLASS CLASS_Image;
 extern GB_CLASS CLASS_DrawingArea;
@@ -53,9 +56,8 @@ extern bool MAIN_display_x11;
 
 #define GB (*GB_PTR)
 
-void MAIN_do_iteration(bool do_not_block, bool do_not_sleep = false);
+void MAIN_do_iteration(bool do_not_block);
 void MAIN_do_iteration_just_events();
 void MAIN_check_quit();
 
 #endif
-

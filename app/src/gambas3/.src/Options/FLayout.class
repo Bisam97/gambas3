@@ -1,0 +1,58 @@
+' Gambas class file
+
+Static Public LayoutName As String
+
+Private $aLayout As String[]
+Private $sName As String
+
+Public Sub Run(aLayout As String[], sName As String) As Boolean
+
+  $aLayout = aLayout
+  $sName = sName
+  
+  Return Not Me.ShowModal()
+
+End
+
+Public Sub btnOK_Click()
+
+  Dim sName As String
+
+  sName = Trim(cmbName.Text)
+  
+  If Not sName Then
+    Message.Warning(("Please enter the name of the layout."))
+    cmbName.SetFocus
+    Return
+  Endif
+  
+  If cmbName.Find(sName) >= 0 Then
+    If Message.Warning(("This layout already exists."), ("Override"), ("Cancel")) = 2 Then Return
+  Endif
+  
+  LayoutName = sName
+  Me.Close(True)
+
+End
+
+Public Sub btnCancel_Click()
+
+  Me.Close
+
+End
+
+
+Public Sub Form_Open()
+
+  Dim I As Integer
+  
+  cmbName.Clear
+  For I = 2 To $aLayout.Max Step 2
+    cmbName.Add($aLayout[I])
+  Next
+
+  cmbName.SetFocus
+  
+  cmbName.Text = $sName
+
+End

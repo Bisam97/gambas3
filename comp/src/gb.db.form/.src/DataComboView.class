@@ -4,7 +4,7 @@ Inherits UserControl
 Export 
 
 Public Const _Properties As String = "*,Table{Table},Field{Field},Filter,Header,Grid,Highlight=True,Columns{Field[]:Table}"
-Public Const _DefaultEvent As String = "Change"
+'Public Const _DefaultEvent As String = "Change"
 Public Const _DefaultSize As String = "24,4"
 Public Const _DrawWith As String = "MenuButton"
 Public Const _Group As String = "Data"
@@ -23,12 +23,7 @@ Property Header As Boolean
 Property Grid As Boolean
 Property Highlight As Boolean
 
-Event Validate
-
-'Property Read Current As Variant[]
-'Property Read Count As Integer
-'Property Read Index As Integer
-'Property Font As Font
+Event Validate(Value As Variant)
 
 Private $hDrawingArea As DrawingArea
 Private $hPopup As Window
@@ -60,6 +55,7 @@ Public Sub _new()
   $hPopup = New Window As "Popup"
   $hPopup.Arrangement = Arrange.Fill
   $hPopup.Persistent = True
+  $hPopup.SkipTaskbar = True
   
   $hSrc = New DataSource($hPopup)
   $hSrc.Arrangement = Arrange.Fill
@@ -71,6 +67,7 @@ Public Sub _new()
   $hView.Header = TableView.None
   $hView.View.ScrollBar = Scroll.Vertical
   $hView.View.Tracking = True
+  $hView.View._NoMouse = True
   
   $hObserver = New Observer($hView.View) As "TableView"
 
@@ -184,6 +181,17 @@ Public Sub TableView_MouseUp()
 
 End
 
+Public Sub TableView_KeyPress()
+  
+  If Key.Code = Key.Space Or If Key.Code = Key.Enter Or If Key.Code = Key.Return Then
+    TableView_MouseUp
+  Else If Key.Code = Key.Escape Then
+    $hPopup.Close
+  Endif
+  
+End
+
+
 Private Function Filter_Read() As String
 
   Return $hSrc.Filter
@@ -293,6 +301,7 @@ Private Sub SetValue(vVal As Variant)
 
   Dim I As Integer
   Dim hView As TableView
+  Dim iAlign As Integer
 
   LoadPopup
   If IsNull(vVal) Then
@@ -316,7 +325,17 @@ Private Sub SetValue(vVal As Variant)
   For I = 0 To $aText.Max
     $aText[I] = hView[hView.Row, I].Text
     $aWidth[I] = hView.Columns[I].Width
-    $aAlign[I] = hView[hView.Row, I].Alignment
+    
+    iAlign = hView[hView.Row, I].Alignment
+    
+    If Align.IsLeft(iAlign) Then
+      $aAlign[I] = Align.Left
+    Else If Align.IsRight(iAlign) Then
+      $aAlign[I] = Align.Right
+    Else
+      $aAlign[I] = Align.Center
+    Endif
+      
   Next
   
   $hDrawingArea.Refresh
@@ -403,33 +422,6 @@ Public Sub DrawingArea_MouseDown()
   
 End
 
-' Public Sub DrawingArea_MouseMove()
-'   
-'   Dim bPressed As Boolean
-'   
-'   bPressed = $hDrawingArea.Hovered
-'   
-'   If $bPressed <> bPressed Then
-'     $bPressed = bPressed
-'     $hDrawingArea.Refresh
-'   Endif
-'   
-' End
-' 
-' 
-' Public Sub DrawingArea_MouseUp()
-'   
-'   If Not Mouse.Left Then Return
-'   If Not Me.Enabled Then Return
-'   If Not $bPressed Then Return
-' 
-'   $bPressed = False
-'   $hDrawingArea.Refresh
-'   
-'   'If Not $bInsideArrow Then Button_Click
-' 
-' End
-
 Public Sub DrawingArea_Draw()
   
   Dim X As Integer
@@ -452,8 +444,9 @@ Public Sub DrawingArea_Draw()
   
     Paint.ClipRect = Rect(0, 0, Me.W - Desktop.Scale * 3, Me.H)
     For I = 0 To $aText.Max
+      If I > 0 And If $hView.Grid Then Paint.FillRect(X, 0, 1, Me.H, Color.LightForeground)
       X2 = X + $aWidth[I]
-      Paint.DrawText($aText[I], X + 4, 0, X2 - X - 5, Me.H, $aAlign[I])
+      Paint.DrawText($aText[I], X + 4, 0, X2 - X - 6, Me.H, $aAlign[I])
       X = X2
     Next
     
@@ -463,25 +456,21 @@ End
 
 Public Sub DrawingArea_KeyPress()
   
-  If Key.Code = Key.Space Then 
+  If Key.Code = Key.Space Or If Key.Code = Key.Down Then 
     $bPressed = True
     $hDrawingArea.Refresh
-  ' Else If Key.Code = Key.Tab Then
-  '   If $hButton Then
-  '     Try Me.Next.SetFocus
-  '     Stop Event
-  '   Endif
   Endif
   
 End
 
 Public Sub DrawingArea_KeyRelease()
   
-  If Key.Code = Key.Space Then 
-    $bPressed = False
-    $hDrawingArea.Refresh
-    Wait
-    'Button_Click
+  If Key.Code = Key.Space Or If Key.Code = Key.Down Then 
+    If $bPressed Then
+      $bPressed = False
+      $hDrawingArea.Refresh
+      OpenPopup
+    Endif
   Endif
   
 End

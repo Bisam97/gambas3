@@ -2,7 +2,7 @@
 
 	gbx_c_process.h
 
-	(c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+	(c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -78,5 +78,6 @@ CPROCESS *CPROCESS_create(int mode, void *cmd, char *name, CARRAY *env);
 void CPROCESS_wait_for(CPROCESS *process, int timeout);
 void CPROCESS_check(void *_object);
 const char *CPROCESS_search_program_in_path(char *name);
+void CPROCESS_callback_child(void);
 
 #endif

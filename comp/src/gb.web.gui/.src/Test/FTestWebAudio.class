@@ -1,0 +1,92 @@
+' Gambas class file
+
+'Export
+
+Private $sTrackFolder As String = "http://bws.org.uk/music/mp3/"
+Private $sTrack As String
+Private $fSongLength As Float
+
+Public Sub WebForm_Open()
+
+  WebListBox1.Index = 0
+
+End
+
+Private Sub FloatToString(Value As Float, Optional PadLen As Integer = 2) As String
+
+  Dim sPad As String = String(20, "0")
+  Dim sDisplay As String = Str(Value)
+  Dim iDotpos As Integer = InStr(sDisplay, ".")
+
+  If Not iDotpos Then Return sDisplay & "." & Mid(sPad, 1, PadLen)
+
+  sDisplay = Mid(sDisplay & sPad, 1, iDotpos + PadLen)
+
+  Return sDisplay
+
+End
+
+Public Sub WebAudio1_Ready()
+
+  $fSongLength = WebAudio1.Duration
+  WebLabel1.Text = $sTrack & " - 0:00 / " & FloatToString($fSongLength)
+  WebSlider1.MaxValue = Floor($fSongLength)
+
+End
+
+Public Sub WebAudio1_Position()
+
+  Dim fPos As Float = WebAudio1.Pos
+
+  WebLabel1.Text = $sTrack & " - " & FloatToString(fPos) & " / " & FloatToString($fSongLength)
+
+  Object.Lock(WebSlider1)
+  WebSlider1.Value = Floor(fPos)
+  Object.UnLock(WebSlider1)
+
+End
+
+Public Sub Controls_Click()
+
+  Select Last.Text
+    Case "Play"
+      WebAudio1.Play
+      btnPlay.Enabled = False
+      btnPause.Enabled = True
+      btnStop.Enabled = True
+    Case "Pause"
+      WebAudio1.Paused = Not WebAudio1.Paused
+      btnPlay.Enabled = True
+      btnPause.Enabled = True
+      btnStop.Enabled = True
+    Case "Stop"
+      WebAudio1.Stop
+      WebSlider1.Value = 0
+      btnPlay.Enabled = True
+      btnPause.Enabled = False
+      btnStop.Enabled = False
+  End Select
+
+End
+
+Public Sub WebSlider1_Change()
+
+  WebAudio1.Position = WebSlider1.Value
+
+End
+
+Public Sub WebAudio1_End()
+
+  WebSlider1.Value = 0
+  WebLabel2.Text = "Audio has finished playing"
+
+End
+
+Public Sub WebListBox1_Select()
+
+  btnStop.Click
+  $sTrack = $sTrackFolder &/ WebListBox1.Text & ".mp3"
+  WebLabel1.Text = "Loading " & $sTrack 
+  WebAudio1.Audio = $sTrack
+ 
+End

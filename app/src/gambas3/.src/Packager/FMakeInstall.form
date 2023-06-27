@@ -1,13 +1,13 @@
 # Gambas Form File 3.0
 
 { Form Form
-  MoveScaled(0,0,98,76)
+  MoveScaled(0,0,129,79)
   Text = ("Make installation package")
   Icon = Picture["icon:/large/package"]
   Arrangement = Arrange.Vertical
   Margin = True
   { wizInstall Wizard
-    MoveScaled(1,1,89,72)
+    MoveScaled(1,1,89,77)
     Expand = True
     Arrangement = Arrange.Vertical
     Spacing = True
@@ -36,29 +36,44 @@
       Border = Border.Plain
     }
     { Panel3 HBox
-      MoveScaled(1,10,87,4)
+      MoveScaled(1,10,87,8)
       Spacing = True
-      { chkPrefix CheckBox
-        MoveScaled(0,0,52,4)
-        AutoResize = True
-        Text = ("Add vendor prefix or name to package names")
-      }
-      { Label8 Label
-        MoveScaled(55,0,16,4)
+      { Panel5 VBox
+        MoveScaled(0,0,53,8)
         Expand = True
-        AutoResize = True
-        Text = ("Package version")
-        Alignment = Align.Right
+        { chkPrefix CheckBox
+          MoveScaled(0,0,52,4)
+          AutoResize = True
+          Text = ("Add vendor prefix or name to package names")
+        }
+        { chkPackageNameWithMajor CheckBox
+          MoveScaled(0,4,44,4)
+          Text = ("Add major version number to package names")
+        }
       }
-      { txtPackageVersion SpinBox
-        MoveScaled(72,0,8,4)
-        MinValue = 1
-        MaxValue = 999
-        Value = 1
+      { Panel17 VBox
+        MoveScaled(55,0,32,7)
+        AutoResize = True
+        { Panel14 HBox
+          MoveScaled(0,0,30,4)
+          Spacing = True
+          { Label8 Label
+            MoveScaled(0,0,16,4)
+            AutoResize = True
+            Alignment = Align.Right
+            Text = ("Package version")
+          }
+          { txtPackageVersion SpinBox
+            MoveScaled(17,0,11,4)
+            MinValue = 1
+            MaxValue = 999
+            Value = 1
+          }
+        }
       }
     }
     { HBox8 HBox
-      MoveScaled(1,15,70,4)
+      MoveScaled(1,19,70,4)
       Spacing = True
       { Label3 Label
         MoveScaled(0,0,23,4)
@@ -71,7 +86,7 @@
       }
     }
     { HBox20 HBox
-      MoveScaled(1,20,70,4)
+      MoveScaled(1,24,70,4)
       Spacing = True
       { Label9 Label
         MoveScaled(0,0,23,4)
@@ -84,14 +99,14 @@
       }
     }
     { TextLabel2 TextLabel
-      MoveScaled(1,24,64,4)
+      MoveScaled(1,28,64,4)
       Font = Font["Bold"]
       AutoResize = True
       Text = ("Maintainer information")
       Alignment = Align.BottomNormal
     }
     { HBox1 HBox
-      MoveScaled(1,29,71,4)
+      MoveScaled(1,33,71,4)
       Spacing = True
       { Label1 Label
         MoveScaled(0,0,23,4)
@@ -103,7 +118,7 @@
       }
     }
     { HBox2 HBox
-      MoveScaled(1,34,70,4)
+      MoveScaled(1,38,70,4)
       Spacing = True
       { Label2 Label
         MoveScaled(0,0,23,4)
@@ -115,7 +130,7 @@
       }
     }
     { HBox16 HBox
-      MoveScaled(1,39,70,4)
+      MoveScaled(1,43,70,4)
       Spacing = True
       { Label7 Label
         MoveScaled(0,0,23,4)
@@ -127,7 +142,7 @@
       }
     }
     { Panel1 HBox
-      MoveScaled(1,44,72,12)
+      MoveScaled(1,48,72,12)
       Expand = True
       Spacing = True
       { Panel4 VBox
@@ -145,7 +160,7 @@
       }
     }
     { Panel2 HBox
-      MoveScaled(1,57,73,4)
+      MoveScaled(1,61,73,4)
       Spacing = True
       { Label5 Label
         MoveScaled(0,0,23,4)
@@ -156,7 +171,7 @@
         MoveScaled(25,0,46,4)
         #Translate = False
         Expand = True
-        List = ["General Public License", "Public Domain", "Lesser General Public License", "Other License(s)", "Non-free License"]
+        List = ["General Public License", "Public Domain", "Lesser General Public License", "Other License(s)", "Non-free License", "General Public License V2 only", "Lesser General Public License V2 only", "General Public License V3", "Lesser General Public License V3", "General Public License V2 or any later version", "Lesser General Public License V2 or any later version"]
         Sorted = True
       }
     }
@@ -203,7 +218,7 @@
         Padding = 4
         { PictureBox1 PictureBox
           MoveScaled(0,0,8,8)
-          Picture = Picture["img/logo/archlinux.png"]
+          Picture = Picture.Load("img/logo/archlinux.png")
           Stretch = True
           Alignment = Align.Center
         }
@@ -225,7 +240,7 @@
         Padding = 4
         { PictureBox6 PictureBox
           MoveScaled(1,1,6,6)
-          Picture = Picture["img/logo/autotools.png"]
+          Picture = Picture.Load("img/logo/autotools.png")
           Stretch = True
           Alignment = Align.Center
         }
@@ -247,7 +262,7 @@
         Padding = 4
         { PictureBox2 PictureBox
           MoveScaled(1,1,6,6)
-          Picture = Picture["img/logo/debian.png"]
+          Picture = Picture.Load("img/logo/debian.png")
           Stretch = True
           Alignment = Align.Center
         }
@@ -269,7 +284,7 @@
         Padding = 4
         { PictureBox7 PictureBox
           MoveScaled(1,1,6,6)
-          Picture = Picture["img/logo/fedora.png"]
+          Picture = Picture.Load("img/logo/fedora.png")
           Stretch = True
           Alignment = Align.Center
         }
@@ -291,7 +306,7 @@
         Padding = 4
         { PictureBox3 PictureBox
           MoveScaled(1,1,6,6)
-          Picture = Picture["img/logo/mageia.png"]
+          Picture = Picture.Load("img/logo/mageia.png")
           Stretch = True
           Alignment = Align.Center
         }
@@ -313,7 +328,7 @@
         Padding = 4
         { PictureBox4 PictureBox
           MoveScaled(1,1,6,6)
-          Picture = Picture["img/logo/suse.png"]
+          Picture = Picture.Load("img/logo/suse.png")
           Stretch = True
           Alignment = Align.Center
         }
@@ -335,7 +350,7 @@
         Padding = 4
         { PictureBox9 PictureBox
           MoveScaled(1,1,6,6)
-          Picture = Picture["img/logo/slackware.png"]
+          Picture = Picture.Load("img/logo/slackware.png")
           Stretch = True
           Alignment = Align.Center
         }
@@ -357,7 +372,7 @@
         Padding = 4
         { PictureBox5 PictureBox
           MoveScaled(1,1,6,6)
-          Picture = Picture["img/logo/ubuntu.png"]
+          Picture = Picture.Load("img/logo/ubuntu.png")
           Stretch = True
           Alignment = Align.Center
         }
@@ -380,7 +395,7 @@
         Padding = 4
         { PictureBox10 PictureBox
           MoveScaled(1,1,6,6)
-          Picture = Picture["img/logo/self-extractible.png"]
+          Picture = Picture.Load("img/logo/self-extractible.png")
           Stretch = True
           Alignment = Align.Center
         }
@@ -431,8 +446,8 @@
     { Label4 Label
       MoveScaled(1,43,67,4)
       Font = Font["Bold"]
-      Text = ("Categories")
       Alignment = Align.BottomNormal
+      Text = ("Categories")
     }
     { cmbCategories ComboBox
       MoveScaled(1,48,68,4)
@@ -476,26 +491,43 @@
     }
     Index = 6
     Text = ("Extra dependencies")
+    { HBox17 HBox
+      MoveScaled(2,1,83,4)
+      Spacing = True
+      { chkVersionMin CheckBox
+        MoveScaled(1,0,27,4)
+        AutoResize = True
+        Text = ("Minimum Gambas version")
+      }
+      { dwgVersionMin DrawingArea
+        MoveScaled(36,0,14,4)
+        Enabled = False
+        { spnVersionMin SpinBox
+          MoveScaled(4,0,10,4)
+          Border = False
+        }
+      }
+    }
     { chkDep CheckBox
-      MoveScaled(0,1,55,3)
+      MoveScaled(1,8,55,3)
       Text = ("Same dependencies for all targets")
     }
     { cmbDep ComboBox
-      MoveScaled(0,6,68,4)
+      MoveScaled(1,13,68,4)
       ReadOnly = True
       Text = (" ")
     }
     { HBox12 HBox
-      MoveScaled(1,15,79,41)
+      MoveScaled(1,18,79,38)
       Expand = True
       Spacing = True
       { tvwDep TableView
-        MoveScaled(7,5,41,29)
+        MoveScaled(5,2,41,29)
         Expand = True
         Header = GridView.Horizontal
       }
       { HBox11 VBox
-        MoveScaled(53,4,18,34)
+        MoveScaled(48,2,18,27)
         Spacing = True
         { btnAddDep Button
           MoveScaled(0,0,18,4)
@@ -650,23 +682,23 @@
       ReadOnly = True
     }
     { panError Panel
-      MoveScaled(1,51,87,7)
+      MoveScaled(1,51,87,8)
       Visible = False
       Background = Color.TextBackground
       Arrangement = Arrange.Horizontal
-      AutoResize = True
       Margin = True
       Border = Border.Plain
       { txtError TextLabel
-        MoveScaled(5,0,64,6)
+        MoveScaled(5,2,64,4)
         Font = Font["-1"]
         Background = Color.TextBackground
         Expand = True
         AutoResize = True
       }
       { spnCreatePackage Spinner
-        MoveScaled(81,0,3,3)
+        MoveScaled(80,1,4,6)
         Visible = False
+        Type = Spinner.Circle
       }
     }
     Index = 0
@@ -677,5 +709,13 @@
     AutoResize = True
     Text = ("Create package now")
     Picture = Picture["icon:/small/package"]
+  }
+  { btnOpenFolder Button
+    MoveScaled(92,6,29,4)
+    Visible = False
+    Ignore = True
+    AutoResize = True
+    Text = ("Open target folder") & "..."
+    Picture = Picture["icon:/small/directory"]
   }
 }

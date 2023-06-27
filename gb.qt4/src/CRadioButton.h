@@ -2,7 +2,7 @@
 
   CRadioButton.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,9 +24,9 @@
 #ifndef __CRADIOBUTTON_H
 #define __CRADIOBUTTON_H
 
-#include "gambas.h"
-
 #include <QRadioButton>
+
+#include "gambas.h"
 
 #include "CWidget.h"
 
@@ -51,7 +51,7 @@ class MyRadioButton : public QRadioButton
 	
 public:
 
-  MyRadioButton(QWidget *parent);
+  explicit MyRadioButton(QWidget *parent);
   void adjust(bool force = false);
   bool isAutoResize() const { return _autoResize; }
   void setAutoResize(bool a) { _autoResize = a; adjust(); }

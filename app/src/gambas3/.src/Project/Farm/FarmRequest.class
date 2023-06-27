@@ -99,7 +99,7 @@ Public Sub Request_Finished()
     ResultFile = $hForm.TargetFile
     If $hForm.Headers Then
       For Each sHeader In $hForm.Headers
-        If sHeader Begins "Content-Disposition:" Then
+        If LCase(sHeader) Begins "content-disposition:" Then
           iPos = InStr(sHeader, "filename=")
           If iPos Then
             sName = File.SetName(ResultFile, UnQuote(Mid$(sHeader, iPos + 9)))
@@ -206,7 +206,7 @@ Public Sub WaitFor(Optional sGood As String, sBad As String, Optional bNoWindow 
   bFail = HasFailed()
   
   If bFail Then
-    If sBad And If ErrorText Then Message.Error(sBad & "\n\n" & ErrorText)
+    If sBad And If ErrorText Then FMain.ShowErrorWith(sBad, ErrorText)
   Else
     If sGood Then Message(sGood)
   Endif
@@ -216,7 +216,7 @@ End
 
 Private Sub AddLanguageTag(aTag As String[], sLang As String)
 
-  sLang = Language.ToEnglishName(sLang)
+  sLang = MyLanguage.ToEnglishName(sLang)
   If Not sLang Then Return
   If Not aTag.Exist(sLang) Then aTag.Add(sLang)
 
@@ -266,7 +266,7 @@ Public Sub PublishSoftware(sVendor As String, sScreenshot As String, sGambasVers
   System.Language = "C"
 
   If Project.Localize Then  
-    For Each sLang In Language.GetAll()
+    For Each sLang In MyLanguage.GetAll()
       If Project.HasTranslation(sLang) Then AddLanguageTag(aTag, sLang)
     Next
   Endif

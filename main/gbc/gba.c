@@ -2,7 +2,7 @@
 
 	gba.c
 
-	(c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+	(c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -24,7 +24,6 @@
 #define __GBA_C
 
 #include "config.h"
-#include "trunk_version.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -55,6 +54,7 @@ static struct option Long_options[] =
 	{ "verbose", 0, NULL, 'v' },
 	{ "output", 1, NULL, 'o' },
 	{ "extract", 1, NULL, 'x' },
+	{ "ignore-public", 0, NULL, 'p'},
 	{ 0 }
 };
 #endif
@@ -62,13 +62,34 @@ static struct option Long_options[] =
 static char **path_list;
 static int path_current;
 
-static const char *allowed_hidden_files[] = { ".gambas", ".info", ".list", ".lang", ".action", ".connection", ".component", ".public", NULL };
-//static const char *remove_ext_root[] = { "module", "class", "form", "gambas", NULL };
+static const char *_allowed_hidden_files[] = { ".gambas", ".info", ".list", ".test", ".lang", ".action", ".connection", ".component", ".public", NULL };
+#define PUBLIC_DIR _allowed_hidden_files[8]
+
 static const char *remove_ext_lang[] = { "pot", "po", NULL };
 
 static bool _extract = FALSE;
-static char *_extract_archive;
 static char *_extract_file = NULL;
+
+static bool _list_all = FALSE;
+
+static char *_archive;
+
+static bool _ignore_public = FALSE;
+
+static void print_version()
+{
+	#ifdef TRUNK_VERSION
+	printf(VERSION " " TRUNK_VERSION "\n");
+	#else /* no TRUNK_VERSION */
+	printf(VERSION "\n");
+	#endif
+}
+
+static void print_title()
+{
+	printf("\nGambas archiver version ");
+	print_version();
+}
 
 static void get_arguments(int argc, char **argv)
 {
@@ -80,9 +101,9 @@ static void get_arguments(int argc, char **argv)
 	for(;;)
 	{
 		#if HAVE_GETOPT_LONG
-			opt = getopt_long(argc, argv, "vVLhso:x:", Long_options, &index);
+			opt = getopt_long(argc, argv, "vVLhso:x:l:p", Long_options, &index);
 		#else
-			opt = getopt(argc, argv, "vVLhso:x:");
+			opt = getopt(argc, argv, "vVLhso:x:l:p");
 		#endif
 
 		if (opt < 0) break;
@@ -90,15 +111,7 @@ static void get_arguments(int argc, char **argv)
 		switch (opt)
 		{
 			case 'V':
-				#ifdef TRUNK_VERSION
-				#ifdef TRUNK_VERSION_GIT
-				printf(VERSION " " TRUNK_VERSION "\n");
-				#else /* from svn */
-				printf(VERSION " r" TRUNK_VERSION "\n");
-				#endif
-				#else /* no TRUNK_VERSION */
-				printf(VERSION "\n");
-				#endif
+				print_version();
 				exit(0);
 
 			case 'v':
@@ -111,46 +124,59 @@ static void get_arguments(int argc, char **argv)
 
 			case 'o':
 				ARCH_define_output(optarg);
-				_extract = FALSE;
 				break;
 				
 			case 'x':
-				_extract_archive = optarg;
+				_archive = optarg;
 				_extract = TRUE;
+				break;
+
+			case 'l':
+				_archive = optarg;
+				_list_all = TRUE;
+				break;
+
+			case 'p':
+				_ignore_public = TRUE;
 				break;
 				
 			case 'L':
-				printf(
-					"\nGAMBAS Archiver version " VERSION "\n"
-					COPYRIGHT
-					);
+				print_version();
+				printf(COPYRIGHT);
 				exit(0);
 
 			case 'h': case '?':
+				print_title();
 				printf(
 					"\nCreate a standalone one-file executable from a Gambas project.\n"
-					"Or extract a specific file from a Gambas executable (-x option).\n"
-					"\nUsage: gba" GAMBAS_VERSION_STRING " [options] [<project directory>]\n"
-					"       gba" GAMBAS_VERSION_STRING " -x <archive path> <file>\n\n"
+					"\n    gba" GAMBAS_VERSION_STRING " [options] [<project directory>]\n"
+					"\nExtract a specific file from a Gambas executable (-x option).\n"
+					"\n    gba" GAMBAS_VERSION_STRING " -x <archive path> <file>\n"
+					"\nList all files included in a Gambas executable (-l option).\n"
+					"\n    gba" GAMBAS_VERSION_STRING " -l <archive path>\n\n"
 					"Options:"
 					#if HAVE_GETOPT_LONG
-					"\n"
-					"  -o  --output=ARCHIVE       archive path [<project directory>/<project name>.gambas]\n"
-					"  -x  --extract=ARCHIVE      archive path\n"
-					"  -v  --verbose              verbose output\n"
-					"  -s  --swap                 swap endianness\n"
-					"  -V  --version              display version\n"
-					"  -L  --license              display license\n"
+					"\n\n"
 					"  -h  --help                 display this help\n"
+					"  -L  --license              display license\n"
+					"  -o  --output=ARCHIVE       archive path [<project directory>/<project name>.gambas]\n"
+					"  -s  --swap                 swap endianness\n"
+					"  -v  --verbose              verbose output\n"
+					"  -V  --version              display version\n"
+					"  -x  --extract=ARCHIVE      extract a specific file from the archive\n"
+					"  -l  --list=ARCHIVE         list archive files\n"
+					"  -p  --ignore-public        ignore '.public' directory\n"
 					#else
-					" (no long options on this system)\n"
-					"  -o=ARCHIVE             archive path [<project directory>/<project name>.gambas]\n"
-					"  -x=ARCHIVE             archive path\n"
-					"  -v                     verbose output\n"
-					"  -s                     swap endianness\n"
-					"  -V                     display version\n"
-					"  -L                     display license\n"
+					" (no long options on this system)\n\n"
 					"  -h                     display this help\n"
+					"  -L                     display license\n"
+					"  -o=ARCHIVE             archive path [<project directory>/<project name>.gambas]\n"
+					"  -s                     swap endianness\n"
+					"  -v                     verbose output\n"
+					"  -V                     display version\n"
+					"  -x=ARCHIVE             extract a specific file from the archive\n"
+					"  -l=ARCHIVE             list archie files\n"
+					"  -p                     ignore '.public' directory\n"
 					#endif
 					"\n"
 					);
@@ -178,6 +204,10 @@ static void get_arguments(int argc, char **argv)
 		}
 		_extract_file = argv[optind];
 	}
+	else if (_list_all)
+	{
+		// everything is ok
+	}
 	else
 	{
 		if (optind == argc)
@@ -191,6 +221,49 @@ static void get_arguments(int argc, char **argv)
 			exit(1);
 		}
 	}
+}
+
+
+static void print_resolved_path_rec(ARCH *arch, int n)
+{
+	static char buffer[16];
+
+	const char *name = arch->symbol[n].sym.name;
+	int len = arch->symbol[n].sym.len;
+	int nrec;
+	const char *p = NULL;
+
+	if (*name == '/')
+	{
+		p = index(name, ':');
+		if (p)
+		{
+			nrec = p - name - 1;
+			if (nrec > 0 && nrec < 16)
+			{
+				strncpy(buffer, &name[1], nrec);
+				buffer[nrec] = 0;
+				nrec = atoi(buffer);
+				if (nrec > 0 && nrec < arch->header.n_symbol)
+				{
+					print_resolved_path_rec(arch, nrec);
+					putchar('/');
+				}
+			}
+		}
+	}
+
+	if (p)
+		fwrite(p + 1, sizeof(char), len - (p - name) - 1, stdout);
+	else
+		fwrite(name, sizeof(char), len, stdout);
+}
+
+
+static void print_resolved_path(ARCH *arch, int n)
+{
+	print_resolved_path_rec(arch, n);
+	putchar('\n');
 }
 
 
@@ -250,13 +323,22 @@ int main(int argc, char **argv)
 	{
 		if (_extract) // Extract a file from an archive
 		{
-			arch = ARCH_open(_extract_archive);
+			arch = ARCH_open(_archive);
 			
 			if (ARCH_find(arch, _extract_file, 0, &find))
 				fprintf(stderr, "gba: file not found in archive\n");
 			else
 				fwrite(&arch->addr[find.pos], sizeof(char), find.len, stdout);
 			
+			ARCH_close(arch);
+		}
+		else if (_list_all)
+		{
+			arch = ARCH_open(_archive);
+
+			for (i = 0; i < arch->header.n_symbol; i++)
+				print_resolved_path(arch, i);
+
 			ARCH_close(arch);
 		}
 		else // Create an archive
@@ -267,12 +349,15 @@ int main(int argc, char **argv)
 			len_prefix = strlen(file);
 			path_init(file);
 
-			/* .startup and .project file always first ! */
+			// '.startup', '.project' and '.environment' files are always first!
 			
 			path = FILE_cat(FILE_get_dir(ARCH_project), ".startup", NULL);
 			if (FILE_exist(path)) ARCH_add_file(path);
-			
+
 			path = FILE_cat(FILE_get_dir(ARCH_project), ".project", NULL);
+			if (FILE_exist(path)) ARCH_add_file(path);
+
+			path = FILE_cat(FILE_get_dir(ARCH_project), ".environment", NULL);
 			if (FILE_exist(path)) ARCH_add_file(path);
 
 			for(;;)
@@ -304,15 +389,24 @@ int main(int argc, char **argv)
 					file_name = dirent->d_name;
 					len = strlen(file_name);
 
+					file = FILE_cat(path, file_name, NULL);
+
 					if (*file_name == '.')
 					{
-						for (p = allowed_hidden_files; *p; p++)
+						// hidden files are allowed only on the root of the project
+						if (path_current != 1)
+							continue;
+
+						for (p = _allowed_hidden_files; *p; p++)
 						{
 							if (strcmp(file_name, *p) == 0)
 								break;
 						}
 
 						if (*p == NULL)
+							continue;
+
+						if (*p == PUBLIC_DIR && _ignore_public)
 							continue;
 					}
 
@@ -334,8 +428,6 @@ int main(int argc, char **argv)
 					if ((len > 10) && (strncmp(file_name, "callgrind.", 5) == 0))
 						continue;
 
-					file = FILE_cat(path, file_name, NULL);
-					
 					// Do not put the archive file inside itself.
 					if (!strcmp(file, ARCH_output))
 						continue;

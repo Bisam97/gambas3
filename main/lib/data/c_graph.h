@@ -27,24 +27,24 @@
 extern GB_INTERFACE GB;
 
 typedef struct {
-	void *_getVertex;
-	void *_getEdge;
+	ushort _getVertex;
+	ushort _getEdge;
 
-	void *_nextVertex;
-	void *_nextEdge;
+	ushort _nextVertex;
+	ushort _nextEdge;
 
-	void *_countVertices;
-	void *_countEdges;
+	ushort _countVertices;
+	ushort _countEdges;
 
-	void *_nextInEdge;
-	void *_nextOutEdge;
-	void *_nextAdjacent;
+	ushort _nextInEdge;
+	ushort _nextOutEdge;
+	ushort _nextAdjacent;
 
-	void *_vertexProperty;
-	void *_edgeProperty;
+	ushort _vertexProperty;
+	ushort _edgeProperty;
 
-	void *_vertexUnknown;
-	void *_edgeUnknown;
+	ushort _vertexUnknown;
+	ushort _edgeUnknown;
 } GRAPH_DESC;
 
 typedef struct {

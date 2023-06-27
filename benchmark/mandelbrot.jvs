@@ -1,0 +1,166 @@
+#!/usr/bin/java --source 11
+
+public final class mandelbrot
+{
+  static private final int MAXITER = 50;
+  static private final double LIMIT = 4.0;
+
+  private static void mandelbrot(int w, int h)
+  {
+    double xmin = -1.5;
+    double ymin = -1;
+    double invn = 2.0 / w;
+    boolean checkNext = true;
+    int x, y, k;
+    double cr, ci, zr, zi, tr, ti, t;
+
+    for (y = 0; y < h; y++)
+    {
+      ci = y * invn + ymin;
+
+      for (x = 0; x < w; x++)
+      {
+        zr = 0;
+        zi = 0;
+        tr = 0;
+        ti = 0;
+        cr = x * invn + xmin;
+        t = 0;
+
+        if (checkNext)
+        {
+          for (k = 1; k <= MAXITER; k++)
+          {
+            zi = 2.0 * zr * zi + ci;
+            zr = tr - ti + cr;
+            ti = zi * zi;
+            tr = zr * zr;
+            t = tr + ti;
+            if (t != t || t > LIMIT)
+              break;
+          }
+          if (k > MAXITER)
+          {
+            System.out.print("1");
+            checkNext = false;
+          }
+          else
+          {
+            System.out.print("0");
+          }
+        }
+        else
+        {
+          for (k = 1; k <= MAXITER; k++)
+          {
+            zi = 2.0 * zr * zi + ci;
+            zr = tr - ti + cr;
+            ti = zi * zi;
+            tr = zr * zr;
+          }
+
+          t = tr + ti;
+          if (t != t || t >= LIMIT)
+          {
+            System.out.print("0");
+            checkNext = true;
+          }
+          else
+          {
+            System.out.print("1");
+          }
+        }
+      }
+
+      System.out.println();
+    }
+  }
+
+  public static void main(String[] args)
+  {
+    for (int i = 1; i <= 20; i++)
+      mandelbrot(200, 200);
+  }
+}
+
+/*#!/usr/bin/env gbs3
+
+Private Const MAXITER As Integer = 50
+Private Const LIMIT As Float = 4.0
+
+Sub Mandelbrot(W As Integer, H As Integer)
+
+  Dim XMin As Float = -1.5
+  Dim YMin As Float = -1
+  Dim InvN As Float = 2.0 / W
+  Dim CheckNext As Boolean = True
+  Dim X, Y, K As Integer
+  Dim Cr, Ci, Zr, Zi, {Tr}, Ti, T As Float
+
+  For Y = 0 To H - 1
+
+    Ci = Y * InvN + YMin
+
+    For X = 0 To W - 1
+
+      Zr = 0
+      Zi = 0
+      {Tr} = 0
+      Ti = 0
+      Cr = X * InvN + XMin
+
+      If CheckNext Then
+
+        For K = 1 To MAXITER
+          Zi = 2.0 * Zr * Zi + Ci
+          Zr = {Tr} - Ti + Cr
+          Ti = Zi * Zi
+          {Tr} = Zr * Zr
+          T = {Tr} + Ti
+          If IsNan(T) Or If T > LIMIT Then Break
+        Next
+        If K > MAXITER Then
+          Print "1";
+          CheckNext = False
+        Else
+          Print "0";
+        Endif
+
+      Else
+
+        For K = 1 To MAXITER
+
+          Zi = 2.0 * Zr * Zi + Ci
+          Zr = {Tr} - Ti + Cr
+          Ti = Zi * Zi
+          {Tr} = Zr * Zr
+
+        Next
+
+        T = {Tr} + Ti
+        If IsNan(T) Or If T > LIMIT Then
+          Print "0";
+          CheckNext = True
+        Else
+          Print "1";
+        Endif
+
+      Endif
+
+    Next
+
+    Print
+
+  Next
+
+End
+
+Dim I As Integer
+
+For I = 1 To 20
+  Mandelbrot(200, 200)
+Next
+
+Error CStr(Jit.Time)
+
+*/

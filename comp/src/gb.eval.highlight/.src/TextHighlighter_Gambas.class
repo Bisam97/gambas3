@@ -3,8 +3,12 @@
 Inherits TextHighlighter
 
 Public Const Name As String = "gambas"
+Public Const FullName As String = "Gambas"
+Public Const _Styles As String = "Keyword,Function,Operator,Symbol,Number,String,Breakpoint,Current,Datatype,Preprocessor,Escape,Label,Constant"
 
 Class Highlight
+
+Static Private $aKeywords As String[]
 
 Static Public Sub _init()
   
@@ -14,7 +18,12 @@ End
 
 Public Sub GetKeywords() As String[]
   
-  Return System.Keywords
+  If Not $aKeywords Then 
+    $aKeywords = System.Keywords.Copy()
+    $aKeywords.Insert(System.Subroutines)
+  Endif
+  
+  Return $aKeywords
   
 End
 
@@ -40,8 +49,8 @@ End
 
 Public Sub Run(Text As String)
   
-  Dim iState As Integer
-  Dim iTag As Integer
+  Dim iState As Short
+  Dim iTag As Short
   Dim iPos As Integer
   Dim I As Integer
   Dim iLen As Integer
@@ -49,7 +58,7 @@ Public Sub Run(Text As String)
   iState = TextHighlighter.State
   iTag = TextHighlighter.Tag
   
-  Highlight.Analyze(Text, True)
+  Highlight.Analyze(Text, TextHighlighter.CanRewrite)
   TextHighlighter.Limit = IsProc()
   TextHighlighter.Comment = Left(LTrim(Text)) = "'"
   
@@ -73,6 +82,7 @@ Public Sub Run(Text As String)
   
   TextHighlighter.State = iState
   TextHighlighter.Tag = iTag
-  TextHighlighter.TextAfter = Highlight.TextAfter
+  If TextHighlighter.CanRewrite Then TextHighlighter.TextAfter = Highlight.TextAfter
 
 End
+

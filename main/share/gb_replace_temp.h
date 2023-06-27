@@ -2,7 +2,7 @@
 
 	gb_replace_temp.h
 
-	(c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+	(c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -64,13 +64,13 @@ int setenv(const char *name, const char *value, int overwrite)
 
 extern char **environ;
 
-void unsetenv(const char *name)
+int unsetenv(const char *name)
 {
 	size_t len;
 	char **ep;
 
 	if (name == NULL || *name == '\0' || strchr (name, '=') != NULL)
-		return;
+		return 0;
 
 	len = strlen(name);
 
@@ -88,6 +88,8 @@ void unsetenv(const char *name)
 		else
 			++ep;
 	}
+	
+	return 0;
 }
 
 #endif

@@ -1,0 +1,13 @@
+' Gambas module file
+
+Export 
+
+Public $bWarningOn As Boolean = False
+
+Public Sub _Call(sMsg As String, Optional bIsError As Boolean = False)
+
+ If $bWarningOn Or bIsError Then
+  Error "gbs"; System.Version; IIf(bIsError, " Error : ", " Warning : "); sMsg
+Endif 
+
+End

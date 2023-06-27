@@ -17,6 +17,14 @@ Property RowSpan As Integer
 Property ColumnSpan As Integer
 Property Border As Border
 
+'' @{since 3.16}
+''
+'' Return or set the tag associated with a cell.
+''
+'' This property is intended for the programmer and is never used by the component. It can contain any Variant value.
+
+Property Tag As Variant
+
 Property Read X, {Left} As Integer
 Property Read Y, {Top} As Integer
 Property Read Width, W As Integer
@@ -193,40 +201,48 @@ End
 
 Private Function RowSpan_Read() As Integer
 
-  Dim S As Integer = _View._GetSpan(_Row, _Column)[0]
-  If S >= 0 Then Return S + 1
-  Return S
+  Dim RS As Integer
+
+  _View._GetSpan(_Row, _Column, ByRef RS, 0)
+  If RS >= 0 Then Inc RS
+  Return RS
 
 End
 
 Private Sub RowSpan_Write(Value As Integer)
 
-  Dim S As Integer = _View._GetSpan(_Row, _Column)[1]
+  Dim RS, CS As Integer
 
-  If S < 0 Then Return
-  If Value < 1 Or If Value > 32767 Then Return
+  _View._GetSpan(_Row, _Column, ByRef RS, ByRef CS)
+  Dec Value
+  If Value < 0 Or If Value > 32767 Then Return
+  If CS < 0 Or If RS = Value Then Return
   
-  _View._SetSpan(_Row, _Column, Value - 1, S)
+  _View._SetSpan(_Row, _Column, Value, CS)
   _View.Refresh
 
 End
 
 Private Function ColumnSpan_Read() As Integer
 
-  Dim S As Integer = _View._GetSpan(_Row, _Column)[1]
-  If S >= 0 Then Return S + 1
-  Return S
+  Dim CS As Integer
+
+  _View._GetSpan(_Row, _Column, 0, ByRef CS)
+  If CS >= 0 Then Inc CS
+  Return CS
 
 End
 
 Private Sub ColumnSpan_Write(Value As Integer)
 
-  Dim S As Integer = _View._GetSpan(_Row, _Column)[0]
+  Dim RS, CS As Integer
 
-  If S < 0 Then Return
-  If Value < 1 Or If Value > 32767 Then Return
+  _View._GetSpan(_Row, _Column, ByRef RS, ByRef CS)
+  Dec Value
+  If Value < 0 Or If Value > 32767 Then Return
+  If RS < 0 Or If CS = Value Then Return
   
-  _View._SetSpan(_Row, _Column, S, Value - 1)
+  _View._SetSpan(_Row, _Column, RS, Value)
   _View.Refresh
 
 End
@@ -240,5 +256,17 @@ End
 Private Sub Border_Write(Value As Border)
 
   GetData(True).Border = Value
+
+End
+
+Private Function Tag_Read() As Variant
+
+  Return GetData(False).Tag
+
+End
+
+Private Sub Tag_Write(Value As Variant)
+
+  GetData(True).Tag = Value
 
 End

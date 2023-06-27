@@ -2,7 +2,7 @@
 
   main.c
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -32,7 +32,7 @@ GB_DESC *GB_CLASSES[] EXPORT =
   NULL
 };
 
-char *GB_INCLUDE EXPORT = "gb.qt4.opengl|gb.qt5.opengl|gb.gtk.opengl";
+char *GB_INCLUDE EXPORT = "gb.qt4.opengl|gb.qt5.opengl|gb.gtk.opengl|gb.gtk3.opengl";
 
 int EXPORT GB_INIT(void)
 {
@@ -48,15 +48,17 @@ int EXPORT GB_INIT(void)
 			comp = "gb.qt5.opengl";
 		else if (strcmp(env, "gb.gtk") == 0)
 			comp = "gb.gtk.opengl";
+		else if (strcmp(env, "gb.gtk3") == 0)
+			comp = "gb.gtk3.opengl";
 	}
 	
 	if (!comp)
 	{
 		// GB_GUI should be set by gb.gui
 		if (!env)
-			fprintf(stderr, "gb.gui.opengl: error: no component specified in GB_GUI environment variable");
+			fprintf(stderr, "gb.gui.opengl: error: no component specified in GB_GUI environment variable\n");
 		else
-			fprintf(stderr, "gb.gui.opengl: error: unsupported component specified in GB_GUI environment variable");
+			fprintf(stderr, "gb.gui.opengl: error: unsupported component specified in GB_GUI environment variable\n");
 		exit(1);
 	}
 		

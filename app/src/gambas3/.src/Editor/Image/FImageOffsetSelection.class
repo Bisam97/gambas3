@@ -1,20 +1,38 @@
 ' Gambas class file
 
 Static Public Size As Integer
-Static Public Duplicate As Boolean
+Static Public Mode As Integer
 
 Public Sub Run() As Boolean
   
+  Dim hRadio As RadioButton
+  
   txtSize.Value = Size
-  chkDuplicate.Value = Duplicate
+  
+  For Each hRadio In panMode.Children
+    If hRadio.Tag = Mode Then 
+      hRadio.Value = True
+      Break 
+    Endif
+  Next
+  
   Return Not Me.ShowDialog()
   
 End
 
 Public Sub btnOK_Click()
 
+  Dim hRadio As RadioButton
+  
   Size = txtSize.Value
-  Duplicate = chkDuplicate.Value
+  
+  For Each hRadio In panMode.Children
+    If hRadio.Value Then 
+      Mode = hRadio.Tag
+      Break
+    Endif
+  Next
+  
   Me.Close(True)
 
 End

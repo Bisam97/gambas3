@@ -2,6 +2,7 @@
 
 Static Public All As Collection
 Static Public Ext As String[]
+Static Public CodeExt As String[] = ["module", "test", "class"]
 
 Public (Key) As String
 Public Name As String
@@ -18,12 +19,12 @@ Static Public Sub _init()
   
   All = New Collection(gb.IgnoreCase)
   
-  For Each sModule In ["module", "class"]
+  For Each sModule In CodeExt
     Picture["img/16" &/ sModule & ".png"] = Project.MakeModuleIcon(sModule, 16).Picture
     Picture["img/32" &/ sModule & ".png"] = Project.MakeModuleIcon(sModule, 32).Picture
   Next
   
-  Ext = ["module", "class"]
+  Ext = CodeExt.Copy()
   
   hModule = New CModule("form", ("Form"), ("Forms"), ("Gambas forms"))
   hModule = New CModule("webpage", ("WebPage"), ("WebPages"), ("Gambas web pages"))

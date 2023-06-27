@@ -37,7 +37,7 @@ Public Sub _new()
   'gvwComponent.Padding = 4
   
   gvwComponent.Columns.Count = 5
-  gvwComponent.Columns[0].Width = 24
+  gvwComponent.Columns[0].Width = 16
   'gvwComponent.Columns[0].Expand = False
   'gvwComponent.Columns[1].Expand = False
   gvwComponent.Columns[2].Expand = True
@@ -69,7 +69,7 @@ Private Sub RefreshList()
     If hComp.Hidden Then Continue
     If hComp.Library Then Continue
     If hComp.Key = CComponent.PROJECT_NAME Then Continue
-    If hComp.Key = Project.Name Then Continue 
+    'If hComp.Key = Project.Name Then Continue 
     If $aHidden And If $aHidden.Exist(sComp) Then Continue
     If sFilter And If Not hComp.Match(sFilter) Then Continue
     
@@ -130,11 +130,11 @@ Public Sub btnForward_Click()
 
 End
 
-Public Sub webAboutComponent_Click((Frame) As WebFrame)
-
-  btnForward.Enabled = webAboutComponent.History.Index < webAboutComponent.History.Max
-
-End
+' Public Sub webAboutComponent_Click((Frame) As WebFrame)
+' 
+'   btnForward.Enabled = webAboutComponent.History.Index < webAboutComponent.History.Max
+' 
+' End
 
 Public Sub btnStop_Click()
   
@@ -150,29 +150,26 @@ End
 
 Public Sub btnZoomIn_Click()
   
-  webAboutComponent.TextZoom = Round(webAboutComponent.TextZoom * 1.125, -3)
+  webAboutComponent.Zoom = Round(webAboutComponent.Zoom * 1.125, -3)
   
 End
 
 Public Sub btnZoomOut_Click()
   
-  webAboutComponent.TextZoom = Round(webAboutComponent.TextZoom / 1.125, -3)
+  webAboutComponent.Zoom = Round(webAboutComponent.Zoom / 1.125, -3)
   
 End
 
 Public Sub btnZoomNormal_Click()
   
-  webAboutComponent.TextZoom = DEFAULT_ZOOM
+  webAboutComponent.Zoom = DEFAULT_ZOOM
   
 End
 
 
 Public Sub btnBack_Click()
 
-  If webAboutComponent.History.Index Then
-    webAboutComponent.Back
-  Else
-    webAboutComponent.Stop
+  If webAboutComponent.Back() Then
     wizComponent.MovePrevious
   Endif
   
@@ -222,7 +219,7 @@ Public Sub gvwComponent_Data(Row As Integer, Column As Integer)
         ' Endif
       
       Case 1
-        .Text = hComp.Key
+        .Text = hComp.Key & "  "
         .Font.Bold = True
         
       Case 2
@@ -244,7 +241,7 @@ Public Sub gvwComponent_Data(Row As Integer, Column As Integer)
         End Select
         
       Case 4
-        If hComp.State <> CComponent.UNKNOWN Then .Picture = Picture["icon:/16/next"]
+        If hComp.State <> CComponent.UNKNOWN Then .Picture = Picture["icon:/small/next"]
       
     End Select
     
@@ -474,6 +471,8 @@ Public Sub gvwComponent_Click()
     
   Else If gvwComponent.Column = 4 And If Project.Documentation.Exist(sComp) Then
     
+    webAboutComponent.ReadConfig
+    webAboutComponent.Clear
     MHelp.InitWebViewWith(webAboutComponent, MHelp.TYPE_COMPONENT, GetCurrent(),, "v&nh")
     webAboutComponent.Zoom = Settings["/Help/Zoom", 80] / 100
     wizComponent.MoveNext
@@ -782,6 +781,8 @@ End
 Public Sub gvwComponent_Draw(X As Integer, Y As Integer, Width As Integer, Height As Integer, Row As Integer, Column As Integer)
 
   Dim sComp As String = $aComp[Row]
+  Dim DX As Integer
+  
   'Dim hComp As CComponent = CComponent.All[sComp]
 
   If Not IsCheckable() Then Return
@@ -790,8 +791,10 @@ Public Sub gvwComponent_Draw(X As Integer, Y As Integer, Width As Integer, Heigh
     
     Case 0
       
-      X += (Width - 16) \ 2
-      Y += (Height - 16) \ 2
+      DX = (Width - 16) \ 2
+      X += DX
+      Y += DX
+      'Y += (gvwComponent.Rows.Height - gvwComponent.Padding * 2 - 16) \ 2
       Width = 16
       Height = 16
       

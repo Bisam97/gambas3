@@ -1,0 +1,116 @@
+' Gambas module file
+
+Public $sPrjPath As String 
+Public $hOutFile As File                                              ' Main Module Output file
+
+'' returns the Project path after it is created
+
+Public Sub _Call($oContext As Context, sPath As String, Optional sProjectLocation As String = "") As String 
+
+  Dim sPrjFileContent As String
+  Dim RootModule As String = ""
+
+  $oContext.$sFinalProgram = ""
+  $oContext.$sStructures = ""
+  $oContext.$sProgramHeader = ""
+  $oContext.$sCompilerOptions = ""
+  $oContext.$sExternals = ""
+
+  If $oContext.$bCreateProject Then 
+    Dim sPathInfo As String = File.Dir(sPath)
+    If sPathInfo = "" Then sPath = Env["PWD"] &/ sPath
+    If sProjectLocation = "" Then sProjectLocation = Env["PWD"]
+    $sPrjPath = sProjectLocation &/ File.BaseName(sPath)
+    ScriptPreProcess["Name"] = File.BaseName(sPath)
+    ScriptPreProcess["Title"] = File.BaseName(sPath) & " From Script" & sPath
+  Else
+    If $oContext.$bPlugin Then
+      $sPrjPath = Temp("project" & "-" & File.BaseName(sPath))
+    Else
+      $sPrjPath = Temp("project")
+    Endif
+    If Exist($sPrjPath) Then 
+        Dim rmresult As String = ""
+        Exec ["rm", "-r", $sPrjPath] Wait To rmresult
+    Endif
+  Endif
+
+  Verbose(("Create project") & ": " & $sPrjPath)
+
+  Try Mkdir $sPrjPath
+  If Error Then 
+      CompileError(sPath, 0, "Unable to create project directory : " & $sPrjPath & " : " & Error.text)
+  Endif
+  
+  Try Mkdir $sPrjPath &/ ".src"
+  If Error Then 
+      CompileError(sPath, 0, "Unable to create project .src directory : " & $sPrjPath & " : " & Error.text)
+  Endif
+
+  $oContext.$sPreambleHeader = "' Gambas module file\n"
+
+  If $oContext.$bExecuteFromArgs Then
+    GenerateFilesFromArgs($oContext, sPath, $sPrjPath)
+  Else
+    GenerateFiles($oContext, sPath, $sPrjPath)
+  Endif
+  
+  If $oContext.$bExport Then $oContext.$sCompilerOptions &= "Export\n"
+  If $oContext.$bFast Then
+    $oContext.$sCompilerOptions &= "Fast"
+    If $oContext.$bUnsafe Then $oContext.$sCompilerOptions &= " Unsafe"
+    $oContext.$sCompilerOptions &= "\n"
+  Endif
+
+  Dim sExtention As String
+  If $oContext.$bPlugin Then
+    sExtention = ".class"
+  Else 
+    sExtention = ".module"
+  Endif
+  If $oContext.$bClassAsStartup And If Not $oContext.$bPlugin Then 
+    RootModule = $sPrjPath &/ ".src" &/ "ScriptInfoModule.module"
+  Else
+    RootModule = $sPrjPath &/ ".src" &/ ScriptPreProcess["Startup"] & sExtention
+  Endif 
+  Try $hOutFile = Open RootModule For Write Create
+  If Error Then
+      Error.Raise("Unable to create " & Right(sExtention, -1) & " file")
+  Endif
+  
+  sPrjFileContent &= ScriptPreProcess.GetProjectOptions()
+
+  If UseLibComp.HasComponents Then
+    sPrjFileContent &= CComponent.ComponentEntries()
+    CComponent.Clear()
+  Endif
+
+   If UseLibComp.HasLibraries Then 
+       sPrjFileContent &= Libraries.LibraryEntries()
+  Endif
+
+  If $oContext.$bBuildOnly And If $oContext.$bTestMode Then
+    Error "Project file {\n"; sPrjFileContent; "\n}"
+    Error $oContext.$sPreambleHeader
+    Error $oContext.$sCompilerOptions
+    Error $oContext.$sStructures
+    Error $oContext.$sProgramHeader
+    Error $oContext.$sFinalProgram
+  Endif
+
+  Verbose(".project File\n" & sPrjFileContent)
+  File.Save($sPrjPath &/ ".project", sPrjFileContent)
+  If $oContext.$sPreambleHeader <> "" Then Print #$hOutFile, $oContext.$sPreambleHeader
+  If $oContext.$sCompilerOptions <> "" Then Print #$hOutFile, $oContext.$sCompilerOptions
+  If $oContext.$sStructures <> "" Then Print #$hOutFile, $oContext.$sStructures
+  If $oContext.$sExternals <> "" Then Print #$hOutFile, $oContext.$sExternals
+  If $oContext.$sProgramHeader <> "" Then Print #$hOutFile, $oContext.$sProgramHeader
+  If $oContext.$bPlugin Then Print #$hOutFile, PluginInfo()
+  If $oContext.$sFinalProgram <> "" Then Print #$hOutFile, $oContext.$sFinalProgram
+  Close $hOutFile
+  
+  Return $sPrjPath
+  
+' Catch
+'   Print "MVP";; Error.text;; Error.where
+End

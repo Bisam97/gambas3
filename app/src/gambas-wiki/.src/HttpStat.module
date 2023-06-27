@@ -23,7 +23,7 @@ Public Sub Render()
   If sDate Then Try dDate = Date(CInt(Mid$(sDate, 5, 4)), CInt(Mid$(sDate, 3, 2)), CInt(Mid$(sDate, 1, 2)))
   If IsNull(dDate) Then dDate = Date()
 
-  hImage = New Image(1440, 128, Color.White)
+  hImage = New Image(1440, 256, Color.White)
   
   Cairo.Begin(hImage)
   Cairo.AntiAlias = Cairo.AntiAliasNone
@@ -38,8 +38,8 @@ Public Sub Render()
       aStat.Read(hFile)
       Close #hFile
       For I = 0 To aStat.Max
-        H = Min(128, (aStat[I] * 10) \ 60)
-        If H > 0 Then hImage.FillRect(I, 128 - H, 1, H, &HA0D0FF&)
+        H = Min(256, (aStat[I] * 5) \ 60)
+        If H > 0 Then hImage.FillRect(I, 256 - H, 1, H, &HA0D0FF&)
         'DH = aStat[I] Mod 10
         'If DH > 0 Then hImage[I, 127 - H] = Color.SetAlpha(&HA0D0FF&, Max(0, 255 - DH * 10))
       Next
@@ -73,7 +73,7 @@ Public Sub Render()
         Cairo.MoveTo(4, I + 8)
         Cairo.DrawText(CStr(H) & "0 req./s")
       Endif
-      I -= 100
+      I -= 50
       Inc H
     Wend
     
@@ -87,12 +87,12 @@ Public Sub Render()
       Cairo.MoveTo(0, I)
       Cairo.LineTo(1440, I)
       Cairo.Stroke
-      I -= 100
+      I -= 50
     Wend
     
     For I = 0 To 23
       Cairo.MoveTo(I * 60, 0)
-      Cairo.LineTo(I * 60, 255)
+      Cairo.LineTo(I * 60, hImage.H)
       Cairo.Stroke
     Next
     

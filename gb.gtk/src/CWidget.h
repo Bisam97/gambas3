@@ -26,7 +26,11 @@
 
 #include "main.h"
 #include "gcontrol.h"
+
+#ifdef GTK3
+#else
 #include "gplugin.h"
+#endif
 
 #ifndef __CWIDGET_CPP
 
@@ -55,6 +59,8 @@ typedef
 	}  
 	CWIDGET;
 
+#ifdef GTK3
+#else
 typedef
 	struct
 	{
@@ -65,7 +71,7 @@ typedef
 		char *popup;
 	}
 	CPLUGIN;
-
+#endif
 
 void InitControl(gControl *control, CWIDGET *widget);
 void DeleteControl(gControl *control);

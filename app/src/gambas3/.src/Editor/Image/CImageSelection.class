@@ -3,6 +3,7 @@
 Public Enum ACTION_NONE, ACTION_STROKE, ACTION_FILL, ACTION_CLEAR, ACTION_CLIP, ACTION_EXTENT, ACTION_HANDLE, ACTION_MAGNET, ACTION_SELECT
 Public Enum MAGNET_NONE, MAGNET_RECTANGLE, MAGNET_ELLIPSE
 Public Enum OP_UNION, OP_INTERSECTION, OP_DIFFERENCE, OP_XOR
+Public Enum OFFSET_SHRINK, OFFSET_GROW, OFFSET_BORDER
 
 Private Enum CMD_MOVE_TO, CMD_LINE_TO ', CMD_RECTANGLE, CMD_ELLIPSE
 
@@ -350,6 +351,7 @@ Public Sub Clear()
   
   Shapes.Clear
   _Magnets.Clear
+  Current = -1
   
 End
 
@@ -726,10 +728,6 @@ End
 ' 
 ' End
 
-Public Sub Enlarge((iSize) As Integer, (bDup) As Boolean)
-  
-End
-
 Public Sub Apply(hMatrix As PaintMatrix)
   
   Dim I As Integer
@@ -834,6 +832,8 @@ Static Public Sub FromString(sName As String, sShape As String) As CImageSelecti
   Dim I As Integer
   Dim bMagnet As Boolean
   Dim bPoint As Boolean
+  Dim hExt As RectF
+  Dim S As Float
   
   For Each sLine In Split(sShape, " ", "", True)
     aPoints = Split(sLine, ";", "", True)
@@ -865,6 +865,12 @@ Static Public Sub FromString(sName As String, sShape As String) As CImageSelecti
   Next
   
   hSel.Name = sName
+  
+  hExt = hSel.GetExtents()
+  S = Max(hExt.W, hExt.H)
+  hSel.Scale(1 / S, 1 / S)
+  hExt = hSel.GetExtents()
+  hSel.Translate(-hExt.X + (1 - hExt.W) / 2, -hExt.Y + (1 - hExt.H) / 2)
   
   Return hSel
   
@@ -975,11 +981,13 @@ Public Sub Duplicate()
   
 End
 
-Public Sub Offset(fOffset As Float, bDup As Boolean)
+Public Sub Offset(fOffset As Float, iMode As Integer)
   
   Dim aPolygons As New Polygon[]
   Dim hShape As CImageShape
   Dim I As Integer
+  
+  If iMode <> OFFSET_GROW Then fOffset = -fOffset
   
   If Current < 0 Then
   
@@ -989,14 +997,14 @@ Public Sub Offset(fOffset As Float, bDup As Boolean)
     
     aPolygons = Clipper.Offset(aPolygons, fOffset)
     
-    If Not bDup Then Clear()
+    If iMode <> OFFSET_BORDER Then Clear()
     
     For I = 0 To aPolygons.Max
       hShape = New CImageShape
       hShape.Points = aPolygons[I]
       AddShape(hShape)
     Next
-  
+    
   Else
     
     aPolygons.Add(Shapes[Current].Points)
@@ -1004,7 +1012,7 @@ Public Sub Offset(fOffset As Float, bDup As Boolean)
     aPolygons = Clipper.Offset(aPolygons, fOffset)
     
     If aPolygons.Count Then
-      If Not bDup Then
+      If iMode <> OFFSET_BORDER Then
         Shapes[Current].Points = aPolygons[0]
         Shapes[Current].Invalidate
       Else
@@ -1017,6 +1025,8 @@ Public Sub Offset(fOffset As Float, bDup As Boolean)
     
   Endif
   
+  If iMode = OFFSET_BORDER Then Operation(OP_DIFFERENCE)
+ 
 End
 
 Public Sub CleanLastShape()
@@ -1105,5 +1115,113 @@ Public Sub Operation(iOp As Integer)
     hShape.Points = aPolygons[I]
     AddShape(hShape)
   Next
+  
+End
+
+Public Sub Normalize(W As Float, H As Float)
+
+  Dim hMatrix As New PaintMatrix
+  Dim hExt As RectF = GetExtents()
+  
+  If Not hExt Then Return
+  
+  hMatrix.Scale(1 / W, 1 / H)
+  Apply(hMatrix)
+  
+End
+
+Public Sub Save() As String
+
+  Dim hSave As File
+  Dim sStr As String
+  Dim I As Integer
+  Dim hShape As CImageShape
+  Dim aPoints As PointF[]
+  Dim J As Integer
+  
+  hSave = Open String For Write 
+  
+  Print #hSave, "[";
+  
+  For I = 0 To Shapes.Max
+    
+    hShape = Shapes[I]
+    
+    If I Then Print #hSave, ",";
+    Print #hSave, "{";
+    
+    Print #hSave, "\"points\":[";
+    aPoints = hShape.Points
+    For J = 0 To aPoints.Max
+      If J Then Print #hSave, ",";
+      Print #hSave, "["; CStr(aPoints[J].X); ","; CStr(aPoints[J].Y); "]";
+    Next
+    
+    Print #hSave, "],\"magnets\":[";
+    
+    aPoints = hShape.Magnets
+    For J = 0 To aPoints.Max
+      If J Then Print #hSave, ",";
+      Print #hSave, "["; CStr(aPoints[J].X); ","; CStr(aPoints[J].Y); "]";
+    Next
+    
+    Print #hSave, "],\"grid\":"; hShape.Grid;
+    
+    Print #hSave, "}";
+    
+  Next
+  
+  Print #hSave, "]";
+  
+  sStr = Close #hSave
+  Return sStr
+  
+End
+
+Public Sub Load(sSave As String)
+
+  Dim aSave As Collection[]
+  Dim I As Integer
+  Dim cShape As Collection
+  Dim aPoints As Float[][]
+  Dim hShape As CImageShape
+  Dim J As Integer
+  
+  aSave = JSON.FromString(sSave)
+  
+  Clear()
+  
+  For I = 0 To aSave.Max
+    
+    cShape = aSave[I]
+    
+    hShape = New CImageShape
+    Shapes.Add(hShape)
+    
+    aPoints = cShape["points"]
+    For J = 0 To aPoints.Max
+      hShape.Add(PointF(aPoints[J][0], aPoints[J][1]))
+    Next
+    
+    aPoints = cShape["magnets"]
+    For J = 0 To aPoints.Max
+      hShape.AddMagnet(PointF(aPoints[J][0], aPoints[J][1]))
+    Next
+    
+    hShape.Grid = cShape["grid"]
+    
+  Next
+  
+End
+
+Public Sub Expand(hImage As Image)
+
+  Dim hExt As RectF
+  
+  hExt = GetExtents()
+  If Not hExt Then Return 
+  
+  Translate(-hExt.X, -hExt.Y)
+  Scale(hImage.W / hExt.W, hImage.H / hExt.H, True)
   
 End

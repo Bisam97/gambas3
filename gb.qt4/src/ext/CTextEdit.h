@@ -2,7 +2,7 @@
 
   CTextEdit.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,10 +24,10 @@
 #ifndef __CTEXTEDIT_H
 #define __CTEXTEDIT_H
 
+#include <QTextEdit>
+
 #include "gambas.h"
 #include "../gb.qt.h"
-
-#include <QTextEdit>
 
 #ifndef __CTEXTEDIT_CPP
 extern GB_DESC CTextEditSelectionDesc[];

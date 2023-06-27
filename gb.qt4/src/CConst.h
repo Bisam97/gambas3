@@ -2,7 +2,7 @@
 
   CConst.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -28,13 +28,12 @@
 #include "gb.form.const.h"
 
 #ifndef __CCONST_CPP
-extern GB_DESC CAlignDesc[];
-extern GB_DESC CArrangeDesc[];
-extern GB_DESC CBorderDesc[];
-extern GB_DESC CScrollDesc[];
-extern GB_DESC CLineDesc[];
-extern GB_DESC CFillDesc[];
-extern GB_DESC CSelectDesc[];
+extern GB_DESC AlignDesc[];
+extern GB_DESC ArrangeDesc[];
+extern GB_DESC BorderDesc[];
+extern GB_DESC ScrollDesc[];
+extern GB_DESC SelectDesc[];
+extern GB_DESC DirectionDesc[];
 #endif
 
 int CCONST_convert(int *tab, int value, int def, bool to_qt);

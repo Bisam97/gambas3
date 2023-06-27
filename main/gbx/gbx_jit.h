@@ -2,7 +2,7 @@
 
   gbx_jit.h
 
-  (c) 2018 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2018 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -49,11 +49,15 @@ void *JIT_get_class_ref(int index);
 void JIT_call_unknown(PCODE *pc, VALUE **psp);
 
 void JIT_abort(void);
+void JIT_init(void);
 void JIT_exit(void);
 
 bool JIT_can_compile(ARCHIVE *arch);
 
 void JIT_load_class(CLASS *class);
 void JIT_load_class_without_init(CLASS *class);
+
+void JIT_add_string_local(GB_STRING *src, GB_STRING val);
+void JIT_add_string_global(char **pstr, GB_STRING val);
 
 #endif

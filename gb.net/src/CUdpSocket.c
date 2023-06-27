@@ -23,6 +23,7 @@
 
 #define __CUDPSOCKET_C
 
+#include <errno.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -40,22 +41,34 @@
 
 #include "CUdpSocket.h"
 
-GB_STREAM_DESC UdpSocketStream = {
-	open: CUdpSocket_stream_open,
-	close: CUdpSocket_stream_close,
-	read: CUdpSocket_stream_read,
-	write: CUdpSocket_stream_write,
-	seek: CUdpSocket_stream_seek,
-	tell: CUdpSocket_stream_tell,
-	flush: CUdpSocket_stream_flush,
-	eof: CUdpSocket_stream_eof,
-	lof: CUdpSocket_stream_lof,
-	handle: CUdpSocket_stream_handle
-};
-
-
 DECLARE_EVENT (EVENT_Read);
 DECLARE_EVENT (EVENT_SocketError);
+
+GB_STREAM_DESC UdpSocketStream = {
+	.open = CUdpSocket_stream_open,
+	.close = CUdpSocket_stream_close,
+	.read = CUdpSocket_stream_read,
+	.write = CUdpSocket_stream_write,
+	.seek = CUdpSocket_stream_seek,
+	.tell = CUdpSocket_stream_tell,
+	.flush = CUdpSocket_stream_flush,
+	.eof = CUdpSocket_stream_eof,
+	.lof = CUdpSocket_stream_lof,
+	.handle = CUdpSocket_stream_handle
+};
+
+static bool fill_in_addr(struct in_addr *addr, const char *str)
+{
+	if (!str || !*str)
+		addr->s_addr = htonl(INADDR_ANY);
+	else if (inet_aton(str, addr) == 0)
+	{
+		GB.Error("Incorrect address");
+		return TRUE;
+	}
+	
+	return FALSE;
+}
 
 void CUdpSocket_post_data(intptr_t Param)
 {
@@ -64,6 +77,7 @@ void CUdpSocket_post_data(intptr_t Param)
 	GB.Raise(t_obj,EVENT_Read,0);
 	GB.Unref(POINTER(&t_obj));
 }
+
 void CUdpSocket_post_error(intptr_t Param)
 {
 	CUDPSOCKET *t_obj;
@@ -234,7 +248,7 @@ int CUdpSocket_stream_write(GB_STREAM *stream, char *buffer, int len)
 {
 	void *_object = stream->tag;
 	int retval;
-	struct in_addr dest_ip;
+	//struct in_addr dest_ip;
 	NET_ADDRESS dest;
 	size_t size;
 	struct sockaddr *addr;
@@ -252,18 +266,9 @@ int CUdpSocket_stream_write(GB_STREAM *stream, char *buffer, int len)
 	}
 	else
 	{
-		/*if (THIS->broadcast)
-		{
-			fprintf(stderr, "broadcast\n");
-			dest.in.sin_addr.s_addr = INADDR_BROADCAST;
-		}
-		else*/
-		{
-			if (!inet_aton((const char*)THIS->thost, &dest_ip))
-				return -1;
-			dest.in.sin_addr.s_addr = dest_ip.s_addr;
-		}
-			
+		if (fill_in_addr(&dest.in.sin_addr, THIS->thost))
+			return -1;
+		//dest.in.sin_addr.s_addr = dest_ip.s_addr;
 		dest.in.sin_family = PF_INET;
 		dest.in.sin_port = htons(THIS->tport);
 		size = sizeof(struct sockaddr);
@@ -289,18 +294,45 @@ int CUdpSocket_stream_write(GB_STREAM *stream, char *buffer, int len)
 ################################################################################################
 ***********************************************************************************************/
 
-static bool update_broadcast(CUDPSOCKET *_object)
+static bool return_error(int err, const char *msg)
 {
-	if (SOCKET->socket < 0)
-		return FALSE;
-
-	if (setsockopt(SOCKET->socket, SOL_SOCKET, SO_BROADCAST, (char *)&THIS->broadcast, sizeof(int)) < 0)
+	if (err != 0)
 	{
-		GB.Error("Cannot set broadcast socket option");
+		GB.Error(msg, strerror(errno));
 		return TRUE;
 	}
 	else
 		return FALSE;
+}
+
+static bool update_broadcast(CUDPSOCKET *_object)
+{
+	int broadcast;
+	
+	if (SOCKET->socket < 0)
+		return FALSE;
+
+	broadcast = THIS->broadcast;
+	return return_error(setsockopt(SOCKET->socket, SOL_SOCKET, SO_BROADCAST, (char *)&broadcast, sizeof(int)),
+		"Cannot set broadcast socket option: &1");
+}
+
+static bool update_multicast_loop(CUDPSOCKET *_object)
+{
+	if (SOCKET->socket < 0)
+		return FALSE;
+
+	return return_error(setsockopt(SOCKET->socket, IPPROTO_IP, IP_MULTICAST_LOOP, &THIS->mc_loop, sizeof(unsigned char)),
+		"Cannot set multicast loop socket option: &1");
+}
+
+static bool update_multicast_ttl(CUDPSOCKET *_object)
+{
+	if (SOCKET->socket < 0)
+		return FALSE;
+
+	return return_error(setsockopt(SOCKET->socket, IPPROTO_IP, IP_MULTICAST_TTL, &THIS->mc_ttl, sizeof(unsigned char)),
+		"Cannot set multicast ttl socket option: &1");
 }
 
 static void dgram_start(CUDPSOCKET *_object)
@@ -309,6 +341,7 @@ static void dgram_start(CUDPSOCKET *_object)
 	size_t size;
 	struct stat info;
 	struct sockaddr *addr;
+	struct in_addr mc_interface_addr;
 
 	if (SOCKET->status > NET_INACTIVE)
 	{
@@ -328,28 +361,13 @@ static void dgram_start(CUDPSOCKET *_object)
 	else
 	{
 		domain = PF_INET;
-		if (THIS->port < 0 || THIS->port > 65535)
-		{
-			GB.Error("Invalid port number");
-			return;
-		}
 	}
 
 	if ((SOCKET->socket = socket(domain, SOCK_DGRAM, 0)) < 0)
-	{
-		SOCKET->status = NET_CANNOT_CREATE_SOCKET;
-		GB.Ref(THIS);
-		GB.Post(CUdpSocket_post_error, (intptr_t)THIS);
-		return;
-	}
+		goto CANNOT_CREATE_SOCKET;
 
 	if (update_broadcast(THIS) || SOCKET_update_timeout(SOCKET))
-	{
-		SOCKET->status = NET_CANNOT_CREATE_SOCKET;
-		GB.Ref(THIS);
-		GB.Post(CUdpSocket_post_error,(intptr_t)THIS);
-		return;
-	}
+		goto CANNOT_CREATE_SOCKET;
 
 	CLEAR(&THIS->addr);
 
@@ -365,15 +383,20 @@ static void dgram_start(CUDPSOCKET *_object)
 	else
 	{
 		THIS->addr.in.sin_family = domain;
-		if (!THIS->host)
-			THIS->addr.in.sin_addr.s_addr = htonl(INADDR_ANY);
-		else
-			THIS->addr.in.sin_addr.s_addr = inet_addr(THIS->host);
+		if (fill_in_addr(&THIS->addr.in.sin_addr, THIS->host))
+			goto CANNOT_CREATE_SOCKET;
 
 		THIS->addr.in.sin_port = htons(THIS->port);
 		size = sizeof(struct sockaddr_in);
 		addr = (struct sockaddr *)&THIS->addr.in;
-		//bzero(&(THIS->addr.in.sin_zero), 8);
+		
+		if (update_multicast_loop(THIS) || update_multicast_ttl(THIS))
+			goto CANNOT_CREATE_SOCKET;
+		
+		if (fill_in_addr(&mc_interface_addr, THIS->mc_interface))
+			goto CANNOT_CREATE_SOCKET;
+		
+		setsockopt(SOCKET->socket, IPPROTO_IP, IP_MULTICAST_IF, &mc_interface_addr, sizeof(mc_interface_addr));	
 	}
 	
 	if (bind(SOCKET->socket, addr, size) < 0)
@@ -390,6 +413,14 @@ static void dgram_start(CUDPSOCKET *_object)
 	GB.Stream.SetSwapping(&SOCKET->stream, htons(0x1234) != 0x1234);
 	
 	GB.Watch(SOCKET->socket, GB_WATCH_READ, (void *)CUdpSocket_CallBack, (intptr_t)THIS);
+	return;
+	
+CANNOT_CREATE_SOCKET:
+
+	SOCKET->status = NET_CANNOT_CREATE_SOCKET;
+	GB.Ref(THIS);
+	GB.Post(CUdpSocket_post_error, (intptr_t)THIS);
+	return;
 }
 
 
@@ -427,23 +458,32 @@ BEGIN_PROPERTY(UdpSocket_SourcePath)
 
 END_PROPERTY
 
+static void handle_address_property(void *_object, void *_param, char **store, bool allow_any)
+{
+	char *addr;
+	struct in_addr rem_ip;
+	
+	if (READ_PROPERTY)
+	{
+		GB.ReturnString(*store);
+	}
+	else
+	{
+		addr = GB.ToZeroString(PROP(GB_STRING));
+		
+		if ((*addr == 0 && !allow_any) || !inet_aton(addr, &rem_ip))
+		{
+			GB.Error("Invalid IP address");
+			return;
+		}
+		
+		GB.StoreString(PROP(GB_STRING), store);
+	}
+}
+
 BEGIN_PROPERTY(UdpSocket_TargetHost)
 
-		char *strtmp;
-		struct in_addr rem_ip;
-		if (READ_PROPERTY)
-		{
-			GB.ReturnString(THIS->thost);
-		return;
-		}
-
-		strtmp=GB.ToZeroString(PROP(GB_STRING));
-		if ( !inet_aton(strtmp,&rem_ip) )
-	{
-		GB.Error("Invalid IP address");
-		return;
-	}
-		GB.StoreString(PROP(GB_STRING), &THIS->thost);
+	handle_address_property(_object, _param, &THIS->thost, FALSE);
 
 END_PROPERTY
 
@@ -485,10 +525,13 @@ END_PROPERTY
 /*************************************************
 Gambas object "Constructor"
 *************************************************/
+
 BEGIN_METHOD_VOID(UdpSocket_new)
 
 	SOCKET->stream.tag = _object;
 	SOCKET->socket = -1;
+	THIS->mc_loop = 1;
+	THIS->mc_ttl = 1;
 
 END_METHOD
 
@@ -612,29 +655,100 @@ END_PROPERTY
 
 BEGIN_PROPERTY(UdpSocket_Host)
 
-	struct in_addr rem_ip;
-	
-	if (READ_PROPERTY)
-	{
-		GB.ReturnString(THIS->host);
-		return;
-	}
-
-	if (!inet_aton(GB.ToZeroString(PROP(GB_STRING)), &rem_ip))
-	{
-		GB.Error("Invalid IP address");
-		return;
-	}
-	
-	GB.StoreString(PROP(GB_STRING), &THIS->host);
+	handle_address_property(_object, _param, &THIS->host, FALSE);
 
 END_PROPERTY
 
+
+//-------------------------------------------------------------------------
+
+BEGIN_PROPERTY(UdpSocketMulticast_Loop)
+
+	if (READ_PROPERTY)
+		GB.ReturnBoolean(THIS->mc_loop);
+	else
+	{
+		THIS->mc_loop = VPROP(GB_BOOLEAN);
+		update_multicast_loop(THIS);
+	}
+
+END_PROPERTY
+
+BEGIN_PROPERTY(UdpSocketMulticast_Ttl)
+
+	if (READ_PROPERTY)
+		GB.ReturnInteger(THIS->mc_ttl);
+	else
+	{
+		int ttl = VPROP(GB_INTEGER);
+		if (ttl < 0 || ttl > 255)
+		{
+			GB.Error(GB_ERR_ARG);
+			return;
+		}
+		THIS->mc_ttl = ttl;
+		update_multicast_ttl(THIS);
+	}
+
+END_PROPERTY
+
+BEGIN_PROPERTY(UdpSocketMulticast_Interface)
+
+	handle_address_property(_object, _param, &THIS->mc_interface, TRUE);
+
+END_PROPERTY
+
+static void handle_multicast_membership(CUDPSOCKET *_object, bool add, GB_STRING *group, GB_STRING *interface)
+{
+	struct ip_mreq membership;
+	
+	if (SOCKET->socket < 0)
+	{
+		GB.Error("UDP socket is not binded");
+		return;
+	}
+	
+	if (fill_in_addr(&membership.imr_multiaddr, GB.ToZeroString(group)))
+		return;
+	
+	if (fill_in_addr(&membership.imr_interface, interface ? GB.ToZeroString(interface) : NULL))
+		return;
+	
+	if (setsockopt(SOCKET->socket, IPPROTO_IP, add ? IP_ADD_MEMBERSHIP : IP_DROP_MEMBERSHIP, &membership, sizeof(membership)))
+		GB.Error(add ? "Cannot join multicast group: &1" : "Cannot leave multicast group: &1", strerror(errno));
+}
+
+BEGIN_METHOD(UdpSocketMulticast_Join, GB_STRING group; GB_STRING interface)
+
+	handle_multicast_membership(THIS, TRUE, ARG(group), MISSING(interface) ? NULL : ARG(interface));
+
+END_METHOD
+
+BEGIN_METHOD(UdpSocketMulticast_Leave, GB_STRING group; GB_STRING interface)
+
+	handle_multicast_membership(THIS, FALSE, ARG(group), MISSING(interface) ? NULL : ARG(interface));
+
+END_METHOD
 
 
 /***************************************************************
 Here we declare the public interface of UdpSocket class
 ***************************************************************/
+
+GB_DESC CUdpSocketMulticastDesc[] = 
+{
+	GB_DECLARE_VIRTUAL(".UdpSocket.Multicast"),
+	
+	GB_PROPERTY("Loop", "b", UdpSocketMulticast_Loop),
+	GB_PROPERTY("Ttl", "i", UdpSocketMulticast_Ttl),
+	GB_PROPERTY("Interface", "s", UdpSocketMulticast_Interface),
+
+	GB_METHOD("Join", NULL, UdpSocketMulticast_Join, "(Group)s[(Interface)s]"),
+	GB_METHOD("Leave", NULL, UdpSocketMulticast_Leave, "(Group)s[(Interface)s]"),
+	
+	GB_END_DECLARE
+};
+
 GB_DESC CUdpSocketDesc[] =
 {
 	GB_DECLARE("UdpSocket", sizeof(CUDPSOCKET)),
@@ -647,12 +761,12 @@ GB_DESC CUdpSocketDesc[] =
 	GB_METHOD("_new", NULL, UdpSocket_new, NULL),
 	GB_METHOD("_free", NULL, UdpSocket_free, NULL),
 	GB_METHOD("Bind", NULL, UdpSocket_Bind, NULL),
-	GB_METHOD("Peek","s",UdpSocket_Peek,NULL),
+	GB_METHOD("Peek", "s", UdpSocket_Peek,NULL),
 
 	GB_PROPERTY_READ("Status", "i", UdpSocket_Status),
 	GB_PROPERTY_READ("SourceHost", "s", UdpSocket_SourceHost),
 	GB_PROPERTY_READ("SourcePort", "i", UdpSocket_SourcePort),
-	GB_PROPERTY_READ("SourcePath", "i", UdpSocket_SourcePath),
+	GB_PROPERTY_READ("SourcePath", "s", UdpSocket_SourcePath),
 	GB_PROPERTY("TargetHost", "s", UdpSocket_TargetHost),
 	GB_PROPERTY("TargetPort", "i", UdpSocket_TargetPort),
 	GB_PROPERTY("TargetPath", "s", UdpSocket_TargetPath),
@@ -663,6 +777,8 @@ GB_DESC CUdpSocketDesc[] =
 	
 	GB_PROPERTY("Broadcast", "b", UdpSocket_Broadcast),
 	GB_PROPERTY("Timeout", "i", Socket_Timeout),
+	
+	GB_PROPERTY_SELF("Multicast", ".UdpSocket.Multicast"),
 
   GB_CONSTANT("_IsControl", "b", TRUE),
   GB_CONSTANT("_IsVirtual", "b", TRUE),

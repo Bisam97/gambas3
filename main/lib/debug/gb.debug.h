@@ -2,7 +2,7 @@
 
   gb.debug.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -36,6 +36,7 @@ typedef
   struct {
     unsigned stop : 1;
     unsigned leave : 1;
+		unsigned watch : 1;
     FUNCTION *fp;
     VALUE *bp;
     VALUE *pp;
@@ -67,7 +68,7 @@ typedef
 	struct {
 		void *(*GetExec)(void);
 		void *(*GetStack)(int frame);
-		void (*PrintError)(FILE *where, bool msgonly, bool newline);
+		const char *(*GetErrorMessage)(void);
 		void (*SaveError)(void *, void *);
 		void (*RestoreError)(void *, void *);
 		void (*ToString)(GB_VALUE *value, char **addr, int *len);
@@ -79,11 +80,13 @@ typedef
 		void (*EnumKeys)(void *collection, GB_DEBUG_ENUM_CB cb);
 		void *(*GetNextSortedSymbol)(void *klass, int *index);
 		int (*GetObjectAccessType)(void *object, CLASS *klass, int *count);
-		GB_CLASS (*FindClass)(const char *name);
+		GB_CLASS (*FindClass)(const char *comp_name, const char *class_name);
 		int *(*GetArrayBounds)(void *array);
 		void (*BreakOnError)(bool);
 		void (*EnterEval)(void);
 		void (*LeaveEval)(void);
+		void (*DebugInside)(bool);
+		void (*DebugHold)(void);
 		}
 	GB_DEBUG_INTERFACE;
 
@@ -101,6 +104,7 @@ typedef
 		const char *(*GetPosition)(void *klass, void *func, void *pcode);
 		const char *(*GetCurrentPosition)(void);
 		void (*InitBreakpoints)(void *klass);
+		bool (*CheckWatches)(void);
 		struct {
 			void (*Init)(const char *path);
 			void (*Add)(void *cp, void *fp, void *pc);
@@ -115,6 +119,10 @@ typedef
 	DEBUG_INTERFACE;
 
 #define DEBUG_OUTPUT_MAX_SIZE 65536
+#define DEBUG_FIFO_PATTERN FILE_TEMP_PREFIX "/gambas" GAMBAS_VERSION_STRING "-ide-debug-%d.%s"
 #define DEBUG_FIFO_PATH_MAX 64
-
+#define DEBUG_WAIT_LINK "/tmp/gambas-%s.debug"
+#define DEBUG_WAIT_IGNORE "/tmp/gambas-%s.debug.%d"
+#define DEBUG_WAIT_IGNORE_MAX 8
+	
 #endif

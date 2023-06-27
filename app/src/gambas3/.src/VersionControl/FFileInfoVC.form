@@ -1,0 +1,82 @@
+# Gambas Form File 3.0
+
+{ Form Form
+  MoveScaled(0,0,125,90)
+  Arrangement = Arrange.Vertical
+  Spacing = True
+  Margin = True
+  { lblVersioning TextLabel
+    MoveScaled(0,0,42,6)
+    Visible = False
+    Font = Font["Italic"]
+    AutoResize = True
+  }
+  { tabInfo TabPanel
+    MoveScaled(6,9,59,43)
+    Expand = True
+    Arrangement = Arrange.Vertical
+    Count = 2
+    Index = 0
+    Text = ("Changes")
+    { edtChange TextEditor
+      MoveScaled(6,13,40,18)
+      Expand = True
+      Border = False
+      ReadOnly = True
+      Wrap = True
+    }
+    Index = 1
+    Text = ("History")
+    { edtHistory TextEditor
+      MoveScaled(4,4,38,13)
+      Expand = True
+      Border = False
+      Highlight = "Custom"
+      ReadOnly = True
+      Wrap = True
+    }
+    Index = 0
+  }
+  { HBox1 HBox
+    MoveScaled(4,54,108,4)
+    Spacing = True
+    { btnRevert Button
+      MoveScaled(0,0,18,4)
+      AutoResize = True
+      Text = Shortcut(("Undo changes"), "U")
+      Picture = Picture["icon:/small/undo"]
+    }
+    { btnLocateChange Button
+      MoveScaled(19,0,21,4)
+      Visible = False
+      AutoResize = True
+      Text = ("Locate change")
+      Picture = Picture["icon:/small/find"]
+    }
+    { panChange HBox
+      MoveScaled(44,0,37,4)
+      Expand = True
+      { chkShowHistoryChanges CheckBox
+        MoveScaled(0,0,29,3)
+        AutoResize = True
+        Text = ("Display changes in history")
+      }
+      { spnChange Spinner
+        MoveScaled(32,0,4,4)
+        Margin = True
+        Type = Spinner.Circle
+      }
+    }
+    { Panel3 Panel
+      MoveScaled(86,0,1,4)
+      Expand = True
+    }
+    { btnClose Button
+      MoveScaled(89,0,16,4)
+      Text = ("Close")
+      Picture = Picture["icon:/small/close"]
+      Default = True
+      Cancel = True
+    }
+  }
+}

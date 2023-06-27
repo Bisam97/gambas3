@@ -1,9 +1,9 @@
 ' Gambas class file
 
 Export
-Inherits DrawingArea
+Inherits UserControl
 
-Public Const _Properties As String = "*,-Arrangement,-Spacing,-Margin,-Indent,-Invert,-NoBackground,-Tablet,-Cached,-Focus,Padding{Range:0;64},Picture,Stretch,AutoResize,Alignment{Align.*}=TopLeft,Border{Border.None;Plain;Sunken;Raised;Etched},Mode{PictureBox.Normal;Fill;Cover;Contain;Repeat}"
+Public Const _Properties As String = "*,Padding{Range:0;64},Picture{Picture:NoCache},Stretch,AutoResize,Alignment{Align.*}=TopLeft,Border{Border.None;Plain;Sunken;Raised;Etched},Mode{PictureBox.Normal;Fill;Cover;Contain;Repeat}"
 Public Const _DefaultEvent As String = "MouseDown"
 Public Const _DefaultSize As String = "16,16"
 Public Const _IsContainer As Boolean = False
@@ -17,12 +17,13 @@ Property Padding As Integer
 Property Border As Integer
 Property Stretch As Boolean
 Property Mode As Integer
+Property Cached As Boolean
 
 Public Enum Normal, Fill, Cover, Contain, {Repeat}
 
 Static Private $hDefault As Image
+Static Private $bWarningCached As Boolean
 
-Private $hObs As Observer
 Private $iAlign As Integer = Align.TopLeft
 Private $iPadding As Integer
 Private $iBorder As Integer
@@ -31,13 +32,7 @@ Private $hPicture As Picture
 Private $hImage As Image
 Private $bAutoResize As Boolean
 Private $bStretch As Boolean
-
-Public Sub _new()
-  
-  $hObs = New Observer(Me) As "DrawingArea"
-  
-End
-
+Private $bCached As Boolean
 
 Private Function Alignment_Read() As Integer
 
@@ -115,6 +110,7 @@ Private Sub Padding_Write(Value As Integer)
 
   If $iPadding = Value Then Return
   $iPadding = Value
+  UpdateSize
   Me.Refresh
 
 End
@@ -190,7 +186,7 @@ Private Sub Image_Write(Value As Image)
 
 End
 
-Public Sub DrawingArea_Draw()
+Public Sub UserControl_Draw()
   
   Dim W As Integer
   Dim H As Integer
@@ -205,6 +201,7 @@ Public Sub DrawingArea_Draw()
   Dim XX As Integer
   Dim YY As Integer
   Dim iMode As Integer
+  Dim F As Integer
   
   If $hImage Then
     W = $hImage.W
@@ -214,12 +211,21 @@ Public Sub DrawingArea_Draw()
     H = $hPicture.H
   Endif
   
-  If $iBorder Then Style.PaintPanel(0, 0, Paint.W, Paint.H, $iBorder)
+  If $iBorder Then
+    Style.PaintPanel(0, 0, Paint.W, Paint.H, $iBorder)
+    If $iBorder = Border.Plain Then
+      F = 1
+    Else
+      F = Style.FrameWidth + 1
+    Endif
+    Paint.Rectangle(F, F, Paint.W - F * 2, Paint.H - F * 2)
+    Paint.Clip()
+  Endif
   
   If W = 0 Or If H = 0 Then 
     If Me.Design Then
       If Not $hDefault Then $hDefault = Image.Load("picturebox.png")
-      Paint.DrawImage($hDefault, Desktop.Scale, Desktop.Scale)
+      Paint.DrawImage($hDefault, Desktop.Scale, Desktop.Scale, Desktop.Scale * 4, Desktop.Scale * 4)
     Endif
     Stop Event
     Return
@@ -308,4 +314,20 @@ PAINT_IMAGE:
   Endif
   Return
   
+End
+
+Private Function Cached_Read() As Boolean
+
+  Return $bCached
+
+End
+
+Private Sub Cached_Write(Value As Boolean)
+
+  If Not $bWarningCached Then
+    Error "gb.gui: warning; PictureBox.Cached is deprecated"
+    $bWarningCached = True
+  Endif
+  $bCached = Value
+
 End

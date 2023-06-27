@@ -1,11 +1,11 @@
 dnl ---- configure.ac for gb.crypt
 
 m4_include([../version.m4])
-AC_INIT(gambas3-gb-crypt, GB_VERSION, GB_MAIL, [], GB_URL)
+AC_INIT([gambas3-gb-crypt],[GB_VERSION],[GB_MAIL],[],[GB_URL])
 AC_CONFIG_MACRO_DIR([m4])
 
 GB_INIT(gb.crypt)
-AC_PROG_LIBTOOL
+LT_INIT
 
 GB_COMPONENT(
   crypt, CRYPT, gb.crypt, [src],
@@ -19,9 +19,10 @@ dnl ---- Remove DISABLED file that could have been generated before
 
 rm -f DISABLED DISABLED.* FAILED
 
-AC_OUTPUT( \
+AC_CONFIG_FILES([\
 Makefile \
 src/Makefile \
-)
+])
+AC_OUTPUT
 
 GB_PRINT_MESSAGES

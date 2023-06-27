@@ -2,7 +2,7 @@
 
 	gbx_stream_arch.c
 
-	(c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+	(c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -55,7 +55,7 @@ static int stream_open(STREAM *stream, const char *path, int mode)
 		return TRUE;
 	}
 
-	if ((mode & STO_ACCESS) != STO_READ)
+	if ((mode & GB_ST_ACCESS) != GB_ST_READ)
 	{
 		errno = EACCES;
 		return TRUE;

@@ -2,7 +2,7 @@
 
   CResult.c
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -35,7 +35,6 @@ GB_CLASS CLASS_Blob;
 static CBLOB *make_blob(CRESULT *result, int field);
 static void set_blob(CBLOB *_object, char *data, int length);
 
-
 static SUBCOLLECTION_DESC _fields_desc =
 {
 	".Result.Fields",
@@ -45,11 +44,13 @@ static SUBCOLLECTION_DESC _fields_desc =
 	(void *)CRESULTFIELD_release
 };
 
+//-------------------------------------------------------------------------
 
 static int check_result(CRESULT *_object)
 {
 	return (THIS->conn->db.handle == NULL);
 }
+
 
 static bool check_available(CRESULT *_object)
 {
@@ -77,6 +78,7 @@ static void init_buffer(CRESULT *_object)
 	for (i = 0; i < THIS->info.nfield; i++)
 		THIS->buffer[i].type = GB_T_NULL;
 }
+
 
 static void void_buffer(CRESULT *_object)
 {
@@ -116,7 +118,7 @@ static bool load_buffer(CRESULT *_object, int vpos)
 
 	DB_CurrentDatabase = &THIS->conn->db;
 
-	if (THIS->count < 0)
+	if (THIS->count < 0 || THIS->conn->db.flags.no_seek)
 	{
 		if (vpos != (THIS->pos + 1))
 		{
@@ -352,12 +354,14 @@ ERROR:
 }
 
 
+//-------------------------------------------------------------------------
+
 BEGIN_METHOD_VOID(Result_free)
 
 	release_buffer(THIS);
 
 	if (THIS->mode != RESULT_CREATE)
-		THIS->driver->Result.Release(THIS->handle, &THIS->info);
+		THIS->driver->Result.Release(THIS->handle, &THIS->info, check_result(THIS));
 
 	if (THIS->mode != RESULT_FIND)
 		table_release(&THIS->info);
@@ -786,7 +790,7 @@ BEGIN_METHOD(Result_Delete, GB_BOOLEAN keep)
 
 			THIS->driver->Exec(&THIS->conn->db, q_get(), NULL, "Cannot delete record: &1");
 
-			if (!VARGOPT(keep, FALSE))
+			if (!VARGOPT(keep, FALSE) && THIS->count > 0)
 			{
 				DELETE_MAP_add(&THIS->dmap, THIS->pos);
 				THIS->count--;
@@ -813,8 +817,6 @@ BEGIN_METHOD(Result_Delete, GB_BOOLEAN keep)
 END_METHOD
 
 
-
-
 BEGIN_PROPERTY(Result_Fields)
 
 	GB_SubCollectionNew(&THIS->fields, &_fields_desc, THIS);
@@ -829,6 +831,13 @@ BEGIN_PROPERTY(Result_Connection)
 
 END_PROPERTY
 
+BEGIN_PROPERTY(Result_Editable)
+
+	GB.ReturnBoolean(THIS->mode == RESULT_CREATE || THIS->mode == RESULT_EDIT);
+
+END_PROPERTY
+
+//-------------------------------------------------------------------------
 
 GB_DESC CResultDesc[] =
 {
@@ -843,6 +852,7 @@ GB_DESC CResultDesc[] =
 	GB_PROPERTY_READ("Available", "b", Result_Available),
 	GB_PROPERTY_READ("Index", "i", Result_Index),
 	GB_PROPERTY_READ("Max", "i", Result_Max),
+	GB_PROPERTY_READ("Editable", "b", Result_Editable),
 
 	GB_METHOD("_get", "v", Result_get, "(Field)s"),
 	GB_METHOD("_put", NULL, Result_put, "(Value)v(Field)s"),
@@ -865,7 +875,7 @@ GB_DESC CResultDesc[] =
 	GB_END_DECLARE
 };
 
-/** Blob *******************************************************************/
+//-------------------------------------------------------------------------
 
 static bool _convert_blob(CBLOB *_object, GB_TYPE type, GB_VALUE *conv)
 {
@@ -937,6 +947,8 @@ static void set_blob(CBLOB *_object, char *data, int length)
 	BLOB->length = length;
 }
 
+//-------------------------------------------------------------------------
+
 BEGIN_METHOD_VOID(Blob_init)
 
 	CLASS_Blob = GB.FindClass("Blob");
@@ -978,6 +990,7 @@ BEGIN_PROPERTY(Blob_Length)
 
 END_PROPERTY
 
+//-------------------------------------------------------------------------
 
 GB_DESC CBlobDesc[] =
 {

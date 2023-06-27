@@ -1,28 +1,33 @@
 # Gambas Form File 3.0
 
 { Form Form
-  MoveScaled(0,0,62,60)
+  MoveScaled(0,0,62,82)
   Text = ("Properties")
-  Icon = Picture["img/16/grid.png"]
   Persistent = True
   Arrangement = Arrange.Vertical
   { mnuProperty Menu
     { Menu1 Menu
     }
   }
-  { panProperty Panel
+  { panProperty HBox
     MoveScaled(4,1,54,4)
-    AutoResize = True
+    Indent = True
     { lblName TextLabel
       MoveScaled(0,0,28,4)
       Expand = True
-      Padding = 4
       Alignment = Align.Normal
+      Wrap = False
     }
     { btnLock ToolButton
-      MoveScaled(50,0,4,4)
+      MoveScaled(45,0,4,4)
       ToolTip = ("Lock property")
-      Picture = Picture["icon:/small/lock"]
+      Picture = Picture["icon:/tiny/lock"]
+      Toggle = True
+    }
+    { btnSortProperties ToolButton
+      MoveScaled(49,0,4,4)
+      ToolTip = ("Sort properties")
+      Picture = Picture["icon:/tiny/sort-ascent"]
       Toggle = True
     }
   }
@@ -75,6 +80,7 @@
       { cmbProperty ComboBox
         MoveScaled(4,25,18,4)
         Visible = False
+        Background = Color.TextBackground
         Expand = True
         ReadOnly = True
         Border = False
@@ -82,14 +88,32 @@
     }
   }
   { spnHelp SidePanel
-    MoveScaled(15,46,24,13)
-    Arrangement = Arrange.Fill
+    MoveScaled(13,48,36,17)
+    Arrangement = Arrange.Vertical
     Orientation = Align.Bottom
+    ShowButtons = False
     Separator = True
     Transparent = True
-    { webHelp HelpView
-      MoveScaled(3,1,16,9)
-      NoHeader = True
+    Hidden = True
+    { HBox1 HBox
+      MoveScaled(3,1,21,3)
+      Indent = True
+      { lblHelp Label
+        MoveScaled(3,0,8,3)
+        Expand = True
+        Text = ("Help")
+      }
+      { btnCloseHelp ToolButton
+        MoveScaled(15,0,3,3)
+        Picture = Picture["icon:/small/close"]
+      }
+    }
+    { Separator1 Separator
+      MoveScaled(16,5,10,0)
+    }
+    { hvwHelp HelpView
+      MoveScaled(7,7,19,10)
+      Expand = True
     }
   }
 }

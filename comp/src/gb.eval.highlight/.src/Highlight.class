@@ -1,0 +1,110 @@
+' Gambas class file
+
+Export
+
+Static Property Read Styles As String[]
+
+Static Private $aStyles As String[]
+Static Private $aStyleNames As String[]
+
+Static Private Function Styles_Read() As String[]
+
+  If Not $aStyles Then
+    $aStyles = ["Background", "Normal", "Selection", "Alternate", "Highlight", "CurrentLine", "Added", "Removed", "Error", "Comment", "Documentation", "Keyword", "Function", "Operator", "Symbol", "Number", "String", "Breakpoint", "Current", "Datatype", "Preprocessor", "Escape", "Label", "Constant", "Class", "Id", "Element", "Property", "Pseudo", "Rule", "Important", "File", "Header", "Position", "Markup", "Attribute", "Value", "Entity", "WebMarkup", "WebComment", "WebArgument"]
+    $aStyles.ReadOnly = True
+  Endif
+  
+  Return $aStyles
+
+End
+
+Static Public Sub GetStyleName(Style As String) As String
+  
+  Dim aStyles As String[]
+  Dim iPos As Integer
+  
+  If Not $aStyleNames Then
+    $aStyleNames = [("Background"), ("Normal text"), ("Selection background"), ("Alternate background"), ("Highlighting"), ("Current line"), ("Added text"), ("Removed text"), ("Errors"), ("Comments"), ("Documentation"), ("Keywords"), ("Functions"), ("Operators"), ("Symbols"), ("Numbers"), ("Strings"), ("Breakpoints"), ("Execution line"), ("Datatypes"), ("Preprocessor"), ("Escaped characters"), ("Labels"), ("Constants"), ("Class selectors"), ("Id selectors"), ("Element selectors"), ("Properties"), ("CSS pseudo-classes"), ("CSS rules"), ("Important values"), ("File names"), ("Header"), ("Positions"), ("Markups"), ("Attributes"), ("Values"), ("Entities"), ("Webpage markups"), ("Webpage comments"), ("Webpage markup arguments")]
+  Endif
+  
+  aStyles = Styles_Read()
+  iPos = aStyles.Find(Style, gb.IgnoreCase)
+  If iPos >= 0 Then Return $aStyleNames[iPos]
+  Return Style
+  
+End
+
+
+
+' Static Public Sub _DoHtml()
+'   
+'   HighlightHTML.Run(Main.STYLE_HTML)
+'   
+' End
+' 
+' Static Public Sub _DoCss()
+'   
+'   HighlightCSS.Run()
+'   
+' End
+' 
+' Static Public Sub _DoWebPage()
+'   
+'   HighlightHTML.Run(Main.STYLE_WEB)
+'   
+' End
+' 
+' Static Public Sub _DoDiff()
+'   
+'   HighlightDiff.Run
+'   
+' End
+' 
+' Static Public Sub _DoJavascript()
+'   
+'   HighlightJavascript.Run
+'   
+' End
+' 
+' Static Public Sub _DoC()
+'   
+'   HighlightC.Run
+'   
+' End
+' 
+' Static Public Sub _DoCPlusPlus()
+'   
+'   HighlightCPlusPlus.Run
+'   
+' End
+' 
+' Static Public Sub _DoSQL()
+'   
+'   HighlightSQL.Run
+'   
+' End
+' 
+' Static Public Sub _GetKeywords((Style) As Integer) As String[]
+'   
+'   Dim aKeywords As String[]
+'   
+'   Select Case Style
+'     
+'     Case Highlight.C
+'       aKeywords = HighlightC.GetKeywords()
+'       
+'     Case Highlight.CPlusPlus
+'       aKeywords = HighlightCPlusPlus.GetKeywords()
+'       
+'     Case Highlight.CSS
+'       aKeywords = HighlightCSS.GetKeywords()
+'       
+'     Case Highlight.JavaScript
+'       aKeywords = HighlightJavascript.GetKeywords()
+'     
+'   End Select
+'   
+'   Return aKeywords
+'   
+' End
+

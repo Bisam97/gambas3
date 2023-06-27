@@ -335,7 +335,7 @@ Public Sub Install(Optional bJustDownload As Boolean) As String
   Else If sPath Ends ".tar.bz2" Then
     sOption = "j"
   Else
-    Error.Raise("Unknown archive format")
+    Error.Raise("Unknown archive format: " & sPath)
   Endif
   
   Shell "cd " & Shell(File.Dir(sPath)) & " && tar x" & sOption & "f " & Shell(sPath) Wait
@@ -379,6 +379,7 @@ Public Sub Install(Optional bJustDownload As Boolean) As String
     If hProjectInfo.Translate Then sExec &= "-t "
     If hProjectInfo.ControlPublic Then sExec &= "-p "
     If hProjectInfo.ModulePublic Then sExec &= "-m "
+    sExec &= "-j" & CStr(Settings["/CompilerJobs", 1]) & " "
     sExec &= Shell$(sDir)
     sExec &= " 2>&1"
     
@@ -471,7 +472,7 @@ INSTALL_SOURCE:
   
 Catch
   
-  sErr = Error.Text & "\n\n" & Error.Backtrace.Join(" ")
+  sErr = Error.Text & "\n<tt>" & Error.Backtrace.Join(" ") & "</tt>"
   
 LEAVE_INSTALL:
   
@@ -608,13 +609,19 @@ Catch
   
 End
 
-Public Sub PaintName(X As Float, Y As Float) As Integer
+Public Sub PaintName(X As Float, Y As Float, Width As Float) As Integer
 
   Dim iCol As Integer
   Dim sText As String
   Dim XO As Float
   Dim W As Integer
   Dim H As Integer
+  Dim iGrade As Integer
+
+  If Not Name Then Return
+  
+  iGrade = Paint.Font.Grade
+  H = Paint.Font.Height
   
   Paint.Save
   
@@ -622,21 +629,26 @@ Public Sub PaintName(X As Float, Y As Float) As Integer
     
   Paint.Background = iCol
   XO = X
-  
-  sText = Name
+
+  sText = Version
+  Paint.Font.Grade = iGrade
   W = Paint.Font.TextWidth(sText)
-  H = Paint.Font.Height
+  
+  sText = Paint.TrimText(Name, Width - W - Desktop.Scale)
+  Paint.Font.Grade = iGrade
+  W = Paint.Font.TextWidth(sText)
   Paint.DrawTextShadow(sText, X, Y, W, H, Align.TopLeft)
   Paint.DrawText(sText, X, Y, W, H, Align.TopLeft)
   
-  X += W + Desktop.Scale
-  Paint.DrawText(Version, X, Y, W, H, Align.TopLeft)
-  
+  sText = Version
+  Paint.Font.Grade = iGrade
+  Paint.DrawText(sText, X + W + Desktop.Scale, Y, W, H, Align.TopLeft)
+
   X = XO
   Y += H + Desktop.Scale \ 4
   
   Paint.Font.Italic = True
-  Paint.Font.Grade -= 2
+  Paint.Font.Grade = iGrade - 1
   Paint.Background = Color.Merge(iCol, Color.TextBackground)
   Paint.DrawText(Vendor, X, Y, Paint.W, Paint.H, Align.TopLeft)
   Y += Paint.Font.H

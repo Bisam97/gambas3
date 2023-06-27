@@ -1,0 +1,247 @@
+' Gambas class file
+
+Export
+
+Static Private $aStack As New PaintDriver[]
+
+Static Property Read Device As WebControl
+Static Property Brush As PaintBrush
+Static Property W, Width As Integer Use $iWidth
+Static Property H, Height As Integer Use $iHeight
+
+Static Property Write LineWidth As Float
+Static Property Write LineCap As Integer
+Static Property Write LineJoin As Integer
+Static Property Write MiterLimit As Float
+Static Property Write LineDash, Dash As Float[]
+Static Property Write LineDashOffset, DashOffset As Float
+Static Property Write Operator As Integer
+
+Public Enum OperatorOver, OperatorIn, OperatorOut, OperatorATop, OperatorDestOver, OperatorDestIn, OperatorDestOut, OperatorDestATop, OperatorAdd, OperatorSource, OperatorXor
+Public Enum LineCapButt, LineCapRound, LineCapSquare
+Public Enum LineJoinMiter, LineJoinRound, LineJoinBevel
+
+Static Private $hCurrent As New PaintDriver
+
+Static Public Sub Begin(Device As WebControl)
+
+  Dim hDriver As PaintDriver
+  
+  Try hDriver = New ("PaintDriver_" & Object.Type(Device))
+  If Error Then Error.Raise("Not a paintable device")
+  
+  $aStack.Push($hCurrent)
+  $hCurrent = hDriver
+  $hCurrent.Device = Device
+  
+  $hCurrent.Begin()
+  
+End
+
+Static Public Sub End()
+  
+  If Not $hCurrent.Device Then Return
+  
+  $hCurrent.End()
+  $hCurrent = $aStack.Pop()
+  
+End
+
+Static Private Function Device_Read() As WebControl
+
+  Return $hCurrent.Device
+
+End
+
+Static Public Sub Save()
+
+  $hCurrent.Save()
+  
+End
+
+Static Public Sub Restore()
+  
+  $hCurrent.Restore()
+  
+End
+
+Static Public Sub Rectangle(X As Float, Y As Float, Width As Float, Height As Float)
+  
+  $hCurrent.Rectangle(X, Y, Width, Height)
+  
+End
+
+Static Public Sub Fill(Optional Style As Variant, Optional Preserve As Boolean)
+  
+  $hCurrent.Fill(Style, Preserve)
+  
+End
+
+Static Public Sub Stroke(Optional Style As Variant, Optional Preserve As Boolean)
+  
+  $hCurrent.Stroke(Style, Preserve)
+  
+End
+
+Static Public Sub MoveTo(X As Float, Y As Float)
+  
+  $hCurrent.MoveTo(X, Y)
+  
+End
+
+Static Public Sub LineTo(X As Integer, Y As Integer)
+  
+  $hCurrent.LineTo(X, Y)
+  
+End
+
+Static Private Sub LineWidth_Write(Value As Float)
+
+  $hCurrent.SetLineWidth(Value)
+
+End
+
+Static Public Sub Arc(XC As Float, YC As Float, Radius As Float, Optional Angle As Float, Length As Float)
+  
+  $hCurrent.Arc(XC, YC, Radius, Angle, Length)
+  
+End
+
+Static Public Sub Ellipse(X As Float, Y As Float, Width As Float, Height As Float, Optional Angle As Float, Length As Float)
+  
+  $hCurrent.Ellipse(X, Y, Width, Height, Angle, Length)
+  
+End
+
+Static Public Sub CurveTo(X1 As Float, Y1 As Float, X2 As Float, Y2 As Float, X3 As Float, Y3 As Float)
+  
+  $hCurrent.CurveTo(X1, Y1, X2, Y2, X3, Y3)
+  
+End
+
+Static Public Sub NewPath()
+  
+  $hCurrent.NewPath()
+  
+End
+
+Static Public Sub ClosePath()
+  
+  $hCurrent.ClosePath()
+  
+End
+
+Static Public Sub Clip(Optional Preserve As Boolean)
+  
+  $hCurrent.Clip(Preserve)
+  
+End
+
+Static Public Sub LinearGradient(X1 As Float, Y1 As Float, X2 As Float, Y2 As Float, Colours As Variant[], Positions As Float[]) As PaintBrush
+  
+  Dim hGrad As New Gradient(Gradient.Linear, [X1, Y1, X2, Y2])
+  Dim hBrush As New PaintBrush
+  
+  hGrad.AddColorStops(Positions, Colours)
+  hBrush._Gradient = hGrad
+  Return hBrush
+  
+End
+
+Static Public Sub RadialGradient(X1 As Float, Y1 As Float, R1 As Float, X2 As Float, Y2 As Float, R2 As Float, Colours As Variant[], Positions As Float[]) As PaintBrush
+  
+  Dim hGrad As New Gradient(Gradient.Radial, [X1, Y1, R1, X2, Y2, R2])
+  Dim hBrush As New PaintBrush
+  
+  hGrad.AddColorStops(Positions, Colours)
+  hBrush._Gradient = hGrad
+  Return hBrush
+  
+End
+
+Static Public Sub Color((Color) As Variant) As PaintBrush
+  
+  Dim hBrush As New PaintBrush
+  hBrush._Color = {Color}
+  Return hBrush
+  
+End
+
+Static Private Function Brush_Read() As PaintBrush
+  
+  Return $hCurrent.Brush
+  
+End
+
+Static Private Sub Brush_Write(Value As PaintBrush)
+
+  $hCurrent.Brush = Value
+
+End
+
+Static Public Sub DrawImage(Image As String, X As Float, Y As Float, Optional Width As Float, Height As Float, Opacity As Float = 1.0, Source As Rect)
+
+  $hCurrent.DrawImage(Image, X, Y, Width, Height, Opacity, Source)
+  
+End
+
+Static Public Sub Translate(TX As Float, TY As Float)
+  
+  $hCurrent.Translate(TX, TY)
+  
+End
+
+Static Public Sub Rotate(Angle As Float)
+  
+  $hCurrent.Rotate(Angle)
+  
+End
+
+Static Public Sub Scale(SX As Float, Optional SY As Float)
+  
+  If IsMissing(SY) Then SY = SX
+  $hCurrent.Scale(SX, SY)
+  
+End
+
+Static Public Sub Reset()
+  
+  $hCurrent.Reset()
+  
+End
+
+Static Private Sub Operator_Write(Value As Integer)
+
+  $hCurrent.SetOperator(Value)
+
+End
+
+Static Private Sub LineCap_Write(Value As Integer)
+
+  $hCurrent.SetLineCap(Value)
+
+End
+
+Static Private Sub LineJoin_Write(Value As Integer)
+
+  $hCurrent.SetLineJoin(Value)
+
+End
+
+Static Private Sub MiterLimit_Write(Value As Float)
+
+  $hCurrent.SetMiterLimit(Value)
+
+End
+
+Static Private Sub LineDash_Write(Value As Float[])
+
+  $hCurrent.SetLineDash(Value)
+
+End
+
+Static Private Sub LineDashOffset_Write(Value As Float)
+
+  $hCurrent.SetLineDashOffset(Value)
+
+End

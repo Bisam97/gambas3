@@ -1,31 +1,80 @@
 ' Gambas class file
 
+''' This control implements a paged document viewer.
+
 Export
 Inherits UserControl
 
-Public Const _Properties As String = "*,Border,Arrangement{Arrange.Row;Column;Vertical;Horizontal;Fill}=Row,Padding=10,Spacing=10,Column,AutoCenter,ShowShadow"
+Public Const _Properties As String = "*,Border,Arrangement{Arrange.Row;Column;Vertical;Horizontal;Fill}=Row,Padding=16,Spacing=16,Columns,Center,ShowShadow,ShowPage"
 Public Const _Group As String = "View"
 Public Const _Similar As String = "GridView"
 
-Public _ShowPageNumber As Boolean
-Public Enum Portrait, Paysage
-'Public Enum None, PagesWidth, PageHeight
+'' Return or set the default width of a page in millimiters.
+''
+'' By default the size of the page is 210 x 297 mm (A4 format).
 Property DocWidth, PageWidth As Integer
+
+'' Return or set the default height of a page in millimiters.
+''
+'' By default the size of the page is 210 x 297 mm (A4 format).
 Property DocHeight, PageHeight As Integer
+
+'' Return or set the number of pages in the document.
 Property Count As Integer
+
+'' Return the number of pages in the document minus one.
 Property Read Max As Integer
+
+'' Return a virtual object used for defining the layout of a specific page.
+''
+'' See the [./.layout] event for more details.
 Property Read Layout As _DocumentLayout
+
+'' Return or set the zoom factor of the view.
 Property Zoom, Scale As Float
-Property Column, Row As Integer
+
+'' Return or set the number of columns used for layouting pages.
+''
+'' If set to zero (the default), then the preview only shows pages one by one.
+'' Otherwise all pages are layouted from top to bottom.
+Property Columns, Column As Integer
+
+'' Return or set how the different pages are arranged inside the view.
+''
+'' This property can take one of the following values:
+'' - [Arrange.Vertical](/comp/gb.qt4/arrange/vertical)
+'' - [Arrange.Horizontal](/comp/gb.qt4/arrange/horizontal)
+'' - [Arrange.Row](/comp/gb.qt4/arrange/row)
+'' - [Arrange.Column](/comp/gb.qt4/arrange/column)
+'' - [Arrange.Fill](/comp/gb.qt4/arrange/fill)
 Property Arrangement As Integer
+
+'' Return or set the padding inside the view in millimiters.
 Property Padding As Integer 
+
+'' Return or set the spacing between the different pages in millimiters.
 Property Spacing As Integer
+
+'' Return or set if pages are drawn with a little shadow.
 Property ShowShadow As Boolean
-Property Read Item As _DocumentItem
-Property Read FirstVisibleDocument As Integer
-Property Read LastVisibleDocument As Integer
-Property AutoCenter As Boolean
+
+'' Return or set if the page number must be displayed inside the view.
+Property ShowPage As Boolean
+
+'' Return the index of the first visible page.
+Property Read FirstVisiblePage, FirstVisibleDocument As Integer
+
+'' Return the index of the last visible page.
+Property Read LastVisiblePage, LastVisibleDocument As Integer
+
+'' Return or set if the page must be centered in the view.
+Property Center, AutoCenter As Boolean
+
+'' Return or set if the document view has a border.
 Property Border As Boolean
+
+'' Return or set if the preview is automatically desaturated.
+Property Desaturate As Boolean
 
 Private $bAutoCenter As Boolean
 Private $iColumn As Integer 
@@ -63,7 +112,6 @@ Private $aImageToLoad As New Integer[]
 Private $aImageLoaded As New Integer[]
 Private $iNbreDocByLine As Integer
 Private $hDocItem As _DocumentItem
-Private $iIntern As Integer
 Private $iCurrent As Integer
 Private $fZoom As Float = 1.0
 Private $aSelected As New Integer[]
@@ -72,17 +120,37 @@ Private $iSX As Integer
 Private $iSY As Integer
 Private $MX As Integer
 Private $MY As Integer
+Private $bShowPage As Boolean
 Private $hObs As Observer
 
+'' This event is raised so that each page layout can be defined independently.
+''
+'' - ~Page~ is the index of the page to layout.
+''
+'' Use the [../layout] property inside the handler of this event to define the layout of the specified page.
 Event Layout(Page As Integer)
+
+'' This event is raised when a specific page preview must me drawn
+''
+'' - ~Page~ is the index of the page to draw.
+'' - ~Width~ and ~Height~ are the size of the image buffer where the page must be drawn.
 Event Draw(Page As Integer, Width As Integer, Height As Integer)
+
+'' This event is raised when all page preview have been drawn.
 Event Finished
+
+'' This event is raised when the zoom level has changed.
 Event Zoom
 
+Private $bDesaturate As Boolean
+Private $bLayouting As Boolean
+
+'' Create a new DocumentView
 Public Sub _new()
   
   $hView = New ScrollArea(Me) As "View"
-  $hView.Background = Color.DarkGray
+  $hView.Background = Color.LightForeground
+  $hView.Border = False
   '$tmrLoad.Delay = 100
   Me.Proxy = $hView
   $hDocItem = New _DocumentItem As "Doc"
@@ -114,12 +182,14 @@ Public Sub tmrLoad_Timer()
   'Raise Layout(iPage)
   
   hImg = New Image(iDocWidth * $fZoom, iDocHeight * $fZoom, Color.White)
-  Draw.Begin(hImg)
+  Paint.Begin(hImg)
   'Paint.Scale($fZoom, $fZoom)
   Raise Draw(iPage, iDocWidth * $fZoom, iDocHeight * $fZoom)
-  Draw.End
+  Paint.End
+  If $bDesaturate Then hImg.Desaturate()
   $colImage[iPage] = hImg
   $aImageLoaded.Add(iPage)
+  $tmrLoad.Trigger
   $tmrRefresh.Trigger
   
 End
@@ -127,8 +197,12 @@ End
 Public Sub View_Draw()
   
   Dim i, j, k As Integer
+  Dim sText As String
+  Dim W As Integer
+  Dim D As Integer
   
   If $iCount = 0 Then Return 
+  
   Select Case $iArrangement
     Case Arrange.Horizontal
       k = $iFirstVisibleDocument
@@ -145,8 +219,8 @@ Public Sub View_Draw()
           DrawDoc(k, i, j)
           
           Inc k
-          If k > $iLastVisibleDocument Then Return
-          If k >= $iCount Then Return
+          If k > $iLastVisibleDocument Then Goto SHOW_PAGE
+          If k >= $iCount Then Goto SHOW_PAGE
         Next
       Next
       
@@ -157,8 +231,8 @@ Public Sub View_Draw()
         For i = 0 To $iNbreLines - 1
           DrawDoc(k, i, j)
           Inc k
-          If K > $iLastVisibleDocument Then Return
-          If K >= $iCount Then Return
+          If K > $iLastVisibleDocument Then Goto SHOW_PAGE
+          If K >= $iCount Then Goto SHOW_PAGE
         Next
       Next
       
@@ -177,12 +251,29 @@ Public Sub View_Draw()
       Next
   End Select
   
+SHOW_PAGE:
+
+  If $bShowPage Then
+    
+    D = Desktop.Scale
+    sText = CStr($iFirstVisibleDocument + 1) & " / " & CStr($iCount)
+    W = Paint.Font.TextWidth(sText) + D * 2
+    Paint.FillRect(Paint.W - W - D, D, W, Paint.Font.H + D, Color.SetAlpha(Color.TextForeground, 128))
+    Paint.Background = Color.SetAlpha(Color.TextBackground, 128)
+    Paint.DrawText(sText, Paint.W - W - D + 1, D, W, Paint.Font.H + D, Align.Center)
+    Paint.Background = Color.TextBackground
+    Paint.DrawText(sText, Paint.W - W - D, D, W, Paint.Font.H + D, Align.Center)
+    
+  Endif
+  
 End
 
 Private Sub DrawDoc(Page As Integer, iRow As Integer, iCol As Integer)
   
   Dim iDocX, iDocY As Integer
   Dim fShad As Float = $fZoom * ($iSpacing / 4)
+  Dim hImage As Image
+  
   'Dim fFullContentWidth As Float
 
   If $colLayout.Exist(Page) Then
@@ -194,7 +285,7 @@ Private Sub DrawDoc(Page As Integer, iRow As Integer, iCol As Integer)
   Endif
   
   'Define the doc position
-  If System.RightToLeft Then 
+  If Me.RightToLeft Then 
     iDocX = $hView.ClientW - $fScaledPadding - (iCol * ($fMaxPageWidth + $fScaledSpace)) - $fMaxPageWidth + $hView.ScrollX
   Else
     iDocX = $fScaledPadding + iCol * ($fMaxPageWidth + $fScaledSpace) + ($fMaxPageWidth - $fScaledDocWidth) / 2 - $hView.ScrollX
@@ -205,7 +296,7 @@ Private Sub DrawDoc(Page As Integer, iRow As Integer, iCol As Integer)
     If $iArrangement = Arrange.Column Then
       iDocY -= $fCenter
     Else
-      If System.RightToLeft Then 
+      If Me.RightToLeft Then 
         iDocX -= $fCenter
       Else
         iDocX += $fCenter
@@ -225,27 +316,27 @@ Private Sub DrawDoc(Page As Integer, iRow As Integer, iCol As Integer)
   Endif
   
   If $colImage.Exist(Page) Then
-    Paint.DrawImage($colImage[Page], iDocX, iDocY, $fScaledDocWidth, $fScaledDocHeight)
+    
+    hImage = $colImage[Page]
+    Paint.DrawImage(hImage, iDocX, iDocY, $fScaledDocWidth, $fScaledDocHeight)
     Paint.Rectangle(iDocX, iDocY, $fScaledDocWidth, $fScaledDocHeight)
     Paint.Brush = Paint.Color(Color.Black)
     Paint.Stroke
+    
   Else
+    
     Paint.Rectangle(iDocX, iDocY, $fScaledDocWidth, $fScaledDocHeight)
     Paint.Brush = Paint.Color(Color.White)
     Paint.Fill(True)
     Paint.Brush = Paint.Color(Color.Black)
     Paint.Stroke
+    
   Endif
   
   If $aSelected.Find(page) > -1 Then
     Paint.Rectangle(iDocX, iDocY, $fScaledDocWidth, $fScaledDocHeight)
     Paint.Brush = Paint.Color(Color.SetAlpha(Color.SelectedBackground, 192))
     Paint.Fill()
-  Endif
-  
-  If _ShowPageNumber Then
-    Paint.Font.Grade = 20 * $fZoom
-    Paint.DrawText(Page, iDocX, iDocY, $fScaledDocWidth, $fScaledDocHeight, Align.Center)
   Endif
   
 End
@@ -255,11 +346,12 @@ Private Sub RefreshLayoutNeeds()
   Dim i As Integer
   
   For i = 0 To $iCount - 1
+    
+    $hLayout = New _DocumentLayout
     Raise Layout(i)
     
-    If $hLayout.Width <> 0 Or If $hLayout.Height <> 0 Or If $hLayout.Orientation <> 1 Then
+    If $hLayout.Width > 0 And If $hLayout.Height > 0 Then
       $colLayout[i] = $hLayout
-      $hLayout = New _DocumentLayout
     Endif
   Next
   DoLayout
@@ -274,7 +366,11 @@ Private Sub DoLayout()
   'Dim fOldZoom As Float = $fZoom
   
   If $iCount = 0 Then Return
+  'If $hView.H <> Me.H Or If $hView.W <> Me.W Then Return
   $fCenter = 0
+  
+  If $bLayouting Then Return
+  $bLayouting = True
   
   'TODO: go
   '$tmrLoad.Stop
@@ -393,6 +489,9 @@ Private Sub DoLayout()
         $fCenter = Max(($hView.ClientW - (($fMaxPageWidth + $fScaledSpace) * $iNbreDocByLine - $fScaledSpace + $fScaledPadding * 2)) / 2, 0)
         'Print $fCenter
       Endif
+      
+      $hView.Scroll(0, 0)
+      
   End Select
   
   'Calculate the Max doc per line (mini 1 doc)
@@ -439,6 +538,8 @@ Private Sub DoLayout()
   $aImageToLoad = $aImageToLoad.Reverse()
   'If $aImageToLoad.Count > 0 Then 
   $tmrLoad.Trigger
+  
+  $bLayouting = False
   
 End
 
@@ -535,22 +636,17 @@ Private Sub SetZoom(fValue As Float)
 End
 
 Private Sub Zoom_Write(Value As Float)
-  'entre 0.1 et 2
   
   Select Case $iArrangement
     Case Arrange.None, Arrange.Row, Arrange.Column, Arrange.LeftRight, Arrange.TopBottom
-      
-      SetZoom(Min(Max(Value, 0.1), 4))
-      '$iArrangement = None
-      '$fZoom = $fZoom
-      'just refresh image in the cache don't clear them
-      
-      'RefreshAll
+      SetZoom(Min(Max(Value, 1 / 8), 8))
       DoLayout
       $tmrRefresh.Trigger
   End Select
   
 End
+
+'' Refresh the view contents.
 
 Public Sub Refresh()
   
@@ -561,6 +657,8 @@ Public Sub Refresh()
   $tmrRefresh.Trigger
   
 End
+
+'' Resets the view.
 
 Public Sub Reset()
   
@@ -658,6 +756,10 @@ Private Sub Spacing_Write(Value As Integer)
   
 End
 
+'' Move the view to a specified page.
+''
+'' - ~Page~ is the page number, starting from zero.
+
 Public Sub Goto(Page As Integer)
   
   Dim iPageCol, iPageRow As Integer
@@ -696,7 +798,7 @@ Public Sub View_MouseWheel()
     Stop Event
   Else
     If Mouse.Control Then
-      Me.Zoom = $fZoom + 0.1 * Mouse.Delta
+      Me.Zoom = $fZoom * 2 ^ (Mouse.Delta / 4)
       $hView.Scroll($iSX, $iSY)
     Endif
     Stop Event
@@ -717,6 +819,9 @@ Public Sub Obs_MouseWheel()
   
 End
 
+'' Return the page number under a specific mouse cursor position.
+''
+'' - ~X~ and ~Y~ are the mouse cursor position relative to the document view.
 
 Public Function Find(X As Integer, Y As Integer) As Integer
   
@@ -841,55 +946,17 @@ End
 '   
 ' End
 
-Public Sub _Get(Index As Integer) As _DocumentItem
+'' Return a virtual object that represents a specific preview page.
+''
+'' - ~Index~ is the index of the page.
+
+Public Sub _get(Index As Integer) As _DocumentItem
   
-  If Index > $iCount - 1 Then Return Null
+  If Index < 0 Or If Index >= $iCount Then Error.Raise("Bad argument")
   $hDocItem._Index = Index
   Return $hDocItem
   
 End
-
-Public Function MoveTo(Index As Integer) As Boolean
-  
-  If Index < 0 Or index > $iCount + 1 Then Return True
-  $iIntern = Index
-  
-End
-
-Public Function MoveFirst() As Boolean
-  
-  If $iCount = 0 Then Return True
-  $iIntern = 0
-  
-End
-
-Public Function MoveNext() As Boolean
-  
-  If $iIntern + 1 >= $iCount Then Return True
-  Inc $iIntern
-  
-End
-
-Public Function MovePrevious() As Boolean
-  
-  If $iIntern = 0 Then Return True
-  Dec $iIntern
-  
-End
-
-Private Function Item_Read() As _DocumentItem
-  
-  $hDocItem._Index = $iIntern
-  Return $hDocItem
-  
-End
-
-' Private Function Current_Read() As _DocumentItem
-'   
-'   $hDocItem._Index = $iCurrent
-'   Return $hDocItem
-'   
-' End
 
 Public Sub View_MouseDown()
   
@@ -935,33 +1002,25 @@ Public Function _IsVisible(Index As Integer) As Boolean
   
 End
 
-' Public Function _GetX(Index As Integer) As Integer
-'   
-' End
-' 
-' Public Function _GetY(Index As Integer) As Integer
-'   
-' End
-
-Private Function FirstVisibleDocument_Read() As Integer
+Private Function FirstVisiblePage_Read() As Integer
   
   Return $iFirstVisibleDocument
   
 End
 
-Private Function LastVisibleDocument_Read() As Integer
+Private Function LastVisiblePage_Read() As Integer
   
   Return $iLastVisibleDocument
   
 End
 
-Private Function Column_Read() As Integer
+Private Function Columns_Read() As Integer
   
   Return $iColumn
   
 End
 
-Private Sub Column_Write(Value As Integer)
+Private Sub Columns_Write(Value As Integer)
   
   If Value = $iColumn Then Return
   $iColumn = Value
@@ -969,16 +1028,17 @@ Private Sub Column_Write(Value As Integer)
   
 End
 
-Private Function AutoCenter_Read() As Boolean
+Private Function Center_Read() As Boolean
   
   Return $bAutoCenter 
   
 End
 
-Private Sub AutoCenter_Write(Value As Boolean)
+Private Sub Center_Write(Value As Boolean)
   
   If value = $bAutoCenter Then Return
   $bAutoCenter = Value
+  DoLayout
   $tmrRefresh.Trigger
   
 End
@@ -992,5 +1052,33 @@ End
 Private Sub Border_Write(Value As Boolean)
 
   $hView.Border = Value
+
+End
+
+Private Function ShowPage_Read() As Boolean
+
+  Return $bShowPage
+
+End
+
+Private Sub ShowPage_Write(Value As Boolean)
+
+  If $bShowPage = Value Then Return
+  $bShowPage = Value
+  $hView.Refresh
+
+End
+
+Private Function Desaturate_Read() As Boolean
+
+  Return $bDesaturate
+
+End
+
+Private Sub Desaturate_Write(Value As Boolean)
+
+  If $bDesaturate = Value Then Return
+  $bDesaturate = Value
+  Reset
 
 End

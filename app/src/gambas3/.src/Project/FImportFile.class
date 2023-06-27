@@ -2,13 +2,13 @@
 
 Private $sPath As String
 Private $sDir As String
-Private $sType As String
+'Private $sType As String
 
-Public Sub Run(sPath As String, sDir As String, sType As String)
+Public Sub Run(sPath As String, sDir As String)
   
   $sPath = sPath
   $sDir = sDir
-  $sType = sType
+  '$sType = sType
   If Not Me.ShowModal() Then Return
   
 End
@@ -21,6 +21,7 @@ Private Sub InitFilter()
   If Project.IsSourceDir($sDir) Then
     
     aFilter = ["*.module", ("Gambas modules"), "*.class", ("Gambas classes")]
+    aFilter.Insert(["*.test", ("Gambas test modules")])
     For Each hModule In CModule.All
       If Not hModule.Used Then Continue
       aFilter.Add("*." & hModule.Key)
@@ -77,7 +78,7 @@ Private Sub ImportDependencies(sName As String, sExt As String, sOrig As String,
     If iPos = 0 Then Goto NEXT_LINE
     
     sImg = Scan(sLine, "*Picture\\[\"*\"]")[1]
-    If sImg Begins "icon:/" Then Goto NEXT_LINE
+    If sImg Begins "icon:/" Or If sImg Begins "flag:/" Then Goto NEXT_LINE
     
     sImportDir = Project.Dir &/ "import"
     If Not Exist(sImportDir) Then Project.InsertDirectory(sImportDir)
@@ -131,13 +132,17 @@ Private Sub ImportFile() As Boolean
     
     Select Case sExt
     
-      Case "module"
+      Case "module", "test", "class"
         sName = File.BaseName(Project.GetUniqueSourceName(sName))
-        Project.InsertSource(sName, "module", $sDir, sTemp,,, chkLink.Value)
+        Project.InsertSource(sName, sExt, $sDir, sTemp,,, chkLink.Value)
     
-      Case "class"
-        sName = File.BaseName(Project.GetUniqueSourceName(sName))
-        Project.InsertSource(sName, "class", $sDir, sTemp,,, chkLink.Value)
+      ' Case "test"
+      '   sName = File.BaseName(Project.GetUniqueSourceName(sName))
+      '   Project.InsertSource(sName, "test", $sDir, sTemp,,, chkLink.Value)
+      ' 
+      ' Case "class"
+      '   sName = File.BaseName(Project.GetUniqueSourceName(sName))
+      '   Project.InsertSource(sName, "class", $sDir, sTemp,,, chkLink.Value)
     
       Case "form", "report", "webform", "termform"
         sName = File.BaseName(Project.GetUniqueSourceName(sName))
@@ -180,7 +185,7 @@ Public Sub fchExisting_Activate()
 Catch 
 
   FMain.NoMessage = 0
-  FMain.ShowError(("Cannot import file.") & "\n\n" & Error.Text & "\n" & Error.Where)
+  FMain.ShowErrorWith(("Cannot import file."))
 
 End
 

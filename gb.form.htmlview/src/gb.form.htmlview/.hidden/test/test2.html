@@ -1,0 +1,1095 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <link rel="stylesheet" href="/wiki/style.css">
+  <link rel="stylesheet" href="http://static.omogen.online/guygle.cgi.gambas/state.css">
+  <link rel="icon" href="/wiki/logo.png" type="image/png">
+  <title>Wiki de Guygle - /search</title>
+</head>
+
+<body >
+
+<!--<form method="post" enctype="multipart/form-data">
+
+<div class="header">
+    <div class="up">
+              <a href="/wiki/"><img src="/wiki/up.png"></a>
+          </div>
+    <div class="title">
+      /search    </div>
+        <div class="login">
+              <div class="label-login">Utilisateur</div>
+        <input type="text" name="login" maxlength="16">
+        <div class="label-login">Mot de passe</div>
+        <input type="password" name="password" maxlength="16">
+        <div class="command"><input type="submit" value="OK"></div>
+          </div>
+</div>-->
+
+
+<div class="page">
+
+
+      <h1>Documentation de la recherche avancée</h1>
+<h2>Table des matières</h2>
+<div class="index">
+<ul>
+  <li>
+<p><a href="#t1">Introduction</a></p>
+  </li>
+  <li>
+<p><a href="#t2">Syntaxe générale</a></p>
+  <ul>
+    <li>
+<p><a href="#t3">Types d'objets</a></p>
+    </li>
+    <li>
+<p><a href="#t4">Types de recherches</a></p>
+    </li>
+    <li>
+<p><a href="#t5">Tolérance sur la syntaxe</a></p>
+    </li>
+    <li>
+<p><a href="#t6">Tolérance sur les valeurs</a></p>
+    </li>
+    <li>
+<p><a href="#t7">Utiliser un mot-clef comme valeur</a></p>
+    </li>
+    </ul>
+  </li>
+  <li>
+<p><a href="#t8">Recherche simplifiée</a></p>
+  <ul>
+    <li>
+<p><a href="#t9">Recherche d'un objet dont on connaît l'identifiant</a></p>
+    </li>
+    <li>
+<p><a href="#t10">Recherche d'objet par mots-clefs</a></p>
+    </li>
+    <li>
+<p><a href="#t11">Recherche d'objets parmi une liste d'identifiants avec <code style="white-space:nowrap;">parmi</code></a></p>
+    </li>
+    </ul>
+  </li>
+  <li>
+<p><a href="#t12">Recherche en fonction de la valeur d'un champ</a></p>
+  <ul>
+    <li>
+<p><a href="#t13">Champs</a></p>
+    </li>
+    <li>
+<p><a href="#t14">Critères de comparaisons généraux</a></p>
+    </li>
+    <li>
+<p><a href="#t15">Critères de comparaison textuels</a></p>
+    </li>
+    <li>
+<p><a href="#t16">Critères de comparaison numériques</a></p>
+    </li>
+    <li>
+<p><a href="#t17">Syntaxe des valeurs numériques</a></p>
+    </li>
+    <li>
+<p><a href="#t18">Syntaxe des dates</a></p>
+    </li>
+    </ul>
+  </li>
+  <li>
+<p><a href="#t19">Recherche d'objets liés</a></p>
+  <ul>
+    <li>
+<p><a href="#t20">Le mot-clef <code style="white-space:nowrap;">avec</code></a></p>
+    </li>
+    <li>
+<p><a href="#t21">Le mot-clef <code style="white-space:nowrap;">avec éventuellement</code></a></p>
+    </li>
+    <li>
+<p><a href="#t22">Le mot-clef <code style="white-space:nowrap;">sans</code></a></p>
+    </li>
+    <li>
+<p><a href="#t23">Recherches imbriquées</a></p>
+    </li>
+    </ul>
+  </li>
+  <li>
+<p><a href="#t24">Recherche géographique</a></p>
+  <ul>
+    <li>
+<p><a href="#t25">Recherche au sein d'une zone</a></p>
+    </li>
+    <li>
+<p><a href="#t26">Recherche de proximité</a></p>
+    </li>
+    </ul>
+  </li>
+  <li>
+<p><a href="#t27">Recherches sur les étiquettes</a></p>
+  </li>
+  <li>
+<p><a href="#t28">Recherches spéciales</a></p>
+  <ul>
+    <li>
+<p><a href="#t29">Recherche sans critère</a></p>
+    </li>
+    <li>
+<p><a href="#t30">Recherche générique</a></p>
+    </li>
+    <li>
+<p><a href="#t31">Raccourcis de recherche</a></p>
+    </li>
+    </ul>
+  </li>
+  <li>
+<p><a href="#t32">Présentation du résultat</a></p>
+  <ul>
+    <li>
+<p><a href="#t33">Tri par ordre décroissant</a></p>
+    </li>
+    <li>
+<p><a href="#t34">Tri par rapport à un champ donné</a></p>
+    </li>
+    </ul>
+  </li>
+  </ul></div>
+
+<a name="t1"></a><h2>Introduction</h2>
+<p>Pour effectuer une recherche avancée dans Omogen, il faut cliquer sur le menu <strong>Recherche</strong> puis sur
+l'entrée <strong>Recherche avancée...</strong>.</p>
+<p><img src="/wiki/search/search-menu.png?show" /></p>
+<p>Une boîte de dialogue permettant de saisir la description de la recherche à effectuer s'affiche.</p>
+<p><img src="/wiki/search/search.png?show" /></p>
+<p>Cette description suit une syntaxe précise, proche du français. Cette syntaxe est décrite dans le document présent.</p>
+<p><strong>Attention :</strong> des exemples de recherche sont donnés dès le début de la documentation. Il est parfois nécessaire d'avoir une vue d'ensemble pour pouvoir les comprendre complètement.</p>
+<a name="t2"></a><h2>Syntaxe générale</h2>
+<p>Une recherche est constituée :</p>
+<ul>
+  <li>
+<p>D'un type d'objet.</p>
+  </li>
+  <li>
+<p>D'un ensemble de propositions constituées :</p>
+  <ul>
+    <li>
+<p>D'un mot-clef décrivant le type de recherche à effectuer.</p>
+    </li>
+    <li>
+<p>D'une proposition décrivant les critères de cette recherche.</p>
+    </li>
+    <li>
+<p>Éventuellement d'une sous-requête imbriquée.</p>
+    </li>
+    </ul>
+  </li>
+  </ul>
+<p>Chaque proposition filtre le résultat de la proposition précédente (autrement dit, elles sont reliées par un ET logique).</p>
+<p>Si le type d'objet n'est pas suivi d'un mot-clef décrivant un type de recherche précis, une recherche simplifiée est lancée.</p>
+<a name="t3"></a><h3>Types d'objets</h3>
+<p>Les types d'objets correspondent au contenu de la base de données : ouvrage, intervention, opérateur, etc.</p>
+<div><div class="info">
+<p>Seuls les administrateurs peuvent effectuer des recherches sur les tâches planifiées, les utilisateurs et les groupes.</p>
+</div></div>
+<p>Il est possible d'utiliser <code style="white-space:nowrap;">objet</code> comme type d'objet pour effectuer une recherche sur l'ensemble des objets de la base de données.</p>
+<p>L'héritage entre types d'objets est pris en compte. Par exemple, si les types d'objets regard, tronçon, et branchement héritent tous les trois du type d'objet ouvrage, alors une recherche portants sur des ouvrages retournera les regards, les tronçons et les branchements.</p>
+<a name="t4"></a><h3>Types de recherches</h3>
+<p>Les mot-clefs qui déterminent le type de recherche à effectuer sont les suivants :</p>
+<table class="table">
+<tr><th>
+<p>Mot-clef</p>
+</th><th>
+Description
+</th></tr>
+<tr><td>
+<code style="white-space:nowrap;">parmi</code>
+</td><td>
+Recherche les objets dont les identifiants font partie d'une liste explicite.
+</td></tr>
+<tr><td>
+<code style="white-space:nowrap;">dont</code>
+</td><td>
+Effectue une recherche en fonction de la valeur d'un ou plusieurs champs.
+</td></tr>
+<tr><td>
+<code style="white-space:nowrap;">avec</code>
+</td><td>
+Recherche les objets liés à d'autres objets.
+</td></tr>
+<tr><td>
+<code style="white-space:nowrap;">sans</code>
+</td><td>
+Recherche les objets qui ne sont pas liés à d'autres objets.
+</td></tr>
+<tr><td>
+<code style="white-space:nowrap;">situé dans</code>
+</td><td>
+Recherche les objets situés à l'intérieur d'une ou plusieurs zones géographiques.
+</td></tr>
+<tr><td>
+<code style="white-space:nowrap;">situé à</code>
+</td><td>
+Recherche les objets situés à proximité d'autres objets.
+</td></tr>
+<tr><td>
+<code style="white-space:nowrap;">avec tag</code>
+</td><td>
+Recherche les objets possédant des étiquettes de classification.
+</td></tr>
+<tr><td>
+<code style="white-space:nowrap;">sans tag</code>
+</td><td>
+Recherche les objets ne possédant pas d'étiquettes de classification.
+</td></tr>
+</table>
+<a name="t5"></a><h3>Tolérance sur la syntaxe</h3>
+<p>La syntaxe d'une recherche est insensible :</p>
+<ul>
+  <li>
+<p>À la différence entre majuscules et minuscules.</p>
+  </li>
+  <li>
+<p>Aux accents.</p>
+  </li>
+  <li>
+<p>Au genre.</p>
+  </li>
+  <li>
+<p>Au nombre.</p>
+  </li>
+  <li>
+<p>Aux articles définis ou indéfinis : <code style="white-space:nowrap;">le</code>, <code style="white-space:nowrap;">la</code>, <code style="white-space:nowrap;">les</code>, <code style="white-space:nowrap;">un</code>, <code style="white-space:nowrap;">des</code>, <code style="white-space:nowrap;">au</code>, <code style="white-space:nowrap;">de</code>, <code style="white-space:nowrap;">du</code>, etc.</p>
+  </li>
+  </ul>
+<p>Cela signifie par exemple que les types d'objets peuvent être écrits indifféremment au singulier ou au pluriel.</p>
+<p>Cela signifie aussi que vous pouvez librement accorder les mots-clefs, les articles, etc.</p>
+<div><div class="example">
+<div class="example-title">Exemple</div>
+<p>Les deux recherches suivantes sont équivalentes :</p>
+<div><pre><code>opérateurs dont l&#x27;état est connecté
+</code></pre></div>
+<div><pre><code>operateur dont etat est connecte
+</code></pre></div>
+</div></div>
+<p>Par contre les noms de champs sont sensibles au nombre.</p>
+<div><div class="example">
+<div class="example-title">Exemple</div>
+<p>Les deux recherches suivantes sont différentes :</p>
+<div><pre><code>opérateurs dont les interventions sont renseignées
+</code></pre></div>
+<div><pre><code>opérateurs dont l&#x27;intervention est renseignée
+</code></pre></div>
+</div></div>
+<a name="t6"></a><h3>Tolérance sur les valeurs</h3>
+<p>Les valeurs des champs sont sensibles à la casse et aux accents, sauf lorsqu'on utilise le mot-clef <code style="white-space:nowrap;">est</code> ou <code style="white-space:nowrap;">n&#x27;est pas</code>.
+Dans ce cas, la comparaison est insensible à la casse et aux accents.</p>
+<div><div class="example">
+<div class="example-title">Exemple</div>
+<p>Les recherches suivantes sont identiques :</p>
+<div><pre><code>type d&#x27;ouvrage dont nom est fosse
+type d&#x27;ouvrage dont nom est fossé
+type d&#x27;ouvrage dont nom est Fosse
+type d&#x27;ouvrage dont nom est FOSSÉ
+</code></pre></div>
+<p>Les recherches suivantes sont différentes :</p>
+<div><pre><code>type d&#x27;ouvrage dont nom est égal à fosse
+type d&#x27;ouvrage dont nom est égal à fossé
+type d&#x27;ouvrage dont nom est égal à Fosse
+type d&#x27;ouvrage dont nom est égal à FOSSÉ
+</code></pre></div>
+</div></div>
+<a name="t7"></a><h3>Utiliser un mot-clef comme valeur</h3>
+<p>Pour empêcher Omogen d'interpréter un élément comme mot-clef, ou bien pour rechercher un élément contenant des espaces, il est nécessaire
+d'entourer l'élément avec des guillemets.</p>
+<p>Si l'élément dont contenir lui-même un guillemet, il faut alors le doubler.</p>
+<div><div class="example">
+<div class="example-title">Exemple</div>
+<div><pre><code>client dont le nom est &quot;EST ENSEMBLE&quot;
+</code></pre></div>
+<div><pre><code>opérateur dont le nom est &quot;John &quot;&quot;The Ripper&quot;&quot;&quot;
+</code></pre></div>
+</div></div>
+<div><div class="warning">
+<p>Les guillemets délimitent les valeurs recherchées.</p>
+<p>Autrement dit, si vous n'utilisez pas de guillemets, Omogen considérera que la valeur recherchée est constituée par l'ensemble des mots
+suivant l'opérateur, jusqu'au mot-clef suivant.</p>
+<p>Ainsi :</p>
+<div><pre><code>opérateur dont le nom est &quot;John The Ripper&quot;
+</code></pre></div>
+<p>et</p>
+<div><pre><code>opérateur dont le nom est John The Ripper
+</code></pre></div>
+<p>sont équivalents.</p>
+<p>Par contre :</p>
+<div><pre><code>opérateur dont le nom est &quot;John The&quot; Ripper
+</code></pre></div>
+<p>ne fonctionnera pas. L'élément recherché sera <code style="white-space:nowrap;">John The</code>. <code style="white-space:nowrap;">Ripper</code> sera ignoré et provoquera une erreur de syntaxe.</p>
+</div></div>
+<a name="t8"></a><h2>Recherche simplifiée</h2>
+<a name="t9"></a><h3>Recherche d'un objet dont on connaît l'identifiant</h3>
+<p>On peut accéder à un objet rapidement dès l'instant où l'on connaît son identifiant,
+en utilisant la syntaxe suivante :</p>
+<div><pre><code>&lt;type d&#x27;objet&gt; &lt;identifiant&gt;
+</code></pre></div>
+<div><div class="example">
+<div class="example-title">Exemple</div>
+<div><pre><code>intervention I.000037
+</code></pre></div>
+<p>Retourne l'intervention <code style="white-space:nowrap;">I.000037</code> immédiatement.</p>
+</div></div>
+<p>Il est possible de demander plusieurs objets en séparant leur identifiant par une virgule :</p>
+<div><pre><code>&lt;type d&#x27;objet&gt; &lt;identifiant 1&gt;,&lt;identifiant 2&gt;,...,&lt;identifiant n&gt;
+</code></pre></div>
+<div><div class="example">
+<div class="example-title">Exemple</div>
+<div><pre><code>intervention I.000001,I.000002,I.000037,I.000004
+</code></pre></div>
+<p>Retourne les interventions I.000001, I.000002, I.000037 et I.000004 immédiatement.</p>
+</div></div>
+<div><div class="tip">
+<p>Il est possible d'utiliser le mot-clef <code style="white-space:nowrap;">parmi</code> pour effectuer le même genre de recherche (voir plus loin).</p>
+</div></div>
+<div><div class="info">
+<p>Dans le cas d'une recherche portant sur les utilisateurs, le mot-clef <code style="white-space:nowrap;">MOI</code> correspond à l'identifiant de l'utilisateur courant.</p>
+</div></div>
+<a name="t10"></a><h3>Recherche d'objet par mots-clefs</h3>
+<p>Cette recherche suit la syntaxe suivante:</p>
+<div><pre><code>&lt;type d&#x27;objet&gt; &lt;mot 1&gt; &lt;mot 2&gt; ... &lt;mot n&gt;
+</code></pre></div>
+<p>Elle consiste à rechercher tous les objets du type spécifié dont la description contient un des mots spécifié après le type d'objet.</p>
+<div><div class="info">
+<p>La description d'un objet est ce que vous voyez apparaître dans les tableaux.</p>
+</div></div>
+<div><div class="example">
+<div class="example-title">Exemple</div>
+<p>Si on effectue ainsi la recherche suivante :</p>
+<div><pre><code>intervention robinetterie
+</code></pre></div>
+<p>Les interventions suivantes seront retournées :</p>
+<div><pre><code>I.000006 I.000013 I.000018 I.000018 I.000024 I.000035
+</code></pre></div>
+<p>Il s'agira de chaque intervention contenant le mot <code style="white-space:nowrap;">robinetterie</code> n'importe où dans la ligne de tableau la décrivant.</p>
+</div></div>
+<a name="t11"></a><h3>Recherche d'objets parmi une liste d'identifiants avec <code style="white-space:nowrap;">parmi</code></h3>
+<p>Le mot-clef <code style="white-space:nowrap;">parmi</code> permet de rechercher les objets à partir d'une liste d'identifiants.
+La syntaxe est la suivante :</p>
+<div><pre><code>&lt;type d&#x27;objet&gt; parmi &lt;identifiant 1&gt;,&lt;identifiant 2&gt;,...,&lt;identifiant n&gt;
+</code></pre></div>
+<div><div class="example">
+<div class="example-title">Exemple</div>
+<div><pre><code>interventions parmi I.000001,I.000002,I.000037,I.000004
+</code></pre></div>
+<p>Retourne les interventions I.000001, I.000002, I.000037 et I.000004 immédiatement.</p>
+</div></div>
+<p>Si la liste d'identifiants est le mot-clef <code style="white-space:nowrap;">quelconque</code>, la totalité des objets du type spécifié est retourné.</p>
+<p>Si la liste d'identifiants est le mot-clef <code style="white-space:nowrap;">rien</code>, aucun objet n'est retourné.</p>
+<p><em>Les deux dernières syntaxes sont surtout utiles lorsqu'on construit des recherches au sein des fichiers de descriptions de classe d'Omogen.</em></p>
+<a name="t12"></a><h2>Recherche en fonction de la valeur d'un champ</h2>
+<p>Le mot-clef <code style="white-space:nowrap;">dont</code> introduit une recherche en fonction de la valeur d'un ou plusieurs champs.</p>
+<p>La syntaxe est la suivante :</p>
+<div><pre><code>&lt;type d&#x27;objet&gt; dont &lt;nom de champ&gt; &lt;critère de comparaison&gt; [ et &lt;nom de champ&gt; &lt;critère de comparaison&gt; ... ]
+</code></pre></div>
+<div><div class="example">
+<div class="example-title">Exemple</div>
+<div><pre><code>interventions dont l&#x27;état est en cours
+</code></pre></div>
+<p>Retourne l'ensemble des interventions dont le champ "état" vaut "En cours".</p>
+</div></div>
+<p>Le mot-clef <code style="white-space:nowrap;">et</code> permet de cumuler plusieurs critères :</p>
+<div><pre><code>&lt;type d&#x27;objet&gt; dont &lt;nom de champ&gt; &lt;critère de comparaison&gt; [ et &lt;nom de champ&gt; &lt;critère de comparaison&gt; ... ]
+</code></pre></div>
+<div><div class="example">
+<div class="example-title">Exemple</div>
+<div><pre><code>interventions dont l&#x27;état est en cours et la date planifiée est le 6/9/2011
+</code></pre></div>
+<p>Retourne l'ensemble des interventions dont l'état est "En cours" et dont la date planifiée est le 6 septembre 2011.</p>
+</div></div>
+<a name="t13"></a><h3>Champs</h3>
+<p>Une comparaison peut porter sur n'importe quel champ défini dans la fiche de l'objet. Le nom du champ est celui utilisé à l'affichage.</p>
+<p>La comparaison peut en outre porter sur les champs spéciaux suivants:</p>
+<ul>
+  <li>
+<p><code style="white-space:nowrap;">date de modification</code> : la date à laquelle l'objet a été modifié pour la dernière fois.</p>
+  </li>
+  <li>
+<p><code style="white-space:nowrap;">date de création</code> : la date à laquelle l'objet a été créé.</p>
+  </li>
+  <li>
+<p><code style="white-space:nowrap;">créateur</code> : l'utilisateur ayant créé l'objet.</p>
+  </li>
+  <li>
+<p><code style="white-space:nowrap;">modificateur</code> : l'utilisateur ayant modifié l'objet en dernier.</p>
+  </li>
+  </ul>
+<div><div class="example">
+<div class="example-title">Exemple</div>
+<div><pre><code>ouvrages dont la date de modification est hier
+</code></pre></div>
+<p>Retourne la liste des ouvrages modifiés hier uniquement, et pas aujourd'hui.</p>
+</div></div>
+<a name="t14"></a><h3>Critères de comparaisons généraux</h3>
+<p>Les critères de comparaison généraux peuvent porter sur n'importe quel champ. Ils sont décrits dans le tableau suivant :</p>
+<table class="table">
+<tr><th>
+<p>Critère</p>
+</th><th>
+Syntaxe
+</th><th>
+Signification
+</th><th>
+Exemple
+</th></tr>
+<tr><td>
+<code style="white-space:nowrap;">est</code> <br>
+<code style="white-space:nowrap;">sont</code>
+</td><td>
+<div><pre><code>est &lt;valeur&gt; [ ou &lt;valeur&gt; ... ]
+</code></pre></div>
+</td><td>
+Teste si un champ est égal à la valeur spécifiée, ou bien à l'une des valeurs spécifiée si le mot-clef <code style="white-space:nowrap;">ou</code> est utilisé.
+<p><em>Attention : la comparaison est insensible à la casse et aux accents !</em></p>
+</td><td>
+<div><pre><code>interventions dont l&#x27;état est en cours ou en attente
+</code></pre></div>
+</td></tr>
+<tr><td>
+<code style="white-space:nowrap;">n&#x27;est pas</code> <br>
+<code style="white-space:nowrap;">ne sont pas</code> <br>
+<code style="white-space:nowrap;">n&#x27;est ni</code> <br>
+<code style="white-space:nowrap;">ne sont ni</code>
+</td><td>
+<div><pre><code>n&#x27;est pas &lt;valeur&gt; [ ou &lt;valeur&gt; ... ]
+</code></pre></div>
+</td><td>
+Teste si un champ est différent de la valeur spécifiée, ou bien n'est aucune des valeurs spécifiées si le mot-clef <code style="white-space:nowrap;">ou</code> est utilisé.
+<p><em>Attention : la comparaison est insensible à la casse et aux accents !</em></p>
+</td><td>
+<div><pre><code>interventions dont l&#x27;état n&#x27;est pas clôturée
+</code></pre></div>
+</td></tr>
+<tr><td>
+<code style="white-space:nowrap;">contient</code>
+</td><td>
+<div><pre><code>contient &lt;valeur&gt; [ ou &lt;valeur&gt; ... ]
+</code></pre></div>
+</td><td>
+Teste si un champ contient la valeur spécifiée, ou bien une des valeurs spécifiée si le mot-clef <code style="white-space:nowrap;">ou</code> est utilisé.
+<p><em>Attention : la comparaison est insensible à la casse et aux accents !</em></p>
+</td><td>
+<div><pre><code>ouvrages dont l&#x27;adresse contient &quot;de gaulle&quot;
+</code></pre></div>
+</td></tr>
+<tr><td>
+<code style="white-space:nowrap;">ne contient pas</code>
+</td><td>
+<div><pre><code>ne contient pas &lt;valeur&gt; [ ou &lt;valeur&gt; ... ]
+</code></pre></div>
+</td><td>
+Teste si un champ ne contient pas la valeur spécifiée, ou bien aucune des valeurs spécifiées si le mot-clef <code style="white-space:nowrap;">ou</code> est utilisé.
+<p><em>Attention : la comparaison est insensible à la casse et aux accents !</em></p>
+</td><td>
+<div><pre><code>ouvrages dont l&#x27;adresse ne contient pas &quot;général de gaulle&quot; ou &quot;gal de gaulle&quot;
+</code></pre></div>
+</td></tr>
+<tr><td>
+<code style="white-space:nowrap;">commence par</code>
+</td><td>
+<div><pre><code>commence par &lt;valeur&gt; [ ou &lt;valeur&gt; ... ]
+</code></pre></div>
+</td><td>
+Teste si un champ commence par la valeur spécifiée, ou bien par une des valeurs spécifiées si le mot-clef <code style="white-space:nowrap;">ou</code> est utilisé.
+<p><em>Attention : la comparaison est insensible à la casse et aux accents !</em></p>
+</td><td>
+<div><pre><code>ouvrages dont l&#x27;adresse commence par avenue
+</code></pre></div>
+</td></tr>
+<tr><td>
+<code style="white-space:nowrap;">ne commence pas par</code>
+</td><td>
+<div><pre><code>ne commence pas par &lt;valeur&gt; [ ou &lt;valeur&gt; ... ]
+</code></pre></div>
+</td><td>
+Teste si un champ ne commence pas par la valeur spécifiée, ou bien par aucune des valeurs spécifiées si le mot-clef <code style="white-space:nowrap;">ou</code> est utilisé.
+<p><em>Attention : la comparaison est insensible à la casse et aux accents !</em></p>
+</td><td>
+<div><pre><code>ouvrages dont l&#x27;adresse ne commence par impasse
+</code></pre></div>
+</td></tr>
+<tr><td>
+<code style="white-space:nowrap;">est renseigné</code> <br>
+<code style="white-space:nowrap;">n&#x27;est pas vide</code>
+</td><td>
+<div><pre><code>est renseigné
+</code></pre></div>
+</td><td>
+Teste si un champ est renseigné.
+</td><td>
+<div><pre><code>interventions dont la description est renseignée
+</code></pre></div>
+</td></tr>
+<tr><td>
+<code style="white-space:nowrap;">n&#x27;est pas renseigné</code> <br>
+<code style="white-space:nowrap;">est vide</code>
+</td><td>
+<div><pre><code>n&#x27;est pas renseigné
+est vide
+</code></pre></div>
+</td><td>
+Teste si un champ n'est pas renseigné.
+</td><td>
+<div><pre><code>ouvrages dont l&#x27;adresse n&#x27;est pas renseignée
+</code></pre></div>
+</td></tr>
+<tr><td>
+<code style="white-space:nowrap;">existe</code>
+</td><td>
+<div><pre><code>existe
+</code></pre></div>
+</td><td>
+Teste si un champ pointe sur un objet existant.
+</td><td>
+<div><pre><code>interventions dont le client existe
+</code></pre></div>
+</td></tr>
+<tr><td>
+<code style="white-space:nowrap;">n&#x27;existe pas</code>
+<code style="white-space:nowrap;">est inexistant</code>
+</td><td>
+<div><pre><code>n&#x27;existe pas
+</code></pre></div>
+</td><td>
+Teste si un champ pointe sur un objet inexistant.
+</td><td>
+<div><pre><code>interventions dont le client n&#x27;existe pas
+</code></pre></div>
+</td></tr>
+</table>
+<a name="t15"></a><h3>Critères de comparaison textuels</h3>
+<p>Les critères de comparaison textuels portent sur les champs uniquement textuels. Ils sont décrits dans le tableau suivant :</p>
+<table class="table">
+<tr><td>
+<code style="white-space:nowrap;">ressemble à</code>
+</td><td>
+<div><pre><code>ressemble à &lt;texte&gt;
+</code></pre></div>
+</td><td>
+Teste si un champ est phonétiquement équivalent à la valeur spécifiée.
+</td><td>
+<div><pre><code>ouvrage dont adresse ressemble à &quot;général de gaulle&quot;
+</code></pre></div>
+</td></tr>
+<tr><td>
+<code style="white-space:nowrap;">ne ressemble pas à</code>
+</td><td>
+<div><pre><code>ne ressemble pas à &lt;texte&gt;
+</code></pre></div>
+</td><td>
+Teste si un champ n'est pas phonétiquement équivalent à la valeur spécifiée.
+</td><td>
+<div><pre><code>ouvrage dont adresse ne ressemble pas à &quot;général de gaulle&quot;
+</code></pre></div>
+</td></tr>
+</table>
+<div><div class="warning">
+<p>Le test de ressemblance phonétique ne fonctionne que sur des champs explicitement paramétrés comme tels dans l'application.</p>
+</div></div>
+<a name="t16"></a><h3>Critères de comparaison numériques</h3>
+<p>Les critères de comparaison numériques portent sur les champs contenant des valeurs numériques ou bien des dates.
+Ils sont décrits dans le tableau suivant :</p>
+<table class="table">
+<tr><th>
+<p>Critère</p>
+</th><th>
+Syntaxe
+</th><th>
+Signification
+</th><th>
+Exemple
+</th></tr>
+<tr><td>
+<code style="white-space:nowrap;">est égal(e) à</code> <br>
+<code style="white-space:nowrap;">sont égaux(égales) à</code>
+</td><td>
+<div><pre><code>est égal(e) à &lt;valeur&gt;
+</code></pre></div>
+</td><td>
+Teste si un champ numérique ou une date est égal à la valeur spécifiée.
+</td><td>
+<div><pre><code>interventions dont la date planifiée est le 06/09/2011
+</code></pre></div>
+</td></tr>
+<tr><td>
+<code style="white-space:nowrap;">est différent(e) de</code> <br>
+<code style="white-space:nowrap;">sont différent(e)s de</code>
+</td><td>
+<div><pre><code>est différent de &lt;valeur&gt;
+</code></pre></div>
+</td><td>
+Teste si un champ numérique ou une date est différente de la valeur spécifiée.
+</td><td>
+<div><pre><code>dossiers dont le nombre d&#x27;appels est différent de 2
+</code></pre></div>
+</td></tr>
+<tr><td>
+<code style="white-space:nowrap;">est supérieur(e) à</code> <br>
+<code style="white-space:nowrap;">sont supérieur(e)s à</code>
+</td><td>
+<div><pre><code>est supérieur à &lt;valeur&gt;
+</code></pre></div>
+</td><td>
+Teste si un champ numérique ou une date est supérieur à la valeur spécifiée.
+</td><td>
+<div><pre><code>dossiers dont le nombre d&#x27;appels est supérieur à 1
+</code></pre></div>
+</td></tr>
+<tr><td>
+<code style="white-space:nowrap;">est supérieur(e) ou égal(e) à</code> <br>
+<code style="white-space:nowrap;">sont supérieur(e)s ou égaux(égales) à</code>
+</td><td>
+<div><pre><code>est supérieur à &lt;valeur&gt;
+</code></pre></div>
+</td><td>
+Teste si un champ numérique ou une date est supérieur ou égal à la valeur spécifiée.
+</td><td>
+<div><pre><code>dossiers dont le nombre d&#x27;appels est supérieur ou égal à 2
+</code></pre></div>
+</td></tr>
+<tr><td>
+<code style="white-space:nowrap;">est inférieur(e) à</code> <br>
+<code style="white-space:nowrap;">sont inférieur(e)s à</code>
+</td><td>
+<div><pre><code>est inférieur à &lt;valeur&gt;
+</code></pre></div>
+</td><td>
+Teste si un champ numérique ou une date est inférieur à la valeur spécifiée.
+</td><td>
+<div><pre><code>interventions dont la date planifiée est inférieure au 06/09/2011
+</code></pre></div>
+</td></tr>
+<tr><td>
+<code style="white-space:nowrap;">est inférieur(e) ou égal(e) à</code> <br>
+<code style="white-space:nowrap;">sont inférieur(e)s ou égaux(égales) à</code>
+</td><td>
+<div><pre><code>est inférieur ou égal à &lt;valeur&gt;
+</code></pre></div>
+</td><td>
+Teste si un champ numérique ou une date est inférieur ou égal à la valeur spécifiée.
+</td><td>
+<div><pre><code>interventions dont la date planifiée est inférieure ou égale au 05/09/2011
+</code></pre></div>
+</td></tr>
+<tr><td>
+<code style="white-space:nowrap;">est compris entre</code>
+</td><td>
+<div><pre><code>est compris entre &lt;valeur minimale&gt; et &lt;valeur maximale&gt;
+</code></pre></div>
+</td><td>
+Teste si un champ numérique ou une date est compris entre les valeur spécifiées, bornes incluses.
+</td><td>
+<div><pre><code>interventions dont la date planifiée est comprise entre le 01/01/2010 et le 31/12/2010
+</code></pre></div>
+</td></tr>
+<tr><td>
+<code style="white-space:nowrap;">est quelconque</code>
+</td><td>
+<div><pre><code>est quelconque
+</code></pre></div>
+</td><td>
+Permet de rédiger une condition toujours vraie. Le mot-clef <code style="white-space:nowrap;">quelconque</code> peut être ainsi utilisé comme
+valeur par défaut dans un critère de recherche présenté à l'utilisateur sous forme de liste.
+</td><td>
+<div><pre><code>interventions dont le client est quelconque
+</code></pre></div>
+</td></tr>
+</table>
+<div><div class="info">
+<p>Vous pouvez utiliser les critères <code style="white-space:nowrap;">est égal à</code> et <code style="white-space:nowrap;">est différent de</code> avec des champs de type chaîne de caractères.
+Dans ce cas la comparaison est sensible à la casse et aux accents.</p>
+</div></div>
+<a name="t17"></a><h3>Syntaxe des valeurs numériques</h3>
+<p>Les nombres peuvent être saisis :</p>
+<ul>
+  <li>
+<p>Sous forme numérique, avec une virgule ou un point comme séparateur décimal.</p>
+  </li>
+  <li>
+<p>En français, s'ils sont compris entre zéro et vingt.</p>
+  </li>
+  </ul>
+<div><div class="example">
+<div class="example-title">Exemple</div>
+<div><pre><code>dossiers dont le nombre d&#x27;appels est supérieur à cinq
+regards dont la profondeur est supérieure ou égale à 3,5
+</code></pre></div>
+</div></div>
+<a name="t18"></a><h3>Syntaxe des dates</h3>
+<p>Les dates doivent être saisies au format français : <code style="white-space:nowrap;">&lt;jour&gt;/&lt;mois&gt;/&lt;année&gt;</code>.</p>
+<p>Par exemple: <code style="white-space:nowrap;">01/01/2010</code>, <code style="white-space:nowrap;">06/09/2011</code>...</p>
+<p>Il est possible d'utiliser les mots-clefs suivants qui représentent des périodes.</p>
+<p>Dans ce cas, la recherche ne portera pas sur une date exacte, mais sur la plage temporelle associée au mot-clef, comme pour une recherche « <code style="white-space:nowrap;">est compris entre</code> ... <code style="white-space:nowrap;">et</code> ... ».</p>
+<table class="table">
+<tr><th>
+<p>Mot-clef</p>
+</th><th>
+Période correspondante
+</th></tr>
+<tr><td>
+<code style="white-space:nowrap;">le mois de XXXX</code>
+</td><td>
+Du premier jour du mois spécifié à son dernier jour.
+</td></tr>
+<tr><td>
+<code style="white-space:nowrap;">l'année XXXX</code>
+</td><td>
+Du 1er janvier de l'année spécifiée au 31 décembre de cette même année.
+</td></tr>
+</table>
+<p>Les mots-clefs suivants représentent des dates relatives :</p>
+<table class="table">
+<tr><th>
+<p>Mot-clef</p>
+</th><th>
+Période correspondante
+</th></tr>
+<tr><td>
+<code style="white-space:nowrap;">aujourd&#x27;hui</code>
+</td><td>
+De 00h00 à l'heure courante.
+</td></tr>
+<tr><td>
+<code style="white-space:nowrap;">maintenant</code>
+</td><td>
+De l'heure courante jusqu'au lendemain même heure.
+</td></tr>
+<tr><td>
+<code style="white-space:nowrap;">hier</code>
+</td><td>
+Hier, de 00h00 à minuit.
+</td></tr>
+<tr><td>
+<code style="white-space:nowrap;">avant-hier</code>
+</td><td>
+Avant-hier, de 00h00 à minuit.
+</td></tr>
+<tr><td>
+<code style="white-space:nowrap;">demain</code>
+</td><td>
+Demain, de 00h00 à minuit.
+</td></tr>
+</table>
+<div><div class="example">
+<div class="example-title">Exemple</div>
+<div><pre><code>interventions dont la date planifiée est demain
+</code></pre></div>
+</div></div>
+<p>Les mots-clefs suivant représentent des intervalles de dates relatifs:</p>
+<table class="table">
+<tr><th>
+<p>Mot-clef</p>
+</th><th>
+Période correspondante
+</th></tr>
+<tr><td>
+<code style="white-space:nowrap;">cette semaine</code>
+</td><td>
+Du lundi de la semaine en cours 00h00 jusqu'au dimanche soir minuit.
+</td></tr>
+<tr><td>
+<code style="white-space:nowrap;">la semaine dernière</code> <br>
+<code style="white-space:nowrap;">la semaine précédente</code>
+</td><td>
+Du lundi de la semaine dernière 00h00 jusqu'au dimanche soir minuit.
+</td></tr>
+<tr><td>
+<code style="white-space:nowrap;">la semaine prochaine</code> <br>
+<code style="white-space:nowrap;">la semaine suivante</code>
+</td><td>
+Du lundi de la semaine prochaine 00h00 jusqu'au dimanche soir minuit.
+</td></tr>
+<tr><td>
+<code style="white-space:nowrap;">ce mois</code> <br>
+<code style="white-space:nowrap;">ce mois-ci</code>
+</td><td>
+Du premier jour du mois en cours 00h00 jusqu'au dernier jour du mois minuit.
+</td></tr>
+<tr><td>
+<code style="white-space:nowrap;">le mois dernier</code> <br>
+<code style="white-space:nowrap;">le moins précédent</code>
+</td><td>
+Du premier jour du mois dernier 00h00 jusqu'au dernier jour minuit.
+</td></tr>
+<tr><td>
+<code style="white-space:nowrap;">le mois prochain</code> <br>
+<code style="white-space:nowrap;">le mois suivant</code>
+</td><td>
+Du premier jour du mois prochain 00h00 jusqu'au dernier jour minuit.
+</td></tr>
+<tr><td>
+<code style="white-space:nowrap;">ce trimestre</code>
+</td><td>
+Du premier jour du trimestre en cours 00h00 jusqu'au dernier jour du trimestre minuit.
+</td></tr>
+<tr><td>
+<code style="white-space:nowrap;">le trimestre dernier</code> <br>
+<code style="white-space:nowrap;">le trimestre précédent</code>
+</td><td>
+Du premier jour du trimestre dernier 00h00 jusqu'au dernier jour de ce trimestre minuit.
+</td></tr>
+<tr><td>
+<code style="white-space:nowrap;">le trimestre prochain</code> <br>
+<code style="white-space:nowrap;">le trimestre suivant</code>
+</td><td>
+Du premier jour du trimestre suivant 00h00 jusqu'au dernier jour de ce trimestre minuit.
+</td></tr>
+<tr><td>
+<code style="white-space:nowrap;">cette année</code>
+</td><td>
+Du 1er janvier de cette année 00h00 jusqu'au 31 décembre minuit.
+</td></tr>
+<tr><td>
+<code style="white-space:nowrap;">l&#x27;année dernière</code> <br>
+<code style="white-space:nowrap;">l&#x27;année précédente</code>
+</td><td>
+Du 1er janvier de l'année dernière 00h00 jusqu'au 31 décembre minuit.
+</td></tr>
+<tr><td>
+<code style="white-space:nowrap;">l&#x27;année prochaine</code> <br>
+<code style="white-space:nowrap;">l&#x27;année suivante</code>
+</td><td>
+Du 1er janvier de l'année prochaine 00h00 jusqu'au 31 décembre minuit.
+</td></tr>
+</table>
+<div><div class="example">
+<div class="example-title">Exemple</div>
+<div><pre><code>évènements dont la date est ce mois
+</code></pre></div>
+</div></div>
+<p>Il est possible aussi d'utiliser les syntaxes suivantes :</p>
+<table class="table">
+<tr><th>
+<p>Mot-clef</p>
+</th><th>
+Période correspondante
+</th></tr>
+<tr><td>
+<code style="white-space:nowrap;">il y a &lt;valeur&gt; &lt;période&gt;</code>
+</td><td>
+Période spécifiée dans le passé par rapport à maintenant.
+</td></tr>
+<tr><td>
+<code style="white-space:nowrap;">dans &lt;valeur&gt; &lt;période&gt;</code>
+</td><td>
+Période spécifiée dans le futur par rapport à maintenant.
+</td></tr>
+</table>
+<p>Les différentes périodes possibles sont : <code style="white-space:nowrap;">minute(s)</code>, <code style="white-space:nowrap;">heure(s)</code>, <code style="white-space:nowrap;">jour(s)</code>, <code style="white-space:nowrap;">semaine(s)</code>, <code style="white-space:nowrap;">mois(s)</code>, <code style="white-space:nowrap;">an(s)</code> ou <code style="white-space:nowrap;">années(s)</code>.</p>
+<div><div class="warning">
+  <p>Pour les périodes <code style="white-space:nowrap;">minute</code> et <code style="white-space:nowrap;">heure</code>, le période commencera (ou terminera) à la date et heure courante. Pour les autres périodes, elle commencera (ou terminera) aujourd'hui à 00h00.</p>
+</div></div>
+<div><div class="example">
+<div class="example-title">Exemple</div>
+<div><pre><code>évènements dont la date est il y a 6 mois
+évènements dont la date est dans une semaine
+</code></pre></div>
+</div></div>
+<a name="t19"></a><h2>Recherche d'objets liés</h2>
+<a name="t20"></a><h3>Le mot-clef <code style="white-space:nowrap;">avec</code></h3>
+<p>Le mot-clef <code style="white-space:nowrap;">avec</code> introduit une recherche d'objets liés avec d'autres objets.</p>
+<p>Elle permet de rechercher un ensemble d'objets à l'aide une requête normale, puis retourne les objets qui lui sont reliés par l'intermédiaire d'un champ donné.</p>
+<p>Par exemple, les interventions associées aux opérateurs dont le métier est la plomberie.</p>
+<p>La syntaxe est la suivante :</p>
+<div><pre><code>&lt;type d&#x27;objet&gt; avec &lt;nom du champ contenant le lien&gt; &lt;sous-requête&gt;
+</code></pre></div>
+<div><div class="warning">
+<p><strong>ATTENTION !</strong> ce qui suit le mot-clef <code style="white-space:nowrap;">avec</code> n'est pas un type d'objet, mais le nom du champ contenant les liens.
+Il est donc sensible au genre et au nombre (mais pas aux accents ni à la casse). Heureusement, dans la plupart des cas,
+le nom de champ est le nom du type d'objet lié au pluriel.</p>
+</div></div>
+<p>La sous-requête peut être de n'importe quel type : requête portant sur un champ introduite par le mot-clef <code style="white-space:nowrap;">dont</code>,
+une autre requête d'objets liés introduite par le mot-clef <code style="white-space:nowrap;">avec</code>, etc.</p>
+<div><div class="example">
+<div class="example-title">Exemple</div>
+<div><pre><code>interventions avec opérateur dont le prénom est Jean-Claude et le nom est Dusse
+</code></pre></div>
+<p>Cette requête recherche toutes les interventions affectées à l'opérateur Jean-Claude Dusse. Notez que <code style="white-space:nowrap;">opérateur</code> est obligatoirement au singulier, car il s'agit d'un nom de champ.</p>
+<div><pre><code>ordre travail avec interventions dont l&#x27;état est annulée
+</code></pre></div>
+<p>Cette recherche retourne toutes les interventions ayant au moins une intervention annulée.</p>
+<div><pre><code>campagnes avec objets RU.123
+</code></pre></div>
+<p>Cette recherche retourne les campagnes qui ont eu lieu sur l'ouvrage d'identifiant <code style="white-space:nowrap;">RU.123</code>.</p>
+<div><pre><code>intervention avec ordre de travail
+</code></pre></div>
+<p>Cette recherche retourne les interventions qui ne sont pas orphelines (c'est-à-dire rattachées à un ordre de travail).</p>
+</div></div>
+<a name="t21"></a><h3>Le mot-clef <code style="white-space:nowrap;">avec éventuellement</code></h3>
+<p>Il s'agit d'une recherche ayant la même syntaxe et retournant le même résultat qu'une recherche « <code style="white-space:nowrap;">avec</code> », à ceci prêt que la recherche retourne en plus les objets n'ayant aucune association.</p>
+<div><div class="example">
+<div class="example-title">Exemple</div>
+<div><pre><code>opérateur dont agence est AG.ASAP avec éventuellement activités ACT.INF
+</code></pre></div>
+<p>Cette recherche retourne les opérateur de l'agence <code style="white-space:nowrap;">AG.ASAP</code> associés à l'activité <code style="white-space:nowrap;">ACT.INF</code>, ainsi que les opérateurss de l'agence <code style="white-space:nowrap;">AG.ASAP</code> qui ne sont associés à aucune activité.</p>
+</div></div>
+<a name="t22"></a><h3>Le mot-clef <code style="white-space:nowrap;">sans</code></h3>
+<p>Le mot-clef <code style="white-space:nowrap;">sans</code> permet de rechercher les objets n'ayant aucune association avec d'autres objets.</p>
+<p>Cette recherche utilise exactement la même syntaxe que celle introduite par le mot-clef <code style="white-space:nowrap;">avec</code>.</p>
+<div><div class="example">
+<div class="example-title">Exemple</div>
+<div><pre><code>interventions sans ordre de travail
+</code></pre></div>
+<p>Cette recherche retourne les intervention orphelines (sans ordre de travail).</p>
+<div><pre><code>ordre de travail sans interventions
+</code></pre></div>
+<p>Cette recherche retourne les ordres de travail n'ayant encore aucune intervention.</p>
+<div><pre><code>ordre de travail sans interventions dont état est non réalisable.
+</code></pre></div>
+<p>Cette recherche retourne les ordres de travail n'ayant aucune intervention non réalisable.</p>
+</div></div>
+<a name="t23"></a><h3>Recherches imbriquées</h3>
+<p>Les mots-clefs <code style="white-space:nowrap;">avec</code> et <code style="white-space:nowrap;">sans</code> introduise une <em>recherche imbriquée</em>.</p>
+<p>Une question se pose alors si cette recherche imbriquée est suivie d'une autre partie de la recherche introduite par un nouveau mot-clef : cette partie de la recherche porte-t-elle sur la recherche imbriquée ou bien sur la recherche globale ?</p>
+<p>Par défaut, <em>tout ce qui suit une recherche imbriquée porte sur cette recherche imbriquée</em> et pas sur la recherche globale.</p>
+<div><div class="example">
+<div class="example-title">Exemple</div>
+<div><pre><code>client avec agences avec activités dont gestion des ressources est &quot;Oui&quot;
+</code></pre></div>
+<p>retourne les clients associés aux agences associées aux activités dont la gestion des ressources est activée.</p>
+</div></div>
+<p>Si l'on veut que ce qui suive la recherche imbriquée porte sur la recherche précédente, il faut entourer la recherche imbriquée avec des crochets, de la manière suivante :</p>
+<div><div class="example">
+<div class="example-title">Exemple</div>
+<div><pre><code>client avec agences avec activités [ dont gestion des ressources est &quot;Oui&quot; ] dont service d&#x27;astreinte est &quot;Oui&quot;
+</code></pre></div>
+<p>retourne les clients qui sont associés aux agences avec un service d'astreinte, qui sont associées aux activités dont la gestion des ressources est activée.</p>
+<p>Si on n'avait pas mis les crochets, la partie <code style="white-space:nowrap;">dont service d&#x27;astreinte est &quot;Oui&quot;</code> aurait porté sur les activités des agences.</p>
+</div></div>
+<p>On peut imbriquer les crochets :</p>
+<div><div class="example">
+<div class="example-title">Exemple</div>
+<div><pre><code>client avec agences [ avec activités [ dont gestion des ressources est &quot;Oui&quot; ] dont service d&#x27;astreinte est &quot;Oui&quot; ] dont la société mère est &quot;VEOLIA&quot;
+</code></pre></div>
+<p>retourne les clients dont la société mère est Veolia, et qui sont associés aux agences avec un service d'astreinte associées aux activités dont la gestion des ressources est activée.</p>
+<p>Si on n'avait pas mis les crochets, la partie <code style="white-space:nowrap;">dont la société mère est &quot;VEOLIA&quot;</code> aurait porté soit sur les activités des agences, soit sur les agences (en fonction de quels crochets on supprime).</p>
+</div></div>
+<a name="t24"></a><h2>Recherche géographique</h2>
+<p>Les recherches géographiques permettent de retrouver les objets :</p>
+<ul>
+  <li>
+<p>situés dans une zone donnée.</p>
+  </li>
+  <li>
+<p>situés à proximité d'un ou plusieurs d'objets données.</p>
+  </li>
+  </ul>
+<a name="t25"></a><h3>Recherche au sein d'une zone</h3>
+<p>Le mot-clef <code style="white-space:nowrap;">situé dans</code> introduit la recherche au sein d'une zone.</p>
+<p>La syntaxe est la suivante :</p>
+<div><pre><code>&lt;type d&#x27;objet&gt; situé dans &lt;sous-requête&gt;
+</code></pre></div>
+<p>La sous-requête peut être n'importe quelle type de recherche. Elle doit retourner un ou plusieurs objets de type "secteur".</p>
+<p>La requête principale retournera alors l'ensemble des objets situés dans l'ensemble des objets de type "secteur" retourné par la sous-requête.</p>
+<a name="t26"></a><h3>Recherche de proximité</h3>
+<p>Le mot-clef <code style="white-space:nowrap;">situé à</code> introduit une recherche de proximité.</p>
+<p>La syntaxe est la suivante :</p>
+<div><pre><code>&lt;type d&#x27;objet&gt; situé à &lt;distance&gt; de &lt;sous-requête&gt;
+</code></pre></div>
+<p>La sous-requête peut être n'importe quelle type de recherche.</p>
+<p>La requête principale retournera l'ensemble des objets situés autour des objets retournés par la sous-requête, à une distance inférieure ou égale à la distance spécifiée.</p>
+<p>La distance est constitué d'une valeur numérique suivie d'une unité : <code style="white-space:nowrap;">m</code> ou <code style="white-space:nowrap;">km</code>.</p>
+<a name="t27"></a><h2>Recherches sur les étiquettes</h2>
+<p>Les mots-clefs <code style="white-space:nowrap;">avec tag</code> et <code style="white-space:nowrap;">sans tag</code> permettent d'effectuer des recherches d'objet associés à des étiquettes de classification.</p>
+<p>La syntaxe est la suivante :</p>
+<div><pre><code>&lt;type d&#x27;objet&gt; avec tag &lt;étiquette n°1&gt; [ ou &lt;étiquette n°2&gt; ... ]
+&lt;type d&#x27;objet&gt; sans tag &lt;étiquette n°1&gt; [ ou &lt;étiquette n°2&gt; ... ]
+</code></pre></div>
+<p><code style="white-space:nowrap;">avec tag</code> recherche les objets qui possèdent les étiquettes spécifiées. <code style="white-space:nowrap;">sans tag</code> les objets ne possédant pas les étiquettes spécifiées.</p>
+<p>Les étiquettes sont indiquées en utilisant le format interne d'Omogen :</p>
+<div><pre><code>&lt;Parent&gt; | &lt;Groupe&gt; : &lt;Nom de l&#x27;étiquette&gt;
+</code></pre></div>
+<div><div class="example">
+<div class="example-title">Exemple</div>
+<div><pre><code>intervention avec tag &quot;Couleur:Bleu&quot; ou &quot;Couleur:Rouge&quot;
+intervention avec tag &quot;Accident animal|Type d&#x27;animal:Grand gibier&quot;
+</code></pre></div>
+</div></div>
+<a name="t28"></a><h2>Recherches spéciales</h2>
+<a name="t29"></a><h3>Recherche sans critère</h3>
+<p>Le mot-clef <code style="white-space:nowrap;">quelconque</code> peut être utilisé pour faire une recherche de tous les objets d'une classe.</p>
+<div><div class="example">
+<div class="example-title">Exemple</div>
+<div><pre><code>ordre de travail quelconque
+</code></pre></div>
+<p>Retournera tous les ordres de travail de la base.</p>
+<p>C'est équivalent à utiliser</p>
+<div><pre><code>ordre de travail
+</code></pre></div>
+<p>seul comme recherche.</p>
+</div></div>
+<a name="t30"></a><h3>Recherche générique</h3>
+<p>La recherche générique permet d'effectuer une recherche textuelle sur l'ensemble de la base de données.</p>
+<p>Elle est déclenchée dès lors que le texte complet de la recherche est écrit entre guillements :</p>
+<div><pre><code>&quot;&lt;recherche textuelle&gt;&quot;
+</code></pre></div>
+<p>Le texte contenu entre guillemets est alors recherché dans la base de données.
+Les objets dont la fiche contient au moins une occurence de ce texte sont retournés.</p>
+<p>Il est possible d'utiliser le caractère spécial <code style="white-space:nowrap;">*</code> dans le texte recherché. Il signifie alors "n'importe quel texte".</p>
+<p>La recherche est insensible à la casse.</p>
+<div><div class="warning">
+<p><strong>Attention :</strong> ce type de recherche peut-être très lent, car il est toujours proportionnel à la taille de la base de données.</p>
+<p>Donc évitez autant que possible ce type de recherche !</p>
+</div></div>
+<a name="t31"></a><h3>Raccourcis de recherche</h3>
+<p>Certains mots-clefs servent de raccourci à certaines recherches.</p>
+<table class="table">
+<tr><th>
+<p>Mot-clef</p>
+</th><th>
+Exemple
+</th><th>
+Signification
+</th><th>
+Correspond à la recherche
+</th></tr>
+<tr><td>
+<code style="white-space:nowrap;">actif</code> / <code style="white-space:nowrap;">active</code>
+</td><td>
+<code style="white-space:nowrap;">&lt;type d&#x27;objet&gt; actif</code>
+</td><td>
+Recherche d'objets actifs
+</td><td>
+<code style="white-space:nowrap;">&lt;type d&#x27;objet&gt; dont activé n&#x27;est pas Non</code>
+</td></tr>
+<tr><td>
+<code style="white-space:nowrap;">inactif</code> / <code style="white-space:nowrap;">inactive</code>
+</td><td>
+<code style="white-space:nowrap;">&lt;type d&#x27;objet&gt; inactif</code>
+</td><td>
+Recherche d'objets désactivés
+</td><td>
+<code style="white-space:nowrap;">&lt;type d&#x27;objet&gt; dont activé est Non</code>
+</td></tr>
+</table>
+<a name="t32"></a><h2>Présentation du résultat</h2>
+<p>Le résultat d'une recherche est, par défaut, trié dans l'ordre croissant des identifiants internes.</p>
+<div><div class="info">
+<p>Le tri est dit "naturel". C'est-à-dire qu'il est insensible à la casse, et qu'en outre les éventuels nombres
+présents à l'intérieur de l'identifiant sont triés par ordre numérique et non alphabétique.</p>
+</div></div>
+<div><div class="example">
+<div class="example-title">Exemple</div>
+<p><code style="white-space:nowrap;">INT.8, INT.9, INT.10, INT.11</code></p>
+<p>et non <code style="white-space:nowrap;">INT.10, INT.11, INT.8, INT.9</code> qui serait un tri alphabétique classique.</p>
+</div></div>
+<a name="t33"></a><h3>Tri par ordre décroissant</h3>
+<p>Par défaut, le tri est toujours par ordre croissant.</p>
+<p>Il est possible d'inverser l'ordre du résultat et d'obtenir un tri par ordre décroissant en ajoutant <code style="white-space:nowrap;">(en ordre inverse)</code> ou <code style="white-space:nowrap;">(par ordre inverse)</code> à la fin de la recherche.</p>
+<a name="t34"></a><h3>Tri par rapport à un champ donné</h3>
+<p>Il est possible de trier le résultat de la recherche en fonction de la valeur d'un champ donné.</p>
+<p>Pour cela, il faut rajouter à la fin de la recherche <code style="white-space:nowrap;">(par &lt;champ&gt;)</code> ou <code style="white-space:nowrap;">&lt;champ&gt;</code> est le nom du champ de tri.</p>
+<p>Il est possible en outre de spécifier si le tri est croissant ou décroissant en ajoutant le terme <code style="white-space:nowrap;">croissant</code> ou <code style="white-space:nowrap;">décroissant</code> après le nom du champ et avant la parenthèse fermante.</p>
+<p>Par défaut, le tri est par ordre croissant.</p>  </div>
+
+</form>
+</body>
+</html>
+

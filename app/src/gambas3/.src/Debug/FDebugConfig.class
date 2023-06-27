@@ -1,0 +1,242 @@
+' Gambas class file
+
+Static Private $hEnvChooser As EnvChooser
+
+Static Public Sub Run() As Boolean
+  
+  Return Not FDebugConfig.ShowModal()
+  
+End
+
+Public Sub btnCancel_Click()
+
+  Me.Close
+
+End
+
+Public Sub _new()
+  
+  cmbTerminal.List = Design.TerminalNames
+  cmbBrowser.List = Design.BrowserNames
+  
+End
+
+
+Public Sub Form_Open()
+
+  Settings.Read(Me)
+  Project.SetEditorFont(lstArg)
+  panEnvDbDebug.Visible = Project.Components.Exist("gb.db")
+  GetEnvironmentMenu(choEnv)
+  LoadSettings
+
+End
+
+Private Sub UpdateOptions()
+
+  Dim hCtrl As Control
+  Dim aEnv As String[]
+  Dim hCont As Container
+  Dim hButton As SwitchButton
+
+  aEnv = choEnv.Environment
+
+  For Each hCtrl In ipnDebug[0].Children
+    If hCtrl Not Is HBox Then Continue
+    hCont = hCtrl
+    Try hButton = hCont.Children[1]
+    If Error Then Continue
+    If hButton.Tag Then hButton.Value = aEnv.Exist(hButton.Tag)
+  Next
+
+End
+
+Private Sub LoadSettings()
+
+  Dim aArg As String[]
+  Dim aArguments As String[][]
+  
+  ' Options
+  
+  btnUseTerminal.Value = Project.Config["/Debug/UseTerminal"]
+  cmbTerminal.Index = Design.Terminals.Find(Settings["/Debug/Terminal"])
+  
+  btnRedirectStderr.Value = Project.Config["/Debug/RedirectStderr"]
+  btnUseHttpServer.Value = Project.Config["/Debug/UseHttpServer"]
+  btnUseHttpServer.Enabled = Not Project.Components.Exist("gb.web.gui")
+  cmbBrowser.Index = Design.Browsers.Find(Project.Config["/Debug/Browser"])
+  
+  btnResetOtherProjects.Visible = Not IsNull(Project.Config["/Debug/Projects"])
+
+  ' Environment
+
+  choEnv.Environment = Project.GetEnvironment()
+  
+  ' Remote debugging
+
+  btnRemoteDebugging.Value = Project.Config["/Debug/Remote"]
+  txtRemoteServer.Text = Project.Config["/Debug/RemoteServer"]
+  txtRemoteUser.Text = Project.Config["/Debug/RemoteUser"]
+  txtRemoteDirectory.Text = Project.Config["/Debug/RemoteDirectory"]
+  
+  choEnvRemote.Environment = Project.Config["/Debug/RemoteEnvironment"]
+
+  ' Arguments
+
+  aArguments = Project.Config["/Debug/Arguments"]
+  lstArg.Clear
+  If aArguments
+    For Each aArg In aArguments
+      lstArg.Add(Project.ArgumentsToString(aArg))
+    Next
+  Endif
+  
+End
+
+Public Sub btnOK_Click()
+
+  If SaveSettings() Then Return
+  Me.Close(True)
+
+End
+
+Private Sub SaveSettings() As Boolean
+
+  Dim aArgs As New String[][]
+  Dim aList As String[]
+  Dim I As Integer
+
+  If btnRemoteDebugging.Value Then
+    
+    If Not Trim(txtRemoteServer.Text) Or If Not Trim(txtRemoteUser.Text) Or If Not Trim(txtRemoteDirectory.Text) Then
+      ipnDebug.Index = ipnDebug.FindPanel(("Remote debugging"))
+      Message.Warning(("Remote server, user and folder are required."))
+      Return True
+    Endif
+    
+  Endif
+
+  ' Options
+  
+  Project.Config["/Debug/UseTerminal"] = btnUseTerminal.Value
+  Settings["/Debug/Terminal"] = Design.Terminals[cmbTerminal.Index]
+
+  Project.Config["/Debug/RedirectStderr"] = btnRedirectStderr.Value
+  Project.Config["/Debug/UseHttpServer"] = btnUseHttpServer.Value
+  Project.Config["/Debug/Browser"] = Design.Browsers[cmbBrowser.Index]
+
+  ' Remote debugging
+
+  Project.Config["/Debug/Remote"] = btnRemoteDebugging.Value
+  Project.Config["/Debug/RemoteServer"] = txtRemoteServer.Text
+  Project.Config["/Debug/RemoteUser"] = txtRemoteUser.Text
+  Project.Config["/Debug/RemoteDirectory"] = txtRemoteDirectory.Text
+  
+  If btnRemoteDebugging.Value Then Try Desktop.Passwords[Project.Name &/ "RemoteDebug"] = txtRemotePassword.Text
+  
+  Project.Config["/Debug/RemoteEnvironment"] = choEnvRemote.Environment
+  
+  ' Arguments
+  
+  aList = lstArg.List
+  
+  For I = 0 To aList.Max
+    aArgs.Add(Project.ArgumentsFromString(aList[I]))
+  Next
+  
+  Project.Config["/Debug/Arguments"] = aArgs
+  
+  ' Environment
+  
+  Project.Config["/Debug/Environment"] = choEnv.Environment
+  
+  Project.Config.Save()
+
+End
+
+Public Sub btnRemoteDebugging_Click()
+
+  panRemoteDebugging.Enabled = btnRemoteDebugging.Value
+  If panRemoteDebugging.Enabled And If Not txtRemotePassword.Text Then
+    Try txtRemotePassword.Text = Desktop.Passwords[Project.Name &/ "RemoteDebug"]
+  Endif
+  
+End
+
+Public Sub txtRemotePassword_Click()
+
+  txtRemotePassword.Password = Not txtRemotePassword
+
+End
+
+Public Sub ipnDebug_Click()
+
+  btnOK.Default = ipnDebug.Text <> ("Arguments")
+  
+  If ipnDebug.Text = ("Arguments") Then lstArg.SetFocus
+
+End
+
+
+Public Sub lstArg_KeyPress()
+
+  If Key.Code = Key.Enter Or If Key.Code = Key.Return Then
+    If Not lstArg.Text Then btnOK.Value = True
+  Endif
+
+End
+
+Public Sub mnuInsertEnv_Click()
+  
+  Dim sNewEnv As String = Last.Tag
+  If Not sNewEnv Then Return
+  $hEnvChooser.Insert(Split(sNewEnv))
+  
+End
+
+Public Sub btnSetEnv_Click()
+
+  Project.SetEnv(Last.Tag, Last.Value)
+  choEnv.Environment = Project.Config["/Debug/Environment"]
+
+End
+
+Public Sub choEnv_Change()
+
+  UpdateOptions
+
+End
+
+Public Sub Form_Close()
+
+  Settings.Write(Me)
+
+End
+
+Public Sub btnUseTerminal_Click()
+
+  panTerminal.Visible = btnUseTerminal.Value
+
+End
+
+Public Sub btnUseHttpServer_Click()
+
+  panBrowser.Visible = btnUseHttpServer.Value
+
+End
+
+
+Public Sub btnResetOtherProjects_Click()
+
+  If Message.Warning(("Do you really want to reset all projects locations?"), ("Reset"), ("Cancel")) <> 1 Then Return
+  Project.Config["/Debug/Projects"] = Null
+  btnResetOtherProjects.Hide
+
+End
+
+Public Sub GetEnvironmentMenu(hEnvChooser As EnvChooser) As Menu
+  
+  $hEnvChooser = hEnvChooser
+  Return mnuInsertEnv
+  
+End

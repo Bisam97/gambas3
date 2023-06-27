@@ -1,0 +1,216 @@
+' Gambas class file
+
+Export
+Inherits WebControl
+
+Public Const _IsControl As Boolean = True
+Public Const _IsVirtual As Boolean = True
+Public Const _Properties As String = "*,-Class,-Width,-Height,-Visible,-Expand,-Ignore,-Enabled,Audio{WebAudio},Tracking,Loop,AutoPlay,Sources"
+Public Const _Group As String = "Special"
+Public Const _DefaultEvent As String = "Ready"
+
+'' Triggers when a file is ready to play.
+Event Ready
+
+'' Triggers when the audio has finished playing.
+Event End
+
+'' Triggers when the audio pauses.
+Event Pause
+
+'' Triggers as audio position changes during play.
+Event Position
+
+'' The URL / path of the audio to play.
+Property Audio As String
+'' The audio will repeat.
+Property Loop As Boolean
+'' Autoplay the audio on loading.
+Property AutoPlay As Boolean
+
+'' A list of alternative sources to try.
+'' 
+'' The mimetype of a source is deducted from the file extension.
+''
+'' ### Example
+'' [[ code gambas
+'' WebAudio1.Sources = ["/mp3/track.mp3"]
+'' WebAudio1.Sources = ["/ogg/track.ogg"]
+'' ]]
+Property Sources As String[]
+
+'' Get or set if the audio is paused
+Property Paused As Boolean Use $bPaused
+
+'' Length of the loaded track.
+Property Read Duration, Length As Float Use $fDuration
+
+'' Get or set track position.
+Property Position, Pos As Float Use $fPosition
+
+'' Return or set if the Position property is updated in real time.
+Property Tracking As Boolean Use $bTracking
+
+Private $sAudio As String
+Private $bLoop As Boolean
+Private $bAutoPlay As Boolean
+Private $aSources As String[]
+
+Public Sub _BeforeRender()
+
+End
+
+Public Sub _Render()
+
+  Print "<audio"; Me._GetClassId(); " src=\""; Html(Me._GetLink($sAudio)); "\""; 
+  Print Me._GetUpdateJS("oncanplay", "duration", "$_(" & JS(Me.Name) & ").duration");
+  Print Me._GetUpdateJS("onpause", "pause");
+  If Object.CanRaise(Me, "End") Then Print Me._GetUpdateJS("onended", "ended");
+  If $bTracking Then Print Me._GetUpdateJS("ontimeupdate", "position", "$_(" & JS(Me.Name) & ").currentTime");
+  If $bLoop Then Print " loop=\"1\"";
+  If $bAutoPlay Then Print " autoplay";
+  Print ">"
+  If $aSources Then PrintSources
+  Print ("Html audio not supported")
+
+  Print "</audio>";
+
+End
+
+Public Sub _UpdateProperty(sProp As String, vValue As Variant)
+
+  If sProp = "duration" Then
+    $fDuration = vValue
+    $fPosition = 0
+    Raise Ready
+  Else If sProp = "position"
+    If IsNull(vValue) Or If Not vValue Then Return
+    If $bPaused Then $bPaused = False
+    $fPosition = vValue
+    Raise Position
+  Else If sProp = "pause"
+    $bPaused = True
+  Else If sProp = "ended"
+    Raise End 
+  Endif
+
+End
+
+Private Sub GetMimeTypeFromSource(sSource As String) As String
+
+  Select Case LCase(File.Ext(sSource))
+    Case "mp3"
+      Return "audio/mpeg"
+    Case "wav"
+      Return "audio/x-wav"
+    Case "ogg"
+      Return "audio/x-vorbis+ogg"
+  End Select
+
+End
+
+Public Sub PrintSources()
+
+  Dim sType As String
+  
+  For Each sSource As String In $aSources
+    sType = GetMimeTypeFromSource(sSource)
+    Print "<source src=\""; Html(sSource); "\"";
+    If sType Then Print " type=\""; Html(sType); "\"";
+    Print ">";
+  Next
+
+End
+
+Public Sub _AfterRender()
+
+End
+
+Public Sub Play()
+
+  WebForm._AddJavascript("$_(" & JS(Me.Name) & ").play();")
+  $bPaused = False
+
+End
+
+Public Sub Pause()
+
+  WebForm._AddJavascript("gw.sound.pause(" & JS(Me.Name) & ");")
+
+End
+
+Public Sub Stop()
+
+  WebForm._AddJavascript("gw.sound.stop(" & JS(Me.Name) & ");")
+  $bPaused = False
+
+End
+
+Private Function Audio_Read() As String
+
+  Return $sAudio
+
+End
+
+Private Sub Audio_Write(Value As String)
+
+  $sAudio = Value
+  Me.Refresh
+
+End
+
+Private Function Loop_Read() As Boolean
+
+  Return $bLoop
+
+End
+
+Private Sub Loop_Write(Value As Boolean)
+
+  $bLoop = Value
+  Me.Refresh
+
+End
+
+Private Function AutoPlay_Read() As Boolean
+
+  Return $bAutoPlay
+
+End
+
+Private Sub AutoPlay_Write(Value As Boolean)
+
+  $bAutoPlay = Value
+  Me.Refresh
+
+End
+
+Private Sub Paused_Write(Value As Boolean)
+
+  If Value Then Pause Else Play
+
+End
+
+Private Function Sources_Read() As String[]
+
+  If Not $aSources Then $aSources = New String[]
+  Return $aSources
+
+End
+
+Private Sub Sources_Write(Value As String[])
+
+  If Not Value Or If Value.Count = 0 Then 
+    $aSources = Null
+  Else 
+    $aSources = Value.Copy()
+  Endif
+  Me.Refresh
+
+End
+
+Private Sub Position_Write(Value As Float)
+
+  WebForm._AddJavascript("$_(" & JS(Me.Name) & ").currentTime = " & JS(Value) & ";")
+
+End

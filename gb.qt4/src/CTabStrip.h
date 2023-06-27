@@ -2,7 +2,7 @@
 
   CTabStrip.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,16 +24,16 @@
 #ifndef __CTABSTRIP_H
 #define __CTABSTRIP_H
 
+#include <QTabWidget>
+#include <QTabBar>
+#include <QEvent>
+
 #include "gambas.h"
 
 #include "CWidget.h"
 #include "CContainer.h"
 #include "CPicture.h"
 #include "CFont.h"
-
-#include <QTabWidget>
-#include <QTabBar>
-#include <QEvent>
 
 #ifndef __CTABSTRIP_CPP
 extern GB_DESC CTabStripDesc[];
@@ -77,7 +77,7 @@ public:
 
   QList<CTab *> stack;
 
-	MyTabWidget(QWidget *parent);
+	explicit MyTabWidget(QWidget *parent);
 	virtual ~MyTabWidget();
 	virtual void setEnabled(bool e);
 	void layoutContainer();

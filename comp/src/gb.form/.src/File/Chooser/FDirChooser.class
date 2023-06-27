@@ -2,20 +2,22 @@
 
 Class Desktop
 
-Public (DirView) As DirView 
-Public (FileView) As FileView
+Public _DirView As DirView 
+Public _FileView As FileView
 
 Event Change
 Event {Select}
 Event GetIcon(Path As String)
 Event ShowHidden
 Event Cancel
+Event Uncompress(Path As String)
+
+Property AutoExt As Boolean
+Property UncompressFilter As String[]
 
 Private mnuBookmark As Menu
 Private mnuEditBookmark As Menu
 Private mnuShowHiddenFiles As Menu
-Private mnuShowDetailed As Menu
-Private mnuShowPreview As Menu
 Private mnuUncompress As Menu
 Private mnuRename As Menu
 Private mnuCopy As Menu
@@ -29,7 +31,7 @@ Private $bFile As Boolean
 Private $hBookmarkList As CBookmarkList
 Private $hCurrentBookmark As CBookmark
 Private $bShowBookmark As Boolean
-Private $hWatch As Watcher
+'Private $hWatch As Watcher
 'Private $bPressed As Boolean
 
 Private $sLast As String
@@ -40,14 +42,17 @@ Private $bNoSaveHistory As Boolean
 Static Private $aIconSize As Integer[] = [16, 22, 32, 48, 64, 96, 128, 192, 256]
 Static Private $hGradient As Image
 
+Private $bAutoExt As Boolean
+Private $sLastExt As String
+Private $aUncompressFilter As String[]
 
 Public Sub _new(Optional bFile As Boolean)
 
-  Dim hChild As Control
+  'Dim hChild As Control
   Dim iCol As Integer
   
-  DirView = dvwChoose
-  FileView = fvwChoose
+  _DirView = dvwChoose
+  _FileView = fvwChoose
   
   $hGradient = New Image(dwgGradient.W, dwgGradient.H, Color.Transparent)
   
@@ -61,19 +66,19 @@ Public Sub _new(Optional bFile As Boolean)
   
   Paint.End
   
-  ScrollArea(DirView.Proxy.Proxy.Proxy).Shadow = True
-  
-  For Each hChild In FileView.Children
-    Do
-      If hChild Is ScrollArea Then
-        ScrollArea(hChild).Shadow = True
-        Break
-      Endif
-      hChild = hChild.Proxy
-      If Not hChild Then Break
-    Loop
-    
-  Next
+  ' ScrollArea(DirView.Proxy.Proxy.Proxy).Shadow = True
+  ' 
+  ' For Each hChild In FileView.Children
+  '   Do
+  '     If hChild Is ScrollArea Then
+  '       ScrollArea(hChild).Shadow = True
+  '       Break
+  '     Endif
+  '     hChild = hChild.Proxy
+  '     If Not hChild Then Break
+  '   Loop
+  '   
+  ' Next
   
   $bShowBookmark = True
   $hBookmarkList = New CBookmarkList
@@ -82,7 +87,7 @@ Public Sub _new(Optional bFile As Boolean)
 
   'btnParent.Picture = Main.GetArrow(Align.Left, 16).Picture
   
-  $hWatch = New Watcher(fvwChoose) As "FileView"
+  '$hWatch = New Watcher(fvwChoose) As "FileView"
 
   FillMenu
 
@@ -175,8 +180,6 @@ Public Sub DirButton_Click()
   
 End
 
-
-
 Public Sub dvwChoose_Click()
 
   If dvwChoose.Current = $sLast Then Return
@@ -225,17 +228,36 @@ End
 Private Sub UpdateZoom()
   
   panIconSize.Visible = Not fvwChoose.ShowDetailed And $bView And fvwChoose.Visible
+  If panIconSize.Visible Then
+    Object.Lock(sldIconSize)
+    sldIconSize.Value = $aIconSize.Find(fvwChoose.IconSize)
+    Object.Unlock(sldIconSize)
+  Endif
+  
+  Select fvwChoose.View
+    Case FileView.Normal
+      btnViewNormal.Value = True
+    Case FileView.Compact
+      btnViewCompact.Value = True
+    Case FileView.Detailed
+      btnViewDetailed.Value = True
+    Case FileView.Preview
+      btnViewPreview.Value = True
+  End Select
   
 End
 
 Private Sub UpdateView()
 
   panView.Visible = $bView
-  mnuShowDetailed.Visible = $bView
-  mnuShowPreview.Visible = $bView
-  btnDetail.Visible = $bView
-  btnPreview.Visible = $bView
+  btnViewNormal.Visible = $bView
+  btnViewCompact.Visible = $bView
+  btnViewDetailed.Visible = $bView
+  btnViewPreview.Visible = $bView
+  sepView.Visible = $bView
 
+  UpdateZoom
+  
 End
 
 Public Sub btnView_Click()
@@ -251,18 +273,6 @@ Public Sub btnView_Click()
 End
 
 Public Sub mnuShowDetailed_Click()
-
-  fvwChoose.ShowDetailed = Not fvwChoose.ShowDetailed
-  mnuShowDetailed.Checked = fvwChoose.ShowDetailed
-  Object.Lock(btnDetail)
-  btnDetail.Value = fvwChoose.ShowDetailed
-  Object.Unlock(btnDetail)
-  UpdateZoom
-  ' If fvwChoose.ShowDetailed Then
-  '   btnDetailed.Picture = Picture["icon:/small/view-icon"]
-  ' Else
-  '   btnDetailed.Picture = Picture["icon:/small/view-detail"]
-  ' Endif
 
 End
 
@@ -286,17 +296,18 @@ End
 Private Sub UpdateBookmarkButton()
   
   If IsBookmarkVisible() And If $hCurrentBookmark Then
-    btnBookmark.Text = $hCurrentBookmark.Name
+    btnBookmark.Text = Replace($hCurrentBookmark.Name, "&", "&&")
     btnBookmark.Picture = Picture[$hCurrentBookmark.Icon]
     btnRoot.Picture = Picture["icon:/small/system"]
-    mnuEditBookmark.Enabled = $hBookmarkList.GetEditableCount() > 0
     btnBookmark.Show
+    sepBookmark.Show
     dvwChoose.HideRoot = True
   Else
     'btnBookmark.Text = File.Name(dvwChoose.Root)
     btnRoot.Picture = dvwChoose.Picture 'Picture["icon:/small/directory"]
     dvwChoose.HideRoot = False
     btnBookmark.Hide
+    sepBookmark.Hide
   Endif
   
   btnBookmark.Tooltip = dvwChoose.Root
@@ -306,19 +317,18 @@ End
 
 Private Sub SetBookmark(hBookmark As CBookmark)
   
-  'If Not hBookmark Then Return
+  If $hCurrentBookmark = hBookmark Then Return
   
   $hCurrentBookmark = hBookmark
+  
+  UpdateBookmarkButton
   
   If hBookmark Then
     SetRoot(hBookmark.Path)
     dvwChoose.Picture = Picture[hBookmark.Icon]
   Endif
   
-  UpdateBookmarkButton
-  
 End
-
 
 Public Sub SetDir(sDir As String)
 
@@ -371,7 +381,6 @@ End
 Private Sub UpdateShowHidden()
   
   dvwChoose.ShowHidden = fvwChoose.ShowHidden
-  mnuShowHiddenFiles.Checked = fvwChoose.ShowHidden
   
 End
 
@@ -384,9 +393,13 @@ Public Sub mnuShowHiddenFiles_Click()
 
 End
 
-Public Sub mnuShowPreview_Click()
+Public Sub mnuNoPreviewMax_Click()
 
-  btnPreview.Value = Not btnPreview.Value
+  If fvwChoose.MaxPreviewSize = 0 Then
+    fvwChoose.MaxPreviewSize = -1
+  Else
+    fvwChoose.MaxPreviewSize = 0
+  Endif
 
 End
 
@@ -439,6 +452,8 @@ Public Sub SetPath(sPath As String)
     Else 
       txtFile.Text = File.Name(sPath)
     Endif
+    
+    CheckAutomaticExtension(True)
     
   Endif
   
@@ -506,6 +521,7 @@ Public Sub fvwChoose_Activate()
   If IsDir(dvwChoose.Current &/ fvwChoose.Current) Then
     dvwChoose.Current &/= fvwChoose.Current
   Else
+    If CheckFile() Then Return
     Raise {Select}
   Endif
 
@@ -566,10 +582,34 @@ Public Function GetFilter() As String[]
 
 End
 
+Private Sub CheckAutomaticExtension(Optional bGetCurrentFilter As Boolean)
+
+  Dim aFilter As String[]
+  Dim sFilter As String
+  Dim sFile As String
+  
+  If Not $bAutoExt Or If Not txtFile.Visible Or If txtFile.ReadOnly Or If txtFile.Length = 0 Then Return
+  
+  aFilter = fvwChoose.Filter
+  If Not aFilter Or If aFilter.Count > 1 Then Return
+  sFilter = aFilter[0]
+  
+  If sFilter Not Begins "*." Then Return
+  sFilter = Mid$(sFilter, 2)
+  If InStr(sFilter, "*") Then Return
+  
+  sFile = txtFile.Text
+  If bGetCurrentFilter Then $sLastExt = sFilter
+  If $sLastExt And If sFile Ends $sLastExt Then sFile = Left(sFile, -Len($sLastExt))
+  txtFile.Text = sFile & sFilter
+  $sLastExt = sFilter
+
+End
 
 Public Sub cmbFilter_Click()
 
   fvwChoose.Filter = Split($aFilter[cmbFilter.Index], ";", Chr$(34), True)
+  CheckAutomaticExtension
 
 End
 
@@ -581,7 +621,7 @@ End
 
 Public Sub fvwChoose_Icon(Path As String)
 
-  Raise GetIcon(Path)    
+  Raise GetIcon(Path)
 
 End
 
@@ -590,7 +630,6 @@ Public Sub dvwChoose_Icon(Path As String)
   Raise GetIcon(Path)    
 
 End
-
 
 Public Sub SetReadOnly(bReadOnly As Boolean)
   
@@ -636,9 +675,8 @@ Public Sub mnuBookmark_Click()
 
   Dim hMenu As Menu = Last
   Dim sLink As String = hMenu.Tag
-  Dim hBookmark As CBookmark = $hBookmarkList.FindBookmark(sLink)
 
-  SetBookmark(hBookmark)
+  SetBookmark($hBookmarkList.FindBookmark(sLink))
   btnBookmark_DblClick
   
 End
@@ -652,11 +690,11 @@ Public Sub SetRoot(Optional sRoot As String)
 
   If sRoot = dvwChoose.Root Then Return
 
-  Try dvwChoose.Root = sRoot
-
-  hBookmark = $hBookmarkList.FindBookmark(sRoot)
+  hBookmark = $hBookmarkList.FindBest(sRoot)
   SetBookmark(hBookmark)
   
+  Try dvwChoose.Root = sRoot
+
 End
 
 Public Sub GetRoot() As String
@@ -668,7 +706,7 @@ End
 Public Sub SetPrivateBookmarks(aBookmark As Collection[])
   
   $hBookmarkList.Private = aBookmark
-  FillMenu
+  '''FillMenu
   
 End
 
@@ -687,7 +725,7 @@ Public Sub mnuAddBookmark_Click()
   Inc Application.Busy
   $hBookmarkList.AddBookmark(sLink)
   $hBookmarkList.Save
-  FillMenu
+  '''FillMenu
   SetRoot(sLink)
   
 Finally
@@ -700,7 +738,7 @@ Public Sub mnuRemoveBookmark_Click()
   Inc Application.Busy
   $hBookmarkList.RemoveBookmark(dvwChoose.Root)
   $hBookmarkList.Save
-  FillMenu
+  '''FillMenu
   SetDir(dvwChoose.Current)
   
 Finally
@@ -709,11 +747,17 @@ Finally
 End
 
 Public Sub GetSettings() As Variant[]
+
+  Dim sBookmark As String
+  
+  'Debug String[](splChoose.Layout).Join()
+  
+  Try sBookmark = $hCurrentBookmark.Name
   
   If Not $bFile Then 
-    Return [1, CVariant(dvwChoose.Root), dvwChoose.Current, Null, $bView, splChoose.Layout, fvwChoose.Settings, GetFilterIndex()]
+    Return [1, CVariant(dvwChoose.Root), dvwChoose.Current, Null, $bView, splChoose.Layout, fvwChoose.Settings, GetFilterIndex(), sBookmark]
   Else
-    Return [1, CVariant(dvwChoose.Root), dvwChoose.Current, fvwChoose.Current, $bView, splChoose.Layout, fvwChoose.Settings, GetFilterIndex()]
+    Return [1, CVariant(dvwChoose.Root), dvwChoose.Current, fvwChoose.Current, $bView, splChoose.Layout, fvwChoose.Settings, GetFilterIndex(), sBookmark]
   Endif 
 
 End
@@ -725,6 +769,7 @@ Public Sub SetSettings(aVar As Variant[])
   
   If TypeOf(aVar[0]) = gb.Integer Then
     
+    Try SetBookmark($hBookmarkList.FindBookmarkByName(aVar[8]))
     Try SetRoot(aVar[1])
     Try fvwChoose.Settings = aVar[6]
     UpdateShowHidden
@@ -732,7 +777,7 @@ Public Sub SetSettings(aVar As Variant[])
     If $bFile Then Try fvwChoose.Current = aVar[3]
     Try $bView = Not aVar[4]
     If Not Error Then btnView_Click
-    splChoose.Layout = aVar[5]
+    Try splChoose.Layout = aVar[5]
     Try SetFilterIndex(aVar[7])
     
     Try iZoom = $aIconSize.Find(fvwChoose.IconSize)
@@ -770,8 +815,16 @@ Public Sub SetSettings(aVar As Variant[])
     
   Endif
 
-  btnPreview.Value = fvwChoose.ShowPreview
-  btnDetail.Value = fvwChoose.ShowDetailed
+  btnViewPreview.Value = fvwChoose.ShowPreview
+  
+  Select Case fvwChoose.Style
+    Case FileView.Compact
+      btnViewCompact.Value = True
+    Case FileView.Detailed
+      btnViewDetailed.Value = True
+    Case Else
+      btnViewNormal.Value = True
+  End Select
 
   UpdateShowHidden
   ShowBookmark($bShowBookmark)
@@ -787,9 +840,15 @@ End
 
 Public Sub mnuRefresh_Click()
 
+  Dim bClearCache As Boolean
+  
   DirCache[dvwChoose.Current].Clear
   dvwChoose.Reload
-  fvwChoose.Reload
+  
+  Try bClearCache = Mouse.Shift
+  Try bClearCache = bClearCache Or Key.Shift
+  
+  fvwChoose.Reload(bClearCache)
   
 End
 
@@ -830,35 +889,29 @@ Public Sub IsDialogButtonVisible() As Boolean
   
 End
 
-
-' Public Sub ShowAutomaticExtension(bShow As Boolean)
-'   
-'   chkExt.Visible = bShow
-'   
-' End
-' 
-' Public Sub SetAutomaticExtension(bVal As Boolean)
-'   
-'   chkExt.Value = bVal
-'   
-' End
-
- Private Sub CheckFile() As Boolean ' FIXME: If 'As Boolean' is forgotten, and 'Return True' is removed, we can get an interpreter crash
+Private Sub CheckFile() As Boolean ' FIXME: If 'As Boolean' is forgotten, and 'Return True' is removed, we can get an interpreter crash
   
   Dim sPath As String
+  Dim sFile As String
   
   If Not txtFile.Visible Then Return
   If txtFile.ReadOnly Then Return
+  If GetMulti() Then Return
   
-  sPath = txtFile.Text
-  If InStr(sPath, "/") = 0 Then Return
+  sFile = txtFile.Text
+  If Not sFile Then Return True
   
-  txtFile.Text = File.Name(sPath)
-  SetDir(File.Dir(sPath))
-  Return True
+  If InStr(sPath, "/") Then 
+    txtFile.Text = File.Name(sPath)
+    SetDir(File.Dir(sPath))
+    Return True
+  Endif
+
+  If Exist(dvwChoose.Current &/ sFile) Then 
+    If Message.Warning(("This file already exists.\n\nDo you want to overwrite it?"), ("Overwrite"), ("Cancel")) = 2 Then Return True
+  Endif 
   
 End
-
 
 Public Sub btnOK_Click()
 
@@ -913,6 +966,8 @@ Public Sub UpdateFilterPanel()
     Endif
   Endif
   
+  UpdateSeparator
+  
   Object.Unlock(panFilter)
 
 End
@@ -935,27 +990,35 @@ Private Sub AddBookmarkMenu(hBookmark As CBookmark)
   
   hMenu = New Menu(mnuBookmark) As "mnuBookmark"
   hMenu.Tag = hBookmark.Link
-  hMenu.Text = hBookmark.Name
+  hMenu.Text = Replace(hBookmark.Name, "&", "&&")
   hMenu.Picture = Picture[hBookmark.Icon]
   hMenu.Enabled = hBookmark.Exist()
   
 End
 
-
 Private Sub FillMenu()
   
   Dim hBookmark As CBookmark
   Dim hMenu As Menu
+  Dim sType As String
+  Dim sOldType As String
+  Dim sFile As String
   
   mnuPopup.Children.Clear
   
   If IsBookmarkVisible() Then 
   
+    $hBookmarkList.Load()
+  
     mnuBookmark = New Menu(mnuPopup)
     mnuBookmark.Name = "mnuBookmark"
     mnuBookmark.Text = ("Bookmarks")
     mnuBookmark.Picture = Picture["icon:/small/bookmark"]
+    
     For Each hBookmark In $hBookmarkList
+      sType = Left(hBookmark.Link)
+      If sOldType And If sType <> sOldType Then hMenu = New Menu(mnuBookmark)
+      sOldType = sType
       AddBookmarkMenu(hBookmark)
     Next
     btnBookmark.Menu = "mnuBookmark"
@@ -974,33 +1037,65 @@ Private Sub FillMenu()
     hMenu.Text = ("&Edit bookmarks...")
     hMenu.Picture = Picture["icon:/small/edit"]
     mnuEditBookmark = hMenu
+    mnuEditBookmark.Enabled = $hBookmarkList.GetEditableCount() > 0
     
     hMenu = New Menu(mnuBookmark)
+
+    UpdateBookmarkButton
     
   Endif
+
+  If Not dvwChoose.HasFocus Then
   
-  hMenu = New Menu(mnuPopup) As "mnuShowDetailed"
-  hMenu.Text = ("Show &details")
-  hMenu.Checked = fvwChoose.ShowDetailed
-  hMenu.Visible = fvwChoose.Visible
-  mnuShowDetailed = hMenu
+    hMenu = New Menu(mnuPopup)
+  
+    hMenu = New Menu(mnuPopup) As "mnuView"
+    hMenu.Text = ("Icon view")
+    hMenu.Checked = fvwChoose.View = FileView.Normal
+    hMenu.Visible = fvwChoose.Visible And $bView
+    hMenu.Picture = Picture["icon:/small/view-icon"]
+    hMenu.Tag = FileView.Normal
+      
+    hMenu = New Menu(mnuPopup) As "mnuView"
+    hMenu.Text = ("Compact view")
+    hMenu.Checked = fvwChoose.View = FileView.Compact
+    hMenu.Visible = fvwChoose.Visible And $bView
+    hMenu.Picture = Picture["icon:/small/view-compact"]
+    hMenu.Tag = FileView.Compact
+      
+    hMenu = New Menu(mnuPopup) As "mnuView"
+    hMenu.Text = ("Detailed view")
+    hMenu.Checked = fvwChoose.View = FileView.Detailed
+    hMenu.Visible = fvwChoose.Visible And $bView
+    hMenu.Picture = Picture["icon:/small/view-detail"]
+    hMenu.Tag = FileView.Detailed
     
+    hMenu = New Menu(mnuPopup) As "mnuView"
+    hMenu.Text = ("Preview view")
+    hMenu.Checked = fvwChoose.View = FileView.Preview
+    hMenu.Visible = fvwChoose.Visible And $bView
+    hMenu.Picture = Picture["icon:/small/view-preview"]
+    hMenu.Tag = FileView.Preview
+    
+    hMenu = New Menu(mnuPopup) As "mnuNoPreviewMax"
+    hMenu.Text = ("Preview big files")
+    hMenu.Visible = fvwChoose.View = FileView.Preview
+    hMenu.Checked = fvwChoose.MaxPreviewSize < 0
+  
+  Endif
+    
+  hMenu = New Menu(mnuPopup)
+
   hMenu = New Menu(mnuPopup) As "mnuShowHiddenFiles"
-  hMenu.Text = ("Show &hidden files")
+  hMenu.Text = ("Show hidden files")
   hMenu.Checked = fvwChoose.ShowHidden
   'hMenu.Visible = fvwChoose.Visible
   mnuShowHiddenFiles = hMenu
   
-  hMenu = New Menu(mnuPopup) As "mnuShowPreview"
-  hMenu.Text = ("Show &image preview")
-  hMenu.Checked = fvwChoose.ShowPreview
-  hMenu.Visible = fvwChoose.Visible
-  mnuShowPreview = hMenu
-  
   hMenu = New Menu(mnuPopup)
   
   hMenu = New Menu(mnuPopup) As "mnuRename"
-  hMenu.Text = ("&Rename")
+  hMenu.Text = ("Rename")
   'hMenu.Picture = Picture["icon:/small/archive"]
   mnuRename = hMenu
   
@@ -1010,12 +1105,12 @@ Private Sub FillMenu()
   mnuCopy = hMenu
   
   hMenu = New Menu(mnuPopup) As "mnuDelete"
-  hMenu.Text = ("&Delete")
+  hMenu.Text = ("Delete")
   hMenu.Picture = Picture["icon:/small/delete"]
   mnuDelete = hMenu
   
   hMenu = New Menu(mnuPopup) As "mnuDeleteDir"
-  hMenu.Text = ("&Delete")
+  hMenu.Text = ("Delete")
   hMenu.Picture = Picture["icon:/small/delete"]
   mnuDeleteDir = hMenu
   
@@ -1023,7 +1118,7 @@ Private Sub FillMenu()
   
   hMenu = New Menu(mnuPopup) As "mnuUncompress"
   hMenu.Text = ("&Uncompress file")
-  hMenu.Picture = Picture["icon:/small/archive"]
+  hMenu.Picture = Picture["icon:/small/uncompress"]
   mnuUncompress = hMenu
   
   hMenu = New Menu(mnuPopup) As "mnuCreateDirectory"
@@ -1049,6 +1144,24 @@ Private Sub FillMenu()
     hMenu.Picture = Picture["icon:/small/info"]
     mnuProperty = hMenu
     
+  Endif
+  
+  If dvwChoose.HasFocus Then
+
+    mnuUncompress.Hide
+    mnuRename.Show
+    mnuDelete.Hide
+    mnuDeleteDir.Hide
+    Try mnuDeleteDir.Visible = Dir(dvwChoose.Current).Count = 0
+    
+  Else
+
+    sFile = fvwChoose.Current
+    mnuUncompress.Visible = IsCompressedFile(sFile)
+    mnuRename.Visible = sFile
+    mnuDelete.Visible = sFile
+    mnuDeleteDir.Hide
+
   Endif
   
 End
@@ -1112,15 +1225,6 @@ End
 
 Public Sub dvwChoose_Menu()
 
-  mnuUncompress.Hide
-  mnuShowDetailed.Hide
-  mnuShowPreview.Hide
-  mnuRename.Show
-  mnuDelete.Hide
-  mnuDeleteDir.Hide
-  Try mnuDeleteDir.Visible = Dir(dvwChoose.Current).Count = 0
-  
-
   dvwChoose.SetFocus
   mnuPopup.Popup
 
@@ -1128,20 +1232,7 @@ End
 
 Public Sub fvwChoose_Menu()
 
-  Dim sFile As String = fvwChoose.Current
-  
-  If sFile Like "*.tar.gz" Or If sFile Like "*.tar.bz2" Or If sFile Like "*.tgz" Or If sFile Like "*.tar" Or If sFile Like "*.zip" Then
-    mnuUncompress.Show
-  Else
-    mnuUncompress.Hide
-  Endif
-  
-  mnuShowDetailed.Show
-  mnuShowPreview.Show
-  mnuRename.Visible = sFile
-  mnuDelete.Visible = sFile
-  mnuDeleteDir.Hide
-
+  fvwChoose.SetFocus
   mnuPopup.Popup
 
 End
@@ -1165,18 +1256,19 @@ Public Sub btnZoomIn_Click()
 
 End
 
-Public Sub FileView_Show()
-  
-  FillMenu
-  UpdateZoom
-  
-End
-
-Public Sub FileView_Hide()
-  
-  FileView_Show
-  
-End
+' Public Sub FileView_Show()
+'   
+'   Debug
+'   FillMenu
+'   UpdateZoom
+'   
+' End
+' 
+' Public Sub FileView_Hide()
+'   
+'   FileView_Show
+'   
+' End
 
 Public Sub mnuRename_Click()
   
@@ -1188,31 +1280,9 @@ Public Sub mnuRename_Click()
   
 End
 
-Private Sub URLQuote(Path As String) As String
-  
-  Dim iInd As Integer
-  Dim sRes As String
-  Dim sCar As String
-  
-  For iInd = 1 To Len(Path)
-    sCar = Mid$(Path, iInd, 1)
-    If sCar = " " Then 
-      sCar = "+"
-    Else If IsLetter(sCar) Or If IsDigit(sCar) Or If InStr("-._~,$!/", sCar) Then 
-    Else 
-      sCar = "%" & Hex$(Asc(sCar), 2)
-    Endif
-    sRes &= sCar
-  Next
-
-  Return sRes
-  
-End
-
 Public Sub mnuCopy_Click()
   
   Dim aPath As String[]
-  Dim I As Integer
   
   If dvwChoose.HasFocus Then
     aPath = [dvwChoose.Current]
@@ -1222,14 +1292,9 @@ Public Sub mnuCopy_Click()
   
   If aPath.Count = 0 Then Return
   
-  For I = 0 To aPath.Max
-    aPath[I] = "file://" & URLQuote(aPath[I])
-  Next
-  
-  Clipboard.Copy(aPath.Join(gb.CrLf) & gb.CrLf, "text/uri-list")
+  Clipboard.Copy(aPath, "text/uri-list")
   
 End
-
 
 Public Sub mnuUncompress_Click()
   
@@ -1241,14 +1306,17 @@ Public Sub mnuUncompress_Click()
   Dim hTreeView As TreeView
   Dim aOutput As String[]
   Dim iPos As Integer
+  Dim bCancel As Boolean
+  Dim sCmd As String
   
   Inc Application.Busy
   
   Select Case File.Name(fvwChoose.Current)
     
-    Case Like "*.tar.gz", "*.tar.bz2", "*.tgz", "*.tar"
+    Case Like "*.tar.gz", "*.tar.bz2", "*.tar.xz", "*.tgz", "*.tar"
       
       Shell "cd " & Shell(fvwChoose.Dir) & ";tar tf " & Shell$(fvwChoose.Current) To sOutput
+      If Process.LastValue Then Goto _CANNOT_UNCOMPRESS
   
       For Each sOutput In Split(Trim(sOutput), "\n")
         
@@ -1268,6 +1336,7 @@ Public Sub mnuUncompress_Click()
           Endif
           
           Shell "rm -rf " & Shell$(fvwChoose.Dir &/ sOutput) Wait
+          If Process.LastValue Then Goto _CANNOT_UNCOMPRESS
           
         Endif
         
@@ -1276,6 +1345,7 @@ Public Sub mnuUncompress_Click()
     Case Like "*.zip"
       
       Shell "cd " & Shell(fvwChoose.Dir) & ";unzip -l " & Shell$(fvwChoose.Current) To sOutput
+      If Process.LastValue Then Goto _CANNOT_UNCOMPRESS
       
       aOutput = Split(sOutput, "\n")
       If aOutput.Count > 2 Then iPos = InStr(aOutput[1], "Name")
@@ -1285,7 +1355,7 @@ Public Sub mnuUncompress_Click()
         Return
       Endif
       
-      aOutput.Remove(0, 2)
+      aOutput.Remove(0, 3)
       Try aOutput.Remove(aOutput.Max - 1, 2)
       
       For Each sOutput In aOutput
@@ -1308,39 +1378,55 @@ Public Sub mnuUncompress_Click()
           Endif
           
           Shell "rm -rf " & Shell$(fvwChoose.Dir &/ sOutput) Wait
+          If Process.LastValue Then Goto _CANNOT_UNCOMPRESS
           
         Endif
         
       Next
       
     Case Else
-      Application.Busy = 0
-      Message.Error(("Cannot uncompress file.") & "\n\n" & ("Unknown archive."))
-      Return
+      
+      If $aUncompressFilter Then
+        bCancel = Raise Uncompress(fvwChoose.Dir &/ fvwChoose.Current)
+        If bCancel Then Goto _CANNOT_UNCOMPRESS
+      Else
+        Application.Busy = 0
+        Message.Error(("Cannot uncompress file.") & "\n\n" & ("Unknown archive."))
+        Return
+      Endif
       
   End Select
 
-  If Process.LastValue Then Goto _CANNOT_UNCOMPRESS
-  
   Select Case File.Name(fvwChoose.Current)
     
     Case Like "*.tar.gz", "*.tgz"
-      Shell "cd " & Shell(fvwChoose.Dir) & ";tar xfz " & Shell$(fvwChoose.Current) Wait
-      'Exec ["/bin/tar", "xfz", "-C", fvwChoose.Dir, sPath] To sResult
+      sCmd = "tar xfz " & Shell$(fvwChoose.Current)
       
     Case Like "*.tar.bz2"
-      Shell "cd " & Shell(fvwChoose.Dir) & ";tar xfj " & Shell$(fvwChoose.Current) Wait
+      sCmd = "tar xfj " & Shell$(fvwChoose.Current)
+      'Shell "cd " & Shell(fvwChoose.Dir) & ";tar xfj " & Shell$(fvwChoose.Current) Wait
       'Exec ["/bin/tar", "xfj", "-C", fvwChoose.Dir, sPath] To sResult
       '
+    Case Like "*.tar.xz"
+      sCmd = "tar xfJ " & Shell$(fvwChoose.Current)
+
     Case Like "*.tar"
-      Shell "cd " & Shell(fvwChoose.Dir) & ";tar xf " & Shell$(fvwChoose.Current) Wait
+      sCmd = "tar xf " & Shell$(fvwChoose.Current)
+      'Shell "cd " & Shell(fvwChoose.Dir) & ";tar xf " & Shell$(fvwChoose.Current) Wait
       
     Case Like "*.zip"
-      Shell "cd " & Shell(fvwChoose.Dir) & ";unzip -q " & Shell$(fvwChoose.Current) Wait
-      
-  End Select
+      sCmd = "unzip -q " & Shell$(fvwChoose.Current)
+      'Shell "cd " & Shell(fvwChoose.Dir) & ";unzip -q " & Shell$(fvwChoose.Current) Wait
+    
+    Case Else
+      sCmd = ""
   
-  If Process.LastValue Then Goto _CANNOT_UNCOMPRESS
+  End Select
+
+  If sCmd Then  
+    Shell "cd " & Shell(fvwChoose.Dir) & ";" & sCmd Wait
+    If Process.LastValue Then Goto _CANNOT_UNCOMPRESS
+  Endif
   
   Wait ' Let watch events proceed
   
@@ -1492,9 +1578,16 @@ End
 ' 
 ' End
 
+Private Sub UpdateSeparator()
+
+  sepNoBorder.Visible = Not HasBorder() And panFilter.Visible
+
+End
+
 Public Sub SetBorder(bBorder As Boolean)
   
   panBorder.Border = If(bBorder, Border.Plain, Border.None)
+  UpdateSeparator
   
 End
 
@@ -1531,10 +1624,9 @@ Public Sub SetMargin(bMargin As Boolean)
 End
 
 
-Public Sub btnPreview_Click()
+Public Sub btnViewPreview_Click()
 
-  fvwChoose.ShowPreview = btnPreview.Value
-  mnuShowPreview.Checked = btnPreview.Value
+  fvwChoose.ShowPreview = btnViewPreview.Value
 
 End
 
@@ -1546,7 +1638,7 @@ End
 
 Public Sub SetShowPreview(bPreview As Boolean)
   
-  btnPreview.Value = bPreview
+  btnViewPreview.Value = bPreview
   
 End
 
@@ -1645,4 +1737,103 @@ Public Sub btnBookmark_Menu()
   dvwChoose.Current = dvwChoose.Root
   dvwChoose_Menu
 
+End
+
+Public Sub GetShowToolbar() As Boolean
+  
+  Return panTool.Visible
+  
+End
+
+Public Sub SetShowToolbar(bShow As Boolean)
+  
+  If bShow And If Not panTool.Visible Then UpdateZoom
+  panTool.Visible = bShow
+  
+End
+
+Private Function AutoExt_Read() As Boolean
+
+  Return $bAutoExt
+
+End
+
+Private Sub AutoExt_Write(Value As Boolean)
+
+  If $bAutoExt = Value Then Return
+  $bAutoExt = Value
+  CheckAutomaticExtension(True)
+
+End
+
+Private Function UncompressFilter_Read() As String[]
+
+  Return $aUncompressFilter
+
+End
+
+Private Sub UncompressFilter_Write(Value As String[])
+
+  If Value Then
+    $aUncompressFilter = Value.Copy()
+    $aUncompressFilter.ReadOnly = True
+  Else
+    $aUncompressFilter = Null
+  Endif
+  
+End
+
+Private Sub IsCompressedFile(sFile As String, Optional bCustom As Boolean) As Boolean
+
+  Dim I As Integer
+  
+  If Not bCustom Then
+    If sFile Like "*.tar.gz" Or If sFile Like "*.tar.bz2" Or If sFile Like "*.tar.xz" Or If sFile Like "*.tgz" Or If sFile Like "*.tar" Or If sFile Like "*.zip" Then Return True
+  Endif
+
+  If $aUncompressFilter Then
+    For I = 0 To $aUncompressFilter.Max
+      If sFile Like $aUncompressFilter[I] Then Return True
+    Next
+  Endif
+  
+End
+
+Public Sub txtFile_LostFocus()
+
+  CheckAutomaticExtension(True)
+
+End
+
+Public Sub UpdateBookmark()
+  
+  FillMenu
+  UpdateBookmarkButton
+  
+End
+
+Public Sub mnuPopup_Show()
+  
+  FillMenu
+  
+End
+
+Public Sub mnuView_Click()
+  
+  fvwChoose.View = Last.Tag
+  UpdateZoom
+
+End
+
+Public Sub GetView() As Integer
+  
+  Return fvwChoose.View
+  
+End
+
+
+Public Sub SetView(iView As Integer)
+  
+  fvwChoose.View = iView
+  
 End

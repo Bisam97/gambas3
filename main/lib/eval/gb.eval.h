@@ -2,7 +2,7 @@
 
   gb.eval.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -35,7 +35,7 @@ typedef
 typedef
 	void *EVAL_EXPRESSION;
 
-#define EVAL_COLOR_MAX_LEN (1 << 10)	
+#define EVAL_COLOR_MAX_LEN 1023
 
 typedef
 	struct {
@@ -62,36 +62,29 @@ typedef
 #define EVAL_NORMAL       0
 #define EVAL_USE_CONTEXT  1
 
-enum {
-	RT_DATATYPE = 13,
-	RT_ERROR = 14,
-	RT_HELP = 15,
-	RT_PREPROCESSOR = 16,
-	RT_ESCAPE = 17,
-	RT_LABEL = 18,
-	RT_CONSTANT = 19
-	};
-
 typedef
 	enum
 	{
 		HIGHLIGHT_BACKGROUND,
 		HIGHLIGHT_NORMAL,
+		HIGHLIGHT_SELECTION,
+		HIGHLIGHT_ALTERNATE,
+		HIGHLIGHT_HIGHLIGHT,
+		HIGHLIGHT_LINE,
+		HIGHLIGHT_ADDED,
+		HIGHLIGHT_REMOVED,
+		HIGHLIGHT_ERROR,
+		HIGHLIGHT_COMMENT,
+		HIGHLIGHT_HELP,
 		HIGHLIGHT_KEYWORD,
 		HIGHLIGHT_SUBR,
 		HIGHLIGHT_OPERATOR,
 		HIGHLIGHT_SYMBOL,
 		HIGHLIGHT_NUMBER,
 		HIGHLIGHT_STRING,
-		HIGHLIGHT_COMMENT,
 		HIGHLIGHT_BREAKPOINT,
 		HIGHLIGHT_CURRENT,
 		HIGHLIGHT_DATATYPE,
-		HIGHLIGHT_SELECTION,
-		HIGHLIGHT_HIGHLIGHT,
-		HIGHLIGHT_LINE,
-		HIGHLIGHT_ERROR,
-		HIGHLIGHT_HELP,
 		HIGHLIGHT_PREPROCESSOR,
 		HIGHLIGHT_ESCAPE,
 		HIGHLIGHT_LABEL,

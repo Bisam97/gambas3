@@ -2,7 +2,7 @@
 
   CDraw.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -26,9 +26,11 @@
 
 #include "gambas.h"
 #include "gb.draw.h"
+#include "gb.paint.h"
 
 #include <QPainter>
 #include <QString>
+#include <QTextDocument>
 
 #ifndef __CDRAW_C
 
@@ -40,8 +42,9 @@ typedef
 	void (*DRAW_TEXT_CB)(float, float, QString &);
 
 void DRAW_init();
-void DRAW_text(QPainter *p, const QString &text, float x, float y, float w, float h, int align, QPainter *p2 = 0);
-void DRAW_rich_text(QPainter *p, const QString &text, float x, float y, float w, float h, int align, QPainter *p2 = 0);
+void DRAW_text(QPainter *p, const QString &text, float x, float y, float w, float h, int align);
+void DRAW_init_rich_text(QTextDocument *doc, const QFont &font);
+void DRAW_rich_text(QPainter *p, const QString &text, float x, float y, float w, float h, int align);
 void DRAW_aligned_pixmap(QPainter *p, const QPixmap &pix, int x, int y, int w, int h, int align);
 
 #endif

@@ -2,7 +2,7 @@
 
   gbx_class_desc.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -29,19 +29,21 @@
 
 #define CD_PROPERTY               'p'
 #define CD_PROPERTY_READ          'r'
+#define CD_PROPERTY_WRITE         'w'
 #define CD_METHOD                 'm'
 #define CD_CONSTANT               'C'
 #define CD_EVENT                  ':'
 #define CD_STATIC_PROPERTY        'P'
 #define CD_STATIC_PROPERTY_READ   'R'
+#define CD_STATIC_PROPERTY_WRITE  'W'
 #define CD_STATIC_METHOD          'M'
 #define CD_VARIABLE               'v'
 #define CD_STRUCT_FIELD           'f'
 #define CD_STATIC_VARIABLE        'V'
 #define CD_EXTERN                 'X'
 
-#define CD_STATIC_LIST    				"PRMVX"
-#define CD_CALL_SOMETHING_LIST		"prmPRM"
+#define CD_STATIC_LIST            "PWRMVX"
+#define CD_CALL_SOMETHING_LIST    "pwrmPRM"
 
 
 typedef

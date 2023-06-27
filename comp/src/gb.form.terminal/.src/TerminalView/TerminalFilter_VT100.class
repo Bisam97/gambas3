@@ -8,7 +8,9 @@ Private Enum MODE_AppScreen, MODE_AppCuKeys, MODE_AppKeyPad, MODE_Mouse1000, MOD
 
 Private $aMode As New Boolean[13]
 'Private $aSavedMode As New Boolean[13]
+
 Private $sLeft As String
+Private $bLeftIsInvalid As Boolean
 
 Private $sLastChar As String
 
@@ -32,6 +34,8 @@ Public Sub OutputTo(hView As TerminalView, hScreen As TerminalScreen, hOutput As
   Dim sCmd As String
   Dim sStr As String
   Dim iNum As Integer
+  Dim iLenLeft As Integer
+  
   'Dim iPosEraseScreen As Integer
   
   If hView._DisableFilter Then
@@ -40,23 +44,41 @@ Public Sub OutputTo(hView As TerminalView, hScreen As TerminalScreen, hOutput As
   Endif
   
   If $sLeft Then 
+    
     sData = $sLeft & sData
+    
+    iLenLeft = Len($sLeft)
     $sLeft = ""
+    
+    If $bLeftIsInvalid Then
+      If Not String.IsValid(sData) Then
+        sData = Mid$(sData, iLenLeft + 1)
+      Endif
+      $bLeftIsInvalid = False
+    Endif
+    
   Endif
   
   If Not String.IsValid(sData) Then
+    
     For iPos = Len(sData) DownTo 1
       If Asc(sData, iPos) >= 192 Then Break 
     Next
+    
     If TerminalScreen.DEBUG_FILTER Then
       Debug "not valid";; iPos; " / "; Len(sData)
       Debug Quote(Right(sData, 256))
     Endif
     If iPos = 0 Then Return
+    
     $sLeft = Mid$(sData, iPos)
+    $bLeftIsInvalid = True
+    
     sData = Left(sData, iPos - 1)
     If Not sData Then Return
+    
     iPos = 0
+    
   Endif
   
   'Debug If(hProcess.Term.GetAttr().ONLCR, "+", "-"); "ONLCR"
@@ -182,6 +204,10 @@ Private Sub Escape(hView As TerminalView, hScreen As TerminalScreen, hOutput As 
   Dim iMode As Integer
   Dim N As Integer
   Dim I As Integer
+  Dim sOutput As String
+  Dim hAttr As TerminalAttr
+  Dim iColor As Integer
+  Dim iIndex As Integer
   
   sStr = Mid$(sData, iPos, iLen)
   
@@ -209,6 +235,7 @@ Private Sub Escape(hView As TerminalView, hScreen As TerminalScreen, hOutput As 
         
         Case "m" ' Set attribute (frequent, so test it first)
           
+          hAttr = hScreen.Attr
           GoSub GET_ARGS
           If aArg Then
             For I = 0 To aArg.Max
@@ -220,62 +247,86 @@ Private Sub Escape(hView As TerminalView, hScreen As TerminalScreen, hOutput As 
               
               Select Case iArg
                 Case 0
-                  hScreen.Attr.Reset()
-                Case 30
-                  hScreen.Attr.Foreground = 0
-                Case 31 To 37
-                  hScreen.Attr.Foreground = iArg - 30 + 8
+                  hAttr.Reset()
+                Case 30 To 37
+                  hAttr.Foreground = iArg - 30
+                  hAttr.ForegroundRGB = -1
+                Case 90 To 97
+                  hAttr.Foreground = iArg - 90 + 8
+                  hAttr.ForegroundRGB = -1
                 Case 39
-                  hScreen.Attr.Foreground = -1
+                  hAttr.Foreground = -1
+                  hAttr.ForegroundRGB = -1
                 Case 40 To 47
-                  hScreen.Attr.Background = iArg - 40
+                  hAttr.Background = iArg - 40
+                  hAttr.BackgroundRGB = -1
+                Case 100 To 107
+                  hAttr.Background = iArg - 40 + 8
+                  hAttr.BackgroundRGB = -1
                 Case 49
-                  hScreen.Attr.Background = -1
+                  hAttr.Background = -1
+                  hAttr.BackgroundRGB = -1
                 Case 1
-                  hScreen.Attr.Bold = True
+                  hAttr.Bold = True
                   'hScreen.Attr.Reverse = True
                 Case 2
-                  hScreen.Attr.Dim = True
+                  hAttr.Dim = True
                 Case 4
-                  hScreen.Attr.Underscore = True
+                  hAttr.Underscore = True
                 Case 5
-                  hScreen.Attr.Blink = True
+                  hAttr.Blink = True
                 Case 7
-                  hScreen.Attr.Reverse = True
+                  hAttr.Reverse = True
                 Case 21
-                  hScreen.Attr.Bold = False
+                  hAttr.Bold = False
                 Case 22
-                  hScreen.Attr.Dim = False
+                  hAttr.Dim = False
                 Case 24
-                  hScreen.Attr.Underscore = False
+                  hAttr.Underscore = False
                 Case 25
-                  hScreen.Attr.Blink = False
+                  hAttr.Blink = False
                 Case 27
-                  hScreen.Attr.Reverse = False
+                  hAttr.Reverse = False
                 Case 90 To 97
-                  hScreen.Attr.Foreground = iArg - 90
+                  hAttr.Foreground = iArg - 90
                 Case 100 To 107
-                  hScreen.Attr.Background = iArg - 100
+                  hAttr.Background = iArg - 100
                 Case 38
-                  If (aArg.max - i) >= 2 And If aArg[I + 1] = "5" Then
-                    Try hScreen.Attr.Foreground = CInt(aArg[I + 2])
-                    I += 2
-                  Endif
-                  'TODO: Implement support for RGB Colors
-                  ' If (aArg.max - i) >= 4 And If aArg[i + 1] = "2" Then
-                  '   Try hScreen.Attr.Background = Color.RGB(CInt(aArg[i + 2]), CInt(aArg[i + 3]), CInt(aArg[i + 4))
-                  '   i += 4
-                  ' Endif
-                Case 48
                   If (aArg.max - I) >= 2 And If aArg[I + 1] = "5" Then
-                    Try hScreen.Attr.Background = CInt(aArg[I + 2])
+                    Try hAttr.Foreground = CInt(aArg[I + 2])
                     I += 2
+                  Else If (aArg.Max - I) >= 4 And If aArg[I + 1] = "2" Then
+                    Try iColor = Color.RGB(CInt(aArg[I + 2]), CInt(aArg[I + 3]), CInt(aArg[I + 4]))
+                    If Not Error Then
+                      ' iIndex = hScreen.FindColor(iColor)
+                      ' If iIndex >= 0
+                      '   hAttr.Foreground = iIndex
+                      '   hAttr.ForegroundRGB = -1
+                      ' Else
+                        hAttr.Foreground = -1
+                        hAttr.ForegroundRGB = iColor
+                      ' Endif
+                    Endif
+                    I += 4
                   Endif
-                  'TODO: Implement support for RGB Colors
-                  ' If (aArg.max - i) >= 4 And If aArg[i + 1] = "2" Then
-                  '   Try hScreen.Attr.ForeGround = Color.RGB(CInt(aArg[i + 2]), CInt(aArg[i + 3]), CInt(aArg[i + 4))
-                  '   i += 4
-                  ' Endif
+                Case 48
+                  If (aArg.Max - I) >= 2 And If aArg[I + 1] = "5" Then
+                    Try hAttr.Background = CInt(aArg[I + 2])
+                    I += 2
+                  Else If (aArg.Max - I) >= 4 And If aArg[I + 1] = "2" Then
+                    Try iColor = Color.RGB(CInt(aArg[I + 2]), CInt(aArg[I + 3]), CInt(aArg[I + 4]))
+                    If Not Error Then
+                      iIndex = hScreen.FindColor(iColor)
+                      ' If iIndex >= 0
+                      '   hAttr.Background = iIndex
+                      '   hAttr.BackgroundRGB = -1
+                      ' Else
+                        hAttr.Background = -1
+                        hAttr.BackgroundRGB = iColor
+                      ' Endif
+                    Endif
+                    I += 4
+                  Endif
                   
                 Case 3
                   ' Italic on
@@ -290,7 +341,7 @@ Private Sub Escape(hView As TerminalView, hScreen As TerminalScreen, hOutput As 
               End Select
             Next
           Else
-            hScreen.Attr.Reset
+            hAttr.Reset
           Endif
           
         Case "@"
@@ -349,7 +400,7 @@ Private Sub Escape(hView As TerminalView, hScreen As TerminalScreen, hOutput As 
           
         Case "c"  'Report terminal type
           
-          Print #hOutput, "\e[?1;2c"
+          If hOutput Then Print #hOutput, "\e[?1;2c"
           
         Case "d" 'Set Cursor Y
           
@@ -370,7 +421,7 @@ Private Sub Escape(hView As TerminalView, hScreen As TerminalScreen, hOutput As 
           Else If aArg[0] = "2" Then
             hScreen.EraseScreen
           Else
-            Goto NOT_IMPLEMENTED
+            hScreen.Clear
           Endif
           
         Case "L" ' Insert lines
@@ -559,20 +610,22 @@ Private Sub Escape(hView As TerminalView, hScreen As TerminalScreen, hOutput As 
           
           Select Case Mid(sStr, 2, -1)
             Case "5"
-              Print #hOutput, "\e[0n";  'Report Status OK
+              sOutput = "\e[0n"  'Report Status OK
             Case "6"
-              Print #hOutput, Subst("\e[&1;&2R", hScreen.Line, hScreen.Column);  'Report Cursor Position
+              sOutput = Subst("\e[&1;&2R", hScreen.Line, hScreen.Column) 'Report Cursor Position
             Case "?6"
-              Print #hOutput, Subst("\e[?&1;&2R", hScreen.Line, hScreen.Column); 'Report Cursor Position
+              sOutput = Subst("\e[?&1;&2R", hScreen.Line, hScreen.Column) 'Report Cursor Position
             Case "?15"
-              Print #hOutput, "\0[?11n" 'Printer not ready (10 for ready)"
+              sOutput = "\0[?11n" 'Printer not ready (10 for ready)"
             Case "?25" 'Report UDK statu
-              Print #hOutput, "\0[?20n"  'UDK status as CSI ? 2 0 n (unlocked) or CSI ? 2 1 n (locked)
+              sOutput = "\0[?20n" 'UDK status as CSI ? 2 0 n (unlocked) or CSI ? 2 1 n (locked)
             Case "?26" 'Report Keyboard status as
-              Print #hOutput, "\0[?50n"  'No Locator, if not.
+              sOutput = "\0[?50n" 'No Locator, if not.
             Default
               Goto NOT_IMPLEMENTED
           End Select
+          
+          If hOutput Then Print #hOutput, sOutput;
         
         Case "r" ' Scroll screen
           
@@ -596,6 +649,96 @@ Private Sub Escape(hView As TerminalView, hScreen As TerminalScreen, hOutput As 
           GoSub GET_COUNT
           If $sLastChar Then hScreen.Print(String$(N, $sLastChar))
           
+        Case "t" ' window manipulations, set TerminalView.WindowCommands to True to enable.
+          
+        If hView.WindowCommands Then
+
+          Dim hViewWin As Window = hView.Window
+
+          GoSub GET_ARGS
+
+          If aArg Then
+            sArg = aArg[I]
+
+            Try iArg = CInt(sArg)
+            If Error Then Return
+
+            Select Case iArg
+              Case 1
+                hViewWin.Minimized = False
+              Case 2
+                hViewWin.Minimized = True
+              Case 3
+                ' Move window
+                Dim iLeft, iTop As Integer
+                Try iLeft = CInt(aArg[I + 1])
+                If Error Then Return
+                Try iTop = CInt(aArg[I + 2])
+                If Error Then Return
+                hViewWin.Move(iLeft, iTop, hViewWin.Width, hViewWin.Height)
+              Case 4, 8
+                ' Resize window , 4 for size in pixels 8 for text characters
+                If Not hViewWin.Resizable Then Return
+
+                Dim iWidth, iHeight As Integer
+                
+                Try iHeight = IIf(iArg = 4, CInt(aArg[I + 1]), hView.LineHeight * CInt(aArg[I + 1])) + 
+                  (hViewWin.Height - hView.Height) + IIf(hViewWin.Border, 4, 0)
+                If Error Then Return
+                
+                Try iWidth = IIf(iArg = 4, CInt(aArg[I + 2]), hView.CharWidth * CInt(aArg[I + 2])) + 
+                  (hViewWin.Width - hView.Width) + IIf(hViewWin.Border, 4, 0)
+                If Error Then Return
+                
+                hViewWin.Resize(iWidth, iHeight)
+              Case 5
+                hViewWin.Raise
+              Case 6
+                hViewWin.Lower
+              'Case 7
+              '  hView.Refresh
+              Case 9  ' maximize , if window is resizable.
+                If Not hViewWin.Resizable Then Return
+
+                Try iArg = CInt(aArg[I + 1])
+                If Error Then Return
+                Select iArg
+                  Case 0
+                    hView.Window.Maximized = False
+                  Case 1
+                    hViewWin.Maximized = Not hViewWin.Maximized
+                  Case 2
+                      hViewWin.Height = Screen.Height
+                  Case 3
+                      hViewWin.Width = Screen.Width
+                  Default
+                    Goto NOT_IMPLEMENTED
+                End Select
+              Case 10
+                If Not hViewWin.Resizable Then Return
+                Try iArg = CInt(aArg[I + 1])
+                If Error Then Return
+                Select iArg
+                  Case 0
+                    hViewWin.FullScreen = False
+                    hView.Border = True
+                  Case 1
+                    hView.Border = False
+                    hViewWin.FullScreen = True
+                  Case 2
+                    hViewWin.FullScreen = Not hViewWin.FullScreen
+                    hView.Border = Not hViewWin.FullScreen
+                  Default
+                    Goto NOT_IMPLEMENTED
+                End Select
+              Default
+                Goto NOT_IMPLEMENTED
+            End Select
+          Endif
+        Endif
+
+
+
         Default
           
           Goto NOT_IMPLEMENTED

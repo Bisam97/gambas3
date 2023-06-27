@@ -1,0 +1,16 @@
+' Gambas class file
+
+''' The internal state of a TapPrinter. There is one such object for every subtest.
+
+'' The number of tests planned.
+Public Plan As Integer
+'' Whether the test is skipped altogether ("1..0 # SKIP" plan line).
+Public SkipAll As Boolean
+'' The number of tests run so far.
+Public TestsRun As Integer
+'' The serial ID used for the last assertion.
+Public LastId As Long
+'' Whether this test was finished by TapPrinter.Finish().
+Public Finished As Boolean
+'' An assertion object representing the entirety of this subtest.
+Public Summary As New TestAssertion

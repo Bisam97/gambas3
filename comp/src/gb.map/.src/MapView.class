@@ -66,7 +66,6 @@ Public Sub _GetMaxZoom() As Integer
 
 End
 
-
 Public Sub SetCenter(hMapPoint As MapPoint)
 
   $hCenter = hMapPoint
@@ -134,6 +133,7 @@ Public Sub View_MouseWheel()
 
   Dim hCenter As MapPoint
   Dim iMidViewX, iMidViewY As Integer
+  Dim hLayer As _MapLayer
 
   If $bLock Then Return
 
@@ -150,7 +150,6 @@ Public Sub View_MouseWheel()
     iMidViewX = $hView.ClientW / 2
     iMidViewY = $hView.ClientH / 2
 
-
     hCenter = $hmap.PixelToMapPointRel(Point(Mouse.x, Mouse.y))
 
     _ZoomDown(Mouse.X, Mouse.Y)
@@ -161,6 +160,10 @@ Public Sub View_MouseWheel()
 
   Endif
 
+  For Each hLayer In $hmap._GetLayers()
+    If hLayer.Visible Then hLayer._MouseWheel
+  Next
+
   $hView.Refresh
 
 End
@@ -170,24 +173,24 @@ End
 ''   [http://gambaswiki.org/wiki/comp/gb.qt4/image/save]
 ' Public Sub Save(Path As String, Optional Quality As Integer)
 '   'http://sourceforge.net/p/gambas/mailman/message/32083180/
-' 
+'
 '   Dim hPicture As New Picture($hView.W, $hView.H)
 '   Dim bControlState As Boolean = Me.ShowControls
-' 
+'
 '   If bControlState = True Then Me.ShowControls = False
-' 
+'
 '   Paint.Begin(hPicture)
 '   '  DrawMap()
 '   Paint.End()
-' 
+'
 '   Me.ShowControls = bControlState
-' 
+'
 '   If Exist(Path) Then
 '     Error.Raise("File already exists: " & Path)
 '   Else
 '     hPicture.Save(Path, Quality)
 '   Endif
-' 
+'
 ' End
 
 Public Sub _ZoomUp(X As Integer, Y As Integer)
@@ -237,6 +240,8 @@ End
 
 Public Sub View_MouseDown()
 
+  Dim hLayer As _MapLayer
+
   $hView.Mouse = Mouse.Pointing
   $iX = Mouse.X
   $iY = Mouse.Y
@@ -245,11 +250,15 @@ Public Sub View_MouseDown()
   $tmrOnMove.Stop
   If $bShowControls Then $hViewLayer._MouseDown()
 
-  'Raise MouseDown
+  For Each hLayer In $hmap._GetLayers()
+    hLayer._MouseDown
+  Next
 
 End
 
 Public Sub View_MouseUp()
+
+  Dim hLayer As _MapLayer
 
   Last.Mouse = Mouse.Default
   If $bAllowEffect Then
@@ -257,13 +266,16 @@ Public Sub View_MouseUp()
   Endif
   If $bShowControls Then $hViewLayer._MouseUp()
 
-  'Raise MouseUp
+  For Each hLayer In $hmap._GetLayers()
+    If hLayer.Visible Then hLayer._MouseUp
+  Next
 
 End
 
 Public Sub View_MouseMove()
 
   Dim hPix As Point
+  Dim hLayer As _MapLayer
 
   If Mouse.Left And Not $bLock Then
 
@@ -281,12 +293,15 @@ Public Sub View_MouseMove()
   $tx = Mouse.X
   $ty = Mouse.y
   If $bShowControls Then $hViewLayer._MouseMove()
-  'Raise MouseMove
+
+  For Each hLayer In $hmap._GetLayers()
+    If hLayer.Visible Then hLayer._MouseMove
+  Next
 
 End
 
 Public Sub View_Arrange()
-  
+
   $hMap.Resize($hView.ClientW, $hView.ClientH)
   $hZoomBuffer.Resize($hView.ClientW, $hView.ClientH)
   $iZoomWay = 0
@@ -309,6 +324,7 @@ End
 
 Public Sub Refresh()
 
+  $hmap.Refresh
   $hView.Refresh
 
 End
@@ -373,18 +389,38 @@ End
 
 Private Sub ShowControls_Write(Value As Boolean)
 
-  $bShowControls = Value 
+  $bShowControls = Value
 
 End
 
 ' Private Function Mode_Read() As Integer
-' 
-' 
-' 
+'
+'
+'
 ' End
-' 
+'
 ' Private Sub Mode_Write(Value As Integer)
-' 
-' 
-' 
+'
+'
+'
 ' End
+
+Public Sub View_Leave()
+
+  Dim hLayer As _MapLayer
+
+  For Each hLayer In $hmap._GetLayers()
+    If hLayer.Visible Then hLayer._Leave
+  Next
+
+End
+
+Public Sub View_Enter()
+
+  Dim hLayer As _MapLayer
+
+  For Each hLayer In $hmap._GetLayers()
+    If hLayer.Visible Then hLayer._Enter
+  Next
+
+End

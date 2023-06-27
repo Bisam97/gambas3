@@ -2,7 +2,7 @@
 
   cprinter.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -51,5 +51,7 @@ extern GB_DESC PrinterDesc[];
 #define PRINTER (THIS->printer)
 
 #endif
+
+QSizeF CPRINTER_get_page_size(CPRINTER *_object);
 
 #endif

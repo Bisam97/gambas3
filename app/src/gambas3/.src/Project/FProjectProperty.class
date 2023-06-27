@@ -2,13 +2,10 @@
 
 'Static Private $bShowUsed As Boolean
 Static Private $bShowLibraries As Boolean
-Static Private $bShowArguments As Boolean
 
 Private $sIcon As String
 
 Private $bCanInitComponents As Boolean
-
-Private $aEnv As String[]
 
 Private $aComponents As String[]
 Private $aLibraries As String[]
@@ -17,8 +14,8 @@ Private $aLibraries As String[]
 
 Private Const COMPONENT_PROPERTIES_TAB As Integer = 1
 Private Const LIBRARY_TAB As Integer = 3
-Private Const ARGUMENT_TAB As Integer = 5
-Private Const VERSION_CONTROL_TAB As Integer = 8
+Private Const VERSION_CONTROL_TAB As Integer = 6
+Private Const STAT_TAB As Integer = 7
 
 Private $bInitInfo As Boolean
 Private $aNeed As String[]
@@ -40,25 +37,43 @@ Static Public Function ShowLibraries() As Boolean
 
 End
 
-Static Public Function ShowArguments() As Boolean
+Public Sub _new()
+  
+  Dim hBorder As Border
 
-  $bShowArguments = True
-  Return Not FProjectProperty.ShowModal()
+  hBorder = Border("style:none;bottom-style:solid;padding:" & CStr(Desktop.Scale \ 2) & ";")
+  hBorder.Color = Color.LightForeground
+  gvwLibrary.Rows.Border = hBorder
+  
+  splLibraries.MinSize = Desktop.Scale * 10
+  
+End
+
+Public Sub Form_Close()
+
+  Settings.Write(Me)
+  Settings.Write(splLibraries)
 
 End
 
 Public Sub Form_Open()
 
   Dim sLang As String
-  Dim hBorder As Border
-
+  
+  Settings.Read(Me)
+  Settings.Read(splLibraries)
+  
   Me.Title = ("Project properties") & " - " & Project.Name
 
-  txtName.Text = "<font size=\"+2\"><b>" & Project.Name & "</b></font><br>" & File.Dir(Project.Dir)
+  Project.Save
+
+  lblName.Text = Project.Name
+  txtPath.Text = File.Dir(Project.Dir)
+  'txtName.Text = "<font size=\"+2\"><b>" & Project.Name & "</b></font><br>" & File.Dir(Project.Dir)
 
   cmbDefaultLanguage.Clear
-  For Each sLang In Language.GetAll()
-    cmbDefaultLanguage.Add(Language.ToName(sLang))
+  For Each sLang In MyLanguage.GetAll()
+    cmbDefaultLanguage.Add(MyLanguage.ToName(sLang))
   Next
   
   With Project
@@ -71,13 +86,16 @@ Public Sub Form_Open()
     btnModulePublic.Value = .ModulePublic
     btnShowDeprecated.Value = .ShowDeprecated
     btnWarning.Value = .Warnings
+    btnCheckPrefix.Value = .CheckVariablePrefix
+    txtDefaultNamespace.Text = .DefaultNamespace
+    cmbForceBytecodeVersion.Text = .ForceBytecodeVersion
     txtMajor.Value = .MajorVersion
     txtMinor.Value = .MinorVersion
     txtRelease.Value = .ReleaseVersion
     btnTranslate.Value = .Localize
     cmbType.Index = .Type
-    cmbDefaultLanguage.Text = Language.ToName(System.Language)
-    Try cmbDefaultLanguage.Text = Language.ToName(Project.DefaultLanguage)
+    cmbDefaultLanguage.Text = MyLanguage.ToName(System.Language)
+    Try cmbDefaultLanguage.Text = MyLanguage.ToName(Project.DefaultLanguage)
     ' Select Case .Type
     '   Case .TYPE_NORMAL
     '     radTypeNormal.Value = True
@@ -103,12 +121,13 @@ Public Sub Form_Open()
     $aComponents = .Components.Copy()
     
     lstReferences.List = .ExtraReferences
+    
+    choEnv.Environment = .StartupEnvironment
 
   End With
   
-  hBorder = Border("style:none;bottom-style:solid;padding:" & CStr(Desktop.Scale \ 2) & ";")
-  hBorder.Color = Color.LightForeground
-  gvwLibrary.Rows.Border = hBorder
+  mnuInsertEnv.Proxy = FDebugConfig.GetEnvironmentMenu(choEnv)
+  choEnv.Menu = "mnuInsertEnv"
   
   choComponent.Checkable = True
   choComponent.CheckedComponents = Project.Components
@@ -118,17 +137,15 @@ Public Sub Form_Open()
   'chkShowUsed.Value = $bShowUsed
   $bCanInitComponents = True
   
-  ipnProject[VERSION_CONTROL_TAB].Visible = VersionControl.Enabled
+  If VersionControl.Enabled Then btnVersionAddBranch.Value = Project.VersionAddBranch
 
   ipnProject.Index = 0
-
-  InitEnvironment
 
   btnOK.Enabled = Not Project.ReadOnly And Not Project.Running
 
   $bInitInfo = False
   
-  gvwVcInfo.Rows.Count = 0
+  Me.Center()
   
 End
 
@@ -137,64 +154,7 @@ Public Sub Form_Activate()
   If $bShowLibraries Then 
     $bShowLibraries = False
     ipnProject.Index = LIBRARY_TAB
-  Else If $bShowArguments Then
-    $bShowArguments = False
-    ipnProject.Index = ARGUMENT_TAB
   Endif
-  
-End
-
-Private Sub InitEnvironment()
-
-  Dim aArg As String[]
-  Dim hArgListEditor As ArgListEditor
-
-  svwArgList.Children.Clear
-  For Each aArg In Project.Arguments
-    hArgListEditor = New ArgListEditor(svwArgList) As "ArgListEditor"
-    hArgListEditor.Set(aArg)
-  Next
-  
-  tvwEnv.Columns.Count = 2
-  tvwEnv.Columns[0].Text = ("Variable")
-  tvwEnv.Columns[0].Width = Max(tvwEnv.Columns[0].Width, Desktop.Scale * 20)
-  tvwEnv.Columns[1].Text = ("Value")
-  
-  $aEnv = Project.Environment.Copy()
-    
-  tvwEnv.Rows.Resizable = False
-  
-  UpdateEnv
-  
-End
-
-Private Sub SaveEnvironment()
-  
-  Dim iInd As Integer
-  Dim aArgList As String[][]
-  Dim hArgListEditor As ArgListEditor
-  Dim aArg As String[]
-  
-  tvwEnv.Save
-  
-  While iInd < $aEnv.Count
-    If Not Trim(Scan($aEnv[iInd], "*=*")[0]) Then 
-      $aEnv.Remove(iInd)
-    Else 
-      Inc iInd
-    Endif
-  Wend
-
-  aArgList = New String[][]
-  For Each hArgListEditor In svwArgList.Children
-    aArg = hArgListEditor.Get()
-    If aArg.Count = 0 Then Continue
-    aArgList.Add(aArg)
-  Next
-
-  Project.Arguments = aArgList
-  
-  Project.Environment = $aEnv
   
 End
 
@@ -209,9 +169,21 @@ Private Function DoApply() As Boolean
 
   ' Dim bRefreshForm As Boolean
   Dim bRefreshEditor As Boolean
+  Dim sDefaultNamespace As String
+  Dim I As Integer
+  Dim sCar As String
 
   If choComponent.CheckSelection() Then Return True
 
+  sDefaultNamespace = Trim(txtDefaultNamespace.Text)
+  If sDefaultNamespace Then
+    If Not IsLetter(Left(sDefaultNamespace)) Then Goto INVALID_NAMESPACE
+    For I = 2 To Len(sDefaultNamespace)
+      sCar = Mid$(sDefaultNamespace, I, 1)
+      If Not IsLetter(sCar) And If Not IsNumber(sCar) Then Goto INVALID_NAMESPACE
+    Next
+  Endif
+  
   With Project
 
     .Vendor = Trim(txtVendor.Text)
@@ -237,23 +209,20 @@ Private Function DoApply() As Boolean
     Endif
     
     .Warnings = btnWarning.Value
+    .CheckVariablePrefix = btnCheckPrefix.Value
+    .DefaultNamespace = txtDefaultNamespace.Text
+    .ForceBytecodeVersion = Trim(cmbForceBytecodeVersion.Text)
     .MajorVersion = txtMajor.Value
     .MinorVersion = txtMinor.Value
     .ReleaseVersion = txtRelease.Value
     .VersionFile = chkGetVersionFromFile.Value
-    '.SnapToGrid = chkSnap.Value
 
-    'IF chkShowGrid.Value <> .ShowGrid OR .Snap <> txtGrid.Value THEN
-    '  bRefreshForm = TRUE
-    'ENDIF
-
-    '.ShowGrid = chkShowGrid.Value
-    '.Snap = txtGrid.Value
     If btnTranslate.Value And Not .Localize Then
       Project.DeleteCompiledFiles()
     Endif
+    
     .Localize = btnTranslate.Value
-    .DefaultLanguage = Language.FromName(cmbDefaultLanguage.Text)
+    .DefaultLanguage = MyLanguage.FromName(cmbDefaultLanguage.Text)
     
     .Type = cmbType.Index
 
@@ -267,33 +236,38 @@ Private Function DoApply() As Boolean
     .Libraries = $aLibraries
     
     .ExtraReferences = lstReferences.List
-
+    
+    If VersionControl.Enabled Then .VersionAddBranch = btnVersionAddBranch.Value
+    
+    .StartupEnvironment = choEnv.Environment
+      
   End With
 
   SaveComponents
-  SaveEnvironment
   WriteComponent
 
+  Inc Project.TimeStamp
+  
   Project.WriteProject
   Project.MakeDirectoryIcon
   Project.Compile
-
+  
   Project.RefreshRoot
   ' If bRefreshForm Then Project.RefreshForm
   If bRefreshEditor Then Project.RefreshEditor
-  FMain.OnRefreshComponents
+  Project.OnRefreshComponents
   
-  Project.SetMessage(("OK"))
+  'Project.SetMessage(("OK"))
 
   Return
 
-BAD_GRID:
+INVALID_NAMESPACE:
 
-  Message.Error(("Snapping value is incorrect."))
+  Message.Warning(("Invalid namespace identifier."))
+  txtDefaultNamespace.SetFocus
   Return True
 
 End
-
 
 Public Sub btnOK_Click()
 
@@ -303,14 +277,12 @@ Public Sub btnOK_Click()
 
 End
 
-
 Private Sub SaveComponents()
 
   Project.Components = choComponent.CheckedComponents
   Project.RefreshComponents
 
 End
-
 
 ' Public Sub gvwComponent_Data(Row As Integer, Column As Integer)
 '   
@@ -630,101 +602,7 @@ Public Sub btnReset_Click()
   
   End Select
 
-
 End
-
-Public Sub tvwEnv_Click()
-
-  tvwEnv.Edit
-
-End
-
-Public Sub tvwEnv_Data(Row As Integer, Column As Integer)
-
-  Dim aEnv As String[] = Scan($aEnv[Row], "*=*")
-  
-  Try tvwEnv.Data.Text = aEnv[Column]
-  
-Catch
-
-End
-
-Public Sub tvwEnv_Save(Row As Integer, Column As Integer, Value As String)
-
-  Dim aEnv As String[] = Scan($aEnv[Row], "*=*")
-  
-  If Column = 0 Then 
-    $aEnv[Row] = Trim(Value) & "=" & aEnv[1]
-    tvwEnv.Columns[0].Width = -1
-  Else 
-    $aEnv[Row] = aEnv[0] & "=" & Value
-  Endif
-  
-End
-
-Public Sub tvwEnv_Insert()
-  
-  If Key.Normal Then
-    btnOK.Value = True
-  Else If Key.Control Then 
-    btnInsertEnv_Click
-  Endif
-  
-End
-
-Public Sub btnInsertEnv_Click()
-
-  If $aEnv.Count >= 255 Then Return
-  $aEnv.Add("=")
-  UpdateEnv
-  tvwEnv.MoveTo($aEnv.Max, 0)
-  tvwEnv.Edit      
-
-End
-
-Public Sub mnuInsertEnv_Click()
-  
-  Dim sNewEnv As String = Last.Tag
-  Dim iInd As Integer
-  Dim aNewEnv As String[]
-  Dim aEnv As String[]
-  
-  If Not sNewEnv Then Return
-  
-  For Each sNewEnv In Split(sNewEnv)
-  
-    aNewEnv = Scan(sNewEnv, "*=*")
-    For iInd = 0 To $aEnv.Max
-      aEnv = Scan($aEnv[iInd], "*=*")
-      If aEnv[0] = aNewEnv[0] Then
-        aEnv[1] = aNewEnv[1]
-        $aEnv[iInd] = aEnv[0] & "=" & aEnv[1]
-        tvwEnv.Refresh
-        sNewEnv = ""
-        Break
-      Endif
-    Next
-  
-    If sNewEnv Then
-      $aEnv.Add(sNewEnv)
-      UpdateEnv
-    Endif
-    
-  Next
-  
-End
-
-
-Public Sub btnRemoveEnv_Click()
-  
-  If $aEnv.Count = 0 Then Return
-  If tvwEnv.Row < 0 Then Return
-  tvwEnv.Save
-  $aEnv.Remove(tvwEnv.Row)
-  UpdateEnv
-  
-End
-
 
 ' Public Sub cmbTranslate_Click()
 ' 
@@ -888,7 +766,7 @@ Public Sub ipnProject_Click()
 
   Select Case ipnProject.Text
     Case ("Components") 
-      choComponent.SetFocus
+      'choComponent.SetFocus
       choComponent.HideBrowser
       btnReset.Show
     Case ("Libraries") 
@@ -898,10 +776,8 @@ Public Sub ipnProject_Click()
       'panHttpServer.Enabled = choComponent.IsChecked("gb.web") 'Project.Components.Exist("gb.web")
     Case ("Statistics") 
       UpdateStat
-    Case ("Information") 
+    Case ("Properties") 
       UpdateInfo
-    Case ("Version control")
-      UpdateVcInfo
   End Select
 
 End
@@ -913,8 +789,13 @@ Private Sub AddStat(sName As String, sValue As String)
   N = gvwStat.Rows.Count
   Inc gvwStat.Rows.Count
   gvwStat[N, 0].Text = sName
-  gvwStat[N, 0].Foreground = Color.Merge(Color.TextBackground, Color.TextForeground)
+  'gvwStat[N, 0].Foreground = Color.Merge(Color.TextBackground, Color.TextForeground, 0.7)
   gvwStat[N, 1].Text = sValue
+  gvwStat[N, 1].Font.Bold = True
+  If Even(n) Then
+    gvwStat[N, 0].Background = Color.SetAlpha(Color.TextForeground, 250)
+    gvwStat[N, 1].Background = gvwStat[N, 0].Background
+  Endif
   
 End
 
@@ -923,11 +804,15 @@ Private Sub UpdateStat()
 
   Dim hModule As CModule
   Dim iSize As Long
+  Dim nFunc As Integer
+  Dim nLine As Integer
   
   gvwStat.Columns.Count = 2
   gvwStat.Rows.Count = 0
+  gvwStat.Columns[1].Alignment = Align.Right
   
   AddStat(("Modules"), CStr(Project.GetCount("module")))
+  If Project.HasTest() Then AddStat(("Test modules"), CStr(Project.GetCount("test")))
   AddStat(("Classes"), CStr(Project.GetCount("class")))
 
   For Each hModule In CModule.All
@@ -935,7 +820,11 @@ Private Sub UpdateStat()
     AddStat(hModule.NamePlural, CStr(Project.GetCount(hModule.Key)))
   Next
 
-  AddStat(("Lines of code"), Format(Project.GetLinesOfCode(), ",0"))
+  nLine = Project.GetLinesOfCode(ByRef nFunc)
+  
+  AddStat(("Functions"), Format(nFunc, ",0"))
+  AddStat(("Lines of code"), Format(nLine, ",0"))
+  If nFunc Then AddStat(("Average number of lines by function"), Format(nLine / nFunc, ",0.0"))
   
   Try iSize = Stat(Project.GetExecPath()).Size
   If iSize Then AddStat(("Executable size"), Format(iSize, ",0") & " " & ("bytes"))
@@ -1066,10 +955,10 @@ Private Sub ReadComponent()
   
   lvwRequire.Clear
   For Each sComp In $aRequire
-    lvwRequire.Add(sComp, sComp, Picture["icon:/small/ok"])
+    lvwRequire.Add(sComp, sComp, Picture["icon:/small/apply"])
   Next
   For Each sComp In $aExclude
-    lvwRequire.Add(sComp, sComp, Picture["icon:/small/close"])
+    lvwExclude.Add(sComp, sComp, Picture["icon:/small/cancel"])
   Next
   
 End
@@ -1087,30 +976,40 @@ End
 Private Sub AddRequireExclude(sComp As String, aComp As String[])
 
   Dim sIcon As String
+  Dim hListView As ListView
   
-  If sComp = Project.Name Then Return  
-  If lvwRequire.Exist(sComp) Then Return
+  If sComp = Project.Name Then Return
   
   If aComp = $aRequire Then
-    sIcon = "ok"
+    hListView = lvwRequire
+    sIcon = "apply"
   Else
-    sIcon = "close"
+    hListView = lvwExclude
+    sIcon = "cancel"
   Endif
 
+  If $aRequire.Exist(sComp) Or If $aExclude.Exist(sComp) Then Return
+  
   aComp.Add(sComp)
-  lvwRequire.Add(sComp, sComp, Picture["icon:/small/" & sIcon])
+  hListView.Add(sComp, sComp, Picture["icon:/small/" & sIcon])
   
 End
-
 
 Public Sub btnRemove_Click()
 
   Dim sKey As String
   Dim iFind As Integer
+  Dim hListView As ListView
 
-  sKey = lvwRequire.Key
+  hListView = lvwRequire
+  sKey = hListView.Key
+  If Not sKey Then
+    hListView = lvwExclude
+    sKey = hListView.Key
+  Endif
   If Not sKey Then Return
-  lvwRequire.Remove(sKey)
+  
+  hListView.Remove(sKey)
   
   iFind = $aRequire.Find(sKey)
   If iFind >= 0 Then $aRequire.Remove(iFind)
@@ -1123,6 +1022,7 @@ End
 Public Sub btnRemoveAll_Click()
 
   lvwRequire.Clear
+  lvwExclude.Clear
   $aRequire.Clear
   $aExclude.Clear
 
@@ -1282,168 +1182,9 @@ End
 ' 
 ' End
 
-Private Sub UpdateArgButtons()
-
-  Dim iCurrent As Integer
-
-  iCurrent = GetCurrentArgListEditor()
-
-  btnMoveDownArg.Enabled = iCurrent >= 0 And iCurrent < svwArgList.Children.Count - 1
-  btnMoveUpArg.Enabled = iCurrent > 0
-  btnRemoveArgument.Enabled = iCurrent >= 0
-
-End
-
-Private Sub SelectArgListEditor(hArgListEditor As ArgListEditor)
-
-  Dim hChild As ArgListEditor
-  
-  If hArgListEditor And If hArgListEditor.Selected Then Return
-  
-  For Each hChild In svwArgList.Children
-    hChild.Selected = hChild = hArgListEditor
-  Next
-
-End
-
-Public Sub ArgListEditor_Click()
-
-  SelectArgListEditor(Last)
-  UpdateArgButtons
-  
-End
-
-Private Sub GetCurrentArgListEditor() As Integer
-  
-  Dim I As Integer
-  Dim hChild As ArgListEditor
-  
-  For I = 0 To svwArgList.Children.Count - 1
-    hChild = svwArgList.Children[I]
-    If hChild.Selected Then Return I
-  Next
-  
-  Return -1
-  
-End
-
-
-Public Sub btnNewArgument_Click()
-
-  Dim hArgListEditor As ArgListEditor
-
-  hArgListEditor = New ArgListEditor(svwArgList) As "ArgListEditor"
-  hArgListEditor.SetFocus
-
-End
-
-Public Sub btnRemoveArgument_Click()
-
-  Dim iCurrent As Integer
-
-  iCurrent = GetCurrentArgListEditor()
-  If iCurrent < 0 Then Return
-  
-  svwArgList.Children[iCurrent].Delete
-
-End
-
-Public Sub svwArgList_GotFocus()
-
-  SelectArgListEditor(Null)
-
-End
-
-Public Sub btnMoveUpArg_Click()
-
-  Dim iCurrent As Integer
-  Dim hArgListEditor As ArgListEditor
-
-  iCurrent = GetCurrentArgListEditor()
-  If iCurrent <= 0 Then Return
-  
-  hArgListEditor = svwArgList.Children[iCurrent]
-  hArgListEditor.Next = svwArgList.Children[iCurrent - 1]
-  hArgListEditor.SetFocus
-  
-  If iCurrent = (Project.CurrentArgument - 1) Then
-    Dec Project.CurrentArgument
-    Project.WriteProject
-  Endif
-
-  UpdateArgButtons
-
-End
-
-Public Sub btnMoveDownArg_Click()
-
-  Dim iCurrent As Integer
-  Dim hArgListEditor As ArgListEditor
-
-  iCurrent = GetCurrentArgListEditor()
-  If iCurrent < 0 Or If iCurrent >= svwArgList.Children.Count - 1 Then Return
-  
-  hArgListEditor = svwArgList.Children[iCurrent]
-  hArgListEditor.Next = svwArgList.Children[iCurrent + 1].Next
-  hArgListEditor.SetFocus
-
-  If iCurrent = (Project.CurrentArgument - 1) Then
-    Inc Project.CurrentArgument
-    Project.WriteProject
-  Endif
-
-  UpdateArgButtons
-
-End
-
 Public Sub btnShowDeprecated_Click()
 
   choComponent.ShowDeprecated = btnShowDeprecated.Value
-
-End
-
-Private Sub UpdateVcInfo()
-
-  Dim cInfo As Collection
-  Dim sValue As String
-  Dim iRow As Integer
-  Dim I As Integer
-  
-  If gvwVcInfo.Rows.Count Then Return
-  
-  Inc Application.Busy
-  
-  cInfo = VersionControl.Info()
-
-  gvwVcInfo.Columns.Count = 2
-  gvwVcInfo.Rows.Count = cInfo.Count
-  
-  For Each sValue In cInfo
-    gvwVcInfo[iRow, 0].Text = cInfo.Key
-    gvwVcInfo[iRow, 0].Foreground = Color.Merge(Color.TextBackground, Color.TextForeground)
-    gvwVcInfo[iRow, 1].Text = sValue
-    Inc iRow
-  Next
-  
-  gvwVcInfo.Columns[0].W = -1
-  gvwVcInfo.Columns[0].W += Desktop.Scale * 2
-  
-  For I = 0 To gvwVcInfo.Rows.Count - 1
-    gvwVcInfo.Rows[I].H = -1
-  Next
-
-
-Finally
-  
-  Dec Application.Busy
-  
-End
-
-Private Sub UpdateEnv()
-
-  tvwEnv.Rows.Count = $aEnv.Count
-  tvwEnv.Columns[0].Width = -1
-  tvwEnv.Refresh
 
 End
 
@@ -1466,3 +1207,39 @@ Public Sub lstReferences_Add()
   lstReferences.Add(sPath)
 
 End
+
+Public Sub btnWarning_Click()
+
+  btnCheckPrefix.Enabled = btnWarning.Value
+
+End
+
+Public Sub lvwRequire_Select()
+
+  lvwExclude.UnSelectAll
+
+End
+
+Public Sub lvwExclude_Select()
+
+  lvwRequire.UnSelectAll
+
+End
+
+Public Sub cmbDefaultLanguage_Click()
+
+  Dim sLang As String
+
+  sLang = MyLanguage.FromName(cmbDefaultLanguage.Text)
+  picDefaultLanguage.Picture = Picture["flag:/small/" & Language[sLang].Country]
+
+End
+
+Public Sub mnuInsertEnv_Click()
+  
+  Dim sNewEnv As String = Last.Tag
+  If Not sNewEnv Then Return
+  choEnv.Insert(Split(sNewEnv))
+  
+End
+

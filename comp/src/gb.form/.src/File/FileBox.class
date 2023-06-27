@@ -1,0 +1,167 @@
+' Gambas class file
+
+Export
+Inherits UserControl
+
+Public Const _Properties As String = "*,Path,Action,Border=True,SaveFile,Title,Filter,Picture,Placeholder"
+Public Const _DefaultEvent As String = "Click"
+Public Const _DefaultSize As String = "32,4"
+Public Const _Similar As String = "TextBox,DirBox"
+Public Const _Group As String = "Chooser"
+
+Event Click
+Event Change
+
+Property Value, Path As String
+Property Border As Boolean
+Property Title As String
+
+'' Use a custom image for the button. Default is a file icon.
+Property Picture As Picture
+Property Placeholder As String
+
+'' File dialog will be for saving files.  (it will give overwrite warnings for existing files)
+Property SaveFile As Boolean
+
+'' Return or set the optional filters of the file selection dialog.
+''
+'' The syntax is the same as the [Dialog.Filter](/comp/gb.qt4/dialog/filter) property.
+
+Property Filter As String[]
+
+Private $aFilter As String[]
+Private $bSaveFile As Boolean
+Private $sTitle As String
+
+Private $hButtonBox As ButtonBox
+
+Public Sub _new()
+
+  $hButtonBox = New ButtonBox(Me) As "Button"
+  Me.Proxy = $hButtonBox
+  $hButtonBox.Picture = Picture["icon:/small/file"]
+  $hButtonBox.ReadOnly = True
+  $hButtonBox.ClearButton = True
+
+End
+
+Public Sub Button_Click()
+
+  Dim sSaveTitle As String = Dialog.Title
+  Dim aSaveFilter As String[]
+  Dim bCancel As Boolean
+
+  If $aFilter Then
+    aSaveFilter = Dialog.Filter
+    Dialog.Filter = $aFilter
+  Endif
+
+  Dialog.Path = $hButtonBox.Text
+  Dialog.Title = $sTitle
+  If $aFilter And If $aFilter.Count Then Dialog.FilterIndex = 0
+
+  If $bSaveFile Then
+    bCancel = Dialog.SaveFile()
+  Else
+    bCancel = Dialog.OpenFile()
+  Endif
+
+  Dialog.Title = sSaveTitle
+  If $aFilter Then Dialog.Filter = aSaveFilter
+
+  If Not bCancel Then
+    $hButtonBox.Text = Dialog.Path
+    Raise Click
+  Endif
+
+End
+
+Public Sub Button_Change()
+
+  Raise Change
+
+End
+
+Private Function Border_Read() As Boolean
+
+  Return $hButtonBox.Border
+
+End
+
+Private Sub Border_Write(Value As Boolean)
+
+  $hButtonBox.Border = Value
+
+End
+
+Private Function Value_Read() As String
+
+  Return $hButtonBox.Text
+
+End
+
+Private Sub Value_Write(Value As String)
+
+  $hButtonBox.Text = Value
+
+End
+
+Private Function SaveFile_Read() As Boolean
+
+  Return $bSaveFile
+
+End
+
+Private Sub SaveFile_Write(Value As Boolean)
+
+  $bSaveFile = Value
+
+End
+
+Private Function Title_Read() As String
+
+  Return $sTitle
+
+End
+
+Private Sub Title_Write(Value As String)
+
+  $sTitle = Value
+
+End
+
+Private Function Filter_Read() As String[]
+
+  Return $aFilter
+
+End
+
+Private Sub Filter_Write(Value As String[])
+
+  $aFilter = Value
+
+End
+
+Private Function Picture_Read() As Picture
+
+  Return $hButtonBox.Picture
+
+End
+
+Private Sub Picture_Write(Value As Picture)
+
+  $hButtonBox.Picture = Value
+
+End
+
+Private Function Placeholder_Read() As String
+
+  Return $hButtonBox.Placeholder
+
+End
+
+Private Sub Placeholder_Write(Value As String)
+
+  $hButtonBox.Placeholder = Value
+
+End

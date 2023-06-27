@@ -1,0 +1,41 @@
+' Gambas test file
+
+''' Test the Keyword filter works correctly in all cases
+''' Presents a list of program lines to the Filter and
+''' Calls an error when they fail
+''' The format ofthe table is
+''' Key = message to display if matched
+''' value = the regexp expression to match
+
+Public Program As String[] = ["Print a, b ,c",
+                              "Print #file.out, \"this\"",
+                              "Write #file.out,\"This\"",
+                              "Read  #file.in, buffer"]
+
+Public Filters As Collection = ["Unable to process read , permission denied": "^Read.*",
+                                "No more writing!": "^Write.*",
+                                "You can not print to that output sink": "^Print #file.*"]
+Public Sub _setup()
+  
+  'Warning.$bWarningOn = True
+  'Verbose.$bVerboseOn = True
+  
+End
+
+Public Sub _TearDown()
+  
+  'Warning.$bWarningOn = False
+  'Verbose.$bVerboseOn = False
+   ScriptSetKeywordFilter.Clear()
+End
+
+
+Public Sub DoFilters()
+  
+  Assert.ok(Not ScriptKeywordFilter(Program[0], filters, 10, "TheDummyFIle/now.gbs"), "Found Filtered Value")
+  
+  For i As Integer = 1 To Program.max
+    Assert.Ok(ScriptKeywordFilter(Program[i], filters, 10, "TheDummyFIle/now.gbs"), "Found Filtered Value")
+  Next
+  
+End

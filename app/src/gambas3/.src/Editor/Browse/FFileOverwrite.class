@@ -1,0 +1,50 @@
+' Gambas class file
+
+Public Enum ACTION_OVERWRITE, ACTION_RENAME, ACTION_IGNORE
+
+Static Public FileAction As Integer
+Static Public ApplyToAll As Boolean
+
+Public Sub Run(sFile As String) As Boolean
+
+  Dim bCancel As Boolean
+  Dim iBusy As Integer
+
+  Me.Title = Subst(("Overwrite '&1'?"), sFile)
+
+  iBusy = Application.Busy
+  Application.Busy = 0
+  bCancel = Not Me.ShowModal()
+  Application.Busy = iBusy
+  
+  If radOverwrite.Value Then
+    FileAction = ACTION_OVERWRITE
+  Else If radRename.Value Then
+    FileAction = ACTION_RENAME
+  Else If radIgnore.Value Then 
+    FileAction = ACTION_IGNORE
+  Endif
+  
+  ApplyToAll = chkApplyAll.Value
+  
+  Return bCancel
+
+End
+
+Public Sub btnOK_Click()
+
+  Me.Close(True)
+
+End
+
+Public Sub btnCancel_Click()
+
+  Me.Close
+
+End
+
+Public Sub radAction_Click()
+
+  btnOK.Enabled = True
+
+End

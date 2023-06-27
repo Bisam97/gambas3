@@ -5,7 +5,7 @@ Export
 Public Const _IsControl As Boolean = True
 Public Const _IsVirtual As Boolean = True
 Public Const _Group As String = "Special"
-Public Const _Properties As String = "Name,Picture,Visible=False,PopupMenu{Menu},Tooltip"
+Public Const _Properties As String = "Name,Picture{Picture:NoCache},Visible=False,PopupMenu{Menu},Tooltip"
 Public Const _DefaultEvent As String = "Click"
 
 Public Enum Horizontal, Vertical
@@ -22,6 +22,8 @@ Property Text, Tooltip As String
 Property Tag As Variant
 
 Static Private $iCount As Integer
+Static Public _GnomeDesktop As Boolean
+Static Public _CinnamonMateDesktop As Boolean
 
 Private $bAppIndicator As Boolean
 Private $sName As String
@@ -32,15 +34,25 @@ Private $hMenu As DBusStatusIconMenu
 Private $hIcon As Picture
 Private $sMenu As String
 Private $sText As String
-Private $bIconDirty As Boolean
+Private $iIconId As Integer
 Private $vTag As Variant
 
 Public Sub _new()
   
+  Dim aDesktop As String[]
+  
+  If $iCount = 0 Then
+    
+    aDesktop = Split(Env["XDG_CURRENT_DESKTOP"], ":")
+    _GnomeDesktop = aDesktop.Exist("GNOME", gb.IgnoreCase)
+    If aDesktop.Exist("x-cinnamon", gb.IgnoreCase) Or If aDesktop.Exist("cinnamon", gb.IgnoreCase) Or If aDesktop.Exist("x-mate", gb.IgnoreCase) Or If aDesktop.Exist("mate", gb.IgnoreCase) Then _CinnamonMateDesktop = True
+    
+  Endif
+
   $hObject = New DBusStatusIcon As "StatusIcon"
 
   '$bAppIndicator = ["unity", "cinnamon", "x-cinnamon", "lxde"].Exist(Env["XDG_CURRENT_DESKTOP"], gb.IgnoreCase)
-  $bAppIndicator = LCase(Env["XDG_CURRENT_DESKTOP"]) <> "kde"
+  $bAppIndicator = True 'LCase(Env["XDG_CURRENT_DESKTOP"]) <> "kde"
   
   Inc $iCount
   $iId = $iCount
@@ -110,7 +122,7 @@ Public Sub Hide()
   sService = GetServiceName()
   
   If $bAppIndicator Then 
-    DBus[sService].Raise($hObject, "org.kde.StatusNotifierItem.NewStatus", ["Passive"])
+    Try DBus[sService].Raise($hObject, "org.kde.StatusNotifierItem.NewStatus", ["Passive"])
   Else
     DBus[sService].Unregister($hMenu)
     DBus[sService].Unregister($hObject)
@@ -127,8 +139,8 @@ Public Sub Delete()
   Hide
   
   If $bAppIndicator Then
-    DBus.UnRegister($hMenu) ', "/org/kde/statusnotifieritem" &/ CStr($iId) &/ "menu", ["com.canonical.dbusmenu"])
-    DBus.Unregister($hObject) ', "/org/kde/statusnotifieritem" &/ CStr($iId), ["org.kde.StatusNotifierItem"])
+    Try DBus.UnRegister($hMenu) ', "/org/kde/statusnotifieritem" &/ CStr($iId) &/ "menu", ["com.canonical.dbusmenu"])
+    Try DBus.Unregister($hObject) ', "/org/kde/statusnotifieritem" &/ CStr($iId), ["org.kde.StatusNotifierItem"])
   Endif
   
   $hMenu = Null
@@ -177,17 +189,24 @@ End
 
 Private Sub Picture_Write(Value As Picture)
 
+  If $hIcon = Value Then Return 
+  
   $hIcon = Value
   
   If $bAppIndicator Then 
-    $bIconDirty = True
+    
+    Try Kill _GetIconThemePath() &/ GetIconFile()
+    Inc $iIconId
     If $bVisible Then
       Hide
       Show
     Endif
   Endif
   
-  If $bVisible Or If $bAppIndicator Then DBus[GetServiceName()].Raise($hObject, "org.kde.StatusNotifierItem.NewIcon")
+  If $bVisible Or If $bAppIndicator Then 
+    DBus[GetServiceName()].Raise($hObject, "org.kde.StatusNotifierItem.NewIcon")
+    'DBus[GetServiceName()].Raise($hObject, "org.freedesktop.DBus.Properties.PropertiesChanged", ["org.kde.StatusNotifierItem", Object.New("Collection"), ["IconPixmap"]])
+  Endif
 
 End
 
@@ -219,9 +238,9 @@ Private Function PopupMenu_Read() As String
 
 End
 
-Private Sub UpdateMenu()
+Private Sub UpdateMenu() As Boolean
 
-  $hMenu._UpdateMenu(GetMenu())
+  Return $hMenu._UpdateMenu(GetMenu())
 
 End
 
@@ -254,6 +273,13 @@ Private Sub Text_Write(Value As String)
 
 End
 
+Private Sub GetIconFile() As String
+  
+  Return "icon-" & CStr($iId) & ":" & CStr($iIconId) & ".png"
+  
+End
+
+
 Public Sub _GetIconName() As String
   
   Dim hPict As Picture
@@ -263,13 +289,12 @@ Public Sub _GetIconName() As String
   If $bAppIndicator Then
     
     sPath = _GetIconThemePath()
-    sName = "icon-" & CStr($iId) & ".png"
+    sName = GetIconFile()
     
-    If Not Exist(sPath &/ sName) Or If $bIconDirty Then
+    If Not Exist(sPath &/ sName) Then
       hPict = $hIcon
       If Not hPict Then hPict = Picture["default.png"]
       hPict.Save(sPath &/ sName)
-      $bIconDirty = False
     Endif
     
     Return File.BaseName(sName)
@@ -289,18 +314,17 @@ Public Sub _Clicked(hMenu As Menu)
   If hMenu.Toggle Then
     hMenu.Value = Not hMenu.Value
     Object.Raise(hMenu, "Click")
-    UpdateMenu
   Else
     hMenu.Value = True
   Endif
+  'UpdateMenu
   
 End
 
 Public Sub _AboutToShow(hMenu As Menu) As Boolean
   
   Object.Raise(hMenu, "Show")
-  UpdateMenu
-  Return True
+  Return Not UpdateMenu()
   
 End
 

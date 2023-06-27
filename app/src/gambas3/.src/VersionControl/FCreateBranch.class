@@ -1,0 +1,35 @@
+' Gambas class file
+
+Public Sub Run() As Boolean
+
+  Return Not Me.ShowModal()
+
+End
+
+Public Sub btnOK_Click()
+
+  Dim sBranch As String
+
+  sBranch = Trim(txtBranch.Text)
+  If Not sBranch Then
+    Message(("Please enter the name of the new branch"))
+  Endif
+
+  If VersionControl.CreateBranch(sBranch) Then Return
+
+  Me.Close(True)
+
+End
+
+Public Sub btnCancel_Click()
+
+  Me.Close
+
+End
+
+
+Public Sub Form_Open()
+
+  lblCreate.Text = Subst(("Create new branch from branch <b>&1</b>"), Html(VersionControl.GetCurrentBranch()))
+
+End

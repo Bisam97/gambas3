@@ -99,7 +99,7 @@ Private Sub Decode()
     If Request.Debug Then $sContents = sStr
     If sCharset Then Try sStr = Conv(sStr, sCharset, "UTF-8")
     'LINE INPUT sStr
-    Main.DecodeURL(sStr, $aField, $cVal)
+    Main.DecodeURL(sStr, $aField, $cVal, False)
     Return
   Endif
     
@@ -109,6 +109,8 @@ Private Sub Decode()
   'sType = Scan(sType, "*boundary=*")[1]
   
   $sContents = ""
+  $sBuffer = ""
+  $bEof = False
   
   sType = ReadLine()
   'IF sLine <> sType THEN RETURN
@@ -117,7 +119,7 @@ Private Sub Decode()
   
     sLine = ReadLine()
     
-    If sLine Begins "Content-Disposition:" Then 
+    If sLine Like "content-disposition:*" Then 
       bFile = False
       sFileName = ""
       aElt = Split(sLine, ";", Chr$(34))
@@ -156,7 +158,7 @@ Private Sub Decode()
           If Not bFirst Then Print #hFile, "\r\n";
           Print #hFile, sLine;
           bFirst = False
-          If Lof(hFile) > iMaxFileLength Then Error.Raise("Response too big")
+          If Lof(hFile) > iMaxFileLength Then Error.Raise("Request too big")
         Loop
         
         Close #hFile
@@ -244,4 +246,12 @@ Private Function Contents_Read() As String
   Decode
   Return $sContents
 
+End
+
+Public Sub _Reset()
+  
+  $cVal = Null
+  $cFiles = Null
+  $aField.Clear
+  
 End

@@ -1,14 +1,30 @@
 
 Compile and execute a Gambas script.
 
-Usage: gbs3 [options] [<script file>]
+Usage: gbs3 [options][--] [<script file> | <project directory> | - ]
+       gbs3 --convert-project <input project directory> [<output directory where script is created>]
+       gbs3 --convert-script <input script> [<output directory where project directory is created>]
+       gbs3 --plugin <input script> [<output plugin cache directory>]
 
 Options:
-  -u              force components loading ('comp1,comp2...')
-  -e              execute the source code provided by the command line ( ':' separator )
-  -c --nocache    force the script compilation (do not check cache)
-  -v --verbose    be verbose
-  -f --fast       use just-in-time compiler
-  -V --version    display version
-  -L --license    display license
-  -h --help       display this help
+  -b --buildonly           process and compile the script without executing it
+  -c --nocache             force the script compilation (do not check cache)
+  -e                       execute the source code provided by the command line ( ':' separator )
+  -g --debug               add debugging information to application
+  -f --fast                use just-in-time compiler
+  -h --help                display this help
+  -l --list                Display the list of available '-l component' or '-l library' 
+  -L --license             display license
+  -p --plugin              Compile the script, no main, define the class name as script base name entry point _Call(...)
+  -S --strict              fail if 'Public' or 'Sub' are defined without a 'main' function
+  -t --trace               turn on tracing option during execution
+  -T --terse-listing       only print a very terse error report on compile errors
+  -u --use <components>    force component loading ('comp1,comp2...')
+  -U --unsafe              allows jit compiler to generate unsafe faster code
+  -v --verbose             be verbose
+  -V --version             display version
+  -w --warnings            display warnings during compilation
+  --convert-project        convert a simple project to a script
+  --convert-script         convert a simple script to a project
+  --                       stop any further option processing
+  -                        read the script from standard input

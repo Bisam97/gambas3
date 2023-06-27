@@ -14,21 +14,12 @@ Property Value As Float
 Property Pulse As Boolean
 Property Border As Boolean
 
-Private $hDrawingArea As DrawingArea
 Private $fValue As Float
 Private $bLabel As Boolean = True
 Private $bPulse As Boolean
 Private $iPulse As Integer
 Private $hTimerPulse As Timer
 Private $bBorder As Boolean = True
-
-Public Sub _new()
-  
-  $hDrawingArea = New DrawingArea(Me) As "DrawingArea"
-  Me.Proxy = $hDrawingArea
-  
-End
-
 
 Private Function Label_Read() As Boolean
 
@@ -39,7 +30,7 @@ End
 Private Sub Label_Write(Value As Boolean)
 
   $bLabel = Value
-  $hDrawingArea.Refresh
+  Me.Refresh
 
 End
 
@@ -53,17 +44,22 @@ End
 Private Sub Value_Write(Value As Float)
 
   If $bPulse Then Return
-  $fValue = Max(0, Min(1, Value))
-  $hDrawingArea.Refresh
+  
+  Value = Max(0, Min(1, Value))
+  If Value = $fValue Then Return
+  $fValue = Value
+  
+  Me.Refresh
 
 End
 
-Public Sub DrawingArea_Draw()
+Public Sub UserControl_Draw()
   
   Dim F As Integer '= 2 'Max(4, Style.FrameWidth + 2)
   Dim iWP As Integer
   Dim W As Float
   Dim iCol As Integer
+  Dim I As Integer
   
   iCol = Color.Merge(Color.Background, Color.LightForeground)
   If Not Me.Enabled Then iCol = Color.Desaturate(iCol)
@@ -94,38 +90,71 @@ Public Sub DrawingArea_Draw()
   
   If $bPulse Then
     
-    iWP = Paint.H * 2
-    W = Paint.W - iWP
-    If W >= 10 Then    
-      W *= $fValue
-      Paint.FillRect(W, 0, iWP, Paint.H, iCol)
-      'Style.PaintPanel(W, 0, iWP, Paint.H, Border.Raised)
-    Endif
+    iWP = Paint.H
+    $iPulse = $iPulse Mod (iWP * 2)
+    
+    Paint.Save
+    Paint.Background = iCol
+    Paint.Translate($iPulse - iWP * 2, 0)
+    For I = 0 To Paint.W + iWP * 2 Step iWP
+      Paint.MoveTo(0, Paint.H)
+      Paint.LineTo(iWP, 0)
+      Paint.LineTo(iWP + iWP / 2, 0)
+      Paint.LineTo(iWP / 2, Paint.H)
+      Paint.LineTo(0, Paint.H)
+      Paint.Fill
+      Paint.Translate(iWP, 0)
+    Next
+    Paint.Restore
     
   Else
   
     W = Paint.W * $fValue
   
-    Paint.FillRect(0, 0, W, Paint.H, iCol)
+    If Me.RightToLeft Then
+      
+      Paint.FillRect(Paint.W - W, 0, W, Paint.H, iCol)
+      
+      If $bLabel Then
     
-    'Style.PaintPanel(F, F, W, Draw.H - F * 2, Border.Raised)
+        Paint.Save
+        Paint.Rectangle(Paint.W - W, 0, W, Paint.H)
+        Paint.Clip
+        Paint.Background = Color.SelectedForeground
+        Paint.DrawText(Format($fValue, "0%"), 0, 0, Paint.W, Paint.H, Align.Center)
+        Paint.Restore
     
-    If $bLabel Then
-  
-      Paint.Save
-      Paint.Rectangle(0, 0, W, Paint.H)
-      Paint.Clip
-      Paint.Background = Color.SelectedForeground
-      Paint.DrawText(Format($fValue, "0%"), 0, 0, Paint.W, Paint.H, Align.Center)
-      Paint.Restore
-  
-      Paint.Save
-      Paint.Rectangle(W, 0, Paint.W - W, Paint.H)
-      Paint.Clip
-      Paint.Background = Color.Foreground
-      Paint.DrawText(Format($fValue, "0%"), 0, 0, Paint.W, Paint.H, Align.Center)
-      Paint.Restore
-  
+        Paint.Save
+        Paint.Rectangle(0, 0, Paint.W - W, Paint.H)
+        Paint.Clip
+        Paint.Background = Color.Foreground
+        Paint.DrawText(Format($fValue, "0%"), 0, 0, Paint.W, Paint.H, Align.Center)
+        Paint.Restore
+    
+      Endif
+      
+    Else
+      
+      Paint.FillRect(0, 0, W, Paint.H, iCol)
+    
+      If $bLabel Then
+    
+        Paint.Save
+        Paint.Rectangle(0, 0, W, Paint.H)
+        Paint.Clip
+        Paint.Background = Color.SelectedForeground
+        Paint.DrawText(Format($fValue, "0%"), 0, 0, Paint.W, Paint.H, Align.Center)
+        Paint.Restore
+    
+        Paint.Save
+        Paint.Rectangle(W, 0, Paint.W - W, Paint.H)
+        Paint.Clip
+        Paint.Background = Color.Foreground
+        Paint.DrawText(Format($fValue, "0%"), 0, 0, Paint.W, Paint.H, Align.Center)
+        Paint.Restore
+    
+      Endif
+      
     Endif
     
   Endif
@@ -152,7 +181,7 @@ Private Sub Pulse_Write(Value As Boolean)
     $hTimerPulse.Delay = 20
     $hTimerPulse.Start
     $fValue = 0
-    $iPulse = 1
+    $iPulse = 0
   Else
     $hTimerPulse = Null
   Endif
@@ -161,16 +190,8 @@ End
 
 Public Sub Pulse_Timer()
 
-  $fValue += 0.02 * $iPulse
-  If $fValue < 0 Then
-    $fValue = 0
-    $iPulse = 1
-  Else If $fValue > 1 Then
-    $fValue = 1
-    $iPulse = -1
-  Endif
-  
-  $hDrawingArea.Refresh
+  Inc $iPulse
+  Me.Refresh
   
 End
 
@@ -183,6 +204,6 @@ End
 Private Sub Border_Write(Value As Boolean)
 
   $bBorder = Value
-  $hDrawingArea.Refresh
+  Me.Refresh
 
 End

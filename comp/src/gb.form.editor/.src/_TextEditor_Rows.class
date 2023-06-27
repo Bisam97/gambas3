@@ -60,7 +60,7 @@ Private Sub StripCache(cCol As Collection)
 
 End
 
-Public Sub _GetRowY(iRow As Integer) As Integer
+Fast Public Sub _GetRowY(iRow As Integer) As Integer
   
   Dim hView As TextEditor = GetView()
   Dim Y As Integer
@@ -68,29 +68,59 @@ Public Sub _GetRowY(iRow As Integer) As Integer
   Dim I As Integer
   Dim iViewRow As Integer
   
+  If iRow < 0 Then Return
+  
   iViewRow = hView._RealToView(iRow)
   
-  If Not $cHeight Then Return iViewRow * DH
-  
+  If Not $cHeight Then Return (iViewRow + hView._TopHeight) * DH
+
   Try Return $cCacheRowY[iRow]
-  
-  If $cCacheRowY.Exist($iLastRow) And If iRow > Abs(iRow - $iLastRow) Then
+
+  If $cCacheRowY.Exist($iLastRow) And If Abs(iRow - $iLastRow) < iRow Then
     
     If $iLastRow < iRow Then
       
-      I = $iLastRow
-      While I < iRow
-        If hView._IsRowVisible(I) Then Y += CInt($cHeight[I]) - 1
-        Inc I
-      Wend
+      If Not hView._HasFolding() Then
+      
+        For I = $iLastRow To iRow - 1
+          Y += CInt($cHeight[I]) - 1
+        Next
+
+      Else
+        
+        For I = $iLastRow To iRow - 1
+          If hView._IsRowVisible(I) Then Y += CInt($cHeight[I]) - 1
+        Next
+      
+      Endif
+      
+      ' I = $iLastRow
+      ' While I < iRow
+      '   If hView._IsRowVisible(I) Then Y += CInt($cHeight[I]) - 1
+      '   Inc I
+      ' Wend
       
     Else
       
-      I = $iLastRow
-      While I > iRow
-        Dec I
-        If hView._IsRowVisible(I) Then Y -= CInt($cHeight[I]) - 1
-      Wend
+      If Not hView._HasFolding() Then
+        
+        For I = $iLastRow - 1 DownTo iRow
+          Y -= CInt($cHeight[I]) - 1
+        Next
+
+      Else
+      
+        For I = $iLastRow - 1 DownTo iRow
+          If hView._IsRowVisible(I) Then Y -= CInt($cHeight[I]) - 1
+        Next
+        
+      Endif
+      
+      ' I = $iLastRow
+      ' While I > iRow
+      '   Dec I
+      '   If hView._IsRowVisible(I) Then Y -= CInt($cHeight[I]) - 1
+      ' Wend
 
     Endif
     
@@ -102,17 +132,30 @@ Public Sub _GetRowY(iRow As Integer) As Integer
   
     Y = iViewRow
   
-    For Each I In $aHeight
-      If I >= iRow Then Break
-      If hView._IsRowVisible(I) Then 
+    If Not hView._HasFolding() Then
+  
+      For Each I In $aHeight
+        If I >= iRow Then Break
         Y += CInt($cHeight[I]) - 1
-      Endif
-    Next
+      Next
+
+    Else
+  
+      For Each I In $aHeight
+        If I >= iRow Then Break
+        If hView._IsRowVisible(I) Then 
+          Y += CInt($cHeight[I]) - 1
+        Endif
+      Next
+      
+    Endif
     
+    If hView._TopHeight Then Inc Y
+    'Y += hView._TopHeight
     Y *= DH
     
   Endif
-    
+  
   $cCacheRowY[iRow] = Y
   StripCache($cCacheRowY)
   
@@ -133,6 +176,7 @@ End
 Private Sub AddSorted(iRow As Integer)
   
   Dim I, J As Integer
+  Dim F As Integer
   
   'If iRow >= GetView().Count Then Stop
   
@@ -144,9 +188,13 @@ Private Sub AddSorted(iRow As Integer)
     Return
   Endif
   
-  '' TODO: Binary search
-  $aHeight.Add(iRow)
-  $aHeight.Sort
+  F = $aHeight.FindSorted(iRow)
+  If F < 0 Then F = -1 - F
+  $aHeight.Add(iRow, F)
+  
+  ' '' TODO: Binary search
+  ' $aHeight.Add(iRow)
+  ' $aHeight.Sort
   
 End
 
@@ -228,16 +276,20 @@ Public Sub _FindRowFromPos(Y As Integer) As Integer
   Dim RH As Integer
   Dim J As Integer
   
+  'If Y = 0 Then Stop
+  
   If Not $cHeight Then
-    I = Min($nRows - 1, Y \ DH)
+    I = Min($nRows - 1, Y \ DH) - hView._TopHeight
     If I < 0 Then Return -1
     RelativeY = Y - I * DH
     Return hView._ViewToReal(I)
   Endif
-    
+  
+  If hView._TopHeight And If Y < (hView._TopHeight * DH) Then Return -1
+  
   Try iCache = $cCacheRowFromPos[Y]
   If Not Error Then
-    If iCache < 0 Then Return -1
+    If iCache < 0 Then Return CDocument.ROW_NOT_FOUND
     RelativeY = iCache And &HFFFFFFFF&
     Return Lsr(iCache, 32)
   Endif
@@ -245,7 +297,7 @@ Public Sub _FindRowFromPos(Y As Integer) As Integer
   D = 0
   F = $nRows
   While F > D
-    I = (F + D) \ 2
+    I = (F + D) \ 2 
     J = hView._ViewToReal(I)
     RY = _GetRowY(J)
     RH = _GetRowHeight(J)
@@ -261,9 +313,9 @@ Public Sub _FindRowFromPos(Y As Integer) As Integer
   I = J
   RelativeY = Y - RY
   
-  If I < 0 Or If I >= hView.Count Then
-    I = -1
-    iCache = -1
+  If I >= hView.Count Then
+    I = CDocument.ROW_NOT_FOUND
+    iCache = CDocument.ROW_NOT_FOUND
   Else
     iCache = Shl(CLong(I), 32) + RelativeY
   Endif

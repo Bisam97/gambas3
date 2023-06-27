@@ -1,0 +1,38 @@
+class Testit
+public a as integer = 3456
+public sub _Call() as  integer
+return a
+end
+End Class
+class TestStatic
+Static Public sIncludeString AS string = "This is Include Too"
+Static Public sub _Call() as string
+return sIncludeString
+end
+End Class
+Project file {
+# Gambas Project File 3.0
+Title=Gambas Script
+Startup=MMain
+Vendor=Ordinary
+Version=0.0.1
+License=General Public License 2.0
+Component=gb.eval
+Component=gb.eval.highlight
+Component=gb.pcre
+}
+' Gambas module file
+' #!/usr/bin/gbs3
+Public x As String = "hello"
+Public Struct testStruct
+Hp As String 
+g As Integer
+f As Variant
+End Struct
+Public Sub main()
+dim cNew as new TestIt
+print "Included Class Result ";cNew() 
+For i As Integer = 0 To 20
+Print x;;i
+Next
+End

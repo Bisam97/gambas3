@@ -2,7 +2,7 @@
 
   gdesktop.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -33,30 +33,31 @@ class gDesktop
 {
 public:
 
-	static void init();
-	static void exit();
-
-	static gColor buttonfgColor();
-	static gColor buttonbgColor();
-	static gColor fgColor();
-	static gColor bgColor();
-	static gColor textfgColor();
-	static gColor textbgColor();
-	static gColor selfgColor();
-	static gColor selbgColor();
-	static gColor lightbgColor();
-	static gColor lightfgColor();
-	static gColor tooltipForeground();
-	static gColor tooltipBackground();
-	static gColor linkForeground();
-	static gColor visitedForeground();
-
-	static gFont* font();
-	static void setFont(gFont *vl);
+	enum {
+		BACKGROUND,
+		FOREGROUND,
+		TEXT_BACKGROUND,
+		TEXT_FOREGROUND,
+		SELECTED_BACKGROUND,
+		SELECTED_FOREGROUND,
+		BUTTON_BACKGROUND,
+		BUTTON_FOREGROUND,
+		LIGHT_BACKGROUND,
+		LIGHT_FOREGROUND,
+		TOOLTIP_BACKGROUND,
+		TOOLTIP_FOREGROUND,
+		LINK_FOREGROUND,
+		VISITED_FOREGROUND,
+		NUM_COLORS
+	};
+	
+	static gFont* font() { return gFont::desktopFont(); }
+	static void setFont(gFont *vl) { gFont::setDesktopFont(vl); }
+	static int scale() { return gFont::desktopScale(); }
+	
 	static int height();
 	static int width();
 	static int resolution();
-	static int scale();
 	static gPicture* screenshot(int x = 0, int y = 0, int w = 0, int h = 0);
 	static gMainWindow* activeWindow();
 
@@ -69,10 +70,19 @@ public:
 	static void geometry(GdkRectangle *rect) { geometry(0, rect); }
 	static void availableGeometry(GdkRectangle *rect) { availableGeometry(0, rect); }
 	
+	static void screenResolution(int screen, double *x, double *y);
+	
+	static gColor getColor(int color, bool disabled = false);
+	
+	static void onThemeChange();
+	
 private:
 
-	static int _desktop_scale;
-	static gFont *_desktop_font;
+	static bool _colors_valid;
+	static gColor _colors[NUM_COLORS];
+	static gColor _colors_disabled[NUM_COLORS];
+	
+	static void calc_colors(gColor colors[], bool disabled);
 };
 
 #endif

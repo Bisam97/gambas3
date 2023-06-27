@@ -12,6 +12,7 @@ Property MaxBounds As MapBounds
 Property CacheRefreshDelay As Integer             '' Delay before refreshing an image in the cache. (By default 30 day)
 Property WMSProjection As String                  '' Set the projection used by the WMS server.
 Property Opacity As Float
+Property Header As String[] Use $aHeader
 Private $aStack As New String[]
 Private $aClients As New HttpClient[]
 Private $iClientCount As Integer = 4
@@ -46,7 +47,7 @@ Public TileBoundValue As MapBounds
 ' Private $bHaveCache As Boolean
 Event Refresh
 
-Public Sub _new(Optional CacheName As String, Parent As Object)
+Public Sub _new(Optional CacheName As String)
 
   Dim sTempPath As String
   Dim hClient As HttpClient
@@ -54,7 +55,7 @@ Public Sub _new(Optional CacheName As String, Parent As Object)
   'Dim hTable As Table
 
   'db.Debug = True
-  Object.Attach(Me, Parent, "Layer")
+  
   $prjLatLon = New Proj("epsg:4326")
 
   $sCachePath = Me._GetMap().DefaultCache
@@ -369,7 +370,7 @@ Public Sub tmrGet_Timer()
     hClient.Url = sUrl
     'Print surl
     hClient.Tag = sFile
-    hClient.Get(Null, $sCachePath &/ sFile)
+    hClient.Get($aHeader, $sCachePath &/ sFile)
   Loop
 
 End

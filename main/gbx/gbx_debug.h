@@ -2,7 +2,7 @@
 
   gbx_debug.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -57,6 +57,8 @@ EXTERN int DEBUG_inside_eval;
 void DEBUG_init(void);
 void DEBUG_exit(void);
 
+void DEBUG_breakpoint(ushort code);
+
 void DEBUG_enter_event_loop(void);
 void DEBUG_leave_event_loop(void);
 
@@ -67,7 +69,7 @@ void DEBUG_where(void);
 bool DEBUG_get_value(const char *sym, int len, GB_VARIANT *ret);
 int DEBUG_set_value(const char *sym, int len, VALUE *value);
 int DEBUG_get_object_access_type(void *object, CLASS *class, int *count);
-GB_CLASS DEBUG_find_class(const char *name);
+GB_CLASS DEBUG_find_class(const char *comp_name, const char *class_name);
 void DEBUG_enum_keys(void *object, GB_DEBUG_ENUM_CB cb);
 
 void DEBUG_print_backtrace(STACK_BACKTRACE *bt);
@@ -78,11 +80,11 @@ void DEBUG_enter_eval(void);
 void DEBUG_leave_eval(void);
 
 #define PROFILE_ENTER_FUNCTION() \
-	if (EXEC_profile && CP && CP->component == COMPONENT_main) \
+	if (EXEC_profile && CP && (EXEC_debug_inside || CP->component == NULL)) \
 		DEBUG.Profile.Begin(CP, FP); \
 
 #define PROFILE_LEAVE_FUNCTION() \
-	if (EXEC_profile && CP && CP->component == COMPONENT_main) \
+	if (EXEC_profile && CP && (EXEC_debug_inside || CP->component == NULL)) \
 		DEBUG.Profile.End(CP, FP); \
 
 #endif

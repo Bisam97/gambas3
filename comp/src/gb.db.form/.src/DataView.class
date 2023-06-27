@@ -394,6 +394,8 @@ Public Sub TableView_Data(Row As Integer, Column As Integer)
   Dim iIndex As Integer
   Dim iType As Integer
   Dim vVal As Variant
+  Dim iAlign As Integer
+  
   'Dim hFont As Font
   
   If $iNoRefresh Then Return
@@ -437,6 +439,9 @@ Public Sub TableView_Data(Row As Integer, Column As Integer)
         
     End Select
     
+    iAlign = $hCtrl.Columns[Column].Alignment
+    If iAlign <> Align.Normal Then .Alignment = Align.Make(iAlign, .Alignment)
+    
   End With
   
   If Draw.Device Then Raise Data(Row, Column, vVal)
@@ -455,8 +460,8 @@ Public Sub TableView_Data(Row As Integer, Column As Integer)
   
 Catch
 
-  $hCtrl.Data.Background = Color.HSV(360, 128, 255)
-  $hCtrl.Data.Text = Error.Where & ": " & Error.Text
+  $hCtrl.Data.Foreground = Color.LightForeground
+  $hCtrl.Data.Text = Error.Text
   
 End
 
@@ -633,23 +638,23 @@ End
 
 Private Sub _Warning(sTitle As String, Optional sMsg As String, Optional bError As Boolean, iRow As Integer, iCol As Integer)
   
-  Dim X, Y As Integer
-  
+  ' Dim X, Y As Integer
+   
   If Right(sTitle) <> "." Then sTitle &= "."
   If sMsg Then sMsg = "<p>" & sMsg
   sMsg = "<b>" & sTitle & "</b>" & sMsg
   
-  X = $hCtrl.Rows.Width - $hCtrl.ScrollX + $hCtrl.ClientX
-  Y = $hCtrl.Columns.Height - $hCtrl.ScrollY + $hCtrl.ClientY
+  ' X = $hCtrl.Rows.Width - $hCtrl.ScrollX + $hCtrl.ClientX
+  ' Y = $hCtrl.Columns.Height - $hCtrl.ScrollY + $hCtrl.ClientY
   
   If IsMissing(iRow) Then iRow = $hCtrl.Row
   If IsMissing(iCol) Then iCol = $hCtrl.Column
   
   With $hCtrl[iRow, iCol]
     If bError Then
-      Balloon.Error(sMsg, $hCtrl, X + .X + .W \ 2, Y + .Y + .H \ 2) 
+      Message.Error(sMsg) ', $hCtrl, X + .X + .W \ 2, Y + .Y + .H \ 2) 
     Else
-      Balloon.Warning(sMsg, $hCtrl, X + .X + .W \ 2, Y + .Y + .H \ 2) 
+      Message.Warning(sMsg) ', $hCtrl, X + .X + .W \ 2, Y + .Y + .H \ 2) 
     Endif
   End With
 
@@ -669,6 +674,7 @@ Public Sub TableView_Save(Row As Integer, Column As Integer, Value As String)
   Dim hField As DataField
   Dim bPrintError As Boolean
   Dim iRow, iCol As Integer
+  Dim bCancel As Boolean
   
   If Not CanEdit() Then Return
   
@@ -737,7 +743,8 @@ Catch
   If bPrintError Then
     _Warning(("Unable to save value."), Error.Text,, Row, Column)
   Else
-    _Warning(("Invalid value."), Error.Where & ": " & Error.Text,, Row, Column)
+    bCancel = Object.Raise(hSrc, "Invalid", [hField.Name])
+    If Not bCancel Then _Warning(("Invalid value."),,, Row, Column)
   Endif
   Stop Event
 
@@ -1275,5 +1282,33 @@ End
 Public Sub ButtonBox_DblClick()
   
   ButtonBox_Click
+  
+End
+
+Public Sub SelectAll()
+
+  Dim N As Integer
+
+  N = $hCtrl.Rows.Count
+  If HasNewRecord() Then
+    Dec N
+    SetCreate(False)
+  Endif
+  If N >= 1 Then $hCtrl.Select(0, N)
+  
+End
+
+Public Sub UnselectAll()
+  
+  $hCtrl.UnSelectAll
+  
+End
+
+Public Sub Find(Where As String, ...)
+  
+  Dim iIndex As Integer
+  
+  iIndex = GetSource().FindNext(Index_Read() + 1, Where, ...)
+  MoveTo(iIndex)
   
 End

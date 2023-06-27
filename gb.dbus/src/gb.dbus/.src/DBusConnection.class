@@ -1,0 +1,80 @@
+' Gambas class file
+
+Export
+
+Inherits _DBusConnection
+
+Private $sName As String
+Private $nConnect As Integer
+
+Public Sub Open() As String
+  
+  Dim sName As String
+  
+  If Not $sName Then
+    sName = DBus.Name
+    If Me._RequestName(sName, True) Then 
+      If DBus.Unique Then
+        Error.Raise("Unique application is already registered")
+      Else
+        Error.Raise("Application is already registered")
+      Endif
+    Endif
+    $sName = sName
+  Endif
+  Inc $nConnect
+  Return $sName
+  
+End
+
+Public Sub Close()
+  
+  Dec $nConnect
+  If $nConnect > 0 Then Return
+  If Not $sName Then Return
+  Me._ReleaseName($sName)
+  $sName = ""
+  
+End
+
+'' Return an application connected on this bus from its name.
+
+Public Sub _get((Application) As String) As DBusApplication
+  
+  Dim hApp As DBusApplication
+  Dim sKey As String
+  
+  If Me = DBus.System Then
+    sKey = "system://" & Application
+  Else If Me = DBus.Session Then
+    sKey = "session://" & Application
+  Else 
+    sKey = "unknown://" & Application
+  Endif
+  
+  hApp = DBus._ApplicationCache[sKey]
+  If Not hApp Then hApp = New DBusApplication(Me, Application)
+  Return hApp
+  
+End
+
+'' Check if a specific application name is used
+
+Public Sub Exist((Application) As String) As Boolean
+  
+  Try Return Me["org.freedesktop.DBus"]["/", "org.freedesktop.DBus"].NameHasOwner(Application)
+  
+End
+
+Public Sub Start((Application) As String)
+  
+  Dim fTime As Float
+  
+  Me["org.freedesktop.DBus"]["/", "org.freedesktop.DBus"].StartServiceByName(Application, 0)
+  fTime = Timer
+  While Not {Exist}(Application)
+    Sleep 0.05
+    If (Timer - fTime) > 1 Then Error.Raise("Cannot start service")
+  Wend
+  
+End

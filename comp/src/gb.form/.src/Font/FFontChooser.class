@@ -12,34 +12,42 @@ Public ShowFixed As Boolean
 Public StylePanel As Container
 Public Preview As Control
 
+Static Private $cCache As New Collection
+
 Private $iNoChange As Integer
 Private $bNoRefresh As Boolean
 Private $sLast As String
 Private $bShowLabel As Boolean
 
-Public Sub _new()
+Private $sSplitFont As String
+Private $aSplitFont As String[]
+Private $bShowFont As Boolean
+Private $sLastFilter As String
+Private $hTask As FontCacheTask
+Private $hObs As Observer
 
+Public Sub _new()
+  
   Inc $iNoChange
   $bNoRefresh = True
-  
-  'lstSize.List = ["6", "7", "8", "9", "10", "11", "12", "13", "14", "16", "18", "20", "24", "28", "32", "36", "40", "48", "56", "64", "72", "80", "96", "112", "128"]
+  $bShowFont = True
   
   StylePanel = panStyle
   Preview = txtExample
   
   SetFont("")
-
+  
+  $hObs = New Observer(Me.Window) As "Window"
+  
 End
-
 
 Public Sub Form_Open()
 
-  $bNoRefresh = False
-  RefreshFamily
+  'RefreshFamily
   UpdateRelative
   txtSize_Change
   Dec $iNoChange
-
+  
 End
 
 ' Private Sub RefreshGrade()
@@ -73,25 +81,62 @@ End
 ' 
 ' End
 
-Private Sub SplitFont(sFont As String, N As Integer) As String
+Private Sub IsSeparator(sCar As String) As Boolean
+  
+  If Not IsPunct(sCar) Then Return
+  If InStr("()[]{}", sCar) Then Return
+  Return True
+  
+End
 
+
+Private Sub SplitFont(sFont As String, N As Integer) As String
+  
   Dim I As Integer
   Dim sCar As String
-  Dim S As Integer
-
-  For I = 1 To Len(sFont)
-    sCar = Mid$(sFont, I, 1)
-    If IsUCase(sCar) Or If IsPunct(sCar) Or If sCar = " " Then
-      If S Then
-        If (I - S) >= 2 Or If sCar = " " Or If IsPunct(sCar) Then 
-          Dec N
-          If N = 0 Then Return RTrim(Left$(sFont, I - 1))
+  
+  If sFont <> $sSplitFont Then
+    $sSplitFont = sFont
+    $aSplitFont = New String[]
+    
+    sFont = " " & sFont & " "
+    While Len(sFont) > 1
+      For I = 2 To Len(sFont)
+        sCar = Mid$(sFont, I, 1)
+        If IsSeparator(sCar) Or If IsSpace(sCar) Then Goto SPLIT_FONT
+        If IsUCase(sCar) Then
+          sCar = Mid$(sFont, I - 1, 1)
+          If IsSeparator(sCar) Or If IsSpace(sCar) Or IsUCase(sCar) Then Continue
+          If Not IsLetter(Mid(sFont, I + 1, 1)) Then Continue
+          Goto SPLIT_FONT
         Endif
-      Endif
-      S = I
-    Endif
-  Next
-
+        Continue
+        
+      SPLIT_FONT:
+        $aSplitFont.Add(Left$(sFont, I - 1))
+        sFont = Mid$(sFont, I)
+        Break
+        
+      Next
+    Wend
+    
+  Endif
+  
+  If N <= $aSplitFont.Count Then Return Trim($aSplitFont.Copy(0, N - 1).Join(""))
+  
+  ' For I = 1 To Len(sFont)
+  '   sCar = Mid$(sFont, I, 1)
+  '   If IsUCase(sCar) Or If IsPunct(sCar) Or If sCar = " " Then
+  '     If S Then
+  '       If (I - S) >= 2 Or If sCar = " " Or If IsPunct(sCar) Then 
+  '         Dec N
+  '         If N = 0 Then Return RTrim(Left$(sFont, I - 1))
+  '       Endif
+  '     Endif
+  '     S = I
+  '   Endif
+  ' Next
+  
 End
 
 Private Sub FillFamily()
@@ -102,10 +147,20 @@ Private Sub FillFamily()
   Dim I As Integer
   Dim sParentFont As String
   Dim hParent As Menu
-  Dim iCount As Variant
+  Dim iCount As Integer
   Dim cParent As New Collection
+  Dim sFilter As String
+  Dim H As Integer
+  
+  sFilter = Trim(txtFilter.Text)
+  If tvwFamily.Count And If sFilter = $sLastFilter Then Return
+  $sLastFilter = sFilter
+  
+  Inc Application.Busy
   
   tvwFamily.Clear
+  
+  H = tvwFamily.Font.H * 2
   
   cFont = New Collection
   aFont = New String[]
@@ -115,6 +170,8 @@ Private Sub FillFamily()
     If ShowFixed Then
       If Not Font[sFont].Fixed Then Continue
     Endif
+    
+    If sFilter And If InStr(sFont, sFilter, 1, gb.IgnoreCase) = 0 Then Continue
     
     For I = 16 DownTo 1
       sParentFont = SplitFont(sFont, I)
@@ -138,8 +195,10 @@ Private Sub FillFamily()
   '   Print cFont[sFont];; sFont
   ' Next
   
+  tvwFamily._Begin()
+  
   For Each sFont In aFont
-
+    
     iCount = cFont[sFont]
     If iCount = 0 Then Continue
     
@@ -152,59 +211,94 @@ Private Sub FillFamily()
     Next
     
     If sParentFont And If tvwFamily[sParentFont].Children = 0 Then
-      tvwFamily[sParentFont].Foreground = Color.LightForeground
-      If cFont[sParentFont] >= 1000 Then
-        tvwFamily.Add("." & sParentFont, sParentFont,, sParentFont)
-      Endif
+      With tvwFamily[sParentFont]
+        If cFont[sParentFont] >= 1000 Then
+          .H = H
+          .Tag = sParentFont
+        Else
+          .Foreground = Color.Merge(Color.LightForeground, Color.TextForeground)
+          .Background = Color.Merge(Color.LightForeground, Color.TextBackground, 0.8)
+          If .Depth = 0 Then .Expanded = True
+          .Font = Font["-2"]
+          .RichText = ""
+          .Text = sParentFont
+          .H = 0
+          .Tag = ""
+        Endif
+      End With
     Endif
     
-    tvwFamily.Add(sFont, sFont,, sParentFont)
+    With tvwFamily.Add(sFont, "",, sParentFont)
+      .H = H
+      .Tag = sFont
+    End With
     cParent[sFont] = True
     
   Next
   
+  'UpdateShowFont
+  
+  tvwFamily._End()
+  
+  Dec Application.Busy
+
 End
 
-
-Public Sub RefreshFamily()
-
+' Private Sub UpdateShowFont()
+'   
+'   Dim sKey As String
+'   
+'   For Each sKey In tvwFamily.Keys
+'     
+'     With tvwFamily[sKey]
+'       If .Children = 0 Then 
+'         If sKey Begins "." Then sKey = Mid$(sKey, 2)
+'         If $bShowFont Then
+'           .Font = Font[sKey & ",+4"]
+'         Else
+'           .Font = Null
+'         Endif
+'         '.Text = "\n" & .Text & "\n"
+'       Endif
+'     End With
+'     
+'   Next
+'   
+' End
+' 
+Public Sub RefreshFamily(Optional bForce As Boolean)
+  
   Dim hFont As Font
   Dim sFamily As String
-  Dim sKey As String
   Dim bExist As Boolean
+  
+  If bForce Then tvwFamily.Clear
 
   If $bNoRefresh Then Return
-
-  sKey = Family 'lstFamily.Current.Key
-
+  
   Inc $iNoChange
-
+  
   If tvwFamily.Visible Then
-
-    FillFamily
-
-    Try tvwFamily[sKey].Selected = True
-    If Error Then
-      tvwFamily.MoveFirst
-      tvwFamily.Item.Selected = True
-    Endif
     
-    Family = tvwFamily.Key
-    Try tvwFamily.Current.EnsureVisible
+    FillFamily
+    If EnsureFontVisible() Then
+      tvwFamily.MoveFirst()
+      Try Family = tvwFamily.Item.Key
+      EnsureFontVisible
+    Endif
     
   Else
     
     cmbFamily.Clear
-    
     For Each sFamily In Fonts
       hFont = Font[sFamily]
       If ShowFixed And Not hFont.Fixed Then Continue
       cmbFamily.Add(sFamily)
-      If sFamily = sKey Then bExist = True
+      If sFamily = Family Then bExist = True
     Next
-  
+    
     If bExist Then
-      cmbFamily.Text = sKey
+      cmbFamily.Text = Family
     Else
       cmbFamily.Index = 0
     Endif
@@ -212,22 +306,37 @@ Public Sub RefreshFamily()
     Family = cmbFamily.Text
     
   Endif
-
+  
   Dec $iNoChange
-
+  
   RefreshExample
-
+  
 End
 
+Private Sub EnsureFontVisible() As Boolean
+  
+  Dim sKey As String
+  
+  sKey = "." & Family
+  If Not tvwFamily.Exist(sKey) Then sKey = Family
+  If Not tvwFamily.Exist(sKey) Then Return True
+
+  With tvwFamily[sKey]
+    .Selected = True
+    'tvwFamily[sKey].EnsureVisible
+    tvwFamily.ScrollY = .Y + tvwFamily.ScrollY - (tvwFamily.ClientH - .H) \ 2
+  End With
+  
+End
 
 Public Sub SetFont(sFont As String)
-
+  
   Dim hFont As Font = Font[sFont]
   Dim bRelative As Boolean
   Dim sElt As String
-
+  
   bRelative = True
-
+  
   For Each sElt In Split(sFont, ",")
     sElt = Trim(sElt)
     If InStr("0+-", Left(sElt)) = 0 And If IsDigit(Left(sElt)) Then
@@ -235,7 +344,7 @@ Public Sub SetFont(sFont As String)
       Break
     Endif
   Next
-
+  
   Family = hFont.Name
   Bold = hFont.Bold
   Italic = hFont.Italic
@@ -243,37 +352,37 @@ Public Sub SetFont(sFont As String)
   StrikeOut = hFont.StrikeOut
   Size = hFont.Size
   Grade = hFont.Grade
-
+  
   btnRelative.Value = bRelative
-
-  Try tvwFamily[Family].Selected = True
-  Try tvwFamily[Family].EnsureVisible
-
+  
+  EnsureFontVisible
+  
   btnBold.Value = Bold
   btnItalic.Value = Italic
   btnUnderline.Value = Underline
   btnStrikeout.Value = StrikeOut
-
+  
   'chkUnderline.Value = UnderLine
   'chkStrikeout.Value = StrikeOut
-
+  
   If bRelative Then
     txtSize.Value = Grade
   Else
     txtSize.Value = Size
   Endif
   
-  txtExample.Text = ("How quickly daft jumping zebras vex") & "\n0123456789 àéîöùÀÉÎÖÙ"
-
+  txtExample.Text = ("How quickly daft jumping zebras vex") & "\n0123456789 àéîöùÀÉÎÖÙ [({*%#"
+  
   RefreshExample
-
+  
 End
 
 Public Function GetFont() As String
-
+  
   Dim sFont As String
-
+  
   sFont = Family
+  If IsDigit(sFont) Then sFont = Quote(sFont)
   If Bold Then sFont &= ",Bold"
   If Italic Then sFont &= ",Italic"
   If Underline Then sFont &= ",Underline"
@@ -283,11 +392,10 @@ Public Function GetFont() As String
   Else
     sFont &= "," & Size
   Endif
-
+  
   Return sFont
-
+  
 End
-
 
 Private Sub GetParent() As Object
   
@@ -295,54 +403,62 @@ Private Sub GetParent() As Object
   
 End
 
-
 Private Sub RefreshExample()
-
+  
   Dim sFont As String = GetFont()
-
+  
   If $bNoRefresh Then Return
   
-  If sFont = $sLast And If txtExample.Expand = cmbFamily.Visible Then Return
+  If sFont <> $sLast Then
   
-  If txtExample.Visible Then
-    txtExample.Font = Font[GetFont()]
-    txtExample.H = Max(Desktop.Scale * 4, Min(Desktop.Scale * 16, txtExample.Font.Size * 5))
-    txtExample.Expand = cmbFamily.Visible
+    Object.Lock(cmbFamily)
+    cmbFamily.Text = Family
+    Object.Unlock(cmbFamily)
+    txtFamily.Text = "  " & Family
+    txtExample.Font = Font[sFont]
+      
+    Size = Font[sFont].Size
+    Grade = Font[sFont].Grade
+    
+    sldSize.Value = txtSize.Value
+    
+    If $iNoChange = 0 Then GetParent()._Change
+    If Not panExample.Visible Then GetParent()._Activate
+    
+    $sLast = sFont
+    
   Endif
   
-  Size = Font[sFont].Size
-  Grade = Font[sFont].Grade
+  If panExample.Visible Then
+    
+    If panFamily.Visible Then
+      panExample.Expand = True
+    Else
+      panExample.Expand = False
+      panExample.H = Max(Desktop.Scale * 8, Min(Desktop.Scale * 16, txtExample.Font.Height * 2)) + Desktop.Scale * 2
+    Endif
+    
+  Endif
   
-  sldSize.Value = txtSize.Value
-
-  If $iNoChange = 0 Then GetParent()._Change
-  If Not txtExample.Visible Then GetParent()._Activate
-
-  $sLast = sFont
-  
-  lblFont.Text = sFont
-
 End
 
-Public Sub tvwFamily_Click()
-
+Public Sub tvwFamily_Select()
+  
   If Not tvwFamily.Current Then Return
-
-  If tvwFamily.Current.Children Then
-    Return
+  
+  If tvwFamily.Current.Tag Then
+    Family = tvwFamily.Key
+    If Family Begins "." Then Family = Mid$(Family, 2)
+    RefreshExample
   Endif
-
-  Family = tvwFamily.Key
-  If Family Begins "." Then Family = Mid$(Family, 2)
-  RefreshExample
-
+  
 End
 
 Public Sub cmbFamily_Click()
-
+  
   Family = cmbFamily.Text
   RefreshExample
-
+  
 End
 
 Public Sub btnBold_Click()
@@ -353,15 +469,14 @@ Public Sub btnBold_Click()
 End
 
 Public Sub btnItalic_Click()
-
+  
   Italic = btnItalic.Value  
   RefreshExample
   
 End
 
-
 Public Sub txtSize_Change()
-
+  
   If btnRelative.Value Then
     Grade = txtSize.Value
   Else
@@ -369,48 +484,42 @@ Public Sub txtSize_Change()
   Endif
   sldSize.Value = txtSize.Value
   RefreshExample
-
-End
-
-
-Public Sub lstFamily_DblClick()
-
-  GetParent()._Activate
-
+  
 End
 
 Private Sub UpdateRelative()
-
+  
   Object.Lock(txtSize)
   Object.Lock(sldSize)
   If btnRelative.Value Then
     txtSize.MinValue = -8
     txtSize.MaxValue = 24
     txtSize.Value = Grade
+    txtSize.ShowSign = True
     sldSize.PageStep = 1
   Else
     txtSize.MinValue = 1
     txtSize.MaxValue = 256
     txtSize.Value = Size
+    txtSize.ShowSign = False
     sldSize.PageStep = 4
   Endif
   
   sldSize.MinValue = txtSize.MinValue
   sldSize.MaxValue = txtSize.MaxValue
-
+  
   Object.Unlock(txtSize)
   Object.Unlock(sldSize)
   txtSize_Change
-
+  
 End
 
 Public Sub btnRelative_Click()
-
+  
   UpdateRelative
   txtSize.SetFocus
   
 End
-
 
 ' Public Sub chkUnderline_Click()
 ' 
@@ -427,7 +536,6 @@ End
 ' 
 ' End
 
-
 Public Sub SetShowLabel(bVisible As Boolean)
   
   ' lblFamily.Visible = bVisible
@@ -443,21 +551,20 @@ Public Sub IsShowLabel() As Boolean
   
 End
 
-
 Public Sub sldSize_Change()
-
+  
   txtSize.Value = sldSize.Value
-
+  
 End
 
-Public Sub panFont_Arrange()
-
-  If (panFont.W - txtSize.W - txtSize.X) < 64 Then
+Public Sub panFont_BeforeArrange()
+  
+  If (panFont.W - txtSize.W - sldSize.X) < 64 Then
     sldSize.Hide
   Else
     sldSize.Show
   Endif
-
+  
 End
 
 Public Sub HasBorder() As Boolean
@@ -472,60 +579,102 @@ Public Sub SetBorder(bBorder As Boolean)
   
 End
 
-
 Public Sub btnUnderline_Click()
-
+  
   Underline = btnUnderline.Value  
   RefreshExample
-
+  
 End
 
 Public Sub btnStrikeout_Click()
-
+  
   Strikeout = btnStrikeout.Value
   RefreshExample
+  
+End
+
+Private Sub UpdateRefreshButton()
+  
+  btnRefresh.Visible = $bShowFont And Not spnCache.Visible 
+  
+End
+
+
+Private Sub StartCacheTask()
+
+  If Me.Design Then Return
+  If $hTask Then Return
+  If Not panFilter.Visible Then Return
+  If Me.Window.Minimized Then Return
+  
+  $hTask = New FontCacheTask As "FontCacheTask"
+  $hTask.Foreground = Color.TextForeground
+  spnCache.Value = 0
+  spnCache.Show
+  spnCache.Start
+  UpdateRefreshButton
+  
+End
+
+Private Sub StopCacheTask()
+
+  If Not $hTask Then Return
+
+  $hTask.Stop 
+  $hTask = Null
 
 End
 
 Public Sub panBorder_BeforeArrange()
-
-  If panBorder.H < (Desktop.Scale * 20) Then
   
-    If txtExample.Visible Then
+  Dim bHasFocus As Boolean
+  
+  bHasFocus = Me.HasFocus
+  
+  If panBorder.H < (Desktop.Scale * 32) Then
+    
+    If tvwFamily.Visible Then
+      
       tvwFamily.Hide
-      sepFamily.Hide
-      lblFont.Hide
-      sepToolbar.Hide
-      cmbFamily.Show
-      cmbFamily.Lower
+      panFilter.Hide
+      txtFamily.Hide
+
+      panFamily.Show
+      panFamily.Lower
+
+      StopCacheTask
       RefreshFamily
+      
     Endif
-  
-    If panBorder.H < (Desktop.Scale * 14) Then
-      txtExample.Hide
-      sepExample.Hide
-    Else
-      txtExample.Show
-      sepExample.Show
+    
+    If panBorder.H < (Desktop.Scale * 18) Then
+      panExample.Hide
+    Else If Not panExample.Visible Then
+      panExample.Show
     Endif
     
   Else
-  
-    If cmbFamily.Visible Then
-      cmbFamily.Hide
-      txtExample.Show
-      sepExample.Show
+    
+    If panFamily.Visible Then
+      panFamily.Hide
+      txtFamily.Show
+      panExample.Show
       tvwFamily.Show
-      sepFamily.Show
-      lblFont.Show
-      sepToolbar.Show
-      lblFont.Lower
+      panFilter.Show
       RefreshFamily
+      StartCacheTask
     Endif
-  
+    
   Endif
-
+  
+  sepFilter.Visible = panFilter.Visible
+  sepTree.Visible = tvwFamily.Visible And panExample.Visible
+  sepToolbar.Visible = tvwFamily.Visible Or panExample.Visible
+  
   RefreshExample
+  
+  Me.Proxy = If(panFilter.Visible, txtFilter, cmbFamily)
+  If bHasFocus Then Me.SetFocus
   
 End
 
@@ -540,4 +689,231 @@ Public Sub GetShowRelative() As Boolean
   
   Return btnRelative.Visible
   
+End
+
+Public Sub tvwFamily_Activate()
+  
+  If Not tvwFamily.Current.Tag Then Return
+  If Object.CanRaise(GetParent(), "Activate") Then
+    GetParent()._Activate()
+    Stop Event
+  Endif
+  
+End
+
+Public Sub SetShowFont(bShow As Boolean)
+  
+  If $bShowFont = bShow Then Return
+  $bShowFont = bShow
+  UpdateRefreshButton
+  tvwFamily.Refresh
+  btnPreview.Value = $bShowFont
+  
+End
+
+Public Sub HasShowFont() As Boolean
+  
+  Return $bShowFont
+  
+End
+
+Public Sub txtFilter_Filter()
+  
+  RefreshFamily
+  
+End
+
+Public Sub txtFilter_KeyPress()
+  
+  Dim hGridView As Container
+  Dim hScrollArea As Control
+  
+  If Key.Normal Then
+    If Key.Code = Key.Down Or If Key.Code = Key.Up Or If Key.Code = Key.PageUp Or If Key.Code = Key.PageDown Then
+      Goto SEND_TO_LIST
+    Else If Key.Code = Key.Return Or If Key.Code = Key.Enter Then
+      If tvwFamily.Current.Children Then
+        hGridView = tvwFamily.Children[0]
+        hScrollArea = hGridView.Children[0]
+        Object.Raise(hGridView, "KeyPress")
+        Stop Event
+      Else
+        GetParent()._Activate()
+      Endif
+    Endif
+  Else If Key.Control Then
+    If Key.Code = Key.Home Or If Key.Code = Key.End Then
+      Goto SEND_TO_LIST
+    Endif
+  Endif
+  
+  Return
+  
+SEND_TO_LIST:
+
+  hGridView = tvwFamily.Children[0]
+  hScrollArea = hGridView.Children[0]
+  Object.Raise(hScrollArea, "KeyPress")
+  Stop Event
+
+End
+
+Public Sub tvwFamily_GotFocus()
+  
+  txtFilter.SetFocus
+  
+End
+
+Public Sub Form_Show()
+
+  $bNoRefresh = False
+  panBorder_BeforeArrange
+  RefreshFamily
+
+End
+
+Public Sub tvwFamily_Draw(X As Integer, Y As Integer, (Width) As Integer, Height As Integer, (Key) As String, (Column) As Integer)
+  
+  Dim sFont As String
+  Dim hImage As Image
+  Dim sDir As String
+  Dim sPath As String
+  Dim hItem As _TreeView_Item
+  Dim sFontKey As String
+  Dim D As Integer
+  
+  hItem = tvwFamily[Key]
+  sFont = hItem.Tag
+  If Not sFont Then Return
+
+  D = (1 + hItem.Depth) * tvwFamily.Indent
+  
+  If Not $bShowFont Then
+    Paint.Font.Grade = 2
+    Paint.DrawText(sFont, X + D, Y, Width - D, Height, Align.Normal)
+    Return
+  Endif
+  
+  sFontKey = FontCacheTask.Normalize(sFont)
+  
+  hImage = $cCache[sFontKey]
+
+  If Not hImage Then
+
+    sDir = FontCacheTask.GetDir()
+    sPath = sDir &/ sFontKey & ".png"
+  
+    Try hImage = Image.Load(sPath)
+    If Not hImage Then hImage = FontCacheTask.CreateFontCacheImage(sFont, Color.Foreground)
+    
+    $cCache[sFont] = hImage
+    
+  Endif
+  
+  Paint.DrawImage(hImage, X + D, Y + (Height - hImage.H) \ 2)
+  
+  'tvwFamily.MoveTo(Key)
+  ' If hItem.Depth = 0 Or If tvwFamily.MoveNext() Then Paint.FillRect(0, Y + Height + Desktop.Scale \ 2 - 1, Width + Desktop.Scale, 1, Color.Merge(Color.LightForeground, Color.TextBackground, 0.8))
+  
+End
+
+Public Sub Form_Close()
+
+  StopCacheTask
+
+End
+
+Public Sub FontCacheTask_Read(Data As String)
+
+  Dim aData As String[]
+  Dim iPos As Integer
+  
+  Data = RTrim(Data)
+  iPos = RInStr(Data, "\n")
+  If iPos Then Data = Mid$(Data, iPos + 1)
+  aData = Split(Data, " ")
+  spnCache.Value = CInt(aData[0]) / CInt(aData[1])
+  
+End
+
+Public Sub FontCacheTask_Kill()
+  
+  spnCache.Stop
+  spnCache.Hide
+  UpdateRefreshButton
+  
+End
+
+Public Sub btnRefresh_Click()
+
+  Dim sDir As String
+
+  StopCacheTask
+
+  sDir = Main.GetCacheDir() &/ "gambas3/gb.form/fonts"
+  Try Shell "rm -rf " & Shell(sDir) & "~" Wait
+  Try Move sDir To sDir & "~"
+  Try Shell "rm -rf " & Shell(sDir) & "~" Wait
+  $cCache.Clear
+  
+  StartCacheTask
+
+End
+
+Public Sub Window_Show()
+  
+  StartCacheTask
+  
+End
+
+Public Sub Window_Hide()
+  
+  StopCacheTask
+  
+End
+
+Public Sub Window_State()
+
+  Dim hWin As Window
+  
+  hWin = Last
+  If hWin.Minimized Then
+    StopCacheTask
+  Else
+    StartCacheTask
+  Endif
+  
+End
+
+
+Public Sub txtSize_LostFocus()
+
+  txtSize.ReadOnly = True
+
+End
+
+Public Sub txtSize_Enter()
+
+  txtSize.ReadOnly = False
+  txtSize.SetFocus
+  txtSize.SelectAll
+
+End
+
+Public Sub btnPreview_Click()
+
+  SetShowFont(btnPreview.Value)
+  
+End
+
+Public Sub btnSelectFont_Click()
+
+  Dim bRelative As Boolean
+  
+  Dialog.Font = Font[GetFont()]
+  If Dialog.SelectFont() Then Return
+  bRelative = btnRelative.Value
+  SetFont(Dialog.Font.ToString())
+  If bRelative Then btnRelative.Value = True
+
 End

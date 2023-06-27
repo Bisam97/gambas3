@@ -27,7 +27,11 @@ Static Private Sub ReadZeroString(hFile As File) As String
   
 End
 
-
+'' Return information about a class from its name, by analyzing its bytecode file.
+''
+'' By default the class file is searched in the calling component or project.
+'' If ~Name~ is prefixed with `../`, then the class file is searched one component up.
+'' If ~Name~ is prefixed with '.../', then the class file is searched in the project.
 
 Static Public Sub Stat(Name As String) As ClassStat
 
@@ -41,12 +45,22 @@ Static Public Sub Stat(Name As String) As ClassStat
   Dim iStringPos As Integer
   Dim sDir As String
   
-  While Name Begins "../" 
-    Name = Mid(Name, 4)
-    sDir &= "../"
-  Wend
+  If Name Begins ".../" Then
   
-  sPath = ".." &/ sDir &/ ".gambas" &/ UCase(Name)
+    Name = Mid$(Name, 5)
+    sPath = ".../.gambas" &/ UCase(Name)
+    
+  Else
+    
+    While Name Begins "../" 
+      Name = Mid(Name, 4)
+      sDir &= "../"
+    Wend
+    
+    sPath = ".." &/ sDir &/ ".gambas" &/ UCase(Name)
+    
+  Endif
+    
   If Not Exist(sPath) Then Error.Raise("Class not found")
   
   $iSectionPos = 0
@@ -76,6 +90,7 @@ Static Public Sub Stat(Name As String) As ClassStat
   hStat.Optional = BTst(iFlag, 2)
   hStat.NoCreate = BTst(iFlag, 3)
   hStat.HasFast = BTst(iFlag, 4)
+  hStat.Test = BTst(iFlag, 5)
   
   GotoNextSection(hFile) ' description
   GotoNextSection(hFile) ' constant

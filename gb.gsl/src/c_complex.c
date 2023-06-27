@@ -601,9 +601,7 @@ GB_DESC ComplexDesc[] =
 	GB_METHOD("ToString", "s", Complex_ToString, "[(Local)b]"),
 	
 	GB_METHOD("Conj", "Complex", Complex_Conjugate, NULL),
-	//GB_METHOD("Neg", "Complex", Complex_Negative, NULL),
 	GB_METHOD("Inv", "Complex", Complex_Inverse, NULL),
-	//GB_METHOD("Set", NULL, Complex_Set, "[(Real)f(Imag)f]"),
 	
 	// Properties
 	GB_PROPERTY("Real", "f", Complex_Real),
@@ -614,25 +612,6 @@ GB_DESC ComplexDesc[] =
 	GB_METHOD("Abs2", "f", Complex_Abs2, NULL),
 	GB_METHOD("LogAbs", "f", Complex_LogAbs, NULL),
 	GB_METHOD("Arg", "f", Complex_Arg, NULL),
-
-	/* Operations on gsl_complex */
-	// Elementary Math Functions
-	//GB_METHOD("Add", "Complex", Complex_Add, "(X)Complex"),
-	//GB_METHOD("Sub", "Complex", Complex_Sub, "(X)Complex"),
-	//GB_METHOD("Mul", "Complex", Complex_Mul, "(X)Complex"),
-	//GB_METHOD("Div", "Complex", Complex_Div, "(X)Complex"),
-	
-	// Operations On Real
-	//GB_METHOD("AddReal", "Complex", Complex_AddReal, "(X)f"),
-	//GB_METHOD("SubReal", "Complex", Complex_SubReal, "(X)f"),
-	//GB_METHOD("MulReal", "Complex", Complex_MulReal, "(X)f"),
-	//GB_METHOD("DivReal", "Complex", Complex_DivReal, "(X)f"),
-
-	// Operations On Imaginary
-	//GB_METHOD("AddImag", "Complex", Complex_AddImag, "(X)f"),
-	//GB_METHOD("SubImag", "Complex", Complex_SubImag, "(X)f"),
-	//GB_METHOD("MulImag", "Complex", Complex_MulImag, "(X)f"),
-	//GB_METHOD("DivImag", "Complex", Complex_DivImag, "(X)f"),
 
 	// Elementary Complex Functions
 	GB_METHOD("Sqrt", "Complex", Complex_Sqrt, NULL),

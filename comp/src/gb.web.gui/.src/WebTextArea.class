@@ -1,0 +1,145 @@
+' Gambas class file
+
+Export
+Inherits WebControl
+
+Public Const _Properties As String = "*,Border=True,ReadOnly,Wrap,PlaceHolder,Text"
+Public Const _DrawWith As String = "TextArea"
+Public Const _DefaultSize As String = "16,16"
+
+Event Change
+
+Property Text As String
+Property ReadOnly As Boolean
+Property Wrap As Boolean
+Property PlaceHolder As String
+
+Private $sText As String
+Private $bReadOnly As Boolean
+Private $bWrap As Boolean
+Private $sPlaceHolder As String
+
+Private Function Text_Read() As String
+
+  Return $sText
+
+End
+
+Private Sub SetText(Value As String, Optional bNoRefresh As Boolean)
+
+  If $sText = Value Then Return
+  
+  $sText = Value
+  If Not bNoRefresh Then Me.Refresh
+  
+  Raise Change
+
+End
+
+Private Sub Text_Write(Value As String)
+
+  SetText(Value)
+
+End
+
+Public Sub _RenderStyleSheet()
+  
+  Me._StartStyleSheet
+  
+  Super._RenderStyleSheet()
+  
+  If Not $bWrap Then Me._AddStyleSheet("white-space:pre;")
+  
+  Me._EndStyleSheet
+  
+End
+
+
+Public Sub _BeforeRender()
+  
+  Print "<textarea"; Me._GetClassId(); " autocomplete=\"off\""; 
+  If Object.CanRaise(Me, "Change") Then
+    Print " oninput=\"gw.textarea.onChange("; JS(Me.Name); ");\"";
+  Else 
+    Print " oninput=\"gw.textarea.onUpdate("; JS(Me.Name); ");\"";
+  Endif
+  'If Object.CanRaise(Me, "Change") Then Print " oninput=\"gw.textarea.onChange("; JS(Me.Name); ");\"";
+  'Print Me._GetUpdateJS("onblur", "text", "this.value");
+  If Not Me.Enabled Then Print " disabled";
+  If $bReadOnly Then Print " readonly";
+  If $sPlaceHolder Then Print " placeholder=\""; Html($sPlaceHolder); "\"";
+  Me._RenderStyleSheet()
+  Print ">";
+  
+End
+
+Public Sub _Render()
+  
+  Print Html($sText);
+  
+End
+
+Public Sub _AfterRender()
+  
+  Print "</textarea>"
+  WebForm._AddJavascript("gw.textarea.moveEnd(" & JS(Me.Name) & ");")
+  
+End
+
+Private Function ReadOnly_Read() As Boolean
+
+  Return $bReadOnly
+
+End
+
+Private Sub ReadOnly_Write(Value As Boolean)
+
+  $bReadOnly = Value
+  Me.Refresh
+
+End
+
+Public Sub _UpdateProperty(sProp As String, vValue As Variant)
+  
+  If sProp = "text" Then SetText(vValue, True)
+  
+End
+
+Private Function Wrap_Read() As Boolean
+
+  Return $bWrap
+
+End
+
+Private Sub Wrap_Write(Value As Boolean)
+
+  $bWrap = Value
+  Me.Refresh
+
+End
+
+Private Function PlaceHolder_Read() As String
+
+  Return $sPlaceHolder
+
+End
+
+Private Sub PlaceHolder_Write(Value As String)
+
+  $sPlaceHolder = Value
+  Me.Refresh
+
+End
+
+Public Sub Clear()
+  
+  SetText("")
+  
+End
+
+Public Sub Copy()
+  
+  WebForm._AddJavascript("gw.textarea.copy(" & JS(Me.Name) & ");")
+  
+End
+

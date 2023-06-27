@@ -1,0 +1,196 @@
+' Gambas class file
+
+Class DesktopMime
+
+Static Private $sPath As String
+Static Private $sPath2 As String
+Static Private $bLocateChange As Boolean
+Static Private $iLine As Integer
+
+Public Sub Run(sPath As String) As Boolean
+  
+  Dim bRet As Boolean
+  
+  $sPath = sPath
+  If Project.IsFormPath($sPath) Then 
+    $sPath2 = File.SetExt($sPath, "class")
+  Else 
+    $sPath2 = ""
+  Endif
+  
+  bRet = Not FFileInfoVC.ShowModal()
+  
+  If $bLocateChange Then
+    $bLocateChange = False
+    Project.OpenFile($sPath, $iLine)
+  Endif
+  
+End
+
+Public Sub Form_Open()
+
+  Dim sPath As String
+
+  sPath = $sPath
+
+  If Left(sPath) = "$" Then sPath = Project.GetSpecialDir(sPath)
+  If Not sPath Then sPath = Project.Dir
+ 
+  Me.Title = Subst(("'&1' version control"), File.Name(sPath))
+  
+  edtChange.ReadConfig
+  edtHistory.ReadConfig
+  edtHistory.ShowModified = False
+  edtHistory.Wrap = False
+  
+  btnClose.SetFocus
+  
+  btnRevert.Enabled = Not Project.Running
+  
+  tabInfo_Click
+  
+End
+
+Public Sub btnClose_Click()
+
+  Me.Close
+
+End
+
+Private Sub LoadVersionControlInfo()
+
+  Dim sDiff As String
+  Dim bHideUndoButton As Boolean
+  
+  edtChange.SetFocus
+  
+  Inc Application.Busy
+
+  edtChange.Font = Font[Settings["/Editor/Font", Project.DEFAULT_FONT]]
+  sDiff = VersionControl.Diff($sPath)
+  If $sPath2 Then sDiff &= "\n" & VersionControl.Diff($sPath2)
+  sDiff = Trim(sDiff)
+  If sDiff Then
+    edtChange.Highlight = "Diff"
+    edtChange.Text = sDiff
+    lblVersioning.Hide
+    btnLocateChange.Show
+    tabInfo[0].Visible = True
+  Else
+    If Project.IsLocked($sPath) Then
+      lblVersioning.Text = ("This file is locked, and will be deleted on the next commit.")
+    Else If Project.IsAdded($sPath) Then
+      lblVersioning.Text = ("This file is not versioned, and must be added to the repository.")
+      bHideUndoButton = True
+    Else
+      lblVersioning.Text = ("This file has not been modified since the last commit.")
+      bHideUndoButton = True
+    Endif
+    lblVersioning.Show
+    btnLocateChange.Hide
+    tabInfo[0].Visible = False
+  Endif
+  
+  btnRevert.Visible = Not bHideUndoButton
+  
+  Dec Application.Busy
+  
+End
+
+Public Sub btnRevert_Click()
+
+  If Message.Warning(("You are going to cancel your changes!"), ("Continue"), ("Cancel")) = 2 Then Return
+
+  Project.RevertFile($sPath)
+  Me.Close
+  'LoadVersionControlInfo
+
+End
+
+
+' Public Sub panStat_Arrange()
+' 
+'   Dim hModule As CModule
+' 
+'   If $bStat Then Return
+' 
+'   Inc Application.Busy
+' 
+'   gvwStat.Columns.Count = 2
+'   
+'   AddStat(("Modules"), Project.GetCount("module"))
+'   If Project.HasTest Then AddStat(("Test modules"), Project.GetCount("test"))
+'   AddStat(("Classes"), Project.GetCount("class"))
+'   For Each hModule In CModule.All
+'     If hModule.Used Then AddStat(hModule.NamePlural, Project.GetCount(hModule.Key))
+'   Next
+'   AddStat(("Lines of code"), Format(Project.GetLinesOfCode(), ",#"))
+'   
+'   gvwStat.Rows.H = Desktop.Scale * 4
+'   gvwStat.Columns[0].Width = Desktop.Scale * 16
+' 
+'   Dec Application.Busy
+' 
+'   $bStat = True
+' 
+' End
+
+Public Sub tabInfo_Click()
+
+  Select Case tabInfo.Index
+    
+    Case 0
+      
+      btnRevert.Show
+      panChange.Hide
+      btnLocateChange.Show
+      LoadVersionControlInfo
+    
+    Case 1
+    
+      btnRevert.Hide
+      panChange.Show
+      btnLocateChange.Hide
+      If edtHistory.IsVoid() Then edtHistory.FillWithHistory($sPath, spnChange, $sPath2)
+    
+  End Select
+  
+End
+
+Public Sub edtHistory_Highlight(Text As String)
+
+  VersionControl.HighlightHistory(Text)
+
+End
+
+Public Sub edtChange_KeyPress()
+
+  If Key.Code = Key.Escape Then Me.Close
+
+End
+
+Public Sub edtHistory_KeyPress()
+
+  If Key.Code = Key.Escape Then Me.Close
+
+End
+
+Public Sub chkShowHistoryChanges_Click()
+
+  edtHistory.FillWithHistory($sPath, spnChange, $sPath2, chkShowHistoryChanges.Value)
+
+End
+
+Public Sub Form_Close()
+
+  edtHistory.StopFillWithHistory
+
+End
+
+Public Sub btnLocateChange_Click()
+
+  If edtChange.LocateChange(ByRef $sPath, ByRef $iLine) Then Return
+  $bLocateChange = True
+  Me.Close
+
+End

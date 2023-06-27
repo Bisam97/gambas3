@@ -1,0 +1,36 @@
+' Gambas class file
+
+Inherits _HtmlDocument
+
+Event _Fake
+
+Private Sub GetView() As HtmlView
+
+  Return Object.Parent(Me)
+
+End
+
+Public Sub _LoadCss(sUrl As String, sBase As String) As String
+  
+  Return GetView()._LoadCss(sUrl, sBase)
+  
+End
+
+Public Sub _SetCursor(sCursor As String)
+  
+  GetView()._SetCursor(sCursor)
+  
+End
+
+Public Sub _Refresh(X As Integer, Y As Integer, W As Integer, H As Integer)
+  
+  GetView()._RefreshView(X, Y, W, H)
+  
+End
+
+Public Sub _LoadImage(sUrl As String, sBase As String) As Image
+  
+  Return GetView()._LoadImage(sUrl, sBase)
+  
+End
+

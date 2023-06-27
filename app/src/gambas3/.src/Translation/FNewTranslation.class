@@ -13,19 +13,26 @@ Public Sub Form_Open()
   
   Dim sLang As String
   
-  For Each sLang In Language.GetAll()
+  cvwLanguage.Columns[0].Text = ("Language")
+  cvwLanguage.Columns[0].Expand = True
+  cvwLanguage.AddColumn(("File"), Desktop.Scale * 12)
+  
+  For Each sLang In MyLanguage.GetAll()
     If Project.HasTranslation(sLang) Then Continue
-    lstLanguage.Add(Language.ToName(sLang))
+    With cvwLanguage.Add(sLang, MyLanguage.ToName(sLang))
+      .[1] = sLang & ".po"
+      .Picture = Picture["flag:/small/" &/ Language[sLang].Country]
+    End With
   Next
-
-  Try lstLanguage.Index = 0
+  
+  btnOK.Enabled = False
 
 End
 
 
 Public Sub btnOK_Click()
 
-  $sLang = Language.FromName(lstLanguage.Text)
+  $sLang = cvwLanguage.Key
   Me.Close
 
 End
@@ -38,8 +45,14 @@ Public Sub btnCancel_Click()
 End
 
 
-Public Sub lstLanguage_Activate()
+Public Sub cvwLanguage_Activate()
 
   btnOK.Value = True
+
+End
+
+Public Sub cvwLanguage_Select()
+
+  btnOK.Enabled = Not IsNull(cvwLanguage.Current)
 
 End

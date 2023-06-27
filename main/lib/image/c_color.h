@@ -2,7 +2,7 @@
 
   c_color.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -27,8 +27,8 @@
 #include "main.h"
 
 #ifndef __C_COLOR_C
-extern GB_DESC CColorDesc[];
-extern GB_DESC CColorInfoDesc[];
+extern GB_DESC ColorDesc[];
+extern GB_DESC ColorInfoDesc[];
 #else
 #define THIS ((CCOLOR *)_object)
 enum { CC_R, CC_G, CC_B, CC_A, CC_H, CC_S, CC_V };
@@ -48,5 +48,6 @@ GB_COLOR COLOR_lighter(GB_COLOR color);
 GB_COLOR COLOR_darker(GB_COLOR color);
 int COLOR_get_luminance(GB_COLOR color);
 GB_COLOR COLOR_set_luminance(GB_COLOR color, int l);
+int COLOR_invert_luminance(int l);
 
 #endif

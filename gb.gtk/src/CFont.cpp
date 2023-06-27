@@ -57,10 +57,9 @@ CFONT *CFONT_create(gFont *font, FONT_FUNC func, void *object)
 
 BEGIN_METHOD(Font_new, GB_STRING font)
 
+	FONT = new gFont();
 	if (!MISSING(font))
-		FONT = new gFont(GB.ToZeroString(ARG(font)));
-	else
-		FONT = gDesktop::font()->copy();
+		FONT->setFromString(GB.ToZeroString(ARG(font)));
 
 END_METHOD
 
@@ -197,9 +196,9 @@ BEGIN_METHOD(Font_get, GB_STRING str)
 	CFONT *font;
 	gFont *fnt;
 	
-	fnt = new gFont(GB.ToZeroString(ARG(str)));
+	fnt = new gFont();
+	fnt->setFromString(GB.ToZeroString(ARG(str)));
 	font = CFONT_create(fnt);
-	//gFont::assign(&fnt);
 	
 	GB.ReturnObject(font);
 	
@@ -247,11 +246,21 @@ BEGIN_METHOD(Font_TextHeight, GB_STRING text)
 END_METHOD
 
 
-BEGIN_METHOD(Font_RichTextWidth, GB_STRING text)
+BEGIN_METHOD(Font_TextSize, GB_STRING text)
+
+	GEOM_RECT *rect = GEOM.CreateRect();
+	rect->w = FONT->width(STRING(text), LENGTH(text));
+	rect->h = FONT->height(STRING(text), LENGTH(text));
+	GB.ReturnObject(rect);
+
+END_METHOD
+
+
+BEGIN_METHOD(Font_RichTextWidth, GB_STRING text; GB_INTEGER width)
 
 	float w;
 	
-	FONT->richTextSize(STRING(text), LENGTH(text), -1, &w, NULL);
+	FONT->richTextSize(STRING(text), LENGTH(text), VARGOPT(width, -1), &w, NULL);
 	GB.ReturnInteger(ceil(w));
 
 END_METHOD
@@ -263,6 +272,21 @@ BEGIN_METHOD(Font_RichTextHeight, GB_STRING text; GB_INTEGER width)
 	
 	FONT->richTextSize(STRING(text), LENGTH(text), VARGOPT(width, -1), NULL, &h);
 	GB.ReturnInteger(ceil(h));
+
+END_METHOD
+
+
+BEGIN_METHOD(Font_RichTextSize, GB_STRING text; GB_INTEGER width)
+
+	float w, h;
+	GEOM_RECT *rect = GEOM.CreateRect();
+	
+	FONT->richTextSize(STRING(text), LENGTH(text), VARGOPT(width, -1), &w, &h);
+	
+	rect->w = ceil(w);
+	rect->h = ceil(h);
+	
+	GB.ReturnObject(rect);
 
 END_METHOD
 
@@ -398,9 +422,11 @@ GB_DESC CFontDesc[] =
 
 	GB_METHOD("TextWidth", "i", Font_TextWidth, "(Text)s"),
 	GB_METHOD("TextHeight", "i", Font_TextHeight, "(Text)s"),
+	GB_METHOD("TextSize", "Rect", Font_TextSize, "(Text)s"),
 
-	GB_METHOD("RichTextWidth", "i", Font_RichTextWidth, "(Text)s"),
+	GB_METHOD("RichTextWidth", "i", Font_RichTextWidth, "(Text)s[(Width)i]"),
 	GB_METHOD("RichTextHeight", "i", Font_RichTextHeight, "(Text)s[(Width)i]"),
+	GB_METHOD("RichTextSize", "Rect", Font_RichTextSize, "(Text)s[(Width)i]"),
 
 	GB_STATIC_METHOD("_get", "Font", Font_get, "(Font)s"),
 	#if 0

@@ -2,7 +2,7 @@
 
   gbx_class.c
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -58,14 +58,15 @@
 // We are exiting...
 bool CLASS_exiting = FALSE;
 
-/* Global class table */
+// Global class table
 static TABLE _global_table;
-/* List of all classes */
+// List of all classes
 static CLASS *_classes = NULL;
-/* First created class (must be 'Class' class) */
+// First created class (must be 'Class' class)
 static CLASS *_first = NULL;
-/* This flag forces CLASS_find() to only register in the global table */
-static bool _global = FALSE;
+// If set, do not create a new class, but register that class in the global table
+static CLASS *_global_class = NULL;
+
 
 #ifdef DEBUG
 static CLASS *Class;
@@ -117,9 +118,6 @@ static void unload_class(CLASS *class)
 	#if DEBUG_LOAD
 		fprintf(stderr, "Unloading class %s...\n", class->name);
 	#endif
-
-	if (class->free_name)
-		FREE(&class->name);
 
 	if (class->is_struct)
 	{
@@ -191,7 +189,7 @@ static void unload_class(CLASS *class)
 
 #define SWAP_FIELD(_v, _s, _d, _f) (_v = _s->_f, _s->_f = _d->_f, _d->_f = _v)
 
-static void class_replace_global(CLASS *class)
+static CLASS *class_keep_global(CLASS *class)
 {
 	CLASS_DESC_SYMBOL *cds;
 	CLASS *parent;
@@ -201,13 +199,10 @@ static void class_replace_global(CLASS *class)
 	int len;
 	CLASS swap;
 	char *swap_name;
-	bool swap_free_name;
+	//bool swap_free_name;
 	int nprefix;
 	int i;
 
-	if (!CLASS_is_loaded(class))
-		return;
-		
 	name = class->name;
 	len = strlen(name);
 
@@ -238,7 +233,7 @@ static void class_replace_global(CLASS *class)
 	*old_class = swap;
 
 	SWAP_FIELD(swap_name, class, old_class, name);
-	SWAP_FIELD(swap_free_name, class, old_class, free_name);
+	//SWAP_FIELD(swap_free_name, class, old_class, free_name);
 	SWAP_FIELD(parent, class, old_class, next);
 	SWAP_FIELD(i, class, old_class, count);
 	SWAP_FIELD(i, class, old_class, ref);
@@ -251,6 +246,58 @@ static void class_replace_global(CLASS *class)
 	}
 
 	CLASS_inheritance(class, old_class);
+	return class;
+}
+
+CLASS *class_replace_global(CLASS *class)
+{
+	char *old_name;
+	CLASS *new_class;
+	char *swap_name;
+	//bool swap_free_name;
+	int index;
+	CLASS_SYMBOL *csym;
+	const char *name = class->name;
+	int len = strlen(class->name);
+	
+	if (!CLASS_is_loaded(class))
+		return class;
+		
+	if (class->count == 0)
+		return class_keep_global(class);
+
+	//fprintf(stderr, "class_replace_global: %s already has %d objects!\n", class->name, class->count);
+	
+	ALLOC(&old_name, len + 2);
+	old_name[0] = '^';
+	strcpy(&old_name[1], name);
+	
+	new_class = CLASS_find_global(old_name);
+	
+	if (TABLE_find_symbol(&_global_table, name, len, &index))
+  {
+		csym = (CLASS_SYMBOL *)TABLE_get_symbol(&_global_table, index);
+		csym->class = new_class;
+	}
+
+	if (TABLE_find_symbol(&_global_table, old_name, len + 1, &index))
+  {
+		csym = (CLASS_SYMBOL *)TABLE_get_symbol(&_global_table, index);
+		csym->class = class;
+	}
+
+	FREE(&old_name);
+	
+	SWAP_FIELD(swap_name, class, new_class, name);
+	//SWAP_FIELD(swap_free_name, class, new_class, free_name);
+
+	CLASS_inheritance(new_class, class);
+	
+	CLASS_update_global(class, new_class);
+	
+	//fprintf(stderr, "class_replace_global: %s -> %s\n", class->name, new_class->name);
+	
+	return new_class;
 }
 
 static void release_class(CLASS *class)
@@ -386,6 +433,7 @@ void CLASS_clean_up(bool silent)
 void CLASS_exit()
 {
 	CLASS *class, *next;
+	int i;
 
 	#if DEBUG_LOAD
 	fprintf(stderr, "Unloading classes...\n");
@@ -406,22 +454,25 @@ void CLASS_exit()
 		class = next;
 	}
 
+	for (i = 0; i < TABLE_count(&_global_table); i++)
+		IFREE(TABLE_get_symbol(&_global_table, i)->name);
+	
 	TABLE_delete_static(&_global_table);
 }
 
 
-CLASS *CLASS_look(const char *name, int len)
+CLASS *CLASS_look_do(const char *name, int len, bool global)
 {
 	CLASS_SYMBOL *csym;
 	ARCHIVE *arch = NULL;
 	int index;
 
 	#if DEBUG_COMP
-	fprintf(stderr, "CLASS_look: %s in %s", name, _global ? "global" : "local");
+	fprintf(stderr, "CLASS_look: %s in %s", name, global ? "global" : "local");
 	#endif
 
 	//if (CP && CP->component && CP->component->archive)
-	if (!_global && !ARCHIVE_get_current(&arch))
+	if (!global && !ARCHIVE_get_current(&arch))
 	{
 		if (TABLE_find_symbol(arch->classes, name, len, &index))
 		{
@@ -450,14 +501,13 @@ CLASS *CLASS_look(const char *name, int len)
 	}
 }
 
-CLASS *CLASS_find(const char *name)
+CLASS *CLASS_find_do(const char *name, bool global)
 {
 	CLASS_SYMBOL *csym;
 	CLASS *class;
 	int index;
 	int len;
 	ARCHIVE *arch = NULL;
-	bool global;
 
 	if (name == NULL)
 		name = COMMON_buffer;
@@ -465,7 +515,7 @@ CLASS *CLASS_find(const char *name)
 	len = strlen(name);
 
 #if DEBUG_LOAD
-		fprintf(stderr, "CLASS_find: %s (%d)\n", name, _global);
+		fprintf(stderr, "CLASS_find: %s (%d)\n", name, global);
 #endif
 
 	class = CLASS_look(name, len);
@@ -473,9 +523,8 @@ CLASS *CLASS_find(const char *name)
 		return class;
 
 	//if (CP && CP->component && CP->component->archive)
-	if (!_global && !ARCHIVE_get_current(&arch))
+	if (!global && !ARCHIVE_get_current(&arch))
 	{
-		global = FALSE;
 		index = TABLE_add_symbol(arch->classes, name, len);
 		#if DEBUG_LOAD || DEBUG_COMP
 			fprintf(stderr, "Not found -> creating new one in %s\n", arch->name ? arch->name : "main");
@@ -492,19 +541,23 @@ CLASS *CLASS_find(const char *name)
 		csym = (CLASS_SYMBOL *)TABLE_get_symbol(&_global_table, index);
 	}
 
-	ALLOC_ZERO(&class, sizeof(CLASS));
+	if (_global_class)
+		class = _global_class;
+	else
+	{
+		ALLOC_ZERO(&class, sizeof(CLASS));
+		class->next = _classes;
+		_classes = class;
+	}
+	
+	class->ref++;
 	csym->class = class;
-	class->ref = 1;
 
-	class->next = _classes;
-	_classes = class;
+	ALLOC(&csym->sym.name, len + 1);
+	strcpy(csym->sym.name, name);
 
-	ALLOC(&class->name, len + 1);
-	strcpy((char *)class->name, name);
-
-	csym->sym.name = class->name;
-
-	class->free_name = TRUE;
+	if (!class->name)
+		class->name = csym->sym.name;
 
 	// The first class must be the Class class!
 	if (_first == NULL)
@@ -518,6 +571,7 @@ CLASS *CLASS_find(const char *name)
 
 	return class;
 }
+
 
 int CLASS_count(void)
 {
@@ -536,29 +590,22 @@ CLASS *CLASS_get(const char *name)
 }
 
 
-CLASS *CLASS_look_global(const char *name, int len)
+CLASS *CLASS_find_export(const char *name, const char *global)
 {
 	CLASS *class;
 
-	_global = TRUE;
-	class = CLASS_look(name, len);
-	_global = FALSE;
-
+	if (name)
+	{
+		class = CLASS_find(name);
+		_global_class = class;
+		CLASS_find_global(global);
+		_global_class = NULL;
+	}
+	else
+		class = CLASS_find_global(global);
+	
 	return class;
 }
-
-
-CLASS *CLASS_find_global(const char *name)
-{
-	CLASS *class;
-
-	_global = TRUE;
-	class = CLASS_find(name);
-	_global = FALSE;
-
-	return class;
-}
-
 
 bool CLASS_inherits(CLASS *class, CLASS *parent)
 {
@@ -604,7 +651,7 @@ CLASS_DESC *CLASS_get_symbol_desc(CLASS *class, const char *name)
 }
 
 
-short CLASS_get_symbol_index_kind(CLASS *class, const char *name, int kind, int kind2)
+static short CLASS_get_symbol_index_kind(CLASS *class, const char *name, int kind, int kind2, TYPE type, bool error)
 {
 	CLASS_DESC *desc;
 	int index;
@@ -615,18 +662,24 @@ short CLASS_get_symbol_index_kind(CLASS *class, const char *name, int kind, int 
 		desc = CLASS_get_desc(class, index);
 		if (desc)
 			if ((CLASS_DESC_get_type(desc) == kind) || (CLASS_DESC_get_type(desc) == kind2))
-				return (short)index;
+			{
+				if (type == T_ANY || desc->method.type == type)
+					return (short)index;
+				
+				if (error)
+					THROW(E_SPEC, name, class->name);
+			}
 	}
 
 	return (short)NO_SYMBOL;
 }
 
 
-CLASS_DESC *CLASS_get_symbol_desc_kind(CLASS *class, const char *name, int kind, int kind2)
+CLASS_DESC *CLASS_get_symbol_desc_kind(CLASS *class, const char *name, int kind, int kind2, TYPE type)
 {
 	short index;
 
-	index = CLASS_get_symbol_index_kind(class, name, kind, kind2);
+	index = CLASS_get_symbol_index_kind(class, name, kind, kind2, type, TRUE);
 	if (index == NO_SYMBOL)
 		return NULL;
 	else
@@ -953,6 +1006,8 @@ void CLASS_inheritance(CLASS *class, CLASS *parent)
 
 	if (parent->auto_create)
 		class->auto_create = TRUE;
+	
+	class->is_array = parent->is_array;
 
 	if (!class->array_type)
 		class->array_type = parent->array_type;
@@ -966,10 +1021,10 @@ const char *CLASS_DESC_get_type_name(const CLASS_DESC *desc)
 {
 	switch (desc->gambas.val3._int[1])
 	{
-		case CD_PROPERTY_ID: return desc->gambas.val2 < 0 ? "r" : "p";
+		case CD_PROPERTY_ID: return desc->gambas.val2 < 0 ? "r" : desc->gambas.val1 < 0 ? "w" : "p";
 		case CD_VARIABLE_ID: return "v";
 		case CD_METHOD_ID: return "m";
-		case CD_STATIC_PROPERTY_ID: return desc->gambas.val2 < 0 ? "R" : "P";
+		case CD_STATIC_PROPERTY_ID: return desc->gambas.val2 < 0 ? "R" : desc->gambas.val1 < 0 ? "W" : "P";
 		case CD_STATIC_VARIABLE_ID: return "V";
 		case CD_STATIC_METHOD_ID: return "M";
 		case CD_CONSTANT_ID: return "C";
@@ -1031,7 +1086,7 @@ static bool check_signature(char type, const CLASS_DESC *desc, const CLASS_DESC 
 
 void CLASS_make_description(CLASS *class, const CLASS_DESC *desc, int n_desc, int *first)
 {
-	static const char *nonher[] = { "_new", "_free", "_init", "_exit", NULL };
+	static const char *nonher[] = { "_new", "_free", "_init", "_exit", "_lang", NULL };
 
 	int ind;
 	int i, j;
@@ -1327,28 +1382,32 @@ void CLASS_search_special(CLASS *class)
 {
 	static int _operator_strength = 0;
 	int sym;
+	int offset;
 
-	class->special[SPEC_NEW] = CLASS_get_symbol_index_kind(class, "_new", CD_METHOD, 0);
-	class->special[SPEC_FREE] = CLASS_get_symbol_index_kind(class, "_free", CD_METHOD, 0);
-	class->special[SPEC_GET] = CLASS_get_symbol_index_kind(class, "_get", CD_METHOD, CD_STATIC_METHOD);
-	class->special[SPEC_PUT] = CLASS_get_symbol_index_kind(class, "_put", CD_METHOD, CD_STATIC_METHOD);
-	class->special[SPEC_FIRST] = CLASS_get_symbol_index_kind(class, "_first", CD_METHOD, CD_STATIC_METHOD);
-	class->special[SPEC_NEXT] = CLASS_get_symbol_index_kind(class, "_next", CD_METHOD, CD_STATIC_METHOD);
-	class->special[SPEC_CALL] = CLASS_get_symbol_index_kind(class, "_call", CD_METHOD, CD_STATIC_METHOD);
-	class->special[SPEC_UNKNOWN] = CLASS_get_symbol_index_kind(class, "_unknown", CD_METHOD, CD_STATIC_METHOD);
-	class->special[SPEC_PROPERTY] = CLASS_get_symbol_index_kind(class, "_property", CD_METHOD, CD_STATIC_METHOD);
-	class->special[SPEC_COMPARE] = CLASS_get_symbol_index_kind(class, "_compare", CD_METHOD, 0);
-	class->special[SPEC_ATTACH] = CLASS_get_symbol_index_kind(class, "_attach", CD_METHOD, 0);
-	class->special[SPEC_READY] = CLASS_get_symbol_index_kind(class, "_ready", CD_METHOD, 0);
+	class->special[SPEC_NEW] = CLASS_get_symbol_index_kind(class, "_new", CD_METHOD, 0, T_VOID, TRUE);
+	class->special[SPEC_FREE] = CLASS_get_symbol_index_kind(class, "_free", CD_METHOD, 0, T_VOID, TRUE);
+	class->special[SPEC_GET] = CLASS_get_symbol_index_kind(class, "_get", CD_METHOD, CD_STATIC_METHOD, T_ANY, TRUE);
+	class->special[SPEC_PUT] = CLASS_get_symbol_index_kind(class, "_put", CD_METHOD, CD_STATIC_METHOD, T_VOID, TRUE);
+	class->special[SPEC_FIRST] = CLASS_get_symbol_index_kind(class, "_first", CD_METHOD, CD_STATIC_METHOD, T_VOID, TRUE);
+	class->special[SPEC_NEXT] = CLASS_get_symbol_index_kind(class, "_next", CD_METHOD, CD_STATIC_METHOD, T_ANY, TRUE);
+	class->special[SPEC_CALL] = CLASS_get_symbol_index_kind(class, "_call", CD_METHOD, CD_STATIC_METHOD, T_ANY, TRUE);
+	class->special[SPEC_UNKNOWN] = CLASS_get_symbol_index_kind(class, "_unknown", CD_METHOD, CD_STATIC_METHOD, T_ANY, TRUE);
+	class->special[SPEC_PROPERTY] = CLASS_get_symbol_index_kind(class, "_property", CD_METHOD, CD_STATIC_METHOD, T_BOOLEAN, TRUE);
+	class->special[SPEC_COMPARE] = CLASS_get_symbol_index_kind(class, "_compare", CD_METHOD, 0, T_INTEGER, TRUE);
+	class->special[SPEC_ATTACH] = CLASS_get_symbol_index_kind(class, "_attach", CD_METHOD, 0, T_VOID, TRUE);
+	class->special[SPEC_READY] = CLASS_get_symbol_index_kind(class, "_ready", CD_METHOD, 0, T_VOID, TRUE);
+	class->special[SPEC_READ] = CLASS_get_symbol_index_kind(class, "_read", CD_METHOD, 0, T_VOID, TRUE);
+	class->special[SPEC_WRITE] = CLASS_get_symbol_index_kind(class, "_write", CD_METHOD, 0, T_VOID, TRUE);
+	class->special[SPEC_INVALID] = CLASS_get_symbol_index_kind(class, "_invalid", CD_VARIABLE, 0, T_BOOLEAN, TRUE);
 
-	sym = CLASS_get_symbol_index_kind(class, "_@_convert", CD_CONSTANT, 0);
+	sym = CLASS_get_symbol_index_kind(class, "_@_convert", CD_CONSTANT, 0, T_ANY, FALSE);
 	if (sym != NO_SYMBOL)
 	{
 		class->has_convert = TRUE;
 		class->convert = CLASS_get_desc(class, sym)->constant.value._pointer;
 	}
 
-	sym = CLASS_get_symbol_index_kind(class, "_@_operator", CD_CONSTANT, 0);
+	sym = CLASS_get_symbol_index_kind(class, "_@_operator", CD_CONSTANT, 0, T_ANY, FALSE);
 	if (sym != NO_SYMBOL)
 	{
 		class->has_operators = TRUE;
@@ -1365,6 +1424,18 @@ void CLASS_search_special(CLASS *class)
 		class->property_static = CLASS_DESC_get_type(CLASS_get_desc(class, class->special[SPEC_PROPERTY])) == CD_STATIC_METHOD;
 	if (class->special[SPEC_FREE] != NO_SYMBOL)
 		class->has_free = TRUE;
+	
+	if (class->special[SPEC_INVALID] != NO_SYMBOL)
+	{
+		if (class->must_check && class->check != OBJECT_check_valid)
+			THROW_CLASS(class, "Validation method already implemented", "");
+		class->must_check = TRUE;
+		class->check = OBJECT_check_valid;
+		offset = CLASS_get_desc(class, class->special[SPEC_INVALID])->variable.offset;
+		if (offset > 32767)
+			THROW_CLASS(class, "Validation variable must be declared first", "");
+		class->special[SPEC_INVALID] = (short)offset;
+	}
 }
 
 
@@ -1378,7 +1449,7 @@ CLASS *CLASS_check_global(CLASS *class)
 		/*if (class->has_child)
 			THROW(E_CLASS, class->name, "Overriding an already inherited class is forbidden", "");*/
 
-		class_replace_global(class);
+		class = class_replace_global(class);
 	}
 
 	return class;
@@ -1564,3 +1635,14 @@ CLASS *CLASS_find_load_from(const char *name, const char *from)
 	return class;
 }
 
+
+void CLASS_translation_must_be_reloaded(void)
+{
+	CLASS *class;
+
+	for (class = _classes; class; class = class->next)
+	{
+		if (class->ready && !class->is_native)
+			EXEC_public(class, NULL, "_lang", 0);
+	}
+}

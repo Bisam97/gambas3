@@ -1,0 +1,133 @@
+' Gambas class file
+
+Inherits GridViewSelection
+
+Event _Fake
+
+Public Keys As New Collection
+
+Public Sub Copy() As GridViewSelection
+  
+  Dim hSel As TreeViewSelection = New TreeViewSelection
+  hSel.Keys = Keys.Copy()
+  Object.Attach(hSel, GetParent(), "TreeViewSelection")
+  Return hSel
+  
+End
+
+Public Sub Save() As Variant
+  
+  Return Keys.Copy()
+  
+End
+
+Public Sub Restore(vSel As Variant)
+  
+  Keys = vSel.Copy()
+  
+End
+
+Private Sub GetParent() As _TreeView
+  
+  Return Object.Parent(Me)
+  
+End
+
+Public Sub Select(iStart As Integer, Optional iLength As Integer = 1)
+
+  Dim hParent As _TreeView = GetParent()
+  Dim I As Integer
+  Dim hItem As _TreeView_Item
+  
+  For I = iStart To iStart + iLength - 1
+    
+    hItem = hParent._RowToItem(I)
+    If Not hItem Then Break
+    If hItem.Selectable Then Keys[hItem.Key] = True
+    
+  Next
+  
+End
+
+Public Sub SelectItem(sKey As String, bSelected As Boolean)
+  
+  Dim hParent As _TreeView = GetParent()
+  Dim hItem As _TreeView_Item
+
+  Try hItem = hParent[sKey]
+  If Error Then Return
+  If Not hItem.Selectable Then Return
+
+  If bSelected Then
+    Keys[sKey] = True
+  Else
+    Keys.Remove(sKey)
+  Endif
+  
+End
+
+Public Sub UnSelect(iStart As Integer, Optional iLength As Integer = 1)
+  
+  Dim hParent As _TreeView = GetParent()
+  Dim I As Integer
+  Dim hItem As _TreeView_Item
+  
+  For I = iStart To iStart + iLength - 1
+    
+    hItem = hParent._RowToItem(I)
+    If Not hItem Then Break
+    Keys.Remove(hItem.Key)
+    
+  Next
+  
+End
+
+Public Sub UnSelectAll()
+  
+  Keys.Clear
+  'Dump
+  
+End
+
+Public Sub SelectAll((nRows) As Integer)
+
+  Dim hParent As _TreeView = GetParent()
+  Dim sKey As String
+  
+  Keys.Clear
+  For Each sKey In GetParent().Keys
+    If hParent[sKey].Selectable Then Keys[sKey] = True
+  Next
+  
+End
+
+
+Public Sub IsItemSelected(sKey As String) As Boolean
+  
+  Return Keys.Exist(sKey)
+  
+End
+
+
+Public Sub IsSelected(iIndex As Integer) As Boolean
+  
+  Dim hParent As _TreeView = GetParent()
+  Dim hItem As _TreeView_Item
+
+  hItem = hParent._RowToItem(iIndex)
+  If hItem Then Return Keys.Exist(hItem.Key)
+  
+End
+
+Public Function _GetSelectedRows((iCount) As Integer) As Integer[]
+
+End
+
+Public Sub InsertRows((iStart) As Integer, (iLength) As Integer)
+
+End
+
+Public Sub RemoveRows((iStart) As Integer, (iLength) As Integer)
+  
+End
+

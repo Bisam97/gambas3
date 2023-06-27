@@ -61,28 +61,42 @@ Public Sub ShowPathContent(sPath As String, sBus As String, sApplication As Stri
           hNode2 = hNode.Children[j]
           If hNode2.Name = "method" Or hNode2.Name = "property" Or hNode2.Name = "signal" Then
             For Each hattr In hNode2.Attributes
-              Break
+              If hattr.name = "name" Then Break
             Next
+
             Try tvDbus.Add(sFullDbusPath & "|" & hattr.Value, hattr.Value, Picture[hNode2.Name & ".png"], sFullDbusPath)
             If Error Then Continue
-            For k = 0 To hNode2.Children.Count - 1
-              If hNode2.Children[k].Name = "arg" Then
+            $cArgs[sFullDbusPath & "|" & hattr.Value] &= "ref=" & hNode2.Name
 
-                For Each hattr2 In hNode2.Children[k].Attributes
+            If hNode2.name = "property" Then
 
-                  aArgs.Add(hattr2.Name & "=" & hattr2.Value)
+              For Each hattr2 In hNode2.Attributes
+                If hattr2.name = "name" Then Continue
+                aArgs.Add(hattr2.Name & "=" & hattr2.Value)
+              Next
 
-                Next
+              $cArgs[sFullDbusPath & "|" & hattr.Value] &= "|" & aArgs.Join()
+              aArgs.Clear
 
-                $cArgs[sFullDbusPath & "|" & hattr.Value] &= aArgs.Join()
+            Else
 
-                If k < hNode2.Children.Count - 2 Then $cArgs[sFullDbusPath & "|" & hattr.Value] &= "|"
-                aArgs.Clear
-              Endif
-            Next
+              For k = 0 To hNode2.Children.Count - 1
+                If hNode2.Children[k].Name = "arg" Then
 
+                  For Each hattr2 In hNode2.Children[k].Attributes
+
+                    aArgs.Add(hattr2.Name & "=" & hattr2.Value)
+
+                  Next
+
+                  $cArgs[sFullDbusPath & "|" & hattr.Value] &= "|" & aArgs.Join()
+
+                  'If k < hNode2.Children.Count - 2 Then $cArgs[sFullDbusPath & "|" & hattr.Value] &= "|"
+                  aArgs.Clear
+                Endif
+              Next
+            Endif
           Endif
-
         Next
       Next
     Endif
@@ -180,8 +194,12 @@ Public Function MakeSignature(sKey As String) As String
   Dim s, t As String
   Dim aArg As String[]
   Dim sName, sType As String
-  Dim iArg As Integer
+  Dim sDirection As String
+  Dim sRef As String
+  Dim iArg As Integer = 1
   Dim aOut As New String[]
+  Dim sAccess As String = ""
+  Dim bHasAccess As Boolean = False
 
   ars = Split(skey, "|")
   If Not $cArgs.Exist(skey) Then
@@ -192,40 +210,63 @@ Public Function MakeSignature(sKey As String) As String
     Endif
   Endif
 
-  For Each s In Split($cArgs[sKey], "|")
+  Dim sParameters As String[] = Split($cArgs[sKey], "|")
+  For Each s In sParameters
 
-    Inc iArg
-
-    sName = "Arg" & CStr(iArg)
+    sName = "Arg" '
+    sDirection = ""
+    sType = ""
     For Each t In Split(s)
       aArg = Scan(t, "*=*")
+
       Select Case aArg[0]
+        Case "ref"
+          sRef = aArg[1]
+        Case "direction"
+          sDirection = aArg[1]
         Case "type"
           sType = GetType(aArg[1])
         Case "name"
           sName = aArg[1]
+        Case "access"
+          sAccess = aArg[1]
+          bHasAccess = True
       End Select
     Next
 
-    If InStr(s, "=out") Then
-
-      aOut.Add(sName & " As " & sType)
-
-    Else
-
+    If sDirection == "in" Then
+      If sName = "Arg" Then
+        sName &= CStr(iArg)
+        Inc iArg
+      Endif
       aIn.Add(sName & " As " & sType)
-
+    Else
+      If sName = "Arg" Then
+        If stype <> "" Then aOut.Add(sType)
+      Else
+        aOut.Add(sName & " As " & sType)
+      Endif
     Endif
 
   Next
 
-  s = ars[ars.Max] & "(" & aIn.Join(", ") & ")"
-  If aOut.Count Then
-    s &= " As "
-    If aOut.Count = 1 Then
-      s &= Scan(aOut[0], "* As *")[1]
+  If sRef = "property" Then
+    s = ars[ars.max] & " AS " & aOut.last & " For " & sAccess
+  Else
+    If sRef = "method" Then
+      s = ars[ars.Max] & "(" & aIn.Join(", ") & ")"
+    Else If sRef = "signal" Then
+      s = ars[ars.Max]
+    Endif
+    If aOut.Count Then
+      s &= IIf(sRef = "signal", " Sends ", " As ")
+      If aOut.Count = 1 Then
+        s &= aOut.last
+      Else
+        s &= "[" & aOut.Join(", ") & "] as variant[]"
+      Endif
     Else
-      s &= "[" & aOut.Join(", ") & "]"
+      If sRef = "signal" Then s &= " Sends Nothing"
     Endif
   Endif
 
@@ -248,7 +289,7 @@ Public Sub tvDbus_MouseMove()
   If Not tvDbus.FindAt(Mouse.x, Mouse.y) Then
 
     s = MakeSignature(tvDbus.item.key)
-  
+
     hcont = tvDbus.Parent
     ix = tvDbus.Item.X + tvDbus.Item.w / 2
     iy = tvDbus.Item.Y

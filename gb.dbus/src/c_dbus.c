@@ -2,7 +2,7 @@
 
 	c_dbus.c
 
-	(c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+	(c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -27,18 +27,6 @@
 #include "c_dbusconnection.h"
 #include "c_dbus.h"
 
-BEGIN_PROPERTY(DBus_System)
-
-	GB.ReturnObject(CDBUSCONNECTION_get(DBUS_BUS_SYSTEM));
-
-END_PROPERTY
-
-BEGIN_PROPERTY(DBus_Session)
-
-	GB.ReturnObject(CDBUSCONNECTION_get(DBUS_BUS_SESSION));
-
-END_PROPERTY
-
 BEGIN_PROPERTY(DBus_Debug)
 
 	if (READ_PROPERTY)
@@ -58,8 +46,6 @@ GB_DESC CDBusDesc[] =
 {
 	GB_DECLARE_STATIC("_DBus"),
 
-	GB_STATIC_PROPERTY_READ("System", "DBusConnection", DBus_System),
-	GB_STATIC_PROPERTY_READ("Session", "DBusConnection", DBus_Session),
 	GB_STATIC_PROPERTY("Debug", "b", DBus_Debug),
 
 	GB_CONSTANT("Method", "i", DBUS_MESSAGE_TYPE_METHOD_CALL),

@@ -2,7 +2,7 @@
 
   main.c
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -51,7 +51,7 @@ int EXPORT GB_INIT(void)
 	if (!comp)
 	{
 		// GB_GUI should be set by gb.gui
-		if (!env)
+		if (!env || !*env)
 			fprintf(stderr, "gb.gui.qt.opengl: error: no component specified in GB_GUI environment variable");
 		else
 			fprintf(stderr, "gb.gui.qt.opengl: error: unsupported component specified in GB_GUI environment variable");

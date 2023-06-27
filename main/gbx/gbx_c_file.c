@@ -2,7 +2,7 @@
 
   gbx_c_file.c
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -32,9 +32,15 @@
 #include <grp.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
+#ifdef OS_BSD
+	#include <sys/types.h>
+#else
+	#include <sys/sysmacros.h>
+#endif
 #include <termios.h>
 
 #include "gb_common.h"
+#include "gb_common_buffer.h"
 #include "gb_list.h"
 #include "gb_file.h"
 
@@ -51,9 +57,9 @@
 
 #include "gbx_c_file.h"
 
-#define STREAM_FD STREAM_handle(CSTREAM_stream(THIS_STREAM))
+#define STREAM_FD STREAM_handle(THE_STREAM)
 
-CFILE *CFILE_in, *CFILE_out, *CFILE_err;
+mode_t CFILE_default_dir_auth = S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH;
 
 DECLARE_EVENT(EVENT_Read);
 DECLARE_EVENT(EVENT_Write);
@@ -69,25 +75,53 @@ static ushort _term_height = 0;
 static SIGNAL_CALLBACK *_SIGWINCH_callback = NULL;
 static GB_FUNCTION _term_resize_func;
 
+static CFILE *_std[3] = { NULL };
 
-static void callback_read(int fd, int type, CSTREAM *stream)
+
+static void callback_read(int fd, int type, CSTREAM *_object)
 {
-	if (!STREAM_read_ahead(CSTREAM_stream(stream)))
-		GB_Raise(stream, EVENT_Read, 0);
+	STREAM *stream = CSTREAM_TO_STREAM(THIS);
+	int64_t len;
+	
+	if (!GB_CanRaise(THIS, EVENT_Read))
+		goto __DISABLE_WATCH;
+	
+	STREAM_read_ahead(stream);
+	
+	if (stream->common.check_read)
+	{
+		if (!STREAM_lof_safe(stream, &len) && len == 0)
+		{
+			stream->common.eof = TRUE;
+			goto __DISABLE_WATCH;
+		}
+	}
+	
+	if (!stream->common.eof)
+		GB_Raise(THIS, EVENT_Read, 0);
 	else
 		WATCH_little_sleep();
+	
+	return;
+
+__DISABLE_WATCH:
+
+	GB_Watch(fd, GB_WATCH_READ, NULL, (intptr_t)THIS);
 }
 
-static void callback_write(int fd, int type, CSTREAM *stream)
+static void callback_write(int fd, int type, CSTREAM *_object)
 {
-	GB_Raise(stream, EVENT_Write, 0);
+	if (GB_CanRaise(THIS, EVENT_Write))
+		GB_Raise(THIS, EVENT_Write, 0);
+	else
+		GB_Watch(fd, GB_WATCH_WRITE, NULL, (intptr_t)THIS);
 }
 
 static void cb_term_resize(int signum, intptr_t data)
 {
 	_term_width = _term_height = 0;
-	if (CFILE_in)
-		GB_Raise(CFILE_in, EVENT_Resize, 0);
+	if (_std[CFILE_IN])
+		GB_Raise(_std[CFILE_IN], EVENT_Resize, 0);
 }
 
 static void watch_stream(CSTREAM *_object, int mode, bool on)
@@ -95,10 +129,10 @@ static void watch_stream(CSTREAM *_object, int mode, bool on)
 	STREAM *stream = &THIS_STREAM->stream;
 	int fd = STREAM_handle(stream);
 	
-	if (mode & STO_READ)
+	if (mode & GB_ST_READ)
 		GB_Watch(fd, GB_WATCH_READ, (void *)(on ? callback_read : NULL), (intptr_t)THIS);
 
-	if (mode & STO_WRITE)
+	if (mode & GB_ST_WRITE)
 		GB_Watch(fd, GB_WATCH_WRITE, (void *)(on ? callback_write : NULL), (intptr_t)THIS);
 }
 
@@ -109,10 +143,10 @@ CFILE *CFILE_create(STREAM *stream, int mode)
 
 	if (stream)
 	{
-		*CSTREAM_stream(file) = *stream;
+		*CSTREAM_TO_STREAM(file) = *stream;
 		//file->watch_fd = -1;
 
-		if (mode & STO_WATCH)
+		if (mode & GB_ST_WATCH)
 		{
 			watch_stream(&file->ob, mode, TRUE);
 			OBJECT_attach((OBJECT *)file, OP ? (OBJECT *)OP : (OBJECT *)CP, "File");
@@ -124,34 +158,26 @@ CFILE *CFILE_create(STREAM *stream, int mode)
 
 static CFILE *create_default_stream(FILE *file, int mode)
 {
-	CFILE *ob;
 	STREAM stream;
-	bool tty = isatty(fileno(file));
+	//bool tty = isatty(fileno(file));
 	
 	CLEAR(&stream);
 	stream.type = &STREAM_buffer;
-	stream.common.available_now = !tty;
-	stream.common.no_read_ahead = tty;
+	stream.common.no_read_ahead = TRUE;
 	stream.common.standard = TRUE;
+	stream.common.check_read = TRUE;
 	stream.buffer.file = file;
+	//stream.direct.fd = fileno(file);
 	STREAM_check_blocking(&stream);
-	ob = CFILE_create(&stream, mode);
-	OBJECT_REF(ob);
-	return ob;
-}
-
-void CFILE_init(void)
-{
-	CFILE_in = create_default_stream(stdin, STO_READ);
-	CFILE_out = create_default_stream(stdout, STO_WRITE);
-	CFILE_err = create_default_stream(stderr, STO_WRITE);
+	return (CFILE *)OBJECT_REF(CFILE_create(&stream, mode));
 }
 
 void CFILE_exit(void)
 {
-	OBJECT_UNREF(CFILE_in);
-	OBJECT_UNREF(CFILE_out);
-	OBJECT_UNREF(CFILE_err);
+	int i;
+	
+	for (i = 0; i <= 2; i++)
+		OBJECT_UNREF(_std[i]);
 	
 	if (_term_init)
 		SIGNAL_unregister(SIGWINCH, _SIGWINCH_callback);
@@ -163,15 +189,40 @@ void CFILE_init_watch(void)
 	bool has_read_func = GB_GetFunction(&_read_func, PROJECT_class, "Application_Read", "", "") == 0;
 	
 	if (has_term_func || has_read_func)
-		OBJECT_attach((OBJECT *)CFILE_in, (OBJECT *)PROJECT_class, "Application");
+		OBJECT_attach((OBJECT *)CFILE_get_standard_stream(CFILE_IN), (OBJECT *)PROJECT_class, "Application");
 	
 	if (has_read_func)
 	{
 		//fprintf(stderr, "watch stdin\n");
 		//CFILE_in->watch_fd = STDIN_FILENO;
-		GB_Watch(STDIN_FILENO, GB_WATCH_READ, (void *)callback_read, (intptr_t)CFILE_in);
+		GB_Watch(fileno(stdin), GB_WATCH_READ, (void *)callback_read, (intptr_t)CFILE_get_standard_stream(CFILE_IN));
 	}
 }
+
+CFILE *CFILE_get_standard_stream(int num)
+{
+	if (!_std[num])
+	{
+		switch(num)
+		{
+			case CFILE_IN:
+				_std[CFILE_IN] = create_default_stream(stdin, GB_ST_READ);
+				break;
+				
+			case CFILE_OUT:
+				_std[CFILE_OUT] = create_default_stream(stdout, GB_ST_WRITE);
+				break;
+				
+			case CFILE_ERR:
+				_std[CFILE_ERR] = create_default_stream(stderr, GB_ST_WRITE);
+				break;
+		}
+	}
+	
+	return _std[num];
+}
+
+//---------------------------------------------------------------------------
 
 BEGIN_METHOD_VOID(File_free)
 
@@ -182,21 +233,21 @@ END_METHOD
 
 BEGIN_PROPERTY(File_In)
 
-	GB_ReturnObject(CFILE_in);
+	GB_ReturnObject(CFILE_get_standard_stream(CFILE_IN));
 
 END_PROPERTY
 
 
 BEGIN_PROPERTY(File_Out)
 
-	GB_ReturnObject(CFILE_out);
+	GB_ReturnObject(CFILE_get_standard_stream(CFILE_OUT));
 
 END_PROPERTY
 
 
 BEGIN_PROPERTY(File_Err)
 
-	GB_ReturnObject(CFILE_err);
+	GB_ReturnObject(CFILE_get_standard_stream(CFILE_ERR));
 
 END_PROPERTY
 
@@ -369,34 +420,23 @@ BEGIN_PROPERTY(Stat_Auth)
 
 END_PROPERTY
 
-#if 0
-BEGIN_METHOD(CFILE_access, GB_INTEGER who; GB_INTEGER access)
 
-	bool ret;
-	int access = VARGOPT(access, GB_STAT_READ);
-	int who = VARG(who);
-	int mode = THIS_STAT->info.mode;
+BEGIN_PROPERTY(Stat_Device)
 
-	if ((access & GB_STAT_READ) == 0)
-		mode &= ~(S_IRUSR | S_IRGRP | S_IROTH);
-	if ((access & GB_STAT_WRITE) == 0)
-		mode &= ~(S_IWUSR | S_IWGRP | S_IWOTH);
-	if ((access & GB_STAT_EXEC) == 0)
-		mode &= ~(S_IXUSR | S_IXGRP | S_IXOTH);
-
-	switch(who)
+	dev_t dev = THIS_STAT->info.device;
+	int len;
+	
+	if (dev == 0)
+		GB_ReturnNull();
+	else
 	{
-		case GB_STAT_USER: ret = mode & S_IRWXU; break;
-		case GB_STAT_GROUP: ret = mode & S_IRWXG; break;
-		case GB_STAT_OTHER: ret = mode & S_IRWXO; break;
-		default: ret = FALSE; break;
+		len = sprintf(COMMON_buffer, "/%s/%d:%d", THIS_STAT->info.chrdev ? "char" : "block", major(dev), minor(dev));
+		GB_ReturnNewString(COMMON_buffer, len);
 	}
 
-	GB_ReturnBoolean(ret);
+END_PROPERTY
 
-END_METHOD
-#endif
-
+//--------------------------------------------------------------------------
 
 static void return_perm(CSTAT *_object, int rf, int wf, int xf)
 {
@@ -416,25 +456,25 @@ static void return_perm(CSTAT *_object, int rf, int wf, int xf)
 }
 
 
-BEGIN_PROPERTY(CFILE_perm_user)
+BEGIN_PROPERTY(StatPerm_User)
 
 	return_perm(THIS_STAT, S_IRUSR, S_IWUSR, S_IXUSR);
 
 END_PROPERTY
 
-BEGIN_PROPERTY(CFILE_perm_group)
+BEGIN_PROPERTY(StatPerm_Group)
 
 	return_perm(THIS_STAT, S_IRGRP, S_IWGRP, S_IXGRP);
 
 END_PROPERTY
 
-BEGIN_PROPERTY(CFILE_perm_other)
+BEGIN_PROPERTY(StatPerm_Other)
 
 	return_perm(THIS_STAT, S_IROTH, S_IWOTH, S_IXOTH);
 
 END_PROPERTY
 
-BEGIN_METHOD(CFILE_perm_get, GB_STRING user)
+BEGIN_METHOD(StatPerm_get, GB_STRING user)
 
 	char *who;
 	char *user = GB_ToZeroString(ARG(user));
@@ -621,7 +661,7 @@ BEGIN_METHOD(File_Load, GB_STRING path)
 	int rlen;
 	char *str = NULL;
 
-	STREAM_open(&stream, STRING_conv_file_name(STRING(path), LENGTH(path)), STO_READ);
+	STREAM_open(&stream, STRING_conv_file_name(STRING(path), LENGTH(path)), GB_ST_READ);
 	
 	ON_ERROR_1(error_CFILE_load_save, &stream)
 	{
@@ -665,7 +705,7 @@ BEGIN_METHOD(File_Save, GB_STRING path; GB_STRING data)
 
 	STREAM stream;
 
-	STREAM_open(&stream, STRING_conv_file_name(STRING(path), LENGTH(path)), STO_CREATE);
+	STREAM_open(&stream, STRING_conv_file_name(STRING(path), LENGTH(path)), GB_ST_CREATE);
 	
 	ON_ERROR_1(error_CFILE_load_save, &stream)
 	{
@@ -746,7 +786,22 @@ BEGIN_METHOD(File_RealPath, GB_STRING path)
 
 END_METHOD
 
-//---------------------------------------------------------------------------
+BEGIN_PROPERTY(File_DefaultDirAuth)
+
+	if (READ_PROPERTY)
+	{
+		char *auth = FILE_mode_to_string(CFILE_default_dir_auth);
+		GB_ReturnNewString(auth, FILE_buffer_length());
+	}
+	else
+	{
+		CFILE_default_dir_auth = FILE_mode_from_string((mode_t)0, GB_ToZeroString(PROP(GB_STRING)));
+	}
+
+END_PROPERTY
+
+
+//--------------------------------------------------------------------------
 
 BEGIN_PROPERTY(Stream_Handle)
 
@@ -761,7 +816,7 @@ BEGIN_PROPERTY(Stream_ByteOrder)
 
 	if (READ_PROPERTY)
 	{
-		if (CSTREAM_stream(THIS_STREAM)->common.swap)
+		if (THE_STREAM->common.swap)
 			endian = !endian;
 
 		GB_ReturnInteger(endian ? 1 : 0);
@@ -769,7 +824,7 @@ BEGIN_PROPERTY(Stream_ByteOrder)
 	else
 	{
 		bool val = VPROP(GB_INTEGER);
-		CSTREAM_stream(THIS_STREAM)->common.swap = endian ^ val;
+		THE_STREAM->common.swap = endian ^ val;
 	}
 
 END_PROPERTY
@@ -777,35 +832,35 @@ END_PROPERTY
 BEGIN_PROPERTY(Stream_EndOfLine)
 
 	if (READ_PROPERTY)
-		GB_ReturnInteger(CSTREAM_stream(THIS_STREAM)->common.eol);
+		GB_ReturnInteger(THE_STREAM->common.eol);
 	else
 	{
 		int eol = VPROP(GB_INTEGER);
 
 		if (eol >= 0 && eol <= 2)
-			CSTREAM_stream(THIS_STREAM)->common.eol = eol;
+			THE_STREAM->common.eol = eol;
 	}
 
 END_PROPERTY
 
 BEGIN_METHOD_VOID(Stream_Close)
 
-	STREAM_close(CSTREAM_stream(THIS_STREAM));
+	STREAM_close(THE_STREAM);
 
 END_METHOD
 
 BEGIN_PROPERTY(Stream_EndOfFile)
 
-	GB_ReturnBoolean(CSTREAM_stream(THIS_STREAM)->common.eof);
+	GB_ReturnBoolean(THE_STREAM->common.eof);
 	
 END_PROPERTY
 
 BEGIN_PROPERTY(Stream_Blocking)
 
 	if (READ_PROPERTY)
-		GB_ReturnBoolean(STREAM_is_blocking(CSTREAM_stream(THIS_STREAM)));
+		GB_ReturnBoolean(STREAM_is_blocking(THE_STREAM));
 	else
-		STREAM_blocking(CSTREAM_stream(THIS_STREAM), VPROP(GB_BOOLEAN));
+		STREAM_blocking(THE_STREAM, VPROP(GB_BOOLEAN));
 
 END_PROPERTY
 
@@ -820,14 +875,23 @@ END_METHOD
 
 BEGIN_METHOD_VOID(Stream_free)
 
-	STREAM_close(CSTREAM_stream(THIS_STREAM));
+	STREAM_close(THE_STREAM);
 	GB_StoreVariant(NULL, POINTER(&(THIS_STREAM->tag)));
 
 END_METHOD
 
 BEGIN_PROPERTY(Stream_Eof)
 
-	GB_ReturnBoolean(STREAM_eof(CSTREAM_stream(THIS_STREAM)));
+	GB_ReturnBoolean(STREAM_eof(THE_STREAM));
+
+END_PROPERTY
+
+BEGIN_PROPERTY(Stream_NullTerminatedString)
+
+	if (READ_PROPERTY)
+		GB_ReturnBoolean(THE_STREAM->common.null_terminated);
+	else
+		THE_STREAM->common.null_terminated = VPROP(GB_BOOLEAN);
 
 END_PROPERTY
 
@@ -845,7 +909,7 @@ BEGIN_METHOD(Stream_ReadLine, GB_STRING escape)
 			escape = NULL;
 	}
 
-	str = STREAM_line_input(CSTREAM_stream(THIS_STREAM), escape);
+	str = STREAM_line_input(THE_STREAM, escape);
 	STRING_free_later(str);
 	GB_ReturnString(str);
 
@@ -853,19 +917,19 @@ END_METHOD
 
 BEGIN_METHOD_VOID(Stream_Begin)
 
-	STREAM_begin(CSTREAM_stream(THIS_STREAM));
+	STREAM_begin(THE_STREAM);
 
 END_METHOD
 
 BEGIN_METHOD_VOID(Stream_End)
 
-	STREAM_end(CSTREAM_stream(THIS_STREAM));
+	STREAM_end(THE_STREAM);
 
 END_METHOD
 
 BEGIN_METHOD_VOID(Stream_Cancel)
 
-	STREAM_cancel(CSTREAM_stream(THIS_STREAM));
+	STREAM_cancel(THE_STREAM);
 
 END_METHOD
 
@@ -879,13 +943,9 @@ BEGIN_METHOD(Stream_Watch, GB_INTEGER mode; GB_BOOLEAN on)
 
 	int mode = VARG(mode);
 	
-	if (mode == R_OK)
-		mode = STO_READ;
-	else if (mode == W_OK)
-		mode = STO_WRITE;
-	else
+	if (mode != GB_ST_READ && mode != GB_ST_WRITE)
 	{
-		GB_Error("Unknown watch");
+		GB_Error(GB_ERR_ARG);
 		return;
 	}
 	
@@ -897,11 +957,11 @@ BEGIN_METHOD_VOID(StreamLines_next)
 
 	char *str;
 
-	if (STREAM_eof(CSTREAM_stream(THIS_STREAM)))
+	if (STREAM_eof(THE_STREAM))
 		GB_StopEnum();
 	else
 	{
-		str = STREAM_line_input(CSTREAM_stream(THIS_STREAM), NULL);
+		str = STREAM_line_input(THE_STREAM, NULL);
 		STRING_free_later(str);
 		GB_ReturnString(str);
 	}
@@ -1046,6 +1106,7 @@ GB_DESC StreamDesc[] =
 	GB_PROPERTY("EndOfLine", "i", Stream_EndOfLine),
 	GB_METHOD("Close", NULL, Stream_Close, NULL),
 	GB_PROPERTY_READ("EndOfFile", "b", Stream_EndOfFile),
+	GB_PROPERTY("NullTerminatedString", "b", Stream_NullTerminatedString),
 	GB_PROPERTY("Blocking", "b", Stream_Blocking),
 	GB_PROPERTY("Tag", "v", Stream_Tag),
 	GB_METHOD("ReadLine", "s", Stream_ReadLine, "[(Escape)s]"),
@@ -1070,10 +1131,10 @@ GB_DESC StatPermDesc[] =
 {
 	GB_DECLARE_VIRTUAL(".Stat.Perm"),
 
-	GB_METHOD("_get", "s", CFILE_perm_get, "(UserOrGroup)s"),
-	GB_PROPERTY_READ("User", "s", CFILE_perm_user),
-	GB_PROPERTY_READ("Group", "s", CFILE_perm_group),
-	GB_PROPERTY_READ("Other", "s", CFILE_perm_other),
+	GB_METHOD("_get", "s", StatPerm_get, "(UserOrGroup)s"),
+	GB_PROPERTY_READ("User", "s", StatPerm_User),
+	GB_PROPERTY_READ("Group", "s", StatPerm_Group),
+	GB_PROPERTY_READ("Other", "s", StatPerm_Other),
 
 	GB_END_DECLARE
 };
@@ -1103,6 +1164,7 @@ GB_DESC StatDesc[] =
 	GB_PROPERTY_READ("Path", "s", Stat_Path),
 	GB_PROPERTY_READ("Link", "s", Stat_Link),
 	GB_PROPERTY_READ("Auth", "s", Stat_Auth),
+	GB_PROPERTY_READ("Device", "s", Stat_Device),
 
 	GB_END_DECLARE
 };
@@ -1139,7 +1201,9 @@ GB_DESC FileDesc[] =
 	GB_STATIC_METHOD("Save", NULL, File_Save, "(FileName)s(Data)s"),
 
 	GB_STATIC_METHOD("RealPath", "s", File_RealPath, "(Path)s"),
-	
+
+	GB_STATIC_PROPERTY("DefaultDirAuth", "s", File_DefaultDirAuth),
+
 	GB_EVENT("Read", NULL, NULL, &EVENT_Read),
 	GB_EVENT("Write", NULL, NULL, &EVENT_Write),
 	GB_EVENT("Resize", NULL, NULL, &EVENT_Resize),

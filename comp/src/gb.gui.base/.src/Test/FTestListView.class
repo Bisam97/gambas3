@@ -1,0 +1,61 @@
+' Gambas class file
+
+
+Public Sub Form_Open()
+   Dim i As Integer
+   'How to demonstrate the bug:
+   
+   'Step1:
+   'Start the program, mark one item in the list and click delete.
+   'In the IDE console you will see the number of selected items before and after the removal of the selected item in the IDE console.
+   'Other than expected, the number of selected items persists after having delete one or more.
+   ' 
+   'Step 2:
+   'Start the program, turn off the multi selection mode, mark one item And click On delete.
+   'This time it shows that the number of selected items after removel is zero - as expected.
+
+
+  'Set listview to multi-select mode
+  CheckBox1.Value = True
+
+  ListView1.Add(0, "Item 0", Picture["picturebox.png"])
+  For I = 1 To 5
+    ListView1.Add(i, "Item " & Str(i))  
+  Next
+  
+  ListView1[1].Selectable = False
+
+End
+
+Public Sub Button1_Click()
+
+  Print "Number of selected items before deleting: "; ListView1.Selection.Count
+ 
+  For Each sKey As Variant In ListView1.Selection
+    'ListView1[sKey].selected = False 'potential workaround
+    Listview1.Remove(sKey)
+  Next
+
+  Print "Number of selected items after deleting: "; ListView1.Selection.Count
+  
+End
+
+Public Sub CheckBox1_Click()
+
+  If CheckBox1.value = True Then  
+    ListView1.mode = Select.Multiple
+  Else
+    Listview1.mode = Select.Single  
+  Endif
+
+End
+
+Public Sub Button2_Click()
+  Dim i As Integer
+  
+  ListView1.Clear
+  For I = 1 To 5
+    ListView1.Add(i, "Item " & Str(i))  
+  Next
+
+End

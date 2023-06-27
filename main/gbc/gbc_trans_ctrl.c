@@ -2,7 +2,7 @@
 
   gbc_trans_ctrl.c
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -46,8 +46,11 @@
 	JOB->nobreak = nobreak; \
 }
 
-
+#if defined(__GNUC__) && __GNUC__ == 8
+static volatile int ctrl_level; // Workaround a gcc compiler optimization bug
+#else
 static int ctrl_level;
+#endif
 static int ctrl_id;
 static int ctrl_local;
 
@@ -59,13 +62,29 @@ static TRANS_GOTO *goto_info;
 static TRANS_LABEL *label_info;
 static short *ctrl_parent;
 
-static short *_relocation = NULL;
+static ushort *_relocation = NULL;
 
+typedef
+	struct {
+		ushort src;
+		ushort dst;
+	}
+	JUMP;
 
-static void jump_length(ushort src, ushort dst)
+static JUMP *_jumps = NULL;
+
+static void jump_length(ushort src, ushort dst, bool can_optimize)
 {
+	JUMP *jump;
+
 	CODE_jump_length(src, dst);
-	TRANS_add_label(dst);
+
+	if (can_optimize)
+	{
+		jump = ARRAY_add(&_jumps);
+		jump->src = src;
+		jump->dst = dst;
+	}
 }
 
 
@@ -138,7 +157,7 @@ static void control_jump_each_pos_with(ushort *tab_pos)
 		return;
 
 	for (i = 0; i < ARRAY_count(tab_pos); i++)
-		jump_length(tab_pos[i], CODE_get_current_pos());
+		jump_length(tab_pos[i], CODE_get_current_pos(), TRUE);
 }
 
 
@@ -345,17 +364,19 @@ void TRANS_control_init(void)
 	JOB->func->nctrl = 0;
 
 	ARRAY_create(&ctrl_parent);
+	ARRAY_create(&_jumps);
 }
 
 
 void TRANS_control_exit(void)
 {
-	int i;
+	int i, j;
 	CLASS_SYMBOL *sym;
 	int line;
 	TRANS_LABEL *label;
 	short id;
 	ushort *pcode;
+	JUMP *jump;
 
 	// Relocate locals
 	
@@ -397,7 +418,7 @@ void TRANS_control_exit(void)
 			label = &label_info[sym->local.value];
 
 			id = goto_info[i].ctrl_id;
-			
+
 			if (goto_info[i].gosub)
 			{
 				if (label->ctrl_id)
@@ -419,14 +440,40 @@ void TRANS_control_exit(void)
 					id = ctrl_parent[id - 1];
 				}
 			}
-			
-			jump_length(goto_info[i].pos, label->pos);
+
+			jump_length(goto_info[i].pos, label->pos, !goto_info[i].on_goto);
 		}
 
 		JOB->line = line;
 	}
 
-	/* Remove previously declared labels */
+	// Optimize jumps
+
+	for (i = 0; i < ARRAY_count(_jumps); i++)
+	{
+		jump = &_jumps[i];
+
+		for(j = 1; j <= 4; j++) // avoid infinite loop
+		{
+			if (jump->dst >= JOB->func->ncode)
+				break;
+			pcode = &JOB->func->code[jump->dst];
+
+			if (PCODE_is_breakpoint(*pcode))
+			{
+				pcode++;
+				jump->dst++;
+			}
+
+			if (!PCODE_is_jump(*pcode))
+				break;
+
+			jump->dst += ((short *)pcode)[1] + 2;
+			CODE_jump_length(jump->src, jump->dst);
+		}
+	}
+
+	// Remove previously declared labels
 
 	if (label_info)
 	{
@@ -440,8 +487,9 @@ void TRANS_control_exit(void)
 	ARRAY_delete(&goto_info);
 	ARRAY_delete(&ctrl_parent);
 	ARRAY_delete(&label_info);
+	ARRAY_delete(&_jumps);
 
-	/* On ne doit pas laisser une structure de controle ouverte */
+	// Detect structures still opened
 
 	if (ctrl_level == 0) return;
 
@@ -465,20 +513,20 @@ void TRANS_control_exit(void)
 	}
 }
 
-static ushort trans_jump_if(bool if_true)
+static ushort trans_jump_if(bool if_true, bool fast)
 {
 	ushort pos;
 	
 	if (CODE_check_jump_not())
+	{
 		if_true = !if_true;
+		fast = FALSE;
+	}
 	
 	pos = CODE_get_current_pos();
-		
-	if (if_true)
-		CODE_jump_if_true();
-	else
-		CODE_jump_if_false();
-		
+
+	CODE_jump_if(if_true, fast);
+
 	return pos;
 }
 
@@ -506,15 +554,23 @@ static void trans_else(void)
 	current_ctrl->state = 1;
 }
 
-static void trans_if(void)
+static bool trans_boolean_expr(void)
 {
 	TRANS_expression(FALSE);
+	return TYPE_is_boolean(TRANS_get_last_type());
+}
+
+static void trans_if(void)
+{
+	bool fast;
+
+	fast = trans_boolean_expr();
 
 	if (PATTERN_is(*JOB->current, RS_AND))
 	{
 		for(;;)
 		{
-			control_add_this_pos_continue(trans_jump_if(FALSE));
+			control_add_this_pos_continue(trans_jump_if(FALSE, fast));
 			
 			if (!PATTERN_is(*JOB->current, RS_AND))
 				break;
@@ -523,14 +579,14 @@ static void trans_if(void)
 			
 			TRANS_want(RS_IF, "AND IF");
 			
-			TRANS_expression(FALSE);
+			fast = trans_boolean_expr();
 		}
 	}
 	else if (PATTERN_is(*JOB->current, RS_OR))
 	{
 		for(;;)
 		{
-			control_add_this_pos(trans_jump_if(TRUE));
+			control_add_this_pos(trans_jump_if(TRUE, fast));
 			
 			if (!PATTERN_is(*JOB->current, RS_OR))
 				break;
@@ -539,7 +595,7 @@ static void trans_if(void)
 			
 			TRANS_want(RS_IF, "OR IF");
 			
-			TRANS_expression(FALSE);
+			fast = trans_boolean_expr();
 		}
 		
 		control_add_current_pos_continue();
@@ -547,7 +603,7 @@ static void trans_if(void)
 	}
 	else
 	{
-		control_add_this_pos_continue(trans_jump_if(FALSE));
+		control_add_this_pos_continue(trans_jump_if(FALSE, fast));
 	}
 	
 	if (PATTERN_is(*JOB->current, RS_THEN))
@@ -695,6 +751,8 @@ void TRANS_on_goto_gosub(void)
 		
 		if (n == 127)
 			THROW("Too many labels");
+
+		TRANS_newline();
 	}
 	
 	pos = CODE_set_current_pos(pos);
@@ -714,6 +772,7 @@ void TRANS_on_goto_gosub(void)
 void TRANS_do(int type)
 {
 	bool is_until;
+	bool fast;
 
 	control_enter(type);
 	control_set_value(CODE_get_current_pos());
@@ -726,20 +785,10 @@ void TRANS_do(int type)
 	if (PATTERN_is(*JOB->current, RS_WHILE)
 			|| is_until)
 	{
-
 		JOB->current++;
 
-		TRANS_expression(FALSE);
-
-		/*control_add_current_pos();
-
-		if (is_until)
-			CODE_jump_if_true();
-		else
-			CODE_jump_if_false();*/
-			
-		control_add_this_pos(trans_jump_if(is_until));
-		
+		fast = trans_boolean_expr();
+		control_add_this_pos(trans_jump_if(is_until, fast));
 	}
 }
 
@@ -747,8 +796,8 @@ void TRANS_do(int type)
 void TRANS_loop(int type)
 {
 	ushort pos;
-
 	bool is_until;
+	bool fast;
 
 	if (type == RS_LOOP)
 		control_check(RS_DO, "LOOP without DO", "LOOP");
@@ -765,24 +814,16 @@ void TRANS_loop(int type)
 	{
 		JOB->current++;
 
-		TRANS_expression(FALSE);
-
-		/*pos = CODE_get_current_pos();
-
-		if (is_until)
-			CODE_jump_if_false();
-		else
-			CODE_jump_if_true();*/
-			
-		pos = trans_jump_if(!is_until);
+		fast = trans_boolean_expr();
+		pos = trans_jump_if(!is_until, fast);
 		
-		jump_length(pos, control_get_value());
+		jump_length(pos, control_get_value(), TRUE);
 	}
 	else
 	{
 		pos = CODE_get_current_pos();
 		CODE_jump();
-		jump_length(pos, control_get_value());
+		jump_length(pos, control_get_value(), TRUE);
 	}
 
 	control_jump_each_pos();
@@ -802,7 +843,7 @@ static void trans_select_break(bool do_not_add_pos)
 				CODE_jump();
 			}
 
-			jump_length(current_ctrl->value, CODE_get_current_pos());
+			jump_length(current_ctrl->value, CODE_get_current_pos(), TRUE);
 		}
 	}
 	END_NO_BREAK
@@ -894,13 +935,14 @@ void TRANS_case(void)
 
 		if (!PATTERN_is(*JOB->current, RS_COMMA))
 		{
+			//TRANS_ignore(RS_THEN);
 			pos = CODE_get_current_pos();
-			CODE_jump_if_false();
+			CODE_jump_if(FALSE, FALSE);
 			break;
 		}
 
 		control_add_current_pos();
-		CODE_jump_if_true();
+		CODE_jump_if(TRUE, FALSE);
 
 		JOB->current++;
 		TRANS_newline();
@@ -1003,7 +1045,7 @@ void TRANS_for(void)
 	
 	TRANS_expression(FALSE);
 	
-	CODE_pop_local(local);
+	CODE_pop_local_noref(local);
 
 	control_check_loop_var(local);
 
@@ -1026,9 +1068,6 @@ void TRANS_for(void)
 		CODE_push_number(downto ? -1 : 1);
 	}
 
-	/*CODE_pop_ctrl(current_ctrl->local + 1);
-	CODE_pop_ctrl(current_ctrl->local);*/
-
 	if (!PATTERN_is_newline(*JOB->current))
 		THROW(E_UNEXPECTED, READ_get_pattern(JOB->current));
 
@@ -1037,17 +1076,10 @@ void TRANS_for(void)
 
 	control_set_value(CODE_get_current_pos());
 
-	/*
-	current = JOB->current;
-	JOB->current = loop_var;
-	TRANS_expression(FALSE);
-	JOB->current = current;
-	*/
-
 	control_add_current_pos();
 	CODE_jump_next();
 	
-	CODE_pop_local(local);
+	CODE_pop_local_noref(local);
 }
 
 
@@ -1132,7 +1164,7 @@ void TRANS_next(void)
 
 	pos = CODE_get_current_pos();
 	CODE_jump();
-	jump_length(pos, control_get_value());
+	jump_length(pos, control_get_value(), TRUE);
 
 	control_jump_each_pos();
 	control_leave();
@@ -1156,11 +1188,11 @@ void TRANS_assert(void)
 	{
 		CODE_dup();
 		pos = CODE_get_current_pos();
-		CODE_jump_if_true();
+		CODE_jump_if(TRUE, FALSE);
 	
 		TRANS_statement();
 	
-		jump_length(pos, CODE_get_current_pos());
+		jump_length(pos, CODE_get_current_pos(), TRUE);
 	}
 
 	TRANS_subr(TS_SUBR_DEBUG, 1);
@@ -1186,7 +1218,7 @@ void TRANS_try(void)
 	TRANS_statement();
 	TRANS_in_try = RS_NONE;
 
-	jump_length(pos, CODE_get_current_pos());
+	jump_length(pos, CODE_get_current_pos(), TRUE);
 	CODE_end_try();
 }
 

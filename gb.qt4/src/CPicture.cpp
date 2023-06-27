@@ -2,7 +2,7 @@
 
 	CPicture.cpp
 
-	(c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+	(c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -45,10 +45,11 @@
 #ifdef QT5
 #include <QScreen>
 #include <QDesktopWidget>
-#endif
-
+#else
 #include <QX11Info>
 #include <X11/Xlib.h>
+#endif
+
 
 
 static CPICTURE *create()
@@ -122,7 +123,8 @@ CPICTURE *CPICTURE_grab(QWidget *wid, int screen, int x, int y, int w, int h)
 		}
 		
 #ifdef QT5
-		*pict->pixmap = QGuiApplication::primaryScreen()->grabWindow(QX11Info::appRootWindow(), x, y, w, h);
+		//*pict->pixmap = QGuiApplication::primaryScreen()->grabWindow(QX11Info::appRootWindow(), x, y, w, h);
+		PLATFORM.Desktop.Screenshot(pict->pixmap, x, y, w, h);
 #else
 		*pict->pixmap = QPixmap::grabWindow(QX11Info::appRootWindow(), x, y, w, h);
 #endif
@@ -313,13 +315,8 @@ BEGIN_METHOD(Picture_Copy, GB_INTEGER x; GB_INTEGER y; GB_INTEGER w; GB_INTEGER 
 	int h = VARGOPT(h, THIS->pixmap->height());
 
 	pict = create();
-	delete pict->pixmap;
-	pict->pixmap = new QPixmap(w, h);
+	*pict->pixmap = THIS->pixmap->copy(x, y, w, h);
 	
-	QPainter p(pict->pixmap);
-	p.drawPixmap(0, 0, *THIS->pixmap, x, y, w, h);
-	p.end();
-
 	GB.ReturnObject(pict);
 
 END_METHOD

@@ -2,7 +2,7 @@
 
   gbx_signal.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -27,6 +27,10 @@
 #include <unistd.h>
 #include <signal.h>
 
+#ifndef __GBX_SIGNAL_C
+extern uint64_t SIGNAL_check_mask;
+#endif
+
 typedef
 	struct SIGNAL_CALLBACK {
 		struct SIGNAL_CALLBACK *prev;
@@ -47,6 +51,10 @@ typedef
 void SIGNAL_install(SIGNAL_HANDLER *handler, int signum, void (*callback)(int, siginfo_t *, void *));
 void SIGNAL_uninstall(SIGNAL_HANDLER *handler, int signum);
 void SIGNAL_previous(SIGNAL_HANDLER *handler, int signum, siginfo_t *info, void *context);
+void SIGNAL_do_check(int signum);
+void SIGNAL_must_check(int signum);
+
+#define SIGNAL_check(_signum) { if (SIGNAL_check_mask & (1 << (_signum))) SIGNAL_do_check(_signum); }
 
 SIGNAL_CALLBACK *SIGNAL_register(int signum, void (*callback)(int, intptr_t), intptr_t data);
 void SIGNAL_unregister(int signum, SIGNAL_CALLBACK *cb);

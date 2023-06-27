@@ -24,6 +24,7 @@
 #include "widgets.h"
 #include "gapplication.h"
 #include "gkey.h"
+#include "gdesktop.h"
 #include "gtextbox.h"
 
 #ifdef GTK3
@@ -60,17 +61,20 @@ struct _GtkEntryPrivate
 
 #endif
 
+#define TEXT_AREA(_entry) (GTK_ENTRY(_entry)->priv->text_area)
+
+#else
+
+#define TEXT_AREA(_entry) (GTK_ENTRY(_entry)->text_area)
+
 #endif
 
-#ifdef GTK3
-GtkCssProvider *gTextBox::_style_provider = NULL;
-#endif
 
 static gboolean raise_change(gTextBox *data)
 {
 	if (data->_changed)
 	{
-		data->emit(SIGNAL(data->onChange));
+		CB_textbox_change(data);
 		data->_changed = false;
 	}
 	return FALSE;
@@ -80,7 +84,7 @@ static void cb_before_insert(GtkEditable *editable, gchar *new_text, gint new_te
 {
 	if (gKey::gotCommit())
 	{
-		gcb_im_commit(NULL, new_text, NULL);
+		gcb_im_commit(NULL, new_text, data);
 		if (gKey::canceled())
 			g_signal_stop_emission_by_name (G_OBJECT(editable), "insert-text");
 		*position = gtk_editable_get_position(editable);
@@ -91,7 +95,7 @@ static void cb_change_insert(GtkEditable *editable, gchar *new_text, gint new_te
 {
 	data->_changed = false;
 	gtk_editable_set_position(editable, *position);
-	data->emit(SIGNAL(data->onChange));
+	CB_textbox_change(data);
 	*position = gtk_editable_get_position(editable);
 }
 
@@ -104,56 +108,44 @@ static void cb_change_delete(GtkEditable *editable, gint start_pos, gint end_pos
 	}
 }
 
-static void cb_activate(GtkEntry *editable,gTextBox *data)
+static void cb_activate(GtkEntry *editable, gTextBox *data)
 {
-	data->emit(SIGNAL(data->onActivate));
+	CB_textbox_activate(data);
 }
 
-
-gTextBox::gTextBox(gContainer *parent, bool combo) : gControl(parent)
+static void cb_cursor(GtkWidget *entry, GParamSpec *param, gTextBox *data)
 {
-#ifdef GTK3
-	if (!_style_provider)
+	if (data->_last_position != data->position())
 	{
-		const char *css;
-
-		_style_provider = gtk_css_provider_new();
-
-		/*if (strcmp(gApplication::getStyleName(), "Clearlooks-Phenix") == 0)
-			css = ".entry { border-width: 0; padding: 0; border-radius: 0; margin: 0; border-style: none; box-shadow: none; background-image: none; }";
-		else*/
-		css = "* { border: none; border-radius: 0; margin: 0; padding: 0; box-shadow: none; }";
-
-		gtk_css_provider_load_from_data(_style_provider, css, -1, NULL);
+		data->_last_position = data->position();
+		CB_textbox_cursor(data);
 	}
+}
 
-	g_object_ref(_style_provider);
+gTextBox::gTextBox(gContainer *parent) : gControl(parent)
+{
+#ifndef GTK3
+	_placeholder = NULL;
 #endif
-
-	if (!combo)
-	{
-		g_typ=Type_gTextBox;
-		
-		have_cursor = true;
-		_no_background = TRUE;
-		
-		entry = widget = gtk_entry_new();
-		realize();
-		setColorBase();
-		initEntry();
-	}
-	
 	_changed = false;
-	_border = true;
+	_has_border = true;
+	_has_native_popup = true;
+	_text_area_visible = true;
+	_last_position = 0;
+
+	have_cursor = true;
+	_no_background = TRUE;
 	
-	onChange = NULL;
-	onActivate = NULL;
+	entry = widget = gtk_entry_new();
+	realize();
+	setColorBase();
+	initEntry();
 }
 
 gTextBox::~gTextBox()
 {
-#ifdef GTK3
-	g_object_unref(_style_provider);
+#ifndef GTK3
+	if (_placeholder) g_free(_placeholder);
 #endif
 }
 
@@ -174,6 +166,7 @@ void gTextBox::initEntry()
 	g_signal_connect_after(G_OBJECT(entry), "insert-text", G_CALLBACK(cb_change_insert), (gpointer)this);
 	g_signal_connect_after(G_OBJECT(entry), "delete-text", G_CALLBACK(cb_change_delete), (gpointer)this);
 	g_signal_connect(G_OBJECT(entry), "activate", G_CALLBACK(cb_activate), (gpointer)this);
+	g_signal_connect(G_OBJECT(entry), "notify::cursor-position", G_CALLBACK(cb_cursor), (gpointer)this);
 	//g_signal_connect(getInputMethod(), "commit", G_CALLBACK(cb_im_commit), (gpointer)this);
 }
 
@@ -184,19 +177,53 @@ char* gTextBox::text()
 
 void gTextBox::setText(const char *vl)
 {
+	int save;
+	
 	if (!vl) vl = "";
 	
 	if (!entry || !strcmp(vl, text()))
 		return;
-		
+	
+	save = _last_position;
 	lock();
 	gtk_entry_set_text(GTK_ENTRY(entry), vl);
 	gtk_editable_set_position(GTK_EDITABLE(entry), -1);
 	unlock();
-	emit(SIGNAL(onChange));
+	CB_textbox_change(this);
+	_last_position = save;
+	cb_cursor(entry, NULL, this);
 }
 
-bool gTextBox::password()
+#ifdef GTK3
+char* gTextBox::placeholder() const
+{
+	return (char*)gtk_entry_get_placeholder_text(GTK_ENTRY(entry));
+}
+
+void gTextBox::setPlaceholder(const char *vl)
+{
+	if (!vl) vl = "";
+	
+	if (!entry)
+		return;
+		
+	gtk_entry_set_placeholder_text(GTK_ENTRY(entry), vl);
+}
+#else
+char* gTextBox::placeholder() const
+{
+	return _placeholder;
+}
+
+void gTextBox::setPlaceholder(const char *vl)
+{
+	if (_placeholder) g_free(_placeholder);
+	_placeholder = g_strdup(vl);
+}
+
+#endif
+
+bool gTextBox::password() const
 {
 	if (entry)
 		return !gtk_entry_get_visibility(GTK_ENTRY(entry));
@@ -214,7 +241,7 @@ void gTextBox::setPassword(bool vl)
 		gtk_entry_set_invisible_char(GTK_ENTRY(entry), (gunichar)0x25CF);
 }
 
-bool gTextBox::isReadOnly()
+bool gTextBox::isReadOnly() const
 {
 	return !gtk_editable_get_editable(GTK_EDITABLE(entry));
 }
@@ -224,7 +251,7 @@ void gTextBox::setReadOnly(bool vl)
 	gtk_editable_set_editable(GTK_EDITABLE(entry),!vl);
 }
 
-int gTextBox::position()
+int gTextBox::position() const
 {
 	if (entry)
 		return gtk_editable_get_position(GTK_EDITABLE(entry));
@@ -249,46 +276,22 @@ void gTextBox::setPosition(int pos)
 	gtk_editable_set_position(GTK_EDITABLE(entry), pos);
 }
 
-bool gTextBox::hasBorder()
-{
-	if (entry)
-		return _border; //gtk_entry_get_has_frame(GTK_ENTRY(entry));
-	else
-		return true;
-}
-
 void gTextBox::setBorder(bool vl)
 {
 	if (!entry)
 		return;
 	
-	if (vl == hasBorder())
+	if (vl == _has_border)
 		return;
 	
-	_border = vl;
+	_has_border = vl;
 	
 	gtk_entry_set_has_frame(GTK_ENTRY(entry), vl);
 #ifdef GTK3
-	GtkStyleContext *style = gtk_widget_get_style_context(entry);
-	if (vl)
-		gtk_style_context_remove_provider(style, GTK_STYLE_PROVIDER(_style_provider));
-	else
-		gtk_style_context_add_provider(style, GTK_STYLE_PROVIDER(_style_provider), GTK_STYLE_PROVIDER_PRIORITY_USER);
-
-	//gtk_style_context_invalidate(style);
+	updateStyleSheet(true);
+	setMinimumSize();
 #endif
-	
-	/*if (vl)
-		gtk_entry_set_inner_border(GTK_ENTRY(entry), NULL);
-	else
-	{
-		GtkBorder *border = gtk_border_new();
-		border->left = border->right = 2;
-		border->top = 1;
-		gtk_entry_set_inner_border(GTK_ENTRY(entry), border);
-		gtk_border_free(border);
-	}*/
-}
+}	
 
 void gTextBox::insert(char *txt, int len)
 {
@@ -308,13 +311,13 @@ int gTextBox::length()
 	if (!entry)
 		return 0;
 	
-	buf=gtk_entry_get_text(GTK_ENTRY(entry));
+	buf = gtk_entry_get_text(GTK_ENTRY(entry));
 	if (!buf) return 0;
 	
 	return g_utf8_strlen(buf, -1);
 }
 
-int gTextBox::maxLength()
+int gTextBox::maxLength() const
 {
 	if (entry)
 		return gtk_entry_get_max_length(GTK_ENTRY(entry));
@@ -332,7 +335,7 @@ void gTextBox::setMaxLength(int vl)
 	
 }
 
-bool gTextBox::isSelected()
+bool gTextBox::isSelected() const
 {
 	if (entry)
 		return gtk_editable_get_selection_bounds(GTK_EDITABLE(entry), NULL, NULL);
@@ -340,7 +343,7 @@ bool gTextBox::isSelected()
 		return false;
 }
 
-int gTextBox::selStart()
+int gTextBox::selStart() const
 {
 	int start;
 	
@@ -351,7 +354,7 @@ int gTextBox::selStart()
 	return start;
 }
 
-int gTextBox::selLength()
+int gTextBox::selLength() const
 {
 	int start,end;
 
@@ -362,7 +365,7 @@ int gTextBox::selLength()
 	return end - start;
 }
 
-char* gTextBox::selText()
+char* gTextBox::selText() const
 {
 	int start,end;
 
@@ -412,7 +415,7 @@ void gTextBox::select(int start,int len)
 }
 
 
-int gTextBox::alignment()
+int gTextBox::alignment() const
 {
 	if (entry)
 		return gt_to_alignment(gtk_entry_get_alignment(GTK_ENTRY(entry)));
@@ -435,12 +438,7 @@ void gTextBox::updateCursor(GdkCursor *cursor)
 	if (!entry)
 		return;
 
-#ifdef GTK3
-	win = GTK_ENTRY(entry)->priv->text_area;
-#else
-	win = GTK_ENTRY(entry)->text_area;
-#endif
-
+	win = TEXT_AREA(entry);
 	if (!win)
 		return;
 		
@@ -464,13 +462,18 @@ void gTextBox::clear()
 }
 
 
-int gTextBox::minimumHeight()
+void gTextBox::setMinimumSize()
 {
-	/*GtkRequisition req;
-	
-	gtk_widget_size_request(widget, &req);
-	return req.height - 4;*/
-	return font()->height() + hasBorder() ? 4 : 2;
+	int h = font()->height();
+	_min_h = h + (hasBorder() ? 4 : 0);
+	_min_w = h / 2 + (hasBorder() ? 4 : 0);
+}
+
+
+void gTextBox::setFont(gFont *ft)
+{
+	gControl::setFont(ft);
+	setMinimumSize();
 }
 
 GtkIMContext *gTextBox::getInputMethod()
@@ -514,4 +517,49 @@ void gTextBox::setFocus()
 	gControl::setFocus();
 	if (!r)
 		setReadOnly(false);
+}
+
+#ifdef GTK3
+void gTextBox::customStyleSheet(GString *css)
+{
+	if (!_has_border)
+	{
+		setStyleSheetNode(css, "");
+		g_string_append_printf(css, "border:none;box-shadow:none;padding-top:0;padding-bottom:0;\n");
+		/*if (background() == COLOR_DEFAULT)
+			g_string_append_printf(css, "background:none;");*/
+	}
+}
+#endif
+
+#ifdef GTK3
+void gTextBox::onEnterEvent()
+{
+	if (!entry)
+		return;
+	
+	if (_text_area_visible)
+	{
+		//fprintf(stderr, "gTextBox::onEnterEvent: show\n");
+		gdk_window_show(TEXT_AREA(entry));
+	}
+}
+
+void gTextBox::onLeaveEvent()
+{
+	if (!entry)
+		return;
+	
+	_text_area_visible = !hasFocus() && gdk_window_is_visible(TEXT_AREA(entry));
+	if (_text_area_visible)
+	{
+		//fprintf(stderr, "gTextBox::onEnterEvent: hide\n");
+		gdk_window_hide(TEXT_AREA(entry));
+	}
+}
+#endif
+
+gColor gTextBox::defaultBackground() const
+{
+	return gDesktop::getColor(gDesktop::TEXT_BACKGROUND, !isEnabled());
 }

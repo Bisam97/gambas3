@@ -2,7 +2,7 @@
 
 	gbx_stream_pipe.c
 
-	(c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+	(c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -54,18 +54,22 @@ static int stream_open(STREAM *stream, const char *path, int mode)
 
 	fmode = 0;
 
-	switch (mode & STO_MODE)
+	switch (mode & GB_ST_MODE)
 	{
-		case STO_READ: fmode |= O_RDONLY; break;
-		case STO_WRITE: fmode |= O_WRONLY; break;
-		case STO_READ_WRITE: fmode |= O_RDWR; break;
-		default: fmode |= O_RDONLY;
+		case GB_ST_READ: fmode |= O_RDONLY; break;
+		case GB_ST_WRITE: fmode |= O_WRONLY; break;
+		case GB_ST_READ_WRITE: fmode |= O_RDWR; break;
+		default: fmode |= O_RDWR;
 	}
 
-	RESTART_SYSCALL(fd = open(path, fmode)) 
+	RESTART_SYSCALL(fd = open(path, fmode | O_NONBLOCK)) 
 		return TRUE;
 
-	stream->direct.size = 0;
+	if ((mode & GB_ST_MODE) == GB_ST_READ)
+		fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) & ~O_NONBLOCK);
+		
+	stream->pipe.can_write = ((mode & GB_ST_MODE) & GB_ST_WRITE) != 0;
+	stream->common.check_read = TRUE;
 
 	FD = fd;
 	return FALSE;
@@ -90,6 +94,12 @@ static int stream_read(STREAM *stream, char *buffer, int len)
 
 static int stream_write(STREAM *stream, char *buffer, int len)
 {
+	if (!stream->pipe.can_write)
+	{
+		errno = EBADF;
+		return -1;
+	}
+	
 	return write(FD, buffer, len);
 }
 

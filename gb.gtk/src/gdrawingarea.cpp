@@ -43,10 +43,6 @@ int gDrawingArea::_in_any_draw_event = 0;
 #ifdef GTK3
 static gboolean cb_draw(GtkWidget *wid, cairo_t *cr, gDrawingArea *data)
 {
-	/*cairo_rectangle_list_t *list;
-	cairo_rectangle_t *r;
-	int i;*/
-
 	if (data->cached())
 	{
 		cairo_set_source_surface(cr, data->buffer, 0, 0);
@@ -55,39 +51,13 @@ static gboolean cb_draw(GtkWidget *wid, cairo_t *cr, gDrawingArea *data)
 	}
 	else
 	{
-		//data->drawBackground();
+		data->drawBackground(cr);
 
-		if (data->onExpose)
-		{
-			gDrawingArea::_in_any_draw_event++;
-			data->_in_draw_event = true;
-			data->onExpose(data, cr);
-			gDrawingArea::_in_any_draw_event--;
-			data->_in_draw_event = false;
-			/*
-			list = cairo_copy_clip_rectangle_list(cr);
-
-			fprintf(stderr, "%d %d\n", list->status, list->num_rectangles);
-			if (list->status != CAIRO_STATUS_SUCCESS)
-			{
-				data->onExpose(data, cr);
-			}
-			else
-			{
-				for (i = 0; i < list->num_rectangles; i++)
-				{
-					r = &list->rectangles[i];
-					cairo_save(cr);
-					cairo_rectangle(cr, r->x, r->y, r->width, r->height);
-					cairo_clip(cr);
-					data->onExpose(data, cr);
-					cairo_restore(cr);
-				}
-			}
-
-			cairo_rectangle_list_destroy(list);
-			*/
-		}
+		gDrawingArea::_in_any_draw_event++;
+		data->_in_draw_event = true;
+		CB_drawingarea_expose(data, cr);
+		gDrawingArea::_in_any_draw_event--;
+		data->_in_draw_event = false;
 		data->drawBorder(cr);
 	}
 
@@ -104,24 +74,16 @@ static gboolean cb_expose(GtkWidget *wid, GdkEventExpose *e, gDrawingArea *data)
 	{
 		//data->drawBackground();
 
-		if (data->onExpose)
-		{
-			gDrawingArea::_in_any_draw_event++;
-			data->_in_draw_event = true;
+		gDrawingArea::_in_any_draw_event++;
+		data->_in_draw_event = true;
 
-			/*GdkRectangle *rect;
-			int i, n;
-			gdk_region_get_rectangles(e->region, &rect, &n);
-
-			for (i = 0; i < n; i++)
-				fprintf(stderr, "[%d] %d %d %d %d\n", i, rect[i].x, rect[i].y, rect[i].width, rect[i].height);
-
-			g_free(rect);*/
-
-			data->onExpose(data, e->region, wid->allocation.x, wid->allocation.y);
-			gDrawingArea::_in_any_draw_event--;
-			data->_in_draw_event = false;
-		}
+		GtkAllocation a;
+		gtk_widget_get_allocation(wid, &a);
+		//fprintf(stderr, "%s: %d %d\n", data->parent()->name(), a.x, a.y);
+		
+		CB_drawingarea_expose(data, e->region, a.x, a.y);
+		gDrawingArea::_in_any_draw_event--;
+		data->_in_draw_event = false;
 		data->drawBorder(e);
 	}
 
@@ -134,20 +96,13 @@ static void cb_size(GtkWidget *wid, GtkAllocation *a, gDrawingArea *data)
 	data->updateCache();
 }
 
-/*static gboolean cb_button_press(GtkWidget *wid, GdkEventButton *event, gDrawingArea *data)
-{
-	if (data->canFocus())
-		data->setFocus();
-
-	return false;
-}*/
-
 void gDrawingArea::create(void)
 {
 	int i;
 	GtkWidget *ch;
 	bool doReparent = false;
 	bool was_visible = isVisible();
+	bool can_focus = widget ? canFocus() : false;
 	GdkRectangle rect;
 	int bg, fg;
 
@@ -165,33 +120,41 @@ void gDrawingArea::create(void)
 			gtk_container_remove(GTK_CONTAINER(widget), ch);
 		}
 
-		_no_delete = true;
-		gtk_widget_destroy(border);
-		_no_delete = false;
 		doReparent = true;
 	}
 
-	if (_cached || _use_tablet)
+#ifdef GTK3
+	if (_cached || _use_tablet || _own_window)
+#else
+	if (_cached || _use_tablet || _own_window || background() != COLOR_DEFAULT)
+#endif
 	{
-		border = gtk_event_box_new();
+		createBorder(gtk_event_box_new());
 		widget = gtk_fixed_new();
 		box = widget;
+#ifndef GTK3
 		gtk_widget_set_app_paintable(border, TRUE);
 		gtk_widget_set_app_paintable(box, TRUE);
+#endif
 	}
 	else
 	{
-		border = widget = gtk_fixed_new();
+		createBorder(gtk_fixed_new());
+		widget = border;
 		box = NULL;
 	}
 
-	realize(false);
+	realize();
 
-	g_signal_connect(G_OBJECT(border), "size-allocate", G_CALLBACK(cb_size), (gpointer)this);
+	if (_cached)
+		g_signal_connect(G_OBJECT(border), "size-allocate", G_CALLBACK(cb_size), (gpointer)this);
+	
 	ON_DRAW_BEFORE(border, this, cb_expose, cb_draw);
 
 	updateUseTablet();
 
+	gtk_widget_set_can_focus(widget, can_focus);
+	
 	if (doReparent)
 	{
 		if (box)
@@ -220,18 +183,17 @@ void gDrawingArea::create(void)
 
 gDrawingArea::gDrawingArea(gContainer *parent) : gContainer(parent)
 {
+	_is_drawingarea = true;
+	_own_window = false;
 	_cached = false;
 	buffer = NULL;
 	box = NULL;
-	_old_bg_id = 0;
 	_resize_cache = false;
 	_no_background = false;
 	_use_tablet = false;
-
-	onExpose = NULL;
-	onFontChange = NULL;
-
-	g_typ = Type_gDrawingArea;
+#ifdef GTK3
+	_no_style_without_child = true;
+#endif
 
 	create();
 }
@@ -240,40 +202,6 @@ gDrawingArea::~gDrawingArea()
 {
 	if (buffer)
 		UNREF_BUFFER();
-}
-
-void gDrawingArea::resize(int w, int h)
-{
-	// TODO Do not resize cache if the DrawingArea is being painted
-	gContainer::resize(w,h);
-	//updateCache();
-}
-
-void gDrawingArea::updateEventMask()
-{
-	/*
-	static int event_mask;
-	XWindowAttributes attr;
-
-	gtk_widget_realize(border);
-
-	if (!enabled())
-	{
-		XGetWindowAttributes(gdk_display, GDK_WINDOW_XID(border->window), &attr);
-		event_mask = attr.your_event_mask;
-		XSelectInput(gdk_display, GDK_WINDOW_XID(border->window), ExposureMask);
-	}
-	else
-	{
-		XSelectInput(gdk_display, GDK_WINDOW_XID(border->window), event_mask);
-	}
-	*/
-}
-
-void gDrawingArea::setEnabled(bool vl)
-{
-	gContainer::setEnabled(vl);
-	updateEventMask();
 }
 
 void gDrawingArea::setCached(bool vl)
@@ -285,7 +213,9 @@ void gDrawingArea::setCached(bool vl)
 	if (!_cached)
 	{
 		UNREF_BUFFER();
+		#ifndef GTK3
 		set_gdk_bg_color(border, background());
+		#endif
 	}
 
 	create();
@@ -419,17 +349,6 @@ void gDrawingArea::refreshCache()
 
 void gDrawingArea::setNoBackground(bool vl)
 {
-	/*
-	GdkWindow *win;
-
-	gtk_widget_realize(widget);
-	win = widget->window;
-
-	if (vl)
-		gdk_window_set_back_pixmap(win, NULL, FALSE);
-	else
-		setBackground(background());
-	*/
 	if (vl != _no_background)
 	{
 		_no_background = vl;
@@ -464,5 +383,29 @@ void gDrawingArea::setUseTablet(bool vl)
 void gDrawingArea::updateFont()
 {
 	gContainer::updateFont();
-	emit(SIGNAL(onFontChange));
+	CB_drawingarea_font(this);
+}
+
+#ifdef GTK3
+#else
+void gDrawingArea::setBackground(gColor color)
+{
+	bool set = background() != COLOR_DEFAULT;
+	
+	gContainer::setBackground(color);
+	
+	if (set != (background() != COLOR_DEFAULT))
+		create();
+}
+#endif
+
+long gDrawingArea::handle()
+{
+	if (!_own_window)
+	{
+		_own_window = true;
+		create();
+	}
+	
+	return gControl::handle();
 }

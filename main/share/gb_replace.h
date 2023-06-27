@@ -2,7 +2,7 @@
 
   gb_replace.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -33,7 +33,7 @@ int setenv(const char *name, const char *value, int overwrite);
 #endif
 
 #ifndef HAVE_UNSETENV
-void unsetenv(const char *name);
+int unsetenv(const char *name);
 #endif
 
 #ifndef HAVE_GETDOMAINNAME

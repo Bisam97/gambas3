@@ -2,7 +2,7 @@
 
 	CMouse.cpp
 
-	(c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+	(c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -36,10 +36,18 @@
 #include "CPicture.h"
 #include "CMouse.h"
 
+int MOUSE_click_x = -1;
+int MOUSE_click_y = -1;
+int MOUSE_click_count = 0;
+double MOUSE_timer = 0;
+
 MOUSE_INFO MOUSE_info = { 0 };
 POINTER_INFO POINTER_info = { 0 };
+
 static int _dx = 0;
 static int _dy = 0;
+
+static void *_control = NULL;
 
 void CMOUSE_clear(int valid)
 {
@@ -56,6 +64,23 @@ void CMOUSE_reset_translate()
 {
 	_dx = _dy = 0;
 }
+
+void CMOUSE_set_control(void *control)
+{
+	if (_control)
+		GB.Unref(&_control);
+	if (control)
+		GB.Ref(control);
+	
+	_control = control;
+}
+
+void CMOUSE_finish_event(void)
+{
+	if (_control)
+		GB.Raise(_control, EVENT_MouseUp, 0);
+}
+
 
 //int CMOUSE_last_state = 0;
 
@@ -237,8 +262,20 @@ END_PROPERTY
 
 BEGIN_PROPERTY(Mouse_Button)
 
+	int i;
+	
 	CHECK_VALID();
-	GB.ReturnInteger((int)MOUSE_info.button);
+	
+	for (i = 0; i < 5; i++)
+	{
+		if ((int)MOUSE_info.button & (1 << i))
+		{
+			GB.ReturnInteger(i + 1);
+			return;
+		}
+	}
+	
+	GB.ReturnInteger(0);
 
 END_PROPERTY
 
@@ -364,6 +401,12 @@ BEGIN_METHOD(Mouse_Translate, GB_INTEGER dx; GB_INTEGER dy)
 
 END_METHOD
 
+BEGIN_PROPERTY(Mouse_Click)
+
+	GB.ReturnInteger(MOUSE_info.valid ? MOUSE_click_count : 0);
+
+END_PROPERTY
+
 #if 0
 BEGIN_METHOD(Mouse_Begin, GB_OBJECT control; GB_INTEGER x; GB_INTEGER y; GB_INTEGER state)
 
@@ -482,6 +525,64 @@ GB_DESC CCursorDesc[] =
 	GB_METHOD("_new", NULL, Cursor_new, "(Picture)Picture;[(X)i(Y)i]"),
 	GB_METHOD("_free", NULL, Cursor_Delete, NULL),
 
+	GB_CONSTANT("Custom", "i", CURSOR_CUSTOM),
+	GB_CONSTANT("Default", "i", CURSOR_DEFAULT),
+
+	GB_CONSTANT("Blank", "i", CURSOR_NONE),
+	GB_CONSTANT("Arrow", "i", CURSOR_ARROW),
+	GB_CONSTANT("Cross", "i", CURSOR_CROSSHAIR),
+	GB_CONSTANT("Wait", "i", CURSOR_WAIT),
+	GB_CONSTANT("Text", "i", CURSOR_TEXT),
+	GB_CONSTANT("SizeAll", "i", CURSOR_MOVE),
+	GB_CONSTANT("SizeH", "i", CURSOR_EW_RESIZE),
+	GB_CONSTANT("SizeV", "i", CURSOR_NS_RESIZE),
+	GB_CONSTANT("SizeN", "i", CURSOR_N_RESIZE),
+	GB_CONSTANT("SizeS", "i", CURSOR_S_RESIZE),
+	GB_CONSTANT("SizeW", "i", CURSOR_W_RESIZE),
+	GB_CONSTANT("SizeE", "i", CURSOR_E_RESIZE),
+	GB_CONSTANT("SizeNW", "i", CURSOR_NW_RESIZE), //FDiag
+	GB_CONSTANT("SizeSE", "i", CURSOR_SE_RESIZE),
+	GB_CONSTANT("SizeNE", "i", CURSOR_NE_RESIZE), //BDiag
+	GB_CONSTANT("SizeSW", "i", CURSOR_SW_RESIZE),
+	GB_CONSTANT("SizeNWSE", "i", CURSOR_NWSE_RESIZE),
+	GB_CONSTANT("SizeNESW", "i", CURSOR_NESW_RESIZE),
+	GB_CONSTANT("SplitH", "i", CURSOR_COL_RESIZE), // SplitH
+	GB_CONSTANT("SplitV", "i", CURSOR_ROW_RESIZE), // SplitV
+	GB_CONSTANT("Pointing", "i", CURSOR_POINTER),
+
+	GB_CONSTANT("None", "i", CURSOR_NONE),
+	GB_CONSTANT("Help", "i", CURSOR_HELP),
+	GB_CONSTANT("Pointer", "i", CURSOR_POINTER),
+	GB_CONSTANT("ContextMenu", "i", CURSOR_CONTEXT_MENU),
+	GB_CONSTANT("Progress", "i", CURSOR_PROGRESS),
+	GB_CONSTANT("Cell", "i", CURSOR_CELL),
+	GB_CONSTANT("CrossHair", "i", CURSOR_CROSSHAIR),
+	GB_CONSTANT("VerticalText", "i", CURSOR_VERTICAL_TEXT),
+	GB_CONSTANT("Alias", "i", CURSOR_ALIAS),
+	GB_CONSTANT("Copy", "i", CURSOR_COPY),
+	GB_CONSTANT("NoDrop", "i", CURSOR_NO_DROP),
+	GB_CONSTANT("Move", "i", CURSOR_MOVE),
+	GB_CONSTANT("NotAllowed", "i", CURSOR_NOT_ALLOWED),
+	GB_CONSTANT("Grab", "i", CURSOR_GRAB),
+	GB_CONSTANT("Grabbing", "i", CURSOR_GRABBING),
+	GB_CONSTANT("AllScroll", "i", CURSOR_ALL_SCROLL),
+	GB_CONSTANT("ColResize", "i", CURSOR_COL_RESIZE),
+	GB_CONSTANT("RowResize", "i", CURSOR_ROW_RESIZE),
+	GB_CONSTANT("NResize", "i", CURSOR_N_RESIZE),
+	GB_CONSTANT("EResize", "i", CURSOR_E_RESIZE),
+	GB_CONSTANT("SResize", "i", CURSOR_S_RESIZE),
+	GB_CONSTANT("WResize", "i", CURSOR_W_RESIZE),
+	GB_CONSTANT("NEResize", "i", CURSOR_NE_RESIZE),
+	GB_CONSTANT("NWResize", "i", CURSOR_NW_RESIZE),
+	GB_CONSTANT("SWResize", "i", CURSOR_SW_RESIZE),
+	GB_CONSTANT("SEResize", "i", CURSOR_SE_RESIZE),
+	GB_CONSTANT("EWResize", "i", CURSOR_EW_RESIZE),
+	GB_CONSTANT("NSResize", "i", CURSOR_NS_RESIZE),
+	GB_CONSTANT("NESWResize", "i", CURSOR_NESW_RESIZE),
+	GB_CONSTANT("NWSEResize", "i", CURSOR_NWSE_RESIZE),
+	GB_CONSTANT("ZoomIn", "i", CURSOR_ZOOM_IN),
+	GB_CONSTANT("ZoomOut", "i", CURSOR_ZOOM_OUT),
+
 	GB_PROPERTY_READ("X", "i", Cursor_X),
 	GB_PROPERTY_READ("Y", "i", Cursor_Y),
 	//GB_PROPERTY_READ("Picture", "Picture", CCURSOR_picture),
@@ -499,29 +600,30 @@ GB_DESC CMouseDesc[] =
 	GB_STATIC_METHOD("Move", NULL, Mouse_Move, "(X)i(Y)i"),
 	GB_STATIC_METHOD("Inside", "b", Mouse_Inside, "(Control)Control"),
 
-	GB_CONSTANT("Default", "i", CMOUSE_DEFAULT),
-	GB_CONSTANT("Custom", "i", CMOUSE_CUSTOM),
-	GB_CONSTANT("Blank", "i", Qt::BlankCursor),
-	GB_CONSTANT("Arrow", "i", Qt::ArrowCursor),
-	GB_CONSTANT("Cross", "i", Qt::CrossCursor),
-	GB_CONSTANT("Wait", "i", Qt::WaitCursor),
-	GB_CONSTANT("Text", "i", Qt::IBeamCursor),
-	GB_CONSTANT("SizeAll", "i", Qt::SizeAllCursor),
-	GB_CONSTANT("SizeH", "i", Qt::SizeHorCursor),
-	GB_CONSTANT("SizeV", "i", Qt::SizeVerCursor),
-	GB_CONSTANT("SizeN", "i", Qt::SizeVerCursor),
-	GB_CONSTANT("SizeS", "i", Qt::SizeVerCursor),
-	GB_CONSTANT("SizeW", "i", Qt::SizeHorCursor),
-	GB_CONSTANT("SizeE", "i", Qt::SizeHorCursor),
-	GB_CONSTANT("SizeNW", "i", Qt::SizeFDiagCursor),
-	GB_CONSTANT("SizeSE", "i", Qt::SizeFDiagCursor),
-	GB_CONSTANT("SizeNE", "i", Qt::SizeBDiagCursor),
-	GB_CONSTANT("SizeSW", "i", Qt::SizeBDiagCursor),
-	GB_CONSTANT("SizeNWSE", "i", Qt::SizeFDiagCursor),
-	GB_CONSTANT("SizeNESW", "i", Qt::SizeBDiagCursor),
-	GB_CONSTANT("SplitH", "i", Qt::SplitHCursor),
-	GB_CONSTANT("SplitV", "i", Qt::SplitVCursor),
-	GB_CONSTANT("Pointing", "i", Qt::PointingHandCursor),
+	GB_CONSTANT("Custom", "i", CURSOR_CUSTOM),
+	GB_CONSTANT("Default", "i", CURSOR_DEFAULT),
+
+	GB_CONSTANT("Blank", "i", CURSOR_NONE),
+	GB_CONSTANT("Arrow", "i", CURSOR_ARROW),
+	GB_CONSTANT("Cross", "i", CURSOR_CROSSHAIR),
+	GB_CONSTANT("Wait", "i", CURSOR_WAIT),
+	GB_CONSTANT("Text", "i", CURSOR_TEXT),
+	GB_CONSTANT("SizeAll", "i", CURSOR_MOVE),
+	GB_CONSTANT("SizeH", "i", CURSOR_EW_RESIZE),
+	GB_CONSTANT("SizeV", "i", CURSOR_NS_RESIZE),
+	GB_CONSTANT("SizeN", "i", CURSOR_N_RESIZE),
+	GB_CONSTANT("SizeS", "i", CURSOR_S_RESIZE),
+	GB_CONSTANT("SizeW", "i", CURSOR_W_RESIZE),
+	GB_CONSTANT("SizeE", "i", CURSOR_E_RESIZE),
+	GB_CONSTANT("SizeNW", "i", CURSOR_NW_RESIZE), //FDiag
+	GB_CONSTANT("SizeSE", "i", CURSOR_SE_RESIZE),
+	GB_CONSTANT("SizeNE", "i", CURSOR_NE_RESIZE), //BDiag
+	GB_CONSTANT("SizeSW", "i", CURSOR_SW_RESIZE),
+	GB_CONSTANT("SizeNWSE", "i", CURSOR_NWSE_RESIZE),
+	GB_CONSTANT("SizeNESW", "i", CURSOR_NESW_RESIZE),
+	GB_CONSTANT("SplitH", "i", CURSOR_COL_RESIZE), // SplitH
+	GB_CONSTANT("SplitV", "i", CURSOR_ROW_RESIZE), // SplitV
+	GB_CONSTANT("Pointing", "i", CURSOR_POINTER),
 
 	GB_CONSTANT("Horizontal", "i", Qt::Horizontal),
 	GB_CONSTANT("Vertical", "i", Qt::Vertical),
@@ -543,6 +645,7 @@ GB_DESC CMouseDesc[] =
 	GB_STATIC_PROPERTY_READ("Orientation", "i", Mouse_Orientation),
 	GB_STATIC_PROPERTY_READ("Delta", "f", Mouse_Delta),
 	GB_STATIC_PROPERTY_READ("Forward", "b", Mouse_Forward),
+	GB_STATIC_PROPERTY_READ("Click", "i", Mouse_Click),
 
 	GB_STATIC_METHOD("Translate", NULL, Mouse_Translate, "(DX)i(DY)i"),
 	//GB_STATIC_METHOD("Begin", NULL, Mouse_Begin, "(Control)Control;(X)i(Y)i[(State)i]"),

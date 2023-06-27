@@ -2,7 +2,7 @@
 
   gbx_object.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -87,6 +87,9 @@ void *OBJECT_create_native(CLASS *class, VALUE *param);
 OBJECT *OBJECT_parent(void *object);
 OBJECT *OBJECT_active_parent(void *object);
 
+int OBJECT_check_valid(void *object);
+
+void *OBJECT_get_addr(void *ob);
 
 /*
 static INLINE CLASS *OBJECT_class(void *object)
@@ -113,17 +116,22 @@ EXTERN const char *OBJECT_ref_where;
 char *OBJECT_where_am_i(const char *file, int line, const char *func);
 
 #define OBJECT_ref(_object) \
-{ \
-	if (_object) \
+({ \
+	OBJECT *_ob = (OBJECT *)(_object); \
+	if (OBJECT_class(_ob) == FREE_MARK) \
 	{ \
-		if (OBJECT_class(_object) == FREE_MARK) \
-		{ \
-			fprintf(stderr, "%s: **** ALREADY FREED **** %p\n", OBJECT_ref_where, (_object)); \
-			fflush(NULL); \
-			BREAKPOINT(); \
-		} \
-		CLASS_ref(_object); \
+		fprintf(stderr, "%s: **** ALREADY FREED **** %p\n", OBJECT_ref_where, _ob); \
+		fflush(NULL); \
+		BREAKPOINT(); \
 	} \
+	CLASS_ref(_ob); \
+	(void *)_ob; \
+})
+
+
+#define OBJECT_ref_check(_object) \
+{ \
+	if (_object) OBJECT_ref(_object); \
 }
 
 
@@ -167,16 +175,23 @@ char *OBJECT_where_am_i(const char *file, int line, const char *func);
 	} \
 }
 
-#define OBJECT_REF(_ob) { OBJECT_ref_where = OBJECT_where_am_i(__FILE__, __LINE__, __func__); OBJECT_ref(_ob); }
+#define OBJECT_REF(_ob) ({ OBJECT_ref_where = OBJECT_where_am_i(__FILE__, __LINE__, __func__); OBJECT_ref(_ob); })
+#define OBJECT_REF_CHECK(_ob) { OBJECT_ref_where = OBJECT_where_am_i(__FILE__, __LINE__, __func__); OBJECT_ref_check(_ob); }
 #define OBJECT_UNREF(_ob) { OBJECT_ref_where = OBJECT_where_am_i(__FILE__, __LINE__, __func__); OBJECT_unref(_ob); }
 #define OBJECT_UNREF_KEEP(_ob) { OBJECT_ref_where = OBJECT_where_am_i(__FILE__, __LINE__, __func__); OBJECT_unref_keep(_ob); }
 
 #else /* DEBUG_REF */
 
 #define OBJECT_ref(_object) \
+({ \
+	OBJECT *_ob = (OBJECT *)(_object); \
+	_ob->ref++; \
+	(void *)_ob; \
+})
+
+#define OBJECT_ref_check(_object) \
 { \
-	if (_object) \
-		((OBJECT *)(_object))->ref++; \
+	if (_object) OBJECT_ref(_object); \
 }
 
 #define OBJECT_unref(_object) \
@@ -209,6 +224,7 @@ char *OBJECT_where_am_i(const char *file, int line, const char *func);
 }
 
 
+#define OBJECT_REF_CHECK(_ob) OBJECT_ref_check(_ob)
 #define OBJECT_REF(_ob) OBJECT_ref(_ob)
 #define OBJECT_UNREF(_ob) OBJECT_unref(_ob)
 #define OBJECT_UNREF_KEEP(_ob) OBJECT_unref_keep(_ob)
@@ -218,17 +234,20 @@ char *OBJECT_where_am_i(const char *file, int line, const char *func);
 #define OBJECT_get_var_addr(_object, _desc) ((void *)((char *)(_object) + (_desc)->variable.offset))
 
 
-static INLINE void OBJECT_null(VALUE *value, CLASS *class)
-{
-	value->_object.class = class;
-	value->_object.object = NULL;
-}
+#define OBJECT_null(_value, _class) \
+({ \
+	VALUE *__value = (_value); \
+	__value->_object.class = (_class); \
+	__value->_object.object = NULL; \
+})
 
 
-static INLINE void OBJECT_put(VALUE *value, void *object)
-{
-	value->_object.class = OBJECT_class(object);
-	value->_object.object = object;
-}
+#define OBJECT_put(_value, _ob) \
+({ \
+	VALUE *__value = (_value); \
+	void *__object = (void *)(_ob); \
+	__value->_object.class = OBJECT_class(__object); \
+	__value->_object.object = __object; \
+})
 
 #endif

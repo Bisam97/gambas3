@@ -2,7 +2,7 @@
 
 	gbx_eval.c
 
-	(c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+	(c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -50,6 +50,8 @@ static void EVAL_enter()
 
 	OP = NULL;
 	CP = &EVAL->exec_class;
+	EXEC_check_bytecode();
+
 	//AP = ARCH_from_class(CP);
 
 	EP = NULL;
@@ -82,9 +84,7 @@ static void EVAL_exec()
 	END_ERROR
 
 	EXEC_function_loop();
-
-	TEMP = *RP;
-	UNBORROW(&TEMP);
+	EXEC_move_ret_to_temp();
 }
 
 bool EVAL_expression(EXPRESSION *expr, EVAL_FUNCTION func)
@@ -120,7 +120,6 @@ bool EVAL_expression(EXPRESSION *expr, EVAL_FUNCTION func)
 
 	for (i = 0; i < nvar; i++)
 	{
-
 		SP->type = T_VARIANT;
 		SP->_variant.vtype = T_NULL;
 		SP++;
@@ -140,7 +139,7 @@ bool EVAL_expression(EXPRESSION *expr, EVAL_FUNCTION func)
 	{
 		SP->type = T_OBJECT;
 		SP->_object.object = expr->parent;
-		OBJECT_REF(expr->parent);
+		OBJECT_REF_CHECK(expr->parent);
 		SP++;
 	}
 

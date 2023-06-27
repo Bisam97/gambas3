@@ -1,0 +1,35 @@
+' Gambas class file
+
+Export
+
+Static Property Item As Variant Use $vItem
+
+Static Public Sub _call(Source As Control, Data As Variant, Optional Format As String) As Control
+  
+  If Format = "text/uri-list" Then
+    If TypeOf(Data) = gb.String Then
+      Data = Main.PathToUrlList([CStr(Data)])
+    Else If TypeOf(Data) = gb.Object And If Data Is String[] Then
+      Data = Main.PathToUrlList(Data)
+    Endif
+  Endif
+  
+  If IsMissing(Format) Or If Not Format Then
+    Return Super(Source, Data)
+  Else 
+    Return Super(Source, Data, Format)
+  Endif
+  
+End
+
+Static Public Sub Paste(Optional Format As String) As Variant
+  
+  If Format = "text/uri-list" Then Return Main.UrlListToPath(Super.Paste(Format))
+  
+  If IsMissing(Format) Then
+    Return Super.Paste()
+  Else 
+    Return Super.Paste(Format)
+  Endif
+  
+End

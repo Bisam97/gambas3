@@ -282,11 +282,11 @@ Endif
 'Redefinition de la position basse
   If Chart._$ColChart[sidChart].XAxe.Visible Then
     If Chart._$ColChart[sidChart].XAxe.Arrange = Chart._$ColChart[sidChart].XAxe.Steps Then 
-      hChartRect.Bottom = hChartRect.Bottom - (iStaticSpace * 2 + Draw.Font.Height())
-      hChartRect.Top = hChartRect.Top + (iStaticSpace * 2 + Draw.Font.Height())
+      hChartRect.Bottom = hChartRect.Bottom - (iStaticSpace * 2 + Draw.Font.Height)
+      hChartRect.Top = hChartRect.Top + (iStaticSpace * 2 + Draw.Font.Height)
     Else
-      hChartRect.Bottom = hChartRect.Bottom - (Draw.Font.Height())
-      hChartRect.Top = hChartRect.Top + (Draw.Font.Height())
+      hChartRect.Bottom = hChartRect.Bottom - (Draw.Font.Height)
+      hChartRect.Top = hChartRect.Top + (Draw.Font.Height)
     Endif
   Endif
   
@@ -303,15 +303,15 @@ Endif
     'Dessine les intervalles Verticaux
     If Chart._$ColChart[sidChart].YAxe.ShowIntervalLines Then Draw.Line(fTabPos, hChartRect.Bottom, fTabPos, hChartRect.Top)
     'Dessine l'étiquette
-    'Draw.Text(f, hChartRect.Left - iStaticSpace * oChart._fProportionnal - Draw.TextWidth(f & "  "), fTabPos - Draw.Font.Height() / 2)
+    'Draw.Text(f, hChartRect.Left - iStaticSpace * oChart._fProportionnal - Draw.TextWidth(f & "  "), fTabPos - Draw.Font.Height / 2)
 
         
 
         
 
     If Chart._$ColChart[sidChart].XAxe.Visible Then 
-      If bBascule Then iXStep = Draw.Font.Height() 
-      Draw.Text(f, fTabPos - Draw.Font.Width(f) / 2, hChartRect.Bottom + iStaticSpace + iXStep)
+      If bBascule Then iXStep = Draw.Font.Height 
+      Draw.Text(f, fTabPos - Draw.Font.TextWidth(f) / 2, hChartRect.Bottom + iStaticSpace + iXStep)
       If Chart._$ColChart[sidChart].XAxe.Arrange = Chart._$ColChart[sidChart].XAxe.Steps Then
           bBascule = Not bBascule
       Endif

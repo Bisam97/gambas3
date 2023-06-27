@@ -1,34 +1,71 @@
 # Gambas Form File 3.0
 
 { Form Form
-  MoveScaled(0,0,64,18)
+  MoveScaled(0,0,73,37)
+  Background = Color.Background
+  Foreground = Color.TextForeground
+  PopupMenu = "mnuPopup"
   Resizable = False
-  Arrangement = Arrange.Vertical
-  Margin = True
-  { panMessage HBox
-    MoveScaled(1,1,58,8)
-    Expand = True
-    { Panel3 Panel
-      MoveScaled(0,0,8,9)
-      { picMessage PictureBox
-        MoveScaled(0,0,8,8)
-        Mode = PictureBox.Fill
-      }
-    }
-    { Panel2 Panel
-      MoveScaled(10,2,2,4)
-    }
-    { txtMessage TextLabel
-      MoveScaled(16,0,41,4)
-      Expand = True
+  SkipTaskbar = True
+  Transparent = True
+  Arrangement = Arrange.Fill
+  { mnuPopup Menu
+    #Translate = False
+    Text = "Menu1"
+    Visible = False
+    { mnuCopy Menu
+      Text = ("Copy message")
+      Shortcut = "Ctrl+C"
     }
   }
-  { panButton HBox
-    MoveScaled(1,13,62,4)
+  { panFrame Panel
+    MoveScaled(1,0,70.875,34.875)
+    Foreground = Color.Foreground
+    Arrangement = Arrange.Vertical
     Spacing = True
-    { Panel1 Panel
-      MoveScaled(2,0,4,4)
+    Margin = True
+    { lblTitle Label
+      MoveScaled(1,0,67,3)
+      Visible = False
+      Font = Font["Bold,-2"]
+    }
+    { panColor Panel
+      MoveScaled(0,4,70,30)
       Expand = True
+      Arrangement = Arrange.Vertical
+      { panMessage HBox
+        MoveScaled(0,0,65,20)
+        Expand = True
+        Margin = True
+        { Panel3 Panel
+          MoveScaled(1,1,8,17)
+          { picMessage PictureBox
+            MoveScaled(0,0,8,8)
+            Mode = PictureBox.Fill
+          }
+        }
+        { Panel2 Panel
+          MoveScaled(10,2,2,4)
+        }
+        { Panel4 VBox
+          MoveScaled(14,1,43,18)
+          Expand = True
+          PopupMenu = "mnuPopup"
+          { txtMessage TextLabel
+            MoveScaled(1,1,41,9)
+            Expand = True
+            Padding = 2
+          }
+        }
+      }
+      { Panel5 Panel
+        MoveScaled(29,21,7,3)
+      }
+      { panButton HBox
+        MoveScaled(10,24,37,4)
+        Centered = True
+        Spacing = True
+      }
     }
   }
 }

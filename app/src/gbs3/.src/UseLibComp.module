@@ -1,0 +1,44 @@
+' Gambas module file
+
+Public HasComponents As Boolean = False
+Public HasLibraries As Boolean = False
+
+Public Sub _FromString(Comp As String)
+  Dim aComp As String[] = Split(Comp)
+  For i As Integer = 0 To aComp.Max
+    aComp[i] = Quote(aComp[i])
+  Next
+  _call(Comp, 0, "use " & aComp.join())
+End
+
+Public Sub _call(Path As String, iLine As Integer, sLine As String)
+      Dim aNewLines As String[] = Split(Replace(Trim(sLine), "use ", "", gb.ignorecase))
+      Dim sRefrence As String = ""
+      For iInd As Integer = 0 To aNewLines.Max
+        Try sRefrence = Eval(aNewLines[iInd])
+        If Error Then
+          CompileError(Path, iLine, ("Syntax error"))
+        Endif
+        
+        Dim s As String = sRefrence
+
+        If s Like "*:*" Or s Like "/*" Then
+          Verbose(("Use library") & " " & s)
+          Libraries.ProcessLibrary(s, iLine, path)
+          HasLibraries = True
+        Else
+          Verbose(("Use component") & " " & s)
+          CComponent.ProcessComponent(s, iline, path)
+          HasComponents = True
+        Endif
+
+        ' If iInd < aNewLines.Max Then
+        '   s = aSym[iInd + 1]
+        '   If s <> "," Then
+        '     CompileError(Path, iLine, ("Comma missing"))
+        '   Endif
+        ' Endif
+
+      Next
+      
+End

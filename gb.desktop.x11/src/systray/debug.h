@@ -81,5 +81,8 @@ int print_icon_data(struct TrayIcon *ti);
 /* Print icon list contents */
 void dump_icon_list();
 
+//#define PRINT_LOG(_message) printf _message;
+#define PRINT_LOG(_message)
+
 #endif
 

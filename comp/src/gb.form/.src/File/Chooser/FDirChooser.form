@@ -6,6 +6,8 @@
   Arrangement = Arrange.Vertical
   Spacing = True
   { mnuPopup Menu
+    { Menu1 Menu
+    }
   }
   { panBorder Panel
     MoveScaled(0,0,90,59)
@@ -16,7 +18,7 @@
       MoveScaled(2,3,82,53)
       Expand = True
       { panToolbar HBox
-        MoveScaled(1,1,74,4)
+        MoveScaled(1,1,80,4)
         AutoResize = True
         { btnParent ToolButton
           MoveScaled(1,0,4,4)
@@ -45,65 +47,99 @@
           MoveScaled(20,0,0,4)
           Visible = False
         }
-        { btnBack ToolButton
-          MoveScaled(21,0,4,4)
-          Enabled = False
-          ToolTip = ("Parent directory")
-          Picture = Picture["icon:/small/left"]
-        }
-        { btnForward ToolButton
-          MoveScaled(25,0,4,4)
-          Enabled = False
-          Picture = Picture["icon:/small/right"]
-        }
-        { panIconSize HBox
-          MoveScaled(29,0,23,4)
-          Visible = False
-          { btnZoomOut ToolButton
+        { panTool HBox
+          MoveScaled(21,0,58,4)
+          AutoResize = True
+          { btnBack ToolButton
             MoveScaled(0,0,4,4)
-            Picture = Picture["icon:/small/zoom-out"]
+            Enabled = False
+            ToolTip = ("Parent directory")
+            Picture = Picture["icon:/small/left"]
           }
-          { sldIconSize Slider
-            MoveScaled(4,0,14,4)
-            Expand = True
-            MaxValue = 8
-            PageStep = 1
+          { btnForward ToolButton
+            MoveScaled(4,0,4,4)
+            Enabled = False
+            Picture = Picture["icon:/small/right"]
           }
-          { btnZoomIn ToolButton
-            MoveScaled(18,0,4,4)
-            Picture = Picture["icon:/small/zoom-in"]
+          { panIconSize HBox
+            MoveScaled(8,0,23,4)
+            Visible = False
+            { btnZoomOut ToolButton
+              MoveScaled(0,0,4,4)
+              Picture = Picture["icon:/small/zoom-out"]
+            }
+            { sldIconSize Slider
+              MoveScaled(4,0,14,4)
+              Expand = True
+              MaxValue = 8
+              PageStep = 1
+            }
+            { btnZoomIn ToolButton
+              MoveScaled(18,0,4,4)
+              Picture = Picture["icon:/small/zoom-in"]
+            }
           }
-        }
-        { btnPreview ToolButton
-          MoveScaled(52,0,4,4)
-          ToolTip = ("Image preview")
-          Picture = Picture["icon:/small/image"]
-          Toggle = True
-        }
-        { btnDetail ToolButton mnuShowDetailed
-          Name = "btnDetail"
-          MoveScaled(56,0,4,4)
-          ToolTip = ("Detailed view")
-          Picture = Picture["icon:/small/view-detail"]
-          Toggle = True
-        }
-        { btnProperty ToolButton mnuProperty
-          Name = "btnProperty"
-          MoveScaled(59,0,4,4)
-          ToolTip = ("File properties")
-          Picture = Picture["icon:/small/info"]
-        }
-        { btnView ToolButton
-          MoveScaled(63,0,4,4)
-          ToolTip = ("Show files")
-          Picture = Picture["icon:/small/view-split-h"]
+          { sepView Separator
+            MoveScaled(31,0,1,4)
+          }
+          { btnViewNormal ToolButton mnuView
+            Name = "btnViewNormal"
+            MoveScaled(32,0,4,4)
+            Tag = "0"
+            ToolTip = ("Icon view")
+            Picture = Picture["icon:/small/view-icon"]
+            Radio = True
+            Toggle = True
+            Value = True
+          }
+          { btnViewCompact ToolButton mnuView
+            Name = "btnViewCompact"
+            MoveScaled(36,0,4,4)
+            Tag = "1"
+            ToolTip = ("Compact view")
+            Picture = Picture["icon:/small/view-compact"]
+            Radio = True
+            Toggle = True
+          }
+          { btnViewPreview ToolButton mnuView
+            Name = "btnViewPreview"
+            MoveScaled(40,0,4,4)
+            Tag = "3"
+            ToolTip = ("Preview view")
+            Picture = Picture["icon:/small/view-preview"]
+            Radio = True
+            Toggle = True
+          }
+          { btnViewDetailed ToolButton mnuView
+            Name = "btnViewDetailed"
+            MoveScaled(44,0,4,4)
+            Tag = "2"
+            ToolTip = ("Detailed view")
+            Picture = Picture["icon:/small/view-detail"]
+            Radio = True
+            Toggle = True
+          }
+          { Separator4 Separator
+            MoveScaled(48,0,1,4)
+          }
+          { btnProperty ToolButton mnuProperty
+            Name = "btnProperty"
+            MoveScaled(49,0,4,4)
+            ToolTip = ("File properties")
+            Picture = Picture["icon:/small/info"]
+          }
+          { btnView ToolButton
+            MoveScaled(53,0,4,4)
+            ToolTip = ("Show files")
+            Picture = Picture["icon:/small/view-split-h"]
+          }
         }
       }
       { Separator2 Separator
         MoveScaled(30,6,39,0)
       }
       { splChoose HSplit
-        MoveScaled(6,7,67,43)
+        MoveScaled(6,7,74,43)
         Expand = True
         { panDirectory Panel
           MoveScaled(2,4,27,38)
@@ -116,7 +152,7 @@
             Border = False
             MenuOnly = True
           }
-          { Separator1 Separator
+          { sepBookmark Separator
             MoveScaled(6,7,12,0)
           }
           { dvwChoose DirView
@@ -128,19 +164,23 @@
           }
         }
         { panView Panel
-          MoveScaled(38,5,25,33)
+          MoveScaled(30,6,40,33)
           Visible = False
           Arrangement = Arrange.Fill
           { fvwChoose FileView
-            MoveScaled(1,1,23,31)
+            MoveScaled(0,2,38,31)
             Border = False
           }
         }
       }
     }
   }
+  { sepNoBorder Separator
+    MoveScaled(39,60,26,0)
+    Visible = False
+  }
   { panFilter HBox
-    MoveScaled(3,60,84,11)
+    MoveScaled(2,63,84,11)
     Spacing = True
     { panExtension VBox
       MoveScaled(1,1,62,9)

@@ -2,7 +2,7 @@
 
   c_image.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -51,7 +51,7 @@ CIMAGE *IMAGE_create_from_window(CWINDOW *window, int x, int y, int w, int h);
 
 SDL_Image *SDL_CreateImage(SDL_Surface *surface);
 void SDL_FreeImage(SDL_Image *image);
-SDL_Texture *SDL_GetTextureFromImage(SDL_Image *image, CWINDOW *window);
+SDL_Texture *SDL_GetTextureFromImage(SDL_Image *image, CWINDOW *window, bool modified);
 
 #endif /* __C_IMAGE_H */
 

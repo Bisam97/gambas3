@@ -209,3 +209,27 @@ Static Public Function GetCenter(hPoints As MapPoint[]) As MapPoint
 Catch
 
 End
+
+''Get string representation in decimal of a mappoint. 
+Static Public Sub ToString(hMp As MapPoint) As String
+  
+  Return CStr(hMp.Lat) & ", " & CStr(hMp.Lon)
+  
+End
+
+
+''Get a MapPoint from a string representation in decimal.
+Static Public Sub FromString(sMp As String) As MapPoint
+
+  Dim a As String[] = Scan(sMp, "*,*")
+  
+  'if not able to get the values then return null
+  If IsNull(a) Then Return 
+  
+  'if not 2 value then return null
+  If a.Count < 2 Then Return 
+  
+  'Try to convert str to float values
+  Try Return MapPoint(CFloat(a[0]), CFloat(a[1]))
+  
+End

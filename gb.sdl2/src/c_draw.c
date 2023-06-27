@@ -2,7 +2,7 @@
 
   c_draw.c
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -377,7 +377,7 @@ BEGIN_METHOD(Draw_Text, GB_STRING text; GB_INTEGER x; GB_INTEGER y)
 	if (!image)
 		return;
 
-	texture = SDL_GetTextureFromImage(image, (CWINDOW *)THIS->device);
+	texture = SDL_GetTextureFromImage(image, (CWINDOW *)THIS->device, FALSE);
 	if (image->surface)
 	{
 		SDL_FreeSurface(image->surface);

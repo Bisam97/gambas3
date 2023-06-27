@@ -1,0 +1,47 @@
+' Gambas class file
+
+Export
+
+'' Name of the test
+Public Name As String
+'' Exit status of the test process
+Public ExitCode As Integer
+'' Whether the test was successful (all tests passed and at least one test was executed)
+Public Success As Boolean
+'' Number of run tests
+Public Run As Integer
+'' Difference between planned and run tests
+Public Delta As Integer
+'' Whether the test bailed out (aborted gracefully)
+Public BailedOut As Boolean
+'' If BailedOut, this contains the optional attached message
+Public BailMessage As String
+'' When the test started
+Public Started As Date
+'' When the test ended
+Public Ended As Date
+
+'' TAP version in use
+Public Version As Integer
+'' Number of tests planned
+Public Planned As Integer
+'' Test range
+Public Plan As Integer[]
+'' Whether the entire test was skipped
+Public SkippedAll As Boolean
+'' Number of successful tests (not accounting for Todo or Skipped ones)
+Public Passed As Integer
+'' Number of failed tests (not accounting for Todo or Skipped ones)
+Public Failed As Integer
+'' Number of tested marked as to-do
+Public Todo As Integer
+'' Number of skipped tests
+Public Skipped As Integer
+'' Number of Todo tests which passed
+Public Bonus As Integer
+
+'' Object representation of every assertion
+Public Subtests As New TestAssertion[]
+
+'' A copy of the TAP stream
+Public Lines As New String[]

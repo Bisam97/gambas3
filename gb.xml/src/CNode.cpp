@@ -383,7 +383,7 @@ GB_DESC CElementAttributesDesc[] =
 {
     GB_DECLARE(".XmlElementAttributes", 0), GB_VIRTUAL_CLASS(),
     GB_METHOD("_get", "s", CElementAttributes_get, "(Name)s"),
-    GB_METHOD("_put", "s", CElementAttributes_put, "(Value)s(Name)s"),
+    GB_METHOD("_put", NULL, CElementAttributes_put, "(Value)s(Name)s"),
     GB_METHOD("_next", "XmlNode", CElementAttributes_next, ""),
     GB_PROPERTY_READ("Count", "i", CElementAttributes_count),
     GB_PROPERTY_READ("Name", "s", CElementAttributes_name),

@@ -1,0 +1,30 @@
+' Gambas class file
+
+Public Sub _new()
+  
+  wvwBrowser.Settings[WebSettings.Javascript] = True
+  wvwBrowser.Settings[WebSettings.JavascriptCanAccessClipboard] = True
+  
+End
+
+Public Sub Run(sUrl As String)
+  
+  wvwBrowser.Clear
+  wvwBrowser.Cookies.Clear
+  wvwBrowser.Url = sUrl
+  Me.Show
+  
+End
+
+Public Sub wvwBrowser_Title()
+
+  Me.Title = wvwBrowser.Title & " — " & ("Debug browser")
+
+End
+
+Public Sub Form_Close()
+
+  wvwBrowser.Clear
+  Design.Stop
+
+End

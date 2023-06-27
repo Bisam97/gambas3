@@ -13,26 +13,26 @@ Private $hSymbol As CSymbolInfo
 Private $iArrow As Integer
 Private $iCol As Integer
 
-Public Sub _new()
+Public Sub ReadConfig()
   
-  webHelp.Zoom = 0.7
+  hvwHelp.ReadConfig
+  hvwHelp.Zoom = Settings["/Help/Zoom", 80] / 100
   
 End
-
 
 Private Sub UpdateSignature(Optional hForm As FEditor)
   
   Dim iX, iY As Integer
   Dim hCont As Container
 
-  panSignature.H = lblNewSignature.H + 4
+  panSignature.H = lblNewSignature.H
   If $bShowHelp And $bUseHelp Then
-    MHelp.InitWebViewWith(webHelp, MHelp.TYPE_SYMBOL, $hSymbol.Name, $hSymbol.Class, "noimage")
+    MHelp.InitWebViewWith(hvwHelp, MHelp.TYPE_SYMBOL, $hSymbol.Name, $hSymbol.Class, "noimage")
     sepHelp.Show
     panHelp.Show
     panResizeTop.Show
     panResizeBottom.Show
-    $iMinW = Max(128, lblNewSignature.W + 2 + panResizeTop.W + btnHelp.W)
+    $iMinW = Max(128, lblNewSignature.W + 2 + btnHelp.W)
     $iMinH = Desktop.Scale * 24
     Me.Resize(Max(Me.W, $iMinW), Max(Me.H, $iMinH))
   Else
@@ -41,9 +41,9 @@ Private Sub UpdateSignature(Optional hForm As FEditor)
     panResizeTop.Hide
     panResizeBottom.Hide
     If hForm Then
-      Me.Resize(lblNewSignature.W + 4 + If($bUseHelp, btnHelp.W + panResizeTop.W, 0), lblNewSignature.H + 6)
+      Me.Resize(lblNewSignature.W + 4 + If($bUseHelp, btnHelp.W, 0), lblNewSignature.H + 2)
     Else
-      Me.H = lblNewSignature.H + 6
+      Me.H = lblNewSignature.H + 2
     Endif
   Endif
   
@@ -79,19 +79,27 @@ Private Sub UpdateSignature(Optional hForm As FEditor)
     hCont = hCont.Parent
   Loop
   
+  iX -= 3
   iX = Max(0, Min(iX, $hEditor.W - Me.Width))
-  
+
   If Not hForm Then 
     Me.Move(iX, iY)
-    Return
+  Else
+    If Me.Parent <> hForm Or If iX <> Me.X Or If iY <> Me.Y Or If Not Me.Visible Then 
+      Me.Reparent(hForm, iX, iY)
+      Me.Show
+      $hEditor.SetFocus
+    Endif
   Endif
   
-  If Me.Parent = hForm And If iX = Me.X And iY = Me.Y And Me.Visible Then Return
-
-  Me.Reparent(hForm, iX, iY)
-  Me.Show
   Me.Raise
-  $hEditor.SetFocus
+  FCompletion.FixPosition($hEditor)
+
+End
+
+Public Sub Position(hForm As FEditor)
+
+  If VisibleFrom(hForm.GetEditor()) Then UpdateSignature(hForm)
   
 End
 
@@ -107,6 +115,7 @@ Public Sub Open(hForm As FEditor, iCol As Integer, hSymbol As CSymbolInfo, iArg 
   sSign = hSymbol.GetSignature(True, iArg)
   If Not sSign Then Return
   
+  ReadConfig
   lblSignature.Font = $hEditor.Font
   lblNewSignature.Font = $hEditor.Font
   $bShowHelp = False 
@@ -114,7 +123,7 @@ Public Sub Open(hForm As FEditor, iCol As Integer, hSymbol As CSymbolInfo, iArg 
   btnHelp.Visible = $bUseHelp
   
   sName = hSymbol.Name
-  If Left$(sName) = "_" Then sName = hSymbol.Class
+  If Left$(sName) = "_" Then sName = CSymbolInfo.GetType(hSymbol.Class)
   sSign = "<b>" & sName & "</b>" & sSign 
   
   lblNewSignature.W = Max(64, $hEditor.W - 64)
@@ -130,16 +139,16 @@ Public Sub Open(hForm As FEditor, iCol As Integer, hSymbol As CSymbolInfo, iArg 
   UpdateSignature(hForm)
   
   ' If $bShowHelp Then
-  '   MHelp.InitWebViewWith(webHelp, MHelp.TYPE_SYMBOL, hSymbol.Name, hSymbol.Class, "noimage")
+  '   MHelp.InitWebViewWith(hvwHelp, MHelp.TYPE_SYMBOL, hSymbol.Name, hSymbol.Class, "noimage")
   '   sepHelp.Show
-  '   webHelp.Show
+  '   hvwHelp.Show
   '   panRight.Show
   '   $iMinW = Max(128, lblNewSignature.W + 2 + panRight.W + btnHelp.W)
   '   $iMinH = Desktop.Scale * 24
   '   Me.Resize(Max(Me.W, $iMinW), Max(Me.H, $iMinH))
   ' Else
   '   sepHelp.Hide
-  '   webHelp.Hide
+  '   hvwHelp.Hide
   '   panRight.Hide
   '   Me.Resize(lblNewSignature.W + 2 + btnHelp.W, lblSignature.H + 2)
   ' Endif
@@ -221,6 +230,7 @@ Public Sub HideFrom(hEditor As TextEditor)
   If $hEditor <> hEditor Then Return
   $hEditor = Null
   Me.Hide
+  If FCompletion.VisibleFrom(hEditor) Then FCompletion.Position(hEditor)
   
 End
 
@@ -230,9 +240,10 @@ Public Sub VisibleFrom(hEditor As TextEditor) As Boolean
   
 End
 
-Public Sub webHelp_GotFocus()
+Public Sub hvwHelp_GotFocus()
 
   Try $hEditor.SetFocus
+  'HideFrom($hEditor)
 
 End
 
@@ -246,7 +257,7 @@ End
 Public Sub btnHelp_Draw()
 
   If btnHelp.Hovered Then Draw.Foreground = Color.Blue
-  Draw.Style.Arrow(0, 0, btnHelp.W, btnHelp.H, $iArrow)
+  Draw.Style.Arrow(Desktop.Scale \ 2, 0, btnHelp.W - Desktop.Scale, btnHelp.H, $iArrow)
 
 End
 

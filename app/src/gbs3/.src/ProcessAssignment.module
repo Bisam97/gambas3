@@ -1,0 +1,130 @@
+' Gambas module file
+
+Private StartIndex As Integer
+Private EndIndex As Integer
+Private Source As Reader
+Private CurrentSymbol As Integer
+Private ContinueSet As Collection = [",": True, "&": True, "&/": True]
+Private ContinueTypeAfterSet As Collection = [CStr(Highlight.string): True, CStr(Highlight.symbol): True]
+Private ContinueTypeAfterStr As Collection = [CStr(Highlight.String): True]
+
+
+Public Sub _Call(Program As Reader, index As Integer, EqualPos As Integer) As String
+
+  Source = Program
+  StartIndex = index
+  EndIndex = index
+  CurrentSymbol = EqualPos
+  ContinueSet.default = False
+  ContinueTypeAfterSet.default = False
+  ContinueTypeAfterStr.default = False
+  
+  Dim StringOnly As Boolean = False
+  
+  While Advance()
+    Dim sSym As String = GetSymbol()
+    Dim iType As Integer = GetType()
+    If iType = Highlight.Keyword Then
+      Backup()
+      Break
+    Else If StringOnly And iType <> Highlight.string Then
+      Backup()
+      Break
+    Else If isLast() And iType = Highlight.string Then 
+      stringOnly = True
+      Continue
+    Else
+      StringOnly = False
+    Endif
+    
+    If sSym = "[" Then
+      ProcessBraces()
+      Break
+    Else If sSym = "(" Then
+      ProcessBraces("(", ")")
+    Endif
+    
+    If isLast() And If ContinueSet[sSym] Then
+       StringOnly = False
+       Continue
+    Else If isLast() And If iType = Highlight.string Then 
+      stringOnly = True
+      Continue
+    Else If isLast()
+      Break
+    Endif
+    
+  Wend
+  
+  Return GenerateFromLazyScript.AdjustProgram(Program, EndIndex, StartIndex)
+  
+End
+
+
+Private Sub ProcessBraces(Optional OpenBrace As String = "[", CloseBrace As String = "]")
+  
+  While Advance()
+    Dim sSym As String = getSymbol()
+    If sSym = OpenBrace Then
+      ProcessBraces(OpenBrace, CloseBrace)
+    Else If sSym = CloseBrace Then
+      Return
+    Endif
+  Wend
+  
+End
+
+
+Private Sub Advance() As Boolean
+  If endindex = Source.ProgramLines.max And CurrentSymbol = Source.ProgramSymbols[endIndex].max Then Return False 
+  If Source.ProgramSymbols[endindex].max = -1 Or CurrentSymbol = Source.ProgramSymbols[endindex].max Or If Source.ProgramTypes[endindex][CurrentSymbol] = Highlight.comment Then
+    CurrentSymbol = 0
+    Inc endindex
+    If Source.ProgramSymbols[endindex].count = 0 Then
+       Return Advance()
+    Endif
+  Else
+    Inc CurrentSymbol
+  Endif
+  Return True
+End
+
+Private Sub Backup() As Boolean
+  If endIndex = startIndex And currentSymbol = 0 Then Return False
+  If CurrentSymbol = 0 Then
+    Dec EndIndex
+    CurrentSymbol = Source.ProgramSymbols[endIndex].Max
+    If CurrentSymbol = -1 Or If Source.ProgramTypes[EndIndex][CurrentSymbol] = Highlight.comment Then
+        Backup()
+    Endif
+  Endif
+  Return True
+End
+
+Private Sub isLast() As Boolean
+  If CurrentSymbol = Source.ProgramSymbols[endindex].max Or If Source.ProgramTypes[endindex].max = Highlight.comment And CurrentSymbol = Source.ProgramSymbols[endindex].max - 1 Then
+    Return True
+  Endif
+  
+  Return False
+  
+End
+
+Private Sub getSymbol() As String
+  Return Source.ProgramSymbols[endindex][currentSymbol]
+  Catch
+    Stop
+End
+
+Private Sub getType() As Integer
+   Return Source.ProgramTypes[endindex][currentSymbol]
+End
+
+
+
+
+
+
+ 
+
+

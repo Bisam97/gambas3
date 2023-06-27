@@ -6,16 +6,17 @@ Event Change
 
 Inherits UserControl
 
-Private Const MARGIN As Integer = 5
-
 Private $hView As Panel
 Private $hEditor As MaskBox
 Private $hBorder As Panel
 Private $hCompletion As CTagCompletion
+Private $hTimerArrange As Timer
+Private $bInArrange As Boolean
+Private $hWatcher As Watcher
 
 Public Sub _new()
 
-  $hBorder = New Panel(Me)
+  $hBorder = New Panel(Me) As "View"
   $hBorder.Border = Border.Plain
   $hBorder.Arrangement = Arrange.Fill
   $hBorder.Mouse = Mouse.Text
@@ -26,7 +27,8 @@ Public Sub _new()
   $hView.Arrangement = Arrange.Row
   $hView.Margin = True
   $hView.Spacing = True
-  $hView.Padding = MARGIN
+  
+  $hTimerArrange = New Timer As "TimerArrange"
   
   Me.Proxy = $hView
   
@@ -40,24 +42,56 @@ Public Sub SetFarm(sFarm As String)
   
 End
 
-Private Sub ResizeEditor()
+Private Sub ResizeEditorNow()
 
+  Dim DS As Integer
+  Dim H As Integer
+  
+  If Me.Design Then Return
   If Not Object.IsValid($hEditor) Then Return
 
-  $hEditor.Resize(MARGIN * 2 + Max(Desktop.Scale * 12, $hEditor.Font.TextWidth($hEditor.Text) + 8), $hEditor.Font.Height + MARGIN)
+  $bInArrange = True
+
+  DS = Desktop.Scale
+
+  $hEditor.Resize(DS * 2 + Max(Desktop.Scale * 12, $hEditor.Font.TextWidth($hEditor.Text) + 8), $hEditor.Font.Height + DS)
   $hEditor.Raise
   
   '$hView.EnsureVisible($hEditor.X, $hEditor.Y - MARGIN, $hEditor.W, $hEditor.H + MARGIN * 2)
   With $hEditor
-    Me.H = .Y + .H + MARGIN + 2
+    H = .Y + .H + DS + 2
   End With
+  
+  Me.H = H
+  
+  $bInArrange = False
 
 End
+
+Private Sub ResizeEditor()
+  
+  If $bInArrange Then Return
+  $hTimerArrange.Trigger
+  
+End
+
 
 Public Sub View_MouseDown()
   
   ResizeEditor
   $hEditor.SetFocus
+  
+End
+
+Public Sub View_Arrange()
+  
+  ResizeEditor
+  
+End
+
+Public Sub TimerArrange_Timer()
+  
+  ResizeEditorNow
   
 End
 
@@ -164,10 +198,13 @@ Public Sub Clear()
   $hView.Children.Clear
   
   $hEditor = New MaskBox($hView) As "Editor"
+  $hEditor.Name = "txtTagEditor"
   $hEditor.Border = False
   $hEditor.MaxLength = 24
   $hEditor.Filter = "[0-9A-Za-z .-]"
   ResizeEditor
+  
+  $hWatcher = New Watcher($hEditor) As "EditorWatcher"
   
   $hCompletion = New CTagCompletion($hEditor) As "Completion"
   
@@ -179,8 +216,8 @@ Public Sub Sort()
   
 End
 
-Public Sub View_Arrange()
+Public Sub SetFocus()
   
-  ResizeEditor
+  Try $hEditor.SetFocus
   
 End

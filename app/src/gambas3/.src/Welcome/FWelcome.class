@@ -1,10 +1,11 @@
 ' Gambas class file
 
+Class Media
+Class MediaPlayer
+
 Static Public Filter As String
 
 Static Private $sPath As String
-Static Private $hLogo As Image
-
 Private btnNew As CCoolButton
 Private btnOpen As CCoolButton
 Private btnOpenExtern As CCoolButton
@@ -30,6 +31,7 @@ Private $iSort As Integer = CRecentProject.SORT_BY_DATE
 Private $hRecent As CProjectList
 Private $hExample As CProjectList
 Private $hSoft As CProjectList
+Private $hPlayer As MediaPlayer
 
 ' Static Public Function Run() As String
 ' 
@@ -50,14 +52,18 @@ Public Sub _new()
   
 End
 
+Public Sub GetFixedWidth() As Integer
+  
+  Return panButton.W + 1
+  
+End
 
 Public Sub Form_Open()
 
   Dim W As Integer
   Dim sFont As String
   Dim hCtrl As CCoolButton
-
-  If Not $hLogo Then $hLogo = Image.Load("img/logo/logo.png")
+  Dim bHasTear As Boolean
 
   'Settings.Read(Me)
   'Me.Center
@@ -67,11 +73,11 @@ Public Sub Form_Open()
 
   btnNew = New CCoolButton(panButton, W, HEIGHT_BUTTON, ("New project..."), "icon:/large/new", sFont) As "btnNew"
   btnOpen = New CCoolButton(panButton, W, HEIGHT_BUTTON, ("Open project") & "...", "icon:/large/open", sFont) As "btnOpen"
-  btnRecent = New CCoolButton(panButton, W, HEIGHT_BUTTON, ("Recent projects"), "icon:/large/recent", sFont) As "btnList"
+  btnRecent = New CCoolButton(panButton, W, HEIGHT_BUTTON, ("Recent projects"), "icon:/large/open-recent", sFont) As "btnList"
   btnExample = New CCoolButton(panButton, W, HEIGHT_BUTTON, ("Examples"), "icon:/large/help", sFont) As "btnList"
   btnSoft = New CCoolButton(panButton, W, HEIGHT_BUTTON, ("Installed software"), "icon:/large/download", sFont) As "btnList"
   btnFarm = New CCoolButton(panButton, W, HEIGHT_BUTTON, ("Software farm") & "...", "icon:/large/book", sFont) As "btnFarm"
-  btnOpenExtern = New CCoolButton(panButton, W, HEIGHT_BUTTON, ("Open file") & "...", "icon:/large/edit", sFont) As "btnOpenExtern"
+  btnOpenExtern = New CCoolButton(panButton, W, HEIGHT_BUTTON, ("Open file") & "...", "icon:/large/file", sFont) As "btnOpenExtern"
   btnAbout = New CCoolButton(panButton, W, HEIGHT_BUTTON, ("About Gambas") & "...", "icon:/large/info", sFont) As "btnAbout"
   btnQuit = New CCoolButton(panButton, W, HEIGHT_BUTTON, ("Quit"), "icon:/large/quit", sFont) As "btnQuit"
   
@@ -80,8 +86,8 @@ Public Sub Form_Open()
   btnSoft.Tag = LIST_SOFTWARE
 
   For Each hCtrl In [btnNew, btnOpen, btnRecent, btnExample, btnSoft, btnFarm, btnOpenExtern, btnAbout, btnQuit]
-    hCtrl.Foreground = Color.White
-    hCtrl.Highlight = &H61A7C3&
+    hCtrl.Foreground = Color.Foreground
+    'hCtrl.Highlight = &H61A7C3&
   Next
 
   ' Fill recent list
@@ -96,10 +102,46 @@ Public Sub Form_Open()
     Toggle(LIST_EXAMPLE)
   Endif
   
-  $hWelcome = New CWelcome(dwgWelcome)
+  bHasTear = PlaySound()
+  $hWelcome = New CWelcome(dwgWelcome, bHasTear)
   
   $hSoft.Fill
+  
+End
 
+Private Sub PlaySound() As Boolean
+
+  Dim dNow As Date
+  Dim iYear As Integer
+  Dim dEaster As Date
+  Dim sPlay As String
+  Dim sTemp As String
+  Dim bHasTear As Boolean
+  
+  dNow = Date(Now)
+  'dNow = Date(2020, 12, 25)
+  iYear = Year(dNow)
+  dEaster = Date.EasterDay(iYear)
+  
+  If dNow = Date(iYear, 12, 25) Then
+    sPlay = "bells.mp3"
+  Else If dNow = Date(iYear, 8, 15) Or If dNow = dEaster Or If dNow = dEaster + 39 Then
+    sPlay = "spiritus.mp3"
+    bHasTear = True
+  Else
+    Return
+  Endif
+
+  Component.Load("gb.media")
+  $hPlayer = New MediaPlayer As "MediaPlayer"
+  sTemp = Temp$()
+  Copy "welcome" &/ sPlay To sTemp
+  $hPlayer.URL = Media.URL(sTemp)
+  $hPlayer.ProgressiveDownload = True
+  $hPlayer.Play(True)
+
+  Return bHasTear
+  
 End
 
 ' Public Sub cvwRecent_Click()
@@ -129,7 +171,7 @@ End
 
 Public Sub btnNew_Click()
 
-  $sPath = FCreateProject.Run()
+  $sPath = FOpenProject.Create()
   txtFilter.SetFocus
   If $sPath Then Project.Open($sPath)
 
@@ -213,7 +255,7 @@ Private Sub Toggle(iState As Integer)
   End Select
   
   For Each hCtrl In [btnRecent, btnExample, btnSoft]
-    hCtrl.Background = If($iRecent = hCtrl.Tag, Color.SetAlpha(Color.TextBackground, 192), Color.Default)
+    hCtrl.Background = If($iRecent = hCtrl.Tag, Color.SetAlpha(Color.TextForeground, 240), Color.Default)
     'hCtrl.Foreground = If($iRecent = hCtrl.Tag, Color.TextForeground, Color.White)
   Next
   
@@ -238,7 +280,6 @@ End
 
 Public Sub Form_Hide()
 
-  'Settings.Write(Me)
   Settings["/FWelcome/SortRecent"] = $iSort
   Settings["/FWelcome/Filter"] = txtFilter.Text
 
@@ -398,10 +439,11 @@ Public Sub panList_Arrange()
 
   Dim iArr As Integer
 
-  iArr = If(panList.W > Desktop.Scale * 70, Arrange.Row, Arrange.Vertical)
+  iArr = If(panList.W >= (Desktop.Scale * (CProjectList.PROJECT_BOX_SCALE_WIDTH * 2 + 3) + Style.ScrollbarSize + Style.ScrollbarSpacing), Arrange.Row, Arrange.Vertical)
   'Debug iArr;; panList.W;; Desktop.Scale * 64
   $hRecent.SetArrangement(iArr)
   $hExample.SetArrangement(iArr)
+  $hSoft.SetArrangement(iArr)
 
 End
 
@@ -412,5 +454,20 @@ Public Sub Form_Activate()
   Else
     txtFilter.SetFocus
   Endif
+  
+End
+
+Public Sub MediaPlayer_End()
+  
+  'Debug
+  $hPlayer = Null
+  '$hWelcome.NoTear = True
+  
+End
+
+Public Sub Form_Close()
+  
+  Try $hPlayer.Stop()
+  $hPlayer = Null
   
 End

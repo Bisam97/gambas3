@@ -5,14 +5,13 @@ Export
 Class Stock
 
 Static Private $cCache As New Collection
-Static Private $bInit As Boolean
-Static Private $bDarkTheme As Boolean
+Static Private $cPictToKey As Collection
 
-Static Private Sub GetKey(sPath As String) As String
+Static Private Sub GetKey(sPath As String, Optional sSize As String) As String
   
   Dim sKey As String
   
-  If sPath Begins "icon:/" Then
+  If sPath Begins "icon:/" Or If sPath Begins "flag:/" Then
     
     sKey = sPath
     
@@ -36,37 +35,88 @@ Static Private Sub GetKey(sPath As String) As String
     
   Endif
   
+  If sSize Then sKey &= ":" & sSize
+  
   Return sKey
   
 End
 
+Static Public Sub Load(Path As String) As Picture
+  
+  Dim sPath As String
+  Dim bMoveUp As Boolean
+  
+  If Path Begins "icon:/" Then
+    
+    Try Return Stock[Mid$(Path, 7)]
+    
+  Else If Path Begins "flag:/" Then 
+    
+    Try Return Stock.GetFlag(Mid$(Path, 7))
+    
+  Else
 
-Static Public Sub _get(Path As String) As Picture
+    sPath = Path
+    
+    If File.IsRelative(sPath) Then
+      If sPath Begins "./" Then
+        If sPath Not Begins "./gb." Then 
+          bMoveUp = True
+        Endif
+      Else 
+        bMoveUp = True
+      Endif
+    Endif
+    
+    If bMoveUp Then sPath = ".." &/ sPath
+
+    Return Super.Load(sPath)
+
+  Endif  
+  
+End
+
+Static Public Sub _get(Path As String, Optional Size As String) As Picture
   
   Dim sKey As String
   Dim hPict As Picture
   Dim sPath As String
   Dim sBaseName As String
   Dim sDarkPath As String
+  Dim bMoveUp As Boolean
+  Dim iSize As Integer
   
   If Not Path Then Return
   
-  sKey = GetKey(Path)
+  sKey = GetKey(Path, Size)
   hPict = $cCache[sKey]
   If hPict Then Return hPict
   
   If Path Begins "icon:/" Then
     
-    'Debug Path
     Try hPict = Stock[Mid$(Path, 7)]
+    If Not hPict Then Return 
+    
+  Else If Path Begins "flag:/" Then
+    
+    Try hPict = Stock.GetFlag(Mid$(Path, 7))
     If Not hPict Then Return 
     
   Else
     
     sPath = Path
     
-    If File.IsRelative(sPath) Then sPath = ".." &/ sPath
-    'Debug Path;; System.Backtrace.Join(" ")
+    If File.IsRelative(sPath) Then
+      If sPath Begins "./" Then
+        If sPath Not Begins "./gb." Then 
+          bMoveUp = True
+        Endif
+      Else 
+        bMoveUp = True
+      Endif
+    Endif
+    
+    If bMoveUp Then sPath = ".." &/ sPath
     
     ' Support for rtl/ltr icons
     
@@ -81,23 +131,29 @@ Static Public Sub _get(Path As String) As Picture
     
     ' Support for dark themes
     
-    If Not $bInit Then
-      If Color[Color.Background].Luminance < 128 Or If Env["GB_GUI_DARK_THEME"] = "1" Then $bDarkTheme = True
-      $bInit = True
-    Endif
-    
-    If $bDarkTheme Then
+    If Application.DarkTheme Then
       sDarkPath = File.SetBaseName(sPath, sBaseName & "-dark")
       If Exist(sDarkPath) Then
-        Try hPict = Image.Load(sDarkPath).Picture
-        If hPict Then Goto __LOAD_OK
+        Try hPict = Super.Load(sDarkPath)
+      Else
+        Try hPict = Image.Load(sPath).Invert(True).Picture
       Endif
+      If hPict Then Goto __LOAD_OK
     Endif
     
-    Try hPict = Image.Load(sPath).Picture
+    Try hPict = Super.Load(sPath)
     If Error Then
       'Error "gb.gui: warning: unable to load icon "; Path; ": "; System.Backtrace.Join(" ")
       Return Null
+    Endif
+  Endif
+  
+  If Size Then
+    Try iSize = CInt(Size)
+    If Not Error Then
+      hPict = hPict.Stretch(iSize)
+    Else 
+      Try hPict = hPict.Stretch(Stock.GetSize(Size))
     Endif
   Endif
   
@@ -131,3 +187,122 @@ Static Public Sub _exit()
   
 End
 
+Static Public Sub _Refresh(ByRef hPict As Picture)
+
+  Dim sKey As String
+  Dim sPict As String
+
+  If Not hPict Then Return  
+  sPict = CStr(Object.Address(hPict))
+  Try sKey = $cPictToKey[sPict]
+  If Not sKey Then Return
+  hPict = Picture[sKey]
+  '$cPictToKey.Remove(sPict)
+  
+End
+
+Static Private Sub RefreshMenu(hMenu As Menu)
+  
+  _Refresh(ByRef hMenu.Picture)
+  For Each hMenu In hMenu.Children
+    RefreshMenu(hMenu)
+  Next
+  
+End
+
+Static Public Sub Refresh()
+
+  Dim hPict As Picture
+  Dim hWindow As Window
+  Dim hCtrl As Object
+  Dim sKey As String
+  Dim hTabStrip As TabStrip
+  Dim I As Integer
+  Dim hMenu As Menu
+  Dim hWin As Window
+  Dim cKeepCache As Collection
+  'Dim N As Integer
+  
+  Inc Application.Busy
+  
+  $cPictToKey = New Collection
+  For Each hPict In $cCache
+    sKey = $cCache.Key
+    If sKey Not Begins "icon:/" Then Continue
+    $cPictToKey[CStr(Object.Address(hPict))] = sKey
+    'Debug sKey
+  Next
+  
+  cKeepCache = $cCache.Copy()
+  $cCache.Clear
+  
+  For Each hWindow In Windows
+    
+    hWin = hWindow
+    If Not Object.IsValid(hWin) Then Continue 
+    
+    _Refresh(ByRef hWin.Icon)
+    GoSub REFRESH_MENU
+      
+    For Each hCtrl In hWindow.Controls
+      
+      'Debug Object.Type(hWindow);; hCtrl.Name
+      'Inc N
+      
+      If hCtrl Is TabStrip Then
+        
+        hTabStrip = hCtrl
+        For I = 0 To hTabStrip.Count - 1
+          _Refresh(ByRef hTabStrip[I].Picture)
+        Next
+        
+      Else If hCtrl Is Window Then
+        
+        hWin = hCtrl
+        _Refresh(ByRef hWin.Icon)
+        GoSub REFRESH_MENU
+        
+      Else
+        
+        Try hCtrl._RefreshPicture()
+        If Error Then Try _Refresh(ByRef hCtrl.Picture)
+        
+      Endif
+      
+    Next
+    
+  Next
+  
+  $cPictToKey = Null
+
+  'Debug N
+  
+  Dec Application.Busy
+  Return
+  
+REFRESH_MENU:
+
+  For Each hMenu In hWin.Menus
+    RefreshMenu(hMenu)
+  Next
+    
+  Return
+  
+End
+
+'' @{since 3.16}
+''
+'' Return a stretched copy of a picture.
+''
+'' - ~Width~ and ~Height~ are the size of the stretched picture. If ~Height~ is omitted, it is made equal to ~Width~.
+''
+'' [[ info
+'' This function internally transforms the picture into an image and calls the [Image.Stretch](/comp/gb.qt4/image/stretch) method.
+'' ]]
+
+Public Sub Stretch(Width As Integer, Optional Height As Integer) As Picture
+  
+  If IsMissing(Height) Then Height = Width
+  Return Me.Image.Stretch(Width, Height).Picture
+  
+End

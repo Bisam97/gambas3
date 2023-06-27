@@ -21,13 +21,16 @@ Public Sub _init()
   
 End
 
-
-Public Sub CanCompress(sPath As String, Optional bTextOnly As Boolean) As Boolean
+Public Sub CanCompress(sPath As String, Optional bCompressNow As Boolean) As Boolean
   
   Dim sFile As String
   Dim sExt As String
+
+  If Not sPath Then Return  
+  If Project.IsHiddenPath(sPath) Then Return
   
   If IsDir(sPath) Then
+    If Not IsMissing(bCompressNow) Then Return
     For Each sFile In Dir(sPath)
       If Left(sFile) = "." Then Continue
       If CanCompress(sPath &/ sFile) Then Return True
@@ -36,14 +39,16 @@ Public Sub CanCompress(sPath As String, Optional bTextOnly As Boolean) As Boolea
   Endif
   
   sExt = File.Ext(sPath)
-
-  If $aExt.Exist(sExt) Then Return True
-  If Not bTextOnly Then 
+  
+  If IsMissing(bCompressNow) Or If bCompressNow Then
     If sExt = "png" And If Settings["/CompressPng", 1] Then Return $sPngQuant
   Endif
   
+  If IsMissing(bCompressNow) Or If Not bCompressNow Then
+    If $aExt.Exist(sExt) Then Return True
+  Endif
+  
 End
-
 
 Private Sub InitJavascriptKeywords()
   
@@ -51,8 +56,7 @@ Private Sub InitJavascriptKeywords()
   
   $cKeyword = New Collection
   
-  For Each sStr In ["break", "case", "catch", "class", "const", "continue", "debugger", "default", "delete", "do", "else", "enum", "export", "extends", "finally", "for",
-    "function", "if", "import", "in", "instanceof", "new", "return", "super", "switch", "throw", "try", "typeof", "var", "void", "while", "with", "yield"]
+  For Each sStr In ["break", "case", "catch", "class", "const", "continue", "debugger", "default", "delete", "do", "else", "enum", "export", "extends", "finally", "for", "function", "if", "import", "in", "of", "instanceof", "new", "return", "super", "switch", "throw", "try", "typeof", "var", "void", "while", "with", "yield"]
     $cKeyword[sStr] = 0
   Next
   
@@ -64,11 +68,11 @@ Private Sub InitJavascriptKeywords()
   For Each sStr In ["break", "case", "continue", "delete", "do", "else", "finally", "in", "instanceof", "return", "throw", "try", "typeof", "void"]
     $cKeywordRegexp[sStr] = True
   Next
-   
+  
 End
 
 Private Sub SubstIdent(sIdent As String)
-
+  
   Dim sSubst As String
   Dim iIndex As Integer
   
@@ -87,22 +91,22 @@ Private Sub SubstIdent(sIdent As String)
       sSubst &= Mid$(SUBST_CAR, 1 + iIndex Mod Len(SUBST_CAR), 1) '& sSubst
       iIndex \= Len(SUBST_CAR)
     Wend
-  
+    
     If Not $cIdent.Exist(sSubst) And If Not $cKeyword.Exist(sSubst) Then Break
-  
+    
   Loop
   
   $cSubst[sIdent] = sSubst
-
+  
 End
 
 Private Sub GetSubstIdent(sIdent As String) As String
-
+  
   Return $cSubst[sIdent]
-
+  
 End
 
-Public Sub Javascript(sText As String) As String
+Private Sub CompressJavascript(sText As String) As String
   
   Dim sRes As String
   Dim iPos As Integer
@@ -124,7 +128,7 @@ Public Sub Javascript(sText As String) As String
   Dim sLastKeyword As String
   
   If Not $cKeyword Then InitJavascriptKeywords
-
+  
   $cIdent = New Collection
   $cSubst = New Collection
   $iSubst = 0
@@ -199,13 +203,13 @@ Public Sub Javascript(sText As String) As String
     Endif
     
   Next
-
+  
   ' Compression
-
+  
   bComment = False
   bOneLineComment = False
   sString = ""
-
+  
   For iPos = 1 To iLen
     
     sCar = Mid$(sText, iPos, 1)
@@ -386,7 +390,7 @@ Public Sub Javascript(sText As String) As String
   
 End
 
-Public Sub Css(sText As String) As String
+Private Sub CompressCss(sText As String) As String
   
   Dim sRes As String
   Dim iPos As Integer
@@ -465,7 +469,7 @@ Public Sub Css(sText As String) As String
   
 End
 
-Public Sub Html(sText As String) As String
+Private Sub CompressHtml(sText As String) As String
   
   Dim sRes As String
   Dim iPos As Integer
@@ -527,7 +531,7 @@ Public Sub Html(sText As String) As String
           iNewLine = (Len(sRes) + 255) And Not 255
         Endif
       Endif
-    
+      
       'If InStr(IDENT_CAR_CSS, Right(sRes)) = 0 Then Continue
       'If InStr(IDENT_CAR_CSS, Right$(sCar2)) = 0 Then Continue
     Endif
@@ -540,10 +544,14 @@ Public Sub Html(sText As String) As String
   
 End
 
-Public Sub Compress(sPath As String)
+Public Sub Compress(sPath As String) As Boolean
+  
+  Dim sText As String
+  Dim iLen As Integer
+  Dim fGain As Float
   
   Select Case File.Ext(sPath)
-  
+      
     Case "png"
       
       If Not $sPngQuant Then Return
@@ -551,7 +559,45 @@ Public Sub Compress(sPath As String)
       If Settings["/CompressPng", 1] = 0 Then Return
       ' pngquant -f --ext .png --quality 70-95 image.png
       Exec [$sPngQuant, "-f", "--ext", ".png", sPath] Wait
+    
+    Case "js", "css", "html", "htm"
+    
+      sText = File.Load(sPath)
+      iLen = Len(sText)
+    
+      If iLen > 0 Then
+    
+        Select File.Ext(sPath)
+          Case "js"
+            sText = CompressJavascript(sText)
+            
+          Case "css"
+            sText = CompressCss(sText)
+            
+          Case "html", "htm"
+            sText = CompressHtml(sText)
+        End Select
+        
+        fGain = Len(sText) / iLen
+        
+      Else
+        
+        fGain = 1
+    
+      Endif
+
+      If fGain < 0.95 Then File.Save(sPath, sText)
+  
+    Case Else
       
+      Return True
+
   End Select
-      
+  
+Catch 
+  
+  Dec Application.Busy
+  FMain.ShowError("<b>" & ("Unable to compress file.") & "</b><p>" & Error.Text & "\n<tt>" & Error.Backtrace.Join(" ") & "</tt>", sPath)
+  Return True
+  
 End

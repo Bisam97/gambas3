@@ -2,21 +2,117 @@
 
 Export
 
-Private $hFile As File
-Private $aField As String[]
-Private $sSeparator As String
-Private $sEscape As String
-Private $iLine As Integer
-
+'' Return if the end of file has been reached.
 Property Read Eof As Boolean
-Property Read Fields As String[]
+
+'' Return the name of the columns
+Property Fields, Columns As String[]
+
+'' Return the current line
 Property Read Line As Integer
 
-Public Sub _new(Path As String, Optional Separator As String = ",", Optional Escape As String = "\"")
+'' @{since 3.17}
+'' 
+'' Return or set the CSV file separator
+
+Property Separator As String Use $sSeparator
+
+'' @{since 3.17}
+'' 
+'' Return or set the CSV file escape character.
+
+Property Escape As String Use $sEscape
+
+'' @{since 3.17}
+'' 
+'' Return or set the CSV file charset.
+
+Property Charset As String Use $sCharset
+
+'' @{since 3.17}
+'' 
+'' Return or set if field names diacritics are kept or not.
+
+Property NoDiacritics As Boolean Use $bNoDiacritics
+
+'' @{since 3.17}
+'' 
+'' Return or set if field names are kept unchanged or not.
+''
+'' If this property is set, the [../NoDiacritics] property is ignored.
+
+Property KeepNames As Boolean Use $bKeepNames
+
+Static Private $bCreate As Boolean
+
+Private $hFile As File
+Private $aField As String[]
+Private $iLine As Integer
+Private $bWrite As Boolean
+
+'' Open a CSV file for reading and return it as a CsvFile object.
+''
+'' - ~Path~ is the path of the file.
+'' - ~Separator~ is the column separator, ',' by default.
+'' - ~Escape~ is the escape character, '"' by default.
+'' - ~Charset~ is the file charset. If not specified, it will be guessed.
+''
+'' Field names are automatically formatted: trailing and double white spaces are removed, and characters are converted to lower case.
+''
+'' If you want to keep the original field names, set the [../KeepNames] property just after the creation of the CsvFile object.
+
+Static Public Sub Open(Path As String, Optional Separator As String = ",", Optional Escape As String = "\"", Optional Charset As String) As CsvFile
   
-  Dim sLine As String
-  Dim iInd As Integer
-  Dim sField As String
+  Return New CsvFile(Path, Separator, Escape, Charset)
+  
+End
+
+'' Create a CSV file for writing and return it as a CsvFile object.
+''
+'' - ~Path~ is the path of the file.
+'' - ~Separator~ is the column separator, ',' by default.
+'' - ~Escape~ is the escape character, '"' by default.
+'' - ~Charset~ is the file charset. If not specified, it will be guessed.
+''
+'' [[ warning
+'' If another file with the same name already exists, it is erased.
+'' ]]
+''
+'' Field names are automatically formatted: trailing and double white spaces are removed, and characters are converted to lower case.
+''
+'' If you want to keep the original field names, set the [../KeepNames] property just after the creation of the CsvFile object.
+
+Static Public Sub Create(Path As String, Optional Separator As String = ",", Optional Escape As String = "\"", Optional Charset As String) As CsvFile
+
+  $bCreate = True
+  Return New CsvFile(Path, Separator, Escape, Charset)
+  
+End
+
+'' Create a new CsvFile for reading.
+''
+'' - ~Path~ is the path of the file.
+'' - ~Separator~ is the column separator, ',' by default.
+'' - ~Escape~ is the escape character, '"' by default.
+'' - ~Charset~ is the file charset. If not specified, it will be guessed.
+'' - ~NoDiacritics~ remove all diacritics from field names.
+''
+'' Field names are automatically formatted: trailing and double white spaces are removed, and characters are converted to lower case.
+''
+'' If you want to keep the original field names, set the [../KeepNames] property just after the creation of the CsvFile object.
+
+Public Sub _new(Path As String, Optional Separator As String = ",", Optional Escape As String = "\"", Optional Charset As String, Optional NoDiacritics As Boolean)
+  
+  $sSeparator = Separator
+  $sEscape = Escape
+  $sCharset = Charset
+  
+  If $bCreate Then
+    $bCreate = False
+    $bWrite = True
+    $hFile = Open Path For Output Create
+    Return
+  Endif
   
   If File.IsRelative(Path) Then
     If Path Begins "./" Then 
@@ -26,23 +122,55 @@ Public Sub _new(Path As String, Optional Separator As String = ",", Optional Esc
     Endif
   Endif
   
-  $hFile = Open Path
+  $bNoDiacritics = NoDiacritics
   
-  $sSeparator = Separator
-  $sEscape = Escape
+  $hFile = Open Path For Input
+  
+End
+
+Private Sub ReadFields()
+
+  Dim sLine As String
+  Dim iInd As Integer
+  Dim sField As String
   
   sLine = $hFile.ReadLine($sEscape)
+
+  If Not $sCharset And If Not String.IsValid(sLine) Then
+    $sCharset = "WINDOWS-1252"
+    Try sLine = Conv(sLine, $sCharset, "UTF-8")
+    If Error Then 
+      $sCharset = "ISO-8859-15"
+      Try sLine = Conv(sLine, $sCharset, "UTF-8")
+      If Error Then Error.Raise("Cannot guess charset")
+    Endif
+  Endif
+  
+  ' For all these stupid Windows softwares that put useless BOM in UTF-8 files.
+  If sLine Begins "\xEF\xBB\xBF" Then sLine = Mid$(sLine, 4)
+
   $aField = Split(sLine, $sSeparator, $sEscape)
   
   For iInd = 0 To $aField.Max
-    sField = Trim($aField[iInd])
-    sField = Replace(sField, String.Chr(160), " ")
-    sField = Replace(sField, "\n", " ")
-    sField = Replace(sField, "\t", " ")
-    While InStr(sField, "  ")
-      sField = Replace(sField, "  ", " ")
-    Wend
-    sField = String.LCase(sField)
+    
+    If Not $bKeepNames Then
+    
+      sField = Trim($aField[iInd])
+      
+      sField = Replace(sField, String.Chr(160), " ")
+      sField = Replace(sField, "\n", " ")
+      sField = Replace(sField, "\t", " ")
+      
+      While InStr(sField, "  ")
+        sField = Replace(sField, "  ", " ")
+      Wend
+      
+      sField = String.LCase(sField)
+      
+    Endif
+    
+    If $bNoDiacritics Then sField = String.RemoveDiacritics(sField)
+    
     If Not sField Then sField = "#" & CStr(iInd)
     $aField[iInd] = sField
   Next
@@ -50,6 +178,10 @@ Public Sub _new(Path As String, Optional Separator As String = ",", Optional Esc
   $iLine = 1
   
 End
+
+'' Read a row from the CSV file.
+''
+'' The row is returned as a collection of column values indexed by the column name.
 
 Public Sub Read() As Collection
   
@@ -59,11 +191,13 @@ Public Sub Read() As Collection
   Dim iInd As Integer
   
   If Eof($hFile) Then Return 
+  If Not $aField Then ReadFields
   
   cCol = New Collection(gb.IgnoreCase)
   
   Inc $iLine
   sLine = $hFile.ReadLine($sEscape)
+  If $sCharset Then sLine = Conv(sLine, $sCharset, "UTF-8")
   aLine = Split(sLine, $sSeparator, $sEscape)
   
   For iInd = 0 To Min($aField.Max, aLine.Max)
@@ -82,6 +216,7 @@ End
 
 Private Function Fields_Read() As String[]
 
+  If Not $aField Then ReadFields
   Return $aField.Copy()
 
 End
@@ -90,4 +225,108 @@ Private Function Line_Read() As Integer
 
   Return $iLine
 
+End
+
+Private Sub Fields_Write(Value As String[])
+
+  If Not $bWrite Then Error.Raise("Read-only property")
+  If Not Value Or If Value.Count < 1 Then Error.Raise("Bad number of columns")
+  $aField = Value.Copy()
+
+End
+
+Public Sub Close()
+  
+  Close #$hFile
+  
+End
+
+'' @{since 3.15}
+'' 
+'' Quote a string value for a CSV file.
+''
+'' - ~Value~ if the string value to quote.
+'' - ~Separator~ is the CSV file field separator. By default a comma.
+'' - ~Escape~ is the CSV file escape character. By default a double quote.
+''
+'' [[ info
+'' `"\r"` characters are automatically removed when the string value has to be escaped, because it makes Microsoft Excel&trade; fail.
+'' ]]
+
+Static Public Sub Quote(Value As String, Optional Separator As String = ",", Optional Escape As String = "\"") As String
+  
+  If InStr(Value, Separator) Or If InStr(Value, "\n") Or If InStr(Value, " ") Or If InStr(Value, Escape) Then
+    Return Escape & Replace(Replace(Value, "\r", ""), Escape, Escape & Escape) & Escape
+  Else
+    Return Value
+  Endif
+  
+End
+
+Private Sub Print(sVal As String, Optional bNoSep As Boolean)
+  
+  If Not bNoSep Then Print #$hFile, ",";
+
+  If InStr(sVal, $sSeparator) Or If InStr(sVal, "\n") Or If InStr(sVal, " ") Or If InStr(sVal, $sEscape) Then
+    If $sCharset Then
+      Print #$hFile, Conv($sEscape & Replace(Replace(sVal, "\r", ""), $sEscape, $sEscape & $sEscape) & $sEscape, "UTF-8", $sCharset);
+    Else
+      Print #$hFile, $sEscape; Replace(Replace(sVal, "\r", ""), $sEscape, $sEscape & $sEscape); $sEscape;
+    Endif
+  Else
+    If $sCharset Then
+      Print #$hFile, Conv(sVal, "UTF-8", $sCharset);
+    Else
+      Print #$hFile, sVal;
+    Endif
+  Endif
+  
+End
+
+'' Write a new row of columns in the CSV file.
+''
+'' - ~Line~ is the contents of the columns.
+''
+'' Line can be either a string array of column values (following the [../Columns] order), or a collection of column values indexed by column names.
+
+Public Sub Write({Line} As Variant)
+  
+  Dim I As Integer
+  Dim cLine As Collection
+  Dim aLine As String[]
+  
+  If $iLine = 0 Then
+
+    If Not $aField Or If $aField.Count < 1 Then Error.Raise("The Field property must be set first")
+
+    Print($aField[0], True)
+    For I = 1 To $aField.Max
+      Print($aField[I])
+    Next
+    Print #$hFile
+    Inc $iLine
+    
+  Endif
+  
+  Try cLine = {Line}
+  If cLine Then
+    Print(cLine[$aField[0]], True)
+    For I = 1 To $aField.Max
+      Print(cLine[$aField[I]])
+    Next
+  Else
+    Try aLine = {Line}
+    If aLine Then
+      Print(aLine[0], True)
+      For I = 1 To $aField.Max
+        Print(aLine[I])
+      Next
+    Else
+      Error.Raise("Type mismatch. Collection or Array expected")
+    Endif
+  Endif
+  
+  Print #$hFile
+  Inc $iLine
+  
 End

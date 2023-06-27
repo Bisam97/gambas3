@@ -7,6 +7,10 @@
 #define TRUE 1
 #define FALSE 0
 
+#define MAX(a, b) ({ __typeof__(a) _a = (a), _b = (b); _a > _b ? _a : _b; })
+#define MIN(a, b) ({ __typeof__(a) _a = (a), _b = (b); _a < _b ? _a : _b; })
+#define MIN_MAX(v, a, b) ({ __typeof__(v) _v = (v), _a = (a), _b = (b); _v < _a ? _a : (_v > _b ? _b : _v); })
+
 // __attribute__((noreturn)) makes gcc dizzy and slow as hell
 #define NORETURN 
 
@@ -22,6 +26,8 @@
 #define E_BOUND     21
 #define E_ZERO      26
 #define E_IOBJECT   29
+#define E_SARRAY    65
+#define E_UTYPE     71
 
 static inline double frac(double x)
 {
@@ -135,7 +141,9 @@ typedef
 #define EP (JIT.exec->ep)
 
 #define THROW(_err) ({ SP = sp; JIT.throw(_err); })
+#define THROW_PC(_err, _pc) ({ PC = &pc[_pc]; THROW(_err); })
 #define THROW_TYPE(_t1, _t2) ({ SP = sp; JIT.throw_type(_t1, _t2); })
+#define THROW_TYPE_PC(_t1, _t2, _pc) ({ PC = &pc[_pc]; THROW_TYPE(_t1, _t2); })
 
 #define CHECK_FINITE(_val) ({ if (!isfinite(_val)) THROW(E_OVERFLOW); (_val); })
 
@@ -194,7 +202,7 @@ typedef
 #define RETURN_v(_val) ({ GB_VARIANT _v = (_val); GB.ReturnVariant(&_v.value); })
 #define RETURN_s(_val) (*(GB_STRING *)GB.GetReturnValue() = (_val))
 
-#define PUSH_b(_val) ({ char _v = -(_val); sp->_boolean.value = _v; sp->type = GB_T_BOOLEAN; sp++; })
+#define PUSH_b(_val) ({ sp->_boolean.value = ((_val) ? -1 : 0); sp->type = GB_T_BOOLEAN; sp++; })
 #define PUSH_c(_val) ({ uchar _v = (_val); sp->_integer.value = _v; sp->type = GB_T_BYTE; sp++; })
 #define PUSH_h(_val) ({ short _v = (_val); sp->_integer.value = _v; sp->type = GB_T_SHORT; sp++; })
 #define PUSH_i(_val) ({ sp->_integer.value = (_val); sp->type = GB_T_INTEGER; sp++; })
@@ -317,6 +325,11 @@ enum
 
 #define GET_FUNCTION(_pc) ({ CALL_UNKNOWN(_pc); POP_u(); })
 
+#define GET_STRING_ADDR(_val) ({ \
+  GB_STRING temp = (_val); \
+  temp.value.addr + temp.value.start; \
+})
+
 // TODO: automatic class
 #define ADDR(_val) ({ \
   char *_object = (_val).value; \
@@ -346,15 +359,12 @@ enum
 #define GET_o(_addr, _type) GET_OBJECT((*(char **)(_addr)), _type)
 #define GET_v(_addr) GET_VARIANT((*(GB_VARIANT_VALUE *)(_addr)))
 #define GET_S(_ref, _addr, _type) GET_OBJECT(JIT.static_struct((_ref), (_type), (_addr)), _type)
-
 #define GET_A(_class, _ref, _addr, _type, _desc) ({ \
   SP = sp; \
-  GB.Unref(&ra); \
-  ra = JIT.static_array((_class), (_ref), (void *)(_desc), (_addr)); \
-  GET_OBJECT(ra, _type); \
+  GET_OBJECT(JIT.static_array((_class), (_ref), (void *)(_desc), (_addr)), _type); \
 })
 
-#define SET_b(_addr, _val) (GET_b(_addr) = (_val))
+#define SET_b(_addr, _val) (GET_b(_addr) = ((_val) ? -1 : 0))
 #define SET_c(_addr, _val) (GET_c(_addr) = (_val))
 #define SET_h(_addr, _val) (GET_h(_addr) = (_val))
 #define SET_i(_addr, _val) (GET_i(_addr) = (_val))
@@ -366,6 +376,13 @@ enum
 #define SET_s(_addr, _val) ({ GB_VALUE temp = (GB_VALUE)(_val); GB.StoreString((GB_STRING *)&temp, (char **)(_addr)); })
 #define SET_o(_addr, _val) ({ GB_VALUE temp = (GB_VALUE)(_val); GB.StoreObject((GB_OBJECT *)&temp, (void **)(_addr)); })
 #define SET_v(_addr, _val) ({ GB_VALUE temp = (GB_VALUE)(_val); GB.StoreVariant((GB_VARIANT *)&temp, (GB_VARIANT_VALUE *)(_addr)); })
+#define SET_SA(_class, _addr, _ctype, _val) ({ \
+  GB_VALUE temp = (GB_VALUE)(_val); \
+  int ctype = (_ctype); \
+  GB.BorrowValue(&temp); \
+  JIT.value_class_write((_class), &temp, (_addr), *(JIT_CTYPE *)&ctype); \
+  GB.ReleaseValue(&temp); \
+})
 
 #define GET_ARRAY_UNSAFE(_type, _array, _index) ({ \
   GB_ARRAY_IMPL *_a = (_array).value; \
@@ -377,6 +394,7 @@ enum
   GB_ARRAY_IMPL *_a = (_array).value; \
   int _i = (_index); \
   if (!_a) THROW(E_NOBJECT); \
+  if (_a->ref == _a) THROW(E_SARRAY); \
   if (_i < 0 || _i >= _a->count) THROW(E_BOUND); \
   &((_type *)_a->data)[_i]; \
 })
@@ -399,7 +417,7 @@ enum
 
 #define POP_ARRAY(_type, _array, _index, _val, _unsafe) (*GET_ARRAY##_unsafe(_type, _array, _index) = (_val))
 
-#define POP_ARRAY_b(_array, _index, _val, _unsafe) POP_ARRAY(bool, _array, _index, _val, _unsafe)
+#define POP_ARRAY_b(_array, _index, _val, _unsafe) POP_ARRAY(bool, _array, _index, ((_val) ? -1 : 0), _unsafe)
 #define POP_ARRAY_c(_array, _index, _val, _unsafe) POP_ARRAY(uchar, _array, _index, _val, _unsafe)
 #define POP_ARRAY_h(_array, _index, _val, _unsafe) POP_ARRAY(short, _array, _index, _val, _unsafe)
 #define POP_ARRAY_i(_array, _index, _val, _unsafe) POP_ARRAY(int, _array, _index, _val, _unsafe)
@@ -529,7 +547,7 @@ enum
 
 #define CALL_UNKNOWN(_pc) ({ JIT.call_unknown(&pc[_pc], &sp); })
 
-#define ENUM_FIRST(_code, _plocal, _penum) ({ GB.Unref(&(_penum).value); (_penum).type = 0; JIT.enum_first(_code, (GB_VALUE *)&_plocal, (GB_VALUE*)&_penum); })
+#define ENUM_FIRST(_code, _plocal, _penum) ({ GB.Unref(&(_penum).value); (_penum).type = 0; JIT.enum_first(_code, (GB_VALUE *)&_plocal, (GB_VALUE *)&_penum); })
 
 #define ENUM_NEXT(_code, _plocal, _penum, _label) ({ \
   SP = sp; \
@@ -570,3 +588,107 @@ enum
   (_v >= 0) ? floor(_v) : -floor(fabs(_v)); \
 })
 
+#define GET_STRING(_addr, _start, _len) ({ \
+  GB_STRING temp; \
+  temp.type = GB_T_STRING; \
+  temp.value.addr = (char *)(_addr); \
+  temp.value.start = (_start); \
+  temp.value.len = (_len); \
+  temp; })
+
+#define SUBR_LEFT(_str, _len) ({ \
+  GB_STRING temp =  (_str); \
+  int len = (_len); \
+  if (len < 0) \
+    len += (_str).value.len; \
+  if (len < 0) \
+    temp.value.len = 0; \
+  else if (len < temp.value.len) \
+    temp.value.len = len; \
+  temp; })
+
+#define SUBR_RIGHT(_str, _len) ({ \
+  GB_STRING temp =  (_str); \
+  int len = (_len); \
+  if (len < 0) \
+    len += (_str).value.len; \
+  int new_len = MIN_MAX(len, 0, temp.value.len); \
+  temp.value.start += temp.value.len - new_len; \
+  temp.value.len = new_len; \
+  temp; })
+
+#define SUBR_MID_END(_str, _pos, _pc) ({ \
+  GB_STRING temp =  (_str); \
+  int pos = (_pos) - 1; \
+  if (_pos < 0) THROW_PC(E_ARG, _pc); \
+  temp.value.len -= pos; \
+  if (temp.value.len <= 0) \
+    temp.value.len = 0; \
+  else \
+    temp.value.start += pos; \
+  temp; })
+
+#define SUBR_MID(_str, _pos, _len, _pc) ({ \
+  GB_STRING temp =  (_str); \
+  int pos = (_pos) - 1; \
+  if (pos < 0) THROW_PC(E_ARG, _pc); \
+  int len = (_len); \
+  if (len < 0) \
+    len = MAX(0, temp.value.len - pos + len); \
+  len = MIN_MAX(len, 0, temp.value.len - pos); \
+  if (len <= 0) \
+    temp.value.len = 0; \
+  else \
+  { \
+    temp.value.start += pos; \
+    temp.value.len = len; \
+  } \
+  temp; })
+
+#define MATH_ADD_UNSAFE(_ctype, _expr1, _expr2) ({_ctype _a = (_expr1); _ctype _b = (_expr2); _a + _b;})
+#define MATH_SUB_UNSAFE(_ctype, _expr1, _expr2) ({_ctype _a = (_expr1); _ctype _b = (_expr2); _a - _b;})
+#define MATH_MUL_UNSAFE(_ctype, _expr1, _expr2) ({_ctype _a = (_expr1); _ctype _b = (_expr2); _a * _b;})
+#define MATH_CONV_UNSAFE(_ctype, _expr) ((_ctype)(_expr))
+
+#if DO_NOT_CHECK_OVERFLOW
+
+#define MATH_ADD MATH_ADD_UNSAFE
+#define MATH_SUB MATH_SUB_UNSAFE
+#define MATH_MUL MATH_MUL_UNSAFE
+#define MATH_CONV MATH_CONV_UNSAFE
+
+#else
+
+#define MATH_ADD(_ctype, _expr1, _expr2) \
+({ \
+  _ctype result; \
+  if (__builtin_add_overflow((_ctype)(_expr1), (_ctype)(_expr2), &result)) \
+    THROW(E_OVERFLOW); \
+  result; \
+})
+
+#define MATH_SUB(_ctype, _expr1, _expr2) \
+({ \
+  _ctype result; \
+  if (__builtin_sub_overflow((_ctype)(_expr1), (_ctype)(_expr2), &result)) \
+    THROW(E_OVERFLOW); \
+  result; \
+})
+
+#define MATH_MUL(_ctype, _expr1, _expr2) \
+({ \
+  _ctype result; \
+  if (__builtin_mul_overflow((_ctype)(_expr1), (_ctype)(_expr2), &result)) \
+    THROW(E_OVERFLOW); \
+  result; \
+})
+
+#define MATH_CONV(_ctype, _expr) \
+({ \
+  _ctype result; \
+  if (__builtin_add_overflow((_expr), (_ctype)0, &result)) \
+    THROW(E_OVERFLOW); \
+  result; \
+})
+
+#endif

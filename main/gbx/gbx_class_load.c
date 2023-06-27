@@ -2,7 +2,7 @@
 
 	gbx_class_load.c
 
-	(c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+	(c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -172,6 +172,8 @@ static void check_version(CLASS *class, int loaded)
 		THROW_CLASS(class, "Bytecode too recent. Please upgrade Gambas.", "");
 	if (loaded < GAMBAS_PCODE_VERSION_MIN)
 		THROW_CLASS(class, "Bytecode too old. Please recompile the project.", "");
+
+	class->not_3_18 = loaded < 0x3180000;
 }
 
 
@@ -463,8 +465,6 @@ static void load_structure(CLASS *class, int *structure, int nfield)
 		sclass->load->sort = sclass->sort;
 
 	CLASS_search_special(sclass);
-	/*for (i = 0; i < MAX_SPEC; i++)
-		sclass->special[i] = NO_SYMBOL;*/
 
 	sclass->is_struct = TRUE;
 
@@ -598,8 +598,9 @@ static void load_and_relocate(CLASS *class, int len_data, CLASS_DESC **pstart, i
 
 	/* Creation flags */
 
-	class->auto_create = (info->flag & CI_AUTOCREATE) != 0;
-	class->no_create = (info->flag & CI_NOCREATE) != 0;
+	class->auto_create = (info->flag & CI_AUTO_CREATE) != 0;
+	class->no_create = (info->flag & CI_NO_CREATE) != 0;
+	class->is_test = (info->flag & CI_TEST) != 0;
 	//fprintf(stderr, "%s: info->flag = %d auto_create = %d no_create = %d\n", class->name, info->flag, class->auto_create, class->no_create);
 
 	/* Debugging information */
@@ -943,6 +944,8 @@ static void load_without_inits(CLASS *class)
 	COMPONENT *save;
 	CLASS_DESC *start;
 	char kind;
+	ARCHIVE *arch;
+	char *file_name;
 
 	//size_t alloc = MEMORY_size;
 
@@ -1002,7 +1005,8 @@ static void load_without_inits(CLASS *class)
 		fprintf(stderr, "COMPONENT_current = %s\n", COMPONENT_current ? COMPONENT_current->name : "NULL");
 	#endif
 
-	len = strlen(class->name);
+	file_name = class->data ? class->data : class->name;
+	len = strlen(file_name);
 
 	{
 		char name[len + 9];
@@ -1012,9 +1016,12 @@ static void load_without_inits(CLASS *class)
 		p = &name[8];
 
 		for (i = 0; i < len; i++)
-			*p++ = toupper(class->name[i]);
+			*p++ = toupper(file_name[i]);
 		*p = 0;
 
+		if (class->data)
+			IFREE(class->data);
+		
 		TRY
 		{
 			//class->mmapped = !STREAM_map(name, &class->data, &len_data);
@@ -1023,12 +1030,9 @@ static void load_without_inits(CLASS *class)
 		CATCH
 		{
 			COMPONENT_current = save;
-			THROW_CLASS(class, "Unable to load class file", "");
+			THROW_CLASS(class, ERROR_last.msg, "");
 		}
 		END_TRY
-
-		/*if (BUFFER_load_file(&class->data, FILE_get(name)))
-			THROW(E_CLASS, _class_name, "Unable to load class file", "");*/
 	}
 
 	COMPONENT_current = save;
@@ -1152,6 +1156,8 @@ static void load_without_inits(CLASS *class)
 			case CD_STATIC_PROPERTY:
 			case CD_PROPERTY_READ:
 			case CD_STATIC_PROPERTY_READ:
+			case CD_PROPERTY_WRITE:
+			case CD_STATIC_PROPERTY_WRITE:
 
 				desc->property.read = (void (*)())desc->gambas.val1;
 				desc->property.write = (void (*)())desc->gambas.val2;
@@ -1247,21 +1253,6 @@ static void load_without_inits(CLASS *class)
 
 	CLASS_search_special(class);
 
-	// JIT compilation
-
-	for (i = 0; i < class->load->n_func; i++)
-	{
-		if (class->load->func[i].fast)
-		{
-			ARCHIVE *arch = class->component ? class->component->archive : NULL;
-			
-			if (JIT_can_compile(arch))
-				JIT_compile(arch);
-
-			break;
-		}
-	}
-	
 	// Class is loaded...
 
 	class->in_load = FALSE;
@@ -1271,6 +1262,22 @@ static void load_without_inits(CLASS *class)
 	class->loaded = TRUE;
 	class->error = FALSE;
 
+	// JIT compilation
+
+	arch = class->component ? class->component->archive : NULL;
+	
+	if (JIT_can_compile(arch))
+	{
+		for (i = 0; i < class->load->n_func; i++)
+		{
+			if (class->load->func[i].fast)
+			{
+				JIT_compile(arch);
+				break;
+			}
+		}
+	}
+	
 	// Init breakpoints
 
 	if (EXEC_debug)
@@ -1300,6 +1307,8 @@ void CLASS_load_without_init(CLASS *class)
 
 void CLASS_run_inits(CLASS *class)
 {
+	COMPONENT *current = COMPONENT_current;
+	COMPONENT_current = NULL;
 	/* Call the static initializer */
 
 	EXEC.native = FALSE;
@@ -1313,6 +1322,10 @@ void CLASS_run_inits(CLASS *class)
 
 	/* _init */
 	EXEC_public(class, NULL, "_init", 0);
+	
+	EXEC_public(class, NULL, "_lang", 0);
+	
+	COMPONENT_current = current;
 }
 
 
@@ -1321,8 +1334,6 @@ void CLASS_load_real(CLASS *class)
 	bool load_without_init = _load_without_init;
 	char *name = class->name;
 	int len = strlen(name);
-
-	_load_without_init = FALSE;
 
 	if (!CLASS_is_loaded(class))
 	{
@@ -1333,15 +1344,15 @@ void CLASS_load_real(CLASS *class)
 		}
 	}
 
-	/*if (strcmp(class->name, "Project") == 0)
-		BREAKPOINT();*/
-	
 	load_without_inits(class);
 	class->loaded = TRUE;
 	class->ready = FALSE;
 
 	if (load_without_init)
+	{
+		_load_without_init = FALSE;
 		return;
+	}
 
 	class->ready = TRUE;
 	CLASS_run_inits(class);

@@ -1,6 +1,7 @@
 ' Gambas class file
 
 Public Enum TYPE_RECENT, TYPE_EXAMPLE, TYPE_SOFTWARE, TYPE_TEMPLATE
+Public Const PROJECT_BOX_SCALE_WIDTH As Integer = 32
 
 Event Click(Path As String, Another As Boolean)
 Event DblClick(Path As String)
@@ -18,7 +19,6 @@ Private $hObserver As Observer
 Private $iArrange As Integer
 Private $hObsList As Observer
 Private $dRecent As Date
-Private $sLastURL As String
 Private $hHelp As WebView
 Private $hCurrent As ProjectBox
 Private $iCount As Integer
@@ -82,6 +82,21 @@ Private Sub GetExamples() As String[]
 
 End
 
+Private Sub CreateProjectBox() As ProjectBox
+
+  Dim hProjectItem As ProjectBox
+
+  hProjectItem = New ProjectBox($hList) As "ProjectItem"
+  
+  If $iArrange = Arrange.Row Then
+    hProjectItem.ResizeScaled(PROJECT_BOX_SCALE_WIDTH, 17)
+  Else
+    hProjectItem.ResizeScaled(1, 12)
+  Endif
+  
+  Return hProjectItem
+
+End
 
 Private Sub FillWithExample()
 
@@ -106,11 +121,10 @@ Private Sub FillWithExample()
       $hHelp = New WebView($hList) As "ExampleWebView"
       $hHelp.MoveScaled(0, 0, 4, 4)
       $hHelp.Foreground = Color.LightForeground
-      $hHelp.HTML = "<html><body><style type=\"text/css\">BODY { font-family:sans-serif;font-style:italic;color:#" & Hex$(Color.LightForeground) & "; }</style>" & 
-        Subst(("Examples are stored on the Gambas farm server. Click &1 to access the farm server and download them..."), "<a href=\"farm://\">" & ("here") & "</a>") &
-        "</body></html>"
+      $hHelp.SetHtml("<html><body><style type=\"text/css\">BODY { font-family:sans-serif;font-style:italic;color:#" & Hex$(Color.LightForeground) & "; }</style>" & Subst(("Examples are stored on the Gambas farm server. Click &1 to access the farm server and download them..."), "<a href=\"farm://\">" & ("here") & "</a>") & "</body></html>")
     Endif
     $hList.Arrangement = Arrange.Fill
+    $hList.Margin = False
     $hFilter.Enabled = False
     
   Else
@@ -139,12 +153,8 @@ Private Sub FillWithExample()
       '   sLastDir = sDir
       ' Endif
       
-      hProjectItem = New ProjectBox($hList) As "ProjectItem"
-      If $iArrange = Arrange.Row Then
-        hProjectItem.ResizeScaled(32, 16)
-      Else
-        hProjectItem.ResizeScaled(1, 9)
-      Endif
+      hProjectItem = CreateProjectBox()
+      
       hProjectItem.ShowAuthors = True
       hProjectItem.Path = sExample
       'hProjectItem.Group = sGroup
@@ -246,12 +256,7 @@ Private Sub FillWithSoftware()
         sLastDir = sDir
       Endif
       
-      hProjectItem = New ProjectBox($hList) As "ProjectItem"
-      If $iArrange = Arrange.Row Then
-        hProjectItem.ResizeScaled(32, 16)
-      Else
-        hProjectItem.ResizeScaled(1, 9)
-      Endif
+      hProjectItem = CreateProjectBox()
       hProjectItem.ShowAuthors = True
       hProjectItem.ShowRemove = True
       hProjectItem.Path = sSoft
@@ -303,6 +308,7 @@ Private Sub FillWithTemplate()
   Dim sGroup As String
   Dim aSoft As String[]
   Dim sSoft As String
+  Dim sComp As String
   
   Inc Application.Busy
   $hList.Arrangement = Arrange.None
@@ -316,11 +322,18 @@ Private Sub FillWithTemplate()
 
     For Each sSoft In aSoft
     
-      hProjectItem = New ProjectBox($hList) As "ProjectItem"
-      hProjectItem.ResizeScaled(40, 16)
+      hProjectItem = CreateProjectBox()
+      hProjectItem.ResizeScaled(30, 20)
       hProjectItem.Path = sSoft
       hProjectItem.Group = sGroup
       hProjectItem.Template = True
+      
+      For Each sComp In hProjectItem.Info.Components
+        If Not Project.Documentation.Exist(sComp) Then
+          hProjectItem.Enabled = False
+          Break
+        Endif
+      Next
     
     Next
   
@@ -392,12 +405,7 @@ Private Sub FillWithRecent(bClear As Boolean)
       sLastTitle = sTitle
     Endif
     
-    hProjectItem = New ProjectBox($hList) As "ProjectItem"
-    If $iArrange = Arrange.Row Then
-      hProjectItem.ResizeScaled(32, 16)
-    Else
-      hProjectItem.ResizeScaled(1, 9)
-    Endif
+    hProjectItem = CreateProjectBox()
     hProjectItem.ShowAuthors = True
     hProjectItem.ShowRemove = True
     hProjectItem.Path = hRecent.Path
@@ -445,6 +453,8 @@ Public Sub ApplyFilter(sFilter As String)
   Dim hCtrl, hLast As Control
   Dim hProjectItem As ProjectBox
   Dim bShowEnd As Boolean
+
+  If Len(sFilter) And If Len(sFilter) < 3 Then Return
 
   $hList.Arrangement = Arrange.None
   
@@ -502,7 +512,7 @@ Public Sub dwgTitle_Draw()
   
   Dim hDrawingArea As DrawingArea = Last  
   
-  Paint.Background = Color.LightForeground
+  Paint.Background = Color.Merge(Color.LightForeground, Color.Foreground)
   Paint.DrawText(hDrawingArea.Tag, 1, 0, Paint.W, Paint.H, Align.BottomNormal)
   
 End
@@ -544,7 +554,7 @@ Public Sub ProjectItem_RemoveClick()
     If Message.Question(("Do you really want to uninstall this software?"), ("Uninstall"), ("Cancel")) = 1 Then
       sErr = CSoftware.UninstallFromPath(hItem.Path)
       If sErr Then
-        Message.Error(("Unable to uninstall software:") & "\n\n" & sErr)
+        FMain.ShowErrorWith(("Unable to uninstall software:"), sErr)
       Else
         Clear
         Fill
@@ -585,6 +595,7 @@ End
 Public Sub Filter_Change()
 
   ApplyFilter($hFilter.Text)
+  $hList.Scroll(0, 0)
 
 End
 
@@ -625,18 +636,22 @@ Private Sub AllowOpenExtern_Write(Value As Boolean)
 
 End
 
-Public Sub ExampleWebView_Link(sURL As String)
+Public Sub ExampleWebView_Start()
   
-  $sLastURL = sURL
+  Dim hTimer As Timer
+  
+  If Last.Link = "farm://" Then
+    hTimer = New Timer As "TimerFarm"
+    hTimer.Trigger
+    Stop Event
+  Endif
   
 End
 
-Public Sub ExampleWebView_Error()
+Public Sub TimerFarm_Timer()
   
-  If $sLastURL = "farm://" Then 
-    FSoftwareFarm.Run
-    Fill
-  Endif
+  FSoftwareFarm.Run
+  Fill
   
 End
 

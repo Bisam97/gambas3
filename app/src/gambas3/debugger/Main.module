@@ -1,0 +1,84 @@
+' Gambas module file
+
+Class Debug
+
+Private $hRemoteInput As File
+Private $hRemoteOutput As File
+
+Public Sub Main()
+
+  Dim sDir As String = Application.Path
+  
+  Component.Load("gb.debug")
+  
+  $hRemoteOutput = Open Pipe sDir &/ ".remote.out" For Write
+  $hRemoteInput = Open Pipe sDir &/ ".remote.in" For Read Watch 
+  
+End
+
+Public Sub Application_Read()
+
+  Dim sData As String
+  ' Dim hFile As File
+  
+  Line Input sData
+  
+  ' hFile = Open "/tmp/" & Application.Name & ".log" For Append
+  ' Print #hFile, sData
+  ' Close #hFile
+  
+  If sData Begins "p" Then
+    Debug.Signal(CInt(Mid$(sData, 2)))
+    Return
+  Else If sData Begins "i" Then
+    GetInfo(CInt(Mid$(sData, 2)))
+    Return
+  Endif
+  
+  Print #$hRemoteOutput, sData
+  
+End
+
+Public Sub File_Read()
+  
+  Dim sData As String = Read #Last, Lof(Last)
+  Print sData;
+  Flush
+  
+End
+
+Private Sub GetInfo(iProcessId As Integer)
+
+  Dim sDir As String
+  Dim iProcessFiles As Integer
+  Dim iProcessMemory As Long
+  Dim aMaps As String[]
+  Dim sMap As String
+  Dim iPos As Integer
+
+  sDir = "/proc" &/ CStr(iProcessId)
+  If Not IsDir(sDir) Then 
+    Print "i"
+    Return
+  Endif
+  
+  Try iProcessFiles = Dir(sDir &/ "fd").Count
+  If Error Then iProcessFiles = -1
+  
+  iProcessMemory = 0
+  Try aMaps = Split(Trim(File.Load(sDir &/ "smaps_rollup")), "\n")
+  If aMaps Then
+    For Each sMap In aMaps
+      If sMap Begins "Pss:" Then
+        sMap = LTrim(Mid$(sMap, 5))
+        iPos = InStr(sMap, " ")
+        iProcessMemory = CInt(Left(sMap, iPos - 1)) * 1024
+        Break
+      Endif
+    Next
+  Endif
+  
+  Print "i"; iProcessFiles; ","; iProcessMemory
+  Flush
+  
+End

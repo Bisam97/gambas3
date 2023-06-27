@@ -33,8 +33,10 @@ extern GB_DESC CMenuDesc[];
 extern GB_DESC CMenuChildrenDesc[];
 #else
 
-#define THIS  ((CMENU*)_object)
-#define MENU  ((gMenu*)THIS->widget)
+#define THIS  ((CMENU *)_object)
+#define MENU  ((gMenu *)THIS->widget)
+
+#define GET_MENU(_widget) ((gMenu *)_widget)->hFree ? ((gMenu *)_widget)->hFree : NULL
 
 #endif
 
@@ -46,7 +48,6 @@ typedef
 		GB_VARIANT_VALUE tag;
 		char *action;
 		char *save_text;
-		void *proxy;
 		unsigned init_shortcut : 1;
 	} 
 	CMENU;

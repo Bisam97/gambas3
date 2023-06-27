@@ -1,0 +1,43 @@
+#!/usr/bin/env gbs3 
+'Auto Generated Script 03/09/2021 17:23:23.708 Version (0.0.0)
+
+#Script Version="8.9.3"
+#Script Title="Plugin tester"
+#Script Description="This plugin is a test for the scripter"
+#Script Property=APPINTERFACE:"20.0.2"
+
+Public $sParmInfo as string = ""
+
+  Dim s As String = "sdfdfsdfdfssdfdsf"
+  Dim i As Variant = s
+  Dim sSum as string= ""
+  Print "------------------------------------------------------"
+  testptr(i)
+  
+  for each s as string in param
+    testptr(s)
+    sSum &= s & " , "
+  next
+  
+  return "Sum ["&sSum&"]"
+  
+Public Sub testptr(data As Variant)
+ Dim j As Pointer
+  
+  j = VarPtr(data)
+
+  Print "Input =", j, data
+  
+  print "New Parm was : ";;Quote($sParminfo)
+  
+End
+
+public sub _new(...)
+  dim parminfo as string = ""
+  for each v as variant in param
+    ParmInfo &= quote(cstr(v)) & ","
+  next
+  print "defined Version = "& $sVersion &"  Parminfo = ";ParmInfo
+  $sParmInfo = parminfo
+  
+end

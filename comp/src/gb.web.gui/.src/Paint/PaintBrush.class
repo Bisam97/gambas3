@@ -1,0 +1,47 @@
+' Gambas class file
+
+Export
+
+Property _Color As Variant Use $vColor
+Property _Image As String Use $sImage
+Property _Gradient As Gradient Use $hGradient
+Property Read _Type As Integer Use $iType
+
+Public Sub _new()
+
+  _Color_Write(0)
+
+End
+
+Private Sub _Color_Write(Value As Variant)
+
+  $sImage = ""
+  $hGradient = Null
+  If TypeOf(Value) = gb.Integer Then
+    $vColor = Color.ToHTML(Value)
+  Else If TypeOf(Value) = gb.String Then
+    $vColor = Value
+  Else 
+    Error.Raise("Incorrect color")
+  Endif
+  $iType = PaintDriver.BRUSH_COLOR
+
+End
+
+Private Sub _Gradient_Write(Value As Gradient)
+
+  $sImage = ""
+  $vColor = Null
+  $hGradient = Value
+  $iType = PaintDriver.BRUSH_GRADIENT
+
+End
+
+Private Sub _Image_Write(Value As String)
+
+  $sImage = Value
+  $hGradient = Null
+  $vColor = Null
+  $iType = PaintDriver.BRUSH_IMAGE
+
+End

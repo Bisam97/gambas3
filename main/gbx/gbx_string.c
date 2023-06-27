@@ -2,7 +2,7 @@
 
   gbx_string.c
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -115,6 +115,7 @@ static int _index = 0;
 
 STRING_MAKE STRING_make_buffer;
 #define _make STRING_make_buffer
+static bool _subst_add_unquote;
 
 static iconv_t _conv_unicode_utf8 = (iconv_t)-1;
 static iconv_t _conv_utf8_unicode = (iconv_t)-1;
@@ -128,7 +129,7 @@ static iconv_t _conv_utf8_unicode = (iconv_t)-1;
 
 #define SIZE_INC 16
 #define SIZE_INC2 256
-#define REAL_SIZE(_len) ((_len) >= 256 ? (((_len) + (SIZE_INC2 - 1)) & ~(SIZE_INC2 - 1)) : (((_len) + (SIZE_INC - 1)) & ~(SIZE_INC - 1)))
+#define SIZE_INC3 4096
 
 #define POOL_SIZE  16
 #define POOL_MAX   64
@@ -138,7 +139,37 @@ static iconv_t _conv_utf8_unicode = (iconv_t)-1;
 static STRING *_pool[POOL_SIZE] = { 0 };
 static char _pool_count[POOL_SIZE] = { 0 };
 
+static int real_size(int len)
+{
+	if (len < 256)
+		return (len + (SIZE_INC - 1)) & ~(SIZE_INC - 1);
+	else if (len < 4096)
+		return (len + (SIZE_INC2 - 1)) & ~(SIZE_INC2 - 1);
+	else
+		return (len + (SIZE_INC3 - 1)) & ~(SIZE_INC3 - 1);
+}
+
+#define REAL_SIZE(_len) real_size(_len)
+
 #ifdef DEBUG_ME
+
+static void dump_pool(int pool)
+{
+	STRING *str;
+	
+	//fprintf(stderr, "pool %d = [ ", pool);
+	str = _pool[pool];
+	while (str)
+	{
+		//fprintf(stderr, "%p ", str);
+		if (((intptr_t)str) & 1)
+		{
+			BREAKPOINT();
+		}
+		str = *((STRING **)str);
+	}
+	//fprintf(stderr, " ]\n");
+}
 
 static STRING *alloc_string(int _len) \
 { \
@@ -212,6 +243,16 @@ void STRING_free_real(char *ptr)
 	MEMORY_count--;
 #ifdef DEBUG_ME
 	fprintf(stderr, "[%d]\n", MEMORY_count);
+		
+	int i;
+	for (i = 0; i < STRING_last_count; i++)
+	{
+		if (STRING_last[i] == ptr)
+		{
+			fprintf(stderr, "%p (%p) already free later!\n", str, ptr);
+			BREAKPOINT();
+		}
+	}
 #endif
 
 	if (pool < POOL_SIZE)
@@ -220,12 +261,13 @@ void STRING_free_real(char *ptr)
 		{
 			#ifdef DEBUG_ME
 			fprintf(stderr, "STRING_free_real: (%p / %p) %d bytes to pool %d\n", str, ptr, size, pool);
-			str->ref = 0x87654321;
-			str->len = 0x87654321;
+			/*str->ref = 0x87654321;
+			str->len = 0x87654321;*/
 			#endif
 			*((STRING **)str) = _pool[pool];
 			_pool[pool] = str;
 			_pool_count[pool]++;
+			
 			return;
 		}
 	}
@@ -354,14 +396,16 @@ char *STRING_free_later(char *ptr)
 		//if (STRING_last[_index] && STRING_length(STRING_last[_index]) >= 1024)
 		//	fprintf(stderr, "STRING_free_later: free [%d] %d\n", _index, STRING_length(STRING_last[_index]));
 
-		STRING_unref(&STRING_last[_index]);
+		char *tmp = STRING_last[_index];
+		
+		STRING_last[_index] = ptr;
+		STRING_unref(&tmp);
 
 		#ifdef DEBUG_ME
 		fprintf(stderr, "STRING_free_later: post temp: %p '%s'\n", ptr, ptr);
 		fflush(stderr);
 		#endif
 
-		STRING_last[_index] = ptr;
 		//if (STRING_length(ptr) >= 1024)
 		//	fprintf(stderr, "STRING_free_later: [%d] = %d\n", _index, STRING_length(ptr));
 
@@ -369,6 +413,31 @@ char *STRING_free_later(char *ptr)
 
 		if (_index >= STRING_last_count)
 			_index = 0;
+		
+		#ifdef DEBUG_ME
+		int i, j;
+		fprintf(stderr, "later [ ");
+		for (i = 0; i < STRING_last_count; i++)
+		{
+			if (i == _index)
+				fprintf(stderr, "^");
+			fprintf(stderr, "%p ", STRING_last[i]);
+		}
+		fprintf(stderr, "]\n");
+		
+		for (i = 0; i < STRING_last_count; i++)
+		{
+			if (STRING_last[i])
+			{
+				for (j = i + 1; j < STRING_last_count; j++)
+					if (STRING_last[i] == STRING_last[j])
+					{
+						fprintf(stderr, "%p twice !\n", STRING_last[i]);
+						BREAKPOINT();
+					}
+			}
+		}
+		#endif		
 	}
 
 	return ptr;
@@ -381,7 +450,7 @@ int STRING_get_free_index(void)
 }
 
 
-void STRING_clear_cache(void)
+static void clear_cache(void)
 {
 	int i;
 
@@ -403,7 +472,7 @@ void STRING_clear_cache(void)
 
 void STRING_exit(void)
 {
-	STRING_clear_cache();
+	clear_cache();
 
 	#ifdef DEBUG_ME
 	fprintf(stderr, "STRING_exit\n");
@@ -519,7 +588,10 @@ void STRING_ref_real(char *ptr)
 	DEBUG_where();
 	fprintf(stderr, "STRING_ref: %p ( %d -> %d )\n", ptr, str->ref, str->ref + 1);
 	if (str->ref < 0 || str->ref > 10000)
+	{
 		fprintf(stderr, "*** BAD\n");
+		BREAKPOINT();
+	}
 	fflush(stderr);
 	#endif
 
@@ -718,7 +790,7 @@ char *STRING_subst(const char *str, int len, SUBST_FUNC get_param)
 char *STRING_subst_add(const char *str, int len, SUBST_ADD_FUNC add_param)
 {
 	uint i;
-	char c;
+	char c, before;
 	int np;
 
 	if (!str)
@@ -728,10 +800,14 @@ char *STRING_subst_add(const char *str, int len, SUBST_ADD_FUNC add_param)
 		len = strlen(str);
 
 	STRING_start_len(len);
+	_subst_add_unquote = FALSE;
+
+	before = 0;
 
 	for (i = 0; i < len; i++)
 	{
 		c = str[i];
+
 		if (c == '&')
 		{
 			np = get_param_index(str, len, &i, NULL);
@@ -747,14 +823,30 @@ char *STRING_subst_add(const char *str, int len, SUBST_ADD_FUNC add_param)
 				case INDEX_ERROR:
 					break;
 				default:
-					(*add_param)(np);
+					(*add_param)(np, before, (i < (len - 1)) ? str[i + 1] : 0);
+					if (_subst_add_unquote)
+					{
+						i++;
+						_subst_add_unquote = FALSE;
+					}
 			}
 		}
 		else
 			STRING_make_char(c);
+
+		before = c;
 	}
 
 	return STRING_end_temp();
+}
+
+
+void STRING_subst_add_unquote()
+{
+	if (_subst_add_unquote)
+		return;
+	STRING_make_undo_char();
+	_subst_add_unquote = TRUE;
 }
 
 
@@ -871,7 +963,7 @@ char *STRING_end()
 	if (_make.ntemp)
 		STRING_make_dump();
 
-	if (_make.len)
+	if (_make.len > 0)
 	{
 		_make.buffer = STRING_extend(_make.buffer, _make.len);
 		_make.buffer[_make.len] = 0;

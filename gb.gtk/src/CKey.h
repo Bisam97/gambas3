@@ -30,5 +30,6 @@
 extern GB_DESC CKeyDesc[];
 #endif
 
+int KEY_get_keyval_from_name(const char *name);
 
 #endif

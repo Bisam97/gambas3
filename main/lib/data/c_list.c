@@ -674,11 +674,11 @@ static void CLIST_append(CLIST *list, GB_VARIANT *var)
 
 	ck = get_chunk(list->list.next);
 	/* (A) */
-	if (UNLIKELY(!list->count)) {
+	if (!list->count) {
 		ck = CHUNK_new();
 		ck->first = ck->last = CHUNK_SIZE / 2 - 1;
 		LIST_append(&list->list, &ck->list);
-	} else if (UNLIKELY(ck->first == 0)) {
+	} else if (ck->first == 0) {
 		ck = CHUNK_new();
 		ck->first = ck->last = CHUNK_SIZE - 1;
 		LIST_append(&list->list, &ck->list);
@@ -704,11 +704,11 @@ static void CLIST_prepend(CLIST *list, GB_VARIANT *var)
 
 	ck = get_chunk(list->list.prev);
 	/* (A) */
-	if (UNLIKELY(!list->count)) {
+	if (!list->count) {
 		ck = CHUNK_new();
 		ck->first = ck->last = CHUNK_SIZE / 2 - 1;
 		LIST_prepend(&list->list, &ck->list);
-	} else if (UNLIKELY(ck->last == CHUNK_SIZE - 1)) {
+	} else if (ck->last == CHUNK_SIZE - 1) {
 		ck = CHUNK_new();
 		ck->first = ck->last = 0;
 		LIST_prepend(&list->list, &ck->list);
@@ -1015,7 +1015,7 @@ no_move:
 			 * element of the list, then set it to zero. Kind
 			 * of a nasty condition to occur but this is the
 			 * only difficulty here because of (B). */
-			if (UNLIKELY(vlgi == list->count && vlgi == blgi))
+			if (vlgi == list->count && vlgi == blgi)
 				__vp->lgi = 0;
 			else if (__vp->lgi < 0)
 				__vp->lgi++;

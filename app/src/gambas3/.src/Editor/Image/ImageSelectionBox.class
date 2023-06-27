@@ -1,0 +1,102 @@
+' Gambas class file
+
+Inherits UserControl
+
+Event Add
+
+Property Read Shape As CImageSelection Use $hShape
+Property Read NoDelete As Boolean Use $bNoDelete
+
+Private $hDrawingArea As DrawingArea
+Private $hDelete As ToolButton
+Private $hAdd As ToolButton
+
+Public Sub _new(hImageSelection As CImageSelection, bNoDelete As Boolean)
+  
+  $hDrawingArea = New DrawingArea(Me) As "DrawingArea"
+  
+  $hShape = hImageSelection
+  $bNoDelete = bNoDelete
+  Me.ResizeScaled(12, 12)
+  Me.Mouse = Mouse.Pointing
+  
+  If Not bNoDelete Then
+    $hDelete = New ToolButton($hDrawingArea) As "DeleteButton"
+    $hDelete.Picture = Picture["icon:/small/close"]
+    $hDelete.MoveScaled(9, 0, 3, 3)
+    $hDelete.Hide
+  Endif
+  
+  $hAdd = New ToolButton($hDrawingArea) As "AddButton"
+  $hAdd.Picture = Picture["icon:/small/add"]
+  $hAdd.MoveScaled(0, 0, 3, 3)
+  $hAdd.Hide
+  
+End
+
+Public Sub DrawingArea_Draw()
+  
+  Dim X, Y, W, H As Integer
+  Dim S As Float
+  Dim DS As Integer
+
+  DS = Desktop.Scale
+
+  If Me.Hovered Then
+    Paint.DrawRect(0, 0, Paint.W, Paint.H, Color.LightForeground, 2)
+  Else
+    Paint.DrawRect(0, 0, Paint.W, Paint.H, Color.LightForeground, 1)
+  Endif
+
+  X += DS \ 2
+  Y += DS \ 2
+  W = Paint.W - DS
+  H = Paint.H - DS
+  
+  Paint.Rectangle(X, Y, W, H)
+  Paint.Clip
+  
+  With $hShape.GetExtents()
+    
+    S = Min((W - 16) / .W, (H - 16) / .H)
+  
+    Paint.Background = Color.Black
+    Paint.Translate(X - .X * S + (W - .W * S) / 2 + 0.5, Y - .Y * S + (H - .H * S) / 2 + 0.5)
+    Paint.Scale(S, S)
+    Paint.LineWidth = 1 / S
+    Paint.Dash = [2, 2]
+    
+  End With
+  
+  $hShape.Paint(Null, CImageSelection.ACTION_STROKE)
+  
+End
+
+Public Sub DrawingArea_Enter()
+  
+  If $hDelete Then $hDelete.Show
+  $hAdd.Show
+  $hDrawingArea.Refresh
+  
+End
+
+Public Sub DrawingArea_Leave()
+  
+  If $hDelete Then $hDelete.Hide
+  $hAdd.Hide
+  $hDrawingArea.Refresh
+  
+End
+
+Public Sub DeleteButton_Click()
+  
+  Me.Delete
+  
+End
+
+Public Sub AddButton_Click()
+
+  Raise Add
+  
+End 
+

@@ -2,7 +2,7 @@
 
   CTextArea.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,11 +24,11 @@
 #ifndef __CTEXTAREA_H
 #define __CTEXTAREA_H
 
+#include <QPlainTextEdit>
+
 #include "gambas.h"
 
 #include "CWidget.h"
-
-#include <QPlainTextEdit>
 
 #ifndef __CTEXTAREA_CPP
 extern GB_DESC CTextAreaDesc[];

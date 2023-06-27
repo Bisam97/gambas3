@@ -4,7 +4,7 @@
 
   gb.media component
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -296,7 +296,7 @@ BEGIN_PROPERTY(MediaPlayerVideo_Visualisation)
 		
 		playing = THIS_CONTROL->state == GST_STATE_PLAYING;
 		if (playing)
-			MEDIA_set_state(THIS, GST_STATE_PAUSED, FALSE);
+			MEDIA_set_state(THIS, GST_STATE_PAUSED, FALSE, FALSE);
 		
 		//set_control(THIS, "vis-plugin", NULL);
 		//if (vis)
@@ -305,7 +305,7 @@ BEGIN_PROPERTY(MediaPlayerVideo_Visualisation)
 			set_flag(THIS, GST_PLAY_FLAG_VIS, TRUE);
 		
 		if (playing)
-			MEDIA_set_state(THIS, GST_STATE_PLAYING, FALSE);
+			MEDIA_set_state(THIS, GST_STATE_PLAYING, FALSE, FALSE);
 	}
 
 END_PROPERTY

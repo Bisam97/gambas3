@@ -2,7 +2,7 @@
 
   c_color.c
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -187,6 +187,20 @@ int COLOR_get_luminance(GB_COLOR col)
 }
 
 
+int COLOR_invert_luminance(int l)
+{
+	double m = 0.7;
+	double d = l / 255.0;
+	
+	if (d < m)
+		d = 1 - (d * (1 - m) / m);
+	else
+		d = (1 - d) * m / (1 - m);
+	
+	return (int)(255 * d);
+}
+
+
 static void set_luminance(CCOLOR *_object, int l)
 {
 	int c;
@@ -318,6 +332,8 @@ GB_COLOR COLOR_darker(GB_COLOR color)
 	
 	return v;
 }
+
+//-------------------------------------------------------------------------
 
 BEGIN_METHOD(Color_RGB, GB_INTEGER r; GB_INTEGER g; GB_INTEGER b; GB_INTEGER a)
 
@@ -597,7 +613,44 @@ BEGIN_METHOD(Color_Distance, GB_INTEGER col1; GB_INTEGER col2)
 
 END_METHOD
 
-GB_DESC CColorInfoDesc[] =
+BEGIN_METHOD(Color_Invert, GB_INTEGER color; GB_BOOLEAN keep_hue)
+
+	GB_COLOR color = VARG(color);
+
+	if (VARGOPT(keep_hue, FALSE))
+	{
+		GB.ReturnInteger(COLOR_set_luminance(color, COLOR_invert_luminance(COLOR_get_luminance(color))));
+	}
+	else
+	{
+		int r, g, b, a;
+		gt_color_to_rgba(color, &r, &g, &b, &a);
+		GB.ReturnInteger(gt_rgba_to_color(255 - r, 255 - g, 255 - b, a));
+	}
+
+END_METHOD
+
+BEGIN_METHOD(Color_ToHTML, GB_INTEGER color)
+
+	char buffer[32];
+	int r, g, b, a;
+	int len;
+
+	gt_color_to_rgba(VARG(color), &r, &g, &b, &a);
+	a = 255 - a;
+
+	if (a < 255)
+		len = sprintf(buffer, "rgba(%d,%d,%d,0.%03d)", r, g, b, (int)(a / 255.0 * 1000));
+	else
+		len = sprintf(buffer, "#%02X%02X%02X", r, g, b);
+
+	GB.ReturnNewString(buffer, len);
+
+END_METHOD
+
+//-------------------------------------------------------------------------
+
+GB_DESC ColorInfoDesc[] =
 {
   GB_DECLARE("ColorInfo", sizeof(CCOLOR)), GB_NOT_CREATABLE(),
 
@@ -614,11 +667,11 @@ GB_DESC CColorInfoDesc[] =
   GB_END_DECLARE
 };
 
-GB_DESC CColorDesc[] =
+GB_DESC ColorDesc[] =
 {
   GB_DECLARE_STATIC("Color"),
 
-  GB_CONSTANT("Default", "i", COLOR_DEFAULT),
+  GB_CONSTANT("Default", "i", GB_COLOR_DEFAULT),
 
   GB_CONSTANT("Black", "i", 0x000000),
   GB_CONSTANT("White", "i", 0xFFFFFF),
@@ -629,30 +682,50 @@ GB_DESC CColorDesc[] =
 
   GB_CONSTANT("Blue", "i", 0x0000FF),
   GB_CONSTANT("DarkBlue", "i", 0x000080),
+  GB_CONSTANT("SoftBlue", "i", 0x8080FF),
 
   GB_CONSTANT("Green", "i", 0x00FF00),
   GB_CONSTANT("DarkGreen", "i", 0x008000),
+  GB_CONSTANT("SoftGreen", "i", 0x80FF80),
 
   GB_CONSTANT("Red", "i", 0xFF0000),
   GB_CONSTANT("DarkRed", "i", 0x800000),
+  GB_CONSTANT("SoftRed", "i", 0xFF8080),
 
   GB_CONSTANT("Cyan", "i", 0x00FFFF),
   GB_CONSTANT("DarkCyan", "i", 0x008080),
+  GB_CONSTANT("SoftCyan", "i", 0x80FFFF),
 
-  GB_CONSTANT("Magenta", "i", 0x00FF00FF),
-  GB_CONSTANT("DarkMagenta", "i", 0x00800080),
+  GB_CONSTANT("Magenta", "i", 0xFF00FF),
+  GB_CONSTANT("DarkMagenta", "i", 0x800080),
+  GB_CONSTANT("SoftMagenta", "i", 0xFF80FF),
+  GB_CONSTANT("Pink", "i", 0xFF80FF),
 
   GB_CONSTANT("Yellow", "i", 0xFFFF00),
   GB_CONSTANT("DarkYellow", "i", 0x808000),
+  GB_CONSTANT("SoftYellow", "i", 0xFFFF80),
 
   GB_CONSTANT("Orange", "i", 0xFF8000),
+  GB_CONSTANT("DarkOrange", "i", 0x804000),
+  GB_CONSTANT("SoftOrange", "i", 0xFFC080),
+  
   GB_CONSTANT("Violet", "i", 0x8000FF),
-  GB_CONSTANT("Pink", "i", 0xFF80FF),
+  GB_CONSTANT("DarkViolet", "i", 0x400080),
+  GB_CONSTANT("SoftViolet", "i", 0xC080FF),
+
+  GB_CONSTANT("Royal", "i", 0x0080FF),
+  GB_CONSTANT("DarkRoyal", "i", 0x004080),
+  GB_CONSTANT("SoftRoyal", "i", 0x80C0FF),
+
+  GB_CONSTANT("Purple", "i", 0xFF0080),
+  GB_CONSTANT("DarkPurple", "i", 0x800040),
+  GB_CONSTANT("SoftPurple", "i", 0xFF80C0),
 
   GB_CONSTANT("Transparent", "i", 0xFF000000),
 
   GB_STATIC_METHOD("RGB", "i", Color_RGB, "(Red)i(Green)i(Blue)i[(Alpha)i]"),
   GB_STATIC_METHOD("HSV", "i", Color_HSV, "(Hue)i(Saturation)i(Value)i[(Alpha)i]"),
+  GB_STATIC_METHOD("_call", "i", Color_RGB, "(Red)i(Green)i(Blue)i[(Alpha)i]"),
 
   GB_STATIC_METHOD("Lighter", "i", Color_Lighter, "(Color)i"),
   GB_STATIC_METHOD("Darker", "i", Color_Darker, "(Color)i"),
@@ -660,6 +733,7 @@ GB_DESC CColorDesc[] =
   GB_STATIC_METHOD("Gradient", "i", Color_Gradient, "(Color1)i(Color2)i[(Weight)f]"),
   GB_STATIC_METHOD("Blend", "i", Color_Blend, "(Source)i(Destination)i"),
   GB_STATIC_METHOD("Desaturate", "i", Color_Desaturate, "(Color)i"),
+  GB_STATIC_METHOD("Invert", "i", Color_Invert, "(Color)i[(KeepHue)b]"),
 
 	GB_STATIC_METHOD("SetAlpha", "i", Color_SetAlpha, "(Color)i(Alpha)i"),
 	GB_STATIC_METHOD("SetRGB", "i", Color_SetRGB, "(Color)i[(Red)i(Green)i(Blue)i(Alpha)i]"),
@@ -667,6 +741,8 @@ GB_DESC CColorDesc[] =
 	GB_STATIC_METHOD("GetAlpha", "i", Color_GetAlpha, "(Color)i"),
 
   GB_STATIC_METHOD("Distance", "f", Color_Distance, "(Color1)i(Color2)i"),
+
+  GB_STATIC_METHOD("ToHTML", "s", Color_ToHTML, "(Color)i"),
 
   GB_STATIC_METHOD("_get", "ColorInfo", Color_get, "(Color)i"),
   //GB_STATIC_METHOD("_call", "ColorInfo", Color_get, "(Color)i"),

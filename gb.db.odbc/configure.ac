@@ -3,11 +3,11 @@ dnl ---- configure.ac for gb.db.odbc driver
 dnl ---- Initialization
 
 m4_include([../version.m4])
-AC_INIT(gambas3-gb-db-odbc, GB_VERSION, GB_MAIL, [], GB_URL)
+AC_INIT([gambas3-gb-db-odbc],[GB_VERSION],[GB_MAIL],[],[GB_URL])
 AC_CONFIG_MACRO_DIR([m4])
 
 GB_INIT(gb.db.odbc)
-AC_PROG_LIBTOOL
+LT_INIT
 
 dnl ---- ODBC driver
 
@@ -19,9 +19,10 @@ GB_COMPONENT(
  
 dnl ---- Create makefiles
 
-AC_OUTPUT( \
+AC_CONFIG_FILES([\
 Makefile \
 src/Makefile \
-)
+])
+AC_OUTPUT
 
 GB_PRINT_MESSAGES

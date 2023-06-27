@@ -1,0 +1,179 @@
+' Gambas module file
+
+''' Lists tests, Run tests, parse output and collect statistics.
+
+Export
+
+Private $hParser As TapParser
+Private $hStats As TestStats
+
+' Subtest stack and the current subtest
+Private $aSubtests As New TestAssertion[]
+Private $hCurrent As TestAssertion
+Private $bEndSubtest As Boolean
+
+'' Returns all tests in a project given by path
+Public Sub List(Project As String) As TestCommand[]
+
+    Dim sTests As String
+
+    'triggers gb.test inside a project to inspect 
+    'the project and return all tests inside as string
+    Exec ["gbx3", "-T", Test._TRIG_GETTESTS, Project] To sTests
+
+    If sTests Begins "Bail out!" Then
+        Error.Raise(Subst("gb.test crashed with this error: &1", sTests))
+    Endif
+
+    Return TestCommand.FromString(sTests)
+
+End
+
+'' Runs Tests in a project given by path
+
+Public Sub Run(Project As String, Optional Tests As String) As TestStats
+
+    Dim hProc As Process
+
+    $hParser = New TapParser As "Parser"
+    With $hStats = New TestStats
+        .Name = Subst$("&1 - &2", Project, Tests)
+        .Plan = [1, 0]
+        .Started = Now()
+    End With
+
+    ' Run the tests. Meanwhile the parser emits events which we handle to fill $hStats.
+    hProc = Exec ["gbx3", "-T", Tests, Project] For Input As "TapStream"
+    hProc.Wait()
+
+    With $hStats
+        .Ended = Now()
+        .ExitCode = hProc.Value
+        .Run = .Passed + .Failed + .Todo + .Skipped
+        .Delta = .Planned - .Run
+        .Success = .ExitCode = 0 And (.SkippedAll Or (.Planned > 0)) And .Run = .Planned And .Failed = 0
+    End With
+    Return $hStats
+
+End
+
+' -------------------- From TapStream to Parser --------------------
+
+Private Sub AddLine(sLine As String)
+
+    sLine = RTrim$(sLine) ' remove any trailing \r
+    $hStats.Lines.Add(sLine)
+    $hParser.ParseLine(sLine)
+
+End
+
+Public Sub TapStream_Read()
+
+    AddLine(Last.ReadLine())
+
+End
+
+Public Sub TapStream_Error(Message As String)
+
+    AddLine(Message)
+
+End
+
+' -------------------- From Parser to $hStats --------------------
+
+Public Sub Parser_Version(Version As Integer)
+
+    $hStats.Version = Version
+
+End
+
+Public Sub Parser_BeginSubtest((Description) As String)
+
+    $bEndSubtest = False
+    If $hCurrent Then $aSubtests.Push($hCurrent)
+    $hCurrent = New TestAssertion
+    ' Ignore the Description as we get it from its corresponding Assert event
+
+End
+
+Public Sub Parser_EndSubtest()
+
+    $bEndSubtest = True
+
+End
+
+Public Sub Parser_Plan(Start As Integer, {End} As Integer, SkipAll As Boolean)
+
+    If $hCurrent Then
+        $hCurrent.SubPlanned = 1 + {End} - Start
+        $hCurrent.SubSkippedAll = SkipAll
+    Else
+        $hStats.Plan = [Start, {End}]
+        $hStats.Planned = 1 + {End} - Start
+        $hStats.SkippedAll = SkipAll
+    Endif
+
+End
+
+' FIXME: It is an error if the test IDs are not sequential, according to prove.
+
+Public Sub Parser_Assert(Ok As Boolean, Id As Long, Description As String, Directive As Integer, Comment As String)
+
+    Dim hTest As TestAssertion
+
+    ' If this assertion summarizes the current subtest, pop it off the stack.
+    If $bEndSubtest Then
+        hTest = $hCurrent
+        If $aSubtests.Count Then
+            $hCurrent = $aSubtests.Pop()
+        Else
+            $hCurrent = Null
+        Endif
+    Else
+        hTest = New TestAssertion
+    Endif
+    $bEndSubtest = False
+
+    With hTest
+        .Ok = Ok
+        .Id = Id
+        .Description = Description
+        .Directive = Directive
+        .Comment = Comment
+    End With
+
+    ' If this is a subtest inside a test method, record it and exit early.
+    If $hCurrent Then
+        $hCurrent.Subtests.Push(hTest)
+        Return
+    Endif
+
+    ' Otherwise this is a test method and we do special accounting.
+    $hStats.Subtests.Push(hTest)
+    With $hStats
+        Select Case Directive
+            Case TestAssertion.NONE
+                If hTest.Success Then
+                    Inc .Passed
+                Else
+                    Inc .Failed
+                Endif
+
+            Case TestAssertion.TODO
+                Inc .Todo
+                If hTest.Success Then Inc .Bonus
+
+            Case TestAssertion.SKIP
+                Inc .Skipped
+
+        End Select
+    End With
+
+End
+
+Public Sub Parser_BailOut(Comment As String)
+
+    $hStats.BailedOut = True
+    $hStats.BailMessage = Comment
+
+End

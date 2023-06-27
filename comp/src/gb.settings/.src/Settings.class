@@ -16,6 +16,9 @@ Static Private $iPos As Integer
 Property Read Keys As _Settings_Keys
 Property Read Path As String
 
+'' Return the number of entries in the settings file
+Property Read Count As Integer
+
 Private $sPath As String
 Private $sTitle As String
 Private $cSlot As Collection
@@ -130,19 +133,22 @@ Public Sub Save()
   Dim hFile As File
   Dim vVal As Variant
   Dim sTemp As String
-  Dim hLock As File
   Dim cModify As Collection
   Dim sSlot As String
 
   If Not $bModify Then Return
 
+  If Not IsDir(File.Dir($sPath)) Then 
+    Error "gb.settings: warning: unable to save settings: directory does not exist: "; File.Dir($sPath)
+    Return
+  Endif
+
   'Debug $sPath
 
   $bModify = False
   
-  hLock = Lock $sPath & ".lock" Wait 2
-  
-  sTemp = $sPath & "#"
+  sTemp = $sPath & "." & CStr(Application.Id) & "~"
+  Try Kill sTemp
 
   If Not $bModifyAll Then
 
@@ -186,18 +192,8 @@ Public Sub Save()
   Next
 
   Close #hFile
-  Try Kill $sPath & "~"
-  Try Move $sPath To $sPath & "~"
-  Try Move sTemp To $sPath
   
-  '$dDateLoad = Stat($sPath).LastModified
-
-Finally
-
-  If Exist($sPath & ".lock") Then Try Kill $sPath & ".lock"
-  If Exist(sTemp) Then Try Kill sTemp
-  If Exist($sPath & "~") Then Try Kill $sPath & "~"
-  Try Unlock #hLock
+  Try Move sTemp Kill $sPath
   
 Catch
   
@@ -238,6 +234,22 @@ Public Function _get(Key As String, Optional {Default} As Variant) As Variant
 
 End
 
+'' Return if the specified settings key has a value
+
+Public Sub Exist(Key As String) As Boolean
+  
+  Dim hSlot As Collection
+  Dim sSlot As String
+  'Dim dDate As Date
+
+  sSlot = GetSlot(Key)
+  Key = File.Name(Key)
+  
+  hSlot = $cSlot[sSlot]
+  If hSlot And If hSlot.Exist(Key) Then Return True
+  
+End
+
 Private Sub SameSetting(vOld As Variant, vNew As Variant) As Boolean
   
   Dim I As Integer
@@ -246,7 +258,8 @@ Private Sub SameSetting(vOld As Variant, vNew As Variant) As Boolean
   
   If IsNull(vOld) And If IsNull(vNew) Then Return True
   If TypeOf(vOld) <> gb.Object And If TypeOf(vNew) <> gb.Object Then Return vOld = vNew
-
+  If TypeOf(vOld) <> gb.Object Or If TypeOf(vNew) <> gb.Object Then Return False
+  
   If Not (vOld Is Array) Then Return
   If Not (vNew Is Array) Then Return
   If vOld.Count <> vNew.Count Then Return
@@ -288,11 +301,12 @@ Public Sub _put(Value As Variant, Key As String)
 End
 
 
-Public Sub Clear(Optional ParentKey As String)
+Public Sub Clear(Optional ParentKey As String, Recursive As Boolean)
 
   Dim sSlot As String
   Dim hSlot As Collection
   Dim vVal As Variant
+  Dim sRemove As String
 
   If Not ParentKey Then
     If $cSlot.Count Then
@@ -300,19 +314,37 @@ Public Sub Clear(Optional ParentKey As String)
       $bModify = True
       $bModifyAll = True
     Endif
-  Else
-    sSlot = GetSlot(ParentKey &/ "g")
+    Return
+  Endif
+  
+  sSlot = GetSlot(ParentKey &/ "g")
+  
+  If Not Recursive Then
     hSlot = $cSlot[sSlot]
     If hSlot Then 
-      For Each vVal In hSlot
-        $cModify[sSlot &/ hSlot.Key] = True
-      Next
-      $cSlot.Remove(sSlot)
-      $bModify = True
+      sRemove = sSlot
+      GoSub REMOVE_SLOT
     Endif
+  Else
+    
+    For Each hSlot In $cSlot
+      sRemove = $cSlot.Key
+      If sRemove = sSlot Or If sRemove Begins sSlot & "/" Then
+        GoSub REMOVE_SLOT
+      Endif
+    Next
   Endif
+  
+  Return
+  
+REMOVE_SLOT:
 
-  'Save()
+  For Each vVal In hSlot
+    $cModify[sRemove &/ hSlot.Key] = True
+  Next
+  $cSlot.Remove(sRemove)
+  $bModify = True
+  Return
 
 End
 
@@ -325,41 +357,25 @@ Private Sub ReadWindow(hWindow As Window, sKey As String)
 
   aPos = Me[sKey &/ "Geometry"]
 
-  If Not aPos Or If aPos.Count < 2 Then 
-    Return
-  Else
-    X = aPos[0]
-    Y = aPos[1]
-    If aPos.Count > 2 Then
-      W = aPos[2]
-      H = aPos[3]
-      If aPos.Count > 4 Then
-        S = aPos[4]
-        If S >= Screens.Count Then S = 0
-      Endif
-    Else
-      W = hWindow.W
-      H = hWindow.H
+  If Not aPos Or If aPos.Count < 2 Then Return
+  
+  X = aPos[0]
+  Y = aPos[1]
+  If aPos.Count > 2 Then
+    W = aPos[2]
+    H = aPos[3]
+    If aPos.Count > 4 Then
+      S = aPos[4]
+      If S >= Screens.Count Then S = 0
     Endif
+  Else
+    W = hWindow.W
+    H = hWindow.H
   Endif
 
   X += Screens[S].AvailableX
   Y += Screens[S].AvailableY
 
-  ' If Not hWindow.Parent And If Component.IsLoaded("gb.desktop") Then
-  '   D = -1
-  '   Try D = aPos[5]
-  '   If D >= 0 Then 
-  '     hObserver = New Observer(hWindow, True) As "Window"
-  '     hObserver.Tag = D
-  '     $cObserver[hWindow.Id] = hObserver
-  '   Endif
-  ' Endif
-
-  ' If Object.Type(hWindow) = "FHelpBrowser" Then
-  '   Print "ReadWindow: "; X;; Y; " / "; S;; Screens[S].AvailableX;; Screens[S].AvailableY
-  ' Endif
-  
   If hWindow.Resizable Then
     W = Max(32, W)
     H = Max(32, H)
@@ -372,6 +388,8 @@ Private Sub ReadWindow(hWindow As Window, sKey As String)
   Else
     If Not hWindow.Modal Then hWindow.Move(X, Y)
   Endif
+  
+  If aPos.Count > 5 Then hWindow.Maximized = aPos[5]
 
 End
 
@@ -399,7 +417,7 @@ Private Sub WriteWindow(hWindow As Window, sKey As String)
     
   Endif
   
-  aVal = [X, Y, W, H, S]
+  aVal = [X, Y, W, H, S, If(hWindow.Maximized, 1, 0)]
   
   ' If Not hWindow.Parent And If Component.IsLoaded("gb.desktop") Then
   '   hDesktopWin = New DesktopWindow(hWindow.Id)
@@ -574,16 +592,20 @@ Static Private Sub WriteValue(vVal As Variant)
         For Each vVal In cCol
           If iPos Then $sStr &= ","
           WriteValue(cCol.Key)
-          $sStr &= ": "
+          $sStr &= ":"
           WriteValue(vVal)
           Inc iPos
         Next
         $sStr &= "}"
+      Else 
+        Error.Raise("Only arrays and collection can be written to a settings file")
       Endif
     
   End Select
     
 End
+
+'' Convert a value into its settings internal string representation
 
 Static Public Sub ToString(Value As Variant) As String
   
@@ -593,42 +615,92 @@ Static Public Sub ToString(Value As Variant) As String
   
 End
 
-Static Private Sub GetChar() As String
+Static Private Sub ConvertArray(aArray As Variant[]) As Object
+
+  Dim iType As Integer
+  Dim iInd As Integer
+  Dim aBoolean As Boolean[]
+  Dim aInteger As Integer[]
+  Dim aFloat As Float[]
+  Dim aString As String[]
+  Dim aObject As Object[]
   
-  Dim sCar As String
+  iType = TypeOf(aArray[0])
+  For iInd = 1 To aArray.Max
+    If TypeOf(aArray[iInd]) <> iType Then Return aArray
+  Next
   
-  If $iPos > Len($sStr) Then Return
-  sCar = Mid$($sStr, $iPos, 1)
-  Inc $iPos
-  Return sCar
+  Select Case iType
+    Case gb.Boolean
+      aBoolean = aArray
+      Return aBoolean
+    Case gb.Integer
+      aInteger = aArray
+      Return aInteger
+    Case gb.Float
+      aFloat = aArray
+      Return aFloat
+    Case gb.String
+      aString = aArray
+      Return aString
+    Case gb.Object
+      aObject = aArray
+      Return aObject
+    Default
+      Return aArray
+  End Select
   
 End
 
-
-Static Private Sub ReadChar() As String
-  
-  Dim sCar As String
-
-  Do
-    sCar = GetChar()
-    If Not sCar Then Return
-    If sCar > " " Then Return sCar
-  Loop
-  
-End
-
-
-Static Private Sub ReadToken() As String
+Static Private Sub ReadValue(Optional bNotStrict As Boolean) As Variant
   
   Dim sToken As String
   Dim sCar As String
-
-  sCar = ReadChar()
-  If Not IsLetter(sCar) Then Return sCar
+  Dim sString As String
+  Dim iPos As Integer
+  Dim cObject As Collection
+  Dim sKey As String
+  Dim aArray As Object
+  Dim aVariant As Variant[]
+  Dim vNumber As Variant
+  Dim bFloat As Boolean
+  Dim sNumber As String
   
+  'sCar = ReadToken()
+  GoSub READ_TOKEN
+  
+  If sToken = "{" Then
+    GoSub READ_OBJECT
+    Return cObject
+  Else If sToken = "[" Then
+    GoSub READ_ARRAY
+    Return aArray
+  Else If sToken = Chr$(34) Then
+    GoSub READ_STRING
+    Return sString
+  Else If sToken = "-" Or If IsDigit(sToken) Then
+    GoSub READ_NUMBER
+    Return vNumber
+  Else If sToken == "null" Then
+    Return Null
+  Else If sToken == "true" Then
+    Return True
+  Else If sToken == "false" Then
+    Return False
+  Else If bNotStrict Then
+    Return $sStr
+  Else
+    Error.Raise("Incorrect token: " & Quote(sCar))
+  Endif
+  
+READ_TOKEN:
+  
+  GoSub READ_CHAR
   sToken = sCar
+  If Not IsLetter(sCar) Then Return
+
   Do
-    sCar = GetChar()
+    GoSub GET_CHAR
     If Not sCar Then Break
     If Not IsLetter(sCar) Then 
       Dec $iPos
@@ -637,22 +709,35 @@ Static Private Sub ReadToken() As String
     sToken &= sCar
   Loop
   
-  Return sToken
-  
-End
+  Return
 
-Static Private Sub ReadString() As String
+GET_CHAR:  
   
-  Dim sCar As String
-  Dim sString As String
-  Dim iPos As Integer
+  If $iPos > Len($sStr) Then 
+    sCar = ""
+    Return
+  Endif
+  sCar = Mid$($sStr, $iPos, 1)
+  Inc $iPos
+  Return
+
+READ_CHAR:
+
+  Do
+    GoSub GET_CHAR
+    If Not sCar Or If sCar > " " Then Return
+  Loop
+  
+READ_STRING:
+  
+  sString = ""
   
   Do
-    sCar = GetChar()
+    GoSub GET_CHAR
     If Not sCar Then Error.Raise("Non terminated string")
-    If sCar = Chr$(34) Then Return sString
+    If sCar = Chr$(34) Then Return
     If sCar = "\\" Then
-      sCar = GetChar()
+      GoSub GET_CHAR
       If Not sCar Then Error.Raise("Non terminated string")
       iPos = InStr("bfrtn", sCar)
       If iPos Then
@@ -667,84 +752,52 @@ Static Private Sub ReadString() As String
     sString &= sCar
   Loop
   
-End
+READ_OBJECT:
 
-Static Private Sub ReadObject() As Collection
-  
-  Dim sCar As String
-  Dim cObject As New Collection
-  Dim sKey As String
+  cObject = New Collection
   
   Do
-    sCar = ReadChar()
-    If sCar = "}" Then Return cObject
+    GoSub READ_CHAR
+    If sCar = "}" Then Return
     If sCar <> Chr$(34) Then Error.Raise("String expected")
-    sKey = ReadString()
-    sCar = ReadChar()
+    GoSub READ_STRING
+    sKey = sString
+    GoSub READ_CHAR
     If sCar <> ":" Then Error.Raise("Colon expected")
     cObject[sKey] = ReadValue()
-    sCar = ReadChar()
-    If sCar = "}" Then Return cObject
+    GoSub READ_CHAR
+    If sCar = "}" Then Return
     If sCar <> "," Then Error.Raise("Comma expected")
   Loop
   
-End
+READ_ARRAY:
 
-Static Private Sub ReadArray() As Array
-  
-  Dim sCar As String
-  Dim aArray As New Variant[]
-  Dim iInd As Integer
-  Dim iType As Integer
-  Dim aTypedArray As Object
+  aVariant = New Variant[]
   
   Do
-    sCar = ReadChar()
+    GoSub READ_CHAR
     If sCar = "]" Then Break
     Dec $iPos
-    aArray.Add(ReadValue())
-    sCar = ReadChar()
+    aVariant.Add(ReadValue())
+    GoSub READ_CHAR
     If sCar = "]" Then Break
     If sCar <> "," Then Error.Raise("Comma expected")
   Loop
   
-  If aArray.Count = 0 Then Return Null
-  iType = TypeOf(aArray[0])
-  For iInd = 1 To aArray.Max
-    If TypeOf(aArray[iInd]) <> iType Then Return aArray
-  Next
+  If aVariant.Count = 0 Then
+    aArray = Null
+    Return
+  Endif
   
-  Select Case iType
-    Case gb.Boolean
-      aTypedArray = New Boolean[aArray.Count]
-    Case gb.Integer
-      aTypedArray = New Integer[aArray.Count]
-    Case gb.Float
-      aTypedArray = New Float[aArray.Count]
-    Case gb.String
-      aTypedArray = New String[aArray.Count]
-    Case gb.Object
-      aTypedArray = New Object[aArray.Count]
-    Default
-      aTypedArray = New Variant[aArray.Count]
-  End Select
+  aArray = ConvertArray(aVariant)
+  Return
   
-  For iInd = 0 To aArray.Max
-    aTypedArray[iInd] = aArray[iInd]
-  Next
-  Return aTypedArray
-  
-End
+READ_NUMBER:
 
-Static Private Sub ReadNumber(sNumber As String) As Variant
-  
-  Dim sCar As String
-  Dim vNumber As Variant
-  Dim bFloat As Boolean
-  Dim iPos As Integer
+  sNumber = sCar
   
   Do
-    sCar = GetChar()
+    GoSub GET_CHAR
     If Not sCar Then Break
     iPos = InStr(".eE-+0123456789", sCar)
     If iPos = 0 Then 
@@ -761,66 +814,11 @@ Static Private Sub ReadNumber(sNumber As String) As Variant
     Try vNumber = CInt(sNumber)
   Endif
   If IsNull(vNumber) Then Error.Raise("Incorrect number")
-  Return vNumber
+  Return
   
 End
 
-' Static Private Sub ReadType() As Integer
-'   
-'   Dim sCar As String
-'   Dim iPos As Integer
-'   
-'   iPos = $iPos
-'   sCar = ReadToken()
-'   
-'   If sCar = "{" Then
-'     Return gb.Variant
-'   Else If sCar = "[" Then
-'     Return gb.Object
-'   Else If sCar = Chr$(34) Then
-'     Return gb.String
-'   Else If sCar = "-" Or If IsDigit(sCar) Then
-'     Return TypeOf(ReadNumber(sCar))
-'   Else If sCar = "null" Then
-'     Return gb.Null
-'   Else If sCar == "true" Or If sCar == "false" Then
-'     Return gb.Boolean
-'   Else
-'     Error.Raise("Incorrect token: " & Quote(sCar))
-'   Endif
-'   
-'   $iPos = iPos
-'   
-' End
-
-Static Private Sub ReadValue(Optional bNotStrict As Boolean) As Variant
-  
-  Dim sCar As String
-  
-  sCar = ReadToken()
-  
-  If sCar = "{" Then
-    Return ReadObject()
-  Else If sCar = "[" Then
-    Return ReadArray()
-  Else If sCar = Chr$(34) Then
-    Return ReadString()
-  Else If sCar = "-" Or If IsDigit(sCar) Then
-    Return ReadNumber(sCar)
-  Else If sCar == "null" Then
-    Return Null
-  Else If sCar == "true" Then
-    Return True
-  Else If sCar == "false" Then
-    Return False
-  Else If bNotStrict Then
-    Return $sStr
-  Else
-    Error.Raise("Incorrect token: " & Quote(sCar))
-  Endif
-  
-End
-
+'' Return a value from its settings internal string representation
 
 Static Public Sub FromString(Value As String) As Variant
   
@@ -830,5 +828,18 @@ Static Public Sub FromString(Value As String) As Variant
   vVal = ReadValue(True)
   $sStr = ""
   Return vVal
+  
+End
+
+Private Function Count_Read() As Integer
+
+  Dim cCol As Collection
+  Dim iCount As Integer
+
+  For Each cCol In $cSlot
+    iCount += cCol.Count
+  Next
+
+  Return iCount
   
 End

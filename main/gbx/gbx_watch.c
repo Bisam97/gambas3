@@ -2,7 +2,7 @@
 
   gbx_watch.c
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -658,7 +658,11 @@ void WATCH_wait(int wait)
 	struct timeval *now;
 	struct timeval timeout;
 
-	if (wait == 0)
+	if (wait == -2)
+	{
+		do_loop(NULL);
+	}
+	else if (wait <= 0)
 	{
 		timeout.tv_sec = 0;
 		timeout.tv_usec = 0;

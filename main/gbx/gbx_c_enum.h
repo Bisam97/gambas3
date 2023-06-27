@@ -2,7 +2,7 @@
 
   gbx_c_enum.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -33,7 +33,8 @@ typedef
     GB_BASE object;
     LIST list;
     void *enum_object;
-    void *data[4];
+    void *data[3];
+		void (*free)(void *);
     unsigned stop : 1;
     unsigned variant : 1;
     }

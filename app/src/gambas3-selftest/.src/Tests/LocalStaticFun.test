@@ -1,0 +1,69 @@
+' Gambas test file
+
+Private Function Door(Optional Swing As Boolean) As Boolean
+
+    Static DoorOpen As Boolean
+
+    If Swing = True Then
+        If DoorOpen = True Then
+            DoorOpen = False
+        Else
+            DoorOpen = True
+        Endif
+    Endif
+
+    Return DoorOpen
+
+End
+
+Private Function Say(Word As String) As String
+
+    Static Sentence As String
+
+    Sentence = Trim(Sentence & " " & Word)
+
+    Return Sentence
+
+End
+
+Private Function Counter(AddNumber As Integer) As Integer
+
+    Static Number As Integer
+    Number += AddNumber
+    Return Number
+
+End
+
+Public Sub SwingDoor()
+
+    ' Test local static boolean variable
+
+    Assert.Equals(False, Door(), "Door must be closed")
+    Assert.Equals(True, Door(True), "Open door")
+    Assert.Equals(True, Door(), "Door must be open")
+    Assert.Equals(False, Door(True), "Close door")
+    Assert.Equals(False, Door(False), "Door must be closed")
+
+End
+
+Public Sub Saysth()
+
+    ' Test local static string variable
+
+    Assert.Equals(Say("I"), "I", "I")
+    Assert.Equals(Say("love"), "I love", "love")
+    Assert.Equals(Say("Gambas"), "I love Gambas", "Gambas")
+
+End
+
+Public Sub CountALot()
+
+    Dim i, j As Integer
+
+    For i = 0 To 31999
+        Counter(1)
+    Next
+
+    Assert.Equals(Counter(0), 32000, "count to 32000")
+
+End

@@ -31,19 +31,33 @@
 '   
 ' End
 
+Public Sub Main1()
+
+  Dim aHtml As String[]
+  Dim nCar As Integer
+  Dim I As Integer
+
+  aHtml = SplitHTML("&#x27;V&#x27; - <b><i>À écouter</i> jusqu&#x27;à la fin</b> et oups il dit quoi l&#x27;astronaute...🤔-1564611614275518478.mp4", ByRef nCar)
+  
+  Print nCar
+  
+  For I = 1 To nCar
+    Print I;; HtmlLeft(aHtml, I)
+  Next
+  
+End
+
 Public Sub Main()
 
-  ' Dim hImage As Image
-  ' 
-  ' hImage = New Image(256, 256, Color.Transparent)
-  ' Paint.Begin(hImage)
-  ' Paint.Background = Color.Red
-  ' Paint.Cross(16, 16, 224, 224, 64)
-  ' Paint.Fill
-  ' Paint.End
-  ' hImage.Save("~/test.png")
+  Dim hImage As Image
+
+  hImage = New Image(32, 32)
+  Paint.Begin(hImage)
+  Print Paint.ResolutionX;; Paint.ResolutionY
+  Paint.End
 
 End
+
 
 Public Sub GetFileSize(iSize As Long, Optional nDigit As Integer = 1) As String
 
@@ -63,3 +77,219 @@ Public Sub GetFileSize(iSize As Long, Optional nDigit As Integer = 1) As String
   
 End
 
+Public Sub HtmlLeft(aHtml As String[], iPos As Integer) As String
+
+  Dim I As Integer
+  Dim sElt As String
+  Dim sHtml As String
+  Dim iLen As Integer
+
+  If iPos = 0 Then Return
+
+  For I = 0 To aHtml.Max
+    sElt = aHtml[I]
+    If sElt Begins "<" Then
+      sHtml &= sElt
+    Else If iPos > 0 Then
+      If sElt Begins "&" Then
+        sHtml &= sElt
+        Dec iPos
+      Else
+        iLen = String.Len(sElt)
+        If iLen <= iPos Then
+          sHtml &= sElt
+          iPos -= iLen
+        Else
+          sHtml &= String.Left(sElt, iPos)
+          iPos = 0
+        Endif
+      Endif
+    Endif
+  Next
+  
+  Return sHtml
+
+End
+
+Public Sub SplitHTML(Html As String, ByRef Count As Integer) As String[]
+
+  Dim P As Integer
+  Dim iLen As Integer
+  Dim C As String
+  Dim sResult As String
+  Dim C2 As String
+  Dim aResult As String[]
+  
+  aResult = New String[]
+  Count = 0
+  iLen = String.Len(Html)
+  
+READ_TEXT:
+  
+  GoSub LOOK_CHAR
+  
+  If C = "<" Then Goto READ_MARKUP
+  If C = "&" Then Goto READ_ENTITY
+  
+  GoSub READ_CHAR
+  Goto READ_TEXT
+  
+READ_MARKUP:
+
+  GoSub ADD_RESULT
+  GoSub READ_CHAR
+  
+READ_MARKUP_NAME:
+
+  GoSub READ_CHAR
+  
+  If C = " " Then Goto READ_MARKUP_REST
+  If C = ">" Then Goto READ_MARKUP_END
+  
+  Goto READ_MARKUP_NAME
+  
+READ_MARKUP_REST:
+
+  GoSub READ_CHAR
+  
+  If C = ">" Then Goto READ_MARKUP_END
+  
+  If C = Chr$(34) Or If C = "'" Then 
+    C2 = C
+    Goto READ_STRING
+  Endif
+  
+  Goto READ_MARKUP_REST
+
+READ_MARKUP_END:
+
+  GoSub ADD_RESULT
+  Goto READ_TEXT
+
+READ_STRING:
+
+  GoSub READ_CHAR
+  
+  If C = C2 Then Goto READ_MARKUP_REST
+  
+  Goto READ_STRING
+
+READ_ENTITY:
+
+  GoSub ADD_RESULT
+  GoSub READ_CHAR
+
+  Do
+    GoSub READ_CHAR
+    If Not IsDigit(C) And If Not IsLetter(C) And If C <> "#" Then Break
+  Loop
+  
+  GoSub ADD_RESULT
+  Goto READ_TEXT
+  
+LOOK_CHAR:
+
+  If P >= iLen Then 
+    C = ""
+  Else
+    C = String.Mid$(Html, P + 1, 1)
+  Endif
+  Return
+  
+READ_CHAR:
+
+  Inc P
+  If P > iLen Then
+    GoSub ADD_RESULT
+    Return aResult
+  Endif
+  C = String.Mid$(Html, P, 1)
+  sResult &= C
+  Return
+  
+ADD_RESULT:
+
+  If sResult Then
+    aResult.Add(sResult)
+    If sResult Begins "&" Then
+      Inc Count
+    Else If sResult Not Begins "<" Then
+      Count += String.Len(sResult)
+    Endif
+    sResult = ""
+  Endif
+  Return
+  
+End
+
+Public Sub URLQuote(Path As String) As String
+  
+  Dim iInd As Integer
+  Dim sRes As String
+  Dim sCar As String
+  
+  For iInd = 1 To Len(Path)
+    sCar = Mid$(Path, iInd, 1)
+    If sCar = " " Then 
+      sCar = "+"
+    Else If IsLetter(sCar) Or If IsDigit(sCar) Or If InStr("-._~,$!/", sCar) Then 
+    Else 
+      sCar = "%" & Hex$(Asc(sCar), 2)
+    Endif
+    sRes &= sCar
+  Next
+
+  Return sRes
+  
+End
+
+Public Sub URLUnquote(Path As String, Optional DoNotDecodePlus As Boolean) As String
+  
+  Dim iInd As Integer
+  Dim sRes As String
+  Dim sCar As String
+  
+  For iInd = 1 To Len(Path)
+    sCar = Mid$(Path, iInd, 1)
+    If sCar = "%" Then 
+      sCar = Chr$(Val("&H" & Mid$(Path, iInd + 1, 2)))
+      iInd += 2
+    Else If sCar = "+" And If Not DoNotDecodePlus Then 
+      sCar = " "
+    Endif
+    sRes &= sCar
+  Next
+
+  Return sRes  
+  
+End
+
+Public Sub PathToUrlList(aPath As String[]) As String
+
+  Dim I As Integer
+  
+  aPath = aPath.Copy()
+  For I = 0 To aPath.Max
+    If aPath[I] Begins "/" Then aPath[I] = "file://" & URLQuote(aPath[I])
+  Next
+  Return aPath.Join(gb.CrLf)
+  
+End
+
+Public Sub UrlListToPath(sData As String) As String[]
+  
+  Dim sUri As String
+  Dim aPaths As String[]
+  
+  aPaths = New String[]
+  For Each sUri In Split(Replace(sData, "\n", ""), "\r", "", True)
+    If sUri Begins "file://" Then
+      aPaths.Add(Main.URLUnquote(Mid$(sUri, 8)))
+    Else 
+      aPaths.Add(sUri)
+    Endif
+  Next
+  
+  Return aPaths
+  
+End

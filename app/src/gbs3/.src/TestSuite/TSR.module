@@ -1,0 +1,221 @@
+' Gambas module file
+
+' This module is only used for testing and need not be included in the final executable
+
+Public $bTestDebug As Boolean = False
+Private gbsver As String = "gambas" & System.version
+Private ShellScript As String = "#!/bin/bash\n"
+                               "mkdir /usr/lib" &/ gbsVer &/ "biz1\n"
+                               "touch /usr/lib" &/ gbsVer &/ "biz1/liba:1.1.0.gambas\n"
+                               "touch /usr/lib" &/ gbsVer &/ "biz1/liba:1.2.0.gambas\n"
+                               "touch /usr/lib" &/ gbsVer &/ "biz1/liba:2.1.0.gambas\n"
+                               "touch /usr/lib" &/ gbsVer &/ "biz1/liba:3.1.3.gambas\n"
+                               
+Private $InitDone As Boolean
+
+Public Sub TeardownTestEnvironment()
+  
+  ScriptMain._ResetAll()
+  ScriptMain.$oContext.$bTestmode = False
+  
+End
+
+
+Public Sub CreateTestEnvironment()
+
+  If $InitDone Then Return
+  'Test.Note("Initialize the component collection")
+  'System.language = "de_DE.UTF-8"
+  
+  ScriptMain._ResetAll()
+  ScriptMain.$oContext.$bTestmode = True
+   
+  If Not Exist("/usr/lib" &/ gbsVer &/ "biz1") Then
+    
+      If Not Exist(User.home &/ "bin") Then
+        Mkdir User.home &/ "bin"
+      Endif
+      
+      File.Save(User.home &/ "bin/makegbs" & System.version & "tests", ShellScript)
+      
+      Chmod User.home &/ "bin/makegbs" & System.version & "tests" To "rwxr-xr-x"
+      
+      Test.Note("")
+      Test.Note("You must have a directory called /usr/lib/" & gbsVer & "/biz1 in your system for this test suite to pass")
+      Test.Note("It must contain liba:1.1.0.gambas, liba:2.1.0.gambas, liba:3.1.3")
+      Test.Note("The tests will fail if not present, not a problem. You can copy and paste following into a terminal and try again")
+      Test.Note("sudo mkdir /usr/lib/" & gbsVer & "/biz1")
+      Test.Note("sudo touch /usr/lib/" & gbsVer & "/biz1/liba:1.1.0.gambas")
+      Test.Note("sudo touch /usr/lib/" & gbsVer & "/biz1/liba:1.2.0.gambas")
+      Test.Note("sudo touch /usr/lib/" & gbsVer & "/biz1/liba:2.1.0.gambas")
+      Test.Note("sudo touch /usr/lib/" & gbsVer & "/biz1/liba:3.1.3.gambas")
+      Test.Note("")
+      Test.Note("Or you may execute the shell script : sudo " & User.home &/ "bin/makegbs" & System.version & "tests")
+      Test.Note("From your ~/bin directory")
+      Test.BailOut("Please create the required directories before continuing")
+
+  Endif
+  
+ 'Test.Note("")
+  
+  Try Mkdir User.home &/ ".local"
+  
+  Try Mkdir User.home &/ ".local/libtest"
+  Shell "/bin/touch " & User.home &/ ".local/libtest" &/ "libe:1.1.0.gambas" Wait
+  Shell "/bin/touch " & User.home &/ ".local/libtest" &/ "libe:2.2.1.gambas" Wait
+  Shell "/bin/touch " & User.home &/ ".local/libtest" &/ "libe:2.2.0.gambas" Wait
+  Shell "/bin/touch " & User.home &/ ".local/libtest" &/ "libe:2.2.3.gambas" Wait
+  Shell "/bin/touch " & User.home &/ ".local/libtest" &/ "libe:3.1.9.gambas" Wait
+  
+  Try Mkdir User.home &/ ".local/share"
+  Try Mkdir User.home &/ ".local/share" &/ gbsVer
+  Try Mkdir User.home &/ ".local/share" &/ gbsVer &/ "lib"
+  Try Mkdir User.home &/ ".local/share" &/ gbsVer &/ "lib/biz1"
+  Try Mkdir User.home &/ ".local/share" &/ gbsVer &/ "lib/(unknown)"
+  
+  Shell "/bin/touch " & User.home &/ ".local/share/" &/ gbsVer &/ "lib/biz1/liba:4.2.1.gambas" Wait
+  Shell "/bin/touch " & User.home &/ ".local/share" &/ gbsVer &/ "lib/biz1/liba:4.3.2.gambas" Wait
+  Shell "/bin/touch " & User.home &/ ".local/share" &/ gbsVer &/ "lib/biz1/liba:5.2.1.gambas" Wait 
+  Shell "/bin/touch " & User.home &/ ".local/share" &/ gbsVer &/ "lib/biz1/liba:6.1.8.gambas" Wait 
+  Shell "/bin/touch '" & User.home &/ ".local/share" &/ gbsVer &/ "lib/(unknown)/liba:7.1.8.gambas'" Wait 
+  
+  $InitDone = True
+  
+  If $bTestDebug Then Test.Note("When Gambas ide creates a library with no vendor using make executable then an (unknown) directory is created in the users .local library")
+  If $bTestDebug Then Test.Note("This differs from create installation which forces a vendor name before continuing")
+
+End
+
+'' **************************************************************************************
+'' Test Support routines
+'' **************************************************************************************
+Public Sub CompareStringArray(sA As String[], sB As String[]) As Boolean
+  Dim bResult As Boolean = True
+  Dim bFinalResult As Boolean = True
+  Dim sPrintLine As String
+  For i As Integer = 0 To IIf(sA.max > sB.max, sA.max, sB.max)
+    Try bResult = (sA[i] == sB[i])
+    If Error Then 
+         bResult = False
+         Error.Clear()
+    Endif
+    
+    If Not bResult Then bFinalResult = False
+  Next 
+  
+ If bFinalResult = False Then
+  Test.Note(Subst("Compare size a=&1, b=&2", sA.count, sB.count))
+  For i As Integer = 0 To IIf(sA.max > sB.max, sA.max, sB.max)
+    Try bResult = (sA[i] = sB[i])
+    If Error Then 
+         bResult = False
+         Error.Clear()
+    Endif
+    
+    sPrintLine = Format(i + 1, "000#") & IIf(bResult = True, " = ", " - ")
+    If i <= sA.max Then
+      sPrintLine &= Mid(Replace(Quote(sA[i]), " ", ".") & Space(38), 1, 38) & " | "
+    Else
+      sPrintLine &= Space(25) & " | "
+    Endif
+    If i <= sB.max Then
+      sPrintLine &= Mid(Replace(Quote(sB[i]), " ", ".") & Space(38), 1, 38)
+    Endif
+   Test.Note(sPrintLine)
+  Next
+ Endif
+ 
+ Return bFinalResult
+  
+End
+
+Public Sub CompareStringContent(sA As String[], sB As String[]) As Boolean
+  Dim bResult As Boolean = True
+  Dim bFinalResult As Boolean = True
+  Dim sPrintLine As String
+  If sA.count <> sB.count Then 
+    bFinalResult = False
+  Else
+    For i As Integer = 0 To sA.max
+      Try bResult = sB.Exist(sA[i], gb.IgnoreCase)
+      If Error Then 
+         bResult = False
+         Error.Clear()
+      Endif
+    
+      If Not bResult Then 
+         bFinalResult = False
+      Endif
+      
+    Next 
+  Endif
+  
+ If bFinalResult = False Then
+  Test.Note(Subst("Compare size a=&1, b=&2", sA.count, sB.count))
+  For i As Integer = 0 To IIf(sA.max > sB.max, sA.max, sB.max)
+    Try bResult = (sA[i] == sB[i])
+    If Error Then 
+         bResult = False
+         Error.Clear()
+    Endif
+    
+    sPrintLine = Format(i + 1, "000#") & IIf(bResult = True, " = ", " - ")
+    If i <= sA.max Then
+      sPrintLine &= Mid(Replace(Quote(sA[i]), " ", ".") & Space(38), 1, 38) & " | "
+    Else
+      sPrintLine &= Space(25) & " | "
+    Endif
+    If i <= sB.max Then
+      sPrintLine &= Mid(Replace(Quote(sB[i]), " ", ".") & Space(38), 1, 38)
+    Endif
+   Test.Note(sPrintLine)
+  Next
+ Endif
+ 
+ Return bFinalResult
+  
+End
+
+Public Sub Printoutput(mObject As Object, func As String, ...) As String ' to capture a printed string from function and list of parameters
+  
+  Dim buffer As New Byte[1000000]
+  Dim len As Integer
+  Dim mFile As File
+  
+  mFile = Memory buffer.data For Write
+  Output To mFile
+  Object.Call(mObject, func, Param.all)
+  len = Seek(mfile)
+  Flush 
+  Close mFile
+  Output To Default
+  
+  Return buffer.ToString(0, len)
+  
+End
+
+Public Sub PrintErrOut(mObject As Object, func As String, ...) As String ' to capture a printed string from function and list of parameters
+
+  Dim buffer As New Byte[1000000]
+  Dim len As Integer
+  Dim mFile As File
+  mFile = Memory buffer.data For Write
+  Error To mFile
+   Object.Call(mObject, func, Param.all)
+  len = Seek(mfile)
+  Close mFile
+  Error To Default
+  Dim s As String = buffer.ToString(0, len)
+  Return s
+  
+End
+
+Public Sub ErrorMsgOut(mObject As Object, func As String, ...) As String ' test when bad data is passed to my function and i have error messages
+  
+  Try Object.Call(mObject, func, Param.all)
+  If Not Error Then 
+     Return "No Error"
+  Else
+     Return Error.Text
+  Endif
+End

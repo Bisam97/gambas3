@@ -2,7 +2,7 @@
 
   gmouse.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -71,6 +71,19 @@ public:
 	static void setEvent(GdkEvent *event);
 	static void validate() { _isValid++; }
 	static void invalidate();
+	
+	static void handleClickCount(GdkEvent *event);
+	static int clickCount() { return _isValid ? _click_count : 0; }
+	
+	static void setControl(gControl *control) { _control = control; }
+	static gControl *getControl() { return _control; }
+	static void finishEvent();
+	
+#ifdef GTK3
+	static GdkDevice *getPointer();
+#endif
+
+	static gControl *_control;
 
 private:
 	static int _isValid;
@@ -87,6 +100,10 @@ private:
 	static int _dx;
 	static int _dy;
 	static GdkEvent *_event;
+	static int _click_count;
+	static int _click_x;
+	static int _click_y;
+	static double _click_timer;
 };
 
 #endif

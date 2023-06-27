@@ -2,7 +2,7 @@
 
   gb_common.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -137,11 +137,13 @@ typedef
 	size_t offset_t;
 
 #define PUBLIC
-#define INLINE __inline__
+#define INLINE __attribute__((always_inline)) inline
+#define NOINLINE __attribute__((noinline))
 #define EXTERN extern
 #define PACKED __attribute__((packed))
 #define NORETURN __attribute__((noreturn))
 #define CONST __attribute__((const))
+
 
 #if __WORDSIZE == 64
 #define OS_64BITS 1
@@ -194,11 +196,6 @@ typedef
 	"published by the Free Software Foundation; either version 2, or \n" \
 	"(at your option) any later version.\n\n"
 
-//#define LIKELY(_x) __builtin_expect((_x), 1)
-//#define UNLIKELY(_x) __builtin_expect((_x), 0)
-#define LIKELY(_x) (_x)
-#define UNLIKELY(_x) (_x)
-
 #define $(_x) _x
 
 #define RESTART_SYSCALL(_code) \
@@ -209,4 +206,4 @@ typedef
 			break; \
 	} if (errno)
 
-#endif /* __COMMON_H */
+#endif /* __GB_COMMON_H */

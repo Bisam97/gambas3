@@ -5,9 +5,11 @@ Inherits UserControl
 
 Class Watch
 
-Public Const _Properties As String = "*,Border=True,Mode{Select.*}=Single,Dir,ShowDetailed,ShowHidden,ShowDirectory,ShowPreview"
+Public Const _Properties As String = "*,Border=True,View{FileView.Normal;Compact;Detailed;Preview}=Normal,Mode{Select.*}=Single,Dir,ShowHidden,ShowDirectory"
 Public Const _DefaultEvent As String = "Click"
 Public Const _Group As String = "View"
+
+Public Enum Normal, Compact, Detailed, Preview
 
 Event {Select}
 Event Click
@@ -15,13 +17,44 @@ Event Activate
 Event Menu
 Event Icon(Path As String)
 
+'' This event is raised just after the FileView has been refreshed.
+Event Refresh
+
+Event Rename(OldName As String, NewName As String)
+
+'' This event is raised for each file that may be displayed in the view.
+''
+'' By cancelling this event, you prevent the file from being displayed.
+
+Event Filter(Name As String, Info As Stat)
+
 Property {Dir} As String
+Property Current As String
+
+'' Return the current selected path.
+''
+'' It's an equivalent of '[../dir] &/ [../current]'.
+Property Read Path As String
+
+'' Return the absolute paths of the selected elements.
+Property Read Paths As String[]
+
 Property ShowHidden As Boolean
 Property ShowDirectory As Boolean
-Property Current As String
 Property Mode As Integer
 Property ShowDetailed As Boolean
 Property ShowPreview As Boolean
+
+'' Return or set the view mode of control.
+''
+'' It can take one of the following value:
+'' - [../Normal] for a normal vertical icon view.
+'' - [../Compact] for a compact horizontal icon view.
+'' - [../Detailed] for a detailed view based on a ColumnView table.
+'' - [../Preview] for a vertical icon view with file preview.
+
+Property View As Integer
+
 Property Selection As String[]
 Property Filter As String[]
 Property Icon As Picture
@@ -32,7 +65,22 @@ Property Read Count As Integer
 Property Background As Integer
 Property Foreground As Integer
 
-Static Private $cExt As New Collection(gb.IgnoreCase)
+'' Return if at least one item is selected in the view.
+Property Read Selected As Boolean
+
+'' Return the number of files displayed by the view.
+Property Read FileCount As Integer Use $nFile
+'' Return the number of directories displayed by the view.
+Property Read DirCount As Integer Use $nDir
+'' Return the total size of the files displayed by the view.
+Property Read TotalSize As Long Use $iSize
+
+'' Return or set the size limit in bytes of files that will be previewed.
+''
+'' - If 'MaxPreviewSize' is zero (the default), the size limit is 4Mb.
+'' - If 'MaxPreviewSize' is negative, there is no size limit.
+
+Property MaxPreviewSize As Integer Use $iMaxPreviewSize
 
 Private Const PREFIX_DIR As String = "0"
 Private Const PREFIX_FILE As String = "1"
@@ -41,25 +89,32 @@ Private $sDir As String
 Private $bShowHidden As Boolean
 Private $bShowDir As Boolean
 Private $bShowPreview As Boolean
+
 Private $hIconView As IconView
+Private $hInfoFont As Font
 
 Private $hColumnView As ColumnView
 Private $sSortDir As String
 Private $iSort As Integer
 Private $bAsc As Boolean = True
 
+Private $hVoidView As TextLabel
+
 Private $aFilter As String[]
 Private $hPict As Picture
 Private $hRefresh As Timer
 Private $bRefreshTriggered As Boolean
-Private $iIconSize As Integer = 32
 Private $bDesktopIsLoaded As Boolean
 
+Private $aIconSize As New Integer[4]
+
 Private $hPreview As CTaskPreview
+Private $iPreviewMax As Integer
+Private $iPreviewCount As Integer
+
 Private $hEnsureVisible As Timer
 Private $hWatch As Watch
 Private $bWatch As Boolean
-Private $bRefreshIcon As Boolean
 Private $bRefreshAll As Boolean
 Private $hWatcher As Watcher
 Private $bVisible As Boolean
@@ -68,49 +123,25 @@ Private $bInvalidate As Boolean
 Static Private $iIconExecSize As Integer
 Static Private $hIconExec As Picture
 
+Private picLock As PictureBox
+
+Private $DX As Integer
+Private $DY As Integer
+
+Private $sHighlight As String
+Private $hHighlightPicture As Picture
+
+Private $hBorder As Panel
+Private $hProgress As ProgressBar
+Private $sLastPreview As String
+Private $bIgnorePreviewCache As Boolean
+Private $bPreviewDone As Boolean
+Private $bRefreshView As Boolean
+
 Static Public Sub _init()
   
-  $cExt["html"] = "html"
-  $cExt["htm"] = "html"
-  $cExt["css"] = "html"
-  $cExt["tar"] = "archive"
-  $cExt["gz"] = "archive"
-  $cExt["tgz"] = "archive"
-  $cExt["bz2"] = "archive"
-  $cExt["z"] = "archive"
-  $cExt["zip"] = "archive"
-  $cExt["txt"] = "text"
-  $cExt["json"] = "text"
-  $cExt["mp3"] = "audio"
-  $cExt["aac"] = "audio"
-  $cExt["ogg"] = "audio"
-  $cExt["wav"] = "audio"
-  $cExt["mpg"] = "video"
-  $cExt["mpeg"] = "video"
-  $cExt["avi"] = "video"
-  $cExt["wmv"] = "video"
-  $cExt["mov"] = "video"
-  $cExt["gambas"] = "gambas"
-  $cExt["c"] = "text"
-  $cExt["cpp"] = "text"
-  $cExt["h"] = "text"
-  $cExt["deb"] = "package"
-  $cExt["rpm"] = "package"
-  $cExt["iso"] = "cdrom"
-  $cExt["jpg"] = "image"
-  $cExt["jpeg"] = "image"
-  $cExt["png"] = "image"
-  $cExt["gif"] = "image"
-  $cExt["xpm"] = "image"
-  $cExt["bmp"] = "image"
-  $cExt["ico"] = "image"
-  $cExt["xcf"] = "image"
-  $cExt["svg"] = "image"
-  $cExt["pdf"] = "pdf"
-  $cExt["ttf"] = "font"
-  $cExt["otf"] = "font"
-  $cExt["bdf"] = "font"
-
+  Main.InitExt
+  
 End
 
 Static Public Sub _exit()
@@ -119,33 +150,61 @@ Static Public Sub _exit()
   
 End
 
-
 Public Sub _new()
   
   $bDesktopIsLoaded = Component.IsLoaded("gb.desktop")
   $bWatch = Component.IsLoaded("gb.inotify")
-  If $bWatch Then $hWatcher = New Watcher(Me) As "Watcher"
+  $hWatcher = New Watcher(Me) As "Watcher"
+  DirView._CheckComponents
   
-  With $hIconView = New IconView(Me) As "View"
+  $aIconSize[Detailed] = Stock.GetSize("small")
+  $aIconSize[Compact] = Stock.GetSize("small")
+  $aIconSize[Normal] = 64
+  $aIconSize[Preview] = 128
+  
+  $hBorder = New Panel(Me)
+  $hBorder.Arrangement = Arrange.Vertical
+  $hBorder.Border = Border.Plain
+  
+  With $hIconView = New IconView($hBorder) As "View"
     .Sorted = True
     .IconLines = 3
+    .Drop = True
+    .Expand = True
+    .Border = False
+    '.Orientation = Arrange.Horizontal
   End With
   
-  With $hColumnView = New ColumnView(Me) As "View"
-    .Columns.Count = 3
-    .Columns[0].Text = ("Name")
-    .Columns[0].Expand = False
-    .Columns[1].Text = ("Size")
-    .Columns[1].Alignment = Align.Right
-    .Columns[2].Text = ("Last modified")
-    '.Columns[2].Alignment = Align.Right
-    '.Columns[0].Width = 64
-    '.Columns[1].Width = 64
-    '.Columns[2].Width = 96
+  With $hColumnView = New ColumnView($hBorder) As "View"
+    .Columns[0].Text = (("Name"))
+    .AddColumn(("Size"),, Align.Right)
+    .AddColumn(("Last modified"))
+    .AddColumn(("Permissions"))
     .Visible = False
     .Sorted = True
     .Resizable = True
+    .AutoResize = False
+    .Drop = True
+    .Expand = True
+    .Border = False
+    .Columns.Padding = Desktop.Scale
   End With
+  
+  $hProgress = New ProgressBar($hBorder)
+  $hProgress.Ignore = True
+  $hProgress.H = 1 + Desktop.Scale \ 4
+  $hProgress.Border = False
+  $hProgress.Label = False
+  $hProgress.Hide
+  
+  $hVoidView = New TextLabel(Me) As "View"
+  $hVoidView.Alignment = Align.Center
+  $hVoidView.Text = ("This folder is empty.")
+  $hVoidView.Font.Grade = 2
+  $hVoidView.Foreground = Color.LightForeground
+  $hVoidView.Visible = False
+  $hVoidView.Ignore = True
+  $hVoidView.AutoResize = True
   
   Me.Proxy = GetView()
   
@@ -159,6 +218,8 @@ End
 Private Function CheckFilter(sFile As String) As Boolean
   
   Dim sFilter As String
+  
+  If Not $aFilter Then Return
   
   For Each sFilter In $aFilter
     If sFile Like sFilter Then Return
@@ -183,7 +244,11 @@ Private Sub GetIcon(sPath As String, iSize As Integer) As Picture
   Try Raise Icon(sPath)
   If $hPict Then Return $hPict
   
-  If IsDir(sPath) Then Return
+  If IsDir(sPath) Then 
+    hPict = DirView._GetIcon(sPath, iSize)
+    If Not hPict Then hPict = Picture["icon:/" & CStr(iSize) &/ "directory"]
+    Goto LOCK_ICON
+  Endif
   
   'If $bShowPreview And If $cPreview.Exist(sPath) Then Return $cPreview[sPath].Picture
   
@@ -222,12 +287,15 @@ Private Sub GetIcon(sPath As String, iSize As Integer) As Picture
   If $bDesktopIsLoaded Then
     
     hPict = GetMimeIcon(sPath, iSize)
-    If hPict Then Return hPict
+    If hPict Then Goto LOCK_ICON
     
   Endif
     
-  Try sIcon = $cExt[File.Ext(sPath)]
-  If sIcon Then Return Picture["icon:/" & CStr(iSize) &/ sIcon]
+  Try sIcon = Main.Ext[File.Ext(sPath)]
+  If sIcon Then 
+    hPict = Picture["icon:/" & CStr(iSize) &/ sIcon]
+    Goto LOCK_ICON
+  Endif
     
   With DirCache[File.Dir(sPath)].GetInfo(File.Name(sPath))
     
@@ -236,47 +304,26 @@ Private Sub GetIcon(sPath As String, iSize As Integer) As Picture
         $iIconExecSize = iSize
         $hIconExec = Picture["icon:/" & CStr(iSize) &/ "exec"]
       Endif
-      Return $hIconExec
+      hPict = $hIconExec
     Endif
     
   End With
   
+LOCK_ICON:
+
+  If Not hPict Then hPict = Picture["icon:/" & CStr(iSize) &/ "file"]
+  If Not Access(sPath, gb.Write) Then hPict = Main.AddEmblem(hPict, "lock")
+  Return hPict
+  
 Catch
   
-  Error "gb.form: unable to get icon for file: "; File.Name(sPath); ": "; Error.Text
-  
-End
-
-Private Sub GetSelection() As String[]
-  
-  Dim hView As Object
-  Dim aSel As New String[]
-  
-  If $hIconView.Visible Then
-    hView = $hIconView
-  Else
-    hView = $hColumnView
-  Endif
-  
-  hView.MoveFirst
-  While hView.Available
-    If hView.Item.Selected Then
-      aSel.Add(hView.Item.Key)
-    Endif
-    hView.MoveNext
-  Wend
-  
-  Return aSel
+  Error "gb.form: unable to get icon for file: "; File.Name(sPath); ": "; Error.Text;; Error.Backtrace.Join(" ")
   
 End
 
 Private Sub GetIconSize() As Integer
 
-  If $hColumnView.Visible Then
-    Return Stock.GetSize("small")
-  Else
-    Return $iIconSize
-  Endif
+  Return $aIconSize[View_Read()]
 
 End
 
@@ -296,6 +343,28 @@ Static Public Sub _GetHiddenColor() As Integer
   
 End
 
+Private Sub ShowLock()
+  
+  If Not picLock Then
+    picLock = New PictureBox($hBorder)
+    picLock.Picture = Picture["img/lock.png"]
+    picLock.Ignore = True
+    picLock.Mode = PictureBox.Cover
+    picLock.ResizeScaled(8, 8)
+  Endif
+  
+  picLock.Show
+  picLock.Raise
+  Watcher_Resize
+  
+End
+
+Private Sub HideLock()
+  
+  If picLock Then picLock.Hide
+  
+End
+
 Private Sub RefreshView()
   
   Dim sFile As String
@@ -309,43 +378,64 @@ Private Sub RefreshView()
   Dim aDir As New String[]
   Dim I As Integer
   Dim sText As String
-  Dim bRichText As Boolean
+  Dim sRichText As String
   Dim hCache As DirCache
   Dim iHiddenFg As Integer
   Dim SX As Integer
   Dim SY As Integer
   Dim sKey As String
   Dim aPreview As New String[]
-  Dim sExt As String
-
+  'Dim sExt As String
+  Dim bVoid As Boolean
+  Dim iSort As Integer
+  Dim bSortAscent As Boolean
+  Dim hInfo As Stat
+  Dim bFilter As Boolean
+  Dim bCancel As Boolean
+  
   Inc Application.Busy
   
   $bRefreshTriggered = False
+  $bRefreshView = False
+  
+  bFilter = Object.CanRaise(Me, "Filter")
+  
+  $nFile = 0
+  $nDir = 0
+  $iSize = 0
   
   iHiddenFg = _GetHiddenColor()
   
-  aSel = GetSelection()
+  aSel = GetView().Selection
+  
+  iSize = GetIconSize()
   
   If $hColumnView.Visible Then
+    
     SX = $hColumnView.ScrollX
     SY = $hColumnView.ScrollY
     If Not $bWatch Or If $bRefreshAll Then 
       $hColumnView.Clear
       $hColumnView._Begin()
     Endif
+    iSort = $hColumnView.Columns.Sort
+    bSortAscent = $hColumnView.Columns.Ascending
     $hColumnView.Sorted = False
     hPictFile = Picture["icon:/small/file"]
     hPictFolder = Picture["icon:/small/directory"]
+    
   Else
+    
     SX = $hIconView.ScrollX
     SY = $hIconView.ScrollY
     If Not $bWatch Or If $bRefreshAll Then $hIconView.Clear
     $hIconView._Begin
-    hPictFile = Picture["icon:/" & $iIconSize & "/file"]
-    hPictFolder = Picture["icon:/" & $iIconSize & "/directory"]
+    hPictFile = Picture["icon:/" & CStr(iSize) & "/file"]
+    hPictFolder = Picture["icon:/" & CStr(iSize) & "/directory"]
+    $hInfoFont = $hIconView.Font.Copy()
+    $hInfoFont.Size *= 0.7
+    
   Endif
-  
-  iSize = GetIconSize()
   
   sDir = GetCurrentDir()
   
@@ -363,99 +453,124 @@ Private Sub RefreshView()
   
   'Try aDir = Dir(sDir, "*").Sort()
   Try aDir = hCache.GetFiles()
-  hCache.Lock
-  For Each sFile In aDir
-    If Not $bShowHidden And If Left(sFile) = "." Or Right(sFile) = "~" Then Continue
-    'With Stat(sDir &/ sFile)
-    With hCache.GetInfo(sFile)
-      If hCache.IsDir(sFile) Then
-        If Not $bShowDir Then Continue
-        sPrefix = PREFIX_DIR
-      Else
-        If $aFilter And If CheckFilter(sFile) Then Continue
-        sPrefix = PREFIX_FILE
+  If Error Then
+    
+    ShowLock()
+    
+  Else
+    
+    HideLock()
+  
+    hCache.Lock
+    For Each sFile In aDir
+      If Not $bShowHidden And If Left(sFile) = "." Or Right(sFile) = "~" Then Continue
+      'With Stat(sDir &/ sFile)
+      Try hInfo = hCache.GetInfo(sFile)
+      If Error Then Continue
+      If bFilter Then
+        bCancel = Raise Filter(sFile, hInfo)
+        If bCancel Then Continue
       Endif
-      
-      sKey = sPrefix & sFile
-      
-      hPict = GetIcon(sDir &/ sFile, iSize)
-      If Not hPict Then 
-        If hCache.IsDir(sFile) Then 
-          hPict = hPictFolder
-        Else 
-          hPict = hPictFile
-        Endif
-      Endif
-      
-      bRichText = False
-      
-      sText = sFile
-      If .Link Then
-        sText = "<i>" & sText & "</i>"
-        bRichText = True
-      Endif
-      If .Hidden Then
-        sText = "<font color=\"#" & Hex$(iHiddenFg, 6) & "\">" & sText & "</font>"
-        bRichText = True
-      Endif
-
-      If $hColumnView.Visible Then
-        If Not $hColumnView.Exist(sKey) Then
-          $hColumnView.Add(sKey, sFile, hPict).Editable = Access(sDir, gb.Write)
-          GoSub ADD_PREVIEW
+      With hInfo
+        If hCache.IsDir(sFile) Then
+          If Not $bShowDir Then Continue
+          sPrefix = PREFIX_DIR
+          Inc $nDir
         Else
-          $hColumnView[sKey].Editable = Access(sDir, gb.Write)
-          If $bRefreshIcon Then 
+          If CheckFilter(sFile) Then Continue
+          sPrefix = PREFIX_FILE
+          Inc $nFile
+          $iSize += .Size
+        Endif
+        
+        sKey = sPrefix & sFile
+        
+        hPict = GetIcon(sDir &/ sFile, iSize)
+        If Not hPict Then 
+          If hCache.IsDir(sFile) Then 
+            hPict = hPictFolder
+          Else 
+            hPict = hPictFile
+          Endif
+        Endif
+        
+        sText = Replace(sFile, "\n", "")
+        sRichText = ""
+        
+        If .Link Then
+          sRichText = "<i>" & sText & "</i>"
+        Endif
+        If .Hidden Then
+          sRichText = "<font color=\"#" & Hex$(iHiddenFg, 6) & "\">" & sText & "</font>"
+        Endif
+  
+        If $hColumnView.Visible Then
+          If Not $hColumnView.Exist(sKey) Then
+            $hColumnView.Add(sKey, sText, hPict).Editable = Access(sDir, gb.Write)
+            GoSub ADD_PREVIEW
+          Else
+            $hColumnView[sKey].Editable = Access(sDir, gb.Write)
             $hColumnView[sKey].Picture = hPict
             GoSub ADD_PREVIEW
           Endif
-        Endif
-        $hColumnView[sKey][1] = "  " & Main.GetFileSize(.Size)
-        $hColumnView[sKey][2] = "  " & Str(.Time)
-        If bRichText Then $hColumnView[sPrefix & sFile].RichText = sText
-      Else
-        If Not $hIconView.Exist(sKey) Then
-          $hIconView.Add(sKey, sFile, hPict).Editable = Access(sDir, gb.Write)
-          GoSub ADD_PREVIEW
+          
+          With $hColumnView[sKey]
+            .[1] = Main.FormatSize(hInfo.Size)
+            .[2] = Str(hInfo.Time)
+            .[3] = hInfo.Auth
+            If sRichText Then .RichText = sRichText
+          End With
         Else
-          $hIconView[sKey].Editable = Access(sDir, gb.Write)
-          If $bRefreshIcon Then 
+          If Not $hIconView.Exist(sKey) Then
+            $hIconView.Add(sKey, sText, hPict).Editable = Access(sDir, gb.Write)
+            GoSub ADD_PREVIEW
+          Else
+            $hIconView[sKey].Editable = Access(sDir, gb.Write)
             $hIconView[sKey].Picture = hPict
             GoSub ADD_PREVIEW
           Endif
+          If sRichText Then $hIconView[sKey].RichText = sRichText
         Endif
-        If bRichText Then $hIconView[sKey].RichText = sText
-      Endif
-      
-    End With
-  Next
-  
-  hCache.Unlock
-  
-  If $hColumnView.Visible Then
-    For I = 1 To $hColumnView.Columns.Max
-      $hColumnView.Columns[I].W = -1
+        
+      End With
     Next
+    bVoid = aDir.Count = 0
+    
+    hCache.Unlock
+    
+    If aPreview.Count Then StartPreview(aPreview)
+  
   Endif
-  
-  For Each sFile In aSel
-    Try GetView()[sFile].Selected = True
-  Next
-  
-  If aPreview.Count Then RunPreview(aPreview)
   
 Finally
   
-  $bRefreshIcon = False
   $bRefreshAll = False
   If $hColumnView.Visible Then 
     $hColumnView._End
     $hColumnView.Sorted = True
+    $hColumnView.Columns.Sort = iSort
+    $hColumnView.Columns.Ascending = bSortAscent
+    For I = 1 To $hColumnView.Columns.Max
+      $hColumnView.Columns[I].W = -1
+    Next
+    $hColumnView.Columns[0].W = -1
+    $hColumnView.Columns[0].Width = Min(Desktop.Scale * 64, $hColumnView.Columns[0].Width)
   Else
     $hIconView._End
   Endif
   Try GetView().Scroll(SX, SY)
+  Try GetView().Selection = aSel
+  
+  If bVoid Then
+    $hVoidView.Show
+    $hVoidView.Raise
+  Else
+    $hVoidView.Hide
+  Endif
+  
   Dec Application.Busy
+  
+  Raise Refresh
   
 Catch 
   
@@ -464,43 +579,128 @@ Catch
   
 ADD_PREVIEW:
 
-  If Not $bShowPreview Then Return
-  sExt = LCase(File.Ext(sFile))
-  If Not sExt Then Return
-  If $cExt[sExt] <> "image" Then Return
+  If Not $bShowPreview Or If Me.Design Then Return
+  'sExt = LCase(File.Ext(sFile))
+  'If Not sExt Then Return
+  'If $cExt[sExt] <> "image" Then Return
   aPreview.Add(sFile)
   Return
   
 End
 
-Private Sub RunPreview(aPreview As String[])
+Private Sub StopPreview()
+  
+  If $hPreview Then
+    $hPreview.Stop
+    'Debug Me.Name
+  Endif
+  $hProgress.Hide
+  $sLastPreview = ""
+  
+End
 
-  If $hPreview Then $hPreview.Stop  
-  $hPreview = New CTaskPreview(GetCurrentDir(), GetIconSize(), aPreview) As "TaskPreview"
+Private Sub StartPreview(aPreview As String[])
+
+  Dim sDir As String
+  
+  If Not $bVisible Then Return
+  If Not $bShowPreview Then Return
+  
+  StopPreview
+  Component.Load("gb.hash")
+  $hProgress.Show
+  $iPreviewMax = aPreview.Count
+  $iPreviewCount = 0
+  
+  ' If $bDesktopIsLoaded Then
+  '   sDir = Main.GetCacheDir() &/ "gambas3"
+  ' Else
+    sDir = File.Dir(Temp$())
+  ' Endif
+  
+  $hPreview = New CTaskPreview(GetCurrentDir(), GetIconSize(), $iMaxPreviewSize, aPreview, sDir, $bIgnorePreviewCache) As "TaskPreview"
+  'Debug Me.Name;; System.Backtrace.Join(" ")
+
+End
+
+Private Sub PaintImageWithOutline(hImage As Image, X As Float, Y As Float, W As Integer, H As Integer)
+
+  Dim hOutline As Image
+
+  hOutline = hImage.Stretch(W, H)
+  hOutline.Brightness(1)
+  hOutline.Colorize(Color.TextBackground)
+  
+  Paint.DrawImage(hOutline, X - 1, Y - 1)
+  Paint.DrawImage(hOutline, X + 1, Y - 1)
+  Paint.DrawImage(hOutline, X + 1, Y + 1)
+  Paint.DrawImage(hOutline, X - 1, Y + 1)
+  
+  Paint.DrawImage(hImage, X, Y, W, H)
 
 End
 
 Public Sub TaskPreview_Read(Data As String)
   
-  Dim iPos As Integer
   Dim sPath As String
   Dim sPreview As String
   Dim sLine As String
+  Dim hImage As Image
+  Dim DS As Integer
+  Dim hItem As Object
+  Dim sType As String
+  Dim S As Integer
+  Dim aLine As String[]
+  Dim aRect As String[]
+  Dim hRect As Rect
   
   If Not $bShowPreview Then Return
+  
+  DS = Desktop.Scale
   
   For Each sLine In Split(Data, "\n", "", True)
   
     If sLine = "." Then
-      Try $hPreview.Stop
+      $bPreviewDone = True
+      Try StopPreview
       Return
     Endif
     
-    iPos = InStr(sLine, "\t")
-    sPath = Left(sLine, iPos - 1)
-    sPreview = Mid$(sLine, iPos + 1)
+    aLine = Split(sLine, "\t")
     
-    Try GetView()[PREFIX_FILE & sPath].Picture = Image.Load(sPreview).Picture
+    sPath = aLine[0]
+    sPreview = aLine[1]
+    
+    If sPreview Then
+      hItem = GetView()[PREFIX_FILE & sPath]
+      If hItem Then
+        Try hImage = Image.Load(sPreview)
+        If Not Error And If hItem.Picture Then
+          sType = Main.Ext[File.Ext(sPath)]
+          If sType <> "image" And If sType <> "video" Then
+            If hImage.W > DS * 8 Then
+              
+              hRect = Null
+              Try aRect = Split(aLine[2])
+              If Not Error Then Try hRect = Rect(CInt(aRect[0]), CInt(aRect[1]), CInt(aRect[2]), CInt(aRect[3]))
+              If Not hRect Then hRect = Rect(0, 0, hImage.W, hImage.H)
+              
+              Paint.Begin(hImage)
+              S = GetIconSize() \ 32
+              PaintImageWithOutline(hItem.Picture.Image, hRect.X + hRect.W - DS * 4 - S, hRect.Y + S, DS * 4, DS * 4)
+              Paint.End
+              
+            Endif
+          Endif
+          hItem.Picture = hImage.Picture
+        Endif
+      Endif
+    Endif
+    
+    Inc $iPreviewCount
+    $hProgress.Value = $iPreviewCount / $iPreviewMax
+    
+    $sLastPreview = sPath
     
   Next
   
@@ -508,48 +708,59 @@ End
 
 Public Sub TaskPreview_Kill()
   
-  If $hPreview = Last Then $hPreview = Null
+  Dim iPos As Integer
+  
+  If $hPreview = Last Then 
+    If $sLastPreview Then 
+      iPos = $hPreview.Preview.Find($sLastPreview)
+      Error "gb.form: preview failed: "; $hPreview.Preview[iPos + 1]
+    Endif
+    $hPreview = Null
+    StopPreview
+  Endif
   
 End
 
-
 Private Sub RefreshViewLater(Optional bClear As Boolean)
   
-  If $bRefreshTriggered Then 
-    If bClear Then $bRefreshAll = True
-    Return
-  Endif
+  $bRefreshView = True
+  If bClear Then $bRefreshAll = True
+  If Not $bVisible Then Return
   
-  If $hRefresh.Enabled Then $hRefresh.Stop
-
-  $bRefreshAll = bClear
+  If $bRefreshTriggered Then Return
+  
   $bRefreshTriggered = True
+  UpdateIconView
   $hRefresh.Trigger
   
 End
 
-Public Sub RefreshViewAfter()
-  
-  If $bRefreshTriggered Then Return
-  If $hRefresh.Enabled Then Return
-  
-  $hRefresh.Delay = 100
-  $hRefresh.Start
-  
-End
-
+' Public Sub _RefreshViewAfter()
+'   
+'   If $bRefreshTriggered Then Return
+'   If $hRefresh.Enabled Then Return
+'   
+'   $hRefresh.Delay = 100
+'   $hRefresh.Start
+'   
+' End
 
 Public Sub Refresh_Timer()
   
-  If Not $bRefreshTriggered And Not $hRefresh.Enabled Then Return
+  If Not $bRefreshTriggered And If Not $hRefresh.Enabled Then Return
   RefreshView
   $hRefresh.Stop
   
 End
 
-Public Sub Reload()
+'' Refresh the view contents.
+''
+'' If ~ClearCache~ is 'TRUE', then the preview are refreshed.
+
+Public Sub Reload(Optional ClearCache As Boolean)
   
   $bInvalidate = True
+  $bIgnorePreviewCache = ClearCache
   RefreshViewLater(True)
   
 End
@@ -562,7 +773,9 @@ End
 
 Private Sub Dir_Write(sDir As String)
   
+  If $sDir = sDir Then Return
   $sDir = sDir
+  StopPreview
   RefreshViewLater(True)
   
 End
@@ -615,7 +828,8 @@ End
 
 Private Sub EnsureRefresh()
 
-  Refresh_Timer
+  Try $hRefresh.Stop
+  If $bRefreshTriggered Then RefreshView
 
 End
 
@@ -721,6 +935,11 @@ End
 
 Public Sub View_Menu()
   
+  If picLock And If picLock.Visible Then
+    Stop Event 
+    Return
+  Endif
+  
   Raise Menu
   
 End
@@ -737,7 +956,6 @@ Public Sub View_BeforeSort()
   Endif
   
 End
-
 
 Public Sub View_Compare((Key) As String, OtherKey As String)
   
@@ -764,7 +982,7 @@ Public Sub View_Compare((Key) As String, OtherKey As String)
         
     End Select
     
-    If iComp = 0 Then iComp = Comp(Key, OtherKey, gb.IgnoreCase + gb.Natural)
+    If iComp = 0 Then iComp = Comp(Mid$(Key, 2), Mid$(OtherKey, 2), gb.IgnoreCase + gb.Natural)
     
     'IF NOT $bAsc THEN iComp = (- iComp)
     
@@ -791,20 +1009,14 @@ End
 
 Private Function Selection_Read() As String[]
   
-  Dim hView As Object
-  Dim aSel As New String[]
+  Dim aSel As String[]
+  Dim I As Integer
   
   EnsureRefresh
-  
-  hView = GetView()
-  hView.MoveFirst
-  While hView.Available
-    If hView.Item.Selected Then
-      aSel.Add(hView.Item.Text)
-    Endif
-    hView.MoveNext
-  Wend
-  
+  aSel = GetView().Selection
+  For I = 0 To aSel.Max
+    aSel[I] = Mid$(aSel[I], 2)
+  Next
   Return aSel
   
 End
@@ -872,7 +1084,12 @@ End
 
 Private Sub Filter_Write(aFilter As String[])
   
-  $aFilter = aFilter.Copy()
+  If aFilter Then
+    $aFilter = aFilter.Copy()
+  Else 
+    $aFilter = Null
+  Endif 
+  
   RefreshViewLater(True)
   
 End
@@ -891,42 +1108,70 @@ End
 
 Private Function Border_Read() As Boolean
   
-  Return $hColumnView.Border
+  Return $hBorder.Border
   
 End
 
 Private Sub Border_Write(Value As Boolean)
   
-  $hColumnView.Border = Value
-  $hIconView.Border = Value
+  $hBorder.Border = If(Value, Border.Plain, Border.None)
   
 End
 
 Private Function Settings_Read() As Variant[]
   
-  Return [1, CVariant(ShowDetailed_Read()), ShowHidden_Read(), $hColumnView.Settings, $iIconSize, ShowPreview_Read()]
-  
-  'Return IIf(ShowDetailed_Read(), "1", "0") & "," & IIf(ShowHidden_Read(), "1", "0") & "," & $hColumnView.Settings
+  Return [3, CVariant(View_Read()), ShowHidden_Read(), $hColumnView.Settings, $aIconSize, $iMaxPreviewSize]
   
 End
 
 Private Sub Settings_Write(Value As Variant[])
   
+  If IsNull(Value) Then Return
+  
   If TypeOf(Value[0]) = gb.Integer Then
-    ShowDetailed_Write(Value[1])
-    ShowHidden_Write(Value[2])
-    $hColumnView.Settings = Value[3]
-    IconSize_Write(Value[4])
-    If Value.Count >= 6 Then ShowPreview_Write(Value[5])
+    
+    Select Case value[0]
+    
+      Case 1, 2
+    
+        If Value[0] = 1 Then
+          View_Write(If(Value[1], Detailed, Normal))
+        Else 
+          View_Write(Value[1])
+        Endif
+        ShowHidden_Write(Value[2])
+        $hColumnView.Settings = Value[3]
+        $aIconSize[Normal] = Value[4]
+        If Value.Count >= 6 Then ShowPreview_Write(Value[5])
+        If Value.Count >= 7 Then
+          $aIconSize[Compact] = Value[6]
+        Else
+          $aIconSize[Compact] = $aIconSize[Normal]
+        Endif
+        
+      Case Else 
+        
+        View_Write(Value[1])
+        ShowHidden_Write(Value[2])
+        $hColumnView.Settings = Value[3]
+        $aIconSize = Value[4]
+        If Value.Count >= 6 Then $iMaxPreviewSize = Value[5]
+        
+    End Select
+    
+    'RefreshViewLater(True)
+    
   Else
+    
     ShowDetailed_Write(Value[0])
     ShowHidden_Write(Value[1])
     $hColumnView.Settings = Value[2]
+    
   Endif
   
 Catch
   
-  Error "gb.form :"; Error.Where; ": "; Error.Text
+  Error "gb.form: "; Error.Where; ": "; Error.Text
   
 End
 
@@ -951,16 +1196,22 @@ End
 
 Private Function IconSize_Read() As Integer
   
-  Return $iIconSize
+  Return GetIconSize()
   
 End
 
 Private Sub IconSize_Write(Value As Integer)
   
-  $iIconSize = Value
-  $bRefreshIcon = True
-  RefreshViewLater
-  $hIconView.GridSize = Min(40, (Value + 8) \ 3)
+  Dim iView As Integer
+  
+  If $hColumnView.Visible Then Return
+  If Value < 8 Or Value > 512 Then Return
+  
+  iView = View_Read()
+  If $aIconSize[iView] = Value Then Return
+  
+  $aIconSize[iView] = Value
+  RefreshViewLater(True)
   
 End
 
@@ -1015,7 +1266,7 @@ Private Sub ShowPreview_Write(Value As Boolean)
 
   If $bShowPreview = Value Then Return
   $bShowPreview = Value
-  $bRefreshIcon = True
+  StopPreview
   RefreshViewLater
   
 End
@@ -1032,13 +1283,6 @@ Public Sub Rename()
   
 End
 
-Public Sub View_Cancel()
-  
-  Reload
-  
-End
-
-
 Public Sub View_Rename()
   
   Dim hView As Object = GetView()
@@ -1046,8 +1290,15 @@ Public Sub View_Rename()
   Dim sOldPath As String = GetCurrentDir() &/ Mid$(sKey, 2)
   Dim sNewName As String = hView.Item.Text
   Dim sMsg As String
+  Dim bCancel As Boolean
   
   If sNewName = File.Name(sOldPath) Then Return 
+  
+  If Object.CanRaise(Me, "Rename") Then
+    bCancel = Raise Rename(File.Name(Mid$(sKey, 2)), hView.Item.Text)
+    If bCancel Then hView[sKey].Text = File.Name(sOldPath)
+    Return
+  Endif
   
   sMsg = Help.CheckFileName(sNewName)
   If sMsg Then
@@ -1124,18 +1375,313 @@ Public Sub Watch_Stat()
   
 End
 
+Public Sub _attach((Parent) As Object, EventName As String)
+  
+  If Not EventName Then $hWatch = Null
+  
+End
+
 Public Sub Watcher_Hide()
 
-  'Debug  
-  $hWatch = Null
   $bVisible = False
+  If $hPreview Then 
+    StopPreview
+    RefreshViewLater
+  Endif
   
 End
 
 Public Sub Watcher_Show()
   
-  'Debug  
+  'Debug Me.Name;; $bRefreshView
   $bVisible = True
-  RefreshViewLater
+  If $bRefreshView Then RefreshViewLater()
+  
+End
+
+Public Sub Watcher_Resize()
+  
+  $hVoidView.W = Desktop.Scale * 30
+  $hVoidView.Move((Me.W - $hVoidView.W) \ 2, (Me.H - $hVoidView.H) \ 2)
+  If picLock And If picLock.Visible Then
+    picLock.Move((Me.W - picLock.W) \ 2, (Me.H - picLock.H) \ 2)
+  Endif
+  $hProgress.Move(0, Me.H - $hProgress.H, Me.W, $hProgress.H)
+  
+End
+
+
+' Public Sub View_Draw(X As Integer, Y As Integer, Width As Integer, Height As Integer, (Key) As String, Optional (Column) As Integer)
+' 
+'   'Dim iSize As Long
+'   'Dim hFont As Font
+'   Dim H As Integer
+'   Dim hStat As Stat
+'   Dim dDate As Date
+'   Dim sDate As String
+'   Dim sAuth As String
+' 
+'   If Not $hIconView.Visible Then Return
+' 
+'   H = $hInfoFont.H
+'   
+'   If $iIconSize < (H * 5) Then Return
+'   
+'   Try hStat = DirCache[$sDir].GetInfo(Mid$(Key, 2))
+'   'Try hStat = Stat($sDir &/ Mid$(Key, 2))
+'   If Error Then Return
+'   
+'   Paint.Background = Color.Merge(Style.ForegroundOf(Last), Style.BackgroundOf(Last), 0.3)
+'   
+'   If Me.RightToLeft Then
+'     Width = (Width - $iIconSize - H) \ 2
+'   Else
+'     X += (Width + $iIconSize + H) \ 2
+'   Endif
+'   'Paint.Save
+'   Paint.Font = $hInfoFont
+'   
+'   Y += Desktop.Scale
+'   Paint.DrawText(Main.FormatSize(hStat.Size), X, Y, Width, Height, Align.TopNormal)
+'   
+'   'If $iIconSize < (H * 5) Then Return
+'   
+'   dDate = hStat.LastModified
+'   If Date(dDate) = Date(Now) Then
+'     sDate = Format(dDate, gb.LongTime)
+'   Else If Year(dDate) = Year(Now) Then
+'     sDate = Format(dDate, "dd mmm")
+'   Else If $iIconSize < (H * 6) Then
+'     sDate = Format(dDate, "mmm yyyy")
+'   Else
+'     sDate = Format(dDate, gb.MediumDate)
+'   Endif
+'   
+'   Y += H * 1.25
+'   Paint.DrawText(sDate, X, Y, Width, Height, Align.TopNormal)
+'   
+'   If $iIconSize < (H * 6) Then Return
+' 
+'   sAuth = hStat.Auth
+'   sAuth = Left(sAuth, 3) & " " & Mid$(sAuth, 4, 3) & " " & Mid$(sAuth, 7)
+'   
+'   Y += H * 1.25
+'   Paint.DrawText(sAuth, X, Y, Width, Height, Align.TopNormal)
+'   
+' End
+
+Private Function Path_Read() As String
+
+  Dim sCurrent As String = Current_Read()
+  If sCurrent Then Return $sDir &/ sCurrent
+
+End
+
+Public Sub _RefreshPicture()
+  
+  DirCache[GetCurrentDir()]._RefreshPicture()
+  Reload
+  
+End
+
+Private Function Selected_Read() As Boolean
+
+  Return GetView().Selected
+
+End
+
+Private Sub GetSelection() As String[]
+
+  Dim hView As Object = GetView()
+  Dim aPaths As String[]
+  Dim I As Integer
+  
+  aPaths = hView.Selection
+  If Not aPaths Or If aPaths.Count = 0 Then Return
+  
+  For I = 0 To aPaths.Max
+    aPaths[I] = GetCurrentDir() &/ Mid(aPaths[I], 2)
+  Next
+  
+  Return aPaths
+
+End
+
+Public Sub View_MouseDrag()
+
+  Dim hView As Object = GetView()
+  Dim aPaths As String[] = GetSelection()
+  If Not aPaths Then Return
+  
+  Try Drag.Icon = hView[hView.Selection[0]].Picture
+  Drag(GetView(), aPaths, "text/uri-list")
+  
+End
+
+'' Copy the selected items as a list of URI in the clipboard.
+
+Public Sub Copy()
+  
+  Dim aPaths As String[] = GetSelection()
+  If Not aPaths Then Return
+  Clipboard.Copy(aPaths, "text/uri-list")
+  
+End
+
+Public Sub View_DragLeave()
+  
+  HighlightItem
+  
+End
+
+Public Sub View_Drop()
+  
+  Raise Drop
+  
+End
+
+Private Function Paths_Read() As String[]
+
+  Dim aSel As String[]
+  Dim I As Integer
+  Dim sDir As String
+  
+  EnsureRefresh
+  sDir = GetCurrentDir()
+  aSel = GetView().Selection
+  For I = 0 To aSel.Max
+    aSel[I] = sDir &/ Mid$(aSel[I], 2)
+  Next
+  Return aSel
+  
+End
+
+Public Sub View_DragMove()
+
+  $DX = Drag.X
+  $DY = Drag.Y
+  
+  CheckDragMove()
+  
+End
+
+Private Sub HighlightItem(Optional sKey As String)
+
+  Dim hView As Object
+  Dim hImage As Image
+
+  hView = GetView()
+  
+  If $sHighlight Then
+    If $hHighlightPicture Then hView[$sHighlight].Picture = $hHighlightPicture
+    $hHighlightPicture = Null
+    $sHighlight = ""
+  Endif
+  
+  If sKey Then
+    $sHighlight = sKey
+    $hHighlightPicture = hView[$sHighlight].Picture
+    If $hHighlightPicture Then
+      hImage = $hHighlightPicture.Image
+      hImage.PaintRect(0, 0, hImage.W, hImage.H, Color.SetAlpha(Color.LightBackground, 192))
+      hView[$sHighlight].Picture = hImage.Picture
+    Endif
+  Endif
+
+End
+
+Private Sub CheckDragMove()
+
+  Dim hView As Object = GetView()
+  
+  Drag.Item = Null
+  If hView.FindAt($DX, $DY) Then
+    
+    HighlightItem
+    
+  Else
+  
+    With hView.Item
+      If IsDir(GetCurrentDir() &/ .Text) Then
+        HighlightItem(.Key)
+        Drag.Item = .Key
+      Else 
+        HighlightItem()
+      Endif
+    End With
+    
+  Endif
+  
+End
+
+Public Sub View_Scroll()
+  
+  If Drag.Pending Then CheckDragMove()
+  
+End
+
+Private Sub MaxPreviewSize_Write(Value As Integer)
+  
+  If $iMaxPreviewSize = Value Then Return
+  $iMaxPreviewSize = Value
+  If $bShowPreview Then Reload
+  
+End
+
+Private Function View_Read() As Integer
+
+  If $hColumnView.Visible Then
+    Return Detailed
+  Else If $hIconView.Orientation = Arrange.Horizontal Then
+    Return Compact
+  Else If $bShowPreview Then
+    Return Preview
+  Else
+    Return Normal
+  Endif
+
+End
+
+Private Sub View_Write(Value As Integer)
+
+  Dim iIconSize As Integer
+  
+  If Value = View_Read() Then Return
+  
+  ShowPreview_Write(False)
+  If Value = Detailed Then
+    ShowDetailed_Write(True)
+  Else
+    iIconSize = GetIconSize()
+    ShowDetailed_Write(False)
+    If Value = Compact Then
+      $hIconView.Orientation = Arrange.Horizontal
+    Else
+      $hIconView.Orientation = Arrange.Vertical
+      If Value = Preview Then ShowPreview_Write(True)
+    Endif 
+    UpdateIconView
+    If iIconSize <> GetIconSize() Then 
+      RefreshViewLater(True)
+    Endif
+  Endif
+
+End
+
+Private Sub UpdateIconView()
+
+  If Not $hIconView.Visible Then Return
+
+  If $hIconView.Orientation = Arrange.Horizontal Then
+    $hIconView.IconLines = Max(1, GetIconSize() \ $hIconView.Font.Height)
+  Else 
+    $hIconView.IconLines = 3
+  Endif
+
+End
+
+Public Sub UserControl_Font()
+  
+  UpdateIconView
   
 End

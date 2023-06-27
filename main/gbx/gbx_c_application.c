@@ -2,7 +2,7 @@
 
   gbx_c_application.c
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -60,14 +60,17 @@ static bool _daemon = FALSE;
 
 BEGIN_PROPERTY(Application_Path)
 
-  GB_ReturnString(PROJECT_path);
+	if (PROJECT_override)
+		GB_ReturnNewZeroString(FILE_get_dir(PROJECT_override));
+	else
+		GB_ReturnString(PROJECT_path);
 
 END_PROPERTY
 
 
 BEGIN_PROPERTY(Application_Name)
 
-  GB_ReturnConstZeroString(PROJECT_name);
+	GB_ReturnConstZeroString(PROJECT_name);
 
 END_PROPERTY
 
@@ -79,9 +82,16 @@ BEGIN_PROPERTY(Application_Title)
 END_PROPERTY
 
 
-BEGIN_PROPERTY(Application_Id)
+BEGIN_PROPERTY(Application_Handle)
 
   GB_ReturnInt(getpid());
+
+END_PROPERTY
+
+
+BEGIN_PROPERTY(Application_ParentHandle)
+
+  GB_ReturnInt(getppid());
 
 END_PROPERTY
 
@@ -127,7 +137,9 @@ BEGIN_METHOD(Application_Args_get, GB_INTEGER index)
 
   if (index >= PROJECT_argc)
     GB_ReturnVoidString();
-  else
+  else if (index == 0 && PROJECT_override)
+    GB_ReturnNewZeroString(FILE_get_name(PROJECT_override));
+	else
     GB_ReturnConstZeroString(PROJECT_argv[index]);
 
 END_METHOD
@@ -148,7 +160,7 @@ BEGIN_METHOD_VOID(Application_Args_next)
 END_METHOD
 
 
-BEGIN_PROPERTY(Application_Args_All)
+BEGIN_PROPERTY(Application_Args_Copy)
 
 	GB_ARRAY array;
 	int i;
@@ -180,14 +192,26 @@ END_PROPERTY*/
 
 //-------------------------------------------------------------------------
 
-BEGIN_PROPERTY(Application_Env_Count)
-
+static int get_environ_count()
+{
 	int n = 0;
 
 	while(environ[n])
 		n++;
+	
+	return n;
+}
 
-  GB_ReturnInt(n);
+BEGIN_PROPERTY(Application_Env_Count)
+
+  GB_ReturnInteger(get_environ_count());
+
+END_PROPERTY
+
+
+BEGIN_PROPERTY(Application_Env_Max)
+
+  GB_ReturnInteger(get_environ_count() - 1);
 
 END_PROPERTY
 
@@ -227,6 +251,25 @@ BEGIN_METHOD_VOID(Application_Env_next)
 
 END_METHOD
 
+BEGIN_PROPERTY(Application_Env_Copy)
+
+	GB_ARRAY array;
+	int i, n;
+	char *arg;
+
+	n = get_environ_count();
+	GB_ArrayNew(&array, GB_T_STRING, n - 1);
+	for (i = 0; i < n; i++)
+	{
+		arg = environ[i];
+		if (arg && *arg)
+			*(char **)GB_ArrayGet(array, i) = STRING_new_zero(environ[i]);
+	}
+
+  GB_ReturnObject(array);
+
+END_PROPERTY
+
 //-------------------------------------------------------------------------
 
 static void init_again(int old_pid)
@@ -236,6 +279,7 @@ static void init_again(int old_pid)
 	FILE_remove_temp_file();
 	snprintf(old, sizeof(old),FILE_TEMP_DIR, getuid(), old_pid);
 	rename(old, FILE_make_temp(NULL, NULL));
+	FILE_chdir(PROJECT_path);
 }
 
 BEGIN_PROPERTY(Application_Daemon)
@@ -266,6 +310,7 @@ BEGIN_PROPERTY(Application_Startup)
 
 END_PROPERTY
 
+
 BEGIN_PROPERTY(Application_Priority)
 
 	int pr;
@@ -293,6 +338,20 @@ BEGIN_PROPERTY(Application_Priority)
 
 END_PROPERTY
 
+
+BEGIN_PROPERTY(Application_Task)
+
+  GB_ReturnBoolean(EXEC_task);
+
+END_PROPERTY
+
+
+BEGIN_PROPERTY(Application_TempDir)
+
+	GB_ReturnNewZeroString(FILE_make_temp(NULL, NULL));
+
+END_PROPERTY
+
 #endif
 
 //-------------------------------------------------------------------------
@@ -303,7 +362,8 @@ GB_DESC NATIVE_AppArgs[] =
 
   GB_STATIC_PROPERTY_READ("Count", "i", Application_Args_Count),
   GB_STATIC_PROPERTY_READ("Max", "i", Application_Args_Max),
-  GB_STATIC_PROPERTY_READ("All", "String[]", Application_Args_All),
+  GB_STATIC_PROPERTY_READ("All", "String[]", Application_Args_Copy),
+  GB_STATIC_METHOD("Copy", "String[]", Application_Args_Copy, NULL),
   GB_STATIC_METHOD("_get", "s", Application_Args_get, "(Index)i"),
   GB_STATIC_METHOD("_next", "s", Application_Args_next, NULL),
   //GB_STATIC_PROPERTY("Name", "s", Application_Args_Name),
@@ -317,6 +377,8 @@ GB_DESC NATIVE_AppEnv[] =
   GB_DECLARE_STATIC("Env"),
 
   GB_STATIC_PROPERTY_READ("Count", "i", Application_Env_Count),
+  GB_STATIC_PROPERTY_READ("Max", "i", Application_Env_Max),
+  GB_STATIC_METHOD("Copy", "String[]", Application_Env_Copy, NULL),
   GB_STATIC_METHOD("_get", "s", Application_Env_get, "(Key)s"),
   GB_STATIC_METHOD("_put", NULL, Application_Env_put, "(Value)s(Key)s"),
   GB_STATIC_METHOD("_next", "s", Application_Env_next, NULL),
@@ -334,13 +396,16 @@ GB_DESC NATIVE_App[] =
   GB_STATIC_PROPERTY_READ("Path", "s", Application_Path),
   GB_STATIC_PROPERTY_READ("Name", "s", Application_Name),
   GB_STATIC_PROPERTY_READ("Title", "s", Application_Title),
-  GB_STATIC_PROPERTY_READ("Id", "i", Application_Id),
-  GB_STATIC_PROPERTY_READ("Handle", "i", Application_Id),
+  GB_STATIC_PROPERTY_READ("Id", "i", Application_Handle),
+  GB_STATIC_PROPERTY_READ("Handle", "i", Application_Handle),
+  GB_STATIC_PROPERTY_READ("ParentHandle", "i", Application_ParentHandle),
   GB_STATIC_PROPERTY_READ("Version", "s", Application_Version),
   GB_STATIC_PROPERTY_READ("Dir", "s", Application_Dir),
+  GB_STATIC_PROPERTY_READ("TempDir", "s", Application_TempDir),
   GB_STATIC_PROPERTY("Daemon", "b", Application_Daemon),
   GB_STATIC_PROPERTY_READ("Startup", "Class", Application_Startup),
 	GB_STATIC_PROPERTY("Priority", "i", Application_Priority),
+  GB_STATIC_PROPERTY_READ("Task", "b", Application_Task),
 
   GB_END_DECLARE
 };

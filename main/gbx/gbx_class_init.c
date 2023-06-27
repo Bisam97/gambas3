@@ -1,23 +1,23 @@
 /***************************************************************************
 
-  gbx_class_init.c
+	gbx_class_init.c
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+	(c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; either version 2, or (at your option)
-  any later version.
+	This program is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 2, or (at your option)
+	any later version.
 
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
 
-  You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software
-  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
-  MA 02110-1301, USA.
+	You should have received a copy of the GNU General Public License
+	along with this program; if not, write to the Free Software
+	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+	MA 02110-1301, USA.
 
 ***************************************************************************/
 
@@ -80,94 +80,108 @@ CLASS *CLASS_String = NULL;
 CLASS *CLASS_Enum = NULL;
 
 typedef
-  struct {
-    GB_DESC *desc;
-    CLASS **class;
-    int array;
+	struct {
+		GB_DESC *desc;
+		CLASS **class;
+		int array;
 		TYPE array_type;
-    }
-  CLASS_INIT;
+		}
+	CLASS_INIT;
 
-static const CLASS_INIT init_list[] =
+static const CLASS_INIT _init_list[] =
 {
-  { NATIVE_Gambas, NULL },
-  { NATIVE_Param, NULL },
-  { NATIVE_Enum, &CLASS_Enum },
-  { NATIVE_Symbol, NULL },
-  { NATIVE_Class, NULL },
-  { NATIVE_Classes, NULL },
-  { NATIVE_Component, NULL },
-  { NATIVE_Components, NULL },
-  { NATIVE_Object, NULL },
-  { NATIVE_Collection, &CLASS_Collection, CQA_COLLECTION },
-  { NATIVE_Error, NULL },
-  { StreamLinesDesc, NULL },
-  { StreamTermDesc, NULL },
-  { StreamDesc, &CLASS_Stream },
-  { StatPermDesc, NULL },
-  { StatDesc, &CLASS_Stat },
-  { FileDesc, &CLASS_File },
-  { NATIVE_AppEnv, &CLASS_AppEnv },
-  { NATIVE_AppArgs, &CLASS_AppArgs },
-  { NATIVE_App, &CLASS_Application },
-  { NATIVE_Process, &CLASS_Process },
-  { NATIVE_System, NULL },
-  { NATIVE_Jit, NULL },
-  { NATIVE_User, NULL },
-  { StringDesc, NULL },
+	{ NATIVE_Gambas, NULL },
+	{ NATIVE_Param, NULL },
+	{ NATIVE_Enum, &CLASS_Enum },
+	{ NATIVE_Symbol, NULL },
+	{ NATIVE_Class, NULL },
+	{ NATIVE_Classes, NULL },
+	{ NATIVE_Component, NULL },
+	{ NATIVE_Components, NULL },
+	{ NATIVE_Object, NULL },
+	{ NATIVE_Collection, &CLASS_Collection, CQA_COLLECTION },
+	{ NATIVE_Error, NULL },
+	{ StreamLinesDesc, NULL },
+	{ StreamTermDesc, NULL },
+	{ StreamDesc, &CLASS_Stream },
+	{ StatPermDesc, NULL },
+	{ StatDesc, &CLASS_Stat },
+	{ FileDesc, &CLASS_File },
+	{ NATIVE_AppEnv, &CLASS_AppEnv },
+	{ NATIVE_AppArgs, &CLASS_AppArgs },
+	{ NATIVE_App, &CLASS_Application },
+	{ NATIVE_Process, &CLASS_Process },
+	{ NATIVE_System, NULL },
+	{ NATIVE_Jit, NULL },
+	{ NATIVE_User, NULL },
+	{ StringDesc, NULL },
 	{ BoxedStringDesc, &CLASS_BoxedString, CQA_STRING },
-  { TaskDesc, NULL },
-  { NATIVE_Timer, &CLASS_Timer },
-  { NATIVE_Observer, &CLASS_Observer },
-  //{ NATIVE_Proxy, &CLASS_Proxy },
+	{ TaskDesc, NULL },
+	{ NATIVE_Timer, &CLASS_Timer },
+	{ NATIVE_Observer, &CLASS_Observer },
+	//{ NATIVE_Proxy, &CLASS_Proxy },
 
-  { NATIVE_ArrayBounds, NULL },
-  { NATIVE_Array, &CLASS_Array },
-  { NATIVE_BooleanArray, &CLASS_BooleanArray, CQA_ARRAY, T_BOOLEAN },
-  { NATIVE_ByteArray, &CLASS_ByteArray, CQA_ARRAY, T_BYTE },
-  { NATIVE_ShortArray, &CLASS_ShortArray, CQA_ARRAY, T_SHORT },
-  { NATIVE_IntegerArray, &CLASS_IntegerArray, CQA_ARRAY, T_INTEGER },
-  { NATIVE_FloatArray, &CLASS_FloatArray, CQA_ARRAY, T_FLOAT },
-  { NATIVE_SingleArray, &CLASS_SingleArray, CQA_ARRAY, T_SINGLE },
-  { NATIVE_DateArray, &CLASS_DateArray, CQA_ARRAY, T_DATE },
-  { NATIVE_StringArray, &CLASS_StringArray, CQA_ARRAY, T_STRING },
-  { NATIVE_ObjectArray, &CLASS_ObjectArray, CQA_ARRAY, T_OBJECT },
-  { NATIVE_VariantArray, &CLASS_VariantArray, CQA_ARRAY, T_VARIANT },
-  { NATIVE_LongArray, &CLASS_LongArray, CQA_ARRAY, T_LONG },
-  { NATIVE_PointerArray, &CLASS_PointerArray, CQA_ARRAY, T_POINTER },
+	{ NATIVE_ArrayBounds, NULL },
+	{ NATIVE_Array, &CLASS_Array },
+	{ NATIVE_BooleanArray, &CLASS_BooleanArray, CQA_ARRAY, T_BOOLEAN },
+	{ NATIVE_ByteArray, &CLASS_ByteArray, CQA_ARRAY, T_BYTE },
+	{ NATIVE_ShortArray, &CLASS_ShortArray, CQA_ARRAY, T_SHORT },
+	{ NATIVE_IntegerArray, &CLASS_IntegerArray, CQA_ARRAY, T_INTEGER },
+	{ NATIVE_FloatArray, &CLASS_FloatArray, CQA_ARRAY, T_FLOAT },
+	{ NATIVE_SingleArray, &CLASS_SingleArray, CQA_ARRAY, T_SINGLE },
+	{ NATIVE_DateArray, &CLASS_DateArray, CQA_ARRAY, T_DATE },
+	{ NATIVE_StringArray, &CLASS_StringArray, CQA_ARRAY, T_STRING },
+	{ NATIVE_ObjectArray, &CLASS_ObjectArray, CQA_ARRAY, T_OBJECT },
+	{ NATIVE_VariantArray, &CLASS_VariantArray, CQA_ARRAY, T_VARIANT },
+	{ NATIVE_LongArray, &CLASS_LongArray, CQA_ARRAY, T_LONG },
+	{ NATIVE_PointerArray, &CLASS_PointerArray, CQA_ARRAY, T_POINTER },
 
-  { NULL }
+	{ NULL }
 };
 
 
 void CLASS_init_native(void)
 {
-  const CLASS_INIT *init;
-  CLASS *class;
+	const CLASS_INIT *init;
+	CLASS *class;
 
-  /* NOTE: The 'Class' class must be first in the global class table */
-  CLASS_Class = CLASS_find("Class");
-  CLASS_Symbol = CLASS_find("Symbol");
-  CLASS_Component = CLASS_find("Component");
-  CLASS_Stream = CLASS_find("Stream");
+	/* NOTE: The 'Class' class must be first in the global class table */
+	CLASS_Class = CLASS_find("Class");
+	CLASS_Symbol = CLASS_find("Symbol");
+	CLASS_Component = CLASS_find("Component");
+	CLASS_Stream = CLASS_find("Stream");
 
-  //LIBRARY_Current = LIBRARY_create(NULL);
+	//LIBRARY_Current = LIBRARY_create(NULL);
 
-  for (init = init_list; init->desc; init++)
-  {
-    class = CLASS_register(init->desc);
-    if (init->class != NULL)
-      *init->class = class;
+	for (init = _init_list; init->desc; init++)
+	{
+		class = CLASS_register(init->desc);
+		if (init->class != NULL)
+			*init->class = class;
 		if (init->array)
 		{
 			class->quick_array = init->array;
 			class->array_type = init->array_type;
 			class->is_array = init->array == CQA_ARRAY;
 		}
-  }
+	}
 	
 	CLASS_Observer->is_observer = TRUE;
 	CLASS_Observer->size += sizeof(OBJECT_EVENT);
 	//CLASS_Proxy->is_observer = TRUE;
 	//CLASS_Proxy->size += sizeof(OBJECT_EVENT);
+}
+
+void CLASS_update_global(CLASS *old_class, CLASS *new_class)
+{
+	const CLASS_INIT *init;
+	
+	for (init = _init_list; init->desc; init++)
+	{
+		if (init->class && *init->class == old_class)
+		{
+			*init->class = new_class;
+			return;
+		}
+	}
 }

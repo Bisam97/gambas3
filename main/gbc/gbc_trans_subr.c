@@ -2,7 +2,7 @@
 
   gbc_trans_subr.c
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -57,7 +57,7 @@ void TRANS_subr(int subr, int nparam)
 		{ ".LockWait" }, { ".InputFrom" }, { ".OutputTo" }, { ".Debug" }, { ".Sleep" },
 		{ ".Randomize" }, { ".ErrorTo" }, { "Left" }, { "Mid" }, { ".OpenMemory" },
 		{ ".Chmod" }, { ".Chown" }, { ".Chgrp" }, { ".Use" }, { ".CheckExec" },
-		{ ".MoveKill" }
+		{ ".MoveKill" }, { ".WaitDelay" }, { ".WaitNext" }, { ".Peek" }
 	};
 
 	TRANS_SUBR_INFO *tsi = &subr_info[subr];
@@ -342,6 +342,7 @@ void TRANS_input(void)
 	}
 }
 
+
 void TRANS_read_old(void)
 {
 	PATTERN *save_var;
@@ -375,6 +376,7 @@ void TRANS_read_old(void)
 	JOB->current = save_current;
 }
 
+
 void TRANS_read(void)
 {
 	bool def = trans_stream_no_check(TS_STDIN);
@@ -393,6 +395,72 @@ void TRANS_read(void)
 		TRANS_subr(TS_SUBR_READ_BYTES, 2);
 	}
 }
+
+
+void TRANS_peek(void)
+{
+	bool def = trans_stream_no_check(TS_STDIN);
+
+	if (!def)
+		TRANS_want(RS_COMMA, NULL);
+		
+	TRANS_expression(FALSE);
+	TRANS_subr(TS_SUBR_PEEK, 2);
+}
+
+
+static void TRANS_open_null(void)
+{
+	int mode = TS_MODE_READ;
+
+	// file name
+
+	CODE_push_null();
+
+	// open mode
+
+	if (TRANS_is(RS_FOR))
+	{
+		if (TRANS_is(RS_READ))
+			mode |= TS_MODE_READ | TS_MODE_DIRECT;
+
+		if (TRANS_is(RS_WRITE))
+			mode |= TS_MODE_WRITE | TS_MODE_DIRECT;
+	}
+
+	CODE_push_number(mode | TS_MODE_NULL);
+
+	TRANS_subr(TS_SUBR_OPEN, 2);
+}
+
+
+static void TRANS_open_string(void)
+{
+	int mode = TS_MODE_READ | TS_MODE_DIRECT;
+
+	// file name
+
+	if (!PATTERN_is(*JOB->current, RS_FOR) && !PATTERN_is_newline(*JOB->current))
+		TRANS_expression(FALSE);
+	else
+		CODE_push_null();
+
+	// open mode
+
+	if (TRANS_is(RS_FOR))
+	{
+		if (TRANS_is(RS_READ))
+			mode |= TS_MODE_READ | TS_MODE_DIRECT;
+
+		if (TRANS_is(RS_WRITE))
+			mode |= TS_MODE_WRITE | TS_MODE_DIRECT;
+	}
+
+	CODE_push_number(mode | TS_MODE_STRING);
+
+	TRANS_subr(TS_SUBR_OPEN, 2);
+}
+
 
 void TRANS_open(void)
 {
@@ -413,13 +481,17 @@ void TRANS_open(void)
 		TRANS_open_string();
 		return;
 	}
+	else if (TRANS_is(RS_NULL))
+	{
+		TRANS_open_null();
+		return;
+	}
 
-
-	/* Nom du fichier */
+	// file name
 
 	TRANS_expression(FALSE);
 
-	/* mode d'ouverture */
+	// open mode
 
 	if (TRANS_is(RS_FOR))
 	{
@@ -438,9 +510,6 @@ void TRANS_open(void)
 		else if (TRANS_is(RS_APPEND))
 			mode |= TS_MODE_APPEND;
 
-		//if (TRANS_is(RS_DIRECT))
-		//  mode |= TS_MODE_DIRECT;
-
 		if (TRANS_is(RS_WATCH))
 			mode |= TS_MODE_WATCH;
 
@@ -458,16 +527,6 @@ void TRANS_open(void)
 	CODE_push_number(mode);
 
 	TRANS_subr(TS_SUBR_OPEN, 2);
-
-	/*if (!TRANS_in_assignment)
-	{
-		//CODE_drop();
-
-		TRANS_want(RS_AS, NULL);
-		TRANS_ignore(RS_SHARP);
-
-		TRANS_reference();
-	}*/
 }
 
 
@@ -475,11 +534,11 @@ void TRANS_pipe(void)
 {
 	int mode = TS_MODE_READ;
 
-	/* Nom du fichier */
+	// file name
 
 	TRANS_expression(FALSE);
 
-	/* mode d'ouverture */
+	// open mode
 
 	if (TRANS_is(RS_FOR))
 	{
@@ -525,34 +584,6 @@ void TRANS_memory(void)
 	CODE_push_number(mode);
 
 	TRANS_subr(TS_SUBR_OPEN_MEMORY, 2);
-}
-
-
-void TRANS_open_string(void)
-{
-	int mode = TS_MODE_READ;
-
-	/* Nom du fichier */
-
-	if (!PATTERN_is(*JOB->current, RS_FOR))
-		TRANS_expression(FALSE);
-	else
-		CODE_push_null();
-
-	/* mode d'ouverture */
-
-	if (TRANS_is(RS_FOR))
-	{
-		if (TRANS_is(RS_READ))
-			mode |= TS_MODE_READ | TS_MODE_DIRECT;
-
-		if (TRANS_is(RS_WRITE))
-			mode |= TS_MODE_WRITE | TS_MODE_DIRECT;
-	}
-
-	CODE_push_number(mode | TS_MODE_STRING);
-
-	TRANS_subr(TS_SUBR_OPEN, 2);
 }
 
 
@@ -681,6 +712,8 @@ static void trans_exec_shell(bool shell)
 	int mode = TS_EXEC_NONE;
 	bool wait;
 	bool as = TRUE;
+	PATTERN *dest = NULL;
+	PATTERN *save;
 
 	TRANS_expression(FALSE);
 
@@ -709,25 +742,6 @@ static void trans_exec_shell(bool shell)
 	}
 	else
 	{
-		/*if (TRANS_is(RS_ERROR))
-		{
-			mode = TS_EXEC_STRING + TS_EXEC_ERROR;
-			TRANS_want(RS_TO, "TO expected");
-		}
-		else if (TRANS_is(RS_TO))
-		{
-			mode = TS_EXEC_STRING;
-		}
-		
-		if (mode & TS_EXEC_STRING)
-		{
-			if (TRANS_in_assignment)
-				THROW("Syntax error. Cannot use this syntax in assignment");
-			
-			wait = TRUE;
-			as = FALSE;
-		}*/
-		
 		if (TRANS_is(RS_TO))
 		{
 			if (TRANS_in_assignment)
@@ -736,6 +750,12 @@ static void trans_exec_shell(bool shell)
 			mode = TS_EXEC_STRING;
 			wait = TRUE;
 			as = FALSE;
+			
+			dest = JOB->current;
+			TRANS_ignore_expression();
+			
+			if (TRANS_is(RS_WITH) && TRANS_is(RS_ERROR))
+				mode += TS_EXEC_ERROR;
 		}
 	}
 	
@@ -749,8 +769,13 @@ static void trans_exec_shell(bool shell)
 
 	TRANS_subr(shell ? TS_SUBR_SHELL : TS_SUBR_EXEC, 4);
 
-	if (mode & TS_EXEC_STRING)
+	if (dest)
+	{
+		save = JOB->current;
+		JOB->current = dest;
 		TRANS_reference();
+		JOB->current = save;
+	}
 	else if (!TRANS_in_assignment)
 		CODE_drop();
 }
@@ -769,15 +794,16 @@ void TRANS_shell(void)
 
 void TRANS_wait(void)
 {
-	int nparam = 0;
-
-	if (!PATTERN_is_newline(*JOB->current))
+	if (TRANS_is(RS_NEXT))
+		TRANS_subr(TS_SUBR_WAIT_NEXT, 0);
+	else if (!PATTERN_is_newline(*JOB->current))
 	{
 		TRANS_expression(FALSE);
-		nparam = 1;
+		TRANS_subr(TS_SUBR_WAIT_DELAY, 1);
 	}
+	else
+		TRANS_subr(TS_SUBR_WAIT, 0);
 
-	TRANS_subr(TS_SUBR_WAIT, nparam);
 	CODE_drop();
 }
 
@@ -923,7 +949,7 @@ void TRANS_rmdir(void)
 	CODE_drop();
 }
 
-void TRANS_mid()
+void TRANS_mid(void)
 {
 	PATTERN *str;
 	PATTERN *pos;
@@ -980,6 +1006,25 @@ void TRANS_mid()
 	JOB->current = save;
 }
 
+
+void TRANS_poke(void)
+{
+	int index;
+
+	index = PATTERN_index(*JOB->current);
+	JOB->current++;
+
+	TRANS_want(RS_LBRA, "Left bracket");
+	TRANS_expression(FALSE);
+	TRANS_want(RS_RBRA, "Right bracket");
+
+	TRANS_want(RS_EQUAL, "Equal");
+
+	TRANS_expression(FALSE);
+
+	CODE_op(C_POKE, COMP_subr_info[index].optype, 2, TRUE);
+	CODE_drop();
+}
 
 
 #if 0

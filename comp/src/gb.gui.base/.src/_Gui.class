@@ -13,7 +13,8 @@ Static Private $iFrameX As Integer
 Static Private $iFrameY As Integer
 Static Private $bInFrame As Boolean
 
-Static Public Sub FindShortcut(sText As String) As Integer
+' Not use anymore?
+Static Public Sub _FindShortcut(sText As String) As Integer
 
   Dim iPos As Integer
   
@@ -126,16 +127,23 @@ Static Public Sub _InitMenuBarShortcut(hWindow As Window)
   
 End
 
+Static Private Sub StopHideFrameTimer()
+  
+  If $hHideFrameTimer Then
+    $hHideFrameTimer.Stop
+    $hHideFrameTimer = Null
+  Endif
+  
+End
+
+
 Static Public Sub _ShowDNDFrame(hCtrl As Control, X As Integer, Y As Integer, W As Integer, H As Integer)
   
   Dim I As Integer
 
   'Debug hCtrl.Name;; X;; Y;; W;; H;; "|";; System.Backtrace.Join(" ")
 
-  If $hHideFrameTimer Then
-    $hHideFrameTimer.Stop
-    $hHideFrameTimer = Null
-  Endif
+  StopHideFrameTimer
   
   For I = 0 To 3
     If $aFrame[I] = hCtrl Then Return
@@ -148,13 +156,14 @@ Static Public Sub _ShowDNDFrame(hCtrl As Control, X As Integer, Y As Integer, W 
   
     HideDNDFrame()
   
-    For I = 0 To 3
+    For I = 0 To 0
       $aFrame[I] = New DrawingArea(hCtrl.Window) As "DNDFrame"
       With $aFrame[I]
-        .Background = Color.SetAlpha(Color.SelectedBackground, 192)
+        .Background = Color.SetAlpha(Color.LightBackground, 192)
         .Ignore = True
         .Drop = True
         .Name = "#DndFrame" & CStr(I)
+        .Design = True
         '.Enabled = False
       End With
     Next
@@ -162,7 +171,7 @@ Static Public Sub _ShowDNDFrame(hCtrl As Control, X As Integer, Y As Integer, W 
   Endif
   
   If W <= 0 Or If H <= 0 Then 
-    For I = 0 To 3
+    For I = 0 To 0
       $aFrame[I].Hide
     Next
     Return
@@ -171,8 +180,8 @@ Static Public Sub _ShowDNDFrame(hCtrl As Control, X As Integer, Y As Integer, W 
   $iFrameX = X
   $iFrameY = Y
 
-  X += hCtrl.ScreenX - hCtrl.Window.ScreenX
-  Y += hCtrl.ScreenY - hCtrl.Window.ScreenY
+  X += hCtrl.ScreenX - hCtrl.Window.ScreenX - hCtrl.Window.ClientX
+  Y += hCtrl.ScreenY - hCtrl.Window.ScreenY - hCtrl.Window.ClientY
 
   'X -= 2
   'Y -= 2
@@ -181,7 +190,8 @@ Static Public Sub _ShowDNDFrame(hCtrl As Control, X As Integer, Y As Integer, W 
   
   With $aFrame[0]
     If Not .Visible Or If .X <> X Or If .Y <> Y Or If .W <> W Or If .H <> H Then 
-      $aFrame[0].Move(X, Y, W, H) 
+      'Debug hCtrl.Name;; X;; Y;; W;; H
+      .Move(X, Y, W, H) 
       .Raise
       .Show
     Endif
@@ -194,8 +204,6 @@ End
 Static Private Sub HideDNDFrame()
 
   Dim I As Integer
-  
-  'Debug System.Backtrace.Join(" ")
   
   For I = 0 To 3
     Try $aFrame[I].Delete
@@ -231,9 +239,12 @@ Static Public Sub _HideDNDFrame(Optional hCtrl As Control)
     If hCtrl <> $hFrameCtrl Then Return
   Endif
   
-  If Not $hHideFrameTimer Then $hHideFrameTimer = New Timer(50) As "HideFrameTimer"
+  If Not $hHideFrameTimer Then
+    $hHideFrameTimer = New Timer(50) As "HideFrameTimer"
+    $hHideFrameTimer.Start
+  Endif
   'Debug Timer
-  $hHideFrameTimer.Restart
+  '$hHideFrameTimer.Restart
   
 End
 
@@ -246,35 +257,107 @@ Static Public Sub HideFrameTimer_Timer()
   
 End
 
-
 Static Public Sub DndFrame_Drag()
   
-  'Debug
+  Dim X As Integer
+  Dim Y As Integer
+  
+  $bInFrame = True
+  StopHideFrameTimer
+  
+  X = Drag.X
+  Y = Drag.Y
+  
   Drag.X += $iFrameX
   Drag.Y += $iFrameY
+  
   Object.Raise($hFrameCtrl, "Drag")
-  Drag.X -= $iFrameX
-  Drag.Y -= $iFrameY
+  
+  Drag.X = X
+  Drag.Y = Y
+  
+End
+
+Static Private Sub FindChild(hCont As Container, X As Integer, Y As Integer) As Control
+
+  Dim hChild As Control
+  
+  For Each hChild In hCont.Children
+    If hChild = $aFrame[0] Then Continue
+    If hChild.X > X Or If hChild.Y > Y Or If (hChild.X + hChild.W) <= X Or If (hChild.Y + hChild.H) <= Y Then Continue
+    Return hChild
+  Next
   
 End
 
 Static Public Sub DndFrame_DragMove()
   
-  'Debug Drag.X;; Drag.Y;; "/";; $iFrameX;; $iFrameY
+  Dim hCont As Container
+  Dim hCtrl As Control
+  Dim X As Integer
+  Dim Y As Integer
+  Dim bStopEvent As Boolean
+
   $bInFrame = True
+  StopHideFrameTimer
+  
   Drag.X += $iFrameX
   Drag.Y += $iFrameY
-  Object.Raise($hFrameCtrl, "DragMove")
-  Drag.X -= $iFrameX
-  Drag.Y -= $iFrameY
+
+  hCtrl = $hFrameCtrl
+
+  While hCtrl Is Container 
+    hCont = hCtrl
+
+    hCtrl = FindChild(hCont, Drag.X - hCont.ClientX, Drag.Y - hCont.ClientY)
+    
+    If Not hCtrl Then
+      hCtrl = hCont
+      Break
+    Endif
+    
+    Drag.X -= hCtrl.X + hCont.ClientX
+    Drag.Y -= hCtrl.Y + hCont.ClientY
+    If hCtrl.Drop Then
+      bStopEvent = Object.Raise(hCtrl, "Drag")
+      If bStopEvent Then Break
+    Else
+      If hCtrl Is Container Then Continue
+      Drag.X += hCtrl.X + hCont.ClientX
+      Drag.Y += hCtrl.Y + hCont.ClientY
+      hCtrl = hCont
+    Endif
+    
+    Break
+    
+  Wend
+
+  If Not bStopEvent Then 
+    While hCtrl <> $hFrameCtrl
+      If hCtrl.Drop Then Break
+      hCtrl = hCtrl.Parent
+    Wend
+    ' FIXME: Replace that fix by a new 'ProxyFor' property.
+    While hCtrl.Parent.Proxy = hCtrl
+      Drag.X += hCtrl.X + hCtrl.Parent.ClientX
+      Drag.Y += hCtrl.Y + hCtrl.Parent.ClientY
+      hCtrl = hCtrl.Parent
+    Wend
+    bStopEvent = Object.Raise(hCtrl, "DragMove")
+  Endif
+  
+  Drag.X = X
+  Drag.Y = Y
+  
+  If bStopEvent Then Stop Event
   
 End
 
 Static Public Sub DndFrame_Drop()
 
-  'Debug
   Drag.X += $iFrameX
   Drag.Y += $iFrameY
+  Drag._Target = $hFrameCtrl
   Object.Raise($hFrameCtrl, "Drop")
   Drag.X -= $iFrameX
   Drag.Y -= $iFrameY
@@ -283,10 +366,52 @@ End
 
 Static Public Sub DndFrame_DragLeave()
   
+  Dim hCtrl As Control
+  
   $bInFrame = False
-  If Not $hFrameCtrl.Hovered Then 
-    _HideDNDFrame
-    Object.Raise($hFrameCtrl, "DragLeave")
-  Endif
+  _HideDNDFrame
+  
+  hCtrl = $hFrameCtrl
+  While hCtrl
+    If Not Mouse.Inside(hCtrl) Then 
+      Object.Raise($hFrameCtrl, "DragLeave")
+      Break
+    Endif
+    hCtrl = hCtrl.Parent
+  Wend
+  
+End
+
+Static Public Sub GetForeground(hCtrl As Control, iFg As Integer) As Integer
+
+  If hCtrl.Enabled Then Return iFg
+  Return Color.Merge(iFg, Style.BackgroundOf(hCtrl))
+
+End
+
+Static Private Sub GetTopLevel(hCtrl As Control) As Window
+
+  Dim hWin As Window
+  
+  If Not hCtrl Then Return
+  
+  Do
+    hWin = hCtrl.Window
+    If hWin.TopLevel Then Return hWin
+    hCtrl = hWin.Parent
+  Loop
+  
+End
+
+Static Public Sub MustAnimate(hCtrl As Control) As Boolean
+  
+  If Not Application.Animations Then Return
+  Try Return GetTopLevel(hCtrl) = GetTopLevel(Application.ActiveWindow) 
+  
+End
+
+Static Public Sub DndFrame_Draw()
+  
+  Paint.DrawRect(0, 0, Paint.W, Paint.H, Color.SelectedBackground)
   
 End

@@ -1,0 +1,46 @@
+' Gambas module file
+
+' Reduced execute time, on sample from 3900, to 2200 good savings
+
+Private $sCommand As String = System.Path &/ "bin/gbc" & System.Version
+Private $sBuffer As String
+Public GoodCompile As Boolean = False
+
+Public Sub _call(Parameters As String, ProjectPath As String) As String
+
+  Dim mmProc As Process
+
+  $sBuffer = ""
+  Dim CmdChain As String[] = [$sCommand, Parameters, ProjectPath]
+  Try mmProc = Exec CmdChain For Read As "CompRead"
+  If Error Then
+    Error.Raise("Compiler error:" & Error.text)
+  Endif
+  mmProc.Wait()
+
+  If mmProc.value = 0 Then
+    GoodCompile = True
+  Else
+    GoodCompile = False
+  Endif
+  Verbose("Compile exit code=" & mmProc.Value)
+  Return $sBuffer
+
+End
+
+Public Sub CompRead_read()
+
+  Dim sLine As String
+
+  Read #Last, sLine, -256
+  $sBuffer &= sLine
+
+End
+
+
+Public Sub CompRead_Error(ErrText As String)
+
+  $sBuffer &= errText
+
+End
+

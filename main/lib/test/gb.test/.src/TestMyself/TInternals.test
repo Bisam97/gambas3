@@ -1,0 +1,141 @@
+' Gambas test file
+
+Public Sub ParseTestCommands()
+
+    Dim sCommand As String
+    Dim Commands As TestCommand[]
+    Dim sGot As String
+    Dim iGot As Integer
+
+    Test.Plan(9)
+
+    'Three TestModules
+    sCommand = "Bing, Bong, Bung"
+    Commands = TestCommand.FromString(sCommand)
+    sGot = Commands[0].ModuleName & Commands[1].ModuleName & Commands[2].ModuleName
+
+    Assert.Equals(sGot, "BingBongBung", "FromString: Three testmodules")
+
+    'Test testmodules sort
+    sCommand = "Bing,Bung,Bong"
+    Commands = TestCommand.FromString(sCommand)
+    sGot = Commands[0].ModuleName & Commands[1].ModuleName & Commands[2].ModuleName
+
+    Assert.Equals(sGot, "BingBongBung", "FromString: Testmodules have to be sorted")
+
+    'Three testmodules, one with three methods
+    sCommand = "Bong.B, Bing, Bong.A, Bung,  Bong.C"
+    Commands = TestCommand.FromString(sCommand)
+    sGot = Commands[0].ModuleName & Commands[1].ModuleName & Commands[2].ModuleName
+    Assert.Equals(sGot, "BingBongBung", "FromString: Three testmodules, one with three methods")
+
+    'Methods name sort
+    sGot = Commands[1].Methods.Join()
+    Assert.Equals(sGot, "A,B,C", "FromString: Methods name sort")
+
+    'Three testmodules, one with methods, but Bong also wanted all, the more greedy one has to get it
+    sCommand = "Bong, Bing, Bong.A, Bung, Bong.B, Bong.C"
+    Commands = TestCommand.FromString(sCommand)
+    'Methods name sort
+    iGot = Commands[1].Methods.Count
+    Assert.Equals(iGot, 0, "FromString: Greedy testmodule Bong")
+
+    'Programmer was a little tipsy but got it all except Bung which only wants test U
+    sCommand = "Bong, Bong.A, Bing, Bing, Bing, Bing, Bing, Bing, Bong.A, Bung.U, Bong.B, Bong.C, Bing, Bing, Bing, Bong, Bong"
+    Commands = TestCommand.FromString(sCommand)
+    'Methods name sort
+    iGot = Commands[0].Methods.Count
+    Assert.Equals(iGot, 0, "FromString: Tipsy programmer 1")
+
+    iGot = Commands[1].Methods.Count
+    Assert.Equals(iGot, 0, "FromString: Tipsy programmer 2")
+
+    iGot = Commands[2].Methods.Count
+    Assert.Equals(iGot, 1, "FromString: Tipsy programmer 3")
+
+    sGot = Commands[2].Methods[0]
+    Assert.Equals(sGot, "U", "FromString: Tipsy programmer 4")
+
+End
+
+Public Sub CommandsToString()
+
+    Dim Commands As TestCommand[]
+
+    Commands = TestCommand.FromString("Bong, Bong.A, Bing, Bing, Bing, Bing, Bing, Bing, Bong.A, Bung.U, Bong.B, Bong.C, Bing, Bing, Bing, Bong, Bong")
+    Assert.Equals(TestCommand.ToString(Commands), "Bing,Bong,Bung.U")
+
+End
+
+'' Tests the ability to return all tests
+'' in the project as a collection
+
+Public Sub ReflectTest()
+
+    Dim tests As Collection
+
+    Test.Plan(8)
+
+    tests = Test.AllTestsCollection()
+
+    'count of all testmodules, if it fails we created a new one and we have to count new
+    Assert.Equals(tests.Count, 13, "number of all testmodules")
+    Assert.Equals(tests["TAllAsserts"].Count, 21, "count of all tests in TAllAsserts")
+    Assert.Equals(tests["TBailout"].Count, 1, "count of all tests in TBailout")
+    Assert.Equals(tests["TCrashes"].Count, 2, "count of all tests in TCrashes")
+    Assert.Equals(tests["TElse"].Count, 3, "count of all tests in TElse")
+    Assert.Equals(tests["TEmpty"].Count, 0, "count of all tests in TEmpty")
+    Assert.Equals(tests["TInternals"].Count, 6, "count of all tests in TInternals")
+    Assert.Equals(tests["TParser"].Count, 3, "count of all tests in TParser")
+
+End
+
+'' test the ability to create a testsuite string with my own tests
+Public Sub ReflectTestsString()
+
+    ' These have to be adjusted when tests change
+    ' If tests are updated, get them with
+    'Dim easy As String = Test.AllTests()
+
+    Dim got, want As String
+
+    Test.Plan(2)
+
+    want = "MustFail.TestNoteGotAndExpected,TAllAsserts.Approximate;Equals;Error;ErrorCode;Fail;Greater;GreaterEqual;IsType;Less;LessEqual;Like;Match;NotNull;NotOk;Notequals;Noterror;Null;Ok;Pass;RelativeApproximate;StringEquals,TBailout.Bailout,TCrashes.DoACrash;ErrorTwo,TElse.NoMessage;NoMessageInbetween;Note,TIntendedFailures.EqualsFailure;Error;LongFailure;LongTypeMismatchFailure;StringFailure,TInternals.CommandsToString;FindTestSuiteByName;InterpreterInterface;ParseTestCommands;ReflectTest;ReflectTestsString,TParser.Runner;SkipAll;Subtests,TSetup.A;B,TSkipAll.SkipAll,TSummary.DoBadPlan;DoOneFailure;DoSkip;DoSomeAsserts;DoTodo;TodoErrorCode,TWrongPlan.IHaveAWrongPlan"
+    got = Test.AllTests()
+    Assert.Equals(got, want, "All Test names as string")
+
+    want = Test.AllTests()
+    got = TestCommand.ToString(TestCommand.FromString(want))
+
+    Assert.Equals(got, want, "Check that Testcommand To and Fromstring do it the same way as Test.AllTests")
+
+End
+
+Public Sub InterpreterInterface()
+
+    Dim Commands As TestCommand[]
+    Dim Tests As String = "TestAllAsserts.TestAssertEqualsDate;TestAssertEmpty;TestAssert,TestElse"
+
+    Test.Plan(4)
+    Test.Note("Tests the testsuite as string as it is run by the interpreter")
+
+    Commands = TestCommand.FromString(Tests)
+
+    Assert.Equals(Commands.Count, 2, "we have 2 commands")
+    Assert.Equals(Commands[0].Methods.Count, 3, "command 2 has 3 methods")
+    Assert.Equals(Commands[0].Methods[0], "TestAssert", "methods were sorted")
+
+    Tests = "TestAllAsserts.TestAssert;TestAssertEmpty;TestAssertEqualsDate,TestElse"
+    Assert.Equals(TestCommand.ToString(Commands), Tests, "commands as string defining a testsuite")
+
+End
+
+Public Sub FindTestSuiteByName()
+
+    Dim sName As String = "Keep this test suite, it is necessary for testing gb.test."
+
+    Test.Plan(1)
+    Assert.Equals(Helper.GetTestSuiteByName(sName), "TInternals.FindTestSuiteByName")
+
+End

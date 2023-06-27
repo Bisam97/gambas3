@@ -112,6 +112,7 @@ Public Function GetSignature(Optional bBalise As Boolean) As String
 
   Dim sBold As String
   Dim sNoBold As String
+  Dim sName As String
 
   sSign = Signature
   If Left$(sSign) = "#" Then
@@ -149,7 +150,14 @@ Public Function GetSignature(Optional bBalise As Boolean) As String
         sRes = sRes & sBold & "," & sNoBold & " "
       Endif
 
-      sRes = sRes & Mid$(sSign, iInd + 1, iPos - iInd - 1) & " " & sBold & "AS" & sNoBold & " "
+      sName = Mid$(sSign, iInd + 1, iPos - iInd - 1)
+      If sName Begins "&" Then
+        sRes &= "BYREF " & Mid$(sName, 2)
+      Else
+        sRes &= sName
+      Endif
+
+      sRes &= " " & sBold & "AS" & sNoBold & " "
 
       iInd = iPos
       bName = True
@@ -248,6 +256,14 @@ Private Function GetClassVariableName(sClass As String) As String
 
   Dim sRes As String
 
+  If sClass Begins "*" And If Main.SubstClass Then
+    If sClass = "*" Then 
+      sClass = Left(Main.SubstClass, -2)
+    Else If sClass = "*[]" Then
+      sClass = Main.SubstClass
+    Endif
+  Endif
+
   If Len(sClass) = 1 Then
     sClass = CSymbolInfo.GetNativeType(sClass)
     If InStr("aeiou", LCase(Left$(sClass))) Then
@@ -290,6 +306,14 @@ End
 
 Private Function GetSyntaxType(sType As String) As String
 
+  If Main.SubstClass And If sType Begins "*" Then
+    If sType = "*" Then
+      sType = Left(Main.SubstClass, -2)
+    Else If sType = "*[]"
+      sType = Main.SubstClass
+    Endif
+  Endif
+
   If Len(sType) = 1 Then
     sType = CSymbolInfo.GetNativeType(sType)
   Else
@@ -314,6 +338,7 @@ Private Function GetSyntaxSignature() As String
   Dim iLen As Integer
   Dim hClass As CClassInfo
   Dim hSym As CSymbolInfo
+  Dim sName As String
 
   If Name = "_new" Then
     hClass = CComponent.Get(Component)[Class]
@@ -357,7 +382,12 @@ Private Function GetSyntaxSignature() As String
         sRes = sRes & Keyword(",") & " "
       Endif
 
-      sRes = sRes & "<u>" & Mid$(sSign, iInd + 1, iPos - iInd - 1) & "</u> " & Keyword("As") & " "
+      sName = Mid$(sSign, iInd + 1, iPos - iInd - 1)
+      If sName Begins "&" Then
+        sRes &= Keyword("ByRef") & " "
+        sName = Mid$(sName, 2)
+      Endif
+      sRes = sRes & "<u>" & sName & "</u> " & Keyword("As") & " "
 
       iInd = iPos
       bName = True
@@ -544,7 +574,7 @@ Public Sub GetSyntax() As String[]
       sSyntax &= sName & " " & Keyword("=") & " " & Keyword("New") & " " & GetSyntaxType(Class)
       sSyntax &= " " & Keyword("(") & GetSyntaxSignature() & Keyword(")")
       If CComponent.Get(Component)[Class].HasEvents() Then
-        sSyntax &= " <b>[</b> " & Keyword("As") & " \"<i>event name</i>\" <b>]</b>"
+        sSyntax &= " <b>\\[</b> " & Keyword("As") & " \"<u>EventName</u>\" <b>]</b>"
       Endif
 
     Case Else
@@ -592,7 +622,7 @@ Public Sub GetSyntax() As String[]
         sSyntax = sSyntax & " " & Keyword("=") & " "
         Select Case Type
           Case "s"
-            sSyntax = sSyntax & Keyword(Chr$(34)) & Value & Keyword(Chr$(34))
+            sSyntax = sSyntax & Keyword(Replace(Quote(Value), "\\", "\\\\"), &HFF0000&)
           Case "b"
             If Left(Value) = "T" Then
               sSyntax &= Keyword("True")
@@ -631,13 +661,37 @@ Public Sub GetDescription() As String
   Dim iPos As Integer
   Dim sData As String
   Dim sDesc As String
+  Dim aDefaultHelp As String[]
+  Dim nTry As Integer
   
-  sPath = Main.GetPagePathFrom(Main.SolvePath("/comp" &/ LCase(Component &/ Class &/ Replace(Name, ":", "."))))
-  If Not Exist(sPath) Then Return
+  sPath = "/comp" &/ LCase(Component &/ Class &/ Replace(Name, ":", "."))
   
-  aData = Split(File.Load(sPath), "\n")
+TRY_AGAIN:
+
+  aDefaultHelp = Null
+  aData = Null
+  sPath = Main.GetPagePathFrom(Main.SolvePath(sPath))
+  If Exist(sPath) Then aData = Split(File.Load(sPath), "\n")
+  
+  If Not aData Or If aData.Count = 0 Then 
+    GoSub GET_DEFAULT_HELP
+    If aDefaultHelp.Count = 1 And If aDefaultHelp[0] Begins "-->" Then
+      sPath = Main.MakeAbsolute(Trim(Mid$(aDefaultHelp[0], 4)), sPath)
+      Inc nTry
+      If nTry < 8 Then Goto TRY_AGAIN
+    Endif
+    aData = ["@{help}"]
+  Endif
+  
   While iPos < aData.Count
     sData = aData[iPos]
+    If Trim(sData) = "@{help}" Then 
+      aData.Remove(iPos)
+      'Return "« " & Main.GetDefaultHelp(Me.Component, Me.Class, Me.Name) & " »"
+      GoSub GET_DEFAULT_HELP
+      aData.Insert(aDefaultHelp, iPos)
+      Continue
+    Endif
     If sData Then
       If IsLetter(Left(sData)) Then
         sData = Replace(sData, "[../", "[./")
@@ -651,6 +705,11 @@ Public Sub GetDescription() As String
   Wend
   
   Return sDesc
+  
+GET_DEFAULT_HELP:
+
+  If Not aDefaultHelp Then aDefaultHelp = Split(Main.GetDefaultHelp(Me.Component, Me.Class, Me.Name), "\n")
+  Return
   
 End
 

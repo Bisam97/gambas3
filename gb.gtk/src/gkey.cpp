@@ -3,7 +3,7 @@
   gkey.cpp
 
   (c) 2004-2006 - Daniel Campos Fernández <dcamposf@gmail.com>
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -43,7 +43,7 @@ gKey
 
 **************************************************************************/
 
-bool gKey::_valid = false;
+int gKey::_valid = 0;
 bool gKey::_canceled = false;
 GdkEventKey gKey::_event;
 int gKey::_last_key_press = 0;
@@ -108,19 +108,24 @@ int gKey::state()
 		return _event.state;
 }
 
-bool gKey::alt()
+bool gKey::shift()
 {
-	return state() & GDK_MOD1_MASK; // || _event.keyval == GDK_Alt_L || _event.keyval == GDK_Alt_R;
+	return state() & GDK_SHIFT_MASK;
 }
 
 bool gKey::control()
 {
-	return state() & GDK_CONTROL_MASK; // || _event.keyval == GDK_Control_L || _event.keyval == GDK_Control_R;
+	return state() & GDK_CONTROL_MASK;
+}
+
+bool gKey::alt()
+{
+	return state() & GDK_MOD1_MASK;
 }
 
 bool gKey::meta()
 {
-	return state() & GDK_META_MASK; // || _event.keyval == GDK_Meta_L || _event.keyval == GDK_Meta_R;
+	return state() & GDK_META_MASK;
 }
 
 bool gKey::normal()
@@ -128,12 +133,7 @@ bool gKey::normal()
 	return (state() & (GDK_MOD1_MASK | GDK_CONTROL_MASK | GDK_META_MASK | GDK_SHIFT_MASK)) == 0;
 }
 
-bool gKey::shift()
-{
-	return state() & GDK_SHIFT_MASK; // || _event.keyval == GDK_Shift_L || _event.keyval == GDK_Shift_R;
-}
-
-int gKey::fromString(char *str)
+int gKey::fromString(const char *str)
 {
 	char *lstr;
 	int key;
@@ -162,9 +162,10 @@ int gKey::fromString(char *str)
 
 void gKey::disable()
 {
-	if (!_valid)
+	_valid--;
+	if (_valid)
 		return;
-		
+	
 	_valid = false;
 	_event.keyval = 0;
 	_event.state = 0;
@@ -175,10 +176,7 @@ bool gKey::enable(gControl *control, GdkEventKey *event)
 {
 	bool f = false;
 	
-	if (_valid)
-		disable();
-
-	_valid = true;
+	_valid++;
 	_canceled = false;
 
 	if (event)
@@ -187,6 +185,15 @@ bool gKey::enable(gControl *control, GdkEventKey *event)
 
 		_event = *event;
 		_event.window = _im_window;
+
+		if (_event.keyval == GDK_Alt_L || _event.keyval == GDK_Alt_R)
+			_event.state ^= GDK_MOD1_MASK;
+		if (_event.keyval == GDK_Control_L || _event.keyval == GDK_Control_R)
+			_event.state ^= GDK_CONTROL_MASK;
+		if (_event.keyval == GDK_Meta_L || _event.keyval == GDK_Meta_R)
+			_event.state ^= GDK_META_MASK;
+		if (_event.keyval == GDK_Shift_L || _event.keyval == GDK_Shift_R)
+			_event.state ^= GDK_SHIFT_MASK;
 
 		if (gKey::mustIgnoreEvent(event))
 			return true;
@@ -221,7 +228,10 @@ bool gKey::enable(gControl *control, GdkEventKey *event)
 #endif
 
 			if (!_im_has_input_method)
+			{
+				initContext();
 				f = gtk_im_context_filter_keypress(_im_context, event);
+			}
 
 			#if DEBUG_IM
 			fprintf(stderr, "gKey::enable: [%p] filter -> %d\n", event, f);
@@ -237,29 +247,32 @@ bool gKey::mustIgnoreEvent(GdkEventKey *event)
 	if (!_im_has_input_method)
 		return false;
 	else
-		return (event->type == GDK_KEY_PRESS) && (event->keyval == 0 || !event->string || (uchar)*event->string >= 32);
+		return (event->type == GDK_KEY_PRESS) && (event->keyval == 0 || !event->string || ((uchar)*event->string >= 32 && ((event->keyval & 0xFF00) != 0xFF00)));
 }
 
-void gcb_im_commit(GtkIMContext *context, const char *str, gpointer pointer)
+void gcb_im_commit(GtkIMContext *context, const char *str, gControl *control)
 {
 	bool disable = false;
 
+	if (!control)
+		control = _im_control;
+	
 	// Not called from a key press event!
-	if (!_im_control)
+	if (!control)
 		return;
 
 	#if DEBUG_IM
-	fprintf(stderr, "cb_im_commit: \"%s\"  _im_no_commit = %d  gKey::valid = %d\n", str, _im_no_commit, gKey::valid());
+	fprintf(stderr, "cb_im_commit: \"%s\"  _im_no_commit = %d  gKey::valid = %d\n", str, _im_no_commit, gKey::isValid());
 	#endif
 	
-	if (!gKey::valid())
+	if (!gKey::isValid())
 	{
-		gKey::enable(_im_control, NULL);
+		gKey::enable(control, NULL);
 		gKey::_event.keyval = gKey::_last_key_press;
 		disable = true;
 	}
 
-	gKey::_canceled = gKey::raiseEvent(gEvent_KeyPress, _im_control, str);
+	gKey::_canceled = gKey::raiseEvent(gEvent_KeyPress, control, str);
 #if DEBUG_IM
 	fprintf(stderr, "cb_im_commit: canceled = %d\n", gKey::_canceled);
 #endif
@@ -276,16 +289,10 @@ static gboolean hook_commit(GSignalInvocationHint *ihint, guint n_param_values, 
 	return true;
 }
 
-void gKey::init()
+void gKey::initContext()
 {
-	GdkWindowAttr attr;
-
-	attr.event_mask = GDK_KEY_PRESS_MASK | GDK_KEY_RELEASE_MASK;
-	attr.width = attr.height = 10;
-	attr.wclass = GDK_INPUT_OUTPUT;
-	attr.window_type = GDK_WINDOW_TOPLEVEL;
-
-	_im_window = gdk_window_new(NULL, &attr, 0);
+	if (_im_context)
+		return;
 
 	_im_context = gtk_im_multicontext_new();
 	gtk_im_context_set_client_window (_im_context, _im_window);
@@ -297,11 +304,26 @@ void gKey::init()
 	g_signal_add_emission_hook(g_signal_lookup("commit", GTK_TYPE_IM_CONTEXT), (GQuark)0, hook_commit, (gpointer)0, NULL);
 }
 
+void gKey::init()
+{
+	GdkWindowAttr attr;
+
+	attr.event_mask = GDK_KEY_PRESS_MASK | GDK_KEY_RELEASE_MASK;
+	attr.width = attr.height = 10;
+	attr.wclass = GDK_INPUT_OUTPUT;
+	attr.window_type = GDK_WINDOW_TOPLEVEL;
+
+	_im_window = gdk_window_new(NULL, &attr, 0);
+}
+
 void gKey::exit()
 {
 	disable();
-	g_free(_im_default_slave);
-	g_object_unref(_im_context);
+	if (_im_context)
+	{
+		g_free(_im_default_slave);
+		g_object_unref(_im_context);
+	}
 }
 
 void gKey::setActiveControl(gControl *control)
@@ -316,6 +338,7 @@ void gKey::setActiveControl(gControl *control)
 #endif
 		if (!_im_has_input_method)
 		{
+			initContext();
 			gtk_im_context_reset(_im_context);
 			gtk_im_context_set_client_window (_im_context, 0);
 			gtk_im_context_reset(_im_context);
@@ -332,6 +355,7 @@ void gKey::setActiveControl(gControl *control)
 		
 		if (!control->hasInputMethod())
 		{
+			initContext();
 			_im_has_input_method = FALSE;
 			gtk_im_context_reset(_im_context);
 			gtk_im_context_set_client_window (_im_context, gtk_widget_get_window(control->widget));
@@ -345,7 +369,7 @@ void gKey::setActiveControl(gControl *control)
 		{
 			_im_has_input_method = TRUE;
 			context = control->getInputMethod();
-			if (GTK_IS_IM_MULTICONTEXT(context))
+			if (context && GTK_IS_IM_MULTICONTEXT(context))
 			{
 				slave = gtk_im_multicontext_get_context_id(GTK_IM_MULTICONTEXT(context));
 				_im_is_xim = slave && strcmp(slave, "xim") == 0;
@@ -360,7 +384,7 @@ void gKey::setActiveControl(gControl *control)
 
 #if DEBUG_IM
 		fprintf(stderr,"\n------------------------\n");
-		fprintf(stderr, "gtk_im_context_focus_in: _im_has_input_method = %d\n", _im_has_input_method);
+		fprintf(stderr, "gtk_im_context_focus_in: %s _im_has_input_method = %d\n", control ? control->name() : "-", _im_has_input_method);
 #endif
 	}
 }
@@ -372,10 +396,10 @@ static bool raise_key_event_to_parent_window(gControl *control, int type)
 	while (control->parent())
 	{
 		win = control->parent()->window();
-		if (win->onKeyEvent && win->canRaise(win, type))
+		if (CB_control_can_raise(win, type))
 		{
 			//fprintf(stderr, "onKeyEvent: %d %p %s\n", type, win, win->name());
-			if (win->onKeyEvent(win, type))
+			if (CB_control_key(win, type))
 				return true;
 		}
 
@@ -428,9 +452,10 @@ bool gKey::raiseEvent(int type, gControl *control, const char *text)
 {
 	bool parent_got_it = false;
 	bool cancel = false;
+	bool handled = false;
 
 #if DEBUG_IM
-	fprintf(stderr, "gKey::raiseEvent to %p %s\n", control, control->name());
+	fprintf(stderr, "gKey::raiseEvent %s to %p %s\n", type == gEvent_KeyPress ? "KeyPress" : "KeyRelease", control, control->name());
 #endif
 					
 	if (text)
@@ -452,15 +477,24 @@ __KEY_TRY_PROXY:
 			cancel = raise_key_event_to_parent_window(control, type);
 	}
 
-	if (!cancel && control->onKeyEvent && control->canRaise(control, type))
+	if (!cancel && CB_control_can_raise(control, type))
 	{
 		//fprintf(stderr, "gEvent_KeyPress on %p %s\n", control, control->name());
 		//fprintf(stderr, "onKeyEvent: %p %d %p %s\n", event, type, control, control->name());
-		cancel = control->onKeyEvent(control, type);
+		#if DEBUG_IM
+			fprintf(stderr, "--> %s\n", control->name());
+		#endif
+		handled = true;
+		cancel = CB_control_key(control, type);
 	}
 
 	if (cancel)
+	{
+		#if DEBUG_IM
+			fprintf(stderr, "--> cancel\n");
+		#endif
 		return true;
+	}
 
 	if (control->_proxy_for)
 	{
@@ -468,12 +502,19 @@ __KEY_TRY_PROXY:
 		goto __KEY_TRY_PROXY;
 	}
 
+	if (!handled)
+	{
+		control = control->parent();
+		if (control && !control->isWindow())
+			goto __KEY_TRY_PROXY;
+	}
+	
 	return false;
 }
 
 static bool check_button(gControl *w)
 {
-	return w && w->isVisible() && w->isEnabled();
+	return w && w->isReallyVisible() && w->isEnabled();
 }
 
 gboolean gcb_key_event(GtkWidget *widget, GdkEvent *event, gControl *control)
@@ -483,7 +524,7 @@ gboolean gcb_key_event(GtkWidget *widget, GdkEvent *event, gControl *control)
 	bool cancel;
 
 #if DEBUG_IM
-	fprintf(stderr, "gcb_key_event %s for %p %s / active = %p\n", event->type == GDK_KEY_PRESS ? "GDK_KEY_PRESS" : "GDK_KEY_RELEASE", control, control->name(), gApplication::activeControl());
+	fprintf(stderr, "gcb_key_event: %s for %p %s / active = %p %s\n", event->type == GDK_KEY_PRESS ? "GDK_KEY_PRESS" : "GDK_KEY_RELEASE", control, control->name(), gApplication::activeControl(), gApplication::activeControl() ? gApplication::activeControl()->name() : "-");
 #endif
 
 	/*if (!control->_grab && gApplication::activeControl())
@@ -526,30 +567,44 @@ gboolean gcb_key_event(GtkWidget *widget, GdkEvent *event, gControl *control)
 		return true;
 
 	win = control->window();
-
-	if (event->key.keyval == GDK_Escape)
+	
+	for(;;)
 	{
-		if (control->_grab)
+		if (event->key.keyval == GDK_Escape)
 		{
-			gApplication::exitLoop(control);
-			return true;
-		}
+			if (control->_grab)
+			{
+				gApplication::exitLoop(control);
+				return true;
+			}
 
-		if (check_button(win->_cancel))
-		{
-			win->_cancel->setFocus();
-			win->_cancel->animateClick(type == gEvent_KeyRelease);
-			return true;
+			if (check_button(win->_cancel))
+			{
+				#if DEBUG_IM
+					fprintf(stderr, "gcb_key_event: cancel button\n");
+				#endif
+				//win->_cancel->setFocus();
+				win->_cancel->animateClick(type == gEvent_KeyRelease);
+				return true;
+			}
 		}
-	}
-	else if (event->key.keyval == GDK_Return || event->key.keyval == GDK_KP_Enter)
-	{
-		if (check_button(win->_default))
+		else if (event->key.keyval == GDK_Return || event->key.keyval == GDK_KP_Enter)
 		{
-			win->_default->setFocus();
-			win->_default->animateClick(type == gEvent_KeyRelease);
-			return true;
+			if (check_button(win->_default) && !control->eatReturnKey())
+			{
+				#if DEBUG_IM
+					fprintf(stderr, "gcb_key_event: default button\n");
+				#endif
+				//win->_default->setFocus();
+				win->_default->animateClick(type == gEvent_KeyRelease);
+				return true;
+			}
 		}
+		
+		if (win->isTopLevel())
+			break;
+		
+		win = win->parent()->window();
 	}
 
 	if (control->_grab)

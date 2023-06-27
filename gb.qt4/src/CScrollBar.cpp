@@ -2,7 +2,7 @@
 
 	CScrollBar.cpp
 
-	(c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+	(c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -26,11 +26,9 @@
 #include "main.h"
 #include "gambas.h"
 
-#include <QApplication>
 #include <QStyle>
-#include <QScrollBar>
-#include <QResizeEvent>
 
+#include "gb.form.const.h"
 #include "CWidget.h"
 #include "CScrollBar.h"
 
@@ -48,17 +46,27 @@ MyScrollBar::MyScrollBar(QWidget *parent)
 {
 }
 
+void MyScrollBar::updateOrientation()
+{
+	CSCROLLBAR *_object = (CSCROLLBAR *)CWidget::get(this);
+	
+	if (!THIS->widget.flag.orientation)
+	{
+		if (width() >= height())
+			setOrientation(Qt::Horizontal);
+		else
+			setOrientation(Qt::Vertical);
+	}
+}
 
 void MyScrollBar::resizeEvent(QResizeEvent *e)
 {
-	//CSCROLLVIEW *ob = (CSCROLLVIEW *)CWidget::get(this);
+	CSCROLLBAR *_object = (CSCROLLBAR *)CWidget::get(this);
 
 	QScrollBar::resizeEvent(e);
 
-	if (width() >= height())
-		setOrientation(Qt::Horizontal);
-	else
-		setOrientation(Qt::Vertical);
+	if (!THIS->widget.flag.orientation)
+		updateOrientation();
 }
 
 
@@ -68,7 +76,7 @@ void MyScrollBar::resizeEvent(QResizeEvent *e)
 
 ***************************************************************************/
 
-BEGIN_METHOD(CSCROLLBAR_new, GB_OBJECT parent)
+BEGIN_METHOD(ScrollBar_new, GB_OBJECT parent)
 
 	MyScrollBar *wid = new MyScrollBar(QCONTAINER(VARG(parent)));
 
@@ -88,7 +96,7 @@ BEGIN_METHOD(CSCROLLBAR_new, GB_OBJECT parent)
 END_METHOD
 
 
-BEGIN_PROPERTY(CSCROLLBAR_tracking)
+BEGIN_PROPERTY(ScrollBar_Tracking)
 
 	if (READ_PROPERTY)
 		GB.ReturnBoolean(WIDGET->hasTracking());
@@ -115,7 +123,7 @@ BEGIN_PROPERTY(CSCROLLBAR_orientation)
 END_PROPERTY
 */
 
-BEGIN_PROPERTY(CSCROLLBAR_value)
+BEGIN_PROPERTY(ScrollBar_Value)
 
 	if (READ_PROPERTY)
 		GB.ReturnInteger(WIDGET->value());
@@ -124,7 +132,7 @@ BEGIN_PROPERTY(CSCROLLBAR_value)
 
 END_PROPERTY
 
-BEGIN_PROPERTY(CSCROLLBAR_minval)
+BEGIN_PROPERTY(ScrollBar_MinVal)
 
 	if (READ_PROPERTY)
 		GB.ReturnInteger(WIDGET->minimum());
@@ -133,7 +141,7 @@ BEGIN_PROPERTY(CSCROLLBAR_minval)
 
 END_PROPERTY
 
-BEGIN_PROPERTY(CSCROLLBAR_maxval)
+BEGIN_PROPERTY(ScrollBar_MaxVal)
 
 	if (READ_PROPERTY)
 		GB.ReturnInteger(WIDGET->maximum());
@@ -142,7 +150,7 @@ BEGIN_PROPERTY(CSCROLLBAR_maxval)
 
 END_PROPERTY
 
-BEGIN_PROPERTY(CSCROLLBAR_linestep)
+BEGIN_PROPERTY(ScrollBar_LineStep)
 
 	if (READ_PROPERTY)
 		GB.ReturnInteger(WIDGET->singleStep());
@@ -151,7 +159,7 @@ BEGIN_PROPERTY(CSCROLLBAR_linestep)
 
 END_PROPERTY
 
-BEGIN_PROPERTY(CSCROLLBAR_pagestep)
+BEGIN_PROPERTY(ScrollBar_PageStep)
 
 	if (READ_PROPERTY)
 		GB.ReturnInteger(WIDGET->pageStep());
@@ -166,11 +174,38 @@ BEGIN_PROPERTY(ScrollBar_DefaultSize)
 
 END_PROPERTY
 
-/***************************************************************************
+BEGIN_PROPERTY(ScrollBar_Orientation)
 
-	class CScrollBar
+	if (READ_PROPERTY)
+	{
+		if (!THIS->widget.flag.orientation)
+			GB.ReturnInteger(ORIENTATION_AUTO);
+		else if (WIDGET->orientation() == Qt::Vertical)
+			GB.ReturnInteger(ORIENTATION_VERTICAL);
+		else
+			GB.ReturnInteger(ORIENTATION_HORIZONTAL);
+	}
+	else
+	{
+		switch(VPROP(GB_INTEGER))
+		{
+			case ORIENTATION_HORIZONTAL:
+				WIDGET->setOrientation(Qt::Horizontal);
+				THIS->widget.flag.orientation = true;
+				break;
+			case ORIENTATION_VERTICAL:
+				WIDGET->setOrientation(Qt::Vertical);
+				THIS->widget.flag.orientation = true;
+				break;
+			default:
+				THIS->widget.flag.orientation = false;
+				WIDGET->updateOrientation();
+		}
+	}
 
-***************************************************************************/
+END_PROPERTY
+
+//-------------------------------------------------------------------------
 
 CScrollBar CScrollBar::manager;
 
@@ -180,47 +215,32 @@ void CScrollBar::event_change(void)
 	GB.Raise(THIS, EVENT_Change, 0);
 }
 
-/*void CScrollBar::event_sliderpressed(void)
-{
-	void *object = QT.GetObject((QWidget *)sender());
-	GB.Raise(object, EVENT_SliderPressed, NULL);
-} */
+//-------------------------------------------------------------------------
 
-/*void CScrollBar::event_slidermove(void)
-{
-	void *object = QT.GetObject((QWidget *)sender());
-	GB.Raise(object, EVENT_SliderMove, NULL);
-}*/
-/*
-void CScrollBar::event_sliderreleased(void)
-{
-	void *object = QT.GetObject((QWidget *)sender());
-	GB.Raise(object, EVENT_SliderReleased, NULL);
-}
-*/
-
-GB_DESC CScrollBarDesc[] =
+GB_DESC ScrollBarDesc[] =
 {
 	GB_DECLARE("ScrollBar", sizeof(CSCROLLBAR)), GB_INHERITS("Control"),
 
-	GB_METHOD("_new", NULL, CSCROLLBAR_new, "(Parent)Container;"),
+	GB_METHOD("_new", NULL, ScrollBar_new, "(Parent)Container;"),
 
 	GB_PROPERTY_READ("DefaultSize", "i", ScrollBar_DefaultSize),
 
-	//GB_CONSTANT("Vertical","i", Qt::Vertical),
-	//GB_CONSTANT("Horizontal","i", Qt::Horizontal),
-	GB_PROPERTY("Tracking", "b", CSCROLLBAR_tracking),
-	GB_PROPERTY("Value", "i", CSCROLLBAR_value),
-	GB_PROPERTY("MinValue", "i", CSCROLLBAR_minval),
-	GB_PROPERTY("MaxValue", "i", CSCROLLBAR_maxval),
-	GB_PROPERTY("Step", "i", CSCROLLBAR_linestep),
-	GB_PROPERTY("PageStep", "i", CSCROLLBAR_pagestep),
-	//GB_PROPERTY("Orientation", "i<ScrollBar,Vertical,Horizontal>", CSCROLLBAR_orientation),
+	GB_PROPERTY("Tracking", "b", ScrollBar_Tracking),
+	GB_PROPERTY("Value", "i", ScrollBar_Value),
+	GB_PROPERTY("MinValue", "i", ScrollBar_MinVal),
+	GB_PROPERTY("MaxValue", "i", ScrollBar_MaxVal),
+	GB_PROPERTY("Step", "i", ScrollBar_LineStep),
+	GB_PROPERTY("PageStep", "i", ScrollBar_PageStep),
+	GB_PROPERTY("Orientation", "i", ScrollBar_Orientation),
 
 	GB_EVENT("Change", NULL, NULL, &EVENT_Change),
 
 	SCROLLBAR_DESCRIPTION,
 	
+	GB_CONSTANT("Auto", "i", ORIENTATION_AUTO),
+	GB_CONSTANT("Horizontal", "i", ORIENTATION_HORIZONTAL),
+	GB_CONSTANT("Vertical", "i", ORIENTATION_VERTICAL),
+
 	GB_END_DECLARE
 };
 

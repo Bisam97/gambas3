@@ -1,0 +1,110 @@
+' Gambas class file
+
+''' This virtual class represents a [../toolpanel] tab.
+
+Export
+Inherits UserControl
+
+Event _Change
+
+'' Return or set the tab title.
+Property Text As String
+
+'' Return or set if the font of the tab title.
+''
+'' If this property is 'NULL' (the default), then the font of the ToolPanel control is used.
+Property TextFont As Font
+
+'' Return or set the tab icon.
+Property Picture As Picture
+
+'' Return or set if the tab is visible.
+Property Visible As Boolean
+
+'' Return the actual internal container of the tab.
+Property Read Container As Container
+
+Private frmContainer As FToolBar
+
+Public Sub _new()
+
+  frmContainer = New FToolBar(Me)
+  Me._Container = frmContainer.GetContainer()
+  'Object.Attach(frmContainer, ME, "ToolBar")
+
+End
+
+
+Public Function _GetButtonHeight() As Integer
+
+  Return frmContainer.GetButtonHeight()
+
+End
+
+
+Private Function Text_Read() As String
+
+  Return frmContainer.GetTitle()
+
+End
+
+Private Sub Text_Write(sText As String)
+
+  frmContainer.SetTitle(sText)
+
+End
+
+Private Function Picture_Read() As Picture
+
+  Return frmContainer.GetPicture()
+
+End
+
+Private Sub Picture_Write(hPict As Picture)
+
+  frmContainer.SetPicture(hPict)
+
+End
+
+Public Sub _Change()
+
+  Raise _Change
+
+End
+
+Private Function Visible_Read() As Boolean
+
+  Return Super.Visible  
+
+End
+
+Private Sub Visible_Write(Value As Boolean)
+
+  Dim hToolPanel As ToolPanel
+  
+  If Value = Super.Visible Then Return
+  
+  Super.Visible = Value
+  hToolPanel = Me.Parent.Parent
+  hToolPanel.ToolPanel_Resize
+
+End
+
+
+Private Function TextFont_Read() As Font
+
+  Return frmContainer.GetTextFont()  
+
+End
+
+Private Sub TextFont_Write(Value As Font)
+
+  frmContainer.SetTextFont(Value)
+
+End
+
+Private Function Container_Read() As Container
+
+  Return frmContainer.GetContainer()  
+
+End

@@ -2,7 +2,7 @@
 
 	jit.c
 
-	(c) 2000-2018 Benoît Minisini <g4mba5@gmail.com>
+	(c) 2000-2018 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -122,7 +122,18 @@ TYPE JIT_ctype_to_type(CLASS *class, CTYPE ctype)
 
 static void JIT_begin(void)
 {
+	char *p;
+	
 	JIT_prefix = STR_lower(JIT_class->name);
+	
+	p = JIT_prefix;
+	while (*p)
+	{
+		if (*p == ':')
+			*p = '$';
+		p++;
+	}
+	
 	_buffer = NULL;
 	_buffer_decl = NULL;
 	JIT_print("\n//////// %s\n\n", JIT_class->name);
@@ -222,7 +233,7 @@ const char *JIT_get_default_value(TYPE type)
 			
 			if (!_decl_null_object)
 			{
-				JIT_print_decl("  const GB_OBJECT null_object = {GB_T_NULL};\n");
+				JIT_print_decl("  const GB_OBJECT null_object = {GB_T_OBJECT};\n");
 				_decl_null_object = TRUE;
 			}
 			return "null_object";
@@ -494,6 +505,7 @@ char *JIT_translate(const char *name, const char *from)
 	return JIT_end();
 }
 
+
 void JIT_panic(const char *fmt, ...)
 {
 	va_list args;
@@ -509,6 +521,7 @@ void JIT_panic(const char *fmt, ...)
 	fputc('\n', stderr);
 	abort();
 }
+
 
 int JIT_get_code_size(FUNCTION *func)
 {

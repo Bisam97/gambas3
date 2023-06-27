@@ -1,0 +1,56 @@
+' Gambas class file
+
+Export
+
+'   GB_PROPERTY("Text", "s", TextBox_Selection_Text),
+'   GB_PROPERTY_READ("Length", "i", TextBox_Selection_Length),
+'   GB_PROPERTY_READ("Start", "i", TextBox_Selection_Start),
+'   GB_PROPERTY_READ("Pos", "i", TextBox_Selection_Start),
+' 
+'   GB_METHOD("Hide", NULL, TextBox_Unselect, NULL),
+' 
+
+Event _Fake
+
+Property Text As String
+Property Read Length As String
+Property Read Start, Pos As Integer
+
+Private Sub GetTextBox() As TextBox
+
+  Dim hTextBox As ComboBox
+  
+  hTextBox = Object.Parent(Me)
+  Return hTextBox._GetTextBox()
+  
+End
+
+Public Sub Hide()
+  
+  GetTextBox().Selection.Hide
+  
+End
+
+Private Function Text_Read() As String
+
+  Return GetTextBox().Selection.Text
+
+End
+
+Private Sub Text_Write(Value As String)
+
+  GetTextBox().Selection.Text = Value
+
+End
+
+Private Function Length_Read() As String
+
+  Return GetTextBox().Selection.Length
+
+End
+
+Private Function Start_Read() As Integer
+
+  Return GetTextBox().Selection.Start
+
+End

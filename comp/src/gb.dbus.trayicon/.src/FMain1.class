@@ -1,0 +1,53 @@
+' Gambas class file
+
+Public Sub Button1_Click()
+
+  TrayIcon1.Delete
+  Me.Close
+
+End
+
+Public Sub Form_Open()
+
+  Dim UserQueues As String[] = ["entry1", "entry2", "entry3", "entry4"]
+  Dim QMenuEntry As Menu
+  Dim MainMenu As New Menu(FMain)
+  
+  DBus.Debug = True
+  
+  ' Populate tray icon menu
+  For Each UserQueue As String In UserQueues
+    If Trim(UserQueue) <> "" Then 
+      QMenuEntry = New Menu(Item2) As "QMenuEntry"
+      QMenuEntry.Text = UserQueue
+      QMenuEntry.Radio = True
+    Endif 
+  Next
+  
+  ' Populate menubutton menu
+  MainMenu.Name = "MainMenu"
+  MenuButton1.Menu = "MenuButtonMenu"
+  
+  For Each UserQueue As String In UserQueues
+    If Trim(UserQueue) <> "" Then 
+      QMenuEntry = New Menu(Item4) As "QMenuEntry2"
+      QMenuEntry.Text = UserQueue
+      QMenuEntry.Radio = True
+    Endif 
+  Next
+  
+  TrayIcon1.PopupMenu = "Menu1"
+  
+End
+
+Public Sub QMenuEntry_Click()
+
+  Debug "Entry: " & Last.Text
+
+End
+
+Public Sub QMenuEntry2_Click()
+
+  Debug "Entry2: " & Last.Text
+
+End

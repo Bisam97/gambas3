@@ -1,0 +1,28 @@
+#Script Version="5.9.3"
+#Script Name="AnotherTest"
+#Script Title="Plugin tester Too{str(now)}"
+#Script Description="This plugin is a test for the scripter too"
+#Script Property=MyProp:"Added Plugin Special prop"
+
+Public $sParmInfo as string = ""
+
+  Dim s as string
+  Dim sSum as string= ""
+  Dim Adder as integer = 0
+  
+  for each s as string in param
+    adder += cinteger(s)
+  next
+  sSum = str(adder)
+  return "Sum ["&sSum&"] " & $sParmInfo
+  
+public sub _new(...)
+  dim parminfo as string = ""
+  
+  for each v as variant in param
+    ParmInfo &= quote(cstr(v)) & " "
+  next
+  
+  $sParmInfo = trim($sName&" : "&"Defined Version = "& $sVersion &",  New Parminfo = "&ParmInfo)
+  
+end

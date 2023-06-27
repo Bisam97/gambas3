@@ -10,6 +10,9 @@ Public Const DropImageClass As String = "WebImage"
 Public Const DropImageProperty As String = "Image"
 Public Const EmbedContainer As String = "WebContainer"
 Public Const AutomaticArrangement As Boolean = True
+Public Const HasMenuEditor As Boolean = True
+Public Const MenuClass As String = "WebMenu"
+Public Const SelectImagePublic As Boolean = True
 
 Public Sub _new()
 
@@ -149,14 +152,14 @@ Public Sub DrawControl(hCCtrl As CControl) As Boolean
       
     Case "WebContainer", "WebHBox", "WebVBox"
       If Not CFamily.PaintExpand(hCCtrl) Then
-        CFamily.PaintContainer(0, 0, hCCtrl.W, hCCtrl.H)
+        CFamily.PaintContainer(hCCtrl, 0, 0, hCCtrl.W, hCCtrl.H)
       Endif
       Return
       
     Case "WebImage"
       Return CFamily.PaintImage(hCCtrl, ".public")
       
-    Case "WebButton"
+    Case "WebButton", "WebFileButton"
       PaintButton(hCCtrl)
       Return
     
@@ -182,7 +185,7 @@ Public Sub ActionDialog(sAction As String) As Boolean
     
     Case Like ".format-*"
       If FColorChooser.Run(, True) Then Return True
-      vColor = FColorChooser.Color
+      vColor = FColorChooser.ColorName
       If Not IsNull(Val(vColor)) Then vColor = Val(vColor)
       Me.ActionValue = vColor
       
@@ -245,8 +248,14 @@ End
 
 Public Sub SelectImage((sPropertyType) As String, sImage As String) As String
 
-  Return FSelectIcon.Run(sImage, FSelectIcon.SELECT_IMAGE + FSelectIcon.SELECT_SVGIMAGE + FSelectIcon.SELECT_PUBLIC)
+  Return FSelectIcon.Run(sImage, FSelectIcon.SELECT_STOCK + FSelectIcon.SELECT_IMAGE + FSelectIcon.SELECT_SVGIMAGE + FSelectIcon.SELECT_PUBLIC, ["medium", "huge"])
       
+End
+
+Public Sub SelectAudio((sPropertyType) As String, sAudio As String) As String
+  
+  Return FSelectIcon.Run(sAudio, FSelectIcon.SELECT_AUDIO + FSelectIcon.SELECT_PUBLIC)
+  
 End
 
 Static Public Sub InitCoord(hCtrl As CoordBox)
@@ -259,5 +268,11 @@ End
 Public Sub GetFonts() As String[]
   
   Return ["sans-serif", "serif", "monospace", "cursive", "fantasy"].Sort()
+  
+End
+
+Public Sub GetStockSizes() As String[]
+  
+  Return ["normal", "big"]
   
 End

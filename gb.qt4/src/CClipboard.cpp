@@ -2,7 +2,7 @@
 
   CClipboard.cpp
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -41,13 +41,15 @@
 #include <QWidget>
 #include <QTextCodec>
 
+#include "gb.form.const.h"
 #include "CWidget.h"
 #include "CImage.h"
 #include "CClipboard.h"
 
 CDRAG_INFO CDRAG_info = { 0 };
 bool CDRAG_dragging = false;
-void *CDRAG_destination = 0;
+void *CDRAG_destination = NULL;
+static char CDRAG_action = DRAG_MOVE;
 
 static CPICTURE *_picture = 0;
 static int _picture_x = -1;
@@ -204,7 +206,7 @@ static bool paste(const QMimeData *data, const char *fmt)
 ***************************************************************************/
 
 static GB_ARRAY _clipboard_formats[2] = { NULL };
-static bool _clipboard_has_changed[2] = { FALSE };
+static bool _clipboard_has_changed[2] = { TRUE };
 
 #define CURRENT_MODE() (_current_clipboard == CLIPBOARD_SELECTION ? QClipboard::Selection : QClipboard::Clipboard)
 
@@ -513,11 +515,16 @@ void *CDRAG_drag(CWIDGET *source, GB_VARIANT_VALUE *data, GB_STRING *fmt)
 
 	CDRAG_dragging = true;
 	
-	GB.Unref(POINTER(&CDRAG_destination));
-	CDRAG_destination = 0;
+	/*if (CDRAG_destination)
+	{
+		fprintf(stderr, "%d: unref destination %p\n", __LINE__, CDRAG_destination);
+		GB.Unref(POINTER(&CDRAG_destination));
+	}*/
+
+	CDRAG_action = DRAG_MOVE;
 	
 	//qDebug("start drag");
-	drag->exec();
+	drag->exec(Qt::CopyAction | Qt::MoveAction | Qt::LinkAction);
 
 	source->flag.dragging = false;
 	//qDebug("end drag");
@@ -525,12 +532,14 @@ void *CDRAG_drag(CWIDGET *source, GB_VARIANT_VALUE *data, GB_STRING *fmt)
 	hide_frame(NULL);
 	GB.Post((GB_CALLBACK)post_exit_drag, 0);
 
-	if (CDRAG_destination)
-		GB.Unref(POINTER(&CDRAG_destination));
-	
 	dest = CDRAG_destination;
-	CDRAG_destination = 0;
-		
+	if (dest)
+	{
+		//fprintf(stderr, "%d: unref destination %p\n", __LINE__, CDRAG_destination);
+		GB.Unref(POINTER(&CDRAG_destination));
+		CDRAG_destination = NULL;
+	}
+
 	return dest;
 
 _BAD_FORMAT:
@@ -540,20 +549,38 @@ _BAD_FORMAT:
 }
 
 
+static void update_action(QDropEvent *e)
+{
+	Qt::KeyboardModifiers mod = e->keyboardModifiers() & (Qt::ShiftModifier | Qt::ControlModifier | Qt::AltModifier | Qt::MetaModifier);
+	
+	if (mod == Qt::ControlModifier)
+	{
+		e->setDropAction(Qt::CopyAction);
+		CDRAG_action = DRAG_COPY;
+	}
+	else if (mod == Qt::ShiftModifier)
+	{
+		e->setDropAction(Qt::LinkAction);
+		CDRAG_action = DRAG_LINK;
+	}
+	else
+	{
+		e->setDropAction(Qt::MoveAction);
+		CDRAG_action = DRAG_MOVE;
+	}
+}
+
+
 bool CDRAG_drag_enter(QWidget *w, CWIDGET *control, QDropEvent *e)
 {
 	bool cancel;
 
-	//qDebug("CDRAG_drag_enter: (%s %p) %p", GB.GetClassName(control), control, qobject_cast<MyListView *>(QWIDGET(control)));
-
-	// Hack for QScrollView
-	/*if (CWIDGET_test_flag(control, WF_SCROLLVIEW) && qobject_cast<MyListView *>(QWIDGET(control)))
-		((MyListView *)QWIDGET(control))->contentsDragEnterEvent((QDragEnterEvent *)e);*/
-
+	update_action(e);
+	
 	if (!GB.CanRaise(control, EVENT_Drag))
 	{
 		if (GB.CanRaise(control, EVENT_DragMove) || GB.CanRaise(control, EVENT_Drop))
-			e->acceptProposedAction();
+			e->accept();
 		else
 		{
 			if (qobject_cast<QLineEdit *>(w) || qobject_cast<QTextEdit *>(w))
@@ -564,6 +591,8 @@ bool CDRAG_drag_enter(QWidget *w, CWIDGET *control, QDropEvent *e)
 		return true;
 	}
 	
+	//fprintf(stderr, "CDRAG_drag_enter: %s %s\n", GB.GetClassName(control), control->name);
+
 	CDRAG_clear(true);
 	CDRAG_info.event = e;
 
@@ -574,7 +603,7 @@ bool CDRAG_drag_enter(QWidget *w, CWIDGET *control, QDropEvent *e)
 	if (cancel)
 		e->ignore();
 	else
-		e->acceptProposedAction();
+		e->accept();
 	return cancel;
 }
 
@@ -582,20 +611,11 @@ bool CDRAG_drag_enter(QWidget *w, CWIDGET *control, QDropEvent *e)
 
 void CDRAG_drag_leave(CWIDGET *control)
 {
+	//fprintf(stderr, "CDRAG_drag_leave: %s %s\n", GB.GetClassName(control), control->name);
+
 	CDRAG_hide_frame(control);
 	
-	//while (EXT(control) && EXT(control)->proxy)
-	//	control = (CWIDGET *)(EXT(control)->proxy);
-
-__DRAG_LEAVE_TRY_PROXY:
-
 	GB.Raise(control, EVENT_DragLeave, 0);
-
-	if (EXT(control) && EXT(control)->proxy)
-	{
-		control = (CWIDGET *)(EXT(control)->proxy);
-		goto __DRAG_LEAVE_TRY_PROXY;
-	}
 }
 
 
@@ -606,27 +626,13 @@ bool CDRAG_drag_move(QWidget *w, CWIDGET *control, QDropEvent *e)
 
 	//qDebug("CDRAG_drag_move: (%s %p) %p", GB.GetClassName(control), control, qobject_cast<MyListView *>(QWIDGET(control)));
 
-	// Hack for QScrollView
-	
-	/*if (CWIDGET_test_flag(control, WF_SCROLLVIEW) && qobject_cast<MyListView *>(QWIDGET(control)))
-	{
-		accepted = e->isAccepted();
-		((MyListView *)QWIDGET(control))->contentsDragMoveEvent((QDragMoveEvent *)e);
-		if (accepted)
-			e->acceptProposedAction();
-		else
-			e->ignore();
-	}*/
+	update_action(e);
 
 	if (!GB.CanRaise(control, EVENT_DragMove))
-	{
-		/*if (GB.CanRaise(control, EVENT_Drop))
-			e->accept();
-		else
-			e->ignore();*/
 		return true;
-	}
-
+	
+	//fprintf(stderr, "CDRAG_drag_move: %s %s\n", GB.GetClassName(control), control->name);
+	
 	CDRAG_clear(true);
 	CDRAG_info.event = e;
 
@@ -639,9 +645,10 @@ bool CDRAG_drag_move(QWidget *w, CWIDGET *control, QDropEvent *e)
 	if (cancel)
 		e->ignore();
 	else
-		e->acceptProposedAction();
+		e->accept();
 
 	CDRAG_clear(false);
+	
 	return cancel;
 }
 
@@ -658,9 +665,14 @@ bool CDRAG_drag_drop(QWidget *w, CWIDGET *control, QDropEvent *e)
 	/*if (CWIDGET_test_flag(control, WF_SCROLLVIEW) && qobject_cast<MyListView *>(QWIDGET(control)))
 		((MyListView *)QWIDGET(control))->contentsDropEvent((QDragMoveEvent *)e);*/
 	
+	//fprintf(stderr, "CDRAG_drag_drop: %s %s\n", GB.GetClassName(control), control->name);
+
+	e->accept();
+
 	CDRAG_clear(true);
 	CDRAG_info.event = e;
 	CDRAG_destination = control;
+	//fprintf(stderr, "%d: ref destination %p\n", __LINE__, CDRAG_destination);
 	GB.Ref(CDRAG_destination);
 
 	p = e->pos();
@@ -672,7 +684,9 @@ bool CDRAG_drag_drop(QWidget *w, CWIDGET *control, QDropEvent *e)
 
 	if (!CDRAG_dragging) // DnD run outside of the application
 	{
+		//fprintf(stderr, "%d: unref destination %p\n", __LINE__, CDRAG_destination);
 		GB.Unref(&CDRAG_destination);
+		CDRAG_destination = NULL;
 		hide_frame(control);
 	}
 	
@@ -686,6 +700,16 @@ BEGIN_METHOD(Drag_call, GB_OBJECT source; GB_VARIANT data; GB_STRING format)
 	GB.ReturnObject(CDRAG_drag((CWIDGET *)VARG(source), &VARG(data), MISSING(format) ? NULL : ARG(format)));
 
 END_METHOD
+
+BEGIN_PROPERTY(Drag_Target)
+
+	if (READ_PROPERTY)
+		GB.ReturnObject(CDRAG_destination);
+	else
+		GB.StoreObject(PROP(GB_OBJECT), POINTER(&CDRAG_destination));
+
+END_PROPERTY
+
 
 BEGIN_METHOD_VOID(Drag_exit)
 
@@ -773,7 +797,7 @@ BEGIN_PROPERTY(Drag_Data)
 END_PROPERTY
 
 
-BEGIN_METHOD(CDRAG_paste, GB_STRING format)
+BEGIN_METHOD(Drag_Paste, GB_STRING format)
 
 	if (!CDRAG_info.valid)
 	{
@@ -789,21 +813,7 @@ END_METHOD
 BEGIN_PROPERTY(Drag_Action)
 
 	CHECK_VALID();
-
-	switch(CDRAG_info.event->dropAction())
-	{
-		case Qt::LinkAction:
-			GB.ReturnInteger(1);
-			break;
-
-		case Qt::MoveAction:
-			GB.ReturnInteger(2);
-			break;
-
-		default:
-			GB.ReturnInteger(0);
-			break;
-	}
+	GB.ReturnInteger(CDRAG_action);
 
 END_PROPERTY
 
@@ -880,9 +890,9 @@ GB_DESC CDragDesc[] =
 	GB_CONSTANT("Text", "i", MIME_TEXT),
 	GB_CONSTANT("Image", "i", MIME_IMAGE),
 
-	GB_CONSTANT("Copy", "i", 0),
-	GB_CONSTANT("Link", "i", 1),
-	GB_CONSTANT("Move", "i", 2),
+	GB_CONSTANT("Copy", "i", DRAG_COPY),
+	GB_CONSTANT("Link", "i", DRAG_LINK),
+	GB_CONSTANT("Move", "i", DRAG_MOVE),
 
 	GB_STATIC_PROPERTY("Icon", "Picture", Drag_Icon),
 	GB_STATIC_PROPERTY("IconX", "i", Drag_IconX),
@@ -897,12 +907,13 @@ GB_DESC CDragDesc[] =
 	GB_STATIC_PROPERTY("X", "i", Drag_X),
 	GB_STATIC_PROPERTY("Y", "i", Drag_Y),
 	GB_STATIC_PROPERTY_READ("Pending", "b", Drag_Pending),
+	GB_STATIC_PROPERTY("_Target", "Control", Drag_Target),
 
 	GB_STATIC_METHOD("_call", "Control", Drag_call, "(Source)Control;(Data)v[(Format)s]"),
 	GB_STATIC_METHOD("_exit", NULL, Drag_exit, NULL),
 	GB_STATIC_METHOD("Show", NULL, Drag_Show, "(Control)Control;[(X)i(Y)i(Width)i(Height)i]"),
 	GB_STATIC_METHOD("Hide", NULL, Drag_Hide, NULL),
-	GB_STATIC_METHOD("Paste", "v", CDRAG_paste, "[(Format)s]"),
+	GB_STATIC_METHOD("Paste", "v", Drag_Paste, "[(Format)s]"),
 
 	GB_END_DECLARE
 };

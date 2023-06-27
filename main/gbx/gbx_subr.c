@@ -2,7 +2,7 @@
 
 	gbx_subr.c
 
-	(c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+	(c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -78,6 +78,12 @@ void SUBR_check_integer(VALUE *param)
 
 	if (TYPE_is_integer(param->type))
 		return;
+	
+	if (TYPE_is_long(param->type))
+	{
+		VALUE_convert_integer(param);
+		return;
+	}
 
 	THROW_TYPE(T_INTEGER, param->type);
 }

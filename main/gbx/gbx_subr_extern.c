@@ -2,7 +2,7 @@
 
   gbx_subr_extern.c
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -33,50 +33,54 @@
 
 void SUBR_alloc(ushort code)
 {
-  int size;
-  int count;
-  void *ptr;
-  char *copy;
+	size_t size;
+	int count;
+	void *ptr;
+	char *copy;
 
-  SUBR_ENTER();
+	SUBR_ENTER();
 
-  if (NPARAM == 2)
-    count = SUBR_get_integer(&PARAM[1]);
-  else
-    count = 1;
-  
-  if (TYPE_is_null(PARAM->type))
-  {
-    size = 1;
-    copy = NULL;
-  }
-  if (TYPE_is_string(PARAM->type))
-  {
-    size = PARAM->_string.len + 1;
-    copy = PARAM->_string.addr + PARAM->_string.start;
-  }
-  else
-  {
-    size = SUBR_get_integer(PARAM);
-    copy = NULL;
-  }
-  
-  if (count <= 0 || size <= 0)
-    THROW(E_ARG);
-  
-  ALLOC(&ptr, size * count);
-  
-  if (copy)
-  {
-    size--;
-    memcpy(ptr, copy, size);
-    ((char *)ptr)[size] = 0;
-  }
-  
-  RETURN->type = T_POINTER;
-  RETURN->_pointer.value = ptr;
-  
-  SUBR_LEAVE();
+	if (NPARAM == 2)
+		count = SUBR_get_integer(&PARAM[1]);
+	else
+		count = 1;
+
+	if (TYPE_is_null(PARAM->type))
+	{
+	  size = 1;
+	  copy = NULL;
+	}
+	if (TYPE_is_string(PARAM->type))
+	{
+	  size = PARAM->_string.len + 1;
+	  copy = PARAM->_string.addr + PARAM->_string.start;
+	}
+	else
+	{
+	  size = SUBR_get_integer(PARAM);
+	  copy = NULL;
+	}
+
+	if (count <= 0 || size <= 0)
+	  THROW(E_ARG);
+
+	size *= count;
+
+	ALLOC(&ptr, size);
+	if (NPARAM == 2)
+		memset(ptr, 0, size);
+
+	if (copy)
+	{
+	  size--;
+	  memcpy(ptr, copy, size);
+	  ((char *)ptr)[size] = 0;
+	}
+
+	RETURN->type = T_POINTER;
+	RETURN->_pointer.value = ptr;
+
+	SUBR_LEAVE();
 }
 
 
@@ -87,9 +91,9 @@ void SUBR_free(void)
   SUBR_ENTER_PARAM(1);
 
   ptr = SUBR_get_pointer(PARAM);
-  
+
   IFREE(ptr);
-  
+
   SUBR_LEAVE_VOID();
 }
 
@@ -106,19 +110,19 @@ void SUBR_realloc(ushort code)
     size = SUBR_get_integer(&PARAM[2]);
   else
     size = 1;
-  
+
   count = SUBR_get_integer(&PARAM[1]);
-  
+
   if (size <= 0 || count <= 0)
     THROW(E_ARG);
-  
+
   ptr = SUBR_get_pointer(&PARAM[0]);
-  
+
   REALLOC(&ptr, size * count);
-  
+
   RETURN->type = T_POINTER;
   RETURN->_pointer.value = ptr;
-  
+
   SUBR_LEAVE();
 }
 
@@ -128,11 +132,11 @@ void SUBR_strptr(ushort code)
   char *ptr;
   ssize_t len = 0;
 	bool err;
-  
+
   SUBR_ENTER();
-  
+
   ptr = (char *)SUBR_get_pointer(PARAM);
-	
+
 	if (NPARAM == 1)
 	{
 		err = CHECK_strlen(ptr, &len);
@@ -142,19 +146,19 @@ void SUBR_strptr(ushort code)
 		len = SUBR_get_integer(&PARAM[1]);
 		err = CHECK_address(ptr, len);
 	}
-    
+
 	if (err)
 	{
 		VALUE_null(RETURN);
 	}
 	else
-	{ 
+	{
 		RETURN->type = T_CSTRING;
 		RETURN->_string.addr = ptr;
 		RETURN->_string.start = 0;
 		RETURN->_string.len = (int)len;
 	}
-	
+
   SUBR_LEAVE();
 }
 
@@ -164,11 +168,11 @@ void SUBR_varptr(ushort code)
 	void *ptr;
 	VALUE *val;
   CLASS_VAR *var;
-	
+
 	SUBR_ENTER_PARAM(1);
-	
+
 	op = (ushort)SUBR_get_integer(PARAM);
-	
+
 	if ((code & 0xFF) == 1)
 	{
 		uint64_t optargs = BP[FP->n_local + FP->n_ctrl - 1]._long.value;
@@ -178,9 +182,10 @@ void SUBR_varptr(ushort code)
 	}
 	else
 	{
-		if ((op & 0xFF00) == C_PUSH_LOCAL || (op & 0xFF00) == C_PUSH_PARAM)
+		if ((op & 0xFF00) == C_PUSH_LOCAL || (op & 0xFF00) == C_PUSH_PARAM
+			  || (op & 0xFF00) == C_PUSH_LOCAL_NOREF || (op & 0xFF00) == C_PUSH_PARAM_NOREF)
 		{
-			if ((op & 0xFF00) == C_PUSH_PARAM)
+			if ((op & 0xFF00) == C_PUSH_PARAM || (op & 0xFF00) == C_PUSH_PARAM_NOREF)
 				val = &PP[(signed char)(op & 0xFF)];
 			else
 				val = &BP[op & 0xFF];
@@ -210,17 +215,16 @@ void SUBR_varptr(ushort code)
 					ptr = &val->_date.date;
 					break;
 
-				case T_STRING:
-				case T_CSTRING:
-					ptr = val->_string.addr + val->_string.start;
-					break;
-
 				case T_POINTER:
 					ptr = &val->_pointer.value;
 					break;
 
+				case T_VARIANT:
+					ptr = &val->_variant.value.data;
+					break;
+
 				default:
-					THROW(E_TYPE, "Number", TYPE_get_name(val->type));
+					THROW(E_UTYPE);
 			}
 		}
 		else if ((op & 0xF800) == C_PUSH_DYNAMIC)
@@ -231,11 +235,15 @@ void SUBR_varptr(ushort code)
 				THROW_ILLEGAL();
 
 			ptr = &OP[var->pos];
+			if (var->type.id == T_VARIANT)
+				ptr = &((VARIANT *)ptr)->value.data;
 		}
 		else if ((op & 0xF800) == C_PUSH_STATIC)
 		{
 			var = &CP->load->stat[op & 0x7FF];
 			ptr = (char *)CP->stat + var->pos;
+			if (var->type.id == T_VARIANT)
+				ptr = &((VARIANT *)ptr)->value.data;
 		}
 		else
 			THROW_ILLEGAL();
@@ -243,46 +251,67 @@ void SUBR_varptr(ushort code)
 		RETURN->type = T_POINTER;
 		RETURN->_pointer.value = ptr;
 	}
-	
+
 	SUBR_LEAVE();
 }
 
 
-void SUBR_ptr(ushort code)
+void SUBR_peek(ushort code)
 {
   void *ptr;
-  
+
 	SUBR_ENTER_PARAM(1);
-	
+
   ptr = SUBR_get_pointer_or_string(PARAM);
-	
+
 	CHECK_enter();
-  if (sigsetjmp(CHECK_jump, TRUE) == 0)	
+  if (sigsetjmp(CHECK_jump, TRUE) == 0)
 		VALUE_read(RETURN, ptr, code & 0xF);
 	CHECK_leave();
-	
+
 	if (CHECK_got_error())
 		THROW(E_ARG);
 
 	SUBR_LEAVE();
 }
 
+
+void SUBR_poke(ushort code)
+{
+	void *ptr;
+
+	SUBR_ENTER_PARAM(2);
+
+	ptr = SUBR_get_pointer_or_string(PARAM);
+
+	CHECK_enter();
+	if (sigsetjmp(CHECK_jump, TRUE) == 0)
+		VALUE_write(&PARAM[1], ptr, code & 0xF);
+	CHECK_leave();
+
+	if (CHECK_got_error())
+		THROW(E_ARG);
+
+	SUBR_LEAVE_VOID();
+}
+
+
 void SUBR_make(ushort code)
 {
-  static void *jump[] = {
-    &&__ERROR, &&__BOOLEAN, &&__BYTE, &&__SHORT, &&__INTEGER, &&__LONG, &&__SINGLE, &&__FLOAT, 
+	static void *jump[] = {
+		&&__ERROR, &&__BOOLEAN, &&__BYTE, &&__SHORT, &&__INTEGER, &&__LONG, &&__SINGLE, &&__FLOAT,
 		&&__DATE, &&__ERROR, &&__ERROR, &&__POINTER, &&__ERROR, &&__ERROR, &&__ERROR, &&__ERROR
-    };
-		
+		};
+
 	TYPE type;
-	
+
 	SUBR_ENTER_PARAM(1);
-	
+
 	type = code & 0x3F;
 	VALUE_conv(PARAM, type);
 	STRING_new_temp_value(RETURN, NULL, TYPE_sizeof_memory(type));
 	goto *jump[type];
-	
+
 __BOOLEAN:
 
 	*(RETURN->_string.addr) = PARAM->_boolean.value != 0;
@@ -322,12 +351,12 @@ __DATE:
 
 	memcpy(RETURN->_string.addr, &PARAM->_date.date, sizeof(int) * 2);
 	goto __END;
-	
+
 __POINTER:
 
 	memcpy(RETURN->_string.addr, &PARAM->_pointer.value, sizeof(void *));
 	goto __END;
-	
+
 __ERROR:
 
 	THROW_ILLEGAL();

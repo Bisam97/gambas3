@@ -2,7 +2,7 @@
 
 	CEditor.cpp
 
-	(c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+	(c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -209,14 +209,6 @@ BEGIN_METHOD(Highlight_Add, GB_INTEGER state; GB_INTEGER len)
 		(*_highlight_data)[count].len += len;
 
 END_METHOD
-
-BEGIN_PROPERTY(Highlight_Alternate)
-
-	GB.Deprecated("gb.qt4.ext", "Highlight.Alternate", NULL);
-	GB.ReturnInteger(-1);
-
-END_PROPERTY
-
 
 /****************************************************************************
 	
@@ -1614,7 +1606,7 @@ GB_DESC CHighlightDesc[] =
 	GB_CONSTANT("Error", "i", HIGHLIGHT_ERROR),
 	GB_CONSTANT("Help", "i", HIGHLIGHT_HELP),
 	GB_CONSTANT("Preprocessor", "i", HIGHLIGHT_PREPROCESSOR),
-	GB_STATIC_PROPERTY_READ("Alternate", "i", Highlight_Alternate),
+	GB_CONSTANT("Alternate", "i", HIGHLIGHT_ALTERNATE),
 
 	GB_STATIC_PROPERTY_READ("Line", "i", Highlight_Line),
 	GB_STATIC_PROPERTY("State", "i", Highlight_State),

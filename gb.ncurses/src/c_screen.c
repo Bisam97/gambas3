@@ -68,6 +68,8 @@ void SCREEN_refresh()
 {
 	if (!NCURSES_RUNNING)
 		return;
+	if (THIS->suspended)
+		return;
 	update_panels();
 	doupdate();
 }
@@ -99,6 +101,7 @@ static void CSCREEN_echo(CSCREEN *scr, int mode)
 
 BEGIN_METHOD_VOID(Screen_new)
 
+	THIS->suspended = 0;
 	CSCREEN_cursor(THIS, 1);
 	CSCREEN_echo(THIS, 1);
 	INPUT_mode(THIS, INPUT_CBREAK);
@@ -182,6 +185,21 @@ BEGIN_METHOD(Screen_Resize, GB_INTEGER lines; GB_INTEGER cols)
 
 END_METHOD
 
+BEGIN_METHOD_VOID(Screen_Suspend)
+
+	THIS->suspended = 1;
+	def_prog_mode();
+	endwin();
+
+END_METHOD
+
+BEGIN_METHOD_VOID(Screen_Resume)
+
+	THIS->suspended = 0;
+	doupdate();
+
+END_METHOD
+
 GB_DESC CCursorDesc[] = {
 	GB_DECLARE("Cursor", 0),
 	GB_NOT_CREATABLE(),
@@ -258,6 +276,9 @@ GB_DESC CScreenDesc[] = {
 	GB_STATIC_METHOD("Flash", NULL, Screen_Flash, NULL),
 	GB_STATIC_METHOD("Refresh", NULL, Screen_Refresh, NULL),
 	GB_STATIC_METHOD("Resize", NULL, Screen_Resize, "(Lines)i(Cols)i"),
+
+	GB_STATIC_METHOD("Suspend", NULL, Screen_Suspend, NULL),
+	GB_STATIC_METHOD("Resume", NULL, Screen_Resume, NULL),
 
 	GB_STATIC_PROPERTY("Cursor", "i", Screen_Cursor),
 	GB_STATIC_PROPERTY("Echo", "b", Screen_Echo),

@@ -2,7 +2,7 @@
 
 	gbx_c_file.h
 
-	(c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+	(c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -54,6 +54,7 @@ typedef
 	CSTAT;
 
 #ifndef __GBX_C_FILE_C
+
 extern GB_DESC StreamLinesDesc[];
 extern GB_DESC StreamTermDesc[];
 extern GB_DESC StreamDesc[];
@@ -61,20 +62,25 @@ extern GB_DESC FileDesc[];
 extern GB_DESC StatDesc[];
 extern GB_DESC StatPermDesc[];
 
-extern CFILE *CFILE_in;
-extern CFILE *CFILE_out;
-extern CFILE *CFILE_err;
+extern mode_t CFILE_default_dir_auth;
+
 #else
+
 #define THIS ((CFILE *)_object)
 #define THIS_STREAM ((CSTREAM *)_object)
 #define THIS_STAT ((CSTAT *)_object)
+#define THE_STREAM CSTREAM_TO_STREAM(THIS_STREAM)
+
 #endif
 
-#define CSTREAM_stream(_cstream) (&((CSTREAM *)(void *)(_cstream))->stream)
+#define CSTREAM_TO_STREAM(_cstream) (&((CSTREAM *)(void *)(_cstream))->stream)
+#define CSTREAM_FROM_STREAM(_stream) ((CSTREAM *)((char *)(_stream) - sizeof(OBJECT)))
+
+enum { CFILE_IN = 0, CFILE_OUT = 1, CFILE_ERR = 2 };
 
 CFILE *CFILE_create(STREAM *stream, int mode);
-void CFILE_init(void);
 void CFILE_exit(void);
 void CFILE_init_watch(void);
+CFILE *CFILE_get_standard_stream(int num);
 
 #endif

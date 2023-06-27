@@ -2,7 +2,7 @@
 
 	gbx_stream_buffer.c
 
-	(c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+	(c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -49,11 +49,11 @@ static int stream_open(STREAM *stream, const char *path, int mode)
 	struct stat info;
 	int fd;
 
-	if (mode & STO_CREATE)
+	if (mode & GB_ST_CREATE)
 		fmode = "w+";
-	else if (mode & STO_APPEND)
+	else if (mode & GB_ST_APPEND)
 		fmode = "a+";
-	else if (mode & STO_WRITE)
+	else if (mode & GB_ST_WRITE)
 		fmode = "r+";
 	else
 		fmode = "r";
@@ -77,9 +77,17 @@ static int stream_open(STREAM *stream, const char *path, int mode)
 		return TRUE;
 	}
 
+	if (!S_ISREG(info.st_mode))
+	{
+		stream->common.available_now = FALSE;
+		stream->common.no_read_ahead = TRUE;
+	}
+	else
+		stream->common.available_now = TRUE;
+	
+	
 	//fcntl(fd, F_SETFD, fcntl(fd, F_GETFD) | FD_CLOEXEC);
 
-	stream->common.available_now = TRUE;
 	FD = file;
 	return FALSE;
 }
@@ -103,7 +111,7 @@ static int stream_read(STREAM *stream, char *buffer, int len)
 	int eff;
 	
 	if (!FD)
-		return TRUE;
+		return 0;
 
 	eff = (int)fread(buffer, 1, len, FD);
 	if (eff < len)
@@ -113,34 +121,6 @@ static int stream_read(STREAM *stream, char *buffer, int len)
 	}
 	
 	return eff;
-
-	/*
-	while (len > 0)
-	{
-		len_read = Min(len, MAX_IO);
-		eff_read = fread(buffer, 1, len_read, FD);
-
-		if (eff_read > 0)
-		{
-			STREAM_eff_read += eff_read;
-			len -= eff_read;
-			buffer += eff_read;
-		}
-
-		if (eff_read < len_read)
-		{
-			if (feof(FD))
-			{
-				errno = 0;
-				return TRUE;
-			}
-			if (ferror(FD) && errno != EINTR)
-				return TRUE;
-		}
-	}
-
-	return FALSE;
-	*/
 }
 
 
@@ -155,30 +135,19 @@ static int stream_flush(STREAM *stream)
 
 static int stream_write(STREAM *stream, char *buffer, int len)
 {
+	int eff;
+	
 	if (!FD)
-		return TRUE;
+		return 0;
 
-	return fwrite(buffer, 1, len, FD);
-
-	/*while (len > 0)
+	eff = (int)fwrite(buffer, 1, len, FD);
+	if (eff < len)
 	{
-		len_write = Min(len, MAX_IO);
-		eff_write = fwrite(buffer, 1, len_write, FD);
-
-		if (eff_write < len_write)
-		{
-			if (ferror(FD) && errno != EINTR)
-				return TRUE;
-		}
-
-		len -= eff_write;
-		buffer += eff_write;
+		if (ferror(FD) == 0)
+			errno = 0;
 	}
-
-	if (EXEC_debug)
-		return stream_flush(stream);
-	else
-		return FALSE;*/
+	
+	return eff;
 }
 
 
@@ -205,9 +174,12 @@ static int stream_eof(STREAM *stream)
 {
 	int c;
 
-	if (!FD)
+	if (!FD || feof(FD) || stream->common.eof)
 		return TRUE;
-
+	
+	if (stream->common.no_read_ahead)
+		return FALSE;
+	
 	c = fgetc(FD);
 	if (c == EOF)
 		return TRUE;

@@ -40,6 +40,8 @@ void XMLNode_Init(Node *node, Node::Type nodeType)
 
 void XMLNode_Free(Node *&node)//TODO: Handle per-node type freeing
 {
+	//fprintf(stderr, "XMLNode_Free: %p\n", node);
+	
     if(!node) return;
     if(node->userData)
     {
@@ -161,6 +163,12 @@ void XMLNode_getGBChildren(Node *node, GB_ARRAY *array)
 /***** Node tree *****/
 void XMLNode_appendChild(Node *node, Node *newChild)
 {
+	if (newChild->parent)
+	{
+		GB.Error("Node already has a parent");
+		return;
+	}
+	
     (node->childCount)++;
     if(!(node->lastChild))//No child
     {
@@ -535,10 +543,12 @@ void XMLNode_appendText(Node *node, const char *data, const size_t lenData)
 void XMLNode_clearChildren(Node *node)
 {
     if(node->childCount == 0) return;
-    register Node* prevChild = 0;
-    register Node* child = 0;
+    Node* prevChild = 0;
+    Node* child = 0;
+		//fprintf(stderr, "XMLNode_clearChildren: <<< node = %p\n", node);
     for(child = node->firstChild->nextNode; child != 0; child = child->nextNode)
     {
+			//fprintf(stderr, "XMLNode_clearChildren: child = %p\n", child);
         prevChild = child->previousNode;
         prevChild->nextNode = 0;
         prevChild->previousNode = 0;
@@ -551,6 +561,7 @@ void XMLNode_clearChildren(Node *node)
     node->childCount = 0;
     node->lastChild = 0;
     node->firstChild = 0;
+		//fprintf(stderr, "XMLNode_clearChildren: >>> node = %p\n", node);
 }
 
 void XMLNode_setTextContent(Node *node, const char *content, const size_t lenContent)

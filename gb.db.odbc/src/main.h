@@ -2,7 +2,7 @@
 
   main.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -33,6 +33,6 @@ extern "C" GB_INTERFACE GB;
 extern "C" DB_INTERFACE DB;
 #endif
 
-#define QUOTE_STRING ""
+#define QUOTE_STRING "\""
 
 #endif /* __MAIN_H */

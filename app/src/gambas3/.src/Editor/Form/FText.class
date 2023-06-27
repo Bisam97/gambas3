@@ -2,19 +2,18 @@
 
 Static Public Value As String
 
-
-Static Public Function Run(sText As String, sProperty As String) As Boolean
+Static Public Function Run(sText As String, sTitle As String) As Boolean
 
   Dim hForm As Form
 
   Value = sText
   hForm = New FText
-  hForm.Title = Subst(("Edit '&1' property"), sProperty)
+  'hForm.Title = Subst(("Edit '&1' property"), sProperty)
+  hForm.Title = sTitle
 
   Return Not hForm.ShowModal()
 
 End
-
 
 Public Sub Form_Open()
 
@@ -26,7 +25,6 @@ Public Sub Form_Open()
   chkFont.Value = Settings["/FText/UseFixedFont", False]
   
 End
-
 
 Public Sub btnCancel_Click()
 

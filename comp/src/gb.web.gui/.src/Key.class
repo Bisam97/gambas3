@@ -1,0 +1,143 @@
+' Gambas class file
+
+Export
+
+Static Property Read Shift As Boolean
+Static Property Read Control As Boolean
+Static Property Read Alt As Boolean
+Static Property Read Meta As Boolean
+Static Property Read Normal As Boolean
+Static Property Read Code As String
+Static Property Read Text As String
+Static Property Read Shortcut As String
+
+Static Public _Event As Collection
+Static Private $cTrans As Collection
+
+Static Private Function Shift_Read() As Boolean
+
+  If Not _Event Then Error.Raise("No keyboard data")
+  Return _Event["shiftKey"]
+
+End
+
+Static Private Function Control_Read() As Boolean
+
+  If Not _Event Then Error.Raise("No keyboard data")
+  Return _Event["ctrlKey"]
+
+End
+
+Static Private Function Alt_Read() As Boolean
+
+  If Not _Event Then Error.Raise("No keyboard data")
+  Return _Event["altKey"]
+
+End
+
+Static Private Function Meta_Read() As Boolean
+
+  If Not _Event Then Error.Raise("No keyboard data")
+  Return _Event["metaKey"]
+
+End
+
+Static Private Function Normal_Read() As Boolean
+
+  If Not _Event Then Error.Raise("No keyboard data")
+  If Shift_Read() Or If Control_Read() Or If Alt_Read() Or If Meta_Read() Then Return
+  Return True
+
+End
+
+Static Private Sub CodeFromDOM(sCode As String) As String
+  
+  Dim sTrans As String
+  
+  If Not $cTrans Then
+    $cTrans = [
+      "AltGraph": "AltGr",
+      "Control": "Ctrl",
+      "ArrowDown": "Down",
+      "ArrowUp": "Up",
+      "ArrowLeft": "Left",
+      "ArrowRight": "Right",
+      " ": "Space"
+      ]
+  Endif
+  
+  sTrans = $cTrans[sCode]
+  If Not sTrans Then sTrans = sCode
+  Return sTrans
+  
+End
+
+Static Public Sub _ShortcutToDOM(sShortcut As String) As String
+
+  Static cTrans As Collection
+
+  Dim aShortcut As String[]
+  Dim sKey As String
+  
+  aShortcut = Split(sShortcut, "+")
+  
+  If Not cTrans Then
+    cTrans = [
+      "Down": "ArrowDown",
+      "Up": "ArrowUp",
+      "Left": "ArrowLeft",
+      "Right": "ArrowRight",
+      "Space": " "
+      ]
+  Endif
+  
+  sKey = aShortcut.Last
+  If cTrans.Exist(sKey) Then aShortcut.Last = cTrans[sKey]
+  
+  Return String.UCase(aShortcut.Join("+"))
+  
+End
+
+
+Static Private Function Code_Read() As String
+
+  Dim sCode As String
+  
+  If Not _Event Then Error.Raise("No keyboard data")
+  sCode = CodeFromDOM(_Event["key"])
+  If String.Len(sCode) = 1 Then sCode = String.UCase(sCode)
+  Return sCode
+
+End
+
+Static Private Function Shortcut_Read() As String
+
+  Dim sShortcut As String
+  Dim sCode As String
+  
+  If Not _Event Then Error.Raise("No keyboard data")
+  
+  sCode = Code_Read()
+  
+  If Key.Control Then sShortcut &= "Ctrl+"
+  If Key.Shift Then sShortcut &= "Shift+"
+  If Key.Alt Then sShortcut &= "Alt+"
+  If Key.Meta Then sShortcut &= "Meta+"
+  
+  If sCode = "Ctrl" Or If sCode = "Shift" Or If sCode = "Alt" Or If sCode = "Meta" Then
+    Return Left(sShortcut, -1)
+  Else
+    Return sShortcut & sCode
+  Endif
+
+End
+
+Static Private Function Text_Read() As String
+
+  Dim sCode As Variant
+  
+  If Not _Event Then Error.Raise("No keyboard data")
+  sCode = _Event["key"]
+  If String.Len(sCode) = 1 Then Return sCode
+
+End

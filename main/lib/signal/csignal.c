@@ -2,7 +2,7 @@
 
 	csignal.c
 
-	(c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+	(c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -192,7 +192,14 @@ BEGIN_METHOD_VOID(Signal_exit)
 
 END_METHOD
 
-BEGIN_METHOD(Signal_Send, GB_INTEGER pid; GB_INTEGER sig)
+BEGIN_METHOD(Signal_Send, GB_INTEGER pid)
+
+	if (kill(VARG(pid), _signal))
+		GB.Error("Unable to send signal: &1", strerror(errno));
+
+END_METHOD
+
+BEGIN_METHOD(Signal_SendOld, GB_INTEGER pid; GB_INTEGER sig)
 
 	if (kill(VARG(pid), VARG(sig)))
 		GB.Error("Unable to send signal: &1", strerror(errno));
@@ -207,6 +214,7 @@ GB_DESC CSignalHandlerDesc[] =
 	GB_STATIC_METHOD("Reset", NULL, Signal_Reset, NULL),
 	GB_STATIC_METHOD("Ignore", NULL, Signal_Ignore, NULL),
 	GB_STATIC_METHOD("Catch", NULL, Signal_Catch, NULL),
+	GB_STATIC_METHOD("Send", NULL, Signal_Send, "(Process)i"),
 	
 	GB_END_DECLARE
 };
@@ -254,7 +262,7 @@ GB_DESC CSignalDesc[] =
 	
 	GB_STATIC_METHOD("_get", ".SignalHandler", Signal_get, "(Signal)i"),
 	
-	GB_STATIC_METHOD("Send", NULL, Signal_Send, "(Process)i(Signal)i"),
+	GB_STATIC_METHOD("Send", NULL, Signal_SendOld, "(Process)i(Signal)i"),
 
 	GB_END_DECLARE
 };

@@ -35,5 +35,5 @@
 #ifndef __MAIN_C
 extern GB_INTERFACE GB;
 #endif
-COMPRESS_DRIVER* COMPRESS_GetDriver(char *type);
+COMPRESS_DRIVER* COMPRESS_GetDriver(const char *type);
 #endif

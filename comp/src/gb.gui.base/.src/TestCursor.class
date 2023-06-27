@@ -1,0 +1,82 @@
+' Gambas class file
+
+'Export 
+
+Static Private $cConst As Collection
+
+Static Private Sub InitConst()
+  
+  $cConst = [
+    "Custom": Mouse.Custom,
+    "Default": Mouse.Default,
+    "Blank": Mouse.Blank,
+    "Arrow": Mouse.Arrow,
+    "Cross": Mouse.Cross,
+    "Wait": Mouse.Wait,
+    "Text": Mouse.Text,
+    "SizeAll": Mouse.SizeAll,
+    "SizeH": Mouse.SizeH,
+    "SizeV": Mouse.SizeV,
+    "SizeN": Mouse.SizeN,
+    "SizeS": Mouse.SizeS,
+    "SizeW": Mouse.SizeW,
+    "SizeE": Mouse.SizeE,
+    "SizeNW": Mouse.SizeNW,
+    "SizeSE": Mouse.SizeSE,
+    "SizeNE": Mouse.SizeNE,
+    "SizeSW": Mouse.SizeSW,
+    "SizeNWSE": Mouse.SizeNWSE,
+    "SizeNESW": Mouse.SizeNESW,
+    "SplitH": Mouse.SplitH,
+    "SplitV": Mouse.SplitV,
+    "Pointing": Mouse.Pointing,
+    "None": Mouse.Blank,
+    "Help": Mouse.Arrow,
+    "Pointer": Mouse.Pointing,
+    "ContextMenu": Mouse.Arrow,
+    "Progress": Mouse.Arrow,
+    "Cell": Mouse.Arrow,
+    "CrossHair": Mouse.Cross,
+    "VerticalText": Mouse.Text,
+    "Alias": Mouse.Arrow,
+    "Copy": Mouse.Arrow,
+    "NoDrop": Mouse.Arrow,
+    "Move": Mouse.SizeAll,
+    "NotAllowed": Mouse.Arrow,
+    "Grab": Mouse.Arrow,
+    "Grabbing": Mouse.Arrow,
+    "AllScroll": Mouse.SizeAll,
+    "ColResize": Mouse.SplitH,
+    "RowResize": Mouse.SplitV,
+    "NResize": Mouse.SizeN,
+    "EResize": Mouse.SizeE,
+    "SResize": Mouse.SizeS,
+    "WResize": Mouse.SizeW,
+    "NEResize": Mouse.SizeNE,
+    "NWResize": Mouse.SizeNW,
+    "SWResize": Mouse.SizeSW,
+    "SEResize": Mouse.SizeSE,
+    "EWResize": Mouse.SplitV,
+    "NSResize": Mouse.SplitH,
+    "NESWResize": Mouse.SizeNESW,
+    "NWSEResize": Mouse.SizeNWSE,
+    "ZoomIn": Mouse.Arrow,
+    "ZoomOut": Mouse.Arrow
+  ]
+  
+End
+
+Static Public Sub _property() As Boolean
+  
+  If Not $cConst Then InitConst
+  If $cConst.Exist(Param.Name) Then Return True
+  Error.Raise(Subst("Unknown symbol '&1' in class 'Cursor'", Param.Name))
+  
+End
+
+Static Public Sub _unknown(...) As Variant
+  
+  If Param.Count = 0 Then Return $cConst[Param.Name]
+  Error.Raise(Subst("'Cursor.&1' is read-only", Param.Name))
+  
+End

@@ -11,16 +11,16 @@ Public HasShortcut As Boolean
 
 Private $sOldShortcut As String
 
-Private Sub UnquoteShortcut(sStr As String) As String
-  
-  sStr = Replace(sStr, "&&", Chr$(1))
-  sStr = Replace(sStr, "&", "")
-  sStr = Replace(sStr, Chr$(1), "&")
-  
-  Return sStr
-  
-End
-
+' Private Sub UnquoteShortcut(sStr As String) As String
+'   
+'   sStr = Replace(sStr, "&&", Chr$(1))
+'   sStr = Replace(sStr, "&", "")
+'   sStr = Replace(sStr, Chr$(1), "&")
+'   
+'   Return sStr
+'   
+' End
+' 
 Public Sub _new(sKey As String, bHasShortcut As Boolean, cSlot As Collection, Optional hMerge As CAction)
 
   Dim sPicture As String
@@ -32,7 +32,7 @@ Public Sub _new(sKey As String, bHasShortcut As Boolean, cSlot As Collection, Op
   
   Text = Tr$(cSlot["Text"])
   If hMerge And If Not Text Then Text = hMerge.Text
-  Display = UnquoteShortcut(Text)
+  Display = Text 'UnquoteShortcut(Text)
 
   DefaultShortcut = cSlot["Shortcut"]
   If hMerge And If Not DefaultShortcut Then DefaultShortcut = hMerge.DefaultShortcut

@@ -1,0 +1,422 @@
+' Gambas class file
+
+''' This control displays a piece of text.
+'''
+''' [[ info 
+''' @{since 3.16}
+''' 
+''' This control has been rewritten in Gambas since 3.16 version.
+''' ]]
+
+Export
+Inherits UserControl
+
+Public Const _Properties As String = "*,Padding{Range:0;256},AutoResize,Alignment{Align.*}=Normal,Border{Border.None;Plain;Sunken;Raised;Etched},BorderWidth{Range:0;256},BorderRadius{Range:0;256},BorderColor{Color},Text,Trim"
+Public Const _DefaultEvent As String = "MouseDown"
+Public Const _DefaultSize As String = "8,3"
+Public Const _IsContainer As Boolean = False
+Public Const _Group As String = "Form"
+Public Const _Similar As String = "Label"
+
+'' Return or set the text alignment.
+''
+'' See the [../../align] class for a list of constants to use with this property.
+
+Property Alignment As Integer
+
+'' Return or set the border displayed around the control.
+''
+'' See the [../../border] class for a list of constants to use with this property.
+
+Property Border As Integer Use $iBorder
+
+'' Return or set the displayed text.
+Property Text, Caption As String Use $sText
+
+'' Return or set the inner padding around the text, in pixels.
+Property Padding As Integer Use $iPadding
+
+'' Return or set if the control adapts its size to its contents automatically.
+Property AutoResize As Boolean Use $bAutoResize
+
+'' Return or set if the control background is transparent. This property is deprecated.
+Property Transparent As Boolean Use $bTransparent
+
+Property Background As Integer Use $iBackground = Color.Default
+
+'' Return or set the background border radius
+''
+'' [[ warning
+'' This property has an effect when the [../border] property is set to [Border.None] or [Border.Plain] only.
+'' ]]
+Property BorderRadius As Integer Use $iBorderRadius
+
+'' Return or set the border width
+'' [[ warning
+'' This property has an effect when the [../border] property is set to [Border.Plain] only.
+'' ]]
+Property BorderWidth As Integer Use $iBorderWidth
+
+'' Return or set the border color
+'' [[ warning
+'' This property has an effect when the [../border] property is set to [Border.Plain] only.
+'' ]]
+Property BorderColor As Integer Use $iBorderColor = Color.Default
+
+'' Return or set if the displayed text must be trimmed with an ellipsis when it overflows the Label frame.
+
+Property Trim As Boolean
+
+Private $iAlign As Integer = Align.Normal
+Private $hExt As RectF
+Private $bWarningTransparent As Boolean
+Private $bRichText As Boolean
+
+Public _Wrap As Boolean
+Private $bLocked As Boolean
+Private $bTrim As Boolean
+
+'' Create a new Label.
+
+Public Sub _new()
+  
+  $bRichText = Me Is TextLabel
+  If $bRichText Then 
+    _Wrap = True
+    $iAlign = Align.TopNormal
+  Endif
+  
+End
+
+Private Sub Alignment_Write(Value As Integer)
+
+  If $iAlign = Value Then Return
+  $iAlign = Value
+  Me.Refresh
+
+End
+
+Private Sub Border_Write(Value As Integer)
+  
+  If $iBorder = Value Then Return
+  $iBorder = Value
+  _UpdateSize
+  Me.Refresh
+  
+End
+
+Private Sub Text_Write(Value As String)
+  
+  If $sText = Value Then Return
+  $sText = Value
+  _UpdateSize
+  Me.Refresh
+  
+End
+
+Private Sub Padding_Write(Value As Integer)
+
+  If $iPadding = Value Then Return
+  $iPadding = Value
+  _UpdateSize
+  Me.Refresh
+
+End
+
+Private Sub GetBorderWidth() As Integer
+  
+  If $iBorderWidth Then 
+    Return $iBorderWidth
+  Else 
+    Return Max(Desktop.Scale \ 8, 1)
+  Endif
+  
+End
+
+
+Private Sub GetPadding() As Integer
+
+  Dim P As Integer
+
+  P = $iPadding
+  Select Case $iBorder
+    Case Border.Plain
+      P += GetBorderWidth()
+    Case Border.Raised, Border.Sunken
+      P += Style.FrameWidth + 1
+  End Select
+    
+  Return P  
+
+End
+
+Public Sub _UpdateSize()
+  
+  Dim W As Integer
+  Dim H As Integer
+  Dim P As Integer
+  Dim hRect As Rect
+  
+  $hExt = Null
+  If $bLocked Then Return
+  If Me.Design Then Return
+  If Not $sText Then Return
+  If Not $bAutoResize Then Return
+  
+  $bLocked = True
+
+  P = GetPadding()
+
+  If $bRichText Then
+    If _Wrap Then
+      hRect = Me.Font.RichTextSize($sText, Me.W - P * 2)
+    Else
+      hRect = Me.Font.RichTextSize($sText)
+    Endif
+  Else
+    hRect = Me.Font.TextSize($sText)
+  Endif
+  
+  W = hRect.W + P * 2
+  H = hRect.H + P * 2
+  
+  If Align.IsMiddle($iAlign) And If Not $bRichText Then
+    If H < Me.H Then H = Me.H
+  Endif
+  
+  Me.Resize(W, H)
+  
+  $bLocked = False
+  
+End
+
+Private Sub AutoResize_Write(Value As Boolean)
+
+  If $bAutoResize = Value Then Return
+  $bAutoResize = Value
+  _UpdateSize
+
+End
+
+Public Sub UserControl_Font()
+
+  _UpdateSize
+  Me.Refresh
+  
+End
+
+Private Sub GetExtents() As RectF
+
+  Dim X As Float
+
+  ' Check Paint.Scalable to workaround a QT bug with Paint.TextExtents() on such fonts
+
+  If Not $hExt Then
+    If $bRichText Then
+      If _Wrap Then
+        $hExt = Paint.RichTextSize($sText, Me.W - GetPadding() * 2)
+      Else
+        $hExt = Paint.RichTextSize($sText)
+      Endif
+      If Paint.Font.Scalable Then X = Paint.RichTextExtents($sText).X
+    Else
+      $hExt = Paint.TextSize($sText)
+      If Paint.Font.Scalable Then X = Paint.TextExtents(LTrim($sText)).X
+    Endif
+    
+    'Debug Me.Name; ": "; Paint.Font.ToString();; $hExt.W;; "[";; X;; "]"
+    $hExt.X = X
+    
+  Endif
+  
+  Return $hExt
+
+End
+
+Public Sub UserControl_Draw()
+  
+  Dim P, PW As Integer
+  Dim F As Integer
+  Dim hExt As RectF
+  Dim W As Float
+  Dim X As Float
+  Dim sText As String
+  
+  If $iBorder Then
+    
+    If $iBorder = Border.Plain Then
+      
+      F = GetBorderWidth()
+      
+    Else
+      
+      F = Style.FrameWidth + 1
+    
+      Paint.Save
+      Paint.Rectangle(0, 0, Paint.W, F)
+      Paint.Rectangle(0, Paint.H - F, Paint.W, F)
+      Paint.Rectangle(0, 0, F, Paint.H)
+      Paint.Rectangle(Paint.W - F, 0, F, Paint.H)
+      Paint.Clip()
+      Style.PaintPanel(0, 0, Paint.W, Paint.H, $iBorder)
+      Paint.Restore
+      
+    Endif
+    
+  Endif
+  
+  If $iBorder = Border.Plain Then 
+    Paint.Rectangle(0, 0, Paint.W, Paint.H, $iBorderRadius)
+    If Min(Paint.H, Paint.W) > F * 2 Then
+      Paint.Rectangle(F, Paint.H - F, Paint.W - F * 2, -Paint.H + F * 2, $iBorderRadius - F)
+    Endif
+    If $iBorderColor = Color.Default Then 
+      Paint.Background = Color.LightForeground
+    Else
+      Paint.Background = $iBorderColor
+    Endif
+    Paint.Fill
+  Endif
+  
+  If Min(Paint.H, Paint.W) <= F * 2 Then Return
+  
+  Paint.Rectangle(F, F, Paint.W - F * 2, Paint.H - F * 2, $iBorderRadius - F)
+  Paint.Clip()
+    
+  If $iBackground <> Color.Default Then
+    Paint.Rectangle(F, F, Paint.W - F * 2, Paint.H - F * 2, $iBorderRadius - F)
+    Paint.Background = $iBackground
+    Paint.Fill()
+  Endif
+  
+  If Not $sText Then Return
+  
+  hExt = GetExtents()
+
+  P = GetPadding()
+  PW = P + Min($iBorderRadius, Me.H \ 2)
+
+  If Align.IsLeft($iAlign) Then
+    X = PW - hExt.X
+  Else If Align.IsRight($iAlign) Then
+    X = Me.W - hExt.W - hExt.X - PW
+  Else
+    X = PW - Int(hExt.X + 1)
+  Endif
+
+  W = Me.W - X - PW - hExt.X
+  
+  'If Not _Wrap Then
+    If Align.IsLeft($iAlign) Then
+      Inc W
+    Else If Align.IsRight($iAlign) Then
+      Dec X
+      Inc W
+    Else
+      Inc W
+    Endif
+  'Endif
+  
+  If Not Me.Enabled Then 
+    Paint.Background = Color.Merge(Style.BackgroundOf(Me), Style.ForegroundOf(Me))
+  Else 
+    Paint.Background = Style.ForegroundOf(Me)
+  Endif
+
+  sText = $sText
+  
+  If $bRichText Then
+    If $bTrim Then sText = Paint.TrimRichText(sText, W, Me.H - P * 2)
+    Paint.DrawRichText(sText, X, P, W, Me.H - P * 2, $iAlign)
+  Else
+    If $bTrim Then sText = Paint.TrimText(sText, W, Me.H - P * 2)
+    Paint.DrawText(sText, X, P, W, Me.H - P * 2, $iAlign)
+  Endif
+  
+End
+
+Private Function Alignment_Read() As Integer
+
+  Return $iAlign
+
+End
+
+Private Sub Transparent_Write(Value As Boolean)
+
+  If Not $bWarningTransparent Then
+    Error "gb.gui: warning; Label.Transparent and TextLabel.Transparent are deprecated"
+    $bWarningTransparent = True
+  Endif
+  
+  $bTransparent = Value
+
+End
+
+'' Resize the control so that it adapts to its contents.
+
+Public Sub Adjust()
+
+  Dim bSave As Boolean
+
+  bSave = $bAutoResize
+  $bAutoResize = True  
+  _UpdateSize
+  $bAutoResize = bSave
+  
+End
+
+Public Sub UserControl_Resize()
+
+  _UpdateSize()
+  
+End
+
+Private Sub Background_Write(Value As Integer)
+  
+  If $iBackground = Value Then Return
+  
+  $iBackground = Value
+  Me.Refresh
+  
+End
+
+Private Sub BorderRadius_Write(Value As Integer)
+  
+  If $iBorderRadius = Value Then Return
+  
+  $iBorderRadius = Value
+  Me.Refresh
+  
+End
+
+Private Sub BorderWidth_Write(Value As Integer)
+  
+  If $iBorderWidth = Value Then Return
+  
+  $iBorderWidth = Value
+  Me.Refresh
+  
+End
+
+Private Sub BorderColor_Write(Value As Integer)
+  
+  If $iBorderColor = Value Then Return
+  
+  $iBorderColor = Value
+  Me.Refresh
+  
+End
+
+Private Function Trim_Read() As Boolean
+
+  Return $bTrim
+
+End
+
+Private Sub Trim_Write(Value As Boolean)
+
+  If $bTrim = Value Then Return
+  $bTrim = Value
+  Me.Refresh
+
+End

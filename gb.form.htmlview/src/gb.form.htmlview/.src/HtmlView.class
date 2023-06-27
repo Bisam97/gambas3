@@ -1,0 +1,484 @@
+' Gambas class file
+
+Export
+
+Inherits UserControl
+
+Public Const _Properties As String = "*,Border=True,MonospaceFont{Font:Fixed}"
+Public Const _Group As String = "View"
+Public Const _DrawWith As String = "DrawingArea"
+
+Event Title(Title As String)
+Event Link(Url As String)
+
+Property Html As String
+Property Border As Boolean
+Property Dir As String
+Property Zoom As Float
+Property MonospaceFont As Font
+Property Url As String
+
+Private $hDoc As HtmlViewDocument
+Private $hView As ScrollArea
+
+Private $bCssLoaded As Boolean
+
+Private $iLastX As Integer
+Private $iLastY As Integer
+
+Static Private $cImage As New Collection
+Static Private $hFail As Image
+
+Private $sDir As String
+Private $fZoom As Float = 1
+Private $hMonospaceFont As Font
+
+Private $aBack As New String[]
+Private $aForward As New String[]
+Private $sUrl As String
+Private $iNoHistory As Integer
+Private $bLoaded As Boolean
+
+Public Sub _new()
+  
+  $hView = New ScrollArea(Me) As "View"
+  $hView.Tracking = True
+  $hView.Focus = True
+  
+  $hDoc = New HtmlViewDocument As "HtmlViewDocument"
+  $hDoc.SetMedia(Desktop.Width, Desktop.Height, Desktop.Resolution)
+  $hDoc.SetDefaultFont(Me.Font.Name, Me.Font.Size)
+  
+  Me.Proxy = $hView
+  
+End
+
+Public Sub View_Font()
+  
+  $hDoc.SetDefaultFont($hView.Font.Name, $hView.Font.Size)
+  Reload()
+  
+End
+
+Public Sub View_Arrange()
+
+  Dim W As Integer
+  Dim H As Integer
+  
+  W = $hView.W - Style.ScrollbarSize
+  H = $hView.H - Style.ScrollbarSize
+  If $hView.Border Then 
+     W -= 2
+     H -= 2
+  Endif
+  
+  If W < 1 Or If H < 1 Then Return
+  
+  $hDoc.Render(W / $fZoom, H / $fZoom)
+  
+  W = $hDoc.W * $fZoom
+  H = $hDoc.H * $fZoom
+  $hView.ResizeContents(W, H)
+  
+  If W < $hView.ClientW Or If H < $hView.ClientH Then
+    W = Max(W, $hView.ClientW)
+    H = Max(H, $hView.ClientH)
+    $hDoc.Render(W / $fZoom, H / $fZoom)
+  Endif
+  
+End
+
+Public Sub View_Draw()
+
+  Paint.Translate(-$hView.ScrollX, -$hView.ScrollY)
+  Paint.Scale($fZoom)
+  $hDoc.Draw($hView.ScrollX / $fZoom, $hView.ScrollY / $fZoom, $hView.ClientW / $fZoom, $hView.ClientH / $fZoom)
+  
+End
+
+Public Sub View_MouseMove()
+  
+  $iLastX = Mouse.X
+  $iLastY = Mouse.Y
+  $hDoc.OnMouseMove(($iLastX + $hView.ScrollX) / $fZoom, ($iLastY + $hView.ScrollY) / $fZoom)
+  
+End
+
+Public Sub View_MouseDown()
+  
+  $iLastX = Mouse.X
+  $iLastY = Mouse.Y
+  If Mouse.Left Then $hDoc.OnMouseDown(($iLastX + $hView.ScrollX) / $fZoom, ($iLastY + $hView.ScrollY) / $fZoom)
+  
+End
+
+Public Sub View_MouseUp()
+  
+  $iLastX = Mouse.X
+  $iLastY = Mouse.Y
+  If Mouse.Left Then $hDoc.OnMouseUp(($iLastX + $hView.ScrollX) / $fZoom, ($iLastY + $hView.ScrollY) / $fZoom)
+  
+End
+
+Public Sub View_Scroll()
+  
+  $hDoc.OnMouseMove(($iLastX + $hView.ScrollX) / $fZoom, ($iLastY + $hView.ScrollY) / $fZoom)
+  
+End
+
+Private Function Html_Read() As String
+
+  Return $hDoc.Html
+
+End
+
+Private Sub Html_Write(Value As String)
+
+  If Not $bCssLoaded Then LoadCss()
+  $hDoc.Html = Value
+  View_Arrange
+  $hView.Refresh
+
+End
+
+Public Sub LoadCss(Optional Css As String)
+
+  Dim sMaster As String
+  
+  sMaster = File.Load("master.css")
+  $hDoc.LoadCss(sMaster & Css)
+  $bCssLoaded = True
+  
+End
+
+Public Sub _SetTitle(sTitle As String)
+  
+  Raise Title(sTitle)
+  
+End
+
+Public Sub _RefreshView(X As Integer, Y As Integer, W As Integer, H As Integer)
+  
+  $hView.RefreshRect(X, Y, W, H)
+  
+End
+
+Public Sub _SetCursor(sCursor As String)
+  
+  For Each sCursor In Split(sCursor)
+    If sCursor = "auto" Then
+      $hView.Mouse = Cursor.Default
+      Break 
+    Else If sCursor Like "url(*" Then
+      $hView.Mouse = Cursor.Default
+      Break 
+    Else
+      Try $hView.Mouse = Object.GetProperty(Cursor, Replace(sCursor, "-", ""))
+      If Not Error Then Break
+    Endif 
+  Next
+  
+End
+
+Private Sub GotoLink(sLink As String) As Boolean
+
+  Dim sUrl As String
+  Dim iPos As Integer
+  
+  If sLink Begins "#" Then
+    sUrl = $sUrl
+    iPos = RInStr(sUrl, "#")
+    If iPos Then sUrl = Left(sUrl, iPos - 1)
+    Me.Url = sUrl & sLink
+    Return
+  Endif
+  
+  $bLoaded = False
+  Try Load(sLink)
+  If Error Then Raise Link(sLink)
+  
+  Return Not $bLoaded
+
+End
+
+Public Sub HtmlViewDocument_Link(sLink As String)
+  
+  GotoLink(sLink)
+  
+End
+
+Public Sub HtmlViewDocument_Title(sTitle As String)
+  
+  Raise Title(sTitle)
+  
+End
+
+Private Sub ResolveUrl(sUrl As String, sBase As String) As String
+
+  If sUrl Like "*://*" Then Return
+  If sUrl Begins "/" Then Return sUrl
+  If Not sBase Then sBase = $hDoc.Base
+  If sBase Then Return
+  Return $sDir &/ sUrl
+
+End
+
+Public Sub _LoadImage(sUrl As String, sBase As String) As Image
+  
+  Dim hImage As Image
+  Dim sPath As String
+  
+  sPath = ResolveUrl(sUrl, sBase)
+  If Not sPath Then Return
+  
+  hImage = $cImage[sUrl]
+  If Not hImage Then
+    Try hImage = Image.Load(sPath)
+    If Not hImage Then 
+      If Not $hFail Then $hFail = Image.Load("fail.png")
+      hImage = $hFail
+    Endif
+    $cImage[sUrl] = hImage
+  Endif
+  
+  Return hImage
+  
+End
+
+Private Function Border_Read() As Boolean
+
+  Return $hView.Border
+
+End
+
+Private Sub Border_Write(Value As Boolean)
+
+  $hView.Border = Value
+
+End
+
+Private Function Dir_Read() As String
+
+  Return $sDir
+
+End
+
+Private Sub Dir_Write(Value As String)
+
+  $sDir = Value
+
+End
+
+Public Sub Back() As Boolean
+  
+  If $aBack.Count > 1 Then
+    $aForward.Add($aBack.Pop())
+    Inc $iNoHistory
+    Url_Write($aBack.Last)
+    Dec $iNoHistory
+  Else 
+    Return True
+  Endif
+  
+End
+
+Public Sub Forward()
+  
+  If $aForward.Count Then
+    $aBack.Add($aForward.Pop())
+    Inc $iNoHistory
+    Url_Write($aBack.Last)
+    Dec $iNoHistory
+  Endif
+  
+End
+
+
+Public Sub _LoadCss(sUrl As String, sBase As String) As String
+
+  Dim sPath As String
+  
+  'Return
+  sPath = ResolveUrl(sUrl, sBase)
+  If Not sPath Then Return
+  Try Return File.Load(sPath)
+  
+End
+
+Private Function Zoom_Read() As Float
+
+  Return $fZoom
+
+End
+
+Private Sub Zoom_Write(Value As Float)
+
+  Dim fLog As Float
+  Dim fX As Float
+  Dim fY As Float
+
+  fLog = Log2(Value)
+  If fLog < -10 Or If fLog > 10 Then Return
+  If $fZoom = Value Then Return
+  
+  Try fX = ($hView.ScrollX + $hView.ClientW / 2) / $hView.ScrollW
+  Try fY = ($hView.ScrollY + $hView.ClientH / 2) / $hView.ScrollH
+  
+  $fZoom = Value
+  
+  View_Arrange
+  If $hView.ScrollX = 0 Then
+    $hView.Scroll(0, fY * $hView.ScrollH - $hView.ClientH / 2)
+  Else
+    $hView.Scroll(fX * $hView.ScrollW - $hView.ClientW / 2, fY * $hView.ScrollH - $hView.ClientH / 2)
+  Endif
+  $hView.Refresh
+
+End
+
+Public Sub Reload()
+
+  $hDoc.Reload()
+  View_Arrange
+  $hView.Refresh
+  
+End
+
+Private Function MonospaceFont_Read() As Font
+
+  Return $hMonospaceFont
+
+End
+
+Private Sub MonospaceFont_Write(Value As Font)
+
+  If Value Then Value = Value.Copy()
+  $hMonospaceFont = Value
+  $hDoc.SetMonospaceFont(Value.Name)
+  Reload()
+
+End
+
+Public Sub View_KeyPress()
+
+  If Key.Code = Key.Up Then
+    
+    If Key.Control Then
+      $hView.Scroll($hView.ScrollX, 0)
+    Else If Key.Shift Then
+      $hView.Scroll($hView.ScrollX, $hView.ScrollY - 1)
+    Else
+      $hView.Scroll($hView.ScrollX, $hView.ScrollY - $hView.ClientH / 10)
+    Endif
+      
+  Else If Key.Code = Key.Down Then
+    
+    If Key.Control Then
+      $hView.Scroll($hView.ScrollX, $hView.ScrollH)
+    Else If Key.Shift Then
+      $hView.Scroll($hView.ScrollX, $hView.ScrollY + 1)
+    Else
+      $hView.Scroll($hView.ScrollX, $hView.ScrollY + $hView.ClientH / 10)
+    Endif
+    
+  Else If Key.Code = Key.Left Then
+      
+    If Key.Control Then
+      $hView.Scroll(0, $hView.ScrollY)
+    Else If Key.Shift Then
+      $hView.Scroll($hView.ScrollX - 1, $hView.ScrollY)
+    Else
+      $hView.Scroll($hView.ScrollX - $hView.ClientW / 10, $hView.ScrollY)
+    Endif
+      
+  Else If Key.Code = Key.Right Then
+      
+    If Key.Control Then
+      $hView.Scroll($hView.ScrollH, $hView.ScrollY)
+    Else If Key.Shift Then
+      $hView.Scroll($hView.ScrollX + 1, $hView.ScrollY)
+    Else
+      $hView.Scroll($hView.ScrollX + $hView.ClientW / 10, $hView.ScrollY)
+    Endif
+    
+  Else If Key.Code = Key.PageUp Then
+    
+    $hView.Scroll($hView.ScrollX, $hView.ScrollY - $hView.ClientH)
+    
+  Else If Key.Code = Key.PageDown Then
+    
+    $hView.Scroll($hView.ScrollX, $hView.ScrollY + $hView.ClientH)
+    
+  Else If Key.Code = Key.Home Then
+    
+    $hView.Scroll($hView.ScrollX, 0)
+    
+  Else If Key.Code = Key.End Then
+    
+    $hView.Scroll($hView.ScrollX, $hView.ScrollH)
+      
+  Endif
+  
+End
+
+Private Function Url_Read() As String
+
+  Return $sUrl
+
+End
+
+Private Sub Url_Write(Value As String)
+
+  If GotoLink(Value) Then Return
+  
+  $sUrl = Value
+
+  If $iNoHistory = 0 Then 
+    $aBack.Add(Value)
+    $aForward.Clear
+  Endif
+  
+End
+
+Public Sub Load(Path As String)
+
+  Dim iPos As Integer
+  Dim sAnchor As String
+  Dim Y As Integer
+  Dim sSaveDir As String
+
+  iPos = RInStr(Path, "#")
+  If iPos Then
+    sAnchor = Mid$(Path, iPos + 1)
+    Path = Left(Path, iPos - 1)
+  Endif
+
+  sSaveDir = $sDir 
+  $sDir = File.Dir(Path)
+  Try Me.Html = File.Load(Path)
+  If Error Then 
+    $sDir = sSaveDir
+    Error.Raise(Error.Text)
+  Endif
+  
+  $bLoaded = True
+  
+  Y = Max(0, $hDoc.FindAnchor(sAnchor))
+  $hView.Scroll(0, Y * $fZoom)
+  
+End
+
+Public Sub View_Leave()
+  
+  $hDoc.OnLeave()
+  
+End
+
+Public Sub Clear()
+  
+  Me.Html = ""
+  $sUrl = ""
+  $aBack.Clear
+  $aForward.Clear
+  
+End

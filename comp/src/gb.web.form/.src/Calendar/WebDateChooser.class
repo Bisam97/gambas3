@@ -1,5 +1,7 @@
 ' Gambas class file
 
+''' This class implements a calendar that allows to choose a date.
+
 Export
 Inherits WebContainer
 
@@ -8,9 +10,12 @@ Public Const _Group As String = "Chooser"
 Public Const _Properties As String = "*,Value,Border"
 Public Const _DrawWith As String = "DateChooser"
 
+'' This event is raised when the selected date has changed.
 Event Change
+'' This event is raised when a date has been selected by the user.
 Event Click
 
+'' Return or set the selected date.
 Property Value As Date
 
 Private $dDate As Date
@@ -25,6 +30,7 @@ Private txtYear As WebSpinBox
 Private panCalendar As WebContainer
 Private $dOldDate As Date
 
+'' Create a new WebDateChooser control.
 Public Sub _new()
   
   Dim hTop As WebHBox

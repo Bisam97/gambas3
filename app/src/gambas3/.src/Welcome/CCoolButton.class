@@ -51,10 +51,14 @@ Public Sub Panel_Draw()
     Paint.FillRect(0, 0, Paint.W, Paint.H, $iBackground)
   Endif
   
+  If $bInside And If Me.Enabled Then
+    Paint.FillRect(0, 0, Paint.W, Paint.H, Color.SetAlpha(Color.TextForeground, 224))
+  Endif
+  
   Paint.DrawPicture($hPict, 16, ($hPanel.H - $hPict.H) \ 2)
   'If $bInside Then Draw.Foreground = Color.Gradient($hPanel.Foreground, $iHighlight)
   Paint.Background = If(Me.Enabled, $hPanel.Foreground, Color.Merge($hPanel.Foreground, $hPanel.Background))
-  Paint.DrawTextShadow($sText, $hPict.W + 24, 0, $hPanel.W - $hPict.W - 32, $hPanel.H, Align.Normal)
+  'Paint.DrawTextShadow($sText, $hPict.W + 24, 0, $hPanel.W - $hPict.W - 32, $hPanel.H, Align.Normal)
   Paint.DrawText($sText, $hPict.W + 24, 0, $hPanel.W - $hPict.W - 32, $hPanel.H, Align.Normal)
   
   ' If $bArrow Then
@@ -69,10 +73,6 @@ Public Sub Panel_Draw()
     Paint.Rectangle(2, 2, Paint.W - 4, Paint.H - 4)
     Paint.Stroke
     Paint.AntiAlias = True
-  Endif
-  
-  If $bInside And If Me.Enabled Then
-    Paint.FillRect(0, 0, Paint.W, Paint.H, Color.SetAlpha($iHighlight, 192))
   Endif
   
 End
@@ -143,6 +143,8 @@ Public Sub Panel_MouseUp()
 
   X = Mouse.X
   Y = Mouse.Y
+
+  If X < 0 Or If Y < 0 Or If X >= $hPanel.W Or If Y >= $hPanel.H Then Return
 
   Raise Click
   Stop Event

@@ -1,11 +1,11 @@
 dnl ---- configure.ac for gb.mime
 
 m4_include([../version.m4])
-AC_INIT(gambas3-gb-mime, GB_VERSION, GB_MAIL, [], GB_URL)
+AC_INIT([gambas3-gb-mime],[GB_VERSION],[GB_MAIL],[],[GB_URL])
 AC_CONFIG_MACRO_DIR([m4])
 
 GB_INIT(gb.mime)
-AC_PROG_LIBTOOL
+LT_INIT
 
 gb_in_component_search=yes
 
@@ -52,6 +52,7 @@ if test "$have_mime" = "no"; then
 
 fi
 
-AC_OUTPUT(Makefile src/Makefile)
+AC_CONFIG_FILES([Makefile src/Makefile])
+AC_OUTPUT
 
 GB_PRINT_MESSAGES

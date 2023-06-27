@@ -2,7 +2,7 @@
 
   gbx_type.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -83,6 +83,9 @@ EXTERN const size_t TYPE_sizeof_memory_tab[];
 size_t TYPE_sizeof(TYPE type);
 #define TYPE_sizeof_memory(_type) (TYPE_is_object(_type) ? sizeof(void *) : TYPE_sizeof_memory_tab[_type])
 #define TYPE_is_value(_type) (TYPE_is_object(_type) || TYPE_is_null(_type) || TYPE_sizeof_memory_tab[_type] > 0)
+
+// for CLASS_get_symbol_desc_kind()
+#define T_ANY ((TYPE)-1)
 
 const char *TYPE_get_name(TYPE type);
 

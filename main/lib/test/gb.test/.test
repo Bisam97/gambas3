@@ -1,0 +1,36 @@
+[TestSuites]
+Count=8
+TestWith=4
+
+[TestSuites/1]
+Name="! Must Bail out!"
+Tests="TBailout.Bailout"
+
+[TestSuites/2]
+Name="! Must fail (a couple of crashes)"
+Tests="TCrashes.DoACrash;ErrorTwo"
+
+[TestSuites/3]
+Name="! Must fail (wrong plan)"
+Tests="TWrongPlan.IHaveAWrongPlan"
+
+[TestSuites/4]
+Name="All good"
+Tests="TAllAsserts.Approximate;Equals;Error;ErrorCode;Fail;Greater;GreaterEqual;IsType;Less;LessEqual;Like;Match;NotNull;NotOk;Notequals;Noterror;Null;Ok;Pass;RelativeApproximate;StringEquals,TElse.NoMessage;NoMessageInbetween;Note,TIntendedFailures.EqualsFailure;Error;LongFailure;LongTypeMismatchFailure;StringFailure,TInternals.CommandsToString;FindTestSuiteByName;InterpreterInterface;ParseTestCommands;ReflectTest;ReflectTestsString,TParser.Runner;SkipAll;Subtests,TSetup,TSkipAll.SkipAll"
+
+[TestSuites/5]
+Name="Keep this test suite, it is necessary for testing gb.test."
+Tests="TInternals.FindTestSuiteByName"
+
+[TestSuites/6]
+Name="Summary"
+Tests="MustFail.TestNoteGotAndExpected,TAllAsserts.Approximate;Equals;Error;ErrorCode;Fail;Greater;GreaterEqual;IsType;Less;LessEqual;Like;Match;NotNull;NotOk;Notequals;Noterror;Null;Ok;Pass;RelativeApproximate;StringEquals,TSummary.DoBadPlan;DoOneFailure;DoSkip;DoSomeAsserts;DoTodo;TodoErrorCode,TWrongPlan.IHaveAWrongPlan"
+
+[TestSuites/7]
+Name="TAP Parser"
+Tests="TParser.Runner;SkipAll;Subtests"
+
+[TestSuites/8]
+Name="! Must fail (show Got vs Expected)"
+Tests="MustFail.TestNoteGotAndExpected"
+

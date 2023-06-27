@@ -2,7 +2,7 @@
 
   CStyle.cpp
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -36,17 +36,19 @@
 #include "CFont.h"
 #include "CScreen.h"
 
-#ifndef NO_X_WINDOW
-#include <QX11Info>
-#include "x11.h"
-#endif
-
 bool CSTYLE_fix_breeze = false;
 bool CSTYLE_fix_oxygen = false;
 
 static char *_style_name = NULL;
 
 static QWidget *_fake = 0;
+
+static bool _is_breeze = false;
+static bool _is_oxygen = false;
+static bool _is_windows = false;
+static bool _is_gtk = false;
+static bool _is_qtcurve = false;
+static bool _is_plastique = false;
 
 static QWidget *get_fake_widget()
 {
@@ -61,11 +63,11 @@ static char *get_style_name()
 	{
 		if (CSTYLE_fix_breeze)
 		{
-			_style_name = GB.NewZeroString("Breeze");
+			_style_name = GB.NewZeroString("breeze");
 		}
 		else if (CSTYLE_fix_oxygen)
 		{
-			_style_name = GB.NewZeroString("Oxygen");
+			_style_name = GB.NewZeroString("oxygen");
 		}
 		else
 		{
@@ -82,8 +84,17 @@ static char *get_style_name()
 				name++;
 			}
 			
-			_style_name = GB.NewString(name, len);
+			_style_name = GB.NewString(NULL, len);
+			for (int i = 0; i < len; i++)
+				_style_name[i] = tolower(name[i]);
 		}
+		
+		_is_breeze = ::strcmp(_style_name, "breeze") == 0;
+		_is_oxygen = ::strcmp(_style_name, "oxygen") == 0;
+		_is_windows = ::strcmp(_style_name, "windows") == 0;
+		_is_gtk = ::strcmp(_style_name, "gtk") == 0;
+		_is_qtcurve = ::strcmp(_style_name, "qtcurve") == 0;
+		_is_plastique = ::strcmp(_style_name, "plastique") == 0;
 	}
 	
 	return _style_name;
@@ -97,7 +108,7 @@ static void init_option(QStyleOption &opt, int x, int y, int w, int h, int state
 	if (!(state & GB_DRAW_STATE_DISABLED))
 		opt.state |= QStyle::State_Enabled;
 	if (state & GB_DRAW_STATE_FOCUS)
-		opt.state |= QStyle::State_HasFocus;
+		opt.state |= QStyle::State_HasFocus | QStyle::State_KeyboardFocusChange;
 	if (state & GB_DRAW_STATE_HOVER)
 		opt.state |= QStyle::State_MouseOver;
 	if (state & GB_DRAW_STATE_ACTIVE)
@@ -109,6 +120,9 @@ static void init_option(QStyleOption &opt, int x, int y, int w, int h, int state
 		palette.setColor(role, TO_QCOLOR(color));
 		opt.palette = palette;
 	}
+	
+	if (state & GB_DRAW_STATE_DISABLED)
+		opt.palette.setCurrentColorGroup(QPalette::Disabled);
 }
 
 static void paint_focus(QPainter *p, int x, int y, int w, int h, int state)
@@ -170,15 +184,27 @@ static void style_arrow(QPainter *p, int x, int y, int w, int h, int type, int s
 static void style_check(QPainter *p, int x, int y, int w, int h, int value, int state)
 {
 	QStyleOptionButton opt;
+	int d;
+	
+	get_style_name();
+	if (_is_oxygen || _is_breeze)
+		d = 2;
+	else
+		d = 0;
+	
+	x -= d;
+	y -= d;
+	w += d * 2;
+	h += d * 2;
+	
 	init_option(opt, x, y, w, h, state);
 	
-	if (value)
-	{
-		if (value == 1)
-			opt.state |= QStyle::State_NoChange;
-		else
-			opt.state |= QStyle::State_On;
-	}
+	if (value == 1)
+		opt.state |= QStyle::State_NoChange;
+	else if (value)
+		opt.state |= QStyle::State_On;
+	else
+		opt.state |= QStyle::State_Off;
 	
 	QApplication::style()->drawPrimitive(QStyle::PE_IndicatorCheckBox, &opt, p);
 	paint_focus(p, x, y, w, h, state);
@@ -187,6 +213,19 @@ static void style_check(QPainter *p, int x, int y, int w, int h, int value, int 
 static void style_option(QPainter *p, int x, int y, int w, int h, int value, int state)
 {
 	QStyleOptionButton opt;
+	int d;
+
+	get_style_name();
+	if (_is_oxygen || _is_breeze)
+		d = 2;
+	else
+		d = 0;
+	
+	x -= d;
+	y -= d;
+	w += d * 2;
+	h += d * 2;
+	
 	init_option(opt, x, y, w, h, state);
 	
 	if (value)
@@ -208,14 +247,13 @@ static void style_separator(QPainter *p, int x, int y, int w, int h, int vertica
 }
 
 
-static void style_button(QPainter *p, int x, int y, int w, int h, int value, int state, int flat)
+static void style_button(QPainter *p, int x, int y, int w, int h, int value, int state, int flat, GB_COLOR color)
 {
 	if (flat)
 	{
 		QStyleOptionToolButton opt;
-		
-		init_option(opt, x, y, w, h, state);
-		
+		init_option(opt, x, y, w, h, state, color, QPalette::Button);
+	
 		//opt.state |= QStyle::State_Raised;
 		
 		if (value)
@@ -234,8 +272,7 @@ static void style_button(QPainter *p, int x, int y, int w, int h, int value, int
 	else
 	{
 		QStyleOptionButton opt;
-	
-		init_option(opt, x, y, w, h, state);
+		init_option(opt, x, y, w, h, state, color, QPalette::Button);
 		
 		opt.state |= QStyle::State_Raised;
 		
@@ -274,7 +311,7 @@ static void style_box(QPainter *p, int x, int y, int w, int h, int state, GB_COL
 	QStyleOptionFrame opt;
 	
 	//if (GB.Is(d->device, CLASS_DrawingArea))
-	//	opt.initFrom(QWIDGET(d->device));
+	//	opt.begin(QWIDGET(d->device));
 	
 	init_option(opt, x, y, w, h, state, color, QPalette::Base);
 
@@ -289,7 +326,8 @@ static void style_box(QPainter *p, int x, int y, int w, int h, int state, GB_COL
 		QApplication::style()->drawPrimitive(QStyle::PE_FrameLineEdit, &opt, p);
 	else
 	{
-		if (::strcmp(qApp->style()->metaObject()->className(), "QGtkStyle") == 0)
+		get_style_name();
+		if (_is_gtk)
 		{
 			QWidget *w = get_fake_widget();
 			w->setAttribute(Qt::WA_SetPalette, true);
@@ -314,7 +352,8 @@ END_PROPERTY
 
 BEGIN_PROPERTY(Style_ScrollbarSpacing)
 
-	if (::strcmp(get_style_name(), "Breeze") == 0)
+	get_style_name();
+	if (_is_breeze)
 		GB.ReturnInteger(0);
 	else
 		GB.ReturnInteger(qMax(0, qApp->style()->pixelMetric(QStyle::PM_ScrollView_ScrollBarSpacing)));
@@ -323,7 +362,8 @@ END_PROPERTY
 
 BEGIN_PROPERTY(Style_FrameWidth)
 
-	if (::strcmp(get_style_name(), "Breeze") == 0)
+	get_style_name();
+	if (_is_breeze)
 		GB.ReturnInteger(2);
 	else
 		GB.ReturnInteger(qApp->style()->pixelMetric(QStyle::QStyle::PM_ComboBoxFrameWidth));
@@ -393,10 +433,10 @@ BEGIN_METHOD(Style_PaintSeparator, GB_INTEGER x; GB_INTEGER y; GB_INTEGER w; GB_
 
 END_METHOD
 
-BEGIN_METHOD(Style_PaintButton, GB_INTEGER x; GB_INTEGER y; GB_INTEGER w; GB_INTEGER h; GB_BOOLEAN value; GB_INTEGER state; GB_BOOLEAN flat)
+BEGIN_METHOD(Style_PaintButton, GB_INTEGER x; GB_INTEGER y; GB_INTEGER w; GB_INTEGER h; GB_BOOLEAN value; GB_INTEGER state; GB_BOOLEAN flat; GB_INTEGER color)
 
 	GET_COORD();
-	style_button(p, x, y, w, h, VARG(value), VARGOPT(state, GB_DRAW_STATE_NORMAL), VARGOPT(flat, FALSE));
+	style_button(p, x, y, w, h, VARG(value), VARGOPT(state, GB_DRAW_STATE_NORMAL), VARGOPT(flat, FALSE), VARGOPT(color, GB_COLOR_DEFAULT));
 
 END_METHOD
 
@@ -505,7 +545,7 @@ GB_DESC StyleDesc[] =
 	GB_STATIC_METHOD("PaintCheck", NULL, Style_PaintCheck, "(X)i(Y)i(Width)i(Height)i(Value)i[(Flag)i]"),
 	GB_STATIC_METHOD("PaintOption", NULL, Style_PaintOption, "(X)i(Y)i(Width)i(Height)i(Value)b[(Flag)i]"),
 	GB_STATIC_METHOD("PaintSeparator", NULL, Style_PaintSeparator, "(X)i(Y)i(Width)i(Height)i[(Vertical)b(Flag)i]"),
-	GB_STATIC_METHOD("PaintButton", NULL, Style_PaintButton, "(X)i(Y)i(Width)i(Height)i(Value)b[(Flag)i(Flat)b]"),
+	GB_STATIC_METHOD("PaintButton", NULL, Style_PaintButton, "(X)i(Y)i(Width)i(Height)i(Value)b[(Flag)i(Flat)b(Color)i]"),
 	GB_STATIC_METHOD("PaintPanel", NULL, Style_PaintPanel, "(X)i(Y)i(Width)i(Height)i(Border)i[(Flag)i]"),
 	GB_STATIC_METHOD("PaintHandle", NULL, Style_PaintHandle, "(X)i(Y)i(Width)i(Height)i[(Vertical)b(Flag)i]"),
 	GB_STATIC_METHOD("PaintBox", NULL, Style_PaintBox, "(X)i(Y)i(Width)i(Height)i[(Flag)i(Color)i]"),

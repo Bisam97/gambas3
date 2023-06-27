@@ -1,0 +1,34 @@
+#!/usr/bin/env -S gbs3 -c -v -w
+#Script Version="1.0.2"
+#Script Startup="MySelf"
+
+if not component.load(system.find("gbs3")) then
+   print "Scripter not found"
+   quit 1
+endif
+dim cClass as Class = class.load("Scripter")
+dim Scripter as object = cClass.new()
+
+Public SharedInfo as string[] = ["This is the shared info"]
+
+Dim TestPlugin,TestPlugin2 As Object
+
+  TestPlugin = Scripter(User.home &/ "Scripts/TestPlugin",, ["This is the list of Parameters for  Class.new(...)", "CD", 100, 200])
+  If TestPlugin Then
+      print TestPlugin.version
+      Print TestPlugin("Element 1", 1, 2, "Element 3", "Last Item 4","MoreTests")
+  Else 
+      Print "Error in compile of plugin"
+  Endif 
+  
+  TestPlugin2 = Scripter(User.home &/ "Scripts/TestPlugin2")
+  If TestPlugin Then
+      print TestPlugin.version
+      Print TestPlugin("Element 1", 1, 2, "Element 3", "Last Item 4","MoreTests","Testtoo")
+  Else 
+      Print "Error in compile of plugin"
+  Endif 
+
+QUIT 0
+catch
+Print error.text&"\n" & error.where

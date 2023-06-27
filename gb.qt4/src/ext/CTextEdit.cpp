@@ -2,7 +2,7 @@
 
   CTextEdit.cpp
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -653,6 +653,7 @@ GB_DESC CTextEditDesc[] =
   GB_PROPERTY("Text", "s", CTEXTAREA_text),
   GB_PROPERTY("RichText", "s", CTEXTAREA_rich_text),
   GB_METHOD("Insert", NULL, CTEXTAREA_insert, "(Text)s"),
+  GB_METHOD("InsertRichText", NULL, CTEXTAREA_sel_rich_text, "(Text)s"),
 
   GB_PROPERTY("Paragraph", "i", CTEXTAREA_line),
   GB_PROPERTY("Index", "i", CTEXTAREA_column),

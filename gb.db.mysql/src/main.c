@@ -2,7 +2,7 @@
 
   main.c
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -481,8 +481,7 @@ static void check_connection(MYSQL *conn)
 
 	if (mysql_thread_id(conn) != thread_id)
 	{
-		if (DB.IsDebug())
-			fprintf(stderr, "gb.db.mysql: connection lost\n");
+		DB.Debug("gb.db.mysql", "connection lost\n");
 		// Connection has been reestablished, set utf8 again
 		mysql_query(conn, "set names 'utf8'");
 	}
@@ -512,8 +511,7 @@ static int do_query(DB_DATABASE *db, const char *error, MYSQL_RES **pres, const 
 	else
 		query = qtemp;
 
-	if (DB.IsDebug())
-		fprintf(stderr, "gb.db.mysql: %p: %s\n", conn, query);
+	DB.Debug("gb.db.mysql", "%p: %s", conn, query);
 
 	check_connection(conn);
 
@@ -691,11 +689,191 @@ static const char *get_quote(void)
 	Connect to a database.
 
 	<desc> points at a structure describing each connection parameter.
+	<db> points at the DB_DATABASE structure that must be initialized.
 
-	This function must return a database handle, or NULL if the connection
-	has failed.
+	This function must return TRUE if the connection has failed.
+
+	The name of the database can be NULL, meaning a default database.
 
 *****************************************************************************/
+
+static DB_MYSQL_OPTION _options[] = {
+#if LIBMYSQL_VERSION_ID >= 50000
+	{ "INIT_COMMAND", MYSQL_INIT_COMMAND, GB_T_STRING },
+	{ "COMPRESS", MYSQL_OPT_COMPRESS, GB_T_BOOLEAN },
+	{ "CONNECT_TIMEOUT ", MYSQL_OPT_CONNECT_TIMEOUT , GB_T_INTEGER},
+	{ "LOCAL_INFILE", MYSQL_OPT_LOCAL_INFILE, GB_T_BOOLEAN},
+	{ "PROTOCOL", MYSQL_OPT_PROTOCOL, GB_T_STRING},
+	{ "READ_TIMEOUT", MYSQL_OPT_READ_TIMEOUT, GB_T_INTEGER},
+	{ "RECONNECT", MYSQL_OPT_RECONNECT, GB_T_BOOLEAN},
+#if LIBMYSQL_VERSION_ID < 80000
+	{ "SSL_VERIFY_SERVER_CERT", MYSQL_OPT_SSL_VERIFY_SERVER_CERT, GB_T_BOOLEAN},
+#endif
+	{ "WRITE_TIMEOUT", MYSQL_OPT_WRITE_TIMEOUT, GB_T_INTEGER},
+	{ "READ_DEFAULT_FILE", MYSQL_READ_DEFAULT_FILE, GB_T_STRING},
+	{ "READ_DEFAULT_GROUP", MYSQL_READ_DEFAULT_GROUP, GB_T_STRING},
+	{ "REPORT_DATA_TRUNCATION", MYSQL_REPORT_DATA_TRUNCATION, GB_T_BOOLEAN},
+#if LIBMYSQL_VERSION_ID < 80000
+	{ "SECURE_AUTH", MYSQL_SECURE_AUTH, GB_T_BOOLEAN},
+#endif
+	{ "SET_CHARSET_DIR", MYSQL_SET_CHARSET_DIR, GB_T_STRING},
+	{ "SET_CHARSET_NAME", MYSQL_SET_CHARSET_NAME, GB_T_STRING},
+#endif
+	
+#if LIBMYSQL_VERSION_ID >= 50200
+	{ "DEFAULT_AUTH", MYSQL_DEFAULT_AUTH, GB_T_STRING },
+	{ "ENABLE_CLEARTEXT_PLUGIN", MYSQL_ENABLE_CLEARTEXT_PLUGIN, GB_T_BOOLEAN },
+	{ "SSL_MODE", MYSQL_OPT_SSL_MODE, GB_T_STRING},
+	{ "PLUGIN_DIR", MYSQL_PLUGIN_DIR, GB_T_STRING},
+#endif
+	
+#if LIBMYSQL_VERSION_ID >= 50626
+	{ "BIND", MYSQL_OPT_BIND, GB_T_STRING },
+	{ "CAN_HANDLE_EXPIRED_PASSWORDS", MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS, GB_T_BOOLEAN },
+#if HAVE_MYSQL_RETRY_COUNT
+	{ "RETRY_COUNT ", MYSQL_OPT_RETRY_COUNT , GB_T_INTEGER},
+#endif
+	{ "SSL_CA", MYSQL_OPT_SSL_CA, GB_T_STRING},
+	{ "SSL_CAPATH", MYSQL_OPT_SSL_CAPATH, GB_T_STRING},
+	{ "SSL_CERT", MYSQL_OPT_SSL_CERT, GB_T_STRING},
+	{ "SSL_CIPHER", MYSQL_OPT_SSL_CIPHER, GB_T_STRING},
+	{ "SSL_CRL", MYSQL_OPT_SSL_CRL, GB_T_STRING},
+	{ "SSL_CRLPATH", MYSQL_OPT_SSL_CRLPATH, GB_T_STRING},
+	{ "SSL_KEY", MYSQL_OPT_SSL_KEY, GB_T_STRING},
+	{ "SERVER_PUBLIC_KEY", MYSQL_SERVER_PUBLIC_KEY, GB_T_STRING},
+#endif	
+
+#if LIBMYSQL_VERSION_ID >= 50700
+	{ "GET_SERVER_PUBLIC_KEY", MYSQL_OPT_GET_SERVER_PUBLIC_KEY, GB_T_BOOLEAN},
+	{ "MAX_ALLOWED_PACKET", MYSQL_OPT_MAX_ALLOWED_PACKET, GB_T_INTEGER},
+	{ "NET_BUFFER_LENGTH", MYSQL_OPT_NET_BUFFER_LENGTH, GB_T_INTEGER},
+	{ "TLS_VERSION", MYSQL_OPT_TLS_VERSION, GB_T_STRING},
+#endif
+	
+#if LIBMYSQL_VERSION_ID >= 80000
+	{ "COMPRESSION_ALGORITHMS", MYSQL_OPT_COMPRESSION_ALGORITHMS, GB_T_STRING},
+	{ "LOAD_DATA_LOCAL_DIR", MYSQL_OPT_LOAD_DATA_LOCAL_DIR, GB_T_STRING},
+	{ "TLS_CIPHERSUITES", MYSQL_OPT_TLS_CIPHERSUITES, GB_T_STRING},
+	{ "SSL_FIPS_MODE", MYSQL_OPT_SSL_FIPS_MODE, GB_T_INTEGER},
+	{ "ZSTD_COMPRESSION_LEVEL", MYSQL_OPT_ZSTD_COMPRESSION_LEVEL, GB_T_INTEGER},
+#endif
+	
+	{ NULL }
+};
+
+static MYSQL *_options_conn;
+
+static void add_option_value(const char *key, GB_VALUE *value)
+{
+	DB_MYSQL_OPTION *p;
+	union {
+		unsigned int _uint;
+		unsigned long _ulong;
+	} tmp;
+	char *sval;
+	
+	for (p = _options;; p++)
+	{
+		if (!p->key)
+			return;
+		
+		if (!strcasecmp(p->key, key))
+			break;
+	}
+	
+	if (GB.Conv(value, p->type))
+		return;
+	
+	switch(p->cst)
+	{
+		case MYSQL_OPT_COMPRESS:
+			if (value->_boolean.value)
+				mysql_options(_options_conn, p->cst, NULL);
+			break;
+		
+		case MYSQL_OPT_PROTOCOL:
+
+			sval = value->_string.value.addr;
+			if (!strcasecmp(sval, "DEFAULT"))
+				tmp._uint = MYSQL_PROTOCOL_DEFAULT;
+			else if (!strcasecmp(sval, "TCP"))
+				tmp._uint = MYSQL_PROTOCOL_TCP;
+			else if (!strcasecmp(sval, "SOCKET"))
+				tmp._uint = MYSQL_PROTOCOL_SOCKET;
+			else if (!strcasecmp(sval, "PIPE"))
+				tmp._uint = MYSQL_PROTOCOL_PIPE;
+			else if (!strcasecmp(sval, "MEMORY"))
+				tmp._uint = MYSQL_PROTOCOL_MEMORY;
+			else
+				return;
+			
+			mysql_options(_options_conn, p->cst, &tmp._uint);
+			break;
+		
+		case MYSQL_OPT_LOCAL_INFILE:
+			
+			tmp._uint = value->_boolean.value;
+			mysql_options(_options_conn, p->cst, &tmp._uint);
+			break;
+			
+#if LIBMYSQL_VERSION_ID >= 50200
+		case MYSQL_OPT_SSL_MODE:
+			
+			sval = value->_string.value.addr;
+			if (!strcasecmp(sval, "DISABLED"))
+				tmp._uint = SSL_MODE_DISABLED;
+			else if (!strcasecmp(sval, "PREFERRED"))
+				tmp._uint = SSL_MODE_PREFERRED;
+			else if (!strcasecmp(sval, "REQUIRED"))
+				tmp._uint = SSL_MODE_REQUIRED;
+			else if (!strcasecmp(sval, "VERIFY_CA"))
+				tmp._uint = SSL_MODE_VERIFY_CA;
+			else if (!strcasecmp(sval, "VERIFY_IDENTITY"))
+				tmp._uint = SSL_MODE_VERIFY_IDENTITY;
+			else
+				return;
+			
+			mysql_options(_options_conn, p->cst, &tmp._uint);
+			break;
+#endif
+		
+#if LIBMYSQL_VERSION_ID >= 50700
+		case MYSQL_OPT_MAX_ALLOWED_PACKET:
+		case MYSQL_OPT_NET_BUFFER_LENGTH:
+			
+			tmp._ulong = value->_integer.value;
+			mysql_options(_options_conn, p->cst, &tmp._ulong);
+			break;
+#endif
+
+#if LIBMYSQL_VERSION_ID >= 80000
+		case MYSQL_OPT_SSL_FIPS_MODE:
+			
+			sval = value->_string.value.addr;
+			if (!strcasecmp(sval, "OFF"))
+				tmp._uint = SSL_FIPS_MODE_OFF;
+			else if (!strcasecmp(sval, "ON"))
+				tmp._uint = SSL_FIPS_MODE_ON;
+			else if (!strcasecmp(sval, "STRICT"))
+				tmp._uint = SSL_FIPS_MODE_STRICT;
+			else
+				return;
+			
+			mysql_options(_options_conn, p->cst, &tmp._uint);
+			break;
+#endif
+
+		default:
+			
+			if (p->type == GB_T_BOOLEAN)
+				mysql_options(_options_conn, p->cst, &value->_boolean.value);
+			else if (p->type == GB_T_INTEGER)
+				mysql_options(_options_conn, p->cst, &value->_integer.value);
+			else if (p->type == GB_T_STRING)
+				mysql_options(_options_conn, p->cst, value->_string.value.addr);
+	}
+	
+}
 
 static void set_character_set(DB_DATABASE *db)
 {
@@ -729,7 +907,10 @@ static void set_character_set(DB_DATABASE *db)
 	if (search_result(res, "character_set_client", &row))
 		return;
 	
-	db->charset = GB.NewZeroString(row[1]);
+	if (strncasecmp(row[1], "utf8", 4) == 0)
+		db->charset = GB.NewString("utf8", 4);
+	else
+		db->charset = GB.NewZeroString(row[1]);
 	//fprintf(stderr, "charset is '%s'\n", db->charset);
 	mysql_free_result(res);
 }
@@ -740,8 +921,12 @@ static int open_database(DB_DESC *desc, DB_DATABASE *db)
 	char *name;
 	char *host;
 	char *socket;
-	my_bool reconnect = TRUE;
+	char reconnect = TRUE;
 	unsigned int timeout;
+	char *env;
+	#if HAVE_MYSQL_SSL_MODE_DISABLED
+	unsigned int mode;
+	#endif
 
 	conn = mysql_init(NULL);
 
@@ -765,8 +950,21 @@ static int open_database(DB_DESC *desc, DB_DATABASE *db)
 	
 	timeout = db->timeout;
 	mysql_options(conn, MYSQL_OPT_CONNECT_TIMEOUT, &timeout);
-	/*timeout /= 3;
-	mysql_options(conn, MYSQL_OPT_READ_TIMEOUT, &timeout);*/
+	
+	_options_conn = conn;
+	
+	DB.GetOptions(add_option_value);
+	
+	env = getenv("GB_DB_MYSQL_NOSSL");
+	if (env && strcmp(env, "0"))
+	{
+	#if HAVE_MYSQL_SSL_MODE_DISABLED
+		mode = SSL_MODE_DISABLED;
+		mysql_options(conn, MYSQL_OPT_SSL_MODE, &mode);
+	#else
+		fprintf(stderr, "gb.db.mysql: warning: disabling SSL connection is not supported with your version of MySQL client library.\n");
+	#endif
+	}
 	
 	if (!mysql_real_connect(conn, host, desc->user, desc->password,
 			name, desc->port == NULL ? 0 : atoi(desc->port), socket,
@@ -1009,10 +1207,11 @@ static void query_init(DB_RESULT result, DB_INFO *info, int *count)
 
 	<result> is the handle of the query result.
 	<info> points to the info structure.
+	<invalid> tells if the associated connection has been closed.
 
 *****************************************************************************/
 
-static void query_release(DB_RESULT result, DB_INFO *info)
+static void query_release(DB_RESULT result, DB_INFO *info, bool invalid)
 {
 	mysql_free_result((MYSQL_RES *)result);
 }
@@ -1341,7 +1540,7 @@ static int rollback_transaction(DB_DATABASE *db)
 
 	This function must initialize the following info fields:
 	- info->nfield must contain the number of fields in the table.
-	- info->fields is a char*[] pointing at the name of each field.
+	- info->field is an array of DB_FIELD, one element for each field.
 
 	This function returns TRUE if the command has failed, and FALSE if
 	everything was OK.
@@ -1753,8 +1952,8 @@ static int table_create(DB_DATABASE *db, const char *table, DB_FIELD *fields, ch
 				case GB_T_DATE: type = "DATETIME"; break;
 				case GB_T_STRING:
 
-					if (fp->length <= 0 || fp->length > 255) //mysql supports upto 255 as varchar
-						type = "TEXT";
+					if (fp->length <= 0 || fp->length > 65535)
+						type = "MEDIUMTEXT";
 					else
 					{
 						sprintf(_buffer, "VARCHAR(%d)", fp->length);
@@ -1786,7 +1985,7 @@ static int table_create(DB_DATABASE *db, const char *table, DB_FIELD *fields, ch
 
 			if (fp->def.type != GB_T_NULL)
 			{
-				DB.Query.Add(" NOT NULL DEFAULT");
+				DB.Query.Add(" NOT NULL DEFAULT ");
 				DB.FormatVariant(&_driver, &fp->def, DB.Query.AddLength);
 			}
 			else if (DB.StringArray.Find(primary, fp->name) >= 0)

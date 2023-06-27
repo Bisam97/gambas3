@@ -1,0 +1,45 @@
+' Gambas class file
+
+
+'' Get or set the gradient area, Coordinates are the Gradients \[x1,y1,x2,y2\] for linear or \[x1,y1,r1,x2,y2,r2\] for radial.
+Property Coordinates As Float[] Use $aCoordinates
+
+'' Get or set the gradient stop points.
+'' 
+'' Each item of the ColorStops array Is a positional number (float) between 0.0 And 1.0 and either a gb Color value or a CSS color value.
+'' 
+'' Eg. hGradient.ColorStops = [[0.0, Color.Red],[1.0, "indigo"]]
+''
+'' You can also use [./addcolorstop] or [./addcolorstops]
+Property ColorStops As Variant[] Use $aColorStops
+
+Property Type As Integer Use $iType
+
+Public Enum Linear, Radial
+
+'' Create a Gradient, Optional Type can be Gradient.Linear or Gradient.Radial, Optional Coordinates are the Gradients x1,y1,x2,y2 for linear or x1,y1,r1,x2,y2,r2 for radial.
+Public Sub _new(Optional Type As Integer = 0, Optional (Coordinates) As Integer[])
+
+  $iType = Type
+  $aCoordinates = Coordinates
+  
+End
+
+'' Add a single gradient point , Pos is a positional number between 0.0 and 1.0 , Color is either a gb Color value or a CSS color value.
+Public Sub AddColorStop(Pos As Float, vColor As Variant)
+  
+  If TypeOf(vColor) = gb.Integer Then vColor = Color.ToHTML(vColor)
+  If Not $aColorStops Then $aColorStops = New Variant[]
+  $aColorStops.Add([Pos, vColor])
+  
+End
+
+'' Add multiple gradient points , Positions is an array of positional numbers between 0.0 and 1.0 , Colors is an accompanying array of either gb Color values or CSS color values.
+Public Sub AddColorStops(Positions As Float[], Colors As Variant[])
+  
+  For c As Integer = 0 To Colors.Max
+    AddColorStop(Positions[c], Colors[c])
+  Next
+  
+End
+

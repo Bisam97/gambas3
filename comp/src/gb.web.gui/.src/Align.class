@@ -1,0 +1,55 @@
+' Gambas class file
+
+''' This class provides constants for alignment of text, cells...
+
+Export
+
+Public Enum 
+  Normal = &H00,
+  Left = &H01,
+  Right = &H02,
+  Center = &H03, 
+  TopNormal = &H10,
+  TopLeft = &H11,
+  TopRight = &H12,
+  Top = &H13, 
+  BottomNormal = &H20,
+  BottomLeft = &H21,
+  BottomRight = &H22,
+  Bottom = &H23
+  
+Static Public Sub IsLeft(Alignment As Integer) As Boolean
+  
+  If (Alignment And &HF) = Align.Left Then Return True
+  
+End
+
+Static Public Sub IsRight(Alignment As Integer) As Boolean
+  
+  If (Alignment And &HF) = Align.Right Then Return True
+  
+End
+
+Static Public Sub IsCenter(Alignment As Integer) As Boolean
+  
+  If (Alignment And &HF) = Align.Center Then Return True
+  
+End
+
+Static Public Sub IsTop(Alignment As Integer) As Boolean
+  
+  If (Alignment And &HF0) = Align.TopNormal Then Return True
+  
+End
+
+Static Public Sub IsBottom(Alignment As Integer) As Boolean
+  
+  If (Alignment And &HF0) = Align.BottomNormal Then Return True
+  
+End
+
+Static Public Sub IsMiddle(Alignment As Integer) As Boolean
+  
+  If (Alignment And &HF0) = Align.Normal Then Return True
+  
+End

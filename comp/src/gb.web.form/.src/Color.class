@@ -1,5 +1,7 @@
 ' Gambas class file
 
+''' This class provides constant for pre-defined colors and color-related methods
+
 Export Optional
 
 Public Const Default As Integer = -1
@@ -19,11 +21,21 @@ Public Const Violet As Integer = &H7F00FF&
 Public Const RoyalBlue As Integer = &H007FFF&
 Public Const Pink As Integer = &HFF80FF&
 
+'' Change the alpha component of a color and return it.
+
 Static Public Sub SetAlpha(Color As Integer, Alpha As Integer) As Integer
   
   Return Color Or Lsl(Alpha, 24)
   
 End
+
+'' Returns a color value from its red, green, blue and alpha components.
+'' 
+'' If ~Alpha~ is not specified, then it is assumed to be zero, i.e. you get a fully opaque color.
+'' 
+'' [[ info
+'' In Gambas, the alpha value of fully opaque colors is zero, and the alpha value of fully transparent colors is 255.
+'' ]]
 
 Static Public Sub RGB((Red) As Integer, (Green) As Integer, (Blue) As Integer, Optional Alpha As Integer) As Integer
   

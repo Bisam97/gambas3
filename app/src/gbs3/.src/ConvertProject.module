@@ -1,0 +1,130 @@
+' Gambas module file
+
+Public cSources As New Collection(gb.ignorecase)
+
+Private Sub ConfigureSources()
+  
+  cSources.Add(".src", "class")
+  cSources.Add(".src", "module")
+  cSources.Add(".src", "form")
+  cSources.Add(".src", "webform")
+  cSources.Add(".src", "webpage")
+  cSources.Add(".connection", "connection")
+  
+End
+
+
+Public Sub _call(sInputProjectDir As String, Optional sOutputScriptDir As String = "")
+
+     ConfigureSources()
+     
+    Dim s As String
+    
+    Dim sourceProject As String = sInputProjectDir
+    Dim DestPath As String = sOutputScriptDir
+    Dim sPath As String = ""
+    
+    If Not Exist(SourceProject) Then
+        warning("Unable to find source project " & SourceProject, True)
+        Return
+    Endif
+    
+    Dim ScriptFile As String = "#!/usr/bin/env gbs3 \n'Auto Generated Script " & CStr(Now) & " Version (" & Application.version & ")\n"
+    Dim ScriptName As String = Split(sourceProject, "/", "\"\"", True).last
+    Verbose("Create Script : " & ScriptName & ".gbs")
+     
+    If DestPath <> "" Then ' we have the destination directory
+        If Not Exist(DestPath) Then
+          warning("Output Path for script not found : " & DestPath, True)
+          Return
+        Endif
+        DestPath = DestPath &/ ScriptName & ".gbs"
+    Else
+        DestPath = Env["PWD"] &/ ScriptName & ".gbs"
+    Endif
+    Verbose("Full output path : " & DestPath)
+    
+    Dim aProjectFile As String[] 
+    Try aProjectFile = Split(File.Load(sourceProject &/ ".project"), "\n", "\"\"", True, True)
+    If Error Then
+      Warning("Unable to access the project file : " & SourceProject &/ ".project", True)
+      Return
+    Endif
+    
+    Dim Startup As String = ""
+    For Each s As String In aProjectFile
+        Dim aSS As String[] = Split(s, "=", "\"\"", True, True)
+        If AsS[0] == "COMPONENT" Or If AsS[0] == "LIBRARY" Then
+            ScriptFile &= "Use " & Quote(AsS[1]) & "\n"
+        Else If aSS[0] == "STARTUP" Then
+            Startup = aSS[1]
+            ScriptFile &= "#Script Startup=" & Quote(Startup) & "\n"
+        Else If aSS[0] == "TITLE" Then
+          ScriptFile &= "#Script Title=" & Quote(aSS[1]) & "\n"
+        Else If aSS[0] == "DESCRIPTION" Then
+          ScriptFile &= "#Script Description=" & Quote(aSS[1]) & "\n"
+        Else If aSS[0] == "NAME" Then
+          ScriptFile &= "#Script Name=" & Quote(aSS[1]) & "\n"
+        Else If aSS[0] == "AUTHORS" Or If Upper(aSS[0]) = "AUTHOR" Then
+          ScriptFile &= "#Script Authors=" & Quote(aSS[1]) & "\n"
+         Else If aSS[0] == "VERSION" Then
+          ScriptFile &= "#Script Version=" & Quote(aSS[1]) & "\n"
+         Else If aSS[0] == "LICENSE" Then
+          ScriptFile &= "#Script License=" & Quote(aSS[1]) & "\n"
+         Else If aSS[0] == "USEHTTPSERVER" Then
+          ScriptFile &= "#Script UseHttpServer=" & Quote(aSS[1]) & "\n"
+        Endif
+    Next
+    
+    Verbose("Project Information :\n_____________________________________________\n" & ScriptFile & "____________________________________\n")
+    
+    For Each sourceDir As String In cSources
+      sPath = SourceProject &/ sourceDir
+      If Not Exist(sPath) Then 
+        warning("Source Path Not found " & Quote(sPath) & " Ignored")
+        Continue
+      Endif
+      Dim aFiles As String[] = Dir(sPath, "*." & cSources.key, gb.file)
+       For Each s In aFiles
+            Dim Program As String 
+            Try Program = File.Load(sPath &/ s)
+             If Error Then
+                       Warning("Unable to generate Script using  file:" & Error.text & " : " & sPath &/ s, True)
+                       Return
+            Endif
+            
+            If cSources.key == "module" Or If cSources.key == "class" Then 
+               Program = ConvertContextWords(Program)
+            Endif
+            
+            If cSources.key == "module" And aFiles.Count = 1 Or If cSources.key == "module" And File.basename(s) == Startup Then
+               ScriptFile &= Program & "\n"
+            Else
+               ScriptFile &= cSources.key & " " & File.BaseName(s) & "\n" & Program & "\nEnd " & cSources.key & "\n"
+            Endif
+      Next
+    Next
+    
+    Try File.Save(DestPath, ScriptFile)
+    If Error Then
+      Warning("Unable to write Output Generated script to : " & DestPath, True)
+    Else
+      Chmod DestPath To "rwxr-xr-x"
+    Endif
+
+End
+
+Sub ConvertContextWords(Program As String) As String
+ Dim OutPutProgram As String = "" 
+ Dim ProgLines As String[] = Split(Program, "\n")
+ For Each sLine As String In ProgLines
+   Highlight.Analyze(sLine)
+   If Highlight.Types.count = 2 And If Highlight.Types[0] = Highlight.Keyword And If Highlight.Symbols[0] == "class" And If Highlight.Types[1] = Highlight.symbol Then 
+     sline = Replace(sline, "class", "ClassRef", gb.IgnoreCase)
+   Endif
+   OutPutProgram &= sLine & "\n"
+ Next
+Return OutPutProgram
+End
+
+

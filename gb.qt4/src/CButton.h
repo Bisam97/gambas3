@@ -2,7 +2,7 @@
 
 	CButton.h
 
-	(c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+	(c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -67,7 +67,7 @@ class MyPushButton : public QPushButton
 
 public:
 
-	MyPushButton(QWidget *parent);
+	explicit MyPushButton(QWidget *parent);
 	~MyPushButton();
 	virtual void changeEvent(QEvent *e);
 	void calcMinimumSize();
@@ -84,7 +84,7 @@ class MyToolButton : public QToolButton
 
 public:
 
-	MyToolButton(QWidget *parent);
+	explicit MyToolButton(QWidget *parent);
 	~MyToolButton();
 	virtual void changeEvent(QEvent *e);
 	void calcMinimumSize();

@@ -5,9 +5,12 @@
 Static Private $aLang As String[] = ["en", "fr", "de", "es", "it", "nl", "pl", "pt", "pt_BR", "mk", "sq", "ca", "hu", "tr", "ar", "fa", "vi", "ko", "ja", "ru", "zh", "zh_TW", "eo"]
 
 'Private $bError As Boolean
-Private $bPrint As Boolean
+'Private $bPrint As Boolean
 Private mnuLang As Menu
 Private $bFirstTime As Boolean
+Private $bOffline As Boolean
+Private $hTask As CHelpSearchTask
+Private $aSearch As String[]
 
 Public Sub _new()
   
@@ -24,7 +27,7 @@ Public Sub _new()
   hMenu.Text = ("Default language")
   
   For Each sLang In $aLang
-    aLangName.Add(Language.ToName(sLang) & ":" & sLang)
+    aLangName.Add(MyLanguage.ToName(sLang) & ":" & sLang)
   Next
   aLangName.Sort(gb.Language)
   
@@ -37,13 +40,11 @@ Public Sub _new()
   
   btnHome.Menu = "mnuLang"
   
-  movWaiting.Resize(64, 64)
-  
   '$hHistory = New CHistory As "History"
   
 End
 
-Public Sub GetBrowser() As WebView
+Public Sub GetBrowser() As HelpView
   
   Return webHelp
   
@@ -52,7 +53,20 @@ End
 
 Public Sub ReadConfig()
   
-  Project.SetSmallFont(panToolbar)
+  If webHelp.ReadConfig() Then GotoHome
+  
+  $bOffLine = Settings["/UseOfflineHelp"]
+
+  tabClass.TextFont = Project.GetSmallFont()
+  panToolbar.Font = tabClass.TextFont
+  panToolbar.H = tabClass.TabBarSize
+  
+  If $bOffLine Then
+    tabClass[1].Visible = True
+  Else
+    tabClass.Index = 0
+    tabClass[1].Visible = False
+  Endif
   
 End
 
@@ -62,15 +76,13 @@ Public Sub Form_Open()
   Dim sLang As String
   
   Settings.Read(Me)
-  Settings.Read(splHelp)
-  btnShowPanel.Value = Settings["/FHelpBrowser/ShowPanel", False]
-  btnShowPanel_Click
+  Settings.Read(sdpHelp)
   
   ReadConfig
   
   sLang = MHelp.GetLanguage(True)
   If sLang Then
-    btnHome.Text = Language.ToName(sLang)
+    btnHome.Text = MyLanguage.ToName(sLang)
   Else
     btnHome.Text = ("Default language")
   Endif
@@ -92,14 +104,13 @@ End
 Public Sub Form_Close()
   
   Settings.Write(Me)
-  Settings.Write(splHelp)
+  Settings.Write(sdpHelp)
   Settings["/FHelpBrowser/ShowPanel"] = btnShowPanel.Value
   
 End
 
 Private Function GetHomeURL() As String
 
-  'Debug MHelp.GetURL() & "?help&" & MHelp.GetLanguage() & "&v3"
   Return MHelp.GetURL() & "?nl&l=" & MHelp.GetLanguage()
 
 End
@@ -126,14 +137,12 @@ End
 
 Public Sub btnBack_Click()
   
-  'GotoURL($hHistory.Backward())
   webHelp.Back
   
 End
 
 Public Sub btnForward_Click()
   
-  'GotoURL($hHistory.Forward())
   webHelp.Forward
   
 End
@@ -152,19 +161,19 @@ End
 
 Public Sub btnZoomIn_Click()
   
-  webHelp.TextZoom = Round(webHelp.TextZoom * 1.125, -3)
+  webHelp.ZoomIn
   
 End
 
 Public Sub btnZoomOut_Click()
   
-  webHelp.TextZoom = Round(webHelp.TextZoom / 1.125, -3)
+  webHelp.ZoomOut
   
 End
 
 Public Sub btnZoomNormal_Click()
   
-  webHelp.TextZoom = 1
+  webHelp.ZoomNormal
   
 End
 
@@ -179,7 +188,7 @@ End
 
 Public Sub btnWebSite_Click()
   
-  GotoURL("http://gambas.sourceforge.net")
+  GotoURL("https://gambas.sourceforge.net")
   
 End
 
@@ -204,9 +213,8 @@ End
 
 Public Sub btnShowPanel_Click()
   
-  tvwClasses.Visible = btnShowPanel.Value
-  If btnShowPanel.Value Then FillTree
-  'If splHelp.Layout[0] = 0 Then splHelp.Layout = [1, 2]
+  sdpHelp.Hidden = False
+  btnShowPanel.Hide
 
 End
 
@@ -270,11 +278,12 @@ Private Sub FillTree()
   
 End
 
-Public Sub tvwClasses_Select()
+Public Sub tvwClasses_Click()
   
   Dim aKey As String[]
   Dim sKey As String
 
+  lstResult.UnSelectAll
   sKey = tvwClasses.Current.Key
   If Not sKey Or If sKey = "$" Then Return
   
@@ -289,10 +298,12 @@ End
 
 Public Sub btnPrint_Click()
   
-  Printer1.OutputFile = "~/print.pdf"
-  $bPrint = False
-  If Printer1.Configure() Then Return
-  webHelp.Current.Print(Printer1)
+  ' Printer1.OutputFile = "~/print.pdf"
+  ' $bPrint = False
+  ' If Printer1.Configure() Then Return
+  ' webHelp.Current.Print(Printer1)
+  
+  webHelp.ExecJavascript("window.print();")
   
 End
 
@@ -331,10 +342,117 @@ Public Sub OnProjectChange()
   MHelp.Clear
   If Me.Closed Then Return
   
-  If btnShowPanel.Value Then FillTree
+  If Not sdpHelp.Hidden Then FillTree
   
   If webHelp.Url <> GetHomeURL() Then
     btnHome_Click
   Endif
   
+End
+
+
+Public Sub tabClass_Click()
+
+  If tabClass.Index = 1 Then txtSearch.SetFocus
+
+End
+
+Public Sub btnSearch_Click()
+
+  Dim sText As String
+  
+  If $hTask Then
+    $hTask.Stop 
+  Else
+    sText = Trim(txtSearch.Text)
+    If sText Then
+      $hTask = New CHelpSearchTask As "TaskSearch"
+      $aSearch = Split(sText, " ", Chr$(34), True)
+      $hTask.Search = $aSearch
+      btnSearch.Picture = Picture["icon:/small/stop"]
+      txtSearch.Enabled = False
+      lstResult.Clear
+      spnSearch.Show
+      spnSearch.Raise
+      spnSearch.Start
+    Endif
+  Endif
+
+End
+
+Public Sub txtSearch_Activate()
+
+  btnSearch.Value = True
+
+End
+
+Public Sub TaskSearch_Read(Data As String)
+
+  Dim sLine As String
+  Dim iPos As Integer
+  Dim sTitle As String
+
+  Data = $hTask.Buffer & Data
+  iPos = RInStr(Data, "\n")
+  If iPos = 0 Then
+    $hTask.Buffer = Data
+    Return
+  Endif
+  
+  $hTask.Buffer = Mid$(Data, iPos + 1)
+
+  Inc Project.NoWait  
+  For Each sLine In Split(Left(Data, iPos - 1), "\n")
+    If lstResult.Exist(sLine) Then Continue
+    sTitle = Wiki.GetPageTitle(sLine)
+    If sTitle Then 
+      lstResult.Add(sLine, sTitle)
+    Else 
+      lstResult.Add(sLine, sLine).Foreground = Color.LightForeground
+    Endif
+  Next
+  Dec Project.NoWait  
+  
+End
+
+Public Sub TaskSearch_Kill()
+  
+  $hTask = Null
+  btnSearch.Picture = Picture["icon:/small/find"]
+  txtSearch.Enabled = True
+  spnSearch.Hide
+  
+End
+
+
+Public Sub lstResult_Select()
+
+  tvwClasses.UnSelectAll
+  MHelp.MakeOffline(webHelp, MHelp.GetURL(lstResult.Key),, $aSearch.Join())
+
+End
+
+Public Sub tabClass_Arrange()
+
+  spnSearch.Move(lstResult.X + (lstResult.W - spnSearch.W) \ 2, lstResult.Y + (lstResult.H - spnSearch.H) \ 2)
+
+End
+
+Public Sub tabClass_CloseAll()
+
+  sdpHelp.Hidden = True
+
+End
+
+Public Sub sdpHelp_Hide()
+
+  btnShowPanel.Show
+
+End
+
+Public Sub sdpHelp_Show()
+
+  btnShowPanel.Hide
+  FillTree
+
 End

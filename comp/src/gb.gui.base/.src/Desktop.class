@@ -1,0 +1,84 @@
+' Gambas class file
+
+Export
+
+Static Property Read Type As String
+Static Property Read Types As String[]
+
+Static Private $sDesktop As String
+Static Private $aDesktopType As String[]
+
+Static Private Sub GetDesktop() As String
+
+  If $sDesktop Then Return $sDesktop
+
+  If Not $aDesktopType Then 
+    $aDesktopType = Split(UCase(Application.Env["XDG_CURRENT_DESKTOP"]), ":")
+  Endif
+  
+  If $aDesktopType.Count = 0 Then
+    
+    If Application.Env["KDE_FULL_SESSION"] Then
+      $aDesktopType.Add("KDE")
+    Else If Application.Env["GNOME_DESKTOP_SESSION_ID"] Then
+      $aDesktopType.Add("GNOME")
+    Else If Application.Env["MATE_DESKTOP_SESSION_ID"] Or If Application.Env["MATECORBA_SOCKETDIR"] Then
+      $aDesktopType.Add("MATE")
+    Else If Application.Env["E_BIN_DIR"] And If Application.Env["E_LIB_DIR"] Then
+      $aDesktopType.Add("ENLIGHTENMENT")
+    Else If Application.Env["WMAKER_BIN_NAME"] Then
+      $aDesktopType.Add("WINDOWMAKER")
+    Else If Application.Env["DESKTOP_SESSION"] = "LXDE" Then
+      $aDesktopType.Add("LXDE")
+    Else If UCase(Env["DESKTOP_SESSION"]) = "XCFE" Then
+      $aDesktopType.Add("XFCE")
+    Else If UCase(Env["XDG_MENU_PREFIX"]) Begins "XCFE" Then
+      $aDesktopType.Add("XFCE")
+    Else If InStr(Env["XDG_DATA_DIR"], "/xfce") Then
+      $aDesktopType.Add("XFCE")
+    Else 
+      $aDesktopType.Add("UNKNOWN")
+    Endif
+
+  Endif
+  
+  If $aDesktopType.Count Then 
+  
+    If $aDesktopType[0] = "KDE" Then
+      If Application.Env["KDE_SESSION_VERSION"] = "4" Then
+        $aDesktopType.Add("KDE4")
+      Else If Application.Env["KDE_SESSION_VERSION"] = "5" Then
+        $aDesktopType.Add("KDE5")
+      Endif
+    Endif
+    
+    $sDesktop = $aDesktopType[0]
+    If $sDesktop Begins "X-" Then $sDesktop = Mid$($sDesktop, 3)
+    
+  Endif
+
+  $aDesktopType.ReadOnly = True
+  
+  Return $sDesktop
+
+End
+
+Static Private Function Type_Read() As String
+
+  Return GetDesktop()
+
+End
+
+Static Private Function Types_Read() As String[]
+
+  GetDesktop()
+  Return $aDesktopType
+
+End
+
+Static Public Sub Is(Type As String) As Boolean
+  
+  Return Types_Read().Exist(Type, gb.IgnoreCase)
+  
+End
+

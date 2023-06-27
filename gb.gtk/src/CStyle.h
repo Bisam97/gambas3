@@ -2,7 +2,7 @@
 
   CStyle.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -30,6 +30,14 @@
 
 #ifndef __CSTYLE_CPP
 extern GB_DESC StyleDesc[];
+#endif
+
+#ifdef GTK3
+void CSTYLE_paint_check(cairo_t *cr, int x, int y, int w, int h, int value, int state);
+void CSTYLE_paint_option(cairo_t *cr, int x, int y, int w, int h, int value, int state);
+#else
+void CSTYLE_paint_check(GdkDrawable *dr, int x, int y, int w, int h, int value, int state);
+void CSTYLE_paint_option(GdkDrawable *dr, int x, int y, int w, int h, int value, int state);
 #endif
 
 #endif

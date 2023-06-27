@@ -202,15 +202,69 @@ Public Sub Main()
   Dim sDir As String
   Dim sPngQuant As String
 
+  MakeIconTheme.Run()
   Quit
+  
   sPngQuant = System.Find("pngquant")
   sDir = "/home/benoit/gambas/git/master/comp/src/gb.form.stock"
   For Each sFile In RDir(sDir)
     If File.Ext(sFile) <> "png" Then Continue
     Print sFile
-    Kill sDir &/ File.Dir(sFile) &/ File.BaseName(sFile) & "png"
+    'Kill sDir &/ File.Dir(sFile) &/ File.BaseName(sFile) & "png"
     Exec [sPngQuant, "-f", "--ext", ".png", sDir &/ sFile] Wait
   Next
 
 End
+
+Public Sub MakeInternet()
+
+  Dim hImage As Image
+  Dim iColor As Integer
+  Dim I As Integer
+  Dim J As Integer
+  Dim X As Float
+  Dim Y As Float
+  Dim R As Float
+  Dim A As Float
+  Dim P As Float
+  Dim RMax As Float
+  Dim RMin As Float
+  
+  hImage = New Image(128, 128)
+  iColor = Color.Orange
+  
+  For J = 0 To 127
+    For I = 0 To 127
+      
+      P = 0
+      For Y = J - 64 + 0.25 To J - 63 - 0.25 Step 0.5
+        For X = I - 64 + 0.25 To I - 63 - 0.25 Step 0.5
+          
+          'X = J - 64 + 0.5
+          'Y = I - 64 + 0.5
+          
+          R = Mag(X, Y)
+          A = Ang(X, Y)
+          If A < 0 Then A += Pi(2)
+          
+          A = Frac(A / Pi(2) * 3)
+          
+          RMax = 56 - 12 * A
+          RMin = 32 + 12 * A
+          
+          If R <= RMax And If R >= RMin Then P += 4 * Min(0.25, Min(RMax - R, R - RMin))
+          
+        Next
+      Next
+      
+      If P Then hImage[I, J] = Color.SetAlpha(iColor, 255 - 255 * P / 4)
+      
+    Next
+  Next
+  
+  hImage.Save("~/internet.png")
+  
+  
+End
+
 

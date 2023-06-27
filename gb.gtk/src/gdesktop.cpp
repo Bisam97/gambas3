@@ -24,13 +24,8 @@
 #include "widgets.h"
 #include "gb.form.font.h"
 
-#ifndef GAMBAS_DIRECTFB
-#ifdef GDK_WINDOWING_X11
-#include <gdk/gdkx.h>
-#include <X11/X.h>
-#include <X11/Xlib.h>
+#ifndef GTK3
 #include "x11.h"
-#endif
 #endif
 
 #include "gapplication.h"
@@ -43,278 +38,40 @@ Desktop
 
 ************************************************************************/
 
-gFont *gDesktop::_desktop_font = NULL;
-int gDesktop::_desktop_scale = 0;
+bool gDesktop::_colors_valid = false;
+gColor gDesktop::_colors[NUM_COLORS];
+gColor gDesktop::_colors_disabled[NUM_COLORS];
 
 bool gDesktop::rightToLeft()
 {
 	return MAIN_rtl; //gtk_widget_get_default_direction() == GTK_TEXT_DIR_RTL;
 }
 
-void gDesktop::init()
-{
-	_desktop_font = new gFont();
-	_desktop_font->setAll(true);
-	_desktop_scale = 0;
-}
-
-void gDesktop::exit()
-{
-	gFont::assign(&_desktop_font);
-}
-
-gFont* gDesktop::font()
-{
-	if (!_desktop_font) gDesktop::init();
-	return _desktop_font;
-}
-
-void gDesktop::setFont(gFont *ft)
-{
-	GList *iter;
-	gControl *control;
-
-	gFont::set(&_desktop_font, ft->copy());
-	_desktop_scale = 0;
-
-	iter = g_list_first(gControl::controlList());
-
-	while (iter)
-	{
-		control = (gControl *)iter->data;
-		control->updateFont();
-		iter = g_list_next(iter);
-	}
-}
-
-/*gControl* gDesktop::activeControl()
-{
-	gControl *test, *curr=NULL;
-	GList *iter=gControl::controlList();
-
-	if (!iter) return NULL;
-
-	iter=g_list_first(iter);
-	while (iter)
-	{
-		test=(gControl*)iter->data;
-		if (test->hasFocus())
-		{
-			curr=test;
-			break;
-		}
-		iter=iter->next;
-	}
-
-	return curr;
-
-}*/
-
 gMainWindow* gDesktop::activeWindow()
 {
 	return gMainWindow::_active ? gMainWindow::_active->topLevel() : NULL;
 }
 
-#ifdef GTK3
-static gColor get_color(GType type, gColor default_color, GtkStateFlags state, bool fg, bool text)
+int gDesktop::width()
 {
-	static const char *bg_names[] = { "bg_color", "theme_bg_color", NULL };
-	static const char *fg_names[] = { "fg_color", "theme_fg_color", NULL };
-	static const char *base_bg_names[] = { "base_color", "theme_base_color", NULL };
-	static const char *base_fg_names[] = { "text_color", "theme_text_color", NULL };
-	static const char *sel_bg_names[] = { "selected_bg_color", "theme_selected_bg_color", NULL };
-	static const char *sel_fg_names[] = { "selected_fg_color", "theme_selected_fg_color", NULL };
-	static const char *tt_bg_names[] = { "tooltip_bg_color", "theme_tooltip_bg_color", NULL };
-	static const char *tt_fg_names[] = { "tooltip_fg_color", "link_fg_color", "theme_tooltip_fg_color", NULL };
-	static const char *link_fg_names[] = { "link_color", "theme_link_color", NULL };
-	static const char *visited_fg_names[] = { "visited_link_color", "theme_visited_link_color", NULL };
-
-	GtkStyleContext *st = gt_get_style(type);
-	GdkRGBA rgba;
-
-	if (type == GTK_TYPE_WINDOW || type == GTK_TYPE_BUTTON)
-	{
-		if (!gt_style_lookup_color(st, fg ? fg_names : bg_names, NULL, &rgba))
-			goto __OK;
-	}
-	else if (type == GTK_TYPE_ENTRY)
-	{
-		if (state == GTK_STATE_FLAG_SELECTED)
-		{
-			if (!gt_style_lookup_color(st, fg ? sel_fg_names : sel_bg_names, NULL, &rgba))
-				goto __OK;
-		}
-		else
-		{
-			if (!gt_style_lookup_color(st, fg ? base_fg_names : base_bg_names, NULL, &rgba))
-				goto __OK;
-		}
-	}
-	else if (type == GTK_TYPE_TOOLTIP)
-	{
-		if (!gt_style_lookup_color(st, fg ? tt_fg_names : tt_bg_names, NULL, &rgba))
-			goto __OK;
-	}
-	else if (type == GTK_TYPE_LINK_BUTTON)
-	{
-		if (!gt_style_lookup_color(st, fg ? link_fg_names : visited_fg_names, NULL, &rgba))
-			goto __OK;
-	}
-
-	if (!st)
-		return default_color;
-
-	if (fg)
-		gtk_style_context_get_color(st, state, &rgba);
-	else
-		gtk_style_context_get_background_color(st, state, &rgba);
-
-__OK:
-
-	if (rgba.alpha < 0.05)
-		rgba.alpha = 1;
-	
-	return gt_to_color(&rgba);
-}
+#if GTK_CHECK_VERSION(3, 22, 0)
+	GdkRectangle rect;
+	gdk_monitor_get_geometry(gdk_display_get_primary_monitor(gdk_display_get_default()), &rect);
+	return rect.width;
 #else
-static gColor get_color(GType type, gColor default_color, GtkStateType state, bool fg, bool text)
-{
-	GtkStyle *st = gt_get_style(type);
-	GdkColor *color;
-
-	if (!st)
-		return default_color;
-
-	if (text)
-	{
-		if (fg)
-			color = &st->text[state];
-		else
-			color = &st->base[state];
-	}
-	else
-	{
-		if (fg)
-			color = &st->fg[state];
-		else
-			color = &st->bg[state];
-	}
-	return get_gdk_color(color);
-}
+	return gdk_screen_get_width(gdk_screen_get_default ());
 #endif
-
-gColor gDesktop::buttonfgColor()
-{
-	return get_color(GTK_TYPE_BUTTON, 0, STATE_NORMAL, true, false);
-}
-
-gColor gDesktop::buttonbgColor()
-{
-	return get_color(GTK_TYPE_BUTTON, 0xC0C0C0, STATE_NORMAL, false, false);
-}
-
-gColor gDesktop::fgColor()
-{
-	return get_color(GTK_TYPE_WINDOW, 0, STATE_NORMAL, true, false);
-}
-
-gColor gDesktop::bgColor()
-{
-	return get_color(GTK_TYPE_WINDOW, 0xC0C0C0, STATE_NORMAL, false, false);
-}
-
-gColor gDesktop::textfgColor()
-{
-	return get_color(GTK_TYPE_ENTRY, 0, STATE_NORMAL, true, true);
-}
-
-gColor gDesktop::textbgColor()
-{
-	return get_color(GTK_TYPE_ENTRY, 0xFFFFFF, STATE_NORMAL, false, true);
-}
-
-gColor gDesktop::selfgColor()
-{
-	return get_color(GTK_TYPE_ENTRY, 0xFFFFFF, STATE_SELECTED, true, true);
-}
-
-gColor gDesktop::selbgColor()
-{
-	return get_color(GTK_TYPE_ENTRY, 0x0000FF, STATE_SELECTED, false, true);
-}
-
-static int get_luminance(gColor col)
-{
-	int r, g, b;
-	gt_color_to_rgb(col, &r, &g, &b);
-	return (int)(0.299 * r + 0.587 * g + 0.114 * b);
-}
-
-gColor gDesktop::tooltipForeground()
-{
-	int r, g, b;
-	int h, s, v;
-	gColor fg = get_color(GTK_TYPE_TOOLTIP, 0, STATE_NORMAL, true, false);
-	gColor bg = gDesktop::tooltipBackground();
-	int lfg = get_luminance(fg);
-	int lbg = get_luminance(bg);
-	
-	if (abs(lfg - lbg) > 64)
-		return fg;
-	
-	gt_color_to_rgb(fg, &r, &g, &b);
-	gt_rgb_to_hsv(r, g, b, &h, &s, &v);
-	v = 255 - v;
-	gt_hsv_to_rgb(h, s, v, &r, &g, &b);
-	return gt_rgb_to_color(r, g, b);
-}
-
-gColor gDesktop::tooltipBackground()
-{
-	return get_color(GTK_TYPE_TOOLTIP, 0xFFFFDF, STATE_NORMAL, false, false);
-}
-
-gColor gDesktop::linkForeground()
-{
-	return get_color(GTK_TYPE_LINK_BUTTON, 0x0000FF, STATE_NORMAL, true, false);
-}
-
-gColor gDesktop::visitedForeground()
-{
-#ifdef GTK3
-	return get_color(GTK_TYPE_LINK_BUTTON, 0x0080FF, STATE_NORMAL, false, false);
-#else
-	int r, g ,b, h, s, v;
-	gt_color_to_rgb(linkForeground(), &r, &g, &b);
-	gt_rgb_to_hsv(r, g, b, &h, &s, &v);
-	h -= 30;
-	if (h < 0)
-		h += 360;
-	gt_hsv_to_rgb(h, s, v, &r, &g, &b);
-	return gt_rgb_to_color(r, g, b);
-#endif
-}
-
-gColor gDesktop::lightbgColor()
-{
-	uint col = IMAGE.MergeColor(gDesktop::selbgColor(), gDesktop::selfgColor(), 0.2);
-	return col;
-}
-
-gColor gDesktop::lightfgColor()
-{
-	uint col = IMAGE.MergeColor(gDesktop::bgColor(), gDesktop::fgColor(), 0.2);
-	return col;
 }
 
 int gDesktop::height()
 {
-	return gdk_screen_get_height(gdk_screen_get_default ());
-}
-
-int gDesktop::width()
-{
-	return gdk_screen_get_width(gdk_screen_get_default ());
+#if GTK_CHECK_VERSION(3, 22, 0)
+	GdkRectangle rect;
+	gdk_monitor_get_geometry(gdk_display_get_primary_monitor(gdk_display_get_default()), &rect);
+	return rect.height;
+#else
+	return gdk_screen_get_height(gdk_screen_get_default());
+#endif
 }
 
 int gDesktop::resolution()
@@ -325,39 +82,6 @@ int gDesktop::resolution()
 	return res;
 }
 
-int gDesktop::scale()
-{
-	if (!_desktop_scale)
-	{
-		gFont *ft = font();
-		_desktop_scale = GET_DESKTOP_SCALE(ft->size(), resolution());
-	}
-
-/*	PangoLanguage *lng=NULL;
-	PangoContext* ct=gdk_pango_context_get();
-	GtkStyle *sty=gtk_widget_get_default_style();
-	PangoFontDescription *ft=sty->font_desc;
-	PangoFontMetrics* fm;
-	int val;
-
-	if (!_desktop_scale)
-	{
-		if (getenv("LANG"))
-			lng = pango_language_from_string(getenv("LANG"));
-
-		fm = pango_context_get_metrics (ct,ft,lng);
-
-		val = 1 + (pango_font_metrics_get_ascent(fm) + pango_font_metrics_get_descent(fm)) / PANGO_SCALE;
-		val = GET_DESKTOP_SCALE(val);
-		pango_font_metrics_unref(fm);
-		g_object_unref(G_OBJECT(ct));
-
-		if (!val) val = 1;
-		_desktop_scale = val;
-	}*/
-
-	return _desktop_scale;
-}
 
 gPicture* gDesktop::screenshot(int x, int y, int w, int h)
 {
@@ -366,7 +90,9 @@ gPicture* gDesktop::screenshot(int x, int y, int w, int h)
 
 int gDesktop::count()
 {
-#ifdef GTK3
+#if GTK_CHECK_VERSION(3, 22, 0)
+	return gdk_display_get_n_monitors(gdk_display_get_default());
+#elif defined(GTK3)
 	return gdk_screen_get_n_monitors(gdk_screen_get_default());
 #else
 	return gdk_display_get_n_screens(gdk_display_get_default());
@@ -379,7 +105,9 @@ void gDesktop::geometry(int screen, GdkRectangle *rect)
 	if (screen < 0 || screen >= count())
 		return;
 
-#ifdef GTK3
+#if GTK_CHECK_VERSION(3, 22, 0)
+	gdk_monitor_get_geometry(gdk_display_get_monitor(gdk_display_get_default(), screen), rect);
+#elif defined(GTK3)
 	gdk_screen_get_monitor_geometry(gdk_screen_get_default(), screen, rect);
 #else
 	rect->width = gdk_screen_get_width(gdk_display_get_screen(gdk_display_get_default(), screen));
@@ -393,10 +121,147 @@ void gDesktop::availableGeometry(int screen, GdkRectangle *rect)
 	if (screen < 0 || screen >= count())
 		return;
 
-#ifdef GTK3
+#if GTK_CHECK_VERSION(3, 22, 0)
+	gdk_monitor_get_workarea(gdk_display_get_monitor(gdk_display_get_default(), screen), rect);
+#elif defined(GTK3)
 	gdk_screen_get_monitor_workarea(gdk_screen_get_default(), screen, rect);
 #else
 	if (X11_get_available_geometry(screen, &rect->x, &rect->y, &rect->width, &rect->height))
 		geometry(screen, rect);
+#endif
+}
+
+void gDesktop::onThemeChange()
+{
+	gt_on_theme_change();
+	_colors_valid = false;
+}
+
+#ifdef GTK3
+
+static gColor get_color(GType type, bool fg, GtkStateFlags state, bool disabled)
+{
+	GtkStyleContext *style = gt_get_style(type, state == STATE_SELECTED ? "selection" : NULL, (type == GTK_TYPE_TOOLTIP && !fg) ? GTK_STYLE_CLASS_BACKGROUND : NULL);
+	
+	if (disabled)
+		state = (GtkStateFlags)(state | STATE_INSENSITIVE);
+	
+	gtk_style_context_set_state(style, state);
+	
+	if (!fg)
+	{
+		cairo_surface_t *image;
+		cairo_t *cairo;
+		uchar *p;
+		
+		image = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, 32, 32);
+		cairo = cairo_create(image);
+		gtk_render_background(style, cairo, 0, 0, 32, 32);
+		cairo_destroy(cairo);
+		
+		p = (uchar *)cairo_image_surface_get_data(image) + sizeof(uint) * (16 * 33);
+		return gt_rgba_to_color(p[2], p[1], p[0], p[3]);
+	}
+	else
+	{
+		GdkRGBA rgba;
+		gtk_style_context_get_color(style, state, &rgba);
+		return gt_to_color(&rgba);
+	}
+	
+	if (state == STATE_SELECTED)
+		g_object_unref(G_OBJECT(style));
+}
+
+#else
+
+static gColor get_color(GType type, bool fg, GtkStateType state, bool disabled)
+{
+	GtkStyle *st = gt_get_style(type);
+	GdkColor *color;
+
+	if (disabled)
+		state = STATE_INSENSITIVE;
+	
+	if (type == GTK_TYPE_ENTRY)
+	{
+		if (fg)
+			color = &st->text[state];
+		else
+			color = &st->base[state];
+	}
+	else
+	{
+		if (fg)
+			color = &st->fg[state];
+		else
+			color = &st->bg[state];
+	}
+	
+	return gt_gdkcolor_to_color(color);
+}
+
+#endif
+
+void gDesktop::calc_colors(gColor colors[], bool disabled)
+{
+	colors[BACKGROUND] = get_color(GTK_TYPE_WINDOW, false, STATE_NORMAL, disabled);
+	colors[FOREGROUND] = get_color(GTK_TYPE_WINDOW, true, STATE_NORMAL, disabled);
+	colors[TEXT_BACKGROUND] = get_color(GTK_TYPE_ENTRY, false, STATE_NORMAL, disabled);
+	colors[TEXT_FOREGROUND] = get_color(GTK_TYPE_ENTRY, true, STATE_NORMAL, disabled);
+	colors[SELECTED_BACKGROUND] = get_color(GTK_TYPE_ENTRY, false, STATE_SELECTED, disabled);
+	colors[SELECTED_FOREGROUND] = get_color(GTK_TYPE_ENTRY, true, STATE_SELECTED, disabled);
+	colors[BUTTON_BACKGROUND] = get_color(GTK_TYPE_BUTTON, false, STATE_NORMAL, disabled);
+	colors[BUTTON_FOREGROUND] = get_color(GTK_TYPE_BUTTON, true, STATE_NORMAL, disabled);
+	colors[TOOLTIP_BACKGROUND] = get_color(GTK_TYPE_TOOLTIP, false, STATE_NORMAL, disabled);
+	colors[TOOLTIP_FOREGROUND] = get_color(GTK_TYPE_TOOLTIP, true, STATE_NORMAL, disabled);
+	#ifdef GTK3
+		#if GTK_CHECK_VERSION(3, 12, 0)
+			colors[LINK_FOREGROUND] = get_color(GTK_TYPE_LINK_BUTTON, true, STATE_LINK, disabled);
+			colors[VISITED_FOREGROUND] = get_color(GTK_TYPE_LINK_BUTTON, true, (STATE_T)((int)STATE_LINK + (int)STATE_VISITED), disabled);
+		#else
+			colors[LINK_FOREGROUND] = get_color(GTK_TYPE_LINK_BUTTON, true, STATE_NORMAL, disabled);
+			colors[VISITED_FOREGROUND] = IMAGE.DarkerColor(_colors[LINK_FOREGROUND]);
+		#endif
+	#else
+		colors[LINK_FOREGROUND] = IMAGE.LighterColor(_colors[SELECTED_BACKGROUND]);
+		colors[VISITED_FOREGROUND] = IMAGE.DarkerColor(_colors[LINK_FOREGROUND]);
+	#endif
+	colors[LIGHT_BACKGROUND] = IMAGE.MergeColor(_colors[SELECTED_BACKGROUND], _colors[SELECTED_FOREGROUND], 0.3);
+	colors[LIGHT_FOREGROUND] = IMAGE.MergeColor(_colors[BACKGROUND], _colors[FOREGROUND], 0.3);
+}
+
+gColor gDesktop::getColor(int color, bool disabled)
+{
+	if (!_colors_valid)
+	{
+		calc_colors(_colors, false);
+		calc_colors(_colors_disabled, true);
+		_colors_valid = true;
+	}
+	
+	return disabled ? _colors_disabled[color] : _colors[color];
+}
+
+void gDesktop::screenResolution(int screen, double *x, double *y)
+{
+	GdkRectangle rect;
+	
+	if (screen < 0 || screen >= count())
+	{
+		if (*x) *x = 0;
+		if (*y) *y = 0;
+		return;
+	}
+
+#if GTK_CHECK_VERSION(3, 22, 0)
+	GdkMonitor *monitor = gdk_display_get_monitor(gdk_display_get_default(), screen);
+	gdk_monitor_get_geometry(monitor, &rect);
+	if (x) *x = rect.width / (gdk_monitor_get_width_mm(monitor) / 25.4);
+	if (y) *y = rect.height / (gdk_monitor_get_height_mm(monitor) / 25.4);
+#else
+	gdk_screen_get_monitor_geometry(gdk_screen_get_default(), screen, &rect);
+	if (x) *x = rect.width / (gdk_screen_get_monitor_width_mm(gdk_screen_get_default(), screen) / 25.4);
+	if (y) *y = rect.height / (gdk_screen_get_monitor_height_mm(gdk_screen_get_default(), screen) / 25.4);
 #endif
 }

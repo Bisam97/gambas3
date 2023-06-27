@@ -2,7 +2,7 @@
 
   gb.form.arrangement.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -42,10 +42,9 @@ the following fields:
 - indent: if the arrangement area must have an indentation of Desktop.Scale
 - autoresize : if the container must try to fit its contents.
 - locked : if the container is being arranged.
-- user : if the container is a UserControl or a UserContainer.
 
-#define IS_RIGHT_TO_LEFT()
-If the current language is right to left written
+#define IS_RIGHT_TO_LEFT(_object)
+If the control is right to left written
 
 #define GET_WIDGET(_object)
 Returns the widget associated with the gambas control
@@ -66,6 +65,9 @@ Returns if the control is in design mode.
 
 #define IS_WIDGET_VISIBLE(_widget)
 Returns if a widget is visible to the screen.
+
+#define IS_USER(_object)
+Returns if the control is a UserControl or a UserContainer
 
 #define GET_WIDGET_CONTENTS(_widget, _x, _y, _w, _h)
 Sets the _x, _y, _w & _h variables with the dimensions of the area
@@ -154,12 +156,17 @@ void FUNCTION_NAME(void *_object) //(QFrame *cont)
 	int padding;
 	int spacing;
 	int indent;
+	bool centered;
+
+	arr = GET_ARRANGEMENT(_object);
 
 	if (!CAN_ARRANGE(_object))
+	{
+		arr->dirty = TRUE;
 		return;
+	}
 		
 	cont = (CONTAINER_TYPE)GET_CONTAINER(_object);
-	arr = GET_ARRANGEMENT(_object);
 
 	//if (!IS_WIDGET_VISIBLE(cont) && !IS_WIDGET_VISIBLE(GET_WIDGET(_object)))
 	//  return;
@@ -184,7 +191,7 @@ void FUNCTION_NAME(void *_object) //(QFrame *cont)
 		// g_debug("arrange: %s (%d %d) (%d %d)", ((gControl *)_object)->name(), ((gContainer *)_object)->width(), ((gContainer *)_object)->height(), ((gContainer *)_object)->clientWidth(), ((gContainer *)_object)->clientHeight());
 		//usleep(50000);
 
-		if (arr->user)
+		if (IS_USER(_object))
 			cont = (CONTAINER_TYPE)GET_WIDGET(_object);
 
 		// INIT_CHECK_CHILDREN_LIST() can return
@@ -204,7 +211,7 @@ void FUNCTION_NAME(void *_object) //(QFrame *cont)
 		//fprintf(stderr, "arrange: %s %d (%d %d) (%d %d)\n", ((gControl *)_object)->name(), arr->mode, ((gContainer *)_object)->width(), ((gContainer *)_object)->height(), ((gContainer *)_object)->clientWidth(), ((gContainer *)_object)->clientHeight());
 
 		invert = arr->invert;
-		rtl = IS_RIGHT_TO_LEFT();
+		rtl = IS_RIGHT_TO_LEFT(_object);
 		swap = (arr->mode & 1) == 0; // means "vertical"
 
 		if (!swap && invert)
@@ -231,7 +238,9 @@ void FUNCTION_NAME(void *_object) //(QFrame *cont)
 		
 		indent = arr->indent * DESKTOP_SCALE;
 		
-		for(i = 0; i < 3; i++)
+		centered = arr->centered;
+		
+		for (i = 0; i < 3; i++)
 		{
 			redo = false;
 
@@ -324,6 +333,9 @@ void FUNCTION_NAME(void *_object) //(QFrame *cont)
 						if (!ob || IS_IGNORE(ob))
 							continue;
 						
+						/*if (!::strcmp(GET_OBJECT_NAME(_object), "panFont"))
+							fprintf(stderr, "CCONTAINER_arrange: %s: child: %s\n", GET_OBJECT_NAME(_object), GET_OBJECT_NAME(ob));*/
+
 						if (IS_EXPAND(ob))
 							nexp++;
 						else
@@ -361,8 +373,26 @@ void FUNCTION_NAME(void *_object) //(QFrame *cont)
 					if (sexp < 0)
 						sexp = 0;
 
+					if (centered && sexp && nexp == 0)
+					{
+						if (swap)
+						{
+							y += sexp / 2;
+							hc -= sexp / 2;
+						}
+						else
+						{
+							x += sexp / 2;
+							wc -= sexp / 2;
+						}
+						sexp = 0;
+					}
+					
 					RESET_CHILDREN_LIST();
 					wid = 0;
+					
+					/*if (!::strcmp(GET_OBJECT_NAME(_object), "panFont"))
+						fprintf(stderr, "CCONTAINER_arrange: %s: %d %d / %d x %d / nexp = %d\n", GET_OBJECT_NAME(_object), xc, yc, wc, hc, nexp);*/
 
 					for(;;)
 					{
@@ -393,9 +423,15 @@ void FUNCTION_NAME(void *_object) //(QFrame *cont)
 						{
 							if (IS_EXPAND(ob)) // && !autoresize)
 							{
-								h = sexp / nexp;
-								sexp -= h;
-								nexp--;
+								if (nexp == 0) // the list of expanded widget may change
+									h = 0;
+								else
+								{
+									h = sexp / nexp;
+									sexp -= h;
+									nexp--;
+								}
+								
 								if (h <= 0)
 									MOVE_WIDGET(ob, wid, -GET_WIDGET_W(wid), GET_WIDGET_Y(wid));
 							}
@@ -426,9 +462,17 @@ void FUNCTION_NAME(void *_object) //(QFrame *cont)
 						{
 							if (IS_EXPAND(ob)) // && !autoresize)
 							{
-								w = sexp / nexp;
-								sexp -= w;
-								nexp--;
+								if (nexp == 0) // the list of expanded widget may change
+								{
+									w = 0;
+								}
+								else
+								{
+									w = sexp / nexp;
+									sexp -= w;
+									nexp--;
+								}
+								
 								if (w <= 0)
 									MOVE_WIDGET(ob, wid, GET_WIDGET_X(wid), -GET_WIDGET_H(wid));
 							}
@@ -584,8 +628,6 @@ void FUNCTION_NAME(void *_object) //(QFrame *cont)
 
 				case ARRANGE_FILL:
 					
-					w = h = 0;
-					
 					for(;;)
 					{
 						wid = GET_NEXT_CHILD_WIDGET();
@@ -596,15 +638,21 @@ void FUNCTION_NAME(void *_object) //(QFrame *cont)
 						if (!ob || IS_IGNORE(ob))
 							continue;
 						
-						MOVE_RESIZE_WIDGET(ob, wid, xc, yc, wc, hc);
+						if (centered)
+							MOVE_WIDGET(ob, wid, xc + (wc - GET_WIDGET_W(wid)) / 2, yc + (hc - GET_WIDGET_H(wid)) / 2);
+						else
+							MOVE_RESIZE_WIDGET(ob, wid, xc, yc, wc, hc);
 						
-						if (GET_WIDGET_H(wid) > h)
+						/*if (GET_WIDGET_H(wid) > h)
 							h = GET_WIDGET_H(wid);
 						
 						if (GET_WIDGET_W(wid) > w)
-							w = GET_WIDGET_W(wid);
+							w = GET_WIDGET_W(wid);*/
 					}
 
+					w = wc;
+					h = hc;
+					
 					break;
 			}
 
@@ -636,12 +684,12 @@ void FUNCTION_NAME(void *_object) //(QFrame *cont)
 
 					case ARRANGE_VERTICAL:
 // 						#ifndef QNAMESPACE_H
-// 						fprintf(stderr, "%s: VERTICAL: x = %d autoresize (%d, %d) pad %d spc %d [%d] rtl %d\n", 
+// 						fprintf(stderr, "%s: VERTICAL: x = %d autoresize (%d, %d) pad %d spc %d [%d] rtl %d\n",
 // 						((gControl *)_object)->name(), x, x + arr->padding + wf, GET_WIDGET_H(cont), arr->padding, spacing, i, rtl);
 // 						#else
-// 						fprintf(stderr, "%s: VERTICAL: y = %d autoresize (%d, %d) pad %d spc %d [%d] rtl %d hec %d\n", 
-// 							((CWIDGET *)_object)->name, y, dmax + wf, has_expand_children ? GET_WIDGET_H(cont) : y + arr->padding + hf, 
-// 							arr->padding, spacing, i, rtl, has_expand_children);						
+// 						fprintf(stderr, "%s: VERTICAL: y = %d autoresize (%d, %d) pad %d spc %d [%d] rtl %d hec %d\n",
+// 							((CWIDGET *)_object)->name, y, dmax + wf, has_expand_children ? GET_WIDGET_H(cont) : y + arr->padding + hf,
+// 							arr->padding, spacing, i, rtl, has_expand_children);
 // 						#endif
 						//RESIZE_WIDGET(cont, GET_WIDGET_W(cont), y + arr->padding + hf);
 						if (dmax > 0)
@@ -656,16 +704,18 @@ void FUNCTION_NAME(void *_object) //(QFrame *cont)
 						break;
 
 					case ARRANGE_ROW:
-						//if ((y + h + arr->padding + GET_WIDGET_H(cont) - hc - yc) < 16)
-						//	qDebug("y = %d h = %d arr->padding = %d H = %d hc = %d yc = %d -> %d", y, h, arr->padding, GET_WIDGET_H(cont), hc, yc, (y + h + arr->padding + GET_WIDGET_H(cont) - hc - yc));
-						RESIZE_CONTAINER(_object, cont, GET_WIDGET_W(cont), y + h + padding + hf);
+// 						#ifndef GET_MAX_SIZE
+// 						#ifndef QNAMESPACE_H
+// 						fprintf(stderr, "%s: ROW: autoresize (%d, %d)\n", ((gControl *)_object)->name(), GET_WIDGET_W(cont), y + h + padding + hf);
+// 						#else
+// 						fprintf(stderr, "%s: ROW: autoresize (%d, %d)\n", ((CWIDGET *)_object)->name, GET_WIDGET_W(cont), y + h + padding + hf);
+// 						#endif
+// 						#endif
+// 						RESIZE_CONTAINER(_object, cont, GET_WIDGET_W(cont), y + h + padding + hf);
 						break;
 					
 					case ARRANGE_FILL:
-// 						#ifndef QNAMESPACE_H
-// 						if (strncmp(((gControl *)_object)->name(), "DataControl", 11) == 0)
-// 							fprintf(stderr, "%s: RESIZE_CONTAINER(%p, %p, %d, %d)\n", ((gControl *)_object)->name(), GET_WIDGET(_object), cont, w, h);
-// 						#endif
+						//fprintf(stderr, "%s: RESIZE_CONTAINER(%p, %p, %d, %d)\n", GET_OBJECT_NAME(_object), GET_WIDGET(_object), cont, w + padding * 2, h + padding * 2);
 						RESIZE_CONTAINER(_object, cont, w + padding * 2, h + padding * 2);
 						break;
 				}
@@ -679,12 +729,13 @@ void FUNCTION_NAME(void *_object) //(QFrame *cont)
 
 __RETURN:
 
+	arr->dirty = false;
+
 	RAISE_ARRANGE_EVENT(_object);
 
 	arr->locked = false;
 
 	//qDebug("%p: dirty = FALSE", THIS);
-	//arr->dirty = false;
 
 	//qDebug("CCONTAINER_arrange: END %p", THIS);
 

@@ -20,16 +20,34 @@ Public Sub Form_Open()
   fchExec.SetFocus
   
   chkDebug.Value = Project.KeepDebugInfo
-  chkShortcut.Value = Project.CreateShortcut
+  chkCompress.Value = Project.CompressFiles
+
+  chkIncVersion.Visible = Not Project.VersionFile
+  panVersion.Visible = chkIncVersion.Visible
+
+  txtMajor.Value = Project.MajorVersion
+  txtMinor.Value = Project.MinorVersion
+  txtRelease.Value = Project.ReleaseVersion
+
+  chkIncVersion.Value = Not Project.Config["/Executable/DoNotIncrementVersion", False]
+  chkSetVersion.Value = False
+
+  chkNoTest.Visible = Project.HasTest()
+  chkNoTest.Value = Project.Config["/Executable/NoTestModule", False]
+
+  chkNoPublic.Visible = IsDir(Project.Dir &/ ".public")
+  chkNoPublic.Value = Project.Config["/Executable/NoPublicDirectory", False]
+
   ' If Project.CreateComponent Then 
   '   chkShortcut.Text = ("Install in the user component directory")
   ' Else
   '   chkShortcut.Text = ("Create a shortcut on the desktop")
   ' Endif
+  chkShortcut.Value = Project.CreateShortcut
   chkShortcut.Visible = Project.Type = Project.TYPE_NORMAL
   txtCommand.Text = Project.RunAfterMakingExec
   
-  panExtension.Reparent(fchExec.Extension)
+  tabExec.Index = 0
   
 End
 
@@ -40,20 +58,70 @@ Public Sub Form_Close()
 
 End
 
-Public Sub fchExec_Activate()
+Public Sub btnOK_Click()
 
   $sPath = fchExec.SelectedPath
-  Project.KeepDebugInfo = chkDebug.Value
-  Project.CreateShortcut = chkShortcut.Value
-  Project.RunAfterMakingExec = Trim(txtCommand.Text)
-  Project.WriteProject(True)
+  
+  With Project
+    .KeepDebugInfo = chkDebug.Value
+    .CompressFiles = chkCompress.Value
+    .CreateShortcut = chkShortcut.Value
+    .RunAfterMakingExec = Trim(txtCommand.Text)
+    .Config["/Executable/DoNotIncrementVersion"] = chkIncVersion.Value = CheckBox.False
+    .Config["/Executable/NoTestModule"] = CBool(chkNoTest.Value)
+    .Config["/Executable/NoPublicDirectory"] = CBool(chkNoPublic.Value)
+    
+    If chkSetVersion.Value Then
+      .MajorVersion = txtMajor.Value 
+      .MinorVersion = txtMinor.Value
+      .ReleaseVersion = txtRelease.Value
+    Endif
+    
+    .WriteProject(True)
+  End With
+  
   Me.Close(True)
 
 End
 
-Public Sub fchExec_Cancel()
-  
+Public Sub btnCancel_Click()
+
   Me.Close
-  
+
 End
 
+Public Sub chkIncVersion_Click()
+
+  If chkIncVersion.Value Then
+    txtMajor.Value = Project.MajorVersion
+    txtMinor.Value = Project.MinorVersion
+    txtRelease.Value = Project.ReleaseVersion + 1
+    chkSetVersion.Value = False
+  Else
+    txtMajor.Value = Project.MajorVersion
+    txtMinor.Value = Project.MinorVersion
+    txtRelease.Value = Project.ReleaseVersion
+  Endif
+
+End
+
+Public Sub chkSetVersion_Click()
+
+  txtMajor.Enabled = chkSetVersion.Value
+  txtMinor.Enabled = chkSetVersion.Value
+  txtRelease.Enabled = chkSetVersion.Value
+  btnUndoVersion.Enabled = True
+  
+  If chkSetVersion.Value Then 
+    chkIncVersion.Value = False
+  Endif
+
+End
+
+Public Sub btnUndoVersion_Click()
+
+  txtMajor.Value = Project.MajorVersion
+  txtMinor.Value = Project.MinorVersion
+  txtRelease.Value = Project.ReleaseVersion
+
+End

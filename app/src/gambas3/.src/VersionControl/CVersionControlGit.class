@@ -8,6 +8,8 @@ Public Const LongName As String = "Git"
 Public Const DoNotPush As Boolean = True
 Public Const CancelUpdate As Boolean = True
 Public Const NeedMove As Boolean = False
+Public Const CanCreateBranch As Boolean = True
+Public Const HasIdentity As Boolean = True
 
 Private $aConflict As String[] = ["DD", "AU", "UD", "UA", "DU", "AA", "UU"]
 
@@ -17,6 +19,9 @@ Private $sRoot As String
 Private $bCanControl As Boolean
 Private $bCanInit As Boolean
 Private $bHasRemote As Boolean
+
+Private $iPadHistory As Integer
+Private $hHighlightDiff As TextHighlighter
 
 Private Sub Init()
 
@@ -33,16 +38,35 @@ Private Sub RunShell(sCmd As String, Optional bSilent As Boolean) As String
   
 End
 
+Static Public Sub FindRoot(Optional sDir As String) As String
+
+  Dim sPath As String
+  Dim sData As String
+
+  If Not sDir Then sDir = Project.Dir
+  While Len(sDir) > 1
+    sPath = sDir &/ ".git"
+    If Exist(sPath) Then
+      If Exist(sPath &/ "HEAD") Then Return sDir &/ ".git"
+      Try sData = File.Load(sPath)
+      If sData Begins "gitdir:" Then Return LTrim(Mid$(sData, 8, -1))
+    Endif
+    sDir = File.Dir(sDir)
+  Wend
+
+End
 
 Public Sub Check() As Boolean
   
   Dim sResult As String
+  Dim sRoot As String
   
   Init()
   
   If $bHasGit Then
     
-    sResult = RunShell("git status --porcelain .project")
+    'sResult = RunShell("git status --porcelain .project")
+    Exec ["git", "status", "--porcelain", ".project"] With ["PWD=" & Project.Dir] To sResult
     
     If Process.LastValue Then
       $bCanInit = True
@@ -52,10 +76,12 @@ Public Sub Check() As Boolean
       $bCanControl = sResult Begins "??"
 
       If Not $bCanControl Then
-        sResult = RunShell("git rev-parse --show-toplevel")
-        If Process.LastValue = 0 Then 
-          $sRoot = Trim(sResult)
-          $bHasRemote = RunShell("git remote show")
+        sRoot = FindRoot()
+        If sRoot Then
+          $sRoot = File.Dir(sRoot)
+          '$bHasRemote = RunShell("git remote show")
+          Exec ["git", "remote", "show"] With ["PWD=" & Project.Dir] To sResult
+          $bHasRemote = Trim(sResult)
           Return True
         Endif
       Endif
@@ -66,32 +92,60 @@ Public Sub Check() As Boolean
   
 End
 
+Public Sub GetCurrentBranch() As String
+
+  ' Works only with git > 2.22
+  ' Return Trim(RunShell("git branch --show-current"))
+  Return Trim(RunShell("git rev-parse --abbrev-ref HEAD"))
+  
+End
+
 Public Sub GetBranches(ByRef sCurrent As String) As String[]
   
   Dim sResult As String
   Dim sBranch As String
   Dim aBranches As New String[]
+  Dim bCurrent As Boolean
   
-  sResult = RunShell("git branch") 'VersionControl.Shell("cd " & Shell$(Project.Dir) & " && git branch")
+  sResult = RunShell("git branch -a", True) 
   
   For Each sBranch In Split(Trim(sResult), "\n")
+    
     sBranch = Trim(sBranch)
     If sBranch Begins "*" Then
+    
       sBranch = Trim(Mid$(sBranch, 2))
-      sCurrent = sBranch
+      bCurrent = True
+    Else
+      bCurrent = False
+      If sBranch Begins "+ " Then sBranch = Mid$(sBranch, 3)
     Endif
-    aBranches.Add(sBranch)
+    
+    If sBranch Begins "remotes/origin/" Then
+      sBranch = Mid$(sBranch, 16)
+      If InStr(sBranch, " -> ") Then Continue
+    Endif
+    
+    If bCurrent Then sCurrent = sBranch 
+    
+    If Not aBranches.Exist(sBranch) Then aBranches.Add(sBranch)
+    
   Next
+  
+  aBranches.Sort(gb.Natural)
   
   Return aBranches
   
 End
 
-Public Sub Diff(sPath As String) As String
+Public Sub Diff(sPath As String, Optional bFull As Boolean, bNoWhiteSpace As Boolean) As String
   
   Dim sDiff As String
   Dim sCmd As String
   Dim sHead As String
+  Dim sFull As String
+  Dim iPos As Integer
+  Dim sOption As String
 
   'If VersionControl.Shell("cd " & Shell(Project.Dir) & " && git log -1", True) Then
   If RunShell("git log -1", True) Then
@@ -100,14 +154,47 @@ Public Sub Diff(sPath As String) As String
     sHead = "--staged"
   Endif
 
+  If bFull Then sFull = " -U100000"
+  
+  If bNoWhiteSpace Then sOption = " -b --ignore-blank-lines"
+
   If IsDir(sPath) Then
-    sCmd = "cd " & Shell(sPath) & " && git diff " & sHead & " ."
+    sCmd = "cd " & Shell(sPath) & " && git diff" & sOption & sFull & " " & sHead & " ."
   Else
-    sCmd = "cd " & Shell(File.Dir(sPath)) & " && git diff " & sHead & " " & Shell(File.Name(sPath))
+    sCmd = "cd " & Shell(File.Dir(sPath)) & " && git diff" & sOption & sFull & " " & sHead & " " & Shell(File.Name(sPath))
   Endif
   
   sDiff = VersionControl.Shell(sCmd)
+  
+  If bFull Then
+    iPos = InStr(sDiff, "@@\n")
+    If iPos Then
+      sDiff = Mid$(sDiff, iPos + 3)
+    Else
+      sDiff = ""
+    Endif
+  Endif
+  
   Return sDiff
+
+End
+
+Public Sub History(sPath As String, Optional sPath2 As String, bFull As Boolean) As String
+  
+  Dim sCmd As String
+  Dim sFull As String
+  
+  If bFull Then sFull = "-p -b "
+  
+  If IsDir(sPath) Then
+    sCmd = "cd " & Shell(sPath) & " && git log --date=rfc2822 " & sFull & "."
+  Else
+    sCmd = "cd " & Shell(File.Dir(sPath)) & " && git log --date=rfc2822 " & sFull & Shell(File.Name(sPath))
+    If sPath2 Then sCmd &= " " & Shell(File.Name(sPath2))
+  Endif
+  
+  'Return VersionControl.Shell(sCmd)
+  Shell sCmd Wait
 
 End
 
@@ -135,28 +222,16 @@ Public Sub GetDefaultJournal() As String
   
 End
 
-Public Sub Update() As Boolean
+Public Sub Update() As Integer
 
-  Dim bResult As Integer
   Dim aEnv As String[]
-  
-  ' Dim sFile As String
-  ' Dim sPath As String
   
   aEnv = VersionControl.LANG_ENV.Copy()
   aEnv.Add("PWD=" & Project.Dir)
 
-  bResult = VersionControl.Run(["git", "pull", "-q"], True, True, aEnv)
-  
-  ' For Each sFile In [".project", ".startup", ".component", ".info"]
-  '   sPath = $sRealDir &/ sFile
-  '   If Exist(sPath) And If InConflict(sPath) Then Resolve(sPath, "theirs-full")
-  ' Next
-  ' For Each sFile In [".settings"]
-  '   sPath = $sRealDir &/ sFile
-  '   If Exist(sPath) And If InConflict(sPath) Then Resolve(sPath, "mine-full")
-  ' Next
-  Return bResult
+  VersionControl.Run(["git", "remote", "update", "origin", "--prune"], True, True, aEnv)
+
+  Return VersionControl.Run(["git", "pull", "-q"], True, True, aEnv)
 
 End
 
@@ -238,10 +313,10 @@ Public Sub RemoveFile(sPath As String, Optional (bForce) As Boolean)
   
 End
 
-Public Sub RemoveDir((sPath) As String)
+Public Sub RemoveDir(sPath As String)
 
-  ' git does not track directories
-  ' RemoveFile(sPath)
+  RunShell("git rm -rf --cached " & Shell(sPath))
+  Shell.RmDir(sPath)
 
 End
 
@@ -254,7 +329,7 @@ Public Sub Commit(sChange As String, bDoNotPush As Boolean) As Boolean
     sFile = Temp$()
     File.Save(sFile, sChange)
     'VersionControl.Run(["git", "commit", "-F", sFile, Project.Dir], False, False, VersionControl.LANG_ENV)
-    RunShell("git commit -F " & Shell$(sFile) & " .") ', Project.Dir)
+    RunShell("git commit -F " & Shell$(sFile) & " . 2>&1") ', Project.Dir)
     If Process.LastValue Then Return True
   Endif
   
@@ -409,5 +484,93 @@ Public Sub SolveConflict(sPath As String, Optional iAccept As Integer) As Boolea
   
   'FVersionControl.Run(True)
   RunShell("git commit -m " & Shell$(("Solve conflict."))) ', Project.Dir)
+  
+End
+
+Private Sub FormatDate(sDate As String) As String
+
+  Dim dDate As Date
+
+  Try dDate = Date.FromRFC822(sDate)
+  If Not dDate Then Return "?"
+  Return Format(dDate, gb.LongDate)
+
+End
+
+Fast Public Sub HighlightHistory(Text As String)
+  
+  Dim iState As Integer
+  Dim iLen As Integer
+
+  iState = TextHighlighter.State
+  iLen = String.Len(Text)
+
+  TextHighlighter.Limit = False
+  
+  If $iPadHistory = 0 Then
+    $iPadHistory = Max(Max(String.Len(("Date")), String.Len(("Author"))), String.Len("Commit"))
+  Endif
+  
+  TextHighlighter.Alternate = True
+  If Text Begins "commit " Then 
+    TextHighlighter.TextAfter = String.PadRight("Commit", $iPadHistory) & " : " & Mid$(Text, 8)
+    TextHighlighter.Add(Highlight.DataType, String.Len(TextHighlighter.TextAfter))
+    'TextHighlighter.Add(Highlight.DataType, String.Len(Text))
+    TextHighlighter.Limit = True
+  Else If Text Begins "Merge: " Then 
+    TextHighlighter.TextAfter = String.PadRight("Merge", $iPadHistory) & " : " & Mid$(Text, 8)
+    TextHighlighter.Add(Highlight.Number, String.Len(TextHighlighter.TextAfter))
+    'TextHighlighter.Add(Highlight.DataType, String.Len(Text))
+    TextHighlighter.Limit = True
+  Else If Text Begins "Author: " Then
+    TextHighlighter.TextAfter = String.PadRight(("Author"), $iPadHistory) & " : " & Mid$(Text, 9)
+    TextHighlighter.Add(Highlight.Function, String.Len(TextHighlighter.TextAfter))
+    'TextHighlighter.Add(Highlight.Function, String.Len(Text))
+  Else If Text Begins "Date: " Then
+    TextHighlighter.TextAfter = String.PadRight(("Date"), $iPadHistory) & " : " & FormatDate(Mid$(Text, 7))
+    TextHighlighter.Add(Highlight.Preprocessor, String.Len(TextHighlighter.TextAfter))
+    'TextHighlighter.Add(Highlight.Preprocessor, String.Len(Text))
+  Else
+    TextHighlighter.Alternate = False
+    If Not $hHighlightDiff Then $hHighlightDiff = TextHighlighter["diff"]
+    $hHighlightDiff.Run(Text)
+    'TextHighlighter.Add(Highlight.Normal, iLen)
+  Endif
+  
+End
+
+Public Sub GetRoot() As String
+  
+  Return $sRoot
+  
+End
+
+Public Sub CreateBranch(sNewBranch As String) As Boolean
+  
+  RunShell("git branch " & Shell(sNewBranch))
+  If Process.LastValue Then Return True
+  
+End
+
+
+Public Sub GetIdentity(ByRef sName As String, ByRef sEmail As String)
+  
+  Try sName = RunShell("git config user.name")
+  Try sEmail = RunShell("git config user.email")
+  
+End
+
+Public Sub SetIdentity(sName As String, sMail As String)
+  
+  If sName Then
+    RunShell("git config user.name " & Shell$(sName))
+  Else
+    RunShell("git config user.name --unset")
+  Endif
+  If sMail Then
+    RunShell("git config user.email " & Shell$(sMail))
+  Else 
+    RunShell("git config user.email --unset")
+  Endif
   
 End

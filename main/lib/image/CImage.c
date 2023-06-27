@@ -2,7 +2,7 @@
 
 	CImage.c
 
-	(c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+	(c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -43,7 +43,7 @@ BEGIN_METHOD(Image_new, GB_INTEGER w; GB_INTEGER h; GB_INTEGER col; GB_INTEGER f
 	if (VARGOPT(format, 0) == 1)
 		format = GB_IMAGE_FMT_SET_PREMULTIPLIED(format);
 
-	IMAGE_create(THIS_IMAGE, VARGOPT(w, 0), VARGOPT(h, 0), format);
+	IMAGE_create(THIS_IMAGE, VARGOPT(w, 0), VARGOPT(h, 0), format, VARGOPT(col, 0));
 	
 	if (!MISSING(col))
 		IMAGE_fill(THIS_IMAGE, VARG(col));
@@ -206,7 +206,7 @@ BEGIN_METHOD(Image_Copy, GB_INTEGER x; GB_INTEGER y; GB_INTEGER w; GB_INTEGER h)
 
 	image = GB.New(GB.FindClass("Image"), NULL, NULL);
 
-	IMAGE_create(&image->image, w, h, THIS_IMAGE->format);
+	IMAGE_create(&image->image, w, h, THIS_IMAGE->format, GB_COLOR_DEFAULT);
 	if (w > 0 && h > 0)
 		IMAGE_bitblt(&image->image, 0, 0, -1, -1, THIS_IMAGE, x, y, w, h);
 
@@ -226,7 +226,7 @@ BEGIN_METHOD(Image_Resize, GB_INTEGER width; GB_INTEGER height)
 	//IMAGE_convert(THIS_IMAGE, IMAGE_get_default_format());
 	//fprintf(stderr, "format = %d\n", THIS_IMAGE->format);
 	tmp.ob = THIS_IMAGE->ob;
-	IMAGE_create(&tmp, w, h, THIS_IMAGE->format);
+	IMAGE_create(&tmp, w, h, THIS_IMAGE->format, GB_COLOR_DEFAULT);
 	IMAGE_bitblt(&tmp, 0, 0, -1, -1, THIS_IMAGE, 0, 0, w, h);
 
 	IMAGE_delete(THIS_IMAGE);
@@ -240,7 +240,7 @@ BEGIN_METHOD(Image_Mirror, GB_BOOLEAN horz; GB_BOOLEAN vert)
 	GB_IMG tmp;
 
 	tmp.ob = THIS_IMAGE->ob;
-	IMAGE_create(&tmp, THIS_IMAGE->width, THIS_IMAGE->height, THIS_IMAGE->format);
+	IMAGE_create(&tmp, THIS_IMAGE->width, THIS_IMAGE->height, THIS_IMAGE->format, GB_COLOR_DEFAULT);
 	IMAGE_mirror(THIS_IMAGE, &tmp, VARG(horz), VARG(vert));
 	IMAGE_delete(THIS_IMAGE);
 	*THIS_IMAGE = tmp;
@@ -253,7 +253,7 @@ BEGIN_METHOD_VOID(Image_RotateLeft)
 	GB_IMG tmp;
 
 	tmp.ob = THIS_IMAGE->ob;
-	IMAGE_create(&tmp, THIS_IMAGE->height, THIS_IMAGE->width, THIS_IMAGE->format);
+	IMAGE_create(&tmp, THIS_IMAGE->height, THIS_IMAGE->width, THIS_IMAGE->format, GB_COLOR_DEFAULT);
 	IMAGE_rotate(THIS_IMAGE, &tmp, TRUE);
 	IMAGE_delete(THIS_IMAGE);
 	*THIS_IMAGE = tmp;
@@ -266,7 +266,7 @@ BEGIN_METHOD_VOID(Image_RotateRight)
 	GB_IMG tmp;
 
 	tmp.ob = THIS_IMAGE->ob;
-	IMAGE_create(&tmp, THIS_IMAGE->height, THIS_IMAGE->width, THIS_IMAGE->format);
+	IMAGE_create(&tmp, THIS_IMAGE->height, THIS_IMAGE->width, THIS_IMAGE->format, GB_COLOR_DEFAULT);
 	IMAGE_rotate(THIS_IMAGE, &tmp, FALSE);
 	IMAGE_delete(THIS_IMAGE);
 	*THIS_IMAGE = tmp;
@@ -298,7 +298,7 @@ BEGIN_METHOD(CIMAGE_transform, GB_FLOAT sx; GB_FLOAT sy; GB_FLOAT dx; GB_FLOAT d
 	if (!w || !h)
 		return;
 	
-	IMAGE_create(&image->image, w, h, THIS_IMAGE->format);
+	IMAGE_create(&image->image, w, h, THIS_IMAGE->format, GB_COLOR_DEFAULT);
 	IMAGE_transform(&image->image, THIS_IMAGE, VARG(sx), VARG(sy), VARG(dx), VARG(dy));
 
 END_METHOD
@@ -566,7 +566,7 @@ GB_DESC CImageDesc[] =
 	GB_METHOD("Colorize", "Image", Image_Colorize, "(Color)i"),
 	GB_METHOD("Mask", "Image", Image_Mask, "(Color)i"),
 	GB_METHOD("Opacity", "Image", Image_Opacity, "(Opacity)f"),
-	GB_METHOD("Invert", "Image", Image_Invert, "[(KeepColor)b]"),
+	GB_METHOD("Invert", "Image", Image_Invert, "[(KeepHue)b]"),
 	
 	GB_METHOD("Copy", "Image", Image_Copy, "[(X)i(Y)i(Width)i(Height)i]"),
 	GB_METHOD("Resize", "Image", Image_Resize, "(Width)i(Height)i"),

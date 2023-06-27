@@ -94,7 +94,7 @@ Private Sub LoadFile(sPath As String)
 Catch
   
   Application.Busy = 0
-  Message.Error(("Unable to load file:") & "\n<tt>" & sPath & "</tt>\n\n" & Error.Text)
+  FMain.ShowErrorWith(("Unable to load file:") & "\n<tt>" & Html(sPath) & "</tt>")
     
 End
 
@@ -107,7 +107,7 @@ Private Sub GetFileType() As Integer
   
   Select Case LCase(File.Ext($sPath))
   
-    Case "class", "module", "form", "text", "txt", "html", "css", "svg", "desktop", "inf"
+    Case "class", "module", "test", "form", "text", "txt", "html", "css", "svg", "desktop", "inf"
       Return TYPE_TEXT
       
     Case "jpg", "jpeg", "png", "gif", "xpm", "bmp"
@@ -145,7 +145,7 @@ Public Sub Form_Open()
   hTabPanel.Index = hTabPanel.Count - 1
 
   edtConflict.ReadConfig
-  edtConflict.Styles[Highlight.Comment].Bold = True
+  edtConflict.Theme["Comment"].Bold = True
 
   hMenu = New Menu(mnuOpen) As "mnuOpen"
   hMenu.Text = File.Name($sPath)
@@ -228,7 +228,7 @@ Public Sub btnSolve_Click()
   Next
 
   If VersionControl.Resolve($sPath) Then 
-    Message.Error(("Unable to resolve the conflict."))
+    FMain.ShowErrorWith(("Unable to resolve the conflict."))
     Return
   Endif
   

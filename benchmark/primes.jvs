@@ -1,0 +1,69 @@
+#!/usr/bin/java --source 11
+
+import java.util.ArrayList;
+import java.util.Arrays;
+
+public final class primes
+{
+  private static ArrayList<Integer> GetPrimes(int n)
+  {
+    ArrayList<Integer> aRes = new ArrayList<Integer>();
+    int[] s;
+    int i, j, m;
+    int mroot, half;
+
+    if (n < 2) return aRes;
+
+    if (n == 2)
+    {
+      aRes.add(2);
+      return aRes;
+    }
+
+    i = 0;
+    s = new int[(n - 3 + 1) / 2];
+    for (j = 3; j <= n; j += 2)
+    {
+      s[i] = j;
+      i++;
+    }
+
+    mroot = (int)Math.sqrt(n);
+    half = s.length - 1;
+    i = 0;
+    m = 3;
+
+    while (m <= mroot)
+    {
+      if (s[i] != 0)
+      {
+        for (j = (m * m - 3) / 2; j <= half; j += m)
+          s[j] = 0;
+      }
+
+      i++;
+      m = 2 * i + 3;
+    }
+
+    aRes.add(2);
+    for(i = 0; i < s.length; i++)
+    {
+      j = s[i];
+      if (j != 0) aRes.add(j);
+    }
+
+    return aRes;
+  }
+
+  public static void main(String[] args)
+  {
+    ArrayList<Integer> aRes;
+    int i;
+
+    for (i = 1; i <= 5; i++)
+    {
+      aRes = GetPrimes(10000000);
+      System.out.println(aRes.size());
+    }
+  }
+}

@@ -2,7 +2,7 @@
 
   image.c
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -256,7 +256,7 @@ static void convert_image(uchar *dst, int dst_format, uchar *src, int src_format
 	psrc = GB_IMAGE_FMT_IS_PREMULTIPLIED(src_format);
 	pdst = GB_IMAGE_FMT_IS_PREMULTIPLIED(dst_format);
 
-	if (psrc != pdst && GB_IMAGE_FMT_IS_SWAPPED(dst_format))
+	/*if (psrc != pdst && GB_IMAGE_FMT_IS_SWAPPED(dst_format))
 	{
 		p = (uint *)dst;
 		pm = (uint *)dm;
@@ -285,7 +285,7 @@ static void convert_image(uchar *dst, int dst_format, uchar *src, int src_format
 				p++;
 			}
 		}
-	}
+	}*/
 
 	src_format = GB_IMAGE_FMT_CLEAR_PREMULTIPLIED(src_format);
 	dst_format = GB_IMAGE_FMT_CLEAR_PREMULTIPLIED(dst_format);
@@ -554,7 +554,7 @@ int IMAGE_size(GB_IMG *img)
 	return img->width * img->height * (GB_IMAGE_FMT_IS_24_BITS(img->format) ? 3 : 4);
 }
 
-void IMAGE_create(GB_IMG *img, int width, int height, int format)
+void IMAGE_create(GB_IMG *img, int width, int height, int format, GB_COLOR fill)
 {
 	GB_BASE save = img->ob;
 	CLEAR(img);	
@@ -570,8 +570,14 @@ void IMAGE_create(GB_IMG *img, int width, int height, int format)
 	img->width = width;
 	img->height = height;
 	img->format = format;
-	GB.Alloc(POINTER(&img->data), IMAGE_size(img));
+	if (fill == 0)
+		GB.AllocZero(POINTER(&img->data), IMAGE_size(img));
+	else
+		GB.Alloc(POINTER(&img->data), IMAGE_size(img));
 	img->owner_handle = img->data;
+
+	if (fill && fill != GB_COLOR_DEFAULT)
+		IMAGE_fill(img, fill);
 	
 	#ifdef DEBUG_ME
 	fprintf(stderr, "IMAGE_create: %p\n", img);
@@ -581,7 +587,7 @@ void IMAGE_create(GB_IMG *img, int width, int height, int format)
 
 void IMAGE_create_with_data(GB_IMG *img, int width, int height, int format, unsigned char *data)
 {
-	IMAGE_create(img, width, height, format);
+	IMAGE_create(img, width, height, format, GB_COLOR_DEFAULT);
 	if (data && !IMAGE_is_void(img))
 		memcpy(img->data, data, IMAGE_size(img));
 }
@@ -2390,11 +2396,13 @@ void IMAGE_balance(GB_IMG *img, int brightness, int contrast, int gamma, int hue
 
 void IMAGE_invert(GB_IMG *img, bool keep_hue) // GB_COLOR bg, GB_COLOR fg)
 {
+	static uchar lum[256];
+	static bool init_lum = FALSE;
+
 	GET_POINTER(img, p, pm);
 	uint col;
 	int format = img->format;
-	int h, s, v;
-	int r, g, b;
+	int i;
 	
 	SYNCHRONIZE(img);
 	
@@ -2408,14 +2416,20 @@ void IMAGE_invert(GB_IMG *img, bool keep_hue) // GB_COLOR bg, GB_COLOR fg)
 	}
 	else
 	{
+		GB_COLOR gcol;
+		
+		if (!init_lum)
+		{
+			for (i = 0; i <= 255; i++)
+				lum[i] = COLOR_invert_luminance(i);
+			init_lum = TRUE;
+		}
+		
 		while (p != pm) 
 		{
-			col = BGRA_from_format(*p, format);
-			COLOR_rgb_to_hsv(RED(col), GREEN(col), BLUE(col), &h, &s, &v);
-			v = (int)sqrt(255 * 255 - v * v);
-			//if (h >= 0) s = (int)sqrt(255 * 255 - s * s);;
-			COLOR_hsv_to_rgb(h, s, v, &r, &g, &b);
-			*p++ = BGRA_to_format(RGBA(r, g, b, ALPHA(col)), format);
+			gcol = GB_COLOR_from_format(*p, format);
+			gcol = COLOR_set_luminance(gcol, lum[COLOR_get_luminance(gcol)]);
+			*p++ = GB_COLOR_to_format(gcol, format);
 		}
 	}
 	/*else

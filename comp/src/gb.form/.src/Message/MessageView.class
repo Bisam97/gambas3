@@ -15,6 +15,8 @@ Property Animated As Boolean
 Property Separator As Boolean
 Property Border As Boolean
 
+Private Const ANIM_SPEED As Integer = 20
+
 Private $sText As String
 Private $hIcon As Picture
 Private $hView As DrawingArea
@@ -33,8 +35,8 @@ Public Sub _new()
   $hView.Foreground = Color.TextForeground
   
   $hClose = New Button($hView) As "CloseButton"
-  $hClose.H = Desktop.Scale * 4
-  $hClose.AutoResize = True
+  $hClose.ResizeScaled(3, 3)
+  $hClose.Border = False
   
   Me.Proxy = $hView
   
@@ -45,10 +47,10 @@ End
 Private Sub UpdateButton()
 
   If $aText.Count Then
-    $hClose.Text = ("Next")
+    '$hClose.Text = ("Next")
     Try $hClose.Picture = Picture["icon:/small/forward"]
   Else
-    $hClose.Text = ("Close")
+    '$hClose.Text = ("Close")
     Try $hClose.Picture = Picture["icon:/small/close"]
   Endif
 
@@ -69,14 +71,14 @@ Private Sub DoOpen()
   Me.H = 1
   Me.Show
   
-  $H = Max($hIcon.H + Desktop.Scale * 2, Me.Font.RichTextHeight($sText, GetTextWidth()) + Desktop.Scale * 4)
+  $H = Max($hIcon.H, Me.Font.RichTextHeight($sText, GetTextWidth())) + Desktop.Scale * 2
   
-  If $bAnimate And If Application.Animations Then
+  If $bAnimate And If _Gui.MustAnimate(Me) Then
   
     fTime = Timer
     
     While Me.H < $H
-      Me.H = $H * Min(1, (Timer - fTime) * 8)
+      Me.H = $H * Min(1, (Timer - fTime) * ANIM_SPEED)
       Try Wait
     Wend
     
@@ -93,22 +95,23 @@ Public Sub Open(Text As String, Optional Icon As Picture)
   
   If $sText = Text Then Return
   
+  $hIcon = Icon
+  If Not Icon Then 
+    Try $hIcon = Picture["icon:/medium/warning"]
+    If Error Then $hIcon = Picture["img/32/warning.png"]
+  Endif
+
   If Me.Visible Then
     
     $aText.Add(Text)
-    $aIcon.Add(Icon)
+    $aIcon.Add($hIcon)
     UpdateButton
     Return
     
   Endif
   
   $sText = Text
-  $hIcon = Icon
-  If Not Icon Then 
-    Try $hIcon = Picture["icon:/32/warning"]
-    If Error Then $hIcon = Picture["img/32/warning.png"]
-  Endif
-  
+   
   DoOpen
   
 End
@@ -118,12 +121,12 @@ Public Sub Close()
   Dim fTime As Float
   Dim H As Integer
   
-  If $bAnimate And If Application.Animations Then
+  If $bAnimate And If _Gui.MustAnimate(Me) Then
     
     H = Me.H
     fTime = Timer
     While Me.H > 1
-      Me.H = H * (1 - Min(1, (Timer - fTime) * 8))
+      Me.H = H * (1 - Min(1, (Timer - fTime) * ANIM_SPEED))
       Wait
     Wend
     
@@ -148,7 +151,11 @@ End
 
 
 Public Sub View_Arrange()
+
+  Dim H As Integer
   
+  H = Min($H - Desktop.Scale, Desktop.Scale * 4)
+  $hClose.Resize(H, H)
   $hClose.Move($hView.W - $hClose.W - Desktop.Scale, ($H - $hClose.H) \ 2)
   
 End
@@ -180,7 +187,7 @@ Public Sub View_Draw()
   
   W = GetTextWidth()
   
-  Paint.DrawRichText($sText, X, Desktop.Scale * 2, W, Me.H - Desktop.Scale * 2, Align.TopLeft)
+  Paint.DrawRichText($sText, X, Desktop.Scale, W, Me.H - Desktop.Scale * 2, Align.TopLeft)
   
   If $bSeparator Then
     If Me.Y > 0 Then 

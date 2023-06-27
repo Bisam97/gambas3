@@ -23,7 +23,6 @@
 
 #define __CWINDOW_CPP
 
-#include "x11.h"
 #include "main.h"
 #include "CWindow.h"
 #include "CWidget.h"
@@ -32,6 +31,13 @@
 #include "CMenu.h"
 #include "CDraw.h"
 #include "gapplication.h"
+
+typedef
+	struct {
+		uint index;
+		GPtrArray *list;
+	}
+	WINDOW_ENUM;
 
 int CWINDOW_Embedder = 0;
 bool CWINDOW_Embedded = false;
@@ -51,10 +57,11 @@ DECLARE_EVENT(EVENT_Resize);
 DECLARE_EVENT(EVENT_Title);
 DECLARE_EVENT(EVENT_Icon);
 DECLARE_EVENT(EVENT_Font);
+DECLARE_EVENT(EVENT_State);
 
 void CWINDOW_check_main_window(CWINDOW *win)
 {
-	if (CWINDOW_Main == win) 
+	if (CWINDOW_Main == win)
 	{
 		//fprintf(stderr, "CWINDOW_Main = NULL\n");
 		CWINDOW_Main = NULL;
@@ -62,24 +69,25 @@ void CWINDOW_check_main_window(CWINDOW *win)
 }
 
 
-static void cb_open(gMainWindow *sender)
+void CB_window_open(gMainWindow *sender)
 {
 	CWIDGET *_object = GetObject(sender);
 	GB.Raise(THIS, EVENT_Open, 0);
 }
 
-static void cb_font_change(gMainWindow *sender)
+void CB_window_font(gMainWindow *sender)
 {
 	CWIDGET *_object = GetObject(sender);
 	GB.Raise(THIS, EVENT_Font, 0);
 }
 
-/*static void gb_post_window_Open(gMainWindow *sender)
+void CB_window_state(gMainWindow *sender)
 {
-	GB.Post((GB_POST_FUNC)cb_open, (long)sender);
-}*/
+	CWIDGET *_object = GetObject(sender);
+	GB.Raise(THIS, EVENT_State, 0);
+}
 
-static void cb_show(gMainWindow *sender)
+void CB_window_show(gMainWindow *sender)
 {
 	CWIDGET *_object = GetObject(sender);
 
@@ -90,12 +98,7 @@ static void cb_show(gMainWindow *sender)
 	GB.Unref(POINTER(&_object));
 }
 
-/*static void gb_post_window_Show(gMainWindow *sender)
-{
-	GB.Post( (void (*)())cb_show,(long)sender);
-}*/
-
-static void cb_hide(gMainWindow *sender)
+void CB_window_hide(gMainWindow *sender)
 {
 	CWIDGET *_object = GetObject(sender);
 
@@ -106,13 +109,13 @@ static void cb_hide(gMainWindow *sender)
 	GB.Unref(POINTER(&_object));
 }
 
-static void cb_move(gMainWindow *sender)
+void CB_window_move(gMainWindow *sender)
 {
 	CWIDGET *_object = GetObject(sender);
 	GB.Raise(THIS, EVENT_Move, 0);
 }
 
-static void cb_resize(gMainWindow *sender)
+void CB_window_resize(gMainWindow *sender)
 {
 	CWIDGET *_object = GetObject(sender);
 	GB.Raise(THIS, EVENT_Resize, 0);
@@ -125,117 +128,126 @@ static bool close_window(CWINDOW *_object, int ret = 0)
 	return WINDOW->close();
 }
 
-void CWINDOW_delete_all()
+void CWINDOW_delete_all(bool main)
 {
 	int i;
 	gMainWindow *win;
 	CWINDOW *window;
-	
+
 	for(i = 0;; i++)
 	{
 		win = gMainWindow::get(i);
 		if (!win)
 			break;
-		
+
 		window = (CWINDOW *)GetObject(win);
 		if (window == CWINDOW_Main)
 			continue;
-		
+
 		win->destroy();
 	}
+
+	if (main && CWINDOW_Main)
+		((gMainWindow *)(CWINDOW_Main->ob.widget))->destroy();
 }
 
 bool CWINDOW_must_quit()
 {
 	int i;
 	gMainWindow *win;
-	
+
 	for(i = 0; i < gMainWindow::count(); i++)
 	{
 		win = gMainWindow::get(i);
 		if (win->isTopLevel() && win->isOpened())
 			return false;
 	}
-	
+
 	return true;
 }
 
-static bool gb_raise_window_Close(gMainWindow *sender)
+bool CB_window_close(gMainWindow *sender)
 {
 	CWINDOW *_object = (CWINDOW*)GetObject(sender);
 
 	if (!THIS)
 		return false;
-	
-	if (GB.Raise(THIS, EVENT_Close, 0)) 
+
+	if (GB.Raise(THIS, EVENT_Close, 0))
 		return true;
-	
+
 	if (CWINDOW_Main && sender == CWINDOW_Main->ob.widget)
 	{
 		if (gMainWindow::closeAll())
 			return true;
+
 		if (!sender->isPersistent())
 		{
-			CWINDOW_delete_all();
+			CWINDOW_delete_all(false);
 			CWINDOW_Main = NULL;
 		}
 	}
 
-	if (THIS->embed)
+	if (sender->isEmbedded())
 	{
 		CWINDOW_Embedder = 0;
 		CWINDOW_Embedded = false;
 	}
-	
+
 	MAIN_check_quit();
-	
+
 	return false;
 }
 
-static void activate_window(gMainWindow *window)
-{
-	CWINDOW *active;
 
-	if (window)
+gMainWindow *CB_window_activate(gControl *control)
+{
+	gMainWindow *active;
+	CWINDOW *active_ob;
+
+	/*if (!control)
+		fprintf(stderr, "CB_window_activate: NULL\n");
+	else
+		fprintf(stderr, "CB_window_activate: %s.%s\n", control->window()->name(), control->name());*/
+
+	if (control)
 	{
+		active = control->window();
 		for(;;)
 		{
-			active = (CWINDOW *)GetObject(window);
-			if (window->isTopLevel())
+			active_ob = (CWINDOW *)GetObject(active);
+			if (active->isTopLevel())
 				break;
-			if (GB.CanRaise(active, EVENT_Activate))
+			if (GB.CanRaise(active_ob, EVENT_Activate))
 				break;
-			window = window->parent()->window();
+			active = active->parent()->window();
 		}
 	}
 	else
+	{
 		active = NULL;
-
-	if (active == CWINDOW_Active)
-		return;
-
-	if (CWINDOW_Active)
-	{
-		GB.Raise(CWINDOW_Active, EVENT_Deactivate, 0);
-		CWINDOW_Active = 0;
+		active_ob = NULL;
 	}
 
-	if (active)
+	if (active_ob != CWINDOW_Active)
 	{
-		GB.Raise(active, EVENT_Activate, 0);
+		if (CWINDOW_Active)
+		{
+			//fprintf(stderr, "deactivate: %p %s\n", CWINDOW_Active, CWINDOW_Active->ob.widget->name());
+			GB.Raise(CWINDOW_Active, EVENT_Deactivate, 0);
+			CWINDOW_Active = NULL;
+		}
+
+		if (active)
+		{
+			//fprintf(stderr, "activate: %p %s\n", active, active->name());
+			GB.Raise(active_ob, EVENT_Activate, 0);
+		}
+
+		CWINDOW_Active = active_ob;
 	}
 
-	CWINDOW_Active = active;
-}
-
-static void cb_activate(gMainWindow *sender)
-{
-	activate_window(sender);
-}
-
-static void cb_deactivate(gMainWindow *sender)
-{
-	activate_window(NULL);
+	return active;
 }
 
 /*static void cb_state(gMainWindow *sender)
@@ -244,6 +256,20 @@ static void cb_deactivate(gMainWindow *sender)
 	GB.Raise(THIS, EVENT_State, 0);
 }*/
 
+static void show_later(CWINDOW *_object)
+{
+	/* If the user has explicitely hidden the window since the posting of this routines
+		then do nothing
+	*/
+
+	if (WINDOW && !WINDOW->isHidden())
+	{
+		//fprintf(stderr, "show_later: %p %s\n", WINDOW, WINDOW->name());
+		if (!WINDOW->emitOpen())
+			WINDOW->show();
+	}
+	GB.Unref(POINTER(&_object));
+}
 
 /***************************************************************************
 
@@ -251,10 +277,11 @@ static void cb_deactivate(gMainWindow *sender)
 
 ***************************************************************************/
 
-BEGIN_METHOD(CWINDOW_new, GB_OBJECT parent;)
+BEGIN_METHOD(CWINDOW_new, GB_OBJECT parent)
 
+	gMainWindow *win;
 	GB_CLASS CLASS_container;
-	CWIDGET *parent = NULL;
+	gContainer *parent = NULL;
 	int plug = 0;
 
 	if (!gApplication::isInit())
@@ -262,39 +289,42 @@ BEGIN_METHOD(CWINDOW_new, GB_OBJECT parent;)
 		GB.Error("GUI is not initialized");
 		return;
 	}
-	
+
 	if (!MISSING(parent) && VARG(parent))
 	{
 		CLASS_container = GB.FindClass("Container");
 		if (GB.Conv((GB_VALUE *)(void *)ARG(parent), (GB_TYPE)CLASS_container))
 			return;
-	
-		parent=(CWIDGET*)VARG(parent);
-		parent=GetContainer ((CWIDGET*)parent);
+
+		parent = CONTAINER(VARG(parent));
 	}
 
-	if ( CWINDOW_Embedder && (!CWINDOW_Embedded) && (!parent) )
-	{
-		plug=CWINDOW_Embedder;
-		THIS->embed=true;
-	}
+	if (CWINDOW_Embedder && (!CWINDOW_Embedded) && (!parent))
+		plug = CWINDOW_Embedder;
 
-	if (!parent) 
-		THIS->ob.widget = new gMainWindow(plug);
+	if (parent)
+		win = new gMainWindow(parent);
+	else if (!plug)
+		win = new gMainWindow();
 	else
-		THIS->ob.widget = new gMainWindow((gContainer *)parent->widget);
+	{
+		win = new gMainWindow(plug);
+		if (!win->border)
+		{
+			delete win;
+			GB.Error("Embedder control is not supported on this platform");
+			return;
+		}
+	}
 
+	THIS->ob.widget	= win;
 	InitControl(THIS->ob.widget, (CWIDGET*)THIS);
-	
-	WINDOW->onOpen = cb_open;
-	WINDOW->onShow = cb_show;
-	WINDOW->onHide = cb_hide;
-	WINDOW->onMove = cb_move;
-	WINDOW->onResize = cb_resize;
-	WINDOW->onClose = gb_raise_window_Close;
-	WINDOW->onActivate = cb_activate;
-	WINDOW->onDeactivate = cb_deactivate;
-	WINDOW->onFontChange = cb_font_change;
+
+	if (parent)
+	{
+		GB.Ref(THIS);
+		GB.Post((void (*)())show_later, (intptr_t)THIS);
+	}
 
 END_METHOD
 
@@ -308,7 +338,7 @@ BEGIN_METHOD_VOID(CWINDOW_next)
 	int *vl;
 
 	vl = (int *)GB.GetEnum();
-	
+
 	if (gMainWindow::count() <= *vl)
 		GB.StopEnum();
 	else
@@ -359,7 +389,7 @@ static bool check_closed(CWINDOW *_object, bool modal)
 			return TRUE;
 		}
 	}
-	
+
 	return FALSE;
 }
 
@@ -367,7 +397,7 @@ BEGIN_METHOD_VOID(CWINDOW_show_modal)
 
 	if (check_closed(THIS, TRUE))
 		return;
-	
+
 	THIS->ret = 0;
 	MODAL_windows++;
 	WINDOW->showModal();
@@ -381,7 +411,7 @@ BEGIN_METHOD(Window_ShowPopup, GB_INTEGER x; GB_INTEGER y)
 
 	if (check_closed(THIS, TRUE))
 		return;
-	
+
 	THIS->ret = 0;
 	MODAL_windows++;
 	if (!MISSING(x) && !MISSING(y))
@@ -398,7 +428,7 @@ BEGIN_METHOD_VOID(CWINDOW_show)
 
 	if (check_closed(THIS, FALSE))
 		return;
-	
+
 	WINDOW->showActivate();
 
 END_METHOD
@@ -416,7 +446,7 @@ BEGIN_PROPERTY(CWINDOW_top_level)
 
 END_PROPERTY
 
-// 
+//
 
 
 BEGIN_PROPERTY(CWINDOW_persistent)
@@ -457,20 +487,6 @@ BEGIN_PROPERTY(CWINDOW_resizable)
 
 END_PROPERTY
 
-#if 0
-BEGIN_PROPERTY(CWINDOW_type)
-
-	if (READ_PROPERTY)
-		GB.ReturnInteger(WINDOW->getType());
-	else
-	{
-		fprintf(stderr, "gb.gtk: warning: Window.Type is deprecated\n");
-		WINDOW->setType(VPROP(GB_INTEGER));
-	}
-
-END_PROPERTY
-#endif
-
 BEGIN_PROPERTY(Window_Utility)
 
 	if (READ_PROPERTY)
@@ -500,16 +516,20 @@ END_PROPERTY
 
 BEGIN_PROPERTY(CWINDOW_top_only)
 
-	if (READ_PROPERTY) { GB.ReturnBoolean(WINDOW->topOnly()); return; }
-	WINDOW->setTopOnly(VPROP(GB_BOOLEAN));
+	if (READ_PROPERTY)
+		GB.ReturnBoolean(WINDOW->isTopOnly());
+	else
+		WINDOW->setTopOnly(VPROP(GB_BOOLEAN));
 
 END_PROPERTY
 
 
 BEGIN_PROPERTY(CWINDOW_skip_taskbar)
 
-	if (READ_PROPERTY) { GB.ReturnBoolean(WINDOW->skipTaskBar()); return; }
-	WINDOW->setSkipTaskBar(VPROP(GB_BOOLEAN));
+	if (READ_PROPERTY)
+		GB.ReturnBoolean(WINDOW->isSkipTaskBar());
+	else
+		WINDOW->setSkipTaskBar(VPROP(GB_BOOLEAN));
 
 END_PROPERTY
 
@@ -533,7 +553,7 @@ BEGIN_PROPERTY(CWINDOW_picture)
 		CPICTURE *pic = (CPICTURE *)VPROP(GB_OBJECT);
 		WINDOW->setPicture(pic ? pic->picture : 0);
 	}
-	
+
 END_PROPERTY
 
 
@@ -564,7 +584,6 @@ BEGIN_METHOD_VOID(CWINDOW_center)
 
 END_METHOD
 
-
 BEGIN_PROPERTY(CWINDOW_menu_count)
 
 	GB.ReturnInteger(WINDOW->menuCount());
@@ -583,7 +602,7 @@ END_PROPERTY
 BEGIN_PROPERTY(CWINDOW_sticky)
 
 	if (READ_PROPERTY)
-		GB.ReturnBoolean(WINDOW->getSticky());
+		GB.ReturnBoolean(WINDOW->isSticky());
 	else
 		WINDOW->setSticky(VPROP(GB_BOOLEAN));
 
@@ -596,16 +615,16 @@ BEGIN_METHOD_VOID(CWINDOW_menu_next)
 
 	pos = ENUM(int);
 
-	if (pos >= gMenu::winChildCount(WINDOW)) 
-	{ 
-		GB.StopEnum(); 
-		return; 
+	if (pos >= gMenu::winChildCount(WINDOW))
+	{
+		GB.StopEnum();
+		return;
 	}
-	
+
 	mn = gMenu::winChildMenu(WINDOW, pos);
-	
+
 	ENUM(int) = pos + 1;
-	
+
 	GB.ReturnObject(mn->hFree);
 
 END_PROPERTY
@@ -614,40 +633,54 @@ END_PROPERTY
 BEGIN_METHOD(CWINDOW_menu_get, GB_INTEGER index)
 
 	int index = VARG(index);
-	
+
 	if (index < 0 || index >= gMenu::winChildCount(WINDOW))
 	{
 		GB.Error(GB_ERR_BOUND);
 		return;
 	}
-	
+
 	GB.ReturnObject(gMenu::winChildMenu(WINDOW, index)->hFree);
 
 END_METHOD
 
 BEGIN_PROPERTY(CWINDOW_control_count)
 
-	GB.ReturnInteger(WINDOW->controlCount());
+	GPtrArray *list = WINDOW->getControlList();
+	GB.ReturnInteger(list->len);
+	g_object_unref(list);
 
 END_PROPERTY
 
 
+static void cb_free_enum(WINDOW_ENUM *iter)
+{
+	g_ptr_array_unref(iter->list);
+	iter->list = NULL;
+}
+
 BEGIN_METHOD_VOID(CWINDOW_control_next)
 
-	int index;
+	WINDOW_ENUM *iter;
 	gControl *control;
 
-	index = ENUM(int);
+	iter = (WINDOW_ENUM *)GB.GetEnum();
 	
-	control = WINDOW->getControl(index);
-	
-	if (!control)
+	if (!iter->list)
+	{
+		iter->index = 0;
+		iter->list = WINDOW->getControlList();
+		GB.OnFreeEnum((GB_CALLBACK)cb_free_enum);
+	}
+
+	if (iter->index >= iter->list->len)
 	{
 		GB.StopEnum();
 		return;
 	}
 	
-	ENUM(int) = index + 1;
+	control = (gControl *)g_ptr_array_index(iter->list, iter->index);
+	iter->index = iter->index + 1;
 	GB.ReturnObject(GetObject(control));
 
 END_PROPERTY
@@ -666,7 +699,7 @@ END_METHOD
 
 BEGIN_PROPERTY(CWINDOW_closed)
 
-	GB.ReturnBoolean(WINDOW->isClosed());
+	GB.ReturnBoolean(!WINDOW->isOpened());
 
 END_PROPERTY
 
@@ -698,12 +731,12 @@ BEGIN_PROPERTY(Window_Opacity)
 	else
 	{
 		double opacity = VPROP(GB_INTEGER) / 100.0;
-		
+
 		if (opacity < 0.0)
 			opacity = 0.0;
 		else if (opacity > 1.0)
 			opacity = 1.0;
-		
+
 		WINDOW->setOpacity(opacity);
 	}
 
@@ -748,24 +781,72 @@ BEGIN_PROPERTY(Window_TakeFocus)
 END_PROPERTY
 
 BEGIN_METHOD_VOID(Window_Activate)
-	
+
 	WINDOW->activate();
 
 END_METHOD
 
+BEGIN_PROPERTY(Window_MinWidth)
+
+	int w, h;
+	WINDOW->getCustomMinimumSize(&w, &h);
+	
+	if (READ_PROPERTY)
+		GB.ReturnInteger(w);
+	else
+		WINDOW->setCustomMinimumSize(VPROP(GB_INTEGER), h);
+
+END_PROPERTY
+
+BEGIN_PROPERTY(Window_MinHeight)
+
+	int w, h;
+	WINDOW->getCustomMinimumSize(&w, &h);
+	
+	if (READ_PROPERTY)
+		GB.ReturnInteger(h);
+	else
+		WINDOW->setCustomMinimumSize(w, VPROP(GB_INTEGER));
+
+END_PROPERTY
+
+BEGIN_PROPERTY(Window_Geometry)
+
+	GEOM_RECT *rect = GEOM.CreateRect();
+
+	if (WINDOW->isTopLevel())
+	{
+		rect->x = WINDOW->_sx;
+		rect->y = WINDOW->_sy;
+		rect->w = WINDOW->_sw;
+		rect->h = WINDOW->_sh;
+	}
+	else
+	{
+		rect->x = WINDOW->bufX;
+		rect->y = WINDOW->bufY;
+		rect->w = WINDOW->bufW;
+		rect->h = WINDOW->bufH;
+	}
+
+	GB.ReturnObject(rect);
+
+END_PROPERTY
+
+
 //-------------------------------------------------------------------------
 
-BEGIN_METHOD_VOID(CFORM_new)
+BEGIN_METHOD_VOID(Form_new)
 
 	if (!GB.Parent(_object))
 		GB.Attach(_object, _object, "Form");
-	
+
 	WINDOW->setName(GB.GetClassName((void *)THIS));
 
 END_METHOD
 
 
-BEGIN_METHOD_VOID(CFORM_main)
+BEGIN_METHOD_VOID(Form_Main)
 
 	CWINDOW *form;
 
@@ -776,13 +857,13 @@ BEGIN_METHOD_VOID(CFORM_main)
 END_METHOD
 
 
-BEGIN_METHOD(CFORM_load, GB_OBJECT parent)
+BEGIN_METHOD(Form_Load, GB_OBJECT parent)
 
-	if (!MISSING(parent))
-		GB.Push(1, GB_T_OBJECT, VARG(parent));
+	gMainWindow *window = (gMainWindow *)((CWIDGET *)GB.AutoCreate(GB.GetClass(NULL), 0))->widget;
+	CCONTAINER *parent = (CCONTAINER *)VARGOPT(parent, 0);
 
-	GB.AutoCreate(GB.GetClass(NULL), MISSING(parent) ? 0 : 1);
-
+	window->reparent(parent ? CONTAINER(parent) : NULL, window->x(), window->y());
+	
 END_METHOD
 
 /***************************************************************************
@@ -815,30 +896,6 @@ GB_DESC CWindowControlsDesc[] =
 
 	GB_END_DECLARE
 };
-
-#if 0
-GB_DESC CWindowTypeDesc[] =
-{
-	GB_DECLARE("WindowType", 0), GB_VIRTUAL_CLASS(),
-
-	GB_CONSTANT("Normal", "i", _NET_WM_WINDOW_TYPE_NORMAL),
-	GB_CONSTANT("Dock", "i", _NET_WM_WINDOW_TYPE_DOCK),
-	GB_CONSTANT("Toolbar", "i", _NET_WM_WINDOW_TYPE_TOOLBAR),
-	GB_CONSTANT("Menu", "i", _NET_WM_WINDOW_TYPE_MENU),
-	GB_CONSTANT("Utility", "i", _NET_WM_WINDOW_TYPE_UTILITY),
-	GB_CONSTANT("Splash", "i", _NET_WM_WINDOW_TYPE_SPLASH),
-	GB_CONSTANT("Dialog", "i", _NET_WM_WINDOW_TYPE_DIALOG),
-	GB_CONSTANT("DropDownMenu", "i", _NET_WM_WINDOW_TYPE_DROPDOWN_MENU),
-	GB_CONSTANT("PopupMenu", "i", _NET_WM_WINDOW_TYPE_POPUP_MENU),
-	GB_CONSTANT("Tooltip", "i", _NET_WM_WINDOW_TYPE_TOOLTIP),
-	GB_CONSTANT("Notification", "i", _NET_WM_WINDOW_TYPE_NOTIFICATION),
-	GB_CONSTANT("Combo", "i", _NET_WM_WINDOW_TYPE_COMBO),
-	GB_CONSTANT("DragAndDrop", "i", _NET_WM_WINDOW_TYPE_DND),
-	GB_CONSTANT("Desktop", "i", _NET_WM_WINDOW_TYPE_DESKTOP),
-
-	GB_END_DECLARE
-};
-#endif
 
 GB_DESC CWindowDesc[] =
 {
@@ -884,24 +941,23 @@ GB_DESC CWindowDesc[] =
 	GB_PROPERTY("Opacity", "i", Window_Opacity),
 	GB_PROPERTY("Transparent", "b", Window_Transparent),
 	GB_PROPERTY("TakeFocus", "b", Window_TakeFocus),
+	
+	GB_PROPERTY("MinWidth", "i", Window_MinWidth),
+	GB_PROPERTY("MinHeight", "i", Window_MinHeight),
+	GB_PROPERTY("MinW", "i", Window_MinWidth),
+	GB_PROPERTY("MinH", "i", Window_MinHeight),
 
-	GB_PROPERTY("Arrangement", "i", Container_Arrangement),
-	GB_PROPERTY("AutoResize", "b", Container_AutoResize),
-	GB_PROPERTY("Padding", "i", Container_Padding),
-	GB_PROPERTY("Spacing", "b", Container_Spacing),
-	GB_PROPERTY("Margin", "b", Container_Margin),
-	GB_PROPERTY("Indent", "b", Container_Indent),
-	GB_PROPERTY("Invert", "b", Container_Invert),
+	ARRANGEMENT_PROPERTIES,
 
-	//GB_PROPERTY("Type", "i", CWINDOW_type),
 	GB_PROPERTY("Utility", "b", Window_Utility),
 	GB_PROPERTY("Border", "b", CWINDOW_border),
 	GB_PROPERTY("Resizable", "b", CWINDOW_resizable),
 
 	GB_PROPERTY("Mask","b",CWINDOW_mask),
 	GB_PROPERTY("Picture", "Picture", CWINDOW_picture),
-	
+
 	GB_PROPERTY_READ("Screen", "i", Window_Screen),
+	GB_PROPERTY_READ("Geometry", "Rect", Window_Geometry),
 
 	GB_PROPERTY_SELF("Menus", ".Window.Menus"),
 	GB_PROPERTY_SELF("Controls", ".Window.Controls"),
@@ -919,6 +975,7 @@ GB_DESC CWindowDesc[] =
 	GB_EVENT("Title", NULL, NULL, &EVENT_Title),
 	GB_EVENT("Icon", NULL, NULL, &EVENT_Icon),
 	GB_EVENT("Font", NULL, NULL, &EVENT_Font),
+	GB_EVENT("State", NULL, NULL, &EVENT_State),
 
 	GB_END_DECLARE
 };
@@ -941,9 +998,9 @@ GB_DESC CFormDesc[] =
 	GB_DECLARE("Form", sizeof(CFORM)), GB_INHERITS("Window"),
 	GB_AUTO_CREATABLE(),
 
-	GB_STATIC_METHOD("Main", 0, CFORM_main, 0),
-	GB_STATIC_METHOD("Load", 0, CFORM_load, "[(Parent)Control;]"),
-	GB_METHOD("_new", 0, CFORM_new, 0),
+	GB_STATIC_METHOD("Main", 0, Form_Main, 0),
+	GB_STATIC_METHOD("Load", 0, Form_Load, "[(Parent)Container;]"),
+	GB_METHOD("_new", 0, Form_new, 0),
 	
 	FORM_DESCRIPTION,
 

@@ -2,7 +2,7 @@
 
 	gbc_trans.h
 
-	(c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+	(c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -49,6 +49,7 @@ enum {
 	TS_MODE_PIPE   = (1 << 7),
 	TS_MODE_MEMORY = (1 << 8),
 	TS_MODE_STRING = (1 << 9),
+	TS_MODE_NULL   = (1 << 10),
 	};
 
 enum {
@@ -102,7 +103,10 @@ enum {
 	TS_SUBR_CHGRP,
 	TS_SUBR_USE,
 	TS_SUBR_CHECK_EXEC,
-	TS_SUBR_MOVE_KILL
+	TS_SUBR_MOVE_KILL,
+	TS_SUBR_WAIT_DELAY,
+	TS_SUBR_WAIT_NEXT,
+	TS_SUBR_PEEK
 	};
 
 enum {
@@ -118,11 +122,21 @@ enum {
 
 #define TS_NO_SUBR ((void (*)())-1)
 
+typedef
+	struct {
+		TYPE_ID type;
+		union {
+			int _integer;
+			int64_t _long;
+		} value;
+	}
+	TRANS_CONST_VALUE;
+	
 #ifndef __GBC_TRANS_C
 EXTERN short TRANS_in_assignment;
 EXTERN short TRANS_in_left_value;
 EXTERN bool TRANS_in_try;
-EXTERN ushort *TRANS_labels;
+//EXTERN ushort *TRANS_labels;
 #endif
 
 #define TRANS_newline() (PATTERN_is_newline(*JOB->current) ? JOB->line = PATTERN_index(*JOB->current) + 1, JOB->current++, TRUE : FALSE)
@@ -132,10 +146,12 @@ void TRANS_reset(void);
 bool TRANS_type(int flag, TRANS_DECL *result);
 bool TRANS_get_number(int index, TRANS_NUMBER *result);
 bool TRANS_check_declaration(void);
-PATTERN *TRANS_get_constant_value(TRANS_DECL *decl, PATTERN *current);
+void TRANS_get_constant_value(TRANS_DECL *decl);
+int TRANS_get_class(int index);
 
 void TRANS_want(int reserved, char *msg);
 void TRANS_want_newline(void);
+void TRANS_want_class(void);
 //int TRANS_get_class(PATTERN pattern);
 bool TRANS_is_end_function(bool is_proc, PATTERN *look);
 char *TRANS_get_num_desc(ushort num);
@@ -143,21 +159,21 @@ char *TRANS_get_num_desc(ushort num);
 #define TRANS_is(_reserved) (PATTERN_is(*JOB->current, (_reserved)) ? JOB->current++, TRUE : FALSE)
 #define TRANS_ignore(_reserved) (void)TRANS_is(_reserved)
 
-/* trans_code.c */
+// gbc_trans_code.c
 
 void TRANS_code(void);
 #define TRANS_has_init_var(_decl) ((_decl)->is_new || (_decl)->init)
 bool TRANS_init_var(TRANS_DECL *decl);
 void TRANS_statement(void);
 void TRANS_init_optional(TRANS_PARAM *param);
-#define TRANS_add_label(_pos) (TRANS_labels ? *ARRAY_add(&TRANS_labels) = (_pos) : 0)
+//#define TRANS_add_label(_pos) (TRANS_labels ? *ARRAY_add(&TRANS_labels) = (_pos) : 0)
 int TRANS_loop_local(bool allow_arg);
 
-/* trans_expr.c */
+// gbc_trans_expr.c
 
 void TRANS_expression(bool check);
 void TRANS_ignore_expression(void);
-bool TRANS_popify_last(void);
+bool TRANS_popify_last(bool no_conv);
 void TRANS_reference(void);
 bool TRANS_affectation(bool dup);
 void TRANS_operation(short op, short nparam, bool output, PATTERN previous);
@@ -165,16 +181,26 @@ void TRANS_new(void);
 TYPE TRANS_variable_get_type(void);
 void TRANS_class(int index);
 bool TRANS_string(PATTERN pattern);
-int TRANS_get_column(int *line);
+TYPE TRANS_get_last_type(void);
 
-/* trans_tree.c */
+// gbc_trans_const.c
+
+TRANS_CONST_VALUE *TRANS_const(void);
+
+// gbc_trans_tree.c
 
 #define RS_UNARY (-1)
 
-//TRANS_TREE *TRANS_tree(bool check_statement);
-void TRANS_tree(bool check_statement, TRANS_TREE **result, int *count, int **result_pos);
+#ifndef __GBC_TRANS_TREE
+extern int TRANS_tree_index;
+#endif
 
-/* trans_ctrl.c */
+//TRANS_TREE *TRANS_tree(bool check_statement);
+void TRANS_tree(bool check_statement, TRANS_TREE **result, int *count);
+void TRANS_tree_set_index(int index);
+int TRANS_get_column(int *line);
+
+// gbc_trans_ctrl.c
 
 void TRANS_control_init(void);
 void TRANS_control_exit(void);
@@ -208,7 +234,7 @@ void TRANS_end_with(void);
 void TRANS_raise(void);
 void TRANS_stop(void);
 
-/* trans_subr.c */
+// gbc_trans_subr.c
 
 void TRANS_subr(int subr, int nparam);
 
@@ -216,11 +242,11 @@ void TRANS_print(void);
 void TRANS_input(void);
 void TRANS_read(void);
 void TRANS_read_old(void);
+void TRANS_peek(void);
 void TRANS_write(void);
 void TRANS_open(void);
 void TRANS_pipe(void);
 void TRANS_memory(void);
-void TRANS_open_string(void);
 void TRANS_close(void);
 void TRANS_lock(void);
 void TRANS_unlock(void);
@@ -253,6 +279,7 @@ void TRANS_scan(void);
 void TRANS_randomize(void);
 void TRANS_mid(void);
 void TRANS_use(void);
+void TRANS_poke(void);
 
 #endif
 

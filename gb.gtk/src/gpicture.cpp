@@ -22,8 +22,6 @@
 ***************************************************************************/
 
 #include <math.h>
-#include <gdk-pixbuf/gdk-pixbuf.h>
-
 #include "gpicture.h"
 
 
@@ -110,12 +108,12 @@ gPicture::gPicture() : gShare()
 	initialize();
 }
 
-#ifdef GTK3
 static cairo_surface_t *create_surface(int w, int h)
 {
 	return cairo_image_surface_create(CAIRO_FORMAT_ARGB32, w, h);
 }
-#else
+
+#ifndef GTK3
 static GdkPixmap *create_pixmap(int w, int h)
 {
 	GdkScreen *scr;
@@ -168,12 +166,11 @@ gPicture::gPicture(gPictureType type, int w, int h, bool trans) : gShare()
 	_width = w;
 	_height = h;
 
-#ifdef GTK3
 	if (_type == SURFACE)
 	{
 		surface = create_surface(w, h);
 	}
-#else
+#ifndef GTK3
 	if (_type == PIXMAP)
 	{
 		pixmap = create_pixmap(w, h);
@@ -215,8 +212,6 @@ gPicture::gPicture(GdkPixbuf *image, bool trans) : gShare()
 
 }
 
-#ifdef GTK3
-
 gPicture::gPicture(cairo_surface_t *surf) : gShare()
 {
 	initialize();
@@ -228,7 +223,7 @@ gPicture::gPicture(cairo_surface_t *surf) : gShare()
 	_height = cairo_image_surface_get_height(surf);
 }
 
-#else
+#ifndef GTK3
 
 // The gPicture takes the GdkPixmap object. Do not unreference it after.
 
@@ -880,8 +875,8 @@ gPicture* gPicture::flip(bool mirror)
 	gPicture *ret;
 	guint32 *src, *dst;
 	int w, h;
-	register guint32 *s, *d;
-	register int x, y;
+	guint32 *s, *d;
+	int x, y;
 	int rowstride;
 
 	getPixbuf();
@@ -1065,10 +1060,8 @@ gPicture *gPicture::stretch(int w, int h, bool smooth)
 	ret->_height = h;
 
 	ret->invalidate();
-
 	return ret;
 }
-
 
 void gPicture::draw(gPicture *pic, int x, int y, int w, int h, int sx, int sy, int sw, int sh)
 {

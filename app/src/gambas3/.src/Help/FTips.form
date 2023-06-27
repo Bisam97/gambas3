@@ -1,19 +1,23 @@
 # Gambas Form File 3.0
 
 { Form Form
-  MoveScaled(0,0,87,76.4286)
+  MoveScaled(0,0,87,76.375)
   Background = Color.TextBackground
+  Action = "tips"
   Text = ("Tips of the day")
   Icon = Picture["icon:/small/lamp"]
+  Persistent = True
+  Utility = True
   Arrangement = Arrange.Vertical
   Spacing = True
   Margin = True
   { dwgBackground DrawingArea
     MoveScaled(1,2,80,6)
     Arrangement = Arrange.Horizontal
+    Indent = True
     { PictureBox1 PictureBox
       MoveScaled(0,0,5,5)
-      Picture = Picture["icon:/24/lamp"]
+      Picture = Picture.Load("icon:/24/lamp")
       Alignment = Align.Center
     }
     { lblTitle Label
@@ -62,5 +66,14 @@
       Default = True
       Cancel = True
     }
+  }
+}
+
+# Gambas Action File 3.0
+
+{ Actions
+  { Action tips
+    Text = "Tips of the day"
+    Picture = "icon:/small/lamp"
   }
 }

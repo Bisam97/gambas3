@@ -26,7 +26,7 @@ Private $cFieldInfo As New Collection
 Private $aCollations As String[]
 
 Private $bMetadata As Boolean
-Private $bTemplate As Variant
+Private $bTemplate As Boolean
 
 Private Const KEY_REQUEST As String = "$"
 Private $bInCheckCurrent As Boolean
@@ -117,7 +117,7 @@ Private Sub LoadList(Optional sTable As String)
   lvwTable.MoveFirst
   Try sFirst = lvwTable.Item.Key
   
-  With lvwTable.Add(KEY_REQUEST, ("SQL requests"), Picture["icon:/16/find"])
+  With lvwTable.Add(KEY_REQUEST, ("SQL requests"), Picture["icon:/small/find"])
     If sFirst Then .MoveBefore(sFirst)
   End With
   
@@ -348,7 +348,7 @@ Catch
   
   Application.Busy = iBusy
   Me.Enabled = False
-  FMain.ShowError(("Unable to connect to database.") & "<p>" & Error.Text)
+  FMain.ShowErrorWith(("Unable to connect to database."))
   Return True
   
 End
@@ -489,6 +489,21 @@ CANCEL:
   
 End
 
+Private Sub UpdateCount()
+
+  Dim iCount As Integer
+
+  iCount = datData.Count
+  If iCount = 0 Then
+    lblCount.Text = ("No record") & " "
+  Else If iCount = 1 Then
+    lblCount.Text = ("One record") & " "
+  Else
+    lblCount.Text = Subst(("&1 records"), Format(iCount, ",0")) & " "
+  Endif
+
+End
+
 Private Sub ReloadTable()
   
   Dim hTable As Table
@@ -498,10 +513,9 @@ Private Sub ReloadTable()
   Dim hCIndexField As CIndexField
   Dim sField As String
   Dim bCreate As Boolean
-  Dim hResult As Result
+  Dim rResult As Result
   Dim cDescField As Collection
   Dim cDescIndex As Collection
-  Dim iCount As Integer
   
   'UpdateDefinition($sTable)
   
@@ -516,21 +530,21 @@ Private Sub ReloadTable()
     cDescField = New Collection
     cDescIndex = New Collection
     
-    Try hResult = $hConn.Find(MConnection.METADATA_TABLE_NAME, "sTableName = &1", $sTable)
-    If hResult And If hResult.Available Then 
+    Try rResult = $hConn.Find(MConnection.METADATA_TABLE_NAME, "sTableName = &1", $sTable)
+    If rResult And If rResult.Available Then 
       
-      For Each hResult
+      For Each rResult
         
-        Select Case hResult!iType
+        Select Case rResult!iType
           
           Case MConnection.MD_TABLE
-            $sDescription = hResult!sValue
+            $sDescription = rResult!sValue
           
           Case MConnection.MD_FIELD
-            cDescField[hResult!sKey] = hResult!sValue
+            cDescField[rResult!sKey] = rResult!sValue
             
           Case MConnection.MD_INDEX
-            cDescIndex[hResult!sKey] = hResult!sValue
+            cDescIndex[rResult!sKey] = rResult!sValue
           
         End Select
         
@@ -591,14 +605,7 @@ Private Sub ReloadTable()
   datData.Table = $sTable
   datData.Refresh
   
-  iCount = datData.Count
-  If iCount = 0 Then
-    lblCount.Text = ("No record") & " "
-  Else If iCount = 1 Then
-    lblCount.Text = ("One record") & " "
-  Else
-    lblCount.Text = Subst(("&1 records"), Format(iCount, ",0")) & " "
-  Endif
+  UpdateCount
   
   splTable.Enabled = True
   
@@ -634,7 +641,7 @@ Catch
   
   splTable.Enabled = False
   Dec Application.Busy
-  Message.Error(Subst(("Unable to load table '&1'."), $sTable) & "\n\n" & Error.Text)
+  FMain.ShowErrorWith(Subst(("Unable to load table '&1'."), $sTable))
   
 End
 
@@ -676,6 +683,7 @@ Public Sub btnRunQuery_Click()
   Dim iPos As Integer
   Dim sStart As String
   Dim fTimer As Float
+  Dim sErr As String
   
   While Left(sReq, 2) = "/*"
     iPos = InStr(sReq, "*/")
@@ -689,6 +697,8 @@ Public Sub btnRunQuery_Click()
   
   Inc Application.Busy
   
+  Project.SetMessage(("Running request") & "...")
+  
   iPos = InStr(sReq, " ")
   If iPos Then sStart = UCase(Left$(sReq, iPos - 1))
   
@@ -696,18 +706,21 @@ Public Sub btnRunQuery_Click()
     Try datRequest.Table = sReq
   Else
     Try $hConn.Exec(sReq)
-    If Not Error Then 
-      Balloon.Info(("OK"), btnRunQuery)
-      'edtRequest.Reset
-    Endif
+  Endif
+  
+  If Error Then
+    sErr = Error.Text
+  Else
+    LoadList($sTable)
   Endif
   
   Dec Application.Busy
   
-  If Error Then 
-    Balloon.Error(("Unable to run query.") & "\n\n" & Error.Text, btnRunQuery)
+  If sErr Then 
+    FMain.ShowError(("Unable to run query.") & "\n\n" & sErr)
   Else
-    edtRequest.ShowMessageLabel(Subst(("&1 s"), Format(Timer - fTimer, "0.###")), Highlight.Highlight, True)
+    Project.SetMessage(("OK"), True)
+    Project.SetMessage(" " & Subst(("(in &1 s)"), Format(Timer - fTimer, "0.#")), True)
   Endif
   
 End
@@ -725,7 +738,7 @@ Public Sub tbvField_Data(Row As Integer, Column As Integer)
         
       Case 0
         If hCField.Key Then
-          .Picture = Picture["img/16/key.png"]
+          .Picture = Picture["icon:/small/key"]
           .Alignment = Align.Center
         Endif
         
@@ -1600,7 +1613,7 @@ Finally
   
 Catch
   
-  Message.Error(Subst(("Cannot write table '&1'."), $sTable) & "\n\n" & sError)
+  FMain.ShowErrorWith(Subst(("Cannot write table '&1'."), $sTable), sError)
   Return True
   
 End
@@ -1652,8 +1665,9 @@ Public Sub btnNewTable_Click()
   sName = FNewTable.TableName
   
   If MConnection.CreateTable($hConn, sName, FNewTable.TableType) Then Return
+  UpdateDefinition
   
-  lvwTable.Add("T" & sName, sName, Picture["icon:/16/table"])
+  lvwTable.Add("T" & sName, sName, Picture["icon:/small/table"])
   'lvwTable["T" & sName].Selected = True
   LoadTable(sName)
   
@@ -1702,6 +1716,7 @@ Public Sub btnKill_Click()
   If CheckCurrent() Then Return
   
   $hConn.Tables.Remove($sTable)
+  UpdateDefinition
   'UpdateDefinition($sTable)
   lvwTable.Remove("T" & $sTable)
   datData.Reset
@@ -1709,7 +1724,7 @@ Public Sub btnKill_Click()
   
 Catch
   
-  Message(Subst(("Cannot delete table '&1'."), $sTable) & "\n\n" & Error.Text)
+  FMain.ShowErrorWith(Subst(("Cannot delete table '&1'."), $sTable))
   
 End
 
@@ -1736,6 +1751,8 @@ Public Sub btnRename_Click()
     Return
   Endif
   
+  UpdateDefinition
+  
   'Try $hConn.DeleteTable(sOldName)
   LoadList($sTable)
   
@@ -1746,6 +1763,7 @@ Public Sub btnImport_Click()
   If SaveTable() Then Return
   
   FImportTable.Run($hConn, GetTableList()) 
+  UpdateDefinition
   If FImportTable.Table Then
     LoadList(FImportTable.Table)
   Else
@@ -1765,6 +1783,7 @@ Public Sub btnRemoveData_Click()
   If Message.Warning(("Do you really want to remove the selected rows?"), ("Remove"), ("Cancel")) = 2 Then Return
   
   dvwData.Remove
+  UpdateCount
   
 End
 
@@ -1824,6 +1843,7 @@ End
 Public Sub btnSaveData_Click()
   
   dvwData.Save
+  UpdateCount
   
 End
 
@@ -1982,13 +2002,13 @@ End
 
 Public Sub btnSelectAll_Click()
 
-  dvwData.View.SelectAll
+  dvwData.SelectAll()
 
 End
 
 Public Sub btnUnselectAll_Click()
 
-  dvwData.View.UnSelectAll
+  dvwData.UnselectAll()
 
 End
 

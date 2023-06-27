@@ -2,7 +2,7 @@
 
   gprinter.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -40,11 +40,12 @@ public:
 	void setPageCount(int v);
 	int pageCount() const { return _page_count; }
 	bool isPageCountSet() const { return _page_count_set; }
+	void clearPageCountSet() { _page_count_set = false; }
 	
 	int orientation() const;
 	void setOrientation(int v);
 	
-	int paperModel() const { return _paper_size; }
+	int paperModel() const;
 	void setPaperModel(int v);
 	
 	void getPaperSize(double *width, double *height);
@@ -80,13 +81,6 @@ public:
 	const char *outputFileName() const;
 	void setOutputFileName(const char *file);
 	
-// Signals
-
-	void (*onBegin)(gPrinter *me, GtkPrintContext *context);
-	void (*onEnd)(gPrinter *me);
-	void (*onDraw)(gPrinter *me, GtkPrintContext *context, int page);
-	void (*onPaginate)(gPrinter *me);
-	
 	void defineSettings();
 	void storeSettings();
 	
@@ -103,14 +97,18 @@ public:
 private:
 	bool run(bool configure);
 	bool isVirtual();
-	GtkPaperSize *getPaperSize();
 	
 	GtkPrintOperation *_operation;
 	GtkPageSetup *_page;
 	int _page_count;
 	bool _page_count_set;
-	int _paper_size;
 	bool _use_full_page;
 };
+
+// Callbacks
+void CB_printer_begin(gPrinter *me, GtkPrintContext *context);
+void CB_printer_end(gPrinter *me);
+void CB_printer_draw(gPrinter *me, GtkPrintContext *context, int page);
+void CB_printer_paginate(gPrinter *me);
 
 #endif

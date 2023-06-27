@@ -2,7 +2,7 @@
 
 	c_x11systray.c
 
-	(c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+	(c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -34,6 +34,7 @@ static GB_FUNCTION _arrange_func;
 void SYSTRAY_raise_arrange(void)
 {
 	static bool init = FALSE;
+	static bool inside_arrange = FALSE;
 
 	if (!init)
 	{
@@ -41,16 +42,27 @@ void SYSTRAY_raise_arrange(void)
 		GB.GetFunction(&_arrange_func, (void *)startup, "X11Systray_Arrange", "", "");
 		init = TRUE;
 	}
-
+	
+	if (inside_arrange)
+		return;
+	
+	inside_arrange = TRUE;
 	GB.Call(&_arrange_func, 0, TRUE);
+	inside_arrange = FALSE;
 }
 
 //---------------------------------------------------------------------------
 
-BEGIN_METHOD(X11Systray_Show, GB_INTEGER window)
+BEGIN_METHOD(X11Systray_Show, GB_INTEGER window; GB_INTEGER background)
 
+	if (VARG(window) == 0)
+	{
+		GB.Error("Bad window handle");
+		return;
+	}
+	
 	X11_init();
-	SYSTRAY_init(X11_display, VARG(window));
+	SYSTRAY_init(X11_display, VARG(window), VARGOPT(background, 0));
 
 END_METHOD
 
@@ -77,6 +89,18 @@ END_METHOD
 BEGIN_METHOD_VOID(X11Systray_Refresh)
 
 	SYSTRAY_refresh();
+
+END_METHOD
+
+BEGIN_METHOD(X11Systray_Move, GB_INTEGER x; GB_INTEGER y; GB_INTEGER width; GB_INTEGER height)
+
+	SYSTRAY_move(VARG(x), VARG(y), VARGOPT(width, -1), VARGOPT(height, -1));
+
+END_METHOD
+
+BEGIN_METHOD(X11Systray_Resize, GB_INTEGER width; GB_INTEGER height)
+
+	SYSTRAY_resize(VARG(width), VARG(height));
 
 END_METHOD
 
@@ -150,6 +174,7 @@ BEGIN_PROPERTY(X11SystrayIcon_Handle)
 
 END_PROPERTY
 
+//-------------------------------------------------------------------------
 
 GB_DESC X11SystrayIconDesc[] =
 {
@@ -178,7 +203,9 @@ GB_DESC X11SystrayDesc[] =
 {
 	GB_DECLARE_VIRTUAL("X11Systray"),
 
-	GB_STATIC_METHOD("Show", NULL, X11Systray_Show, "(Window)i"),
+	GB_STATIC_METHOD("Show", NULL, X11Systray_Show, "(Window)i[(Background)i]"),
+	GB_STATIC_METHOD("Move", NULL, X11Systray_Move, "(X)i(Y)i[(Width)i(Height)i]"),
+	GB_STATIC_METHOD("Resize", NULL, X11Systray_Resize, "(Width)i(Height)i"),
 	GB_STATIC_PROPERTY_READ("Count", "i", X11Systray_Count),
 	GB_STATIC_METHOD("_get", "X11SystrayIcon", X11Systray_get, "(Index)i"),
 	GB_STATIC_METHOD("Refresh", NULL, X11Systray_Refresh, NULL),

@@ -2,7 +2,7 @@
 
   gtrayicon.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -47,12 +47,6 @@ public:
 	void hide() { setVisible(false); }
 	int loopLevel() { return _loopLevel; }
 
-//"Events"
-	void (*onClick)(gTrayIcon *sender, int button);
-	void (*onScroll)(gTrayIcon *sender);
-	void (*onMenu)(gTrayIcon *sender);
-	void (*onDestroy)(gTrayIcon *sender);
-
 //"Static"
 
 	static int count() { return g_list_length(trayicons); }
@@ -80,5 +74,11 @@ private:
 
 	static int _visible_count;
 };
+
+// Callbacks
+void CB_trayicon_click(gTrayIcon *sender, int button);
+void CB_trayicon_scroll(gTrayIcon *sender);
+void CB_trayicon_menu(gTrayIcon *sender);
+void CB_trayicon_destroy(gTrayIcon *sender);
 
 #endif

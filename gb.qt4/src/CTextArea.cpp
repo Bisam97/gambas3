@@ -2,7 +2,7 @@
 
   CTextArea.cpp
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -23,9 +23,8 @@
 
 #define __CTEXTAREA_CPP
 
-#include <qapplication.h>
-#include <qpalette.h>
-#include <QPlainTextEdit>
+#include <QPalette>
+#include <QTextEdit>
 #include <QTextBlock>
 #include <QTextDocumentFragment>
 
@@ -39,6 +38,8 @@
 DECLARE_EVENT(EVENT_Change);
 DECLARE_EVENT(EVENT_Cursor);
 DECLARE_EVENT(EVENT_Link);
+
+//-------------------------------------------------------------------------
 
 static int get_length(void *_object)
 {
@@ -57,6 +58,12 @@ static int get_length(void *_object)
 	}
 	
 	return THIS->length;
+}
+
+static bool is_empty(void *_object)
+{
+	QTextBlock block = WIDGET->document()->begin();
+	return !block.isValid();
 }
 
 static void to_pos(QTextEdit *wid, int par, int car, int *pos)
@@ -147,24 +154,35 @@ void CTEXTAREA_set_foreground(void *_object)
 {
 	THIS->no_change = TRUE;
 	
-	QTextCursor oldCursor = WIDGET->textCursor();
-	
-	WIDGET->selectAll();
-	
-	WIDGET->setTextColor(Qt::black);
-	set_text_color(THIS);
-	
-	WIDGET->setTextCursor(oldCursor);
-	
-	set_text_color(THIS);
+	if (is_empty(THIS))
+	{
+		WIDGET->setPlainText(" ");
+		WIDGET->selectAll();
+		WIDGET->setTextColor(Qt::black);
+		set_text_color(THIS);
+		WIDGET->textCursor().insertText("");
+	}
+	else
+	{
+		QTextCursor oldCursor = WIDGET->textCursor();
+		
+		WIDGET->selectAll();
+		
+		WIDGET->setTextColor(Qt::black);
+		set_text_color(THIS);
+		
+		WIDGET->setTextCursor(oldCursor);
+		
+		set_text_color(THIS);
+	}
 	
 	THIS->no_change = FALSE;
 }
 
 
-/** TextArea ***************************************************************/
+//-------------------------------------------------------------------------
 
-BEGIN_METHOD(CTEXTAREA_new, GB_OBJECT parent)
+BEGIN_METHOD(TextArea_new, GB_OBJECT parent)
 
 	QTextEdit *wid = new QTextEdit(QCONTAINER(VARG(parent)));
 
@@ -175,18 +193,18 @@ BEGIN_METHOD(CTEXTAREA_new, GB_OBJECT parent)
 	wid->setAcceptRichText(false);
 	
 	THIS->widget.flag.wheel = true;
-	THIS->widget.flag.fillBackground = true;
+	THIS->widget.flag.autoFillBackground = true;
 	CWIDGET_new(wid, (void *)_object);
 	
 	THIS->length = -1;
 	THIS->align = ALIGN_NORMAL;
 
-	wid->document()->setDocumentMargin(2);
+	wid->document()->setDocumentMargin(MAIN_scale * 3 / 4);
 	
 END_METHOD
 
 
-BEGIN_PROPERTY(CTEXTAREA_text)
+BEGIN_PROPERTY(TextArea_Text)
 
 	if (READ_PROPERTY)
 		RETURN_NEW_STRING(WIDGET->toPlainText());
@@ -200,14 +218,14 @@ BEGIN_PROPERTY(CTEXTAREA_text)
 END_PROPERTY
 
 
-BEGIN_PROPERTY(CTEXTAREA_length)
+BEGIN_PROPERTY(TextArea_Length)
 
 	GB.ReturnInteger(get_length(THIS));
 
 END_PROPERTY
 
 
-BEGIN_PROPERTY(CTEXTAREA_read_only)
+BEGIN_PROPERTY(TextArea_ReadOnly)
 
 	if (READ_PROPERTY)
 		GB.ReturnBoolean(WIDGET->isReadOnly());
@@ -217,7 +235,7 @@ BEGIN_PROPERTY(CTEXTAREA_read_only)
 END_PROPERTY
 
 
-BEGIN_PROPERTY(CTEXTAREA_wrap)
+BEGIN_PROPERTY(TextArea_Wrap)
 
 	if (READ_PROPERTY)
 		GB.ReturnBoolean(WIDGET->lineWrapMode() != QTextEdit::NoWrap);
@@ -254,7 +272,7 @@ static int get_column(CTEXTAREA *_object)
 	return cursor.position() - cursor.block().position();
 }
 
-BEGIN_PROPERTY(CTEXTAREA_column)
+BEGIN_PROPERTY(TextArea_Column)
 
 	QTextCursor cursor = WIDGET->textCursor();
 	
@@ -277,7 +295,7 @@ BEGIN_PROPERTY(CTEXTAREA_column)
 
 END_PROPERTY
 
-BEGIN_PROPERTY(CTEXTAREA_line)
+BEGIN_PROPERTY(TextArea_Line)
 
 	QTextCursor cursor = WIDGET->textCursor();
 	
@@ -309,7 +327,7 @@ BEGIN_PROPERTY(CTEXTAREA_line)
 
 END_PROPERTY
 
-BEGIN_PROPERTY(CTEXTAREA_pos)
+BEGIN_PROPERTY(TextArea_Pos)
 
 	if (READ_PROPERTY)
 	{
@@ -351,47 +369,22 @@ BEGIN_METHOD(CTEXTAREA_select, int line; int col; int selline; int selcol)
 END_METHOD
 */
 
-BEGIN_METHOD_VOID(CTEXTAREA_clear)
+BEGIN_METHOD_VOID(TextArea_Clear)
 
 	WIDGET->clear();
 
 END_METHOD
 
 
-BEGIN_METHOD(CTEXTAREA_insert, GB_STRING text)
+BEGIN_METHOD(TextArea_Insert, GB_STRING text)
 
 	WIDGET->textCursor().insertText(QSTRING_ARG(text));
 
 END_METHOD
 
-/*
-BEGIN_METHOD(CTEXTAREA_line_get, int line)
+//-------------------------------------------------------------------------
 
-	int line = PARAM(line);
-
-	if (line < 0 || line >= WIDGET->numLines())
-		GB.ReturnVoidString();
-	else
-		GB.ReturnNewZeroString(WIDGET->textLine(PARAM(line)));
-
-END_METHOD
-
-
-BEGIN_PROPERTY(CTEXTAREA_line_count)
-
-	GB.ReturnInteger(WIDGET->numLines());
-
-END_PROPERTY
-*/
-
-/***************************************************************************
-
-	.TextArea.Selection
-
-***************************************************************************/
-
-
-BEGIN_PROPERTY(CTEXTAREA_sel_text)
+BEGIN_PROPERTY(TextArea_Selection_Text)
 
 	if (READ_PROPERTY)
 		RETURN_NEW_STRING(WIDGET->textCursor().selection().toPlainText());
@@ -401,7 +394,7 @@ BEGIN_PROPERTY(CTEXTAREA_sel_text)
 END_PROPERTY
 
 
-BEGIN_PROPERTY(CTEXTAREA_sel_length)
+BEGIN_PROPERTY(TextArea_Selection_Length)
 
 	int start, length;
 
@@ -411,7 +404,7 @@ BEGIN_PROPERTY(CTEXTAREA_sel_length)
 END_PROPERTY
 
 
-BEGIN_PROPERTY(CTEXTAREA_sel_start)
+BEGIN_PROPERTY(TextArea_Selection_Start)
 
 	int start, length;
 
@@ -421,7 +414,7 @@ BEGIN_PROPERTY(CTEXTAREA_sel_start)
 END_PROPERTY
 
 
-BEGIN_METHOD_VOID(CTEXTAREA_sel_clear)
+BEGIN_METHOD_VOID(TextArea_Selection_Clear)
 
 	QTextCursor cursor = WIDGET->textCursor();
 	cursor.clearSelection();	
@@ -429,15 +422,16 @@ BEGIN_METHOD_VOID(CTEXTAREA_sel_clear)
 
 END_METHOD
 
+//-------------------------------------------------------------------------
 
-BEGIN_PROPERTY(CTEXTAREA_selected)
+BEGIN_PROPERTY(TextArea_Selected)
 
 	GB.ReturnBoolean(WIDGET->textCursor().hasSelection());
 
 END_PROPERTY
 
 
-BEGIN_METHOD(CTEXTAREA_sel_select, GB_INTEGER start; GB_INTEGER length)
+BEGIN_METHOD(TextArea_Select, GB_INTEGER start; GB_INTEGER length)
 
 	if (MISSING(start) && MISSING(length))
 		WIDGET->textCursor().select(QTextCursor::Document);
@@ -454,7 +448,7 @@ BEGIN_METHOD(CTEXTAREA_sel_select, GB_INTEGER start; GB_INTEGER length)
 END_METHOD
 
 
-BEGIN_METHOD_VOID(CTEXTAREA_sel_all) //, GB_BOOLEAN sel)
+BEGIN_METHOD_VOID(TextArea_SelectAll) //, GB_BOOLEAN sel)
 
 	QTextCursor cursor = WIDGET->textCursor();
 	cursor.select(QTextCursor::Document);
@@ -463,7 +457,7 @@ BEGIN_METHOD_VOID(CTEXTAREA_sel_all) //, GB_BOOLEAN sel)
 END_METHOD
 
 
-BEGIN_METHOD(CTEXTAREA_to_pos, GB_INTEGER line; GB_INTEGER col)
+BEGIN_METHOD(TextArea_ToPos, GB_INTEGER line; GB_INTEGER col)
 
 	int pos;
 
@@ -474,7 +468,7 @@ BEGIN_METHOD(CTEXTAREA_to_pos, GB_INTEGER line; GB_INTEGER col)
 END_METHOD
 
 
-BEGIN_METHOD(CTEXTAREA_to_line, GB_INTEGER pos)
+BEGIN_METHOD(TextArea_ToLine, GB_INTEGER pos)
 
 	int line, col;
 
@@ -485,7 +479,7 @@ BEGIN_METHOD(CTEXTAREA_to_line, GB_INTEGER pos)
 END_METHOD
 
 
-BEGIN_METHOD(CTEXTAREA_to_col, GB_INTEGER pos)
+BEGIN_METHOD(TextArea_ToColumn, GB_INTEGER pos)
 
 	int line, col;
 
@@ -496,35 +490,35 @@ BEGIN_METHOD(CTEXTAREA_to_col, GB_INTEGER pos)
 END_METHOD
 
 
-BEGIN_METHOD_VOID(CTEXTAREA_copy)
+BEGIN_METHOD_VOID(TextArea_Copy)
 
 	WIDGET->copy();
 
 END_METHOD
 
 
-BEGIN_METHOD_VOID(CTEXTAREA_cut)
+BEGIN_METHOD_VOID(TextArea_Cut)
 
 	WIDGET->cut();
 
 END_METHOD
 
 
-BEGIN_METHOD_VOID(CTEXTAREA_paste)
+BEGIN_METHOD_VOID(TextArea_Paste)
 
 	WIDGET->paste();
 
 END_METHOD
 
 
-BEGIN_METHOD_VOID(CTEXTAREA_undo)
+BEGIN_METHOD_VOID(TextArea_Undo)
 
 	WIDGET->undo();
 
 END_METHOD
 
 
-BEGIN_METHOD_VOID(CTEXTAREA_redo)
+BEGIN_METHOD_VOID(TextArea_Redo)
 
 	WIDGET->redo();
 
@@ -555,7 +549,7 @@ END_METHOD
 END_PROPERTY*/
 
 
-BEGIN_METHOD_VOID(CTEXTAREA_ensure_visible)
+BEGIN_METHOD_VOID(TextArea_EnsureVisible)
 
 	WIDGET->ensureCursorVisible();
 
@@ -579,7 +573,7 @@ BEGIN_PROPERTY(TextArea_Border)
 	CWIDGET_border_simple(_object, _param);
 
 	if (!READ_PROPERTY)
-		WIDGET->document()->setDocumentMargin(VPROP(GB_BOOLEAN) ? 2 : 0);
+		WIDGET->document()->setDocumentMargin(VPROP(GB_BOOLEAN) ? (MAIN_scale * 3 / 4) : 0);
 	
 END_PROPERTY
 
@@ -597,17 +591,19 @@ BEGIN_METHOD(TextArea_CursorAt, GB_INTEGER pos)
 
 END_PROPERTY
 
+//-------------------------------------------------------------------------
+
 GB_DESC CTextAreaSelectionDesc[] =
 {
 	GB_DECLARE(".TextArea.Selection", 0), GB_VIRTUAL_CLASS(),
 
-	GB_PROPERTY("Text", "s", CTEXTAREA_sel_text),
-	GB_PROPERTY_READ("Length", "i", CTEXTAREA_sel_length),
-	GB_PROPERTY_READ("Start", "i", CTEXTAREA_sel_start),
-	GB_PROPERTY_READ("Pos", "i", CTEXTAREA_sel_start),
+	GB_PROPERTY("Text", "s", TextArea_Selection_Text),
+	GB_PROPERTY_READ("Length", "i", TextArea_Selection_Length),
+	GB_PROPERTY_READ("Start", "i", TextArea_Selection_Start),
+	GB_PROPERTY_READ("Pos", "i", TextArea_Selection_Start),
 
-	//GB_METHOD("Clear", NULL, CTEXTAREA_sel_clear, NULL),
-	GB_METHOD("Hide", NULL, CTEXTAREA_sel_clear, NULL),
+	//GB_METHOD("Clear", NULL, TextArea_Selection_Clear, NULL),
+	GB_METHOD("Hide", NULL, TextArea_Selection_Clear, NULL),
 
 	GB_END_DECLARE
 };
@@ -616,45 +612,45 @@ GB_DESC CTextAreaDesc[] =
 {
 	GB_DECLARE("TextArea", sizeof(CTEXTAREA)), GB_INHERITS("Control"),
 
-	GB_METHOD("_new", NULL, CTEXTAREA_new, "(Parent)Container;"),
+	GB_METHOD("_new", NULL, TextArea_new, "(Parent)Container;"),
 
-	GB_PROPERTY("Text", "s", CTEXTAREA_text),
-	GB_PROPERTY_READ("Length", "i", CTEXTAREA_length),
-	GB_PROPERTY("ReadOnly", "b", CTEXTAREA_read_only),
+	GB_PROPERTY("Text", "s", TextArea_Text),
+	GB_PROPERTY_READ("Length", "i", TextArea_Length),
+	GB_PROPERTY("ReadOnly", "b", TextArea_ReadOnly),
 
 	//GB_PROPERTY_READ("Lines", ".TextArea.Line", CTEXTAREA_line_or_selection),
 
 	GB_PROPERTY("ScrollBar", "i", CWIDGET_scrollbar),
-	GB_PROPERTY("Wrap", "b", CTEXTAREA_wrap),
+	GB_PROPERTY("Wrap", "b", TextArea_Wrap),
 	GB_PROPERTY("Border", "b", TextArea_Border),
 	GB_PROPERTY("Alignment", "i", TextArea_Alignment),
 
-	GB_PROPERTY("Line", "i", CTEXTAREA_line),
-	GB_PROPERTY("Column", "i", CTEXTAREA_column),
-	GB_PROPERTY("Pos", "i", CTEXTAREA_pos),
+	GB_PROPERTY("Line", "i", TextArea_Line),
+	GB_PROPERTY("Column", "i", TextArea_Column),
+	GB_PROPERTY("Pos", "i", TextArea_Pos),
 
 	GB_PROPERTY_SELF("Selection", ".TextArea.Selection"),
-	GB_METHOD("Select", NULL, CTEXTAREA_sel_select, "[(Start)i(Length)i]"),
-	GB_METHOD("SelectAll", NULL, CTEXTAREA_sel_all, NULL),
-	GB_METHOD("Unselect", NULL, CTEXTAREA_sel_clear, NULL),
-	GB_PROPERTY_READ("Selected", "b", CTEXTAREA_selected),
+	GB_METHOD("Select", NULL, TextArea_Select, "[(Start)i(Length)i]"),
+	GB_METHOD("SelectAll", NULL, TextArea_SelectAll, NULL),
+	GB_METHOD("Unselect", NULL, TextArea_Selection_Clear, NULL),
+	GB_PROPERTY_READ("Selected", "b", TextArea_Selected),
 	
-	GB_METHOD("Clear", NULL, CTEXTAREA_clear, NULL),
-	GB_METHOD("Insert", NULL, CTEXTAREA_insert, "(Text)s"),
+	GB_METHOD("Clear", NULL, TextArea_Clear, NULL),
+	GB_METHOD("Insert", NULL, TextArea_Insert, "(Text)s"),
 
-	GB_METHOD("Copy", NULL, CTEXTAREA_copy, NULL),
-	GB_METHOD("Cut", NULL, CTEXTAREA_cut, NULL),
-	GB_METHOD("Paste", NULL, CTEXTAREA_paste, NULL),
-	GB_METHOD("Undo", NULL, CTEXTAREA_undo, NULL),
-	GB_METHOD("Redo", NULL, CTEXTAREA_redo, NULL),
+	GB_METHOD("Copy", NULL, TextArea_Copy, NULL),
+	GB_METHOD("Cut", NULL, TextArea_Cut, NULL),
+	GB_METHOD("Paste", NULL, TextArea_Paste, NULL),
+	GB_METHOD("Undo", NULL, TextArea_Undo, NULL),
+	GB_METHOD("Redo", NULL, TextArea_Redo, NULL),
 
-	GB_METHOD("ToPos", "i", CTEXTAREA_to_pos, "(Line)i(Column)i"),
-	GB_METHOD("ToLine", "i", CTEXTAREA_to_line, "(Pos)i"),
-	GB_METHOD("ToColumn", "i", CTEXTAREA_to_col, "(Pos)i"),
+	GB_METHOD("ToPos", "i", TextArea_ToPos, "(Line)i(Column)i"),
+	GB_METHOD("ToLine", "i", TextArea_ToLine, "(Pos)i"),
+	GB_METHOD("ToColumn", "i", TextArea_ToColumn, "(Pos)i"),
 
 	GB_METHOD("CursorAt", "Point", TextArea_CursorAt, "[(Pos)i]"),
 
-	GB_METHOD("EnsureVisible", NULL, CTEXTAREA_ensure_visible, NULL),
+	GB_METHOD("EnsureVisible", NULL, TextArea_EnsureVisible, NULL),
 
 	GB_EVENT("Change", NULL, NULL, &EVENT_Change),
 	GB_EVENT("Cursor", NULL, NULL, &EVENT_Cursor),
@@ -665,7 +661,7 @@ GB_DESC CTextAreaDesc[] =
 };
 
 
-/** CTextArea **************************************************************/
+//-------------------------------------------------------------------------
 
 CTextArea CTextArea::manager;
 

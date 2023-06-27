@@ -1,0 +1,115 @@
+' Gambas class file
+
+Inherits Task
+
+Public Search As String[]
+Public Buffer As String
+
+Private $aImageExt As String[] = ["png", "jpg", "jpeg", "gif", "webm", "mov", "mp4", "mp3"]
+
+Public Sub Main()
+  
+  Dim aDir As String[]
+  Dim sDir As String
+  Dim sData As String
+  Dim sRoot As String
+  Dim sFile As String
+  Dim sExt As String
+  Dim sLink As String
+  Dim sSearch As String
+  Dim sTitle As String
+  Dim iStep As Integer
+  Dim bMatch As Boolean
+  Dim hRegExp As RegExp
+  
+  Application.Priority = 10
+  Inc Project.NoWait
+  
+  sRoot = MHelp.GetOfflineDir() &/ "data" &/ MHelp.GetLanguage()
+  
+  For iStep = 1 To 4
+  
+    aDir = [sRoot]
+    
+    While aDir.Count
+      
+      sDir = aDir.Pop()
+      sLink = Mid$(sDir, Len(sRoot) + 1)
+      If iStep = 1 Or If iStep = 3 Then 
+        sTitle = Wiki.GetPageTitle(sLink)
+        If Not sTitle Then Goto NEXT_FILE
+      Else
+        sData = ""
+        Try sData = File.Load(sDir &/ "~page")
+        If Not sData Then Goto NEXT_FILE
+      Endif
+      
+      For Each sSearch In Search
+        
+        bMatch = False
+        
+        If iStep = 1 Or If iStep = 3 Then
+          
+          If iStep = 1 Then
+          
+            hRegExp = New RegExp
+            hRegExp.Compile("(^|[^_$[:alnum:]])" & Project.GrepQuote(sSearch) & "($|[^_$[:alnum:]])", RegExp.Caseless)
+            
+            If sTitle Then 
+              hRegExp.Exec(sTitle)
+              bMatch = hRegExp.Count >= 1
+            Endif
+            
+          Else
+            
+            bMatch = String.InStr(sTitle, sSearch, 1, gb.IgnoreCase) 
+            
+          Endif
+          
+        Else 
+          
+          If iStep = 2 Then
+          
+            hRegExp = New RegExp
+            hRegExp.Compile("(^|[^_$[:alnum:]])" & Project.GrepQuote(sSearch) & "($|[^_$[:alnum:]])", RegExp.Caseless)
+            
+            If sData Then 
+              hRegExp.Exec(sData)
+              bMatch = hRegExp.Count >= 1
+            Endif
+            
+          Else
+            
+            If String.InStr(sData, sSearch, 1, gb.IgnoreCase) Then bMatch = True
+            
+          Endif
+
+        Endif
+        
+        If bMatch Then
+          sLink = Mid$(sDir, Len(sRoot) + 1)
+          If Not sLink Then sLink = "/"
+          Print sLink
+          Flush
+          Break
+        Endif
+        
+      Next
+      
+    NEXT_FILE:
+    
+      For Each sFile In Dir(sDir, "*", gb.Directory).Sort(gb.Language)
+        sExt = File.Ext(sFile)
+        If $aImageExt.Exist(sExt) Then Continue
+        aDir.Add(sDir &/ sFile, 0)
+      Next
+      
+    Wend
+    
+  Next
+  
+Catch 
+  
+  Print "**** "; Error.Text;; Error.Where
+  
+End

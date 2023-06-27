@@ -1,0 +1,225 @@
+' Gambas module file
+
+Private $cMap As New Collection 
+
+Private Sub LoadMap()
+
+  Dim hFile As File
+  Dim sLine As String
+  Dim aScan As String[]
+
+  hFile = Open Application.Path &/ ".hidden/flag.txt"
+  While Not Eof(hFile)
+    Line Input #hFile, sLine
+    sLine = Trim(sLine)
+    If Not sLine Then Continue
+    aScan = Scan(sLine, "*: *")
+    If aScan.Count <> 2 Then Continue
+    $cMap[aScan[0]] = Trim(aScan[1])
+  Wend
+
+End
+
+Private Sub DrawBorder(hImage As Image, X As Integer, Y As Integer)
+
+  Dim A As Integer
+
+  A = Color[hImage[X, Y]].Alpha
+  hImage[X, Y] = Color.SetAlpha(Color.TextForeground, A)
+
+End
+
+Public Sub Main()
+
+  Dim sDir As String
+  Dim sFile As String
+  Dim sPath As String
+  Dim hSvg As SvgImage
+  Dim hImage As Image
+  Dim W, H As Float
+  Dim X As Float
+  Dim Y As Float
+  Dim sDest As String
+  Dim sAction As String
+  Dim fLeft As Float
+  Dim hCopy As Image
+  Dim fTop As Float
+  Dim hTop As Image
+  Dim hBottom As Image
+  Dim YTop As Float
+  Dim YBottom As Float
+  Dim hFlag As SvgImage
+  Dim iCol As Integer
+  Dim I As Integer
+
+  LoadMap
+  
+  sDir = Application.Path &/ ".hidden/flag"
+  
+  For Each sFile In Dir(sDir, "*.svg").Sort()
+    
+    sPath = sDir &/ sFile
+    
+    hSvg = SvgImage.Load(sPath)
+    
+    hImage = New Image(256, 256)
+    GoSub SAVE_ICON
+    
+  Next
+  
+  Return
+  
+SAVE_ICON:
+
+  Paint.Begin(hImage)
+  
+  W = hImage.W '- 2
+  H = hImage.H '- 2
+  
+  fLeft = 0.5
+  fTop = 0.5
+   
+  sAction = $cMap[File.BaseName(sFile)]
+  Select Case sAction
+    
+    Case Like "copy*"
+      
+      GoSub PAINT_FIT
+      
+      For Y = 0 To hImage.H \ 2
+        If Color[hImage[0, Y]].Alpha <> 255 Then Break 
+      Next
+      YTop = Y
+      hTop = hImage.Copy(0, Y, hImage.W, 1)
+      
+      For Y = hImage.H - 1 DownTo hImage.H \ 2
+        If Color[hImage[0, Y]].Alpha <> 255 Then Break 
+      Next
+      YBottom = Y
+      hBottom = hImage.Copy(0, Y, hImage.W, 1)
+      
+      If sAction = "copy" Or If sAction = "copy-top" Then
+        hCopy = hTop
+      Else 
+        hCopy = hBottom
+      Endif
+      Y = YTop
+      While Y > 0
+        Dec Y
+        Paint.DrawImage(hCopy, 0, Y)
+      Wend
+      
+      If sAction = "copy" Or If sAction = "copy-bottom" Then
+        hCopy = hBottom
+      Else 
+        hCopy = hTop
+      Endif
+      Y = YBottom
+      While Y < hImage.H
+        Paint.DrawImage(hCopy, 0, Y)
+        Inc Y
+      Wend
+      
+    Case "stretch"
+      
+      hSvg.Paint(0, 0, hImage.W, hImage.H)
+      
+    Case Like "fit*"
+      
+      If sAction Ends "%" Then
+        fLeft = CInt(Mid$(sAction, 5, -1)) / 100
+      Endif
+      
+      GoSub PAINT_FIT
+    
+    Case Like "*%"
+      
+      If hSvg.W > hSvg.H Then
+        fLeft = CInt(Left(sAction, -1)) / 100
+      Else 
+        fTop = CInt(Left(sAction, -1)) / 100
+      Endif
+      GoSub PAINT_COVER
+      
+    Case "gb", "fr"
+    
+      fTop = 1
+      GoSub PAINT_FIT
+      iCol = hImage[hImage.W - 1, hImage.H \ 2 + 1]
+      Paint.FillRect(0, 0, hImage.W, hImage.H \ 2, iCol)
+      hFlag = SvgImage.Load(sDir &/ sAction & ".svg")
+      hFlag.Paint(0, 0, hImage.W * 0.75, hImage.W * hFlag.H / hFlag.W * 0.75)
+      Paint.FillRect(0, hImage.H \ 2, hImage.W \ 2, hImage.H \ 4, iCol)
+      
+    Case Else 
+      
+      GoSub PAINT_COVER
+    
+  End Select
+  
+  For I = 0 To hImage.W
+    DrawBorder(hImage, I, 0)
+    DrawBorder(hImage, I, 1)
+    DrawBorder(hImage, I, hImage.H - 1)
+    DrawBorder(hImage, I, hImage.H - 2)
+    DrawBorder(hImage, 0, I)
+    DrawBorder(hImage, 1, I)
+    DrawBorder(hImage, hImage.W - 1, I)
+    DrawBorder(hImage, hImage.W - 2, I)
+  Next
+  
+  Paint.End
+  
+  sDest = CStr(hImage.H) &/ File.SetExt(sFile, "png")
+  Error sDest
+  hImage.Save("~/gambas/git/master/comp/src/gb.form.stock/flag/" &/ sDest)
+  
+  Return
+
+PAINT_FIT:
+
+  If hSvg.W > hSvg.H Then
+    H = H * hSvg.H / hSvg.W
+  Else If hSvg.W < hSvg.H Then
+    W = W * hSvg.W / hSvg.H
+  Endif
+  
+  W = CInt(W / 2) * 2
+  H = CInt(H / 2) * 2
+
+  X = (hImage.W - W) * fLeft
+  Y = (hImage.H - H) * fTop
+  
+  Paint.Save()  
+  Paint.Rectangle(X, Y, W, H)
+  Paint.Clip()
+  
+  hSvg.Paint(X - 2, Y - 2, W + 4, H + 4)
+
+  Paint.Restore
+  Return
+
+PAINT_COVER:
+
+  If hSvg.W < hSvg.H Then
+    H = H * hSvg.H / hSvg.W
+  Else If hSvg.W > hSvg.H Then
+    W = W * hSvg.W / hSvg.H
+  Endif
+  
+  W = CInt(W / 2) * 2
+  H = CInt(H / 2) * 2
+  
+  X = (hImage.W - W) * fLeft
+  Y = (hImage.H - H) * fTop
+  
+  Paint.Save
+  Paint.Rectangle(X, Y, W, H)
+  Paint.Clip()
+  
+  hSvg.Paint(X, Y, W, H) 'X - 1, Y - 1, W + 2, H + 2)
+
+  Paint.Restore
+  Return
+
+End

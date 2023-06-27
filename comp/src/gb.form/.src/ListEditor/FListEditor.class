@@ -1,5 +1,7 @@
 ' Gambas class file
 
+Private $bUnique As Boolean
+
 Private Sub GetParent() As ListEditor
 
   Return Me.Parent
@@ -27,7 +29,7 @@ End
 Private Sub UnSelect()
 
   If lstData.Index < 0 Then Return
-  lstData.Index = -1
+  SetIndex(-1)
   GetParent()._RaiseSelect
 
 End
@@ -37,16 +39,26 @@ Public Sub SetList(aList As String[])
   UnSelect
   txtData.Clear
   lstData.List = aList
+  CheckUnique
   GetParent()._RaiseChange
   
 End
 
-Public Sub Add(sText As String)
+Public Sub Add(sText As String) As Boolean
+  
+  Dim iPos As Integer
   
   If Not sText Then Return
+  If $bUnique Then
+    iPos = lstData.Find(sText)
+    If iPos >= 0 Then
+      SetIndex(iPos)
+      Return True
+    Endif
+  Endif
   lstData.Add(sText)
   GetParent()._RaiseChange
-  lstData.Index = -1
+  SetIndex(-1)
   
 End
 
@@ -57,7 +69,7 @@ Public Sub btnAdd_Click()
   If txtData.ReadOnly Then Return
   
   If lstData.Index < 0 Then
-    Add(txtData.Text)
+    If Add(txtData.Text) Then Return
   Endif
   
   UnSelect
@@ -73,13 +85,23 @@ Public Sub lstData_Select()
     txtData.SetFocus
   Endif
   
+  UpdateButtons
+  
   GetParent()._RaiseSelect
 
 End
 
 Public Sub txtData_Change()
 
-  If lstData.Index < 0 Then Return
+  If lstData.Index < 0 Then
+    If txtData.Text Then
+      btnAdd_Click
+      SetIndex(lstData.Count - 1)
+    Else 
+      Return
+    Endif
+  Endif
+  
   lstData.Current.Text = txtData.Text
   If Not txtData.Text Then 
     btnRemove_Click
@@ -108,7 +130,7 @@ End
 
 Public Sub txtData_Activate()
 
-  btnAdd.Value = True
+  btnAdd_Click
 
 End
 
@@ -164,18 +186,14 @@ End
 ' 
 Public Sub GetText() As String
   
-  If lstData.Index >= 0 Then Return lstData.Text
+  Return txtData.Text
   
 End
 
 Public Sub SetText(sText As String)
   
-  If Not sText Then Return
-  If lstData.Index >= 0 Then 
-    lstData.Current.Text = sText
-    GetParent()._RaiseChange
-  Endif
-
+  txtData.Text = sText
+  
 End
 
 Public Sub GetMoveable() As Boolean
@@ -197,7 +215,7 @@ Public Sub GetEditor() As TextBox
   
 End
 
-Public Sub Form_Open()
+Public Sub _new()
 
   Me.Parent.Proxy = txtData
 
@@ -211,16 +229,18 @@ Public Sub txtData_KeyPress()
     
     If Key.Code = Key.Up Then
       If lstData.Index < 0 Then
-        lstData.Index = lstData.Count - 1
+        SetIndex(lstData.Count - 1)
       Else If lstData.Index > 0 Then
         Dec lstData.Index
       Endif
       Stop Event
     Else If Key.Code = Key.Down Then
       If lstData.Index < 0 Then
-        lstData.Index = 0
-      Else
+        SetIndex(0)
+      Else If lstData.Index < (lstData.Count - 1) Then
         Inc lstData.Index
+      Else 
+        btnAdd_Click
       Endif
       Stop Event
     Endif
@@ -228,10 +248,10 @@ Public Sub txtData_KeyPress()
   Else If Key.Control Then
     
     If Key.Code = Key.Home Then
-      lstData.Index = 0
+      SetIndex(0)
       Stop Event
     Else If Key.Code = Key.End Then
-      lstData.Index = lstData.Count - 1
+      SetIndex(lstData.Count - 1)
       Stop Event
     Endif
   
@@ -250,8 +270,10 @@ Public Sub SetReadOnly(bReadOnly As Boolean)
   txtData.ReadOnly = bReadOnly
   txtData.Visible = Not bReadOnly
   
+  If GetParent().Design Then Return
+  
   If bReadOnly Then
-    btnAdd.Text = ("Insert") & "..."
+    btnAdd.Text = ("Add") & "..."
     btnRemove.Text = ("Remove")
   Else
     btnAdd.Text = ""
@@ -260,8 +282,110 @@ Public Sub SetReadOnly(bReadOnly As Boolean)
   
 End
 
-Public Sub Exist(Text As String) As Boolean
+Public Sub lstData_Activate()
+
+  GetParent()._RaiseActivate
+
+End
+
+Public Sub Clear()
   
-  Return lstData.Find(Text) >= 0
+  lstData.Clear
+  txtData.Clear
   
 End
+
+Public Sub IsUnique() As Boolean
+  
+  Return $bUnique
+  
+End
+
+Private Sub CheckUnique()
+
+  Dim I As Integer
+  Dim iPos As Integer
+  
+  If Not $bUnique Then Return
+
+  I = 1
+  While I < lstData.Count
+    iPos = lstData.Find(lstData[I].Text)
+    If iPos <> I Then
+      lstData.Remove(I)
+    Else
+      Inc I
+    Endif
+  Wend
+
+End
+
+Public Sub SetUnique(bUnique As Boolean)
+  
+  If $bUnique = bUnique Then Return
+  $bUnique = bUnique
+  CheckUnique
+
+End
+
+Public Sub GetIndex() As Integer
+  
+  Return lstData.Index
+  
+End
+
+Public Sub Find(Text As String, Mode As Integer) As Integer
+  
+  Return lstData.Find(Text, Mode)
+  
+End
+
+Public Sub Remove(Index As Integer, Length As Integer)
+  
+  lstData.Remove(Index, Length)
+  lstData.Index = -1
+  txtData.Clear
+  
+End
+
+Private Sub UpdateButtons()
+  
+  btnUp.Enabled = lstData.Index > 0
+  btnDown.Enabled = (lstData.Index >= 0) And (lstData.Index < (lstData.Count - 1))
+  btnRemove.Enabled = lstData.Index >= 0
+  
+End
+
+
+Public Sub SetIndex(iIndex As Integer)
+  
+  lstData.Index = iIndex
+  If iIndex < 0 Then UpdateButtons
+  
+End
+
+Public Sub GetWrap() As Boolean
+  
+  Return lstData.Wrap
+  
+End
+
+Public Sub SetWrap(bVal As Boolean)
+  
+  lstData.Wrap = bVal
+  
+End
+
+Public Sub GetGrid() As Boolean
+  
+  Return lstData.Grid
+  
+End
+
+Public Sub SetGrid(Value As Boolean)
+  
+  lstData.Grid = Value
+  
+End
+
+

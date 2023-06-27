@@ -4,18 +4,43 @@
 Public Sub Form_Open()
 
   'ListBox1.List = Dir("~")
+  ListBox1.Index = 0
 
 End
 
 Public Sub Button1_Click()
 
   'ListBox1.Remove(3, 4)
-  ListBox1.Add("toto")
+  ListBox1.Add("This a pontentially very long and wrapping item numbered " & CStr(ListBox1.Count + 1))
 
 End
 
 Public Sub Button2_Click()
 
   ListBox1.Border = Not ListBox1.Border
+
+End
+
+Public Sub Button3_Click()
+
+  Try ListBox1.Index = 3
+
+End
+
+Public Sub ListBox1_Click()
+
+  Debug ListBox1.Index
+
+End
+
+Public Sub Clear_Click()
+
+  ListBox1.Clear
+
+End
+
+Public Sub btnWrap_Click()
+
+  ListBox1.Wrap = Not ListBox1.Wrap
 
 End

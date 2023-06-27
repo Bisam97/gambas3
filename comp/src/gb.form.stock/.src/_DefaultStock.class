@@ -6,10 +6,9 @@ Class Image
 Class SvgImage
 
 Static Private $cSynonymous As New Collection
-
+Static Private $cRightToLeft As Collection
 Static Private $bDebug As Boolean
-Static Private $bDarkTheme As Boolean
-Static Private $bInit As Boolean
+Static Private $aFlags As String[]
 
 Static Public Sub _init()
 
@@ -29,34 +28,6 @@ Static Public Sub _init()
   
 End
 
-' Static Private Sub MakeDark(hImage As Image) As Image
-'   
-'   Dim X As Integer
-'   Dim Y As Integer
-'   Dim hColor As ColorInfo
-'   Dim iLum As Integer
-'   Dim iFg As Integer
-'   Dim iBg As Integer
-'   
-'   iFg = Color[Color.Foreground].Luminance
-'   iBg = Color[Color.Background].Luminance
-'   hImage = hImage.Copy()
-'   
-'   For X = 0 To hImage.W
-'     For Y = 0 To hImage.H
-'       hColor = Color[hImage[X, Y]]
-'       iLum = hColor.Luminance 
-'       hColor.Luminance = iFg - (hColor.Luminance - iBg)
-'       hImage[X, Y] = hColor.Color
-'     Next
-'   Next
-'   
-'   Return hImage
-'   
-' End
-' 
-' 
-
 Static Private Sub Stretch(hImage As Image, iSize As Integer) As Image
   
   If hImage.W = iSize And If hImage.H = iSize Then Return hImage
@@ -64,26 +35,49 @@ Static Private Sub Stretch(hImage As Image, iSize As Integer) As Image
   
 End
 
-Static Private Sub LoadIcon(sKey As String, iSize As Integer, sStock As String) As Image
-
-  Dim sPath As String
+Static Private Sub LoadRightToLeft()
   
-  sPath = sStock &/ CStr(iSize) &/ sKey
-  If System.RightToLeft And If Exist(sPath & "-rtl.png") Then sPath &= "-rtl"
-  If $bDebug And If iSize = 32 And If Not Exist(sPath & ".png") Then Error "gb.form.stock: unknown icon: " & sKey
-  Return Image.Load(sPath & ".png")
+  Dim sKey As String
+  
+  $cRightToLeft = New Collection
+  For Each sKey In Split(File.Load("reverse"), "\n")
+    sKey = Trim(sKey)
+    If Not sKey Then Continue
+    If sKey Begins ";" Then Continue
+    $cRightToLeft[sKey] = True
+  Next
   
 End
 
+Static Private Sub LoadIcon(sKey As String, iSize As Integer, sStock As String) As Image
+
+  Dim sPath As String
+  Dim hImage As Image
+  Dim bMirror As Boolean
+  
+  sPath = sStock &/ CStr(iSize) &/ sKey
+  If $bDebug And If iSize = 32 And If Not Exist(sPath & ".png") Then Error "gb.form.stock: unknown icon: " & sKey
+  'If System.RightToLeft And If Exist(sPath & "-rtl.png") Then sPath &= "-rtl"
+  If System.RightToLeft Then
+    If Not $cRightToLeft Then LoadRightToLeft
+    If $cRightToLeft.Exist(sKey) Then
+      If Exist(sPath & "-rtl.png") Then 
+        sPath &= "-rtl"
+      Else
+        bMirror = True
+      Endif
+    Endif
+  Endif
+  
+  hImage = Image.Load(sPath & ".png")
+  If bMirror Then hImage = hImage.Mirror(True, False)
+  Return hImage
+  
+End
 
 Static Public Sub LoadImage(sKey As String, iSize As Integer, Optional sStock As String) As Image
 
   Dim hImage As Image
-
-  If Not $bInit Then
-    If Color[Color.Background].Luminance < 128 Or If Env["GB_GUI_DARK_THEME"] = "1" Then $bDarkTheme = True
-    $bInit = True
-  Endif
 
   If $cSynonymous.Exist(sKey) Then sKey = $cSynonymous[sKey]
   If Not sStock Or If Not IsDir(sStock) Then sStock = "gambas"
@@ -100,7 +94,7 @@ Static Public Sub LoadImage(sKey As String, iSize As Integer, Optional sStock As
 RETURN_IMAGE:
 
   hImage = Stretch(hImage, iSize)
-  If $bDarkTheme And If hImage Then hImage = hImage.Invert(True) 'Color.Background, Color.Foreground)
+  If Application.DarkTheme And If hImage Then hImage = hImage.Invert(True) 'Color.Background, Color.Foreground)
   Return hImage
   
 End
@@ -115,5 +109,43 @@ Static Public Sub LoadSvgImage(sKey As String, Optional sStock As String) As Svg
   If System.RightToLeft And If Exist(sPath & "-rtl.svg") Then sPath &= "-rtl"
   'If sKey = "tools" Then Debug sPath
   Return SvgImage.Load(sPath & ".svg")
+  
+End
+
+Static Public Sub InstallIconTheme()
+  
+  MakeIconTheme.Run()
+  
+End
+
+Static Public Sub LoadFlag(sKey As String, iSize As Integer) As Image
+
+  Dim hImage As Image
+  Dim sPath As String
+
+  sPath = "flag/256/" & sKey & ".png"
+  If Not Exist(sPath) Then Error.Raise("Unknown flag")
+  
+  hImage = Image.Load(sPath)
+  If iSize <> 256 Then hImage = hImage.Stretch(iSize, iSize)
+  Return hImage
+  
+End
+
+Static Public Sub GetFlags() As String[]
+
+  Dim I As Integer
+  
+  If Not $aFlags Then
+  
+    $aFlags = Dir("flag/256", "*.png")
+    For I = 0 To $aFlags.Max
+      $aFlags[I] = File.BaseName($aFlags[I])
+    Next
+    $aFlags.ReadOnly = True
+    
+  Endif
+  
+  Return $aFlags
   
 End

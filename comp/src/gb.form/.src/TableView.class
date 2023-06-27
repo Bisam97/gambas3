@@ -122,7 +122,7 @@ Private Sub MoveEditor()
   Dim X, Y, W, H As Integer
   Dim MX, MY As Integer
   Dim hEditor As Object
-  Dim P As Integer
+  Dim PX, PY As Integer
   
   If Not $hEditor Then Return 
   
@@ -131,7 +131,7 @@ Private Sub MoveEditor()
   ' $bDoNotHideEditor can be set to FALSE during the WAIT instruction
   hEditor = $hEditor
   Me[$iRow, $iCol].EnsureVisible
-  Wait
+  'Wait
   If Not $hEditor Then $hEditor = hEditor
   
   X = Me.ScreenX - Me.Window.ScreenX - Me.Window.ClientX + Me.Rows.Width - Me.ScrollX + Me.ClientX
@@ -144,20 +144,31 @@ Private Sub MoveEditor()
   
   With Me[$iRow, $iCol]
     
-    X += .X + 1
-    Y += .Y + 1
-    W = Min(Me.ClientW - Me.Rows.W, .Width) - 2
-    H = Min(Me.ClientH - Me.Columns.H, .Height) - 2
+    X += .X - 1
+    Y += .Y
+    W = Min(Me.ClientW - Me.Rows.W, .Width)
+    H = Min(Me.ClientH - Me.Columns.H, .Height)
     
-    If Not Me.Grid Then
-      Dec W
-      Dec H
+    X += 2
+    Y += 2
+    W -= 4
+    H -= 4
+    
+    ' If Not Me.Grid Then
+    '   Inc W
+    '   Inc H
+    ' Endif
+    
+    PX = Max(Me.Padding, .Padding)
+    PX = Max(0, PX - 3)
+    If $hEditor Is TextBox Then
+    Else If $hEditor = $hComboBox Then
+      If $hComboBox.ReadOnly Then PX = 0
+    Else 
+      PY = PX
     Endif
-    
-    P = Max(Me.Padding, .Padding)
-    P = Max(0, P - 1)
 
-    If (W - P * 2) < 4 Or If H < 4 Then
+    If (W - PX * 2) < 4 Or If (H - PY * 2) < 4 Then
       HideEditor
       Return
     Endif
@@ -174,12 +185,13 @@ Private Sub MoveEditor()
     
     'UpdateShowCursor
     
-    $hPanel.Move(X, Y, W, H)
-    $hEditor.Move(P, P, W - P * 2, H - P * 2)
+    $hEditor.Move(PX, PY, W - PX * 2, H - PY * 2)
     $hEditor.Show
+    $hEditor.Raise
+
+    $hPanel.Move(X, Y, W, H)
     $hPanel.Show
     $hPanel.Raise
-    $hEditor.Raise
     
   End With
   
@@ -538,21 +550,13 @@ Public Sub Clear()
   
 End
 
-' Private Function ShowCursor_Read() As Boolean
-' 
-'   Return $bShowCursor
-' 
-' End
-' 
-' Private Sub UpdateShowCursor()
-' 
-'   Super.ShowCursor = $bShowCursor 'And IsNull($hEditor)
-' 
-' End
-' 
-' Private Sub ShowCursor_Write(Value As Boolean)
-' 
-'   $bShowCursor = Value
-'   UpdateShowCursor
-' 
-' End
+Public Sub _GetPreferredWidth(iCol As Integer) As Integer
+
+  Dim PW As Integer
+  
+  PW = Super._GetPreferredWidth(iCol)
+  If Me.Rows.Count Then PW += 6
+  Return PW
+  
+End
+

@@ -7,6 +7,8 @@ Private $hPrinter As New Printer As "Printer"
 Private $bVerif As Boolean
 Private $bPrinting As Boolean
 Private $iFileRes As Integer = 150
+Static Property Path As String Use $sPath
+
 
 Static Public Function Run(hReport As Report)
   
@@ -69,14 +71,11 @@ End
 Private Sub GetValuesFromReport()
   
   cmbPaper.Index = View.Report.Paper
-  $hPrinter.Orientation = View.Report.Orientation
+  
+  CPrint.InitPrinterFromReport($hPrinter, View.Report)
   
   If View.Report.Paper = Printer.Custom Then
     pnlCustom.Enabled = True
-    $hPrinter.PaperWidth = TSizeParse[View.Report.Width].ToInch() * 10
-    $hPrinter.PaperHeight = TSizeParse[View.Report.Height].ToInch() * 10
-  Else
-    $hPrinter.Paper = View.Report.Paper
   Endif 
   
   cmbOrientation.Index = $hPrinter.Orientation
@@ -91,6 +90,7 @@ Private Sub GetValuesFromReport()
   spHeight.Value = $hPrinter.PaperHeight
   Object.Unlock(spHeight)
   
+
 End
 
 Public Sub sldZoom_Change()
@@ -150,6 +150,7 @@ Public Sub tgbGrayScale_Click()
   'Last.Background = IIf(Last.Value, Color.Gray, Color.Default)
   $hPrinter.GrayScale = Last.Value
   View._GrayScale = Last.Value
+  View.Refresh()
   
 End
 
@@ -341,6 +342,8 @@ Public Sub Printer_Begin()
   ProgressBar1.Pulse = True
   lblPrint.Text = ("Layout...")
   
+  Paint.FontScale = 25.4 / 72 * Paint.W / $hPrinter.PaperWidth * 72 / 96 * 96 / $hPrinter.Resolution
+  
 End
 
 Public Sub Printer_Paginate()
@@ -358,7 +361,9 @@ Public Sub Printer_Paginate()
 End
 
 Public Sub Printer_Draw()
-  
+
+  'Debug Paint.W;; $hPrinter.PaperWidth;; $hPrinter.Resolution;; Paint.FontScale
+
   If View.RangePages.Count = 0 Then 
     View.Report.Paint($hPrinter.Page)
   Else
@@ -401,6 +406,9 @@ Public Sub Form_Close()
     Settings["FPreview/FileResolution"] = $iFileRes
     Settings.Save()
   Endif
+  
+  FPreview.Path = IIf(tabPrint.Index = 1, txtFile.Text, "")
+
   
 End
 
@@ -445,6 +453,13 @@ Public Sub Form_Open()
   
   btnOnePage.Value = True
   tabPrint_Click
+  
+  If FPreview.Path And If Not IsDir(FPreview.Path) Then
+    tabPrint.Index = 1
+    txtFile.Text = FPreview.Path
+  Endif
+  
+  
 End
 
 Public Sub btnZoomIn_Click()

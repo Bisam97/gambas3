@@ -68,6 +68,31 @@ Static Private Sub SetToggle(hCtrl As Object, bVal As Boolean)
   
 End
 
+Static Private Sub GetText(hCtrl As Object) As String
+  
+  Dim sText As String
+  
+  Try sText = hCtrl.Text
+  
+  If hCtrl Is Menu Or If hCtrl Is UserControl Or If hCtrl Not Is Container Then
+    sText = Replace(sText, "&&", Chr$(1))
+    sText = Replace(sText, "&", "")
+    sText = Replace(sText, Chr$(1), "&")
+  Endif
+  
+  Return sText
+  
+End
+
+Static Private Sub SetText(hCtrl As Object, sText As String)
+  
+  If hCtrl Is Menu Or If hCtrl Is UserControl Or If hCtrl Not Is Container Then
+    sText = Replace(sText, "&", "&&")
+  Endif
+  
+  Try hCtrl.Text = sText
+  
+End
 
 
 Static Private Sub HasHandler(hForm As Object) As Boolean
@@ -269,7 +294,6 @@ Static Private Sub FindKey(sPattern As String) As String[]
   
 End
 
-
 Private Function GetControls() As Object[]
 
   Dim aObj As Object[]
@@ -338,7 +362,6 @@ Private Function GetControls() As Object[]
   
 End
 
-
 Public Sub _new((Key) As String, Parent As Control)
   
   Dim sKey As String
@@ -359,7 +382,6 @@ Public Sub _new((Key) As String, Parent As Control)
   $hParent = Parent
   
 End
-
 
 Private Function Enabled_Read() As Boolean
 
@@ -418,7 +440,7 @@ Private Sub Tooltip_Write(Value As String)
   Dim hCtrl As Object
   
   For Each hCtrl In GetControls()
-    hCtrl.Tooltip = Value
+    Try hCtrl.Tooltip = Value
   Next
 
 End
@@ -429,7 +451,7 @@ Private Function Text_Read() As String
   Dim sText As String
   
   For Each hCtrl In GetControls()
-    Try sText = hCtrl.Text
+    sText = GetText(hCtrl)
     If sText Then Return sText
   Next
 
@@ -440,7 +462,7 @@ Private Sub Text_Write(Value As String)
   Dim hCtrl As Object
   
   For Each hCtrl In GetControls()
-    Try hCtrl.Text = Value
+    SetText(hCtrl, Value)
   Next  
 
 End

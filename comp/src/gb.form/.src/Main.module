@@ -1,8 +1,13 @@
 ' Gambas module file
 
-'Class DesktopMime
+Class DesktopMime
+
+Public Ext As New Collection(gb.IgnoreCase)
 
 Private $cArrow As New Collection
+Private $bInitGTK As Boolean
+Private $bUseGTK As Boolean
+Private $cEmblem As New Collection
 
 Public Sub GetArrow(iType As Integer, iSize As Integer) As Image
   
@@ -40,23 +45,36 @@ Public Sub GetArrow(iType As Integer, iSize As Integer) As Image
   
 End
 
-Public Sub GetFileSize(iSize As Long, Optional nDigit As Integer = 1) As String
-
-  Dim sFormat As String
-  
-  sFormat = "0." & String$(nDigit, "#")
-  
-  If iSize < 1024 Then
-    Return Subst(("&1 B"), CStr(iSize))
-  Else If iSize < 1048576 Then
-    Return Subst(("&1 KiB"), Format(iSize / 1024, sFormat))
-  Else If iSize < 1073741824 Then
-    Return Subst(("&1 MiB"), Format(iSize / 1048576, sFormat))
-  Else
-    Return Subst(("&1 GiB"), Format(iSize / 1073741824, sFormat))
-  Endif
-  
-End
+' Public Sub GetFileSize(iSize As Long) As String
+' 
+'   Dim fSize As Float
+'   
+'   If iSize < 1024 Then
+'     Return Subst(("&1 B"), CStr(iSize))
+'   Else If iSize < 1048576 Then
+'     fSize = iSize / 1024
+'     If fSize < 20 Then
+'       Return Subst(("&1 KiB"), Format(iSize / 1024, "0.#"))
+'     Else
+'       Return Subst(("&1 KiB"), Format(iSize / 1024, "0"))
+'     Endif
+'   Else If iSize < 1073741824 Then
+'     fSize = iSize / 1048576
+'     If fSize < 20 Then
+'       Return Subst(("&1 MiB"), Format(iSize / 1048576, "0.#"))
+'     Else
+'       Return Subst(("&1 MiB"), Format(iSize / 1048576, "0"))
+'     Endif
+'   Else
+'     fSize = iSize / 1073741824
+'     If fSize < 20 Then
+'       Return Subst(("&1 GiB"), Format(iSize / 1073741824, "0.#"))
+'     Else
+'       Return Subst(("&1 GiB"), Format(iSize / 1073741824, "0"))
+'     Endif
+'   Endif
+'   
+' End
 
 Private Sub FindMenuChild(hMenu As Menu, sMenu As String) As Menu
   
@@ -131,6 +149,24 @@ Public Sub PaintColor(X As Integer, Y As Integer, W As Integer, H As Integer, iC
   
 End
 
+Public Sub NormalizePath(sPath As String) As String
+  
+  Dim iLen As Integer
+  
+  Do
+    iLen = Len(sPath)
+    sPath = Replace(sPath, "//", "/")
+    If Len(sPath) = iLen Then Break
+  Loop
+  
+  If Len(sPath) > 1 And If Right(sPath) = "/" Then sPath = Left(sPath, -1)
+  
+  If Not sPath Then Error.Raise("Void path")
+  
+  Return sPath
+  
+End
+
 #If False
 Private Sub AddUnique(aStr As String[], sVal As String)
   
@@ -198,12 +234,8 @@ End
 
 Public Sub Main()
 
-  Dim hPicture As Picture
+  MakeColorMap
 
-  Application.Theme = "Elementary"
-  hPicture = Picture["icon:/32/align-top"]
-  Print hPicture
-  
 End
 
 Public Sub Task_Read(sData As String)
@@ -228,6 +260,264 @@ Public Sub Task_Kill()
   Else
     Debug "->";; sStr
   Endif
+End
+
+Public Sub GetCacheDir() As String
   
+  Dim sPath As String = Env["XDG_CACHE_HOME"]
+  If sPath Then 
+    Return sPath 
+  Else 
+    Return User.Home &/ ".cache"
+  Endif
+  
+End
+
+Public Sub UseGTK() As Boolean
+  
+  If Not $bInitGTK Then 
+    $bInitGTK = True
+    If Component.IsLoaded("gb.gtk3") Or If Component.IsLoaded("gb.gtk") Then
+      $bUseGTK = True
+    Endif
+  Endif
+  
+  Return $bUseGTK
+  
+End
+
+Private Sub MakeColorMap()
+
+  Dim hImage As Image
+  Dim X As Integer
+  Dim Y As Integer
+  Dim H, S As Integer
+  Dim V As Integer
+  Dim hImage2 As Image
+
+  Return
+
+  hImage = New Image(360, 256)
+  hImage2 = New Image(360, 256)
+  
+  For X = 0 To hImage.W - 1
+    For Y = 0 To hImage.H - 1
+          
+      H = 359 - X * 360 / hImage.W
+      S = Min(255, 255 - Y * 256 / hImage.H)
+      
+      hImage2[X, Y] = Color.HSV(H, S, 255)
+      
+      H = ((H + 7) \ 15) * 15
+      If H = 360 Then H = 0
+      S = Min(255, ((S + 15) \ 32) * 32)
+      
+      hImage[X, Y] = Color.HSV(H, S, 255)
+      
+    Next
+  Next
+  
+  ' For Y = 0 To hImage.H - 2
+  '   If hImage[0, Y] <> hImage[0, Y + 1] Then
+  '     hImage.PaintRect(0, Y, hImage.W, 1, Color.RGB(0, 0, 0, &HE0))
+  '   Endif
+  ' Next
+  ' 
+  ' For X = 0 To hImage.W - 2
+  '   If hImage[X, 0] <> hImage[X + 1, 0] Then
+  '     hImage.PaintRect(X, 0, 1, hImage.H, Color.RGB(0, 0, 0, &HE0))
+  '   Endif
+  ' Next
+  
+  
+  hImage2.Save("~/gambas/git/master/comp/src/gb.form/img/colormap.png")
+  hImage.Save("~/gambas/git/master/comp/src/gb.form/img/colormap-snap.png")
+  
+  hImage = New Image(8, 128)
+  
+  For Y = 0 To hImage.H - 1
+          
+    V = Y / hImage.H * 256
+    V = ((V + 16) \ 32) * 32
+    V = Min(255, Max(0, 256 - V))
+
+    hImage.FillRect(0, Y, hImage.W, 1, Color.RGB(V, V, V))
+      
+  Next
+  
+  hImage.Save("~/gambas/git/master/comp/src/gb.form/img/valuemap-snap.png")
+  
+
+End
+
+
+Private Sub FormatNumber(fNum As Float) As String
+
+  Dim sStr As String
+  
+  sStr = Format(fNum, "0.#")
+  If String.Len(sStr) > 3 Then
+    sStr = String.Left(sStr, 3)
+    If Not IsDigit(Right(sStr)) Then sStr = Left(sStr, -1)
+  Endif
+  Return sStr
+  
+End
+
+Public Sub FormatSize(Size As Long, Optional {Binary} As Boolean) As String
+
+  If {Binary} Then
+    If Size < 1000 Then
+      Return Subst(("&1 B"), CStr(Size))
+    Else If Size < 1024000 Then
+      Return Subst(("&1 KiB"), FormatNumber(Size / 1024))
+    Else If Size < 1048576000 Then
+      Return Subst(("&1 MiB"), FormatNumber(Size / 1048576))
+    Else
+      Return Subst(("&1 GiB"), FormatNumber(Size / 1073741824))
+    Endif
+  Else
+    If Size < 1000 Then
+      Return Subst(("&1 B"), CStr(Size))
+    Else If Size < 1000000 Then
+      Return Subst(("&1 KB"), FormatNumber(Size / 1000))
+    Else If Size < 1000000000 Then
+      Return Subst(("&1 MB"), FormatNumber(Size / 1000000))
+    Else
+      Return Subst(("&1 GB"), FormatNumber(Size / 1000000000))
+    Endif
+  Endif
+
+End
+
+Public Sub FormatPath(Path As String) As String
+  
+  If Path = User.Home Then Return "~"
+  If Path Begins (User.Home & "/") Then Return "~/" & Mid$(Path, Len(User.Home) + 2)
+  Return Path
+  
+End
+
+Public Sub AddEmblem(hPict As Picture, sIcon As String) As Picture
+  
+  Dim hEmblem As Image
+  Dim hImage As Image
+  Dim S As Integer
+  
+  hEmblem = $cEmblem[sIcon]
+  If Not hEmblem Then
+    hEmblem = Picture["icon:/128" &/ sIcon].Image
+    If Not hEmblem Then hEmblem = Image.Load("emblem" &/ sIcon & ".png")
+    If Not hEmblem Then Return hPict
+    $cEmblem[sIcon] = hEmblem
+  Endif
+
+  hImage = hPict.Image
+  S = Min(hImage.W \ 2, hImage.H \ 2)
+  hImage.PaintImage(hEmblem, hImage.W - S, hImage.H - S, S, S)
+  
+  Return hImage.Picture
+  
+End
+
+Public Sub InitExt()
+  
+  Ext["html"] = "html"
+  Ext["htm"] = "html"
+  Ext["css"] = "css"
+  Ext["js"] = "js"
+  Ext["xml"] = "xml"
+  
+  Ext["tar"] = "archive"
+  Ext["gz"] = "archive"
+  Ext["tgz"] = "archive"
+  Ext["bz2"] = "archive"
+  Ext["z"] = "archive"
+  Ext["zip"] = "archive"
+  Ext["xz"] = "archive"
+  
+  Ext["txt"] = "text"
+  Ext["log"] = "text"
+  Ext["json"] = "text"
+  
+  Ext["mp3"] = "audio"
+  Ext["aac"] = "audio"
+  Ext["ogg"] = "audio"
+  Ext["oga"] = "audio"
+  Ext["flac"] = "audio"
+  Ext["wav"] = "audio"
+  
+  Ext["mpg"] = "video"
+  Ext["mpeg"] = "video"
+  Ext["avi"] = "video"
+  Ext["wmv"] = "video"
+  Ext["mov"] = "video"
+  Ext["mp4"] = "video"
+  Ext["mkv"] = "video"
+  
+  Ext["gambas"] = "gambas"
+  Ext["gbs"] = "gambas"
+  
+  Ext["c"] = "c"
+  Ext["cpp"] = "cpp"
+  Ext["h"] = "h"
+  
+  Ext["deb"] = "package"
+  Ext["rpm"] = "package"
+  
+  Ext["iso"] = "cdrom"
+  
+  Ext["jpg"] = "image"
+  Ext["jpeg"] = "image"
+  Ext["png"] = "image"
+  Ext["gif"] = "image"
+  Ext["xpm"] = "image"
+  Ext["bmp"] = "image"
+  Ext["ico"] = "image"
+  Ext["xcf"] = "image"
+  Ext["svg"] = "image"
+  Ext["svgz"] = "image"
+  Ext["webp"] = "image"
+  
+  Ext["pdf"] = "pdf"
+  
+  Ext["ttf"] = "font"
+  Ext["otf"] = "font"
+  Ext["bdf"] = "font"
+  
+  Ext["odt"] = "office"
+  Ext["ods"] = "office-calc"
+  Ext["odg"] = "office-draw"
+  Ext["odp"] = "office-presentation"
+  Ext["odf"] = "office-math"
+  
+  Ext["rtf"] = "office"
+  Ext["doc"] = "office"
+  Ext["docx"] = "office"
+  Ext["xls"] = "office-calc"
+  Ext["xlsx"] = "office-calc"
+  Ext["ppt"] = "office-presentation"
+  Ext["pptx"] = "office-presentation"
+  
+End
+
+Public Sub UrlUnquote((Path) As String, Optional DoNotDecodePlus As Boolean) As String
+  
+  Dim iInd As Integer
+  Dim sRes As String
+  Dim sCar As String
+  
+  For iInd = 1 To Len(Path)
+    sCar = Mid$(Path, iInd, 1)
+    If sCar = "%" Then 
+      sCar = Chr$(Val("&H" & Mid$(Path, iInd + 1, 2)))
+      iInd += 2
+    Else If sCar = "+" And If Not DoNotDecodePlus Then 
+      sCar = " "
+    Endif
+    sRes &= sCar
+  Next
+
+  Return sRes  
   
 End

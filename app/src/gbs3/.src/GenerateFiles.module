@@ -1,0 +1,67 @@
+' Gambas module file
+
+Public $cFirstParse As Collection = ["PUBLIC": 0, "CLASS": 1, "STRUCT": 2, "SUB": 3, "FUNCTION": 4, " PROCEDURE": 5, "FAST": 6, "INCLUDE": 7, "END": 8, "ENUM": 9]
+Public $cPublicParse As Collection = ["SUB": 0, "FUNCTION": 1, "PRODCEDURE": 2, "STRUCT": 3, "ENUM": 4]
+Public $cEndParse As Collection = ["STRUCT": 0, "CLASS": 1, "ENUM": 2]
+Public $cSubPars As Collection = ["MAIN": 0]
+
+
+Public Sub _Call($oContext As Context, Path As String, sPrjPath As String)
+
+  Dim cReader As Reader
+  Dim cDef As ClassDef
+
+  If $oContext.$bExecuteFromArgs Then 
+    Verbose("Begin Script Process : from args or -e < ")
+    cReader = New Reader($oContext, "", Path)
+  Else If $oContext.$bScriptSourceStdIn And Not $oContext.$bWebPage Then
+    Verbose(("Begin Script Process : Read From StdIn"))
+    cReader = New Reader($oContext, "")
+  Else
+    Verbose(("Begin Script Process") & ": " & File.Name(Path))
+    cReader = New Reader($oContext, Path)
+  Endif
+
+   If cReader.HasBlocks() Then
+    For Each cDef In cReader.getBlocks()
+      If cDef.sExtention == "module" And If cDef.sName == ScriptPreProcess.GetStartup() Then 
+         $oContext.$sFinalProgram = cDef.aText.Join("\n") & "\n"
+      Else
+          If cDef.sExtention == "class" And If cDef.sName == ScriptPreProcess.GetStartup() Then 
+            $oContext.$bClassAsStartup = True
+          Endif
+          cDef.Save(sPrjPath, $oContext.$bFast, $oContext.$bUnsafe)
+          If $oContext.$bBuildOnly And $oContext.$bTestMode Then
+              Error cDef.sExtention & " "; cDef.sName; "\n"; cDef.aText.Join("\n"); "\nEnd " & cDef.sExtention & "\n"
+          Endif
+      Endif
+    Next
+  Endif
+  
+  'If Not cReader.bModuleStartup Then 
+    If cReader.IsMainDefined() Then
+      $oContext.$sFinalProgram = cReader.GetProgram()
+      Verbose("Before Compile--------------------------------------------------")
+      Verbose(MakeListing.GenListing($oContext, $oContext.$sFinalProgram))
+      Verbose("_____________________________________________")
+    Else If cReader.HasPublicOrSub() Then
+      cReader.DisplayWarnings()
+      If $oContext.$bAllowLazyScript Then
+        Warning("Auto Generation of Public Main() entry point")
+        $oContext.$sFinalProgram = GenerateFromLazyScript($oContext, cReader)
+      Else
+        CompileError(Path, 1, "Script Contains Public or Sub Definitions Without Having a  'Public Sub main()' defined")
+      Endif
+    Else
+      If $oContext.$bPlugin Then 
+          $oContext.$sFinalProgram = "Public Sub _call(...) as variant\n" & cReader.GetProgram() & "\nEnd\n"
+      Else
+          $oContext.$sFinalProgram = "Public Sub main()\n" & cReader.GetProgram() & "\nEnd\n"
+      Endif
+    Endif
+  'Endif
+  
+  verbose("Completed Generation of files ")
+  'Stop
+
+End

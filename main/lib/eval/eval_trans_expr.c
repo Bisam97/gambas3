@@ -2,7 +2,7 @@
 
 	eval_trans_expr.c
 
-	(c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+	(c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -60,12 +60,13 @@ static short get_nparam(PATTERN *tree, int *index)
 		}
 	}
 
-	/*
-		G�e le cas o on a cod�un subr sans mettre de parenth�es
-		=> nparam = 0
-	*/
-
 	return 0;
+}
+
+
+static void push_integer(int index)
+{
+	CODE_push_number(index);
 }
 
 
@@ -81,6 +82,10 @@ static void push_number(int index)
 	if (number.type == T_INTEGER)
 	{
 		CODE_push_number(number.ival);
+	}
+	else if (number.type == T_FLOAT && number.dval == (double)(int)number.dval && number.dval >= -128 && number.dval <= 127)
+	{
+		CODE_push_float(number.dval);
 	}
 	else
 	{
@@ -270,6 +275,9 @@ static void trans_expr_from_tree(PATTERN *tree)
 			next_pattern = tree[i + 1];
 		else
 			next_pattern = NULL_PATTERN;*/
+
+		if (PATTERN_is_integer(pattern))
+			push_integer(PATTERN_signed_index(pattern));
 
 		if (PATTERN_is_number(pattern))
 			push_number(PATTERN_index(pattern));
@@ -479,7 +487,7 @@ void TRANS_reference(void)
 {
 	TRANS_expression();
 
-	if (!CODE_popify_last())
+	if (!CODE_popify_last(FALSE))
 		THROW("Invalid assignment");
 
 	EVAL->assign_code = EVAL->code[EVAL->ncode - 1];

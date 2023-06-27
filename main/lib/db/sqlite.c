@@ -2,7 +2,7 @@
 
   sqlite.c
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -38,7 +38,7 @@
 
 /* Internal function to check whether a file is a sqlite database file */
 
-static bool is_sqlite2_database(char *filename)
+static bool is_sqlite2_database(const char *filename)
 {
   FILE* fp;
   bool res;
@@ -62,7 +62,7 @@ static bool is_sqlite2_database(char *filename)
   return TRUE;
 }
 
-static bool is_sqlite3_database(char *filename)
+static bool is_sqlite3_database(const char *filename)
 {
 	FILE *fp;
 	bool res;
@@ -86,34 +86,34 @@ static bool is_sqlite3_database(char *filename)
 	return TRUE;
 }
 
-static bool IsDatabaseFile(char *filename)
+static bool is_database_file(const char *filename)
 {
 	return is_sqlite3_database(filename) || is_sqlite2_database(filename);
 }
 
-static char *FindDatabase(char *name, char *hostName)
+static char *find_database(const char *name, const char *hostName)
 {
 	char *dbhome = NULL;
 	char *fullpath = NULL;
+	char *path;
 
 	/* Does Name includes fullpath */
-	if (strcmp(basename(name), name))
+	if (*name == '/')
 	{
-		if (IsDatabaseFile(name))
-			fullpath = GB.NewZeroString(name);
-
-		return fullpath;
+		if (is_database_file(name))
+			return (char *)name;
 	}
 
 	/* Hostname contains home area */
 	fullpath = GB.NewZeroString(hostName);
 	fullpath = GB.AddChar(fullpath, '/');
 	fullpath = GB.AddString(fullpath, name, 0);
-	if (IsDatabaseFile(fullpath))
-	{
-		return fullpath;
-	}
+	
+	path = GB.FileName(fullpath, GB.StringLength(fullpath));
 	GB.FreeString(&fullpath);
+	
+	if (is_database_file(path))
+		return path;
 
 	/* Check the GAMBAS_SQLITE_DBHOME setting */
 	dbhome = getenv("GAMBAS_SQLITE_DBHOME");
@@ -124,22 +124,21 @@ static char *FindDatabase(char *name, char *hostName)
 		fullpath = GB.AddChar(fullpath, '/');
 		fullpath = GB.AddString(fullpath, name, 0);
 
-		if (IsDatabaseFile(fullpath))
-		{
-			return fullpath;
-		}
+		path = GB.FileName(fullpath, GB.StringLength(fullpath));
+		GB.FreeString(&fullpath);
+
+		if (is_database_file(path))
+			return path;
 	}
 
 	fullpath = GB.NewZeroString(GB.TempDir());
 	fullpath = GB.AddString(fullpath, "/sqlite/", 0);
 	fullpath = GB.AddString(fullpath, name, 0);
+	GB.FreeStringLater(fullpath);
 
-	if (IsDatabaseFile(fullpath))
-	{
+	if (is_database_file(fullpath))
 		return fullpath;
-	}
 
-	GB.FreeString(&fullpath);
 	return NULL;
 }
 
@@ -148,7 +147,7 @@ static char *FindDatabase(char *name, char *hostName)
 static int open_database(DB_DESC *desc, DB_DATABASE * db)
 {
 	char *host;
-	char *db_fullpath = NULL;
+	const char *db_fullpath = NULL;
 	bool ver2 = FALSE;
 
 	if (!desc->name) // memory database
@@ -158,7 +157,7 @@ static int open_database(DB_DESC *desc, DB_DATABASE * db)
 	if (!host)
 		host = "";
 
-	db_fullpath = FindDatabase(desc->name, host);
+	db_fullpath = find_database(desc->name, host);
 	if (!db_fullpath)
 	{
 		GB.Error("Unable to locate database `&1` in `&2`", desc->name, host);
@@ -166,8 +165,6 @@ static int open_database(DB_DESC *desc, DB_DATABASE * db)
 	}
 					 	
 	ver2 = is_sqlite2_database(db_fullpath);
-	
-	GB.FreeString(&db_fullpath);
 	
 	if (ver2)
 		goto __SQLITE2;

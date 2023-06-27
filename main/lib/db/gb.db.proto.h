@@ -2,7 +2,7 @@
 
   gb.db.proto.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -35,7 +35,7 @@ static int format_value(GB_VALUE *arg, DB_FORMAT_CALLBACK add);
 static void format_blob(DB_BLOB *blob, DB_FORMAT_CALLBACK add);
 static int exec_query(DB_DATABASE *db, const char *query, DB_RESULT *result, const char *err);
 static void query_init(DB_RESULT result, DB_INFO *info, int *count);
-static void query_release(DB_RESULT result, DB_INFO *info);
+static void query_release(DB_RESULT result, DB_INFO *info, bool invalid);
 static int query_fill(DB_DATABASE *db, DB_RESULT result, int pos, GB_VARIANT_VALUE *buffer, int next);
 static void blob_read(DB_RESULT result, int pos, int field, DB_BLOB *blob);
 static char *field_name(DB_RESULT result, int field);

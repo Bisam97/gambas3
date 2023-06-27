@@ -1,0 +1,134 @@
+' Gambas class file
+
+Private $bInitStatus As Boolean
+Private $bInitTerminal As Boolean
+
+Public Sub tabRepository_Click()
+
+  Select Case tabRepository.Text
+    
+    Case ("Status")
+      If Not $bInitStatus Then
+        edtStatus.ReadConfig()
+        edtStatus.TabSize = 8
+        edtStatus.Text = VersionControl.Status(VersionControl.GetRoot())
+        $bInitStatus = True
+      Endif
+    
+    Case ("Terminal")
+      If Not $bInitTerminal Then
+        Try trmShell.Exec(["bash"], ["PWD=" & VersionControl.GetRoot()])
+        trmShell.SetFocus
+        $bInitTerminal = True
+      Endif
+    
+  End Select
+
+End
+
+Public Sub Form_Open()
+
+  Project.SetEditorFont(trmShell)
+  UpdateInfo
+
+End
+
+Private Sub UpdateInfo()
+
+  Dim cInfo As Collection
+  Dim sValue As String
+  Dim iRow As Integer
+  Dim I As Integer
+  
+  If Not VersionControl.Enabled Then Return
+  If gvwVcInfo.Rows.Count Then Return
+  
+  Inc Application.Busy
+  
+  If VersionControl.HasIdentity Then
+    panIdentity.Show
+    sepIdentity.Show
+    VersionControl.GetIdentity(ByRef txtVcName.Text, ByRef txtVcMail.Text)
+  Else 
+    panIdentity.Hide
+    sepIdentity.Hide
+  Endif
+    
+  cInfo = VersionControl.Info()
+
+  gvwVcInfo.Columns.Count = 2
+  gvwVcInfo.Rows.Count = cInfo.Count
+  
+  For Each sValue In cInfo
+    gvwVcInfo[iRow, 0].Text = cInfo.Key
+    gvwVcInfo[iRow, 0].Alignment = Align.TopNormal
+    'gvwVcInfo[iRow, 0].Foreground = Color.Merge(Color.TextBackground, Color.TextForeground, 0.7)
+    gvwVcInfo[iRow, 1].Text = sValue
+    Inc iRow
+  Next
+  
+  gvwVcInfo.Columns[0].W = -1
+  gvwVcInfo.Columns[0].W += Desktop.Scale * 2
+  
+  For I = 0 To gvwVcInfo.Rows.Count - 1
+    gvwVcInfo.Rows[I].H = -1
+  Next
+
+Finally
+  
+  Dec Application.Busy
+  
+End
+
+Public Sub btnUpdateIdentity_Click()
+
+  Dim sVcName As String
+  Dim sVcMail As String
+
+  sVcName = Trim(txtVcName.Text)
+  If sVcName Begins "-" Then Goto INVALID_VC_NAME
+  
+  sVcMail = Trim(txtVcMail.Text)
+  If sVcMail Begins "-" Then Goto INVALID_VC_MAIL
+  If Not String.IsEmail(sVcMail) Then Goto INVALID_VC_MAIL
+  
+  VersionControl.SetIdentity(sVcName, sVcMail)
+  Return
+
+INVALID_VC_NAME:
+
+  Message.Warning(("Invalid user name."))
+  txtVcName.SetFocus
+  Return
+
+INVALID_VC_MAIL:
+
+  Message.Warning(("Invalid e-mail address."))
+  txtVcMail.SetFocus
+  Return
+
+End
+
+Public Sub btnClose_Click()
+
+  Me.Close
+
+End
+
+Public Sub btnBrowse_Click()
+
+  Desktop.Open(VersionControl.GetRoot())
+  
+End
+
+Public Sub btnOpenTerminal_Click()
+
+  Project.OpenTerminal(VersionControl.GetRoot())
+
+End
+
+Public Sub Form_Close()
+
+  Try trmShell.Kill
+
+End

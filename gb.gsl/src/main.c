@@ -32,17 +32,19 @@
 #include "c_vector.h"
 #include "c_matrix.h"
 #include "c_polynomial.h"
+#include "c_float_array.h"
 
 GB_INTERFACE GB EXPORT;
 
 GB_DESC *GB_CLASSES[] EXPORT =
 {
-  CGslDesc, /* The Elementary math functions */
+  GslDesc, /* The Elementary math functions */
   ComplexDesc,
 	VectorDesc,
   PolynomialDesc,
 	MatrixDesc,
-  /* Other classes go here as completed */
+	FloatArrayStatDesc,
+	FloatArrayDesc,
   NULL // Must have a null entry for the end of the structure
 };
 

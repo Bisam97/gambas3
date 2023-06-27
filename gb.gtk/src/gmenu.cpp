@@ -25,7 +25,11 @@
 #include "gmainwindow.h"
 #include "gapplication.h"
 #include "gdesktop.h"
+#include "gmouse.h"
 #include "gmenu.h"
+#include "CStyle.h"
+
+//#define DEBUG_DELETE 1
 
 typedef
 	struct {
@@ -39,6 +43,7 @@ int gMenu::_in_popup = 0;
 int gMenu::_popup_count = 0;
 
 static GList *menus = NULL;
+static GList *menus_destroyed = NULL;
 
 static gint my_menu_shell_enter_notify(GtkWidget *widget, GdkEventCrossing *event)
 {
@@ -61,7 +66,10 @@ static gint my_menu_shell_enter_notify(GtkWidget *widget, GdkEventCrossing *even
 	
 __PREVIOUS:
 
-	return ((gint (*)(GtkWidget *, GdkEventCrossing *))klass->_gtk_reserved6)(widget, event);
+	if (klass->_gtk_reserved6)
+		return ((gint (*)(GtkWidget *, GdkEventCrossing *))klass->_gtk_reserved6)(widget, event);
+	else
+		return 0;
 }
 
 static void patch_classes(void)
@@ -86,43 +94,78 @@ static void patch_classes(void)
 }
 
 
-static void mnu_destroy (GtkWidget *object, gMenu *data)
+static void cb_destroy(GtkWidget *object, gMenu *data)
 {
-	if (data->stop_signal) 
-		data->stop_signal = false; 
-	else
-		data->destroy();
+	if (data->ignoreDestroy()) 
+		return;
+	
+	delete data;
 }
 
-static void mnu_activate(GtkMenuItem *menuitem, gMenu *data)
+static void cb_activate(GtkMenuItem *menuitem, gMenu *data)
 {
-	if (data->child)
+	if (data->ignoreActivate()) 
+		return;
+	
+	if (data->_popup)
 		return;
 
 	if (data->radio())
-		data->setRadio();
+		data->updateRadio();
 	else if (data->toggle())
-		data->setChecked(!data->checked());
-
-	if (data->onClick)
+		data->updateChecked();
+	else if (data->checked())
 	{
-		//fprintf(stderr, "mnu_activate: %s\n", data->name());
-		data->onClick(data);
+		data->_ignore_activate = true;
+		gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(menuitem), true);
+	}
+	
+	//fprintf(stderr, "cb_activate: %s\n", data->name());
+	CB_menu_click(data);
+}
+
+static void cb_show(GtkWidget *menu, gMenu *data)
+{
+	if (!data->_opened)
+	{
+		data->_opened = true;
+		CB_menu_show(data);
+		//gtk_menu_reposition(GTK_MENU(menu));
 	}
 }
 
 static gboolean cb_map(GtkWidget *menu, gMenu *data)
 {
-	data->_opened = true;
+	//fprintf(stderr, "cb_map: >>> %s %d\n", data->name(), data->_mapping);
+
+	if (data->_mapping)
+		return false;
+
+	data->_mapping = true;
+	
+	gtk_widget_hide(gtk_widget_get_parent(menu));
 	data->hideSeparators();
-	if (data->onShow) (*data->onShow)(data);
+	gtk_widget_show(gtk_widget_get_parent(menu));
+	gtk_menu_reposition(GTK_MENU(menu));
+
+	data->_mapping = false;
+
+	//fprintf(stderr, "cb_map: <<<\n");
 	return false;
 }
 
 static gboolean cb_unmap(GtkWidget *menu, gMenu *data)
 {
+	//fprintf(stderr, "cb_unmap: >>> %s %d\n", data->name(), data->_mapping);
+	
+	if (data->_mapping)
+		return false;
+
 	data->_opened = false;
-	if (data->onHide) (*data->onHide)(data);
+	CB_menu_hide(data);
+	//gtk_widget_set_size_request(menu, -1, -1);
+
+	//fprintf(stderr, "cb_unmap: <<<\n");
 	return false;
 }
 
@@ -152,159 +195,35 @@ static int get_menu_pos(GtkWidget *menu)
   return pos;
 }
 
-#ifdef GTK3
-static gboolean cb_check_draw(GtkWidget *wid, cairo_t *cr, gMenu *menu)
-{
-	static GtkWidget *check_menu_item = NULL;
-	static GtkWidget *radio_menu_item = NULL;
-
-	int x, y, w, h;
-	gint indicator_size = 0;
-	GtkStateFlags state;
-	GtkWidget *item;
-	GtkStyleContext *style;
-
-	GtkAllocation a;
-	gtk_widget_get_allocation(wid, &a);
-	x = 0; //a.x;
-	y = 0; //a.y;
-	w = a.width;
-	h = a.height;
-
-	if (menu->radio())
-	{
-		if (!radio_menu_item)
-			radio_menu_item = gtk_radio_menu_item_new(NULL);
-		item = radio_menu_item;
-		style = gtk_widget_get_style_context(item);
-		gtk_style_context_add_class(style, GTK_STYLE_CLASS_RADIO);
-	}
-	else
-	{
-		if (!check_menu_item)
-			check_menu_item = gtk_check_menu_item_new();
-		item = check_menu_item;
-		style = gtk_widget_get_style_context(item);
-		gtk_style_context_add_class(style, GTK_STYLE_CLASS_CHECK);
-	}
-
-	gtk_widget_style_get(item, "indicator-size", &indicator_size, (char *)NULL);
-	indicator_size = MAX(16, indicator_size);
-
-	x += (w - indicator_size) / 2;
-	y += (h - indicator_size) / 2;
-	w = indicator_size;
-	h = indicator_size;
-
-	state = gtk_widget_get_state_flags(wid);
-
-	if (menu->checked())
-		state = (GtkStateFlags)((int)state | GTK_STATE_FLAG_ACTIVE
-#if GTK_CHECK_VERSION(3, 14, 0)
-		| GTK_STATE_FLAG_CHECKED
-#endif
-		);
-
-	gtk_widget_set_state_flags(item, state, true);
-
-	style = gtk_widget_get_style_context(wid);
-	gtk_style_context_save(style);
-	gtk_style_context_set_state(style, state);
-
-	if (menu->radio())
-	{
-    gtk_style_context_add_class(style, GTK_STYLE_CLASS_RADIO);
-		//gtk_render_background(style, cr, x, y, w, h);
-		gtk_render_option(style, cr, x, y, indicator_size, indicator_size);
-	}
-	else
-	{
-    gtk_style_context_add_class(style, GTK_STYLE_CLASS_CHECK);
-		//gtk_render_background(style, cr, x, y, w, h);
-		gtk_render_check(style, cr, x, y, indicator_size, indicator_size);
-	}
-
-	gtk_style_context_restore(style);
-	return false;
-}
-#else
-static gboolean cb_check_expose(GtkWidget *wid, GdkEventExpose *e, gMenu *menu)
-{
-	static GtkWidget *check_menu_item = NULL;
-	static GtkWidget *radio_menu_item = NULL;
-	GtkWidget *item;
-
-	int x, y, w, h;
-	gint indicator_size;
-	GtkShadowType shadow;
-
-	x = wid->allocation.x;
-	y = wid->allocation.y;
-	w = wid->allocation.width;
-	h = wid->allocation.height;
-
-	if (menu->radio())
-	{
-		if (!radio_menu_item)
-			radio_menu_item = gtk_radio_menu_item_new(NULL);
-		item = radio_menu_item;
-	}
-	else
-	{
-		if (!check_menu_item)
-			check_menu_item = gtk_check_menu_item_new();
-		item = check_menu_item;
-	}
-
-	gtk_widget_style_get(item, "indicator-size", &indicator_size, (char *)NULL);
-	indicator_size = MAX(16, indicator_size);
-
-	x += (w - indicator_size) / 2;
-	y += (h - indicator_size) / 2;
-	w = indicator_size;
-	h = indicator_size;
-
-	gtk_widget_set_state(item, (GtkStateType)GTK_WIDGET_STATE(wid));
-
-	shadow = menu->checked() ? GTK_SHADOW_IN : GTK_SHADOW_OUT;
-
-	if (menu->radio())
-	{
-		gtk_paint_option(wid->style, wid->window,
-					(GtkStateType)GTK_WIDGET_STATE(wid), shadow,
-					&e->area, radio_menu_item, "radiobutton",
-					x, y, w, h);
-	}
-	else
-	{
-
-		gtk_paint_check(wid->style, wid->window,
-					(GtkStateType)GTK_WIDGET_STATE(wid), shadow,
-					&e->area, check_menu_item, "check",
-					x, y, w, h);
-	}
-	
-	return false;
-}
-#endif
 
 void gMenu::update()
 {
 	GtkMenuShell *shell = NULL;
 	gint pos;
 	int size;
+	int ds = gDesktop::scale();
+	char *buf;
+	
+	if (!_text || !*_text)
+		_style = SEPARATOR;
+	else if (!_popup && (_radio || _toggle || _checked))
+		_style = CHECK;
+	else
+		_style = NORMAL;
 	
 	if (_no_update)
 		return;
 	
-	//g_debug("%p: START UPDATE (menu = %p child = %p parent = %p)", this, menu);
+	//g_debug("%p: START UPDATE (menu = %p _popup = %p parent = %p)", this, menu);
 	
 	if (_style != _oldstyle)
 	{
-		if (child)
+		//fprintf(stderr, "update %s\n", name());
+	
+		if (_popup)
 		{
-			g_object_ref(G_OBJECT(child));
-			if (_style == MENU)
+			g_object_ref(G_OBJECT(_popup));
+			if (_style == NORMAL)
 				gtk_menu_item_set_submenu(menu, NULL);
 		}
 
@@ -313,8 +232,11 @@ void gMenu::update()
 			pos = get_menu_pos(GTK_WIDGET(menu));
 			//shell = (GtkMenuShell*)GTK_WIDGET(menu)->parent;
 			if (_style != NOTHING)
-				stop_signal = true;
+				_ignore_destroy = true;
+			gtk_widget_hide(GTK_WIDGET(menu));
 			gtk_widget_destroy(GTK_WIDGET(menu));
+			_shortcut_key = 0;
+			_shortcut_mods = (GdkModifierType)0;
 			//g_debug("%p: delete old menu/separator", this);
 		}
 		else
@@ -328,57 +250,86 @@ void gMenu::update()
 			if (_style == SEPARATOR)
 			{
 				menu = (GtkMenuItem *)gtk_separator_menu_item_new();
-#ifdef GTK3
-#else
-				GtkRequisition req;
-				gtk_widget_size_request(GTK_WIDGET(menu), &req);
-				if (req.height > 5)
-					gtk_widget_set_size_request(GTK_WIDGET(menu), -1, 5);
-#endif
+
+				hbox = NULL;
+				label = NULL;
+				shlabel = NULL;
+				image = NULL;
+				
+				#ifdef GTK3
+				#else
+					GtkRequisition req;
+					gtk_widget_size_request(GTK_WIDGET(menu), &req);
+					if (req.height > 5)
+						gtk_widget_set_size_request(GTK_WIDGET(menu), -1, 5);
+				#endif
 				//g_debug("%p: create new separator %p", this, menu);
 			}
-			else if (_style == MENU)
+			else
 			{
-				menu = (GtkMenuItem *)gtk_image_menu_item_new();
-				//g_debug("%p: create new menu %p", this, menu);
-				
-				hbox = gtk_hbox_new(false, gDesktop::scale());
-				//set_gdk_bg_color(hbox, 0xFF0000);
-				gtk_container_add(GTK_CONTAINER(menu), GTK_WIDGET(hbox));
-				
-				label = gtk_label_new_with_mnemonic("");
-				//gtk_label_set_justify(GTK_LABEL(lbl),GTK_JUSTIFY_LEFT);
-				
-				if (!top_level)
+				if (_style == CHECK)
 				{
-					image = gtk_image_new();
-					g_object_ref(image);
-					
-					aclbl = gtk_label_new("");
-					gtk_misc_set_alignment(GTK_MISC(aclbl), 0, 0.5);
-					gtk_size_group_add_widget(((gMenu*)pr)->sizeGroup, aclbl);
-					
-					check = gtk_image_new();
-					g_object_ref(check);
-					size = MAX(18, window()->font()->height());
-					gtk_widget_set_size_request(check, size, size);
-					ON_DRAW(check, this, cb_check_expose, cb_check_draw);
-					//g_signal_connect_after(G_OBJECT(check), "expose-event", G_CALLBACK(cb_check_expose), (gpointer)this);
-					
-					//gtk_box_pack_start(GTK_BOX(hbox), image, false, false, 0);
-					gtk_box_pack_start(GTK_BOX(hbox), label, false, false, 0);
-					gtk_box_pack_end(GTK_BOX(hbox), aclbl, false, false, 0);				
+					menu = (GtkMenuItem *)gtk_check_menu_item_new();
+					if (radio())
+						gtk_check_menu_item_set_draw_as_radio(GTK_CHECK_MENU_ITEM(menu), true);
+					if (checked())
+						gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(menu), true);
 				}
 				else
 				{
-					aclbl = NULL;
+					menu = (GtkMenuItem *)gtk_menu_item_new();
+				}
+				//g_debug("%p: create new menu %p", this, menu);
+				
+				if (!_toplevel)
+				{
+					#ifdef GTK3
+					hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, ds);
+					#else
+					hbox = gtk_hbox_new(false, ds);
+					#endif
+					//set_gdk_bg_color(hbox, 0xFF0000);
+					
+					image = gtk_image_new();
+					//check = gtk_fixed_new();
+					label = gtk_label_new_with_mnemonic("");
+					shlabel = gtk_label_new("");
+					
+					#if GTK_CHECK_VERSION(3, 16, 0)
+					gtk_label_set_xalign(GTK_LABEL(shlabel), 0);
+					#else
+					gtk_misc_set_alignment(GTK_MISC(shlabel), 0, 0.5);
+					#endif
+					gtk_size_group_add_widget(parentMenu()->getSizeGroup(), shlabel);
+					
+					size = window()->font()->height();
+
+					//gtk_widget_set_size_request(check, size, size);
+					//ON_DRAW(check, this, cb_check_expose, cb_check_draw);
+					//g_signal_connect_after(G_OBJECT(check), "expose-event", G_CALLBACK(cb_check_expose), (gpointer)this);
+
+					gtk_widget_set_size_request(image, size, size);
+					
+					gtk_container_add(GTK_CONTAINER(menu), GTK_WIDGET(hbox));
+					//gtk_box_pack_start(GTK_BOX(hbox), check, false, false, 0);
+					gtk_box_pack_start(GTK_BOX(hbox), image, false, false, 0);
 					gtk_box_pack_start(GTK_BOX(hbox), label, false, false, 0);
+					gtk_box_pack_end(GTK_BOX(hbox), shlabel, false, false, 0);
+				}
+				else
+				{
+					hbox = NULL;
+					shlabel = NULL;
+					image = NULL;
+					//check = NULL;
+					label = gtk_label_new_with_mnemonic("");
+					gtk_container_add(GTK_CONTAINER(menu), label);
 				}
 				
-				if (child)
+				if (_popup)
 				{
-					gtk_menu_item_set_submenu(menu, GTK_WIDGET(child));
-					g_object_unref(G_OBJECT(child));
+					gtk_menu_item_set_submenu(menu, GTK_WIDGET(_popup));
+					g_object_unref(G_OBJECT(_popup));
 				}
 					
 				
@@ -388,7 +339,7 @@ void gMenu::update()
 			
 			gtk_widget_show_all(GTK_WIDGET(menu));
 			
-			if (top_level)
+			if (_toplevel)
 			{
 				gMainWindow *win = (gMainWindow *)pr;
 				
@@ -400,26 +351,29 @@ void gMenu::update()
 			}
 			else
 			{
-				gMenu *parent = (gMenu *)pr;
+				gMenu *parent = parentMenu();
 				
-				if (!parent->child)
+				if (!parent->_popup)
 				{
-					parent->child = (GtkMenu*)gtk_menu_new();
+					parent->_popup = (GtkMenu *)gtk_menu_new();
+					g_object_ref_sink(parent->_popup);
 					
-					//g_debug("%p: creates a new child menu container in parent %p", this, parent->child);
+					//fprintf(stderr, "creates a new child menu container in parent %s\n", parent->name());
 					
-					g_signal_connect(G_OBJECT(parent->child), "map", G_CALLBACK(cb_map), (gpointer)parent);
-					g_signal_connect(G_OBJECT(parent->child), "unmap", G_CALLBACK(cb_unmap), (gpointer)parent);
-					gtk_widget_show_all(GTK_WIDGET(parent->child));
-					if (parent->style() == MENU)
-						gtk_menu_item_set_submenu(parent->menu, GTK_WIDGET(parent->child));
+					//g_signal_connect(G_OBJECT(parent->_popup), "size-allocate", G_CALLBACK(cb_size_allocate), (gpointer)parent);
+					g_signal_connect(G_OBJECT(parent->_popup), "show", G_CALLBACK(cb_show), (gpointer)parent);
+					g_signal_connect(G_OBJECT(parent->_popup), "map", G_CALLBACK(cb_map), (gpointer)parent);
+					g_signal_connect(G_OBJECT(parent->_popup), "unmap", G_CALLBACK(cb_unmap), (gpointer)parent);
+					gtk_widget_show_all(GTK_WIDGET(parent->_popup));
 					
-					parent->setColor();
+					parent->update();
 					
-					//gtk_menu_shell_append(GTK_MENU_SHELL(parent->child), GTK_WIDGET(menu));
-					//g_debug("%p: add to new parent %p", this, parent->child);
+					if (parent->style() == NORMAL)
+						gtk_menu_item_set_submenu(parent->menu, GTK_WIDGET(parent->_popup));
+					
+					//parent->setColor();
 				}
-				shell = GTK_MENU_SHELL(parent->child);
+				shell = GTK_MENU_SHELL(parent->_popup);
 			}
 	
 			if (shell)
@@ -438,8 +392,8 @@ void gMenu::update()
 				}
 			}
 			
-			g_signal_connect(G_OBJECT(menu), "destroy", G_CALLBACK(mnu_destroy), (gpointer)this);
-			g_signal_connect(G_OBJECT(menu), "activate", G_CALLBACK(mnu_activate), (gpointer)this);
+			g_signal_connect(G_OBJECT(menu), "destroy", G_CALLBACK(cb_destroy), (gpointer)this);
+			g_signal_connect(G_OBJECT(menu), "activate", G_CALLBACK(cb_activate), (gpointer)this);
 			
 			g_object_set_data(G_OBJECT(menu), "gambas-menu", this);
 		}
@@ -448,72 +402,82 @@ void gMenu::update()
 		updateVisible();
 	}
 	
-	if (_style == MENU)
+	if (_style == NORMAL || _style == CHECK)
 	{
-		{
-			char *buf;
-			gMnemonic_correctText(_text, &buf);
-			gtk_label_set_text_with_mnemonic(GTK_LABEL(label), buf);
-			g_free(buf);
-		}
+		gMnemonic_correctText(_text, &buf);
+		gtk_label_set_text_with_mnemonic(GTK_LABEL(label), buf);
+		g_free(buf);
 		
-		if (!top_level)
+		if (!_toplevel)
 		{
-			char *buf;
-			
 			if (_shortcut)
 			{
-				buf = g_strconcat("\t", _shortcut ,"  ",(void *)NULL);
-				gtk_label_set_text(GTK_LABEL(aclbl), buf);
+				buf = g_strconcat("\t", _shortcut, "  ",(void *)NULL);
+				gtk_label_set_text(GTK_LABEL(shlabel), buf);
 				g_free(buf);
 			}
 			else
-				gtk_label_set_text(GTK_LABEL(aclbl), "\t");
+				gtk_label_set_text(GTK_LABEL(shlabel), "\t");
 
-			if (_checked || _radio || _toggle)
-			{
-				gtk_image_menu_item_set_image((GtkImageMenuItem *)menu, check);
-				gtk_widget_show(check);
-				gtk_widget_hide(image);
-			}
-			else
-			{
-				gtk_image_set_from_pixbuf(GTK_IMAGE(image), _picture ? _picture->getPixbuf() : NULL);
-				gtk_image_menu_item_set_image((GtkImageMenuItem *)menu, image);
-				gtk_widget_show(image);
-				gtk_widget_hide(check);
-			}
+			updatePicture();
 		}
 		
-		setColor();
+		//setColor();
 		setFont();
+
+		if (_disabled)
+		{
+			gtk_widget_set_sensitive(GTK_WIDGET(menu), FALSE);
+			updateShortcutRecursive();
+		}
 	}
 
 	//g_debug("%p: END UPDATE", this);	
+}
+
+void gMenu::updatePicture()
+{
+	int size;
+	gPicture *pic;
+	
+	if (!image || isTopLevel())
+		return;
+	
+	if (!_picture)
+	{
+		gtk_image_set_from_pixbuf(GTK_IMAGE(image), NULL);
+		return;
+	}
+	
+	gtk_widget_get_size_request(image, NULL, &size);
+	size = size & ~3;
+	
+	pic = _picture->stretch(size, size, true);
+	if (_disabled)
+		pic->makeGray();
+	
+	gtk_image_set_from_pixbuf(GTK_IMAGE(image), pic->getPixbuf());
+	
+	delete pic;
 }
 
 void gMenu::initialize()
 {
 	//fprintf(stderr, "gMenu::gMenu: %p (%p)\n", this, pr);
 	
-	stop_signal = false;
-	
-	onFinish = NULL;
-	onClick = NULL;
-	onShow = NULL;
-	onHide = NULL;
-	
 	hFree = NULL;
-	child = NULL;
+	_popup = NULL;
 	image = NULL;
 	label = NULL;
-	aclbl = NULL;
-	check = NULL;
+	shlabel = NULL;
+	//check = NULL;
 	menu = NULL;
-	top_level=false;
+	_toplevel = false;
 	
 	_text = NULL;
 	_shortcut = NULL;
+	_shortcut_key = 0;
+	_shortcut_mods = (GdkModifierType)0;
 	_checked = false;
 	_picture = NULL;
 	_name = NULL;
@@ -523,16 +487,23 @@ void gMenu::initialize()
 	_style = NOTHING;
 	_oldstyle = NOTHING;
 	
+	_ignore_destroy = false;
+	_ignore_activate = false;
 	_no_update = false;
 	_destroyed = false;
 	_delete_later = false;
 	_action = false;
 	_visible = false;
 	_opened = false;
+	_exec = false;
+	_disabled = false;
+	_mapping = false;
+	_proxy_for = false;
 	
 	_proxy = NULL;
 	
-	sizeGroup = gtk_size_group_new(GTK_SIZE_GROUP_HORIZONTAL);
+	sizeGroup = NULL;
+	_children = NULL;
 	
 	menus = g_list_append (menus,(gpointer)this);
 }
@@ -557,7 +528,7 @@ gMenu::gMenu(gMainWindow *par, bool hidden)
 	}
 	
   initialize();
-	top_level=true;
+	_toplevel = true;
 	
 	accel = par->accel;
 	g_object_ref(accel);
@@ -576,6 +547,8 @@ gMenu::gMenu(gMenu *par, bool hidden)
 	if (!par) return;
 	if (!par->menu) return;
 	
+	par->insert(this);
+	
 	accel = par->accel;
 	g_object_ref(accel);
 	
@@ -583,44 +556,48 @@ gMenu::gMenu(gMenu *par, bool hidden)
 	setVisible(!hidden);
 }
 
-gMenu::~gMenu()
+void gMenu::dispose()
 {
 	GList *item;
 	gMenu *mn;
-	
+	int i;
+
 	if (_destroyed)
 		return;
-		
-	//fprintf(stderr, "gMenu::~gMenu: %p (%p) '%s'\n", this, pr, _text);
 	
-	_destroyed = true;
-  
+	#if DEBUG_DELETE
+	fprintf(stderr, "dispose: %s %p --> %p\n", name(), this, pr);
+	#endif
+	
 	setProxy(NULL);
+	ensureChildMenu();
 	
-  // Remove references to me
-  
-#define CLEAR_POINTER(_field) if ((_field) == (void *)this) _field = NULL
-	
-	item = g_list_first(menus);
-	while (item)
+  if (_proxy_for)
 	{
-		mn = (gMenu*)item->data;
-		CLEAR_POINTER(mn->pr);
-		CLEAR_POINTER(mn->_proxy);
-		item = g_list_next(item);
+		#define CLEAR_POINTER(_field) if ((_field) == (void *)this) _field = NULL
+		
+		item = g_list_first(menus);
+		while (item)
+		{
+			mn = (gMenu*)item->data;
+			//CLEAR_POINTER(mn->pr);
+			CLEAR_POINTER(mn->_proxy);
+			item = g_list_next(item);
+		}
 	}
 	
-	menus = g_list_remove(menus, (gpointer)this);
-	
-	_no_update = true;
-	setText(NULL);
-	setShortcut(NULL);
-	setPicture(NULL);
-	
+	if (_children)
+	{
+		for (i = 0; i < childCount(); i++)
+			child(i)->removeParent();
+		g_ptr_array_unref(_children);
+		_children = NULL;
+	}
+
 	//if (_style != NOTHING)
 	{
-		if (aclbl && (!top_level) && pr)
-			gtk_size_group_remove_widget(((gMenu*)pr)->sizeGroup, aclbl);
+		if (shlabel && (!_toplevel) && pr)
+			gtk_size_group_remove_widget(((gMenu*)pr)->sizeGroup, shlabel);
 		
 		if (sizeGroup) 
 			g_object_unref(G_OBJECT(sizeGroup));
@@ -628,39 +605,124 @@ gMenu::~gMenu()
 		if (accel)
 			g_object_unref(accel);	
 	}
-		
+
+	gMenu *parent = parentMenu();
+	if (parent)
+	{
+		parent->remove(this);
+		parent = NULL;
+	}
+
+	menus = g_list_remove(menus, (gpointer)this);
+	
+	#if DEBUG_DELETE
+	fprintf(stderr, "dispose: >>> %s\n", name());
+	#endif
+}
+
+gMenu::~gMenu()
+{
+	#if DEBUG_DELETE
+	fprintf(stderr, "~gMenu: %s %p --> %p\n", name(), this, pr);
+	#endif
+	
+	dispose();
+  
+	_no_update = true;
+
+	setText(NULL);
+	setPicture(NULL);
+	setShortcut(NULL);
+	
 	_style = NOTHING;
 	
-	if (child)
-		gtk_widget_destroy(GTK_WIDGET(child));
-	
-	stop_signal = true;
-	
-	if (image)
-		gtk_widget_destroy(GTK_WIDGET(image));
-		
-	if (check)
-		gtk_widget_destroy(GTK_WIDGET(check));
-		
-	if (menu)
-		gtk_widget_destroy(GTK_WIDGET(menu));
+	if (_popup)
+		g_object_unref(_popup);
 	
 	if (_current_popup == this)
 		_current_popup = NULL;
-	
-	if (onFinish) onFinish(this);
-}
 
-bool gMenu::enabled()
-{
-	return gtk_widget_is_sensitive(GTK_WIDGET(menu));
+	menus_destroyed = g_list_remove(menus_destroyed, this);
+	
+	#if DEBUG_DELETE
+	fprintf(stderr, "~gMenu: >>> %s\n", name());
+	#endif
+	CB_menu_finish(this);
 }
 
 void gMenu::setEnabled(bool vl)
 {
-	gtk_widget_set_sensitive(GTK_WIDGET(menu),vl);
+	if (vl != _disabled)
+		return;
+	
+	_disabled = !vl;
+	gtk_widget_set_sensitive(GTK_WIDGET(menu), vl);
+	updateShortcutRecursive();
 }
 
+bool gMenu::isFullyEnabled() const
+{
+	const gMenu *menu = this;
+	
+	for(;;)
+	{
+		if (menu->_exec)
+			return true;
+
+		if (!menu->isEnabled() || !menu->isVisible())
+			return false;
+
+		if (menu->isTopLevel())
+			return true;
+
+		menu = menu->parentMenu();
+	}
+}
+
+void gMenu::updateShortcut()
+{
+	if (_no_update)
+		return;
+	
+	if (isTopLevel())
+		return;
+	
+	if (_shortcut_key)
+	{
+		//fprintf(stderr, "gtk_widget_remove_accelerator: (%s %p) accel = %p (%d,%d)\n", name(), menu, accel, _shortcut_key, _shortcut_mods);
+		gtk_widget_remove_accelerator(GTK_WIDGET(menu), accel, _shortcut_key, _shortcut_mods);
+		_shortcut_key = 0;
+	}
+	
+	if (isVisible() && isFullyEnabled() && _shortcut)
+	{
+		gt_shortcut_parse(_shortcut, &_shortcut_key, &_shortcut_mods);
+		if (_shortcut_key)
+		{
+			//fprintf(stderr, "gtk_widget_add_accelerator: (%s %p) accel = %p (%d,%d)\n", name(), menu, accel, _shortcut_key, _shortcut_mods);
+			gtk_widget_add_accelerator(GTK_WIDGET(menu), "activate", accel, _shortcut_key, _shortcut_mods, (GtkAccelFlags)0);
+		}
+	}
+}
+
+void gMenu::updateShortcutRecursive()
+{
+	gMenu *ch;
+	int i;
+	
+	/*if (_exec)
+		return;*/
+
+	updateShortcut();
+
+	for (i = 0;; i++)
+	{
+		ch = child(i);
+		if (!ch)
+			break;
+		ch->updateShortcutRecursive();
+	}
+}
 
 void gMenu::setText(const char *text)
 {
@@ -670,15 +732,10 @@ void gMenu::setText(const char *text)
 	else
 		_text = NULL;
 		
-	if (!_text || !*_text)
-		_style = SEPARATOR;
-	else
-		_style = MENU;
-	
 	update();
 }
 
-bool gMenu::isVisible()
+bool gMenu::isVisible() const
 {
 	if (!menu) return false;
 	return _visible;	
@@ -688,15 +745,16 @@ void gMenu::updateVisible()
 {
 	bool vl = _visible;
 	
-	if (top_level && _style != MENU)
+	if (_toplevel && _style != NORMAL)
 		vl = false;
 	
 	//fprintf(stderr, "gMenu::updateVisible: %s '%s' %d\n", name(), text(), vl);
 	
 	gtk_widget_set_visible(GTK_WIDGET(menu), vl);
+	updateShortcutRecursive();
 	//g_object_set(G_OBJECT(menu),"visible",vl,(void *)NULL);
 	
-	if (top_level && pr)
+	if (_toplevel && pr)
 		((gMainWindow *)pr)->checkMenuBar();
 }
 
@@ -718,86 +776,138 @@ void gMenu::setPicture(gPicture *pic)
 
 void gMenu::setChecked(bool vl)
 {
+	if (vl == _checked || _popup)
+		return;
+	
 	_checked = vl;
-	update();	
+	if (_toggle || _radio)
+	{
+		_ignore_activate = true;
+		gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(menu), vl);
+	}
+	else
+		update();
 }
 
 void gMenu::setToggle(bool vl)
 {
+	if (vl == _toggle)
+		return;
+
 	_toggle = vl;
 	update();
 }
 
 void gMenu::setRadio(bool vl)
 {
+	if (vl == _radio)
+		return;
+	
 	_radio = vl;
 	update();
 }
 
-int gMenu::childCount()
+int gMenu::childCount() const
 {
-	GList *item;
-	gMenu *mn;
-	int ct=0;
-	
-	if (!menus) return 0;
-	
-	item=g_list_first(menus);
-	while (item)
-	{
-		mn=(gMenu*)item->data;
-		if (mn->pr == (void*)this && !mn->_delete_later)
-			ct++;
-		item=g_list_next(item);
-	}
-	
-	return ct;
+	if (!_children)
+		return 0;
+	else
+		return _children->len;
 }
 
-gMenu* gMenu::childMenu(int pos)
+gMenu *gMenu::child(int index) const
 {
-	GList *item;
-	gMenu *mn;
-	int ct=0;
-	
-	if (!menus) return NULL;
-	
-	item=g_list_first(menus);
-	while (item)
-	{
-		mn=(gMenu*)item->data;
-		if (mn->pr == (void*)this && !mn->_delete_later)
-		{
-			if (ct==pos) return mn;
-			ct++;
-		}
-		item=g_list_next(item);
-	}
-	
-	return NULL;
+	if (!_children || index < 0 || index >= (int)_children->len)
+		return NULL;
+	else
+		return (gMenu *)g_ptr_array_index(_children, index);
 }
 
 void gMenu::destroy()
 {
-	if (!_destroyed && !_delete_later)
-		delete this;
+	if (_destroyed)
+		return;
+	
+	hide();
+	dispose();
+	menus_destroyed = g_list_prepend(menus_destroyed, (gpointer)this);
+	_destroyed = true;
 }
 
+#if GTK_CHECK_VERSION(3, 22, 0)
+#else
 static void position_menu(GtkMenu *menu, gint *x, gint *y, gboolean *push_in, MenuPosition *pos)
 {
 	*x = pos->x;
 	*y = pos->y;
-	*push_in = false;
-	delete pos;
+	*push_in = true;
 }
+#endif
 
 void gMenu::doPopup(bool move, int x, int y)
 {
-	gMenu *save_current_popup;
-	MenuPosition *pos = NULL;
-	
-	if (!child)
+	if (!_popup)
 		return;
+	
+	gMenu *save_current_popup = _current_popup;
+	GtkWidget *save_grab = gApplication::_popup_grab;
+
+	_current_popup = this;
+	gApplication::_popup_grab = GTK_WIDGET(_popup);
+	
+	_in_popup++;
+	_popup_count++;
+	_exec = true;
+	updateShortcutRecursive();
+
+#if GTK_CHECK_VERSION(3, 22, 0)
+
+	GdkWindow *win;
+	GdkRectangle rect;
+	GdkEvent *event;
+	GdkEvent *last_event;
+	
+	gt_disable_warnings(true);
+	
+	event = gdk_event_new(GDK_BUTTON_PRESS);
+	event->button.time = gApplication::lastEventTime(); //GDK_CURRENT_TIME;
+	
+	last_event = gApplication::lastEvent();
+	if (last_event && last_event->type == GDK_BUTTON_PRESS)
+	{
+		event->button.button = last_event->button.button;
+		event->button.window = last_event->button.window;
+	}
+	else
+	{
+		event->button.button = 1;
+		event->button.window = gtk_widget_get_window(window()->border);
+	}
+	
+	gdk_event_set_device(event, gMouse::getPointer());
+	
+	if (move)
+	{
+		win = gdk_event_get_window(event);
+		gdk_window_get_origin(win, &rect.x, &rect.y);
+
+		rect.x = x - rect.x;
+		rect.y = y - rect.y;
+		rect.width = rect.height = 1;
+		
+		gtk_menu_popup_at_rect(_popup, win, &rect, GDK_GRAVITY_NORTH_WEST, GDK_GRAVITY_NORTH_WEST, event);
+	}
+	else
+		gtk_menu_popup_at_pointer(_popup, event);
+
+	gt_disable_warnings(false);
+	
+	event->button.window = NULL;
+	gdk_event_free(event);
+	
+#else
+	
+	MenuPosition *pos = NULL;
 	
 	if (move)
 	{
@@ -806,28 +916,34 @@ void gMenu::doPopup(bool move, int x, int y)
 		pos->y = y;
 	}
 	
-	save_current_popup = _current_popup;
-	_current_popup = this;
-	
-	_in_popup++;
-	_popup_count++;
-	
-	gtk_menu_popup(child, NULL, NULL, move ? (GtkMenuPositionFunc)position_menu : NULL, (gpointer)pos, 0, gApplication::lastEventTime());
+	gtk_menu_popup(_popup, NULL, NULL, move ? (GtkMenuPositionFunc)position_menu : NULL, (gpointer)pos, 0, gApplication::lastEventTime());
+
+#endif
 	
 #if GTK_CHECK_VERSION(2, 20, 0)
-	while (_current_popup && child && gtk_widget_get_mapped(GTK_WIDGET(child)))
+	while (_current_popup && _popup && gtk_widget_get_mapped(GTK_WIDGET(_popup)))
 #else
-	while (_current_popup && child && GTK_WIDGET_MAPPED(child))
+	while (_current_popup && _popup && GTK_WIDGET_MAPPED(_popup))
 #endif
 		MAIN_do_iteration(false);
 
+	_exec = false;
+	updateShortcutRecursive();
+
 	_current_popup = save_current_popup;
+	gApplication::_popup_grab = save_grab;
 
 	_in_popup--;
 
+#ifdef GTK3
+#else
+	if (pos)
+		delete pos;
+#endif
+	
 	// flush the event loop so that the main window is reactivated before the click menu event is raised
 
-	while (gtk_events_pending())
+	while (gApplication::eventsPending())
 		MAIN_do_iteration(false);
 }
 
@@ -843,10 +959,10 @@ void gMenu::popup()
 
 void gMenu::close()
 {
-	if (!child)
+	if (!_popup)
 		return;
 	
-	gtk_menu_popdown(child);
+	gtk_menu_popdown(_popup);
 }
 
 int gMenu::winChildCount(gMainWindow *par)
@@ -919,26 +1035,16 @@ gMenu *gMenu::findFromName(gMainWindow *win, const char *name)
 
 void gMenu::setShortcut(char *shortcut)
 {
-	guint key;
-	GdkModifierType mods;
-	
 	if (_shortcut)
 	{
-		gt_shortcut_parse(_shortcut, &key, &mods);
-		if (key)
-			gtk_widget_remove_accelerator(GTK_WIDGET(menu), accel, key, mods);
 		g_free(_shortcut);
 		_shortcut = NULL;
 	}
 
 	if (shortcut)
-	{
 		_shortcut = g_strdup(shortcut);
-		gt_shortcut_parse(_shortcut, &key, &mods);
-		if (key)
-			gtk_widget_add_accelerator(GTK_WIDGET(menu),"activate",accel,key,mods,(GtkAccelFlags)0);
-	}
-
+	
+	updateShortcut();
 	update();
 }
 
@@ -947,7 +1053,7 @@ gMainWindow *gMenu::window()
   if (!pr)
     return NULL;
 
-  if (top_level)
+  if (_toplevel)
     return (gMainWindow *)pr;
     
   return ((gMenu *)pr)->window();
@@ -965,71 +1071,84 @@ void gMenu::setName(char *name)
 		_name = g_strdup(name);
 }
 
-
 void gMenu::hideSeparators()
 {
 	gMenu *ch;
 	gMenu *last_ch;
 	bool is_sep;
 	bool last_sep;
-	GList *item;
+	//bool show_check = false;
+	bool show_image = false;
+	int i;
 
-	if (!child)
+	if (!_popup)
 		return;
-		
+	
 	last_sep = true;
 	last_ch = 0;
 	
-	item = g_list_first(menus);
-	while (item)
+	for (i = 0; i < childCount(); i++)
 	{
-		ch = (gMenu*)item->data;
-		if (ch->pr == this)
+		ch = child(i);
+		
+		is_sep = ch->style() == SEPARATOR;
+		
+		if (is_sep)
 		{
-			is_sep = ch->style() == SEPARATOR;
-			if (is_sep)
+			if (last_sep)
 			{
-				if (last_sep)
-				{
-					ch->hide();
-				}
-				else
-				{
-					ch->show();
-					last_sep = true;
-					last_ch = ch;
-				}
+				ch->hide();
 			}
 			else
 			{
-				if (ch->isVisible())
-				{
-					ch->ensureChildMenu();
-					last_sep = false;
-				}
+				ch->show();
+				last_sep = true;
+				last_ch = ch;
 			}
 		}
-		
-		item = g_list_next(item);
+		else
+		{
+			if (ch->isVisible())
+			{
+				ch->ensureChildMenu();
+				last_sep = false;
+				/*if (ch->radio() || ch->toggle() || ch->checked())
+					show_check = true;*/
+				if (ch->picture())
+					show_image = true;
+			}
+		}
 	}
 	
 	if (last_sep && last_ch)
 		last_ch->hide();
+
+	for (i = 0; i < childCount(); i++)
+	{
+		ch = child(i);
+		if (!ch->image || !ch->isVisible())
+			continue;
+		
+		if (show_image)
+			gtk_widget_show(ch->image);
+		else
+			gtk_widget_hide(ch->image);
+	}
 }
 
 void gMenu::setFont()
 {
 	gMainWindow *win = window();
 #ifdef GTK3
-	if (label) gtk_widget_override_font(GTK_WIDGET(label), win->font()->desc());
-	if (aclbl) gtk_widget_override_font(GTK_WIDGET(aclbl), win->font()->desc());
+	if (label) gt_widget_update_css(GTK_WIDGET(label), win->font(), COLOR_DEFAULT, COLOR_DEFAULT);
+	if (shlabel) gt_widget_update_css(GTK_WIDGET(shlabel), win->font(), COLOR_DEFAULT, COLOR_DEFAULT);
 #else
 	if (label) gtk_widget_modify_font(GTK_WIDGET(label), win->font()->desc());
-	if (aclbl) gtk_widget_modify_font(GTK_WIDGET(aclbl), win->font()->desc());
+	if (shlabel) gtk_widget_modify_font(GTK_WIDGET(shlabel), win->font()->desc());
 #endif
 }
 
-void gMenu::setColor()
+/*void gMenu::setColor()
 {
 	gMainWindow *win = window();
 	
@@ -1037,8 +1156,8 @@ void gMenu::setColor()
 	{
 		if (label) set_gdk_fg_color(GTK_WIDGET(label), win->foreground());
 	}
-	//if (aclbl) set_gdk_fg_color(GTK_WIDGET(aclbl), win->foreground());
-}
+	//if (shortcut) set_gdk_fg_color(GTK_WIDGET(shortcut), win->foreground());
+}*/
 
 void gMenu::updateColor(gMainWindow *win)
 {
@@ -1048,8 +1167,12 @@ void gMenu::updateColor(gMainWindow *win)
 	if (!win->menuBar)
 		return;
 	
+	#ifdef GTK3
+	gt_widget_update_css(GTK_WIDGET(win->menuBar), NULL, win->background(), win->foreground());
+	#else
 	set_gdk_bg_color(GTK_WIDGET(win->menuBar), win->background());
 	set_gdk_fg_color(GTK_WIDGET(win->menuBar), win->foreground());
+	#endif
 
 	/*if (!menus) 
 		return;
@@ -1073,7 +1196,7 @@ void gMenu::updateFont(gMainWindow *win)
 	{
 		//fprintf(stderr, "set menu bar font\n");
 #ifdef GTK3
-		gtk_widget_override_font(GTK_WIDGET(win->menuBar), win->ownFont() ? win->font()->desc() : NULL);
+		gt_widget_update_css(GTK_WIDGET(win->menuBar), win->ownFont() ? win->font() : NULL, COLOR_DEFAULT, COLOR_DEFAULT);
 #else
 		gtk_widget_modify_font(GTK_WIDGET(win->menuBar), win->ownFont() ? win->font()->desc() : NULL);
 #endif
@@ -1092,54 +1215,60 @@ void gMenu::updateFont(gMainWindow *win)
 	}
 }
 
-void gMenu::setRadio()
+void gMenu::updateRadio()
 {
-	gMenu *child;
-	GList *item;
-	GList *start = NULL;
+	gMenu *parent, *ch;
+	int i;
+	int start = -1;
 
-	if (top_level)
+	parent = parentMenu();
+	if (!parent)
 		return;
-
-	item = g_list_first(menus);
-	while (item)
+	
+	for (i = 0; i < parent->childCount(); i++)
 	{
-		child = (gMenu*)item->data;
-		if (child->parent() == pr && !child->_delete_later)
+		ch = parent->child(i);
+		if (ch->radio())
 		{
-			if (child->radio())
-			{
-				if (!start)
-					start = item;
-				if (child == this)
-					break;
-			}
-			else
-				start = NULL;
+			if (start < 0)
+				start = i;
+			if (ch == this)
+				break;
 		}
-
-		item = g_list_next(item);
+		else
+			start = -1;
 	}
 
-	item = start;
-	while (item)
+	if (start >= 0)
 	{
-		child = (gMenu*)item->data;
-		if (child->parent() == pr && !child->_delete_later)
+		for (i = start; i < parent->childCount(); i++)
 		{
-			if (!child->radio())
+			ch = parent->child(i);
+			if (!ch->radio())
 				break;
 
-			child->setChecked(child == this);
+			ch->setChecked(ch == this);
 		}
-
-		item = g_list_next(item);
 	}
 }
 
-void gMenu::setProxy(gMenu *menu)
+bool gMenu::setProxy(gMenu *proxy)
 {
-	_proxy = menu;
+	gMenu *check = proxy;
+
+	while (check)
+	{
+		if (check == this)
+			return true;
+
+		check = check->_proxy;
+	}
+
+	_proxy = proxy;
+	if (proxy)
+		proxy->_proxy_for = true;
+	
+	return false;
 }
 
 GtkMenu *gMenu::getSubMenu()
@@ -1147,24 +1276,109 @@ GtkMenu *gMenu::getSubMenu()
 	if (_proxy)
 		return _proxy->getSubMenu();
 	else
-		return child;
+		return _popup;
 }
 
 void gMenu::ensureChildMenu()
 {
-	GtkWidget *child = GTK_WIDGET(getSubMenu());
+	GtkMenu *sub_menu = getSubMenu();
 	
-	if (child)
+	// TODO: create parent menu?
+	if (sub_menu && gtk_menu_item_get_submenu(menu) != (GtkWidget *)sub_menu)
 	{
-		// TODO: create parent menu?
-		if (gtk_menu_item_get_submenu(menu) != child)
-		{
-			//fprintf(stderr, "ensureChildMenu: %s\n", name());
-			g_object_ref(child);
-			gtk_menu_item_set_submenu(GTK_MENU_ITEM(gtk_menu_get_attach_widget(GTK_MENU(child))), NULL);
-			gtk_menu_item_set_submenu(menu, child);
-			g_object_unref(child);
-		}
+		//fprintf(stderr, "ensureChildMenu: %p\n", sub_menu);
+		g_object_ref(sub_menu);
+		/*attach = gtk_menu_get_attach_widget(sub_menu);
+		if (attach)
+			gtk_menu_item_set_submenu(GTK_MENU_ITEM(attach), NULL);*/
+		if (gtk_menu_get_attach_widget(sub_menu))
+			gtk_menu_detach(sub_menu);
+		gtk_menu_item_set_submenu(menu, GTK_WIDGET(sub_menu));
+		g_object_unref(sub_menu);
 	}
 }
 
+
+GtkSizeGroup *gMenu::getSizeGroup()
+{
+	if (!sizeGroup)
+		sizeGroup = gtk_size_group_new(GTK_SIZE_GROUP_HORIZONTAL);
+	return sizeGroup;
+}
+
+void gMenu::insert(gMenu *child)
+{
+	if (!_children)
+		_children = g_ptr_array_new();
+	
+	g_ptr_array_add(_children, child);
+}
+
+void gMenu::remove(gMenu *child)
+{
+	g_ptr_array_remove(_children, child);
+}
+
+void gMenu::willBeDeletedLater()
+{
+	//gMenu *parent = parentMenu();
+	_delete_later = TRUE;
+	dispose();
+}
+
+void gMenu::removeParent()
+{
+	#if DEBUG_DELETE
+	fprintf(stderr, "removeParent: %s %p --> %p\n", name(), this, pr);
+	#endif
+	pr = NULL;
+}
+
+void gMenu::updateChecked()
+{
+	if (_style == CHECK)
+		_checked = gtk_check_menu_item_get_active(GTK_CHECK_MENU_ITEM(menu));
+	else
+		_checked = false;
+}
+
+bool gMenu::ignoreDestroy()
+{
+	if (_ignore_destroy)
+	{
+		_ignore_destroy = false;
+		return true;
+	}
+	else
+		return false;
+}
+
+bool gMenu::ignoreActivate()
+{
+	if (_ignore_activate)
+	{
+		_ignore_activate = false;
+		return true;
+	}
+	else
+		return false;
+}
+
+void gMenu::cleanRemovedMenus()
+{
+	GList *iter;
+	gMenu *menu;
+
+	if (!menus_destroyed) return;
+
+	for(;;)
+	{
+		iter = g_list_first(menus_destroyed);
+		if (!iter)
+			break;
+		menu = (gMenu *)iter->data;
+		gtk_widget_destroy(GTK_WIDGET(menu->menu));
+	}
+
+	menus_destroyed = NULL;
+}

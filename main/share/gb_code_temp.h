@@ -2,7 +2,7 @@
 
 	gb_code_temp.h
 
-	(c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+	(c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -28,6 +28,7 @@
 #define write_ZZxx(code, val)  write_short(code | ((short)val & 0x00FF))
 
 #ifndef PROJECT_EXEC
+
 #define LAST_CODE \
 { \
 	if (JOB->debug && !JOB->nobreak) \
@@ -36,13 +37,16 @@
 	cur_func->last_code = cur_func->ncode; \
 }
 #define CURRENT_CLASS JOB->class
+
 #else
+
 #define LAST_CODE \
 { \
 	cur_func->last_code2 = cur_func->last_code; \
 	cur_func->last_code = cur_func->ncode; \
 }
 #define CURRENT_CLASS EVAL
+
 #endif
 
 short CODE_stack_usage;
@@ -55,7 +59,8 @@ static bool _ignore_next_stack_usage = FALSE;
 #define cur_func EVAL
 #else
 static FUNCTION *cur_func = NULL;
-static int last_line = 0;
+FUNCTION *CODE_current_func = NULL;
+//static int last_line = 0;
 #endif
 
 static void alloc_code(void)
@@ -82,16 +87,11 @@ static void alloc_code(void)
 
 #ifdef PROJECT_COMP
 
-static bool _allow_break = FALSE;
-
-void CODE_allow_break(void)
-{
-	_allow_break = TRUE;
-}
+bool CODE_break_is_allowed = FALSE;
 
 static void CODE_break(void)
 {
-	if (!_allow_break)
+	if (!CODE_break_is_allowed)
 		return;
 
 	/*if (last_line < 0)
@@ -112,7 +112,7 @@ static void CODE_break(void)
 	#endif
 
 	write_short(C_BREAK);
-	_allow_break = FALSE;
+	CODE_break_is_allowed = FALSE;
 }
 
 #endif
@@ -154,10 +154,12 @@ static void CODE_undo()
 	cur_func->last_code2 = (-1);
 }
 
+#ifdef PROJECT_EXEC
 ushort CODE_get_current_pos(void)
 {
 	return cur_func->ncode;
 }
+#endif
 
 ushort CODE_set_current_pos(ushort pos)
 {
@@ -191,15 +193,37 @@ void CODE_end_function()
 
 #else
 
+FUNCTION *CODE_set_function(FUNCTION *func)
+{
+	FUNCTION *prev = cur_func;
+	
+	if (cur_func)
+	{
+		cur_func->code_stack = CODE_stack;
+		cur_func->code_stack_usage = CODE_stack_usage;
+	}
+	
+	cur_func = func;
+	CODE_current_func = func;
+	
+	if (func)
+	{
+		CODE_stack = cur_func->code_stack;
+		CODE_stack_usage = cur_func->code_stack_usage;
+	}
+	
+	return prev;
+}
+
 void CODE_begin_function(FUNCTION *func)
 {
-	cur_func = func;
-	CODE_stack = 0;
-	CODE_stack_usage = 0;
-	if (func->start == NULL)
+	func->code_stack = func->code_stack_usage = 0;
+	CODE_set_function(func);
+
+	/*if (func->start == NULL)
 		last_line = (-1);
 	else
-		last_line = 0;
+		last_line = 0;*/
 }
 
 void CODE_end_function(FUNCTION *func)
@@ -230,7 +254,7 @@ static ushort *get_last_code2()
 	return &cur_func->code[cur_func->last_code2];
 }
 
-bool CODE_popify_last(void)
+bool CODE_popify_last(bool no_conv)
 {
 	/*
 	#ifdef DEBUG
@@ -248,43 +272,33 @@ bool CODE_popify_last(void)
 
 	op = *last_code & 0xFF00;
 
-	if ((op >= C_PUSH_LOCAL) && (op <= C_PUSH_UNKNOWN))
+	if ((op >= C_PUSH_LOCAL && op <= C_PUSH_UNKNOWN))
 	{
 		*last_code += 0x0800;
-		use_stack(-2);
-		#ifdef DEBUG
-		printf("Popify Last\n");
-		#endif
-		return TRUE;
 	}
-
-	if ((op & 0xF000) == C_PUSH_DYNAMIC)
+	else if (op == C_PUSH_LOCAL_NOREF)
+	{
+		if (no_conv)
+			*last_code = C_POP_LOCAL_FAST | (*last_code & 0xFF);
+		else
+			*last_code = C_POP_LOCAL_NOREF | (*last_code & 0xFF);
+	}
+	else if (op == C_PUSH_PARAM_NOREF)
+	{
+		if (no_conv)
+			*last_code = C_POP_PARAM_FAST | (*last_code & 0xFF);
+		else
+			*last_code = C_POP_PARAM_NOREF | (*last_code & 0xFF);
+	}
+	else if ((op & 0xF000) == C_PUSH_DYNAMIC)
 	{
 		*last_code += 0x1000;
-		use_stack(-2);
-		#ifdef DEBUG
-		printf("Popify Last\n");
-		#endif
-		return TRUE;
 	}
+	else
+		return FALSE;
 
-	/*
-	if (*last_code == (C_PUSH_MISC | CPM_LAST))
-	{
-		*last_code = C_PUSH_MISC | CPM_POP_LAST;
-		use_stack(-2);
-		return TRUE;
-	}
-	*/
-	/*
-	if (op == C_CALL)
-	{
-		*last_code = C_CALL_POP | (*last_code & 0xFF);
-		return TRUE;
-	}
-	*/
-
-	return FALSE;
+	use_stack(-2);
+	return TRUE;
 }
 
 
@@ -321,7 +335,7 @@ bool CODE_check_pop_local_last(short *local)
 	if (!last_code)
 		return FALSE;
 
-	if ((*last_code & 0xFF00) == C_POP_LOCAL)
+	if ((*last_code & 0xFF00) == C_POP_LOCAL || (*last_code & 0xFF00) == C_POP_LOCAL_NOREF)
 	{
 		*local = *last_code & 0xFF;
 		return TRUE;
@@ -358,12 +372,33 @@ bool CODE_check_varptr(void)
 		return TRUE;
 
 	op = *last_code;
-	if (!((op & 0xFF00) == C_PUSH_LOCAL || (op & 0xFF00) == C_PUSH_PARAM || (op & 0xF800) == C_PUSH_STATIC || (op & 0xF800) == C_PUSH_DYNAMIC))
+	if (!((op & 0xFF00) == C_PUSH_LOCAL || (op & 0xFF00) == C_PUSH_LOCAL_NOREF
+			|| (op & 0xFF00) == C_PUSH_PARAM || (op & 0xF800) == C_PUSH_STATIC
+			|| (op & 0xF800) == C_PUSH_DYNAMIC))
 		return TRUE;
 
 	*last_code = C_PUSH_INTEGER;
 	write_short((short)op);
 	return FALSE;
+}
+
+bool CODE_check_fast_cat(void)
+{
+	unsigned short op;
+	PCODE *last_code;
+	
+	last_code = get_last_code();
+	if (!last_code)
+		return FALSE;
+	
+	op = *last_code;
+	
+	if (!((op & 0xFF00) == C_POP_LOCAL || (op & 0xFF00) == C_POP_PARAM || (op & 0xF800) == C_POP_STATIC || (op & 0xF800) == C_POP_DYNAMIC))
+		return FALSE;
+	
+	cur_func->code[cur_func->ncode - 2] &= 0xFF00;
+	cur_func->code[cur_func->ncode - 2] |= 1;
+	return TRUE;
 }
 
 bool CODE_check_ismissing(void)
@@ -376,7 +411,7 @@ bool CODE_check_ismissing(void)
 		return TRUE;
 
 	op = *last_code;
-	if ((op & 0xFF00) != C_PUSH_PARAM)
+	if ((op & 0xFF00) != C_PUSH_PARAM && ((op & 0xFF00) != C_PUSH_PARAM_NOREF))
 		return TRUE;
 
 	*last_code = C_PUSH_QUICK | (op & 0xFF);
@@ -395,7 +430,7 @@ void CODE_push_number(int value)
 
 	use_stack(1);
 
-	if (value >= -2048L && value < 2048L)
+	if (value >= -256 && value < 256)
 	{
 		#ifdef DEBUG
 		printf("PUSH QUICK %d\n", value);
@@ -418,6 +453,15 @@ void CODE_push_number(int value)
 		write_short(C_PUSH_LONG);
 		write_int(value);
 	}
+}
+
+void CODE_push_float(int value)
+{
+	LAST_CODE;
+
+	use_stack(1);
+
+	write_ZZxx(C_PUSH_FLOAT, value);
 }
 
 
@@ -445,7 +489,7 @@ void CODE_push_const(ushort value)
 }
 
 
-void CODE_push_local(short num)
+void CODE_push_local_ref(short num, bool ref)
 {
 	LAST_CODE;
 
@@ -457,10 +501,20 @@ void CODE_push_local(short num)
 	else
 		printf("PUSH PARAM %d\n", (-1) - num);
 	#endif
-	if (num >= 0)
-		write_ZZxx(C_PUSH_LOCAL, num);
+	if (!ref && COMP_version >= 0x03180000)
+	{
+		if (num >= 0)
+			write_ZZxx(C_PUSH_LOCAL_NOREF, num);
+		else
+			write_ZZxx(C_PUSH_PARAM_NOREF, num);
+	}
 	else
-		write_ZZxx(C_PUSH_PARAM, num);
+	{
+		if (num >= 0)
+			write_ZZxx(C_PUSH_LOCAL, num);
+		else
+			write_ZZxx(C_PUSH_PARAM, num);
+	}
 }
 
 
@@ -482,6 +536,30 @@ void CODE_pop_local(short num)
 		write_ZZxx(C_POP_LOCAL, num);
 	else
 		write_ZZxx(C_POP_PARAM, num);
+}
+
+void CODE_pop_local_noref(short num)
+{
+	if (COMP_version < 0x03180000)
+	{
+		CODE_pop_local(num);
+		return;
+	}
+
+	LAST_CODE;
+
+	use_stack(-1);
+
+	#ifdef DEBUG
+	if (num >= 0)
+		printf("POP LOCAL NOREF #%d\n", num);
+	else
+		printf("POP PARAM NOREF #%d\n", (-1) - num);
+	#endif
+	if (num >= 0)
+		write_ZZxx(C_POP_LOCAL_NOREF, num);
+	else
+		write_ZZxx(C_POP_PARAM_NOREF, num);
 }
 
 
@@ -701,60 +779,33 @@ void CODE_on(uchar num)
 }
 
 
-void CODE_jump_if_true()
+void CODE_jump_if(bool test, bool fast)
 {
-	/*
-	ushort *last_code = get_last_code();
 	ushort op;
-
-	if (last_code && PCODE_is(*last_code, C_NOT))
-	{
-		remove_last();
-		op = C_JUMP_IF_FALSE;
-	}
-	else
-		op = C_JUMP_IF_TRUE;
-	*/
 
 	use_stack(-1);
 
 	#ifdef DEBUG
-	printf("JUMP IF TRUE\n");
+	printf("JUMP IF %s\n", test ? "TRUE" : "FALSE");
 	#endif
 
 	LAST_CODE;
 
-	write_short(C_JUMP_IF_TRUE);
-	/**pos = CODE_get_current_pos();*/
-	write_short(0);
-}
-
-
-void CODE_jump_if_false()
-{
-	/*
-	ushort *last_code = get_last_code();
-	ushort op;
-
-	if (last_code && PCODE_is(*last_code, C_NOT))
+	if (test)
 	{
-		remove_last();
-		op = C_JUMP_IF_TRUE;
+		if (fast && COMP_version >= 0x03180000)
+			op = C_JUMP_IF_TRUE_FAST;
+		else
+			op = C_JUMP_IF_TRUE;
 	}
 	else
-		op = C_JUMP_IF_FALSE;
-	*/
-
-	use_stack(-1);
-
-	#ifdef DEBUG
-	printf("JUMP IF FALSE\n");
-	#endif
-
-	LAST_CODE;
-
-	write_short(C_JUMP_IF_FALSE);
-	/**pos = CODE_get_current_pos();*/
+	{
+		if (fast && COMP_version >= 0x03180000)
+			op = C_JUMP_IF_FALSE_FAST;
+		else
+			op = C_JUMP_IF_FALSE;
+	}
+	write_short(op);
 	write_short(0);
 }
 
@@ -850,33 +901,40 @@ void CODE_op(short op, short subcode, short nparam, bool fixed)
 		{
 			value = *last_code & 0xFFF;
 			if (value >= 0x800) value |= 0xF000;
-			if (op == C_SUB) value = (-value);
+			if (op == C_SUB) value = (-value); // prevent -256 to be valid!
 
 			#ifdef DEBUG
 			printf("ADD QUICK %d\n", value);
 			#endif
 
-			*last_code = C_ADD_QUICK | (value & 0x0FFF);
-
-			use_stack(1 - nparam);
-
-			// Now, look if we are PUSH QUICK then ADD QUICK
-
-			last_code = get_last_code2();
-			if (last_code && ((*last_code & 0xF000) == C_PUSH_QUICK))
+			if (COMP_version < 0x03180000 || (value > -256 && value < 256))
 			{
-				value2 = *last_code & 0xFFF;
-				if (value2 >= 0x800) value2 |= 0xF000;
-				value += value2;
+				*last_code = C_ADD_QUICK | (value & 0x0FFF);
 
-				if (value >= -2048L && value < 2048L)
+				use_stack(1 - nparam);
+
+				// Now, look if we are PUSH QUICK then ADD QUICK
+
+				last_code = get_last_code2();
+				if (last_code && ((*last_code & 0xF000) == C_PUSH_QUICK))
 				{
-					*last_code = C_PUSH_QUICK | (value & 0x0FFF);
-					CODE_undo();
-				}
-			}
+					value2 = *last_code & 0xFFF;
+					if (value2 >= 0x800) value2 |= 0xF000;
 
-			return;
+					if (value2 > -256 && value2 < 256)
+					{
+						value += value2;
+
+						if (value >= -256 && value < 256)
+						{
+							*last_code = C_PUSH_QUICK | (value & 0x0FFF);
+							CODE_undo();
+						}
+					}
+				}
+
+				return;
+			}
 		}
 	}
 
@@ -1410,6 +1468,17 @@ void CODE_drop_vargs(void)
 	#endif
 
 	write_ZZxx(C_PUSH_MISC, CPM_DROP_VARGS);
+}
+
+void CODE_end_vargs(void)
+{
+	LAST_CODE;
+
+	#ifdef DEBUG
+	printf("END VARGS\n");
+	#endif
+
+	write_ZZxx(C_PUSH_MISC, CPM_END_VARGS);
 }
 
 #ifdef CODE_DUMP

@@ -6,6 +6,9 @@ Public Const MODE_NORMAL As Integer = 0
 Public Const MODE_STRING As Integer = 1
 Public Const MODE_STRING_SPLIT As Integer = 2
 Public Const MODE_COMMENT As Integer = 3
+Public Const MODE_CODE As Integer = 4
+
+Private Enum PASTE_PRINT, PASTE_STRING_SPLIT, PASTE_CODE
 
 Private $hEditor As TextEditor
 Private $iMode As Integer
@@ -31,6 +34,8 @@ Public Sub Run(hEditor As TextEditor, Optional iMode As Integer = MODE_NORMAL) A
         PasteStringSplit(sFormat)
       Case MODE_COMMENT
         PasteComment(sFormat)
+      Case MODE_CODE
+        PasteCode(sFormat)
     End Select
     $hEditor.SetFocus
     Return
@@ -48,6 +53,7 @@ Public Sub btnOK_Click()
   'TRY sFormat = Clipboard.Paste(sFormat & ";charset=UTF-8")
   'IF ERROR THEN sFormat = Clipboard.Paste(sFormat)
   sFormat = Clipboard.Paste(sFormat)
+  sFormat = Replace(sFormat, String.Chr(160), " ")
 
   If radPasteNormal.Value Then 
     $hEditor.Insert(sFormat)
@@ -59,6 +65,8 @@ Public Sub btnOK_Click()
     $hEditor.Insert(Quote(sFormat))
   Else If radPasteStringSplit.Value Then 
     PasteStringSplit(sFormat)
+  Else If radPasteCode.Value Then
+    PasteCode(sFormat)
   Endif
   $hEditor.SetFocus
 
@@ -66,7 +74,7 @@ Public Sub btnOK_Click()
   
 Catch 
 
-  Message.Error(("Unable to paste text.") & "\n\n" & Error.Text)
+  FMain.ShowErrorWith(("Unable to paste text."))
 
 End
 
@@ -134,28 +142,52 @@ Public Sub Form_Open()
 End
 
 
-Public Sub PastePrint(sText As String)
+Private Sub InsertIndented(sText As String, iAction As Integer)
   
   Dim sLine As String
   Dim sIndent As String
-  
-  'sText = Trim(sText)
-  If Not sText Then Return
-  
+  Dim bNext As Boolean
+
   sLine = $hEditor.Current.Text
-  sIndent = Space$(Len(sLine) - Len(LTrim(sLine)))
-  
+  sIndent = Left(sLine, Len(sLine) - Len(LTrim(sLine)))
+
   $hEditor.Begin
-  $hEditor.Goto(0, $hEditor.Line)
-  
   For Each sText In Split(sText, "\n")
-    If sText Then
-      $hEditor.Insert(sIndent & "PRINT " & Quote(sText) & "\n")
+    On iAction GoSub DO_PRINT, DO_STRING_SPLIT, DO_CODE
+    If bNext Then
+      $hEditor.Insert(sIndent & sText & "\n")
     Else 
-      $hEditor.Insert(sIndent & "PRINT\n")
+      $hEditor.Insert(sText & "\n")
+      bNext = True
     Endif
   Next
   $hEditor.End
+  
+  Return
+  
+DO_PRINT:
+  
+  If sText Then
+    sText = "PRINT " & Quote(sText)
+  Else 
+    sText = "PRINT"
+  Endif 
+  Return
+  
+DO_STRING_SPLIT:
+
+  sText = Quote(sText)
+  Return
+  
+DO_CODE:
+
+  Return
+
+End
+
+Public Sub PastePrint(sText As String)
+  
+  InsertIndented(sText, PASTE_PRINT)
   
 End
 
@@ -169,7 +201,7 @@ Public Sub PasteComment(sText As String)
   sText = Replace(sText, "\t", Space$(Project.TabSize))
   
   sLine = $hEditor.Current.Text
-  sIndent = Space$(Len(sLine) - Len(LTrim(sLine)))
+  sIndent = Left(sLine, Len(sLine) - Len(LTrim(sLine)))
   
   $hEditor.Begin
   $hEditor.Goto(0, $hEditor.Line)
@@ -183,24 +215,12 @@ End
 
 Public Sub PasteStringSplit(sText As String)
   
-  Dim sLine As String
-  Dim sIndent As String
-  Dim bNext As Boolean
-
-  sLine = $hEditor.Current.Text
-  sIndent = Space$(Len(sLine) - Len(LTrim(sLine)))
-
-  $hEditor.Begin
-  '$hEditor.Goto($hEditor.Line, 0)
+  InsertIndented(sText, PASTE_STRING_SPLIT)
   
-  For Each sText In Split(sText, "\n")
-    If bNext Then
-      $hEditor.Insert("\n" & sIndent & "  " & Quote(sText))
-    Else
-      $hEditor.Insert(Quote(sText))
-      bNext = True
-    Endif
-  Next
-  $hEditor.End
-  
+End
+
+Private Sub PasteCode(sText As String)
+
+  InsertIndented(Project.ConvertForm(sText), PASTE_CODE)
+
 End

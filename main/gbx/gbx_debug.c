@@ -2,7 +2,7 @@
 
 	gbx_debug.c
 
-	(c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+	(c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -74,7 +74,12 @@ const char *DEBUG_get_position(CLASS *cp, FUNCTION *fp, PCODE *pc)
 {
 #if DEBUG_MEMORY
 	static char buffer[256];
+	const int buffer_size = sizeof(buffer);
+#else
+	char *buffer = COMMON_buffer;
+	const int buffer_size = COMMON_BUF_MAX;
 #endif
+
 	ushort line = 0;
 
 	if (!cp || !pc)
@@ -83,21 +88,22 @@ const char *DEBUG_get_position(CLASS *cp, FUNCTION *fp, PCODE *pc)
 	if (fp != NULL && fp->debug)
 		calc_line_from_position(cp, fp, pc, &line);
 
-#if DEBUG_MEMORY
-	snprintf(buffer, sizeof(buffer), "%s.%s.%d",
-		cp ? cp->name : "?",
-		(fp && fp->debug) ? fp->debug->name : "?",
-		line);
+	if (cp->component)
+	{
+		snprintf(buffer, buffer_size, "[%s].%s.%s.%d",
+			cp->component->name, cp->name,
+			(fp && fp->debug) ? fp->debug->name : "?",
+			line);
+	}
+	else
+	{
+		snprintf(buffer, buffer_size, "%s.%s.%d",
+			cp->name,
+			(fp && fp->debug) ? fp->debug->name : "?",
+			line);
+	}
 
 	return buffer;
-#else
-	snprintf(COMMON_buffer, COMMON_BUF_MAX, "%.64s.%.64s.%d",
-		cp->name,
-		(fp && fp->debug) ? fp->debug->name : "?",
-		line);
-
-	return COMMON_buffer;
-#endif
 }
 
 
@@ -109,13 +115,61 @@ const char *DEBUG_get_current_position(void)
 
 void DEBUG_init(void)
 {
+	const char *project;
+	const char *dir;
+	const char *fifo_name;
+	int pid;
+	int fd_lock;
+	int n;
+	
 	if (!EXEC_debug)
-		return;
+	{
+		project = PROJECT_source;
+		if (!project)
+			project = PROJECT_name;
+
+		sprintf(COMMON_buffer, DEBUG_WAIT_LINK, project);
+
+		dir = FILE_readlink(COMMON_buffer);
+		if (!dir)
+			return;
+		
+		for (n = DEBUG_WAIT_IGNORE_MAX; n >= 1; n--)
+		{
+			sprintf(COMMON_buffer, DEBUG_WAIT_IGNORE, project, n);
+			if (unlink(COMMON_buffer) == 0)
+				return;
+		}
+		
+		sprintf(COMMON_buffer, DEBUG_WAIT_LINK, project);
+		
+		if (unlink(COMMON_buffer))
+			return;
+		
+		pid = atoi(FILE_get_name(dir));
+		if (!pid)
+			return;
+		
+		sprintf(COMMON_buffer, DEBUG_FIFO_PATTERN, getuid(), pid, "lock");
+		fd_lock = open(COMMON_buffer, O_CREAT | O_WRONLY | O_CLOEXEC, 0666);
+		if (fd_lock < 1)
+			return;
+		
+		STREAM_lock_all_fd(fd_lock); // On program end, that file will be automatically closed, and the lock released.
+		
+		EXEC_debug = TRUE;
+		EXEC_fifo = TRUE;
+		
+		sprintf(COMMON_buffer, DEBUG_FIFO_PATTERN, getuid(), pid, "");
+		fifo_name = COMMON_buffer;
+	}
+	else
+		fifo_name = EXEC_fifo_name;
 
 	COMPONENT_load(COMPONENT_create("gb.debug"));
 	LIBRARY_get_interface_by_name("gb.debug", DEBUG_INTERFACE_VERSION, &DEBUG);
 
-	DEBUG_info = DEBUG.Init((GB_DEBUG_INTERFACE *)(void *)GAMBAS_DebugApi, EXEC_fifo, EXEC_fifo_name);
+	DEBUG_info = DEBUG.Init((GB_DEBUG_INTERFACE *)(void *)GAMBAS_DebugApi, EXEC_fifo, fifo_name);
 
 	if (!DEBUG_info)
 		ERROR_panic("Cannot initialize debug mode");
@@ -176,12 +230,22 @@ bool DEBUG_get_value(const char *sym, int len, GB_VARIANT *ret)
 
 	if (DEBUG_info->fp)
 	{
+		int n_local = DEBUG_info->fp->n_param + DEBUG_info->fp->n_local;
+		
 		for (i = 0; i < DEBUG_info->fp->debug->n_local; i++)
 		{
 			lp = &DEBUG_info->fp->debug->local[i];
 			if (len == lp->sym.len && strncasecmp(sym, lp->sym.name, len) == 0)
 			{
-				if (lp->value >= 0)
+				if (i >= n_local)
+				{
+					var = &DEBUG_info->cp->load->stat[lp->value];
+					addr = (char *)DEBUG_info->cp->stat + var->pos;
+					ref = DEBUG_info->cp;
+					VALUE_class_read(DEBUG_info->cp, &value, addr, var->type, ref);
+					goto __FOUND_NO_BORROW;
+				}
+				else if (lp->value >= 0)
 					value = DEBUG_info->bp[lp->value];
 				else
 					value = DEBUG_info->pp[lp->value];
@@ -216,7 +280,7 @@ bool DEBUG_get_value(const char *sym, int len, GB_VARIANT *ret)
 				}
 
 				VALUE_class_read(DEBUG_info->cp, &value, addr, var->type, ref);
-				goto __FOUND;
+				goto __FOUND_NO_BORROW;
 			}
 			else if (CTYPE_get_kind(gp->ctype) == TK_CONST)
 			{
@@ -250,6 +314,9 @@ bool DEBUG_get_value(const char *sym, int len, GB_VARIANT *ret)
 __FOUND:
 
 	BORROW(&value);
+
+__FOUND_NO_BORROW:
+
 	VALUE_conv_variant(&value);
 	UNBORROW(&value);
 
@@ -403,10 +470,7 @@ int DEBUG_get_object_access_type(void *object, CLASS *class, int *count)
 			//EXEC.func = &class->load->func[(int)desc->property.read];
 
 			EXEC_function_keep();
-
-			TEMP = *RP;
-			UNBORROW(RP);
-			RP->type = T_VOID;
+			EXEC_move_ret_to_temp();
 		}
 
 		if (access != GB_DEBUG_ACCESS_NORMAL)
@@ -449,7 +513,7 @@ void DEBUG_print_backtrace(STACK_BACKTRACE *bt)
 {
 	int i, n;
 	bool stop;
-	STACK_BACKTRACE *NO_WARNING(end);
+	STACK_BACKTRACE *end;
 	//STACK_CONTEXT *sc = (STACK_CONTEXT *)(STACK_base + STACK_size) - err->bt_count;
 
 	//fprintf(stderr, "0: %s\n", DEBUG_get_position(err->cp, err->fp, err->pc));
@@ -518,18 +582,33 @@ GB_ARRAY DEBUG_get_string_array_from_backtrace(STACK_BACKTRACE *bt)
 	return array;
 }
 
-GB_CLASS DEBUG_find_class(const char *name)
+GB_CLASS DEBUG_find_class(const char *comp_name, const char *class_name)
 {
 	CLASS *class;
-	CLASS *save = CP;
+	COMPONENT *save_comp;
+	CLASS *save_class;
 
-	// As the startup class is automatically exported, this is the only way for the debugger to find it.
+	if (comp_name)
+	{
+		save_comp = COMPONENT_current;
+		COMPONENT_current = COMPONENT_find(comp_name);
+	}
+	else
+	{
+		save_class = CP;
+		CP = NULL;
+	}
+
+	/*// As the startup class is automatically exported, this is the only way for the debugger to find it.
 	if (PROJECT_class && !strcmp(name, PROJECT_class->name))
-		return (GB_CLASS)PROJECT_class;
+		return (GB_CLASS)PROJECT_class;*/
 
-	CP = NULL;
-	class = CLASS_find(name);
-	CP = save;
+	class = CLASS_find(class_name);
+
+	if (comp_name)
+		COMPONENT_current = save_comp;
+	else
+		CP = save_class;
 
 	return (GB_CLASS)class;
 }
@@ -620,4 +699,69 @@ void DEBUG_enter_eval()
 void DEBUG_leave_eval()
 {
 	DEBUG_inside_eval--;
+}
+
+void DEBUG_breakpoint(ushort code)
+{
+	if (EXEC_trace)
+	{
+		double timer;
+		int i;
+
+		DATE_timer(&timer, TRUE);
+		fprintf(stderr, "[%d.%06d] ", (int)timer, (int)(timer * 1000000) % 1000000);
+		for (i = 0; i < STACK_frame_count; i++)
+			fputs(". ", stderr);
+		fputs(DEBUG_get_current_position(), stderr);
+		fputc('\n', stderr);
+		fflush(stderr);
+	}
+
+	if (EXEC_debug)
+	{
+		/*TC = PC + 1;
+		TP = SP;*/
+
+		//fprintf(stderr, "%s %d\n", DEBUG_get_current_position(), DEBUG_info->watch);
+
+		if (CP && (EXEC_debug_inside || !CP->component))
+		{
+			if (EXEC_profile_instr)
+				DEBUG.Profile.Add(CP, FP, PC);
+
+			if (DEBUG_info->watch)
+			{
+				if (DEBUG.CheckWatches())
+					return;
+			}
+
+			code = (uchar)code;
+
+			if (code == 0)
+			{
+				if (!DEBUG_info->stop)
+					return;
+
+				// Return from (void stack)
+				if (DEBUG_info->leave)
+				{
+					if (STACK_get_current()->pc)
+						return;
+					if (FP == DEBUG_info->fp)
+						return;
+					if (BP > DEBUG_info->bp)
+						return;
+				}
+				// Forward or Return From
+				else if (DEBUG_info->fp != NULL)
+				{
+					if (BP > DEBUG_info->bp)
+						return;
+				}
+				// otherwise, Next
+			}
+
+			DEBUG.Breakpoint(code);
+		}
+	}
 }

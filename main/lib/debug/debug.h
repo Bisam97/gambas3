@@ -1,23 +1,23 @@
 /***************************************************************************
 
-  debug.h
+	debug.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+	(c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; either version 2, or (at your option)
-  any later version.
+	This program is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 2, or (at your option)
+	any later version.
 
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
 
-  You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software
-  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
-  MA 02110-1301, USA.
+	You should have received a copy of the GNU General Public License
+	along with this program; if not, write to the Free Software
+	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+	MA 02110-1301, USA.
 
 ***************************************************************************/
 
@@ -31,44 +31,23 @@
 #include "gbx_value.h"
 
 typedef
-  struct {
-    int id;
-    FUNCTION *func;
-    PCODE *addr;
-    CLASS *class;
-    ushort line;
-    VALUE *bp;
-    FUNCTION *fp;
-    }
-  DEBUG_BREAK;
-
-typedef
-  enum {
-    TC_NONE     = 0,
-    TC_STEP     = 1,
-    TC_NEXT     = 2,
-    TC_GO       = 3,
-    TC_FROM     = 4
-    }
-  DEBUG_TYPE;
-
-typedef
-  struct {
-    char *pattern;
-    DEBUG_TYPE type;
-    void (*func)(const char *);
-    bool loop;
-    }
-  DEBUG_COMMAND;
-
+	enum {
+		TC_NONE     = 0,
+		TC_STEP     = 1,
+		TC_NEXT     = 2,
+		TC_GO       = 3,
+		TC_FROM     = 4
+		}
+	DEBUG_TYPE;
 
 #ifndef __GBX_DEBUG_C
 EXTERN DEBUG_INFO DEBUG_info;
 EXTERN GB_DEBUG_INTERFACE *DEBUG_interface;
 EXTERN char DEBUG_buffer[];
+EXTERN char *DEBUG_fifo;
 #endif
 
-#define DEBUG_BUFFER_MAX 255
+#define DEBUG_BUFFER_MAX 512
 
 #define GB_DEBUG (*DEBUG_interface)
 
@@ -90,5 +69,6 @@ void DEBUG_exit(void);
 void DEBUG_welcome(void);
 void DEBUG_where(void);
 void DEBUG_backtrace(FILE *out);
+bool DEBUG_check_watches(void);
 
 #endif

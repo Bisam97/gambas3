@@ -2,7 +2,7 @@
 
 	gbx_class_native.c
 
-	(c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+	(c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -203,6 +203,8 @@ CLASS *CLASS_register_class(GB_DESC *ptr, CLASS *class)
 			case CD_STATIC_PROPERTY:
 			case CD_PROPERTY_READ:
 			case CD_STATIC_PROPERTY_READ:
+			case CD_PROPERTY_WRITE:
+			case CD_STATIC_PROPERTY_WRITE:
 
 				if ((intptr_t)desc->property.read == CLASS_DESC_SELF)
 					desc->property.read = (void (*)())class_self_property;

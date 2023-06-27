@@ -25,6 +25,7 @@
 #define GB_GTK_H
 
 #include "gambas.h"
+#include <cairo.h>
 #include <gdk/gdk.h>
 #include <gtk/gtk.h>
 
@@ -41,10 +42,19 @@
 #endif
 
 typedef
+	void *GTK_PICTURE;
+
+#define CCF_NONE                0
+#define CCF_HAS_INPUT_METHOD    1
+
+typedef
 	struct 
 	{
 		intptr_t version;
+		void (*CreateControl)(void *control, void *parent, GtkWidget *widget, uint flags);
 		GtkWidget *(*CreateGLArea)(void *control, void *parent, void (*init)(GtkWidget *));
+		GTK_PICTURE *(*CreatePicture)(cairo_surface_t *surf, int w, int h);
+		int (*GetDesktopScale)(void);
 		void *_null;
 	}  
 	GTK_INTERFACE;

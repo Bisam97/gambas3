@@ -1,0 +1,38 @@
+#!/usr/bin/java --source 11
+
+public final class polynom
+{
+  private static double test(double x)
+  {
+    double mu = 10.0;
+    double pu = 0, su;
+    int i, j, n;
+    double[] aPoly = new double[100];
+
+    n = 500000;
+
+    for (i = 0; i < n; i++)
+    {
+      for (j = 0; j < 100; j++)
+      {
+        mu = mu / 2 + 1;
+        aPoly[j] = mu;
+      }
+
+      su = 0;
+      for (j = 0; j < 100; j++)
+      {
+        su = x * su + aPoly[j];
+      }
+      pu += su;
+    }
+
+    return pu;
+  }
+
+  public static void main(String[] args)
+  {
+    for (int i = 1; i <= 2; i++)
+      System.out.println(test(0.2));
+  }
+}

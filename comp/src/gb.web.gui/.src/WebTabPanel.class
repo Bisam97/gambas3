@@ -1,0 +1,240 @@
+' Gambas class file
+
+Export
+Inherits WebContainer
+
+Public Const _Properties As String = "*,Border=True,Count{Range:1;256}=1,Index,Text,ShowTabs=True"
+Public Const _IsMultiContainer As Boolean = True
+Public Const _DrawWith As String = "TabPanel"
+Public Const _DefaultEvent As String = "Click"
+
+Event Click
+
+Property Count As Integer
+Property Text As String
+Property Index As Integer
+Property ShowTabs As Boolean
+Property Border As Boolean
+
+Private $aTab As New WebContainer[]
+Private $aText As New String[]
+
+Private $iIndex As Integer = -1
+Private $bHideTabs As Boolean
+Private $bBorder As Boolean = True
+
+Public Sub _new()
+  
+  Count_Write(1)
+  Index_Write(0)
+  
+End
+
+Public Sub Delete()
+  
+  Super.Delete()
+  $aTab.Clear
+  
+End
+
+
+Private Function Count_Read() As Integer
+
+  Return $aTab.Count
+
+End
+
+Private Sub Count_Write(Value As Integer)
+
+  Dim iOldSize As Integer
+  Dim I As Integer
+  Dim hContainer As WebContainer
+  'Dim sName As String
+  
+  If Value = $aTab.Count Then Return
+  
+  If Value < 1 Or If Value > 256 Then Error.Raise("Bad argument")
+  
+  iOldSize = $aTab.Count
+  
+  If Value > iOldSize Then
+  
+    hContainer = Me._Container
+    Me._Container = Null
+    
+    $aTab.Resize(Value)
+    $aText.Resize(Value)
+    
+    For I = iOldSize To $aTab.Max
+      'sName = Me.Name & "." & CStr(I)
+      'WebControl._NextName = sName
+      $aTab[I] = New WebContainer(Me)
+      'Object.Attach($aTab[I], Object.Parent(Me), sName)
+      $aText[I] = "Tab #" & CStr(I)
+    Next
+    
+    Me._Container = hContainer
+    
+  Else
+    
+    While $aTab.Count > Value
+      Remove($aTab.Max)
+    Wend
+    
+  Endif
+
+End
+
+Public Sub Remove(Index As Integer)
+  
+  If Index < 0 Or If Index > $aTab.Max Then Error.Raise("Bad argument")
+  
+  $aTab[Index].Delete
+  $aText.Remove(Index)
+  $aTab.Remove(Index)
+  
+  If $iIndex > $aTab.Max Then $iIndex = $aTab.Max
+  SetCurrent($iIndex)
+  Me.Refresh
+  
+End
+
+Private Function Text_Read() As String
+
+  Return $aText[$iIndex]
+
+End
+
+Private Sub Text_Write(Value As String)
+
+  $aText[$iIndex] = Value
+  Me.Refresh
+
+End
+
+Private Function Index_Read() As Integer
+
+  Return $iIndex
+
+End
+
+Private Sub SetCurrent(iIndex As Integer)
+
+  Dim I As Integer
+  Dim bShow As Boolean
+
+  Inc Me._NoRefresh
+  $iIndex = iIndex
+  For I = 0 To $aTab.Max
+    bShow = (I = iIndex)
+    If $aTab[I].Visible = bShow Then Continue
+    $aTab[I].Visible = bShow
+    'If Not bShow Then
+    Me._AddRefresh("gw.setVisible(" & JS($aTab[I].Name) & "," & JS(bShow) & ");")
+  Next
+  Dec Me._NoRefresh
+  
+  Me._SetContainer($aTab[iIndex])
+  Me._AddRefresh("gw.setOuterHtml(" & JS(Me.Name & ":header") & "," & JS(GetHeaderHTML()) & ");")
+  'WebForm._AddJavascript("gw.setVisible(" & JS($aTab[iIndex].Name) & ",true);")  
+  '$aTab[iIndex].Refresh
+
+End
+
+Private Sub Index_Write(Value As Integer)
+
+  If Value < 0 Or If Value >= $aTab.Count Then Error.Raise("Bad argument")
+  If Value = $iIndex Then Return
+  
+  SetCurrent(Value)
+  Raise Click
+
+End
+
+Private Sub GetHeaderHTML() As String
+
+  Dim sHtml As String
+  Dim I As Integer
+  
+  If $bHideTabs Then Return
+  
+  sHtml &= "<div id=\"" & Html(Me.Name & ":header") & "\" class=\"gw-tab-header"
+  If Not Me.Border Then sHtml &= " gw-noborder"
+  sHtml &= "\" style=\"display:flex;flex-flow:row;\">"
+  For I = 0 To $aTab.Max
+    sHtml &= "<div class=\"" & If(I = $iIndex, "gw-tab-selected", "gw-tab") & "\""
+    If I <> $iIndex Then sHtml &= Me._GetUpdateWaitJS("onclick", "index", CStr(I))
+    sHtml &= ">" & $aText[I] & "</div>"
+  Next
+  sHtml &= "</div>"
+  
+  Return sHtml
+  
+End
+
+
+Public Sub _Render()
+  
+  Dim I As Integer
+
+  Print GetHeaderHTML();
+    
+  Print "<div class=\"gw-tab-contents";
+  If Not Me.Border Then Print " gw-noborder";
+  Print "\">"
+  
+  '$aTab[$iIndex]._Redraw()
+  For I = 0 To $aTab.Max
+    $aTab[I]._Redraw()
+  Next
+  
+  Print "</div>"
+  
+End
+
+Public Sub _RenderStyleSheet()
+  
+  Me._StartStyleSheet
+  
+  Super._RenderStyleSheet()
+  
+  Me._AddStyleSheet("display:flex;")
+  Me._AddStyleSheet("flex-flow:column;")
+  
+  Me._EndStyleSheet
+  
+End
+
+Public Sub _UpdateProperty(sProp As String, vValue As Variant)
+  
+  If sProp = "index" Then Try Me.Index = vValue
+  
+End
+
+Private Function ShowTabs_Read() As Boolean
+
+  Return Not $bHideTabs
+
+End
+
+Private Sub ShowTabs_Write(Value As Boolean)
+
+  $bHideTabs = Not Value
+  Me.Refresh
+
+End
+
+Private Function Border_Read() As Boolean
+
+  Return $bBorder
+
+End
+
+Private Sub Border_Write(Value As Boolean)
+
+  If $bBorder = Value Then Return
+  $bBorder = Value
+  Me.Refresh
+
+End
+

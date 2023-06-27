@@ -1,0 +1,427 @@
+' Gambas class file
+
+Inherits Task
+
+Public Const FUNC_EVENT_LOOP As String = "@"
+
+Private $sPath As String
+
+Private $iTime As Long
+Private $iFuncTime As Long
+Private $aFunc As New CProfile[]
+Private $cFunc As New Collection
+
+Private $aLevel As New String[]
+Private $aLevelTime As New Long[]
+
+Private $aIndex As New String[]
+Private $cLines As New Collection
+Private $cCount As New Collection
+
+Public Sub _new(sPath As String)
+  
+  $sPath = sPath
+  
+End
+
+Public Sub Main() As Variant
+  
+  LoadProfile()
+  
+  Return [$iTime, $iFunctime, $aFunc, $cFunc, $cLines, $cCount]
+  
+End
+
+Fast Private Sub EnterFunction(sWhere As String, iTime As Long) As CProfile
+  
+  Dim hProf As CProfile
+  Dim iPos As Integer
+  Dim sKlass As String
+  Dim sFunc As String
+  
+  If sWhere = "0" Then
+    sWhere = FUNC_EVENT_LOOP
+  Else
+  
+    iPos = InStr(sWhere, ".", 2)
+    sKlass = Left$(sWhere, iPos - 1)
+    sWhere = Mid$(sWhere, iPos + 1)
+    sFunc = sWhere
+    
+    If IsDigit(Left(sKlass)) Then
+      If sKlass = "0" Then
+        sKlass = FUNC_EVENT_LOOP
+      Else
+        sKlass = $aIndex[CInt(sKlass) - 1]
+      Endif
+    Else If Left(sKlass) <> "." Then
+      $aIndex.Add(sKlass)
+    Endif
+    
+    If IsDigit(Left(sFunc)) Then
+      sFunc = $aIndex[CInt(sFunc) - 1]
+    Else If sFunc <> "?" Then
+      $aIndex.Add(sFunc)
+    Endif
+    
+    sWhere = sKlass & "." & sFunc
+    
+  Endif
+  
+  hProf = $cFunc[sWhere]
+  If Not hProf Then
+    hProf = New CProfile
+    $cFunc[sWhere] = hProf
+    hProf.Name = sWhere
+    $aFunc.Add(hProf)
+  Endif
+  
+  Inc hProf.Level
+  
+  ' If hProf.Level > 1 Then
+  '   sWhere &= "[" & CStr(hProf.Level) & "]"
+  '   hProf = $cFunc[sWhere]
+  '   If Not hProf Then
+  '     hProf = New CProfile
+  '     $cFunc[sWhere] = hProf
+  '     hProf.Name = sWhere
+  '     hProf.Level = -1
+  '     $aFunc.Add(hProf)
+  '   Endif
+  ' Endif
+  
+  $aLevel.Add(sWhere)
+  $aLevelTime.Add(iTime)
+  
+  Inc hProf.Count
+  
+  Return hProf
+  
+End
+
+'Fast 
+Fast Private Sub ExitFunction(iTime As Long) As CProfile
+  
+  Dim hProf As CProfile
+  Dim hCaller As CProfile
+  Dim sFunc As String
+  
+  sFunc = $aLevel[$aLevel.Max]
+  hProf = $cFunc[sFunc]
+  Dec hProf.Level
+  
+  $aLevel.Remove($aLevel.Max)
+  iTime -= $aLevelTime[$aLevelTime.Max]
+  $aLevelTime.Remove($aLevelTime.Max)
+  
+  If hProf.Level Then 
+    hProf.RecTime += iTime
+    $iFuncTime = iTime
+  Else
+    hProf.Time += iTime
+    $iFuncTime = iTime
+  Endif
+  
+  If $aLevel.Count Then
+    hCaller = $cFunc[$aLevel[$aLevel.Max]]
+    hCaller.AddCalled(sFunc, iTime)
+    hProf.AddCaller(hCaller.Name)
+    Return hCaller
+  Else
+    $iTime += iTime
+  Endif
+  
+End
+
+'Fast 
+Fast Private Sub GetClass(sFunc As String) As String
+  
+  Return Left(sFunc, InStr(sFunc, ".") - 1)
+  
+End
+
+'Fast 
+Fast Public Sub LoadProfile()
+  
+  Dim hFile As File
+  Dim sLine, sFunc As String
+  Dim iPos As Integer
+  Dim sClass As String
+  Dim hCurrent As CProfile
+  Dim aLine As Long[]
+  Dim aCount As Integer[]
+  Dim iLastLine, iLine As Integer
+  Dim iTime, iOldTime, iLastTime As Long
+  Dim aLastLine As New Integer[]
+  Dim aLastTime As New Long[]
+  Dim I, N As Integer
+  Dim bVer As Boolean
+  Dim iLenFile As Long
+  Dim iProgress As Integer
+  Dim iLastProgress As Integer
+  
+  hFile = Open $sPath
+  iLenFile = Lof(hFile)
+  
+  While Not Eof(hFile)
+  
+    Line Input #hFile, sLine
+    
+    iProgress = CInt(100 * Seek(hFile) / iLenFile)
+    If iProgress <> iLastProgress Then
+      Print iProgress
+      iLastProgress = iProgress
+    Endif
+    
+    If Not bVer Then
+      If sLine <> "[1]" Then Error.Raise(("Bad profile file format"))
+      bVer = True
+    Endif
+    ' The last line should be a void line, otherwise the file has been truncated. So always ignore it.
+    If hFile.EndOfFile Then Break
+    
+    If Left(sLine) = "(" Or If Left(sLine) = ")" Then
+      
+      iLastTime = iOldTime
+      
+      If Left(sLine) = "(" Then
+      
+        aLastLine.Push(iLastLine)
+        aLastTime.Push(iOldTime)
+        
+        iPos = InStr(sLine, " ")
+        iTime += CLong(Mid$(sLine, iPos + 1))
+        sFunc = Left(sLine, iPos - 1)
+        
+        iOldTime = iTime
+      
+        hCurrent = EnterFunction(Mid$(sFunc, 2), iTime)
+        iLine = 0
+        iLastLine = 0
+        
+      Else
+      
+        hCurrent = ExitFunction(iTime)
+        iLastLine = aLastLine.Pop()
+        iOldTime = aLastTime.Pop() + $iFuncTime
+        iLine = 0
+        
+      Endif
+        
+      If hCurrent Then
+        sClass = GetClass(hCurrent.Name)
+        If sClass Then
+          aLine = $cLines[sClass]
+          aCount = $cCount[sClass]
+          If Not aLine Then
+            aLine = New Long[128] 'GetNumberOfLines(sClass)]
+            aCount = New Integer[aLine.Count]
+            $cLines[sClass] = aLine
+            $cCount[sClass] = aCount
+          Endif
+        Else
+          aLine = Null
+          aCount = Null
+        Endif
+      Endif
+      
+    Else
+        
+      If aLine Then
+        
+        For I = 1 To Len(sLine)
+          
+          On Asc(sLine, I) - 58 Goto LM9, LM8, LM7, LM6, LM5, LM4, LM3, LM2, LM1, _TIME, LP1, LP2, LP3, LP4, LP5, LP6, LP7, LP8, LP9, LP99, LM99, LP, LM
+          Debug Asc(sLine, I) - 58;; "?"
+          Break
+          
+        LM9:
+          iLine -= 9
+          Goto _TIME
+          
+        LM8:
+          iLine -= 8
+          Goto _TIME
+          
+        LM7:
+          iLine -= 7
+          Goto _TIME
+          
+        LM6:
+          iLine -= 6
+          Goto _TIME
+          
+        LM5:
+          iLine -= 5
+          Goto _TIME
+          
+        LM4:
+          iLine -= 4
+          Goto _TIME
+          
+        LM3:
+          iLine -= 3
+          Goto _TIME
+          
+        LM2:
+          iLine -= 2
+          Goto _TIME
+          
+        LM1:
+          iLine -= 1
+          Goto _TIME
+          
+        LP9:
+          iLine += 9
+          Goto _TIME
+          
+        LP8:
+          iLine += 8
+          Goto _TIME
+        
+        LP7:
+          iLine += 7
+          Goto _TIME
+          
+        LP6:
+          iLine += 6
+          Goto _TIME
+          
+        LP5:
+          iLine += 5
+          Goto _TIME
+          
+        LP4:
+          iLine += 4
+          Goto _TIME
+          
+        LP3:
+          iLine += 3
+          Goto _TIME
+          
+        LP2:
+          iLine += 2
+          Goto _TIME
+          
+        LP99:
+          iLine += Asc(sLine, I + 1) - 58 + 10
+          Inc I
+          Goto _TIME
+        
+        LM99:
+          iLine -= Asc(sLine, I + 1) - 58 + 10
+          Inc I
+          Goto _TIME
+          
+        LP:
+          N = Asc(sLine, I + 1) - 58
+          iLine += CInt(Mid$(sLine, I + 2, N))
+          I += N + 1
+          Goto _TIME
+        
+        LM:
+          N = Asc(sLine, I + 1) - 58
+          iLine -= CInt(Mid$(sLine, I + 2, N))
+          I += N + 1
+          Goto _TIME
+        
+        LP1:
+          Inc iLine
+          
+        _TIME:
+        
+          iLastTime = iOldTime
+          
+          Inc I
+          On Asc(sLine, I) - 58 Goto TP0, TP1, TP2, TP3, TP4, TP5, TP6, TP7, TP8, TP9
+          
+          N = Asc(sLine, I) - 58 - 10 + 2
+          If N < 2 Then 
+            Debug N;; "?"
+            Break
+          Endif
+          iTime += CLong(Mid$(sLine, I + 1, N))
+          I += N
+          Goto TP0
+        
+        TP2:
+          iTime += 2
+          Goto TP0
+        
+        TP3:
+          iTime += 3
+          Goto TP0
+        
+        TP4:
+          iTime += 4
+          Goto TP0
+        
+        TP5:
+          iTime += 5
+          Goto TP0
+        
+        TP6:
+          iTime += 6
+          Goto TP0
+        
+        TP7:
+          iTime += 7
+          Goto TP0
+        
+        TP8:
+          iTime += 8
+          Goto TP0
+        
+        TP9:
+          iTime += 9
+          Goto TP0
+        
+        TP1:
+          Inc iTime
+        
+        TP0:
+          iOldTime = iTime
+          
+          Dec iLastLine
+          
+          If iLastLine < 0 Then
+            
+            hCurrent.FirstTime += iTime - iLastTime
+            
+          Else
+            
+            If iLastLine >= aLine.Count Then
+              aLine.Resize((iLastLine + 128) And Not 127)
+              aCount.Resize(aLine.Count)
+            Endif
+            
+            aLine[iLastLine] += iTime - iLastTime
+            Inc aCount[iLastLine]
+            
+          Endif
+          
+          ' If Not Error Then 
+          ' Else
+          '   If iLastLine >= 0 Then Debug hCurrent.Name; "."; iLastLine + 1; " ("; aLine.Count; ")"
+          '   hCurrent.FirstTime += iTime - iLastTime
+          ' Endif
+          
+          iLastLine = iLine
+          
+        Next
+        
+      Endif
+        
+    Endif
+    
+  Wend
+  
+  hCurrent = $cFunc[".System.EventLoop"]
+  If hCurrent Then hCurrent.SetEventLoop()
+
+Catch
+  
+  Print "*"
+  
+End
+

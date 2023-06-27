@@ -30,8 +30,8 @@
 
 #ifndef __CSLIDER_CPP
 
-extern GB_DESC CSliderDesc[];
-extern GB_DESC CScrollBarDesc[];
+extern GB_DESC SliderDesc[];
+extern GB_DESC ScrollBarDesc[];
 
 #else
 

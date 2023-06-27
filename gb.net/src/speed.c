@@ -2,7 +2,7 @@
 
   speed.c
 
-  (c) 2019 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2019 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by

@@ -1,0 +1,44 @@
+' Gambas class file
+
+Static Public Path As String
+Static Public FoolGMail As Boolean
+
+Public Sub Run() As Boolean
+  
+  Return Me.ShowModal() = 0
+  
+End
+
+
+Public Sub Form_Open()
+
+  Settings.Read(Me)
+  Settings.Read(fchArchive, "fchArchive")
+
+  fchArchive.Filter = ["*.tar.gz", ("Source packages"), "*.tar.bz2", ("Source packages"), "*.tar.xz", ("Source packages"), "*.zip", ("Source packages")]
+  fchArchive.SelectedPath = Path
+  fchArchive.SetFocus
+
+End
+
+Public Sub fchArchive_Activate()
+
+  Path = fchArchive.SelectedPath
+  FoolGMail = chkFoolGMail.Value
+  
+  Me.Close(True)
+
+End
+
+Public Sub fchArchive_Cancel()
+
+  Me.Close
+
+End
+
+Public Sub Form_Close()
+
+  Settings.Write(fchArchive, "fchArchive")
+  Settings.Write(Me)
+
+End

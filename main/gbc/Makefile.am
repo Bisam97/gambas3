@@ -11,10 +11,10 @@ gbc3_LDADD = @C_LIB@ @MATH_LIB@
 gbc3_CFLAGS = -DGAMBAS_PATH="\"$(bindir)\"" $(AM_CFLAGS_OPT)
 
 gbi3_LDADD = @C_LIB@ @DL_LIB@
-gbi3_CFLAGS = -DGAMBAS_PATH="\"$(bindir)\"" $(AM_CFLAGS)
+gbi3_CFLAGS = -DGAMBAS_PATH="\"$(bindir)\"" $(AM_CFLAGS_OPT)
 
 gba3_LDADD = @C_LIB@
-gba3_CFLAGS = -DGAMBAS_PATH="\"$(bindir)\"" $(AM_CFLAGS)
+gba3_CFLAGS = -DGAMBAS_PATH="\"$(bindir)\"" $(AM_CFLAGS_OPT)
 
 gbcm3_LDADD = @C_LIB@
 
@@ -29,7 +29,7 @@ gbc3_SOURCES = \
  gbc_header.h gbc_header.c \
  gbc_help.h gbc_help.c \
  gbc_output.h gbc_output.c \
- gbc_trans.h gbc_trans_expr.c gbc_trans_tree.c gbc_trans_ctrl.c gbc_trans_subr.c \
+ gbc_trans.h gbc_trans_expr.c gbc_trans_tree.c gbc_trans_ctrl.c gbc_trans_subr.c gbc_trans_const.c \
  gbc_reserved.c \
  gb_buffer.c \
  gbc_dump.c gbc_code.c gbc_trans.c gbc_trans_code.c \

@@ -1,49 +1,45 @@
 dnl ---- configure.ac for gb.pdf
 
 m4_include([../version.m4])
-AC_INIT(gambas3-gb-pdf, GB_VERSION, GB_MAIL, [], GB_URL)
+AC_INIT([gambas3-gb-pdf],[GB_VERSION],[GB_MAIL],[],[GB_URL])
 AC_CONFIG_MACRO_DIR([m4])
 
 GB_INIT(gb.pdf)
-AC_PROG_LIBTOOL
+LT_INIT
+PKG_PROG_PKG_CONFIG
 
-GB_COMPONENT_SEARCH(
+GB_COMPONENT_PKG_CONFIG(
   poppler, POPPLER, gb.pdf, [src],
-  'poppler >= 0.5',
-  [GB_FIND(PDFDoc.h, `pkg-config --variable=includedir poppler`, poppler)],
-  [],
-  [],
-  []
+  'poppler >= 0.20' 'poppler < 23.0'
 )
 
 if test "$have_poppler" = "yes"; then
-  pkg-config --atleast-version=0.5 poppler
-  AC_DEFINE_UNQUOTED(POPPLER_VERSION_0_5, $((1-$?)), Poppler version >= 0.5)
-  pkg-config --atleast-version=0.5.91 poppler
-  AC_DEFINE_UNQUOTED(POPPLER_VERSION_0_6, $((1-$?)), Poppler version >= 0.6)
-  pkg-config --atleast-version=0.8.0 poppler
-  AC_DEFINE_UNQUOTED(POPPLER_VERSION_0_8, $((1-$?)), Poppler version >= 0.8)
-  pkg-config --atleast-version=0.11.3 poppler
-  AC_DEFINE_UNQUOTED(POPPLER_VERSION_0_11_3, $((1-$?)), Poppler version >= 0.11.3)
-  pkg-config --atleast-version=0.17.0 poppler
-  AC_DEFINE_UNQUOTED(POPPLER_VERSION_0_17, $((1-$?)), Poppler version >= 0.17)
-  pkg-config --atleast-version=0.20.0 poppler
-  AC_DEFINE_UNQUOTED(POPPLER_VERSION_0_20, $((1-$?)), Poppler version >= 0.20)
-  pkg-config --atleast-version=0.58.0 poppler
+  $PKG_CONFIG --atleast-version=0.58.0 poppler
   AC_DEFINE_UNQUOTED(POPPLER_VERSION_0_58, $((1-$?)), Poppler version >= 0.58)
-  pkg-config --atleast-version=0.64.0 poppler
+  $PKG_CONFIG --atleast-version=0.64.0 poppler
   AC_DEFINE_UNQUOTED(POPPLER_VERSION_0_64, $((1-$?)), Poppler version >= 0.64)
-  pkg-config --atleast-version=0.71.0 poppler
+  $PKG_CONFIG --atleast-version=0.71.0 poppler
   AC_DEFINE_UNQUOTED(POPPLER_VERSION_0_71, $((1-$?)), Poppler version >= 0.71)
-  pkg-config --atleast-version=0.72.0 poppler
+  $PKG_CONFIG --atleast-version=0.72.0 poppler
   AC_DEFINE_UNQUOTED(POPPLER_VERSION_0_72, $((1-$?)), Poppler version >= 0.72)
-  pkg-config --atleast-version=0.76.0 poppler
+  $PKG_CONFIG --atleast-version=0.76.0 poppler
   AC_DEFINE_UNQUOTED(POPPLER_VERSION_0_76, $((1-$?)), Poppler version >= 0.76)
+  $PKG_CONFIG --atleast-version=0.83.0 poppler
+  AC_DEFINE_UNQUOTED(POPPLER_VERSION_0_83, $((1-$?)), Poppler version >= 0.83)
+  $PKG_CONFIG --atleast-version=0.85.0 poppler
+  AC_DEFINE_UNQUOTED(POPPLER_VERSION_0_85, $((1-$?)), Poppler version >= 0.85)
+  $PKG_CONFIG --atleast-version=0.86.0 poppler
+  AC_DEFINE_UNQUOTED(POPPLER_VERSION_0_86, $((1-$?)), Poppler version >= 0.86)
+  $PKG_CONFIG --atleast-version=21.06.0 poppler
+  AC_DEFINE_UNQUOTED(POPPLER_VERSION_21_06_0, $((1-$?)), Poppler version >= 21.06.0)
+  $PKG_CONFIG --atleast-version=22.06.0 poppler
+  AC_DEFINE_UNQUOTED(POPPLER_VERSION_22_06_0, $((1-$?)), Poppler version >= 22.06.0)
 fi
 
-AC_OUTPUT( \
+AC_CONFIG_FILES([\
 Makefile \
 src/Makefile \
-)
+])
+AC_OUTPUT
 
 GB_PRINT_MESSAGES

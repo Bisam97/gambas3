@@ -99,11 +99,21 @@ static gboolean master_client_restored= FALSE;
 
 // BM: device grab management
 
+#ifdef GTK3
+static GdkDevice *gt_get_pointer()
+{
+#if GTK_CHECK_VERSION(3, 22, 0)
+	return gdk_seat_get_pointer(gdk_display_get_default_seat(gdk_display_get_default()));
+#else
+	return gdk_device_manager_get_client_pointer(gdk_display_get_device_manager(gdk_display_get_default()));
+#endif
+}
+#endif
+
 static gboolean gt_pointer_is_grabbed()
 {
 #ifdef GTK3
-	GdkDevice *pointer = gdk_device_manager_get_client_pointer(gdk_display_get_device_manager(gdk_display_get_default()));
-	return gdk_display_device_is_grabbed(gdk_display_get_default(), pointer);
+	return gdk_display_device_is_grabbed(gdk_display_get_default(), gt_get_pointer());
 #else
 	return gdk_pointer_is_grabbed();
 #endif
@@ -111,10 +121,11 @@ static gboolean gt_pointer_is_grabbed()
 
 static void gt_ungrab(void)
 {
-#ifdef GTK3
-	GdkDevice *pointer = gdk_device_manager_get_client_pointer(gdk_display_get_device_manager(gdk_display_get_default()));
+#if GTK_CHECK_VERSION(3, 22, 0)
+	gdk_seat_ungrab(gdk_display_get_default_seat(gdk_display_get_default()));
+#elif defined(GTK3)
+	GdkDevice *pointer = gt_get_pointer();
 	GdkDevice *keyboard = gdk_device_get_associated_device(pointer);
-
 	gdk_device_ungrab(pointer, GDK_CURRENT_TIME);
 	gdk_device_ungrab(keyboard, GDK_CURRENT_TIME);
 #else

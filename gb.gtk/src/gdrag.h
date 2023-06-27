@@ -2,7 +2,7 @@
 
   gdrag.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,6 +24,8 @@
 #ifndef __GDRAG_H
 #define __GDRAG_H
 
+#include "gb.form.const.h"
+
 class gPicture;
 class gControl;
 
@@ -35,11 +37,6 @@ public:
 		Nothing = 0,
 		Text = 1,
 		Image = 2
-	};
-	enum {
-		Copy = 0,
-		Move = 1,
-		Link = 2
 	};
 	
 	static void exit();
@@ -59,6 +56,7 @@ public:
 	
 	static gControl *getSource() { return _source; }
 	static gControl *getDestination() { return _destination; }
+	static void setDestination(gControl *dest) { _destination = dest; }
 	static int getAction() { return _action; }
 	
 	static int getType();
@@ -88,7 +86,15 @@ public:
 	static GdkDragContext *disable(GdkDragContext *context);
 	static bool getData(const char *prefix);
 
+	static bool setCurrent(gControl *control);
+	static bool isCurrent(gControl *control) { return control == _current; }
+	
 	static volatile bool _got_data;
+
+	static gControl *_source;
+	static gControl *_destination;
+	static gControl *_dest;
+	static gControl *_current;
 
 private:	
 
@@ -98,8 +104,6 @@ private:
 	static gPicture *_icon;
 	static int _icon_x;
 	static int _icon_y;
-	static gControl *_source;
-	static gControl *_destination;
 	static int _action;
 	static int _type;
 	static gPicture *_picture;
@@ -110,7 +114,6 @@ private:
 	static int _x;
 	static int _y;
 	static GdkDragContext *_context;
-	static gControl *_dest;
 	static guint32 _time;
 	static bool _local;
 	static volatile bool _end;

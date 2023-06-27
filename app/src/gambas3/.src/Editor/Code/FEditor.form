@@ -1,7 +1,7 @@
 # Gambas Form File 3.0
 
 { Form Form
-  MoveScaled(0,0,181,80)
+  MoveScaled(0,0,199,80)
   Persistent = True
   Arrangement = Arrange.Vertical
   { mnuEditor Menu
@@ -40,17 +40,17 @@
     }
     { mnuAdvanced Menu
       Text = ("Advanced")
-      { mnuLowerCase Menu
-        Action = ".lcase"
-        Text = ("Lower case")
-        Picture = Picture["img/16/lcase.png"]
-        Shortcut = "Ctrl+Shift+L"
-      }
       { mnuUpperCase Menu
         Action = ".ucase"
         Text = ("Upper case")
-        Picture = Picture["img/16/ucase.png"]
+        Picture = Picture["icon:/small/text-upper"]
         Shortcut = "Ctrl+Shift+U"
+      }
+      { mnuLowerCase Menu
+        Action = ".lcase"
+        Text = ("Lower case")
+        Picture = Picture["icon:/small/text-lower"]
+        Shortcut = "Ctrl+Shift+L"
       }
       { Menu2 Menu
       }
@@ -71,7 +71,7 @@
       { mnuPasteSpecial Menu
         Action = ".paste-special"
         Text = ("Paste special") & "..."
-        Picture = Picture["icon:/small/paste"]
+        Picture = Picture["icon:/small/paste-special"]
         Shortcut = "Ctrl+Shift+V"
       }
       { mnuPretty Menu
@@ -91,6 +91,7 @@
         Action = ".color"
         Text = ("Insert color") & "..."
         Picture = Picture["icon:/small/color"]
+        Shortcut = "Ctrl+Shift+C"
       }
     }
     { Menu3 Menu
@@ -142,7 +143,7 @@
       { mnuWrap Menu
         Action = ".wrap"
         Text = ("Automatic word wrap")
-        Picture = Picture["img/32/wrap.png"]
+        Picture = Picture["icon:/small/wrap"]
         Toggle = True
       }
       { mnuNoSplit Menu
@@ -167,7 +168,7 @@
     }
     { mnuUntil Menu
       Text = Shortcut(("Run until current line"), "u")
-      Picture = Picture["icon:/small/jump"]
+      Picture = Picture["icon:/small/debug-cursor"]
       Shortcut = "Shift+F5"
     }
     { mnuBreakpoint Menu
@@ -203,11 +204,10 @@
       Picture = Picture["icon:/small/lock"]
       Toggle = True
     }
-    { mnuClose Menu
-      Action = ".close"
-      Text = ("Close")
-      Picture = Picture["icon:/small/close"]
-      Shortcut = "Ctrl+W"
+    { mnuPrint Menu
+      Text = ("Print") & "..."
+      Picture = Picture["icon:/small/print"]
+      Shortcut = "Ctrl+P"
     }
     { mnuReload Menu
       Action = ".reload"
@@ -219,6 +219,14 @@
       Text = ("Save")
       Picture = Picture["icon:/small/save"]
       Shortcut = "Ctrl+S"
+    }
+    { Menu7 Menu
+    }
+    { mnuClose Menu
+      Action = ".close"
+      Text = ("Close")
+      Picture = Picture["icon:/small/close"]
+      Shortcut = "Ctrl+W"
     }
   }
   { mnuPasteAs Menu
@@ -243,7 +251,7 @@
     }
   }
   { panToolBar ToolBar
-    MoveScaled(0,0,178,4)
+    MoveScaled(0,0,195,4)
     Key = "editor"
     Text = ("Editor")
     Separator = True
@@ -254,50 +262,80 @@
       Action = ".show-form"
       Picture = Picture["icon:/small/right"]
     }
+    { btnDiff ToolButton
+      MoveScaled(4,0,4,4)
+      ToolTip = ("Show modifications")
+      Action = ".diff"
+      AutoResize = True
+      Picture = Picture["icon:/small/modified"]
+      Toggle = True
+    }
+    { btnDiffPrevious ToolButton
+      MoveScaled(7,0,4,4)
+      ToolTip = ("Previous modification")
+      Action = ".diff-previous"
+      Picture = Picture["icon:/small/rewind"]
+    }
+    { btnDiffNext ToolButton
+      MoveScaled(11,0,4,4)
+      ToolTip = ("Next modification")
+      Action = ".diff-next"
+      Picture = Picture["icon:/small/forward"]
+    }
+    { Separator2 Separator
+      MoveScaled(15,0,1,4)
+    }
     { btnSave ToolButton mnuSave
       Name = "btnSave"
-      MoveScaled(3,0,4,4)
+      MoveScaled(16,0,4,4)
       ToolTip = ("Save")
       Action = ".save"
       Picture = Picture["icon:/small/save"]
     }
     { btnReload ToolButton mnuReload
       Name = "btnReload"
-      MoveScaled(6,0,4,4)
+      MoveScaled(19,0,4,4)
       ToolTip = ("Reload")
       Action = ".reload"
       Picture = Picture["icon:/small/refresh"]
     }
+    { btnPrint ToolButton mnuPrint
+      Name = "btnPrint"
+      MoveScaled(22,0,4,4)
+      ToolTip = ("Print")
+      Action = ".print"
+      Picture = Picture["icon:/small/print"]
+    }
     { ToolButton39 ToolButton
-      MoveScaled(10,0,4,4)
+      MoveScaled(25,0,4,4)
       Visible = False
       ToolTip = ("Run this class")
       Action = ".run-me"
       Picture = Picture["icon:/small/play"]
     }
-    { Separator1 Separator
-      MoveScaled(13,0,1,4)
+    { Separator4 Separator
+      MoveScaled(28,0,1,4)
     }
     { btnUndo ToolButton mnuUndo
       Name = "btnUndo"
-      MoveScaled(14,0,4,4)
+      MoveScaled(29,0,4,4)
       ToolTip = ("Undo")
       Action = ".undo"
       Picture = Picture["icon:/small/undo"]
     }
     { btnRedo ToolButton mnuRedo
       Name = "btnRedo"
-      MoveScaled(17,0,4,4)
+      MoveScaled(32,0,4,4)
       ToolTip = ("Redo")
       Action = ".redo"
       Picture = Picture["icon:/small/redo"]
     }
     { Separator3 Separator
-      MoveScaled(21,0,1,4)
+      MoveScaled(36,0,1,4)
     }
     { btnCut ToolButton mnuCut
       Name = "btnCut"
-      MoveScaled(23,0,4,4)
+      MoveScaled(37,0,4,4)
       Visible = False
       ToolTip = ("Cut")
       Action = ".cut"
@@ -305,7 +343,7 @@
     }
     { btnCopy ToolButton mnuCopy
       Name = "btnCopy"
-      MoveScaled(27,0,4,4)
+      MoveScaled(40,0,4,4)
       Visible = False
       ToolTip = ("Copy")
       Action = ".copy"
@@ -313,7 +351,7 @@
     }
     { btnPaste MenuButton mnuPaste
       Name = "btnPaste"
-      MoveScaled(30,0,6,4)
+      MoveScaled(43,0,6,4)
       ToolTip = ("Paste")
       Action = ".paste"
       Picture = Picture["icon:/small/paste"]
@@ -322,16 +360,16 @@
     }
     { btnPasteSpecial ToolButton mnuPasteSpecial
       Name = "btnPasteSpecial"
-      MoveScaled(35,0,16,4)
+      MoveScaled(48,0,16,4)
       Visible = False
       ToolTip = ("Paste special")
       Action = ".paste-special"
       AutoResize = True
       Text = ("Paste special") & "..."
-      Picture = Picture["icon:/small/paste"]
+      Picture = Picture["icon:/small/paste-special"]
     }
     { btnBookmark MenuButton
-      MoveScaled(50,0,6,4)
+      MoveScaled(63,0,6,4)
       Visible = False
       ToolTip = ("Bookmarks")
       Action = ".bookmark"
@@ -340,14 +378,14 @@
       Menu = "mnuBookmark"
     }
     { btnInsertColor MenuButton
-      MoveScaled(55,0,6,4)
+      MoveScaled(68,0,6,4)
       ToolTip = ("Insert color")
       Action = ".color"
       Picture = Picture["icon:/small/color"]
       Border = False
     }
     { btnInsertDate MenuButton
-      MoveScaled(59,0,6,4)
+      MoveScaled(73,0,6,4)
       ToolTip = ("Insert today's date")
       Action = ".date"
       Picture = Picture["icon:/small/calendar"]
@@ -355,7 +393,7 @@
       MenuOnly = True
     }
     { btnInsertChar MenuButton
-      MoveScaled(65,0,6,4)
+      MoveScaled(78,0,6,4)
       ToolTip = ("Insert special character")
       Action = ".char"
       Picture = Picture["icon:/small/shortcut"]
@@ -363,14 +401,14 @@
       MenuOnly = True
     }
     { btnIndent ToolButton
-      MoveScaled(73,0,4,4)
+      MoveScaled(83,0,4,4)
       Visible = False
       ToolTip = ("Indent")
       Action = ".indent"
       Picture = Picture["icon:/small/indent"]
     }
     { btnUnindent ToolButton
-      MoveScaled(76,0,4,4)
+      MoveScaled(86,0,4,4)
       Visible = False
       ToolTip = ("Unindent")
       Action = ".unindent"
@@ -378,21 +416,21 @@
     }
     { btnComment ToolButton mnuComment
       Name = "btnComment"
-      MoveScaled(78,0,4,4)
+      MoveScaled(89,0,4,4)
       ToolTip = ("Comment")
       Action = ".comment"
       Picture = Picture["img/32/comment.png"]
     }
     { btnUncomment ToolButton mnuUncomment
       Name = "btnUncomment"
-      MoveScaled(81,0,4,4)
+      MoveScaled(92,0,4,4)
       ToolTip = ("Uncomment")
       Action = ".uncomment"
       Picture = Picture["img/32/uncomment.png"]
     }
     { btnPretty ToolButton mnuPretty
       Name = "btnPretty"
-      MoveScaled(84,0,4,4)
+      MoveScaled(95,0,4,4)
       Visible = False
       ToolTip = ("Make code pretty")
       Action = ".pretty"
@@ -400,29 +438,29 @@
     }
     { btnBreakpoint ToolButton mnuBreakpoint
       Name = "btnBreakpoint"
-      MoveScaled(87,0,4,4)
+      MoveScaled(98,0,4,4)
       ToolTip = ("Toggle breakpoint")
       Action = ".break"
       Picture = Picture["icon:/small/halt"]
     }
     { btnWatch ToolButton mnuWatch
       Name = "btnWatch"
-      MoveScaled(90,0,4,4)
+      MoveScaled(101,0,4,4)
       ToolTip = ("Watch expression")
       Action = ".watch"
       Picture = Picture["icon:/small/watch"]
     }
     { btnDefinition ToolButton mnuDefinition
       Name = "btnDefinition"
-      MoveScaled(93,0,4,4)
+      MoveScaled(104,0,4,4)
       Visible = False
       ToolTip = ("Find definition")
       Action = ".find-definition"
-      Picture = Picture["icon:/16/info"]
+      Picture = Picture["icon:/small/info"]
     }
     { btnNoSplit ToolButton mnuNoSplit
       Name = "btnNoSplit"
-      MoveScaled(98,0,4,4)
+      MoveScaled(107,0,4,4)
       Visible = False
       ToolTip = ("No split")
       Action = ".view-nosplit"
@@ -430,7 +468,7 @@
     }
     { btnHorizontalSplit ToolButton mnuHorizontalSplit
       Name = "btnHorizontalSplit"
-      MoveScaled(101,0,4,4)
+      MoveScaled(110,0,4,4)
       Visible = False
       ToolTip = ("Horizontal split")
       Action = ".view-hsplit"
@@ -438,38 +476,39 @@
     }
     { btnVerticalSplit ToolButton mnuVerticalSplit
       Name = "btnVerticalSplit"
-      MoveScaled(104,0,4,4)
+      MoveScaled(113,0,4,4)
       Visible = False
       ToolTip = ("Vertical split")
       Action = ".view-vsplit"
       Picture = Picture["icon:/small/view-split-v"]
     }
-    { Separator2 Separator
-      MoveScaled(108,0,1,4)
+    { Separator1 Separator
+      MoveScaled(117,0,1,4)
     }
     { btnProc MenuButton
-      MoveScaled(110,0,52,4)
-      Mouse = Mouse.Pointing
+      MoveScaled(118,0,54,4)
+      Mouse = Cursor.Pointing
       Action = ".proc"
       Text = ("Procedure list")
-      Picture = Picture["icon:/small/bottom"]
-      Arrow = False
       Border = False
       MenuOnly = True
     }
+    { Separator5 Separator
+      MoveScaled(173,0,1,4)
+    }
     { Panel2 Panel
-      MoveScaled(164,0,5,4)
+      MoveScaled(175,0,5,4)
       Expand = True
     }
     { btnWrap ToolButton
-      MoveScaled(170,0,4,4)
+      MoveScaled(185,0,4,4)
       ToolTip = ("Automatic word wrap")
       Action = ".wrap"
-      Picture = Picture["img/32/wrap.png"]
+      Picture = Picture["icon:/small/wrap"]
       Toggle = True
     }
     { btnLocked ToolButton
-      MoveScaled(174,0,4,4)
+      MoveScaled(189,0,4,4)
       ToolTip = ("Lock / unlock file")
       Action = ".locked"
       Picture = Picture["icon:/small/lock"]
@@ -481,19 +520,20 @@
     Background = Color.TextBackground
     Expand = True
     Arrangement = Arrange.Fill
-    { splVertical VSplit
-      MoveScaled(2,41,22,18)
-      Visible = False
-      Expand = True
-    }
     { edtEditor TextEditor Editors
       Name = "edtEditor"
       MoveScaled(4,1,24,16)
       Expand = True
+      Direction = Direction.LeftToRight
       Border = False
     }
     { splHorizontal HSplit
       MoveScaled(3,19,22,18)
+      Visible = False
+      Expand = True
+    }
+    { splVertical VSplit
+      MoveScaled(2,41,22,18)
       Visible = False
       Expand = True
     }
@@ -530,7 +570,7 @@
   }
   { Action color
     Text = "Insert color"
-    Shortcut = ""
+    Shortcut = "Ctrl+Shift+C"
     Picture = "icon:/small/color"
   }
   { Action comment
@@ -552,10 +592,22 @@
     Text = "Insert today's date"
     Picture = "icon:/small/calendar"
   }
+  { Action diff
+    Text = "Show modifications"
+    Picture = "icon:/small/modified"
+  }
+  { Action diff-next
+    Text = "Next modification"
+    Picture = "icon:/small/forward"
+  }
+  { Action diff-previous
+    Text = "Previous modification"
+    Picture = "icon:/small/rewind"
+  }
   { Action find-definition
     Text = "Find definition"
     Shortcut = "F2"
-    Picture = "icon:/16/info"
+    Picture = "icon:/small/info"
   }
   { Action find-next
     Text = "Find next"
@@ -578,7 +630,7 @@
   { Action lcase
     Text = "Lower case"
     Shortcut = "Ctrl+Shift+L"
-    Picture = "img/16/lcase.png"
+    Picture = "icon:/small/text-lower"
   }
   { Action locked
     Text = "Locked"
@@ -597,7 +649,7 @@
   { Action paste-special
     Text = "Paste special"
     Shortcut = "Ctrl+Shift+V"
-    Picture = "icon:/small/paste"
+    Picture = "icon:/small/paste-special"
   }
   { Action paste-string
     Text = "Paste as string"
@@ -612,9 +664,13 @@
     Shortcut = "Ctrl+Shift+F"
     Picture = "icon:/small/wizard"
   }
+  { Action print
+    Text = "Print"
+    Picture = "icon:/small/print"
+  }
   { Action proc
     Text = "Procedure list"
-    Picture = "icon:/small/bottom"
+    Picture = "$MenuButton"
   }
   { Action redo
     Text = "Redo"
@@ -649,7 +705,7 @@
   { Action ucase
     Text = "Upper case"
     Shortcut = "Ctrl+Shift+U"
-    Picture = "img/16/ucase.png"
+    Picture = "icon:/small/text-upper"
   }
   { Action uncomment
     Text = "Uncomment"
@@ -688,14 +744,14 @@
   { Action wrap
     Text = "Automatic word wrap"
     Shortcut = ""
-    Picture = "img/32/wrap.png"
+    Picture = "icon:/small/wrap"
   }
 }
 
 { Toolbars
   { Toolbar editor
     Text = "Editor"
-    List = "show-form,save,reload,run-me,undo,redo,cut,copy,paste,paste-special,bookmark,color,date,char,indent,unindent,comment,uncomment,pretty,break,watch,find-definition,view-nosplit,view-hsplit,view-vsplit,proc,wrap,locked"
-    Default = "show-form,save,reload,|,undo,redo,|,paste,color,date,char,comment,uncomment,break,watch,|,proc,~,wrap,locked"
+    List = "show-form,diff,diff-previous,diff-next,save,reload,print,run-me,undo,redo,cut,copy,paste,paste-special,bookmark,color,date,char,indent,unindent,comment,uncomment,pretty,break,watch,find-definition,view-nosplit,view-hsplit,view-vsplit,proc,wrap,locked"
+    Default = "show-form,diff,diff-previous,diff-next,|,save,reload,print,|,undo,redo,|,paste,color,date,char,comment,uncomment,break,watch,|,proc,|,~,wrap,locked"
   }
 }

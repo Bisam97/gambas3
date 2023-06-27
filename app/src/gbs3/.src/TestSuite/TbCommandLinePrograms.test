@@ -1,0 +1,62 @@
+' Gambas test file
+
+Public Sub _Setup()
+
+  TSR.CreateTestEnvironment()
+  CComponent._init()
+End
+
+Public Sub _Teardown()
+  
+  CComponent.Clear()
+  TSR.TeardownTestEnvironment()
+  
+End
+
+
+Public Sub CreateProgramFromCommandLineArgs()
+
+  ScriptMain._ResetAll()
+  ScriptMain.$oContext.$bExecuteFromArgs = True
+  ScriptMain.$oContext.$sUse = "gb.eval.highlight,gb.pcre,gb.notifyt"
+  Dim sResult As String = TSR.ErrorMsgOut(GenerateFilesFromArgs, "_call", ScriptMain.$oContext, "Dim I As Integer:Print I:Inc I", "projectpath")
+  Dim sExpect As String = "gbs" & System.Version & ": gb.eval.highlight,gb.pcre,gb.notifyt.0: Unknown component: gb.notifyt"
+  Assert.Equals(sResult, sExpect, "Test For bad Component ")
+  If TSR.$bTestDebug Then
+    Test.note(sResult)
+    Test.Note(sExpect)
+  Endif
+  
+  ScriptMain.$oContext.$sFinalProgram = ""
+  'ScriptMain.$oContext.$bPrecompiler = True
+  ScriptMain.$oContext.$bExecuteFromArgs = True
+  ScriptMain.$oContext.$sUse = "gb.eval.highlight,gb.pcre,gb.web"
+  GenerateFilesFromArgs(ScriptMain.$oContext, "Dim i As Integer:i=9:Print i:Inc i", "sourcepath")
+  Assert.Equals(TSR.CompareStringArray(Split(ScriptMain.$oContext.$sFinalProgram, "\n", "", True), Split("Public Sub main()\nDim i As Integer\ni=9\nPrint i\nInc i\n\nEnd\n", "\n", "", True)), True, "Verify program is formatted Correctly from command Line")
+End ' Gambas test file
+
+Public Sub ExecuteACommandLineProgram()
+  
+  ScriptMain._ResetAll()
+  ScriptMain.$oContext.$bTestMode = True
+  'ScriptMain.$oContext.$bPrecompiler = True
+  ScriptMain.$oContext.$bExecuteFromArgs = True
+  
+  ScriptMain.$sPath = "Dim Var1 as string =\"Hello World\":Print \"We say\";;Var1:For i as integer = 0 to 2:Print i:next"
+  
+  ScriptMain.Main()
+  If TSR.$bTestDebug Then
+      Test.Note("Application Output")
+      Test.Note(ScriptMain.$oContext.$sTestModeCapture)
+  Endif
+  
+  Assert.Equals(ScriptMain.$oContext.$sTestModeCapture, "We say Hello World\r\n0\r\n1\r\n2\r\n", "Check the output from the Executed command line script")
+  
+End
+
+' Public Sub PreCompile()
+'   Dim a As Integer = 0
+'   Inc a
+' End
+  
+

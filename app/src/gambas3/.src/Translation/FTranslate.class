@@ -125,7 +125,8 @@ Private Sub ComputeTransStat(sLang As String, Optional nTrans As Integer)
     .[1] = Min(100, (nStr * 100) \ nTrans) & "% "
     .[2] = CStr(nTrans - nStr) & " "
     .[3] = sLang & ".po"
-    Try .[4] = Project.GetFileSize(Stat(Language.GetPath(sLang, "po")).Size)
+    Try .[4] = Project.GetFileSize(Stat(MyLanguage.GetPath(sLang, "po")).Size)
+    .Picture = Picture["flag:/small/" & Language[sLang].Country]
   End With
 
 End
@@ -134,6 +135,8 @@ Public Sub Form_Open()
 
   Dim sLang As String
   Dim sPath As String
+  Dim sName As String
+  Dim aName As String[]
 
   Inc Application.Busy
 
@@ -143,28 +146,34 @@ Public Sub Form_Open()
 
   $bStatValid = False
 
+  FillTranslationEngines
+
   cvwLang.Clear
   cmbLang.Clear
   cmbLangSource.Clear
   cmbLangSource.Add(("(Default)"))
-  For Each sLang In Language.GetAll()
-    If Project.HasTranslation(sLang) Then
-      cvwLang.Add(sLang, Language.ToName(sLang))
-      cmbLang.Add(Language.ToName(sLang))
-      cmbLangSource.Add(Language.ToName(sLang))
-    Endif
+  
+  'For Each sLang In Language.GetAll()
+  aName = New String[]
+  For Each sLang In Project.GetTranslations()
+    sName = MyLanguage.ToName(sLang)
+    aName.Add(sName)
+    cvwLang.Add(sLang, sName)
   Next
+  
+  aName.Sort(gb.Natural)
+  cmbLang.List = aName
+  aName.Add(("(Default)"), 0)
+  cmbLangSource.List = aName
 
   sPath = Settings["/FTranslate/ImportPath"]
   If Not sPath Then sPath = System.User.Home
   dchImport.SelectedPath = sPath
-  ' If IsDir(sPath) Then
-  '   dchImport.SelectedPath = sPath
-  ' Else
-  '   dchImport.SelectedPath = sPath
-  '   fvwImport.Current = File.Name(sPath)
-  ' Endif
   dchImport.FileView.Filter = ["*.po", ("Translation files")]
+
+  sPath = Settings["/FTranslate/ImportProject"]
+  If Not sPath Then sPath = System.User.Home
+  pchImport.Path = sPath
   
   Project.SetEditorFont(txtOrig)
   Project.SetEditorFont(txtTranslate)
@@ -173,6 +182,7 @@ Public Sub Form_Open()
 
   If SetLang() Then
     Me.Close
+    Return
   Endif
 
   tabTranslate_Click
@@ -199,7 +209,6 @@ Private Sub ErrorMessage(sText As String, sDetail As String)
   
 End
 
-
 Private Sub SetLang(Optional sLang As String) As Boolean
 
   Dim sDir As String
@@ -218,10 +227,10 @@ Private Sub SetLang(Optional sLang As String) As Boolean
 
   SaveTranslate
 
-  If Not sLang Then sLang = Language.Find(System.Language)
+  If Not sLang Then sLang = MyLanguage.Find(System.Language)
 
   sDir = Project.Dir &/ ".lang"
-  sPath = Language.GetPath(sLang, "po")
+  sPath = MyLanguage.GetPath(sLang, "po")
 
   'lblFile.Text = File.Name(sPath)
   cmbLang.ToolTip = File.Name(sPath)
@@ -245,6 +254,7 @@ Private Sub SetLang(Optional sLang As String) As Boolean
       'Dec Application.Busy
       'Return True
     Endif
+    
     '     SHELL "msgmerge -o " & Project.Quote(sPath & ".new") & " " & Project.Quote(sPath) & " " & Project.Quote(sDir &/ ".pot") & " > " & Project.Quote(sTemp) & " 2>&1" WAIT
     '     IF Exist(sPath & ".new") THEN
     '       KILL sPath
@@ -262,7 +272,7 @@ Private Sub SetLang(Optional sLang As String) As Boolean
 
   hTrans = New CTranslation(sLang)
   If cmbLangSource.Index > 0 Then
-    sLangSrc = Language.FromName(cmbLangSource.Text)
+    sLangSrc = MyLanguage.FromName(cmbLangSource.Text)
     hTransSrc = New CTranslation(sLangSrc)
   Endif
 
@@ -279,12 +289,13 @@ Private Sub SetLang(Optional sLang As String) As Boolean
     cvwTranslate[iIndex][2] = hTrans.Comments[sMsgId]
     cvwTranslate[iIndex][3] = sMsgId
   Next
-
+  
   $nTrans = hTrans.Translations.Count
 
   MakeFileChoice
-  UpdateOrg(True)
 
+  UpdateOrg(True)
+  
   'cvwTranslate.Columns[1].Text = Language.ToName(sLang)
 
   txtOrig.Text = ""
@@ -294,10 +305,7 @@ Private Sub SetLang(Optional sLang As String) As Boolean
 
   $bIgnore = False
 
-  If cvwTranslate.MoveTo(sCurrent) Then
-    Wait ' let the columnview be sorted
-    cvwTranslate.MoveFirst
-  Endif
+  If cvwTranslate.MoveTo(sCurrent) Then cvwTranslate.MoveFirst
   Try cvwTranslate.Item.Selected = True
   Try cvwTranslate.Item.EnsureVisible
 
@@ -305,15 +313,19 @@ Private Sub SetLang(Optional sLang As String) As Boolean
   $sPath = sPath
   $bModify = False
 
-  sName = Language.ToName($sLang)
+  sName = MyLanguage.ToName($sLang)
   Try cvwLang.Add($sLang, sName)
   If Not Error Then cmbLang.Add(sName)
   'If Not Error And If chkStat.Value Then cvwLang[$sLang][1] = "0%"
+
+  picLang.Picture = Picture["flag:/small/" & Language[$sLang].Country]
 
   'Try cvwLang[$sLang].Selected = True
   Try cmbLang.Index = cmbLang.Find(sName)
 
   DisplayTrans
+  
+  Me.Title = ("Project translation") & " - " & cmbLang.Text & " - " & $sLang & ".po"
   
 Finally
 
@@ -322,8 +334,8 @@ Finally
 
 Catch
 
-  sMsg = Error.Text & "\n\n" & Error.Backtrace.Join(" ") & "\n\n" & Trim($sErrMerge)
-  ErrorMessage(Subst(("Cannot read translation file for language '&1'"), Language.ToName(sLang)), sMsg)
+  sMsg = Error.Text & "\n<tt>" & Error.Backtrace.Join(" ") & "</tt>\n\n" & Trim($sErrMerge)
+  ErrorMessage(Subst(("Cannot read translation file for language '&1'"), MyLanguage.ToName(sLang)), sMsg)
   $bIgnore = False
   Return True
 
@@ -511,6 +523,7 @@ Private Sub SaveTranslate(Optional bForce As Boolean)
   If $nTrans = 0 Then
     VersionControl.RemoveFile($sPath, True)
     Try Kill $sPath
+    If Not Error Then Inc Project.TimeStamp
     If bExistMO Then
       VersionControl.RemoveFile(sPathMO, True)
       Try Kill sPathMO
@@ -547,6 +560,8 @@ Private Sub SaveTranslate(Optional bForce As Boolean)
     Endif
 
   Endif
+  
+  Inc Project.TimeStamp
 
   ComputeTransStat($sLang)
 
@@ -559,7 +574,7 @@ Finally
 
 Catch
 
-  Message.Error(("Cannot save translation.") & "\n\n" & Error.Text)
+  FMain.ShowErrorWith(("Cannot save translation."))
 
 End
 
@@ -662,7 +677,7 @@ End
 
 Public Sub cmbLang_Click()
 
-  Dim sLang As String = Language.FromName(cmbLang.Text)
+  Dim sLang As String = MyLanguage.FromName(cmbLang.Text)
 
   If sLang = $sLang Then Return
 
@@ -835,7 +850,7 @@ Public Sub mnuExportUntranslated_Click()
 
 End
 
-Public Sub mnuCopytAll_Click()
+Public Sub mnuCopyAll_Click()
 
   CopyTranslation(EXPORT_ALL)
 
@@ -885,6 +900,7 @@ Private Sub ImportMessage(sPath As String, bReplace As Boolean) As Integer
   Dim iIndex As Integer
   Dim nTrans As Integer
   Dim sCharset As String
+  Dim bIgnore As Boolean
 
   ' sTemp = Temp$()
   ' sOutput = Temp$()
@@ -904,18 +920,23 @@ Private Sub ImportMessage(sPath As String, bReplace As Boolean) As Integer
 
       Line Input #hFic, sLine
 
-      If Left$(sLine) = "#" Then
+      If sLine Begins "#" Then
 
-        If Left$(sLine, 2) = "#:" Then
+        If Mid$(sLine, 2, 1) = ":" Then
           sMsgComment = Trim(Mid$(sLine, 3))
           Continue
         Endif
 
-        If Left$(sLine, 2) = "#," Then
+        If Mid$(sLine, 2, 1) = "," Then
           If InStr(sLine, "fuzzy") Then
             bFuzzy = True
             Continue
           Endif
+        Endif
+        
+        If Trim(Mid$(sLine, 2)) = "gb-ignore" Then
+          bIgnore = True
+          Continue
         Endif
 
         Continue
@@ -967,7 +988,7 @@ Private Sub ImportMessage(sPath As String, bReplace As Boolean) As Integer
       If iIndex > 0 Then
         If bReplace Or If cvwTranslate[iIndex][1] = "" Then
 
-          If sMsgStr = "-\\n" Then sMsgStr = "-"
+          If sMsgStr = "-\\n" Or If bIgnore Then sMsgStr = "-"
   
           If bFuzzy Then
             bFuzzy = False
@@ -989,6 +1010,7 @@ Private Sub ImportMessage(sPath As String, bReplace As Boolean) As Integer
     sMsgComment = ""
     sMsgStr = ""
     bFuzzy = False
+    bIgnore = False
 
     If Eof(hFic) Then Break
 
@@ -1002,7 +1024,6 @@ End
 
 Public Sub btnImport_Click()
 
-  Dim sPath As String
   Dim sTransDir, sTrans As String
   Dim nTrans As Integer
 
@@ -1029,7 +1050,7 @@ Public Sub btnImport_Click()
 
   Inc Application.Busy
 
-  sPath = Language.GetPath($sLang, "po")
+  'sPath = MyLanguage.GetPath($sLang, "po")
 
   'SHELL "msgmerge -o " & Project.Quote(sPath & ".new") & " " & Project.Quote(Dialog.Path) & " " & Project.Quote(sPath) & " 2>/dev/null" WAIT
   'MergeMessage(sPath, "-o " & Quote.Shell(sPath & ".new") & " " & Quote.Shell(Dialog.Path) & " " & Quote.Shell(sPath))
@@ -1043,7 +1064,7 @@ Public Sub btnImport_Click()
 
   DisplayTrans
   $bModify = True
-  SaveTranslate
+  SetLang($sLang)
 
   Dec Application.Busy
 
@@ -1060,7 +1081,7 @@ Public Sub btnImport_Click()
 Catch
 
   Application.Busy = 0
-  Message.Error(("Cannot import translation file.") & "\n\n" & Error.Text & $sErrMerge)
+  FMain.ShowErrorWith(("Cannot import translation file."), Error.Text & $sErrMerge)
 
 End
 
@@ -1154,6 +1175,9 @@ Private Sub DisplayTrans()
   
   btnNextUntranslated.Enabled = cvwTranslate.Count - $nTrans
   btnPreviousUntranslated.Enabled = btnNextUntranslated.Enabled
+  btnFirstUntranslated.Enabled = btnNextUntranslated.Enabled
+  btnLastUntranslated.Enabled = btnNextUntranslated.Enabled
+  
   btnNextTranslated.Enabled = $nTrans > 0
   btnPreviousTranslated.Enabled = btnNextTranslated.Enabled
 
@@ -1351,6 +1375,7 @@ Private Sub MakeFileChoice()
   Dim iPos As Integer
 
   cmbFileChoice.Clear
+  
   'cbxFileChoice.Add("(" & ("All files") & ")")
 
   With cvwTranslate
@@ -1369,6 +1394,7 @@ Private Sub MakeFileChoice()
   aChoice.Add("(" & ("All files") & ")", 0)
 
   cmbFileChoice.List = aChoice.Sort()
+  
   Object.Lock(cmbFileChoice)
   cmbFileChoice.Index = 0
   Object.Unlock(cmbFileChoice)
@@ -1463,7 +1489,7 @@ Private Sub UpdateStat()
   'Shell "grep -c \"^msgid\" " & Shell$(Project.Dir &/ ".lang/.pot") To sRes
   'nTrans = Val(sRes) - 1 ' Remove the < msgid "" > line
 
-  For Each sLang In Language.GetAll()
+  For Each sLang In MyLanguage.GetAll()
     If Project.HasTranslation(sLang) Then
       ComputeTransStat(sLang)
     Endif
@@ -1522,8 +1548,8 @@ Public Sub cvwLang_Compare((Key) As String, OtherKey As String)
       iComp = String.Comp(cvwLang[Key][3], cvwLang[OtherKey][3])
 
     Case 4
-      iVal = Stat(Language.GetPath(Key, "po")).Size
-      iOtherVal = Stat(Language.GetPath(OtherKey, "po")).Size
+      iVal = Stat(MyLanguage.GetPath(Key, "po")).Size
+      iOtherVal = Stat(MyLanguage.GetPath(OtherKey, "po")).Size
       If iVal < iOtherVal Then
         iComp = -1
       Else If iVal > iOtherVal Then
@@ -1650,13 +1676,13 @@ Private Sub GetAutomaticTranslation(sText As String) As String
   Inc Application.Busy
   
   If cmbLangSource.Index > 0 Then
-    sLangSrc = Language.FromName(cmbLangSource.Text)
+    sLangSrc = MyLanguage.FromName(cmbLangSource.Text)
   Else
     sLangSrc = Project.DefaultLanguage
   Endif
   sLangSrc = StripLang(sLangSrc)
   
-  sLangDest = StripLang(Language.FromName(cmbLang.Text))
+  sLangDest = StripLang(MyLanguage.FromName(cmbLang.Text))
 
   aText = New String[]
 
@@ -1746,6 +1772,8 @@ End
 
 Public Sub mnuAutoTrans_Click()
   
+  Dim sText As String
+  
   If Message.Question(("Do you want to fill the translation automatically?"), ("Fill"), ("Cancel")) = 2 Then Return
   
   Inc Application.Busy
@@ -1755,7 +1783,13 @@ Public Sub mnuAutoTrans_Click()
     If Not cvwTranslate.Item[1] Then 
       cvwTranslate.Item.Selected = True
       cvwTranslate.Item.EnsureVisible
-      txtTranslate.Text = GetAutomaticTranslation(txtOrig.Text)
+      Wait
+      sText = GetAutomaticTranslation(txtOrig.Text)
+      If Not sText Then
+        Message.Warning(("Automatic translation has failed."))  
+        Break
+      Endif
+      txtTranslate.Text = sText
       Wait
     Endif
     cvwTranslate.MoveNext
@@ -1767,4 +1801,154 @@ Public Sub mnuAutoTrans_Click()
   
   Dec Application.Busy
   
+End
+
+Public Sub btnFirstUntranslated_Click()
+
+  With cvwTranslate
+
+    .MoveFirst()
+
+    While .Available
+
+      If Not .Item[1] Then
+        .Item.EnsureVisible
+        .Item.Selected = True
+        Return
+      Endif
+
+      .MoveNext()
+
+    Wend
+
+  End With
+
+End
+
+Public Sub btnLastUntranslated_Click()
+
+  With cvwTranslate
+
+    .MoveLast()
+
+    While .Available
+
+      If Not .Item[1] Then
+        .Item.EnsureVisible
+        .Item.Selected = True
+        Return
+      Endif
+
+      .MovePrevious()
+
+    Wend
+
+  End With
+  
+
+End
+
+Private Sub FillTranslationEngines()
+
+  Dim aEngines As String[]
+  Dim sEngine As String
+  Dim hMenu As Menu
+  Dim sCurrent As String
+
+  sCurrent = Settings["/AutomaticTranslation/Engine", "google"]
+
+  aEngines = Project.GetTranslationEngines()
+  If Not aEngines.Exist(sCurrent) Then sCurrent = "google"
+  
+  mnuTranslator.Children.Clear
+  
+  For Each sEngine In aEngines
+    hMenu = New Menu(mnuTranslator) As "mnuTranslator_Click"
+    hMenu.Text = sEngine
+    hMenu.Radio = True
+    If sEngine = sCurrent Then hMenu.Value = True
+  Next
+
+End
+
+Public Sub mnuTranslator_Click()
+  
+  Settings["/AutomaticTranslation/Engine"] = Last.Text
+  
+End
+
+Public Sub chkReplace_Click()
+
+  chkReplace2.Value = chkReplace.Value
+
+End
+
+Public Sub chkReplace2_Click()
+
+  chkReplace.Value = chkReplace2.Value
+
+End
+
+Private Sub ImportOneTranslation(sFrom As String, sLang As String) As Integer
+
+  Dim nTrans As Integer
+  Dim sPath As String
+
+  sPath = sFrom &/ ".lang" &/ sLang & ".po"
+  If Not Exist(sPath) Then Return
+  
+  If SetLang(sLang) Then Return
+  
+  nTrans = ImportMessage(sPath, chkReplace.Value)
+  SaveTranslate(True)
+
+  Return nTrans
+
+End
+
+
+Public Sub btnImportProject_Click()
+
+  Dim sLang As String
+  Dim sSave As String
+  Dim nTrans As Integer
+  Dim sFrom As String
+  
+  sFrom = pchImport.Path
+  If Not sFrom Then Return
+  
+  If Not IsDir(sFrom &/ ".lang") Then
+    Message.Warning(("This project has no translation."))
+    Return
+  Endif
+  
+  If Message.Question(("Do you really want to import the translations of this project?"), ("Import"), ("Cancel")) <> 1 Then Return
+  
+  Settings["/FTranslate/ImportProject"] = sFrom
+
+  Inc Application.Busy
+  
+  sSave = $sLang
+  
+  For Each sLang In Project.GetTranslations()
+    nTrans += ImportOneTranslation(sFrom, sLang)
+  Next
+  
+  SetLang(sSave)
+  
+  Dec Application.Busy
+  
+  If nTrans = 0 Then
+    Message.Info(("No translation were picked up."))
+  Else If nTrans = 1 Then
+    Message.Info(("One translation was picked up."))
+  Else If nTrans > 0
+    Message.Info(Subst(("&1 translations were picked up."), nTrans))
+  Endif
+
+Catch
+
+  Application.Busy = 0
+  FMain.ShowErrorWith(("Cannot import translation file."), Error.Text & $sErrMerge)
+
 End

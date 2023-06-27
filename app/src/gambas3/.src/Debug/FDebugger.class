@@ -1,0 +1,1172 @@
+' Gambas class file
+
+Public Shown As Boolean
+
+Private Enum TAB_DEBUG, TAB_CONSOLE, TAB_COMPILATION, TAB_TASK, TAB_TEST, TAB_VERSION_CONTROL, TAB_SEARCH, TAB_DBUS
+
+Private $aTask As CTask[]
+
+'Private $cLocal As New Collection ' key -> row
+'Private $bSortLocal As Boolean
+
+'Private $bSortObject As Boolean
+
+Private $hForm As FEditor
+
+Private $sLastLocal As String
+Private $sLastObject As String
+
+Private $hBreakpoint As Picture
+Private $hDisabledBreakpoint As Picture
+
+Private $cTrack As Collection
+Private $iTrackId As Integer
+
+Private $iChangeColor As Integer
+Private $iErrorColor As Integer
+
+Private $hHeaderFont As Font
+
+Private $iLastBreakpointsTimeStamp As Integer
+Private $bWatchFont As Boolean
+
+Public Sub _new()
+  
+  With cvwDebug
+    .Columns.Count = 2
+    .Columns.Padding = Desktop.Scale
+  End With
+  
+  ReadConfig
+  
+End
+
+Public Sub Clear()
+  
+  lvwStack.Clear
+  cvwDebug.Clear
+  
+End
+
+Public Sub EnableStack(bOn As Boolean)
+  
+  lvwStack.Enabled = bOn
+  
+End
+
+Public Sub FillStack(aStack As String[], bSelectCurrent As Boolean)
+  
+  Dim sPos As String
+  Dim iInd As Integer
+  Dim sKey As String
+  Dim W As Integer
+  Dim sStack As String
+  Dim iPos As Integer
+  Dim sComp As String
+  Dim sLastComp As String
+  
+  Object.Lock(lvwStack)
+  
+  ' sKey = "0"
+  ' If lvwStack.Count Then
+  '   lvwStack.MoveFirst()
+  '   If aStack[0] = lvwStack.Item.Tag Then sKey = lvwStack.Key
+  ' Endif
+  sKey = lvwStack.Key
+  
+  lvwStack.Clear
+  
+  W = Desktop.Scale * 16
+  For Each sStack In aStack
+    If sStack = "?" Then
+      With lvwStack.Add(iInd, "(" & ("native code") & ")")
+        .Foreground = Color.LightForeground
+        .Selectable = False
+      End With
+    Else
+      sPos = sStack
+      If sPos Begins "[" Then
+        iPos = InStr(sPos, "].")
+        If iPos Then
+          sComp = Mid$(sPos, 2, iPos - 2)
+          sPos = Mid$(sPos, iPos + 2)
+        Endif
+      Endif
+      
+      If sComp <> sLastComp Then
+        sLastComp = sComp
+        If sComp = "$" Then sComp = "(" & ("Project") & ")"
+        With lvwStack.Add("@" & CStr(iInd), sComp)
+          .Background = Color.SetAlpha(Color.Foreground, 240)
+          .Font = $hHeaderFont
+          .Selectable = False
+        End With
+      Endif
+      
+      If sPos Not Ends ".0" Then 
+        lvwStack.Add(iInd, sPos).Tag = sStack
+        If bSelectCurrent Then
+          sKey = iInd
+          bSelectCurrent = False
+        Endif
+        W = Max(W, lvwStack.Font.TextWidth(sPos))
+      Endif
+      
+    Endif
+    Inc iInd
+  Next
+  
+  lvwStack.W = W + Desktop.Scale * 2
+  
+  If lvwStack.Exist(sKey) Then
+    lvwStack[sKey].Selected = True
+    lvwStack[sKey].EnsureVisible
+  Endif
+  Object.Unlock(lvwStack)
+  
+End
+
+Public Sub lvwStack_Click()
+  
+  Dim sLoc As String
+  
+  If Not lvwStack.Current.Tag Then Return
+  
+  Design.Command("@" & lvwStack.Key)
+  FDebugExpr.RefreshAll
+  RefreshAllWatch
+  
+  sLoc = lvwStack.Current.Tag
+  If InStr(sLoc, "(") Then Return
+  Design.Goto(sLoc)
+  
+'Catch
+  
+End
+
+Private Sub AddVariableHeader(hView As ColumnView, sKey As String, sText As String)
+
+  If hView.Exist(sKey) Then Return
+  
+  With hView.Add(sKey, sText)
+    .MoveFirst()
+    .Font = $hHeaderFont
+    .Background = Color.SetAlpha(Color.Foreground, 240)
+    .Span = True
+    .Selectable = False
+  End With
+
+End
+
+Private Sub UpdateWatch(sExpr As String, Optional sVal As String)
+
+  AddVariableHeader(cvwDebug, "@", ("Expressions"))
+  cvwDebug["@"].MoveLast
+  
+  Try cvwDebug.Add("@" & sExpr, sExpr,, "@").EnsureVisible
+  
+  With cvwDebug["@" & sExpr]
+    If sVal Then
+      If Left(sVal) = "!" Then 
+        sVal = Mid$(sVal, 2)
+        .Foreground = $iErrorColor
+        .Background = Color.Default
+      Else
+        If .[1] <> sVal Then
+          .Foreground = Color.Default
+          .Background = $iChangeColor
+        Else
+          .Foreground = Color.Default
+          .Background = Color.Default
+        Endif
+      Endif
+      .[1] = sVal
+    Endif
+    If $cTrack.Exist(.Key) Then 
+      .Picture = $hBreakpoint 'Picture["icon:/" & CStr(cvwDebug.Font.H) & "/watch"]
+    Else
+      .Picture = Null
+    Endif
+  End With
+
+  UpdateWatchButtons
+
+End
+
+Public Sub AddResultWatch(sCmd As String, Optional sRes As String, Optional bInstant As Boolean)
+  
+  Dim sVal As String
+  
+  'IF Left$(sRes, 1) = "=" THEN
+  '  sVal = Mid$(sRes, 2)
+  'ELSE
+  '  sVal = "** " & sRes
+  'ENDIF
+  sVal = sRes
+  
+  If bInstant Then 
+    
+    If Right(sCmd) = ":" Then
+      
+      If FDebugExpr.Exist(Left(sCmd, Len(sCmd) - 1)) Then Return 
+      
+      'ShowAsBalloon(sVal)
+      If $hForm Then 
+        $hForm.ShowWatchResult(sVal) ', $iX, $iY)
+        $hForm = Null
+      Else
+        FOutput.Insert(sVal)
+      Endif
+      
+    Else 
+      Design.Command("#X" & sCmd & "\t" & sCmd)  
+    Endif 
+    
+  Else
+    
+    UpdateWatch(sCmd, sVal)
+    
+  Endif
+  
+End
+
+Public Sub RefreshAllWatch()
+  
+  If cvwDebug.MoveTo("@") Then Return
+  If cvwDebug.MoveChild() Then Return
+  
+  Repeat
+    Design.Command("?W" & cvwDebug.Item.Text & "\t" & cvwDebug.Item.Text)
+  Until cvwDebug.MoveNext()
+  
+End
+
+Public Sub AddWatch(sExpr As String)
+  
+  If cmbWatch.Find(sExpr) < 0 Then cmbWatch.Add(sExpr)
+  
+  Design.Command("?W" & sExpr & "\t" & sExpr)
+  
+End
+
+Public Sub InstantWatch(sExpr As String, hForm As FEditor)
+  
+  If Not sExpr Then Return
+  
+  $hForm = hForm
+  Design.Command("?I" & sExpr & "\t" & sExpr)
+  
+End
+
+Private Sub GetWatchExpression() As String
+  
+  Return Trim(cmbWatch.Text)
+  
+End
+
+Public Sub cmbWatch_Activate()
+  
+  Dim sExpr As String
+  
+  sExpr = GetWatchExpression()
+  If Not sExpr Then Return
+  
+  AddWatch(sExpr)
+  cmbWatch.Text = ""
+  
+End
+
+Public Sub btnAddWatch_Click()
+  
+  cmbWatch_Activate
+  
+End
+
+Public Sub btnKillWatch_Click()
+  
+  Dim sKey As String
+  
+  sKey = cvwDebug.Key
+  If sKey Begins "@" Then 
+    If sKey = "@" Then Return
+    cvwDebug.Remove(sKey)
+    RemoveTrack(Mid$(sKey, 2))
+    If cvwDebug["@"].Children = 0 Then cvwDebug.Remove("@")
+  Endif
+  
+  UpdateWatchButtons
+  
+End
+
+Public Sub cmbWatch_Click()
+  
+  cmbWatch_Activate
+  
+End
+
+Private Sub WatchExpression(sText As String)
+  
+  Design.Command("#X" & sText & "\t" & sText)  
+  
+End
+
+Private Sub InitFont(hView As ColumnView, fSize As Float)
+
+  Dim sKey As String
+  
+  Project.SetConsoleFont(hView)
+  
+  For Each sKey In hView.Keys
+    If Not hView[sKey].Selectable Then Continue
+    If hView[sKey].Font Then hView[sKey].Font.Size = hView.Font.Size * fSize
+  Next
+  hView.Font.Size *= fSize
+  
+  hView.Columns[0].W = -1
+  
+End
+
+Public Sub ReadConfig()
+  
+  Dim fSize As Float
+  
+  $hHeaderFont = Project.GetSmallFont()
+  $hHeaderFont.Bold = True
+  
+  panProcess.H = FMain.GetTabBarHeight()
+  btnCloseTree.W = panProcess.H
+  
+  fSize = Project.GetPercentFontSize("/DebuggerFontSize", 80)
+  
+  Project.SetNormalFont(lvwStack, fSize)
+  Project.SetNormalFont(lvwBreakpoint, fSize)
+
+  InitFont(cvwDebug, fSize)
+  
+  cmbWatch_Change
+  
+  FDebugButton.ReadConfig
+  
+  Project.SetSmallFont(tlbBreakpoint)
+  
+  Project.SetEditorFont(lblError)
+  lblError.Padding = Desktop.Scale
+  
+  'btnChanges.Picture = Picture["img/32/modified.png"].Stretch(Stock.GetSize("small"))
+  
+  'H = Max(Stock.GetSize("small"), cmbWatch.Font.H) * 1.4
+  'panWatch.H = H
+  ' For Each hChild In panWatch.Children
+  '   If hChild Is PictureBox Or If hChild Is ToolButton Then hChild.W = hChild.H
+  ' Next
+  
+  $iChangeColor = Color.Merge(MTheme.GetColor("Highlight"), Color.Background)
+  $iErrorColor = MTheme.GetColor("Error")
+
+  $hBreakpoint = Picture["img/32/breakpoint.png"].Stretch(cvwDebug.Font.H)
+  $hDisabledBreakpoint = $hBreakpoint.Image.Desaturate().Gamma(0.3).Picture
+  
+End
+
+' Public Sub tbvLocal_Activate()
+'   
+'   Dim hTable As TableView = Last
+'   Dim sExpr As String 
+'   Dim sVal As String 
+'   Dim iCol As Integer
+'   
+'   If hTable[hTable.Row, 0].ColumnSpan >= 2 Then Return
+'   
+'   iCol = hTable.Column And Not 1
+'   sExpr = hTable[hTable.Row, iCol].Text
+'   sVal = hTable[hTable.Row, iCol + 1].Text
+'   
+'   If Left(sVal) = "(" Then 
+'     Design.Command("#X" & sExpr & "\t" & sExpr)
+'   Else
+'     hTable.Column = iCol + 1 
+'     hTable.Edit
+'   Endif
+'   
+' End
+
+Public Sub IsEditing() As Boolean
+  
+  If cvwDebug.Renaming Then Return True
+  
+End
+
+' Public Sub tbvObject_Activate()
+'   
+'   tbvLocal_Activate
+'   
+' End
+
+Public Sub WriteWatchSettings()
+  
+  Dim iInd As Integer
+  Dim sFlag As String
+  Dim iCount As Integer
+  Dim sExpr As String
+  Dim aTrack As New Integer[]
+  
+  sFlag = "/Watches"
+  iInd = 0
+  Project.Config.Clear(sFlag)
+  
+  Try iCount = cvwDebug["@"].Children
+  
+  Project.Config[sFlag &/ "Count"] = iCount
+  If iCount Then
+    
+    cvwDebug.MoveTo("@")
+    cvwDebug.MoveChild()
+    While cvwDebug.Available
+      Inc iInd
+      sExpr = cvwDebug.item.Text
+      Project.Config[sFlag &/ "Watch[" & CStr(iInd) & "]"] = sExpr
+      If $cTrack.Exist("@" & sExpr) Then aTrack.Add(iInd)
+      cvwDebug.MoveNext()
+    Wend
+    
+  Endif
+  
+  If aTrack.Count Then Project.Config[sFlag &/ "Track"] = aTrack
+  
+End
+
+Public Sub ReadWatchSettings()
+  
+  Dim iCount As Integer
+  Dim iInd As Integer
+  Dim sFlag As String
+  Dim sExpr As String
+  Dim aTrack As Integer[]
+  
+  sFlag = "/Watches"
+  iInd = 0
+  iCount = Project.Config[sFlag &/ "Count", "0"]
+  aTrack = Project.Config[sFlag &/ "Track"]
+  If Not aTrack Then aTrack = New Integer[]
+  
+  Try cvwDebug.Remove("@")
+  
+  For iInd = 1 To iCount
+    sExpr = Project.Config[sFlag &/ "Watch[" & CStr(iInd) & "]"]
+    AddResultWatch(sExpr)
+    If aTrack.Exist(iInd) Then AddTrack(sExpr)
+  Next
+  
+End
+
+Public Sub btnShowMe_Click()
+  
+  WatchExpression("Me")
+  
+End
+
+' Public Sub tbvLocal_Scroll()
+'   
+'   Balloon.Hide(Last)
+'   
+' End
+
+' Public Sub tbvLocal_Select()
+'   
+'   Balloon.Hide(Last)
+'   
+' End
+
+' Public Sub tbvObject_Scroll()
+'   
+'   Balloon.Hide(Last)
+'   
+' End
+
+' Public Sub tbvObject_Select()
+'   
+'   Balloon.Hide(Last)
+'   
+' End
+
+Private Sub DisableRec(hCtrl As Control, aExcept As Control[], bOn As Boolean)
+  
+  Dim hCont As Container
+  Dim iCount As Integer
+  Dim hMulti As Object
+  Dim iInd As Integer
+  
+  If Not aExcept.Exist(hCtrl) Then
+    hCtrl.Enabled = bOn
+    Return
+  Endif
+  
+  If Not hCtrl Is Container Then Return
+  
+  hCont = hCtrl
+  hMulti = hCtrl
+  
+  Try iCount = hMulti.Count
+  If Not Error Then
+    For iInd = 0 To iCount - 1
+      If iInd <> hMulti.Index Then
+        hMulti[iInd].Enabled = bOn
+      Endif
+    Next
+  Endif
+  
+  For Each hCtrl In hCont.Children
+    DisableRec(hCtrl, aExcept, bOn)
+  Next
+  
+End
+
+Public Sub ShowConsole()
+  
+  If FOutput.Parent Then FDebugButton.SelectButton(TAB_CONSOLE)
+  FOutput.SetFocus
+  
+End
+
+Private Sub FormatBreakpoint(sBreakpoint As String) As String
+
+  Dim aBreakpoint As String[]
+
+  aBreakpoint = Breakpoints.FromString(sBreakpoint)
+  
+  sBreakpoint = aBreakpoint[1] & "." & aBreakpoint.Last
+  If aBreakpoint[0] Then sBreakpoint &= " ↦ <font size=\"-1\"><b>" & aBreakpoint[0] & "</b></font>"
+  Return sBreakpoint
+
+End
+
+Public Sub RefreshBreakpoints()
+
+  Dim sBreakpoint As String
+  Dim H As Integer
+  Dim aAllBreakpoints As String[]
+  
+  aAllBreakpoints = Breakpoints.GetAll()
+  If Breakpoints.TimeStamp = $iLastBreakpointsTimeStamp Then Return
+
+  lvwBreakpoint.Clear
+  For Each sBreakpoint In aAllBreakpoints
+    With lvwBreakpoint.Add(sBreakpoint, "")
+      .RichText = FormatBreakpoint(sBreakpoint)
+      H = .H
+    End With
+  Next
+  
+  If lvwBreakpoint.Count = 0 Then
+    panBreakpoint.Hide
+  Else
+    panBreakpoint.Show
+    lvwBreakpoint.H = H * Min(4, lvwBreakpoint.Count)
+    panBreakpoint.H = lvwBreakpoint.Y + lvwBreakpoint.H
+  Endif
+  
+  $iLastBreakpointsTimeStamp = Project.TimeStamp
+  
+End
+
+Public Sub OnProjectChange()
+  
+  $aTask = Null
+  $cTrack = New Collection
+  $iLastBreakpointsTimeStamp = 0
+  RefreshBreakpoints
+  
+End
+
+Private Sub RefreshVariable()
+
+  Dim sRoot As String
+  Dim hTree As ColumnView
+
+  For Each sRoot In ["^", "~"]
+    
+    hTree = cvwDebug
+
+    If Not hTree.MoveTo(sRoot) Then
+      If hTree.Item.Expanded Then
+        If Not hTree.MoveChild() Then
+          Repeat
+            With hTree.Item
+              Design.Command("&V" & .Key & "\t" & .Text)
+            End With
+          Until hTree.MoveNext()
+        Endif
+      Endif
+    Endif
+    
+  Next
+
+End
+
+Public Sub DefineVariable(sLocal As String, sObject As String)
+  
+  Dim sVar As String
+  Dim hPict As Picture
+  Dim sParent As String
+  Dim bBold As Boolean
+  Dim hBold As Font
+  Dim vLayout As Variant
+  Dim I As Integer
+  Dim sPrefix As String
+  Dim aObject As String[]
+  Dim aLocal As String[]
+  
+  If cvwDebug.Count Then vLayout = cvwDebug.Layout
+  
+  If sObject <> $sLastObject Then
+    
+    $sLastObject = sObject
+    aObject = Split(sObject, " ").Sort(gb.Natural + gb.IgnoreCase)
+    
+    Try cvwDebug.Remove("^")
+    
+    hBold = cvwDebug.Font.Copy()
+    hBold.Bold = True
+    
+    AddVariableHeader(cvwDebug, "^", ("Current object"))
+    
+    sPrefix = " :"
+    For I = 0 To aObject.Max
+      sVar = aObject[I]
+      If Right(sVar) = ":" Then
+        sPrefix = sVar
+      Else
+        aObject[I] = sPrefix & aObject[I]
+      Endif
+    Next
+    
+    aObject.Sort
+    
+    sParent = "^"
+    For I = 0 To aObject.Max
+      sVar = aObject[I]
+      If Right(sVar) = ":" Then
+        sVar = Left(sVar)
+        bBold = sVar = UCase(sVar)
+        hPict = Picture["$symbol:" & If(sVar == "S", "s-", "") & "variable.png"]
+      Else
+        sVar = Mid$(sVar, 3)
+        aObject[I] = sVar
+        With cvwDebug.Add("^" & sVar, sVar, hPict, sParent)
+          If bBold Then .Font = hBold
+        End With
+      Endif
+    Next
+    
+    If cvwDebug["^"].Children = 0 Then cvwDebug.Remove("^")
+    
+  Endif
+  
+  If sLocal <> $sLastLocal Then
+    
+    $sLastLocal = sLocal
+    aLocal = Split(sLocal, " ").Sort(gb.Natural + gb.IgnoreCase)
+    
+    Try cvwDebug.Remove("~")
+    
+    hBold = cvwDebug.Font.Copy()
+    hBold.Bold = True
+    
+    AddVariableHeader(cvwDebug, "~", ("Local variables")) 
+    
+    For Each sVar In aLocal
+      cvwDebug.Add("~" & sVar, sVar,, "~")
+    Next
+    
+    If cvwDebug["~"].Children = 0 Then cvwDebug.Remove("~")
+
+  Endif
+  
+  RefreshVariable
+  
+  If vLayout Then cvwDebug.Layout = vLayout
+  Try cvwDebug["~"].Expanded = True
+    
+End
+
+Public Sub AddVariable(sVar As String, sValue As String, Optional bAssign As Boolean)
+  
+  Dim hView As ColumnView
+  
+  If cvwDebug.Exist(sVar) Then
+    hView = cvwDebug
+  Else
+    Return
+  Endif
+  
+  If bAssign Then
+    If Left(sValue) = "!" Then
+      With hView[sVar]
+        Balloon.Error(Mid$(sValue, 2), hView, Design.BalloonX, Design.BalloonY)
+      End With
+    Endif
+    Design.Command("&V" & sVar & "\t" & Mid$(sVar, 2))
+  Else
+    With hView[sVar]
+      If .[1] <> sValue Then
+        .Background = $iChangeColor
+      Else
+        .Background = Color.Default
+      Endif
+      .[1] = sValue
+    End With
+  Endif
+  
+End
+
+Public Sub cvwDebug_Activate()
+  
+  Dim sExpr As String 
+  Dim sVal As String 
+  Dim hView As ColumnView
+  
+  hView = Last
+  
+  With hView.Current
+    
+    If .Children Then Return
+    
+    sExpr = .Text
+    sVal = .[1]
+    
+    If Left(sVal) = "(" Then 
+      Design.Command("#X" & sExpr & "\t" & sExpr)
+    Else
+      If .Key Begins "@" Then Return
+      
+      If sVal Begins Chr$(34) And If Len(sVal) > 128 Then
+        If Not FText.Run(UnQuote(sVal), Subst(("Modify '&1' value"), sExpr)) Then
+          Design.Command("=V" & .Key & "\t" & sExpr & " = " & Quote(FText.Value))
+        Endif
+      Else
+        .Editable = True
+        .Rename(1)
+        .Editable = False
+      Endif
+    Endif
+    
+  End With
+  
+End
+
+Public Sub OnProjectDebug()
+  
+  $sLastLocal = ""
+  $sLastObject = ""
+  If Settings["/ShowDebugPanelAutomatically", True] Then Action["console"].Value = True
+  lblError.Text = ""
+  lblError.Adjust
+  panError.Hide
+  
+End
+
+Public Sub UpdateProcessInfo(iProcessId As Integer, iProcessFiles As Integer, iProcessMemory As Long)
+  
+  If iProcessId >= 0 Then
+    
+    If Design.IsExtern() Then
+      picProcessId.Picture = Picture["icon:/small/connect"]
+    Else
+      picProcessId.Picture = Picture["icon:/small/exec"]
+    Endif
+    
+    If iProcessId = 0 Then
+      
+      picProcessId.Hide
+      lblProcessId.Hide
+      
+    Else
+      
+      picProcessId.Show
+      lblProcessId.Show
+      lblProcessId.Text = Subst(("Process &1"), iProcessId)
+      
+    Endif
+    
+  Endif
+  
+  If iProcessId = 0 Then
+    
+    picProcessFiles.Hide
+    lblProcessFiles.Hide
+    picProcessMemoryRead.Hide
+    lblProcessMemoryRead.Hide
+    
+  Else
+    
+    If iProcessFiles < 0 Then
+      picProcessFiles.Hide
+      lblProcessFiles.Hide
+    Else
+      picProcessFiles.Show
+      lblProcessFiles.Show
+      lblProcessFiles.Text = CStr(iProcessFiles)
+    Endif
+    
+    If iProcessMemory < 0 Then
+      picProcessMemory.Hide
+      lblProcessMemory.Hide
+    Else
+      picProcessMemory.Show
+      lblProcessMemory.Show
+      lblProcessMemory.Text = File.FormatSize(iProcessMemory, True) 
+    Endif
+    
+  Endif
+  
+End
+
+Public Sub OnProjectDebugState()
+  
+  tlbBreakpoint.Enabled = Not Design.IsRunning()
+  lvwBreakpoint.Enabled = tlbBreakpoint.Enabled
+  Action[".break"].Enabled = tlbBreakpoint.Enabled
+  
+  If Design.IsStarting() Then
+    splDebug.Hide
+    panProcess.Hide
+    sepProcess.Hide
+    panDebugWait.Show
+    spnDebugWait.Start
+  Else
+    splDebug.Show
+    panProcess.Show
+    sepProcess.Show
+    panDebugWait.Hide
+    spnDebugWait.Stop
+  Endif
+  
+End
+
+Public Sub StartWaitForRemote()
+
+  panDebug.Hide
+  panRemoteDebug.Show
+  spnRemoteDebug.Start
+  
+End
+
+Public Sub StopWaitForRemote()
+  
+  spnRemoteDebug.Stop
+  panRemoteDebug.Hide
+  panDebug.Show
+  
+End
+
+Public Sub ShowTest()
+  
+  FMain.ShowDebug(True)
+  FDebugButton.SelectButton(TAB_TEST)
+  
+End
+
+Public Sub cvwDebug_Rename()
+  
+  Dim sVar As String
+  Dim hView As ColumnView
+  
+  hView = Last
+  With hView.Current
+    
+    sVar = .Key
+    
+    'Design.SetBalloon(hView, hView.Columns[1].X + Desktop.Scale, .Y + .H / 2)
+    Design.Command("=V" & sVar & "\t" & .Text & " = " & .[1])
+    'Design.Command("&V" & sVar & "\t" & .Text)
+    
+  End With
+  
+End
+
+Public Sub btnVcCommit_Click()
+
+  If Project.Compile() Then Return
+  FVersionControl.Run
+
+End
+
+Public Sub btnVcUpdate_Click()
+
+  If Message.Question(("Do you really want to synchronize the repository?"), ("Synchronize"), ("Cancel")) = 2 Then Return
+  VersionControl.Update
+
+End
+
+Public Sub btnVcRevert_Click()
+
+  VersionControl.Revert
+
+End
+
+Public Sub btnVcAddAll_Click()
+
+  FMain.mnuAddVersionAll_Click()
+
+End
+
+Private Sub UpdateWatchButtons()
+
+  btnAddWatch.Enabled = cmbWatch.Length > 0
+  btnKillWatch.Enabled = cvwDebug.Key Like "@?*"
+  btnAddTrack.Enabled = btnAddWatch.Enabled Or btnKillWatch.Enabled
+  btnKillAllWatch.Enabled = cvwDebug.Exist("@")
+
+End
+
+Public Sub cvwDebug_Select()
+
+  UpdateWatchButtons
+  
+End 
+
+Public Sub cvwDebug_Click()
+
+  If cvwDebug.Item.Children Then
+    cvwDebug.Item.Selected = False
+    cvwDebug.Item.Expanded = Not cvwDebug.Item.Expanded
+  Endif
+
+End
+
+Private Sub AddTrack(sExpr As String)
+
+  If $cTrack.Exist("@" & sExpr) Then Return
+  
+  Inc $iTrackId
+  $cTrack[$iTrackId] = sExpr
+  $cTrack["@" & sExpr] = $iTrackId
+  
+  Design.Command("w" & CStr($iTrackId) & "\t" & sExpr)
+
+End
+
+Private Sub RemoveTrack(sExpr As String)
+  
+  Dim iId As Integer
+  
+  sExpr = "@" & sExpr
+  If Not $cTrack.Exist(sExpr) Then Return
+  
+  iId = $cTrack[sExpr]
+  Design.Command("w" & CStr(iId))
+  $cTrack.Remove(iId)
+  $cTrack.Remove(sExpr)
+  
+End
+
+Public Sub btnAddTrack_Click()
+
+  Dim sExpr As String
+  Dim sKey As String
+
+  sExpr = GetWatchExpression()
+  If sExpr Then Goto ADD_WATCH
+  
+  sKey = cvwDebug.Key
+  If sKey Begins "@" Then 
+    sExpr = Mid$(sKey, 2)
+    If Not sExpr Then Return
+    If $cTrack.Exist(sKey) Then
+      Goto REMOVE_WATCH
+    Else
+      Goto ADD_WATCH
+    Endif
+  Endif
+  Return
+  
+ADD_WATCH:
+  
+  btnAddWatch_Click
+  AddTrack(sExpr)
+  UpdateWatch(sExpr)
+  Return
+  
+REMOVE_WATCH:
+
+  RemoveTrack(sExpr)
+  UpdateWatch(sExpr)
+  Return
+  
+End
+
+Public Sub btnKillAllWatch_Click()
+
+  If Message.Question(("Do you want to clear the expression list ?"), ("Clear"), ("Cancel")) = 2 Then Return
+  
+  cvwDebug.Remove("@")
+  For Each $cTrack
+    If $cTrack.Key Begins "@" Then Continue
+    Design.Command("w" & $cTrack.Key)
+  Next
+  UpdateWatchButtons
+
+End
+
+Public Sub IsWatch(sExpr As String) As Boolean
+  
+  Return $cTrack.Exist(sExpr)
+  
+End
+
+Public Sub GetWatches() As String[]
+
+  Dim aCmd As New String[]
+  Dim sExpr As String
+  
+  If cvwDebug.MoveTo("@") Then Return aCmd
+  If cvwDebug.MoveChild() Then Return aCmd
+  
+  Repeat
+    sExpr = cvwDebug.Item.Text
+    aCmd.Add("?W" & sExpr & "\t" & sExpr)
+    If $cTrack.Exist("@" & sExpr) Then aCmd.Add("w" & $cTrack["@" & sExpr] & "\t" & sExpr)
+  Until cvwDebug.MoveNext()
+  
+  Return aCmd
+  
+End
+
+Public Sub cmbWatch_Change()
+
+  If cmbWatch.Length = 0 Then
+    cmbWatch.Font = lvwStack.Font
+    $bWatchFont = False
+    'cmbWatch.Font.Italic = True
+  Else If Not $bWatchFont Then
+    $bWatchFont = True
+    Project.SetConsoleFont(cmbWatch)
+    cmbWatch.Font.Grade = -2
+  Endif
+  
+  UpdateWatchButtons
+
+End
+
+Public Sub btnVcChanges_Click()
+
+  FFileInfoVC.Run(Project.Dir)
+
+End
+
+
+Public Sub cvwDebug_Expand()
+
+  RefreshVariable
+
+End
+
+Public Sub lvwBreakpoint_Click()
+
+  Design.Goto(lvwBreakpoint.Key)
+
+End
+
+Public Sub btnRemoveBreakpoint_Click()
+
+  Dim hForm As FEditor
+  
+  If lvwBreakpoint.Key Then
+    
+    hForm = Design.Goto(lvwBreakpoint.Key)
+    If hForm Then hForm.ToggleBreakpoint(hForm.GetEditor().Line)
+    
+  Endif
+
+End
+
+Public Sub RemoveAllBreakpoints()
+
+  If Message.Delete(("Do you really want to remove all breakpoints?"), ("Remove"), ("Cancel")) <> 1 Then Return
+
+  Design.ClearBreakpoints()
+
+End
+
+Public Sub btnRemoveAllBreakpoints_Click()
+  
+  RemoveAllBreakpoints
+  
+End
+
+Public Sub spnIgnoreExtern_Change()
+
+  Design.SetExternIgnore(spnIgnoreExtern.Value)
+
+End
+
+Public Sub SetExternIgnore(iNum As Integer)
+  
+  Object.Lock(spnIgnoreExtern)
+  spnIgnoreExtern.Value = iNum
+  Object.Unlock(spnIgnoreExtern)
+  
+End
+
+Private Sub UpdateError()
+
+  If Not panError.Visible Then Return
+  lblError.Adjust
+  panError.H = lblError.H + panError.Padding * 2 + 1
+
+End
+
+Public Sub Form_Arrange()
+
+  UpdateError
+
+End
+
+Public Sub ShowError(sMsg As String)
+
+  panError.Show
+  lblError.Text = sMsg
+  UpdateError
+
+  ' If Not Me.Visible Then
+  '   sMsg = Replace(sMsg, "\n", "<br>")
+  '   Message.Error(sMsg)
+  ' Else
+  '   FDebugButton.SelectButton(TAB_DEBUG)
+  ' Endif
+  
+End
+
+Public Sub Form_Open()
+
+  Settings.Read(splDebug)
+
+End
+
+Public Sub Form_Close()
+  
+  Settings.Write(splDebug)
+  
+End
+
+Public Sub lblError_MouseDown()
+
+  Dim sLoc As String
+
+  Try sLoc = lvwStack["0"].Tag  
+  If Not sLoc Or If InStr(sLoc, "(") Then Return
+  Design.Goto(sLoc)
+
+End
+
+Public Sub btnShowProject_Click()
+
+  FMain.ShowTree
+
+End
+
+Public Sub btnCloseTree_Click()
+
+  FMain.btnCloseTree_Click
+
+End

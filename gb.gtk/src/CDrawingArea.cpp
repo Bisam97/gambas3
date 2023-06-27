@@ -28,6 +28,7 @@
 #include "main.h"
 #include "gambas.h"
 #include "widgets.h"
+#include "gapplication.h"
 #include "CDraw.h"
 #include "cpaint_impl.h"
 #include "CDrawingArea.h"
@@ -45,56 +46,83 @@ DECLARE_EVENT(EVENT_Change);
 
 ***************************************************************************/
 
-void CDRAWINGAREA_send_change_event(void)
+static bool cb_change_filter(gControl *control)
 {
-	GList *iter = g_list_first(gControl::controlList());
-	gControl *control;
-
-	while (iter)
-	{
-		control = (gControl *)iter->data;
-		if (control->getClass() == Type_gDrawingArea)
-			GB.Raise(control->hFree, EVENT_Change, 0);
-		iter = g_list_next(iter);
-	}
+	return control->isDrawingArea();
 }
 
-static void cleanup_drawing(intptr_t _unused)
+static void cb_change(gControl *control)
 {
-	PAINT_end();
+	GB.Raise(control->hFree, EVENT_Change, 0);
+}
+
+void CDRAWINGAREA_send_change_event(void)
+{
+	gApplication::forEachControl(cb_change, cb_change_filter);
 }
 
 #ifdef GTK3
-static void cb_expose(gDrawingArea *sender, cairo_t *cr)
+
+typedef
+	struct {
+		CDRAWINGAREA *control;
+		cairo_t *save;
+	}
+	HANDLER_INFO;
+
+static void cleanup_drawing(HANDLER_INFO *info)
+{
+	PAINT_end();
+	info->control->context = info->save;
+}
+
+void CB_drawingarea_expose(gDrawingArea *sender, cairo_t *cr)
 {
 	CWIDGET *_object = GetObject(sender);
 	GB_RAISE_HANDLER handler;
-	cairo_t *save;
+	HANDLER_INFO info;
+	int fw;
 
 	if (GB.CanRaise(THIS, EVENT_Draw))
 	{
-		handler.callback = cleanup_drawing;
-		handler.data = (intptr_t)0;
+		handler.callback = (void (*)(intptr_t))cleanup_drawing;
+		handler.data = (intptr_t)&info;
 
+		info.control = THIS;
+		info.save = THIS->context;
+		
 		GB.RaiseBegin(&handler);
 
-		save = THIS->context;
 		THIS->context = cr;
 		PAINT_begin(THIS);
 
+		fw = sender->getFrameWidth();
+		cairo_save(cr);
+		//cairo_reset_clip(cr);
+		PAINT_clip(fw, fw, sender->width() - fw * 2, sender->height() - fw * 2);
+		
 		GB.Raise(THIS, EVENT_Draw, 0);
+		
+		cairo_restore(cr);
 
 		PAINT_end();
-		THIS->context = save;
+		THIS->context = info.save;
 
 		GB.RaiseEnd(&handler);
 	}
 }
 #else
-static void cb_expose(gDrawingArea *sender, GdkRegion *region, int dx, int dy)
+static void cleanup_drawing(intptr_t _unused)
+{
+	PAINT_end();
+}
+
+void CB_drawingarea_expose(gDrawingArea *sender, GdkRegion *region, int dx, int dy)
 {
 	CWIDGET *_object = GetObject(sender);
 	GB_RAISE_HANDLER handler;
+	cairo_t *cr;
+	int fw;
 
 	if (GB.CanRaise(THIS, EVENT_Draw))
 	{
@@ -104,12 +132,14 @@ static void cb_expose(gDrawingArea *sender, GdkRegion *region, int dx, int dy)
 		GB.RaiseBegin(&handler);
 
 		PAINT_begin(THIS);
-		gdk_region_offset(region, -dx, -dy);
-		PAINT_clip_region(region);
-		gdk_region_offset(region, dx, dy);
+		cr = PAINT_get_current_context();
+		fw = sender->getFrameWidth();
+		cairo_save(cr);
+		PAINT_clip(fw, fw, sender->width() - fw * 2, sender->height() - fw * 2);
 
 		GB.Raise(THIS, EVENT_Draw, 0);
 
+		cairo_restore(cr);
 		PAINT_end();
 
 		GB.RaiseEnd(&handler);
@@ -117,7 +147,7 @@ static void cb_expose(gDrawingArea *sender, GdkRegion *region, int dx, int dy)
 }
 #endif
 
-static void cb_font_change(gDrawingArea *sender)
+void CB_drawingarea_font(gDrawingArea *sender)
 {
 	CWIDGET *_object = GetObject(sender);
 	GB.Raise(THIS, EVENT_Font, 0);
@@ -127,8 +157,6 @@ static void cb_font_change(gDrawingArea *sender)
 BEGIN_METHOD(CDRAWINGAREA_new, GB_OBJECT parent)
 
 	InitControl(new gDrawingArea(CONTAINER(VARG(parent))), (CWIDGET*)THIS);
-	WIDGET->onExpose = cb_expose;
-	WIDGET->onFontChange = cb_font_change;
 
 END_METHOD
 
@@ -225,13 +253,7 @@ GB_DESC CDrawingAreaDesc[] =
 
 	GB_METHOD("_new", 0, CDRAWINGAREA_new, "(Parent)Container;"),
 
-	GB_PROPERTY("Arrangement", "i", Container_Arrangement),
-	GB_PROPERTY("AutoResize", "b", Container_AutoResize),
-	GB_PROPERTY("Padding", "i", Container_Padding),
-	GB_PROPERTY("Spacing", "b", Container_Spacing),
-	GB_PROPERTY("Margin", "b", Container_Margin),
-	GB_PROPERTY("Indent", "b", Container_Indent),
-  GB_PROPERTY("Invert", "b", Container_Invert),
+	ARRANGEMENT_PROPERTIES,
 
 	GB_PROPERTY("Cached", "b", DrawingArea_Cached),
 	GB_PROPERTY("Border", "i", DrawingArea_Border),

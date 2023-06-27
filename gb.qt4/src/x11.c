@@ -2,7 +2,7 @@
 
   x11.c
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -32,18 +32,8 @@
 
 #include "x11.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 extern const GB_INTERFACE *GB_PTR;
 #define GB (*GB_PTR)
-
-#ifdef __cplusplus
-}
-
-#endif
-
 
 #define MAX_WINDOW_PROP 16
 
@@ -198,8 +188,8 @@ void X11_flush()
 char *X11_get_property(Window wid, Atom prop, Atom *type, int *format, int *pcount)
 {
 	uchar *data;
-  unsigned long count;
-  unsigned long after;
+	unsigned long count;
+	unsigned long after;
 	unsigned long offset;
 	int size, offset_size;
 
@@ -217,7 +207,8 @@ char *X11_get_property(Window wid, Atom prop, Atom *type, int *format, int *pcou
 
 	//fprintf(stderr, "X11_get_property: format = %d size = %d count = %ld after = %ld\n", *format, size, count, after);
 
-	GB.FreeString(&_property_value);
+	if (_property_value)
+		GB.FreeString(&_property_value);
 	_property_value = GB.NewString((char *)data, count * size);
 	XFree(data);
 

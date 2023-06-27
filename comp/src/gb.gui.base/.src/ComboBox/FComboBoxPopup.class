@@ -1,0 +1,134 @@
+' Gambas class file
+
+Private Const MAX_ITEMS As Integer = 10
+Private $aList As String[]
+Private $sFind As String
+Private $hCombo As ComboBox
+
+Public Sub Open(aList As String[], iIndex As Integer, hCtrl As ComboBox) As Integer
+  
+  Dim iRow As Integer
+  Dim WM As Integer
+  Dim X, Y, W, H As Integer
+  Dim hScreen As Screen
+  
+  hScreen = Screens[hCtrl.Window.Screen]
+  
+  $aList = aList
+  
+  Me.Arrangement = Arrange.None
+  
+  gvwPopup.Rows.Count = aList.Count
+  gvwPopup.Columns.Count = 1
+  'gvwPopup.Columns[0].Expand = True
+  gvwPopup.Columns[0].W = -1
+  
+  W = hCtrl.W - Style.FrameWidth * 2
+  X = hCtrl.ScreenX + Style.FrameWidth
+  
+  WM = gvwPopup.Columns[0].W + 2
+  If $aList.Count > MAX_ITEMS Then WM += Style.ScrollbarSize
+  
+  W = Max(W, WM) + 2
+  H = (gvwPopup.Font.TextHeight(" ") + 6) * Min(MAX_ITEMS, $aList.Count) + 2
+  
+  Me.Arrangement = Arrange.Fill
+  
+  W = Min(W, hScreen.AvailableWidth)
+  
+  Me.Resize(W, H)
+  
+  If hCtrl.ScreenY + hCtrl.H + H > hScreen.AvailableHeight Then 
+    Y = hCtrl.ScreenY - H
+  Else 
+    Y = hCtrl.ScreenY + hCtrl.H
+  Endif
+  
+  If X + W > hScreen.AvailableX + hScreen.AvailableWidth Then X = hScreen.AvailableX + hScreen.AvailableWidth - W
+  If X < hScreen.AvailableX Then X = hScreen.AvailableX
+  
+  Try gvwPopup.Row = iIndex
+  
+  $hCombo = hCtrl
+  iRow = Me.ShowPopup(X, Y) - 1
+  $hCombo = Null
+  
+  $aList = Null
+  
+  Return iRow
+  
+End
+
+Public Sub gvwPopup_Data(Row As Integer, (Column) As Integer)
+
+  gvwPopup.Data.Text = $aList[Row]
+
+End
+
+Public Sub gvwPopup_MouseMove()
+
+  Dim iRow As Integer
+
+  If Mouse.X < 0 Or If Mouse.X >= gvwPopup.ClientW Then Return
+  
+  iRow = gvwPopup.RowAt(Mouse.Y)
+  If iRow >= 0 Then 
+    gvwPopup.Rows[iRow].EnsureVisible
+    gvwPopup.Row = iRow
+  Endif
+
+End
+
+' Public Sub gvwPopup_MouseWheel()
+'   
+'   gvwPopup_MouseMove
+'   
+' End
+
+Public Sub gvwPopup_MouseUp()
+  
+  Me.Close(gvwPopup.Row + 1)
+  
+End
+
+Public Sub Form_Activate()
+
+  gvwPopup.SetFocus
+
+End
+
+Private Sub FindItem()
+
+  Dim I As Integer
+  Dim sFind As String
+
+  If Not $sFind Then Return
+  sFind = String.LCase($sFind)
+
+  For I = 0 To $aList.Max
+    If String.LCase($aList[I]) Begins sFind Then
+      gvwPopup.Rows[I].EnsureVisible
+      gvwPopup.Row = I
+      Break
+    Endif
+  Next
+  
+End
+
+Public Sub Form_KeyPress()
+
+  If Key.Code = Key.Return Or If Key.Code = Key.Enter Then
+    Me.Close(gvwPopup.Row + 1)
+  Else If Key.Code = Key.Escape Then
+    Me.Close
+  Else If Key.Code = Key.Backspace Then
+    If $sFind Then
+      $sFind = String.Left($sFind, -1)
+      FindItem
+    Endif
+  Else If Key.Text Then
+    $sFind &= Key.Text
+    FindItem
+  Endif
+
+End

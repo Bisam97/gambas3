@@ -3,6 +3,8 @@
 Inherits TextHighlighter
 
 Public Const Name As String = "c"
+Public Const FullName As String = "C"
+Public Const _Styles As String = "Operator,Preprocessor,Normal,Comment,Documentation,String,Number,Datatype,Symbol,Error,Escape"
 
 Private Const IDENT_CAR As String = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_$"
 Private Const DIGIT_CAR As String = "0123456789.+-eE"
@@ -49,8 +51,8 @@ End
 
 Public Sub RunWith(sText As String, cKeyword As Collection, cOperator As Collection, cType As Collection)
   
-  Dim iState As Integer
-  Dim iTag As Integer
+  Dim iState As Short
+  Dim iTag As Short
   Dim iLenText As Integer
   Dim iPos, iSavePos As Integer
   Dim sCar As String
@@ -64,44 +66,44 @@ Public Sub RunWith(sText As String, cKeyword As Collection, cOperator As Collect
   iTag = TextHighlighter.Tag
   iLenText = String.Len(sText)
   bLastExpr = True
-  If iState = Highlight.Operator Then bLastExpr = False
+  If iState = State.Operator Then bLastExpr = False
   
-  If Left(LTrim(sText)) = "#" Or If iState = Highlight.Preprocessor Then
+  If Left(LTrim(sText)) = "#" Or If iState = State.Preprocessor Then
     
-    TextHighlighter.Add(Highlight.Preprocessor, iLenText)
+    TextHighlighter.Add(State.Preprocessor, iLenText)
     
     If Right(RTrim(sText)) = "\\" Then 
-      iState = Highlight.Preprocessor
+      iState = State.Preprocessor
     Else
-      iState = Highlight.Normal
+      iState = State.Normal
     Endif
     
   Else
   
     For iPos = 1 To iLenText
     
-      If iState = Highlight.Normal Then
+      If iState = State.Normal Then
       
         sCar = String.Mid$(sText, iPos, 1)
         If sCar = "/" Then
           sCar = String.Mid$(sText, iPos + 1, 1)
           If sCar = "/" Then
-            iState = Highlight.Comment
+            iState = State.Comment
             bSingleLineComment = True
           Else If sCar = "*" Then
             sCar = String.Mid$(sText, iPos + 2, 1)
             If sCar = "*" Then
-              iState = Highlight.Help
+              iState = State.Documentation
             Else
-              iState = Highlight.Comment
+              iState = State.Comment
             Endif
             bSingleLineComment = False
           Endif
         Else If sCar = "\"" Then
-          iState = Highlight.String
+          iState = State.String
           bSingleQuoteString = False
         Else If sCar = "'" Then
-          iState = Highlight.String
+          iState = State.String
           bSingleQuoteString = True
         Else If Asc(sCar) <= 32 Then 
         
@@ -133,8 +135,8 @@ Public Sub RunWith(sText As String, cKeyword As Collection, cOperator As Collect
             Wend
           Endif
         
-          TextHighlighter.Add(Highlight.Number, String.Len(sIdent))
-          iState = Highlight.Normal
+          TextHighlighter.Add(State.Number, String.Len(sIdent))
+          iState = State.Normal
           bLastExpr = True
           Continue
           
@@ -154,14 +156,14 @@ Public Sub RunWith(sText As String, cKeyword As Collection, cOperator As Collect
           Wend
           
           If cKeyword.Exist(sIdent) Then
-            iState = Highlight.Keyword
+            iState = State.Keyword
             If cKeyword[sIdent] = 1 Then bLastExpr = True
           Else If cType.Exist(sIdent) Then
-            iState = Highlight.Datatype
+            iState = State.Datatype
             bLastExpr = True
             If iPosType = 0 Then iPosType = iSavePos
           Else
-            iState = Highlight.Symbol
+            iState = State.Symbol
             If iPosAfterIdent = 0 Then 
               iPosIdent = iSavePos
               iPosAfterIdent = iSavePos + String.Len(sIdent)
@@ -170,7 +172,7 @@ Public Sub RunWith(sText As String, cKeyword As Collection, cOperator As Collect
           Endif
           
           TextHighlighter.Add(iState, String.Len(sIdent))
-          iState = Highlight.Normal
+          iState = State.Normal
           Continue
         
         Else
@@ -189,13 +191,13 @@ Public Sub RunWith(sText As String, cKeyword As Collection, cOperator As Collect
           Wend
           
           If cOperator.Exist(sIdent) Then
-            iState = Highlight.Operator
+            iState = State.Operator
           Else
-            iState = Highlight.Error
+            iState = State.Error
           Endif
           
           TextHighlighter.Add(iState, String.Len(sIdent))
-          iState = Highlight.Normal
+          iState = State.Normal
           bLastExpr = False
           
           'Dec iPos
@@ -203,25 +205,25 @@ Public Sub RunWith(sText As String, cKeyword As Collection, cOperator As Collect
         
         Endif
         
-      Else If iState = Highlight.Comment Or If iState = Highlight.Help Then
+      Else If iState = State.Comment Or If iState = State.Documentation Then
       
         If Not bSingleLineComment Then
           sCar = String.Mid$(sText, iPos, 2)
           If sCar = "*/" Then
             TextHighlighter.Add(iState, 2)
             Inc iPos
-            iState = Highlight.Normal
+            iState = State.Normal
             Continue
           Endif
         Endif
         
-      Else If iState = Highlight.String Then
+      Else If iState = State.String Then
       
         sCar = String.Mid$(sText, iPos, 1)
         If sCar = "\\" Then
           sCar = String.Mid$(sText, iPos + 1, 1)
           If sCar = "x" Then
-            TextHighlighter.Add(iState, 3)
+            TextHighlighter.Add(State.Escape, 3)
             iPos += 2
             Continue
           Else If sCar = "u" Then
@@ -235,12 +237,12 @@ Public Sub RunWith(sText As String, cKeyword As Collection, cOperator As Collect
           Endif
         Else If sCar = "\"" And If Not bSingleQuoteString Then
           TextHighlighter.Add(iState)
-          iState = Highlight.Normal
+          iState = State.Normal
           bLastExpr = True
           Continue
         Else If sCar = "'" And If bSingleQuoteString Then
           TextHighlighter.Add(iState)
-          iState = Highlight.Normal
+          iState = State.Normal
           bLastExpr = True
           Continue
         Endif
@@ -251,12 +253,12 @@ Public Sub RunWith(sText As String, cKeyword As Collection, cOperator As Collect
       
     Next
   
-    If iState = Highlight.Comment And If bSingleLineComment Then
-      iState = Highlight.Normal
+    If iState = State.Comment And If bSingleLineComment Then
+      iState = State.Normal
     Endif
     
-    If iState <> Highlight.Comment And If iState <> Highlight.Help Then
-      iState = Highlight.Normal
+    If iState <> State.Comment And If iState <> State.Documentation Then
+      iState = State.Normal
     Endif
     
   Endif

@@ -1,0 +1,398 @@
+' Gambas class file
+
+Export 
+
+Inherits UserControl
+
+Public Const _Properties As String = "*,Border,Menu"
+Public Const _DefaultEvent As String = "Activate"
+Public Const _DefaultSize As String = "36,36"
+Public Const _Group As String = "Chooser"
+
+Property Environment As String[]
+Property Read Current As Integer
+Property Menu As String
+Property Border As Boolean
+
+Event Activate
+Event Change
+
+Private tvwEnv As TableView
+Private panEnv As Panel
+
+Private $aEnv As String[]
+Private $hFont As Font
+  
+Private {HBox3} As HBox
+Private {btnInsertEnv} As MenuButton
+Private {btnRemoveEnv} As ToolButton
+Private {btnMoveUpEnv} As ToolButton
+Private {btnMoveDownEnv} As ToolButton
+
+Public Sub _new()
+
+  Dim sepEnv As Separator
+  
+  panEnv = New Panel(Me)
+  panEnv.Arrangement = Arrange.Vertical
+  
+  tvwEnv = New TableView(panEnv) As "tvwEnv"
+  tvwEnv.Expand = True
+  tvwEnv.Grid = True
+  tvwEnv.Border = False
+  tvwEnv.Header = GridView.Horizontal
+  tvwEnv.Mode = Select.Single
+  
+  sepEnv = New Separator(panEnv)
+  sepEnv.H = 1
+
+  {HBox3} = New HBox(panEnv) As "HBox3"
+  With {HBox3}
+    .Background = Color.TextBackground
+    .H = Desktop.Scale * 4
+  
+    {btnInsertEnv} = New MenuButton({HBox3}) As "btnInsertEnv"
+    With {btnInsertEnv}
+      .AutoResize = True
+      .Text = ("&Add")
+      .Picture = Picture["icon:/small/add"]
+      .Border = False
+      .Arrow = False
+    End With
+  
+    {btnRemoveEnv} = New ToolButton({HBox3}) As "btnRemoveEnv"
+    With {btnRemoveEnv}
+      .Enabled = False
+      .AutoResize = True
+      .Text = Shortcut(("Remove"), "R")
+      .Picture = Picture["icon:/small/remove"]
+    End With
+  
+    {btnMoveUpEnv} = New ToolButton({HBox3}) As "btnMoveUpEnv"
+    With {btnMoveUpEnv}
+      .W = Desktop.Scale * 4
+      .Enabled = False
+      .Picture = Picture["icon:/small/up"]
+    End With
+  
+    {btnMoveDownEnv} = New ToolButton({HBox3}) As "btnMoveDownEnv"
+    With {btnMoveDownEnv}
+      .W = Desktop.Scale * 4
+      .Enabled = False
+      .Picture = Picture["icon:/small/down"]
+    End With
+  End With
+
+  tvwEnv.AddColumn("")
+  tvwEnv.AddColumn(("Variable"), Desktop.Scale * 16)
+  tvwEnv.AddColumn(("Value"))
+
+  tvwEnv.Rows.Resizable = False
+  
+  $hFont = Project.GetEditorFont()
+  
+End
+
+Private Sub IsEnvDisabled(Row As Integer) As Boolean
+
+  Return $aEnv[Row] Begins " "
+
+End
+
+Public Sub tvwEnv_Click()
+
+  Dim iRow As Integer
+  
+  If tvwEnv.Column Then
+    tvwEnv.Edit
+  Else
+    Try iRow = Key.Code
+    If Not Error Then
+      Stop Event
+      Return
+    Endif
+    iRow = tvwEnv.Row
+    If IsEnvDisabled(iRow) Then
+      $aEnv[iRow] = Mid$($aEnv[iRow], 2)
+    Else
+      $aEnv[iRow] = " " & $aEnv[iRow]
+    Endif
+    tvwEnv[iRow, 0].Refresh
+  Endif
+
+End
+
+Public Sub tvwEnv_Data(Row As Integer, Column As Integer)
+
+  Dim sEnv As String = $aEnv[Row]
+  Dim aEnv As String[] 
+  
+  If Column = 0 Then Return
+  
+  If sEnv Begins " " Then
+    tvwEnv.Data.Foreground = Color.LightForeground
+    sEnv = Mid$(sEnv, 2)
+  Endif
+  
+  aEnv = Scan(sEnv, "*=*")
+  Try tvwEnv.Data.Text = aEnv[Column - 1]
+  tvwEnv.Data.Font = $hFont
+  
+End
+
+Public Sub tvwEnv_Draw(X As Integer, Y As Integer, Width As Integer, Height As Integer, Row As Integer, Column As Integer)
+
+  If Column Then Return
+  
+  X += (Width - 16) \ 2
+  Y += (Height - 16) \ 2
+  'Y += (gvwComponent.Rows.Height - gvwComponent.Padding * 2 - 16) \ 2
+  Width = 16
+  Height = 16
+  
+  Style.PaintBox(X - 2, Y - 2, Width + 4, Height + 4)
+  
+  If Not IsEnvDisabled(Row) Then
+    Paint.DrawPicture(Picture["img/16/checked.png"], X, Y)
+  Endif
+
+End
+
+Public Sub tvwEnv_Hide()
+
+  UpdateEnv
+
+End
+
+Private Sub UpdateEnv()
+
+  tvwEnv.Rows.Count = $aEnv.Count
+  tvwEnv.Columns[0].Width = Desktop.Scale * 4
+  tvwEnv.Columns[0].Resizable = False
+  tvwEnv.Columns[1].Width = -1
+  tvwEnv.Refresh
+
+End
+
+Public Sub tvwEnv_Insert()
+  
+  If Key.Normal Then
+    Raise Activate
+  Else If Key.Control Then 
+    Insert
+  Endif
+  
+End
+
+Public Sub tvwEnv_Save(Row As Integer, Column As Integer, Value As String)
+
+  Dim sEnv As String = $aEnv[Row]
+  Dim aEnv As String[]
+  Dim bDisabled As Boolean
+  
+  If Column = 0 Then Return
+
+  If sEnv Begins " " Then
+    bDisabled = True
+    sEnv = Mid$(sEnv, 2)
+  Endif
+    
+  aEnv = Scan(sEnv, "*=*")
+  
+  If Column = 1 Then 
+    sEnv = Trim(Value) & "=" & aEnv[1]
+  Else 
+    sEnv = aEnv[0] & "=" & Value
+  Endif
+  
+  If bDisabled Then sEnv = " " & sEnv
+  
+  $aEnv[Row] = sEnv
+  
+  If Column = 1 Then tvwEnv.Columns[1].Width = -1
+  
+End
+
+Public Sub tvwEnv_Select()
+
+  btnRemoveEnv.Enabled = tvwEnv.Row >= 0
+  btnMoveDownEnv.Enabled = btnRemoveEnv.Enabled
+  btnMoveUpEnv.Enabled = btnRemoveEnv.Enabled
+
+End
+
+
+Private Function Current_Read() As Integer
+
+  Return tvwEnv.Row
+
+End
+
+Public Sub Insert(Optional aEnv As String[])
+
+  Dim sNewEnv As String
+  Dim aNewEnv As String[]
+  Dim iInd As Integer
+  
+  If Not aEnv Then
+
+    If $aEnv.Count >= 255 Then Return
+    $aEnv.Add("=")
+    UpdateEnv
+    tvwEnv.MoveTo($aEnv.Max, 1)
+    tvwEnv.Columns[1].Width = Max(tvwEnv.Columns[1].Width, Desktop.Scale * 24)
+    tvwEnv.Edit
+    
+  Else 
+    
+    For Each sNewEnv In aEnv
+    
+      aNewEnv = Scan(sNewEnv, "*=*")
+      For iInd = 0 To $aEnv.Max
+        aEnv = Scan($aEnv[iInd], "*=*")
+        If aEnv[0] = aNewEnv[0] Then
+          aEnv[1] = aNewEnv[1]
+          $aEnv[iInd] = aEnv[0] & "=" & aEnv[1]
+          tvwEnv.Refresh
+          sNewEnv = ""
+          Break
+        Endif
+      Next
+    
+      If sNewEnv Then
+        $aEnv.Add(sNewEnv)
+        UpdateEnv
+      Endif
+      
+    Next
+  
+  Endif
+  
+  Raise Change
+
+End
+
+Private Sub RemoveCurrent()
+  
+  If $aEnv.Count = 0 Then Return
+  If tvwEnv.Row < 0 Then Return
+  tvwEnv.Save
+  $aEnv.Remove(tvwEnv.Row)
+  UpdateEnv
+  Raise Change
+  
+End
+
+Private Sub MoveUpCurrent()
+
+  Dim iRow As Integer
+
+  iRow = tvwEnv.Row
+  If iRow < 1 Then Return
+  
+  tvwEnv.Save()
+  Swap $aEnv[iRow], $aEnv[iRow - 1]
+  tvwEnv.Refresh
+  tvwEnv.MoveTo(iRow - 1, tvwEnv.Column)
+  Raise Change
+
+End
+
+Private Sub MoveDownCurrent()
+
+  Dim iRow As Integer
+
+  iRow = tvwEnv.Row
+  If iRow < 0 Or If iRow >= $aEnv.Max Then Return
+  
+  tvwEnv.Save()
+  Swap $aEnv[iRow], $aEnv[iRow + 1]
+  tvwEnv.Refresh
+  tvwEnv.MoveTo(iRow + 1, tvwEnv.Column)
+  Raise Change
+
+End
+
+
+Private Function Environment_Read() As String[]
+
+  Dim iInd As Integer
+  Dim aEnv As String[]
+  
+  tvwEnv.Save
+  
+  aEnv = $aEnv.Copy()
+  
+  While iInd < aEnv.Count
+    If Not Trim(Scan(aEnv[iInd], "*=*")[0]) Then 
+      aEnv.Remove(iInd)
+    Else 
+      Inc iInd
+    Endif
+  Wend
+
+  Return aEnv
+
+End
+
+Private Sub Environment_Write(Value As String[])
+
+  If Not Value Then 
+    $aEnv = New String[]
+  Else
+    $aEnv = Value.Copy()
+  Endif
+  
+  UpdateEnv
+  Raise Change
+
+End
+
+Private Function Menu_Read() As String
+
+  Return btnInsertEnv.Menu
+
+End
+
+Private Sub Menu_Write(Value As String)
+
+  btnInsertEnv.Menu = Value
+  btnInsertEnv.Arrow = Value
+
+End
+
+Public Sub btnRemoveEnv_Click()
+
+  RemoveCurrent()
+
+End
+
+Public Sub btnMoveUpEnv_Click()
+
+  MoveUpCurrent()
+
+End
+
+Public Sub btnMoveDownEnv_Click()
+
+  MoveDownCurrent()
+
+End
+
+Public Sub btnInsertEnv_Click()
+
+  Insert()
+
+End
+
+Private Function Border_Read() As Boolean
+
+  Return panEnv.Border
+
+End
+
+Private Sub Border_Write(Value As Boolean)
+
+  panEnv.Border = If(Value, Border.Plain, Border.None)
+
+End

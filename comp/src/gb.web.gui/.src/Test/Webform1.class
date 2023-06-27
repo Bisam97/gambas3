@@ -1,0 +1,390 @@
+' Gambas class file
+
+'Export
+
+Private $aFile As String[]
+Private $aStat As Stat[]
+Private $sDir As String
+
+Static Public Sub _init()
+  
+  Session.Timeout = 60
+  WebForm.Debug = True
+  
+End
+
+
+Public Sub _new()
+  
+  Dim sFile As String
+  Dim sParent As String
+  Dim hStat As Stat
+
+  WebTable1.AddColumn("Name")
+  WebTable1.AddColumn("Size", "8em", Align.Right)
+  WebTable1.AddColumn("Last modified", "12em", Align.Right)
+  WebTable1.AddColumn("Button")
+
+  WebTree1.Columns[0].Text = "File"
+  WebTree1.AddColumn("Date")
+  WebTree1.AddColumn("Size",, Align.Right)
+  WebTree1.AddColumn("Button")
+
+  For Each sFile In RDir("~/Images").Sort()
+    
+    hStat = Stat("~/Images" &/ sFile)
+    sParent = File.Dir(sFile)
+    With WebTree1.Add(sFile, File.Name(sFile), If(hStat.Type = gb.Directory, "icon:/medium/directory", "icon:/medium/file"), sParent)
+      .[1] = Format(hStat.LastModified, gb.GeneralDate)
+      .[2] = Format(hStat.Size, ",0")
+    End With
+    'If sParent Then WebTree1[sParent].Expanded = True
+    
+  Next
+  
+End
+
+
+Public Sub WebForm_Open()
+
+  ReloadTable
+
+  WebTimer1_Timer
+  
+  'WebTabPanel1.Index = 1
+  
+End
+
+Public Sub WebButton1_Click()
+
+  WebButton1.Text = "Message !"
+  Message(Message.Question("Happy new year!", "Yes", "No", "Cancel"))
+  WebLabel1.Text = "Happy new year!"
+  WebButton1.Text = "OK"
+  
+End
+
+Public Sub WebTimer1_Timer()
+
+  Try lblTime.Text = Format(Now, "hh:nn:ss")
+
+End
+
+Public Sub WebCheckBox1_Click()
+
+  WebTextBox1.Enabled = WebCheckBox1.Value
+  If WebTextBox1.Enabled Then WebTextBox1.SetFocus()
+
+End
+
+Public Sub WebTextBox1_Change()
+
+  WebLabel3.Text = WebTextBox1.Text
+
+End
+
+Public Sub WebButton2_Click()
+
+  Me.Close
+
+End
+
+Public Sub WebComboBox1_Click()
+
+  WebLabel1.Text = Last.Text
+
+End
+
+Public Sub WebButton3_Click()
+
+  Dim hForm As Webform2
+  Dim I As Integer
+
+  For I = 1 To 10
+    
+    hForm = New Webform2
+    hForm.Move(Rand(0, 800) & "px", Rand(100, 500) & "px")
+    hForm.Show
+    
+  Next
+
+End
+
+Private Sub ReloadTable()
+
+  $sDir = "/home/benoit"
+  $aFile = Dir($sDir).Sort(gb.Natural)
+  $aStat = New Stat[$aFile.Count]
+  WebTable1.Count = $aFile.Count
+
+End
+
+Public Sub WebTable1_Data(Row As Integer, Column As Integer, Data As WebTableData)
+
+  Dim hStat As Stat
+  
+  hStat = $aStat[Row]
+  If Not hStat Then
+    Try hStat = Stat($sDir &/ $aFile[Row])
+    If Not hStat Then Return
+    $aStat[Row] = hStat
+  Endif
+  
+  If hStat.Size < 1024 Then Data.Background = Color.Yellow
+
+  Select Case Column
+    Case 0
+      Data.Text = $aFile[Row]
+    Case 1
+      Data.Text = File.FormatSize(hStat.Size, True)
+    Case 2
+      Data.Text = Format(hStat.LastModified, "dd/mm/yyyy hh:nn:ss")
+    Case 3
+      Data.Control = btnTable
+  End Select
+  
+Catch
+  
+  Data.Text = Error.Where & ": " & Error.Text
+
+End
+
+Public Sub WebButton4_Click()
+
+  Message("Click")
+  ReloadTable
+
+End
+
+Public Sub WebButton5_Click()
+
+  Message(WebTextBox1.Text)
+
+End
+
+Public Sub WebButton6_Click()
+
+  WebTabPanel1.Remove(1)
+
+End
+
+Public Sub WebButton4_Menu()
+
+  WebMenu1.Popup(WebButton4)
+
+End
+
+Public Sub WebMenu3_Click()
+
+  Message("Open !")
+
+End
+
+Public Sub WebMenu16_Click()
+
+  Message(Last.Name)
+
+End
+
+Public Sub WebFileButton1_Click()
+
+  'WebForm.Print(WebFileButton1.Path)
+  WebFileButton1.Upload()
+
+End
+
+Public Sub WebFileButton1_Progress()
+  
+  WebProgressBar1.Value = WebFileButton1.Progress
+  
+End
+
+Public Sub WebFileButton1_Finish()
+  
+  Message("Finish: " & WebFileButton1.Path)
+  
+End
+
+
+Public Sub WebFileButton1_Abort(Reason As String)
+
+  Message.Error("Unable to upload file.<br><br>" & Html(Reason))
+  WebProgressBar1.Value = 0
+
+End
+
+Public Sub WebButton7_Click()
+
+  WebFileButton1.Abort()
+
+End
+
+Public Sub WebListBox1_Activate()
+
+  Message(WebListBox1.Text)
+
+End
+
+Public Sub WebListBox1_Select()
+
+  Dim aSel As String[] = WebListBox1.Selection
+
+  WebTextArea1.Text = aSel.Join()
+
+End
+
+Public Sub WebButton8_Click()
+
+  WebTextBox1.SetFocus(True)
+
+End
+
+Public Sub WebButton9_Click()
+
+  Message("WebComboBox1.Index = " & WebComboBox1.Index)
+  WebComboBox1.Index = 0
+
+End
+
+Public Sub WebMenu8_Click()
+
+  Sleep 5
+  Message("Done !")
+
+End
+
+Public Sub WebButton10_Click()
+
+  WebAudio1.Play()
+
+End
+
+Public Sub WebSpinBox1_Change()
+
+  lblSpinBox.Text = "-> " & CStr(WebSpinBox1.Value)
+
+End
+
+Public Sub WebMenu17_Click()
+
+  Message(Last.Text)
+
+End
+
+Public Sub WebTree1_Data(Key As String, Column As Integer, Data As WebTreeData)
+
+  If Column = 2 And If Key Ends ".png" Then 
+    Data.Foreground = Color.Red
+    Data.Image = "icon:/small/image"
+  Endif
+  If Column = 3 Then
+    Data.Control = btnTable
+  Endif
+
+End
+
+Public Sub WebTable1_Click(Row As Integer, (Column) As Integer)
+
+  Message(Row)
+
+End
+
+Public Sub WebTree1_Click(Key As String, (Column) As Integer)
+
+  Message(Key)
+
+End
+
+Public Sub WebButton11_Click()
+
+  Dim sResult As String
+
+   sResult = FInputBox.Run("Prompt", "Title", WebTextBox1.Text)
+   If sResult Then WebTextBox1.Text = sResult
+
+End
+
+Public Sub btnCheck_Click()
+
+  WebTable1.ShowCheck = Not WebTable1.ShowCheck
+
+End
+
+Public Sub WebTree1_Expand()
+
+  lblTreeEvent.Text = "Expand: " & WebTree1.Item.Key
+
+End
+
+Public Sub WebTree1_Collapse()
+
+  lblTreeEvent.Text = "Collapse: " & WebTree1.Item.Key
+
+End
+
+Public Sub btnShowCheckTree_Click()
+
+  WebTree1.ShowCheck = Not WebTree1.ShowCheck
+
+End
+
+Public Sub WebTree1_KeyPress()
+
+  lblTreeEvent.Text = "KeyPress: " & Key.Shortcut
+
+End
+
+Public Sub WebTree1_Select()
+
+  lblTreeEvent.Text = "Select: " & WebTree1.Selection.Join()
+
+End
+
+Public Sub WebTabPanel1_Click()
+
+  If WebTabPanel1.Index = 3 Then WebTree1.SetFocus
+
+End
+
+Public Sub WebComboBox1_KeyPress()
+
+  WebForm.Print("WebComboBox1: keypress: " & Key.Shortcut)
+
+End
+
+Public Sub WebTree1_Activate()
+
+  lblTreeEvent.Text = "Activate: " & WebTree1.Item.Key
+
+End
+
+Public Sub WebTextArea1_KeyPress()
+
+  WebForm.Print("WebTextArea1: keypress: " & Key.Shortcut)
+
+End
+
+Public Sub btnCopy_Click()
+
+  WebTextArea1.Copy()
+
+End
+
+Public Sub btnMultiple_Click()
+
+  WebTree1.Mode = If(WebTree1.Mode = Select.Single, Select.Multiple, Select.Single)
+
+End
+
+Public Sub btnSelectFirst_Click()
+
+  WebTree1.MoveFirst()
+  WebTree1[WebTree1.Item.Key].Selected = True
+
+End
+
+Public Sub WebButton13_Click()
+
+  FTestDialog.ShowModal()
+
+End

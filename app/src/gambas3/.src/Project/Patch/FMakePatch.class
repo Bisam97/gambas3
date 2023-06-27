@@ -79,7 +79,7 @@ Public Sub wizMakePatch_Close()
 
 Catch
 
-  Message.Error(("Unable to generate the patch.") & "\n\n" & Error.Text)
+  FMain.ShowErrorWith(("Unable to generate the patch."))
 
 End
 
@@ -130,7 +130,7 @@ Public Sub wizMakePatch_Change()
     $hViewer.Clear()
     Try $hViewer.Parse(GetDiff())
     If Error Then
-      Message.Error(("Unable to generate the patch.") & "\n\n" & Error.Text)
+      FMain.ShowErrorWith(("Unable to generate the patch."))
     Endif
   Else If wizMakePatch.Index = 4 Then
     If chkMakeName.Value Then

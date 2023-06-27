@@ -2,7 +2,7 @@
 
   gb_pcode_temp.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -34,6 +34,8 @@
 #endif
 
 #include "gb_pcode.h"
+
+static int _code_count[256] = { 0 };
 
 /*#define DEBUG*/
 
@@ -90,6 +92,7 @@ short PCODE_dump(FILE *out, ushort addr, PCODE *code)
 		case C_JUMP: case C_JUMP_IF_TRUE: case C_JUMP_IF_FALSE: case C_GOSUB:
 		case C_NEXT: case C_JUMP_NEXT:
 		case C_TRY:
+		case C_JUMP_IF_TRUE_FAST: case C_JUMP_IF_FALSE_FAST:
 
 			ncode = 2;
 			break;
@@ -121,17 +124,17 @@ short PCODE_dump(FILE *out, ushort addr, PCODE *code)
 
 	fprintf(out, "%04d : ", addr);
 
-	for (j = 0; j < ncode; j++)
+	for (j = 0; j < 3; j++)
 	{
-		if (j > 2 && (j % 3) == 0)
-			fprintf(out, "\n     : ");
-		fprintf(out, " %04hX", code[j]);
+		if (j >= ncode)
+			fprintf(out, "     ");
+		else
+			fprintf(out, " %04hX", code[j]);
 	}
 
-	for (; j < ((ncode + 2) / 3 * 3); j++)
-		fprintf(out, "     ");
-
 	fprintf(out, "  ");
+
+	_code_count[op >> 8]++;
 
 	digit = (op >> 12);
 	value = op & 0xFFF;
@@ -139,11 +142,112 @@ short PCODE_dump(FILE *out, ushort addr, PCODE *code)
 
 	switch (digit)
 	{
-		#ifdef PROJECT_COMP
-
 		case 0xF:
-			fprintf(out, "PUSH QUICK %d", (short)value);
+			switch (op & 0xFF00)
+			{
+				case C_PUSH_LOCAL_NOREF:
+					fprintf(out, "PUSH LOCAL NOREF %d", (op & 0xFF));
+					break;
+
+				case C_PUSH_PARAM_NOREF:
+					fprintf(out, "PUSH PARAM NOREF %d", (char)(op & 0xFF));
+					break;
+
+				case C_PUSH_VARIABLE:
+					fprintf(out, "PUSH VARIABLE %d", (op & 0xFF));
+					break;
+
+				case C_POP_VARIABLE:
+					fprintf(out, "POP VARIABLE %d", (op & 0xFF));
+					break;
+
+				case C_PUSH_FLOAT:
+					fprintf(out, "PUSH FLOAT %d", (char)(op & 0xFF));
+					break;
+
+				case C_POKE:
+					fprintf(out, "POKE %d", (op & 0xFF));
+					break;
+
+				case C_POP_LOCAL_NOREF:
+					fprintf(out, "POP LOCAL NOREF %d", (op & 0xFF));
+					break;
+
+				case C_POP_PARAM_NOREF:
+					fprintf(out, "POP PARAM NOREF %d", (char)(op & 0xFF));
+					break;
+
+				case C_POP_LOCAL_FAST:
+					fprintf(out, "POP LOCAL FAST %d", (op & 0xFF));
+					break;
+
+				case C_POP_PARAM_FAST:
+					fprintf(out, "POP PARAM FAST %d", (char)(op & 0xFF));
+					break;
+
+				case C_JUMP_NEXT_INTEGER:
+					fprintf(out, "JUMP NEXT INTEGER %d", (op & 0xFF));
+					break;
+
+				case C_JUMP_IF_TRUE_FAST:
+				case C_JUMP_IF_FALSE_FAST:
+					value = code[1];
+					fprintf(out, "JUMP IF %s FAST %04d",
+						(digit == C_JUMP_IF_TRUE_FAST ? "TRUE" : "FALSE"),
+						(short)(addr + value + 2));
+					break;
+
+				default:
+					fprintf(out, "PUSH QUICK %d", (short)value);
+			}
 			break;
+
+		case 0xA:
+
+			switch(op & 0xFF00)
+			{
+				case C_PUSH_ARRAY_NATIVE_INTEGER:
+					fprintf(out, "PUSH ARRAY NATIVE INTEGER %d", (op & 0xFF));
+					break;
+				case C_POP_ARRAY_NATIVE_INTEGER:
+					fprintf(out, "POP ARRAY NATIVE INTEGER %d", (op & 0xFF));
+					break;
+				case C_PUSH_ARRAY_NATIVE_FLOAT:
+					fprintf(out, "PUSH ARRAY NATIVE FLOAT %d", (op & 0xFF));
+					break;
+				case C_POP_ARRAY_NATIVE_FLOAT:
+					fprintf(out, "POP ARRAY NATIVE FLOAT %d", (op & 0xFF));
+					break;
+				case C_ADD_INTEGER:
+					fprintf(out, "ADD INTEGER %d", (op & 0xFF));
+					break;
+				case C_ADD_FLOAT:
+					fprintf(out, "ADD FLOAT %d", (op & 0xFF));
+					break;
+				case C_SUB_INTEGER:
+					fprintf(out, "SUB INTEGER %d", (op & 0xFF));
+					break;
+				case C_SUB_FLOAT:
+					fprintf(out, "SUB FLOAT %d", (op & 0xFF));
+					break;
+				case C_MUL_INTEGER:
+					fprintf(out, "MUL INTEGER %d", (op & 0xFF));
+					break;
+				case C_MUL_FLOAT:
+					fprintf(out, "MUL FLOAT %d", (op & 0xFF));
+					break;
+				case C_DIV_INTEGER:
+					fprintf(out, "DIV INTEGER %d", (op & 0xFF));
+					break;
+				case C_DIV_FLOAT:
+					fprintf(out, "DIV FLOAT %d", (op & 0xFF));
+					break;
+				default:
+					fprintf(out, "ADD QUICK %d", (short)value);
+			}
+			break;
+
+		#ifdef PROJECT_COMP
 
 		case 0xE:
 			if ((op & 0xF00) == 0xF00)
@@ -197,15 +301,7 @@ short PCODE_dump(FILE *out, ushort addr, PCODE *code)
 			fprintf(out, "%s", TABLE_get_symbol_name(JOB->class->table, index));
 			break;
 
-		case 0xA:
-			fprintf(out, "ADD QUICK %d", (short)value);
-			break;
-
 		#else
-
-		case 0xF:
-			fprintf(out, "PUSH QUICK %d", (short)value);
-			break;
 
 		case 0xE:
 			fprintf(out, "PUSH CONST %d", (short)value);
@@ -221,10 +317,6 @@ short PCODE_dump(FILE *out, ushort addr, PCODE *code)
 
 		case 0xB:
 			fprintf(out, "PUSH %s %d", (value & 0x800) ? "FUNCTION" : "CLASS", value & 0x7FF);
-			break;
-
-		case 0xA:
-			fprintf(out, "ADD QUICK %d", (short)value);
 			break;
 
 		#endif
@@ -342,6 +434,8 @@ short PCODE_dump(FILE *out, ushort addr, PCODE *code)
 						case CPM_MINF: fprintf(out, "PUSH -INF"); break;
 						case CPM_COMPLEX: fprintf(out, "PUSH COMPLEX"); break;
 						case CPM_VARGS: fprintf(out, "PUSH VARGS"); break;
+						case CPM_DROP_VARGS: fprintf(out, "DROP VARGS"); break;
+						case CPM_END_VARGS: fprintf(out, "END VARGS"); break;
 					}
 					break;
 
@@ -374,7 +468,7 @@ short PCODE_dump(FILE *out, ushort addr, PCODE *code)
 					break;
 
 				case C_ON:
-					fprintf(out, "ON %d", (short)value);
+					fprintf(out, "ON (%d)", (short)value);
 					break;
 
 				case C_FIRST:
@@ -413,7 +507,13 @@ short PCODE_dump(FILE *out, ushort addr, PCODE *code)
 					break;
 
 				case C_RETURN:
-					fprintf(out, "RETURN (%d)", (short)value);
+					switch(value)
+					{
+						case 0: fprintf(out, "RETURN VOID"); break;
+						case 1: fprintf(out, "RETURN"); break;
+						case 2: fprintf(out, "RETURN VOID"); break;
+						default: fprintf(out, "RETURN (%d) ?", (short)value);
+					}
 					break;
 
 				case C_QUIT:
@@ -441,6 +541,10 @@ short PCODE_dump(FILE *out, ushort addr, PCODE *code)
 
 				case C_CATCH:
 					fprintf(out, "CATCH");
+					break;
+
+				case C_NOP:
+					fprintf(out, "NOP");
 					break;
 
 				default:
@@ -472,7 +576,27 @@ short PCODE_dump(FILE *out, ushort addr, PCODE *code)
 	}
 
 	fprintf(out, "\n");
+
+	if (ncode > 3)
+	{
+		for (j = 3; j < ncode; j++)
+		{
+			if (((j - 3) % 16) == 0)
+				fprintf(out, "       ");
+			fprintf(out, " %04hX", code[j]);
+			if (((j - 3) % 16) == 15)
+				fprintf(out, "\n");
+		}
+		fprintf(out, "\n");
+	}
+
 	return ncode;
 }
 
+void PCODE_dump_count(FILE *out)
+{
+	int i;
 
+	for (i = 0; i < 256; i++)
+		fprintf(out, "%02X : %d\n", i, _code_count[i]);
+}

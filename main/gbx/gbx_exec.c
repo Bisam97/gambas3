@@ -2,7 +2,7 @@
 
 	gbx_exec.c
 
-	(c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+	(c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@
 
 #include "gb_common.h"
 #include "gb_error.h"
+#include "gb_overflow.h"
 #include "gbx_type.h"
 
 #include <unistd.h>
@@ -47,39 +48,42 @@
 //#define DEBUG_STACK 1
 //#define SHOW_FUNCTION 1
 
-/* Current virtual machine state */
-STACK_CONTEXT EXEC_current = { 0 };
-/* Stack pointer */
-VALUE *SP = NULL;
-/* Temporary storage or return value of a native function */
-VALUE TEMP;
-/* Return value of a gambas function */
-VALUE RET;
-/* SUPER was used for this stack pointer */
-VALUE *EXEC_super = NULL;
-/* CPU endianness */
-bool EXEC_big_endian;
-/* Current iterator */
-CENUM *EXEC_enum;
+STACK_CONTEXT EXEC_current = { 0 }; // Current virtual machine state
+VALUE *SP = NULL; // Stack pointer
+VALUE TEMP; // Temporary storage or return value of a native function
+VALUE RET; // Return value of a gambas function
+VALUE *EXEC_super = NULL; // SUPER was used for this stack pointer
+CENUM *EXEC_enum; // Current iterator
+
+EXEC_FLAG FLAG = { 0 };
 
 const char *EXEC_profile_path = NULL; // profile file path
 const char *EXEC_fifo_name = NULL; // fifo name
 EXEC_HOOK EXEC_Hook = { NULL };
 EXEC_GLOBAL EXEC;
 uint64_t EXEC_byref = 0;
-uchar EXEC_quit_value = 0;
 
-bool EXEC_debug = FALSE; // debugging mode
+unsigned char EXEC_quit_value = 0; // interpreter return value
+
+#if 0
+bool EXEC_big_endian; // CPU endianness
+bool EXEC_debug_inside = FALSE; // debug inside components
+bool EXEC_debug_hold = FALSE; // hold execution at program end
 bool EXEC_task = FALSE; // I am a background task
 bool EXEC_profile = FALSE; // profiling mode
 bool EXEC_profile_instr = FALSE; // profiling mode at instruction level
+bool EXEC_trace = FALSE; // tracing mode
 bool EXEC_arch = FALSE; // executing an archive
 bool EXEC_fifo = FALSE; // debugging through a fifo
 bool EXEC_keep_library = FALSE; // do not unload libraries
-bool EXEC_string_add = FALSE; // next '&' operator is done for a '&='
 bool EXEC_main_hook_done = FALSE;
-bool EXEC_got_error = FALSE;
 bool EXEC_break_on_error = FALSE; // if we must break into the debugger as soon as there is an error.
+bool EXEC_in_event_loop = FALSE; // if we are in the event loop
+#if DO_NOT_CHECK_OVERFLOW
+#else
+bool EXEC_check_overflow = TRUE; // if we should check for overflow
+#endif
+#endif
 
 const char EXEC_should_borrow[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 2, 2, 0, 0, 1 };
 
@@ -106,12 +110,16 @@ void EXEC_init(void)
 	test._string[2] = 0xCC;
 	test._string[3] = 0xDD;
 
-	EXEC_big_endian = test._int == 0xAABBCCDDL;
+	FLAG.big_endian = test._int == 0xAABBCCDDL;
 
-	if (EXEC_big_endian)
-		ERROR_warning("CPU is big endian");
+	/*if (EXEC_big_endian)
+		ERROR_warning("CPU is big endian");*/
+
+	FLAG.check_overflow = TRUE;
 
 	DATE_init();
+
+	EXEC_init_bytecode_check();
 }
 
 
@@ -128,11 +136,11 @@ __VARIANT:
 	if (value->_variant.vtype == T_STRING)
 		STRING_ref(value->_variant.value._string);
 	else if (TYPE_is_object(value->_variant.vtype))
-		OBJECT_REF(value->_variant.value._object);
+		OBJECT_REF_CHECK(value->_variant.value._object);
 	return;
 
 __FUNCTION:
-	OBJECT_REF(value->_function.object);
+	OBJECT_REF_CHECK(value->_function.object);
 	return;
 
 __STRING:
@@ -143,7 +151,7 @@ __NONE:
 }
 
 
-void UNBORROW(VALUE *value)
+void EXEC_unborrow(VALUE *value)
 {
 	static const void *jump[16] = {
 		&&__NONE, &&__NONE, &&__NONE, &&__NONE, &&__NONE, &&__NONE, &&__NONE, &&__NONE, &&__NONE,
@@ -152,7 +160,7 @@ void UNBORROW(VALUE *value)
 
 	TYPE type = value->type;
 
-	if (UNLIKELY(TYPE_is_object(type)))
+	if (TYPE_is_object(type))
 	{
 		OBJECT_UNREF_KEEP(value->_object.object);
 		return;
@@ -222,7 +230,7 @@ void RELEASE_many(VALUE *value, int n)
 
 		type = value->type;
 
-		if (UNLIKELY(TYPE_is_object(type)))
+		if (TYPE_is_object(type))
 		{
 			OBJECT_UNREF(value->_object.object);
 			continue;
@@ -448,9 +456,9 @@ void EXEC_enter(void)
 
 	// Check number of arguments
 
-	if (UNLIKELY(nparam < func->npmin))
+	if (nparam < func->npmin)
 		THROW(E_NEPARAM);
-	else if (UNLIKELY(nparam > func->n_param && !func->vararg))
+	else if (nparam > func->n_param && !func->vararg)
 		THROW(E_TMPARAM);
 
 	// Mandatory arguments
@@ -509,6 +517,7 @@ void EXEC_enter(void)
 	PC = func->code;
 	OP = object;
 	CP = class;
+	EXEC_check_bytecode();
 	EP = NULL;
 	GP = NULL;
 
@@ -525,7 +534,7 @@ void EXEC_enter(void)
 		EC = NULL;
 
 	// Reference the object so that it is not destroyed during the function call
-	OBJECT_REF(OP);
+	OBJECT_REF_CHECK(OP);
 
 	// Local variables initialization
 
@@ -611,6 +620,7 @@ void EXEC_enter_quick(void)
 	PC = func->code;
 	OP = object;
 	CP = class;
+	EXEC_check_bytecode();
 	EP = NULL;
 	GP = NULL;
 
@@ -622,16 +632,16 @@ void EXEC_enter_quick(void)
 	PROFILE_ENTER_FUNCTION();
 
 	/* reference the object so that it is not destroyed during the function call */
-	OBJECT_REF(OP);
+	OBJECT_REF_CHECK(OP);
 
 	/* local variables initialization */
 
-	if (LIKELY(func->n_local != 0))
+	if (func->n_local != 0)
 		init_local_var(class, func);
 
 	/* control variables initialization */
 
-	if (LIKELY(func->n_ctrl != 0))
+	if (func->n_ctrl != 0)
 	{
 		for (i = 0; i < func->n_ctrl; i++)
 		{
@@ -718,7 +728,7 @@ static int exec_leave_byref(ushort *pc, int nparam)
 	nbyref = 1 + (*pc & 0xF); \
 	pc_func = FP->code; \
 	\
-	if (LIKELY(!PCODE_is(*pc_func, C_BYREF))) \
+	if (!PCODE_is(*pc_func, C_BYREF)) \
 		goto __LEAVE_NORMAL; \
 	\
 	nbyref_func = 1 + (*pc_func & 0xF); \
@@ -901,7 +911,7 @@ void EXEC_function_loop()
 {
 	bool retry = FALSE;
 
-	if (LIKELY(PC != NULL))
+	if (PC != NULL)
 	{
 		do
 		{
@@ -927,7 +937,7 @@ void EXEC_function_loop()
 					PROPAGATE();
 				}
 
-				if (EXEC_break_on_error)
+				if (EXEC_break_on_error && EXEC_debug)
 					DEBUG.Main(TRUE);
 
 				if (ERROR->info.code == E_ASSERT)
@@ -999,7 +1009,7 @@ void EXEC_function_loop()
 
 				ERROR_set_last(TRUE);
 
-				if (EXEC_debug && !FP->fast && !STACK_has_error_handler())
+				if (EXEC_debug && !FP->fast_linked && !STACK_has_error_handler())
 				{
 					ERROR_hook();
 					
@@ -1023,11 +1033,11 @@ void EXEC_function_loop()
 					
 					// We can only leave stack frames for non-JIT functions.
 					ERROR_lock();
-					while (PC != NULL && EC == NULL && !FP->fast)
+					while (PC != NULL && EC == NULL && !FP->fast_linked)
 						EXEC_leave_drop();
 					ERROR_unlock();
 
-					if (FP && FP->fast)
+					if (FP && FP->fast_linked)
 						PROPAGATE();
 					
 					// If we got the void stack frame, then we remove it and raise the error again
@@ -1180,7 +1190,7 @@ void EXEC_native_quick(void)
 	EXEC_call_native_inline(desc->exec, EXEC.object, desc->type, &SP[-nparam]);
 	COPY_VALUE(&ret, &TEMP);
 
-	if (UNLIKELY(error))
+	if (error)
 	{
 		RELEASE_MANY(SP, nparam);
 		POP();
@@ -1243,12 +1253,12 @@ void EXEC_native(void)
 		n = desc->npmin;
 		nm = desc->npmax;
 
-		if (UNLIKELY(nparam < n))
+		if (nparam < n)
 			THROW(E_NEPARAM);
 
-		if (LIKELY(!desc->npvar))
+		if (!desc->npvar)
 		{
-			if (UNLIKELY(nparam > nm))
+			if (nparam > nm)
 				THROW(E_TMPARAM);
 
 			value = &SP[-nparam];
@@ -1257,7 +1267,7 @@ void EXEC_native(void)
 			for (i = 0; i < n; i++, value++, sign++)
 				VALUE_conv(value, *sign);
 
-			if (UNLIKELY(n < nm))
+			if (n < nm)
 			{
 				for (; i < nparam; i++, value++, sign++)
 				{
@@ -1267,7 +1277,7 @@ void EXEC_native(void)
 
 				n = nm - nparam;
 
-				/*if (UNLIKELY(STACK_check(n)))
+				/*if (STACK_check(n))
 				{
 					STACK_RELOCATE(value);
 				}*/
@@ -1288,9 +1298,9 @@ void EXEC_native(void)
 				VALUE_conv(value, *sign);
 
 			nm = desc->npmax;
-			if (UNLIKELY(n < nm))
+			if (n < nm)
 			{
-				if (UNLIKELY(nparam < nm))
+				if (nparam < nm)
 				{
 					for (; i < nparam; i++, value++, sign++)
 					{
@@ -1300,7 +1310,7 @@ void EXEC_native(void)
 
 					n = nm - nparam;
 
-					/*if (UNLIKELY(STACK_check(n)))
+					/*if (STACK_check(n))
 					{
 						STACK_RELOCATE(value);
 					}*/
@@ -1335,7 +1345,7 @@ void EXEC_native(void)
 	EXEC_call_native_inline(desc->exec, object, desc->type, &SP[-nparam]);
 	COPY_VALUE(&ret, &TEMP);
 
-	if (UNLIKELY(error))
+	if (error)
 	{
 		RELEASE_MANY(SP, nparam);
 
@@ -1414,7 +1424,7 @@ CLASS *EXEC_object_real(VALUE *val)
 
 	//CLASS_load(class); If we have an object, the class is necessarily loaded.
 
-	if (UNLIKELY(class->must_check && (*(class->check))(object)))
+	if (class->must_check && (*(class->check))(object))
 		THROW(E_IOBJECT);
 
 __RETURN:
@@ -1465,7 +1475,7 @@ __CHECK:
 
 	//CLASS_load(class); //If we have an object, the class is not necessarily loaded?
 
-	if (UNLIKELY(class->must_check && (*(class->check))(object)))
+	if (class->must_check && (*(class->check))(object))
 		THROW(E_IOBJECT);
 
 	*pobject = object;
@@ -1489,7 +1499,7 @@ bool EXEC_object_other(VALUE *val, CLASS **pclass, OBJECT **pobject)
 
 __FUNCTION:
 
-	if (LIKELY(val->_function.kind == FUNCTION_UNKNOWN))
+	if (val->_function.kind == FUNCTION_UNKNOWN)
 	{
 		EXEC_unknown_property = TRUE;
 		EXEC_unknown_name = CP->load->unknown[val->_function.index];
@@ -1518,7 +1528,7 @@ __CLASS:
 	{
 		EXEC_super = val->_class.super;
 		//*class = (*class)->parent;
-		if (UNLIKELY(class == NULL))
+		if (class == NULL)
 			THROW(E_PARENT);
 	}
 
@@ -1554,7 +1564,7 @@ __CHECK:
 
 	//CLASS_load(class); If we have an object, the class is necessarily loaded.
 
-	if (UNLIKELY(class->must_check && (*(class->check))(object)))
+	if (class->must_check && (*(class->check))(object))
 		THROW(E_IOBJECT);
 
 __RETURN:
@@ -1591,19 +1601,19 @@ void EXEC_public_desc(CLASS *class, void *object, CLASS_DESC_METHOD *desc, int n
 	}
 }
 
+
 void EXEC_public(CLASS *class, void *object, const char *name, int nparam)
 {
 	CLASS_DESC *desc;
 
-	desc = CLASS_get_symbol_desc_kind(class, name, (object != NULL) ? CD_METHOD : CD_STATIC_METHOD, 0);
+	desc = CLASS_get_symbol_desc_kind(class, name, (object != NULL) ? CD_METHOD : CD_STATIC_METHOD, 0, T_VOID);
 
-	if (UNLIKELY(desc == NULL))
+	if (desc == NULL)
 		return;
 
 	EXEC_public_desc(class, object, &desc->method, nparam);
 	EXEC_release_return_value();
 }
-
 
 
 bool EXEC_special(int special, CLASS *class, void *object, int nparam, bool drop)
@@ -1644,7 +1654,7 @@ bool EXEC_special(int special, CLASS *class, void *object, int nparam, bool drop
 	{
 		if (desc->method.subr)
 		{
-			((EXEC_FUNC_CODE)(EXEC.class->table[index].desc->method.exec))(nparam);
+			((EXEC_FUNC_CODE_SP)(EXEC.class->table[index].desc->method.exec))(nparam, SP);
 		}
 		else
 		{
@@ -1731,7 +1741,7 @@ void EXEC_special_inheritance(int special, CLASS *class, OBJECT *object, int npa
 		np += desc->method.npmin;
 	}
 
-	if (UNLIKELY(np > nparam))
+	if (np > nparam)
 		THROW(E_NEPARAM);
 
 	save_nparam = nparam;
@@ -1820,7 +1830,7 @@ void *EXEC_create_object(CLASS *class, int np, char *event)
 
 	CLASS_load(class);
 
-	if (UNLIKELY(class->no_create))
+	if (class->no_create)
 		THROW(E_CSTATIC, CLASS_get_name(class));
 
 	object = OBJECT_new(class, event, ((OP == NULL) ? (OBJECT *)CP : (OBJECT *)OP));
@@ -1865,7 +1875,7 @@ void EXEC_new(ushort code)
 	if (SP->type == T_CLASS)
 	{
 		class = SP->_class.class;
-		//if (UNLIKELY(class->override != NULL))
+		//if (class->override != NULL)
 		//	class = class->override;
 	}
 	else if (TYPE_is_string(SP->type))
@@ -1883,7 +1893,7 @@ void EXEC_new(ushort code)
 	//printf("**** NEW %s\n", class->name);
 	CLASS_load(class);
 
-	if (UNLIKELY(class->no_create))
+	if (class->no_create)
 		THROW(E_CSTATIC, CLASS_get_name(class));
 
 	if (event)
@@ -1947,6 +1957,7 @@ void EXEC_do_quit(void)
 {
 	GAMBAS_DoNotRaiseEvent = TRUE;
 
+	JIT_abort();
 	HOOK(quit)();
 
 	THROW(E_ABORT);
@@ -1958,7 +1969,7 @@ void *EXEC_auto_create(CLASS *class, bool ref)
 
 	object = CLASS_auto_create(class, 0); /* object is checked by CLASS_auto_create */
 
-	/*if (UNLIKELY(class->must_check && (*(class->check))(object)))
+	/*if (class->must_check && (*(class->check))(object))
 		THROW(E_IOBJECT);*/
 
 	if (ref)
@@ -2026,14 +2037,24 @@ void EXEC_push_vargs(void)
 		*SP = PP[i];
 		PUSH();
 	}
+	
+	PC[1] += nargs;
+}
+
+void EXEC_end_vargs(void)
+{
+	int nargs = (FP && FP->vararg) ? BP - PP : 0;
+	PC[-1] -= nargs;
 }
 
 void EXEC_drop_vargs(void)
 {
 	int nargs = (FP && FP->vararg) ? BP - PP : 0;
-
-	if (nargs == 0)
-		return;
-
 	RELEASE_MANY(SP, nargs);
+	PC[-1] -= nargs;
+}
+
+void EXEC_set_got_error(bool err)
+{
+	EXEC_got_error = err;
 }

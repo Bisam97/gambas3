@@ -2,7 +2,7 @@
 
   gkey.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -27,7 +27,7 @@
 class gKey
 {
 public:
-	static bool valid() { return _valid; }
+	static bool isValid() { return _valid; }
 	static const char *text();
 	static int code();
 	static int state();
@@ -38,7 +38,7 @@ public:
 	static bool normal();
 	static bool shift();
 
-	static int fromString(char* str);
+	static int fromString(const char *str);
 
 //"Private"
 	static void disable();
@@ -61,10 +61,12 @@ public:
 	static int _last_key_release;
 
 private:
-	static bool _valid;
+	static int _valid;
+	
+	static void initContext();
 };
 
-void gcb_im_commit(GtkIMContext *context, const char *str, gpointer pointer);
+void gcb_im_commit(GtkIMContext *context, const char *str, gControl *control);
 gboolean gcb_key_event(GtkWidget *widget, GdkEvent *event, gControl *data);
 
 #endif

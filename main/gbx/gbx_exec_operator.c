@@ -2,7 +2,7 @@
 
   gbx_exec_operator.c
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -132,7 +132,7 @@ __OBJECT_FLOAT:
 	func = OBJECT_class(o1)->operators[op];
 	VALUE_conv_float(P2);
 	result = (*(FUNC_O_OF)func)(o1, P2->_float.value, FALSE);
-	OBJECT_REF(result);
+	OBJECT_REF_CHECK(result);
 	OBJECT_UNREF(o1);
 
 	if (!result)
@@ -152,7 +152,7 @@ __FLOAT_OBJECT:
 	func = OBJECT_class(o1)->operators[op];
 	VALUE_conv_float(P1);
 	result = (*(FUNC_O_OF)func)(o1, P1->_float.value, TRUE);
-	OBJECT_REF(result);
+	OBJECT_REF_CHECK(result);
 	P1->_object.class = P2->_object.class;
 	OBJECT_UNREF(o1);
 	
@@ -185,7 +185,7 @@ __OTHER:
 	
 	func = OBJECT_class(o1)->operators[op];
 	result = (*(FUNC_O_OO)func)(o1, o2, invert);
-	OBJECT_REF(result);
+	OBJECT_REF_CHECK(result);
 	OBJECT_UNREF(o1);
 	OBJECT_UNREF(o2);
 
@@ -209,7 +209,7 @@ void EXEC_operator_object_add_quick(VALUE *P1, double val)
 	{
 		void *func = OBJECT_class(P1->_object.object)->operators[CO_ADDF];
 		void *result = (*(FUNC_O_OF)func)(P1->_object.object, val, FALSE);
-		OBJECT_REF(result);
+		OBJECT_REF_CHECK(result);
 		OBJECT_UNREF(P1->_object.object);
 		P1->_object.object = result;
 	}
@@ -353,7 +353,7 @@ void EXEC_operator_object_single(uchar op, VALUE *P1)
 	{
 		void *func = OBJECT_class(P1->_object.object)->operators[op];
 		void *result = (*(FUNC_O_O)func)(P1->_object.object);
-		OBJECT_REF(result);
+		OBJECT_REF_CHECK(result);
 		OBJECT_UNREF(P1->_object.object);
 		P1->_object.object = result;
 	}

@@ -2,7 +2,7 @@
 
 Create Static
 Export
-Inherits ReportSection
+Inherits ReportVBox
 
 ' For Stretch properties
 Public Enum None, Proportional, Fill
@@ -10,17 +10,18 @@ Public Enum None, Proportional, Fill
 Public Const _Properties As String = "*,-Left,-Top,-Width,-Height,Count{Range:1;256}=1,Index,Text,"
 "Paper{Printer.A3;A4;A5;B5;Letter;Executive;Legal;Custom}=A4,"
 "Orientation{Printer.Portrait;Landscape}=Portrait"
-Public Const _HiddenControls As String = "Report,ReportControl,ReportContainer,ReportFrame,ReportSection"
+Public Const _HiddenControls As String = "Report,ReportControl,ReportContainer,ReportFrame,_ReportSection"
 Public Const _IsForm As Boolean = True
 Public Const _IsContainer As Boolean = True
 Public Const _IsMultiContainer As Boolean = True
+Public Const _DefaultText As String = "Section &1"
 Public Const _DrawWith As String = "TabPanel"
 Public Const _DefaultEvent As String = "Open"
 Static Public AllowedUnits As String[] = ["m", "cm", "mm", "in", "pt", "px"]
 
 Public _LayoutNotFinished As Boolean
 
-Public _Container As ReportSection
+Public _Container As _ReportSection
 
 Public {Debug} As Boolean = False
 Public _bInExec As Boolean
@@ -82,6 +83,8 @@ Property Orientation As Integer
 Property Read _Width As Float
 Property Read _Height As Float
 
+Property Path As String Use $sPath
+
 Event Open
 
 Static Public Sub Main()
@@ -104,14 +107,14 @@ End
 
 Public Sub _New()
   
-  Dim hSection As New ReportSection
+  Dim hSection As New _ReportSection
   Dim TSection As New TControl
   
   object.Attach(Me, Me, "Report")
   
   '$hReportTControl.RelPage = 0
   ReportControl._ObjectFromId[Me.id] = Me
-  hSection = New ReportSection
+  hSection = New _ReportSection
   hSection._ReportId = Me.Id
   
   ReportControl._ObjectFromId[hSection.Id] = hSection
@@ -143,7 +146,6 @@ Public Sub Layout(Optional iPage As Integer = -1)
     $bOpened = True
   Endif
   
-
   If Not _LayoutIsDirty Then Return
   If _bInExec Then Return
   If iPage > -1 Then
@@ -156,10 +158,10 @@ Public Sub Layout(Optional iPage As Integer = -1)
     $iPageCount = 0
     Me._Reset
   Endif
+  
   'Set execution Flag to true
   _bInExec = True
   CBaseSection = $aSections[0].Ctrl
-  
   
   For i = $iCurSection To $aSections.Max
     Tsection = $aSections[i]
@@ -323,9 +325,9 @@ End
 '
 
 Public Function Preview()
-  
+  If Me.Path Then FPreview.Path = Me.Path 
   FPreview.Run(Me)
-  
+  If FPreview.Path Then Me.Path = FPreview.Path
 End
 
 
@@ -346,7 +348,7 @@ End
 Private Sub Count_Write(Value As Integer)
   
   Dim i As Integer
-  Dim hSection As ReportSection
+  Dim hSection As _ReportSection
   Dim TSection As TControl
   
   If Value < 0 Then Return
@@ -356,7 +358,7 @@ Private Sub Count_Write(Value As Integer)
     For i = $aSections.Count To Value - 1
       
       TSection = New TControl
-      hSection = New ReportSection
+      hSection = New _ReportSection
       hSection.Text = "Section " & CStr(i)
       hSection._ReportId = Me.Id
       ReportControl._ObjectFromId[hSection.Id] = hSection
@@ -365,7 +367,7 @@ Private Sub Count_Write(Value As Integer)
       hSection.Height = Me.Height
       hSection.Width = Me.Width
       $aSections.Add(TSection)
-      hSection.Text = ("Section ") & $aSections.Max
+      'hSection.Text = ("Section ") & $aSections.Max
     Next
   Endif
   
@@ -384,7 +386,7 @@ Private Sub Index_Write(Value As Integer)
   
 End
 
-Public Sub _get(Index As Integer) As ReportSection
+Public Sub _get(Index As Integer) As _ReportSection
   
   Return $aSections[Index].Ctrl
   

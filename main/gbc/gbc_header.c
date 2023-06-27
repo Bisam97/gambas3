@@ -2,7 +2,7 @@
 
   gbc_header.c
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,7 +21,7 @@
 
 ***************************************************************************/
 
-#define _TRANS_HEADER_C
+#define __GBC_HEADER_C
 
 #include <stdlib.h>
 #include <string.h>
@@ -98,6 +98,14 @@ static void analyze_function_desc(TRANS_FUNC *func, int flag)
 	TRANS_DECL ttyp;
 	uint64_t byref_mask = 1;
 
+	if (PATTERN_is(*look, RS_LBRA))
+	{
+		func->no_warning = TRUE;
+		look++;
+	}
+	else
+		func->no_warning = FALSE;
+		
 	if (!PATTERN_is_identifier(*look))
 		THROW("Syntax error. Invalid identifier in function name");
 
@@ -108,6 +116,13 @@ static void analyze_function_desc(TRANS_FUNC *func, int flag)
 	if (flag & HF_EVENT)
 		func->index = TABLE_copy_symbol_with_prefix(JOB->class->table, func->index, ':');
 
+	if (func->no_warning)
+	{
+		if (!PATTERN_is(*look, RS_RBRA))
+			THROW(E_MISSING, "')'");
+		look++;
+	}
+	
 	func->nparam = 0;
 	func->byref = 0;
 	func->vararg = FALSE;
@@ -166,6 +181,7 @@ static void analyze_function_desc(TRANS_FUNC *func, int flag)
 
 		if (PATTERN_is(*look, RS_AT) || PATTERN_is(*look, RS_BYREF))
 		{
+			param->byref = TRUE;
 			func->byref |= byref_mask;
 			look++;
 		}
@@ -227,15 +243,21 @@ static void header_module_type(void)
 
 	ext = FILE_get_ext(JOB->name);
 
+	JOB->is_test = FALSE;
+	JOB->is_form = FALSE;
+	
 	if (strcasecmp(ext, "module") == 0)
 	{
 		JOB->is_module = TRUE;
-		JOB->is_form = FALSE;
+	}
+	else if (strcasecmp(ext, "test") == 0)
+	{
+		JOB->is_module = TRUE;
+		JOB->is_test = TRUE;
 	}
 	else if (strcasecmp(ext, "class") == 0)
 	{
 		JOB->is_module = FALSE;
-		JOB->is_form = FALSE;
 	}
 	else
 	{
@@ -291,7 +313,7 @@ static bool header_event(TRANS_EVENT *event)
 
 static bool header_property(TRANS_PROPERTY *prop)
 {
-	TRANS_DECL ptype;
+	TRANS_DECL ptype = { 0 };
 	PATTERN *look = JOB->current;
 	bool is_static = FALSE;
 	bool is_public = TRUE;
@@ -326,20 +348,19 @@ static bool header_property(TRANS_PROPERTY *prop)
 	if (!is_public)
 		THROW("A property must be public");
 
-	/* read-only property */
+	// Read-only or write-only property
 
-	if (PATTERN_is(*JOB->current, RS_READ))
-	{
-		prop->read = TRUE;
-		JOB->current++;
-	}
-	else
-		prop->read = FALSE;
+	prop->read_only = prop->write_only = FALSE;
 
-	/* property name */
+	if (TRANS_is(RS_READ))
+		prop->read_only = TRUE;
+	else if (COMP_version >= 0x03180000 && TRANS_is(RS_WRITE))
+		prop->write_only = TRUE;
+
+	// Property name
 
 	if (!PATTERN_is_identifier(*JOB->current))
-		THROW("Syntax error. Invalid identifier in property name");
+		THROW("Syntax error. Identifier expected for property name");
 
 	prop->index = PATTERN_index(*JOB->current);
 	JOB->current++;
@@ -351,13 +372,13 @@ static bool header_property(TRANS_PROPERTY *prop)
 		if (prop->nsynonymous == 3)
 			THROW("Too many property synonymous");
 		if (!PATTERN_is_identifier(*JOB->current))
-			THROW("Syntax error. Invalid identifier in property name");
+			THROW("Syntax error. Identifier expected for property synonymous");
 		prop->synonymous[prop->nsynonymous++] = PATTERN_index(*JOB->current);
 		JOB->current++;
 	}
 
 	if (!TRANS_type(TT_NOTHING, &ptype))
-		THROW("Syntax error. Bad property type");
+		THROW("Syntax error. Invalid property type");
 
 	prop->type = ptype.type;
 	prop->line = JOB->line;
@@ -367,6 +388,30 @@ static bool header_property(TRANS_PROPERTY *prop)
 		TYPE_set_flag(&prop->type, TF_STATIC);
 	TYPE_set_flag(&prop->type, TF_PUBLIC);
 
+	// property with variable
+	
+	if (TRANS_is(RS_USE))
+	{
+		TRANS_DECL decl = ptype;
+		
+		TYPE_set_kind(&decl.type, TK_VARIABLE);
+		if (is_static)
+			TYPE_set_flag(&decl.type, TF_STATIC);
+
+		if (!PATTERN_is_identifier(*JOB->current))
+			THROW("Syntax error. Identifier expected for property variable");
+		
+		prop->use = PATTERN_index(*JOB->current);
+		JOB->current++;
+		
+		decl.index = prop->use;
+		
+		if (TRANS_is(RS_EQUAL))
+			decl.init = JOB->current;
+		
+		CLASS_add_declaration(JOB->class, &decl);
+	}
+	
 	if (PATTERN_is_string(*JOB->current))
 	{
 		prop->comment = PATTERN_index(*JOB->current);
@@ -377,6 +422,7 @@ static bool header_property(TRANS_PROPERTY *prop)
 
 	return TRUE;
 }
+
 
 static bool header_extern(TRANS_EXTERN *trans)
 {
@@ -444,8 +490,7 @@ static bool header_class(TRANS_DECL *decl)
 	if (!TRANS_is(RS_CLASS))
 		return FALSE;
 
-	if (!PATTERN_is_identifier(*JOB->current))
-		THROW("Syntax error. CLASS needs an identifier");
+	TRANS_want_class();
 
 	CLEAR(decl);
 	decl->index = PATTERN_index(*JOB->current);
@@ -535,7 +580,7 @@ static bool header_declaration(TRANS_DECL *decl)
 			THROW(E_SYNTAX_MISSING, "'='");
 
 		JOB->current = decl->init;
-		JOB->current = TRANS_get_constant_value(decl, JOB->current);
+		TRANS_get_constant_value(decl);
 	}
 
 	//JOB->current = look;
@@ -577,7 +622,7 @@ static bool header_enumeration(TRANS_DECL *decl)
 
 		if (TRANS_is(RS_EQUAL))
 		{
-			JOB->current = TRANS_get_constant_value(decl, JOB->current);
+			TRANS_get_constant_value(decl);
 			value = decl->value + 1;
 		}
 		else
@@ -779,7 +824,7 @@ static bool header_function(TRANS_FUNC *func)
 	if (!PATTERN_is_newline(*(JOB->current)))
 		THROW("Syntax error at function declaration");
 
-	func->line = PATTERN_index(*(JOB->current)) + 1;
+	func->line = JOB->line = PATTERN_index(*(JOB->current)) + 1;
 	func->start = JOB->current + 1;
 
 	look = JOB->current;
@@ -812,7 +857,7 @@ static bool header_function(TRANS_FUNC *func)
 						THROW(E_EXPECTED, "END FUNCTION");
 				}
 			}
-			else if (UNLIKELY(PATTERN_is_end(pat))) // || PATTERN_is_command(pat)))
+			else if (PATTERN_is_end(pat))
 				THROW(E_MISSING, "END");
 		}
 
@@ -840,11 +885,10 @@ static bool header_inherits(void)
 
 	JOB->current++;
 
-	if (!PATTERN_is_class(*JOB->current))
-		THROW("Syntax error. INHERITS needs a class name");
+	TRANS_want_class();
 
 	if (JOB->class->parent != NO_SYMBOL)
-		THROW("Cannot inherit twice");
+		THROW("Class already has a parent");
 	
 	index = PATTERN_index(*JOB->current);
 	
@@ -863,10 +907,38 @@ static bool header_option(void)
 {
 	if (TRANS_is(RS_EXPORT))
 	{
+		if (JOB->class->exported)
+			THROW("Class is already exported");
+		
 		JOB->class->exported = TRUE;
 
 		if (TRANS_is(RS_OPTIONAL))
 			JOB->class->optional = TRUE;
+		
+		if (TRANS_is(RS_AS))
+		{
+			TRANS_want_class();
+			JOB->class->export_name = STR_copy(TABLE_get_symbol_name(JOB->class->table, PATTERN_index(*JOB->current)));
+			JOB->current++;
+		}
+		else if (TRANS_is(RS_TO))
+		{
+			if (TRANS_is(RS_DEFAULT))
+			{
+				JOB->class->export_name = NULL;
+			}
+			else
+			{
+				if (!PATTERN_is_identifier(*JOB->current))
+					THROW("Syntax error. Identifier expected for namespace");
+				JOB->class->export_name = STR_cat(TABLE_get_symbol_name(JOB->class->table, PATTERN_index(*JOB->current)), ":", JOB->class->name, NULL);
+				JOB->current++;
+			}
+		}
+		else if (COMP_default_namespace)
+		{
+			JOB->class->export_name = STR_cat(COMP_default_namespace, ":", JOB->class->name, NULL);
+		}
 
 		return TRUE;
 	}
@@ -936,7 +1008,7 @@ static bool header_structure(void)
 		THROW("Structures must be public");
 	
 	if (!PATTERN_is_identifier(*JOB->current))
-		THROW("Syntax error. STRUCT needs an identifier");
+		THROW("Syntax error. STRUCT must be followed by an identifier");
 
 	structure = ARRAY_add_void(&JOB->class->structure);
 	ARRAY_create(&structure->field);
@@ -1002,7 +1074,7 @@ static bool header_use(void)
 	if (!TRANS_is(RS_USE))
 		return FALSE;
 
-	CLASS_begin_init_function(JOB->class, FUNC_INIT_STATIC);
+	CLASS_set_current_init_function(JOB->class, FUNC_INIT_STATIC);
 
 	for(;;)
 	{
@@ -1142,6 +1214,6 @@ void HEADER_do(void)
 
 	CLASS_sort_declaration(JOB->class);
 
-	if (JOB->verbose)
+	if (COMP_verbose)
 		CLASS_dump();
 }

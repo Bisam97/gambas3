@@ -2,7 +2,7 @@
 
 	gbc_trans.c
 
-	(c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+	(c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -368,8 +368,9 @@ __END:
 
 static PATTERN *trans_embedded_array(PATTERN *look, int mode, TRANS_DECL *result)
 {
-	TRANS_NUMBER tnum;
+	TRANS_CONST_VALUE *const_value;
 	int i;
+	int size;
 
 	if (!(mode & TT_CAN_EMBED))
 	{
@@ -390,18 +391,20 @@ static PATTERN *trans_embedded_array(PATTERN *look, int mode, TRANS_DECL *result
 			if (i >= MAX_ARRAY_DIM)
 				THROW("Too many dimensions");
 
-			if (!PATTERN_is_number(*look))
-				THROW(E_SYNTAX);
-			if (TRANS_get_number(PATTERN_index(*look), &tnum))
-				THROW(E_SYNTAX);
-			if (tnum.type != T_INTEGER)
-				THROW(E_SYNTAX);
-			if (tnum.ival < 1 || tnum.ival > (2 << 22)) /* 4 Mo, ca devrait suffire... ;-) */
+			JOB->current = look;
+			const_value = TRANS_const();
+			look = JOB->current;
+			
+			if (const_value->type != T_INTEGER)
+				THROW("Bad subscript range");
+			
+			size = const_value->value._integer;
+			
+			if (size < 1 || size > (2 << 22)) /* 4 Mo, ca devrait suffire... ;-) */
 				THROW("Bad subscript range");
 
-			result->array.dim[i] = tnum.ival;
+			result->array.dim[i] = size;
 			result->array.ndim++;
-			look++;
 
 			if (PATTERN_is(*look, RS_RSQR))
 				break;
@@ -422,50 +425,44 @@ static PATTERN *trans_embedded_array(PATTERN *look, int mode, TRANS_DECL *result
 }
 
 
-static int TRANS_get_class(PATTERN pattern, bool array)
+int TRANS_get_class(int index)
 {
-	int index = PATTERN_index(pattern);
 	int index_array;
 	//CLASS_REF *cref;
 
 	if (!CLASS_exist_class(JOB->class, index))
 	{
-		if (array)
+		CLASS_SYMBOL *sym = CLASS_get_symbol(JOB->class, index);
+		int i;
+		char c;
+		
+		//fprintf(stderr, "TRANS_get_class: %.*s\n", sym->symbol.len, sym->symbol.name);
+		
+		for (i = sym->symbol.len - 1; i >= 0; i--)
 		{
-			// Maybe a compound class?
-			
-			CLASS_SYMBOL *sym = CLASS_get_symbol(JOB->class, index);
-			int i;
-			char c;
-			
-			//fprintf(stderr, "TRANS_get_class: %.*s\n", sym->symbol.len, sym->symbol.name);
-			
-			for (i = sym->symbol.len - 1; i >= 0; i--)
+			c = sym->symbol.name[i];
+			if (c == '[')
 			{
-				c = sym->symbol.name[i];
-				if (c == '[')
+				//fprintf(stderr, "TRANS_get_class: find %.*s\n", i, sym->symbol.name);
+				if (TABLE_find_symbol(JOB->class->table, sym->symbol.name, i, &index_array))
 				{
-					//fprintf(stderr, "TRANS_get_class: find %.*s\n", i, sym->symbol.name);
-					if (TABLE_find_symbol(JOB->class->table, sym->symbol.name, i, &index_array))
+					index_array = TRANS_get_class(index_array);
+					
+					if (JOB->class->class[index_array].exported)
+						index = CLASS_add_class_exported(JOB->class, index);
+					else
+						index = CLASS_add_class(JOB->class, index);
+					
+					JOB->class->class[index].type = TYPE_make(T_OBJECT, index_array, 0);
+					
+					/*cref = &JOB->class->class[index];
+					if (TYPE_is_null(cref->array))
 					{
-						index_array = TRANS_get_class(PATTERN_make(RT_CLASS, index_array), TRUE);
-						
-						if (JOB->class->class[index_array].exported)
-							index = CLASS_add_class_exported(JOB->class, index);
-						else
-							index = CLASS_add_class(JOB->class, index);
-						
-						JOB->class->class[index].type = TYPE_make(T_OBJECT, index_array, 0);
-						
-						/*cref = &JOB->class->class[index];
-						if (TYPE_is_null(cref->array))
-						{
-							cref->array.t.id = T_OBJECT;
-							cref->array.t.value = index_array;
-						}*/
-						
-						return index;
-					}
+						cref->array.t.id = T_OBJECT;
+						cref->array.t.value = index_array;
+					}*/
+					
+					return index;
 				}
 			}
 		}
@@ -564,7 +561,7 @@ bool TRANS_type(int mode, TRANS_DECL *result)
 		if (!PATTERN_is_class(*look))
 			THROW_UNEXPECTED(look);
 		
-		value = TRANS_get_class(*look, TRUE);
+		value = TRANS_get_class(PATTERN_index(*look));
 		is_array = check_structure(&value);
 		
 		if (!is_array)
@@ -592,7 +589,7 @@ bool TRANS_type(int mode, TRANS_DECL *result)
 		else
 		{
 			id = T_OBJECT;
-			value = TRANS_get_class(*look, TRUE);
+			value = TRANS_get_class(PATTERN_index(*look));
 		}
 		
 		if (PATTERN_is(look[1], RS_LSQR))
@@ -687,30 +684,32 @@ bool TRANS_check_declaration(void)
 }
 
 
-PATTERN *TRANS_get_constant_value(TRANS_DECL *decl, PATTERN *current)
+void TRANS_get_constant_value(TRANS_DECL *decl)
 {
 	int index;
 	TRANS_NUMBER number = {0};
 	int type;
 	PATTERN value;
+	TRANS_CONST_VALUE *const_value;
 
 	type = TYPE_get_id(decl->type);
 
-	value = *current++;
-	index = PATTERN_index(value);
-	
 	if (type == T_STRING)
 	{
+		value = *JOB->current++;
+		index = PATTERN_index(value);
+	
 		if (PATTERN_is(value, RS_LBRA))
 		{
-			value = *current++;
+			value = *JOB->current++;
 			if (!PATTERN_is_string(value))
 				THROW("Constant string expected");
 			index = PATTERN_index(value);
-			value = *current++;
+			value = *JOB->current++;
 			if (!PATTERN_is(value, RS_RBRA))
 				THROW("Missing right brace");
-			TYPE_set_id(&decl->type, T_CSTRING);
+			if (index != VOID_STRING_INDEX)
+				TYPE_set_id(&decl->type, T_CSTRING);
 		}
 		else
 		{
@@ -723,70 +722,78 @@ PATTERN *TRANS_get_constant_value(TRANS_DECL *decl, PATTERN *current)
 	}
 	else
 	{
-		if (PATTERN_is_string(value))
-			THROW("Syntax error");
-			
-		if (type != T_BOOLEAN && type <= T_FLOAT)
-		{
-			if (TRANS_get_number(index, &number))
-				THROW("Type mismatch");
-		}
-	
 		switch(type)
 		{
 			case T_BOOLEAN:
+				
+				const_value = TRANS_const();
+	
+				if (const_value->type == T_INTEGER)
+					decl->value = const_value->value._integer ? -1 : 0;
+				else if (const_value->type == T_LONG)
+					decl->value = const_value->value._long ? -1 : 0;
+				else
+					THROW("Type mismatch");
 	
 				decl->is_integer = TRUE;
+				break;
 	
-				if (PATTERN_is(value, RS_TRUE))
-					decl->value = -1L;
-				else if (PATTERN_is(value, RS_FALSE))
-					decl->value = 0L;
+			case T_BYTE: case T_SHORT: case T_INTEGER:
+	
+				const_value = TRANS_const();
+				
+				if (const_value->type == T_INTEGER)
+				{
+					if (((type == T_BYTE) && (const_value->value._integer < 0 || const_value->value._integer > 255))
+							|| ((type == T_SHORT) && (const_value->value._integer < -32768L || const_value->value._integer > 32767L)))
+						THROW("Out of range");
+					
+					decl->value = const_value->value._integer;
+				}
+				else if (const_value->type == T_LONG)
+					THROW("Out of range");
+				else
+					THROW("Type mismatch");
+				
+				decl->is_integer = TRUE;
+				break;
+	
+			case T_LONG:
+	
+				const_value = TRANS_const();
+
+				decl->is_integer = FALSE;
+				if (const_value->type == T_INTEGER)
+					decl->lvalue = const_value->value._integer;
+				else if (const_value->type == T_LONG)
+					decl->lvalue = const_value->value._long;
 				else
 					THROW("Type mismatch");
 	
 				break;
 	
-			case T_BYTE: case T_SHORT: case T_INTEGER:
-	
-				decl->is_integer = TRUE;
-	
-				if (number.type != T_INTEGER)
-				{
-					if (number.type == T_LONG)
-						THROW("Out of range");
-					else
-						THROW("Type mismatch");
-				}
-	
-				if (((type == T_BYTE) && (number.ival < 0 || number.ival > 255))
-						|| ((type == T_SHORT) && (number.ival < -32768L || number.ival > 32767L)))
-					THROW("Out of range");
-	
-				decl->value = number.ival;
-	
-				//fprintf(stderr, "TRANS_get_constant_value: INT: %ld\n", decl->value);
-				break;
-	
 			case T_FLOAT: case T_SINGLE:
 	
-				if (type == T_SINGLE && !finite((float)number.dval))
-					THROW("Out of range");
+				value = *JOB->current++;
+				index = PATTERN_index(value);
+				
+				if (PATTERN_is_integer(value))
+				{
+					decl->is_integer = TRUE;
+					index = PATTERN_signed_index(value);
+				}
+				else
+				{
+					if (TRANS_get_number(index, &number))
+						THROW("Type mismatch");
+					
+					if (type == T_SINGLE && !finite((float)number.dval))
+						THROW("Out of range");
+					
+					decl->is_integer = FALSE;
+				}
 	
-				decl->is_integer = FALSE;
 				decl->value = index;
-				break;
-	
-			case T_LONG:
-	
-				if (number.type == T_FLOAT)
-					THROW("Type mismatch");
-	
-				decl->is_integer = FALSE;
-				decl->value = index;
-				decl->lvalue = number.lval;
-	
-				//fprintf(stderr, "TRANS_get_constant_value: LONG: %lld\n", decl->lvalue);
 				break;
 	
 			default:
@@ -794,8 +801,6 @@ PATTERN *TRANS_get_constant_value(TRANS_DECL *decl, PATTERN *current)
 				THROW("Bad constant type");
 		}
 	}
-	
-	return current;
 }
 
 
@@ -812,6 +817,11 @@ void TRANS_want_newline()
 		THROW_UNEXPECTED(JOB->current);
 }
 
+void TRANS_want_class()
+{
+	if (!PATTERN_is_class(*JOB->current))
+		THROW("Syntax error. Class name expected");
+}
 
 bool TRANS_is_end_function(bool is_proc, PATTERN *look)
 {

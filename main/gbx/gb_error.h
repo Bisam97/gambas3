@@ -2,7 +2,7 @@
 
   gb_error.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -110,7 +110,11 @@ enum {
 	E_NEMPTY,
 	E_UTYPE,
 	E_FREEREF,
-	E_ASSERT
+	E_ASSERT,
+	E_MARRAY,
+	E_UCLASS,
+	E_SPEC,
+	E_USIZE
 	};
 
 #ifndef __GB_ERROR_C
@@ -161,15 +165,21 @@ void THROW_SYSTEM(int err, const char *path);
 void THROW_NULL(void) NORETURN;
 void THROW_ILLEGAL(void) NORETURN;
 void THROW_STACK(void) NORETURN;
+void THROW_BOUND(void) NORETURN;
 void THROW_CLASS(void *class, char *arg1, char *arg2) NORETURN;
+void THROW_MATH(bool zero) NORETURN;
+void THROW_OVERFLOW_(void) NORETURN;
+#define THROW_OVERFLOW() ({ if (EXEC_check_overflow) THROW_OVERFLOW_(); })
+//#define THROW_OVERFLOW THROW_OVERFLOW_
 
 void ERROR_fatal(const char *error, ...) NORETURN;
 void ERROR_panic(const char *error, ...) NORETURN;
 void ERROR_warning(const char *warning, ...);
 
-void ERROR_print(void);
+bool ERROR_print(bool);
 void ERROR_print_at(FILE *where, bool msgonly, bool newline);
 void ERROR_hook(void);
+const char *ERROR_get_message(void);
 
 void ERROR_save(ERROR_INFO *save, ERROR_INFO *last);
 void ERROR_restore(ERROR_INFO *save, ERROR_INFO *last);

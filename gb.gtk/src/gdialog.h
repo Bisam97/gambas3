@@ -2,7 +2,7 @@
 
   gdialog.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -33,6 +33,7 @@ public:
 
 	static gColor color();
 	static char** filter(int *nfilter);
+	static int filterIndex();
 	static char** paths();
 	static char* path();
 	static char* title();
@@ -41,6 +42,7 @@ public:
 
 	static void setColor(gColor col);
 	static void setFilter(char **filter, int nfilter);
+	static void setFilterIndex(int index);
 	static void setPath(char *vl);
 	static void setTitle(char *title);
 	static void setFont(gFont *ft);
@@ -51,9 +53,6 @@ public:
 	static bool selectFont();
 	static bool openFile(bool multi=false);
 	static bool saveFile();
-
-private:
-  static GPtrArray *_filter;
 };
 
 #endif

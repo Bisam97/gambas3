@@ -2,7 +2,7 @@
 
   gbx_class.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -268,7 +268,7 @@ typedef
 		unsigned loaded : 1;              //          Class is loaded
 		unsigned ready : 1;               //          Class is loaded and ready
 		unsigned debug : 1;               //          Debugging information ?
-		unsigned free_name : 1;           //          Must free the class name
+		unsigned swap : 1;                //          Class endianness was swapped
 		unsigned free_event : 1;          //          Must free class->event
 		unsigned in_load : 1;             //          Class being loaded
 		unsigned exit : 1;                //          Marker used by CLASS_exit
@@ -277,28 +277,28 @@ typedef
 		unsigned quick_array : 2;         //          Array accessor optimization type
 		unsigned no_create : 1;           //          Cannot instanciate this class
 		unsigned is_virtual : 1;          //          Virtual class (name beginning with a dot)
-		unsigned swap : 1;                //          Class endianness was swapped
 		unsigned enum_static : 1;         //          If class enumeration is static
 		unsigned is_stream : 1;           //          If the class inherits stream
 		unsigned global : 1;              //          If the class is in the global table
+		unsigned error : 1;               //          Loading or registering the class has failed
 
 		unsigned is_native : 1;           //          If the class is native (i.e. written in C/C++)
-		unsigned error : 1;               //          Loading or registering the class has failed
 		unsigned is_observer : 1;         //          This is the Observer class
 		unsigned is_struct : 1;           //          This class is a structure
 		unsigned is_array : 1;            //          This class is an array
 		unsigned is_array_of_struct : 1;  //          This class is an array of struct
 		unsigned init_dynamic : 1;        //          If there is a special function to call at instanciation
 		unsigned must_check : 1;          //          The class has a check function
-
 		unsigned has_child : 1;           //          The class has an inherited child class
+
 		unsigned unknown_static : 1;      //          If _unknown is static
 		unsigned property_static : 1;     //          If _property is static
 		unsigned has_convert : 1;         //          If the _convert interface is implemented
 		unsigned has_operators : 1;       //          If the _operators interface is implemented
 		unsigned is_simple : 1;           //          Class has no parent, no child, is not virtual, and has no 'check' function.
 		unsigned has_free : 1;            //          The class has a free function
-		unsigned _reserved : 1;           //  24  36
+		unsigned is_test : 1;             //          The class is a test module
+		unsigned not_3_18 : 1;            //  24  36  If bytecode version is strictly older than 3.18
 
 		short n_desc;                     //  26  38  number of descriptions
 		short n_event;                    //  28  40  number of events
@@ -327,19 +327,19 @@ typedef
 		uint _reserved2;                  //     128
 		#endif
 
-		short special[12];                // 100 152  special functions index (_new, _free, ...)
+		short special[16];                // 108 160  special functions index (_new, _free, ...)
 
-		TYPE array_type;                  // 104 160  datatype of the contents if this class is an array class of objects
-		struct _CLASS *array_class;       // 108 168  array of class
-		struct _CLASS *astruct_class;     // 112 176  array of struct class
+		TYPE array_type;                  // 112 168  datatype of the contents if this class is an array class of objects
+		struct _CLASS *array_class;       // 116 176  array of class
+		struct _CLASS *astruct_class;     // 120 184  array of struct class
 
-		void *instance;                   // 116 184  automatically created instance
-		void **operators;                 // 120 192  arithmetic interface
-		bool (*convert)();                // 124 200  convert method
+		void *instance;                   // 124 192  automatically created instance
+		void **operators;                 // 128 200  arithmetic interface
+		bool (*convert)();                // 132 208  convert method
 
-		COMPONENT *component;             // 128 208  The component the class belongs to
+		COMPONENT *component;             // 136 216  The component the class belongs to
 
-		struct _CLASS *next;              // 132 216  next class
+		struct _CLASS *next;              // 140 224  next class
 		}
 	CLASS;
 
@@ -365,7 +365,9 @@ typedef
 		SPEC_COMPARE,
 		SPEC_ATTACH,
 		SPEC_READY,
-		MAX_SPEC = 11
+		SPEC_READ,
+		SPEC_WRITE,
+		SPEC_INVALID
 		}
 	CLASS_SPECIAL;
 
@@ -389,9 +391,11 @@ typedef
 	enum
 	{
 		CI_EXPORTED = 1,
-		CI_AUTOCREATE = 2,
+		CI_AUTO_CREATE = 2,
 		CI_OPTIONAL = 4,
-		CI_NOCREATE = 8
+		CI_NO_CREATE = 8,
+		CI_HAS_FAST = 16,
+		CI_TEST = 32
 	}
 	CLASS_INFO_FLAG;
 
@@ -434,6 +438,7 @@ EXTERN CLASS *CLASS_PointerArray;
 #define CLASS_is_native(_class) ((_class)->is_native)
 #define CLASS_is_struct(_class) ((_class)->is_struct)
 #define CLASS_is_array(_class) ((_class)->is_array)
+#define CLASS_is_array_of_struct(_class) ((_class)->is_array_of_struct)
 
 #define FUNCTION_is_static(func) ((func)->type & TF_STATIC)
 //#define FUNCTION_is_native(_desc) (((uintptr_t)(_desc)->exec >> 16) != 0)
@@ -458,8 +463,8 @@ char *CLASS_get_name(CLASS *class);
 CLASS_DESC_SYMBOL *CLASS_get_symbol(CLASS *class, const char *name);
 CLASS_DESC *CLASS_get_symbol_desc(CLASS *class, const char *name);
 
-short CLASS_get_symbol_index_kind(CLASS *class, const char *name, int kind, int kind2);
-CLASS_DESC *CLASS_get_symbol_desc_kind(CLASS *class, const char *name, int kind, int kind2);
+//short CLASS_get_symbol_index_kind(CLASS *class, const char *name, int kind, int kind2);
+CLASS_DESC *CLASS_get_symbol_desc_kind(CLASS *class, const char *name, int kind, int kind2, TYPE type);
 CLASS_DESC_METHOD *CLASS_get_special_desc(CLASS *class, int spec);
 
 #define CLASS_get_desc(_class, _index) (((_class)->table[_index].desc))
@@ -470,17 +475,22 @@ CLASS_DESC_EVENT *CLASS_get_event_desc(CLASS *class, const char *name);
 
 int CLASS_find_symbol_with_prefix(CLASS *class, const char *name, const char *prefix);
 
-CLASS *CLASS_look(const char *name, int len);
-CLASS *CLASS_find(const char *name);
+CLASS *CLASS_look_do(const char *name, int len, bool global);
+CLASS *CLASS_find_do(const char *name, bool global);
+
+#define CLASS_look(_name, _len) CLASS_look_do(_name, _len, FALSE)
+#define CLASS_find(_name) CLASS_find_do(_name, FALSE)
+
+#define CLASS_look_global(_name, _len) CLASS_look_do(_name, _len, TRUE)
+#define CLASS_find_global(_name) CLASS_find_do(_name, TRUE)
 
 TABLE *CLASS_get_table(void);
 
 bool CLASS_inherits(CLASS *class, CLASS *parent);
 
 CLASS *CLASS_replace_global(const char *name);
-CLASS *CLASS_look_global(const char *name, int len);
-CLASS *CLASS_find_global(const char *name);
 CLASS *CLASS_check_global(CLASS *class);
+CLASS *CLASS_find_export(const char *name, const char *global);
 
 void CLASS_ref(void *object);
 bool CLASS_unref(void *object, bool can_free);
@@ -516,9 +526,12 @@ int CLASS_sizeof(CLASS *class);
 
 CLASS *CLASS_find_load_from(const char *name, const char *from);
 
+void CLASS_translation_must_be_reloaded(void);
+
 /* class_init.c */
 
 void CLASS_init_native(void);
+void CLASS_update_global(CLASS *old_class, CLASS *new_class);
 
 /* class_load.c */
 

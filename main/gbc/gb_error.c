@@ -2,7 +2,7 @@
 
   gb_error.c
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -37,7 +37,7 @@ static const char *_message[] =
 {
   /*  0 E_UNKNOWN */ "Unknown error",
   /*  1 E_MEMORY */ "Out of memory",
-  /*  2 E_OPEN */ "Cannot open file: &1",
+  /*  2 E_OPEN */ "Cannot open file: &1: &2",
   /*  3 E_READ */ "Cannot read file: &1",
   /*  4 E_SYNTAX */ "Syntax error",
   /*  5 E_UNEXPECTED */ "Unexpected &1",
@@ -45,6 +45,7 @@ static const char *_message[] =
 	/*  7 E_MISSING */ "Missing &1",
 	/*  8 E_SYNTAX_MISSING */ "Syntax error. Missing &1",
 	/*  9 E_TOOLONG */ "File name is too long",
+	/* 10 E_BADARG */ "Bad argument",
   NULL
 };
 
@@ -271,4 +272,18 @@ void ERROR_warning(const char *warning, ...)
   fprintf(stderr, "gbc" GAMBAS_VERSION_STRING ": warning: ");
   vfprintf(stderr, warning, args);
   putc('\n', stderr);
+}
+
+void ERROR_fail(const char *error, ...)
+{
+  va_list args;
+
+  va_start(args, error);
+
+  fflush(NULL);
+
+  fprintf(stderr, "gbc" GAMBAS_VERSION_STRING ": ");
+  vfprintf(stderr, error, args);
+  putc('\n', stderr);
+	exit(1);
 }

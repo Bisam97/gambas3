@@ -1,0 +1,256 @@
+' Gambas class file
+
+Property Read Count As Integer
+
+Private $aSel As New Integer[]
+Private $bInvert As Boolean
+
+Event _Fake
+
+Public Sub GetItemCount() As Integer
+
+  Return Object.Parent(Me).Count
+  
+End
+
+Public Sub Refresh()
+  
+  Object.Parent(Me).Refresh
+  
+End
+
+
+Private Sub Add(iStart As Integer, Optional iLength As Integer = 1)
+  
+  Dim I, S, L As Integer
+  
+  For I = 0 To $aSel.Max Step 2
+    
+    S = $aSel[I]
+    L = $aSel[I + 1]
+    
+    If iStart >= S And If iStart <= (S + L) Then
+      $aSel[I + 1] = iStart + iLength - S
+      'Dump
+      Return
+    Else If (iStart + iLength) >= S And If (iStart + iLength) <= (S + L) Then
+      $aSel[I + 1] += $aSel[I] - iStart
+      $aSel[I] = iStart
+      'Dump
+      Return
+    Endif
+    
+  Next
+  
+  $aSel.Add(iStart)
+  $aSel.Add(iLength)
+  'Dump
+  
+End
+
+Private Sub Remove(iStart As Integer, Optional iLength As Integer = 1)
+  
+  Dim I, S, L As Integer
+  
+  I = 0
+  While I < $aSel.Count
+    
+    S = $aSel[I]
+    L = $aSel[I + 1]
+    
+    If (iStart + iLength) > S And If iStart < (S + L) Then 
+      
+      If iStart <= S And If (iStart + iLength) >= (S + L) Then
+        $aSel.Remove(I, 2)
+        Continue
+      Endif
+      
+      If iStart <= S Then
+        $aSel[I + 1] -= iStart + iLength - S
+        $aSel[I] = iStart + iLength
+      Else If (iStart + iLength) >= (S + L) Then
+        $aSel[I + 1] = iStart - S
+      Else
+        $aSel[I + 1] = iStart - S
+        $aSel.Add(iStart + iLength)
+        $aSel.Add(S + L - iStart - iLength)
+      Endif
+      
+    Endif
+    
+    I += 2
+  Wend
+  'Dump
+  
+End
+
+Public Sub Select(iStart As Integer, Optional iLength As Integer = 1)
+  
+  If $bInvert Then
+    Remove(iStart, iLength)
+  Else
+    Add(iStart, iLength)
+  Endif
+  Refresh
+  
+End
+
+Public Sub Unselect(iStart As Integer, Optional iLength As Integer = 1)
+  
+  If $bInvert Then
+    Add(iStart, iLength)
+  Else
+    Remove(iStart, iLength)
+  Endif
+  Refresh
+  
+End
+
+
+Public Sub SelectAll()
+  
+  $aSel.Clear
+  $bInvert = True
+  Refresh
+ 
+End
+
+Public Sub UnselectAll()
+  
+  $aSel.Clear
+  $bInvert = False
+  Refresh
+  
+End
+
+Public Sub IsSelected(iIndex As Integer) As Boolean
+  
+  Dim I, S, L As Integer  
+  
+  For I = 0 To $aSel.Max Step 2
+    
+    S = $aSel[I]
+    L = $aSel[I + 1]
+    
+    If iIndex >= S And iIndex < (S + L) Then Return Not $bInvert
+    
+  Next
+  
+  Return $bInvert
+  
+End
+
+Public Function GetSelectedRows() As Integer[]
+  
+  Dim aRet As New Integer[]
+  Dim I, J, S, L As Integer
+  
+  If $bInvert Then
+    
+    For I = 0 To GetItemCount() - 1
+      If IsSelected(I) Then aRet.Add(I)
+    Next
+    
+  Else
+  
+    For I = 0 To $aSel.Max Step 2
+      S = $aSel[I]
+      L = $aSel[I + 1]
+      
+      For J = 0 To L - 1
+        aRet.Add(S + J)
+      Next
+    Next
+    
+  Endif
+  
+  Return aRet.Sort()
+
+End
+
+Private Function Count_Read() As Integer
+
+  Dim I, N As Integer
+
+  For I = 0 To $aSel.Max Step 2
+    N += $aSel[I + 1]
+  Next
+  
+  If $bInvert Then
+    
+    Return GetItemCount() - N
+    
+  Else
+    
+    Return N
+    
+  Endif
+
+End
+
+Public Sub IsEverythingSelected() As Boolean
+  
+  If $bInvert And $aSel.Count = 0 Then Return True
+  
+End
+
+
+Public Sub GetCurrent() As Integer
+  
+  Dim iCurrent As Integer
+  
+  If $aSel.Count = 2 And If $aSel[1] = 1 Then 
+    iCurrent = $aSel[0]
+    If iCurrent < GetItemCount() Then Return iCurrent
+  Endif
+  Return -1
+  
+End
+
+Public Sub InsertRow(iRow As Integer)
+
+  Dim I As Integer
+  Dim S As Integer
+  Dim L As Integer
+  
+  For I = 0 To $aSel.Max Step 2
+    
+    S = $aSel[I]
+    L = $aSel[I + 1]
+    
+    If iRow <= S Then
+      Inc $aSel[I]
+    Else If iRow < (S + L) Then
+      Inc $aSel[I + 1]
+    Endif
+    
+  Next
+  
+End
+
+Public Sub RemoveRow(iRow As Integer)
+  
+  Dim I As Integer
+  Dim S As Integer
+  Dim L As Integer
+
+  I = 0
+  While I < $aSel.Count  
+    
+    S = $aSel[I]
+    L = $aSel[I + 1]
+    
+    If iRow <= S Then
+      Dec $aSel[I]
+    Else If iRow < (S + L) Then
+      Dec $aSel[I + 1]
+      If $aSel[I + 1] = 0 Then
+        $aSel.Remove(I, 2)
+        Continue
+      Endif
+    Endif
+    
+    I += 2
+  Wend
+  
+End

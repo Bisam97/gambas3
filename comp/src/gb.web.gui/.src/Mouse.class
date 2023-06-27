@@ -1,0 +1,98 @@
+' Gambas class file
+
+Export
+
+Static Property Read X As Integer
+Static Property Read Y As Integer
+Static Property Read ScreenX As Integer
+Static Property Read ScreenY As Integer
+Static Property Read Button As Integer
+Static Property Read Left As Boolean
+Static Property Read Middle As Boolean
+Static Property Read Right As Boolean
+Static Property Read StartX As Integer
+Static Property Read StartY As Integer
+
+Static Private $cEvent As Collection
+Static Private $bMouseDown As Boolean
+Static Private $iStartX As Integer
+Static Private $iStartY As Integer
+
+Static Public Sub _Define(sType As String, cEvent As Collection)
+  
+  $cEvent = cEvent
+  If sType = "MouseDown" Then
+    $bMouseDown = True
+    $iStartX = cEvent["x"]
+    $iStartY = cEvent["y"]
+  Endif
+  
+End
+
+Static Private Function X_Read() As Integer
+
+  Return $cEvent["x"]
+
+End
+
+Static Private Function Y_Read() As Integer
+
+  Return $cEvent["y"]
+
+End
+
+Static Private Function Button_Read() As Integer
+
+  Dim I As Integer
+  Dim iButtons As Integer
+  
+  If $cEvent["type"] = "MouseDown" Then Return $cEvent["button"]
+
+  iButtons = $cEvent["buttons"]
+  For I = 0 To 2
+    If BTst(iButtons, I) Then Return I
+  Next
+
+End
+
+Static Private Function ScreenX_Read() As Integer
+
+  Return $cEvent["sx"]
+
+End
+
+Static Private Function ScreenY_Read() As Integer
+
+  Return $cEvent["sy"]
+
+End
+
+Static Private Function Left_Read() As Boolean
+
+  Return $cEvent["buttons"] And 1
+
+End
+
+Static Private Function Middle_Read() As Boolean
+
+  Return $cEvent["buttons"] And 2
+
+End
+
+Static Private Function Right_Read() As Boolean
+
+  Return $cEvent["buttons"] And 4
+
+End
+
+Static Private Function StartX_Read() As Integer
+
+  Return $iStartX
+
+End
+
+Static Private Function StartY_Read() As Integer
+
+  Return $iStartY
+
+End

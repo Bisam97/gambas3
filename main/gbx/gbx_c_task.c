@@ -2,7 +2,7 @@
 
   gbx_c_task.c
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -41,6 +41,8 @@
 #include "gbx_string.h"
 #include "gbx_signal.h"
 #include "gbx_event.h"
+#include "gbx_component.h"
+#include "gbx_watch.h"
 
 #include "gbx_c_file.h"
 #include "gbx_c_task.h"
@@ -93,12 +95,14 @@ static void has_forked(void)
 	EXEC_Hook.post = NULL;
 	//EXEC_Hook.quit = NULL;
 	
-	stream = CSTREAM_stream(CFILE_out);
+	stream = CSTREAM_TO_STREAM(CFILE_get_standard_stream(CFILE_OUT));
 
 	stream->common.eol = 0;
 	STREAM_blocking(stream, TRUE);
 
 	SIGNAL_has_forked();
+
+	FLAG.has_forked = TRUE;
 	
 	task = _task_list;
 	while (task)
@@ -139,6 +143,11 @@ static void callback_child(int signum, intptr_t data)
 	#endif
 }
 
+void CTASK_callback_child(void)
+{
+	callback_child(SIGCHLD, 0);
+}
+
 static int get_readable(int fd)
 {
 	int len;
@@ -149,14 +158,14 @@ static int get_readable(int fd)
 		return len;
 }
 
-static bool callback_read(int fd, int type, CTASK *_object)
+static bool callback_write(int fd, int type, CTASK *_object)
 {
 	int len;
 	char *data;
 	char *p;
 	int n;
 	
-	//fprintf(stderr, "callback_read: %d %p\n", fd, THIS);
+	//fprintf(stderr, "callback_write: %d %p\n", fd, THIS);
 	
 	len = get_readable(fd);
 	if (len == 0)
@@ -227,10 +236,10 @@ static void init_task(void)
 {
 	_task_count++;
 
-	if (_task_count > 1)
-		return;
+	if (_task_count <= 1)
+		_signal_handler = SIGNAL_register(SIGCHLD, callback_child, 0);
 	
-	_signal_handler = SIGNAL_register(SIGCHLD, callback_child, 0);
+	SIGNAL_check(SIGCHLD);
 }
 
 static void exit_task(void)
@@ -292,6 +301,8 @@ static bool start_task(CTASK *_object)
 	if (has_error && pipe(fd_err) != 0)
 		goto __ERROR;
 
+	COMPONENT_before_fork();
+
 	// Block SIGCHLD
 
 	sigemptyset(&sig);
@@ -319,7 +330,7 @@ static bool start_task(CTASK *_object)
 			close(fd_out[1]);
 			THIS->fd_out = fd_out[0];
 
-			GB_Watch(THIS->fd_out, GB_WATCH_READ, (void *)callback_read, (intptr_t)THIS);
+			GB_Watch(THIS->fd_out, GB_WATCH_READ, (void *)callback_write, (intptr_t)THIS);
 		}
 
 		if (has_error)
@@ -349,8 +360,8 @@ static bool start_task(CTASK *_object)
 			
 			setlinebuf(stdout);
 		}
-		else
-			close(CHILD_STDOUT);
+		/*else
+			close(CHILD_STDOUT);*/
 
 		if (has_error)
 		{
@@ -361,8 +372,8 @@ static bool start_task(CTASK *_object)
 			
 			setlinebuf(stderr);
 		}
-		else
-			close(CHILD_STDERR);
+		/*else
+			close(CHILD_STDERR);*/
 
 		has_forked(); // After the redirection
 		
@@ -547,7 +558,7 @@ static void stop_task(CTASK *_object)
 			if (len <= 0)
 				break;
 			
-			if (callback_read(THIS->fd_out, 0, THIS))
+			if (callback_write(THIS->fd_out, 0, THIS))
 				break;
 		}
 	}
@@ -634,23 +645,42 @@ static void error_Task_Wait(CTASK *task)
 	OBJECT_UNREF(task);
 }
 
-BEGIN_METHOD_VOID(Task_Wait)
+BEGIN_METHOD(Task_Wait, GB_FLOAT timeout)
+
+	int ret;
+	int sigfd;
+	int timeout;
+	
+	timeout = (int)(VARGOPT(timeout, 0.0) * 1000);
 
 	OBJECT_REF(THIS);
 	
-	//printf("Task_Wait: %p\n", THIS); fflush(stdout);
+	//fprintf(stderr, "Task_Wait: %p\n", THIS);
 	
 	ON_ERROR_1(error_Task_Wait, THIS)
 	{
-		for(;;)
+		GB_Wait(-1);
+		
+		while (!THIS->stopped)
 		{
-			//printf("GB_Wait\n"); fflush(stdout);
-			GB_Wait(0);
-			//printf("stopped = %d\n", THIS->stopped); fflush(stdout);
-			if (THIS->stopped)
+			sigfd = SIGNAL_get_fd();
+			SIGNAL_check(SIGCHLD);
+			ret = WATCH_process(sigfd, THIS->fd_out, THIS->fd_err, timeout);
+
+			if (ret & WP_OUTPUT)
+				callback_write(THIS->fd_out, GB_WATCH_READ, THIS);
+
+			if (ret & WP_ERROR)
+				callback_error(THIS->fd_err, GB_WATCH_READ, THIS);
+
+			if (ret & WP_END)
+				SIGNAL_raise_callbacks(sigfd, GB_WATCH_READ, 0);
+
+			if (ret & WP_TIMEOUT)
 				break;
-			//printf("sleep\n"); fflush(stdout);
-			sleep(10);
+
+			if (ret == 0)
+				usleep(1000);
 		}
 	}
 	END_ERROR
@@ -729,7 +759,8 @@ GB_DESC TaskDesc[] =
 	GB_PROPERTY_READ("Running", "b", Task_Running),
 
 	GB_METHOD("Stop", NULL, Task_Stop, NULL),
-	GB_METHOD("Wait", NULL, Task_Wait, NULL),
+	GB_METHOD("Kill", NULL, Task_Stop, NULL),
+	GB_METHOD("Wait", NULL, Task_Wait, "[(Timeout)f]"),
 
 	GB_EVENT("Read", NULL, "(Data)s", &EVENT_Read),
 	GB_EVENT("Error", NULL, "(Data)s", &EVENT_Error),

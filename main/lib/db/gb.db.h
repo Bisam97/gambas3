@@ -2,7 +2,7 @@
 
 	gb.db.h
 
-	(c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+	(c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -42,7 +42,7 @@ typedef
 
 /* LIMIT position */
 
-#define DB_LIMIT_NONE					0
+#define DB_LIMIT_NONE         0
 #define DB_LIMIT_AT_BEGIN     1
 #define DB_LIMIT_AT_END       2
 
@@ -133,6 +133,9 @@ typedef
 
 typedef
 	void (*DB_SUBST_CALLBACK)(int, char **, int *, char);
+	
+typedef
+	void (*DB_OPTIONS_CALLBACK)(const char *, GB_VALUE *);
 
 typedef
 	struct {
@@ -157,7 +160,7 @@ typedef
 			void (*Init)(DB_RESULT result, DB_INFO *info, int *count);
 			int (*Fill)(DB_DATABASE *db, DB_RESULT result, int pos, GB_VARIANT_VALUE *buffer, int next);
 			void (*Blob)(DB_RESULT result, int pos, int field, DB_BLOB *blob);
-			void (*Release)(DB_RESULT result, DB_INFO *info);
+			void (*Release)(DB_RESULT result, DB_INFO *info, bool invalid);
 			struct {
 				GB_TYPE (*Type)(DB_RESULT result, int index);
 				char *(*Name)(DB_RESULT result, int index);
@@ -225,12 +228,14 @@ typedef
 		void (*Register)(DB_DRIVER *);
 		void (*Format)(DB_DRIVER *, GB_VALUE *, DB_FORMAT_CALLBACK);
 		void (*FormatVariant)(DB_DRIVER *, GB_VARIANT_VALUE *, DB_FORMAT_CALLBACK);
-		int (*IsDebug)(void);
+		bool (*IsDebug)();
+		void (*Debug)(const char *, const char *, ...);
 		void (*TryAnother)(const char *);
 		char *(*SubstString)(const char *, int, DB_SUBST_CALLBACK);
 		char *(*QuoteString)(const char *, int, char);
 		char *(*UnquoteString)(const char *, int, char);
 		DB_DATABASE *(*GetCurrentDatabase)();
+		void (*GetOptions)(DB_OPTIONS_CALLBACK);
 
 		struct {
 			void (*Init)(void);

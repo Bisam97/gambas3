@@ -3,6 +3,9 @@
 Static Public Paths As String[]
 Static Public AutoExt As Boolean
 
+Static Public FilterIndex As Integer
+Static Public FilterIndexSet As Boolean
+
 Private $bMulti As Boolean
 Private $bReadOnly As Boolean
 Private $bAutoExt As Boolean
@@ -35,11 +38,20 @@ Public Sub Form_Open()
   fchChoose.Multi = $bMulti
   'fchChoose.Root = "/"
   fchChoose.Filter = Dialog.Filter
+  If FilterIndexSet Then
+    fchChoose.FilterIndex = FilterIndex
+    FilterIndexSet = False
+  Endif 
+  
   fchChoose.ShowHidden = Dialog.ShowHidden
 
-  If Component.IsLoaded("gb.settings") And If Dialog.Key Then
-    Settings.Read(Me, "gb.form.dialog" &/ Dialog.Key)
-    Settings.Read(fchChoose, "/gb.form.dialog" &/ Dialog.Key &/ "fchChoose")
+  If Component.IsLoaded("gb.settings") Then
+    If Dialog.Key Then
+      Settings.Read(Me, "gb.form.dialog" &/ Dialog.Key)
+      Settings.Read(fchChoose, "/gb.form.dialog" &/ Dialog.Key &/ "fchChoose")
+    Else 
+      Settings.Read(Me, "gb.form.dialog/FFileDialog")
+    Endif
   Endif
 
   If Dialog.Path Then fchChoose.SelectedPath = Dialog.Path
@@ -48,8 +60,6 @@ Public Sub Form_Open()
     chkAutoExt.Visible = $bAutoExt
     chkAutoExt.Value = AutoExt
   Endif
-  
-  If Component.IsLoaded("gb.settings") Then Settings.Read(Me, "gb.form.dialog/FFileDialog")
   
   fchChoose.SetFocus
 
@@ -63,12 +73,17 @@ Private Sub SetExtension(sPath As String) As String
   Dim bGotIt As Boolean
   
   aFilter = Dialog.Filter
+  If Not aFilter Then
+    If Dialog.Path Then Return File.SetExt(sPath, File.Ext(Dialog.Path))
+    Return sPath
+  Endif
+  
   For iInd = 0 To aFilter.Max Step 2
     Try sExt = Scan(Split(aFilter[iInd], ";")[0], "\\*.*")[0]
     If Not sExt Then Continue
     If sExt = "*" Then Continue
     If sPath Ends "." & sExt Then
-      sPath = Left$(sPath, - Len(sExt) - 1)
+      sPath = Left$(sPath, -Len(sExt) - 1)
       bGotIt = True
       Break
     Endif
@@ -102,12 +117,19 @@ Public Sub fchChoose_Activate()
     Dialog.AutoExt = chkAutoExt.Value
     If Dialog.AutoExt Then sPath = SetExtension(sPath)
     Dialog.Path = sPath
-    If Not fchChoose.ReadOnly Then 
-      If Exist(sPath) Then 
-        If Message.Warning(("This file already exists.\n\nDo you want to overwrite it?"), ("&Overwrite"), ("Cancel")) = 2 Then Return
-      Endif 
-    Endif
+    ' If Not fchChoose.ReadOnly Then 
+    '   If Exist(sPath) Then 
+    '     If Message.Warning(("This file already exists.\n\nDo you want to overwrite it?"), ("&Overwrite"), ("Cancel")) = 2 Then Return
+    '   Endif 
+    ' Endif
 
+  Endif
+  
+  If Dialog.Filter Then
+    FilterIndex = fchChoose.FilterIndex
+    If FilterIndex >= (Dialog.Filter.Count \ 2) Then FilterIndex = -1
+  Else 
+    FilterIndex = -1
   Endif
 
   Me.Close(True)
@@ -122,11 +144,21 @@ End
 
 Public Sub Form_Close()
 
-  If Component.IsLoaded("gb.settings") And If Dialog.Key Then
-    Settings.Write(Me, "gb.form.dialog" &/ Dialog.Key)
-    Settings.Write(fchChoose, "/gb.form.dialog" &/ Dialog.Key &/ "fchChoose")
+  If Component.IsLoaded("gb.settings") Then
+    If Dialog.Key Then
+      Settings.Write(Me, "gb.form.dialog" &/ Dialog.Key)
+      Settings.Write(fchChoose, "/gb.form.dialog" &/ Dialog.Key &/ "fchChoose")
+    Else
+      Settings.Write(Me, "gb.form.dialog/FFileDialog")
+    Endif
   Endif
   
   Dialog.Key = ""
+
+End
+
+Public Sub chkAutoExt_Click()
+
+  fchChoose.AutoExt = chkAutoExt.Value
 
 End

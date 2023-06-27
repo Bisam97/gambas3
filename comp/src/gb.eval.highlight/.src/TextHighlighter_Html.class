@@ -1,8 +1,12 @@
 ' Gambas class file
 
+'' http://w3c.github.io/html-reference/syntax.html
+
 Inherits TextHighlighter
 
 Public Const Name As String = "html"
+Public Const FullName As String = "HTML"
+Public Const _Styles As String = "Markup,Attribute,Value,Entity"
 
 Static Public MeetCodeAt As Integer
 Static Public AllowCode As Boolean
@@ -11,9 +15,12 @@ Public Const STYLE_HTML As Integer = 1
 Public Const STYLE_WEB As Integer = 2
 
 Private Const TAG_HTML As Integer = 0
-Private Const TAG_COMMENT As Integer = 1
-Private Const TAG_SCRIPT As Integer = 2
-Private Const TAG_STYLE As Integer = 3
+Private Const TAG_MARKUP As Integer = 1
+Private Const TAG_MARKUP_SCRIPT As Integer = 2
+Private Const TAG_MARKUP_STYLE As Integer = 3
+Private Const TAG_COMMENT As Integer = 4
+Private Const TAG_SCRIPT As Integer = 5
+Private Const TAG_STYLE As Integer = 6
 
 Private Const TAG_CODE As Integer = 16
 Private Const TAG_CODE_COMMENT As Integer = 32
@@ -25,7 +32,7 @@ Private Enum TAG_VARIABLE, TAG_CODE_MARKUP
 Static Private $sTextAfter As String
 Static Private $sBufferAfter As String
 
-Static Private $aStateStack As Integer[]
+Static Private $aStateStack As Short[]
 
 ' TODO: call TextHighlighter_Gambas !
 
@@ -34,8 +41,8 @@ Private Sub AnalyzeCode(sText As String) As String
   Dim iInd As Integer
   Dim iPos As Integer
   Dim iLen As Integer
-  Dim iState As Integer
-  Dim iTag As Integer
+  Dim iState As Short
+  Dim iTag As Short
   
   'Print "AnalyzeCode: "; sText
   
@@ -92,22 +99,21 @@ End
 
 Private Sub RunWith(Text As String, iStyle As Integer)
 
-  Dim iState As Integer
-  Dim iTag, iTagCode, iTagMode As Integer
+  Dim iState As Short
+  Dim iTag, iTagCode, iTagMode As Short
   Dim sText As String
   Dim I, iLenText As Integer
   Dim sCar As String
   Dim iPos As Integer
-  Dim iNextState As Integer
+  Dim iNextState As Short
   Dim bLimit, bNextLimit As Boolean
   Dim sQuote As String
   Dim sMarkup As String
   Dim bClose As Boolean
   Dim iStart As Integer
-  Dim bMarkup As Boolean
   Dim sHighlightText As String
 
-  'Print "    "; Bin$(Highlight.Tag, 16);; Highlight.Text
+  'Print "    "; Bin$(TextHighlighter.Tag, 16);; Text
 
   AllowCode = iStyle = STYLE_WEB
 
@@ -133,11 +139,12 @@ Private Sub RunWith(Text As String, iStyle As Integer)
     iTagMode = 0
     iTagCode = 0
     TextHighlighter.Alternate = False
-    On iTag Goto STATE_HTML, STATE_COMMENT, STATE_SCRIPT, STATE_STYLE
+    On iTag Goto STATE_HTML, STATE_MARKUP, STATE_MARKUP, STATE_MARKUP, STATE_COMMENT, STATE_SCRIPT, STATE_STYLE
   Endif
   
 STATE_HTML:
 
+  iTag = TAG_HTML
   iTagMode = 0
   iTagCode = 0
   TextHighlighter.Alternate = False
@@ -146,127 +153,189 @@ STATE_HTML:
     GoSub NEXT_CHAR
     
     If sCar = "<" Then
+      
       If String.Mid$(sText, I, 3) = "!--" Then
-        Add("<!--", Highlight.Comment)
+        
+        Add("<!--", State.Comment)
         I += 3
         iTag = TAG_COMMENT
         Goto STATE_COMMENT
+        
       Else If iStyle = STYLE_WEB And If String.Mid$(sText, I, 1) = "<" Then
+        
         Goto STATE_DOUBLE_MARKUP
+        
       Else
+        
+        Add("<", State.Markup)
+        sMarkup = ""
+        
+        GoSub LOOK_CHAR
+        If sCar = "!" Or If sCar = "/" Then
+          sMarkup &= sCar
+          Inc I
+        Endif
+        
+        Do
+          
+          GoSub LOOK_CHAR
+          If Not sCar Then Break
+          If Not IsLetter(sCar) And If Not IsDigit(sCar) Then Break
+          Inc I
+          sMarkup &= sCar
+          
+        Loop
+        
+        If sMarkup Then Add(sMarkup, State.Markup)
+        
+        If sMarkup == "script" Then
+          iTag = TAG_MARKUP_SCRIPT
+        Else If sMarkup == "style"
+          iTag = TAG_MARKUP_STYLE
+        Else
+          iTag = TAG_MARKUP
+        Endif
+
         Goto STATE_MARKUP
+        
       Endif
+      
     Else If sCar = "&" Then
+      
       iPos = String.InStr(sText, ";", I)
       If iPos = 0 Then iPos = iLenText
-      Add("&" & String.Mid$(sText, I, iPos - I + 1), Highlight.Number)
+      Add("&" & String.Mid$(sText, I, iPos - I + 1), State.Entity)
       I = iPos + 1
       Continue
+      
     Endif
   
-    Add(sCar, Highlight.Normal)
+    Add(sCar, State.Normal)
   Loop
 
 STATE_COMMENT:
 
   iPos = String.InStr(sText, "-->", I)
   If iPos = 0 Then
-    Add(String.Mid$(sText, I), Highlight.Comment)
-    iNextState = Highlight.Comment
+    Add(String.Mid$(sText, I), State.Comment)
+    iNextState = State.Comment
     Goto END_TEXT
   Else
-    Add(String.Mid$(sText, I, iPos - I + 3), Highlight.Comment)
+    Add(String.Mid$(sText, I, iPos - I + 3), State.Comment)
     I = iPos + 3
     iTag = TAG_HTML
     Goto STATE_HTML
   Endif
-
+  
 STATE_MARKUP:
 
-  sMarkup = ""
   bClose = False
   
-  'If IsMarkup(sText, I, "style") Or If IsMarkup(sText, I, "script") Then
-  '  Highlight.AlternateState = True
-  'Endif
+STATE_ELEMENT:
   
-  Add("<", Highlight.Keyword)
+  GoSub NEXT_CHAR
+
+STATE_ELEMENT_BACK:
+
+  If sCar = ">" Then
+    Add(">", State.Markup)
+    Goto CLOSE_MARKUP
+  Else If sCar = "/" And If String.Mid$(sText, I, 1) = ">" Then
+    bClose = True
+    Add("/>", State.Markup)
+    Inc I
+    Goto CLOSE_MARKUP
+  Else If IsSpace(sCar) Then
+    Add(sCar, State.Normal)
+    iState = State.Markup
+    Goto STATE_ELEMENT
+  Else If sCar = "=" Then
+    Add("=", State.Markup)
+    iState = State.Value
+    Goto STATE_VALUE
+  Else If sCar = Chr$(34) Or If sCar = "'" Then 
+    GoSub READ_STRING
+    Goto STATE_ELEMENT
+  Else If InStr("'\">/=", sCar) Then
+    Add(sCar, State.Error)
+    Goto STATE_ELEMENT
+  Else
+    Add(sCar, State.Attribute)
+    Goto STATE_ATTRIBUTE
+  Endif
   
-  iState = Highlight.Keyword
-  bMarkup = True  
+STATE_ATTRIBUTE:
+  
+  GoSub NEXT_CHAR
+  
+  If IsSpace(sCar) Or If InStr("/>'\"", sCar) Then
+    Goto STATE_ELEMENT_BACK
+  Else If sCar = "=" Then
+    Add(sCar, State.Markup)
+    iState = State.Value
+    Goto STATE_VALUE
+  Else
+    Add(sCar, State.Attribute)
+    Goto STATE_ATTRIBUTE
+  Endif
+
+STATE_VALUE:
+  
+  GoSub NEXT_CHAR
+  
+  If sCar = Chr$(34) Or If sCar = "'" Then 
+    GoSub READ_STRING
+    Goto STATE_ELEMENT
+  Endif
+  
   Do
-    
+    If Not IsAlnum(sCar) And InStr("'\"<>=`", sCar) = 0 Then Break
+    Add(sCar, State.Value)
     GoSub NEXT_CHAR
-    
-    If sCar = ">" Then
-      Add(">", Highlight.Keyword)
-      Break
-    Else If sCar = "/" And If String.Mid$(sText, I, 1) = ">" Then
-      bClose = True
-      Add("/>", Highlight.Keyword)
-      Inc I
-      Break
-    Else If sCar = " " Then
-      Add(" ", iState)
-      iState = Highlight.Keyword
-      bMarkup = False
-      Continue
-    Else If sCar = "=" Then
-      Add("=", Highlight.Keyword)
-      iState = Highlight.String
-      Continue
-    Else If sCar = Chr$(34) Or If sCar = "'" Then
-      GoSub READ_STRING
-      Continue
-    Endif
-    
-    If bMarkup Then sMarkup &= sCar
-    Add(sCar, iState)
-    
   Loop
   
+  Goto STATE_ELEMENT_BACK
+  
+CLOSE_MARKUP:
+  
   If Not bClose Then
-    If sMarkup = "script" Then
+    If iTag = TAG_MARKUP_SCRIPT Then
       iTag = TAG_SCRIPT
       iTagMode = 0
-      TextHighlighter.State = Highlight.Normal
+      TextHighlighter.State = State.Normal
       bLimit = True
       Goto STATE_SCRIPT
-    Else If sMarkup = "style" Then
+    Else If iTag = TAG_MARKUP_STYLE Then
       iTag = TAG_STYLE
       iTagMode = 0
-      TextHighlighter.State = Highlight.Normal
+      TextHighlighter.State = State.Normal
       bLimit = True
       Goto STATE_STYLE
-    ' Else If sMarkup = "html" Or If sMarkup = "body" Or If sMarkup = "head" Then
-    '   bLimit = True
-    ' Else If sMarkup = "/html" Or If sMarkup = "/body" Or If sMarkup = "/head" Then
-    '   bNextLimit = True
     Endif
   Endif
   Goto STATE_HTML
 
 STATE_DOUBLE_MARKUP:
 
-  Add("<<", Highlight.Preprocessor)
+  Add("<<", State.WebMarkup)
   Inc I
   
-  iState = Highlight.Preprocessor
+  iState = State.WebMarkup
   Do
     
     GoSub NEXT_CHAR
     
     If sCar = ">" And If String.Mid$(sText, I, 1) = ">" Then
-      Add(">>", Highlight.Preprocessor)
+      Add(">>", State.WebMarkup)
       Inc I
       Break
     Else If sCar = " " Then
       Add(" ", iState)
-      iState = Highlight.Preprocessor
+      iState = State.WebMarkup
       Continue
     Else If sCar = "=" Then
-      Add("=", Highlight.Preprocessor)
-      iState = Highlight.String
+      Add("=", State.WebMarkup)
+      iState = State.Value
       Continue
     Else If sCar = Chr$(34) Or If sCar = "'" Then
       GoSub READ_STRING
@@ -318,7 +387,7 @@ STATE_SCRIPT:
       sHighlightText = String.Mid$(sText, I, iPos - I)
       GoSub READ_SCRIPT
     Endif
-    Add("</script>", Highlight.Keyword)
+    Add("</script>", State.Markup)
     iTag = TAG_HTML
     I = iPos + 9
     bNextLimit = True
@@ -363,7 +432,7 @@ STATE_STYLE:
       sHighlightText = String.Mid$(sText, I, iPos - I)
       GoSub READ_STYLE
     Endif
-    Add("</style>", Highlight.Keyword)
+    Add("</style>", State.Markup)
     iTag = TAG_HTML
     I = iPos + 8
     bNextLimit = True
@@ -394,15 +463,15 @@ STATE_CODE_COMMENT:
 READ_STRING:
 
   sQuote = sCar
-  Add(sQuote, Highlight.String)
+  Add(sQuote, State.Value)
   Do
     GoSub NEXT_CHAR
-    Add(sCar, Highlight.String)
+    Add(sCar, State.Value)
     If sCar = sQuote Then Break
-    If sCar = "\\" Then
-      GoSub NEXT_CHAR
-      Add(sCar, Highlight.String)
-    Endif
+    ' If sCar = "\\" Then
+    '   GoSub NEXT_CHAR
+    '   Add(sCar, State.Value)
+    ' Endif
   Loop
   Return
 
@@ -426,8 +495,8 @@ READ_CODE:
   GoSub PUSH_STATE
 
   TextHighlighter.Alternate = True
-  If sMarkup Then Add(sMarkup, Highlight.Keyword)
-  TextHighlighter.State = Highlight.Normal
+  If sMarkup Then Add(sMarkup, State.Markup)
+  TextHighlighter.State = State.Normal
   TextHighlighter.Tag = 0
   bClose = False
   iStart = I
@@ -450,7 +519,7 @@ READ_CODE:
 
   If bClose Then
     $sBufferAfter &= AnalyzeCode(String.Mid$(sText, iStart, I - iStart - 1))
-    Add("%>", Highlight.Keyword)
+    Add("%>", State.Markup)
     GoSub POP_STATE
     TextHighlighter.Alternate = False
     iTagCode = 0
@@ -470,13 +539,22 @@ READ_CODE_COMMENT:
 
   iPos = String.InStr(sText, "--%>", I)
   If iPos = 0 Then
-    Add(String.Mid$(sText, I), Highlight.Help)
+    Add(String.Mid$(sText, I), State.Documentation)
     I = iLenText + 1
     iTagCode = TAG_CODE_COMMENT
   Else
-    Add(String.Mid$(sText, I, iPos - I + 3), Highlight.Help)
+    Add(String.Mid$(sText, I, iPos - I + 3), State.Documentation)
     I = iPos + 3
     iTagCode = 0
+  Endif
+  Return
+
+LOOK_CHAR:
+
+  If I > iLenText Then 
+    sCar = ""
+  Else
+    sCar = String.Mid$(sText, I, 1)
   Endif
   Return
 
@@ -489,7 +567,7 @@ NEXT_CHAR:
   If iStyle = STYLE_WEB And If iTagCode = 0 And If sCar = "<" And If String.Mid$(sText, I, 1) = "%" Then
     
     If String.Mid$(sText, I, 3) = "%--" Then
-      Add("<%--", Highlight.Help)
+      Add("<%--", State.Documentation)
       I += 3
       GoSub READ_CODE_COMMENT
       Goto NEXT_CHAR
@@ -501,7 +579,7 @@ NEXT_CHAR:
       Else If sCar = "!" Then
         iPos = String.InStr(sText, "%>", I)
         If iPos = 0 Then iPos = iLenText + 1
-        Add("<" & String.Mid$(sText, I, iPos - I + 2), Highlight.DataType)
+        Add("<" & String.Mid$(sText, I, iPos - I + 2), State.WebArgument)
         I = iPos + 2
         TextHighlighter.Alternate = False
         Goto NEXT_CHAR
@@ -519,7 +597,7 @@ NEXT_CHAR:
   
 PUSH_STATE:
   
-  If Not $aStateStack Then $aStateStack = New Integer[]
+  If Not $aStateStack Then $aStateStack = New Short[]
   
   $aStateStack.Push(TextHighlighter.State)
   $aStateStack.Push(TextHighlighter.Tag)

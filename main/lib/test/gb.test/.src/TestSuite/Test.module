@@ -1,0 +1,494 @@
+' Gambas module file
+
+Export
+
+Class __Test
+
+''' The class Test is the central class which orchestrates
+''' the execution of tests and also gives a couple of tools to
+''' manipulate running tests.
+
+'' Special value for unspecified test plan
+Public Const NO_PLAN As Integer = -1
+
+Property Read _Printer As TapPrinter
+Property Read _Finished As Boolean
+Property _Next As TestAssertion
+Public _InSetup As Boolean
+
+Private $hPrinter As New TapPrinter
+Private $hNext As TestAssertion
+
+Private $Suite As TestSuite
+
+'' Used to trigger Test.Main to print all tests as comma separated string.
+Public Const _TRIGGER_GET_ALLTESTS As String = "#GetAllTests"
+
+'' The static procedure Test.Main() runs tests. By default it runs all tests (aka testmethods) in all
+'' testmodules of a project ordered by name and prints the result to stdout.
+''
+'' A testmodule is a special class with the ending test. It must contain at minimum one test.
+''
+'' A test is a public sub in a testmodule whose name does not contain an underscore.
+''
+'' On the command line the interpreter is commanded with this line to execute Test.Main():
+''
+'' gbx3 -T "*" /path/to/project
+''
+'' The optional argument ca be used to create a testsuite which chooses any
+'' combination of testmodule and test(s). The format of the string is like so: Testmodules
+'' are separated by a comma. If not all tests of a testmodule should be called then the
+'' name of the testmodule is followed by a dot and a string containing the tests separated
+'' by a semikolon. For example:
+''
+'' gbx3 -T "testmodule1,testmodule2.test1;test2,testmodule3" /path/to/project
+''
+'' In the Gambas IDE one is able to define testsuites and store them with a individual name
+'' in a file named ".test" in the project's path.
+''
+'' A test suite stored like that can be called by it's name with a preceeding "@", for example:
+''
+'' gbx3 -T "@My production testsuite1" /path/to/project
+''
+'' Public methods called "_Setup", "_Teardown", "_SetupEach" or "_TeardownEach" inside a testmodule
+'' can be used to create a testfixture, which defines a special environment for the tests.
+
+Public Sub Main(Optional Tests As String)
+
+    Dim sTestsuite As String
+
+    If Not Tests Then
+        'prints the names of all testmodules
+        PrintAllTestModules()
+        Return
+    Endif
+
+    If Tests = _TRIGGER_GET_ALLTESTS Then
+        Print AllTests()
+        Return
+    Endif
+
+    If Tests = "*" Then
+        'triggers all tests
+        Tests = ""
+    Endif
+
+    If Tests Begins "@" Then
+        'a test suite was called by name
+        sTestsuite = Tests
+        Tests = Helper.GetTestSuiteByName(Tests)
+    Endif
+
+    ' run tests
+    Test._Reset() ' only if you run this Main multiple times per process, which you shouldn't
+    If Tests Then
+        FromString(Tests)
+    Endif
+    RunTests()
+
+    If sTestsuite Then
+        sTestsuite = Replace(sTestsuite, "@", "Testsuite: ")
+        $hPrinter.Session.Summary.Description = sTestsuite
+    Else
+        $hPrinter.Session.Summary.Description = TestCommand.ToString(TestCommand.FromString(Tests))
+    Endif
+
+    PrintSummary()
+    Quit ExitCode()
+
+TheEnd:
+Catch
+    Test.BailOut(Error.Text)
+
+End
+
+Private Sub PrintSummary()
+
+    With $hPrinter.Session
+        Test._Print(Null) ' better readability for humans
+
+        ' even if the tests came in unsorted, print it sorted
+        Test.Note(Subst$(("Ran '&1' "), TestCommand.ToString(TestCommand.FromString(.Summary.Description))))
+        If .TestsRun <> .Plan Then Test.Note(Subst$(("Planned &1 tests but ran &2"), .Plan, .TestsRun))
+        Test.Note(gb.Lf)
+
+        ShowTestCollection(("&1 skipped:"), FindSkips(.Summary.Subtests, ""))
+        ShowTestCollection(("&1 todo:"), FindTodos(.Summary.Subtests, ""))
+        ShowTestCollection(("&1 bonus:"), FindBonus(.Summary.Subtests, ""))
+
+        If Not .Summary.Success Then
+            ShowTestCollection(("&1 test plans failed:"), FindBadPlans(.Summary.Subtests, ""))
+            ShowTestCollection(("&1 tests failed:"), FindFailures(.Summary.Subtests, ""))
+        Endif
+        Test.Note(IIf(.Summary.Success, ("PASSED"), ("FAILED")))
+    End With
+
+End
+
+Private Function ExitCode() As Integer
+
+    Return IIf($hPrinter.Session.Summary.Success, 0, 1)
+
+End
+
+'' Prints a Collection[] of tests as returned by FindFailures, FindSkips, FindTodos.
+'' _Description_ can contain '&1' which is substituted for _TestCollection_.Count.
+Private Sub ShowTestCollection(Description As String, TestCollection As Collection[])
+
+    Dim cTest As Collection
+
+    If TestCollection.Count Then
+        Test.Note(Subst$(Description, TestCollection.Count))
+        For Each cTest In TestCollection
+            Dim hTest As TestAssertion = cTest!Assertion
+            Dim sName, sNote As String
+            sName = hTest.Description
+            If cTest["Note"] Then
+                sNote = Subst$(": &1", cTest["Note"])
+            Else If hTest.Comment Then
+                sNote = Subst$("# &1", hTest.Comment)
+            Endif
+
+            If hTest.Line Then
+                Test.Note(Subst$("&2: &1 -- &3&4", hTest.Line, hTest.Id, sName, IIf(sNote, " " & sNote, "")))
+            Else
+                Test.Note(Subst$("&2: &1 -- &3&4", cTest["Path"], hTest.Id, sName, IIf(sNote, " " & sNote, "")))
+            Endif
+
+        Next
+        Test.Note(gb.Lf)
+    Endif
+
+End
+
+Private Function FindBadPlans(Tests As TestAssertion[], Prefix As String) As Collection[]
+
+    Dim hTest As TestAssertion
+    Dim sName As String
+    Dim aRet As New Collection[]
+
+    For Each hTest In Tests
+        sName = Prefix &/ hTest.Description
+        If hTest.Subtests.Count <> hTest.SubPlanned Then aRet.Add(["Path": Prefix, "Assertion": hTest, "Note": Subst$(("Planned &1 but ran &2"), hTest.SubPlanned, hTest.Subtests.Count)])
+        aRet.Insert(FindBadPlans(hTest.Subtests, sName))
+    Next
+    Return aRet
+
+End
+
+Private Function FindFailures(Tests As TestAssertion[], Prefix As String) As Collection[]
+
+    Dim hTest As TestAssertion
+    Dim sName As String
+    Dim aRet As New Collection[]
+
+    For Each hTest In Tests
+        sName = Prefix &/ hTest.Description
+        ' Only show the deepest subtests that caused failures.
+        If Not hTest.Success And If Not hTest.Subtests.Count Then aRet.Add(["Path": Prefix, "Assertion": hTest])
+        aRet.Insert(FindFailures(hTest.Subtests, sName))
+    Next
+    Return aRet
+
+End
+
+Private Function FindSkips(Tests As TestAssertion[], Prefix As String) As Collection[]
+
+    Dim hTest As TestAssertion
+    Dim sName As String
+    Dim aRet As New Collection[]
+
+    For Each hTest In Tests
+        sName = Prefix &/ hTest.Description
+        If hTest.Directive = TestAssertion.SKIP Then aRet.Add(["Path": Prefix, "Assertion": hTest])
+        aRet.Insert(FindSkips(hTest.Subtests, sName))
+    Next
+    Return aRet
+
+End
+
+Private Function FindTodos(Tests As TestAssertion[], Prefix As String) As Collection[]
+
+    Dim hTest As TestAssertion
+    Dim sName As String
+    Dim aRet As New Collection[]
+
+    For Each hTest In Tests
+        sName = Prefix &/ hTest.Description
+        If hTest.Directive = TestAssertion.TODO And If Not hTest.Ok Then aRet.Add(["Path": Prefix, "Assertion": hTest])
+        aRet.Insert(FindTodos(hTest.Subtests, sName))
+    Next
+    Return aRet
+
+End
+
+Private Function FindBonus(Tests As TestAssertion[], Prefix As String) As Collection[]
+
+    Dim hTest As TestAssertion
+    Dim sName As String
+    Dim aRet As New Collection[]
+
+    For Each hTest In Tests
+        sName = Prefix &/ hTest.Description
+        If hTest.Directive = TestAssertion.TODO And If hTest.Ok Then aRet.Add(["Path": Prefix, "Assertion": hTest])
+        aRet.Insert(FindBonus(hTest.Subtests, sName))
+    Next
+    Return aRet
+
+End
+
+'' Run all tests in $Suite. If $Suite is Null, run all tests.
+
+Private Function RunTests()
+
+    Dim Testmodule As Class
+
+    If Not $Suite Then
+        ' create as Suite with all tests
+        $Suite = New TestSuite
+        For Each TestModule In GetAllTestModules()
+            $Suite.AddAllTestCases(TestModule)
+        Next
+    Endif
+
+    $Suite.Run()
+    If Not Test._Finished Then Test._Finish()
+
+End
+
+Private Function GetAllTestModules() As Class[]
+
+    Dim TestClass As Class
+    Dim TestModules As New Class[]
+    Dim aNames As New String[]
+    Dim sName As String
+
+    Component.Load("gb.util")
+
+    For Each sName In Dir(".../.gambas")
+        sName = Helper.CheckTestModule(sName)
+        If sName Then aNames.Add(sName)
+    Next
+
+    Assert aNames
+
+    aNames.Sort
+
+    For Each sName In aNames
+        TestClass = __Test.Load(sName)
+        If Not TestClass Then Error.Raise(Subst$(("Could not load test module '&1'"), sName))
+        TestModules.Add(TestClass)
+    Next
+
+    Return TestModules
+
+Catch
+    Test.BailOut("Error in " & Error.Where & ": " & Error.Text)
+
+End
+
+'' Returns an collection of all the testmodules and their tests of the project.
+'' Key is the name of the testmodule, Value is a string array with the names of the tests it contains
+
+Public Function AllTestsCollection() As Collection
+
+    Dim aoTestModules As Class[]
+    Dim cAlltests As New Collection
+    Dim oTestModule As Class
+
+    aoTestModules = GetAllTestModules()
+
+    For Each oTestModule In aoTestModules
+        cAlltests.Add(TestSuite.GetTestsFromTestModule(oTestModule), oTestModule.Name)
+    Next
+
+    Return cAlltests
+
+End
+
+'' Returns a comma separated string with all tests of the project in the same way Test.Main() wants it.
+
+Public Function AllTests() As String
+
+    Dim tests As Collection
+    Dim asTests As String[]
+    Dim asLines As New String[]
+    Dim sModule As String
+
+    tests = AllTestsCollection()
+
+    For Each tests
+        sModule = tests.Key
+        asTests = tests[tests.Key]
+        asTests.Sort
+        If asTests.Count > 0 Then
+            asLines.Add(sModule & "." & asTests.Join(";"))
+        Endif
+    Next
+
+    asLines.Sort()
+    Return asLines.Join(",")
+
+End
+
+' ------------------------------------------------- Test controls
+
+'' Prints "Bail out!" to Stdout and stops all testing immediately.
+Public Sub BailOut(Optional Comment As String)
+
+    $hPrinter.BailOut(Comment)
+    Error.Raise("Bailout!")
+
+End
+
+'' Synonym for Note, prints Comment with leading #
+Public Sub Diagnostic(Comment As String)
+
+    $hPrinter.Diagnostic(Comment)
+
+End
+
+'' If the next assertion is a failure it reports ok.
+'' In other words: Reverses the result of the following assertion.
+'' "not ok" will be "ok" and vice versa.
+Public Sub IntendedFailure()
+
+    Assert._IntendedFailure = True
+
+End
+
+'' Synonym for Diagnostic, prints Comment with leading #
+Public Sub Note(Comment As String)
+
+    $hPrinter.Note(Comment)
+
+End
+
+'' Tell the testing system that the next assertion is a TODO.
+'' Even if it fails it reports ok, but will be reported as Todo.
+'' If the next assertion does not fail, it will be reported as bonus.
+Public Sub Todo(Optional Comment As String)
+
+    Test._Next.Directive = TestAssertion.TODO
+    Test._Next.Comment = Comment
+
+End
+
+'' Tell the testing system that a test is skipped. Reports ok.
+Public Sub Skip(Optional Comment As String)
+
+    Test._Next.Directive = TestAssertion.SKIP
+    Test._Next.Comment = Comment
+    Assert.Pass()
+
+End
+
+'' Prints Line to Stdout
+Public Sub _Print({Line} As String)
+
+    $hPrinter.Print({Line})
+
+End
+
+Private Function _Printer_Read() As TapPrinter
+
+    Return $hPrinter
+
+End
+
+Private Function _Finished_Read() As Boolean
+
+    Return $hPrinter.Session.Finished
+
+End
+
+Public Sub _Reset()
+
+    $hPrinter = New TapPrinter As "Printer"
+
+End
+
+Private Function _Next_Read() As TestAssertion
+
+    If $hNext = Null Then
+        $hNext = New TestAssertion
+    Endif
+    Return $hNext
+
+End
+
+Private Sub _Next_Write(Value As TestAssertion)
+
+    $hNext = Value
+
+End
+
+Public Sub _Subtest(Description As String, Optional Tests As Integer, Optional Comment As String)
+
+    Test._Printer.Subtest(Description, Tests, Comment)
+
+End
+
+'' Plan the number of assertions within a test method.
+'' If the number is not correct, the test fails.
+Public Sub Plan(Tests As Integer, Optional Comment As String)
+
+    Test._Printer.Plan(Tests, Comment)
+
+End
+
+'' Skip the current test.
+
+Public Sub SkipAll(Optional Comment As String)
+
+    Test._Printer.SkipAll(Comment)
+
+End
+
+Public Sub _Finish()
+
+    Test._Printer.Finish()
+
+End
+
+Private Sub PrintAllTestModules()
+
+    Dim sName As String
+    Dim aTest As New String[]
+
+    Component.Load("gb.util")
+
+    For Each sName In Dir(".../.gambas")
+        sName = Helper.CheckTestModule(sName)
+        If sName Then aTest.Add(sName)
+    Next
+
+    Print aTest.Join();
+
+End
+
+'Fill suite from String
+Private Sub FromString(Tests As String)
+
+    Dim Commands As TestCommand[]
+    Dim Command As TestCommand
+    Dim TestModule As Class
+    Dim sName As String
+
+    Commands = TestCommand.FromString(Tests)
+
+    $Suite = New TestSuite
+
+    For Each Command In Commands
+        With Command
+            TestModule = __Test.Load(.ModuleName)
+            If Command.Methods.Count = 0 Then
+                Command.Methods = $Suite.GetTestsFromTestModule(TestModule)
+            Endif
+            For Each sName In Command.Methods
+                $Suite.AddTestCase(sName, Testmodule)
+            Next
+        End With
+    Next
+
+End

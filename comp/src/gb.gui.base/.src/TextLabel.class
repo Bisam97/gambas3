@@ -1,0 +1,39 @@
+' Gambas class file
+
+''' This class implements a control displaying simple HTML text, as known as rich text.
+'''
+''' See [/doc/richtext] for the list of HTML markup you are allowed to use inside rich text.
+'''
+''' [[ info 
+''' @{since 3.16}
+''' 
+''' This control has been rewritten in Gambas since 3.16 version.
+''' ]]
+
+Export
+Inherits Label
+
+Public Const _Properties As String = "*,-Alignment,Alignment{Align.*}=TopNormal,Wrap=True"
+
+'' Return or set if text wrapping is enabled.
+Property Wrap As Boolean
+
+'' Create a new TextLabel
+
+Public Sub _new()
+  
+End
+
+Private Function Wrap_Read() As Boolean
+
+  Return Me._Wrap
+
+End
+
+Private Sub Wrap_Write(Value As Boolean)
+
+  If Me._Wrap = Value Then Return
+  Me._Wrap = Value
+  Me._UpdateSize()
+  
+End

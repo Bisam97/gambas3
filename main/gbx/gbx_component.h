@@ -2,7 +2,7 @@
 
   gbx_component.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -53,7 +53,7 @@ typedef
 EXTERN char *COMPONENT_path;
 EXTERN COMPONENT *COMPONENT_current;
 EXTERN int COMPONENT_count;
-EXTERN COMPONENT *COMPONENT_main;
+//EXTERN COMPONENT *COMPONENT_main;
 #endif
 
 void COMPONENT_init(void);
@@ -85,5 +85,7 @@ void COMPONENT_signal(int signal, void *param);
 bool COMPONENT_get_info(const char *key, void **value);
 
 void COMPONENT_exec(const char *name, int argc, char **argv);
+
+void COMPONENT_before_fork(void);
 
 #endif

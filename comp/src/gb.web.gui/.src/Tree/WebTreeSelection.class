@@ -1,0 +1,87 @@
+' Gambas class file
+
+Event _Fake
+
+Public Keys As New Collection
+
+Public Sub Copy() As WebTreeSelection
+  
+  Dim hSel As WebTreeSelection = New WebTreeSelection
+  hSel.Keys = Keys.Copy()
+  Object.Attach(hSel, GetParent(), "WebTreeSelection")
+  Return hSel
+  
+End
+
+Public Sub Save() As Variant
+  
+  Return Keys.Copy()
+  
+End
+
+Public Sub Restore(vSel As Variant)
+  
+  Keys = vSel.Copy()
+  
+End
+
+Private Sub GetParent() As WebTree
+  
+  Return Object.Parent(Me)
+  
+End
+
+Public Sub SelectItem(sKey As String, bSelected As Boolean)
+  
+  If bSelected Then
+    Keys[sKey] = True
+  Else
+    Keys.Remove(sKey)
+  Endif
+  
+End
+
+Public Sub UnSelectAll() As Boolean
+  
+  If Keys.Count = 0 Then Return True
+  Keys.Clear
+  'Dump
+  
+End
+
+Public Sub SelectAll() As Boolean
+
+  Dim sKey As String
+  
+  If IsEverythingSelected() Then Return True
+  Keys.Clear
+  For Each sKey In GetParent().Keys
+    Keys[sKey] = True
+  Next
+  
+End
+
+
+Public Sub IsSelected(sKey As String) As Boolean
+  
+  Return Keys.Exist(sKey)
+  
+End
+
+Public Function GetSelectedRows() As String[]
+
+  Dim aKey As New String[]
+  
+  For Each Keys
+    aKey.Add(Keys.Key)
+  Next
+  
+  Return aKey
+
+End
+
+Public Sub IsEverythingSelected() As Boolean
+  
+  Return Keys.Count = GetParent().Count
+  
+End

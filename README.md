@@ -4,6 +4,8 @@
 
 # Gambas Almost Means BASIC
 
+WELCOME TO GAMBAS!
+
 GAMBAS is a free implementation of a graphical development environment 
 based on a BASIC interpreter and a full development platform. It is very 
 inspired by Visual Basic and Java.
@@ -11,7 +13,7 @@ inspired by Visual Basic and Java.
 Go to http://gambas.sourceforge.net to get more information: how to compile 
 and install it, where to find binary packages, how to report a bug...
 
-Go to http://gambaswiki.org for the language documentation.
+Go to http://gambaswiki.org for language documentation.
 
 The following pieces of code were borrowed and adapted:
 
@@ -21,21 +23,38 @@ The following pieces of code were borrowed and adapted:
 
 - The hash table implementation was adapted from the glib one.
 
-- The HTML entities parsing in gb.gtk comes from KHTML sources.
+- The HTML entities parsing in 'gb.gtk' comes from KHTML sources.
 
-- The gb.image.effect sources are adapted from KDE 3 image effect routines.
+- The 'gb.image.effect' sources are adapted from KDE 3 image effect routines.
 
-- The gb.clipper library embeds the Clipper library. See
+- The 'gb.clipper' library embeds the Clipper library. See
   http://www.angusj.com/delphi/clipper.php for mode details.
 
 - The function that computes the easter day of a specific year uses an
   algorithm made by Aloysius Lilius And Christophorus Clavius.
 
-- The blurring algoritm is based on the 'StackBlur' algorithm made by Mario Klingemann.
-  See http://incubator.quasimondo.com/processing/fast_blur_deluxe.php for more details.
+- The blurring algoritm is based on the 'StackBlur' algorithm made by Mario 
+  Klingemann. See http://incubator.quasimondo.com/processing/fast_blur_deluxe.php 
+  for more details.
+  
+- The javascript automatic completion is done with 'autoComplete' from Simon 
+  Steinberger / Pixabay, and is published under the MIT license.
+  See https://github.com/Pixabay/JavaScript-autoComplete for more details.
 
+- The 'gb.form.htmlview' component embeds the 'litehtml' library from Yuri 
+  Kobets. See http://www.litehtml.com for more details.
+
+- The 'gb.hash' component embeds the code of the hashing routines of BusyBox made
+  by Denys Vlasenko and Bernhard Reutner-Fischer. See https://www.busybox.net/
+  for more details.
+
+- The stock icons flags were generated from SVG files taken from
+  https://github.com/smucode/react-world-flags. They are published under the MIT
+  license.
+  
 If I forget some borrowed code in the list above, just tell me.
 
 Enjoy Gambas!
 
-Benoît.
+--
+Benoît

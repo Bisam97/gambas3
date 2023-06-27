@@ -10,6 +10,12 @@ Property Width, W As Integer
 Property Sort As Integer
 Property Ascending As Boolean
 
+'' @{since 3.18}
+''
+'' Return or set the horizontal padding between columns.
+
+Property Padding As Integer Use $iPadding
+
 Event _Refresh
 
 Private $aColumns As New _GridView_Column[]
@@ -171,14 +177,14 @@ Public Sub _Layout()
     
   Endif
   
-  FH = GetView().Font.Height
+  FH = hView.Font.Height
   For Each hCol In $aColumns
     hCol._X = X
     X += hCol.Width
     H = Max(H, hView.Font.TextHeight(hCol.Text) + Max(hView.Padding * 2, Desktop.Scale))
   Next
   
-  If System.RightToLeft Then
+  If hView.RightToLeft Then
     'Debug "";
     I = 0
     For Each hCol In $aColumns
@@ -257,4 +263,12 @@ Private Sub Ascending_Write(Value As Boolean)
     .Refresh
   End With
 
+End
+
+Private Sub Padding_Write(Value As Integer)
+  
+  If $iPadding = Value Then Return
+  $iPadding = Value
+  _Layout
+  
 End

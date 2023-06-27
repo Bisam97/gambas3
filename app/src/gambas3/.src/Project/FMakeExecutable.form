@@ -1,48 +1,134 @@
 # Gambas Form File 3.0
 
 { Form Form
-  MoveScaled(0,0,111,75)
-  Text = ("Make executable")
+  MoveScaled(0,0,100,76)
+  Text = ("Configure executable")
   Icon = Picture["icon:/small/exec"]
   Persistent = True
   Arrangement = Arrange.Vertical
   Spacing = True
   Margin = True
-  { fchExec FileChooser
-    MoveScaled(1,1,102,57)
+  { tabExec TabPanel
+    MoveScaled(4,2,92,67)
     Expand = True
-    ShowButton = True
-  }
-  { panExtension VBox
-    MoveScaled(2,60,87,9)
-    Spacing = True
-    { HBox2 HBox
-      MoveScaled(0,0,68,4)
-      Spacing = True
-      { Label1 Label
-        MoveScaled(0,0,24,4)
-        AutoResize = True
-        Text = ("Run this command after")
-      }
-      { txtCommand TextBox
-        MoveScaled(26,0,24,4)
-        ToolTip = ("<b>$(FILE)</b> will be replaced by the path of the executable")
-        Expand = True
-      }
+    Arrangement = Arrange.Fill
+    Count = 2
+    Index = 0
+    Text = ("Location")
+    { fchExec FileChooser
+      MoveScaled(4,1,76,49)
+      Border = False
+      Margin = True
     }
-    { HBox1 HBox
-      MoveScaled(0,5,85,4)
-      Spacing = True
-      { chkDebug CheckBox
-        MoveScaled(0,0,42,4)
+    Index = 1
+    Text = ("Options")
+    { VBox1 VBox
+      MoveScaled(1,1,89,61)
+      Margin = True
+      { chkIncVersion CheckBox
+        MoveScaled(1,1,43,4)
         AutoResize = True
+        Text = ("Increment version")
+      }
+      { panVersion HBox
+        MoveScaled(1,5,82,4)
+        Visible = False
+        Spacing = True
+        { chkSetVersion CheckBox
+          MoveScaled(0,0,19,4)
+          AutoResize = True
+          Text = ("Set version to")
+        }
+        { txtMajor SpinBox grpVersion
+          Name = "txtMajor"
+          MoveScaled(22,0,13,4)
+          Enabled = False
+          MaxValue = 9999
+        }
+        { txtMinor SpinBox grpVersion
+          Name = "txtMinor"
+          MoveScaled(36,0,13,4)
+          Enabled = False
+          MaxValue = 9999
+        }
+        { txtRelease SpinBox grpVersion
+          Name = "txtRelease"
+          MoveScaled(50,0,15,4)
+          Enabled = False
+          MaxValue = 999999
+        }
+        { btnUndoVersion Button
+          MoveScaled(66,0,4,4)
+          Enabled = False
+          Picture = Picture["icon:/small/undo"]
+        }
+      }
+      { chkDebug CheckBox
+        MoveScaled(1,9,55,4)
         Text = ("Keep debugging information in executable")
       }
+      { chkCompress CheckBox
+        MoveScaled(1,13,39,4)
+        Text = ("Compress files in executable")
+      }
       { chkShortcut CheckBox
-        MoveScaled(41,0,35,4)
-        AutoResize = True
+        MoveScaled(1,17,34,4)
         Text = ("Create a shortcut on the desktop")
       }
+      { chkNoTest CheckBox
+        MoveScaled(1,21,34,4)
+        Text = ("Exclude test modules")
+      }
+      { chkNoPublic CheckBox
+        MoveScaled(1,25,34,4)
+        Text = ("Exclude public directory")
+      }
+      { Panel1 Panel
+        MoveScaled(39,30,4,1)
+      }
+      { Panel2 VBox
+        MoveScaled(1,33,86,26)
+        Expand = True
+        Spacing = True
+        { Label1 Label
+          MoveScaled(0,0,30,3)
+          Font = Font["Bold"]
+          AutoResize = True
+          Text = ("Run this shell command after")
+        }
+        { txtCommand TextBox
+          MoveScaled(0,4,24,4)
+        }
+        { TextLabel1 TextLabel
+          MoveScaled(2,9,83,16)
+          Background = Color.TooltipBackground
+          Foreground = Color.TooltipForeground
+          Padding = 8
+          AutoResize = True
+          Border = Border.Plain
+          Text = ("The following patterns will be substituted in the command&nbsp;:<br>\n&bull;&nbsp;<b><tt>$(FILE)</tt></b> will be replaced by the executable path.<br>\n&bull;&nbsp;<b><tt>$(DIR)</tt></b> by the project directory.<br>\n&bull;&nbsp;<b><tt>$(NAME)</tt></b> by the project name.<br>\n&bull;&nbsp;<b><tt>$(TITLE)</tt></b> by the project title.<br>\n&bull;&nbsp;<b><tt>$(VERSION)</tt></b> by the project version.<br>\n<br>\n<i>Note&nbsp;: all substitutions will be quoted.</i>")
+        }
+      }
+    }
+    Index = 0
+  }
+  { HBox3 HBox
+    MoveScaled(6,70,79,4)
+    Spacing = True
+    { Spring1 Spring
+      MoveScaled(7,2,9,1)
+    }
+    { btnOK Button
+      MoveScaled(36,0,20,4)
+      AutoResize = True
+      Text = ("Make executable")
+      Picture = Picture["icon:/small/exec"]
+      Default = True
+    }
+    { btnCancel Button
+      MoveScaled(59,0,16,4)
+      Text = ("Cancel")
+      Cancel = True
     }
   }
 }

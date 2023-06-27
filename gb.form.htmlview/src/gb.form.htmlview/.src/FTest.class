@@ -1,0 +1,74 @@
+' Gambas class file
+
+Private $iZoom As Integer = 0
+
+Public Sub Form_Open()
+
+  Application.Animations = True
+  HtmlView1.LoadCss(File.Load("~/gambas/git/master/app/src/gambas3/help/wiki/style-offline-htmlview.css"))
+  'HtmlView1.Html = File.Load(".hidden/test/test2.html")
+  HtmlView1.Url = "~/.local/share/gambas3/wiki/data/en/page.html"
+  Print HtmlView1.Html
+  'HtmlView1.Load("test3.html")
+
+End
+
+Public Sub HtmlView1_Title(Title As String)
+
+  Me.Title = Title
+
+End
+
+Public Sub HtmlView1_Link(Url As String)
+
+  If Url Begins "wiki://" Then
+    Try HtmlView1.Url = "~/.local/share/gambas3/wiki/data/en" &/ Mid$(Url, 8) &/ "page.html"
+    If Error Then Error Error.Text
+  Endif
+
+End
+
+Public Sub btnZoomIn_Click()
+
+  $iZoom = Min(10, $iZoom + 1)
+  HtmlView1.Zoom = 2 ^ ($iZoom / 4)
+
+End
+
+Public Sub btnZoomOut_Click()
+
+  $iZoom = Max(-10, $iZoom - 1)
+  HtmlView1.Zoom = 2 ^ ($iZoom / 4)
+
+End
+
+Public Sub btnZoomNormal_Click()
+
+  $iZoom = 0
+  HtmlView1.Zoom = 1
+
+End
+
+Public Sub btnBack_Click()
+
+  HtmlView1.Back()
+
+End
+
+Public Sub btnForward_Click()
+
+  HtmlView1.Forward()
+
+End
+
+
+Public Sub btnFont_Click()
+
+  HtmlView1.Font = Font["Inter,16"]
+  'HtmlView1.LoadCss(File.Load("~/gambas/git/master/app/src/gambas3/help/wiki/style-offline-htmlview.css"))
+  'HtmlView1.Html = HtmlView1.Html
+  'HtmlView1.Clear
+  'HtmlView1.LoadCss(File.Load("~/gambas/git/master/app/src/gambas3/help/wiki/style-offline-htmlview.css"))
+  'HtmlView1.Html = File.Load(".hidden/test/test.html")
+
+End

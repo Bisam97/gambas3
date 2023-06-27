@@ -7,8 +7,8 @@ Public Sub Main()
   $hManager = New DownloadManager As "Manager"
   $hManager.MaxClient = 3
   
-  '$hManager.Add("https://gitlab.com/gambas/gambas/-/archive/master/gambas-master.tar.bz2")
-  '$hManager.Add("http://ipv4.download.thinkbroadband.com/512MB.zip")
+  $hManager.Add("https://gitlab.com/gambas/gambas/-/archive/master/gambas-master.tar.bz2")
+  $hManager.Add("http://ipv4.download.thinkbroadband.com/512MB.zip")
   '$hManager.Add("https://gitlab.com/gambas/gambas/-/archive/master/gambas-master.tar.gz")
   '$hManager.Add("http://gambaswiki.org/zorglub.txt")
   $hManager.Add("http://gambaswiki.org/gambas-wiki.tar.bz2")
@@ -18,7 +18,7 @@ End
 
 Public Sub Manager_Progress()
   
-  Print Format($hManager.Progress * 100, "##0"); "% "; Format($hManager.Speed / 1024, "#.#"); " KB/s"; Space$(10); "\r";
+  Print Format($hManager.Progress * 100, "##0"); "% "; Format($hManager.Speed / 1048576, "#.#"); " MB/s"; Space$(10); "\r";
   Flush
   
 End

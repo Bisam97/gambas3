@@ -1,0 +1,227 @@
+' Gambas module file
+
+Export 
+'CREATE 
+
+Property Type As String
+Property Id As String
+Property Timeout As Float
+Property Prefix As String
+Property Unique As Boolean
+Property Modified As Boolean
+Property CookiePath As String Use $sCookiePath
+Property CookieName As String Use $sCookieName
+Property Read Keys As String[]
+Property Read Size As Long
+Property Read Path As String
+
+Property User As String
+
+Private $sCookie As String
+Private $fTimeout As Float = 300
+Private $sUser As String
+Private $sDir As String
+Private $cData As New Collection
+Private $sPrefix As String
+
+Public Sub _init()
+  
+  $sDir = File.Dir(File.Dir(Temp$())) &/ "session"
+  Try Mkdir $sDir
+  $sDir &/= "gb.web.gui"
+  Try Mkdir $sDir
+  
+End
+
+
+Private Sub MakeSessionId() As String
+  
+  Dim iInd As Integer
+  Dim sId As String
+  
+  For iInd = 1 To 6
+    sId &= Hex$(Int(Rnd(65536)), 4)
+  Next
+  
+  If $sPrefix Then
+    sId = $sPrefix & ":" & sId
+  Else
+    sId = CGI["REMOTE_ADDR"] & ":" & CGI["SERVER_PORT"] & ":" & sId
+  Endif
+
+  Return sId
+  
+End
+
+Private Sub GetCookiePath() As String
+
+  Dim sPath As String
+  
+  sPath = CGI["SCRIPT_NAME"]
+  If sPath = "/." Then sPath = "/"
+  Return sPath
+
+End
+
+Private Sub GetCookieName() As String
+
+  If $sCookieName Then Return $sCookieName
+  Return "GBSESSIONID"
+
+End
+
+Public Sub _SendCookie()
+  
+  Response.SetCookie(GetCookieName(), $sCookie, "", GetCookiePath(),, True)
+  
+End
+
+Public Sub _exit()
+  
+End
+
+Public Sub Create() As String
+  
+  $sCookie = MakeSessionId()
+  Return $sCookie
+  
+End
+
+
+Public Sub Abandon()
+  
+  Response.RemoveCookie(GetCookieName(), $sCookie, "", GetCookiePath())
+  $sCookie = ""
+  $cData.Clear
+
+End
+
+Public Sub _get(Key As String) As Variant
+  
+  Return $cData[Key]
+  
+End
+
+Public Sub Exist(Key As String) As Boolean
+  
+  Return $cData.Exist(Key)
+  
+End
+
+Public Sub _put(Value As Variant, Key As String)
+
+  $cData[Key] = Value
+
+End
+
+
+Private Function Id_Read() As String
+
+  Return $sCookie
+
+End
+
+
+Private Sub Id_Write(Value As String)
+
+  $sCookie = Value
+
+End
+
+Private Function Timeout_Read() As Float
+
+  Return $fTimeout
+
+  ' Init
+  ' Return Int($hManager.Timeout * 86400 + 0.5)
+
+End
+
+Private Sub Timeout_Write(Value As Float)
+
+  $fTimeout = Value
+
+End
+
+Public Sub Save()
+  
+End
+
+Public Sub Load()
+
+End
+
+Private Function Prefix_Read() As String
+
+  Return $sPrefix
+
+End
+
+Private Sub Prefix_Write(Value As String)
+
+  $sPrefix = Value
+
+End
+
+Private Function Unique_Read() As Boolean
+
+End
+
+Private Sub Unique_Write((Value) As Boolean)
+
+End
+
+Private Function Modified_Read() As Boolean
+
+End
+
+Private Sub Modified_Write((Value) As Boolean)
+
+End
+
+Private Function Keys_Read() As String[]
+
+  'Return $hManager.GetKeys()
+
+End
+
+Private Function Size_Read() As Long
+
+  'Try Return $hManager.Size
+
+End
+
+
+Private Function Type_Read() As String
+
+  Return "process"
+
+End
+
+Private Function Path_Read() As String
+
+  Return $sDir
+
+End
+
+Private Sub Type_Write((Value) As String)
+
+End
+
+Private Function User_Read() As String
+
+  Return $sUser
+
+End
+
+Private Sub User_Write(Value As String)
+
+  $sUser = Value
+
+End
+
+Private Sub CookieName_Read() As String
+
+  Return GetCookieName()
+  
+End 

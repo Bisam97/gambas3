@@ -1,0 +1,108 @@
+' Gambas class file
+
+''' This class allows to globally manage a list of file bookmarks.
+
+Export
+
+'' Return the number of bookmarks.
+Static Property Read Count As Integer
+
+Static Private $aBookmark As New Bookmark[]
+Static Private $hTimerUpdate As Timer
+
+Static Public _Age As Integer = 1
+
+'' Add a new bookmark to the list.
+''
+'' - ~Path~ is the file path of the bookmark.
+'' - ~Name~ is the name of the bookmark.
+'' - ~Icon~ is the name of the stock icon associated with the bookmark.
+
+Static Public Sub Add(Path As String, Optional Name As String, Icon As String)
+
+  Dim hBookmark As Bookmark
+
+  hBookmark = New Bookmark
+  With hBookmark
+    .Name = Name
+    .Path = Main.NormalizePath(Path)
+    .Icon = Icon
+  End With
+  
+  $aBookmark.Add(hBookmark)
+  Inc _Age
+  UpdateBookmarks
+  
+End
+
+'' Remove all bookmarks associated with a specific path.
+
+Static Public Sub Remove(Path As String)
+
+  Dim I As Integer
+  
+  Path = Main.NormalizePath(Path)
+  
+  While I < $aBookmark.Count
+    If $aBookmark[I].Path = Path Then
+      $aBookmark.Remove(I)
+    Else
+      Inc I
+    Endif
+  Wend
+
+  Inc _Age
+  UpdateBookmarks
+  
+End
+
+Static Private Function Count_Read() As Integer
+
+  Return $aBookmark.Count
+
+End
+
+'' Remove all bookmarks.
+
+Static Public Sub Clear()
+  
+  $aBookmark.Clear
+  Inc _Age
+  UpdateBookmarks
+  
+End
+
+Static Public Sub _GetAll() As Bookmark[]
+  
+  Return $aBookmark
+  
+End
+
+Static Private Sub UpdateBookmarks()
+
+  If Not $hTimerUpdate Then $hTimerUpdate = New Timer As "TimerUpdate"
+  $hTimerUpdate.Trigger
+
+End
+
+Static Public Sub TimerUpdate_Timer()
+
+  Dim hWindow As Window
+  Dim hCtrl As Control
+  Dim hDirChooser As FDirChooser
+  
+  For Each hWindow In Windows
+    
+    If Not Object.IsValid(hWindow) Then Continue 
+    
+    For Each hCtrl In hWindow.Controls
+      
+      If Not Object.IsValid(hCtrl) Then Continue
+      Try hDirChooser = hCtrl
+      If Not Error Then hDirChooser.UpdateBookmark()
+      
+    Next
+    
+  Next
+  
+End

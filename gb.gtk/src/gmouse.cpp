@@ -3,7 +3,7 @@
   gmouse.cpp
 
   (c) 2004-2006 - Daniel Campos Fernández <dcamposf@gmail.com>
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@
 #define __GMOUSE_CPP
 
 #include "widgets.h"
+#include "gapplication.h"
 #include "gmouse.h"
 
 int gMouse::_isValid = 0;
@@ -41,11 +42,20 @@ int gMouse::_start_y;
 int gMouse::_dx = 0;
 int gMouse::_dy = 0;
 GdkEvent *gMouse::_event = 0;
+int gMouse::_click_count = 0;
+int gMouse::_click_x = -1;
+int gMouse::_click_y = -1;
+double gMouse::_click_timer = 0;
+gControl *gMouse::_control = NULL;
 
 #ifdef GTK3
-static GdkDevice *get_pointer()
+GdkDevice *gMouse::getPointer()
 {
+#if GTK_CHECK_VERSION(3, 22, 0)
+	return gdk_seat_get_pointer(gdk_display_get_default_seat(gdk_display_get_default()));
+#else
 	return gdk_device_manager_get_client_pointer(gdk_display_get_device_manager(gdk_display_get_default()));
+#endif
 }
 #endif
 
@@ -53,7 +63,7 @@ void gMouse::move(int x, int y)
 {
 	GdkDisplay* dpy = gdk_display_get_default();
 #ifdef GTK3
-	gdk_device_warp(get_pointer(), gdk_display_get_default_screen(dpy), x, y);
+	gdk_device_warp(getPointer(), gdk_display_get_default_screen(dpy), x, y);
 #else
 	gdk_display_warp_pointer(dpy, gdk_display_get_default_screen(dpy), x, y);
 #endif
@@ -61,12 +71,36 @@ void gMouse::move(int x, int y)
 
 int gMouse::button()
 {
-	return _isValid ? _button : 0;
+	int button = 0;
+	
+	if (_isValid)
+	{
+		button = _button;
+		if (_button >= 4)
+			button -= 4;
+	}
+	
+	return button;
 }
 
 int gMouse::state()
 {
-	return _isValid ? _state : 0;
+	int state = 0;
+	
+	if (_isValid)
+	{
+		if ((_state & GDK_BUTTON1_MASK) || _button == 1) state |= MOUSE_LEFT;
+		if ((_state & GDK_BUTTON2_MASK) || _button == 2) state |= MOUSE_MIDDLE;
+		if ((_state & GDK_BUTTON3_MASK) || _button == 3) state |= MOUSE_RIGHT;
+		if ((_state & GDK_BUTTON4_MASK) || _button == 8) state |= MOUSE_BUTTON4;
+		if ((_state & GDK_BUTTON5_MASK) || _button == 9) state |= MOUSE_BUTTON5;
+		if (_state & GDK_SHIFT_MASK) state |= MOUSE_SHIFT;
+		if (_state & GDK_CONTROL_MASK) state |= MOUSE_CTRL;
+		if (_state & GDK_MOD1_MASK) state |= MOUSE_ALT;
+		if (_state & GDK_MOD2_MASK) state |= MOUSE_META;
+	}
+	
+	return state;
 }
 
 bool gMouse::left()
@@ -129,7 +163,7 @@ void gMouse::getScreenPos(int *x, int *y)
 	else
 	{
 #ifdef GTK3
-		gdk_device_get_position(get_pointer(), NULL, x, y);
+		gdk_device_get_position(getPointer(), NULL, x, y);
 #else
 		gdk_display_get_pointer(gdk_display_get_default(), NULL, x, y, NULL);
 #endif
@@ -141,7 +175,7 @@ int gMouse::screenX()
 	gint x;
 	
 #ifdef GTK3
-		gdk_device_get_position(get_pointer(), NULL, &x, NULL);
+		gdk_device_get_position(getPointer(), NULL, &x, NULL);
 #else
 		gdk_display_get_pointer(gdk_display_get_default(), NULL, &x, NULL, NULL);
 #endif
@@ -154,7 +188,7 @@ int gMouse::screenY()
 	gint y;
 	
 #ifdef GTK3
-		gdk_device_get_position(get_pointer(), NULL, NULL, &y);
+		gdk_device_get_position(getPointer(), NULL, NULL, &y);
 #else
 		gdk_display_get_pointer(gdk_display_get_default(), NULL, NULL, &y, NULL);
 #endif
@@ -197,18 +231,6 @@ void gMouse::setMouse(int x, int y, int sx, int sy, int button, int state)
 	_button = button;
 	_screen_x = sx;
 	_screen_y = sy;
-
-	/*switch(button)
-	{
-		case 1: _button = 1; break;
-		case 2: _button = 4; break;
-		case 3: _button = 2; break;
-		default:
-			_button = 0;
-			if (_state & GDK_BUTTON1_MASK) _button += 1;
-			if (_state & GDK_BUTTON2_MASK) _button += 4;
-			if (_state & GDK_BUTTON3_MASK) _button += 2;
-	}*/
 }
 
 static GdkDevice *get_event_device(GdkEvent *event)
@@ -335,4 +357,31 @@ void gMouse::translate(int dx, int dy)
 {
 	_dx = dx;
 	_dy = dy;
+}
+
+
+void gMouse::handleClickCount(GdkEvent *event)
+{
+	double timer;
+	
+	GB.GetTime(&timer, TRUE);
+	if (abs((int)event->button.x_root - _click_x) < 4 && abs((int)event->button.y_root - _click_y) < 4 && ((timer - _click_timer) * 1000) < gApplication::dblClickTime())
+		_click_count++;
+	else
+	{
+		_click_x = (int)event->button.x_root;
+		_click_y = (int)event->button.y_root;
+		_click_count = 1;
+	}
+
+	_click_timer = timer;
+}
+
+void gMouse::finishEvent()
+{
+	if (_control)
+	{
+		CB_control_mouse(_control, gEvent_MouseRelease);
+		_control = NULL;
+	}
 }

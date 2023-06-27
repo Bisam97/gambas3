@@ -1,0 +1,44 @@
+' Gambas test file
+
+Public Sub _Setup()
+
+  TSR.CreateTestEnvironment()
+  CComponent._init()
+
+End
+
+Public Sub _Teardown()
+  
+  CComponent.Clear()
+  TSR.TeardownTestEnvironment()
+  
+End
+
+
+Public Sub WebPageProgramCreation()
+  ScriptMain._ResetAll()
+  ScriptMain.$oContext.$bWebPage = True
+  
+  'Test.Note("Generate the script to be executed from the web page")
+  
+  Dim sServerPage As String = MServerPage.Make("WebPageTest")
+  Dim aServerPageCompiled As String[] = Split(File.Load("WebPageCompiled"), "\n", "\"\"", True, True)
+  Dim aServerData As String[] = Split(File.Load(sServerPage), "\n", "\"\"", True, True)
+  Assert.Equals(TSR.CompareStringArray(aServerData, aServerPageCompiled) = True, True, "Compile Web Page, test for correct source code output")
+  
+End
+
+Public Sub RunWebPageGeneratedProgram()
+  
+  'Test.Note("Run the full web page generation and check we have valid output from the generated program")
+  ScriptMain._ResetAll()
+  ScriptMain.$oContext.$bWebPage = True
+  ScriptMain.$oContext.$bTestmode = True
+  ScriptMain.$oContext.$sTestModeCapture = ""
+  ScriptMain.$sPath = "WebPageTest"
+  
+  Try ScriptMain.Main()
+  Dim aServerOutput As String[] = Split(ScriptMain.$oContext.$sTestModeCapture, "\n", "", True, True)
+  Dim aServerExpected As String[] = Split(File.Load("WebPageExpected"), "\n", "", True, True)
+  Assert.Equals(TSR.CompareStringArray(aServerOutput, aServerExpected) = True, True, "Verify That a correct Basic webpage is generated")
+End

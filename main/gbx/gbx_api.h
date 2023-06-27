@@ -2,7 +2,7 @@
 
   gbx_api.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -39,12 +39,14 @@ const char *GB_CurrentComponent(void);
 void GB_Wait(int);
 void GB_Push(int nval, ...);
 bool GB_CanRaise(void *object, int event_id);
-bool GB_Raise(void *object, int event_id, int nparam, ...);
+bool GB_RaiseEvent(void *object, int event_id, int nparam, ...);
 void GB_RaiseBegin(GB_RAISE_HANDLER *handler);
 void GB_RaiseEnd(GB_RAISE_HANDLER *handler);
 int GB_GetEvent(void *class, char *name);
 char *GB_GetLastEventName(void);
 bool GB_Stopped(void);
+bool GB_IsRaiseLocked(void *object);
+bool GB_HasActiveTimer(void);
 
 int GB_NParam(void);
 const char *GB_GetUnknown(void);
@@ -56,6 +58,8 @@ bool GB_Serialize(const char *path, GB_VALUE *value);
 bool GB_UnSerialize(const char *path, GB_VALUE *value);
 
 void GB_Error(const char *msg, ...);
+bool GB_HasError(void);
+char *GB_GetErrorMessage(void);
 void GB_Deprecated(const char *msg, const char *func, const char *repl);
 void GB_OnErrorBegin(GB_ERROR_HANDLER *handler);
 void GB_OnErrorEnd(GB_ERROR_HANDLER *handler);
@@ -70,6 +74,7 @@ void *GB_BeginEnum(void *);
 void GB_EndEnum(void *);
 bool GB_NextEnum(void);
 void GB_StopAllEnum(void *);
+void GB_OnFreeEnum(void (*cb)(void *));
 
 GB_VALUE *GB_GetReturnValue(void);
 void GB_Return(GB_TYPE type, ...);
@@ -101,6 +106,7 @@ void GB_ReturnNewZeroString(const char *src);
 void *GB_GetClass(void *object);
 char *GB_GetClassName(void *object);
 void *GB_FindClass(const char *name);
+void *GB_FindClassLocal(const char *name);
 bool GB_ExistClass(const char *name);
 bool GB_ExistClassLocal(const char *name);
 TYPE GB_GetArrayType(void *klass);
@@ -163,6 +169,7 @@ int GB_ArrayCount(GB_ARRAY array);
 void *GB_ArrayAdd(GB_ARRAY array);
 void *GB_ArrayGet(GB_ARRAY array, int index);
 TYPE GB_ArrayType(GB_ARRAY array);
+void GB_ArraySetReadOnly(GB_ARRAY array);
 
 void GB_CollectionNew(GB_COLLECTION *col, int mode);
 int GB_CollectionCount(GB_COLLECTION col);
@@ -214,8 +221,12 @@ int GB_toupper(int c);
 void *GB_DebugGetClass(const char *name);
 void *GB_DebugGetExec(void);
 void GB_DebugBreakOnError(bool);
+void GB_DebugInside(bool);
+void GB_DebugHold(void);
 
 #define GB_PrintString PRINT_string
+
+#define GB_Raise(_object, _event_id, _nparam, ...) (GAMBAS_RaiseEventCanPropagate = TRUE, GB_RaiseEvent(_object, _event_id, _nparam, ## __VA_ARGS__))
 
 #ifndef __GBX_API_C
 EXTERN void *GAMBAS_Api[];
@@ -224,6 +235,7 @@ EXTERN void *GAMBAS_JitApi[];
 EXTERN unsigned int GAMBAS_MissingParam;
 EXTERN bool GAMBAS_DoNotRaiseEvent;
 EXTERN bool GAMBAS_StopEvent;
+EXTERN bool GAMBAS_RaiseEventCanPropagate;
 #endif
 
 #endif

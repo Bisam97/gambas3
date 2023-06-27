@@ -7,53 +7,51 @@ Public Const STYLE_CSS As Integer = 3
 Private Const TAG_HTML As Integer = 0
 Private Const TAG_CODE As Integer = 1
 
-Public Sub Main2()
-
-  Dim sLine As String
-  Dim fTime As Float
-  Dim aScan As String[]
-  Dim I As Integer
-  
-  For I = 1 To 1
-  
-    fTime = Timer
-    
-    For Each sLine In Split(File.Load("~/gambas/3.0/trunk/comp/src/gb.form.editor/test.html"), "\n")
-  
-      'Inc iLine
-      'Debug iLine;; Len(sLine)
-  
-      Highlight.Text = sLine
-      Highlight.State = Highlight.Normal
-    
-      HighlightHTML.Run(STYLE_HTML)
-      
-    Next
-    
-    Print Timer - fTime
-  
-    For Each sLine In Split(File.Load("/proc/self/maps"), "\n")
-      If InStr(sLine, "[heap]") Then
-        aScan = Scan(sLine, "*-* *")
-        Print "Heap size is " & Format(Val("&H" & aScan[1] & "&") - Val("&H" & aScan[0] & "&"), "#,##0") & " bytes."
-        Break
-      Endif
-    Next
-    
-  Next
-  
-End
-
+' Public Sub Main2()
+' 
+'   Dim sLine As String
+'   Dim fTime As Float
+'   Dim aScan As String[]
+'   Dim I As Integer
+'   
+'   For I = 1 To 1
+'   
+'     fTime = Timer
+'     
+'     For Each sLine In Split(File.Load("~/gambas/3.0/trunk/comp/src/gb.form.editor/test.html"), "\n")
+'   
+'       'Inc iLine
+'       'Debug iLine;; Len(sLine)
+'   
+'       Highlight.Text = sLine
+'       Highlight.State = Highlight.Normal
+'     
+'       HighlightHTML.Run(STYLE_HTML)
+'       
+'     Next
+'     
+'     Print Timer - fTime
+'   
+'     For Each sLine In Split(File.Load("/proc/self/maps"), "\n")
+'       If InStr(sLine, "[heap]") Then
+'         aScan = Scan(sLine, "*-* *")
+'         Print "Heap size is " & Format(Val("&H" & aScan[1] & "&") - Val("&H" & aScan[0] & "&"), "#,##0") & " bytes."
+'         Break
+'       Endif
+'     Next
+'     
+'   Next
+'   
+' End
+' 
 Public Sub Main()
 
   Dim hHighlighter As TextHighlighter
-
+  Dim hTheme As TextHighlighterTheme
+   
   hHighlighter = TextHighlighter["gambas"]
+  hTheme = New TextHighlighterTheme
+  'hTheme.Invert()
+  Print hHighlighter.ToANSI(File.Load("UnitTest/TestProgram"), hTheme)
   
-  'Print hHighlighter.ToHTML(File.Load("src.txt"))
-  
-  ' TextHighlighter._Highlight = New Byte[]
-  ' hHighlighter.Run("Label:")
-  ' Print TextHighlighter._Highlight.Count
-
 End

@@ -33,70 +33,64 @@
 
 DECLARE_EVENT(EVENT_Change);
 
-void gb_raise_slider_Click(gSlider *sender)
+void CB_slider_change(gSlider *sender)
 {
-	CWIDGET *_ob=GetObject(sender);
+	CWIDGET *_ob = GetObject(sender);
 	
 	if (!_ob) return;
-	GB.Raise((void*)_ob,EVENT_Change,0);
+	GB.Raise((void*)_ob, EVENT_Change, 0);
 }
 
+//---------------------------------------------------------------------------
 
-BEGIN_METHOD(CSLIDER_new, GB_OBJECT parent)
+BEGIN_METHOD(Slider_new, GB_OBJECT parent)
 
 	InitControl(new gSlider(CONTAINER(VARG(parent))),(CWIDGET*)THIS);
 	
-	SLIDER->onChange=gb_raise_slider_Click;
-	
 END_METHOD
 
-BEGIN_METHOD(CSCROLLBAR_new, GB_OBJECT parent)
+BEGIN_METHOD(ScrollBar_new, GB_OBJECT parent)
 
 	InitControl(new gScrollBar(CONTAINER(VARG(parent))),(CWIDGET*)THIS);
 	
-	SBAR->onChange=gb_raise_slider_Click;
-
 END_METHOD
 
-
-BEGIN_PROPERTY(CSLIDER_tracking)
+BEGIN_PROPERTY(Slider_Tracking)
 
 	if (READ_PROPERTY) { GB.ReturnBoolean(SLIDER->tracking()); return; }
 	SLIDER->setTracking(VPROP(GB_BOOLEAN));
 
 END_PROPERTY
 
-
-BEGIN_PROPERTY(CSLIDER_value)
+BEGIN_PROPERTY(Slider_Value)
 
 	if (READ_PROPERTY) { GB.ReturnInteger(SLIDER->value()); return; }
 	SLIDER->setValue(VPROP(GB_INTEGER));
 
 END_PROPERTY
 
-
-BEGIN_PROPERTY(CSLIDER_minval)
+BEGIN_PROPERTY(Slider_MinValue)
 
 	if (READ_PROPERTY) { GB.ReturnInteger(SLIDER->min()); return; }
 	SLIDER->setMin(VPROP(GB_INTEGER));	
 
 END_PROPERTY
 
-BEGIN_PROPERTY(CSLIDER_maxval)
+BEGIN_PROPERTY(Slider_MaxValue)
 
 	if (READ_PROPERTY) { GB.ReturnInteger(SLIDER->max()); return; }
 	SLIDER->setMax(VPROP(GB_INTEGER));
 
 END_PROPERTY
 
-BEGIN_PROPERTY(CSLIDER_linestep)
+BEGIN_PROPERTY(Slider_LineStep)
 
 	if (READ_PROPERTY) { GB.ReturnInteger(SLIDER->step()); return; }
 	SLIDER->setStep(VPROP(GB_INTEGER));
 
 END_PROPERTY
 
-BEGIN_PROPERTY(CSLIDER_pagestep)
+BEGIN_PROPERTY(Slider_PageStep)
 
 	if (READ_PROPERTY) { GB.ReturnInteger(SLIDER->pageStep()); return; }
 	SLIDER->setPageStep(VPROP(GB_INTEGER));
@@ -116,19 +110,31 @@ BEGIN_PROPERTY(Slider_DefaultSize)
 
 END_PROPERTY
 
-GB_DESC CSliderDesc[] =
+BEGIN_PROPERTY(Slider_Orientation)
+
+	if (READ_PROPERTY)
+		GB.ReturnInteger(SLIDER->orientation());
+	else
+		SLIDER->setOrientation(VPROP(GB_INTEGER));
+
+END_PROPERTY
+
+//-------------------------------------------------------------------------
+
+GB_DESC SliderDesc[] =
 {
   GB_DECLARE("Slider", sizeof(CSLIDER)), GB_INHERITS("Control"),
 
-  GB_METHOD("_new", 0, CSLIDER_new, "(Parent)Container;"),
+  GB_METHOD("_new", 0, Slider_new, "(Parent)Container;"),
 
-  GB_PROPERTY("Tracking", "b", CSLIDER_tracking),
-  GB_PROPERTY("Value", "i", CSLIDER_value),
+  GB_PROPERTY("Tracking", "b", Slider_Tracking),
+  GB_PROPERTY("Value", "i", Slider_Value),
   GB_PROPERTY("Mark", "b", CSLIDER_mark),
-  GB_PROPERTY("MinValue", "i", CSLIDER_minval),
-  GB_PROPERTY("MaxValue", "i", CSLIDER_maxval),
-  GB_PROPERTY("Step", "i", CSLIDER_linestep),
-  GB_PROPERTY("PageStep", "i", CSLIDER_pagestep),
+  GB_PROPERTY("MinValue", "i", Slider_MinValue),
+  GB_PROPERTY("MaxValue", "i", Slider_MaxValue),
+  GB_PROPERTY("Step", "i", Slider_LineStep),
+  GB_PROPERTY("PageStep", "i", Slider_PageStep),
+  GB_PROPERTY("Orientation", "i", Slider_Orientation),
 
   GB_EVENT("Change", 0, 0, &EVENT_Change),
 
@@ -137,23 +143,29 @@ GB_DESC CSliderDesc[] =
   GB_END_DECLARE
 };
 
-GB_DESC CScrollBarDesc[] =
+GB_DESC ScrollBarDesc[] =
 {
   GB_DECLARE("ScrollBar", sizeof(CSCROLLBAR)), GB_INHERITS("Control"),
 
-  GB_METHOD("_new", 0, CSCROLLBAR_new, "(Parent)Container;"),
+  GB_METHOD("_new", 0, ScrollBar_new, "(Parent)Container;"),
 
-  GB_PROPERTY("Tracking", "b", CSLIDER_tracking),
-  GB_PROPERTY("Value", "i", CSLIDER_value),
-  GB_PROPERTY("MinValue", "i", CSLIDER_minval),
-  GB_PROPERTY("MaxValue", "i", CSLIDER_maxval),
-  GB_PROPERTY("Step", "i", CSLIDER_linestep),
-  GB_PROPERTY("PageStep", "i", CSLIDER_pagestep),
-  GB_PROPERTY("DefaultSize", "i", Slider_DefaultSize),
+  GB_PROPERTY_READ("DefaultSize", "i", Slider_DefaultSize),
+
+  GB_PROPERTY("Tracking", "b", Slider_Tracking),
+  GB_PROPERTY("Value", "i", Slider_Value),
+  GB_PROPERTY("MinValue", "i", Slider_MinValue),
+  GB_PROPERTY("MaxValue", "i", Slider_MaxValue),
+  GB_PROPERTY("Step", "i", Slider_LineStep),
+  GB_PROPERTY("PageStep", "i", Slider_PageStep),
+  GB_PROPERTY("Orientation", "i", Slider_Orientation),
 
   GB_EVENT("Change", 0, 0, &EVENT_Change),
 
   SCROLLBAR_DESCRIPTION,
+
+	GB_CONSTANT("Auto", "i", ORIENTATION_AUTO),
+	GB_CONSTANT("Horizontal", "i", ORIENTATION_HORIZONTAL),
+	GB_CONSTANT("Vertical", "i", ORIENTATION_VERTICAL),
 
   GB_END_DECLARE
 };

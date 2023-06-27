@@ -2,7 +2,7 @@
 
   gbc_form.c
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -53,33 +53,47 @@ static int form_parent_level;
 
 static bool _no_trim = FALSE;
 
+static char **_target = NULL;
+static bool _convert = FALSE;
+
 
 void FORM_print_len(const char *buffer, int len)
 {
-	if (JOB->verbose)
+	if (COMP_verbose)
 		printf("%.*s", len, buffer);
 
-	BUFFER_add(&JOB->source, buffer, len);
+	BUFFER_add(_target, buffer, len);
 }
 
 
 void FORM_print(const char *buffer)
 {
-	if (JOB->verbose)
+	if (COMP_verbose)
 		printf("%s", buffer);
 
-	BUFFER_add(&JOB->source, buffer, strlen(buffer));
+	BUFFER_add(_target, buffer, strlen(buffer));
 }
 
 
 void FORM_print_char(char c)
 {
-	if (JOB->verbose)
+	if (COMP_verbose)
 		putchar(c);
 
-	BUFFER_add_char(&JOB->source, c);
+	BUFFER_add_char(_target, c);
 }
 
+
+void FORM_print_indent()
+{
+	int i;
+	
+	if (!_convert)
+		return;
+	
+	for (i = 2; i < form_parent_level; i++)
+		BUFFER_add_char(_target, '\t');
+}
 
 static void print_fmt(const char *before, const char *word, int len, const char *after)
 {
@@ -93,12 +107,12 @@ static void print_var(const char *before, const char *word, int len, const char 
 {
 	FORM_print(before);
 	if (!word)
-		FORM_print("Me");
+		FORM_print_len("Me", 2);
 	else
 	{
-		FORM_print("{");
+		FORM_print_char('{');
 		FORM_print_len(word, len);
-		FORM_print("}");
+		FORM_print_char('}');
 	}
 	FORM_print(after);
 }
@@ -252,7 +266,7 @@ static void save_action(bool delete)
 	{
 		if (FILE_exist(path))
 		{
-			if (JOB->verbose)
+			if (COMP_verbose)
 				printf("Deleting action file %s\n", path);
 
 			FILE_unlink(path);
@@ -260,7 +274,7 @@ static void save_action(bool delete)
 	}
 	else
 	{
-		if (JOB->verbose)
+		if (COMP_verbose)
 			printf("Writing action file %s\n", path);
 
 		file = fopen(path, "w");
@@ -311,7 +325,7 @@ char *FORM_get_file_family(const char *file, const FORM_FAMILY **family)
 }
 
 
-void FORM_do(char *source, bool ctrl_public)
+void FORM_do(char *source, bool convert, bool ctrl_public)
 {
 	const char *line;
 	char *word;
@@ -324,19 +338,23 @@ void FORM_do(char *source, bool ctrl_public)
 	bool public;
 	bool action;
 
-	if (JOB->form == NULL)
+	if (!convert && JOB->form == NULL)
 		return;
 
 	_source = source;
 	_current = _source;
-
+	_convert = convert;
+	
 	/* version */
 
-	if (read_line(&line, &len))
-		goto _ERROR;
+	if (!convert)
+	{
+		if (read_line(&line, &len))
+			goto _ERROR;
 
-	if (strncasecmp(line, "# Gambas Form File 3.0", len))
-		THROW("Bad form file version");
+		if (strncasecmp(line, "# Gambas Form File 3.0", len))
+			THROW("Bad form file version");
+	}
 
 	pos_rewind = _current;
 	form_parent_level = 0;
@@ -403,7 +421,8 @@ void FORM_do(char *source, bool ctrl_public)
 				len_twin = len;
 
 				//print_fmt("INHERITS %.*s\n\n", len_twin, twin);
-				print_fmt("Inherits ", twin, len_twin, "\n\n");
+				if (!convert)
+					print_fmt("Inherits ", twin, len_twin, "\n\n");
 			}
 		}
 		else if (*line == '}')
@@ -414,7 +433,8 @@ void FORM_do(char *source, bool ctrl_public)
 		}
 	}
 
-	FORM_print("\nPrivate Sub {@load}()\n\n");
+	if (!convert)
+		FORM_print("\nPrivate Sub {@load}()\n\n");
 
 	_current = pos_rewind;
 	form_parent_level = 0;
@@ -435,7 +455,7 @@ void FORM_do(char *source, bool ctrl_public)
 			if (form_parent_level == 0)
 			{
 				parent_enter(NULL, 0);
-				FORM_print("  With Me\n");
+				if (!convert) FORM_print("With Me\n");
 			}
 			else
 			{
@@ -446,8 +466,12 @@ void FORM_do(char *source, bool ctrl_public)
 					len--;
 				}
 
-				print_fmt("  {", word, len, "} = New ");
+				if (convert)
+					FORM_print_char('\n');
+				
 				parent_enter(word, len);
+				FORM_print_indent();
+				print_fmt("{", word, len, "} = New ");
 
 				word = get_word(&line, &len);
 				if (word == NULL)
@@ -478,13 +502,18 @@ void FORM_do(char *source, bool ctrl_public)
 				//print_fmt(" AS \"%.*s\"\n", len, word);
 				print_fmt(" As \"", word, len, "\"\n");
 
+				FORM_print_indent();
 				get_current(&word, &len);
-				print_var("  With ", word, len, "\n");
+				print_var("With ", word, len, "\n");
 			}
 		}
 		else if (*line == '}')
 		{
-			FORM_print("  End With\n");
+			if (!convert || form_parent_level > 1)
+			{
+				FORM_print_indent();
+				FORM_print("End With\n");
+			}
 			parent_leave();
 			if (form_parent_level == 0)
 				break;
@@ -493,7 +522,11 @@ void FORM_do(char *source, bool ctrl_public)
 		{
 			/*get_current(&word, &len_word);*/
 			/*FORM_print("  %.*s", len_word, word);*/
-			FORM_print("    .");
+			FORM_print_indent();
+			FORM_print_len("\t.", 2);
+			// Fix incorrect use of unsigned color constants by the IDE form editor
+			if (line[len - 1] == '&')
+				len--;
 			FORM_print_len(line, len);
 			FORM_print("\n");
 		}
@@ -502,30 +535,63 @@ void FORM_do(char *source, bool ctrl_public)
 	if (form_parent_level > 0)
 		goto _ERROR;
 
-	//FORM_print("\n  Try Me._load()\n");
-	FORM_print("\nEnd\n\n");
-
-	// Create or delete the action file if needed
-
-	action = FALSE;
-
-	while (!read_line(&line, &len))
+	if (!convert)
 	{
-		if (!strncasecmp(line, "# Gambas Action File 3.0", len))
-		{
-			save_action(FALSE);
-			action = TRUE;
-			break;
-		}
-	}
+		FORM_print("\nEnd\n\n");
 
-	if (!action)
-		save_action(TRUE);
+		// Create or delete the action file if needed
+
+		action = FALSE;
+
+		while (!read_line(&line, &len))
+		{
+			if (!strncasecmp(line, "# Gambas Action File 3.0", len))
+			{
+				save_action(FALSE);
+				action = TRUE;
+				break;
+			}
+		}
+
+		if (!action)
+			save_action(TRUE);
+	}
 
 	return;
 
 _ERROR:
 
-	THROW("&1: syntax error in form file", JOB->form);
+	if (!convert)
+		THROW("&1: syntax error in form file", JOB->form);
+	else
+		THROW("&1: syntax error in form data");
 }
 
+
+void FORM_set_target(char **target)
+{
+	_target = target;
+}
+
+void FORM_convert(const char *path)
+{
+	char *source;
+	char *target;
+	
+	BUFFER_create(&source);
+	BUFFER_add(&source, "{ Me *\n", 7);
+	if (BUFFER_load_file(&source, path))
+		THROW("Cannot load file: &1", path);
+	BUFFER_add(&source, "}\n\n\0", 4);
+	
+	BUFFER_create(&target);
+	
+	FORM_set_target(&target);
+	FORM_do(source, TRUE, FALSE);
+	BUFFER_add_char(&target, '\0');
+	
+	puts(target);
+	
+	BUFFER_delete(&source);
+	BUFFER_delete(&target);
+}

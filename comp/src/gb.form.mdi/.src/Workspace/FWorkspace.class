@@ -83,7 +83,7 @@ Public Sub Add(hWin As Window, Optional bResize As Boolean, Optional iGrid As In
   If GetIndex(hWin) >= 0 Then Return
 
   hPrev = GetWorkspace(hWin)
-  If hPrev Then RemoveWindow(hWin)
+  If hPrev Then hPrev.Remove(hWin)
   
   If bResize Then  
     hWin.Reparent(dwgBorder)
@@ -424,6 +424,7 @@ Public Sub ActivateWindow(Optional hWindow As Window)
   
     If hWindow Then
       iInd = GetIndex(hWindow)
+      If iInd < 0 Then Return
       If Not $aWindow[iInd].Detached Then
         Try tabWorkspace.Index = iInd
         Return
@@ -977,18 +978,11 @@ Public Sub SetImage(hImage As Image)
   
 End
 
-Public Sub SetFont(hFont As Font)
+Public Sub GetTabPanel() As TabPanel
   
-  tabWorkspace.TextFont = hFont
-  
-End
-
-Public Sub GetFont() As Font
-  
-  Return tabWorkspace.TextFont
+  Return tabWorkspace
   
 End
-
 
 Public Sub tabWorkspace_Move(Source As Integer, Target As Integer)
 

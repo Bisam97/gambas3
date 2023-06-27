@@ -38,7 +38,6 @@ typedef
 		GB_BASE ob;
 		cairo_surface_t *surface;
 		RsvgHandle *handle;
-		char *file;
 		double width;
 		double height;
 	} 

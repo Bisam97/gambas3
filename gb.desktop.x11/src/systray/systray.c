@@ -47,6 +47,8 @@
 //#include "scrollbars.h"
 #include "tray.h"
 
+#define SYNC() XSync(tray_data.dpy, False)
+
 struct TrayData tray_data;
 static int tray_status_requested = 0;
 #ifdef ENABLE_GRACEFUL_EXIT_HACK
@@ -62,6 +64,7 @@ static void refresh_icons()
 	tray_update_window_props();
 	_refresh = FALSE;
 	_refresh_forced = FALSE;
+	SYNC();
 }
 
 static void refresh_icons_later(bool forced)
@@ -235,6 +238,8 @@ void remove_icon(Window w)
 	refresh_icons_later(FALSE);
 
 	dump_tray_status();
+	
+	SYNC();
 }
 
 /* Remove a destroyed icon from the tray */
@@ -361,7 +366,10 @@ void perform_periodic_tasks(int mask)
 void expose(XExposeEvent ev)
 {
 	if (ev.window == tray_data.tray && settings.parent_bg && ev.count == 0)
+	{
 		tray_refresh_window(False);
+		SYNC();
+	}
 }
 
 void visibility_notify(XVisibilityEvent ev)
@@ -381,7 +389,10 @@ void property_notify(XPropertyEvent ev)
 	if (ev.atom == tray_data.xa_xrootpmap_id || ev.atom == tray_data.xa_xsetroot_id) {
 		if (settings.transparent) tray_update_bg(True);
 		if (settings.parent_bg || settings.transparent || settings.fuzzy_edges)
+		{
 			tray_refresh_window(True);
+			SYNC();
+		}
 	}
 #ifndef NO_NATIVE_KDE
 	/* React on change of list of KDE icons */
@@ -446,7 +457,7 @@ void reparent_notify(XReparentEvent ev)
 	}
 }
 
-void client_message(XClientMessageEvent ev)
+bool client_message(XClientMessageEvent ev)
 {
 	int cmode = CM_FDO;
 	struct TrayIcon *ti;
@@ -471,18 +482,18 @@ void client_message(XClientMessageEvent ev)
 		ev.data.l[0] == tray_data.xa_wm_delete_window && 
 		ev.window == tray_data.tray)
 	{
-		LOG_TRACE(("got WM_DELETE message, will now exit\n"));
+		PRINT_LOG(("got WM_DELETE message, will now exit\n"));
 		//exit(0); // atexit will call cleanup()
 		cleanup();
-		return;
+		return TRUE;
 	} 
 	/* Handle _NET_SYSTEM_TRAY_* messages */
 	if (ev.message_type == tray_data.xa_tray_opcode && tray_data.is_active) {
-		LOG_TRACE(("this is the _NET_SYSTEM_TRAY_OPCODE(%lu) message\n", ev.data.l[1]));
+		PRINT_LOG(("this is the _NET_SYSTEM_TRAY_OPCODE(%lu) message\n", ev.data.l[1]));
 		switch (ev.data.l[1]) {
 			/* This is the starting point of NET SYSTEM TRAY protocol */
 			case SYSTEM_TRAY_REQUEST_DOCK:
-				LOG_TRACE(("dockin' requested by window 0x%x, serving in a moment\n", ev.data.l[2]));
+				PRINT_LOG(("dockin' requested by window 0x%x, serving in a moment\n", ev.data.l[2]));
 #ifndef NO_NATIVE_KDE
 				if (kde_tray_check_for_icon(tray_data.dpy, ev.data.l[2])) cmode = CM_KDE;
 				if (kde_tray_is_old_icon(ev.data.l[2])) kde_tray_old_icons_remove(ev.data.l[2]);
@@ -501,7 +512,7 @@ void client_message(XClientMessageEvent ev)
 				ti = icon_list_find(ev.data.l[2]);
 				if (ti != NULL && !ti->is_embedded) {
 					ti->is_embedded = True;
-					LOG_TRACE(("embedding confirmed for icon 0x%x\n", ti->wid));
+					PRINT_LOG(("embedding confirmed for icon 0x%x\n", ti->wid));
 #ifdef DEBUG
 					dump_tray_status();
 #endif
@@ -560,11 +571,13 @@ void client_message(XClientMessageEvent ev)
 			default:
 				break;
 		}
+		return TRUE;
 	}
 #ifdef DEBUG
 	if (ev.message_type == tray_data.xa_tray_opcode && !tray_data.is_active)
-		LOG_TRACE(("ignoring _NET_SYSTEM_TRAY_OPCODE(%lu) message because tray is not active\n", tray_data.is_active));
+		PRINT_LOG(("ignoring _NET_SYSTEM_TRAY_OPCODE(%lu) message because tray is not active\n", tray_data.is_active));
 #endif
+	return FALSE;
 }
 
 void destroy_notify(XDestroyWindowEvent ev)
@@ -731,12 +744,12 @@ static void tray_main(int argc, char **argv, Window window)
 #endif
 }
 
-void SYSTRAY_event_filter(XEvent *e)
+int SYSTRAY_event_filter(XEvent *e)
 {
 	XEvent ev;
 
 	if (!tray_data.dpy)
-		return;
+		return 0;
 
 	ev = *e;
 
@@ -760,8 +773,9 @@ void SYSTRAY_event_filter(XEvent *e)
 			destroy_notify(ev.xdestroywindow);
 			break;
 		case ClientMessage:
-			LOG_TRACE(("ClientMessage(from 0x%x?)\n", ev.xclient.window));
-			client_message(ev.xclient);
+			PRINT_LOG(("ClientMessage(from 0x%x?)\n", ev.xclient.window));
+			if (client_message(ev.xclient))
+				return 1;
 			break;
 		case ConfigureNotify:
 			LOG_TRACE(("ConfigureNotify(0x%x)\n", ev.xconfigure.window));
@@ -795,7 +809,9 @@ void SYSTRAY_event_filter(XEvent *e)
 	#endif
 			break;
 	}
-
+	
+	return 0;
+	
 	// TODO: perform_periodic_tasks(PT_MASK_ALL);
 #if 0
 			if (tray_data.terminated) goto bailout;
@@ -880,8 +896,10 @@ int remote_main(int argc, char **argv)
 #endif
 
 /* main() */
-void SYSTRAY_init(Display *display, Window window)
+void SYSTRAY_init(Display *display, Window window, uint bg)
 {
+	XWindowAttributes xwa;
+	XColor color;
 	/* Read settings */
 	tray_init();
 
@@ -905,6 +923,15 @@ void SYSTRAY_init(Display *display, Window window)
 	else 
 		LOG_TRACE(("Opened dpy %p\n", tray_data.dpy));*/
 	tray_data.dpy = display;
+	
+	color.red = ((bg >> 16) & 0xFF) << 8;
+	color.green = ((bg >> 8) & 0xFF) << 8;
+	color.blue = (bg & 0xFF) << 8;
+	XGetWindowAttributes(tray_data.dpy, window, &xwa);
+	XAllocColor(display, DefaultColormapOfScreen(xwa.screen), &color);
+	//XSetWindowBackground(tray_data.dpy, window, color.pixel);
+	
+	tray_data.bg = color.pixel;
 
 #ifdef ENABLE_GRACEFUL_EXIT_HACK
 	if ((async_dpy = XOpenDisplay(settings.display_str)) == NULL) 
@@ -940,4 +967,26 @@ CX11SYSTRAYICON *SYSTRAY_get(int i)
 void SYSTRAY_refresh(void)
 {
 	refresh_icons_later(TRUE);
+}
+
+void SYSTRAY_move(int x, int y, int w, int h)
+{
+	if (w > 0)
+		tray_data.w = w;
+	if (h > 0)
+		tray_data.h = h;
+	tray_data.x = x;
+	tray_data.y = y;
+	
+	tray_update_size();
+}
+
+void SYSTRAY_resize(int w, int h)
+{
+	if (w > 0)
+		tray_data.w = w;
+	if (h > 0)
+		tray_data.h = h;
+	
+	tray_update_size();
 }

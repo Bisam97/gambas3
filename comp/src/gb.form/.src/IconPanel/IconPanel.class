@@ -14,7 +14,6 @@ Property Count As Integer
 Property Index As Integer
 Property Text As String
 Property Picture As Picture
-Property Font As Font
 Property TextFont As Font
 Property Border As Boolean
 
@@ -26,7 +25,8 @@ Private $hPanel As Panel
 Private $hBorder As Panel
 Private $hSep As Separator
 
-Private Const MIN_WIDTH_PANEL As Integer = 20
+Private Const MIN_WIDTH_PANEL As Integer = 16
+Private $iIconSize As Integer
 
 Public Sub _new()
 
@@ -76,19 +76,31 @@ Public Sub _UpdateIconViewWidth()
   
   Dim iInd As Integer
   Dim W, H, WC As Integer
+  Dim hPict As Picture
+  Dim hCont As _IconPanelContainer
+  Dim sRichText As String
   
+  $iIconSize = ((($hView.Font.Height * 3) \ 2 + 7) \ 8) * 8
+
   W = Desktop.Scale * MIN_WIDTH_PANEL
   
   For iInd = 0 To $aCont.Max
     
-    WC = $hView.Font.TextWidth($hView[iInd, 0].Text) + Desktop.Scale * 4
-    If $hView[iInd, 0].Picture Then WC += $hView[iInd, 0].Picture.Width + Desktop.Scale
+    hCont = $aCont[iInd]
+    
+    sRichText = hCont.RichText
+    If sRichText Then
+      WC = $hView.Font.RichTextWidth(sRichText) + Desktop.Scale * 4
+    Else
+      WC = $hView.Font.TextWidth(hCont.Text) + Desktop.Scale * 4
+    Endif
+    hPict = hCont.Picture
+
+    If hPict Then WC += $iIconSize * Max(1, hPict.Width / hPict.Height) + Desktop.Scale
     W = Max(W, WC)
     
-    H = Max(H, $hView.Font.TextHeight($hView[iInd, 0].Text))
-    If $hView[iInd, 0].Picture Then H = Max(H, $hView[iInd, 0].Picture.Height)
-    
-    $hView[iInd, 0].Padding = Desktop.Scale
+    H = Max(H, $hView.Font.TextHeight(hCont.Text))
+    If hPict Then H = Max(H, $iIconSize)
     
   Next
   
@@ -148,10 +160,7 @@ Private Sub Count_Write(iCount As Integer)
       'hToolbar.Text = "Toolbar " & CInt(iInd)
       $aCont.Add(hToolbar)
       '$hView.Add(iInd, "Item " & CStr(iInd))
-      With $hView[iInd, 0]
-        .Text = "Item " & CStr(iInd)
-      End With
-      _UpdateIconViewWidth
+      hToolbar.Text = "Item " & CStr(iInd)
     Next
     'ME.Container = hCont
 
@@ -159,6 +168,8 @@ Private Sub Count_Write(iCount As Integer)
     Index_Write(iCount - 1)
 
   Endif
+  
+  _UpdateIconViewWidth
 
 End
 
@@ -230,21 +241,9 @@ Public Function _get(Index As Integer) As _IconPanelContainer
 
 End
 
-Private Function Font_Read() As Font
+Public Sub View_Font()
 
-  Return Super.Font
-
-End
-
-Private Sub Font_Write(hFont As Font)
-
-  Dim hToolbar As _IconPanelContainer
-
-  Super.Font = hFont
-
-  For Each hToolbar In $aCont
-    hToolBar.Text = hToolBar.Text
-  Next
+  _UpdateIconViewWidth
 
 End
 
@@ -368,4 +367,42 @@ Public Sub _SetVisible(hCont As _IconPanelContainer, bVisible As Boolean)
     
   Endif
     
+End
+
+Public Sub View_Draw(X As Integer, Y As Integer, Width As Integer, Height As Integer, Row As Integer, (Column) As Integer)
+
+  Dim hCont As _IconPanelContainer
+  Dim sRichText As String
+  
+  hCont = $aCont[Row]
+  
+  X += Desktop.Scale
+  Width -= Desktop.Scale * 2
+  
+  If hCont.Picture Then 
+    Paint.DrawPicture(hCont.Picture, X, Y + (Height - $iIconSize) \ 2, $iIconSize, $iIconSize)
+    X += $iIconSize + Desktop.Scale
+    Width -= $iIconSize + Desktop.Scale
+  Endif
+  
+  sRichText = hCont.RichText
+  If sRichText Then
+    Paint.DrawRichText(sRichText, X, Y, Width, Height, Align.Normal)
+  Else
+    Paint.DrawText(hCont.Text, X, Y, Width, Height, Align.Normal)
+  Endif
+  
+End
+
+Public Sub FindPanel(Text As String) As Integer
+
+  Dim I As Integer
+  Dim hCont As _IconPanelContainer
+  
+  For I = 0 To $aCont.Max
+    hCont = $aCont[I]
+    If hCont.Text = Text Then Return I
+  Next
+  Return -1
+  
 End

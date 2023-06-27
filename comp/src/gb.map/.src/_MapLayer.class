@@ -13,6 +13,12 @@ Public Copyright As String              '' Returns or sets Layer Copyright notic
 
 Event Refresh
 
+Public Sub _new(Parent As Object)
+
+  Object.Attach(Me, Parent, "Layer")
+
+End
+
 Public Sub Draw() '(Optional bRefresh As Boolean = True)
 
 End
@@ -28,6 +34,7 @@ Private Sub Visible_Write(Value As Boolean)
   $bVisible = Value
   _Load()
   Raise Refresh
+
 End
 
 Public Sub _Load()
@@ -39,7 +46,7 @@ Public Sub Refresh()
 End
 
 ' Public Function CountActiveClients() As Integer
-' 
+'
 ' End
 
 Private Function Opacity_Read() As Float
@@ -62,5 +69,29 @@ End
 Public Function _GetMap() As Map
 
   Return Object.Parent(Me)
+
+End
+
+Public Sub _MouseMove()
+
+End
+
+Public Sub _MouseUp()
+
+End
+
+Public Sub _MouseDown()
+
+End
+
+Public Sub _MouseWheel()
+
+End
+
+Public Sub _Leave()
+
+End
+
+Public Sub _Enter()
 
 End

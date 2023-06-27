@@ -6,6 +6,7 @@ Static Private $aTag As String[]
 
 Public Farm As String
 
+Private $cCache As New Collection
 Private $aCache As String[]
 
 Static Public Sub _init()
@@ -27,8 +28,8 @@ Public Sub Fill(Text As String, Explicit As Boolean)
   Dim sTag As String
   Dim hHttpClient As HttpClient
   Dim sResult As String
-  Dim aResult As String[]
   Dim I As Integer
+  Dim aCache As String[]
   
   If Not Text Then
     If Not Explicit Then Return
@@ -45,22 +46,32 @@ Public Sub Fill(Text As String, Explicit As Boolean)
   
   If Farm Then
   
-    hHttpClient = New HttpClient
-    hHttpClient.URL = Farm &/ "/farm/tags?name=" & URL.Encode(Text)
-    hHttpClient.Async = False
-    hHttpClient.Timeout = 3
-    hHttpClient.Get()
-    sResult = hHttpClient.Peek()
-    If sResult Begins "10 OK" Then
-      aResult = Split(Replace(sResult, "\r", ""), "\n")
-      For I = 1 To aResult.Max
-        sTag = aResult[I]
-        'sTag = UCase(Left(sTag)) & Mid$(sTag, 2)
-        If Not aTag.Exist(sTag) Then aTag.Add(sTag)
-      Next
-      aTag.Sort()
+    aCache = $cCache[Left(Text)]
+  
+    If Not aCache Then
+  
+      hHttpClient = New HttpClient
+      hHttpClient.URL = Farm &/ "/farm/tags?name=" & URL.Encode(Left(Text))
+      hHttpClient.Async = False
+      hHttpClient.Timeout = 3
+      hHttpClient.Get()
+      sResult = hHttpClient.Peek()
+      If sResult Begins "10 OK" Then
+        aCache = Split(Replace(sResult, "\r", ""), "\n")
+      Endif
+      
+      $cCache[Text] = aCache
+      
     Endif
     
+    For I = 1 To aCache.Max
+      sTag = aCache[I]
+      If Left(sTag, Len(Text)) == Text Then
+        If Not aTag.Exist(sTag) Then aTag.Add(sTag)
+      Endif
+    Next
+    aTag.Sort()
+
   Endif
   
   If Not Text Then $aCache = aTag

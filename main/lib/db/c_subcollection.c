@@ -2,7 +2,7 @@
 
   c_subcollection.c
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -137,25 +137,40 @@ BEGIN_METHOD_VOID(CSUBCOLLECTION_next)
     char *key = NULL;
     int n;
 
-    if (*pos == 0)
-    {
-      free_string_array(&THIS->list);
-      (*THIS->desc->list)(THIS->container, &THIS->list);
-    }
+		if (*pos == 0)
+		{
+			free_string_array(&THIS->list);
+			(*THIS->desc->list)(THIS->container, &THIS->list);
+		}
 
-    if (THIS->list)
-    {
-      if (*pos < GB.Count(THIS->list))
-      {
-        n = (*pos)++;
-        key = THIS->list[n];
-      }
-    }
+		for(;;)
+		{
+			if (THIS->list)
+			{
+				if (*pos < GB.Count(THIS->list))
+				{
+					n = (*pos)++;
+					key = THIS->list[n];
+				}
+			}
 
-    if (!key || !*key)
-      GB.StopEnum();
-    else
-      GB.ReturnObject(get_from_key(THIS, key, 0));
+			if (!key || !*key)
+			{
+				GB.StopEnum();
+				return;
+			}
+			else
+			{
+				void *table = get_from_key(THIS, key, 0);
+				GB.Error(NULL);
+				
+				if (table)
+				{
+					GB.ReturnObject(table);
+					return;
+				}
+			}
+		}
   }
   else
   {

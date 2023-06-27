@@ -41,15 +41,18 @@ Public Sub DrawingArea_Draw()
   
   Style.PaintButton(0, 0, Paint.W, Paint.H, bPressed, Style.StateOf(Last), Not $bBorder)
   
-  F = F * 2 + 4
+  'F = F * 2 + 4
+  
+  F += 1 + Desktop.Scale \ 2
   
   W = Paint.W - F * 2
   H = Paint.H - F * 2
   If W <= 0 Or If H <= 0 Then Return
   
-  'Paint.FillRect(F, F, W, H, $iColor)
   If bPressed Then Inc F
-  Style.PaintBox(F, F, W, H, Style.Normal, $iColor)
+  Paint.FillRect(F, F, W, H, $iColor)
+  Paint.DrawRect(F, F, W, H, Color.SetAlpha(Color.Foreground, 128))
+  'Style.PaintBox(F, F, W, H, Style.Normal, $iColor)
   
 End
 

@@ -16,7 +16,7 @@ Public Sub _new(bQuit As Boolean)
 
   For Each hFile In Project.Files
     If hFile.IsModified() Then
-      hPict = Project.GetFileIcon(hFile.Path)
+      hPict = Project.GetFileIcon(hFile.Path).Stretch(Stock.GetSize("small"))
       lvwFile.Add(hFile.Path, File.Name(hFile.Path), hPict).Selected = True
     Endif
   Next

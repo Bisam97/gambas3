@@ -1,0 +1,167 @@
+' Gambas module file
+
+Public gbsver As String = "gambas" & System.version ' Version name of the current program
+Public $cLibraries As New Collection                     ' List of libraries used by script
+' Search local directory then system directory for libraries
+Public $aLibraryPaths As New String[]
+Public $sLibraryNoVendor As String = User.home &/ "/.local/share/" &/ gbsver &/ "lib/(unknown)" ' Gambas module file
+Private $bInitialized As Boolean = False
+
+
+'' This function looks for XDG-DATA-HOME and XDG-DATA-DIRS and replaces
+'' Entries in the $aLibraryPaths config array as needed
+Public Sub ConfigureLibraries()
+  Dim aDataPaths As String[]
+  
+'' Check if already initialized
+If $bInitialized Then
+     Return
+Endif
+
+  $bInitialized = True
+  
+  If Env["XDG_DATA_HOME"] <> "" Then
+    $aLibraryPaths[0] = Env["XDG_DATA_HOME"] &/ gbsver &/ "lib"
+  Endif
+
+  $aLibraryPaths.Add(User.home &/ "/.local/share/" &/ gbsver &/ "lib")
+
+  $aLibraryPaths.Add("/usr/lib" &/ gbsver)
+
+  If Exist("usr/lib/" &/ System.Architecture) Then
+    $aLibraryPaths.Add("usr/lib/" &/ System.Architecture &/ gbsver)
+  Endif
+
+  ' As an optional extra use the LD_LIBRARY_PATH to look for shared libraries as well
+  If Env["LD_LIBRARY_PATH"] <> "" Then
+    aDataPaths = Split(Env["LD_LIBRARY_PATH"], ":", "", True)
+    For iI As Integer = 0 To aDataPaths.Max
+      aDataPaths[iI] &= "/" & gbsver
+    Next
+    $aLibraryPaths.Insert(aDataPaths, 1)
+  Endif
+
+  ' look in all the directories specified by the XDG_DATA paths
+  If Env["XDG_DATA_DIRS"] <> "" Then
+    aDataPaths = Split(Env["XDG_DATA_DIRS"], ":", "", True)
+    For iI As Integer = 0 To aDataPaths.Max
+      aDataPaths[iI] &= "/" & gbsver &/ "lib"
+    Next
+    $aLibraryPaths.Insert(aDataPaths, 1)
+  Endif
+
+  ' For backward compatibility look for an executable of the provided name
+  If Env["PATH"] <> "" Then
+    aDataPaths = Split(Env["PATH"], ":", "", True)
+    $aLibraryPaths.Insert(aDataPaths)
+  Endif
+
+End
+
+Public Sub ListLibraries()
+
+  Dim LibList As New String[]
+
+  For Each sPath As String In $aLibraryPaths
+    LibList.Insert(ListLibrariesIn(sPath))
+  Next
+  LibList.Sort()
+  Print LibList.Join("\n")
+
+End
+
+Public Sub ListLibrariesIn(sPath As String, Optional Level As Integer = 0) As String[]
+
+  Dim fileList As String[]
+  Dim LibList As New String[]
+
+  If Not Exist(sPath) Or If level > 4 Then Return LibList
+  FileList = Dir(sPath, "*:*.gambas", gb.file)
+  For Each sFile As String In FileList
+    LibList.Add(sPath &/ sFile)
+  Next
+  FileList = Dir(sPath, "", gb.Directory)
+  For Each sFile As String In FileList
+    LibList.Insert(ListLibrariesIn(sPath &/ sFile, Level + 1))
+  Next
+  Return LibList
+
+End
+
+Public Sub ProcessLibrary(LibName As String, ProgLine As Integer, Path As String)
+
+  Dim LibAndVersion As String[]
+  Dim LibEntry As String = ""
+  Dim LibPath As String[]
+  Dim LibFilename As String
+  Dim LibDirPath As String
+  Dim WantedVersion As String
+  
+  If Not $bInitialized Then 
+    ConfigureLibraries()
+  Endif
+
+  LibFileName = File.Name(LibName)                                            ' If full path then get the file name part
+  LibDirPath = File.Dir(LibName)                                                      ' Get the dir path portion
+  LibAndVersion = Split(LibFileName, ":", "", True)
+  If LibAndVersion.count = 1 Then LibAndVersion.add("")      ' add a "" to get highest version if no version provided
+  LibPath = Split(LibAndVersion[0], ".", "", True)                        ' We should now have a vendor and libname or just one entry if no vendors
+  WantedVersion = LibAndVersion[1]                                            ' The version that we will look for
+
+  If LibDirPath <> "" Then                                 ' we have an absolute path or home based path
+    Try LibEntry = CheckLibVersions(LibDirPath &/ LibPath.Join("/"), WantedVersion)     ' if no version force to highest by using ""
+  Else
+    If LibPath.count = 1 Then                                ' We have an unknown vendor we can only check the (unknown) local directory then
+      Try LibEntry = CheckLibVersions($sLibraryNoVendor &/ LibPath[0], WantedVersion)
+    Else
+      For Each SearchLocation As String In $aLibraryPaths
+        Try LibEntry = CheckLibVersions(SearchLocation &/ LibPath.Join("/"), WantedVersion)
+        If Error Then Continue
+        If LibEntry <> "" Then Break
+      Next
+    Endif
+  Endif
+
+  If LibEntry = "" Then
+     CompileError(Path, ProgLine, Subst(("Unknown Library") & ": &1", LibName))
+  Else
+
+     Verbose(("use Library Path") & ": " & LibEntry)
+
+    $cLibraries.Add(LibEntry, LibFileName)
+  Endif
+  
+End
+
+
+Public Sub CheckLibVersions(sPath As String, Version As String) As String
+
+  Dim sDir As String = File.Dir(sPath)
+
+  If Not Exist(sDir) Then Return ""
+
+  Dim sName As String = File.Name(sPath) & ":" & version & "*" & ".gambas"
+
+  Dim sEntries As String[] = Dir(sDir, sName, gb.file).Sort()
+  If sEntries.count > 0 Then
+    Return sDir &/ sEntries[sEntries.max]   ' return the highest level library
+  Else
+    Return ""
+  Endif
+
+End
+
+Public Sub clear()
+  
+    $cLibraries.Clear()
+  
+End
+
+Public Sub LibraryEntries() As String
+  Dim sPrjFileContent As String = ""
+   For Each ci As String In $cLibraries
+    sPrjFileContent &= "Library=" & ci & "\n"
+  Next
+  Return sPrjFileContent
+End
+

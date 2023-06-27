@@ -2,7 +2,7 @@
 
 	gbx_stream.h
 
-	(c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+	(c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@
 #ifndef __GBX_STREAM_H
 #define __GBX_STREAM_H
 
+#include "gb_hash.h"
 #include "gbx_value.h"
 #include "gbx_archive.h"
 
@@ -46,6 +47,20 @@ typedef
 
 typedef
 	struct {
+		union STREAM *redirect;
+		char *buffer;
+		short buffer_pos;
+		short buffer_len;
+		char *unread;
+		int unread_pos;
+		int unread_len;
+		void **read_objects;
+		HASH_TABLE *write_objects;
+	}
+	STREAM_EXTRA;
+	
+typedef
+	struct {
 		STREAM_CLASS *type;
 		short mode;
 		unsigned swap : 1;
@@ -58,15 +73,16 @@ typedef
 		unsigned blocking : 1;
 		unsigned redirected : 1;
 		unsigned no_read_ahead : 1;
-		#if DEBUG_STREAM
-		unsigned tag : 5;
-		#else
-		unsigned _reserved : 5;
+		unsigned null_terminated : 1;
+		unsigned check_read : 1;
+		unsigned _reserved : 2;
+		#if __WORDSIZE == 64
+		unsigned _reserved2 : 32;
 		#endif
-		short buffer_pos;
-		short buffer_len;
-		char *buffer;
-		union STREAM *redirect;
+		STREAM_EXTRA *extra;
+		#if DEBUG_STREAM
+		int tag;
+		#endif
 		}
 	STREAM_COMMON;
 
@@ -87,6 +103,14 @@ typedef
 		unsigned use_size : 1;
 		}
 	STREAM_DIRECT;
+
+typedef
+	struct {
+		STREAM_COMMON common;
+		int fd;
+		unsigned can_write : 1;
+		}
+	STREAM_PIPE;
 
 typedef
 	struct {
@@ -130,21 +154,29 @@ typedef
 	STREAM_STRING;
 
 typedef
+	struct {
+		STREAM_COMMON common;
+		intptr_t pos;
+		}
+	STREAM_NULL;
+
+typedef
 	union STREAM {
 		STREAM_CLASS *type;
 		STREAM_COMMON common;
 		STREAM_RESERVED _reserved;
 		STREAM_DIRECT direct;
 		STREAM_BUFFER buffer;
-		STREAM_DIRECT pipe;
+		STREAM_PIPE pipe;
 		STREAM_MEMORY memory;
 		STREAM_ARCH arch;
 		STREAM_PROCESS process;
 		STREAM_STRING string;
+		STREAM_NULL null;
 		}
 	STREAM;
 
-enum {
+/*enum {
 	STO_READ        = (1 << 0),
 	STO_WRITE       = (1 << 1),
 	STO_READ_WRITE  = STO_READ + STO_WRITE,
@@ -157,8 +189,9 @@ enum {
 	STO_WATCH       = (1 << 6),
 	STO_PIPE        = (1 << 7),
 	STO_MEMORY      = (1 << 8),
-	STO_STRING      = (1 << 9)
-	};
+	STO_STRING      = (1 << 9),
+	STO_NULL        = (1 << 10)
+	};*/
 
 enum {
 	ST_EOL_UNIX = 0,
@@ -178,7 +211,7 @@ EXTERN STREAM_CLASS STREAM_memory;
 EXTERN STREAM_CLASS STREAM_arch;
 EXTERN STREAM_CLASS STREAM_process;
 EXTERN STREAM_CLASS STREAM_string;
-/*EXTERN STREAM_CLASS STREAM_null;*/
+EXTERN STREAM_CLASS STREAM_null;
 
 #else
 
@@ -202,7 +235,6 @@ STREAM_CLASS stream = \
 #define STREAM_BUFFER_SIZE 1024
 
 bool STREAM_in_archive(const char *path);
-//int STREAM_get_readable(int fd, long *len);
 
 void STREAM_open(STREAM *stream, const char *path, int mode);
 
@@ -214,6 +246,7 @@ char *STREAM_input(STREAM *stream);
 int64_t STREAM_tell(STREAM *stream);
 void STREAM_seek(STREAM *stream, int64_t pos, int whence);
 int STREAM_read(STREAM *stream, void *addr, int len);
+void STREAM_peek(STREAM *stream, void *addr, int len);
 int STREAM_read_max(STREAM *stream, void *addr, int len);
 bool STREAM_read_ahead(STREAM *stream);
 //char STREAM_getchar(STREAM *stream);
@@ -224,6 +257,7 @@ void STREAM_write_type(STREAM *stream, TYPE type, VALUE *value);
 void STREAM_write_eol(STREAM *stream);
 void STREAM_flush(STREAM *stream);
 int STREAM_handle(STREAM *stream);
+bool STREAM_lof_safe(STREAM *stream, int64_t *len);
 void STREAM_lof(STREAM *stream, int64_t *len);
 bool STREAM_eof(STREAM *stream);
 bool STREAM_default_eof(STREAM *stream);
@@ -233,6 +267,7 @@ void STREAM_load(const char *path, char **buffer, int *len);
 bool STREAM_map(const char *path, char **paddr, int *plen);
 void STREAM_unmap(char *addr, int len);
 
+int STREAM_lock_all_fd(int fd);
 bool STREAM_lock_all(STREAM *stream);
 
 #define STREAM_is_closed(_stream) ((_stream)->type == NULL)
@@ -242,7 +277,7 @@ void STREAM_blocking(STREAM *stream, bool block);
 #define STREAM_is_blocking(_stream) ((_stream)->common.blocking)
 void STREAM_check_blocking(STREAM *stream);
 
-int STREAM_get_readable(STREAM *stream, int *len);
+bool STREAM_get_readable(STREAM *stream, int *len);
 
 void STREAM_exit(void);
 

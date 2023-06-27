@@ -1,0 +1,132 @@
+' Gambas class file
+
+Export
+
+Inherits TestClass1
+
+Public Const TestConst As Integer = 1
+Public Const TestConst2 As Integer = 1
+
+Property TestVar As Integer
+Private iTestVar As Integer
+
+Static Public xx As Integer = 1000
+Static Public yy As Integer = 2000
+
+Static Public ThisObject As New POINT3D[]
+
+Public jep As String
+Public y As Integer
+Public z As Integer
+Static Public iInitVar As Integer
+
+Static Public iEventTest As Integer = -1
+Private hObserver As Observer = New Observer(mTest.hFormForEvent, False) As "TestObserver"
+
+Fast Public Sub _new(Optional aaa As Boolean, Optional ploop As String)
+  
+  jep = ploop 
+  y = 10
+  
+End
+
+Fast Public Procedure TestObserver_TestEvent() 
+  
+  ' If iEventTest = -1 Then
+  '  Stop Event
+  ' Endif
+  ''Doesn't work this way... why?
+  
+  iEventTest = 12345
+  
+End
+
+Fast Static Public Sub _init()
+  
+  iInitVar = 20
+  
+End
+
+Fast Public Sub _get(iWhich As Integer) As Integer
+  
+  If iWhich = 1 Then
+    Return y
+  Else
+    Return z
+  Endif
+  
+End
+
+Fast Public Sub _put(iValue As Integer, iWhich As Integer)
+  
+  If iWhich = 1 Then
+    y = iValue
+  Else
+    z = iValue
+  Endif
+  
+End
+
+'Public Sub _next
+'   
+'   
+'   
+' End
+ 
+Fast Static Public Sub _call() As String
+  
+ Return "Called"
+  
+End
+
+Public Sub _unknown(...) As Variant
+
+  Dim va As Variant
+  Dim jj As Integer
+  
+  For Each va In Param
+    If TypeOf(va) = gb.Integer Then
+      jj += CInt(va)
+    Endif
+  Next
+  
+  Return jj
+  
+End
+
+Fast Public Function _compare(oOther As TestClass2) As Integer
+  
+  Return Sgn(Me.y - oOther.y)
+  
+End
+
+Fast Public Procedure JustTesting()
+    
+  z = 0
+  y = 0
+  Super.x = 0
+  
+End
+
+Fast Private Function TestVar_Read() As Integer
+  
+  Return iTestVar
+  
+End
+
+Fast Private Sub TestVar_Write(Value As Integer)
+  
+  iTestVar = Value
+  
+End
+
+Fast Static Public Sub Runshit()
+  
+  Module1.awef(mTest.hChild, Null)
+  Module1.JITTest100(1, 2, 3)
+  Module1.JITTest100(1, 2, 3,, True)
+  Module1.JITTest100(1, 2, 3, True)
+  
+End
+
+

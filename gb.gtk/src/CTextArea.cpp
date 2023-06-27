@@ -37,13 +37,13 @@ DECLARE_EVENT(EVENT_Change);
 DECLARE_EVENT(EVENT_Cursor);
 //DECLARE_EVENT(EVENT_Link); //TODO
 
-static void cb_change(gTextArea *sender)
+void CB_textarea_change(gTextArea *sender)
 {
 	CWIDGET *_object = GetObject((gControl*)sender);
 	GB.Raise(THIS, EVENT_Change, 0);
 }
 
-static void cb_cursor(gTextArea *sender)
+void CB_textarea_cursor(gTextArea *sender)
 {
 	CWIDGET *_object = GetObject((gControl*)sender);
 	GB.Raise(THIS, EVENT_Cursor, 0);
@@ -52,8 +52,6 @@ static void cb_cursor(gTextArea *sender)
 BEGIN_METHOD(CTEXTAREA_new, GB_OBJECT parent)
 
 	InitControl(new gTextArea(CONTAINER(VARG(parent))), (CWIDGET*)THIS);
-	WIDGET->onChange = cb_change;
-	WIDGET->onCursor = cb_cursor;
 	
 END_METHOD
 

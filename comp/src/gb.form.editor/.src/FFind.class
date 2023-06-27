@@ -1,0 +1,108 @@
+' Gambas class file
+
+Private $hTimer As Timer
+
+Private Sub GetEditor() As TextEditor
+
+  Return Me.Parent.Parent
+
+End
+
+Public Sub Form_KeyPress()
+
+  Select Case Key.Code
+    
+    Case Key.Escape 
+      
+      btnClose_Click
+      Stop Event
+    ' Case Key.PageDown, Key.PageUp
+    '   If Key.Normal Then GetEditor().View_KeyPress
+    
+    Case Key.Home, Key.End
+      
+      If Key.Control And If Not Key.Shift Then GetEditor().View_KeyPress
+    
+    Case Key.Enter, Key.Return
+      
+      If Key.Shift Then
+        btnPrevious_Click
+      Else
+        btnNext_Click
+      Endif
+      Stop Event
+    
+    Case Key.F3
+      
+      If Key.Shift Then
+        btnPrevious_Click
+      Else
+        btnNext_Click
+      Endif
+      Stop Event
+  
+  End Select
+
+End
+
+Public Sub Form_GotFocus()
+
+  txtFind.SetFocus
+  txtFind_Change
+
+End
+
+Public Sub btnClose_Click()
+
+  Dim hEditor As TextEditor = GetEditor()
+  Me.Hide
+  hEditor.HighlightString("")
+  hEditor.SetFocus
+
+End
+
+Public Sub txtFind_Change()
+
+  GetEditor()._Search(txtFind.Text)
+
+End
+
+
+Public Sub btnNext_Click()
+
+  If GetEditor()._Search(txtFind.Text, True) Then Blink
+
+End
+
+Public Sub btnPrevious_Click()
+
+  If GetEditor()._Search(txtFind.Text, False) Then Blink
+
+End
+
+Private Sub Blink()
+  
+  panFind.Background = Color.LightBackground
+  txtFind.Background = Color.LightBackground
+  
+  If $hTimer Then
+    $hTimer.Restart()
+  Else
+    $hTimer = New Timer(100) As "Blink"
+  Endif
+  
+End
+
+Public Sub Blink_Timer()
+  
+  panFind.Background = Color.TextBackground
+  txtFind.Background = Color.Default
+  $hTimer = Null
+  
+End
+
+Public Sub btnClear_Click()
+
+  txtFind.Clear
+
+End

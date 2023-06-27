@@ -2,7 +2,7 @@
 
   gb_table_temp.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -87,13 +87,13 @@ char TABLE_compare(const char *s1, int len1, const char *s2, int len2)
 		c1 = s1[i];
 		c2 = s2[i];
 
-		if (LIKELY(c1 > c2)) return 1;
-		if (LIKELY(c1 < c2)) return -1;
+		if (c1 > c2) return 1;
+		if (c1 < c2) return -1;
 	}
 
-	if (LIKELY(len1 < len2))
+	if (len1 < len2)
 		return -1;
-	else if (LIKELY(len1 > len2))
+	else if (len1 > len2)
 		return 1;
 	else
 		return 0;
@@ -108,14 +108,14 @@ char TABLE_compare_ignore_case(const char *s1, int len1, const char *s2, int len
 	for (i = 0; len > 0; i++)
 	{
 		result = toupper(s1[i]) - toupper(s2[i]);
-		if (LIKELY(result))
+		if (result)
 			return result; // < 0 ? -1 : 1;
 		len--;
 	}
 
-	if (LIKELY(len1 < len2))
+	if (len1 < len2)
 		return -1;
-	else if (LIKELY(len1 > len2))
+	else if (len1 > len2)
 		return 1;
 	else
 		return 0;
@@ -125,15 +125,15 @@ char TABLE_compare_ignore_case_len(const char *s1, int len1, const char *s2, int
 {
 	int result;
 
-	if (LIKELY(len1 < len2))
+	if (len1 < len2)
 		return -1;
-	else if (LIKELY(len1 > len2))
+	else if (len1 > len2)
 		return 1;
 
 	while (len1)
 	{
 		result = tolower(*s1++) - tolower(*s2++);
-		if (LIKELY(result))
+		if (result)
 			return result; // < 0 ? -1 : 1;
 		--len1;
 	}
@@ -159,16 +159,16 @@ static inline int search(void *symbol, ushort *sort, int n_symbol, size_t size, 
 
 	for(;;)
 	{
-		if (UNLIKELY(deb >= fin))
+		if (deb >= fin)
 			return (-deb) - 1;
 
 		pos = (deb + fin) >> 1;
 
 		sym = SSYM(symbol, sort[pos], size);
 		
-		if (LIKELY(len < sym->len))
+		if (len < sym->len)
 			goto __B_LOWER;
-		else if (LIKELY(len > sym->len))
+		else if (len > sym->len)
 			goto __B_GREATER;
 		
 #if TABLE_USE_KEY
@@ -192,12 +192,12 @@ static inline int search(void *symbol, ushort *sort, int n_symbol, size_t size, 
 			{
 				result = *s1 - *s2;
 				
-				if (LIKELY(result < 0))
+				if (result < 0)
 					goto __B_LOWER;
-				else if (LIKELY(result > 0))
+				else if (result > 0)
 					goto __B_GREATER;
 				
-				if (UNLIKELY(--l == 0))
+				if (--l == 0)
 					break;
 				
 				s1++;
@@ -231,7 +231,7 @@ static inline int search_ignore_case(void *symbol, ushort *sort, int n_symbol, s
 
 	for(;;)
 	{
-		if (UNLIKELY(deb >= fin))
+		if (deb >= fin)
 		{
 			return -deb - 1;
 			/**index = deb;
@@ -242,9 +242,9 @@ static inline int search_ignore_case(void *symbol, ushort *sort, int n_symbol, s
 
 		sym = SSYM(symbol, sort[pos], size);
 
-		if (LIKELY(len < sym->len))
+		if (len < sym->len)
 			goto __T_LOWER;
-		else if (LIKELY(len > sym->len))
+		else if (len > sym->len)
 			goto __T_GREATER;
 
 #if TABLE_USE_KEY
@@ -268,12 +268,12 @@ static inline int search_ignore_case(void *symbol, ushort *sort, int n_symbol, s
 			{
 				result = tolower(*s1) - tolower(*s2);
 				
-				if (LIKELY(result < 0))
+				if (result < 0)
 					goto __T_LOWER;
-				else if (LIKELY(result > 0))
+				else if (result > 0)
 					goto __T_GREATER;
 				
-				if (UNLIKELY(--l == 0))
+				if (--l == 0)
 					break;
 				
 				s1++;
@@ -293,7 +293,7 @@ static inline int search_ignore_case(void *symbol, ushort *sort, int n_symbol, s
 
 const char *TABLE_get_symbol_name(TABLE *table, int index)
 {
-	if (UNLIKELY((index < 0) || (index >= ARRAY_count(table->symbol))))
+	if (index < 0 || index >= ARRAY_count(table->symbol))
 		strcpy(_buffer, "?");
 	else
 		SYMBOL_get_name(SYM(table, index));
@@ -306,7 +306,7 @@ const char *TABLE_get_symbol_name_suffix(TABLE *table, int index, const char* su
 {
 	SYMBOL *sym;
 	
-	if (UNLIKELY((index < 0) || (index >= ARRAY_count(table->symbol))))
+	if (index < 0 || index >= ARRAY_count(table->symbol))
 		return "?";
 	
 	sym = SYM(table, index);
@@ -335,6 +335,14 @@ void TABLE_create(TABLE **result, size_t size, TABLE_FLAG flag)
 	TABLE_create_static(table, size, flag);
 
 	*result = table;
+}
+
+
+void TABLE_create_inc(TABLE **result, size_t size, TABLE_FLAG flag, uint inc)
+{
+	TABLE_create(result, size, flag);
+	ARRAY_set_inc((*result)->symbol, inc);
+	ARRAY_set_inc((*result)->sort, inc);
 }
 
 
@@ -514,7 +522,7 @@ int TABLE_copy_symbol_with_prefix(TABLE *table, int ind_src, char prefix)
 
 	ptr = (char *)sym->name - 1;
 
-	if (UNLIKELY(!isspace((unsigned char)*ptr)))
+	if (!isspace((unsigned char)*ptr))
 		ERROR_panic("Cannot add prefix to symbol");
 
 	*ptr = prefix;
@@ -535,11 +543,11 @@ int SYMBOL_find(void *symbol, ushort *sort, int n_symbol, size_t s_symbol, int f
 	int index;
 	int len_prefix;
 
-	if (UNLIKELY(prefix != NULL))
+	if (prefix != NULL)
 	{
 		len_prefix = strlen(prefix);
 
-		if (UNLIKELY((len + len_prefix) > MAX_SYMBOL_LEN))
+		if ((len + len_prefix) > MAX_SYMBOL_LEN)
 			ERROR_panic("SYMBOL_find: prefixed symbol too long");
 
 		strcpy(_buffer, prefix);

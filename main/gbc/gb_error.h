@@ -2,7 +2,7 @@
 
   gb_error.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -39,6 +39,7 @@
 #define E_MISSING            ((const char *)7)
 #define E_SYNTAX_MISSING     ((const char *)8)
 #define E_TOOLONG            ((const char *)9)
+#define E_BADARG             ((const char *)10)
 
 typedef
   struct {
@@ -121,6 +122,7 @@ void ERROR_panic(const char *error, ...) NORETURN;
 void ERROR_print(void);
 void ERROR_print_at(FILE *where);
 void ERROR_warning(const char *warning, ...);
+void ERROR_fail(const char *error, ...) NORETURN;
 
 /*PUBLIC void ERROR_must_free(void *object);*/
 

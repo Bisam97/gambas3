@@ -1,7 +1,5 @@
 ' Gambas class file
 
-Event Change()
-
 Private Const SELECT_TOOL As String = "Select"
 
 Private $iSize As Integer
@@ -17,14 +15,7 @@ Private $bNoEvent As Boolean
 
 Public Sub _new(sName As String, sType As String)
 
-  Select Case Settings["/ToolboxSize", 0]
-    Case 0
-      $iSize = 32
-    Case 1
-      $iSize = 24
-    Case 2
-      $iSize = 48
-  End Select
+  $iSize = FToolBox.GetSize()
 
   Key = sName
   $sType = sType
@@ -36,7 +27,6 @@ Public Sub _new(sName As String, sType As String)
   Container = panTool
 
 End
-
 
 Public Sub Add(sControl As String, Optional sComp As String, Optional sType As String)
 
@@ -50,10 +40,10 @@ Public Sub Add(sControl As String, Optional sComp As String, Optional sType As S
   H = $iSize + 8
 
   hCtrl = New ToolButton(panTool) As "btnControl"
-  hCtrl.Tag = [sControl, sType]
+  hCtrl.Tag = [sControl, sType, sComp]
   hCtrl.Border = False
   hCtrl.Toggle = True
-  hCtrl.ToolTip = sControl
+  'hCtrl.ToolTip = sControl
   hCtrl.Design = True
 
   hPict = CControl.GetIcon(sControl, sComp)
@@ -75,6 +65,26 @@ Public Sub Exist(sControl As String) As Boolean
   
 End
 
+Public Sub Sort()
+
+  Dim hCtrl As Control
+  Dim aCtrl As New Control[]
+  Dim aSort As New String[]
+  
+  For Each hCtrl In panTool.Children
+    aCtrl.Add(hCtrl)
+    aSort.Add(hCtrl.Tag[0])
+  Next
+  
+  aCtrl.SortUsing(aSort)
+  
+  For Each hCtrl In aCtrl
+    hCtrl.Raise
+  Next
+  
+  $cButton[SELECT_TOOL].Lower
+  
+End
 
 
 ' PUBLIC SUB Form_Resize()
@@ -140,49 +150,42 @@ End
 
 Public Procedure btnControl_Enter()
   
-  Last.Border = True
+  Dim hCtrl As ToolButton = Last
+  
+  hCtrl.Border = True
+  If IsNull(hCtrl.Tag[2]) Then
+    FToolBox.SetTooltip()
+  Else
+    FToolBox.SetTooltip(hCtrl.Tag[0], hCtrl.Tag[2])
+  Endif
   
 End
 
 Public Procedure btnControl_Leave()
   
   Last.Border = False
+  FToolBox.SetTooltip()
   
 End
 
 
 Public Procedure btnControl_MouseUp()
 
-  Dim sComp As String
-  Dim sClass As String
-
   If $bNoEvent Then Return 
 
-  If Mouse.Right Then
-  
-    'MHelp.GotoClass(CComponent.Classes[Last.Tag[0]].Component, Last.Tag[0])
-    sClass = Last.Tag[0]
-    If sClass <> SELECT_TOOL Then
-      sComp = Project.Documentation.Classes[sClass].Component
-      If sComp = CComponent.PROJECT_NAME Then
-        Project.OpenFile(Last.Tag[0])
-      Else
-        MHelp.ShowHelpBrowserWith(MHelp.TYPE_CLASS, Last.Tag[0])
-      Endif
-    Endif
-
+  If Last.Tag[0] = $sTool Then
+    SetTool
   Else
-
-    If Last.Tag[0] = $sTool Then
-      SetTool
-    Else
-      SetTool(Last)
-    Endif
-    
+    SetTool(Last)
   Endif
 
 End
 
+Public Sub btnControl_Menu()
+  
+  Raise Menu
+  
+End
 
 Public Sub btnControl_DblClick()
 
@@ -203,6 +206,7 @@ Public Sub btnControl_MouseDrag()
 
   Drag.Icon = hTool.Picture
   Drag(hTool, File.Name(sTool), MMime.CONTROL)
+  Try Project.ActiveForm.HideFrame
   
 End
 

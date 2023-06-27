@@ -1,15 +1,15 @@
 ' Gambas class file
 
-
 Public Sub TreeView1_Menu()
 
   Debug
 
 End
 
-Public Sub Form_Open()
+Static Public Sub Main()
 
-  Debug Style.Name
+  Color.LinkForeground = Color.Red
+  FMain.Show
 
 End
 
@@ -18,3 +18,13 @@ Public Sub Button1_Click()
   Print DateBox1.Text;; DateBox1.Value
 
 End
+
+Public Sub ButtonBox1_Click()
+
+  Dialog.Path = ButtonBox1.Text
+  Dialog.Filter = ["*.pdf", ("PDF files"), "*.ps", ("Postscript files")]
+  
+  If Dialog.SaveFile() Then Return
+  
+End
+

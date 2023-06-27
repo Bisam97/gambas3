@@ -4,6 +4,7 @@ Export
 
 Static Property Read Paths As String[]
 Static Property AutoExt As Boolean
+Static Property FilterIndex As Integer
 
 Static Property {Date} As Date
 
@@ -138,5 +139,18 @@ End
 Static Private Sub User_Write(Value As String)
 
   FAskPassword.User = Value
+
+End
+
+Static Private Function FilterIndex_Read() As Integer
+
+  Return FFileDialog.FilterIndex
+
+End
+
+Static Private Sub FilterIndex_Write(Value As Integer)
+
+  FFileDialog.FilterIndex = Value
+  FFileDialog.FilterIndexSet = True
 
 End

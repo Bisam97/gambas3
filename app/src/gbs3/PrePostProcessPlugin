@@ -1,0 +1,20 @@
+
+public sub PreProcessProgram(sProgram as string[]) as string[]
+  sProgram.add("Begin Story",0)
+  sProgram.push("End Story")
+  return sProgram
+end
+
+Public sub PostProcessProgram(sProgram as string[]) as string[]
+  sProgram.add("Dim StoryTime as new String[]",0)
+  sProgram.Push("For each sLine as string in StoryTime")
+  sProgram.Push("'Error sLine")
+  sProgram.Push("next")
+  sProgram.Push("Return StoryTime.join(\"\\n\")")
+  return sProgram
+end
+
+Public sub PreProcessLine(sLine as string) as string
+  sline = "StoryTime.push(" & quote(sline) & ")"
+  return sLine
+end

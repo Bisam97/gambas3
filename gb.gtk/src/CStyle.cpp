@@ -2,7 +2,7 @@
 
   CStyle.cpp
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -48,14 +48,20 @@ static GtkWidget *_widget = NULL;
 
 static STYLE_T *_stl = NULL;
 
+static bool _internal = false;
+
 #ifdef GTK3
 static GtkStyleContext *get_style(GType type = G_TYPE_NONE)
 {
 	GtkWidget *widget = NULL;
-	
+
 	if (type == GTK_TYPE_BUTTON)
 	{
-		if (!_button) _button = gtk_button_new();
+		if (!_button) 
+		{
+			_button = gtk_button_new();
+			gtk_widget_set_name(_button, "se");
+		}
 		widget = _button;
 	}
 	else if (type == GTK_TYPE_CHECK_BUTTON)
@@ -65,7 +71,7 @@ static GtkStyleContext *get_style(GType type = G_TYPE_NONE)
 	}
 	else if (type == GTK_TYPE_ENTRY)
 	{
-		if (!_entry) 
+		if (!_entry)
 		{
 			_entry = gtk_entry_new();
 			gtk_widget_set_name(_entry, "se");
@@ -77,10 +83,10 @@ static GtkStyleContext *get_style(GType type = G_TYPE_NONE)
 		if (!_radio_button) _radio_button = gtk_radio_button_new(NULL);
 		widget = _radio_button;
 	}
-	
+
 	if (!_css)
 		_css = GTK_STYLE_PROVIDER(gtk_css_provider_new());
-	
+
 	return widget ? gtk_widget_get_style_context(widget) : NULL;
 }
 #else
@@ -105,12 +111,12 @@ static GtkStyle *get_style(GType type = G_TYPE_NONE)
 			_stl = gtk_style_copy(gt_get_style(type));
 		else
 			_stl = gtk_style_copy(gtk_widget_get_default_style());
-		
+
 		//_stl = gtk_style_attach(_stl, (GdkWindow*)_dr);
 	}
-	
+
 	_stl = attach_style(_stl);
-	
+
 	return _stl;
 }
 #endif
@@ -118,11 +124,15 @@ static GtkStyle *get_style(GType type = G_TYPE_NONE)
 #ifdef GTK3
 static bool begin_draw(int *x, int *y)
 {
+	if (_internal)
+		return FALSE;
+	
 	void *device = PAINT_get_current_device();
 	if (!device)
 		return TRUE;
 
 	_cr = PAINT_get_current_context();
+	cairo_save(_cr);
 
 	if (GB.Is(device, CLASS_DrawingArea))
 	{
@@ -149,14 +159,15 @@ static bool begin_draw(int *x, int *y)
 	void *device = PAINT_get_current_device();
 	if (!device)
 		return TRUE;
-	
+
 	cairo_t *context = PAINT_get_current_context();
 	cairo_surface_flush(cairo_get_target(context));
-	
+	cairo_save(context);
+
 	if (GB.Is(device, CLASS_DrawingArea))
 	{
 		gDrawingArea *wid = (gDrawingArea *)((CDRAWINGAREA *)device)->ob.widget;
-		
+
 		if (wid->cached() || wid->inDrawEvent())
 		{
 			if (wid->cached())
@@ -179,7 +190,29 @@ static bool begin_draw(int *x, int *y)
 			GB.Error("Cannot draw outside of 'Draw' event handler");
 			return TRUE;
 		}
+
+		_widget = wid->widget;
+	}
+	else if (GB.Is(device, CLASS_UserControl) || GB.Is(device, CLASS_UserContainer))
+	{
+		gContainer *wid;
+		GtkAllocation *a;
 		
+		if (PAINT_is_internal())
+		{
+			GB.Error("Cannot draw outside of 'Draw' event handler");
+			return TRUE;
+		}
+		
+		wid = (gContainer *)((CDRAWINGAREA *)device)->ob.widget;
+
+		_dr = wid->widget->window;
+		a = &wid->widget->allocation;
+		_dr_x = a->x;
+		_dr_y = a->y;
+		*x += _dr_x;
+		*y += _dr_y;
+
 		_widget = wid->widget;
 	}
 	else if (GB.Is(device, CLASS_Picture))
@@ -198,7 +231,7 @@ static bool begin_draw(int *x, int *y)
 	{
 		GB.Error("Device not supported");
 	}
-	
+
 	return FALSE;
 }
 #endif
@@ -206,6 +239,8 @@ static bool begin_draw(int *x, int *y)
 static void end_draw()
 {
 #ifdef GTK3
+	if (!_internal)
+		cairo_restore(_cr);
 	_cr = NULL;
 	if (_stl)
 	{
@@ -224,8 +259,12 @@ static void end_draw()
 #endif
 
 #ifndef GTK3
-	cairo_t *context = PAINT_get_current_context();
-	cairo_surface_mark_dirty(cairo_get_target(context));
+	if (!_internal)
+	{
+		cairo_t *context = PAINT_get_current_context();
+		cairo_restore(context);
+		cairo_surface_mark_dirty(cairo_get_target(context));
+	}
 #endif
 }
 
@@ -245,6 +284,22 @@ static STATE_T get_state(int state)
 		gstate |= STATE_FOCUSED;
 
 	return (STATE_T)gstate;
+}
+
+static GtkCellRendererState get_cell_state(int state)
+{
+	int cstate = 0;
+
+	if (state & GB_DRAW_STATE_DISABLED)
+		cstate |= GTK_CELL_RENDERER_INSENSITIVE;
+	if (state & GB_DRAW_STATE_ACTIVE)
+		cstate |= GTK_CELL_RENDERER_SELECTED;
+	if (state & GB_DRAW_STATE_HOVER)
+		cstate |= GTK_CELL_RENDERER_PRELIT;
+	if (state & GB_DRAW_STATE_FOCUS)
+		cstate |= GTK_CELL_RENDERER_FOCUSED;
+
+	return (GtkCellRendererState)cstate;
 }
 
 static void set_state(GtkStyleContext *style, int state)
@@ -274,7 +329,7 @@ static STATE_T get_state(int state)
 static GdkRectangle *get_area()
 {
 	static GdkRectangle area;
-	
+
 	if (PAINT_get_clip(&area.x, &area.y, &area.width, &area.height))
 		return NULL;
 	else
@@ -303,7 +358,7 @@ static void style_arrow(int x, int y, int w, int h, int type, int state)
 {
 	GtkArrowType arrow;
 	STYLE_T *style = get_style(GTK_TYPE_BUTTON);
-	
+
 	switch (type)
 	{
 		case ALIGN_NORMAL: arrow = GB.System.IsRightToLeft() ? GTK_ARROW_LEFT : GTK_ARROW_RIGHT; break;
@@ -314,7 +369,7 @@ static void style_arrow(int x, int y, int w, int h, int type, int state)
 		default:
 			return;
 	}
-	
+
 #ifdef GTK3
 	double angle;
 
@@ -340,33 +395,53 @@ static void style_arrow(int x, int y, int w, int h, int type, int state)
 	set_state(style, state);
 	gtk_render_arrow(style, _cr, angle, x, y, w);
 #else
-	gtk_paint_arrow(style, _dr, get_state(state), 
-		GTK_SHADOW_NONE, get_area(), _widget, NULL, 
+	gtk_paint_arrow(style, _dr, get_state(state),
+		GTK_SHADOW_NONE, get_area(), _widget, NULL,
 		arrow, TRUE, x, y, w, h);
 #endif
 }
 
+#ifdef GTK3
+static void render_toggle(int x, int y, int w, int h, int value, int state, bool radio)
+{
+	static GtkCellRenderer *cell = NULL;
+	GdkRectangle area;
+
+	if (!cell)
+		cell = gtk_cell_renderer_toggle_new();
+
+	gtk_cell_renderer_toggle_set_radio(GTK_CELL_RENDERER_TOGGLE(cell), radio);
+	
+	g_object_set(G_OBJECT(cell), "active", value < 0, NULL);
+	g_object_set(G_OBJECT(cell), "inconsistent", value > 0, NULL);
+
+	area.x = x;
+	area.y = y;
+	area.width = w;
+	area.height = h;
+
+	gtk_cell_renderer_render(cell, _cr, radio ? _radio_button : _check_button, &area, &area, get_cell_state(state));
+}
+#endif
+
 static void style_check(int x, int y, int w, int h, int value, int state)
 {
-	STYLE_T *style = get_style(GTK_TYPE_CHECK_BUTTON);
-
-	if (value)
-		state |= GB_DRAW_STATE_ACTIVE;
-
 #ifdef GTK3
-	set_state(style, state);
-	gtk_render_check(style, _cr, x, y, w, h);
-	if (state & GB_DRAW_STATE_FOCUS)
-		paint_focus(style, x, y, w, h);
+
+	get_style(GTK_TYPE_CHECK_BUTTON);
+	render_toggle(x, y, w, h, value, state, false);
+
 #else
+
+	STYLE_T *style = get_style(GTK_TYPE_CHECK_BUTTON);
 	GtkShadowType shadow;
 	GtkStateType st = get_state(state);
-	
+
 	if (value)
 		state |= GB_DRAW_STATE_ACTIVE;
 
 	//_dr->offset(&x, &y);
-	
+
 	switch (value)
 	{
 		case -1: shadow = GTK_SHADOW_IN; break;
@@ -379,26 +454,27 @@ static void style_check(int x, int y, int w, int h, int value, int state)
 		x, y, w, h);
 	if (state & GB_DRAW_STATE_FOCUS)
 		paint_focus(style, x, y, w, h, st, "checkbutton");
-#endif
 
+#endif
 }
 
 static void style_option(int x, int y, int w, int h, int value, int state)
 {
+#ifdef GTK3
+
+	get_style(GTK_TYPE_RADIO_BUTTON);
+	render_toggle(x, y, w, h, value, state, true);
+
+#else
+
 	STYLE_T *style = get_style(GTK_TYPE_RADIO_BUTTON);
 
 	if (value)
 		state |= GB_DRAW_STATE_ACTIVE;
 
-#ifdef GTK3
-	set_state(style, state);
-	gtk_render_option(style, _cr, x, y, w, h);
-	if (state & GB_DRAW_STATE_FOCUS)
-		paint_focus(style, x, y, w, h);
-#else
 	GtkShadowType shadow;
 	GtkStateType st = get_state(state | (value ? GB_DRAW_STATE_ACTIVE : 0));
-	
+
 	shadow = value ? GTK_SHADOW_IN : GTK_SHADOW_OUT;
 
 	gtk_paint_option(style, _dr,
@@ -406,8 +482,8 @@ static void style_option(int x, int y, int w, int h, int value, int state)
 		x, y, w, h);
 	if (state & GB_DRAW_STATE_FOCUS)
 		paint_focus(style, x, y, w, h, st, "radiobutton");
+
 #endif
-			
 }
 
 static void style_separator(int x, int y, int w, int h, int vertical, int state)
@@ -438,7 +514,45 @@ static void style_separator(int x, int y, int w, int h, int vertical, int state)
 	}
 }
 
-static void style_button(int x, int y, int w, int h, int value, int state, int flat)
+
+#ifdef GTK3
+static void paint_background(STYLE_T *style, int state, GB_COLOR color, int x, int y, int w, int h)
+{
+	set_state(style, state);
+
+	if (color != GB_COLOR_DEFAULT)
+	{
+		char *css = NULL;
+		g_stradd(&css, "#se:not(:selected) { background-color:");
+		gt_add_css_color(&css, color);
+		g_stradd(&css, "; background-image:none; }\n");
+		gtk_css_provider_load_from_data(GTK_CSS_PROVIDER(_css), css, -1, NULL);
+		g_free(css);
+		gtk_style_context_add_provider(style, _css, GTK_STYLE_PROVIDER_PRIORITY_USER);
+
+#if GTK_CHECK_VERSION(3, 12, 0)
+#else
+		gtk_style_context_invalidate(style);
+#endif
+		gtk_render_background(style, _cr, x, y, w, h);
+		gtk_style_context_remove_provider(style, GTK_STYLE_PROVIDER(_css));
+#if GTK_CHECK_VERSION(3, 12, 0)
+#else
+		gtk_style_context_invalidate(style);
+#endif
+	}
+	else
+		gtk_render_background(style, _cr, x, y, w, h);
+
+	gtk_render_frame(style, _cr, x, y, w, h);
+
+	/*if (color != GB_COLOR_DEFAULT)
+		gtk_style_context_remove_provider(style, _css);*/
+}
+#endif
+
+
+static void style_button(int x, int y, int w, int h, int value, int state, int flat, GB_COLOR color)
 {
 	STYLE_T *style = get_style(GTK_TYPE_BUTTON);
 
@@ -458,7 +572,7 @@ static void style_button(int x, int y, int w, int h, int value, int state, int f
 		"focus-line-width", &focus_width,
 		"focus-padding", &focus_pad,
 		"interior-focus", &interior_focus,
-		(char *)NULL); 
+		(char *)NULL);
 
 	/*if (default_outside_border)
 	{
@@ -467,7 +581,7 @@ static void style_button(int x, int y, int w, int h, int value, int state, int f
 		w -= default_outside_border->left + default_outside_border->right;
 		h -= default_outside_border->top + default_outside_border->bottom;
 	}*/
-	
+
 	if (default_border)
 	{
 		x += default_border->left;
@@ -479,12 +593,12 @@ static void style_button(int x, int y, int w, int h, int value, int state, int f
 	if (inner_border) gtk_border_free(inner_border);
 	if (default_outside_border) gtk_border_free(default_outside_border);
 	if (default_border) gtk_border_free(default_border);
-	
+
 	xf = x;
 	yf = y;
 	wf = w;
 	hf = h;
-		
+
 	if (interior_focus)
 	{
 		df = focus_pad + style->xthickness;
@@ -497,15 +611,17 @@ static void style_button(int x, int y, int w, int h, int value, int state, int f
 	else if (state & GB_DRAW_STATE_FOCUS)
 	{
 		df = focus_pad + focus_width;
-		
+
 		x += df;
 		w -= df * 2;
 		y += df;
 		h -= df * 2;
 	}
 #endif
-	
+
 	if (flat && (state & GB_DRAW_STATE_HOVER) == 0)
+		return;
+	
 	{
 		/*gtk_paint_flat_box(style, _dr,
 			st, value ? GTK_SHADOW_IN : GTK_SHADOW_OUT,
@@ -517,156 +633,75 @@ static void style_button(int x, int y, int w, int h, int value, int state, int f
 				get_area(d), _widget, "button",
 				x, y, w, h);*/
 	}
-	else
-	{
+
 #ifdef GTK3
-		set_state(style, state);
-		gtk_render_background(style, _cr, x, y, w, h);
-		gtk_render_frame(style, _cr, x, y, w, h);
-		if (state & GB_DRAW_STATE_FOCUS)
-			paint_focus(style, x, y, w, h);
+	
+	paint_background(style, state, color, x, y, w, h);
+	
+	if (state & GB_DRAW_STATE_FOCUS)
+		paint_focus(style, x, y, w, h);
+	
 #else
+	
 	GtkStateType st = get_state(state);
+
+	if (color == GB_COLOR_DEFAULT)
+	{
 		gtk_paint_box(style, _dr,
 			st, value ? GTK_SHADOW_IN : GTK_SHADOW_OUT,
 			get_area(), _widget, "button",
 			x, y, w, h);
-	if (state & GB_DRAW_STATE_FOCUS)
-		paint_focus(style, xf, yf, wf, hf, st, "button");
-#endif
 	}
-
-}
-			
-static void style_panel(int x, int y, int w, int h, int border, int state)
-{
-	STYLE_T *style = get_style();
-
-#ifdef GTK3
-	gColor col = 0;
-
-	if (border == BORDER_PLAIN)
+	else
 	{
-		col = IMAGE.MergeColor(gDesktop::bgColor(), gDesktop::fgColor(), 0.5);
-		col = IMAGE.LighterColor(col);
-	}
+		GtkStyle *style2 = gtk_style_copy(style);
+		for (int i = 0; i < 5; i++)
+		{
+			fill_gdk_color(&style2->bg[i], color);
+			fill_gdk_color(&style2->base[i], color);
+		}
+		style2 = attach_style(style2);
 
-	gt_draw_border(_cr, style, get_state(state), border, col, x, y, w, h);
+		gtk_paint_box(style2, _dr,
+			st, value ? GTK_SHADOW_IN : GTK_SHADOW_OUT,
+			get_area(), _widget, "button",
+			x, y, w, h);
 
-#else
-	GtkShadowType shadow;
-	GtkStateType st = get_state(state);
-
-	switch (border)
-	{
-		case BORDER_SUNKEN: shadow = GTK_SHADOW_IN; break;
-		case BORDER_RAISED: shadow = GTK_SHADOW_OUT; break;
-		case BORDER_ETCHED: shadow = GTK_SHADOW_ETCHED_IN; break;
-		default: shadow = GTK_SHADOW_NONE;
+		g_object_unref(G_OBJECT(style2));
 	}
 	
-	gtk_paint_shadow(style, _dr, st, shadow, get_area(), NULL, NULL, x, y, w, h);
-
-	if (border == BORDER_PLAIN)
-	{
-		GdkGC *gc;
-		GdkGCValues values;
-		uint col;
-
-		col = IMAGE.MergeColor(gDesktop::bgColor(), gDesktop::fgColor(), 0.5);
-		col = IMAGE.LighterColor(col);
-
-		fill_gdk_color(&values.foreground, col, gdk_drawable_get_colormap(_dr));
-		gc = gtk_gc_get(gdk_drawable_get_depth(_dr), gdk_drawable_get_colormap(_dr), &values, GDK_GC_FOREGROUND);
-		gdk_draw_rectangle(_dr, gc, FALSE, x, y, w - 1, h - 1);
-		gtk_gc_release(gc);
-	}
-
 	if (state & GB_DRAW_STATE_FOCUS)
-		paint_focus(style, x, y, w, h, st, "button");
-#endif
+		paint_focus(style, xf, yf, wf, hf, st, "button");
 
-}
-			
-static void style_handle(int x, int y, int w, int h, int vertical, int state)
-{
-	STYLE_T *style = get_style();
-
-#ifdef GTK3
-	set_state(style, state);
-	gtk_render_handle(style, _cr, x, y, w, h);
-#else
-	gtk_paint_handle(style, _dr, get_state(state),
-		GTK_SHADOW_NONE, get_area(), NULL, NULL,
-		x, y, w, h,
-		(!vertical) ? GTK_ORIENTATION_HORIZONTAL : GTK_ORIENTATION_VERTICAL);
 #endif
 }
+
 
 static void style_box(int x, int y, int w, int h, int state, GB_COLOR color)
 {
 	STYLE_T *style = get_style(GTK_TYPE_ENTRY);
 
-	if (gApplication::fix_oxygen)
+	if (gApplication::_fix_oxygen)
 	{
 		x -= 3;
 		w += 6;
 	}
 
 #ifdef GTK3
-	
-	set_state(style, state);
-	
-	if (color != GB_COLOR_DEFAULT)
-	{
-		char *css = NULL;
-		char buffer[256];
-		
-		g_stradd(&css, "#se:not(:selected) { background-color:");
-		gt_to_css_color(buffer, color);
-		g_stradd(&css, buffer);
-		g_stradd(&css, "; background-image:none; }\n");
-		gtk_css_provider_load_from_data(GTK_CSS_PROVIDER(_css), css, -1, NULL);
-		gtk_style_context_add_provider(style, _css, GTK_STYLE_PROVIDER_PRIORITY_USER);
-		
-#if GTK_CHECK_VERSION(3, 12, 0)
-#else
-		gtk_style_context_invalidate(style);
-#endif
-		gtk_render_background(style, _cr, x, y, w, h);
-		gtk_style_context_remove_provider(style, GTK_STYLE_PROVIDER(_css));
-#if GTK_CHECK_VERSION(3, 12, 0)
-#else
-		gtk_style_context_invalidate(style);
-#endif
-	}
-	else
-		gtk_render_background(style, _cr, x, y, w, h);
 
-	gtk_render_frame(style, _cr, x, y, w, h);
-	
-	if (color != GB_COLOR_DEFAULT)
-		gtk_style_context_remove_provider(style, _css);
-	
+	paint_background(style, state, color, x, y, w, h);
+
 #else
 
-	if (gApplication::fix_breeze)
+	if (gApplication::_fix_breeze)
 		state &= ~GB_DRAW_STATE_HOVER;
-	
+
 	GtkStateType st = get_state(state);
 
 	if (color == GB_COLOR_DEFAULT)
 	{
-		//fprintf(stderr, "paint_box: default color\n");
 		gtk_paint_box (style, _dr, st, GTK_SHADOW_NONE, get_area(), _widget, "entry", x, y, w, h);
 		gtk_paint_shadow(style, _dr, st, GTK_SHADOW_NONE, get_area(), NULL, "entry", x, y, w, h);
-		/*color = gDesktop::bgColor();
-		if (_widget)
-		{
-			gControl *control = gt_get_control(_widget);
-			if (control)
-				color = control->realBackground();
-		}*/
 	}
 	else
 	{
@@ -689,6 +724,109 @@ static void style_box(int x, int y, int w, int h, int state, GB_COLOR color)
 
 #endif
 }
+
+
+static void style_panel(int x, int y, int w, int h, int border, int state)
+{
+	STYLE_T *style = get_style();
+
+#ifdef GTK3
+	gColor col = 0;
+
+	if (border == BORDER_PLAIN)
+		col = gDesktop::getColor(gDesktop::LIGHT_FOREGROUND);
+	/*{
+		col = IMAGE.MergeColor(gDesktop::bgColor(), gDesktop::fgColor(), 0.5);
+		col = IMAGE.LighterColor(col);
+	}*/
+
+	gt_draw_border(_cr, style, get_state(state), border, col, x, y, w, h);
+
+#else
+	GtkShadowType shadow;
+	GtkStateType st = get_state(state);
+
+	switch (border)
+	{
+		case BORDER_SUNKEN: shadow = GTK_SHADOW_IN; break;
+		case BORDER_RAISED: shadow = GTK_SHADOW_OUT; break;
+		case BORDER_ETCHED: shadow = GTK_SHADOW_ETCHED_IN; break;
+		default: shadow = GTK_SHADOW_NONE;
+	}
+
+	gtk_paint_shadow(style, _dr, st, shadow, get_area(), NULL, NULL, x, y, w, h);
+
+	if (border == BORDER_PLAIN)
+	{
+		GdkGC *gc;
+		GdkGCValues values;
+		uint col;
+
+		col = gDesktop::getColor(gDesktop::LIGHT_FOREGROUND);
+		fill_gdk_color(&values.foreground, col, gdk_drawable_get_colormap(_dr));
+		gc = gtk_gc_get(gdk_drawable_get_depth(_dr), gdk_drawable_get_colormap(_dr), &values, GDK_GC_FOREGROUND);
+		gdk_draw_rectangle(_dr, gc, FALSE, x, y, w - 1, h - 1);
+		gtk_gc_release(gc);
+	}
+
+	if (state & GB_DRAW_STATE_FOCUS)
+		paint_focus(style, x, y, w, h, st, "button");
+#endif
+
+}
+
+static void style_handle(int x, int y, int w, int h, int vertical, int state)
+{
+	STYLE_T *style = get_style();
+
+#ifdef GTK3
+	set_state(style, state);
+	gtk_render_handle(style, _cr, x, y, w, h);
+#else
+	gtk_paint_handle(style, _dr, get_state(state),
+		GTK_SHADOW_NONE, get_area(), NULL, NULL,
+		x, y, w, h,
+		(!vertical) ? GTK_ORIENTATION_HORIZONTAL : GTK_ORIENTATION_VERTICAL);
+#endif
+}
+
+
+//-------------------------------------------------------------------------
+
+#ifdef GTK3
+void CSTYLE_paint_check(cairo_t *cr, int x, int y, int w, int h, int value, int state)
+{
+	_cr =cr;
+#else
+void CSTYLE_paint_check(GdkDrawable *dr, int x, int y, int w, int h, int value, int state)
+{
+	_dr = dr;
+#endif
+	_internal = true;
+	begin_draw(&x, &y);
+	style_check(x, y, w, h, value, state);
+	end_draw();
+	_internal = false;
+}
+
+#ifdef GTK3
+void CSTYLE_paint_option(cairo_t *cr, int x, int y, int w, int h, int value, int state)
+{
+	_cr =cr;
+#else
+void CSTYLE_paint_option(GdkDrawable *dr, int x, int y, int w, int h, int value, int state)
+{
+	_dr = dr;
+#endif
+	_internal = true;
+	begin_draw(&x, &y);
+	style_option(x, y, w, h, value, state);
+	end_draw();
+	_internal = false;
+}
+
+//-------------------------------------------------------------------------
+
 
 BEGIN_PROPERTY(Style_ScrollbarSize)
 
@@ -745,7 +883,7 @@ END_PROPERTY
 		return;
 
 #define END_DRAW() end_draw()
-	
+
 BEGIN_METHOD(Style_PaintArrow, GB_INTEGER x; GB_INTEGER y; GB_INTEGER w; GB_INTEGER h; GB_INTEGER type; GB_INTEGER state)
 
 	BEGIN_DRAW();
@@ -778,10 +916,10 @@ BEGIN_METHOD(Style_PaintSeparator, GB_INTEGER x; GB_INTEGER y; GB_INTEGER w; GB_
 
 END_METHOD
 
-BEGIN_METHOD(Style_PaintButton, GB_INTEGER x; GB_INTEGER y; GB_INTEGER w; GB_INTEGER h; GB_BOOLEAN value; GB_INTEGER state; GB_BOOLEAN flat)
+BEGIN_METHOD(Style_PaintButton, GB_INTEGER x; GB_INTEGER y; GB_INTEGER w; GB_INTEGER h; GB_BOOLEAN value; GB_INTEGER state; GB_BOOLEAN flat; GB_INTEGER color)
 
 	BEGIN_DRAW();
-	style_button(x, y, w, h, VARG(value), VARGOPT(state, GB_DRAW_STATE_NORMAL), VARGOPT(flat, FALSE));
+	style_button(x, y, w, h, VARG(value), VARGOPT(state, GB_DRAW_STATE_NORMAL), VARGOPT(flat, FALSE), VARGOPT(color, GB_COLOR_DEFAULT));
 	END_DRAW();
 
 END_METHOD
@@ -822,7 +960,7 @@ BEGIN_METHOD(Style_StateOf, GB_OBJECT control)
 
 	widget = control->widget;
 	state = GB_DRAW_STATE_NORMAL;
-	design = widget->design();
+	design = widget->isDesign();
 
 	if (!widget->isEnabled())
 		state |= GB_DRAW_STATE_DISABLED;
@@ -861,7 +999,7 @@ END_METHOD
 GB_DESC StyleDesc[] =
 {
 	GB_DECLARE("Style", 0), GB_VIRTUAL_CLASS(),
-	
+
 	GB_STATIC_PROPERTY_READ("ScrollbarSize", "i", Style_ScrollbarSize),
 	GB_STATIC_PROPERTY_READ("ScrollbarSpacing", "i", Style_ScrollbarSpacing),
 	GB_STATIC_PROPERTY_READ("FrameWidth", "i", Style_FrameWidth),
@@ -869,16 +1007,16 @@ GB_DESC StyleDesc[] =
 	GB_STATIC_PROPERTY_READ("BoxFrameWidth", "i", Style_BoxFrameWidth),
 	GB_STATIC_PROPERTY_READ("BoxFrameHeight", "i", Style_BoxFrameHeight),
 	GB_STATIC_PROPERTY_READ("Name", "s", Style_Name),
-	
+
 	GB_STATIC_METHOD("PaintArrow", NULL, Style_PaintArrow, "(X)i(Y)i(Width)i(Height)i(Type)i[(Flag)i]"),
 	GB_STATIC_METHOD("PaintCheck", NULL, Style_PaintCheck, "(X)i(Y)i(Width)i(Height)i(Value)i[(Flag)i]"),
 	GB_STATIC_METHOD("PaintOption", NULL, Style_PaintOption, "(X)i(Y)i(Width)i(Height)i(Value)b[(Flag)i]"),
 	GB_STATIC_METHOD("PaintSeparator", NULL, Style_PaintSeparator, "(X)i(Y)i(Width)i(Height)i[(Vertical)b(Flag)i]"),
-	GB_STATIC_METHOD("PaintButton", NULL, Style_PaintButton, "(X)i(Y)i(Width)i(Height)i(Value)b[(Flag)i(Flat)b]"),
+	GB_STATIC_METHOD("PaintButton", NULL, Style_PaintButton, "(X)i(Y)i(Width)i(Height)i(Value)b[(Flag)i(Flat)b(Color)i]"),
 	GB_STATIC_METHOD("PaintPanel", NULL, Style_PaintPanel, "(X)i(Y)i(Width)i(Height)i(Border)i[(Flag)i]"),
 	GB_STATIC_METHOD("PaintHandle", NULL, Style_PaintHandle, "(X)i(Y)i(Width)i(Height)i[(Vertical)b(Flag)i]"),
 	GB_STATIC_METHOD("PaintBox", NULL, Style_PaintBox, "(X)i(Y)i(Width)i(Height)i[(Flag)i(Color)i]"),
-	
+
 	GB_CONSTANT("Normal", "i", GB_DRAW_STATE_NORMAL),
 	GB_CONSTANT("Disabled", "i", GB_DRAW_STATE_DISABLED),
 	GB_CONSTANT("HasFocus", "i", GB_DRAW_STATE_FOCUS),
@@ -891,4 +1029,3 @@ GB_DESC StyleDesc[] =
 
 	GB_END_DECLARE
 };
-

@@ -1,0 +1,40 @@
+' Gambas class file
+
+Public sName As String = ""
+Public aText As String[]
+Public aTokens As Variant[]
+Public aTypes As Variant[]
+Public aPositions As Variant[]
+Public iLineNumber As Integer
+Public sDefinedIn As String
+Public sExtention As String
+
+Public Sub _new(ClassName As String, ClassText As String[], ClassTokens As Variant[], ClassTypes As Variant[], ClassPositions As Variant[], Optional extention As String = "Class")
+  
+  sName = ClassName
+  atext = ClassText
+  aTokens = ClassTokens
+  aTypes = ClassTypes
+  aPositions = ClassPositions
+  sExtention = extention
+  
+End
+
+Public Sub Save(sPrjPath As String, bFast As Boolean, bUnsafe As Boolean) As Boolean
+ Dim ClassFile As String
+ Dim DirectiveFast As String = IIf(bFast = True, IIf(bUnsafe = True, "Fast Unsafe\n", "Fast\n"), "")
+ If sExtention == "CONNECTION" Then
+    If Not Exist(sPrjPath &/ ".connection") Then
+      Mkdir sPrjPath &/ ".connection"
+    Endif
+    ClassFile = sPrjPath &/ ".connection" &/ sName & "." & sExtention
+ Else
+    ClassFile = sPrjPath &/ ".src" &/ sName & "." & sExtention
+ Endif
+ 
+ Verbose("Writing " & sExtention & " " & sName & " to : " & ClassFile & " From Script : " & sDefinedIn & "." & iLineNumber)
+  Try File.Save(ClassFile, DirectiveFast & aText.Join("\n"))
+   If Error Then
+     CompileError(sDefinedIn, iLineNumber, "Unable to Write" & sExtention & sName & " to " & Quote(ClassFile) & " Reason : " & Error.text)
+   Endif
+End

@@ -1,0 +1,195 @@
+' Gambas class file
+
+Private $sText As String
+Private $iPos As Integer
+
+Property Read Pos As Integer Use $iStart
+Property Read Open As Boolean Use $bOpen
+Property Read Close As Boolean Use $bClose
+Property Read Node As String Use $sNode
+Property Read Level As Integer Use $iLevel
+
+Private $sBefore As String
+Private $cAttr As Collection
+
+Public Sub _new(sText As String)
+  
+  $sText = sText
+  
+End
+
+Public Sub MoveNext() As Boolean
+  
+  Dim sCar As String
+  Dim iStart As Integer
+  Dim sEnd As String
+  
+  If $bClose Then Dec $iLevel
+  
+  $bOpen = False
+  $bClose = False
+  $sNode = ""
+  
+  iStart = $iPos
+  Do
+    GoSub READ_CHAR
+    If Not sCar Then Return True
+    If sCar = "<" Then 
+      If Mid$($sText, $iPos) Begins "<!--" Then
+        $iPos = InStr($sText, "-->", $iPos + 4)
+        If $iPos = 0 Then Return True
+        $iPos += 3
+        Continue
+      Endif
+      Goto READ_MARKUP
+    Endif
+  Loop
+
+READ_MARKUP:
+
+  $sBefore = Mid$($sText, iStart + 1, $iPos - 1)
+  $iStart = $iPos
+
+  Do
+
+    GoSub READ_CHAR
+    If sCar = "\"" Or If sCar = "'" Then
+      GoSub READ_STRING
+    Else If sCar = ">" Then
+      AnalyzeMarkup(Mid$($sText, $iStart, $iPos - $iStart + 1))
+      If $bOpen Then Inc $iLevel
+      Return
+    Else If Not sCar Then 
+      Return True
+    Endif
+    
+  Loop
+  
+READ_STRING:
+
+  sEnd = sCar
+  Do
+    GoSub READ_CHAR
+    If Not sCar Then Return True
+    If sCar = sEnd Then Return
+  Loop
+  
+READ_CHAR:
+
+  Inc $iPos
+  If $iPos <= Len($sText) Then 
+    sCar = Mid$($sText, $iPos, 1)
+  Else 
+    sCar = ""
+  Endif
+  Return
+  
+End
+
+Private Sub AnalyzeMarkup(sMarkup As String)
+
+  Dim iPos As Integer
+  Dim sCar As String
+  Dim sEnd As String
+  Dim sAttr As String
+  Dim iPosAttr As Integer
+  Dim sValue As String
+  Dim iStart As Integer
+  
+  $cAttr = New Collection
+
+  sMarkup = Mid$(sMarkup, 2, -1)
+
+  If sMarkup Begins "!DOCTYPE" Then
+    Return
+  Endif
+  
+  If sMarkup Begins "/" Then
+    sMarkup = Mid$(sMarkup, 2)
+    $bClose = True
+  Else 
+    $bOpen = True
+    If sMarkup Ends "/" Then 
+      sMarkup = Left(sMarkup, -1)
+      $bClose = True
+    Endif
+  Endif 
+  
+  iPos = InStr(sMarkup, " ")
+  If iPos = 0 Then
+    $sNode = sMarkup
+    Return 
+  Endif
+  
+  $sNode = Left(sMarkup, iPos - 1)
+  sMarkup = Mid(sMarkup, iPos + 1)
+  
+  iPos = 0
+  iStart = 1
+  
+  Do
+    
+    GoSub READ_CHAR
+    
+    If sCar = "\"" Or If sCar = "'" Then 
+      GoSub READ_STRING
+    Else If sCar = " " Or If Not sCar Then 
+      sAttr = Mid$(sMarkup, iStart, iPos - iStart)
+      If sAttr Then
+        iPosAttr = InStr(sAttr, "=")
+        If iPosAttr > 1 Then 
+          sValue = Mid$(sAttr, iPosAttr + 1)
+          If sValue Begins "\"" And If sValue Ends "\"" Then
+            sValue = Mid$(sValue, 2, -1)
+          Else If sValue Begins "'" And If sValue Ends "'" Then
+            sValue = Mid$(sValue, 2, -1)
+          Endif
+          $cAttr[Left(sAttr, iPosAttr - 1)] = sValue
+        Else
+          If sAttr Ends "=" Then sAttr = Left(sAttr, -1)
+          $cAttr[sAttr] = ""
+        Endif
+      Endif
+      iStart = iPos + 1
+      If Not sCar Then Break
+    Endif
+    
+  Loop
+  
+  Return
+
+READ_STRING:
+
+  sEnd = sCar
+  Do
+    GoSub READ_CHAR
+    If sCar = sEnd Or If Not sCar Then Return
+  Loop
+  
+READ_CHAR:
+
+  Inc iPos
+  If iPos <= Len(sMarkup) Then
+    sCar = Mid$(sMarkup, iPos, 1)
+  Else 
+    sCar = ""
+  Endif
+  Return
+  
+End
+
+Public Sub HasAttribute(sName As String) As Boolean
+  
+  Return $cAttr.Exist(sName)
+  
+End
+
+Public Sub GetAttribute(sName As String) As String
+
+  Dim vVal As Variant
+  
+  vVal = $cAttr[sName]
+  If TypeOf(vVal) = gb.Boolean Then Return
+  Return vVal
+  
+End

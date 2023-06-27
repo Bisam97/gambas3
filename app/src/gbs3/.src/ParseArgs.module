@@ -1,0 +1,234 @@
+' Gambas module file
+
+Enum eVersion, eLicense, eHelp, eNoCache, eDebug, eVerbose,
+  eExec, eFast, eUnsafe, eTrace, eUse, eWarnings, eBuildOnly,
+  eList, eStdio, eLazyStrict, eTerseListing, eConvertProject,
+  eConvertScript, ePlugin
+
+Public $bExit As Boolean = False
+
+Public $cPossibleArgs As Collection = [
+  "-V": eVersion, "--version": eVersion,
+  "-L": eLicense, "--license": eLicense,
+  "-h": eHelp, "--help": eHelp,
+  "-c": eNoCache, "--nocache": eNoCache,
+  "-g": eDebug, "--debug": eDebug,
+  "-v": eVerbose, "--verbose": eVerbose,
+  "-e": eExec,
+  "-f": eFast, "--fast": eFast,
+  "-U": eUnsafe, "--unsafe": eUnsafe,
+  "-t": eTrace, "--trace": eTrace,
+  "-u": eUse, "--use": eUse,
+  "-w": eWarnings, "--warnings": eWarnings,
+  "-b": eBuildOnly, "--buildonly": eBuildOnly,
+  "-l": eList, "--list": eList,
+  "-": eStdio,
+  "-S": eLazyStrict, "--strict": eLazyStrict,
+  "-T": eTerseListing, "--terse-listing": eTerseListing,
+  "--convert-project": eConvertProject,
+  "--convert-script": eConvertscript,
+  "-p": ePlugin, "--plugin": ePlugin
+]
+
+Public Function _Call(c As Context, aArgs As String[]) As String
+
+  Dim I As Integer
+  Dim sApp As String
+  Dim index As Variant
+
+  If File.Name(aArgs[0]) = "gbw" & System.version Then c.$bWebPage = True
+
+  For I = 1 To aArgs.Max
+
+    If aArgs[I] = "--" Then
+      Inc I
+      Break
+    Else If Left(aArgs[I]) <> "-" Then
+      Break
+    Endif
+
+    index = $cPossibleArgs[aArgs[I]]
+    If IsNull(index) Then
+      '' note if I raise and error here it causes a double free error in tcache
+      Error File.Name(aArgs[0]) & " : " & ("Unknown option") & " : " & aArgs[I]
+      $bExit = True
+      Break
+
+    Endif
+    On index Goto gVersion, gLicense, gHelp, gNoCache, gDebugInfo, gVerbose, gExecCommandLine,
+      gFast, gUnsafe, gTrace, gUse, gWarnings, gBuildOnly, gList, gStdIn, gLazyStrict,
+      gTerseListing, gConvertProject, gConvertScript, gPlugin
+
+  gVersion:
+
+    Print Application.Version
+    $bExit = True
+    Break
+
+  gLicense:
+
+    Print
+    If Not c.$bWebPage Then
+      Print ("GAMBAS Scripter version") & " " & Application.Version
+    Else
+      Print ("GAMBAS Webpage Scripter version") & " " & Application.Version
+    Endif
+    Print File.Load("license")
+    $bExit = True
+    Break
+
+  gHelp:
+
+    If Not c.$bWebPage Then
+      Print File.Load("usage-gbs")
+    Else
+      Print File.Load("usage-gbw")
+    Endif
+    $bExit = True
+    Break
+
+  gNoCache:
+    c.$bNoCache = True
+    Continue
+
+  gDebugInfo:
+    c.$bDebug = True
+    Continue
+
+  gVerbose:
+    c.$bVerbose = True
+    Verbose.$bVerboseOn = True
+    Continue
+
+  gExecCommandLine:
+    If Not c.$bWebPage Then
+      c.$bExecuteFromArgs = True
+    Else
+      Error.Raise(File.Name(aArgs[0]) & ": -e " & ("Option Is Not supported For WebPages"))
+    Endif
+    Continue
+
+    ' gPreCompile:
+    '         c.$bPrecompiler = True
+    '         Continue
+
+  gFast:
+    c.$bFast = True
+    Continue
+
+  gUnsafe:
+    c.$bUnsafe = True
+    Continue
+
+  gTrace:
+    c.$bTrace = True
+    Continue
+
+  gUse:
+    If Not (aArgs[I + 1] Begins "-") Then
+      c.$sUse = aArgs[I + 1]
+      Inc I
+    Endif
+    Continue
+
+  gWarnings:
+    c.$bWarning = True
+    Warning.$bWarningOn = True
+    Continue
+
+  gBuildOnly:
+    c.$bBuildOnly = True
+    Continue
+
+  gList:
+    If Not (aArgs[I + 1] Begins "-") Then
+      Select Case Upper(aArgs[I + 1])
+        Case "COMPONENT"
+          c.$bListComponents = True
+          CComponent.ListAllComponents()
+          CComponent.Exit()
+
+        Case "LIBRARY"
+          c.$bListLibraries = True
+          Libraries.ConfigureLibraries()
+          Libraries.ListLibraries()
+
+        Default
+          Error.Raise(aArgs[I + 1] & " Not Support List Type - Library or Component - are supported")
+
+      End Select
+    Endif
+
+    $bExit = True
+    Break
+
+  gStdIn:    ' Run from stdin Until eof recieved
+
+    c.$bScriptSourceStdIn = True
+    c.$bNoCache = True
+
+    Break
+
+  gLazyStrict: ' define if publics should generate error if no main or be processed
+
+    c.$bAllowLazyScript = False
+    Continue
+
+  gTerseListing: ' only show the actual line the error was on
+
+    c.$bTerseListing = True
+    Continue
+
+  gConvertProject: ' do a project to script conversion
+    If i + 1 > aArgs.max Then
+      warning("Not enough parameters for Project conversion - need <source project Directory> [<dest>]", True)
+    Else
+      Dim ScriptDest As String = ""
+      If i + 2 <= aArgs.max Then
+        ScriptDest = aArgs[i + 2]
+      Endif
+      ConvertProject(aArgs[I + 1], ScriptDest)
+    Endif
+    $bExit = True
+    Break
+
+  gConvertScript: ' do a script to project conversion
+    If i + 1 > aArgs.max Or If i + 2 < aArgs.max Then
+      warning("Not enough parameters for Script conversion - need <source script> [<dest directory where project created>]", True)
+      $bExit = True
+      Break
+    Else
+      c.$bCreateProject = True
+    Endif
+    Continue
+
+  gPlugin:
+    If i + 1 > aArgs.max Or If i + 2 < aArgs.max Then
+      warning("Not enough parameters for plugin - need <source script> [<dest directory where plugin is created>]", True)
+      $bExit = True
+      Break
+    Endif
+    c.$bBuildOnly = True
+    c.$bPlugin = True
+    c.$bExport = True
+    c.$bClassAsStartup = True
+    Continue
+
+  Next
+
+  If $bExit Then Return Null
+
+  'Make the remainder of the arguments available to the
+  'main program, and pass the first one as the file to execute
+  If I <= aArgs.max Then sApp = aArgs[I]
+  Inc I
+  While I < aArgs.Count
+    ScriptMain.$aAppArgs.Add(aArgs[I])
+    Inc I
+  Wend
+
+  Return sApp
+
+End
+
+

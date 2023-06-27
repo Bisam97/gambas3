@@ -1,5 +1,7 @@
 ' Gambas class file
 
+Static Public SpecialMethods As String[] = ["_attach", "_call", "_compare", "_get", "_init", "_new", "_next", "_property", "_put", "_unknown", "_exit", "_ready", "_read", "_write"]
+
 Static Private $cTypeName As New Collection
 Static Private $cNameType As New Collection(gb.IgnoreCase)
 
@@ -29,6 +31,9 @@ Private $iShowArg As Integer
 Static Public Sub _init()
 
   Dim sType As String
+  Dim sIcon As String
+  Dim hImage As Image
+  Dim iSize As Integer
 
   $cTypeName["b"] = "Boolean"
   $cTypeName["c"] = "Byte"
@@ -45,6 +50,14 @@ Static Public Sub _init()
 
   For Each sType In $cTypeName
     $cNameType[sType] = $cTypeName.Key
+  Next
+  
+  iSize = Stock.GetSize("tiny")
+  For Each sIcon In Dir("img/symbol", "*.png")
+    hImage = Image.Load("img/symbol" &/ sIcon)
+    If Application.DarkTheme Then hImage.Invert(True)
+    hImage = hImage.Stretch(iSize, iSize)
+    Picture["$symbol:" & File.BaseName(sIcon)] = hImage.Picture
   Next
 
 End
@@ -72,13 +85,18 @@ Public Sub _new(hDoc As CDocumentation, sName As String, sKind As String)
 End
 
 
-Public Sub Copy(sType As String, sNewType As String) As CSymbolInfo
+Public Sub Copy(Optional sType As String, sNewType As String) As CSymbolInfo
   
   Dim hSym As New CSymbolInfo(Documentation, Name, Kind)
   
   With hSym
-    .Type = Replace(Type, sType, sNewType)
-    .Signature = Replace(Signature, sType, sNewType)
+    If sType Then
+      .Type = Replace(Type, sType, sNewType)
+      .Signature = Replace(Signature, sType, sNewType)
+    Else
+      .Type = Type
+      .Signature = Signature
+    Endif
     .Value = Value
     .Class = Class
     .Component = Component
@@ -133,25 +151,31 @@ Public Function GetIcon() As String
   Select Case LCase(Kind)
 
     Case "r"
-      sIcon = If(bStatic, "s-property-ro.png", "property-ro.png")
+      sIcon = If(bStatic, "s-property-ro", "property-ro")
+    Case "w"
+      sIcon = If(bStatic, "s-property-rw", "property-rw")
     Case "p"
-      sIcon = If(bStatic, "s-property.png", "property.png")
+      sIcon = If(bStatic, "s-property", "property")
     Case "v"
-      sIcon = If(bStatic, "s-variable.png", "variable.png")
+      sIcon = If(bStatic, "s-variable", "variable")
     Case "c"
-      sIcon = "constant.png"
+      sIcon = "constant"
     Case ":"
-      sIcon = "event.png"
+      sIcon = "event"
     Case "t"
-      sIcon = "control.png"
+      sIcon = "control"
     Case "m", "x"
-      sIcon = If(bStatic, "s-method.png", "method.png")
+      If Name Begins "_" And If SpecialMethods.Exist(Name) Then
+        sIcon = If(bStatic, "s-special", "special")
+      Else
+        sIcon = If(bStatic, "s-method", "method")
+      Endif
     Default
-      sIcon = "unknown.png"
+      sIcon = "unknown"
 
   End Select
 
-  Return "img/symbol" &/ sIcon
+  Return "$symbol:" & sIcon
 
 End
 
@@ -274,7 +298,7 @@ Private Sub MakeSignature(sSign As String) As String
   Dim iPos, iPos2 As Integer
   Dim sResult As String
   
-  Highlight.Analyze(sSign)
+  Highlight.Analyze(sSign, True)
   aSym = Highlight.Symbols
   
   Do
@@ -288,7 +312,7 @@ Private Sub MakeSignature(sSign As String) As String
       Break
     Endif
     
-    If UCase(sSym) = "OPTIONAL" Then
+    If sSym == "OPTIONAL" Then
       If Not bOptional Then
         sResult &= "["
         bOptional = True
@@ -298,7 +322,7 @@ Private Sub MakeSignature(sSign As String) As String
     Endif
     
     bByRef = False
-    If UCase(sSym) = "BYREF" Then
+    If sSym == "BYREF" Then
       bByRef = True
       Inc iInd
       sSym = aSym[iInd]
@@ -312,7 +336,7 @@ Private Sub MakeSignature(sSign As String) As String
     If bByRef Then sSym = "&" & sSym
     
     Inc iInd
-    If aSym[iInd] <> "AS" Then Break
+    If Not (aSym[iInd] == "AS") Then Break
     
     Inc iInd
     sType = aSym[iInd]
@@ -378,6 +402,45 @@ Public Function GetNativeSignature() As String
   
 End
 
+Public Sub GetArgumentTypes() As String[]
+
+  Dim sSign As String
+  Dim I As Integer
+  Dim sCar As String
+  Dim bPar As Boolean
+  Dim bNewArg As Boolean
+  Dim aArg As New String[]
+  
+  sSign = GetNativeSignature()
+  bNewArg = True
+  
+  For I = 1 To Len(sSign)
+    
+    sCar = Mid$(sSign, I, 1)
+    
+    If bPar Then
+      If sCar = ")" Then bPar = False
+    Else If sCar = "(" Then
+      bPar = True
+      bNewArg = True
+    Else If sCar = ";" Then
+      bNewArg = True
+    Else
+      If bNewArg Then
+        aArg.Add(sCar)
+        bNewArg = False
+      Else
+        aArg[aArg.Max] &= sCar
+      Endif
+    Endif
+    
+  Next
+  
+  Return aArg
+  
+End
+
+
 Private Sub SplitSignature(sSign As String) As String[]
   
   Dim iPos As Integer
@@ -407,7 +470,6 @@ Private Sub MergeSignature(sSign As String, sParentSign As String) As String
   
 End
 
-
 Public Function GetSignature(bBalise As Boolean, Optional iShowArg As Integer = -1) As String
 
   Dim iInd As Integer
@@ -436,7 +498,11 @@ Public Function GetSignature(bBalise As Boolean, Optional iShowArg As Integer = 
       hClass = Documentation.GetClassDescription(hClass.ParentComponent &/ hClass.Parent)
       'hClass = CComponent.Classes[hClass.ParentComponent &/ hClass.Parent]
       hSym = hClass.Symbols["_new"]
-      If hSym Then sSign = MergeSignature(sSign, hClass.Symbols["_new"].GetNativeSignature())
+      If hSym Then 
+        If hSym.Class = hClass.Name Then 
+          sSign = MergeSignature(sSign, hClass.Symbols["_new"].GetNativeSignature())
+        Endif
+      Endif
     Loop
   Endif
   
@@ -465,7 +531,7 @@ Public Function GetSignature(bBalise As Boolean, Optional iShowArg As Integer = 
       
       GoSub ADD_COMMA
 
-      sSym = Mid$(sSign, iInd + 1, iPos - iInd - 1)
+      sSym = Util.TrimCurlyBracket(Mid$(sSign, iInd + 1, iPos - iInd - 1))
 
       sRes &= $sArgBefore 
       
@@ -607,6 +673,8 @@ Public Function GetDescription(Optional bBalise As Boolean) As String
   
     Case "r"
       sDesc = sStatic & "Property Read"
+    Case "w"
+      sDesc = sStatic & "Property Write"
     Case "p"
       sDesc = sStatic & "Property"
     'CASE "v"
@@ -632,6 +700,8 @@ Public Function GetDescription(Optional bBalise As Boolean) As String
 
   If Kind = ":" Then
     sDesc &= " " & Mid$(Name, 2) & " "
+  Else If Name = "_call" Then
+    sDesc &= " " & Class & " "
   Else
     sDesc &= " " & Name & " "
   Endif
@@ -662,6 +732,8 @@ Static Public Function GetType(sType As String, Optional bBalise As Boolean) As 
     'ELSE
     sType = "Object"
     'ENDIF
+  Else If sType Begins "$" Then
+    sType = Mid$(sType, 2)
   Endif
 
   If bBalise Then
@@ -683,6 +755,7 @@ Static Public Function TransformSignature(sSign As String, bBalise As Boolean) A
 
   Dim sBold As String
   Dim sNoBold As String
+  Dim sName As String
 
   If bBalise Then
     sBold = "<B>"
@@ -715,7 +788,12 @@ Static Public Function TransformSignature(sSign As String, bBalise As Boolean) A
         sRes = sRes & sBold & "," & sNoBold & " "
       Endif
 
-      sRes = sRes & Mid$(sSign, iInd + 1, iPos - iInd - 1) & " " & sBold & "AS" & sNoBold & " "
+      sName = Mid$(sSign, iInd + 1, iPos - iInd - 1)
+      If sName Begins "&" Then
+        sRes &= sBold & "BYREF" & sNoBold & " "
+        sName = Mid$(sName, 2)
+      Endif
+      sRes &= sName & " " & sBold & "AS" & sNoBold & " "
 
       iInd = iPos
       bName = True
@@ -804,7 +882,16 @@ Public Function GetHelpURL(Optional bShowFile As Boolean) As String
       sPath = MHelp.GetURL("comp")
       sComp = MHelp.ActualComponent(Component)
       sPath &/= LCase(sComp)
-      sPath &/= LCase(Class) 'Left(Class) & Replace(Mid(Class, 2), "_", "."))
+      ' We keep the class case for custom object arrays
+      If Class Ends "[]" And If Not hComp[Class] Then
+        If Class Begins "$" Then
+          sPath &/= Mid$(Class, 2)
+        Else
+          sPath &/= Class
+        Endif
+      Else
+        sPath &/= LCase(Class) 'Left(Class) & Replace(Mid(Class, 2), "_", "."))
+      Endif
       
       sName = LCase(Name)
       'sName = Left(sName) & Replace(Mid$(sName, 2), "_", ".")
@@ -822,6 +909,17 @@ Public Function GetHelpURL(Optional bShowFile As Boolean) As String
   Endif
   
 End
+
+Public Sub HasHelp() As Boolean
+  
+  If Component = CComponent.PROJECT_NAME Or If Not Component Then
+    Return GetHelpMarkup()
+  Else
+    Return True
+  Endif
+  
+End
+
 
 '' Transform one line of help into HTML by decoding some sort of light wiki syntax.
 ''
@@ -971,7 +1069,8 @@ Public Sub GetHelpMarkup() As String
   Endif
   If Not sPath Then Return
   
-  hForm = Project.LoadFile(sPath)
+  hForm = Project.LoadFile(sPath, True)
+  If Not hForm Then Return
   Try hEdit = hForm.GetEditor()
   If Not hEdit Then Return  
   iLine = Me.LineNumber - 1
@@ -1004,18 +1103,13 @@ Public Function GetHelpHTML() As String
   
   sMarkup = GetHelpMarkup()
   If sMarkup Then 
-    Try sHelp = Markdown.ToHTML(sMarkup)
+    Try sHelp = WikiMarkdown.ToHTML(sMarkup)
     If Error Then sHelp = "<b>" & Error.Text & "</b>"
   Endif
   
-  sHTML = MHelp.LoadCustom("symbol-help.html")
-  sHTML = Replace(sHTML, "$(hide-title)", "")
-  sHTML = Replace(sHTML, "$(class)", {Class})
-  sHTML = Replace(sHTML, "$(name)", Name)
-  
   'If Me.IsStatic() Then sHTML &= "<font color=\"blue\">STATIC </font>"
 
-  sSyntax &= Me.GetDescription(False)
+  sSyntax = Me.GetDescription(False)
   ' sSyntax = Replace(Replace(sSyntax, "</b>", ""), "<b>", "")
   ' 
   Highlight.Analyze(sSyntax, True)
@@ -1049,14 +1143,17 @@ Public Function GetHelpHTML() As String
     End Select
   Next
   
-  sHTML = Replace(sHTML, "$(syntax)", sSyntax)
-  sHTML = Replace(sHTML, "$(help)", sHelp)
-
   If Not Component Or If Component = CComponent.PROJECT_NAME Then sTitle = "<a href=\"" & "gambas://project/" & {Class} & "#" & Me.LineNumber & "?showfile" & "\">"
   sTitle &= {Class} & "." & Name
   If Not Component Or If Component = CComponent.PROJECT_NAME Then sTitle &= "</a>"
 
-  sHTML = Replace(sHTML, "$(title)", sTitle)
+  sHTML = MHelp.MakePage("help/symbol-help.html", ["class": {Class}, "name": Name, "syntax": sSyntax, "help": sHelp, "title": sTitle])
+  ' sHTML = Replace(sHTML, "$(hide-title)", "")
+  ' sHTML = Replace(sHTML, "$(class)", {Class})
+  ' sHTML = Replace(sHTML, "$(name)", Name)
+  ' sHTML = Replace(sHTML, "$(syntax)", sSyntax)
+  ' sHTML = Replace(sHTML, "$(help)", sHelp)
+  ' sHTML = Replace(sHTML, "$(title)", sTitle)
 
   Return sHTML
 
@@ -1083,6 +1180,14 @@ End
 Private Function GetClassVariableName(sClass As String) As String
 
   Dim sRes As String
+
+  If sClass Begins "*" And If Wiki.SubstClass Then
+    If sClass = "*" Then 
+      sClass = Left(Wiki.SubstClass, -2)
+    Else If sClass = "*[]" Then
+      sClass = Wiki.SubstClass
+    Endif
+  Endif
 
   If Len(sClass) = 1 Then
     sClass = $cTypeName[sClass]
@@ -1126,10 +1231,19 @@ End
 
 Private Function GetSyntaxType(sType As String) As String
 
+  If Wiki.SubstClass And If sType Begins "*" Then
+    If sType = "*" Then
+      sType = Left(Wiki.SubstClass, -2)
+    Else If sType = "*[]"
+      sType = Wiki.SubstClass
+    Endif
+  Endif
+
   If Len(sType) = 1 Then
     sType = $cTypeName[sType]
   Else
     If Right$(sType) = ";" Then sType = Left$(sType, -1)
+    If sType Begins "$" Then sType = Mid$(sType, 2)
     sType = Wiki.GetClassLinkFromName(sType)
     'sType = "<a href=\"" & Application.Root &/ "comp" & "\">" & sType & "</a>"
   Endif
@@ -1148,6 +1262,7 @@ Private Function GetSyntaxSignature() As String
   Dim bName As Boolean
   Dim bFirst As Boolean
   Dim iLen As Integer
+  Dim sName As String
 
   bFirst = True
 
@@ -1175,7 +1290,8 @@ Private Function GetSyntaxSignature() As String
         sRes = sRes & Keyword(",") & " "
       Endif
 
-      sRes = sRes & "<u>" & Mid$(sSign, iInd + 1, iPos - iInd - 1) & "</u> " & Keyword("As") & " "
+      sName = Util.TrimCurlyBracket(Mid$(sSign, iInd + 1, iPos - iInd - 1))
+      sRes = sRes & "<u>" & sName & "</u> " & Keyword("As") & " "
 
       iInd = iPos
       bName = True
@@ -1376,6 +1492,8 @@ Public Sub WikiGetSyntax() As String[]
           sSyntax = sSyntax & Keyword("Property") & " "
         Case "r"
           sSyntax = sSyntax & Keyword("Property Read") & " "
+        Case "w"
+          sSyntax = sSyntax & Keyword("Property Write") & " "
         Case "c"
           sSyntax = sSyntax & Keyword("Const") & " "
         Case ":"
@@ -1438,4 +1556,32 @@ Public Sub WikiGetSyntax() As String[]
   aResult.Add("]]")
   Return aResult  
 
+End
+
+Private Sub ToExportClass(cExportMap As Collection, sType As String) As String
+
+  Dim sClass As String
+
+  sClass = cExportMap[sType]
+  If sClass Then Return sClass
+  Return sType
+
+End
+
+Public Sub ConvertToExport(cExportMap As Collection)
+  
+  Dim iPos As Integer
+  Dim iPosBefore As Integer
+  
+  Type = ToExportClass(cExportMap, Type)
+  
+  Do
+    iPos = InStr(Signature, ";", iPos + 1)
+    If iPos = 0 Then Break
+    iPosBefore = RInStr(Signature, ")", iPos)
+    If iPosBefore = 0 Then Continue
+    Signature = Left(Signature, iPosBefore) & ToExportClass(cExportMap, Mid$(Signature, iPosBefore + 1, iPos - iPosBefore - 1)) & Mid$(Signature, iPos)
+    iPos = InStr(Signature, ";", iPosBefore)
+  Loop
+  
 End

@@ -2,7 +2,7 @@
 
   CImage.cpp
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -159,7 +159,12 @@ END_METHOD
 
 BEGIN_METHOD(CIMAGE_invert, GB_INTEGER channel)
 
-	Effect::invert(THIS, VARGOPT(channel, Effect::All));
+	int channel = VARGOPT(channel, Effect::All);
+
+	if (channel == -1) // Compatibilty with Image.Invert() in 'gb.image'.
+		IMAGE.Invert((GB_IMG *)THIS, true);
+	else
+		Effect::invert(THIS, channel);
 
 END_METHOD
 

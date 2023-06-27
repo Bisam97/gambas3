@@ -26,20 +26,16 @@
 
 #include "main.h"
 #include "gtextbox.h"
-#include "gcombobox.h"
 
 #ifndef __CTEXTBOX_CPP
 
 extern GB_DESC CTextBoxSelectionDesc[];
 extern GB_DESC CTextBoxDesc[];
-extern GB_DESC CComboBoxDesc[];
-extern GB_DESC CComboBoxItemDesc[];
 
 #else
 
 #define THIS ((CTEXTBOX *)_object)
 #define TEXTBOX ((gTextBox *)THIS->ob.widget)
-#define COMBOBOX ((gComboBox *)THIS->ob.widget)
 
 #endif
 
@@ -49,14 +45,5 @@ typedef
 		CWIDGET ob;
 	} 
 	CTEXTBOX;
-
-typedef  
-	struct 
-	{
-		CWIDGET ob;
-		int index;
-		bool click;
-	} 
-	CCOMBOBOX;
 
 #endif

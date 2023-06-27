@@ -2,7 +2,7 @@
 
   CScreen.cpp
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@
 
 #define __CSCREEN_CPP
 
+#include <QScreen>
 #include <QApplication>
 #include <QDesktopWidget>
 #include <QToolTip>
@@ -32,22 +33,35 @@
 #include "gambas.h"
 #include "main.h"
 #include "gb.draw.h"
+#include "gb.image.h"
 #include "cpaint_impl.h"
 #include "CPicture.h"
 #include "CWidget.h"
 #include "CWindow.h"
 #include "CFont.h"
 #include "CDrawingArea.h"
+#include "CContainer.h"
 #include "CScreen.h"
 
+#ifndef QT5
 #include <QX11Info>
 #include "x11.h"
-#include "desktop.h"
+#endif
 
-#if QT_VERSION >= 0x040600
-#define NUM_SCREENS() (QApplication::desktop()->screenCount())
+#ifdef QT5
+	#define DESKTOP_INFO() (QGuiApplication::screens().front()->availableGeometry())
+	#define SCREEN_INFO(_id) (QGuiApplication::screens().at(_id)->geometry())
+	#define SCREEN_AVAILABLE_SIZE(_id) (QGuiApplication::screens().at(_id)->availableGeometry())
+	#define NUM_SCREENS() (QGuiApplication::screens().count())
 #else
-#define NUM_SCREENS() (QApplication::desktop()->numScreens())
+	#define DESKTOP_INFO() (QApplication::desktop()->availableGeometry())
+	#define SCREEN_INFO(_id) (QApplication::desktop()->screenGeometry(_id))
+	#define SCREEN_AVAILABLE_SIZE(_id) (QApplication::desktop()->availableGeometry(_id))
+	#if QT_VERSION >= 0x040600
+		#define NUM_SCREENS() (QApplication::desktop()->screenCount())
+	#else
+		#define NUM_SCREENS() (QApplication::desktop()->numScreens())
+	#endif
 #endif
 
 #define MAX_SCREEN 16
@@ -60,6 +74,7 @@ static CSCREEN *_screens[MAX_SCREEN] = { NULL };
 
 static bool _animations = FALSE;
 static bool _shadows = FALSE;
+static bool _middle_click_paste = TRUE;
 
 static CSCREEN *get_screen(int num)
 {
@@ -90,40 +105,49 @@ static void free_screens(void)
 	}
 }
 
+static void send_change_event()
+{
+	CDRAWINGAREA_send_change_event();
+	CUSERCONTROL_send_change_event();
+}
+
 //-------------------------------------------------------------------------
 
 BEGIN_PROPERTY(Desktop_X)
 
-	GB.ReturnInteger(QApplication::desktop()->availableGeometry().x());
-
+	GB.ReturnInteger(DESKTOP_INFO().x());
+    
 END_PROPERTY
 
 BEGIN_PROPERTY(Desktop_Y)
 
-	GB.ReturnInteger(QApplication::desktop()->availableGeometry().y());
+	GB.ReturnInteger(DESKTOP_INFO().y());
 
 END_PROPERTY
 
 BEGIN_PROPERTY(Desktop_Width)
 
-	GB.ReturnInteger(QApplication::desktop()->availableGeometry().width());
+	GB.ReturnInteger(DESKTOP_INFO().width());
 
 END_PROPERTY
 
 BEGIN_PROPERTY(Desktop_Height)
 
-	GB.ReturnInteger(QApplication::desktop()->availableGeometry().height());
+	GB.ReturnInteger(DESKTOP_INFO().height());
 
 END_PROPERTY
 
-
 BEGIN_PROPERTY(Desktop_Resolution)
 
+#ifdef QT5
+	GB.ReturnInteger(PLATFORM.Desktop.GetResolutionY());
+#else
 	#ifdef NO_X_WINDOW
 		GB.ReturnInteger(72);
 	#else
 		GB.ReturnInteger(QX11Info::appDpiY());
 	#endif
+#endif
 
 END_PROPERTY
 
@@ -151,9 +175,9 @@ BEGIN_PROPERTY(Desktop_Scale)
 
 END_PROPERTY
 
-BEGIN_PROPERTY(Desktop_Type)
+BEGIN_PROPERTY(Desktop_Platform)
 
-	GB.ReturnConstZeroString(DESKTOP_get_type());
+	GB.ReturnConstZeroString(MAIN_platform);
 
 END_PROPERTY
 
@@ -214,6 +238,8 @@ BEGIN_PROPERTY(Application_Busy)
 	else
 	{
 		busy = VPROP(GB_INTEGER);
+		if (busy < 0)
+			busy = 0;
 
 		if (screen_busy == 0 && busy > 0)
 			qApp->setOverrideCursor(Qt::WaitCursor);
@@ -245,8 +271,18 @@ BEGIN_PROPERTY(Application_Animations)
 	else if (_animations != VPROP(GB_BOOLEAN))
 	{
 		_animations = VPROP(GB_BOOLEAN);
-		CDRAWINGAREA_send_change_event();
+		send_change_event();
 	}
+
+END_PROPERTY
+
+
+BEGIN_PROPERTY(Application_MiddleClickPaste)
+
+	if (READ_PROPERTY)
+		GB.ReturnBoolean(_middle_click_paste);
+	else
+		_middle_click_paste = VPROP(GB_BOOLEAN);
 
 END_PROPERTY
 
@@ -258,7 +294,7 @@ BEGIN_PROPERTY(Application_Shadows)
 	else if (_shadows != VPROP(GB_BOOLEAN))
 	{
 		_shadows = VPROP(GB_BOOLEAN);
-		CDRAWINGAREA_send_change_event();
+		send_change_event();
 	}
 
 END_PROPERTY
@@ -270,12 +306,25 @@ BEGIN_PROPERTY(Application_MainWindow)
 		GB.ReturnObject(CWINDOW_Main);
 	else
 	{
+		if (CWINDOW_Main && CWINDOW_Main->menuBar)
+			CWINDOW_Main->menuBar->setNativeMenuBar(false);
+		
 		CWINDOW_Main = (CWINDOW *)VPROP(GB_OBJECT);
-		if (CWINDOW_Main && CWINDOW_MainDesktop >= 0)
+		if (CWINDOW_Main)
 		{
-			MyMainWindow *win = (MyMainWindow *)CWINDOW_Main->widget.widget;
-			X11_window_set_desktop(win->winId(), win->isVisible(), CWINDOW_MainDesktop);
-			CWINDOW_MainDesktop = -1;
+			if (CWINDOW_MainDesktop >= 0)
+			{
+				MyMainWindow *win = (MyMainWindow *)CWINDOW_Main->widget.widget;
+				#ifdef QT5
+					PLATFORM.Window.SetVirtualDesktop(win, win->isVisible(), CWINDOW_MainDesktop);
+				#else
+					X11_window_set_desktop(win->winId(), win->isVisible(), CWINDOW_MainDesktop);
+				#endif
+				CWINDOW_MainDesktop = -1;
+			}
+			
+			if (CWINDOW_Main->menuBar)
+				CWINDOW_Main->menuBar->setNativeMenuBar(true);
 		}
 	}
 
@@ -307,12 +356,40 @@ BEGIN_PROPERTY(Application_Embedder)
 
 END_PROPERTY
 
+
 BEGIN_PROPERTY(Application_Theme)
 
 	if (READ_PROPERTY)
 		GB.ReturnString(CAPPLICATION_Theme);
 	else
 		GB.StoreString(PROP(GB_STRING), &CAPPLICATION_Theme);
+
+END_PROPERTY
+
+
+BEGIN_PROPERTY(Application_DarkTheme)
+
+	static bool _init = FALSE;
+	static bool _dark = FALSE;
+	
+	uint bg;
+	char *env;
+	
+	if (!_init)
+	{
+		_init = TRUE;
+		bg = QApplication::palette().color(QPalette::Window).rgb() & 0xFFFFFF;
+		if (IMAGE.GetLuminance(bg) >= 128)
+		{
+			env = getenv("GB_GUI_DARK_THEME");
+			if (env && atoi(env))
+				_dark = TRUE;
+		}
+		else
+			_dark = TRUE;
+	}
+
+	GB.ReturnBoolean(_dark);
 
 END_PROPERTY
 
@@ -325,6 +402,7 @@ BEGIN_PROPERTY(Application_Restart)
 		GB.StoreObject(PROP(GB_OBJECT), POINTER(&CAPPLICATION_Restart));
 
 END_PROPERTY
+
 
 BEGIN_PROPERTY(Application_DblClickTime)
 
@@ -340,20 +418,17 @@ BEGIN_PROPERTY(Screens_Count)
 
 END_PROPERTY
 
-
 /*BEGIN_PROPERTY(Screens_Primary)
 
 	GB.ReturnInteger(QApplication::desktop()->primaryScreen());
 
 END_PROPERTY*/
 
-
 BEGIN_METHOD(Screens_get, GB_INTEGER screen)
 
 	GB.ReturnObject(get_screen(VARG(screen)));
 
 END_METHOD
-
 
 BEGIN_METHOD_VOID(Screens_next)
 
@@ -369,53 +444,72 @@ BEGIN_METHOD_VOID(Screens_next)
 	
 END_METHOD
 
-
 BEGIN_PROPERTY(Screen_X)
 
-	GB.ReturnInteger(QApplication::desktop()->screenGeometry(SCREEN->index).x());
+	GB.ReturnInteger(SCREEN_INFO(SCREEN->index).x());
 
 END_PROPERTY
 
 BEGIN_PROPERTY(Screen_Y)
 
-	GB.ReturnInteger(QApplication::desktop()->screenGeometry(SCREEN->index).y());
+	GB.ReturnInteger(SCREEN_INFO(SCREEN->index).y());
 
 END_PROPERTY
 
 BEGIN_PROPERTY(Screen_Width)
 
-	GB.ReturnInteger(QApplication::desktop()->screenGeometry(SCREEN->index).width());
+	GB.ReturnInteger(SCREEN_INFO(SCREEN->index).width());
 
 END_PROPERTY
 
 BEGIN_PROPERTY(Screen_Height)
 
-	GB.ReturnInteger(QApplication::desktop()->screenGeometry(SCREEN->index).height());
+	GB.ReturnInteger(SCREEN_INFO(SCREEN->index).height());
 
 END_PROPERTY
 
 
 BEGIN_PROPERTY(Screen_AvailableX)
 
-	GB.ReturnInteger(QApplication::desktop()->availableGeometry(SCREEN->index).x());
+	GB.ReturnInteger(SCREEN_AVAILABLE_SIZE(SCREEN->index).x());
 
 END_PROPERTY
 
 BEGIN_PROPERTY(Screen_AvailableY)
 
-	GB.ReturnInteger(QApplication::desktop()->availableGeometry(SCREEN->index).y());
+	GB.ReturnInteger(SCREEN_AVAILABLE_SIZE(SCREEN->index).y());
 
 END_PROPERTY
 
 BEGIN_PROPERTY(Screen_AvailableWidth)
 
-	GB.ReturnInteger(QApplication::desktop()->availableGeometry(SCREEN->index).width());
+	GB.ReturnInteger(SCREEN_AVAILABLE_SIZE(SCREEN->index).width());
 
 END_PROPERTY
 
 BEGIN_PROPERTY(Screen_AvailableHeight)
 
-	GB.ReturnInteger(QApplication::desktop()->availableGeometry(SCREEN->index).height());
+	GB.ReturnInteger(SCREEN_AVAILABLE_SIZE(SCREEN->index).height());
+
+END_PROPERTY
+
+BEGIN_PROPERTY(Screen_ResolutionX)
+
+#ifdef QT5
+	GB.ReturnFloat(QGuiApplication::screens().at(SCREEN->index)->physicalDotsPerInchX());
+#else
+	GB.ReturnFloat(QX11Info::appDpiX());
+#endif
+
+END_PROPERTY
+
+BEGIN_PROPERTY(Screen_ResolutionY)
+
+#ifdef QT5
+	GB.ReturnFloat(QGuiApplication::screens().at(SCREEN->index)->physicalDotsPerInchY());
+#else
+	GB.ReturnFloat(QX11Info::appDpiY());
+#endif
 
 END_PROPERTY
 
@@ -437,6 +531,9 @@ GB_DESC ScreenDesc[] =
 	GB_PROPERTY_READ("AvailableWidth", "i", Screen_AvailableWidth),
 	GB_PROPERTY_READ("AvailableHeight", "i", Screen_AvailableHeight),
 
+	GB_PROPERTY_READ("ResolutionX", "f", Screen_ResolutionX),
+	GB_PROPERTY_READ("ResolutionY", "f", Screen_ResolutionY),
+	
 	GB_END_DECLARE
 };
 
@@ -470,7 +567,7 @@ GB_DESC DesktopDesc[] =
 	
 	GB_STATIC_METHOD("Screenshot", "Picture", Desktop_Screenshot, "[(X)i(Y)i(Width)i(Height)i]"),
 	
-	GB_STATIC_PROPERTY_READ("Type", "s", Desktop_Type),
+	GB_STATIC_PROPERTY_READ("Platform", "s", Desktop_Platform),
 
 	GB_END_DECLARE
 };
@@ -488,9 +585,11 @@ GB_DESC ApplicationDesc[] =
 	GB_STATIC_PROPERTY("Busy", "i", Application_Busy),
 	GB_STATIC_PROPERTY("ShowTooltips", "b", Application_ShowTooltips),
 	GB_STATIC_PROPERTY("Animations", "b", Application_Animations),
+	GB_STATIC_PROPERTY("MiddleClickPaste", "b", Application_MiddleClickPaste),
 	GB_STATIC_PROPERTY("Shadows", "b", Application_Shadows),
 	GB_STATIC_PROPERTY("Embedder", "i", Application_Embedder),
 	GB_STATIC_PROPERTY("Theme", "s", Application_Theme),
+	GB_STATIC_PROPERTY_READ("DarkTheme", "b", Application_DarkTheme),
 	GB_STATIC_PROPERTY("Restart", "String[]", Application_Restart),
 	GB_STATIC_PROPERTY_READ("DblClickTime", "i", Application_DblClickTime),
 

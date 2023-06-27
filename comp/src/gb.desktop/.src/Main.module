@@ -1,6 +1,7 @@
 ' Gambas module file
 
 Class X11
+Class DesktopWindow
 
 Public Result As String
 
@@ -9,7 +10,6 @@ Private $cTool As New Collection
 'Private _NET_CLIENT_LIST As Integer
 
 Private $aDataDir As String[]
-Private $sDesktop As String
 Private $cSearchPath As New Collection
 
 Public Sub RunXdgUtil(sProg As String, aArg As String[], Optional bWait As Boolean) 
@@ -101,6 +101,10 @@ Private Function SearchPathVariable(sFileConfig As String, sDirectory As String)
   Dim hFile As File
   Dim sLine As String
   Dim aLine As String[]
+  Dim sAltDirectory As String
+  Dim bFullPath As Boolean
+  
+  sAltDirectory = "XDG_" & sDirectory & "_DIR"
   
   hFile = Open sFileConfig For Input
   While Not Eof(hFile)
@@ -108,6 +112,11 @@ Private Function SearchPathVariable(sFileConfig As String, sDirectory As String)
     sLine = Trim(sLine)
     If Not sLine Then Continue
     If Left(sLine) = "#" Then Continue
+    If sLine Begins sAltDirectory Then 
+      sDirectory = sAltDirectory
+      bFullPath = True
+      Break
+    Endif
     If sLine Begins sDirectory Then Break
     sLine = ""
   Wend
@@ -117,64 +126,9 @@ Private Function SearchPathVariable(sFileConfig As String, sDirectory As String)
     sLine = aLine[0]
     If Left(sLine) = Chr$(34) Then sLine = Mid$(sLine, 2, -1)
     If sLine Begins "$HOME/" Then sLine = Replace(sLine, "$HOME", System.User.Home)
+    If Not bFullPath Then sLine = User.Home &/ sLine
     Return sLine
   Endif
-
-End
-
-Public Sub GetDesktop() As String
-
-  If Not $sDesktop Then
-
-    If Application.Env["KDE_FULL_SESSION"] Then
-      
-      If Application.Env["KDE_SESSION_VERSION"] = "4" Then
-        $sDesktop = "KDE4"
-      Else If Application.Env["KDE_SESSION_VERSION"] = "5" Then
-        $sDesktop = "KDE5"
-      Else
-        $sDesktop = "KDE"
-      Endif
-
-    Else
-      
-      Select Case UCase(Application.Env["XDG_CURRENT_DESKTOP"])
-        Case "LXDE"
-          $sDesktop = "LXDE"
-        Case "UNITY"
-          $sDesktop = "UNITY"
-        Default
-          $sDesktop = UCase(Application.Env["XDG_CURRENT_DESKTOP"])
-          If $sDesktop Begins "X-" Then $sDesktop = Mid$($sDesktop, 3)
-      End Select
-      
-    Endif
-    
-    If Not $sDesktop Then
-    
-      If Application.Env["GNOME_DESKTOP_SESSION_ID"] Then
-        $sDesktop = "GNOME"
-      Else If Application.Env["MATE_DESKTOP_SESSION_ID"] Or If Application.Env["MATECORBA_SOCKETDIR"] Then
-        $sDesktop = "MATE"
-      Else If Application.Env["E_BIN_DIR"] And If Application.Env["E_LIB_DIR"] Then
-        $sDesktop = "ENLIGHTENMENT"
-      Else If Application.Env["WMAKER_BIN_NAME"] Then
-        $sDesktop = "WINDOWMAKER"
-      Else If Application.Env["DESKTOP_SESSION"] = "LXDE" Then
-        $sDesktop = "LXDE"
-      Else If UCase(Env["DESKTOP_SESSION"]) = "XCFE" Then
-        $sDesktop = "XFCE"
-      Else If UCase(Env["XDG_MENU_PREFIX"]) Begins "XCFE" Then
-        $sDesktop = "XFCE"
-      Else If InStr(Env["XDG_DATA_DIR"], "/xfce") Then
-        $sDesktop = "XFCE"
-      Endif
-      
-    Endif
-
-  Endif
-
-  Return $sDesktop
 
 End
 
@@ -190,7 +144,7 @@ Public Sub GetDesktopPath(Optional sType As String = "DESKTOP") As String
   
   sFileConfig = SearchPathConfig(sXdgConfigHome, sXdgConfigDirs)
   If sFileConfig Then
-    sDir = SearchPathVariable(sFileConfig, "XDG_" & UCase(sType) & "_DIR") 
+    sDir = SearchPathVariable(sFileConfig, UCase(sType)) 
   Else 
     sDir = System.User.Home &/ "Desktop"
   Endif
@@ -217,11 +171,12 @@ End
 
 Public Sub Main()
 
-  DesktopFile.FromMime("application/vnd.oasis.opendocument.text")
+  Dim hPict As Picture
+  
+  'Desktop.SendMail(["benoit@minisini.fr"], ["bminisini@asap-info.com"], ["benoit.minisini@gambas-basic.org"], "Sujet", "Corps du mail", "~/adolf.png")
+  hPict = Desktop.Screenshot()
   
 End
-
-
 
 ' Public Sub X11_PropertyNotify((Window) As Integer, Atom As Integer)
 '   
@@ -268,8 +223,12 @@ Public Sub MakeSearchPath(sKey As String, aList As String[]) As String[]
   Dim aDir As String[]
   Dim sVar As String
   Dim aResult As New String[]
+  Dim sDesktop As String
   
   If $cSearchPath.Exist(sKey) Then Return $cSearchPath[sKey]
+  
+  sDesktop = LCase(Desktop.Type)
+  If sDesktop Begins "kde" Then sDesktop = "kde"
   
   aDir = aList.Copy()
   
@@ -289,7 +248,7 @@ Public Sub MakeSearchPath(sKey As String, aList As String[]) As String[]
     
     Endif
     
-    sDir = Replace(sDir, "$desktop", LCase(GetDesktop()))
+    sDir = Replace(sDir, "$desktop", sDesktop)
     If Exist(sDir) Then aResult.Add(sDir)
     
   Wend
@@ -298,3 +257,14 @@ Public Sub MakeSearchPath(sKey As String, aList As String[]) As String[]
   Return aResult
   
 End
+
+Public Sub NotSupported()
+
+  If Desktop.Platform Then
+    Error.Raise("Not supported on " & Desktop.Platform)
+  Else
+    Error.Raise("Not desktop detected")
+  Endif
+
+End
+

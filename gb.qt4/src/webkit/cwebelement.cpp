@@ -2,7 +2,7 @@
 
   cwebelement.cpp
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -333,7 +333,7 @@ GB_DESC WebElementStyleDesc[] =
 	GB_HOOK_CHECK(check_element),
 	
 	GB_METHOD("_get", "s", WebElementStyle_get, "(Property)s"),
-	GB_METHOD("_put", "s", WebElementStyle_put, "(Value)s(Property)s"),
+	GB_METHOD("_put", NULL, WebElementStyle_put, "(Value)s(Property)s"),
 	
 	GB_END_DECLARE
 };
@@ -373,7 +373,7 @@ GB_DESC WebElementDesc[] =
 	GB_METHOD("FindAll", "WebElement[]", WebElement_FindAll, "(Selector)s"),
 	
 	GB_METHOD("_get", "s", WebElement_get, "(Attribute)s"),
-	GB_METHOD("_put", "s", WebElement_put, "(Value)s(Attribute)s"),
+	GB_METHOD("_put", NULL, WebElement_put, "(Value)s(Attribute)s"),
 	GB_METHOD("HasAttribute", "b", WebElement_HasAttribute, "(Attribute)s"),
 	GB_METHOD("RemoveAttribute", NULL, WebElement_RemoveAttribute, "(Attribute)s"),
 	

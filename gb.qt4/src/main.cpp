@@ -2,7 +2,7 @@
 
   main.cpp
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -64,7 +64,6 @@
 #include "CWindow.h"
 #include "CButton.h"
 #include "CContainer.h"
-#include "CLabel.h"
 #include "CTextBox.h"
 #include "CTextArea.h"
 #include "CMenu.h"
@@ -74,19 +73,18 @@
 #include "CColor.h"
 #include "CConst.h"
 #include "CCheckBox.h"
-#include "CFrame.h"
 #include "CRadioButton.h"
 #include "CTabStrip.h"
 #include "CDialog.h"
 #include "CPicture.h"
 #include "CImage.h"
+#include "canimation.h"
 #include "CClipboard.h"
 #include "CDraw.h"
 #include "CWatch.h"
 #include "CDrawingArea.h"
 #include "CSlider.h"
 #include "CScrollBar.h"
-#include "CMovieBox.h"
 #include "CWatcher.h"
 #include "cprinter.h"
 #include "csvgimage.h"
@@ -107,7 +105,7 @@
 #include <QAbstractNativeEventFilter>
 #endif
 
-#include "fix_breeze.h"
+#include "fix_style.h"
 #include "main.h"
 
 /*#define DEBUG*/
@@ -155,7 +153,7 @@ static bool _check_quit_posted = false;
 static int _prevent_quit = 0;
 
 #ifndef NO_X_WINDOW
-static void (*_x11_event_filter)(XEvent *) = 0;
+static int (*_x11_event_filter)(XEvent *) = 0;
 #endif
 
 static QHash<void *, void *> _link_map;
@@ -178,6 +176,9 @@ static void myMessageHandler(QtMsgType type, const QMessageLogContext &context, 
 	//fprintf(stderr, "---- `%s'\n", QT_ToUtf8(msg));
 	
 	if (msg == "QXcbClipboard: SelectionRequest too old")
+		return;
+	
+	if (msg.startsWith("QXcbConnection: ") && msg.contains("(TranslateCoords)"))
 		return;
 
 	_previousMessageHandler(type, context, msg);
@@ -421,7 +422,7 @@ static bool QT_EventFilter(QEvent *e)
 			GB.FreeString(&CKEY_info.text);
 			//qDebug("IMEnd: %s", imevent->text().latin1());
 			CKEY_info.text = GB.NewZeroString(QT_ToUtf8(imevent->commitString()));
-			CKEY_info.state = 0;
+			CKEY_info.state = Qt::KeyboardModifiers();
 			CKEY_info.code = 0;
 		}
 	}
@@ -572,7 +573,7 @@ void MyApplication::commitDataRequested(QSessionManager &session)
 
 //---------------------------------------------------------------------------
 
-static void x11_set_event_filter(void (*filter)(XEvent *))
+static void x11_set_event_filter(int (*filter)(XEvent *))
 {
 	_x11_event_filter = filter;
 }
@@ -682,6 +683,7 @@ public:
 					xev.xconfigure.override_redirect = e->override_redirect;
 					break;
 				}
+				
 				case XCB_PROPERTY_NOTIFY:
 				{
 					xcb_property_notify_event_t *e = (xcb_property_notify_event_t *)ev;
@@ -730,16 +732,20 @@ public:
 					xev.xclient.window = e->window;
 					xev.xclient.message_type = e->type;
 					xev.xclient.format = e->format;
-					memcpy(&xev.xclient.data, &e->data, 20);
+					xev.xclient.data.l[0] = e->data.data32[0];
+					xev.xclient.data.l[1] = e->data.data32[1];
+					xev.xclient.data.l[2] = e->data.data32[2];
+					xev.xclient.data.l[3] = e->data.data32[3];
+					xev.xclient.data.l[4] = e->data.data32[4];
 					break;
 				}
 
 				default:
-					//qDebug("gb.qt5: warning: unhandled xcb event: %d", type);
+					qDebug("gb.qt5: warning: unhandled xcb event: %d", type);
 					return false;
 			}
 
-			(*_x11_event_filter)(&xev);
+			return (*_x11_event_filter)(&xev) != 0;
 		}
 
 		return false;
@@ -759,7 +765,7 @@ bool MyApplication::x11EventFilter(XEvent *e)
 		MAIN_x11_last_key_code = e->xkey.keycode;
 
 	if (_x11_event_filter)
-		(*_x11_event_filter)(e);
+		return (*_x11_event_filter)(e);
 
 	return false;
 }
@@ -835,7 +841,7 @@ static bool must_quit(void)
 	#if DEBUG_WINDOW
 	qDebug("must_quit: Window = %d Watch = %d in_event_loop = %d MAIN_in_message_box = %d _prevent_quit = %d", CWindow::count, CWatch::count, in_event_loop, MAIN_in_message_box, _prevent_quit);
 	#endif
-	return CWINDOW_must_quit() && CWatch::count == 0 && in_event_loop && MAIN_in_message_box == 0 && _prevent_quit == 0;
+	return CWINDOW_must_quit() && CWatch::count == 0 && in_event_loop && MAIN_in_message_box == 0 && _prevent_quit == 0 && !GB.HasActiveTimer();
 }
 
 static void check_quit_now(intptr_t param)
@@ -943,8 +949,7 @@ __INSTALL_TRANSLATOR:
 	qApp->installTranslator(_translator);
 
 __SET_DIRECTION:
-	if (rtl)
-		qApp->setLayoutDirection(Qt::RightToLeft);
+	qApp->setLayoutDirection(rtl ? Qt::RightToLeft : Qt::LeftToRight);
 }
 
 static void hook_lang(char *lang, int rtl)
@@ -1001,6 +1006,7 @@ static void hook_quit()
 
 	CWINDOW_close_all(true);
 	CWINDOW_delete_all(true);
+	CMOUSE_set_control(NULL);
 
 	qApp->sendPostedEvents(); //processEvents(QEventLoop::ExcludeUserInputEvents | QEventLoop::DeferredDeletion, 0);
 	qApp->sendPostedEvents(0, QEvent::DeferredDelete);
@@ -1030,22 +1036,33 @@ static void hook_loop()
 
 static void hook_wait(int duration)
 {
+	static bool _warning = FALSE;
+	
 	if (MyDrawingArea::inAnyDrawEvent())
 	{
 		GB.Error("Wait is forbidden during a repaint event");
 		return;
 	}
 
-	MAIN_in_wait++;
-	if (duration > 0)
+	if (CKEY_is_valid() && duration != -1)
 	{
-		if (CKEY_is_valid())
+		if (!_warning)
+		{
 			fprintf(stderr, QT_NAME ": warning: calling the event loop during a keyboard event handler is ignored\n");
-		else
-			qApp->processEvents(QEventLoop::AllEvents, duration);
+			_warning = TRUE;
+		}
+		return;
 	}
-	else
-		qApp->processEvents(QEventLoop::ExcludeUserInputEvents, duration);
+	
+	MAIN_in_wait++;
+	
+	if (duration >= 0)
+		qApp->processEvents(QEventLoop::AllEvents, duration);
+	else if (duration == -1)
+		qApp->processEvents(QEventLoop::ExcludeUserInputEvents, 0);
+	else if (duration == -2)
+		qApp->processEvents(QEventLoop::AllEvents | QEventLoop::WaitForMoreEvents);
+	
 	MAIN_in_wait--;
 }
 
@@ -1062,6 +1079,8 @@ static void hook_timer(GB_TIMER *timer, bool on)
 
 	if (on)
 		timer->id = (intptr_t)(new MyTimer(timer));
+	else
+		MAIN_check_quit();
 }
 
 
@@ -1087,9 +1106,10 @@ static void hook_post(void)
 }
 
 
-static void hook_error(int code, char *error, char *where)
+static bool hook_error(int code, char *error, char *where, bool in_event_loop)
 {
 	QString msg;
+	int ret;
 
 	qApp->restoreOverrideCursor();
 	while (qApp->activePopupWidget())
@@ -1100,23 +1120,23 @@ static void hook_error(int code, char *error, char *where)
 
 	if (code > 0)
 	{
-		msg = msg + "[%1] %2.<br>%3";
+		msg = msg + "[%1] %2.<br><br><tt>%3</tt>";
 		msg = msg.arg(code).arg(TO_QSTRING(error)).arg(where);
 	}
 	else
 	{
-		msg = msg + "%1.<br>%2";
+		msg = msg + "%1.<br><br><tt>%2</tt>";
 		msg = msg.arg(TO_QSTRING(error)).arg(where);
 	}
 
 	release_grab();
 	MAIN_in_message_box++;
-	QMessageBox::critical(0, TO_QSTRING(GB.Application.Name()), msg);
+	ret = QMessageBox::critical(0, TO_QSTRING(GB.Application.Name()), msg, in_event_loop ? QMessageBox::Close | QMessageBox::Ignore : QMessageBox::Ok);
 	MAIN_in_message_box--;
 	unrelease_grab();
 	MAIN_check_quit();
 
-	//qApp->exit();
+	return ret == QMessageBox::Ignore;
 }
 
 static void QT_Init(void)
@@ -1124,6 +1144,7 @@ static void QT_Init(void)
 	static bool init = false;
 	QFont f;
 	char *env;
+	bool fix_style;
 
 	if (init)
 		return;
@@ -1141,6 +1162,8 @@ static void QT_Init(void)
 
 	/*fcntl(ConnectionNumber(qt_xdisplay()), F_SETFD, FD_CLOEXEC);*/
 
+	fix_style = false;
+	
 	if (::strcmp(qApp->style()->metaObject()->className(), "Breeze::Style") == 0)
 	{
 		env = getenv("GB_QT_NO_BREEZE_FIX");
@@ -1148,6 +1171,7 @@ static void QT_Init(void)
 		{
 			CSTYLE_fix_breeze = TRUE;
 			qApp->setStyle(new FixBreezeStyle);
+		fix_style = true;
 		}
 	}
 	else if (::strcmp(qApp->style()->metaObject()->className(), "Oxygen::Style") == 0)
@@ -1157,8 +1181,12 @@ static void QT_Init(void)
 		{
 			CSTYLE_fix_oxygen = TRUE;
 			qApp->setStyle(new FixBreezeStyle);
+			fix_style = true;
 		}
 	}
+	
+	if (!fix_style)
+		qApp->setStyle(new FixStyle);
 
 	MAIN_update_scale(qApp->desktop()->font());
 
@@ -1262,6 +1290,11 @@ static void *QT_CreatePicture(const QPixmap &p)
 	return CPICTURE_create(&p);
 }
 
+/*static void *QT_CreateImage(const Image &p)
+{
+	return CIMAGE_create(&p);
+}*/
+
 void MyApplication::linkDestroyed(QObject *qobject)
 {
 	void *object = _link_map.value(qobject, 0);
@@ -1312,13 +1345,18 @@ static void declare_tray_icon()
 	GB.Component.Declare(TrayIconsDesc);
 }
 
+static int QT_GetDesktopScale(void)
+{
+	return MAIN_scale;
+}
+
 extern "C" {
 
 GB_DESC *GB_CLASSES[] EXPORT =
 {
-	CBorderDesc, CColorDesc,
-	CAlignDesc, CArrangeDesc, CScrollDesc, CKeyDesc, CSelectDesc,
-	CImageDesc, CPictureDesc,
+	BorderDesc, CColorDesc,
+	AlignDesc, ArrangeDesc, ScrollDesc, CKeyDesc, SelectDesc, DirectionDesc,
+	CImageDesc, CPictureDesc, AnimationDesc,
 	CFontDesc, CFontsDesc,
 	CMouseDesc, CCursorDesc, CPointerDesc,
 	CClipboardDesc, CDragDesc,
@@ -1327,15 +1365,14 @@ GB_DESC *GB_CLASSES[] EXPORT =
 	CControlDesc, ContainerChildrenDesc, ContainerDesc,
 	UserControlDesc, UserContainerDesc,
 	CMenuChildrenDesc, CMenuDesc,
-	CLabelDesc, CTextLabelDesc, CSeparatorDesc,
 	CButtonDesc, CToggleButtonDesc, CToolButtonDesc,
 	CCheckBoxDesc, CRadioButtonDesc,
-	CTextBoxSelectionDesc, CTextBoxDesc, CComboBoxItemDesc, CComboBoxDesc,
+	CTextBoxSelectionDesc, CTextBoxDesc,
 	CTextAreaSelectionDesc, CTextAreaDesc,
-	CFrameDesc, CPanelDesc, CHBoxDesc, CVBoxDesc, CHPanelDesc, CVPanelDesc,
+	CPanelDesc, CHBoxDesc, CVBoxDesc, CHPanelDesc, CVPanelDesc,
 	CTabStripContainerChildrenDesc, CTabStripContainerDesc, CTabStripDesc,
 	CDrawingAreaDesc,
-	CSliderDesc, CMovieBoxDesc, CScrollBarDesc,
+	SliderDesc, ScrollBarDesc,
 	CWindowMenusDesc, CWindowControlsDesc, CWindowDesc, CWindowsDesc, CFormDesc,
 	CDialogDesc,
 #ifndef QT5
@@ -1370,6 +1407,7 @@ void *GB_QT4_1[] EXPORT =
 	(void *)QT_CreatePicture,
 	//(void *)QT_MimeSourceFactory,
 	(void *)QT_GetPixmap,
+	//(void *)QT_CreateImage,
 	(void *)QT_ToUtf8,
 	(void *)QT_GetLastUtf8Length,
 	(void *)QT_NewString,
@@ -1383,6 +1421,7 @@ void *GB_QT4_1[] EXPORT =
 	(void *)CWIDGET_get_background,
 	(void *)Control_Mouse,
 	(void *)CWIDGET_after_set_color,
+	(void *)QT_GetDesktopScale,
 	NULL
 };
 

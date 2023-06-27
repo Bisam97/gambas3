@@ -132,9 +132,11 @@ Public Function _call() As String
     
     For I = 0 To $aField.Max
       If I Then sReq &= ","
-      aScan = Scan($aField[i], "* AS *")
+      aScan = Scan($aField[I], "* AS *")
       If aScan.Count = 2 And If InStr(aScan[1], " ") = 0 Then
         sReq &= $aField[I]
+      Else If $aField[I] = "*" Then
+        sReq &= "*"
       Else
         sReq &= $hConn.Quote($aField[I])
       Endif

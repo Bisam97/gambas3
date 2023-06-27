@@ -75,12 +75,8 @@ Static Private Sub GetColorFromString(sRgb As String) As Integer
       Return Val("&H" & Mid$(sRgb, 2, 6))
     Endif
   Endif
-  
-Catch
-  
+
 End
-
-
 
 Public Sub _new(hModule As Object, hMenuButton As MenuButton)
   
@@ -92,7 +88,7 @@ Public Sub _new(hModule As Object, hMenuButton As MenuButton)
     Case "gambas"
       $aPattern = ["&HRxGxBx", "#RxGxBx", "&RxGxBx"]
       $aPatternSearch = ["&H", "#", "&"]
-    Case "css", "html"
+    Case "css", "html", "xml"
       $aPattern = ["#RxGxBx", "rgb(Ri,Gi,Bi)"]
       $aPatternSearch = ["#", "rgb(", "rgba("]
     Case "webpage"
@@ -119,6 +115,55 @@ Private Sub GetEditor() As TextEditor
   
 End
 
+Private Sub ReadColor(sText As String, iPos As Integer, sPattern As String, Optional ByRef iLen As Integer) As String
+
+  Dim aScan As String[]
+  Dim sColor As String
+  Dim iStart As Integer
+  
+  If sPattern Begins "rgb" Then
+    
+    If sPattern Begins "rgba(" Then
+      aScan = Scan(Mid$(sText, iPos), sPattern & "*,*,*,*)*")
+      If aScan.Count <> 5 Then Return
+    Else
+      aScan = Scan(Mid$(sText, iPos), sPattern & "*,*,*)*")
+      If aScan.Count <> 4 Then Return
+    Endif
+    aScan.Pop()
+    sColor = sPattern & aScan.Join() & ")"
+    
+    If Not IsMissing(iLen) Then 
+      iLen = String.Len(Mid$(sText, iPos, InStr(sText, ")", iPos) - iPos + 1))
+    Endif
+    
+  Else
+    
+    If Mid$(sText, iPos) Not Begins sPattern Then Return
+    
+    iStart = iPos
+    iPos += Len(sPattern)
+    sColor = ""
+    While IsHexa(Mid$(sText, iPos, 1)) And Len(sColor) < 6
+      sColor &= Mid$(sText, iPos, 1)
+      Inc iPos
+    Wend
+    If Len(sColor) = 0 Then Return
+    If IsLetter(Mid$(sText, iPos, 1)) Then Return
+    If Len(sColor) < 3 Then Return
+  
+    'sColor = String$(6 - Len(sColor), "0") & sColor
+    sColor = sPattern & sColor
+    
+    If Not IsMissing(iLen) Then 
+      iLen = String.Len(Mid$(sText, iStart, iPos - iStart))
+    Endif
+    
+  Endif
+  
+  Return sColor
+
+End
 
 Public Sub Menu_Show()
   
@@ -129,7 +174,6 @@ Public Sub Menu_Show()
   Dim aColor As New String[]
   Dim hMenu As Menu
   Dim hImage As Image
-  Dim aScan As String[]
   Dim I As Integer
   Dim iColor As Integer
   Dim hPattern As Image
@@ -142,36 +186,10 @@ Public Sub Menu_Show()
       iPos = InStr(sText, sPattern, iPos + 1)
       If iPos = 0 Then Break
       
-      If sPattern Begins "rgb" Then
-        
-        If sPattern Begins "rgba(" Then
-          aScan = Scan(Mid$(sText, iPos), sPattern & "*,*,*,*)*")
-          If aScan.Count <> 5 Then Continue
-        Else
-          aScan = Scan(Mid$(sText, iPos), sPattern & "*,*,*)*")
-          If aScan.Count <> 4 Then Continue
-        Endif
-        aScan.Pop()
-        sColor = sPattern & aScan.Join() & ")"
-        
-      Else
-        
-        iPos += Len(sPattern)
-        sColor = ""
-        While IsHexa(Mid$(sText, iPos, 1)) And Len(sColor) < 6
-          sColor &= Mid$(sText, iPos, 1)
-          Inc iPos
-        Wend
-        If Len(sColor) = 0 Then Continue
-        If IsLetter(Mid$(sText, iPos, 1)) Then Continue
-        If Len(sColor) < 3 Then Continue
-      
-        'sColor = String$(6 - Len(sColor), "0") & sColor
-        sColor = sPattern & sColor
-        
-      Endif
-      
-      iColor = GetColorFromString(sColor)
+      sColor = ReadColor(sText, iPos, sPattern)
+      If Not sColor Then Continue
+      Try iColor = GetColorFromString(sColor)
+      If Error Then Continue
       GoSub ADD_COLOR
       If aColor.Count >= 100 Then Break
       
@@ -193,19 +211,18 @@ Public Sub Menu_Show()
 
   $hMenu.Children.Clear
   
-  hPattern = Image.Load("img/16/tile.png")
-  hPattern.FillRect(0, 0, 16, 1, Color.Gray)
-  hPattern.FillRect(0, 0, 1, 16, Color.Gray)
-  hPattern.FillRect(0, 15, 16, 1, Color.Gray)
-  hPattern.FillRect(15, 0, 1, 16, Color.Gray)
+  hPattern = Image.Load("img/32/tile.png")
+  Paint.Begin(hPattern)
+  Paint.DrawRect(0, 0, 32, 32, Color.LightForeground, 2)
+  Paint.End
   
   For Each sColor In aColor
     hMenu = New Menu($hMenu) As "MenuColor"
     hMenu.Text = Replace(sColor, "&", "&&")
     hMenu.Tag = sColor
     hImage = hPattern.Copy()
-    hImage.PaintRect(1, 1, hImage.W - 2, hImage.H - 2, GetColorFromString(sColor))
-    hMenu.Picture = hImage.Picture
+    hImage.PaintRect(2, 2, 28, 28, GetColorFromString(sColor))
+    hMenu.Picture = hImage.Stretch(Desktop.Scale * 2, Desktop.Scale * 2).Picture
   Next
   
   Return
@@ -234,8 +251,48 @@ Public Sub MenuColor_Click()
 End
 
 Public Sub Button_Click()
+
+  Dim hEditor As TextEditor
+  Dim sColor As String
+  Dim sLine As String
+  Dim X As Integer
+  Dim XD As Integer
+  Dim iLen As Integer
+  Dim sPattern As String
+  Dim iColor As Integer = Color.White
   
-  If FColorChooser.Insert(False, ("Insert color"), $aPattern) Then Return
+  hEditor = GetEditor()
+  sLine = hEditor[hEditor.Line].Text
+  iLen = hEditor[hEditor.Line].Length
+  X = hEditor.Column
+  
+  XD = X
+  While XD > 0
+    
+    For Each sPattern In $aPatternSearch
+      
+      sColor = ReadColor(sLine, String.Pos(sLine, XD + 1), sPattern, ByRef iLen)
+      If Not sColor Then Continue
+      Try iColor = GetColorFromString(sColor)
+      If Error Then Continue
+      
+      If XD + iLen >= X Then
+        hEditor.Select(XD, hEditor.Line, XD + iLen, hEditor.Line)
+      Else 
+        sColor = ""
+      Endif
+      
+      Goto OPEN_DIALOG
+      
+    Next
+    
+    Dec XD
+    
+  Wend
+  
+OPEN_DIALOG:
+  
+  If FColorChooser.Insert(False, ("Insert color"), $aPattern, "&H" & Hex$(iColor, 6)) Then Return
   
   With GetEditor()
     .Insert(FColorChooser.Pattern)

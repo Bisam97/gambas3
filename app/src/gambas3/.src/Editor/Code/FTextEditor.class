@@ -19,22 +19,19 @@
 ' Boston, MA  02110-1301  USA
 '
 
-Static Public CompressMessage As String
-
 Public Path As String
 Public RichText As String
 Public Age As Integer
 
 Property Read ReadOnly As Boolean
 
-Static Private $aExt As String[] = ["htm", "html", "xml", "kml", "svg", "css", "webpage", "js", "c", "h", "cpp", "gbs"]
+Static Private $aExt As String[] = ["htm", "html", "xml", "kml", "svg", "css", "webpage", "js", "c", "h", "cpp", "gbs", "rss", "md"]
 
 Private $hEditor As TextEditor
 Private $bNoHighlight As Boolean
 Private $bModule As Boolean
 Private $bConsole As Boolean
 
-Private $bShowCompress As Boolean
 Private $bShowComment As Boolean
 Private $bShowPretty As Boolean
 
@@ -57,6 +54,21 @@ Private $aProc As String[]
 
 Private $bWebPage As Boolean
 Private $iLastLine As Integer
+
+Private $bDiffMode As Boolean
+
+Static Private $sDefaultStyleSheet As String
+
+Private Enum PREVIEW_NONE, PREVIEW_HTML, PREVIEW_MARKDOWN
+
+Private $hPreview As HelpBrowser
+Private $iShowPreview As Integer
+Private $hTimerPreview As Timer
+Private $sTempPreview As String
+Private $bMovePreviewOnReady As Boolean
+Private $bPreviewReady As Boolean
+Private $aStyleSheet As String[]
+Private $iCurrentStyleSheet As Integer
 
 Public Sub _new(sPath As String, Optional bModule As Boolean)
 
@@ -83,7 +95,6 @@ Public Sub GetEditor() As TextEditor
   
 End
 
-
 Public Sub LoadFile() As Boolean
   
   Dim sExt As String
@@ -98,6 +109,7 @@ Public Sub LoadFile() As Boolean
   $bConsole = False
   $bShowComment = False
   $bShowPretty = False
+  $iShowPreview = PREVIEW_NONE
   
   If Path Then
   
@@ -118,11 +130,14 @@ Public Sub LoadFile() As Boolean
           $bShowPretty = True
         Case "gbs"
           $bShowPretty = True
+        Case "md"
+          $iShowPreview = PREVIEW_MARKDOWN
+        Case "html", "htm"
+          $iShowPreview = PREVIEW_HTML
       End Select
       
       edtEditor.Mode = TextEditor.GetModeFromPath(Path)
       
-      $bShowCompress = MCompressFile.CanCompress(Path) And Not Project.IsHiddenPath(Path)
       $bShowComment = True
       '$bShowPretty = True
       $bNoHighlight = False
@@ -179,6 +194,7 @@ End
 Public Sub ReadConfig()
 
   Project.SetSmallFont(panToolbar)
+  Project.SetSmallFont(tlbPreview)
   edtEditor.ReadConfig(True)
   'edtEditor.Parent.Background = edtEditor.Styles[Highlight.Background].Color
   If $hEditor1 Then $hEditor1.ReadConfig(True)
@@ -187,21 +203,30 @@ Public Sub ReadConfig()
 
 End
 
-Public Function Save() As Boolean
+Public Function Save(Optional bForce As Boolean) As Boolean
 
   'Project.Config.WriteString("/Window" &/ Name &/ "Pos",
   '  CStr(ME.X) & "," & CStr(ME.Y) & "," & CStr(ME.Width) & "," & CStr(ME.Height))
 
-  If Not $bModify Then Return
+  Dim sPath As String
+  
+  If Not $bModify And If Not bForce Then Return
+  
+  $hCompletion.Hide
+  
+  sPath = Path
+  
+  Save.Begin(sPath)
+  
+  $hEditor.Save(sPath)
 
-  Save.Begin(Path)
-
-  $hEditor.Save(Path)
   ' TODO: Editor.Reset
   $bModify = False
   DrawTitle
-
+  
   Save.End()
+
+  UpdateDiffAction
 
 Catch
 
@@ -226,14 +251,11 @@ Public Sub Modify(Optional bReset As Boolean)
 
   If Project.ReadOnly Then Return
   
-  $bModify = True
   Inc Project.TimeStamp
   Inc Age
-  FSearch.OnFileChange(Me.Path)
   
-  If bReset Then
-    $bModify = False
-  Endif
+  $bModify = Not bReset
+  If $bModify Then FSearch.OnFileChange(Me.Path)
 
   DrawTitle
   
@@ -246,11 +268,18 @@ Public Function IsModified() As Boolean
 
 End
 
+Private Sub HasPreview() As Boolean
+  
+  Return panPreview.Visible
+  
+End
+
 
 Public Sub Editors_Change()
 
   $cProc = Null
   Modify
+  If HasPreview() Then $hTimerPreview.Restart
 
 End
 
@@ -353,6 +382,7 @@ Public Sub Editors_KeyPress()
    
   If Key.Code = Key.Return Or If Key.Code = Key.Enter Then
     If Key.Normal Then
+      
       If $bWebPage Then
         If InAlternate() And If Not FindCloseAlternate() Then
           $hEditor.Insert("\n%>")
@@ -360,7 +390,13 @@ Public Sub Editors_KeyPress()
           Stop Event
         Endif
       Endif
+      
     Endif
+    
+  Else If Key.Code = Key.Insert Then
+    
+    Project.UpdateStatus()
+    
   Endif
   
 End
@@ -543,11 +579,7 @@ End
 
 Public Sub mnuGotoLine_Click()
 
-  Dim iLine As Integer
-
-  iLine = FGotoLine.Run($hEditor.Line + 1)
-  If iLine <= 0 Then Return
-  GotoCenter(iLine - 1)
+  $hEditor.ShowGotoPanel
 
 End
 
@@ -665,14 +697,24 @@ End
 Public Sub Reload()
 
   Dim sText As String
-  sText = File.Load(Path)
+  Dim sPath As String
+  Dim sStart As String
+  
+  sPath = Path
+  
+  sText = File.Load(sPath)
   
   If $bNoHighlight Then
-    If LTrim(sText) Like "<!DOCTYPE*" Or If LTrim(sText) Like "<html*" Then
+    sStart = Left(LTrim(sText), 64)
+    If sStart Like "<!DOCTYPE*" Or If sStart Like "<html*" Then
       edtEditor.Mode = "html"
       $bNoHighlight = False
       $bShowComment = True
       '$bShowPretty = True
+    ' Else If sStart Like "#!*/bin/sh\n*" Or If sStart Like "#!*/bin/bash\n*" Then
+    '   edtEditor.Mode = "sh"
+    '   $bNoHighlight = False
+    '   $bShowComment = True
     Else
       edtEditor.Mode = ""
     Endif
@@ -687,6 +729,10 @@ Public Sub Reload()
   Modify(True)
   
   If Settings["/FormatCode/FormatOnLoad"] Then MPrettyCode.Run(Me)
+
+  UpdateDiffAction
+  
+  $hEditor.Reset
 
 End
 
@@ -805,9 +851,9 @@ Public Sub mnuShowCode_Click()
 End
 
 Public Sub GetText() As String
-  
+
   Return $hEditor.Text
-  
+
 End
 
 Public Sub GetPosition() As Integer
@@ -816,15 +862,19 @@ Public Sub GetPosition() As Integer
 
 End
 
-Public Sub SetPosition(hResult As CFindResult, Optional bJustCheck As Boolean) As Boolean
+Public Sub SetPosition(hResult As CSearchResult, Optional bJustCheck As Boolean) As Boolean
   
-  Return $hEditor.SetPosition(hResult, bJustCheck)
+  Dim bResult As Boolean
   
-End
+  If bJustCheck Then
+    hResult.Location = GetProcAt(hResult.Line)
+  Endif
 
-Public Sub Replace(sReplace As String) As Boolean
+  bResult = $hEditor.SetPosition(hResult, bJustCheck)
   
-  Return $hEditor.Replace(sReplace)
+  If Not bJustCheck Then CPosition.SaveCurrent(Me)
+  
+  Return bResult
   
 End
 
@@ -840,116 +890,19 @@ Public Sub mnuInsertColor_Click()
 
 End
 
-Private Sub SetText(sText As String)
-  
-  $hEditor.Text = sText
-  $bModify = True
-  Me.Save
-  $cProc = Null
-  UpdateCurrentProc
-  'Editor.Begin
-  'Editor.SelectAll
-  'Editor.Insert(sText)
-  'Editor.End
-  
-End
-
-Private Sub GetUncompressPath() As String
-  
-  Return Project.Dir &/ ".hidden/Uncompressed" &/ Mid$(Path, Len(Project.Dir) + 1)
-  
-End
-
-Public Sub Compress() As Boolean
-  
-  Dim sText As String
-  Dim iLen As Integer
-  Dim fGain As Float
-  Dim sPath As String
-  
-  CompressMessage = ""
-  
-  If Project.IsHiddenPath(Path) Then Return
-  
-  Inc Application.Busy
-  Me.Save
-  sText = $hEditor.Text
-  iLen = Len(sText)
-  
-  If iLen > 0 Then
-  
-    Select Case $hEditor.Highlight 
-      Case "javascript"
-        sText = MCompressFile.Javascript(sText)
-      Case "css"
-        sText = MCompressFile.Css(sText)
-      Case "html"
-        sText = MCompressFile.Html(sText)
-    End Select
-    
-    fGain = Len(sText) / iLen
-    
-  Else
-    
-    fGain = 1
-    
-  Endif
-    
-  Dec Application.Busy
-  
-  If fGain < 0.95 Then 'Or If (iLen - Len(sText)) >= 256 Then
-    sPath = GetUncompressPath()
-    If Not Exist(File.Dir(sPath)) Then Project.InsertDirectory(File.Dir(sPath))
-    If Not Exist(sPath) Then 
-      Project.InsertFile(File.Name(sPath), File.Dir(sPath), Path, True)
-    Else
-      $hEditor.Save(sPath)
-    Endif
-    SetText(sText)
-    CompressMessage = "<b>" & Subst(("The file has been compressed from &1 to &2 bytes (&3)."), Str(iLen), Str(Len(sText)), Format(fGain, "#.##%")) & "</b> " & ("Original file has been saved in the <b>Project</b> folder.")
-  Endif
-  
-  FSearch.OnFileChange(Me.Path)
-  
-Catch 
-  
-  Dec Application.Busy
-  CompressMessage = "<b>" & ("Unable to compress file.") & "</b><p>" & Error.Text & "\n" & Error.Backtrace.Join(" ")
-  Return True
-  
-End
-
-
-Public Sub mnuCompress_Click()
-
-  If Compress() Then
-    FMain.ShowError(CompressMessage)
-  Else
-    'If CompressMessage Then $hEditor.ShowMessageLabel(CompressMessage, Highlight.Background, True)
-    If CompressMessage Then Balloon(CompressMessage, btnCompress)
-  Endif
-  
-End
-
-Public Sub Uncompress()
-  
-  Dim sPath As String
-  
-  If Project.IsHiddenPath(Path) Then Return
-  
-  sPath = GetUncompressPath()
-  If Not Exist(sPath) Then Return
-  SetText(File.Load(sPath))
-  FSearch.OnFileChange(Me.Path)
-  
-End
-
-
-Public Sub mnuUncompress_Click()
-  
-  Uncompress
-  
-End
+' Private Sub SetText(sText As String)
+'   
+'   $hEditor.Text = sText
+'   $bModify = True
+'   Me.Save
+'   $cProc = Null
+'   UpdateCurrentProc
+'   'Editor.Begin
+'   'Editor.SelectAll
+'   'Editor.Insert(sText)
+'   'Editor.End
+'   
+' End
 
 Private Sub RefreshLineInfo(Optional bForce As Boolean) As Boolean
 
@@ -965,6 +918,8 @@ Private Sub RefreshLineInfo(Optional bForce As Boolean) As Boolean
 
     UpdateCurrentProc
     bNewLine = True
+    
+    RefreshPreview
 
   Endif
 
@@ -979,23 +934,9 @@ Public Sub Editors_Cursor()
   Endif
   
   CPosition.SaveCurrent(Me)
+  Project.UpdateStatus(True)
 
 End
-
-Public Sub Editors_MouseDown()
-  
-  CPosition.Disable
-  
-End
-
-Public Sub Editors_MouseUp()
-  
-  CPosition.Enable
-  CPosition.SaveCurrent(Me)
-  
-End
-
-
 
 Public Sub mnuLowerCase_Click()
   
@@ -1023,11 +964,11 @@ Public Sub mnuUpperCase_Click()
   
 End
 
-Public Sub ShowErrorMessage(sMsg As String, (sIcon) As String)
+Public Sub ShowErrorMessage(sMsg As String)
 
   $hEditor.SetFocus
   Wait
-  $hEditor.ShowMessageLabel(sMsg, Highlight.Breakpoint)
+  $hEditor.ShowMessageLabel(sMsg, "Breakpoint")
 
 End
 
@@ -1116,6 +1057,8 @@ Private Sub GetCurrentProc(Optional iLine As Integer = $hEditor.Line) As String
     
   Wend
   
+Finally
+  
   If Not sProc Then sProc = ("(Declarations)")
   Return sProc
   
@@ -1138,7 +1081,7 @@ Private Sub FillProc()
   Dim iLine As Integer
   Dim sText As String
   Dim sProc, sProcNum As String
-  Dim iNum As String
+  Dim iNum As Integer
   Dim bDecl As Boolean
 
   If $cProc Then Return
@@ -1203,8 +1146,12 @@ Private Sub ToggleProcList()
   FillProc
   iCurrent = $aProc.Find(btnProc.Text)
 
-  iCurrent = FProcedureList.Popup(Null, "", $aProc, iCurrent, btnProc.ScreenX, btnProc.ScreenY + btnProc.H, Desktop.Scale * 48, Me.ClientH - panToolbar.H - Desktop.Scale)
+  iCurrent = FProcedureList.Popup(Null, "", $aProc, iCurrent, btnProc.ScreenX, btnProc.ScreenY + btnProc.H, btnProc.W, Me.ClientH - panToolbar.H - Desktop.Scale)
+  
+  $hEditor.SetFocus
+  
   If iCurrent >= 0 Then
+    FillProc ' It is reset sometimes, for unknown reason at the moment
     Try iLine = $cProc[$aProc[iCurrent]]
     GotoProc(iLine)
   Endif
@@ -1214,12 +1161,14 @@ End
 Private Sub GotoProc(iLine As Integer)
   
   $hEditor.GotoCenter(0, iLine)
+  CPosition.SaveCurrent(Me)
   
 End
 
 Public Sub panToolBar_Configure()
 
   UpdateMenu
+  UpdateDiffAction
 
   If $bModule Then
     'Action[".show-class"].Picture = Project.GetFileIcon(File.SetExt(Path, "class"), 16)
@@ -1229,6 +1178,8 @@ Public Sub panToolBar_Configure()
     btnShowCode.Hide
     mnuShowCode.Hide
   Endif
+
+  btnProc.Visible = edtEditor.Mode <> ""
 
 End
 
@@ -1244,14 +1195,14 @@ Private Sub UpdateMenu()
 
   bVisible = Not edtEditor.ReadOnly
 
-  Action[".save,.undo,.redo,.cut,.paste,.color,.indent,.unindent,.lcase,.ucase,.sort-ascent,.sort-descent,.eol,.date,.char", Me].Visible = bVisible
+  Action[".save,.save-as,.undo,.redo,.cut,.paste,.color,.indent,.unindent,.lcase,.ucase,.sort-ascent,.sort-descent,.eol,.date,.char", Me].Visible = bVisible
   mnuAdvanced.Visible = bVisible
   mnuEndOfLine.Visible = bVisible
 
-  Action[".compress,.uncompress", Me].Visible = $bShowCompress And bVisible
   Action[".proc", Me].Visible = Not $bNoHighlight
   Action[".comment,.uncomment", Me].Visible = $bShowComment And bVisible
   Action[".pretty", Me].Visible = $bShowPretty And bVisible
+  Action[".preview", Me].Visible = $iShowPreview <> PREVIEW_NONE And Not panPreview.Visible
   
 End
 
@@ -1259,7 +1210,7 @@ Public Sub Form_Open()
 
   ReadConfig
   SetReadOnly
-  Action[".wrap", Me].Value = Settings["/Editor/WrapTextByDefault", False]
+  Action[".wrap", Me].Value = Settings["/Editor/WrapTextByDefault", True]
   Action[".tab-indent", Me].Value = Settings["/Editor/TabIndentByDefault", False]
 
 End
@@ -1284,7 +1235,7 @@ End
 
 Public Sub Editors_Scroll()
 
-  $hCompletion.Hide
+  $hCompletion.Position()
 
 End
 
@@ -1316,109 +1267,55 @@ Public Sub IsWordChar(sCar As String) As Boolean
   
   If Len(sCar) = 1 And If Asc(sCar) <= 32 Then Return False
   If IsDigit(sCar) Then Return True
-  If InStr("_", sCar) Then Return True
+  If InStr("_-$", sCar) Then Return True
   If IsLetter(String.RemoveDiacritics(sCar)) Then Return True
-  'Return InStr("&~\"#'{([|`\\^@)]°=+}€$£%*!§:/;.,?<>¢«»¥·©®¬¿×·÷¡ø", sCar) = 0
   
 End
 
-Public Sub CheckCompletion(sMode As String)
+Public Sub CheckCompletion()
 
   Dim sLine As String
   Dim sWord As String
   
   sLine = String.Left$($hEditor.Current.Text, $hEditor.Column)
-  '"If Right$(RTrim(sLine)) = "'" Then Return
-
-  ' If sMode = " " Then
-  '   
-  '   If GetRightString(sLine) Then Return
-  '   
-  '   If UCase(Right$(sLine, 3)) = " AS" Or If UCase(Right$(sLine, 4)) = " NEW" Or If UCase(Right$(sLine, 3)) = " IS" Or If UCase(sLine) = "INHERITS" Then
-  '     $hCompletion.Hide
-  '     FCompletion.Open(Me, sMode)
-  '   Endif
-  '   
-  ' Else If sMode = "." Then
-  '   
-  '   If GetRightString(sLine) Then Return
-  '   
-  '   Highlight.Analyze(sLine & ".")
-  '   aSymbols = Highlight.Symbols
-  '   aTypes = Highlight.Types
-  '   aSymbols.Remove(aSymbols.Count - 1)
-  '   aTypes.Remove(aTypes.Count - 1)
-  '   sType = GetExpressionType(aSymbols, aTypes, True)
-  '   If sType Then
-  '     'PRINT "Type: "; sType
-  '     FCompletion.Open(Me, sMode, sType, $bLastStatic, False) 'LCase(sType) = LCase(ME.Name))
-  '   Endif
-  '   
-  If sMode = "A" Then
+  
+  Select Case $hCompletion.Mode
+  
+    Case "A"
     
-    If Not FCompletion.VisibleFrom($hEditor) Then
-      
-      ' Select Case $hEditor.Highlight 
-      '   
-      '   Case "css"
-      '     
-      ' End Select
-      
-      sWord = $hCompletion.GetWord(sLine & Key.Text, $hEditor.Column + 1)
-      If String.Len(sWord) >= 3 Then FCompletion.Open(Me, "I", sWord)
-      'IF Len(sWord) >= 3 THEN DEBUG FindCompletion(sWord).Join(" ")
-      
-    Endif
+      If Not FCompletion.VisibleFrom($hEditor) Then
+        
+        sWord = $hCompletion.GetWord(sLine, $hEditor.Column)
+        If String.Len(sWord) >= 3 Then $hCompletion.OpenMode("I", sWord)
+        
+      Endif
     
-  Else If sMode = "<" Then
+    Case "<"
     
-    If Not $hEditor.Selected And If $hEditor.Column >= 1 And If Not FCompletion.VisibleFrom($hEditor) Then
-      
-      sLine = String.Left(sLine, -1)
-      sWord = GetRightString(sLine)
-      
-      If sWord Then
+      If Not $hEditor.Selected Then
         
-        If FCompletion.IsPath(sWord) Then
-          FCompletion.Open(Me, "/", sWord)
-          Return
-        Endif
-        
-      Else
-        
-        '$bCheckSignature = True
-        
+        $hCompletion.Hide
+          
         sWord = $hCompletion.GetWord(sLine, $hEditor.Column - 1)
-        ' If Right(sLine) <> "." And If Len(sLine) > Len(sWord) And If Mid$(sLine, Len(sLine) - Len(sWord), 1) = "." Then
-        '   iPos = Editor.Column
-        '   Editor.Goto(Editor.Line, Editor.Column - String.Len(sWord) - 2)
-        '   CheckCompletion(".")
-        '   FCompletion.SetText(sWord)
-        '   Editor.Goto(Editor.Line, iPos)
-        '   Return
-        ' Endif
         
         If Len(sWord) >= 3 Then 
-          FCompletion.Open(Me, sMode, sWord)
+          $hCompletion.Mode = "A"
+          CheckCompletion()
           Return
         Endif
         
       Endif
-      
+    
+    Case "/"
+    
+      sWord = GetRightString(sLine)
+      If sWord Then $hCompletion.Open(sWord)
+    
+    Case Else
+    
       $hCompletion.Hide
-        
-    Endif
     
-  Else If sMode = "/" Then
-    
-    sWord = GetRightString(sLine & "/")
-    If sWord Then FCompletion.Open(Me, "/", sWord)
-    
-  Else
-    
-    $hCompletion.Hide
-    
-  Endif
+  End Select
 
 End
 
@@ -1510,6 +1407,27 @@ Public Sub Action_Activate((Key) As String) As Boolean
         $hEditor1.TabIndent = $hEditor.TabIndent
         $hEditor2.TabIndent = $hEditor.TabIndent
       Endif
+    
+    Case ".diff"
+      UpdateDiffMode
+      
+    Case ".preview"
+      UpdatePreview
+      
+    Case ".preview-zoom-in"
+      $hPreview.ZoomIn
+      RefreshPreview
+    
+    Case ".preview-zoom-out"
+      $hPreview.ZoomOut
+      RefreshPreview
+    
+    Case ".preview-zoom-normal"
+      $hPreview.ZoomNormal
+      RefreshPreview
+      
+    Case ".preview-images"
+      $hPreview.Settings[WebSettings.AutoLoadImages] = btnLoadImages.Value
     
     Case Else
       Return True
@@ -1788,3 +1706,325 @@ Public Sub btnInsertChar_Click()
   FInsertChar.Run($hEditor, btnInsertChar.ScreenX, btnInsertChar.ScreenY + btnInsertChar.H)
 
 End
+
+Public Sub mnuPrint_Click()
+
+  MPrint.Run($hEditor, Me.Title)
+
+End
+
+Private Sub UpdateDiffAction()
+
+  Action[".diff", Me].Visible = Project.IsModified(Path)
+  Action[".diff-next,.diff-previous", Me].Visible = Action[".diff", Me].Visible And Action[".diff", Me].Value
+
+End
+
+Private Sub UpdateDiffMode()
+
+  If Action[".diff", Me].Value = $bDiffMode Then Return
+  $bDiffMode = Action[".diff", Me].Value
+  
+  UpdateDiffAction
+  
+  If $bDiffMode Then
+    
+    Me.Save()
+    If Not Action[".diff", Me].Visible Then 
+      $bDiffMode = False
+      Action[".diff", Me].Value = False
+      Return
+    Endif
+    $hEditor.EnterDiffModeWith(Path)
+    
+  Else
+  
+    $hEditor.LeaveDiffMode()  
+  
+  Endif
+  
+  SetReadOnly
+
+End
+
+Public Sub btnDiffPrevious_Click()
+
+  Dim Y As Integer
+  Y = $hEditor.FindPreviousDiff($hEditor.Line)
+  If Y >= 0 Then $hEditor.Goto($hEditor.Column, Y)
+
+End
+
+Public Sub btnDiffNext_Click()
+
+  Dim Y As Integer
+  Y = $hEditor.FindNextDiff($hEditor.Line)
+  If Y >= 0 Then $hEditor.Goto($hEditor.Column, Y)
+
+End
+
+Public Sub Preview_Ready()
+
+  If $bMovePreviewOnReady Then  
+    $bMovePreviewOnReady = False
+    Try $hPreview.ExecJavascript("goto_line(" & CStr($hEditor.Line) & ");")
+    If Error Then Error Error.Text
+  Endif
+  $bPreviewReady = True
+  
+End
+
+Private Sub RefreshPreview(Optional bReload As Boolean)
+
+  Dim sHtml As String
+  Dim bError As Boolean
+  Dim aHtml As String[]
+  Dim I As Integer
+  Dim bBody As Boolean
+  Dim iPos As Integer
+  
+  If Not HasPreview() Then Return
+  
+  If bReload Then
+    
+    $bPreviewReady = False
+    
+    Project.SetMessage(("Preview refresh..."))
+    
+    Select Case $iShowPreview
+      
+      Case PREVIEW_HTML
+        
+        sHtml = $hEditor.Text
+        
+        If InStr(Left(sHtml, 1024), "<body") = 0 Then sHtml = "<body>" & sHtml & "</body>"
+        If InStr(Left(sHtml, 256), "<head") = 0 Then sHtml = "<head><meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\"></head>" & sHtml
+        If InStr(Left(sHtml, 256), "<html") = 0 Then sHtml = "<html>" & sHtml & "</html>"
+        If LTrim(sHtml) Not Like "<doctype* <html*" Then
+          sHtml = "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 Transitional//EN\">\n" & sHtml
+        Endif
+        
+        aHtml = Split(sHtml, "\n")
+        For I = 0 To aHtml.Max
+          
+          If Not bBody Then
+            iPos = InStr(aHtml[I], "<body")
+            If iPos Then 
+              bBody = True
+              aHtml[I] &= "<script type=\"text/javascript\">" & File.Load("markdown/markdown.js") & "</script>"
+            Endif
+            Continue
+          Endif
+          
+          ' FIXME: Line number must me decremented, no idea why.
+          aHtml[I] = "<a id=\"l" & CStr(I - 1) & "\"></a>" & aHtml[I]
+          
+        Next
+        
+        sHtml = aHtml.Join("\n")
+
+      Case PREVIEW_MARKDOWN
+        
+        Markdown.LinkAnchors = True
+        Try sHtml = Markdown.ToHTML($hEditor.Text)
+        Markdown.LinkAnchors = False
+        If Error Then 
+          sHtml = "<pre>" & Html(Error.Text) & "\n\n" & Error.Backtrace.Join(" ") & "</pre>"
+          bError = True
+        Else
+          sHtml &= "<script type=\"text/javascript\">" & File.Load("markdown/markdown.js") & "</script>"
+        Endif
+        sHtml = "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 Transitional//EN\">\n<html><head><meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\">" & GetStyleSheet() & "</head><body>" & sHtml & "</body></html>"
+      
+    End Select
+  
+    Try Kill $sTempPreview
+    $sTempPreview = File.SetExt(Temp(), "html")
+    File.Save($sTempPreview, sHtml)
+    
+    $bMovePreviewOnReady = True
+    $hPreview.Url = "file://" & $sTempPreview '& "#l" & CStr($hEditor.Line + 1)
+    
+    Project.SetMessage("")
+    
+  Else
+    
+    'Debug $hEditor.Line
+    If $bPreviewReady Then $hPreview.ExecJavascript("goto_line(" & CStr($hEditor.Line) & ");")
+    
+  Endif
+
+End
+
+Private Sub FillStyleSheet()
+
+  Dim I As Integer
+  Dim hMenu As Menu
+  
+  $iCurrentStyleSheet = -1
+  
+  $aStyleSheet = RDir(Project.Dir &/ ".hidden", "*.css")
+  If $aStyleSheet.Count = 0 Then
+    btnStyleSheet.Hide
+    Return
+  Endif
+  
+  mnuStyleSheet.Children.Clear
+  
+  hMenu = New Menu(mnuStyleSheet) As "mnuStyleSheet"
+  hMenu.Text = ("Default style sheet")
+  btnStyleSheet.Text = hMenu.Text 
+  hMenu.Checked = True
+  
+  hMenu = New Menu(mnuStyleSheet)
+  
+  For I = 0 To $aStyleSheet.Max
+    hMenu = New Menu(mnuStyleSheet) As "mnuStyleSheet"
+    hMenu.Text = File.Name($aStyleSheet[I])
+    If Project.PreviewStyleSheet = $aStyleSheet[I] Then 
+      $iCurrentStyleSheet = I
+      btnStyleSheet.Text = hMenu.Text 
+    Endif
+    hMenu.Tag = I
+  Next
+  
+  btnStyleSheet.Show
+
+End
+
+Public Sub mnuStyleSheet_Click()
+
+  Dim hMenu As Menu
+  
+  For Each hMenu In mnuStyleSheet.Children
+    If Not hMenu.Text Then Continue
+    hMenu.Checked = hMenu = Last
+    If hMenu.Checked Then btnStyleSheet.Text = hMenu.Text
+  Next
+  
+  If IsNull(Last.Tag) Then
+    $iCurrentStyleSheet = -1
+    Project.PreviewStyleSheet = ""
+  Else
+    $iCurrentStyleSheet = Last.Tag
+    Project.PreviewStyleSheet = $aStyleSheet[$iCurrentStyleSheet]
+  Endif
+  
+  Project.WriteProject(True)
+  
+  RefreshPreview(True)  
+  
+End
+
+Private Sub GetStyleSheet() As String
+
+  Dim sPath As String
+  Dim sData As String
+  
+  If $iCurrentStyleSheet < 0 Then
+    If Not $sDefaultStyleSheet Then
+      $sDefaultStyleSheet = File.SetExt(Temp$(), "css")
+      sData = File.Load("markdown/markdown.css")
+      sData = Replace(sData, "$EXAMPLE", ("Example"))
+      File.Save($sDefaultStyleSheet, sData)
+    Endif
+    sPath = $sDefaultStyleSheet
+  Else
+    sPath = Project.Dir &/ ".hidden" &/ $aStyleSheet[$iCurrentStyleSheet]
+  Endif
+  
+  Return Subst("<link rel=\"stylesheet\" href=\"&1\">", sPath)
+
+End
+
+Private Sub UpdatePreview()
+
+  If btnPreview.Value Then
+    
+    If Not $hPreview Then
+      $hPreview = New HelpBrowser(panPreview) As "Preview"
+      $hPreview.Settings[WebSettings.Javascript] = True
+      $hPreview.Settings[WebSettings.AutoLoadImages] = btnLoadImages.Value
+      $hPreview.Expand = True
+      splPreview.Layout = [1, 1]
+      $hTimerPreview = New Timer As "TimerPreview"
+      $hTimerPreview.Delay = 500
+    Endif
+    
+    FillStyleSheet
+    panPreview.Show
+    RefreshPreview(True)
+    btnPreview.Hide
+    
+  Else
+    
+    panPreview.Hide
+    btnPreview.Show
+    
+  Endif
+
+End
+
+Public Sub TimerPreview_Timer()
+  
+  RefreshPreview(True)
+  $hTimerPreview.Stop
+  
+End
+
+Public Sub Preview_GotFocus()
+  
+  $hEditor.SetFocus
+  
+End
+
+Public Sub Preview_Menu()
+
+  Stop Event
+  
+End
+
+Public Sub Preview_Resize()
+  
+  RefreshPreview
+  
+End
+
+
+Public Sub btnClosePreview_Click()
+
+  btnPreview.Value = False
+
+End
+
+Public Sub btnBack_Click()
+
+  $hPreview.Back
+
+End
+
+Public Sub btnForward_Click()
+
+  $hPreview.Forward
+
+End
+
+Public Sub PaintStatus()
+  
+  FEditor.PaintEditorStatus($hEditor)
+  
+End
+
+Public Sub mnuSaveAs_Click()
+
+  If Save() Then Return
+  Project.SaveFileAs(Path)
+  
+End
+
+Public Sub mnuPasteSpecial_Click()
+
+  FPasteSpecial.Run($hEditor)
+
+End
+

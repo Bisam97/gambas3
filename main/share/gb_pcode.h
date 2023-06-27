@@ -2,7 +2,7 @@
 
   gb_pcode.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -29,6 +29,21 @@
 #define C_NOP                   0x0000
 
 #define C_PUSH_QUICK            0xF000
+
+#define C_PUSH_LOCAL_NOREF        0xF100
+#define C_PUSH_PARAM_NOREF        0xF200
+#define C_JUMP_IF_TRUE_FAST       0XF300
+#define C_JUMP_IF_FALSE_FAST      0XF400
+#define C_PUSH_VARIABLE           0xF500
+#define C_POP_VARIABLE            0xF600
+#define C_PUSH_FLOAT              0xF700
+#define C_POKE                    0xF800
+#define C_POP_LOCAL_NOREF         0xF900
+#define C_POP_PARAM_NOREF         0xFA00
+#define C_POP_LOCAL_FAST          0xFB00
+#define C_POP_PARAM_FAST          0xFC00
+#define C_JUMP_NEXT_INTEGER       0xFE00
+
 #define C_PUSH_CONST            0xE000
 
 #define C_POP_STATIC            0xD800
@@ -39,6 +54,21 @@
 #define C_PUSH_CLASS            0xB000
 
 #define C_ADD_QUICK             0xA000
+
+#define C_PUSH_ARRAY_NATIVE_INTEGER     0xA100
+#define C_POP_ARRAY_NATIVE_INTEGER      0xA200
+#define C_PUSH_ARRAY_NATIVE_FLOAT       0xA300
+#define C_POP_ARRAY_NATIVE_FLOAT        0xA400
+#define C_PUSH_ARRAY_NATIVE_COLLECTION  0xA500
+#define C_POP_ARRAY_NATIVE_COLLECTION   0xA600
+#define C_ADD_INTEGER                   0xA700
+#define C_ADD_FLOAT                     0xA800
+#define C_SUB_INTEGER                   0xA900
+#define C_SUB_FLOAT                     0xAA00
+#define C_MUL_INTEGER                   0xAB00
+#define C_MUL_FLOAT                     0xAC00
+#define C_DIV_INTEGER                   0xAD00
+#define C_DIV_FLOAT                     0xAE00
 
 #define C_PUSH_LOCAL            0x0100
 #define C_PUSH_PARAM            0x0200
@@ -80,6 +110,7 @@
 #define CPM_VARGS        9
 #define CPM_DROP_VARGS   10
 #define CPM_RETURN       11
+#define CPM_END_VARGS    12
 
 #define C_TRY                   0x1600
 #define C_END_TRY               0x1700
@@ -130,7 +161,6 @@
 #define C_FILE                  0x3E00
 #define C_IS                    0x3F00
 
-
 #define CODE_FIRST_SUBR 0x40
 #define CODE_LAST_SUBR  0x9F
 
@@ -147,26 +177,33 @@
 #define CODE_RINSTR      (CODE_FIRST_SUBR + 12)
 #define CODE_ABS         (CODE_FIRST_SUBR + 20)
 #define CODE_MAX         (CODE_FIRST_SUBR + 30)
+#define CODE_BCLR        (CODE_FIRST_SUBR + 36)
 #define CODE_CONV        (CODE_FIRST_SUBR + 39)
 #define CODE_BIN         (CODE_FIRST_SUBR + 40)
 #define CODE_HEX         (CODE_FIRST_SUBR + 41)
 #define CODE_DEBUG       (CODE_FIRST_SUBR + 54)
+#define CODE_POKE        (CODE_FIRST_SUBR + 95)
+
+#define C_BCLR           (CODE_BCLR << 8)
 
 typedef
   ushort PCODE;
 
 #define PCODE_is(pcode, value)  (((pcode) & 0xFF00) == (value))
+#define PCODE_is_xxx(pcode, value)  (((pcode) & 0xF800) == (value))
 #define PCODE_get_nparam(pcode) ((pcode) & 0x3F)
 
 #define PCODE_is_variant(pcode)  ((pcode) & CODE_CALL_VARIANT)
 #define PCODE_is_void(pcode)    ((pcode) & CODE_CALL_VOID)
 
 #define PCODE_is_breakpoint(pcode) PCODE_is(pcode, C_BREAK)
+#define PCODE_is_jump(pcode) PCODE_is(pcode, C_JUMP)
 
 #define PCODE_BREAKPOINT(num) ((PCODE)(C_BREAK | (num)))
 
 #ifndef NO_CODE_DUMP
 short PCODE_dump(FILE *out, ushort addr, PCODE *code);
+void PCODE_dump_count(FILE *out);
 #endif
 
 #endif /* */

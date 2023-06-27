@@ -2,7 +2,7 @@
 
   gbx_stream_memory.c
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -54,6 +54,7 @@ static int stream_open(STREAM *stream, const char *path, int mode)
   stream->memory.pos = 0;
 
 	stream->common.available_now = TRUE;
+	stream->common.null_terminated = TRUE;
 
   return FALSE;
 }
@@ -72,7 +73,7 @@ static int stream_close(STREAM *stream)
 
 static int stream_read(STREAM *stream, char *buffer, int len)
 {
-	/*if ((stream->common.mode & STO_READ) == 0)
+	/*if ((stream->common.mode & GB_ST_READ) == 0)
 		THROW(E_ACCESS);*/
 	
   CHECK_enter();
@@ -96,7 +97,7 @@ static int stream_read(STREAM *stream, char *buffer, int len)
 
 static int stream_write(STREAM *stream, char *buffer, int len)
 {
-	if ((stream->common.mode & STO_WRITE) == 0)
+	if ((stream->common.mode & GB_ST_WRITE) == 0)
 		THROW(E_ACCESS);
 	
   CHECK_enter();

@@ -2,7 +2,7 @@
 
   main.c
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -45,6 +45,8 @@ GB_DESC *GB_CLASSES[] EXPORT =
 
 char *GB_INCLUDE EXPORT = "gb.qt4|gb.qt5|gb.gtk|gb.gtk3";
 
+static bool _debug = FALSE;
+
 
 const char *get_name(int use)
 {
@@ -57,34 +59,7 @@ const char *get_name(int use)
 	}
 }
 
-
-static bool can_use(int use)
-{
-	static const char *ext[] = { "ext", "webkit", "opengl", NULL };
-	char test[32];
-	char *suffix;
-	const char **pext;
-	const char *name;
-	
-	name = get_name(use);
-	
-	if (!GB.Component.CanLoadLibrary(name))
-		return FALSE;
-
-	strcpy(test, name);
-	suffix = test + strlen(name);
-	*suffix++ = '.';
-	
-	for (pext = ext; *pext; pext++)
-	{
-		strcpy(suffix, *pext);
-		if (GB.Component.Exist(test) && !GB.Component.CanLoadLibrary(test))
-			return FALSE;
-	}
-	
-	return TRUE;
-}
-
+#include "gb_gui_test_temp.h"
 
 int EXPORT GB_INIT(void)
 {
@@ -93,6 +68,8 @@ int EXPORT GB_INIT(void)
 	char *env;
 	const char *comp;
 	int i;
+	const char *fail;
+	char not_found[32];
 
 	env = getenv("GB_GUI");
 	if (env)
@@ -107,31 +84,31 @@ int EXPORT GB_INIT(void)
 			use = USE_GB_GTK3;
 	}
 	
+	env = getenv("GB_GUI_DEBUG");
+	if (env && strcmp(env, "0")) 
+		_debug = TRUE;
+	
 	if (use == USE_NOTHING)
 	{
-		use = USE_GB_GTK;
-		
-		env = getenv("KDE_FULL_SESSION");
-		
-		if (env && !strcmp(env, "true"))
-		{
-			env = getenv("KDE_SESSION_VERSION");
-			if (env)
-			{
-				if (strcmp(env, "4") == 0)
-					use = USE_GB_QT4;
-				else if (strcmp(env, "5") == 0)
-					use = USE_GB_QT5;
-			}
-		}
+		use = GUI_should_use();
+		if (use == USE_NOTHING)
+			use = USE_GB_GTK3;
 	}
-
-	if (!can_use(use))
+	
+	if (_debug)
+		fprintf(stderr, "gb.gui: checking %s...\n", get_name(use));
+	
+	fail = GUI_can_use(use);
+	if (fail)
 	{
+		strcpy(not_found, fail);
 		use_other = USE_NOTHING;
 		for (i = 0; i <= 2; i++)
 		{
-			if (can_use(use_list[use - 1][i]))
+			if (_debug)
+				fprintf(stderr, "gb.gui: checking %s...\n", get_name(use_list[use - 1][i]));
+			
+			if (!GUI_can_use(use_list[use - 1][i]))
 			{
 				use_other = use_list[use - 1][i];
 				break;
@@ -140,12 +117,12 @@ int EXPORT GB_INIT(void)
 		
 		if (use_other)
 		{
-			fprintf(stderr, "gb.gui: warning: '%s' component not found, using '%s' instead\n", get_name(use), get_name(use_other));
+			fprintf(stderr, "gb.gui: warning: '%s' component not found, using '%s' instead\n", not_found, get_name(use_other));
 			use = use_other;
 		}
 		else
 		{
-			fprintf(stderr, "gb.gui: error: unable to find any GUI component\n");
+			fprintf(stderr, "gb.gui: error: '%s' component not found, unable to find any GUI replacement component\n", not_found);
 			exit(1);
 		}
 	}
@@ -159,8 +136,7 @@ int EXPORT GB_INIT(void)
 	}
 	else
 	{
-		env = getenv("GB_GUI_DEBUG");
-		if (env && !strcmp(env, "0")) 
+		if (_debug)
 			fprintf(stderr, "gb.gui: loading '%s'\n", comp);
 	}
   

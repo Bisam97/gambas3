@@ -1,0 +1,140 @@
+' Gambas class file
+
+Export
+
+Property Text As String
+Property Expand As Boolean
+Property Alignment As Integer
+Property Wrap As Boolean
+Property Width As String
+Property Hidden As Boolean
+Property Sortable As Boolean
+
+Event _Fake
+
+Public _Column As Integer
+
+Private $sText As String
+Private $bExpand As Boolean
+Private $iAlignment As Integer
+Private $bNoWrap As Boolean
+Private $sWidth As String
+Private $bHidden As Boolean
+Private $bNotSortable As Boolean
+
+Private Sub Refresh()
+
+  Dim hTable As WebControl
+  
+  hTable = Object.Parent(Object.Parent(Me))
+  hTable.Refresh
+  
+End
+
+
+Private Function Text_Read() As String
+
+  Return $sText
+
+End
+
+Private Sub Text_Write(Value As String)
+
+  $sText = Value
+  Refresh
+
+End
+
+Private Function Expand_Read() As Boolean
+
+  Return $bExpand
+
+End
+
+Private Sub Expand_Write(Value As Boolean)
+
+  $bExpand = Value
+  Refresh
+
+End
+
+Private Function Alignment_Read() As Integer
+
+  Return $iAlignment
+
+End
+
+Private Sub Alignment_Write(Value As Integer)
+
+  $iAlignment = Value
+  Refresh
+
+End
+
+Public Sub _PrintAlignment()
+  
+  Select Case $iAlignment
+    Case Align.Left
+      Print " align=\"left\"";
+    Case Align.Center
+      Print " align=\"center\"";
+    Case Align.Right
+      Print " align=\"right\"";
+    Case Align.Normal
+  End Select
+  
+  If $bNoWrap Then Print " nowrap";
+
+End
+
+Private Function Wrap_Read() As Boolean
+
+  Return Not $bNoWrap
+
+End
+
+Private Sub Wrap_Write(Value As Boolean)
+
+  $bNoWrap = Not Value
+  Refresh
+
+End
+
+Private Function Width_Read() As String
+
+  Return $sWidth
+
+End
+
+Private Sub Width_Write(Value As String)
+
+  $sWidth = Value
+  Refresh
+
+End
+
+Private Function Hidden_Read() As Boolean
+
+  Return $bHidden
+
+End
+
+Private Sub Hidden_Write(Value As Boolean)
+
+  $bHidden = Value
+  Refresh
+
+End
+
+Private Function Sortable_Read() As Boolean
+
+  Return Not $bNotSortable
+
+End
+
+Private Sub Sortable_Write(Value As Boolean)
+
+  $bNotSortable = Not Value
+  Refresh
+
+End

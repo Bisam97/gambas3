@@ -1,0 +1,59 @@
+' Gambas class file
+
+Export
+
+Event _Fake
+
+Property Read Text As String
+Property Read Type As String
+Property Read Line As String
+Property Read Pos As String
+
+Public _Text As String
+Public _Type As String
+Public _Line As String
+Public _Pos As Integer
+
+Private Sub GetView() As TerminalView
+  
+  Return Object.Parent(Me)
+  
+End
+
+'' Highlight a link.
+'' 
+'' This method must be called during a [./:link] event to indicate which part of the current line under the mouse cursor is a link.
+''
+'' - ~Start~ : The position of the first character of the link.
+'' - ~Length~ : The link length.
+'' - ~Type~: The link type (optional). Use it to make the difference between different types of links.
+
+Public Sub Select(Start As Integer, Length As Integer, Optional (Type) As String)
+  
+  If _Pos >= Start And If _Pos < (Start + Length) Then GetView()._SelectLink(Start, Length, Type)
+  
+End
+
+Private Function Text_Read() As String
+
+  Return _Text
+
+End
+
+Private Function Type_Read() As String
+
+  Return _Type
+
+End
+
+Private Function Line_Read() As String
+
+  Return _Line  
+
+End
+
+Private Function Pos_Read() As String
+
+  Return _Pos
+
+End

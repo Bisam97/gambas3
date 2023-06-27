@@ -491,7 +491,6 @@ int tray_update_window_props()
 void tray_create_window(int argc, char **argv, Window window)
 {
 	//XTextProperty wm_name;
-	//XSetWindowAttributes xswa;
 	//XClassHint xch;
 	//XWMHints xwmh;
 	Atom net_system_tray_orientation;
@@ -499,6 +498,7 @@ void tray_create_window(int argc, char **argv, Window window)
 	Atom orient;
 	Atom protocols_atoms[2];
 	VisualID visual;
+	XWindowAttributes attr;
 
 	/* Create some atoms */
 	tray_data.xa_wm_delete_window = 
@@ -581,9 +581,15 @@ void tray_create_window(int argc, char **argv, Window window)
 	}
 #endif
 
-	tray_data.tray = window;
-	//X11_get_window_geometry(window, &tray_data.xsh.x, &tray_data.xsh.y, &tray_data.xsh.width, &tray_data.xsh.height);
+	tray_data.parent = window;
+	tray_data.x = 0;
+	tray_data.y = 0;
+	tray_data.w = 24;
+	tray_data.h = 24;
 
+	tray_data.tray = XCreateSimpleWindow(tray_data.dpy, tray_data.parent, tray_data.x, tray_data.y, tray_data.w, tray_data.h, 0, tray_data.bg, tray_data.bg);
+	XMapWindow(tray_data.dpy, tray_data.tray);
+	
 	// TODO
 	/* v0.2 tray protocol support */
 	orient = 
@@ -594,7 +600,6 @@ void tray_create_window(int argc, char **argv, Window window)
 			PropModeReplace, 
 			(unsigned char *) &orient, 1);
 
-	XWindowAttributes attr;
 	XGetWindowAttributes(tray_data.dpy, tray_data.tray, &attr);
 
 	net_system_tray_visual = XInternAtom(tray_data.dpy, "_NET_SYSTEM_TRAY_VISUAL", False);
@@ -625,6 +630,7 @@ void tray_create_window(int argc, char **argv, Window window)
 	} 
 	tray_update_bg(True);
 #endif
+	SYSTRAY_raise_arrange();
 }
 
 #if 0
@@ -730,3 +736,12 @@ void tray_show_window()
 	tray_update_window_props();
 }
 #endif
+
+void tray_update_size()
+{
+	if (tray_data.tray == 0)
+		return;
+	
+	XMoveResizeWindow(tray_data.dpy, tray_data.tray, tray_data.x, tray_data.y, tray_data.w, tray_data.h);
+	SYSTRAY_raise_arrange();
+}

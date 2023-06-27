@@ -1,0 +1,335 @@
+' Gambas class file
+
+''' This class implements a generic container for other controls.
+'''
+''' It is also the parent class of every other container.
+
+Export
+
+Inherits WebControl
+
+Public Const _IsContainer As Boolean = True
+Public Const _Group As String = "Container"
+Public Const _Properties As String = "*,Arrangement{Arrange.*},Margin,Spacing,Indent,Border"
+Public Const _DefaultArrangement As String = "F"
+Public Const _DefaultSize As String = "32,32"
+
+'' Return or set the how the container arrange its contents.
+''
+'' The value of that property can be one of the value of the [../arrange] class.
+Property Arrangement As Integer
+'' Return or set if there is a margin between the container border and all its children.
+''
+'' The margin size is 0.5em.
+Property Margin As Boolean
+'' Return or set if the children of the container are spaced out.
+''
+'' The amount of space is 0.5em.
+Property Spacing As Boolean
+'' Return or set if the container has a border.
+Property Border As Boolean
+'' Return or set if the children controls of the container are indented.
+''
+'' The direction of the indentation follows the direction of the container arrangement.
+''
+'' The amount of indentation is 0.5em.
+Property Indent As Boolean
+
+'' Return an array of all container's children.
+Property Read Children As WebControl[]
+
+Public _Container As WebContainer
+
+Private $aChildren As New String[]
+Private $iArrangement As Integer
+Private $bMargin As Boolean
+Private $bSpacing As Boolean
+Private $bBorder As Boolean
+Private $bIndent As Boolean
+
+Public Sub _Add(hChild As WebControl)
+  
+  $aChildren.Add(hChild.Name)
+  
+  If Me._CanRefresh() Then
+    WebForm._AddJavascriptBefore("gw.insertElement(" & JS(hChild.Name) & "," & JS(Me.Name) & ");")
+    hChild.Refresh
+  Endif
+  
+End
+
+Public Sub _Remove(hChild As WebControl)
+  
+  $aChildren.Remove($aChildren.Find(hChild.Name))
+  
+  If Me._CanRefresh() Then
+    WebForm._AddJavascriptBefore("gw.removeElement(" & JS(hChild.Name) & ");")
+  Endif
+  
+End
+
+Public Sub _UpdateChildName(sOld As String, sNew As String)
+  
+  $aChildren[$aChildren.Find(sOld)] = sNew
+  
+End
+
+
+Public Sub _IsFirstVisibleChild(hChild As WebControl) As Boolean
+
+  Dim I As Integer
+  Dim hCtrl As WebControl
+  
+  ' FIXME: We suppose that if we are a multicontainer, only one child is visible at the same time.
+  If _Container Then Return True
+  
+  For I = 0 To $aChildren.Max
+    If $aChildren[I] = hChild.Name Then Return True
+    hCtrl = WebControl.FromName($aChildren[I])
+    If hCtrl.Visible And If Not hCtrl.Ignore Then Return
+  Next
+  
+End
+
+Public Sub _Render()
+  
+  Dim I As Integer
+  
+  For I = 0 To $aChildren.Max
+    WebControl.FromName($aChildren[I])._Redraw()
+  Next
+  
+End
+
+Public Sub _RenderStyleSheet()
+  
+  'Dim I As Integer
+  
+  Me._StartStyleSheet
+  
+  Super._RenderStyleSheet()
+  
+  If Not _Container Then ' And If Me.Visible breaks TabPanel containers
+  
+    If $iArrangement Then
+    
+      Me._AddStyleSheet("display:flex;")
+      Select Case $iArrangement
+        Case Arrange.Horizontal
+          Me._AddStyleSheet("flex-flow:row;")
+          Me._AddStyleSheet("overflow-x:hidden;")
+        Case Arrange.Vertical
+          Me._AddStyleSheet("flex-flow:column;")
+        Case Arrange.Column
+          Me._AddStyleSheet("flex-flow:column wrap;")
+          'If $bSpacing And If $aChildren.Count Then Me._AddStyleSheet("margin-right:-0.5em;margin-bottom:-0.5em;")
+        Case Arrange.Row
+          Me._AddStyleSheet("flex-flow:row wrap;")
+          'If $bSpacing And If $aChildren.Count Then Me._AddStyleSheet("margin-right:-0.5em;margin-bottom:-0.5em;")
+      End Select
+      
+    Endif
+    
+    If $bMargin Then Me._AddStyleSheet("padding:0.5rem;")
+    
+    If $bIndent Then
+      If $bMargin Then
+        Me._AddStyleSheet("padding-left:1rem;")
+      Else
+        Me._AddStyleSheet("padding-left:0.5rem;")
+      Endif
+    Endif
+    
+    If $bSpacing Then
+      If $iArrangement = Arrange.Column Or If $iArrangement = Arrange.Row Then
+        Me._AddStyleSheet("padding-bottom: 0;")
+        Me._AddStyleSheet("padding-right: 0;")
+      Endif
+    Endif
+    
+  Endif
+  
+  If $bBorder Then Me._AddStyleSheet("border:solid #C0C0C0 1px;")
+    
+  Me._EndStyleSheet
+  
+End
+
+Private Function Arrangement_Read() As Integer
+
+  Return $iArrangement
+
+End
+
+Private Sub Arrangement_Write(Value As Integer)
+
+  If $iArrangement = Value Then Return
+  $iArrangement = Value
+  UpdateContainer()
+
+End
+
+Private Function Margin_Read() As Boolean
+
+  Return $bMargin
+
+End
+
+Private Sub Margin_Write(Value As Boolean)
+
+  If $bMargin = Value Then Return
+  $bMargin = Value
+  UpdateContainer()
+
+End
+
+Private Function Spacing_Read() As Boolean
+
+  Return $bSpacing
+
+End
+
+Private Sub Spacing_Write(Value As Boolean)
+
+  If $bSpacing = Value Then Return
+  $bSpacing = Value
+  UpdateContainer()
+
+End
+
+Private Function Border_Read() As Boolean
+
+  Return $bBorder
+
+End
+
+Private Sub Border_Write(Value As Boolean)
+
+  $bBorder = Value
+  Me.Refresh
+
+End
+
+Public Sub _RefreshReply() As Boolean
+  
+  Dim I As Integer
+  
+  If Super._RefreshReply() Then Return
+  
+  For I = 0 To $aChildren.Max
+    WebControl.FromName($aChildren[I])._RefreshReply()
+  Next
+  
+End
+
+Public Sub _CancelChildrenRefresh()
+
+  Dim I As Integer
+
+  For I = 0 To $aChildren.Max
+    WebControl.FromName($aChildren[I])._CancelRefresh()
+  Next
+  
+End
+
+Public Sub _SetContainer(hCont As WebContainer)
+  
+  If _Container = hCont Then Return
+  _Container = hCont
+  UpdateContainer()
+  
+End
+
+Private Sub UpdateContainer()
+
+  If _Container Then
+    With _Container
+      .Arrangement = $iArrangement
+      .Spacing = $bSpacing
+      .Margin = $bMargin
+      .Indent = $bIndent
+    End With
+  Else
+    Me.Refresh
+  Endif
+  
+End
+
+Private Function Children_Read() As WebControl[]
+
+  Dim aChildren As WebControl[]
+  Dim I As Integer
+
+  aChildren = New WebControl[$aChildren.Count]
+  For I = 0 To $aChildren.Max
+    aChildren[I] = WebControl.FromName($aChildren[I])
+  Next
+  Return aChildren
+  
+End
+
+Public Sub _Raise(sName As String)
+
+  Dim iPos As Integer
+  
+  iPos = $aChildren.Find(sName)
+  If iPos < 0 Then Return
+  
+  $aChildren.Remove(iPos)
+  $aChildren.Add(sName)
+  
+End
+
+Public Sub _Lower(sName As String)
+
+  Dim iPos As Integer
+  
+  iPos = $aChildren.Find(sName)
+  If iPos < 0 Then Return
+  
+  $aChildren.Remove(iPos)
+  $aChildren.Add(sName, 0)
+  
+End
+
+'' Delete all container's children.
+
+Public Sub DeleteChildren()
+  
+  While $aChildren.Count
+    WebControl.FromName($aChildren[0]).Delete
+  Wend
+  
+End
+
+'' Delete the container with all its children.
+
+Public Sub Delete()
+
+  Inc WebForm._DisableRefresh
+  DeleteChildren
+  Dec WebForm._DisableRefresh
+  Super.Delete
+  _Container = Null
+  
+End
+
+Private Function Indent_Read() As Boolean
+
+  Return $bIndent
+
+End
+
+Private Sub Indent_Write(Value As Boolean)
+
+  If $bIndent = Value Then Return
+  $bIndent = Value
+  UpdateContainer()
+
+End
+
+Public Sub HasChildren() As Boolean
+  
+  Return $aChildren.Count > 0
+  
+End

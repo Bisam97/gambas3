@@ -6,16 +6,21 @@ Public Const SELECT_STOCK As Integer = 1
 Public Const SELECT_IMAGE As Integer = 2
 Public Const SELECT_SVGIMAGE As Integer = 4
 Public Const SELECT_PUBLIC As Integer = 8
+Public Const SELECT_AUDIO As Integer = 16
 
 Private $sIcon As String
 Private $sSize As String
 Private $iOption As Integer
+Private $aSizes As String[]
+Private $bNoRefreshStock As Boolean
+Private $sSelectKey As String
 
-Public Sub Run(sIcon As String, Optional iOption As Integer = SELECT_IMAGE + SELECT_STOCK) As String
+Public Sub Run(sIcon As String, Optional iOption As Integer = SELECT_IMAGE + SELECT_STOCK, aSizes As String[]) As String
   
   $sIcon = sIcon
-  If Not Project.IsStockAllowed() Then iOption = iOption And Not SELECT_STOCK
+  'If Not Project.IsStockAllowed() Then iOption = iOption And Not SELECT_STOCK
   $iOption = iOption
+  $aSizes = aSizes
   If Not Me.ShowModal() Then Return
   Return $sIcon
   
@@ -26,6 +31,8 @@ Public Sub Form_Open()
 
   Dim iPos As Integer
   Dim aFilter As String[]
+  Dim sIcon As String
+  Dim hIconView As IconView
 
   Inc Application.Busy
   
@@ -34,6 +41,7 @@ Public Sub Form_Open()
   aFilter = New String[]
   If $iOption And SELECT_IMAGE Then aFilter.Insert(["*.png;*.jpg;*.jpeg;*.xpm;*.gif;*.mng", ("Image files")])
   If $iOption And SELECT_SVGIMAGE Then aFilter.Insert(["*.svg", ("SVG image files")])
+  If $iOption And SELECT_AUDIO Then aFilter.Insert(["*.mp3;*.ogg;*.oga;*.wav;*.aac;*.flac", ("Audio files")])
 
   If $iOption And SELECT_PUBLIC Then
     fchIcon.Root = Project.Dir &/ ".public"
@@ -42,32 +50,46 @@ Public Sub Form_Open()
   Endif
   
   fchIcon.Filter = aFilter
+
+  $bNoRefreshStock = True
   
-  cmbSize.List = Stock.Sizes.Insert(["16", "22", "32", "48", "64", "96", "128"])
+  If $aSizes And If $iOption And SELECT_STOCK Then
+    cmbSize.List = $aSizes
+    tabIcon[1].Visible = True
+    tabIcon[2].Visible = True
+  Else
+    tabIcon[1].Visible = False
+    tabIcon[2].Visible = False
+  Endif
   
-  tabIcon[1].Visible = $iOption And SELECT_STOCK
-  
-  If $sIcon Begins "icon:/" Then 
-    $sIcon = Mid$($sIcon, 7)
-    iPos = InStr($sIcon, "/")
-    icwStock.Clear
-    If iPos Then 
-      SetSize(Left$($sIcon, iPos - 1))
-    Else 
-      SetSize(Settings["FSelectIcon/Size", "32"])
-    Endif
-    $sIcon = Mid$($sIcon, iPos + 1)
-    If icwStock.Exist($sIcon) Then
-      icwStock[$sIcon].Selected = True
-      icwStock[$sIcon].EnsureVisible
-    Endif
-    tabIcon.Index = 1 
-  Else If $sIcon Then
-    fchIcon.SelectedPath = fchIcon.Root &/ $sIcon
+  If $sIcon Begins "icon:/" Then
+    tabIcon.Index = 1
+  Else If $sIcon Begins "flag:/" Then
+    tabIcon.Index = 2
+  Else If $sIcon Then 
     tabIcon.Index = 0
   Endif
+  
+  If $sIcon Begins "icon:/" Or If $sIcon Begins "flag:/" Then 
+    sIcon = Mid$($sIcon, InStr($sIcon, "/") + 1)
+    iPos = InStr(sIcon, "/")
+    If iPos Then 
+      SetSize(Left$(sIcon, iPos - 1))
+    Else 
+      SetSize("medium") 'Settings["FSelectIcon/Size", "medium"])
+    Endif
+    $sSelectKey = Mid$(sIcon, iPos + 1)
+    hIconView = GetIconView()
+  Else If $sIcon Then
+    $sSelectKey = fchIcon.Root &/ $sIcon
+  Endif
 
-  If Not $sSize Then SetSize(Settings["FSelectIcon/Size", "32"])
+  txtFilter.Text = ""
+  chkUseSize.Value = Settings["FSelectIcon/PreviewSize", 0]
+  If Not $sSize Then SetSize("medium") 'Settings["FSelectIcon/Size", "medium"])
+  
+  $bNoRefreshStock = False
+  RefreshStock
   
   Dec Application.Busy
   
@@ -99,26 +121,69 @@ Public Sub cmbSize_Click()
 
 End
 
-Private Sub RefreshStock()
+Private Sub GetIconView() As IconView
+
+  If tabIcon.Index = 1 Then Return icwStock
+  If tabIcon.Index = 2 Then Return icwFlag
+
+End
+
+Private Sub RefreshStock(Optional bClear As Boolean)
   
   Dim sIcon As String
   Dim sKey As String
+  Dim sFilter As String
+  Dim bPreviewSize As Boolean
+  Dim aIcons As String[]
+  Dim hPict As Picture
+  Dim hIconView As IconView
+  Dim sLastIcon As String
+  
+  If $bNoRefreshStock Then Return
+  If tabIcon.Index = 0 Then Return
+  
+  hIconView = GetIconView()
+  sLastIcon = hIconView.Key
+
+  If bClear Then
+    icwStock.Clear
+    icwFlag.Clear
+  Endif
+  
+  If hIconView.Count Then Return
   
   Inc Application.Busy
 
-  sKey = icwStock.Key
-  icwStock.Clear
+  sFilter = Trim(txtFilter.Text)
+  bPreviewSize = chkUseSize.Value
 
-  For Each sIcon In Stock.Icons
-    icwStock.Add(sIcon, sIcon, Stock[$sSize &/ sIcon])
+  If tabIcon.Index = 1 Then
+    aIcons = Stock.Icons
+  Else 
+    aIcons = Stock.Flags
+  Endif
+  
+  hIconView.Clear
+
+  For Each sIcon In aIcons
+    If sFilter And If InStr(sIcon, LCase(sFilter)) = 0 Then Continue
+    sKey = If(bPreviewSize, $sSize, "32") &/ sIcon
+    If tabIcon.Index = 1 Then
+      hPict = Stock[sKey]
+    Else 
+      hPict = Stock.GetFlag(sKey)
+    Endif
+    hIconView.Add(sIcon, sIcon, hPict)
   Next
   
-  If sKey Then 
-    icwStock[sKey].Selected = True
-    icwStock[sKey].EnsureVisible
+  If hIconView.Exist(sLastIcon) Then
+    hIconView[sLastIcon].Selected = True
+    hIconView[sLastIcon].EnsureVisible
   Endif
   
   Dec Application.Busy
+  
+  txtFilter.SetFocus
   
 End
 
@@ -129,7 +194,7 @@ Private Sub SetSize(sSize As String) As Boolean
   sSize = LCase(sSize)
   Try iSize = CInt(sSize)
   If Error Then 
-    If Not Stock.Sizes.Exist(sSize) Then 
+    If cmbSize.Find(sSize) < 0 Then 
       cmbSize.Text = $sSize
       Return True
     Endif
@@ -145,13 +210,15 @@ Private Sub SetSize(sSize As String) As Boolean
   Object.Lock(cmbSize)
   cmbSize.Text = sSize
   Object.Unlock(cmbSize)
-  RefreshStock
+  RefreshStock(True)
   
 End
 
 
 Public Sub btnOK_Click()
 
+  Dim sKey As String
+  
   Select Case tabIcon.Index
   
     Case 0
@@ -159,8 +226,15 @@ Public Sub btnOK_Click()
       If Left($sIcon) = "/" Then $sIcon = Mid$($sIcon, 2)
   
     Case 1
-      If Not icwStock.Key Then Return
-      $sIcon = "icon:/" &/ $sSize &/ icwStock.Key
+      sKey = icwStock.Key
+      If Not sKey Then Return
+      $sIcon = "icon:/" &/ $sSize &/ sKey
+      Settings["FSelectIcon/Size"] = $sSize
+      
+    Case 2
+      sKey = icwFlag.Key
+      If Not sKey Then Return
+      $sIcon = "flag:/" &/ $sSize &/ sKey
       Settings["FSelectIcon/Size"] = $sSize
       
   End Select 
@@ -191,8 +265,58 @@ End
 
 Public Sub tabIcon_Click()
 
-  If tabIcon.Index = 1 Then 
-    icwStock.SetFocus
+  If tabIcon.Index Then 
+    
+    panStock.Show
+    panStock.Raise
+    
+    txtFilter.SetFocus
+    icwStock.Visible = tabIcon.Index = 1
+    icwFlag.Visible = tabIcon.Index = 2
+    
+    RefreshStock
+    
+  Else 
+    
+    panStock.Hide
+    
   Endif 
+
+End
+
+Public Sub txtFilter_Filter()
+
+  RefreshStock(True)
+
+End
+
+Public Sub chkUseSize_Click()
+
+  Settings["FSelectIcon/PreviewSize"] = chkUseSize.Value
+  RefreshStock(True)
+
+End
+
+Public Sub tabIcon_Arrange()
+
+  panStock.Move(tabIcon.X + tabIcon.ClientX, tabIcon.Y + tabIcon.ClientY, tabIcon.ClientW, tabIcon.ClientH)
+
+End
+
+Public Sub Form_Activate()
+
+  Dim hIconView As IconView
+  
+  If Not $sSelectKey Then Return
+  
+  If $sIcon Begins "icon:/" Or If $sIcon Begins "flag:/" Then 
+    hIconView = GetIconView()
+    Try hIconView[$sSelectKey].Selected = True
+    If Not Error Then hIconView[$sSelectKey].EnsureVisible
+  Else
+    fchIcon.SelectedPath = fchIcon.Root &/ $sIcon
+  Endif
+  
+  $sSelectKey = ""
 
 End

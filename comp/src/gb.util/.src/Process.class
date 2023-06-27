@@ -1,0 +1,39 @@
+' Gambas class file
+
+Export
+
+'' @{since 3.15}
+'' 
+'' This event is raised when a prompt specified by the [../expect] method has been detected on the standard output of the process.
+'' 
+'' The ~Prompt~ and ~Answer~ arguments of the corresponding [../expect] method are provided to the event handler.
+
+Event Prompt(Prompt As String, Answer As String)
+
+Private $hExpect As ProcessExpect
+
+'' @{since 3.15}
+'' 
+'' Tell which answer must be sent when a specific prompt is emitted by the process on its standard input.
+'' 
+'' * ~Prompt~ : The prompt as a [/lang/like] regular expression that should match the last characters emitted by the process.
+'' * ~Answer~ : The optional answer string to send back.
+'' @{since 3.17}
+'' * ~Keep~ tells if the prompt keeps being watched after having been detected, or if it is disabled. ~Keep~ is FALSE by default.
+'' 
+'' The [../.prompt] event is emitted just after the answer has been sent, or just after the prompt has been detected if no answer was specified.
+
+Public Sub Expect(Prompt As String, Optional Answer As String, Optional Keep As Boolean)
+  
+  If Not Prompt Then Return
+    
+  If Not $hExpect Then $hExpect = New ProcessExpect
+  $hExpect.Expect(Me, Prompt, Answer, Keep)
+  
+End
+
+' Public Sub Expect_Kill()
+'   
+'   $hExpect = Null
+'   
+' End

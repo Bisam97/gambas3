@@ -1,0 +1,41 @@
+' Gambas test file
+
+Public Filter As Collection = ["Print statement is not allowed in script": ".*Print.*",
+                               "Comments not allowed in scripts": ".*'.*$"]
+                               
+Public Sub _setup()
+  
+  ScriptSetKeyWordFilter(Filter)
+  
+End
+
+Public Sub _TearDown()
+  
+  ScriptSetKeywordFilter.Clear()
+  
+End
+
+Public Sub DoAPlugin()
+  
+  Assert.Equals(ScripterPlugin("TestPlugin", [], ["NewTestPlugin", "CD", 100, 200]), Null, "Bad Compile: Error filter match")
+
+  Dim TestPlugin2 As Object = ScripterPlugin("TestPlugin2", [], ["New testPlugin2"])
+  Assert.Notequals(TestPlugin2, Null, "Good Compile")
+  If TestPlugin2 Then 
+      Assert.Equals(TestPlugin2(1, 300, 5, 7, 20, 300, 455), "Sum [1088] AnotherTest : Defined Version = 5.9.3,  New Parminfo = \"New testPlugin2\"",
+                    "Verify Parameters are Passed correctly and return value is correct")
+  Else 
+      Assert.Fail("Script TestPlugin2 is Unable to be compiled")
+  Endif 
+  
+  Assert.Equals(ScripterExecute("MyTestScript", File.load("TestPlugin3.gbs"), ["-c"], ["Parm1", "Parm2"]), 5, "Execute a valid script")
+  
+  Assert.Equals(TestPlugin2.Version, "5.9.3", "Verify that Plugin Properties Where Created - Version")
+  Assert.Equals(TestPlugin2.Name, "AnotherTest", "Verify that Plugin Properties Where Created - Plugin Name")
+  Assert.Equals(TestPlugin2.Title, "Plugin tester Too{str(now)}", "Verify that Plugin Properties Where Created - Title")
+  Assert.Equals(TestPlugin2.Description, "This plugin is a test for the scripter too", "Verify that Plugin Properties Where Created - Description")
+  'Test of special plugin property
+  Assert.Equals(TestPlugin2.MyProp, "Added Plugin Special prop", "Verify that Plugin User Defined Properties Where Created - MyProp")
+  
+ 
+End

@@ -29,7 +29,7 @@ Property Animated As Boolean
 Property ShowButton As Boolean
 
 Private $hWizard As FWizard
-Private $aStep As New _WizardContainer[]
+Private $aCont As New _WizardContainer[]
 Private $iCurrent As Integer = -1
 Private $iLast As Integer = -1
 Private $bShowIndex As Boolean
@@ -51,7 +51,7 @@ End
 
 Private Function Count_Read() As Integer
 
-  Return $aStep.Count
+  Return $aCont.Count
 
 End
 
@@ -61,28 +61,28 @@ Private Sub Count_Write(iCount As Integer)
   Dim hStep As _WizardContainer
 
   If iCount < 1 Then Error.Raise("Bad argument")
-  If iCount = $aStep.Count Then Return
+  If iCount = $aCont.Count Then Return
 
-  If iCount < $aStep.Count Then
+  If iCount < $aCont.Count Then
 
-    For iInd = $aStep.Max To iCount Step -1
-      hStep = $aStep[iInd]
+    For iInd = $aCont.Max To iCount Step -1
+      hStep = $aCont[iInd]
       If hStep.Children.Count Then Error.Raise("Wizard step is not empty")
     Next
 
-    For iInd = $aStep.Max To iCount Step -1
-      $aStep[iInd].Delete
+    For iInd = $aCont.Max To iCount Step -1
+      $aCont[iInd].Delete
     Next
 
-    $aStep.Remove(iCount, -1)
-    Index_Write(Min($iCurrent, $aStep.Max))
+    $aCont.Remove(iCount, -1)
+    Index_Write(Min($iCurrent, $aCont.Max))
 
   Else
 
-    For iInd = $aStep.Count To iCount - 1
+    For iInd = $aCont.Count To iCount - 1
       hStep = New _WizardContainer($hWizard.GetContainer()) As "WizardContainer"
       hStep.Tag = iInd
-      $aStep.Add(hStep)
+      $aCont.Add(hStep)
       hStep.Text = Subst(("Step #&1"), CInt(iInd + 1))
     Next
     'ME.Index = iCount - 1
@@ -96,8 +96,8 @@ Private Sub GetNext(iInd As Integer) As Integer
   
   Do
     Inc iInd
-    If iInd >= $aStep.Count Then Return -1
-    If $aStep[iInd].Enabled Then Return iInd
+    If iInd >= $aCont.Count Then Return -1
+    If $aCont[iInd].Enabled Then Return iInd
   Loop
   
 End
@@ -107,7 +107,7 @@ Private Sub GetPrevious(iInd As Integer) As Integer
   Do
     Dec iInd
     If iInd < 0 Then Return -1
-    If $aStep[iInd].Enabled Then Return iInd
+    If $aCont[iInd].Enabled Then Return iInd
   Loop
   
 End
@@ -130,8 +130,8 @@ Private Sub DoAnimate(iSrc As Integer, iDest As Integer)
   Y = If($hWizard.GetBorder(), 1, 0)
   
   hCont = $hWizard.GetContainer()
-  hSrc = $aStep[iSrc]
-  hDest = $aStep[iDest]
+  hSrc = $aCont[iSrc]
+  hDest = $aCont[iDest]
   
   hSrc.Show
   hDest.Show
@@ -151,11 +151,11 @@ Private Sub DoAnimate(iSrc As Integer, iDest As Integer)
     
   Else
     
-    hDest.Move(- hCont.W, Y)
+    hDest.Move(-hCont.W, Y)
     
     fTime = Timer
     While hDest.X < 0
-      hDest.X = Min(0, - hCont.W * (1 - (Timer - fTime) * 8))
+      hDest.X = Min(0, -hCont.W * (1 - (Timer - fTime) * 8))
       hSrc.X = hDest.X + hCont.W
       Wait
     Wend
@@ -173,11 +173,11 @@ Private Sub Index_Write(iIndex As Integer)
   Dim bCancel As Boolean
   Dim bWasNext As Boolean
 
-  If iIndex < 0 Or iIndex >= $aStep.Count Then Error.Raise("Bad index")
+  If iIndex < 0 Or iIndex >= $aCont.Count Then Error.Raise("Bad index")
 
   If iIndex = $iCurrent Then Return
   
-  If Not $aStep[iIndex].Enabled Then Return
+  If Not $aCont[iIndex].Enabled Then Return
 
   If iIndex > $iCurrent Then
   
@@ -193,9 +193,9 @@ Private Sub Index_Write(iIndex As Integer)
   
   Endif
 
-  If Application.Animations And If $iAllowAnimation Then DoAnimate($iCurrent, iIndex)
+  If _Gui.MustAnimate(Me) And If $iAllowAnimation Then DoAnimate($iCurrent, iIndex)
 
-  Me._Container = $aStep[iIndex]
+  Me._Container = $aCont[iIndex]
 
   $iLast = $iCurrent
   $iCurrent = iIndex
@@ -236,7 +236,7 @@ Private Sub RefreshWizard()
 
   If $iCurrent >= 0 Then
 
-    hCurrent = $aStep[$iCurrent]
+    hCurrent = $aCont[$iCurrent]
     hCurrent.Show
     hCurrent.Raise
     
@@ -252,9 +252,9 @@ Private Sub RefreshWizard()
 
   Endif
 
-  If $iLast >= 0 And $iLast <= $aStep.Max Then
-    $aStep[$iLast].Lower
-    $aStep[$iLast].Hide
+  If $iLast >= 0 And $iLast <= $aCont.Max Then
+    $aCont[$iLast].Lower
+    $aCont[$iLast].Hide
   Endif
 
 End
@@ -262,25 +262,25 @@ End
 
 Private Function Text_Read() As String
 
-  Return $aStep[$iCurrent].Text
+  Return $aCont[$iCurrent].Text
 
 End
 
 Private Sub Text_Write(sText As String)
 
-  $aStep[$iCurrent].Text = sText
+  $aCont[$iCurrent].Text = sText
 
 End
 
 Private Function Picture_Read() As Picture
 
-  Return $aStep[$iCurrent].Picture
+  Return $aCont[$iCurrent].Picture
 
 End
 
 Private Sub Picture_Write(hPict As Picture)
 
-  $aStep[$iCurrent].Picture = hPict
+  $aCont[$iCurrent].Picture = hPict
 
 End
 
@@ -292,8 +292,8 @@ End
 
 Public Function _get(Index As Integer) As _WizardContainer
 
-  If Index < 0 Or Index >= $aStep.Count Then Error.Raise("Bad index")
-  Return $aStep[Index]
+  If Index < 0 Or Index >= $aCont.Count Then Error.Raise("Bad index")
+  Return $aCont[Index]
 
 End
 
@@ -449,4 +449,17 @@ Private Sub ShowButton_Write(Value As Boolean)
 
   $hWizard.SetShowButton(Value)
 
+End
+
+Public Sub FindPanel(Text As String) As Integer
+
+  Dim I As Integer
+  Dim hCont As _WizardContainer
+  
+  For I = 0 To $aCont.Max
+    hCont = $aCont[I]
+    If hCont.Text = Text Then Return I
+  Next
+  Return -1
+  
 End

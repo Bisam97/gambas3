@@ -2,7 +2,7 @@
 
   gb_reserved.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -48,13 +48,14 @@ enum
 	RSF_OP2S   = 0x0061,
 	RSF_OP2SM  = 0x00A1,
 
-	RSF_POINT  = 0x0100,    // last pattern is a point or an exclamation mark
-	RSF_IDENT  = 0x0200,    // last pattern waits for an identifier
-	RSF_CLASS  = 0x0400,    // last pattern waits for a class
-	RSF_AS     = 0x0800,    // last pattern waits for a datatype
-	RSF_PREV   = 0x1000,    // last pattern use the flags of the last last pattern
-	RSF_EVENT  = 0x2000,    // last pattern waits for an event name
-	RSF_PUB    = 0x4000,    // last pattern is PUBLIC, PRIVATE or STATIC
+	RSF_POINT  = 0x0100,    // pattern is a point or an exclamation mark
+	RSF_IDENT  = 0x0200,    // pattern waits for an identifier
+	RSF_CLASS  = 0x0400,    // pattern waits for a class
+	RSF_AS     = 0x0800,    // pattern waits for a datatype
+	RSF_PREV   = 0x1000,    // pattern uses the flags of the previous pattern
+	RSF_EVENT  = 0x2000,    // pattern waits for an event name
+	RSF_PUB    = 0x4000,    // pattern is PUBLIC, PRIVATE or STATIC
+	RSF_PREP   = 0x8000,    // pattern is a preprocessor instruction
 	
 	RSF_IMASK  = 0xFF00
 };
@@ -70,7 +71,22 @@ enum {
 	RST_GET,
 	RST_COLLECTION,
 	RST_EXEC,
-	RST_READ
+	RST_READ,
+	RST_DIV
+};
+
+enum {
+	RSJ_OTHER,
+	RSJ_ME,
+	RSJ_CLASS,
+	RSJ_STRUCT,
+	RSJ_SUB,
+	RSJ_CONST,
+	RSJ_READ,
+	RSJ_DATATYPE,
+	RSJ_OPTIONAL,
+	RSJ_BYREF,
+	RSJ_ERROR
 };
 
 #define RES_is_operator(value) (COMP_res_info[value].flag & RSF_OP)
@@ -91,6 +107,10 @@ enum {
 #define RES_get_assignment_operator(_res) (COMP_res_info[_res].value)
 
 #define RES_can_have_not_before(value) (COMP_res_info[value].flag & RSF_NOT)
+
+#define RES_is_preprocessor(value) (COMP_res_info[value].flag & RSF_PREP)
+
+#define RES_is_identifier(value) (isalpha(*COMP_res_info[value].name))
 
 typedef
 	enum {
@@ -183,6 +203,7 @@ typedef
 		RS_PRINT,
 		RS_INPUT,
 		RS_READ,
+		RS_PEEK,
 		RS_WRITE,
 		RS_OPEN,
 		RS_CLOSE,
@@ -223,6 +244,8 @@ typedef
 		RS_P_ENDIF,
 		RS_P_CONST,
 		RS_P_LINE,
+		RS_P_INCLUDE,
+		RS_P_SCRIPT,
 
 		RS_COLON,
 		RS_SCOLON,
@@ -257,6 +280,14 @@ typedef
 		RS_OR,
 		RS_NOT,
 		RS_XOR,
+		RS_SHL,
+		RS_ASL,
+		RS_SHR,
+		RS_ASR,
+		RS_ROL,
+		RS_ROR,
+		RS_LSL,
+		RS_LSR,
 		RS_BSLASH,
 		RS_DIV,
 		RS_PERCENT,
@@ -311,6 +342,14 @@ enum
 	OP_OR    ,
 	OP_NOT   ,
 	OP_XOR   ,
+	OP_SHL   ,
+	OP_ASL   ,
+	OP_SHR   ,
+	OP_ASR   ,
+	OP_ROL   ,
+	OP_ROR   ,
+	OP_LSL   ,
+	OP_LSR   ,
 	OP_DIV   ,
 	OP_MOD   ,
 	OP_IS    ,
@@ -354,6 +393,7 @@ EXTERN int SUBR_VarPtr;
 EXTERN int SUBR_IsMissing;
 EXTERN int SUBR_Mid;
 EXTERN int SUBR_MidS;
+EXTERN int SUBR_SizeOf;
 
 #endif
 

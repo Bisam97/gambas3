@@ -1,0 +1,90 @@
+' Gambas class file
+
+Public $bTestMode As Boolean = False                    ' used to test the application from the test suite
+Public $sTestModeCapture As String                      ' Used to capture executed program output in test mode
+Public gbsver As String = "gambas" & System.version     ' Version name of the current program
+Public $bListComponents As Boolean = False              ' List all the available components
+Public $bListLibraries As Boolean = False               ' List all the available Libraries
+Public $bHasLibraries As Boolean = False                ' The user included some libraries
+Public $bHasComponents As Boolean = False               ' The User specified some components
+Public $bAllowLazyScript As Boolean = True              ' Allow to generate program from a lazt script
+
+Public $bArchiveOutput As Boolean = False         ' Indicates that the user want to save the archive as an executable
+
+Public $bScriptSourceStdIn As Boolean = False  ' If file name is - or no filename is provided  input from file.in(stdin)
+
+Public $sPreambleHeader As String                         ' contains comments and such to be put before the file
+Public $sProgramHeader As String                          ' Contains statements and variable definitions needed before pubic sub main is defined
+Public $sExternals As String                              ' Contains all the externals defined in a script
+Public $sCompilerOptions As String                        ' Contains all the compiler options -- fast, unsafe etc
+Public $sStructures As String                             ' Public structs that are global and outside and before the public sub main definition
+Public $sFinalProgram As String                           ' The final program Assembled from the script file to be written before compile is invoked
+Public $bClassAsStartup As Boolean = False                ' This indicates that the startup is a class not a module we create
+
+Public $bBuildOnly As Boolean                               ' add support to have scripter build the project only and print out the source files
+'Public $bPrecompiler As Boolean                          ' precompiler is enabled on the command line programs {i}var1 = 3 -> Dim Var1 as integer : var1 = 3
+Public $sUse As String                                               ' List of the componants to be used from the command line
+Public $aIncFiles As New String[]                           ' files to be included
+
+Public $bNoCache As Boolean                                 ' turns off script compiled version caching, or ignores the cache already there
+Public $bVerbose As Boolean = False                    ' Turns on the verbose, out put of the script compiler
+Public $bWarning As Boolean                                  ' added to support warings to be displayed
+Public $bWebPage As Boolean                                ' Used to indicate if we are Building a web page project
+
+Public $bExecuteFromArgs As Boolean                ' Indicates that the program was defined on the gbs command line
+Public $bFast As Boolean                                           ' This indicates that the script will compile with the fast i.e jit compiler
+Public $bUnsafe As Boolean                                     ' turns off all bounds and memory checks for variables and calls
+Public $bExport As Boolean
+
+Public $bDebug As Boolean                                      ' Enables the debug switch during gbc compiling
+Public $bTrace As Boolean                                      ' Turns on tracing in the compiler
+Public $bTerseListing As Boolean                               ' limit the output from a script error
+Public $bCreateProject As Boolean                              ' Create a project from the script file
+Public $bPlugin As Boolean                                     ' if true then generate a plugin, class with script name and _Call() as the entry point
+                                                               ' can be loaded with component.load followed by class.load both with the basename of the script
+
+'' Reset all internal tables and conditions
+'' Used for Test harness
+Public Sub _ResetAll()
+
+  '$hOutClass = Null
+  $bScriptSourceStdIn = False
+  ScriptPreProcess.reset()
+  $sProgramHeader = ""
+  $sStructures = ""
+  '$sClassDefinition = ""
+
+  If $bHasComponents Then
+      CComponent.Clear()
+      $bHasComponents = False
+  Endif
+  If $bHasLibraries Then
+      Libraries.Clear()
+      $bHasLibraries = False
+  Endif
+  
+  ' GenerateFilesFromArgs.$aVarsDecl.Clear()                                  ' Changed from string[]
+  $bWebPage = False
+  $bBuildOnly = False                                ' add support to have scripter build the project only and print out the source files if verbose set
+  '$bPrecompiler = False
+  $bArchiveOutput = False
+  $bExport = False
+  $sUse = ""
+  $aIncFiles.Clear()
+  $sFinalProgram = ""
+
+  $bNoCache = False
+  $bVerbose = False
+  $bWarning = False                                   ' added to support warings to be displayed
+
+  $bExecuteFromArgs = False
+  $bFast = False
+  $bUnsafe = False
+
+  $bDebug = False
+  $bTrace = False
+  $bTerseListing = False
+  $bPlugin = False
+  $bClassAsStartup = False
+
+End

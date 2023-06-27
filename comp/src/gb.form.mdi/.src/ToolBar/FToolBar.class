@@ -33,13 +33,17 @@ Private $iLock As Integer
 
 Private $aHidden As Control[]
 Private $aDisabled As Control[]
+Private $hTimerUpdate As Timer
 
 Public Sub _new()
   
   $iHandleSize = 1 'Max(4, Desktop.Scale)
   $iButtonWidth = Desktop.Scale * 2 + GetRealIconSize()
   dwgHandle.Width = $iHandleSize
+
   $hObserverParent = New Observer(Me.Parent.Parent) As "Container"
+  $hTimerUpdate = New Timer As "TimerUpdate"
+
   $bAutoResize = True
   UpdateHandle
   
@@ -224,7 +228,7 @@ Private Sub SetArrangement()
       'Debug ToolBarKey;; "WT = "; WT;; NX
     Endif
   
-    X = If(System.RightToLeft, panToolBar.W - SH, SH)
+    X = If(Me.RightToLeft, panToolBar.W - SH, SH)
     For Each hCtrl In panToolBar.Children
       If Not hCtrl.Visible Then Continue
       
@@ -247,7 +251,7 @@ Private Sub SetArrangement()
         Endif
       Endif
       
-      If System.RightToLeft Then
+      If Me.RightToLeft Then
       
         X -= W
         If X < 0 Then
@@ -307,7 +311,7 @@ Private Sub Update()
 
   If Not $bReallyVertical Then
   
-    If System.RightToLeft Then
+    If Me.RightToLeft Then
       XH = Me.W - $iHandleSize
       YH = 0
       XP = 0
@@ -394,8 +398,6 @@ Private Sub Update()
   
   'dwgHandle.Refresh
   
-  $bLock = False
-
   If sepToolbar.Visible Then 
     If $bReallyVertical Then
       Inc W
@@ -412,23 +414,31 @@ Private Sub Update()
     Me.Parent.Resize(W, H)
   Endif
   
+  $bLock = False
+
   SetArrangement
+  
+End
+
+Public Sub TimerUpdate_Timer()
+  
+  Update
   
 End
 
 Public Sub Form_Resize()
   
-  Update
+  If $bLock Then Return
+  $hTimerUpdate.Trigger
   
 End
-
  
 Public Sub Container_Arrange()
   
-  Update
+  If $bLock Then Return
+  $hTimerUpdate.Trigger
   
 End
-
 
 Public Sub panToolbar_BeforeArrange()
 
@@ -651,7 +661,7 @@ Private Sub FindToolbar() As CToolbar
   hToolbar = MAction.Toolbars[ToolbarKey]
   
   If Not hToolbar Then
-    hToolbar = New CToolbar(ToolBarKey, Null)
+    hToolbar = New CToolbar(ToolbarKey, Null)
     hToolbar.DefaultConfig = GetCurrentConfig()
     MAction.Toolbars[ToolbarKey] = hToolbar
   Endif
@@ -676,7 +686,11 @@ Private Sub GetCurrentConfig() As String[]
     Else If hCtrl Is ToolBarExpander Then
       aConfig.Add("~")
     Else If hCtrl Is Panel And If Panel(hCtrl).Children.Count = 0 Then
-      aConfig.Add("-")
+      If hCtrl.Expand Then
+        aConfig.Add("~")
+      Else
+        aConfig.Add("-")
+      Endif
     Else If hCtrl.Visible Then
       aConfig.Add("$" & hCtrl.Name)
     Endif
@@ -1263,7 +1277,8 @@ Public Sub SetKey(sKey As String)
   If ToolbarKey = sKey Then Return
   
   If $bOpened Then UnregisterToolbar
-  ToolbarKey = sKey
+  ToolbarKey = Object.Type(GetToolBar().Window) & "." & sKey
+  
   If $bOpened Then 
     InitToolbar
     RegisterToolbar
@@ -1272,6 +1287,17 @@ Public Sub SetKey(sKey As String)
   Update
   
 End
+
+Public Sub GetKey() As String
+  
+  Dim iPos As Integer
+  
+  If Not ToolBarKey Then Return
+  iPos = InStr(ToolBarKey, ".")
+  Return Mid$(ToolBarKey, iPos + 1)
+  
+End
+
 
 
 Public Sub Form_Close()
@@ -1386,8 +1412,8 @@ Private Sub CheckSeparators()
       If hChild Is Separator Then
         hChild.Hide
         Continue
-      Else If hLast And If hChild.Expand Then
-        hLast.Hide
+      'Else If hLast And If hChild.Expand Then
+      '  hLast.Hide
       Endif
     Endif
     hLast = hChild
@@ -1529,19 +1555,59 @@ RAISE_CONFIGURE:
   
 End
 
+Static Public Sub LoadLayout(sKey As String) As Variant
+  
+  Dim sSize As String
+  Dim aConfig As String[]
+
+  sSize = Settings["/gb.form.mdi/Toolbars/" &/ sKey &/ "Size"]
+  aConfig = Settings["/gb.form.mdi/Toolbars/" &/ sKey &/ "Layout"]
+  
+  Return [sSize, aConfig]
+  
+End
 
 Public Sub LoadConfig(Optional bInit As Boolean)
   
-  Dim aConfig As String[]
-  Dim sSize As String
+  Dim vLayout As Variant
   
   If Not ToolbarKey Then Return
   If $bDesign Then Return
   
-  sSize = Settings["/gb.form.mdi/Toolbars/" &/ ToolbarKey &/ "Size"]
-  aConfig = Settings["/gb.form.mdi/Toolbars/" &/ ToolbarKey &/ "Layout"]
+  vLayout = LoadLayout(ToolbarKey)
+  If Not vLayout[0] And If Not vLayout[1] Then vLayout = LoadLayout(GetKey())
   
-  SetLayout([sSize, aConfig], bInit)
+  SetLayout(vLayout, bInit)
+  
+End
+
+Static Public Sub SaveLayout(sKey As String, vLayout As Variant, Optional hIgnore As FToolBar)
+
+  Dim hForm As FToolBar
+  Dim sSize As String
+  Dim aConfig As String[]
+  
+  If Not vLayout Then
+    Settings["/gb.form.mdi/Toolbars/" &/ sKey &/ "Size"] = Null
+    Settings["/gb.form.mdi/Toolbars/" &/ sKey &/ "Layout"] = Null
+    Return
+  Endif
+  
+  sSize = vLayout[0]
+  aConfig = vLayout[1]
+  
+  Settings["/gb.form.mdi/Toolbars/" &/ sKey &/ "Size"] = sSize
+  Settings["/gb.form.mdi/Toolbars/" &/ sKey &/ "Layout"] = aConfig
+  Settings.Save
+  
+  If $cRegister.Exist(sKey) Then
+    For Each hForm In $cRegister[sKey]
+    
+      If hForm = hIgnore Then Continue
+      hForm.LoadConfig()
+    
+    Next
+  Endif
   
 End
 
@@ -1549,9 +1615,8 @@ Public Sub SaveConfig(Optional bReset As Boolean)
   
   Dim aConfig As String[]
   Dim aOldConfig As String[]
-  Dim hForm As FToolBar
   Dim bChange As Boolean
-  Dim sVal As String
+  Dim sSize As String
   Dim aLayout As Variant
   
   If Not ToolbarKey Then Return
@@ -1568,17 +1633,27 @@ Public Sub SaveConfig(Optional bReset As Boolean)
   ' Endif
   'Print "Default config is ";; FindToolbar().DefaultConfig.Join(",")
   
-  sVal = aLayout[0]
+  sSize = aLayout[0]
   aConfig = aLayout[1]
   
-  If sVal <> Settings["/gb.form.mdi/Toolbars/" &/ ToolbarKey &/ "Size"] Then
-    Settings["/gb.form.mdi/Toolbars/" &/ ToolbarKey &/ "Size"] = sVal
+  If sSize <> Settings["/gb.form.mdi/Toolbars/" &/ ToolbarKey &/ "Size"] Then
+    'Settings["/gb.form.mdi/Toolbars/" &/ ToolbarKey &/ "Size"] = sVal
     bChange = True
   Endif
   
   If Not bChange Then
     bChange = True
     aOldConfig = Settings["/gb.form.mdi/Toolbars/" &/ ToolbarKey &/ "Layout"]
+    ' If aOldConfig Then
+    '   Debug "old config = "; aOldConfig.Join()
+    ' Else
+    '   Debug "old config = NULL"
+    ' Endif
+    ' If aConfig Then
+    '   Debug "new config = "; aConfig.Join()
+    ' Else
+    '   Debug "new config = NULL"
+    ' Endif
     If Not aOldConfig And If Not aConfig Then
       bChange = False
     Else If aOldConfig And If aConfig And If aOldConfig.Join(",") = aConfig.Join(",") Then 
@@ -1588,15 +1663,8 @@ Public Sub SaveConfig(Optional bReset As Boolean)
   
   If Not bChange Then Return
   
-  Settings["/gb.form.mdi/Toolbars/" &/ ToolbarKey &/ "Layout"] = aConfig
-  Settings.Save
-  
-  For Each hForm In $cRegister[ToolbarKey]
-  
-    If Not bReset And If hForm = Me Then Continue
-    hForm.LoadConfig
-  
-  Next
+  SaveLayout(GetKey(), Null)
+  SaveLayout(ToolbarKey, aLayout, If(bReset, Null, Me))
   
 End
 
@@ -1710,19 +1778,21 @@ Public Sub panToolbar_Draw()
 
   If $bConfigure Then
     If Not $hConfigureImage Then 
-      If Color[Color.Background].Luminance > 127 Then
-        $hConfigureImage = Image.Load("img/configure.png")
-      Else
-        $hConfigureImage = Image.Load("img/configure_dark.png")
-      Endif
+      $hConfigureImage = Picture["img/configure.png"].Image
+      ' If Color[Color.Background].Luminance > 127 Then
+      '   $hConfigureImage = Image.Load("img/configure.png")
+      ' Else
+      '   $hConfigureImage = Image.Load("img/configure_dark.png")
+      ' Endif
     Endif
     Paint.Brush = Paint.Image($hConfigureImage)
     Paint.Rectangle(0, 0, panToolBar.W, panToolBar.H)
     Paint.Fill
-    ' Draw.Foreground = panWhere.Background
-    ' 'Draw.LineStyle = Line.Solid
-    ' Draw.Rect(0, 0, panToolBar.W, panToolBar.H)
-    ' Draw.Rect(1, 1, panToolBar.W - 2, panToolBar.H - 2)
+  ' Else If GetToolBar().Design Then
+  '   Paint.Rectangle(0.5, 0.5, Paint.W - 1, Paint.H - 1)
+  '   Paint.LineWidth = 1
+  '   Paint.Background = Color.LightBackground
+  '   Paint.Stroke
   Endif
 
 End

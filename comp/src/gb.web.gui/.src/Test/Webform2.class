@@ -1,0 +1,24 @@
+' Gambas class file
+
+'Export
+
+
+Public Sub WebTimer1_Timer()
+
+  WebProgressBar1.Value += 0.01
+  If WebProgressBar1.Value >= 1 Then WebButton1.Click()
+
+End
+
+Public Sub WebForm_Open()
+
+  Me.Title = "Traitement du " & Format(Now, "dd/mm/yyyy hh:nn:ss")
+  WebTimer1.Delay = Rand(500, 1000)
+
+End
+
+Public Sub WebButton1_Click()
+
+  Me.Close
+
+End

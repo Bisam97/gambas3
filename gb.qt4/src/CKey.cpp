@@ -2,7 +2,7 @@
 
   CKey.cpp
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -140,6 +140,23 @@ BEGIN_PROPERTY(Key_Normal)
 
 END_PROPERTY
 
+BEGIN_PROPERTY(Key_Shortcut)
+
+	static GB_FUNCTION func;
+	static bool init = FALSE;
+	
+	if (!init)
+	{
+		init = TRUE;
+		GB.GetFunction(&func, (void *)GB.FindClass("Shortcut"), "FromKey", NULL, "s");
+	}
+	
+	if (GB_FUNCTION_IS_VALID(&func))
+		GB.Call(&func, 0, FALSE);
+	else
+		GB.ReturnNull();
+
+END_PROPERTY
 
 GB_DESC CKeyDesc[] =
 {
@@ -152,7 +169,7 @@ GB_DESC CKeyDesc[] =
   GB_CONSTANT("Escape", "i", Qt::Key_Escape),
   GB_CONSTANT("Tab", "i", Qt::Key_Tab),
   GB_CONSTANT("BackTab", "i", Qt::Key_Backtab),
-  GB_CONSTANT("BackSpace", "i", Qt::Key_Backspace),
+  GB_CONSTANT("Backspace", "i", Qt::Key_Backspace),
   GB_CONSTANT("Return", "i", Qt::Key_Return),
   GB_CONSTANT("Enter", "i", Qt::Key_Enter),
   GB_CONSTANT("Ins", "i", Qt::Key_Insert),
@@ -216,7 +233,9 @@ GB_DESC CKeyDesc[] =
   GB_STATIC_PROPERTY_READ("Alt", "b", Key_Alt),
   GB_STATIC_PROPERTY_READ("Meta", "b", Key_Meta),
   GB_STATIC_PROPERTY_READ("Normal", "b", Key_Normal),
-
+  
+  GB_STATIC_PROPERTY_READ("Shortcut", "s", Key_Shortcut),
+  
   GB_END_DECLARE
 };
 

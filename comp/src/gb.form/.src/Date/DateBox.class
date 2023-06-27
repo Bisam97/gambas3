@@ -19,6 +19,9 @@ Property Border As Boolean
 Property Mode As Integer
 Property Read Text As String
 
+'' Return the inner [../../maskbox] control used for editing the date.
+Property Read Editor As MaskBox
+
 Private $hButtonBox As ButtonBox
 Private $hPopup As Window
 Private $hChooser As DateChooser
@@ -121,7 +124,8 @@ Private Function Value_Read() As Date
   Dim vVal As Variant
   
   If Not $bShowDate Then
-    vVal = Time(Val(Format(Date(1, 1, 1), "dd/mm/yyyy") & " " & $hButtonBox.Text))
+    'Debug Format(Date(1, 1, 1), gb.MediumDate) & " " & $hButtonBox.Text
+    vVal = Time(Val(Format(Date(1, 1, 1), gb.ShortDate) & " " & $hButtonBox.Text))
   Else
     vVal = Val($hButtonBox.Text)
   Endif
@@ -145,11 +149,11 @@ Public Sub ButtonBox_Click()
   Dim dDate As Date
   
   If $bShowTime And $bShowDate Then
-    $hPopup.Resize(Desktop.Scale * 48 + 2, ((Desktop.Scale * 24) \ 12) * 12 + 2)
+    $hPopup.Resize(Desktop.Scale * 72 + 2, ((Desktop.Scale * 32) \ 12) * 12 + 2)
   Else If $bShowDate
-    $hPopup.Resize(Desktop.Scale * 32 + 2, Desktop.Scale * 24)
+    $hPopup.Resize(Desktop.Scale * 40 + 2, Desktop.Scale * 32)
   Else
-    $hPopup.Resize(Desktop.Scale * 16 + 2, ((Desktop.Scale * 24) \ 12) * 12 + 2)
+    $hPopup.Resize(Desktop.Scale * 32 + 2, ((Desktop.Scale * 32) \ 12) * 12 + 2)
   Endif
 
   iPad = If($hButtonBox.Border, 3, 0)
@@ -230,8 +234,18 @@ Private Sub Border_Write(Value As Boolean)
 End
 
 Public Sub DateChooser_Click()
+
+  Dim dDate As Date
+  Dim bKeepOpen As Boolean
+
+  dDate = $hChooser.Value  
+  If $bShowDate And If $bShowTime Then 
+    bKeepOpen = dDate <> Me.Value
+  Endif
   
-  Me.Value = $hChooser.Value
+  Me.Value = dDate
+  If bKeepOpen Then Return
+
   $hPopup.Close
   Raise Click
   
@@ -282,5 +296,11 @@ End
 Private Function Text_Read() As String
 
   Return $hButtonBox.Text
+
+End
+
+Private Function Editor_Read() As MaskBox
+
+  Return $hButtonBox.Editor
 
 End

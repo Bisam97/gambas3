@@ -4,7 +4,7 @@ Export
 
 Inherits UserControl
 
-Public Const _Properties As String = "*,Action,Text,Alignment{Align.Normal;Left;Center;Right}=Normal,Picture,ReadOnly,Border=True,Button=True,ClearButton,Filter,FilterMenu{Menu}"
+Public Const _Properties As String = "*,Action,Text,Alignment{Align.Normal;Left;Center;Right}=Normal,Picture,ReadOnly,Placeholder,Password,Border=True,Button=True,ClearButton,Filter,FilterMenu{Menu}"
 Public Const _DefaultEvent As String = "Click"
 Public Const _DefaultSize As String = "24,4"
 Public Const _Similar As String = "TextBox"
@@ -14,6 +14,7 @@ Event Change
 Event Activate
 Event Clear
 Event Filter
+Event Validate
 
 Property Picture As Picture
 Property Text As String
@@ -27,6 +28,8 @@ Property Alignment As Integer
 Property ClearButton As Boolean
 Property Filter As Boolean
 Property FilterMenu As String
+Property Placeholder As String
+Property Password As Boolean
 
 'Private $hPanel As Panel
 Private $hBackground As DrawingArea
@@ -141,15 +144,22 @@ End
 
 Public Sub Background_Draw()
   
-  'Dim FW, FH As Integer
-  Dim iBg As Integer = Color.TextBackground
+  Dim iCol As Integer
+  Dim iState As Integer
   
-  If Me.Background <> Color.Default Then iBg = Me.Background
+  iCol = Style.BackgroundOf($hTextBox)
   
-  If $bBorder Then 
-    Style.PaintBox(0, 0, Me.W, Me.H, Style.StateOf($hTextBox), iBg)
+  If $bBorder Then  
+    
+    iState = Style.StateOf($hBackground)
+    If $hTextBox.HasFocus Then iState = iState Or Style.HasFocus
+    If $hBackground.Hovered Then iState = iState Or Style.Hovered
+    Style.PaintBox(0, 0, Paint.W, Paint.H, iState, iCol)
+    
   Else
-    Paint.FillRect(0, 0, Me.W, Me.H, iBg)
+    
+    Paint.FillRect(0, 0, Paint.W, Paint.H, iCol)
+
   Endif
   
 End
@@ -204,6 +214,16 @@ Public Sub TextBox_Activate()
   
 End
 
+Public Sub TextBox_Validate()
+
+  Dim bStop As Boolean
+  
+  bStop = Raise Validate
+  If bStop Then Stop Event
+  
+End
+
+
 Public Sub TextBox_Change()
   
   If $bFilter Then $hTimer.Start
@@ -218,8 +238,10 @@ Public Sub Background_Arrange()
   Dim aCtrl As New Control[]
   Dim X, H As Integer
   
-  FW = If($bBorder, Style.FrameWidth, 0)
-  FH = If($bBorder, Style.FrameWidth, 0)
+  If $bBorder Then
+    FW = Min(3, Style.BoxFrameWidth)
+    FH = Min(3, Style.BoxFrameHeight)
+  Endif
   
   For Each hCtrl In $hBackground.Children
     If hCtrl Is ToolButton And If hCtrl.Visible Then aCtrl.Add(hCtrl)
@@ -227,12 +249,12 @@ Public Sub Background_Arrange()
   
   H = Me.H - FH * 2
   
-  If System.RightToLeft Then
+  If Me.RightToLeft Then
     X = FW
     For Each hCtrl In aCtrl
       hCtrl.W = Desktop.Scale * 3
-      hCtrl.Move(X, FH, hCtrl.W, H)
-      X += hCtrl.W
+      hCtrl.Move(X, FH, H, H)
+      X += H
     Next
     If $hFilter Then
       $hTextBox.Move(X, FH, Me.W - FW - X - H, H)
@@ -244,8 +266,8 @@ Public Sub Background_Arrange()
     X = Me.W - FW
     For Each hCtrl In aCtrl
       hCtrl.W = Desktop.Scale * 3
-      X -= hCtrl.W
-      hCtrl.Move(X, FH, hCtrl.W, H)
+      X -= H
+      hCtrl.Move(X, FH, H, H)
     Next
     If $hFilter Then 
       $hFilter.Move(FW, FH, H, H)
@@ -260,6 +282,9 @@ End
 Public Sub _AddButton(hButton As ToolButton)
   
   hButton.Reparent($hBackground)
+  hButton.Raise
+  If $hClearButton Then $hClearButton.Raise
+  $hButton.Lower
   
 End
 
@@ -300,6 +325,7 @@ End
 Public Sub ClearButton_Click()
   
   $hTextBox.Clear
+  FilterNow
   Raise Clear
   
 End
@@ -330,8 +356,10 @@ Private Sub Filter_Write(Value As Boolean)
     UpdateFilterPicture
     $hTimer = New Timer As "FilterTimer"
     $hTimer.Delay = 500
+    $hTimer.Ignore = True
   Else
     $hFilter.Delete
+    $hFilter = Null
   Endif
   
   Background_Arrange
@@ -375,4 +403,28 @@ Public Sub FilterNow()
   'If Not $hTimer.Enabled Then Return
   FilterTimer_Timer
   
+End
+
+Private Function Placeholder_Read() As String
+
+  Return $hTextBox.Placeholder
+
+End
+
+Private Sub Placeholder_Write(Value As String)
+
+  $hTextBox.Placeholder = Value
+
+End
+
+Private Function Password_Read() As Boolean
+
+  Return $hTextBox.Password
+
+End
+
+Private Sub Password_Write(Value As Boolean)
+
+  $hTextBox.Password = Value
+
 End

@@ -1,0 +1,829 @@
+' Gambas class file
+
+' Gambas class file
+
+Export
+
+Inherits TextBox
+
+Public Const _Properties As String = "*,-Password,-MaxLength,Action,Filter,Mask,ShowDefault"
+'Public Const _DefaultEvent As String = "Click"
+'Public Const _DefaultSize As String = "24,4"
+Public Const _Similar As String = "TextBox"
+Public Const _DrawWith As String = "TextBox"
+
+Event Filter(Char As String)
+Event Validate
+
+Property Mask As String
+Property Filter As String
+Property ShowDefault As Boolean
+Property Text As String
+
+Private $hObserver As Observer
+
+Private Const MASK_CHARACTER As String = "90A6?"
+Private Const MASK_DEFAULT As String = "_0___"
+Private Const UNMASKED_CHAR As String = "\r"
+Private Const DIGIT_SPACE As String = "\xE2\x80\x87" ' Unicode 2007
+
+Private $sSaveText As String
+Private $iSavePos As Integer
+Private $iSaveLength As Integer
+'Private $bCursorBackward As Boolean
+
+Private $sMaskOrg As String
+
+Private $aMask As New String[]
+Private $sDefault As String
+Private $sSeparator As String
+Private $sAlign As String
+
+Private $iPosFocus As Integer
+Private $bShowDefault As Boolean
+
+Private $sFilter As String
+
+Public Sub _new()
+  
+End
+
+Private Function Mask_Read() As String
+
+  Return $sMaskOrg
+
+End
+
+Private Sub GetDefaultCharacter(iPos As Integer) As String
+  
+  Dim sCar As String = String.Mid$($sDefault, iPos + 1, 1)
+  If sCar = "." Then sCar = String.Mid$($sSeparator, iPos + 1, 1)
+  Return sCar
+  
+End
+
+
+Private Sub MakeDefault() As String
+  
+  Dim sDefault As String
+  Dim iPos As Integer
+  
+  For iPos = 0 To $aMask.Max
+    sDefault &= GetDefaultCharacter(iPos)
+  Next
+  
+  Return sDefault
+  
+End
+
+Private Sub GetFirstCharacterPos() As Integer
+  
+  Dim iPos As Integer
+  
+  For iPos = 0 To $aMask.Max
+    If $aMask[iPos] Then Return iPos
+  Next
+  
+End
+
+Private Sub GetLastCharacterPos() As Integer
+  
+  Dim iPos As Integer
+  
+  For iPos = $aMask.Max DownTo 0
+    If $aMask[iPos] Then Return iPos + 1
+  Next
+  
+End
+
+Private Sub UpdateMaskAndSeparator(sMask As String)
+  
+  Dim iPos, iPos2 As Integer
+  Dim sCar As String
+  Dim iLen As Integer
+  Dim aMask As New String[]
+  Dim sSeparator As String
+  Dim sAlign As String
+  Dim sDefault As String
+  Dim iPosFocus As Integer
+
+  iPosFocus = -1
+  iLen = String.Len(sMask)
+
+  For iPos = 1 To iLen
+    sCar = String.Mid$(sMask, iPos, 1)
+    If sCar = "[" Then
+      iPos2 = String.InStr(sMask, "]", iPos)
+      If iPos2 = 0 Then Error.Raise("Bad mask")
+      aMask.Add(String.Mid$(sMask, iPos, iPos2 - iPos + 1))
+      iPos = iPos2
+      sSeparator &= " "
+      sDefault &= " "
+      Continue
+    Else If sCar = "<" Then
+      If aMask.Count And If aMask[aMask.Max] Then
+        sAlign &= Space$(aMask.Count - 1 - Len(sAlign)) & "<"
+      Endif
+    Else If sCar = "!" Then
+      iPosFocus = aMask.Count
+    Else If sCar = "?" Then
+      aMask.Add(sCar)
+      sSeparator &= " "
+      sDefault &= " "
+    ' Else If sCar = "0" Then
+    '   aMask.Add("[0-9]")
+    '   sSeparator &= " "
+    '   sDefault &= "0"
+    Else If sCar = "0" Then
+      aMask.Add("[0-9]")
+      sSeparator &= " "
+      sDefault &= "0"
+    Else If sCar = "#" Or If sCar = "9" Then
+      aMask.Add("[0-9]")
+      sSeparator &= " "
+      sDefault &= DIGIT_SPACE
+    Else If sCar = "A" Then
+      aMask.Add("[A-Za-z]")
+      sSeparator &= " "
+      sDefault &= " "
+    Else If sCar = "\\" And If iPos < iLen Then
+      aMask.Add("")
+      Inc iPos
+      sSeparator &= String.Mid$(sMask, iPos, 1)
+      sDefault &= "."
+    Else
+      aMask.Add("")
+      sSeparator &= sCar
+      sDefault &= "."
+    Endif
+  Next
+  
+  $sMaskOrg = sMask
+  $aMask = aMask
+  $sSeparator = sSeparator
+  $sAlign = sAlign
+  $sDefault = sDefault
+  $iPosFocus = iPosFocus
+  'If $sMaskChar Then $sDefault = Replace($sDefault, "_", $sMaskChar)
+  
+End
+
+
+Private Sub Mask_Write(Value As String)
+
+  UpdateMaskAndSeparator(Value)
+  
+  If Not $sMaskOrg Then Return
+  
+  If Not $hObserver Then $hObserver = New Observer(Me) As "TextBox"
+  
+  If Not IsValid(Super.Text) Then
+    Clear()
+  Endif
+  
+  Me.Pos = GetFirstCharacterPos()
+
+End
+
+' Private Sub IsMaskCharacter(sCar As String) As Boolean
+'   
+'   Return InStr(MASK_CHARACTER, sCar)
+'   
+' End
+
+Private Sub GetPreviousSeparator(iPos As Integer, Optional sSep As String) As Integer
+  
+  Dim sCar As String
+  
+  If iPos < 0 Then Return -1
+  
+  While iPos >= 0
+    sCar = $aMask[iPos]
+    If Not sCar Then
+      If Not sSep Then Break
+      If sSep = String.Mid$($sSeparator, iPos + 1, 1) Then Break
+    Endif
+    Dec iPos
+  Wend
+  
+  Return iPos
+  
+End
+
+Private Sub GetNextSeparator(iPos As Integer, Optional sSep As String) As Integer
+  
+  Dim sCar As String
+  
+  If iPos < 0 Then Return 0
+  
+  While iPos < $aMask.Count
+    sCar = $aMask[iPos]
+    If Not sCar Then
+      If Not sSep Then Break
+      If sSep = String.Mid$($sSeparator, iPos + 1, 1) Then Break
+    Endif
+    Inc iPos
+  Wend
+  
+  Return iPos
+  
+End
+
+Private Sub GetNextCharacter(sText As String, iPos As Integer) As Integer
+  
+  Dim iLen As Integer = String.Len(sText)
+  
+  If iPos < 0 Then Return 0
+  
+  While iPos < iLen
+    If $aMask[iPos] Then Break
+    Inc iPos
+  Wend
+  
+  Return iPos
+  
+End
+
+Private Sub IsRightAlign(iPos As Integer) As Boolean
+  
+  iPos = GetNextSeparator(iPos)
+  If iPos = 0 Then Return
+  Return Mid$($sAlign, iPos, 1) = "<"
+  
+End
+
+Private Sub UnmaskText(sText As String) As String
+  
+  Dim iPos As Integer
+  Dim sResult As String
+  Dim sCar As String
+  
+  For iPos = 1 To String.Len(sText)
+    sCar = String.Mid$(sText, iPos, 1)
+    If $aMask[iPos - 1] And If sCar = GetDefaultCharacter(iPos - 1) Then sCar = UNMASKED_CHAR
+    sResult &= sCar
+  Next
+  
+  Return sResult
+  
+End
+
+Private Sub MaskText(sText As String) As String
+  
+  Dim iPos As Integer
+  Dim sResult As String
+  Dim sCar As String
+  Dim sMask As String
+  Dim bNumber As Boolean
+  Dim sDefault As String
+  
+  For iPos = 1 To String.Len(sText)
+    sCar = String.Mid$(sText, iPos, 1)
+    sDefault = GetDefaultCharacter(iPos - 1)
+    
+    sMask = $aMask[iPos - 1]
+    If sMask = "[0-9]" Then
+      If sCar = "0" And If sDefault <> "0" And If Not bNumber Then
+        sCar = UNMASKED_CHAR
+      Else If IsDigit(sCar) Then
+        bNumber = True
+      Else If sCar = UNMASKED_CHAR And If bNumber And If IsRightAlign(iPos) Then
+        sCar = "0"
+      Endif
+    Else 
+      bNumber = False
+    Endif
+    
+    If sCar = UNMASKED_CHAR Then sCar = sDefault
+    sResult &= sCar
+  Next
+  
+  Return sResult
+  
+End
+
+Private Sub GotoCursor(iPos As Integer) As Boolean
+  
+  Dim sText As String = Super.Text
+  Dim sCar As String
+  
+  If iPos < 0 Then Return
+  
+  If IsRightAlign(iPos) Then
+    While iPos < Me.Length
+      sCar = String.Mid$(sText, iPos + 1, 1)
+      If sCar <> " " And If sCar <> "0" Then 
+        Break
+      Endif
+      Inc iPos
+    Wend
+  Endif
+  
+  If Me.Pos <> iPos Then
+    Me.Pos = iPos
+    Return True
+  Endif
+  
+End
+
+
+Public Sub TextBox_KeyPress()
+  
+  Dim sText, sTextOrg As String
+  Dim iPos, iPosPrev, iPosNext As Integer
+  Dim sCar As String
+  Dim sInsert As String
+  Dim bDelete As Boolean
+  Dim bBefore As Boolean
+  Dim bChange As Boolean
+  
+  If Not $sMaskOrg Then Return
+  If Me.ReadOnly Then Return
+  
+  sText = UnmaskText(Super.Text)
+  sTextOrg = sText
+  
+  If Me.Selected Then
+    iPos = GetNextCharacter(sText, Me.Selection.Start)
+  Else
+    iPos = Me.Pos
+  Endif
+  
+  Select Key.Code
+    
+    Case Key.Left, Key.Right, Key.Home, Key.End
+      Return
+      
+    ' Case Key.Right
+    '   
+    ' Case Key.Home
+    '   iPos = GetFirstCharacterPos()
+    '   
+    ' Case Key.End
+    '   iPos = GetLastCharacterPos()
+      
+    Case Key.Delete
+      If iPos < Me.Length
+        bDelete = True
+        bBefore = IsRightAlign(iPos + 1) 
+      Endif
+      
+    Case Key.BackSpace
+      If iPos > 0 Then
+        bDelete = True
+        bBefore = IsRightAlign(iPos)
+        Dec iPos
+      Endif
+    
+    Case Key.Tab, Key.BackTab, Key.Up, Key.Down, Key.Enter, Key.Return, Key.ControlKey, Key.AltKey, Key.ShiftKey, Key.AltGrKey
+      Return
+    
+    Case Else
+      
+      If Key.Control Then Return
+        
+      If Key.Text Then
+        
+        bBefore = IsRightAlign(iPos) 
+        
+        If bBefore Then
+          If iPos > 0 Then
+            sCar = $aMask[iPos - 1]
+          Else
+            sCar = ""
+          Endif
+          If sCar And If Key.Text Like sCar Then 
+            sInsert = Key.Text
+          Endif
+        Else If iPos < $aMask.Count Then
+          sCar = $aMask[iPos]
+          If sCar And If Key.Text Like sCar Then 
+            sInsert = Key.Text
+          Endif
+        Endif
+          
+        If Not sInsert Then
+          iPosNext = GetNextSeparator(iPos, Key.Text)
+          While iPosNext < Me.Length
+            If iPosNext < $aMask.Max And If $aMask[iPosNext + 1] Then Break
+            Inc iPosNext
+          Wend
+          If iPosNext >= Me.Length Then Goto DO_NOTHING
+          iPos = iPosNext + 1
+        Endif
+          
+      Endif
+    
+  End Select
+  
+  If sInsert Or If Key.Code = Key.Delete Or If Key.Code = Key.BackSpace Then
+    If Me.Selected Then
+      If Me.Selection.Length = Me.Length Then sText = MakeDefault()
+      'sText = String.Left$(sText, Me.Selection.Start) & String.Mid$(sDefault, Me.Selection.Start + 1, Me.Selection.Length) & String.Mid$(sText, Me.Selection.Start + Me.Selection.Length + 1)
+      iPos = GetNextCharacter(sText, Me.Selection.Start)
+      Me.Selection.Hide
+    Endif
+  Endif
+  
+  If sInsert Then
+    If Not bBefore Then
+      sText = String.Left(sText, iPos) & sInsert & String.Mid$(sText, iPos + 2)
+      iPos += String.Len(sInsert)
+    Else
+      iPosNext = iPos
+      While iPos > 0
+        If Not $aMask[iPos - 1] Then Break
+        Dec iPos
+      Wend
+      If String.Mid$(sText, iPos + 1, 1) = UNMASKED_CHAR Then
+        sText = String.Left(sText, iPos) & String.Mid$(sText, iPos + 2, iPosNext - iPos - 1) & sInsert & String.Mid$(sText, iPosNext + 1)
+      Endif
+      iPos = iPosNext
+    Endif
+  Endif
+  
+  If bDelete Then
+    iPosNext = GetNextSeparator(iPos)
+    If iPosNext > iPos Then
+      If bBefore Then
+        iPosPrev = GetPreviousSeparator(iPos)
+        sText = String.Left(sText, iPosPrev + 1) & UNMASKED_CHAR & String.Mid$(sText, iPosPrev + 2, iPos - iPosPrev - 1) & String.Mid$(sText, iPos + 2)
+        Inc iPos
+      Else
+        sText = String.Left(sText, iPos) & String.Mid$(sText, iPos + 2, iPosNext - iPos - 1) & UNMASKED_CHAR & String.Mid$(sText, iPosNext + 1)
+      Endif
+    Endif
+  Endif
+  
+  Object.Lock(Me)
+  If sText <> sTextOrg Then
+    sText = MaskText(sText)
+    If Super.Text <> sText Then 
+      Super.Text = sText
+      bChange = True
+    Endif
+
+    If IsRightAlign(iPos) Then
+      While iPos < Me.Length 
+        If String.Mid$(sText, iPos + 1, 1) <> " " Then Break
+        Inc iPos
+      Wend
+    Endif
+  Endif
+  Object.Unlock(Me)
+  
+  Me.Pos = iPos
+  
+  If bChange Then Raise Change
+  
+  'Me.Select(iPos, 1)
+
+DO_NOTHING:
+  
+  Stop Event
+  
+End
+
+' Private Function MaskChar_Read() As String
+' 
+'   Return $sMaskChar  
+' 
+' End
+' 
+' Private Sub MaskChar_Write(Value As String)
+' 
+'   Dim sText As String
+'   Dim iPos As Integer
+'   Dim sCar As String
+'   Dim aPos As New Integer[]
+' 
+'   Value = String.Left(Value)
+'   sText = Super.Text
+'   
+'   For iPos = 0 To $aMask.Max
+'     sCar = $aMask[iPos]
+'     If Not sCar Or If String.Mid$($sDefault, iPos + 1, 1) <> "_" Then Continue
+'     If String.Mid$(sText, iPos + 1, 1) = GetDefaultCharacter(iPos) Then aPos.Add(iPos)
+'   Next
+'   
+'   $sMaskChar = Value
+'   UpdateMaskAndSeparator($sMaskOrg)
+'   
+'   For Each iPos In aPos
+'     sText = String.Left(sText, iPos) & GetDefaultCharacter(iPos) & String.Mid$(sText, iPos + 2)
+'   Next
+'   
+'   Super.Text = RTrim(sText)
+'   Me.Pos = GetFirstCharacterPos()
+' 
+' End
+
+Public Sub TextBox_GotFocus()
+  
+  If Not $sMaskOrg Then Return
+  TextBox_Change
+  If $iPosFocus > 0 Then Me.Pos = $iPosFocus
+  
+End
+
+Public Sub TextBox_LostFocus()
+  
+  If Not $sMaskOrg Then Return
+  TextBox_Change
+  GotoCursor($iPosFocus)
+  
+End
+
+Private Sub RestorePosition()
+
+  Me.Pos = $iSavePos
+  If $iSaveLength Then Me.Select($iSavePos, $iSaveLength)
+
+End
+
+Public Sub TextBox_Cursor()
+
+  Dim iPos As Integer
+  Dim sDefault As String
+  Dim sText As String
+  Dim sLeft As String
+  Dim sRight As String
+  Dim bValid As Boolean
+  
+  iPos = Me.Pos
+  sDefault = MakeDefault()
+  sText = Super.Text
+  
+  Do
+    
+    If iPos > 0 Then 
+      sLeft = String.Mid$(sText, iPos, 1)
+    Else 
+      sLeft = ""
+      If Not IsRightAlign(iPos) Then sLeft = "^"
+    Endif
+    
+    If iPos < String.Len(sText) Then
+      sRight = String.Mid$(sText, iPos + 1, 1)
+    Else 
+      sRight = ""
+      If IsRightAlign(iPos) Then sRight = "$"
+    Endif
+    
+    bValid = True
+
+    If Not sLeft Or If sLeft = " " Or If sLeft = DIGIT_SPACE Then
+      If Not sRight Or If sRight = " " Or If sRight = DIGIT_SPACE Then
+        bValid = False
+      Endif
+    Endif
+    
+    If bValid And If iPos > 0 And If iPos < String.Len(sText) Then
+      If String.Mid$($sSeparator, iPos, 1) <> " " And If String.Mid$($sSeparator, iPos + 1, 1) <> " " Then
+        bValid = False
+      Endif
+    Endif
+    
+    If bValid Then Break
+    
+    If iPos = $iSavePos Then Goto CANCEL_MOVE
+    
+    If IsRightAlign(iPos) Then
+      Inc iPos
+    Else 
+      Dec iPos
+    Endif
+    If iPos < 0 Or If iPos > String.Len(sText) Then Goto CANCEL_MOVE
+    
+  Loop
+  
+  $iSavePos = iPos
+  $iSaveLength = Me.Selection.Length
+  Me.Pos = iPos
+  Return
+  
+CANCEL_MOVE:
+
+  Object.Lock(Me)
+  RestorePosition
+  Object.Unlock(Me)
+  
+End
+
+
+' Public Sub TextBox_Menu()
+'   
+'   If Not $sMaskOrg Then Return
+'   Stop Event
+'   
+' End
+
+Public Sub TextBox_Change()
+  
+  ' Dim I As Integer
+  ' Dim sText As String
+  ' Dim sCar As String
+  ' Dim sNewText As String
+  ' Dim iPos As Integer
+  ' Dim iDec As Integer
+  'Dim bCanRaise As Boolean
+  Dim bStop As Boolean
+  
+  ' bCanRaise = Object.CanRaise(Me, "Filter")
+  ' 
+  ' If $sFilter Or If bCanRaise Then
+  '   
+  '   sText = Super.Text
+  '   iPos = Me.Pos    
+  '   For I = 1 To String.Len(sText)
+  '     sCar = String.Mid$(sText, I, 1)
+  '     If $sFilter And If sCar Like $sFilter Then
+  '       sNewText &= sCar
+  '       Continue
+  '     Endif
+  '     If bCanRaise Then
+  '       bStop = Raise Filter(sCar)
+  '       If Not bStop Then
+  '         sNewText &= sCar
+  '         Continue
+  '       Endif
+  '     Endif
+  '     
+  '     If I <= iPos Then Inc iDec
+  '     
+  '   Next
+  '   
+  '   If sNewText <> sText Then
+  '     Object.Lock(Me)
+  '     Super.Text = sNewText
+  '     Me.Pos = iPos - iDec
+  '     Object.Unlock(Me)
+  '   Endif
+  '   
+  ' Endif
+
+  If Not IsValid(Super.Text) Then 
+    bStop = True  
+  Else 'If Object.CanRaise(Me, "Validate") Then
+    bStop = Raise Validate
+  Endif
+  
+  If bStop Then
+    Object.Lock(Me)
+    Super.Text = $sSaveText
+    Me.Select($iSavePos, $iSaveLength)
+    Object.Unlock(Me)
+  Else
+    $sSaveText = Super.Text
+    $iSavePos = Me.Pos
+    $iSaveLength = Me.Selection.Length
+  Endif
+  
+  If $sMaskOrg Then 
+  
+    Object.Lock(Me)
+    If Me.HasFocus Or If $bShowDefault Then
+      If Super.Text = "" Then Super.Text = MakeDefault()
+    Else
+      If Super.Text = MakeDefault() Then Super.Text = ""
+    Endif
+    RestorePosition
+    Object.Unlock(Me)
+    
+  Endif
+  
+  TextBox_Cursor()
+  
+End
+
+Private Function ShowDefault_Read() As Boolean
+
+  Return $bShowDefault
+
+End
+
+Private Sub ShowDefault_Write(Value As Boolean)
+
+  $bShowDefault = Value
+  TextBox_Change
+
+End
+
+Private Sub IsValid(sText As String) As Boolean
+  
+  Dim I As Integer
+  Dim sMask As String
+  Dim sCar As String
+  Dim bStop As Boolean
+  Dim bCanRaise As Boolean
+  
+  bCanRaise = Object.CanRaise(Me, "Filter")
+  
+  If $sFilter Or If bCanRaise Then
+    
+    For I = 1 To String.Len(sText)
+      
+      sCar = String.Mid$(sText, I, 1)
+      
+      If $sFilter And If sCar Like $sFilter Then Continue
+      If bCanRaise Then
+        bStop = Raise Filter(sCar)
+        If Not bStop Then Continue
+      Endif
+      
+      Return False
+      
+    Next
+    
+  Endif
+  
+  If $sMaskOrg Then
+  
+    If String.Len(sText) > $aMask.Count Then Return False
+    
+    For I = 1 To String.Len(sText)
+      
+      sCar = String.Mid$(sText, I, 1)
+      sMask = $aMask[I - 1]
+      If sMask Then
+        If sCar <> String.Mid$($sDefault, I, 1) Then
+          If sCar Not Like sMask Then Return False
+        Endif
+      Else
+        If sCar <> String.Mid$($sSeparator, I, 1) Then Return False
+      Endif
+      
+    Next
+    
+  Endif
+  
+  Return True
+  
+End
+
+
+Public Sub Clear()
+  
+  If Me.HasFocus Then
+    Super.Text = MakeDefault()
+  Else
+    Super.Text = ""
+  Endif
+  
+End
+
+Private Function Filter_Read() As String
+
+  Return $sFilter
+
+End
+
+' Private Sub MakeFilter()
+' 
+'   Dim aFilter As New String[]
+'   Dim sFilter As String
+'   Dim iPos As Integer
+' 
+'   sFilter = $sFilterOrg
+'   $sFilter = ""
+' 
+'   While sFilter
+'     
+'     If Left(sFilter) = "[" Then
+'       iPos = InStr(sFilter, "]")
+'       If iPos Then
+'         aFilter.Add(Mid$(sFilter, 2, iPos - 2))
+'         sFilter = Mid$(sFilter, iPos + 1)
+'         Continue
+'       Endif
+'     Endif
+'     
+'     $sFilter &= String.Left(sFilter)
+'     sFilter = String.Mid$(sFilter, 2)
+'     
+'   Wend
+'   
+'   $sFilterLike = "[" & aFilter.Join("") & "]"
+' 
+' End
+
+Private Sub Filter_Write(Value As String)
+
+  $sFilter = Value
+  If Not IsValid(Super.Text) Then
+    Clear()
+  Endif
+
+End
+
+Private Function Text_Read() As String
+
+  Return Trim(Replace(Super.Text, String.Chr(&H2007), " "))
+
+End
+
+Private Sub Text_Write(Value As String)
+
+  Super.Text = Value
+
+End

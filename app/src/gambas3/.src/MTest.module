@@ -1,0 +1,227 @@
+' Gambas module file
+
+Public Enum TEST_SUCCESS, TEST_FAIL, TEST_ABORT
+
+Public Sub GetTestModules(Optional bWithMethods As Boolean) As String[]
+
+  Dim aModules As String[]
+  Dim cSymbol As Collection
+  Dim hSymbol As CSymbolInfo
+  Dim aResult As String[]
+  Dim sClass As String
+  
+  aModules = Project.Tree.GetTestModules()
+  If Not bWithMethods Then Return aModules
+  
+  aResult = New String[]
+  
+  For Each sClass In aModules
+  
+    sClass = File.BaseName(sClass)
+  
+    cSymbol = Project.Documentation.GetClassSymbols(sClass)
+    If Not cSymbol Then Continue
+    
+    For Each hSymbol In cSymbol
+      
+      If Not hSymbol.IsFunction Or If hSymbol.NotPublic Or If hSymbol.IsHidden Then Continue
+      aResult.Add(sClass & "." & hSymbol.Name)
+      
+    Next
+  
+  Next
+  
+  aResult.Sort()
+  Return aResult
+  
+End
+
+Private Sub SuiteToSelection(sSuite As String, aTest As String[]) As String[]
+
+  Dim aSelection As New String[]
+  Dim sTest As String
+  Dim iPos As Integer
+  Dim aMethod As String[]
+  Dim sMethod As String
+  Dim bAdd As Boolean
+  
+  If sSuite Then 
+  
+    For Each sTest In Split(sSuite)
+      
+      iPos = InStr(sTest, ".")
+      
+      If iPos Then
+        aMethod = Split(Mid$(sTest, iPos + 1), ";")
+        sTest = Left(sTest, iPos - 1)
+        bAdd = False
+        For Each sMethod In aMethod
+          If aTest.Exist(sTest & "." & sMethod) Then 
+            If Not bAdd Then 
+              aSelection.Add(sTest)
+              bAdd = True
+            Endif
+            aSelection.Add(sTest & "." & sMethod)
+          Endif
+        Next
+      Else
+        If aTest.Exist(sTest & ".*", gb.Like) Then
+          aSelection.Add(sTest)
+        Endif
+      Endif
+      
+    Next
+    
+  Endif
+  
+  Return aSelection
+
+End
+
+Public Sub LoadSuites(ByRef iTestWith As Integer, Optional hCombo As ComboBox) As Collection
+
+  Dim hSettings As Settings
+  Dim iCount As Integer
+  Dim I As Integer
+  Dim sKey As String
+  Dim sName As String
+  Dim aTest As String[]
+  Dim cSuites As Collection
+
+  aTest = GetTestModules(True)
+
+  hSettings = New Settings(Project.Dir &/ ".test")
+  iCount = hSettings["/TestSuites/Count", 0]
+  
+  cSuites = New Collection
+  cSuites["$"] = SuiteToSelection(hSettings["/TestSuites/Default"], aTest)
+  
+  For I = 1 To iCount
+    
+    sKey = "/TestSuites/" & CStr(I)
+    sName = hSettings[sKey &/ "Name"]
+    ' lvwSuite.Add(sName, sName)
+    ' cmbTestWith.Add(sName)
+    cSuites[sName] = SuiteToSelection(hSettings[sKey &/ "Tests"], aTest)
+    
+  Next
+  
+  iTestWith = hSettings["/TestSuites/TestWith", 0]
+  
+  If hCombo Then  
+  
+    Object.Lock(hCombo)
+    
+    hCombo.Clear
+    hCombo.Add(("Default"))
+  
+    For Each cSuites
+      sName = cSuites.Key
+      If sName = "$" Then Continue
+      hCombo.Add(sName)
+    Next
+  
+    Try hCombo.Index = iTestWith
+    If Error Then hCombo.Index = 0
+    
+    Object.Unlock(hCombo)
+    
+  Endif
+  
+  Return cSuites
+  
+End
+
+Private Sub SelectionToSuite(aSel As String[]) As String
+
+  Dim iPos As Integer
+  Dim sMethod As String
+  Dim sLastClass As String
+  Dim sSuite As String
+  Dim bMethod As Boolean
+  Dim sKey As String
+  Dim sClass As String
+  
+  If Not aSel Then Return
+  
+  For Each sKey In aSel.Sort(gb.Natural)
+    
+    iPos = InStr(sKey, ".")
+    If iPos Then
+      sMethod = Mid$(sKey, iPos + 1)
+      sClass = Left(sKey, iPos - 1)
+    Else
+      sClass = sKey
+      sMethod = ""
+    Endif
+    
+    If sClass <> sLastClass Then
+      If sSuite Then sSuite &= ","
+      sSuite &= sClass
+      sLastClass = sClass
+      bMethod = False
+    Endif
+    
+    If sMethod Then 
+      sSuite &= If(bMethod, ";", ".") & sMethod
+      bMethod = True
+    Endif
+    
+  Next
+  
+  Return sSuite
+  
+End
+
+Public Sub SaveSuites(cSuites As Collection, iTestWith As Integer)
+
+  Dim sKey As String
+  Dim hSettings As Settings
+  Dim iCount As Integer
+  Dim sSlot As String
+  Dim aTest As String[]
+
+  hSettings = New Settings(Project.Dir &/ ".test")
+  
+  hSettings.Clear("/TestSuites", True)
+
+  For Each aTest In cSuites
+    
+    sKey = cSuites.Key
+    
+    If sKey = "$" Then
+      hSettings["/TestSuites/Default"] = SelectionToSuite(aTest)
+    Else
+      Inc iCount
+      sSlot = "/TestSuites/" & CStr(iCount)
+      hSettings[sSlot &/ "Name"] = sKey
+      hSettings[sSlot &/ "Tests"] = SelectionToSuite(aTest)
+    Endif
+    
+  Next
+
+  hSettings["/TestSuites/Count"] = iCount
+  hSettings["/TestSuites/TestWith"] = iTestWith
+  hSettings.Save
+  
+End
+
+Public Sub SaveTestWith(iTestWith As Integer)
+
+  Dim hSettings As Settings
+  
+  hSettings = New Settings(Project.Dir &/ ".test")
+  hSettings["/TestSuites/TestWith"] = iTestWith
+  hSettings.Save
+  
+End
+
+Public Sub UpdateSuites()
+  
+  Dim iTestWith As Integer
+  Dim cSuites As Collection
+  
+  cSuites = LoadSuites(ByRef iTestWith)
+  SaveSuites(cSuites, iTestWith)
+  
+End

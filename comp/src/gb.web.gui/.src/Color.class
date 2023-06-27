@@ -1,0 +1,92 @@
+' Gambas class file
+
+''' This class provides constant for pre-defined colors and color-related methods
+
+Export Optional
+
+Public Const Default As Integer = -1
+Public Const Transparent As Integer = &HFF000000
+Public Const Black As Integer = &H000000&
+Public Const White As Integer = &HFFFFFF&
+Public Const Gray As Integer = &H808080&
+Public Const LightGray As Integer = &HC0C0C0&
+Public Const DarkGray As Integer = &H404040&
+Public Const Blue As Integer = &HFF&
+Public Const DarkBlue As Integer = &H000080&
+Public Const SoftBlue As Integer = &H8080FF&
+Public Const Green As Integer = &HFF00&
+Public Const DarkGreen As Integer = &H008000&
+Public Const SoftGreen As Integer = &H80FF80&
+Public Const Red As Integer = &HFF0000&
+Public Const DarkRed As Integer = &H800000&
+Public Const SoftRed As Integer = &HFF8080&
+Public Const Cyan As Integer = &H00FFFF&
+Public Const DarkCyan As Integer = &H008080&
+Public Const SoftCyan As Integer = &H80FFFF&
+Public Const Magenta As Integer = &HFF00FF&
+Public Const DarkMagenta As Integer = &H800080&
+Public Const SoftMagenta As Integer = &HFF80FF&
+Public Const Pink As Integer = &HFF80FF&
+Public Const Yellow As Integer = &HFFFF00&
+Public Const DarkYellow As Integer = &H808000&
+Public Const SoftYellow As Integer = &HFFFF80&
+Public Const Orange As Integer = &HFF8000&
+Public Const DarkOrange As Integer = &H804000&
+Public Const SoftOrange As Integer = &HFFC080&
+Public Const Violet As Integer = &H8000FF&
+Public Const DarkViolet As Integer = &H400080&
+Public Const SoftViolet As Integer = &HC080FF&
+Public Const Royal As Integer = &H0080FF&
+Public Const DarkRoyal As Integer = &H004080&
+Public Const SoftRoyal As Integer = &H80C0FF&
+Public Const Purple As Integer = &HFF0080&
+Public Const DarkPurple As Integer = &H800040&
+Public Const SoftPurple As Integer = &HFF80C0&
+' 
+
+
+'' Change the alpha component of a color and return it.
+
+Static Public Sub SetAlpha(Color As Integer, Alpha As Integer) As Integer
+  
+  Return Color Or Lsl(Alpha, 24)
+  
+End
+
+'' Returns a color value from its red, green, blue and alpha components.
+'' 
+'' If ~Alpha~ is not specified, then it is assumed to be zero, i.e. you get a fully opaque color.
+'' 
+'' [[ info
+'' In Gambas, the alpha value of fully opaque colors is zero, and the alpha value of fully transparent colors is 255.
+'' ]]
+
+Static Public Sub RGB((Red) As Integer, (Green) As Integer, (Blue) As Integer, Optional Alpha As Integer) As Integer
+  
+  Return Blue Or Lsl(Green, 8) Or Lsl(Red, 16) Or Lsl(Alpha, 24)
+  
+End
+
+'' Convert a gambas colour integer into HTML CSS compliant code.
+''
+'' The resulting string will be either a hash prefixed hex value. eg. '#00FF00' that can be used anywhere or an rgba() string with integer values if alpha (transparency) is set. eg. 'rgba(0,128,255,0.75)' that should only be used in css **style** assignments.
+'' 
+Static Public Sub ToHTML({Color} As Integer) As String
+
+  Dim A As Integer
+  Dim R As Integer
+  Dim G As Integer
+  Dim B As Integer
+
+  A = 255 - Lsr({Color}, 24)
+  R = Lsr({Color}, 16) And 255
+  G = Lsr({Color}, 8) And 255
+  B = {Color} And 255
+  
+  If A < 255 Then
+    Return "rgba(" & CStr(R) & "," & CStr(G) & "," & CStr(B) & "," & CStr(Round(A / 255, -2)) & ")"
+  Else
+    Return "#" & Hex$(R, 2) & Hex$(G, 2) & Hex$(B, 2)
+  Endif
+
+End

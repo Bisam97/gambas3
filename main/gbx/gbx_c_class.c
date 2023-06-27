@@ -2,7 +2,7 @@
 
   gbx_c_class.c
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -162,7 +162,7 @@ BEGIN_METHOD(Classes_get, GB_STRING name)
 
 	if (class == NULL)
 	{
-		GB_Error("Unknown class '&1'", name);
+		GB_Error((char *)E_UCLASS, name);
 		return;
 	}
 
@@ -298,6 +298,9 @@ BEGIN_PROPERTY(Class_Symbols)
 		cds = CLASS_get_next_sorted_symbol(class, &index);
 		if (!cds)
 			break;
+		if (cds->name[0] == '.' && !cds->name[1])
+			continue;
+		
 		*((char **)GB_ArrayAdd(array)) = STRING_new(cds->name, cds->len);
 	}
 
@@ -312,12 +315,12 @@ BEGIN_METHOD(Class_get, GB_STRING name)
 	CLASS_DESC_SYMBOL *cd = NULL;
 	const char *name = GB_ToZeroString(ARG(name));
 
-	if (name != NULL)
+	if (name && name[0] && (name[0] != '.' || name[1] == 0))
 		cd = CLASS_get_symbol(class, name);
 
-	if (cd == NULL)
+	if (!cd)
 	{
-		GB_Error("Unknown symbol '&1'", name);
+		error(E_NSYMBOL, class, name);
 		return;
 	}
 
@@ -384,6 +387,28 @@ BEGIN_METHOD(Class_New, GB_OBJECT params)
 END_METHOD
 
 
+/*BEGIN_PROPERTY(Class_Size)
+
+	GB_ReturnInteger(OBJECT(CLASS)->size);
+
+END_PROPERTY
+
+
+BEGIN_PROPERTY(Class_DataSize)
+
+	CLASS *class = OBJECT(CLASS);
+	GB_ReturnInteger(CLASS_sizeof(class) - (class->size - class->off_event));
+
+END_PROPERTY
+
+
+BEGIN_PROPERTY(Class_StaticSize)
+
+	GB_ReturnInteger(OBJECT(CLASS)->size_stat);
+
+END_PROPERTY*/
+
+
 //---- Symbol -------------------------------------------------------------
 
 BEGIN_PROPERTY(Symbol_Name)
@@ -406,8 +431,10 @@ BEGIN_PROPERTY(Symbol_Kind)
 
 		case CD_PROPERTY:
 		case CD_PROPERTY_READ:
+		case CD_PROPERTY_WRITE:
 		case CD_STATIC_PROPERTY:
 		case CD_STATIC_PROPERTY_READ:
+		case CD_STATIC_PROPERTY_WRITE:
 			GB_ReturnInt(2);
 			return;
 
@@ -783,7 +810,7 @@ BEGIN_METHOD(Object_Count, GB_OBJECT object)
 
 	void *object = VARG(object);
 
-	if (GB_CheckObject(object))
+	if (check_null(object))
 		return;
 
 	// We substract one because the object is referenced on the stack
@@ -794,26 +821,35 @@ END_METHOD
 
 BEGIN_METHOD(Object_SizeOf, GB_OBJECT object)
 
+	CLASS *class;
 	void *object = VARG(object);
 
 	if (check_null(object))
 		return;
 
-	GB_ReturnInteger(CLASS_sizeof(OBJECT_class(object)));
+	class = OBJECT_class(object);
+	if (CLASS_is_array(class) && CARRAY_is_static((CARRAY *)object))
+	{
+		CARRAY *array = (CARRAY *)object;
+		GB_ReturnInteger(array->count * array->size);
+	}
+	else
+		GB_ReturnInteger(CLASS_sizeof(class));
 
 END_METHOD
 
 
 BEGIN_METHOD(Object_New, GB_STRING class; GB_OBJECT params)
 
-	CLASS *class = CLASS_find(GB_ToZeroString(ARG(class)));
+	const char *name = GB_ToZeroString(ARG(class));
+	CLASS *class = CLASS_find(name);
 	GB_ARRAY params = VARGOPT(params, NULL);
 	int i, np = 0;
 	void *object;
 
 	if (!class)
 	{
-		GB_Error("Unknown class");
+		GB_Error((char *)E_UCLASS, name);
 		return;
 	}
 
@@ -841,6 +877,13 @@ END_METHOD
 BEGIN_PROPERTY(Object_Address)
 
 	GB_ReturnPointer(VPROP(GB_OBJECT));
+
+END_PROPERTY
+
+
+BEGIN_PROPERTY(Object_Data)
+
+	GB_ReturnPointer(OBJECT_get_addr(VPROP(GB_OBJECT)));
 
 END_PROPERTY
 
@@ -951,6 +994,9 @@ GB_DESC NATIVE_Class[] =
 	GB_METHOD("AutoCreate", "o", Class_AutoCreate, NULL),
 	GB_METHOD("New", "o", Class_New, "[(Arguments)Array;]"),
 	GB_METHOD("Exist", "b", Class_Exist, "(Symbol)s"),
+	/*GB_PROPERTY_READ("Size", "i", Class_Size),
+	GB_PROPERTY_READ("DataSize", "i", Class_DataSize),
+	GB_PROPERTY_READ("StaticSize", "i", Class_StaticSize),*/
 
 	GB_CONSTANT("Variable", "i", 1),
 	GB_CONSTANT("Property", "i", 2),
@@ -984,6 +1030,7 @@ GB_DESC NATIVE_Object[] =
 	GB_STATIC_METHOD("Address", "p", Object_Address, "(Object)o"),
 	GB_STATIC_METHOD("CanRaise", "b", Object_CanRaise, "(Object)o(Event)s"),
 	GB_STATIC_METHOD("Raise", "b", Object_Raise, "(Object)o(Event)s[(Arguments)Array;]"),
+	GB_STATIC_METHOD("Data", "p", Object_Data, "(Object)o"),
 
 	GB_END_DECLARE
 };

@@ -2,7 +2,7 @@
 
   gbx_object.c
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -209,7 +209,7 @@ void OBJECT_attach(OBJECT *ob, OBJECT *parent, const char *name)
 	CLASS *class = OBJECT_class(ob);
 	OBJECT_EVENT *ev;
 
-	if (!name)
+	if (!name || !*name)
 		return;
 
 	if (!class->is_observer && class->n_event == 0)
@@ -401,7 +401,7 @@ void *OBJECT_create(CLASS *class, const char *name, void *parent, int nparam)
 		if (OBJECT_set_pointer)
 		{
 			*OBJECT_set_pointer = object;
-			OBJECT_ref(object);
+			OBJECT_REF(object);
 			OBJECT_set_pointer = NULL;
 		}
 
@@ -514,4 +514,36 @@ OBJECT *OBJECT_active_parent(void *object)
 		return NULL;
 
 	return parent;
+}
+
+int OBJECT_check_valid(void *object)
+{
+	return *((char *)object + OBJECT_class(object)->special[SPEC_INVALID]);
+}
+
+void *OBJECT_get_addr(void *ob)
+{
+	CLASS *class;
+	void *addr;
+
+	if (!ob)
+		return NULL;
+
+	class = OBJECT_class(ob);
+
+	if (class == CLASS_Class && !CLASS_is_native((CLASS *)ob))
+		addr = ((CLASS *)ob)->stat;
+	else if (CLASS_is_array(class))
+		addr = ((CARRAY *)ob)->data;
+	else if (CLASS_is_struct(class))
+	{
+		if (((CSTRUCT *)ob)->ref)
+			addr = (char *)((CSTATICSTRUCT *)ob)->addr;
+		else
+			addr = (char *)ob + sizeof(CSTRUCT);
+	}
+	else
+		addr = (char *)ob + sizeof(OBJECT);
+
+	return addr;
 }

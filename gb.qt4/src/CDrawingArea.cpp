@@ -2,7 +2,7 @@
 
   CDrawingArea.cpp
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -27,7 +27,6 @@
 #include <QPaintEvent>
 #include <QPixmap>
 #include <QPainter>
-#include <QX11Info>
 #include <QColormap>
 #include <QTimer>
 #include <QEvent>
@@ -37,8 +36,8 @@
 #include "CColor.h"
 #include "CDrawingArea.h"
 
-#ifndef QT5
 #ifndef NO_X_WINDOW
+#ifndef QT5
 #include <QX11Info>
 #include <X11/Xlib.h>
 #endif
@@ -93,7 +92,7 @@ MyDrawingArea::MyDrawingArea(QWidget *parent) : MyContainer(parent)
 	setAttribute(Qt::WA_OpaquePaintEvent, false);
 	setAttribute(Qt::WA_StaticContents, false);
 
-	setAllowFocus(false);
+	setFocusPolicy(Qt::NoFocus);
 }
 
 
@@ -114,20 +113,6 @@ void MyDrawingArea::setVisible(bool visible)
 			parentWidget()->update();
 	}
 #endif
-}
-
-void MyDrawingArea::setAllowFocus(bool f)
-{
-	if (f)
-	{
-		void *_object = CWidget::getReal(this);
-		setFocusPolicy(GB.CanRaise(THIS, EVENT_MouseWheel) ? Qt::WheelFocus : Qt::StrongFocus);
-		setAttribute(Qt::WA_InputMethodEnabled, true);
-	}
-	else
-	{
-		setFocusPolicy(Qt::NoFocus);
-	}
 }
 
 void MyDrawingArea::setFrozen(bool f)
@@ -218,7 +203,7 @@ void MyDrawingArea::redraw(QRect &r, bool frame)
 	{
 		QPainter pf(this);
 		pf.setClipping(false);
-		pf.initFrom(this);
+		//pf.begin(this); // Qt 5.x: avoid message "QPainter::begin: Painter already active"
 		pf.setRenderHint(QPainter::Antialiasing, false);
 		drawFrame(&pf);
 	}
@@ -566,7 +551,7 @@ BEGIN_METHOD(DrawingArea_new, GB_OBJECT parent)
 	THIS->widget.flag.noBackground = true;
 
 	CWIDGET_new(wid, (void *)_object);
-
+	
 END_METHOD
 
 
@@ -727,14 +712,8 @@ GB_DESC CDrawingAreaDesc[] =
 	GB_METHOD("_new", NULL, DrawingArea_new, "(Parent)Container;"),
 
 	GB_PROPERTY("Cached", "b", DrawingArea_Cached),
-
-	GB_PROPERTY("Arrangement", "i", Container_Arrangement),
-	GB_PROPERTY("AutoResize", "b", Container_AutoResize),
-	GB_PROPERTY("Spacing", "b", Container_Spacing),
-	GB_PROPERTY("Margin", "b", Container_Margin),
-	GB_PROPERTY("Padding", "i", Container_Padding),
-	GB_PROPERTY("Indent", "b", Container_Indent),
-  GB_PROPERTY("Invert", "b", Container_Invert),
+	
+	ARRANGEMENT_PROPERTIES,
 
 	GB_PROPERTY("Border", "i", DrawingArea_Border),
 	GB_PROPERTY("NoBackground", "b", DrawingArea_NoBackground),

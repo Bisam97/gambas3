@@ -52,14 +52,14 @@
 
 GB_STREAM_DESC SerialStream =
 {
-	open: CSerialPort_stream_open,
-	close: CSerialPort_stream_close,
-	read: CSerialPort_stream_read,
-	write: CSerialPort_stream_write,
-	seek: CSerialPort_stream_seek,
-	tell: CSerialPort_stream_tell,
-	flush: CSerialPort_stream_flush,
-	handle: CSerialPort_stream_handle
+	.open = CSerialPort_stream_open,
+	.close = CSerialPort_stream_close,
+	.read = CSerialPort_stream_read,
+	.write = CSerialPort_stream_write,
+	.seek = CSerialPort_stream_seek,
+	.tell = CSerialPort_stream_tell,
+	.flush = CSerialPort_stream_flush,
+	.handle = CSerialPort_stream_handle
 };
 
 DECLARE_EVENT(EVENT_Read);
@@ -679,9 +679,23 @@ BEGIN_PROPERTY(SerialPort_OutputBufferSize)
 
 END_PROPERTY
 
-// Here we declare the public interface of SerialPort class
+BEGIN_METHOD(SerialPort_Clear, GB_INTEGER buffer)
 
-GB_DESC CSerialPortDesc[] =
+	int buffer = VARGOPT(buffer, GB_ST_READ + GB_ST_WRITE);
+	
+	if (THIS->status)
+	{
+		if (buffer & GB_ST_READ)
+			tcflush(THIS->port, TCIFLUSH);
+		if (buffer & GB_ST_WRITE)
+			tcflush(THIS->port, TCOFLUSH);
+	}
+
+END_METHOD
+
+//-------------------------------------------------------------------------
+
+GB_DESC SerialPortDesc[] =
 {
 	GB_DECLARE("SerialPort", sizeof(CSERIALPORT)),
 
@@ -733,7 +747,9 @@ GB_DESC CSerialPortDesc[] =
 
 	GB_PROPERTY_READ("InputBufferSize", "i", SerialPort_InputBufferSize),
 	GB_PROPERTY_READ("OutputBufferSize", "i", SerialPort_OutputBufferSize),
-
+	
+	GB_METHOD("Clear", NULL, SerialPort_Clear, "[(Buffer)i]"),
+	
 	GB_CONSTANT("_IsControl", "b", TRUE),
 	GB_CONSTANT("_IsVirtual", "b", TRUE),
 	GB_CONSTANT("_Group", "s", "Network"),

@@ -5,15 +5,15 @@ bin_PROGRAMS = gbx3
 noinst_LIBRARIES = libgbx.a
 gblib_LTLIBRARIES = gb.la
 
-libgbx_a_CFLAGS = -DGAMBAS_PATH="\"$(bindir)\"" $(AM_CFLAGS_OPT)
+libgbx_a_CFLAGS = -DGAMBAS_PATH="\"$(bindir)\"" -Wno-address-of-packed-member -Wno-stringop-truncation $(AM_CFLAGS)
 
 gbx3_LDADD = @C_LIB@ @GBX_THREAD_LIB@ libgbx.a @MATH_LIB@ @INTL_LIB@ @CONV_LIB@ @GETTEXT_LIB@ @DL_LIB@ @FFI_LIB@ @RT_LIB@ 
 gbx3_LDFLAGS = @LD_FLAGS@ @GBX_THREAD_LDFLAGS@ @INTL_LDFLAGS@ @CONV_LDFLAGS@ @GETTEXT_LDFLAGS@ @FFI_LDFLAGS@ @RT_LDFLAGS@
-gbx3_CFLAGS = -DGAMBAS_PATH="\"$(bindir)\"" $(AM_CFLAGS)
+gbx3_CFLAGS = -DGAMBAS_PATH="\"$(bindir)\"" -Wno-address-of-packed-member -Wno-stringop-truncation $(AM_CFLAGS)
 
 gb_la_LIBADD = @C_LIB@ @GBX_THREAD_LIB@ @MATH_LIB@ @INTL_LIB@ @CONV_LIB@ @GETTEXT_LIB@ @DL_LIB@ @FFI_LIB@ @RT_LIB@
 gb_la_LDFLAGS = -module @LD_FLAGS@ @INTL_LDFLAGS@ @CONV_LDFLAGS@ @GETTEXT_LDFLAGS@ @FFI_LDFLAGS@ @RT_LDFLAGS@
-gb_la_CFLAGS = -DGBX_INFO $(AM_CFLAGS) -O0
+gb_la_CFLAGS = -DGBX_INFO $(AM_CFLAGS) -Wno-address-of-packed-member -Wno-stringop-truncation -O0
 
 libgbx_a_SOURCES = \
  gb_error.h gb_error.c \
@@ -38,7 +38,7 @@ gbx3_SOURCES = \
  gbx_class_load.c gbx_class_load.h \
  gbx_event.h gbx_event.c \
  gb_file.h gb_file.c \
- gbx_stream.h gbx_stream.c gbx_stream_direct.c gbx_stream_lock.c gbx_stream_buffer.c gbx_stream_memory.c \
+ gbx_stream.h gbx_stream.c gbx_stream_direct.c gbx_stream_lock.c gbx_stream_buffer.c gbx_stream_memory.c gbx_stream_null.c \
  gbx_stream_arch.c gbx_stream_process.c gbx_stream_pipe.c gbx_stream_string.c \
  gbx_project.h gbx_project.c \
  gbx_library.h gbx_library.c \
@@ -54,7 +54,7 @@ gbx3_SOURCES = \
  gbx_watch.h gbx_watch.c \
  gbx_expression.h gbx_eval.h gbx_eval.c \
  gbx_compare.h gbx_compare.c \
- gbx.c \
+ gbx.c gbx.h \
  gbx_number.h gbx_number.c \
  gbx_object.h gbx_object.c \
  gbx_variant.h \

@@ -1,54 +1,72 @@
 ' Gambas class file
 
 Create Static
-Private hPrinter As New Printer As "Printer"
-Private $hPrint As Report
+
+Private $hPrinter As New Printer As "Printer"
+Private $hReport As Report
+
+Static Public Sub InitPrinterFromReport(hPrinter As Printer, hReport As Report)
+
+  hPrinter.FullPage = True
+  
+  hPrinter.Orientation = hReport.Orientation
+  
+  If hReport.Paper = Printer.Custom Then
+    'pnlCustom.Enabled = True
+    hPrinter.PaperWidth = Report.UnitTo(TSizeParse[hReport.Width].ToInch(), "in", "mm")
+    hPrinter.PaperHeight = Report.UnitTo(TSizeParse[hReport.Height].ToInch(), "in", "mm")
+  Else
+    hPrinter.Paper = hReport.Paper
+  Endif 
+  
+End
 
 Public Sub PrintReport(hReport As Report, Optional MyPrinter As Printer)
 
-  Dim hSizeParse As TSizeParse
-  $hPrint = hReport
+  Dim hImage As Image
+
+  $hReport = hReport
+  $hReport.Scale = 1
   '$hPrint = hReport.Clone()
   If MyPrinter Then 
-    hPrinter = MyPrinter
+    $hPrinter = MyPrinter
   Else
-    hPrinter = New Printer
+    $hPrinter = New Printer
   Endif
-    Object.Attach(hPrinter, Me, "Printer")
   
-  hPrinter.Paper = $hPrint.Paper
-  hPrinter.Orientation = $hPrint.Orientation
-  If $hPrint.Paper = Printer.Custom Then
-    hSizeParse = New TSizeParse($hPrint.Width)
-    hPrinter.PaperWidth = Report.UnitTo(hSizeParse.ToInch(), "in", "mm") ' * 10
-    hSizeParse = New TSizeParse($hPrint.Height)
-    hPrinter.PaperHeight = Report.UnitTo(hSizeParse.ToInch(), "in", "mm") ' * 10
-  Endif
+  Object.Attach($hPrinter, Me, "Printer")
+  
+  InitPrinterFromReport($hPrinter, $hReport)
+  
   If Not MyPrinter Then
-    If Not hPrinter.Configure() Then
-      hPrinter.Print
-    Endif
-  Else
-    hPrinter.Print
+    If $hPrinter.Configure() Then Return
   Endif
+
+  ' The report layout only works on Image, i.e. when DPI = 72
+  hImage = New Image(1, 1)
+  Paint.Begin(hImage)
+  $hReport.Layout()
+  Paint.End
+
+  $hPrinter.Print
+  
 End
 
 Public Sub Printer_Draw()
 
-  $hPrint.Paint(hPrinter.Page)
+  Paint.FontScale = 25.4 / 72 * Paint.W / $hPrinter.PaperWidth * 72 / 96 * 96 / $hPrinter.Resolution
+  $hReport.Paint($hPrinter.Page)
 
 End
 
 Public Sub Printer_Begin()
 
-  'Debug Object.Type($hReport)
-  $hPrint.Layout
-  hPrinter.Count = $hPrint.PageCount
+  $hPrinter.Count = $hReport.PageCount
 
 End
 
 Public Sub Printer_End()
 
-  $hPrint = Null
+  $hReport = Null
 
 End

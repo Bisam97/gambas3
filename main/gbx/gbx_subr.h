@@ -2,7 +2,7 @@
 
   gbx_subr.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -242,8 +242,9 @@ void SUBR_free(void);
 void SUBR_realloc(ushort code);
 void SUBR_strptr(ushort code);
 void SUBR_varptr(ushort code);
-void SUBR_ptr(ushort code);
+void SUBR_peek(ushort code);
 void SUBR_make(ushort code);
+void SUBR_poke(ushort code);
 
 /* subr_misc.c */
 

@@ -22,6 +22,8 @@ Private $bExpandOnMouseUp As Boolean
 Private $cExtern As New Collection
 Private $sStartup As String
 
+Private $aOtherProjects As New String[]
+
 Public Sub _new(sDir As String)
   
   $sDir = sDir
@@ -73,6 +75,9 @@ Private Sub AddFile(sDir As String, sFile As String, Optional bAfter As Boolean,
   Dim sTitle As String
   Dim hStat As Stat
   Dim bParentLink As Boolean
+  Dim bStartup As Boolean
+  Dim sForm As String
+  'Dim bCompressed As Boolean
 
   sPath = sDir &/ sFile
   
@@ -93,7 +98,7 @@ Private Sub AddFile(sDir As String, sFile As String, Optional bAfter As Boolean,
     sParent = KEY_CONNECTION
   Else If $cExtern.Exist(sPath) Then
     sParent = KEY_EXTERN
-    If Not $hTree.Exist(sParent) Then $hTree.Add(sParent, ("Files"), Picture["icon:/small/system"], $sDir)
+    If Not $hTree.Exist(sParent) Then $hTree.Add(sParent, ("Files"), Picture["icon:/small/link"], $sDir)
     bExtern = True
     Try sTitle = Project.Files[sPath].GetTitle()
     If sTitle Then sFile = sTitle
@@ -133,8 +138,10 @@ Private Sub AddFile(sDir As String, sFile As String, Optional bAfter As Boolean,
           sParent = ""
           
           If sExt = "class" Then
+            
             For Each hModule In CModule.All
-              If Exist(sDir &/ File.BaseName(sFile) & "." & hModule.Key) Then
+              sForm = sDir &/ File.BaseName(sFile) & "." & hModule.Key
+              If Exist(sForm) Then 
                 bIgnore = True
                 Break
               Endif          
@@ -142,7 +149,11 @@ Private Sub AddFile(sDir As String, sFile As String, Optional bAfter As Boolean,
 
             If Not bIgnore Then
               'IF sFile = "ReportContainer.class" THEN STOP
-              sParent = FindKey(Project.GetParentClass(sPath))
+              If Project.UseInheritance Then 
+                sParent = FindKey(Project.GetParentClass(sPath))
+                If sParent Then bAfter = True
+              Endif 
+              
               If sParent Then
                 If File.Ext(sParent) <> "class" Then 
                   sParent = ""
@@ -158,16 +169,6 @@ Private Sub AddFile(sDir As String, sFile As String, Optional bAfter As Boolean,
                 Endif
               Endif
             Endif
-          ' Else If sExt = "module" Then
-          ' Else
-          '   'hModule = CModule[sExt]
-          '   'sParent = hModule.TreeKey
-          '   'If Not hModule.Used Then bIgnore = True
-          '   sParent = sDir
-          Else If sExt <> "module" Then
-            'If Not HasModule(sExt) Then
-            '  bIgnore = True
-            'Endif
           Endif
 
           If Not sParent Then sParent = sDir
@@ -178,6 +179,7 @@ Private Sub AddFile(sDir As String, sFile As String, Optional bAfter As Boolean,
           Endif
             
           sFile = File.BaseName(sFile)
+          bStartup = sFile = $sStartup
           
         Endif
 
@@ -188,6 +190,12 @@ Private Sub AddFile(sDir As String, sFile As String, Optional bAfter As Boolean,
         Else
           bIgnore = True
         Endif
+        
+      ' Else
+      '   
+      '   If $bCurrentProject Then
+      '     bCompressed = Project.ShouldCompress(sDir &/ sFile)
+      '   Endif
 
       Endif
       
@@ -208,6 +216,8 @@ Private Sub AddFile(sDir As String, sFile As String, Optional bAfter As Boolean,
         bIgnore = True
       Endif
     Endif
+    
+    If Not $hTree.Exist(sParent) Then bIgnore = True
 
     If Not bIgnore Then
 
@@ -232,7 +242,7 @@ Private Sub AddFile(sDir As String, sFile As String, Optional bAfter As Boolean,
           Wend
         End With
       Endif
-
+      
       If $hTree.Exist(sKey) Then
         With $hTree[sKey]
           .Text = sFile
@@ -240,14 +250,39 @@ Private Sub AddFile(sDir As String, sFile As String, Optional bAfter As Boolean,
           .Reparent(sParent)
         End With
       Else
+        ' need a diff. Name (Text) for classes to reparent later
+        'If sTempName Then sFile = sTempName
+        
         $hTree.Add(sKey, sFile, hPict, sParent)
+        
+        ' 'If a * .class exist reparent the branch
+        ' If sExt <> "class" And If $hTree.Exist(File.SetExt(sKey, "class")) Then 
+        '   $hTree[File.SetExt(sKey, "class")].Reparent(sKey)
+        '   $hTree[File.SetExt(sKey, "class")].Text = sFile
+        ' End If
+        
         If bDir And If Not bSource Then
           $hTree.Add(sKey & "/", "",, sKey)
           bDir = False
         Endif
       Endif
-
+      
       With $hTree[sKey]
+        
+        If bStartup Then 
+          .Font = $hTree.Font
+          .Font.Underline = True
+          .Font.Bold = True
+        Else
+          .Font = Null
+        Endif
+        
+        ' If bCompressed Then
+        '   .RichText = Html(.Text) & " ⇣"
+        ' Else
+        '   .RichText = ""
+        ' Endif
+        
         If $bCurrentProject Then .Editable = Not Project.IsLocked(sKey)
         If bAfter Then .MoveAfter(sAfter)
         If bShow Then
@@ -255,12 +290,29 @@ Private Sub AddFile(sDir As String, sFile As String, Optional bAfter As Boolean,
           $hTree.MoveParent
           $hTree.Item.Expanded = True
         Endif
+        
       End With
       
-      If $bCurrentProject Then Project.RefreshIcon(sKey)
+      If bSource And If Project.ShowAllClasses And If Not bDir Then
+        If ExistForm(sFile) Then
+        
+          sParent = sKey
+          sPath = File.SetExt(sPath, "class")
+          sKey = File.SetExt(sKey, "class")
+          Try hStat = Stat(sPath)
+          If Error Then Return
+          
+          If Not $hTree.Exist(sKey) Then
+            With $hTree.Add(sKey, sFile, GetFileIcon(sPath,, hStat,, True), sParent)
+              .Font = $hTree.Font
+              .Font.Grade -= 2
+            End With
+          Endif
+        
+        Endif
+      Endif
       
-      'hForm = Files[sKey]
-      'If hForm Then hForm.Icon = GetFileIcon(sKey, 16)
+      If $bCurrentProject Then Project.RefreshIcon(sKey)
       
     Endif
 
@@ -272,21 +324,23 @@ End
 
 Private Procedure AddDir(Optional sDir As String)
 
-  Dim cDir As New String[]
+  Dim aDir As New String[]
   Dim sFile As String
   Dim aFile As New String[]
 
   If sDir Then 
-    cDir.Add(sDir)
+    aDir.Add(sDir)
   Else 
-    cDir.Add($sDir)
-    If $sDir <> $sSourceDir Then cDir.Add($sSourceDir)
+    aDir.Add($sDir)
+    If $sDir <> $sSourceDir Then aDir.Add($sSourceDir)
   Endif
+
+  $hTree._Begin()
 
   Repeat
 
-    sDir = cDir[0]
-    cDir.Remove(0)
+    sDir = aDir[0]
+    aDir.Remove(0)
     
     If Not IsDir(sDir) Then Continue
 
@@ -302,27 +356,35 @@ Private Procedure AddDir(Optional sDir As String)
       If Not IsDir(sDir &/ sFile) Then aFile.Add("F" & sFile)
     Next
   
-    aFile.Sort(gb.Natural)
+    aFile.Sort(gb.Natural + gb.IgnoreCase)
   
     $aInheritance.Clear
   
     For Each sFile In aFile
   
       sFile = Mid$(sFile, 2)
-      If AddFile(sDir, sFile, True) Then cDir.Add(sDir &/ sFile)
       'AddFile(sDir, sFile, True)
+      If AddFile(sDir, sFile) Then aDir.Add(sDir &/ sFile)
       
     Next
     
     DoRefreshAfter
     
-  Until cDir.Count = 0
+  Until aDir.Count = 0
+
+  $hTree._End()
 
 End
 
 Private Sub FillTree(Optional bDoNotRefreshCache As Boolean)
 
   Dim sKey As String
+  Dim sDir As String
+  Dim sFile As String
+  Dim iSize As Integer = Stock.GetSize("small")
+  Dim sPath As String
+  Dim sExt As String
+  
   'Dim sKeyReset As String
 
   '$bDisplayForm = Settings["/DisplayForm"]
@@ -338,7 +400,7 @@ Private Sub FillTree(Optional bDoNotRefreshCache As Boolean)
     .Clear()
 
     sKey = $sDir
-    .Add(sKey, File.Name($sDir), Project.GetIcon($sDir, 16))
+    .Add(sKey, File.Name($sDir), Project.GetIcon($sDir, iSize))
 
     .Add(KEY_PROJECT, ("Project"), Picture["icon:/small/directory"], sKey)
     '.Add(KEY_MODULE, ("Modules"), Picture["icon:/small/directory"], sKey)
@@ -358,6 +420,28 @@ Private Sub FillTree(Optional bDoNotRefreshCache As Boolean)
 
     For Each sKey In $cExtern
       AddFile(File.Dir(sKey), File.Name(sKey))
+    Next
+    
+    For Each sDir In $aOtherProjects
+      
+      .Add(sDir, File.Name(sDir), Project.GetIcon(sDir, iSize))
+      .Add(sDir &/ ".src", ("Project"), Picture["icon:/small/directory"], sDir)
+      
+      sDir &/= ".src"
+      
+      For Each sFile In RDir(sDir, "*", gb.Directory).Sort(gb.Natural + gb.IgnoreCase)
+        sPath = sDir &/ sFile
+        .Add(sPath, File.Name(sFile), Picture["icon:/small/directory"], File.Dir(sPath))
+      Next
+      
+      For Each sFile In RDir(sDir, "*", gb.File).Sort(gb.Natural + gb.IgnoreCase)
+        sPath = sDir &/ sFile
+        sExt = File.Ext(sPath)
+        If sExt = "class" Or If sExt = "module" Then
+          .Add(sPath, File.Name(sFile),, File.Dir(sPath)).Picture = GetFileIcon(sPath)
+        Endif
+      Next
+      
     Next
 
   End With
@@ -404,6 +488,9 @@ Public Function FindPath(sClass As String) As String
   sPath = Sources[sClass & ".module"]
   If sPath Then Return sPath
 
+  sPath = Sources[sClass & ".test"]
+  If sPath Then Return sPath
+  
 End
 
 Public Sub FindKey(sClass As String) As String
@@ -426,16 +513,45 @@ End
 Public Sub RefreshSources()
 
   Dim sPath As String
+  Dim sName As String
   
   Sources = New Collection(gb.IgnoreCase)
   
-  For Each sPath In RDir($sSourceDir, "*", gb.File + gb.Directory, True)
+  For Each sPath In Project.Browse($sSourceDir)
     If CModule.Ext.Exist(File.Ext(sPath)) Then
-      Sources[File.Name(sPath)] = $sSourceDir &/ sPath
+      sName = File.Name(sPath)
+      Sources[sName] = $sSourceDir &/ sPath
     Endif
   Next
   
 End
+
+Public Sub CheckDuplicates() As String[]
+
+  Dim sPath As String
+  Dim cName As New Collection
+  Dim aList As New String[]
+  Dim sName As String
+  Dim sDup As String
+  
+  For Each sPath In Project.Browse($sSourceDir)
+    sName = File.Name(sPath)
+    sDup = cName[sName]
+    If Not sDup Then
+      cName[sName] = sPath
+    Else
+      If sDup <> "*" Then
+        aList.Add(sDup)
+        cName[sName] = "*"
+      Endif
+      aList.Add(sPath)
+    Endif
+  Next
+  
+  If aList.Count Then Return aList
+  
+End
+
 
 Private Sub IsConnectionPath(sPath As String) As Boolean
   
@@ -476,11 +592,14 @@ End
 Public Sub Refresh(Optional bDoNotRefreshCache As Boolean, cFilter As Collection)
   
   Dim vLayout As Variant
+  Dim Y As Integer
   
   $cFilter = cFilter
   vLayout = $hTree.Layout
+  Y = $hTree.ScrollY
   FillTree(bDoNotRefreshCache)
   $hTree.Layout = vLayout
+  $hTree.ScrollY = Y
   
 End
 
@@ -506,10 +625,16 @@ Public Sub GetFileIcon(sPath As String, Optional iSize As Integer, hStat As Stat
   Dim hProject As CProjectInfo
   Dim sLink As String
   Dim bExported As Boolean
+  Dim bExportedNamespace As Boolean
   Dim fRapport As Float
   Dim bDoNotTranslate As Boolean
   Dim bModified As Boolean
   Dim iEmblemSize As Integer
+  Dim bReadOnly As Boolean
+  Dim bCompressed As Boolean
+  Dim hThumb As Image
+  Dim bImage As Boolean
+  Dim sExportName As String
 
   If iSize Then
     sPrefix = "icon:/" & iSize
@@ -517,9 +642,14 @@ Public Sub GetFileIcon(sPath As String, Optional iSize As Integer, hStat As Stat
   Else
     sPrefix = "icon:/small"
     sLocalPrefix = "img/16"
+    iSize = Stock.GetSize("small")
   Endif
 
-  If Not hStat Then hStat = Stat(sPath)
+  If Not hStat Then 
+    Try hStat = Stat(sPath)
+    If Error Then Return 
+  Endif
+  
   With hStat
 
     bLink = .Type = gb.Link Or bParentLink
@@ -528,8 +658,11 @@ Public Sub GetFileIcon(sPath As String, Optional iSize As Integer, hStat As Stat
       bLocked = Project.IsLocked(sPath)
       bAdded = Project.IsAdded(sPath)
       bDoNotTranslate = Not Project.ShouldTranslate(sPath)
+      'bCompressFile = Project.ShouldCompress(sPath)
       bModified = Project.IsModified(sPath)
-      If iSize = 0 Then iEmblemSize = 16
+      bReadOnly = Project.IsReadOnly(sPath)
+      bCompressed = Project.ShouldCompress(sPath)
+      iEmblemSize = iSize
     Endif
     '$bLastAdded = bAdded
 
@@ -556,12 +689,14 @@ Public Sub GetFileIcon(sPath As String, Optional iSize As Integer, hStat As Stat
       sExt = File.Ext(sPath)
       Select Case sExt
 
-        Case "form", "class", "module", "webpage", "report", "webform", "termform"
-          If IsSourcePath(sPath) Then
+        Case "form", "class", "module", "test", "webpage", "report", "webform", "termform"
+          If IsSourcePath(sPath) Or If IsClassFromOtherProject(sPath) Then
             sModule = sExt
             sIcon = sExt
-            bStartup = File.BaseName(sPath) = $sStartup 'And Not bNoStartup
-            bExported = Project.IsExported(sPath)
+            'bStartup = File.BaseName(sPath) = $sStartup 'And Not bNoStartup
+            sExportName = Project.GetExported(sPath)
+            bExported = sExportName
+            If bExported Then bExportedNamespace = sExportName <> File.BaseName(sPath)
           Endif
 
         Case "jpg", "jpeg", "xpm", "bmp", "png", "gif"
@@ -582,22 +717,20 @@ Public Sub GetFileIcon(sPath As String, Optional iSize As Integer, hStat As Stat
             sIcon = sPrefix &/ "image"
           Else
             sIcon = sPath
+            bImage = True
           Endif
 
         Case "svg", "svgz"
           sIcon = sPrefix &/ "vector"
 
-        Case "htm", "html", "css"
+        Case "htm", "html"
           sIcon = sPrefix &/ "html"
           
-        Case "js"
-          sIcon = sPrefix &/ "script"
+        Case "js", "json", "css", "xml", "pdf"
+          sIcon = sPrefix &/ sExt
 
         Case "txt", "text"
           sIcon = sPrefix &/ "text"
-
-        Case "pdf"
-          sIcon = sPrefix &/ "pdf"
 
         Case "connection"
           If Exist(File.SetExt(sPath, "template")) Then bExported = True
@@ -607,7 +740,7 @@ Public Sub GetFileIcon(sPath As String, Optional iSize As Integer, hStat As Stat
           sIcon = sPrefix &/ "terminal"
           
         Case Else
-          Try hImage = DesktopMime.FromFile(sPath).GetIcon(If(iSize, iSize, 16))
+          Try hImage = DesktopMime.FromFile(sPath).GetIcon(iSize)
           If hImage Then
             sIcon = "//"
           Else
@@ -631,18 +764,41 @@ Public Sub GetFileIcon(sPath As String, Optional iSize As Integer, hStat As Stat
 
       If fRapport < 8 Then
 
-        If iSize Then
-          hImage = hImage.Stretch(hImage.Width * iSize / hImage.Height, iSize)
+        If bImage Then
+          
+          If hImage.H > (iSize * 2 - 4) Then 
+            iSize *= 2
+          Else If hImage.H > (iSize - 4) Then
+            iSize = hImage.H + 4
+          Endif
+          
+          iSize -= 4
+          hThumb = hImage.Stretch(hImage.Width * iSize / hImage.Height, iSize)
+          iSize += 4
+          hImage = New Image(hThumb.W + 4, hThumb.H + 4, Color.Transparent)
+          hImage.DrawImage(hThumb, 2, 2)
+          Paint.Begin(hImage)
+          Paint.DrawRect(0, 0, hImage.W, hImage.H, Color.Merge(Color.TextBackground, Color.LightForeground))
+          Paint.End
+          
         Else
-          iSize = 32
-          If hImage.Height > iSize Then
-            hImage = hImage.Stretch(hImage.Width * iSize / hImage.Height, iSize)
-          Endif
-          If hImage.Width > iSize Then
-            hImage = hImage.Stretch(iSize, hImage.Height * iSize / hImage.Width)
-          Endif
+          
+          hImage = hImage.Stretch(hImage.Width * iSize / hImage.Height, iSize)
+
         Endif
 
+        ' If Not bImage Then
+        '   hImage = hImage.Stretch(hImage.Width * iSize / hImage.Height, iSize)
+        ' Else
+        '   iSize = 32
+        '   If hImage.Height > iSize Then
+        '     hImage = hImage.Stretch(hImage.Width * iSize / hImage.Height, iSize)
+        '   Endif
+        '   If hImage.Width > iSize Then
+        '     hImage = hImage.Stretch(iSize, hImage.Height * iSize / hImage.Width)
+        '   Endif
+        ' Endif
+        
       Else
 
         hImage = Null
@@ -664,17 +820,18 @@ Public Sub GetFileIcon(sPath As String, Optional iSize As Integer, hStat As Stat
       sKey &= "16-"
     Endif
     
-    
     If bLink Then sKey &= "l"
     
     If Not bNoEmblem Then
-      If bStartup Then sKey &= "s"
+      'If bStartup Then sKey &= "s"
       If bConflict Then sKey &= "c"
       If bLocked Then sKey &= "k"
       If bAdded Then sKey &= "a"
       If bModified Then sKey &= "m"
-      If bExported Then sKey &= "x"
+      If bExported Then sKey &= If(bExportedNamespace, "n", "x")
       If bDoNotTranslate Then sKey &= "t"
+      If bCompressed Then sKey &= "z"
+      If bReadOnly Then sKey &= "r"
     Endif
     
     If Right(sKey) = "-" Then sKey = Left(sKey, -1)
@@ -683,7 +840,7 @@ Public Sub GetFileIcon(sPath As String, Optional iSize As Integer, hStat As Stat
     'hPict = NULL
     'IF NOT bNoStartup THEN hPict = Picture[sKey]
 
-    sCacheKey = Replace(sKey, "icon:/", "$/")
+    sCacheKey = "$" & Replace(sKey, "icon:/", "$/")
     Try hPict = Picture[sCacheKey]
     If Not hPict Then
 
@@ -710,15 +867,17 @@ Public Sub GetFileIcon(sPath As String, Optional iSize As Integer, hStat As Stat
 
 ADD_EMBLEM:
 
-  If bLink Then hImage = Project.AddLinkEmblem(hImage)
+  If bLink Then hImage = AddLinkEmblem(hImage)
+  If bCompressed Then hImage = AddCompressedEmblem(hImage)
   
   If Not bNoEmblem Then
-    If bExported Then hImage = Project.AddEmblem(hImage, "img/32/exported.png", iEmblemSize)
+    If bExported Then hImage = Project.AddEmblem(hImage, If(bExportedNamespace, "img/32/exported-namespace.png", "img/32/exported.png"), iEmblemSize)
+    'If bCompressed Then hImage = Project.AddEmblem(hImage, "img/32/compressed.png", iEmblemSize)
     If bDoNotTranslate Then hImage = Project.AddEmblem(hImage, "img/32/do-not-translate.png", iEmblemSize)
-    If bAdded Then hImage = Project.AddEmblem(hImage, "img/32/added.png", iEmblemSize)
-    If bModified Then hImage = Project.AddEmblem(hImage, "img/32/modified.png", iEmblemSize)
-    If bConflict Then hImage = Project.AddEmblem(hImage, "img/32/conflict.png", iEmblemSize)
-    If bLocked Then hImage = Project.AddEmblem(hImage, "icon:/32/lock", iEmblemSize)
+    If bAdded Then hImage = Project.AddEmblem(hImage, "icon:/32/added", iEmblemSize)
+    If bModified Then hImage = Project.AddEmblem(hImage, "icon:/32/modified", iEmblemSize)
+    If bConflict Then hImage = Project.AddEmblem(hImage, "icon:/32/conflict", iEmblemSize)
+    If bLocked Or If bReadOnly Then hImage = Project.AddEmblem(hImage, "icon:/32/lock", iEmblemSize)
   Endif
   
   Return
@@ -867,6 +1026,39 @@ Public Function ExistForm(sClass As String) As Boolean
 
 End
 
+Public Function HasForm(sPath As String) As Boolean
+  
+  If File.Ext(sPath) <> "class" Then Return
+
+  Return ExistForm(File.BaseName(sPath))
+
+End
+
+Public Sub HasTest() As Boolean
+
+  Dim sPath As String
+  
+  For Each sPath In Sources
+    If File.Ext(sPath) = "test" Then Return True
+  Next
+  
+End
+
+Public Sub GetTestModules() As String[]
+  
+  Dim sPath As String
+  Dim aResult As New String[]
+  
+  For Each sPath In Sources
+    If File.Ext(sPath) = "test" Then aResult.Add(sPath)
+  Next
+  
+  aResult.Sort(gb.Natural + gb.IgnoreCase)
+  Return aResult
+  
+End
+
+
 Private Sub RefreshInheritance()
 
   Dim sKey As String
@@ -955,7 +1147,7 @@ Public Sub RefreshKey(sKey As String, Optional sOld As String)
     Next
     
   Endif
-
+  
 End
 
 Public Sub AddExtern(sPath As String)
@@ -968,6 +1160,7 @@ Public Sub ExistClass(sClass As String) As Boolean
 
   If Sources.Exist(sClass & ".class") Then Return True
   If Sources.Exist(sClass & ".module") Then Return True
+  If Sources.Exist(sClass & ".test") Then Return True
 
 End
 
@@ -980,5 +1173,82 @@ Public Sub DefineStartup(sClass As String) As String
   Endif
   
   Return $sStartup
+  
+End
+
+Private Sub AddLinkEmblem(hSource As Image) As Image
+
+  Dim hImage As Image
+  Dim iSize As Integer
+
+  iSize = Min(hSource.H, hSource.W) \ 2
+  
+  hImage = hSource.Copy()
+  
+  Paint.Begin(hImage)
+  
+  Paint.MoveTo(hImage.W, hImage.H)
+  Paint.RelLineTo(0, -iSize)
+  Paint.RelLineTo(-iSize, iSize)
+  Paint.RelLineTo(iSize, 0)
+  Paint.Background = Color.Black
+  'Paint.Background = Color.SetAlpha(Color.TextForeground, 64)
+  Paint.Operator = Paint.OperatorDestOut
+  Paint.Fill
+  
+  iSize *= 0.85
+  
+  Paint.MoveTo(hImage.W, hImage.H)
+  Paint.RelLineTo(0, -iSize)
+  Paint.RelLineTo(-iSize, iSize)
+  Paint.RelLineTo(iSize, 0)
+  Paint.Background = Color.SetAlpha(Color.TextForeground, 64)
+  Paint.Operator = Paint.OperatorOver
+  Paint.Fill
+  
+  Paint.End
+  Return hImage
+
+End
+
+Private Sub AddCompressedEmblem(hSource As Image) As Image
+
+  Dim hImage As Image
+  
+  hImage = hSource.Copy()
+  If Application.DarkTheme Then
+    hImage.Brightness(0.5)
+  Else
+    hImage.Brightness(-0.25)
+  Endif
+
+  Return hImage
+
+End
+
+Public Sub AddOtherProject(sDir As String)
+  
+  sDir = File.RealPath(sDir)
+  If $aOtherProjects.Exist(sDir) Then Return
+  $aOtherProjects.Add(sDir)
+  Refresh
+  
+End
+
+Public Sub ClearOtherProjects()
+  
+  If Not $aOtherProjects Or If $aOtherProjects.Count = 0 Then Return 
+  $aOtherProjects.Clear
+  Refresh
+  
+End
+
+Private Sub IsClassFromOtherProject(sPath As String) As Boolean
+
+  Dim iPos As Integer
+  
+  iPos = RInStr(sPath, "/.src/")
+  If iPos = 0 Then Return
+  Return $aOtherProjects.Exist(Left(sPath, iPos - 1))
   
 End

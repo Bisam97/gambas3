@@ -1,12 +1,15 @@
 ' Gambas class file
 
 Private $aProc As String[]
+Private $aFilter As Integer[]
 Private $iCurrent As Integer
 Private $iInit As Integer
 Private $sClass As String
 Private $sFind As String
-Private $dFind As Float
+Private $fTimerFind As Float
 Private $hModule As FEditor
+Private $bStatic As Boolean
+Private $bNoFilter As Boolean
 
 Static Public Sub Popup(hModule As FEditor, sClass As String, aProc As String[], iCurrent As Integer, X As Integer, Y As Integer, W As Integer, H As Integer) As Integer
   
@@ -21,9 +24,6 @@ End
 
 Public Sub Init(hModule As FEditor, sClass As String, aProc As String[], iCurrent As Integer, W As Integer, H As Integer)
   
-  Dim fSize As Float
-  Dim N As Integer
-  
   $hModule = hModule
   $sClass = sClass
   ' Copy it, as it can disappear during the Editor_Change() method
@@ -31,27 +31,21 @@ Public Sub Init(hModule As FEditor, sClass As String, aProc As String[], iCurren
   $iInit = iCurrent
   $iCurrent = iCurrent
   
-  gvwProc.Rows.Count = aProc.Count
-  gvwProc.Rows.UnselectAll
-  gvwProc.Columns.Count = 1
-  
-  N = H / Desktop.Scale / 4
-  
-  If aProc.Count > N * 2 Then
-    fSize = 0.8
-  Else If aProc.Count > N Then
-    fSize = 0.9
-  Else
-    fSize = 1
+  panFilter.Visible = $sClass
+  sepFilter.Visible = $sClass
+  If $sClass Then
+    $bStatic = File.Ext($hModule.Path) = "module"
+    btnShowStatic.Visible = Not $bStatic
   Endif
+  
+  FilterProc
+  
+  Me.Resize(W, Min(H, $aProc.Count * gvwProc.Rows.H + panFilter.H + 3))
 
-  Project.SetNormalFont(gvwProc, fSize)
-
-  Me.Resize(W, Min(H, gvwProc.ScrollHeight + 2))
-  Try gvwProc[iCurrent, 0].EnsureVisible
+  Try gvwProc[$iInit, 0].EnsureVisible
   
   $sFind = ""
-  $dFind = Timer
+  $fTimerFind = Timer
   
 End
 
@@ -64,7 +58,11 @@ End
 
 Public Sub gvwProc_MouseUp()
   
-  Me.Close($iCurrent + 1)
+  If $iCurrent < 0 Then
+    Me.Close(0)
+  Else
+    Me.Close($aFilter[$iCurrent] + 1)
+  Endif
   
 End
 
@@ -73,10 +71,11 @@ Private Sub SetCurrent(iCurrent As Integer, Optional bEnsureVisible As Boolean =
   Dim iOld As Integer = $iCurrent
   
   If iCurrent = iOld Then Return
-  If iCurrent >= 0 And If $aProc[iCurrent] = "-" Then Return
+
+  If iCurrent >= 0 And If $aProc[$aFilter[iCurrent]] = "-" Then Return
   
   $iCurrent = iCurrent
-  If iOld >= 0 Then gvwProc.Rows[iOld].Refresh
+  If iOld >= 0 Then Try gvwProc.Rows[iOld].Refresh
   If iCurrent >= 0 Then 
     gvwProc.Rows[iCurrent].Refresh
     If bEnsureVisible Then gvwProc[iCurrent, 0].EnsureVisible
@@ -102,7 +101,11 @@ Private Sub FindProcedure()
   Dim N As Integer
   
   iRow = $iCurrent
-  If iRow < 0 Then Inc iRow
+  If iRow < 0 Then
+    Inc iRow
+  Else
+    iRow = $aFilter[iRow]
+  Endif
   
   Do
     
@@ -130,9 +133,9 @@ Public Sub gvwProc_KeyPress()
     Me.Close
     Stop Event
   Else If Key.Text Then
-    If (Timer - $dFind) >= 1 Then $sFind = ""
+    If (Timer - $fTimerFind) >= 1 Then $sFind = ""
     $sFind &= String.LCase(Key.Text)
-    $dFind = Timer
+    $fTimerFind = Timer
     FindProcedure
   Else If Key.Code = Key.Up Then
     If $iCurrent > 0 Then SetCurrent($iCurrent - 1)
@@ -172,7 +175,7 @@ Public Sub gvwProc_Draw(X As Integer, Y As Integer, Width As Integer, Height As 
   Dim sName As String
   Dim WT As Float
   
-  Try sName = $aProc[Row]
+  Try sName = $aProc[$aFilter[Row]]
   If Not sName Then Return
 
   If sName Begins "-" Then 
@@ -193,7 +196,7 @@ Public Sub gvwProc_Draw(X As Integer, Y As Integer, Width As Integer, Height As 
   Endif
   
   If Row = $iCurrent Then Paint.FillRect(X, Y, Width, Height, Color.SetAlpha(Color.LightBackground, 192))
-  If Row = $iInit Then Paint.FillRect(X, Y, Width, Height, Color.SetAlpha(Color.LightBackground, 128))
+  If $aFilter[Row] = $iInit Then Paint.FillRect(X, Y, Width, Height, Color.SetAlpha(Color.LightBackground, 128))
   
   Paint.Background = Color.TextForeground
   Paint.Font.Bold = False
@@ -208,23 +211,180 @@ Public Sub gvwProc_Draw(X As Integer, Y As Integer, Width As Integer, Height As 
   Endif
     
   If Left(sName) = "_" Then 
-    If FCompletion.GetSpecialMethods().Exist(sName, gb.IgnoreCase) Then 
-      Paint.Background = Color.SelectedBackground
+    If CSymbolInfo.SpecialMethods.Exist(sName, gb.IgnoreCase) Then 
+      Paint.Background = Color.Blend(Color.SetAlpha(Color.TextForeground, 128), Color.SelectedBackground)
     Endif
   Else If InStr(sName, "_") Then
     'gvwProc.Data.Picture = Picture["img/16/event.png"]
     Paint.Font.Italic = True
   Endif
   
-  If hSymbol And If hSymbol.NotPublic Then Paint.Background = Color.Merge(Paint.Background, Color.TextBackground)
+  If hSymbol And If hSymbol.NotPublic Then Paint.Background = Color.Merge(Paint.Background, Color.TextBackground, 0.3)
   
-  If Row = $iInit Then Paint.DrawTextShadow(sName, X + 2, Y, Width - 4, Height, Align.Left)
+  If $sClass = Project.Startup And If sName = "Main" Then
+    Paint.Font.Underline = True
+  Endif
+  
+  If $aFilter[Row] = $iInit Then Paint.DrawTextShadow(sName, X + 2, Y, Width - 4, Height, Align.Left)
   Paint.DrawText(sName, X + 2, Y, Width - 4, Height, Align.Left)
   
-  ' If Row = $iInit Then
-  '   Paint.Rectangle(X + 0.5, Y + 0.5, Width - 1, Height - 1)
-  '   Paint.Background = Color.SelectedBackground
-  '   Paint.Stroke
+End
+
+Private Sub FilterProc()
+
+  Dim sProc As String
+  Dim bShowStatic As Boolean
+  Dim bShowPublic As Boolean
+  Dim bShowPrivate As Boolean
+  Dim bShowEvent As Boolean
+  Dim bShowProperty As Boolean
+  Dim sGroup As String
+  Dim I As Integer
+  Dim bShowHidden As Boolean
+  Dim sLastGroup As String
+  Dim iCurrent As Integer
+  
+  If $bNoFilter Then Return
+  
+  If $iCurrent >= 0 Then
+    If $aFilter Then
+      Try iCurrent = $aFilter[$iCurrent]
+      If Error Then iCurrent = -1
+    Else
+      iCurrent = $iCurrent
+    Endif
+  Endif
+  
+  If panFilter.Visible Then
+    bShowStatic = $bStatic Or btnShowStatic.Value
+    bShowPublic = btnShowPublic.Value
+    bShowPrivate = btnShowPrivate.Value
+    bShowEvent = btnShowEvent.Value
+    bShowProperty = btnShowProperty.Value
+    bShowHidden = btnShowHidden.Value
+  Endif
+  
+  If bShowStatic Or If bShowPublic Or If bShowPrivate Or If bShowEvent Or If bShowProperty Or If bShowHidden Then
+  
+    $aFilter = New Integer[]
+    sLastGroup = ""
+    sGroup = ""
+    
+    For I = 0 To $aProc.Max
+      
+      sProc = $aProc[I]
+      
+      If sProc Begins "-" Then
+        sGroup = Mid$(sProc, 2)
+        Continue
+      Endif
+      
+      If Not sGroup Then
+        $aFilter.Add(I)
+        Continue
+      Endif
+      
+      If bShowPublic And If InStr(sGroup, "PUBLIC") = 0 Then
+        Continue
+      Else If bShowPrivate And If InStr(sGroup, "PRIVATE") = 0 Then   
+        Continue
+      Else If bShowEvent And If InStr(sGroup, "EVENT") = 0 Then
+        Continue
+      Else If bShowProperty And If InStr(sGroup, "PROPERTY") = 0 Then 
+        Continue
+      Else If bShowHidden And If InStr(sGroup, "HIDDEN") = 0 Then 
+        Continue
+      Endif
+      
+      If bShowStatic Then
+        If InStr(sGroup, "STATIC") = 0 Then Continue
+      Else
+        If InStr(sGroup, "STATIC") Then Continue
+      Endif
+      
+      If sGroup <> sLastGroup Then
+        $aFilter.Add(I - 1)
+        sLastGroup = sGroup
+      Endif
+      
+      $aFilter.Add(I)
+      
+    Next
+    
+  Else
+    
+    $aFilter = New Integer[$aProc.Count]
+    For I = 0 To $aProc.Max
+      $aFilter[I] = I
+    Next
+    
+  Endif
+
+  'N = $H / Desktop.Scale / 4
+  
+  ' If aProc.Count > N * 2 Then
+  '   fSize = 0.8
+  ' Else If aProc.Count > N Then
+  '   fSize = 0.9
+  ' Else
+  '   fSize = 1
   ' Endif
+
+  Project.SetNormalFont(gvwProc, 0.9)
+
+  gvwProc.Rows.Count = $aFilter.Count
+  gvwProc.Rows.UnselectAll
+  gvwProc.Columns.Count = 1
+  gvwProc.Refresh
+  
+  If iCurrent >= 0 Then
+    $iCurrent = $aFilter.Find(iCurrent)
+  Else
+    $iCurrent = -1
+  Endif
+  
+End
+
+Public Sub btnFilter_Click()
+
+  Dim hChild As Control
+  Dim hButton As ToolButton
+  
+  If Last <> btnShowStatic And If Last.Value Then
+    For Each hChild In panFilter.Children
+      Try hButton = hChild
+      If Error Then Continue
+      If Not hButton.Toggle Then Continue
+      If hChild = btnShowStatic Then Continue
+      If hChild <> Last Then hButton.Value = False
+    Next
+  Endif
+  
+  FilterProc
+
+End
+
+Public Sub btnShowAll_Click()
+
+  Dim hChild As Control
+  Dim hButton As ToolButton
+  
+  $bNoFilter = True
+  
+  For Each hChild In panFilter.Children
+    Try hButton = hChild
+    If Error Then Continue
+    If Not hButton.Toggle Then Continue
+    hButton.Value = False
+  Next
+  
+  $bNoFilter = False
+  FilterProc
+
+End
+
+Public Sub gvwProc_Leave()
+
+  SetCurrent(-1)
 
 End

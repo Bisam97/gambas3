@@ -1,0 +1,72 @@
+' Gambas module file
+
+Public Path As String
+
+Private $cUpload As New Collection
+
+Public Sub _init()
+  
+  Path = File.Dir(File.Dir(Temp())) &/ "upload"
+  Try Mkdir Path
+  
+End
+
+
+Public Sub Start(hCtrl As WebFileButton) As String
+
+  Dim I As Integer
+  Dim sKey As String
+  Dim sPath As String
+  
+  For I = 1 To 4
+    sKey &= Hex$(Rand(0, 65535), 4)
+  Next
+
+  $cUpload[sKey] = hCtrl
+  
+  sPath = Path &/ sKey
+  Try Kill sPath
+  File.Save(sPath, "")
+  
+  Return sKey
+  
+End
+
+Public Sub Exist(sKey As String) As Boolean
+  
+  Return $cUpload.Exist(sKey)
+  
+End
+
+Public Sub Cancel(sKey As String)
+  
+  WebForm.PrintLog("Cancel upload " & sKey)
+  $cUpload.Remove(sKey)
+  Try Kill Path &/ sKey
+  
+End
+
+
+Public Sub Finish(sKey As String)
+  
+  Dim hCtrl As WebFileButton = $cUpload[sKey]
+  
+  WebForm.PrintLog("Finish upload " & sKey)
+  hCtrl._Finish()
+  Cancel(sKey)
+  
+Catch
+  
+  WebForm.PrintLog("Cannot finish upload: " & Error.Text)
+  
+End
+
+Public Sub Error(sKey As String, sErr As String)
+  
+  Dim hCtrl As WebFileButton = $cUpload[sKey]
+  
+  WebForm.PrintLog("Error upload " & sKey)
+  hCtrl._Abort(sErr)
+  Cancel(sKey)
+  
+End

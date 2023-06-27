@@ -1,0 +1,78 @@
+' Gambas class file
+
+Private $aExpect As New ProcessPrompt[]
+Private $sBuffer As String
+Private $hObs As Observer
+Private $hObsAfter As Observer
+
+Public Sub _new()
+  
+  $aExpect = New String[]
+  
+End
+
+Public Sub Expect(hProcess As Process, Prompt As String, Answer As String, Keep As Boolean)
+  
+  Dim hProcessPrompt As ProcessPrompt
+  
+  If Prompt Not Begins "*" Then Prompt = "*" & Prompt
+  
+  With hProcessPrompt = New ProcessPrompt
+    .Prompt = Prompt
+    .Answer = Answer
+    .Keep = Keep
+  End With
+  
+  $aExpect.Add(hProcessPrompt)
+  
+  If Not $hObs Then
+    $hObs = New Observer(hProcess) As "Expect"
+    $hObsAfter = New Observer(hProcess, True) As "ExpectAfter"
+  Endif
+  
+End
+
+Public Sub Expect_Read()
+
+  Dim sData As String
+  Dim hProcess As Process 
+  
+  hProcess = $hObs.Object
+  
+  sData = Peek #hProcess, Lof(hProcess)
+  
+  If Len(sData) >= 1024 Then
+    $sBuffer = Right(sData, 1024)
+  Else
+    $sBuffer = Right($sBuffer & sData, 1024)
+  Endif
+  
+End
+
+Public Sub ExpectAfter_Read()
+  
+  Dim hProcess As Process 
+  Dim I As Integer
+  Dim hProcessPrompt As ProcessPrompt
+  
+  hProcess = $hObsAfter.Object
+  
+  For I = 0 To $aExpect.Max
+    With hProcessPrompt = $aExpect[I]
+      If RTrim($sBuffer) Like .Prompt Then
+        If .Answer Then Print #hProcess, .Answer
+        Object.Raise(hProcess, "Prompt", [.Prompt, .Answer])
+        $sBuffer = ""
+        If Not .Keep Then $aExpect.Remove(I)
+        Break
+      Endif
+    End With
+  Next
+  
+  If $aExpect.Count = 0 Then
+    $hObs.Detach
+    $hObsAfter.Detach
+  Endif
+  
+End
+

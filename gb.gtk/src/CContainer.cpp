@@ -25,8 +25,22 @@
 
 #include "gambas.h"
 #include "CContainer.h"
-#include "gframe.h"
+#include "gpanel.h"
 #include "gmainwindow.h"
+#include "gapplication.h"
+#include "cpaint_impl.h"
+
+#define CALL_FUNCTION(_this, _func) \
+{ \
+	if ((_this) && (_this)->func._func) \
+	{ \
+		GB_FUNCTION func; \
+		func.object = (_this); \
+		func.index = (_this)->func._func; \
+		GB.Call(&func, 0, TRUE); \
+	} \
+}
+
 
 /***************************************************************************
 
@@ -39,22 +53,107 @@ DECLARE_EVENT(EVENT_Arrange);
 DECLARE_EVENT(EVENT_Insert);
 
 
-void CCONTAINER_cb_before_arrange(gContainer *sender)
+void CB_container_before_arrange(gContainer *sender)
 {
 	GB.Raise(sender->hFree, EVENT_BeforeArrange, 0);
 }
 
-void CCONTAINER_cb_arrange(gContainer *sender)
+void CB_container_arrange(gContainer *sender)
 {
 	GB.Raise(sender->hFree, EVENT_Arrange, 0);
 }
-
 
 void CCONTAINER_raise_insert(CCONTAINER *_object, CWIDGET *child)
 {
 	GB.Raise(THIS, EVENT_Insert, 1, GB_T_OBJECT, child);
 }
 
+#ifdef GTK3
+
+static void cleanup_drawing(intptr_t arg1, intptr_t arg2)
+{
+	PAINT_end();
+}
+
+void CUSERCONTROL_cb_draw(gContainer *sender, cairo_t *cr)
+{
+	CWIDGET *_object = GetObject(sender);
+	GB_ERROR_HANDLER handler;
+	
+	if (THIS_USERCONTAINER->func.paint)
+	{
+		cairo_t *save = THIS_USERCONTROL->func.context;
+		THIS_USERCONTROL->func.context = cr;
+
+		PAINT_begin(THIS);
+
+		handler.handler = (GB_CALLBACK)cleanup_drawing;
+		GB.OnErrorBegin(&handler);
+		CALL_FUNCTION(THIS_USERCONTROL, paint);
+		GB.OnErrorEnd(&handler);
+
+		PAINT_end();
+
+		THIS_USERCONTROL->func.context = save;
+	}
+}
+
+#else
+
+static void cleanup_drawing(cairo_t *cr, intptr_t arg2)
+{
+	cairo_restore(cr);
+	PAINT_end();
+}
+
+void CUSERCONTROL_cb_draw(gContainer *sender, GdkRegion *region, int dx, int dy)
+{
+	CWIDGET *_object = GetObject(sender);
+	GB_ERROR_HANDLER handler;
+	cairo_t *cr;
+	
+	if (THIS_USERCONTAINER->func.paint)
+	{
+		PAINT_begin(THIS);
+
+		cr = PAINT_get_current_context();
+		cairo_save(cr);
+		PAINT_clip(0, 0, sender->width(), sender->height());
+
+		handler.handler = (GB_CALLBACK)cleanup_drawing;
+		handler.arg1 = (intptr_t)cr;
+		GB.OnErrorBegin(&handler);
+		CALL_FUNCTION(THIS_USERCONTROL, paint);
+		GB.OnErrorEnd(&handler);
+
+		cairo_restore(cr);
+		PAINT_end();
+	}
+}
+
+#endif
+
+void CUSERCONTROL_cb_font(gContainer *sender)
+{
+	CWIDGET *_object = GetObject(sender);
+	CALL_FUNCTION(THIS_USERCONTROL, font);
+}
+
+static bool cb_change_filter(gControl *control)
+{
+	return control->isContainer() && ((gContainer *)control)->isUser();
+}
+
+static void cb_change(gControl *control)
+{
+	CWIDGET *_object = GetObject(control);
+	CALL_FUNCTION(THIS_USERCONTROL, change);
+}
+
+void CUSERCONTROL_send_change_event(void)
+{
+	gApplication::forEachControl(cb_change, cb_change_filter);
+}
 
 static void get_client_area(gContainer *cont, int *x, int *y, int *w, int *h)
 {
@@ -76,8 +175,15 @@ static void get_client_area(gContainer *cont, int *x, int *y, int *w, int *h)
 	}
 }
 
+void CUSERCONTROL_cb_resize(gContainer *sender)
+{
+	CWIDGET *_object = GetObject(sender);
+	CALL_FUNCTION(THIS_USERCONTROL, resize);
+}
 
-BEGIN_PROPERTY(Container_X)
+//-------------------------------------------------------------------------
+
+BEGIN_PROPERTY(Container_ClientX)
 
 	int x;
 	get_client_area(WIDGET, &x, NULL, NULL, NULL);
@@ -86,7 +192,7 @@ BEGIN_PROPERTY(Container_X)
 END_PROPERTY
 
 
-BEGIN_PROPERTY(Container_Y)
+BEGIN_PROPERTY(Container_ClientY)
 
 	int y;
 	get_client_area(WIDGET, NULL, &y, NULL, NULL);
@@ -159,9 +265,19 @@ END_PROPERTY
 BEGIN_PROPERTY(Container_Indent)
 
 	if (READ_PROPERTY)
-		GB.ReturnInteger(WIDGET->indent());
+		GB.ReturnBoolean(WIDGET->indent());
 	else
-		WIDGET->setMargin(VPROP(GB_INTEGER));
+		WIDGET->setIndent(VPROP(GB_BOOLEAN));
+
+END_PROPERTY
+
+
+BEGIN_PROPERTY(Container_Centered)
+
+	if (READ_PROPERTY)
+		GB.ReturnBoolean(WIDGET->centered());
+	else
+		WIDGET->setCentered(VPROP(GB_BOOLEAN));
 
 END_PROPERTY
 
@@ -176,9 +292,9 @@ BEGIN_PROPERTY(Container_Invert)
 END_PROPERTY
 
 
-BEGIN_METHOD(Container_Find, GB_INTEGER x; GB_INTEGER y)
+BEGIN_METHOD(Container_FindChild, GB_INTEGER x; GB_INTEGER y)
 
-	gControl *child = WIDGET->find(VARG(x), VARG(y));
+	gControl *child = WIDGET->proxyContainer()->find(VARG(x), VARG(y));
 	
 	if (child)
 		GB.ReturnObject(child->hFree);
@@ -215,12 +331,18 @@ BEGIN_METHOD(Container_unknown, GB_VALUE x; GB_VALUE y)
 	if (GB.Conv(ARG(x), GB_T_INTEGER) || GB.Conv(ARG(y), GB_T_INTEGER))
 		return;
 	
-	Container_Find(_object, _param);
+	Container_FindChild(_object, _param);
 	
 	GB.ReturnConvVariant();
 
 END_METHOD
 
+
+/*BEGIN_PROPERTY(Container_Dirty)
+
+	GB.ReturnBoolean(WIDGET->isDirty());
+
+END_PROPERTY*/
 
 //---------------------------------------------------------------------------
 
@@ -346,14 +468,16 @@ GB_DESC ContainerDesc[] =
 
 	GB_PROPERTY_READ("Children", "ContainerChildren", Container_Children),
 
-	GB_PROPERTY_READ("ClientX", "i", Container_X),
-	GB_PROPERTY_READ("ClientY", "i", Container_Y),
+	//GB_PROPERTY_READ("Dirty", "b", Container_Dirty),
+
+	GB_PROPERTY_READ("ClientX", "i", Container_ClientX),
+	GB_PROPERTY_READ("ClientY", "i", Container_ClientY),
 	GB_PROPERTY_READ("ClientW", "i", Container_ClientWidth),
 	GB_PROPERTY_READ("ClientWidth", "i", Container_ClientWidth),
 	GB_PROPERTY_READ("ClientH", "i", Container_ClientHeight),
 	GB_PROPERTY_READ("ClientHeight", "i", Container_ClientHeight),
 
-	GB_METHOD("FindChild", "Control", Container_Find, "(X)i(Y)i"),
+	GB_METHOD("FindChild", "Control", Container_FindChild, "(X)i(Y)i"),
 	GB_METHOD("_unknown", "v", Container_unknown, "."),
 
 	CONTAINER_DESCRIPTION,
@@ -371,84 +495,106 @@ GB_DESC ContainerDesc[] =
 
 ****************************************************************************/
 
+static void declare_special_event_handler(void *_object, ushort *index, const char *suffix)
+{
+	GB_FUNCTION func;
+	char name[128];
+
+	snprintf(name, sizeof(name), "%s_%s", GB.Is(THIS, CLASS_UserContainer) ? "UserContainer" : "UserControl", suffix);
+	if (!GB.GetFunction(&func, THIS, name, NULL, NULL))
+		*index = func.index;
+}
+
 BEGIN_METHOD(UserControl_new, GB_OBJECT parent)
 
 	InitControl(new gPanel(CONTAINER(VARG(parent))), (CWIDGET*)THIS);
 	
 	PANEL->setArrange(ARRANGE_FILL);
-	PANEL->setUser(true);
+	PANEL->setUser();
+	
+	if (GB.Is(THIS, CLASS_UserContainer))
+		PANEL->setUserContainer();
 
-	THIS_UC->container = THIS;
+	declare_special_event_handler(THIS, &THIS_USERCONTROL->func.paint, "Draw");
+	declare_special_event_handler(THIS, &THIS_USERCONTROL->func.font, "Font");
+	declare_special_event_handler(THIS, &THIS_USERCONTROL->func.change, "Change");
+	declare_special_event_handler(THIS, &THIS_USERCONTROL->func.resize, "Resize");
+
+	GB.Error(NULL);
 
 END_METHOD
 
 	
 BEGIN_PROPERTY(UserControl_Container)
 
-	CCONTAINER *ct;
-	gControl *test;
-	int count;
-	int bucle;
-	bool ok = false;
+	CCONTAINER *cont;
+	gControl *p;
+	gContainer *w;
 	
 	if (READ_PROPERTY)
 	{
-		GB.ReturnObject(THIS_UC->container);
+		GB.ReturnObject(GetObject(WIDGET->proxyContainer()));
 		return;
 	}
 	
-	ct = (CCONTAINER*)VPROP(GB_OBJECT);
+	cont = (CCONTAINER*)VPROP(GB_OBJECT);
 	
-	if (!ct)
+	if (!cont)
 	{
-		if (THIS_CONT != THIS)
-			WIDGET_CONT->setProxyContainerFor(NULL);
-		THIS_UC->container = THIS;
+		if (WIDGET->proxyContainer() != WIDGET)
+			WIDGET->proxyContainer()->setProxyContainerFor(NULL);
 		WIDGET->setProxyContainer(NULL);
+		
 		WIDGET->setProxy(NULL);
 		return;
 	}
 	
-	if (GB.CheckObject(ct)) 
+	if (GB.CheckObject(cont)) 
 		return;
 	
-	count = PANEL->childCount();
+	w = ((gContainer *)cont->ob.widget)->proxyContainer();
+	/*while (w->proxyContainer() != w)
+		w = w->proxyContainer();*/
 	
-	for (bucle = 0; bucle < count; bucle++)
+	if (w == WIDGET->proxyContainer())
+		return;
+	
+	for (p = cont->ob.widget; p; p = p->parent())
 	{
-		test = PANEL->child(bucle);
-		do 
-		{
-			if (test->parent() == WIDGET)
-			{
-				ok = true;
-				break;
-			}
-			test = test->parent();
-		} while (test);
+		if (p == WIDGET)
+			break;
 	}
 	
-	if (!ok)
+	if (!p)
 	{
 		GB.Error("Container must be a child control");
 		return;
 	}
 
-	gColor bg = WIDGET_CONT->background();
-	gColor fg = WIDGET_CONT->foreground();
+	gColor bg = WIDGET->proxyContainer()->background();
+	gColor fg = WIDGET->proxyContainer()->foreground();
 
-	if (THIS_CONT != THIS)
-		WIDGET_CONT->setProxyContainerFor(NULL);
+	if (WIDGET->proxyContainer() != WIDGET)
+		WIDGET->proxyContainer()->setProxyContainerFor(NULL);
 
-	THIS_UC->container = (CCONTAINER *)GetObject(((gContainer *)ct->ob.widget)->proxyContainer());
+	WIDGET->setProxyContainer(w);
+	w->setProxyContainerFor(WIDGET);
 	
-	WIDGET->setProxyContainer(WIDGET_CONT->proxyContainer());
-	WIDGET->setProxy(WIDGET_CONT);
+	w->setBackground(bg);
+	w->setForeground(fg);
+	
+	WIDGET->performArrange();
+	WIDGET->setProxy((gContainer *)cont->ob.widget);
+	
+END_PROPERTY
 
-	WIDGET_CONT->setProxyContainerFor(WIDGET);
-	WIDGET_CONT->setBackground(bg);
-	WIDGET_CONT->setForeground(fg);
-	WIDGET_CONT->performArrange();
+
+BEGIN_PROPERTY(UserControl_Focus)
+
+	if (READ_PROPERTY)
+		GB.ReturnBoolean(WIDGET->canFocus());
+	else
+		WIDGET->setCanFocus(VPROP(GB_BOOLEAN));
 
 END_PROPERTY
 
@@ -461,8 +607,7 @@ BEGIN_PROPERTY(UserContainer_Container)
 	{
 		UserControl_Container(_object, _param);
 
-		WIDGET_CONT->setFullArrangement(&THIS_UC->save);
-		//qDebug("(%s %p): arrangement = %08X", GB.GetClassName(THIS), THIS, after->arrangement);
+		WIDGET->proxyContainer()->setFullArrangement(&THIS_USERCONTAINER->save);
 	}
 
 END_PROPERTY
@@ -471,11 +616,11 @@ END_PROPERTY
 BEGIN_PROPERTY(UserContainer_Arrangement)
 
 	if (READ_PROPERTY)
-		GB.ReturnInteger(WIDGET_CONT->arrange());
+		GB.ReturnInteger(WIDGET->proxyContainer()->arrange());
 	else
 	{
-		WIDGET_CONT->setArrange(VPROP(GB_INTEGER));
-		THIS_UC->save = WIDGET_CONT->fullArrangement();
+		WIDGET->proxyContainer()->setArrange(VPROP(GB_INTEGER));
+		THIS_USERCONTAINER->save = WIDGET->proxyContainer()->fullArrangement();
 	}
 
 END_PROPERTY
@@ -484,11 +629,11 @@ END_PROPERTY
 BEGIN_PROPERTY(UserContainer_AutoResize)
 
 	if (READ_PROPERTY)
-		GB.ReturnBoolean(WIDGET_CONT->autoResize());
+		GB.ReturnBoolean(WIDGET->proxyContainer()->autoResize());
 	else
 	{
-		WIDGET_CONT->setAutoResize(VPROP(GB_BOOLEAN));
-		THIS_UC->save = WIDGET_CONT->fullArrangement();
+		WIDGET->proxyContainer()->setAutoResize(VPROP(GB_BOOLEAN));
+		THIS_USERCONTAINER->save = WIDGET->proxyContainer()->fullArrangement();
 	}
 	
 END_PROPERTY
@@ -497,11 +642,11 @@ END_PROPERTY
 BEGIN_PROPERTY(UserContainer_Padding)
 
 	if (READ_PROPERTY)
-		GB.ReturnInteger(WIDGET_CONT->padding());
+		GB.ReturnInteger(WIDGET->proxyContainer()->padding());
 	else
 	{
-		WIDGET_CONT->setPadding(VPROP(GB_INTEGER));
-		THIS_UC->save = WIDGET_CONT->fullArrangement();
+		WIDGET->proxyContainer()->setPadding(VPROP(GB_INTEGER));
+		THIS_USERCONTAINER->save = WIDGET->proxyContainer()->fullArrangement();
 	}
 	
 END_PROPERTY
@@ -510,11 +655,11 @@ END_PROPERTY
 BEGIN_PROPERTY(UserContainer_Spacing)
 	
 	if (READ_PROPERTY)
-		GB.ReturnBoolean(WIDGET_CONT->spacing());
+		GB.ReturnBoolean(WIDGET->proxyContainer()->spacing());
 	else
 	{
-		WIDGET_CONT->setSpacing(VPROP(GB_BOOLEAN));
-		THIS_UC->save = WIDGET_CONT->fullArrangement();
+		WIDGET->proxyContainer()->setSpacing(VPROP(GB_BOOLEAN));
+		THIS_USERCONTAINER->save = WIDGET->proxyContainer()->fullArrangement();
 	}
 	
 END_PROPERTY
@@ -523,11 +668,11 @@ END_PROPERTY
 BEGIN_PROPERTY(UserContainer_Margin)
 	
 	if (READ_PROPERTY)
-		GB.ReturnBoolean(WIDGET_CONT->margin());
+		GB.ReturnBoolean(WIDGET->proxyContainer()->margin());
 	else
 	{
-		WIDGET_CONT->setMargin(VPROP(GB_BOOLEAN));
-		THIS_UC->save = WIDGET_CONT->fullArrangement();
+		WIDGET->proxyContainer()->setMargin(VPROP(GB_BOOLEAN));
+		THIS_USERCONTAINER->save = WIDGET->proxyContainer()->fullArrangement();
 	}
 	
 END_PROPERTY
@@ -536,11 +681,24 @@ END_PROPERTY
 BEGIN_PROPERTY(UserContainer_Indent)
 	
 	if (READ_PROPERTY)
-		GB.ReturnInteger(WIDGET_CONT->indent());
+		GB.ReturnBoolean(WIDGET->proxyContainer()->indent());
 	else
 	{
-		WIDGET_CONT->setIndent(VPROP(GB_INTEGER));
-		THIS_UC->save = WIDGET_CONT->fullArrangement();
+		WIDGET->proxyContainer()->setIndent(VPROP(GB_BOOLEAN));
+		THIS_USERCONTAINER->save = WIDGET->proxyContainer()->fullArrangement();
+	}
+	
+END_PROPERTY
+
+
+BEGIN_PROPERTY(UserContainer_Centered)
+	
+	if (READ_PROPERTY)
+		GB.ReturnBoolean(WIDGET->proxyContainer()->centered());
+	else
+	{
+		WIDGET->proxyContainer()->setCentered(VPROP(GB_BOOLEAN));
+		THIS_USERCONTAINER->save = WIDGET->proxyContainer()->fullArrangement();
 	}
 	
 END_PROPERTY
@@ -549,22 +707,13 @@ END_PROPERTY
 BEGIN_PROPERTY(UserContainer_Invert)
 	
 	if (READ_PROPERTY)
-		GB.ReturnBoolean(WIDGET_CONT->invert());
+		GB.ReturnBoolean(WIDGET->proxyContainer()->invert());
 	else
 	{
-		WIDGET_CONT->setInvert(VPROP(GB_BOOLEAN));
-		THIS_UC->save = WIDGET_CONT->fullArrangement();
+		WIDGET->proxyContainer()->setInvert(VPROP(GB_BOOLEAN));
+		THIS_USERCONTAINER->save = WIDGET->proxyContainer()->fullArrangement();
 	}
 	
-END_PROPERTY
-
-BEGIN_PROPERTY(UserContainer_Focus)
-
-	if (READ_PROPERTY)
-		GB.ReturnBoolean(WIDGET->canFocus());
-	else
-		WIDGET->setCanFocus(VPROP(GB_BOOLEAN));
-
 END_PROPERTY
 
 //---------------------------------------------------------------------------
@@ -583,15 +732,19 @@ GB_DESC UserControlDesc[] =
 	GB_PROPERTY("_Margin", "b", Container_Margin),
 	GB_PROPERTY("_Indent", "b", Container_Indent),
 	GB_PROPERTY("_Invert", "b", Container_Invert),
+	GB_PROPERTY("_Centered", "b", Container_Centered),
+	GB_PROPERTY("_Focus", "b", UserControl_Focus),
 
 	USERCONTROL_DESCRIPTION,
+
+	GB_INTERFACE("Paint", &PAINT_Interface),
 
 	GB_END_DECLARE
 };
 
 GB_DESC UserContainerDesc[] =
 {
-	GB_DECLARE("UserContainer", sizeof(CUSERCONTROL)), GB_INHERITS("Container"),
+	GB_DECLARE("UserContainer", sizeof(CUSERCONTAINER)), GB_INHERITS("Container"),
 	GB_NOT_CREATABLE(),
 
 	GB_METHOD("_new", NULL, UserControl_new, "(Parent)Container;"),
@@ -606,10 +759,11 @@ GB_DESC UserContainerDesc[] =
 	GB_PROPERTY("Margin", "b", UserContainer_Margin),
 	GB_PROPERTY("Indent", "b", UserContainer_Indent),
 	GB_PROPERTY("Invert", "b", UserContainer_Invert),
+	GB_PROPERTY("Centered", "b", UserContainer_Centered),
 	
-	//GB_PROPERTY("Focus", "b", UserContainer_Focus),
-
 	USERCONTAINER_DESCRIPTION,
+
+	GB_INTERFACE("Paint", &PAINT_Interface),
 
 	GB_END_DECLARE
 };

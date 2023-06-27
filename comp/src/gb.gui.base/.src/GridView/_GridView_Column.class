@@ -10,6 +10,14 @@ Property Expand As Boolean
 Property Alignment As Integer
 Property Background As Integer
 
+'' @{since 3.16}
+''
+'' Return or set the tag associated with a column.
+''
+'' This property is intended for the programmer and is never used by the component. It can contain any Variant value.
+
+Property Tag As Variant
+
 Event _Refresh
 
 Public _X As Integer
@@ -22,6 +30,7 @@ Private $bResizable As Boolean = True
 Private $bExpand As Boolean
 Private $iAlign As Integer
 Private $iBackground As Integer = Color.Default
+Private $vTag As Variant
 
 Private Sub GetView() As GridView
   
@@ -46,7 +55,6 @@ Public Sub _GetExplicitWidth() As Integer
   Return $W
   
 End
-
 
 Private Sub Width_Write(Value As Integer)
   
@@ -146,4 +154,22 @@ Private Sub Background_Write(Value As Integer)
   $iBackground = Value
   GetView().Refresh
 
+End
+
+Private Function Tag_Read() As Variant
+
+  Return $vTag
+
+End
+
+Private Sub Tag_Write(Value As Variant)
+
+  $vTag = Value
+
+End
+
+Public Sub EnsureVisible()
+  
+  GetView()._EnsureVisible(-1, _Column)
+  
 End

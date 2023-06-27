@@ -1,0 +1,63 @@
+' Gambas test file
+
+'' Not reliable in all cases, so not in "Production" testsuite
+''
+'' see https://lists.gambas-basic.org/pipermail/user/2021-April/073021.html
+
+Public Sub Timers()
+
+    Dim bBoo As Boolean = False
+    Dim bReadOK As Boolean
+    Dim ii, jj As Integer
+    Dim tt As Float
+
+    Dim MyErrs As New String[]
+
+    tt = Timer
+    Sleep 0.5
+    Wait 0.5
+    tt = (Timer - tt)
+
+    Assert.LessEqual(tt, 1.1, "LRT 1")
+    Assert.GreaterEqual(tt, 0.9, "LRT 2")
+
+    ' If tt > 1.1 Or tt < 0.9 Then
+    '     MyErrs.Add(System.Backtrace[0])
+    ' Endif
+
+    ' ------------------------------------------------- Thema
+    jj = 0
+    For ii = 1 To 100
+        tt = Timer
+        Inc jj
+        Wait 0.01
+        Inc jj
+        tt = Timer - tt
+        If bboo = False And If (tt > 0.018 Or tt < 0.005) Then
+            'Debug tt
+            bBoo = True
+        Endif
+    Next
+
+    Assert.NotOk(bBoo, "LRT 3")
+    Assert.Equals(jj, 200, "LRT 4")
+
+    ' ------------------------------------------------- Thema
+    bBoo = False
+    jj = 0
+    For ii = 1 To 100
+        tt = Timer
+        Inc jj
+        Sleep 0.01
+        Inc jj
+        tt = Timer - tt
+        If bboo = False And If (tt > 0.015 Or tt < 0.005) Then
+            'Debug tt
+            bBoo = True
+        Endif
+    Next
+
+    Assert.NotOk(bBoo, "LRT 5")
+    Assert.Equals(jj, 200, "LRT 6")
+
+End

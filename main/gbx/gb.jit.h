@@ -2,7 +2,7 @@
 
 	gb.jit.h
 
-	(c) 2018 Benoît Minisini <g4mba5@gmail.com>
+	(c) 2018 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -69,7 +69,6 @@ typedef
 		GB_VALUE **sp;
 		JIT_CONTEXT *exec;
 		GB_VALUE *ret;
-		bool *exec_debug;
 		GB_VALUE **exec_super;
 		void (*debug)(const char *fmt, ...);
 		JIT_PCODE *(*get_code)(void *func);
@@ -96,7 +95,7 @@ typedef
 		void *error_handler;
 		void (*error_reset)(void *);
 		void (*error_set_last)(bool);
-		bool *got_error;
+		void (*set_got_error)(bool);
 		void **event_last;
 		void (*push_complex)(void);
 		void (*push_vargs)(void);
@@ -109,6 +108,11 @@ typedef
 		void *(*static_struct)(void *ref, GB_CLASS type, char *addr);
 		void *(*static_array)(void *cp, void *ref, GB_CLASS type, char *addr);
 		void *(*get_array_class)(void *cp, JIT_CTYPE ctype);
+		void (*add_string_local)(GB_STRING *str, GB_STRING val);
+		void (*add_string_global)(char **str, GB_STRING val);
+		void (*value_class_write)(void *class, GB_VALUE *value, void *addr, JIT_CTYPE ctype);
+		void (*subr_poke)(ushort code);
+		void *(*get_object_addr)(void *ob);
 	}
 	JIT_INTERFACE;
 

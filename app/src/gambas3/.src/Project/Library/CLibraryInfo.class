@@ -11,6 +11,7 @@ Public Libraries As String[]
 Public Info As String
 Public Require As String[]
 Public CompatibleUntil As String
+Public ExportMap As Collection
 
 Private $sDesc As String
 
@@ -71,6 +72,7 @@ Static Public Sub SolvePath(sPath As String, Optional bKeepPath As Boolean) As S
   Else
     sSolve = sPath
     If sSolve Not Ends ".gambas" Then sSolve &= ".gambas"
+    If File.IsRelative(sSolve) Then sSolve = File.RealPath(Project.Dir &/ sSolve)
   Endif
   
   'sSolve = File.SetExt(sSolve, "gambas")
@@ -105,6 +107,7 @@ Public Sub _new(sPath As String)
   Path = sPath
     
   If Not sPath Or If Not Exist(sPath) Then 
+    Error "gambas3: warning: library not found: "; Name
     NotFound = True
     Return
   Endif
@@ -123,7 +126,7 @@ Public Sub _new(sPath As String)
   Wend
     
   Exec [System.Path &/ "bin/gba" & System.Version, "-x", sPath, ".list"] To sData
-  Classes = Split(sData, "\n", "", True)
+  Classes = CComponent.GetExportedClassesFromList(sData, ByRef ExportMap)
   
   Exec [System.Path &/ "bin/gba" & System.Version, "-x", sPath, ".component"] To sData
   For Each sLine In Split(sData, "\n", "", True)

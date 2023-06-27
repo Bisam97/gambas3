@@ -3,9 +3,12 @@
 Inherits TextHighlighter
 
 Public Const Name As String = "css"
+Public Const FullName As String = "CSS"
+Public Const _Styles As String = "Keyword,Class,Id,Element,String,Number,Property,Pseudo,Rule,Important"
 
 Static Private $cProp As New Collection
 Static Private $aKeywords As String[]
+
 
 Static Public Sub _init()
   
@@ -69,20 +72,22 @@ End
 
 Public Sub Run(sText As String)
 
-  Dim iState As Integer
-  Dim iNextState As Integer
+  Dim iState As Short
+  Dim iNextState As Short
   Dim iInd As Integer
   Dim sOrgText As String
   Dim sCar As String
   Dim bLimit As Boolean
-  Dim iTag As Integer
+  Dim iTag As Short
   Dim sProperty As String
   Dim sWait As String
-  Dim iSaveState As Integer
+  Dim iSaveState As Short
   Dim iPos, iPos2 As Integer
+  Dim bEscape As Boolean
+  Dim N As Integer
 
   iState = TextHighlighter.State
-  If iState = Highlight.Normal Then iState = Highlight.Keyword
+  If iState = State.Normal Then iState = State.Keyword
   iTag = TextHighlighter.Tag
   sOrgText = sText
   iNextState = iState
@@ -92,22 +97,40 @@ Public Sub Run(sText As String)
     iNextState = iState
     sCar = String.Mid$(sText, iInd, 1)
     
+    If bEscape Then
+      
+      If IsHexa(sCar) And If N < 6 Then
+        Inc N
+        Goto NEXT_STATE
+      Else 
+        bEscape = False
+        Goto NEXT_STATE
+      Endif
+      
+    Endif
+    
+    If sCar = "\\" Then
+      bEscape = True
+      N = 0
+      Goto NEXT_STATE
+    Endif
+    
     Select Case iState
     
-      Case Highlight.String
+      Case State.String
         If sCar = sWait Then iNextState = iSaveState
         Goto NEXT_STATE
 
-      Case Highlight.Comment
+      Case State.Comment
         If sCar = "/" And If iInd > 1 And If String.Mid$(sText, iInd - 1, 1) = "*" Then
           iNextState = iTag
         Endif
         Goto NEXT_STATE
       
-      Case Highlight.Preprocessor
+      Case State.Rule
         If sCar = "{" Then 
-          iState = Highlight.Keyword
-          iNextState = Highlight.Keyword
+          iState = State.Keyword
+          iNextState = State.Keyword
           bLimit = True
         Endif
         Goto NEXT_STATE
@@ -116,7 +139,7 @@ Public Sub Run(sText As String)
         
         If sCar = "/" And If Mid$(sText, iInd, 2) = "/*" Then 
           iTag = iState
-          iState = Highlight.Comment
+          iState = State.Comment
           iNextState = iState
           Goto NEXT_STATE
         Else If TextHighlighter_Html.AllowCode And If sCar = "<" And If Mid$(sText, iInd, 2) = "<%" Then
@@ -128,64 +151,71 @@ Public Sub Run(sText As String)
 
     Select Case iState
     
-      Case Highlight.Keyword, Highlight.Datatype, Highlight.Function, Highlight.Operator
+      Case State.Keyword, State.Class, State.Id, State.Pseudo, State.Element
         
         If sCar = "." Then 
           
-          iState = Highlight.Datatype
+          iState = State.Class
           iNextState = iState
           
         Else If sCar = "#" Then 
           
-          iState = Highlight.Function
+          iState = State.Id
           iNextState = iState
           
-        Else If sCar = ":" Then
+        Else If IsLetter(sCar) Then
           
-          iState = Highlight.Operator
+          If iState = State.Keyword Then
+            iState = State.Element
+            iNextState = iState
+          Endif
+          
+        Else If InStr("():", sCar) Then
+          
+          iState = State.Pseudo
           iNextState = iState
           
-        Else If sCar = " " Then 
+        Else If IsSpace(sCar) Then 
           
-          iState = Highlight.Keyword
+          iState = State.Keyword
           iNextState = iState
           
         Else If sCar = "{" Then 
           
-          iState = Highlight.Keyword
-          iNextState = Highlight.Symbol
-          iTag = Highlight.Symbol
+          iState = State.Keyword
+          iNextState = State.Property
+          iTag = State.Property
           bLimit = True
           
         Else If sCar = "@" Then
           
-          iState = Highlight.Preprocessor
+          iState = State.Rule
           iNextState = iState
           bLimit = True
           
         Endif
         
-      Case Highlight.Symbol
+      Case State.Property
         
         If sCar = "." Then 
           
-          iState = Highlight.Datatype
+          iState = State.Class
           iNextState = iState
           
-        Else If sCar = ":" Then
+        Else If InStr(":()", sCar) Then
           
-          iState = Highlight.Keyword
-          iNextState = Highlight.Number
+          iState = State.Keyword
+          iNextState = State.Number
           
         Else If sCar = "}" Then 
           
-          iState = Highlight.Keyword
-          iNextState = Highlight.Keyword
-          iTag = Highlight.Keyword
+          iState = State.Keyword
+          iNextState = State.Keyword
+          iTag = State.Keyword
           
         Else If IsSpace(sCar) Then
           
-          iState = Highlight.Symbol
+          iState = State.Property
           iNextState = iState
           
         Else
@@ -206,51 +236,51 @@ Public Sub Run(sText As String)
           
           If sProperty Then
             If $cProp.Exist(sProperty) Then
-              TextHighlighter.Add(Highlight.Symbol, iPos)
+              TextHighlighter.Add(State.Property, iPos)
             Else If sProperty Begins "-" And If sProperty Like "-*-*" Then
-              TextHighlighter.Add(Highlight.Symbol, iPos)
+              TextHighlighter.Add(State.Property, iPos)
             Else
-              TextHighlighter.Add(Highlight.Error, iPos)
+              TextHighlighter.Add(State.Error, iPos)
             Endif
           Else
-            TextHighlighter.Add(Highlight.Symbol, iPos)
+            TextHighlighter.Add(State.Property, iPos)
           Endif
           iInd += iPos - 1
           Continue
           
         Endif
         
-      Case Highlight.Number
+      Case State.Number, State.Important
         
         If sCar = Chr$(34) Or If sCar = "'" Then
           
           iSaveState = iState
           sWait = sCar
-          iState = Highlight.String
+          iState = State.String
           iNextState = iState
           
         Else If sCar = ";" Then 
           
-          iState = Highlight.Keyword
-          iNextState = Highlight.Symbol
+          iState = State.Keyword
+          iNextState = State.Property
           
         Else If sCar = "}" Then 
           
-          iState = Highlight.Keyword
-          iNextState = Highlight.Keyword
-          iTag = Highlight.Keyword
+          iState = State.Keyword
+          iNextState = State.Keyword
+          iTag = State.Keyword
           
-        ' Else If sCar = "#" Then
-        '   
-        '   iState = Highlight.Preprocessor
-        '   iNextState = iState
+        Else If sCar = "!" Then
+          
+          iState = State.Important
+          iNextState = iState
           
         Endif
         
-      Case Highlight.Preprocessor
+      Case State.Rule
         
         If Not IsHexa(sCar) Then
-          iState = Highlight.Number
+          iState = State.Number
           iNextState = iState
           Dec iInd
           Continue
@@ -265,7 +295,7 @@ Public Sub Run(sText As String)
 
   Next
   
-  If iNextState = Highlight.String Then iNextState = iSaveState
+  If iNextState = State.String Then iNextState = iSaveState
   
   TextHighlighter.State = iNextState
   TextHighlighter.Tag = iTag

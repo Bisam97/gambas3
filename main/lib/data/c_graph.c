@@ -79,9 +79,9 @@ do {									\
 			goto error;					\
 		else /* Clear error */					\
 			GB.Error(NULL);					\
-		desc->func = NULL;					\
+		desc->func = 0;					\
 	} else {							\
-		desc->func = f.desc;					\
+		desc->func = f.index;					\
 	}								\
 } while(0)
 
@@ -245,7 +245,7 @@ GB_DESC CGraph[] = {
 do {								\
 	GB_FUNCTION f;						\
 								\
-	f.desc = THIS->desc->func;				\
+	f.index = THIS->desc->func;				\
 	f.object = THIS;					\
 	GB.Call(&f, narg, 0);					\
 } while (0)

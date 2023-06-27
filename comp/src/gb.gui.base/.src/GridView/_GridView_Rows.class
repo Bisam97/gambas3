@@ -10,6 +10,12 @@ Property Height, H As Integer
 Property Selection As Integer[]
 Property Border As Border
 
+'' @{since 3.18}
+''
+'' Return or set the vertical padding between rows.
+
+Property Padding As Integer Use $iPadding
+
 Event _Refresh
 
 'Private $aRows As New _GridView_Row[]
@@ -28,7 +34,14 @@ Private $cTextAlign As Collection
 
 Private $hSel As New GridViewSelection
 
-Public Sub _GetSel() As GridViewSelection
+Public Sub _SetSelection(hSel As GridViewSelection)
+  
+  $hSel = hSel
+  
+End
+
+
+Public Sub _GetSelection() As GridViewSelection
   
   Return $hSel
   
@@ -110,7 +123,7 @@ Public Sub _GetDefaultRowHeight() As Integer
   If $iDefaultHeight > 0 Then Return $iDefaultHeight
   hView = GetView()
 
-  H = hView._GetTextHeight() + hView.Padding * 2 + 2
+  H = hView._GetTextHeight() + hView.Padding * 2 + $iPadding * 2 + 2
   If $hBorder Then
     With $hBorder
       H += .TopPadding + .BottomPadding + .TopWidth + .BottomWidth + .TopMargin + .BottomMargin
@@ -355,9 +368,7 @@ Public Sub SelectAll()
 
   If hView.Mode <> Select.Multiple Then Return
   
-  $hSel.UnSelectAll
-  $hSel.Select(0, $nRows)
-  hView.Refresh
+  $hSel.SelectAll($nRows)
   hView._RaiseSelect
   
 End
@@ -387,15 +398,15 @@ Public Sub _IsSelected(iRow As Integer) As Boolean
   
 End
 
-Public Sub _SaveSelection() As GridViewSelection
+Public Sub _SaveSelection() As Variant
   
-  Return $hSel.Copy()
+  Return $hSel.Save()
   
 End
 
-Public Sub _RestoreSelection(hSel As GridViewSelection)
+Public Sub _RestoreSelection(vSel As Variant)
   
-  $hSel = hSel.Copy()
+  $hSel.Restore(vSel)
   
 End
 
@@ -406,10 +417,28 @@ Private Sub Height_Read() As Integer
 End
 
 Private Sub Height_Write(Value As Integer)
+
+  Dim hView As GridView = GetView()
+  Dim iRow As Integer
+  Dim w As Integer
   
   $iDefaultHeight = Value
-  GetView()._ResizeContents()
   
+  If $iDefaultHeight < 0 Then 
+    
+    Repeat
+      W = hView.ClientW
+      For iRow = 0 To $nRows - 1
+        _SetRowHeight(iRow, -1)
+      Next
+    Until hView.ClientW = W
+    
+  Else
+    
+    hView._ResizeContents()
+    
+  Endif
+
 End
 
 Private Function Max_Read() As Integer
@@ -513,7 +542,7 @@ Public Sub _GetRowBorder(iRow As Integer) As Border
   If $cBorder Then hBorder = $cBorder[iRow]
   If Not hBorder Then hBorder = $hBorder
   
-  If hBorder And If Not hBorder.IsVoid() Then Return hBorder
+  Return hBorder
   
 End
 
@@ -551,3 +580,10 @@ Public Sub _GetRowTextAlign(iRow As Integer) As Integer
   
 End
 
+Private Sub Padding_Write(Value As Integer)
+  
+  If $iPadding = Value Then Return
+  $iPadding = Value
+  GetView()._ResizeContents()
+  
+End

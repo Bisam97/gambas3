@@ -2,7 +2,7 @@
 
 	gbx_component.c
 
-	(c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+	(c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -59,7 +59,7 @@
 //#define DEBUG_PRELOAD
 
 COMPONENT *COMPONENT_current = NULL;
-COMPONENT *COMPONENT_main;
+//COMPONENT *COMPONENT_main;
 int COMPONENT_count = 0;
 char *COMPONENT_path;
 
@@ -125,6 +125,11 @@ void COMPONENT_load_all(void)
 	{
 		COMPONENT_create("gb.eval");
 		COMPONENT_create("gb.debug");
+	}
+	
+	if (PROJECT_run_tests)
+	{
+		COMPONENT_create("gb.test");
 	}
 
 	_load_all = TRUE;
@@ -203,9 +208,12 @@ COMPONENT *COMPONENT_create(const char *name)
 	{
 		user_library = TRUE;
 		path = (char *)name;
-		if (*path == ':')
+		if (*name == ':')
 		{
-			name++;
+			name = STRING_new_temp_zero(name + 1);
+			p = index(name, '/');
+			if (p)
+				*p = '.';
 			p = rindex(name, ':');
 			if (p)
 				*p = 0;
@@ -213,7 +221,7 @@ COMPONENT *COMPONENT_create(const char *name)
 		else
 			name = FILE_get_basename(name);
 	}
-
+	
 	comp = COMPONENT_find(name);
 	if (comp)
 		return comp;
@@ -260,7 +268,7 @@ COMPONENT *COMPONENT_create(const char *name)
 				comp->archive = ARCHIVE_create(comp->name, NULL);
 		}
 	}
-
+	
 	//fprintf(stderr, "insert %s\n", comp->name);
 	LIST_insert(&_component_list, comp, &comp->list);
 	COMPONENT_count++;
@@ -427,4 +435,15 @@ bool COMPONENT_is_loaded(const char *name)
 
 	comp = COMPONENT_find(name);
 	return comp && comp->loaded;
+}
+
+void COMPONENT_before_fork(void)
+{
+	COMPONENT *comp;
+
+	LIST_for_each(comp, _component_list)
+	{
+		if (comp->library)
+			LIBRARY_before_fork(comp->library);
+	}
 }

@@ -20,10 +20,10 @@ Public Sub _new(Query As String)
     
     iPos = InStr(sElt, "=")
     If iPos Then
-      sKey = URL.Decode(Left(sElt, iPos - 1))
-      sValue = URL.Decode(Mid$(sElt, iPos + 1))
+      sKey = URL.UnQuote(Left(sElt, iPos - 1), True)
+      sValue = URL.Unquote(Mid$(sElt, iPos + 1), True)
     Else
-      sKey = sElt
+      sKey = URL.UnQuote(sElt)
       sValue = ""
     Endif
     
@@ -47,6 +47,13 @@ Public Sub Exist(Key As String) As Boolean
   
 End
 
+Public Sub Remove(Key As String)
+  
+  $cNull.Remove(Key)
+  $cVal.Remove(Key)
+  
+End
+
 
 Public Sub _get(Key As String) As String
   
@@ -56,8 +63,7 @@ End
 
 Public Sub _put(Value As String, Key As String)
   
-  $cNull.Remove(Key)
-  $cVal.Remove(Key)
+  Remove(Key)
   
   If Value Then
     $cVal[Key] = Value
@@ -73,11 +79,11 @@ Public Sub ToString() As String
   Dim sVal As String
   
   For Each sVal In $cVal
-    aQuery.Add(URL.Encode($cVal.Key) & "=" & URL.Encode(sVal))
+    aQuery.Add(URL.Quote($cVal.Key) & "=" & URL.Quote(sVal))
   Next
   
   For Each $cNull
-    aQuery.Add(URL.Encode($cNull.Key))
+    aQuery.Add(URL.Quote($cNull.Key))
   Next
   
   Return aQuery.Join("&")

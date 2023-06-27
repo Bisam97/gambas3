@@ -2,7 +2,7 @@
 
   gbx_c_process.c
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -175,7 +175,7 @@ static void callback_write(int fd, int type, CPROCESS *process)
 
 	if (GB_CanRaise(process, EVENT_Read))
 	{
-		if (!STREAM_read_ahead(CSTREAM_stream(process)))
+		if (!STREAM_read_ahead(CSTREAM_TO_STREAM(process)))
 		{
 			GB_Raise(process, EVENT_Read, 0);
 			return;
@@ -344,7 +344,7 @@ static void stop_process_after(CPROCESS *_object)
 	/* Vidage du tampon de sortie */
 	if (THIS->out >= 0)
 	{
-		stream = CSTREAM_stream(THIS);
+		stream = CSTREAM_TO_STREAM(THIS);
 		while (THIS->out >= 0 && !STREAM_is_closed(stream))
 			callback_write(THIS->out, 0, THIS);
 
@@ -525,8 +525,6 @@ static void run_process(CPROCESS *process, int mode, void *cmd, CARRAY *env)
 	// for virtual terminal
 	int fd_master = -1;
 	char *slave = NULL;
-	//struct termios termios_stdin;
-	//struct termios termios_check;
 	struct termios termios_master;
 	const char *exec;
 
@@ -610,17 +608,14 @@ static void run_process(CPROCESS *process, int mode, void *cmd, CARRAY *env)
 		fprintf(stderr, "run_process: slave = %s\n", slave);
 		#endif
 		
-		if (mode & PM_TERM)
-		{
-			if (tcgetattr(fd_master, &termios_master))
-				goto __ABORT_ERRNO;
+		if (tcgetattr(fd_master, &termios_master))
+			goto __ABORT_ERRNO;
 
-			cfmakeraw(&termios_master);
-			//termios_master.c_lflag &= ~ECHO;
+		cfmakeraw(&termios_master);
+		//termios_master.c_lflag &= ~ECHO;
 
-			if (tcsetattr(fd_master, TCSANOW, &termios_master))
-				goto __ABORT_ERRNO;
-		}
+		if (tcsetattr(fd_master, TCSANOW, &termios_master))
+			goto __ABORT_ERRNO;
 	}
 	else
 	{
@@ -724,12 +719,7 @@ static void run_process(CPROCESS *process, int mode, void *cmd, CARRAY *env)
 		bool pwd;
 		int ch_i, ch_n;
 
-		//bool stdin_isatty = isatty(STDIN_FILENO);
-
 		sigprocmask(SIG_SETMASK, &old, NULL);
-
-		if (mode & PM_SHELL)
-			setpgid(0, 0);
 
 		if (mode & PM_TERM)
 		{
@@ -796,6 +786,9 @@ static void run_process(CPROCESS *process, int mode, void *cmd, CARRAY *env)
 					abort_child(CHILD_CANNOT_PLUG_OUTPUT);
 			}
 		}
+
+		if (mode & PM_SHELL)
+			setpgid(0, 0);
 
 		pwd = FALSE;
 
@@ -889,7 +882,7 @@ static bool wait_child(CPROCESS *process)
 
 static void callback_child(int signum, intptr_t data)
 {
-	CPROCESS *process, *next;
+	CPROCESS *process;
 
 	#ifdef DEBUG_ME
 	fprintf(stderr, ">> callback_child\n");
@@ -897,10 +890,13 @@ static void callback_child(int signum, intptr_t data)
 
 	for (process = _running_process_list; process; )
 	{
-		next = process->next;
 		if (wait_child(process))
+		{
 			stop_process(process);
-		process = next;
+			process = _running_process_list;
+		}
+		else
+			process = process->next;
 	}
 	
 	throw_last_child_error();
@@ -910,18 +906,25 @@ static void callback_child(int signum, intptr_t data)
 	#endif
 }
 
+void CPROCESS_callback_child(void)
+{
+	callback_child(SIGCHLD, 0);
+}
+
 static void init_child(void)
 {
-	if (_init)
-		return;
+	if (!_init)
+	{
+		#ifdef DEBUG_ME
+		fprintf(stderr, "init_child()\n");
+		#endif
 
-	#ifdef DEBUG_ME
-	fprintf(stderr, "init_child()\n");
-	#endif
+		_SIGCHLD_callback = SIGNAL_register(SIGCHLD, callback_child, 0);
 
-	_SIGCHLD_callback = SIGNAL_register(SIGCHLD, callback_child, 0);
-
-	_init = TRUE;
+		_init = TRUE;
+	}
+	
+	SIGNAL_check(SIGCHLD);
 }
 
 static void exit_child(void)
@@ -961,7 +964,7 @@ CPROCESS *CPROCESS_create(int mode, void *cmd, char *name, CARRAY *env)
 	OBJECT_UNREF_KEEP(process);
 
 	if (!name || !*name)
-		STREAM_blocking(CSTREAM_stream(process), TRUE);
+		STREAM_blocking(CSTREAM_TO_STREAM(process), TRUE);
 
 	return process;
 }
@@ -983,15 +986,15 @@ void CPROCESS_wait_for(CPROCESS *process, int timeout)
 
 	OBJECT_REF(process);
 
-	sigfd = SIGNAL_get_fd();
-
 	ON_ERROR_1(error_CPROCESS_create, process)
 	{
 		while (process->running)
 		{
+			sigfd = SIGNAL_get_fd();
 			#ifdef DEBUG_ME
-			fprintf(stderr, "Watch process %d\n", process->pid);
+			fprintf(stderr, "Watch process %d (end = %d)\n", process->pid, sigfd);
 			#endif
+			SIGNAL_check(SIGCHLD);
 			ret = WATCH_process(sigfd, process->out, process->err, timeout);
 			#ifdef DEBUG_ME
 			fprintf(stderr, "Watch process %d ->%s%s%s%s\n", process->pid, ret & WP_END ? " END" : "", ret & WP_OUTPUT ? " OUTPUT" : "", ret & WP_ERROR ? " ERROR" : "", ret & WP_TIMEOUT ? " TIMEOUT" : "");
@@ -1228,42 +1231,6 @@ BEGIN_METHOD_VOID(Process_CloseInput)
 	close_fd(&THIS->in);
 
 END_METHOD
-
-/*
-static int calc_mode(int arg)
-{
-	int mode = 0;
-	
-	if (arg & R_OK) mode += PM_READ;
-	if (arg & W_OK) mode += PM_WRITE;
-	if (arg & X_OK) mode += PM_SHELL;
-	
-	return mode;
-}
-
-BEGIN_METHOD(Process_Exec, GB_OBJECT command; GB_INTEGER mode; GB_OBJECT env)
-
-	CARRAY *command = (CARRAY *)VARG(command);
-	CARRAY *env = (CARRAY *)VARG(env);
-	
-	if (GB_CheckObject(command))
-		return;
-
-	init_process(THIS);
-	run_process(THIS, calc_mode(VARGOPT(mode, 0)), command, env);
-
-END_METHOD
-
-BEGIN_METHOD(Process_Shell, GB_STRING command; GB_INTEGER mode; GB_OBJECT env)
-
-	char *command = GB_ToZeroString(ARG(command));
-	CARRAY *env = (CARRAY *)VARG(env);
-	
-	init_process(THIS);
-	run_process(THIS, calc_mode(VARGOPT(mode, 0)) | PM_SHELL, command, env);
-
-END_METHOD
-*/
 
 #endif
 

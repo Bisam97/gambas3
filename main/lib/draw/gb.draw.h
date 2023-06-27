@@ -2,7 +2,7 @@
 
   gb.draw.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -73,6 +73,9 @@ typedef
 			void (*Begin)(void *);
 			void (*End)();
 			bool (*IsPainted)(void *);
+			void (*SetBackground)(GB_COLOR color);
+			void (*Translate)(float x, float y);
+			void (*Scale)(float sx, float sy);
 			}
 			Paint;
 		}

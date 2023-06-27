@@ -2,7 +2,7 @@
 
   profile.c
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -197,7 +197,8 @@ void PROFILE_add(void *cp, void *fp, void *pc)
 	ushort line;
 	
 	line = 0;
-	DEBUG_calc_line_from_position(cp, fp, pc, &line);
+	if (_count && DEBUG_calc_line_from_position(cp, fp, pc, &line))
+		return;
 	
 	add_line(line, time);
 }

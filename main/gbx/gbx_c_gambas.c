@@ -2,7 +2,7 @@
 
   gbx_c_gambas.c
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -235,9 +235,11 @@ GB_DESC NATIVE_Gambas[] =
 	GB_CONSTANT("MediumTime", "i", LF_MEDIUM_TIME),
 	GB_CONSTANT("ShortTime", "i", LF_SHORT_TIME),
 
-	GB_CONSTANT("Read", "i", R_OK),
-	GB_CONSTANT("Write", "i", W_OK),
-	GB_CONSTANT("Exec", "i", X_OK),
+	GB_CONSTANT("Read", "i", GB_ST_READ),
+	GB_CONSTANT("Write", "i", GB_ST_WRITE),
+	GB_CONSTANT("Exec", "i", GB_ST_EXEC),
+	GB_CONSTANT("Input", "i", GB_ST_READ + GB_ST_BUFFERED),
+	GB_CONSTANT("Output", "i", GB_ST_WRITE + GB_ST_BUFFERED),
 
 	GB_CONSTANT("Sunday", "i", 0),
 	GB_CONSTANT("Monday", "i", 1),

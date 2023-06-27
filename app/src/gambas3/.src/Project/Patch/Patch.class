@@ -49,7 +49,7 @@ Static Private Function PrepareOldSource(sOldSource As String) As String
   Else If Right$(sOldSource, 3) = ".xz" Then
     sType = "J"
   Else
-    Error.Raise(("Unsupported source archive format"))
+    Error.Raise(("Unsupported source archive format."))
     Return Null
   Endif
   
@@ -176,7 +176,7 @@ Private Sub DoPatch(Optional sOpt As String = "")
   Shell sCmd To sRes
   If Process.LastValue Then
     If Dir(sBackup).Count Then Shell Subst$("cp -r &1 &2", Dir(sBackup).Join(" "), Shell$(Project.Dir)) Wait
-    Message.Error(("Patch didn't apply:\n") & sRes)
+    FMain.ShowErrorWith(("Patch didn't apply:\n"), sRes)
   Else
     Project.ReloadAll()
   Endif

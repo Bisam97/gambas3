@@ -1,5 +1,7 @@
 ' Gambas class file
 
+''' This class implements an expander container.
+
 Export
 Inherits WebContainer
 
@@ -8,11 +10,16 @@ Public Const _DefaultEvent As String = "Show"
 Public Const _Similar As String = "WebContainer"
 Public Const _DrawWith As String = "Expander"
 
+'' This event is raised when the expander is opened.
 Event Show
+'' This event is raised when the expander is closed.
 Event Hide
 
+'' Return or set if the expander contents is hidden.
 Property Hidden As Boolean
+'' Return or set the expander title.
 Property Text As String
+'' Return or set if the expander has a border.
 Property Border As Boolean
 
 Private $hCont As WebContainer
@@ -20,13 +27,13 @@ Private $bHidden As Boolean
 Private $sText As String
 Private $bBorder As Boolean
 
+'' Create a new WebExpander
 Public Sub _new()
   
   $hCont = New WebContainer(Me)
   Me._Container = $hCont
   
 End
-
 
 Private Function Hidden_Read() As Boolean
 

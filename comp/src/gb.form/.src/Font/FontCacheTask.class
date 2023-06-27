@@ -1,0 +1,111 @@
+' Gambas class file
+
+Inherits Task
+
+Public Foreground As Integer
+
+Static Public Sub Normalize(sFont As String) As String
+
+  Dim I As Integer
+  Dim sCar As String
+  Dim sStr As String
+
+  For I = 1 To Len(sFont)
+    sCar = Mid$(sFont, I, 1)
+    If sCar <= " " Then
+      sStr &= "_"
+    Else If IsLetter(sCar) Then 
+      sStr &= UCase(sCar)
+    Else If IsDigit(sCar) Then
+      sStr &= sCar
+    Else 
+      sStr &= "%" & Hex$(Asc(sCar), 2)
+    Endif
+    
+    If Len(sStr) >= 240 Then Break
+    
+  Next
+
+  Return sStr
+
+End
+
+Static Public Sub GetDir() As String
+
+  Dim sDir As String
+  Dim sComp As String
+  
+  sDir = Main.GetCacheDir() &/ "gambas3/gb.form/fonts"
+
+  For Each sComp In ["gb.gtk", "gb.gtk3", "gb.qt4", "gb.qt5"]
+    If Component.IsLoaded(sComp) Then
+      sDir &/= sComp
+      Break
+    Endif
+  Next
+  
+  Return sDir
+  
+End
+
+
+Static Public Sub CreateFontCacheImage(sFont As String, iColor As Integer) As Image
+
+  Dim sDir As String
+  Dim sPath As String
+  Dim hFont As Font
+  Dim hSize As Rect
+  Dim hImage As Image
+  Dim sTemp As String
+  
+  sDir = GetDir()
+  sPath = sDir &/ Normalize(sFont) & ".png"
+  If Exist(sPath) Then Return
+    
+  Main.MkDir(sDir)
+  
+  hFont = Font[sFont & ",+2"]
+  hSize = hFont.TextSize(sFont)
+  If hSize.IsVoid() Then
+    hFont = Font["+2"]
+    hSize = hFont.TextSize(sFont)
+    If hSize.IsVoid() Then Return
+  Endif
+
+  hImage = New Image(hSize.W + 1, hSize.H, Color.Transparent)
+  Paint.Begin(hImage)
+  Paint.Font = hFont
+  Paint.Background = iColor
+  Paint.DrawText(sFont, 0, 0, hImage.W, hImage.H, Align.Normal)
+  Paint.End
+  
+  sTemp = sDir &/ "~" & CStr(Application.Handle) & ".png"
+  Try Kill sTemp
+  hImage.Save(sTemp)
+  Move sTemp Kill sPath
+  
+  Return hImage
+  
+End
+
+Public Sub Main()
+
+  Dim sFont As String
+  Dim N As Integer
+  Dim I As Integer
+  
+  Application.Priority = 19
+  
+  N = Fonts.Count
+  
+  For Each sFont In Fonts
+    
+    CreateFontCacheImage(sFont, Foreground)
+    
+    Inc I
+    Print I;; N
+    Flush
+    
+  Next
+  
+End

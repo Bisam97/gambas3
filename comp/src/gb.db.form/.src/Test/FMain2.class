@@ -7,6 +7,8 @@ Public Sub Form_Open()
   'DB.Debug = True
   'DataSource2.Connection = DB.Current
   
+  DataBrowser1.View.Columns[2].Alignment = Align.Center
+  
 End
 
 Public Sub DataControl6_Validate(Value As Variant)
@@ -69,6 +71,13 @@ Public Sub DataSource1_BeforeDelete(Keys As Variant[])
   Next
   Print
   
+  Stop Event
+
+End
+
+Public Sub DataSource1_Invalid(Field As String)
+
+  Message.Warning(Subst("La valeur du champ « &1 » est invalide.", Field))
   Stop Event
 
 End

@@ -1,0 +1,27 @@
+' Gambas test file
+
+Public Sub GeneralError()
+
+    Dim v As Variant
+
+    Try v = 2 / 0
+    Assert.Equals(Error.Where, "Errorhandling.GeneralError.7")
+    Assert.Equals(Error.Text, "Division by zero")
+    Assert.Equals(Error.Code, 26)
+    Assert.Equals(Error.Class.Name, "Errorhandling")
+    'Test.TODO("We should test Error.Backtrace, but no idea, how ...")
+
+    ' ------------------------------------------------- Clear error
+    Error.Clear
+    Assert.Equals(Error.Where, Null, "Error cleared Null")
+    Assert.Equals(Error.Text, Null, "Error cleared Null")
+    Assert.Equals(Error.Code, 0, "Error cleared 0")
+    Assert.NotOk(Error.Class, "Error.Class should not exist after Error.Clear")
+
+    'error, must be catched
+    v = 2 / 0
+
+Catch
+    Assert.Equals(Error.Text, "Division by zero", "Error catched")
+
+End

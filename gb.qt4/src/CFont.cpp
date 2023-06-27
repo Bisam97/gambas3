@@ -2,7 +2,7 @@
 
 	CFont.cpp
 
-	(c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+	(c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -156,6 +156,8 @@ static void set_font_from_string(CFONT *_object, QString &str)
 				f.setItalic(false);
 				f.setUnderline(false);
 				f.setStrikeOut(false);
+				if (elt.startsWith('"') && elt.endsWith('"'))
+					elt = elt.mid(1, elt.length() - 2);
 				f.setFamily(elt);
 #if QT_VERSION >= QT_VERSION_CHECK(4, 8, 0)
 				f.setStyleName("");
@@ -219,27 +221,46 @@ static void CFONT_manage(int prop, CFONT *_object, void *_param)
 	{
 		switch(prop)
 		{
-			case CFONT::Name: GB.ReturnNewZeroString(f->family().toUtf8()); break;
+			case CFONT::Name: 
+				GB.ReturnNewZeroString(f->family().toUtf8());
+				break;
+			
 			case CFONT::Size:
 				if (noResize)
 					GB.ReturnFloat(f->pointSizeF());
 				else
 					GB.ReturnFloat(SIZE_REAL_TO_VIRTUAL(f->pointSizeF()));
 				break;
+				
 			case CFONT::Grade:
 				GB.ReturnInteger(SIZE_TO_GRADE(f->pointSizeF(), qApp->font().pointSizeF()));
 				break;
-			case CFONT::Bold: GB.ReturnBoolean(f->bold()); break;
-			case CFONT::Italic: GB.ReturnBoolean(f->italic()); break;
-			case CFONT::Underline: GB.ReturnBoolean(f->underline()); break;
-			case CFONT::Strikeout: GB.ReturnBoolean(f->strikeOut()); break;
+				
+			case CFONT::Bold:
+				GB.ReturnBoolean(f->bold());
+				break;
+			
+			case CFONT::Italic:
+				GB.ReturnBoolean(f->italic());
+				break;
+			
+			case CFONT::Underline:
+				GB.ReturnBoolean(f->underline());
+				break;
+			
+			case CFONT::Strikeout:
+				GB.ReturnBoolean(f->strikeOut());
+				break;
 		}
 	}
 	else
 	{
 		switch (prop)
 		{
-			case CFONT::Name: f->setFamily(GB.ToZeroString(PROP(GB_STRING))); break;
+			case CFONT::Name:
+				f->setFamily(GB.ToZeroString(PROP(GB_STRING)));
+				break;
+				
 			case CFONT::Size:
 				if (noResize)
 					size = VPROP(GB_FLOAT);
@@ -254,6 +275,7 @@ static void CFONT_manage(int prop, CFONT *_object, void *_param)
 				
 				f->setPointSizeF(size);
 				break;
+				
 			case CFONT::Grade:
 				{
 					int g = VPROP(GB_INTEGER);
@@ -264,10 +286,22 @@ static void CFONT_manage(int prop, CFONT *_object, void *_param)
 					f->setPointSizeF(GRADE_TO_SIZE(g, qApp->font().pointSizeF()));
 				}
 				break;
-			case CFONT::Bold: f->setBold(VPROP(GB_BOOLEAN)); break;
-			case CFONT::Italic: f->setItalic(VPROP(GB_BOOLEAN)); break;
-			case CFONT::Underline: f->setUnderline(VPROP(GB_BOOLEAN)); break;
-			case CFONT::Strikeout: f->setStrikeOut(VPROP(GB_BOOLEAN)); break;
+				
+			case CFONT::Bold:
+				f->setBold(VPROP(GB_BOOLEAN));
+				break;
+				
+			case CFONT::Italic:
+				f->setItalic(VPROP(GB_BOOLEAN));
+				break;
+				
+			case CFONT::Underline:
+				f->setUnderline(VPROP(GB_BOOLEAN));
+				break;
+				
+			case CFONT::Strikeout:
+				f->setStrikeOut(VPROP(GB_BOOLEAN));
+				break;
 		}
 
 		if (THIS->func)
@@ -341,9 +375,16 @@ BEGIN_METHOD_VOID(Font_ToString)
 	QFont *f = THIS->font;
 	QString str;
 	double size;
+	QString family;
+	bool number;
 
 	//str = qfont.family().left(1).upper() + qfont.family().mid(1).lower() + " " + QString::number(qfont.pointSize());
-	add(str, f->family());
+	family = f->family();
+	family.toDouble(&number);
+	if (number)
+		str = '"' + str + '"';
+	add(str, family);
+	
 	size = SIZE_REAL_TO_VIRTUAL(f->pointSizeF());
 	size = (double)((int)(size * 10 + 0.5)) / 10;
 	add(str, QString::number(size));
@@ -379,7 +420,10 @@ END_METHOD
 
 BEGIN_METHOD_VOID(Font_Copy)
 
-	GB.ReturnObject(CFONT_create(*THIS->font));
+	QFont f;
+	
+	f.fromString(THIS->font->toString());
+	GB.ReturnObject(CFONT_create(f));
 
 END_METHOD
 
@@ -404,71 +448,90 @@ END_PROPERTY
 
 BEGIN_PROPERTY(Font_Height)
 
-	QFontMetrics fm(*(THIS->font));
+	QFontMetricsF fm(*(THIS->font));
 
-	GB.ReturnInteger(fm.height() + fm.leading());
+	GB.ReturnInteger(fm.lineSpacing());
 
 END_PROPERTY
 
+static void get_text_size(CFONT *_object, QString s, int *w, int *h)
+{
+	QFontMetricsF fm(*(THIS->font));
+	
+	if (w)
+	{
+		QStringList sl;
+		qreal wt, width = 0;
+		int i;
+
+		sl = s.split('\n');
+
+		for (i = 0; i < (int)sl.count(); i++)
+		{
+			wt = fm.width(sl[i]);
+			if (wt > width) width = wt;
+		}
+		
+		*w = ::ceilf(width);
+	}
+	
+	if (h)
+	{
+		int nl;
+
+		nl = s.count('\n');
+
+		*h = ::ceilf(fm.height() * (1 + nl) + fm.leading() * nl);
+	}
+}
 
 BEGIN_METHOD(Font_TextHeight, GB_STRING text)
 
-	QFontMetrics fm(*(THIS->font));
-	QString s;
-	int nl;
-
-	if (!MISSING(text))
-		s = QSTRING_ARG(text);
-	nl = s.count('\n');
-
-	GB.ReturnInteger(fm.height() * (1 + nl) + fm.leading() * nl);
+	int h;
+	get_text_size(THIS, QSTRING_ARG(text), NULL, &h);
+	GB.ReturnInteger(h);
 
 END_METHOD
 
 
 BEGIN_METHOD(Font_TextWidth, GB_STRING text)
 
-	QFontMetricsF fm(*(THIS->font));
-	QStringList sl;
-	qreal w, width = 0;
-	int i;
-
-	QString str = QSTRING_ARG(text);
-
-	sl = str.split('\n');
-
-	for (i = 0; i < (int)sl.count(); i++)
-	{
-		w = fm.width(sl[i]);
-		if (w > width) width = w;
-	}
-
-	GB.ReturnInteger((int)(width + 0.5));
+	int w;
+	get_text_size(THIS, QSTRING_ARG(text), &w, NULL);
+	GB.ReturnInteger(w);
 
 END_METHOD
 
 
-static void rich_text_size(CFONT *_object, char *text, int len, int sw, int *w, int *h)
+BEGIN_METHOD(Font_TextSize, GB_STRING text)
+
+	GEOM_RECT *rect = GEOM.CreateRect();
+	get_text_size(THIS, QSTRING_ARG(text), &rect->w, &rect->h);
+	GB.ReturnObject(rect);
+
+END_METHOD
+
+
+static void get_rich_text_size(CFONT *_object, char *text, int len, int sw, int *w, int *h)
 {
 	QTextDocument rt;
 	
-	rt.setDocumentMargin(0);
+	DRAW_init_rich_text(&rt, *(THIS->font));
+	
 	rt.setHtml(QString::fromUtf8((const char *)text, len));
-	rt.setDefaultFont(*(THIS->font));
 
 	if (sw > 0)
 		rt.setTextWidth(sw);
 	
-	if (w) *w = rt.idealWidth();
-	if (h) *h = rt.size().height();
+	if (w) *w = ::ceilf(rt.idealWidth());
+	if (h) *h = ::ceilf(rt.size().height());
 }
 
 
-BEGIN_METHOD(Font_RichTextWidth, GB_STRING text)
+BEGIN_METHOD(Font_RichTextWidth, GB_STRING text; GB_INTEGER width)
 
 	int w;
-	
-	rich_text_size(THIS, STRING(text), LENGTH(text), -1, &w, NULL);
+	get_rich_text_size(THIS, STRING(text), LENGTH(text), VARGOPT(width, -1), &w, NULL);
 	GB.ReturnInteger(w);
 
 END_METHOD
@@ -477,11 +540,21 @@ END_METHOD
 BEGIN_METHOD(Font_RichTextHeight, GB_STRING text; GB_INTEGER width)
 
 	int h;
-	
-	rich_text_size(THIS, STRING(text), LENGTH(text), VARGOPT(width, -1), NULL, &h);
+	get_rich_text_size(THIS, STRING(text), LENGTH(text), VARGOPT(width, -1), NULL, &h);
 	GB.ReturnInteger(h);
 
 END_METHOD
+
+
+BEGIN_METHOD(Font_RichTextSize, GB_STRING text; GB_INTEGER width)
+
+	GEOM_RECT *rect = GEOM.CreateRect();
+	get_rich_text_size(THIS, STRING(text), LENGTH(text), VARGOPT(width, -1), &rect->w, &rect->h);
+	GB.ReturnObject(rect);
+
+END_METHOD
+
+
 
 
 #ifdef USE_DPI
@@ -629,9 +702,11 @@ GB_DESC CFontDesc[] =
 
 	GB_METHOD("TextWidth", "i", Font_TextWidth, "(Text)s"),
 	GB_METHOD("TextHeight", "i", Font_TextHeight, "(Text)s"),
+	GB_METHOD("TextSize", "Rect", Font_TextSize, "(Text)s"),
 
-	GB_METHOD("RichTextWidth", "i", Font_RichTextWidth, "(Text)s"),
+	GB_METHOD("RichTextWidth", "i", Font_RichTextWidth, "(Text)s[(Width)i]"),
 	GB_METHOD("RichTextHeight", "i", Font_RichTextHeight, "(Text)s[(Width)i]"),
+	GB_METHOD("RichTextSize", "Rect", Font_RichTextSize, "(Text)s[(Width)i]"),
 
 	GB_STATIC_METHOD("_get", "Font", Font_get, "(Font)s"),
 

@@ -75,7 +75,7 @@ End
 Public Function InBounds(P As MapPoint) As Boolean
   
   If p.Lon > $mpTopLeft.Lon And If p.Lon < $mpBottomRight.Lon Then
-    If p.Lat > $mpTopLeft.Lat And If p.Lat < $mpBottomRight.Lat Then
+    If p.Lat < $mpTopLeft.Lat And If p.Lat > $mpBottomRight.Lat Then
       Return True
     Endif
   Endif
@@ -85,7 +85,7 @@ End
 Public Function Contain(Bound As MapBounds) As Boolean
   
   If Bound.Lon > $mpTopLeft.Lon And If Bound.Lon2 < $mpBottomRight.Lon Then
-    If Bound.Lat > $mpTopLeft.Lat And If Bound.Lat2 < $mpBottomRight.Lat Then
+    If Bound.Lat < $mpTopLeft.Lat And If Bound.Lat2 > $mpBottomRight.Lat Then
       Return True
     Endif
   Endif

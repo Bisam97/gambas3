@@ -2,7 +2,7 @@
 
   cprinter.cpp
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -36,6 +36,51 @@ DECLARE_EVENT(EVENT_Begin);
 DECLARE_EVENT(EVENT_End);
 DECLARE_EVENT(EVENT_Paginate);
 DECLARE_EVENT(EVENT_Draw);
+
+#if QT5
+
+#define COPY_COUNT copyCount
+#define SET_COPY_COUNT(_count) setCopyCount(_count)
+#define ORIENTATION pageLayout().orientation
+#define SET_ORIENTATION setPageOrientation
+#define PAGE_FORMAT() pageLayout().pageSize().id()
+#define SET_PAGE_FORMAT(_format) setPageSize(QPageSize(_format))
+#define PAGE_SIZE(_unit) pageLayout().fullRect((QPageLayout::Unit)_unit).size()
+#define SET_PAGE_SIZE(_size, _unit) setPageSize(QPageSize(_size, _unit))
+
+#define PRINTER_ORIENTATION QPageLayout::Orientation
+#define PRINTER_PORTRAIT QPageLayout::Portrait
+#define PRINTER_LANDSCAPE QPageLayout::Landscape
+#define PRINTER_PAGE_FORMAT QPageSize::PageSizeId
+
+#define PAGE_FORMAT_ID(_format) QPageSize::_format
+#define PAGE_UNIT(_unit) QPageSize::_unit
+
+#else
+
+#define COPY_COUNT numCopies
+#define SET_COPY_COUNT(_count) setNumCopies(_count)
+#define ORIENTATION orientation
+#define SET_ORIENTATION setOrientation
+#define PAGE_FORMAT paperSize
+#define SET_PAGE_FORMAT(_format) setPaperSize(_format)
+#define PAGE_SIZE(_unit) paperSize(_unit)
+#define SET_PAGE_SIZE(_size, _unit) setPaperSize(_size, _unit)
+
+#define PRINTER_ORIENTATION QPrinter::Orientation
+#define PRINTER_PORTRAIT QPrinter::Portrait
+#define PRINTER_LANDSCAPE QPrinter::Landscape
+#define PRINTER_PAGE_FORMAT QPrinter::PaperSize
+
+#define PAGE_FORMAT_ID(_format) QPrinter::_format
+#define PAGE_UNIT(_unit) QPrinter::_unit
+
+#endif
+
+QSizeF CPRINTER_get_page_size(CPRINTER *_object)
+{
+	return PRINTER->PAGE_SIZE(PAGE_UNIT(Millimeter));
+}
 
 static bool configure_printer(CPRINTER *_object)
 {
@@ -97,13 +142,13 @@ static bool run_printer(CPRINTER *_object)
 	reverse = PRINTER->pageOrder() == QPrinter::LastPageFirst;
 	if (PRINTER->collateCopies())
 	{
-		num_copies_out = PRINTER->numCopies(); // Always return 1 if the driver manages it
+		num_copies_out = PRINTER->COPY_COUNT(); // Always return 1 if the driver manages it
 		num_copies_in = 1;
 	}
 	else
 	{
-		num_copies_in = PRINTER->numCopies(); // Always return 1 if the driver manages it
 		num_copies_out = 1;
+		num_copies_in = PRINTER->COPY_COUNT(); // Always return 1 if the driver manages it
 	}
 	
 	for(repeat_out = 0; repeat_out < num_copies_out; repeat_out++)
@@ -149,10 +194,10 @@ static void update_duplex(CPRINTER *_object)
 	switch(THIS->duplex)
 	{
 		case GB_PRINT_DUPLEX_HORIZONTAL:
-			duplex = PRINTER->orientation() == QPrinter::Portrait ? QPrinter::DuplexShortSide : QPrinter::DuplexLongSide;
+			duplex = PRINTER->ORIENTATION() == PRINTER_PORTRAIT ? QPrinter::DuplexShortSide : QPrinter::DuplexLongSide;
 			break;
 		case GB_PRINT_DUPLEX_VERTICAL:
-			duplex = PRINTER->orientation() == QPrinter::Portrait ? QPrinter::DuplexLongSide : QPrinter::DuplexShortSide;
+			duplex = PRINTER->ORIENTATION() == PRINTER_PORTRAIT ? QPrinter::DuplexLongSide : QPrinter::DuplexShortSide;
 			break;
 		case GB_PRINT_SIMPLEX:
 		default:
@@ -215,6 +260,19 @@ BEGIN_PROPERTY(Printer_Page)
 
 END_PROPERTY
 
+BEGIN_METHOD(Printer_SetPage, GB_INTEGER page)
+
+	THIS->page = VARG(page);
+
+END_METHOD
+
+BEGIN_METHOD_VOID(Printer_IsCountSet)
+
+	GB.ReturnBoolean(THIS->page_count_set);
+	THIS->page_count_set = FALSE;
+
+END_METHOD
+
 BEGIN_PROPERTY(Printer_Name)
 
 	if (READ_PROPERTY)
@@ -228,23 +286,23 @@ BEGIN_PROPERTY(Printer_Orientation)
 
 	if (READ_PROPERTY)
 	{
-		switch(PRINTER->orientation())
+		switch(PRINTER->ORIENTATION())
 		{
-			case QPrinter::Landscape: GB.ReturnInteger(GB_PRINT_LANDSCAPE); break;
-			case QPrinter::Portrait: default: GB.ReturnInteger(GB_PRINT_PORTRAIT);
+			case PRINTER_LANDSCAPE: GB.ReturnInteger(GB_PRINT_LANDSCAPE); break;
+			case PRINTER_PORTRAIT: default: GB.ReturnInteger(GB_PRINT_PORTRAIT);
 		}
 	}
 	else
 	{
-		QPrinter::Orientation orient;
+		PRINTER_ORIENTATION orient;
 		
 		switch (VPROP(GB_INTEGER))
 		{
-			case GB_PRINT_LANDSCAPE: orient = QPrinter::Landscape; break;
-			case GB_PRINT_PORTRAIT: default: orient = QPrinter::Portrait; break;
+			case GB_PRINT_LANDSCAPE: orient = PRINTER_LANDSCAPE; break;
+			case GB_PRINT_PORTRAIT: default: orient = PRINTER_PORTRAIT; break;
 		}
 		
-		PRINTER->setOrientation(orient);
+		PRINTER->SET_ORIENTATION(orient);
 		update_duplex(THIS);
 	}
 
@@ -256,15 +314,15 @@ BEGIN_PROPERTY(Printer_Paper)
 	{
 		int val;
 		
-		switch(PRINTER->paperSize())
+		switch(PRINTER->PAGE_FORMAT())
 		{
-			case QPrinter::A3: val = GB_PRINT_A3; break;
-			case QPrinter::A4: val = GB_PRINT_A4; break;
-			case QPrinter::A5: val = GB_PRINT_A5; break;
-			case QPrinter::B5: val = GB_PRINT_B5; break;
-			case QPrinter::Letter: val = GB_PRINT_LETTER; break;
-			case QPrinter::Executive: val = GB_PRINT_EXECUTIVE; break;
-			case QPrinter::Legal: val = GB_PRINT_LEGAL; break;
+			case PAGE_FORMAT_ID(A3): val = GB_PRINT_A3; break;
+			case PAGE_FORMAT_ID(A4): val = GB_PRINT_A4; break;
+			case PAGE_FORMAT_ID(A5): val = GB_PRINT_A5; break;
+			case PAGE_FORMAT_ID(B5): val = GB_PRINT_B5; break;
+			case PAGE_FORMAT_ID(Letter): val = GB_PRINT_LETTER; break;
+			case PAGE_FORMAT_ID(Executive): val = GB_PRINT_EXECUTIVE; break;
+			case PAGE_FORMAT_ID(Legal): val = GB_PRINT_LEGAL; break;
 			default: val = GB_PRINT_CUSTOM;
 		}
 		
@@ -272,28 +330,30 @@ BEGIN_PROPERTY(Printer_Paper)
 	}
 	else
 	{
-		QPrinter::PaperSize paper;
+		PRINTER_PAGE_FORMAT paper;
 		
 		switch(VPROP(GB_INTEGER))
 		{
-			case GB_PRINT_A3: paper = QPrinter::A3; break;
-			case GB_PRINT_A5: paper = QPrinter::A5; break;
-			case GB_PRINT_B5: paper = QPrinter::B5; break;
-			case GB_PRINT_LETTER: paper = QPrinter::Letter; break;
-			case GB_PRINT_EXECUTIVE: paper = QPrinter::Executive; break;
-			case GB_PRINT_LEGAL: paper = QPrinter::Legal; break;
-			case GB_PRINT_A4: default: paper = QPrinter::A4;
+			case GB_PRINT_A3: paper = PAGE_FORMAT_ID(A3); break;
+			case GB_PRINT_A5: paper = PAGE_FORMAT_ID(A5); break;
+			case GB_PRINT_B5: paper = PAGE_FORMAT_ID(B5); break;
+			case GB_PRINT_LETTER: paper = PAGE_FORMAT_ID(Letter); break;
+			case GB_PRINT_EXECUTIVE: paper = PAGE_FORMAT_ID(Executive); break;
+			case GB_PRINT_LEGAL: paper = PAGE_FORMAT_ID(Legal); break;
+			case GB_PRINT_A4: default: paper = PAGE_FORMAT_ID(A4);
 		}
 		
-		PRINTER->setPaperSize(paper);
+		PRINTER->SET_PAGE_FORMAT(paper);
+
+		fprintf(stderr, "format = %d -> %d\n", VPROP(GB_INTEGER), (int)PRINTER->PAGE_FORMAT());
 	}
 
 END_PROPERTY
 
 BEGIN_PROPERTY(Printer_PaperWidth)
 
-	QSizeF size = PRINTER->paperSize(QPrinter::Millimeter);
-	
+	QSizeF size = CPRINTER_get_page_size(THIS);
+
 	if (READ_PROPERTY)
 		GB.ReturnFloat(floor((double)size.width() * 1E6) / 1E6);
 	else
@@ -302,7 +362,7 @@ BEGIN_PROPERTY(Printer_PaperWidth)
 		if (width != size.width())
 		{
 			size.setWidth(width);
-			PRINTER->setPaperSize(size, QPrinter::Millimeter);
+			PRINTER->SET_PAGE_SIZE(size, PAGE_UNIT(Millimeter));
 		}
 	}
 
@@ -310,7 +370,7 @@ END_PROPERTY
 
 BEGIN_PROPERTY(Printer_PaperHeight)
 
-	QSizeF size = PRINTER->paperSize(QPrinter::Millimeter);
+	QSizeF size = CPRINTER_get_page_size(THIS);
 	
 	if (READ_PROPERTY)
 		GB.ReturnFloat(floor((double)size.height() * 1E6) / 1E6);
@@ -320,7 +380,7 @@ BEGIN_PROPERTY(Printer_PaperHeight)
 		if (height != size.height())
 		{
 			size.setHeight(height);
-			PRINTER->setPaperSize(size, QPrinter::Millimeter);
+			PRINTER->SET_PAGE_SIZE(size, PAGE_UNIT(Millimeter));
 		}
 	}
 
@@ -368,21 +428,14 @@ END_PROPERTY
 BEGIN_PROPERTY(Printer_NumCopies)
 
 #if QT_VERSION >= QT_VERSION_CHECK(4, 7, 0)
-	if (PRINTER->supportsMultipleCopies())
-	{
-		if (READ_PROPERTY)
-			GB.ReturnInteger(PRINTER->copyCount());
-		else
-			PRINTER->setCopyCount(VPROP(GB_INTEGER));
-	}
-	else
+	if (!PRINTER->supportsMultipleCopies())
+		return;
 #endif
-	{
-		if (READ_PROPERTY)
-			GB.ReturnInteger(PRINTER->numCopies());
-		else
-			PRINTER->setNumCopies(VPROP(GB_INTEGER));
-	}
+
+	if (READ_PROPERTY)
+		GB.ReturnInteger(PRINTER->COPY_COUNT());
+	else
+		PRINTER->SET_COPY_COUNT(VPROP(GB_INTEGER));
 
 END_PROPERTY
 
@@ -484,6 +537,9 @@ GB_DESC PrinterDesc[] =
 	GB_METHOD("_free", NULL, Printer_free, NULL),
 	
 	GB_METHOD("Print", "b", Printer_Print, NULL),
+	GB_METHOD("_SetPage", NULL, Printer_SetPage, "(Page)i"),
+	GB_METHOD("_IsCountSet", "b", Printer_IsCountSet, NULL),
+
 	GB_METHOD("Configure", "b", Printer_Configure, NULL),
 	GB_METHOD("Cancel", NULL, Printer_Cancel, NULL),
 	
@@ -500,6 +556,7 @@ GB_DESC PrinterDesc[] =
 	GB_PROPERTY("Duplex", "i", Printer_Duplex),
 	GB_PROPERTY("GrayScale", "b", Printer_GrayScale),
 	GB_PROPERTY("NumCopies", "i", Printer_NumCopies),
+	GB_PROPERTY("CopyCount", "i", Printer_NumCopies),
 	GB_PROPERTY("Resolution", "i", Printer_Resolution),
 	GB_PROPERTY("FirstPage", "i", Printer_FirstPage),
 	GB_PROPERTY("LastPage", "i", Printer_LastPage),

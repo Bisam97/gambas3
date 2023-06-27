@@ -1,0 +1,33 @@
+' Gambas class file
+
+Export
+
+Property Text As String
+
+Private $iIndex As Integer
+
+Event _Fake
+
+Private Sub GetParent() As ComboBox
+  
+  Return Object.Parent(Me)
+  
+End
+
+Public Sub _new(iIndex As Integer)
+  
+  $iIndex = iIndex
+  
+End
+
+Private Function Text_Read() As String
+
+  Return GetParent()._GetText($iIndex)
+
+End
+
+Private Sub Text_Write(Value As String)
+
+  GetParent()._SetText($iIndex, Value)
+
+End

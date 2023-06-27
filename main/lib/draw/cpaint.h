@@ -2,7 +2,7 @@
 
   cpaint.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -40,6 +40,9 @@ GB_PAINT *PAINT_get_current();
 void *PAINT_get_current_device();
 GB_PAINT *PAINT_from_device(void *device);
 bool PAINT_is_painted(void *device);
+void PAINT_set_background(GB_COLOR color);
+void PAINT_translate(float tx, float ty);
+void PAINT_scale(float sx, float sy);
 
 bool PAINT_begin(void *device);
 void PAINT_end();

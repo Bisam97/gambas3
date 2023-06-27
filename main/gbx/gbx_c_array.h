@@ -1,23 +1,23 @@
 /***************************************************************************
 
-  gbx_c_array.h
+	gbx_c_array.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+	(c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; either version 2, or (at your option)
-  any later version.
+	This program is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 2, or (at your option)
+	any later version.
 
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
 
-  You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software
-  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
-  MA 02110-1301, USA.
+	You should have received a copy of the GNU General Public License
+	along with this program; if not, write to the Free Software
+	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+	MA 02110-1301, USA.
 
 ***************************************************************************/
 
@@ -38,7 +38,9 @@
 typedef
 	struct {
 		OBJECT object;
-		int size;
+		unsigned size : 24;
+		unsigned read_only : 1;
+		unsigned n_dim : 3;
 		int count;
 		TYPE type;
 		void *data;
@@ -75,6 +77,7 @@ void CARRAY_reverse(void *_object, void *_param);
 void CARRAY_get_value(CARRAY *_object, int index, VALUE *value);
 #define CARRAY_invert(_array) CARRAY_reverse(_array, NULL)
 void *CARRAY_get_data_multi(CARRAY *_object, GB_INTEGER *arg, int nparam);
+void CARRAY_static_array();
 void *CARRAY_out_of_bounds();
 CLASS *CARRAY_get_array_class(CLASS *class, CTYPE ctype);
 int *CARRAY_get_array_bounds(CARRAY *_object);
@@ -84,6 +87,8 @@ CARRAY *CARRAY_create_static(CLASS *class, void *ref, CLASS_ARRAY *desc, void *d
 int CARRAY_get_static_count(CLASS_ARRAY *desc);
 size_t CARRAY_get_static_size(CLASS *class, CLASS_ARRAY *desc);
 void CARRAY_release_static(CLASS *class, CLASS_ARRAY *desc, void *data);
+
+#define CARRAY_is_static(_array) ((_array)->ref != NULL)
 
 #define CARRAY_get_data_unsafe(_array, _index) \
 ({ \
@@ -97,26 +102,33 @@ void CARRAY_release_static(CLASS *class, CLASS_ARRAY *desc, void *data);
 	int __index = (_index); \
 	CARRAY *__array = (CARRAY *)(_array); \
 	void *__data; \
-  if ((__index < 0) || (__index >= __array->count)) \
-  	__data = CARRAY_out_of_bounds(); \
-  else \
- 		__data = (void *)((char *)(__array->data) + __index * __array->size); \
- 	__data; \
+	if ((__index < 0) || (__index >= __array->count)) \
+		__data = CARRAY_out_of_bounds(); \
+	else \
+		__data = (void *)((char *)(__array->data) + __index * __array->size); \
+	__data; \
 })
 
 #define CARRAY_get_data_throw(_array, _index) \
 ({ \
 	int __index = (_index); \
 	CARRAY *__array = (CARRAY *)(_array); \
-  if ((__index < 0) || (__index >= __array->count)) \
-  	THROW(E_BOUND); \
+	if ((__index < 0) || (__index >= __array->count)) \
+		THROW(E_BOUND); \
 	(void *)((char *)(__array->data) + __index * __array->size); \
+})
+
+#define CARRAY_check_not_read_only(_object) \
+({ \
+	CARRAY *__object = (CARRAY *)(_object); \
+	if (__object->read_only) \
+		THROW(E_SARRAY); \
 })
 
 
 #endif  // #ifndef __GBX_CLASS_INFO_C 
 
-#define ARRAY_TEMPLATE_NDESC 24
+#define ARRAY_TEMPLATE_NDESC 28
 #define ARRAY_OF_STRUCT_TEMPLATE_NDESC 15
 
 #endif

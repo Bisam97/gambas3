@@ -2,7 +2,7 @@
 
   gbx_subr_misc.c
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -43,7 +43,7 @@
 static EVAL_INTERFACE EVAL;
 static CCOLLECTION *eval_env;
 
-static void init_eval()
+static void init_eval(void)
 {
 	static bool init = FALSE;
 	
@@ -66,13 +66,25 @@ void SUBR_error(void)
 void SUBR_wait(ushort code)
 {
 	SUBR_ENTER();
-
+	
+	code &= 0x1F;
+	
 	EXEC_set_native_error(FALSE);
-
-	if (NPARAM == 0)
-		GB_Wait(0);
-	else
-		GB_Wait((int)(SUBR_get_float(PARAM) * 1000 + 0.5));
+	
+	if (code == 0)
+		GB_Wait(-1);
+	else if (code == 1)
+	{
+		int delay = (int)(SUBR_get_float(PARAM) * 1000 + 0.5);
+		if (delay <= 0)
+			delay = 0;
+		GB_Wait(delay);
+	}
+	else if (code == 2)
+	{
+		NPARAM = 0;
+		GB_Wait(-2);
+	}
 
 	if (EXEC_has_native_error())
 	{
@@ -242,6 +254,7 @@ void EVAL_string(char *expr)
 {
 	int len;
 	EXPRESSION *eval;
+	STREAM *stream;
 
 	init_eval();
 	len = strlen(expr);
@@ -267,10 +280,11 @@ _ERROR:
 _FREE:
 	EVAL.Free((void **)(void *)&eval);
 
-	VALUE_to_string(RETURN, &expr, &len);
-	STREAM_write(CSTREAM_stream(CFILE_out), expr, len);
-	STREAM_write_eol(CSTREAM_stream(CFILE_out));
-	STREAM_flush(CSTREAM_stream(CFILE_out));
+	VALUE_to_local_string(&TEMP, &expr, &len);
+	stream = CSTREAM_TO_STREAM(CFILE_get_standard_stream(CFILE_OUT));
+	STREAM_write(stream, expr, len);
+	STREAM_write_eol(stream);
+	STREAM_flush(stream);
 }
 
 void SUBR_eval(ushort code)
@@ -303,6 +317,8 @@ void SUBR_eval(ushort code)
 	if (!EVAL.Run(eval, get_value))
 		goto _ERROR;
 
+	*RP = TEMP;
+	TEMP.type = T_VOID;
 	goto _FREE;
 
 _ERROR:

@@ -1,0 +1,30 @@
+' Gambas test file
+
+Public Sub TestNoteGotAndExpected()
+
+    'tests the typo of Expected and Got in diagnosis
+    'This test must fail to see what happens
+    
+    Dim Expected, Got As String
+
+    Test.Plan(1)
+
+    Got = "<ol class='ulist'>" & gb.Lf &
+        "    <li>Zum 15.12. in die Wintermischung 2</li> " & gb.Lf &
+        "    <li>Zum 15.2. in die Fellwechselmischung Frühjahr</li> " & gb.Lf &
+        "    <li>Zum 15.4. in die Sommermischung</li> " & gb.Lf &
+        "    <li>Zum 15.8. in die Fellwechselmischung Herbst</li> " & gb.Lf &
+        "    <li>Zum 15.10. in die Wintermischung 1</li> " & gb.Lf &
+        "</ol>"
+
+    Expected = "<ol class='ulist'>" & gb.Lf &
+        Trim("  <li>Zum 15.12. in die Wintermischung 2</li> ") & gb.Lf &
+        Trim("  <li>Zum 15.2. in die Fellwechselmischung Frühjahr</li> ") & gb.Lf &
+        Trim("  <li>Zum 15.4. in die Sommermischung</li> ") & gb.Lf &
+        Trim("  <li>Zum 15.8. in die Fellwechselmischung Herbst</li> ") & gb.Lf &
+        Trim("  <li>Zum 15.10. in die Wintermischung 1</li> ") & gb.Lf &
+        "</ol>"
+
+    Assert.Equals(Got, Expected, "Tests the typo of Expected and Got in diagnosis. Must fail.")
+
+End

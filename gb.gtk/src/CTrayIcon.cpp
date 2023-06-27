@@ -37,14 +37,14 @@ DECLARE_EVENT(EVENT_Click);
 DECLARE_EVENT(EVENT_MiddleClick);
 DECLARE_EVENT(EVENT_Scroll);
 
-static void cb_destroy(gTrayIcon *sender)
+void CB_trayicon_destroy(gTrayIcon *sender)
 {
 	CTRAYICON *_object = (CTRAYICON*)sender->hFree;
 	THIS->base.widget = NULL;
 	GB.Unref(POINTER(&_object));
 }
 
-static void cb_click(gTrayIcon *sender, int button)
+void CB_trayicon_click(gTrayIcon *sender, int button)
 {
 	if (button == 1)
 		GB.Raise(sender->hFree, EVENT_Click, 0);
@@ -52,7 +52,7 @@ static void cb_click(gTrayIcon *sender, int button)
 		GB.Raise(sender->hFree, EVENT_MiddleClick, 0);
 }
 
-static void cb_menu(gTrayIcon *sender)
+void CB_trayicon_menu(gTrayIcon *sender)
 {
 	CTRAYICON *_object = (CTRAYICON *)sender->hFree;
 	
@@ -75,7 +75,7 @@ static void cb_menu(gTrayIcon *sender)
 	//GB.Raise(sender->hFree, EVENT_Menu, 0);
 }
 
-static void cb_scroll(gTrayIcon *sender)
+void CB_trayicon_scroll(gTrayIcon *sender)
 {
 	GB.Raise(sender->hFree, EVENT_Scroll, 2, GB_T_FLOAT, (float)gMouse::delta(), GB_T_INTEGER, gMouse::orientation());
 }
@@ -91,11 +91,6 @@ BEGIN_METHOD_VOID(TrayIcon_new)
 	TRAYICON->hFree = (void*)THIS;
   
 	THIS->base.tag.type = GB_T_NULL;
-	
-	TRAYICON->onClick = cb_click;
-	TRAYICON->onMenu = cb_menu;
-	TRAYICON->onDestroy = cb_destroy;
-	TRAYICON->onScroll = cb_scroll;
 	
 	GB.Ref(THIS);
 	//Add_Tray(_object);

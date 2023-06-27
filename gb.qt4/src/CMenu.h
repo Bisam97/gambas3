@@ -2,7 +2,7 @@
 
 	CMenu.h
 
-	(c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+	(c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -24,14 +24,14 @@
 #ifndef __CMENU_H
 #define __CMENU_H
 
-#include "gambas.h"
-
 #include <QAction>
 #include <QMenu>
 #include <QMenuBar>
 #include <QKeySequence>
 #include <QList>
 #include <QPoint>
+
+#include "gambas.h"
 
 #include "CWidget.h"
 #include "CPicture.h"

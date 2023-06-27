@@ -189,21 +189,39 @@ Public Sub gvwExpr_Data(Row As Integer, Column As Integer)
     
   Endif
 
-  If Column <> 0 Then 
-    
-    If Left(gvwExpr.Data.Text) <> "!" Then
-
-      If $cVal.Exist(Row) And If $cOldVal.Exist(Row) And If gvwExpr.Data.Text <> $cOldVal[Row] Then 
+  sVal = $cVal[Row]
+  
+  If sVal Then
+    If Left(sVal) <> "!" Then
+  
+      If $cOldVal.Exist(Row) And If sVal <> $cOldVal[Row] Then 
         gvwExpr.Data.Background = $iChangeColor 'Color.Lighter(Color.Yellow)
-        gvwExpr.Data.Font.Bold = True
       Endif
       
     Else
       
-      gvwExpr.Data.Text = Mid$(gvwExpr.Data.Text, 2)
+      gvwExpr.Data.Text = Mid$(sVal, 2)
       gvwExpr.Data.Background = $iErrorColor 'Color.Lighter(Color.Red)
       
     Endif 
+    
+  Endif
+
+  If Column <> 0 Then 
+    
+    ' If Left(gvwExpr.Data.Text) <> "!" Then
+    ' 
+    '   If $cVal.Exist(Row) And If $cOldVal.Exist(Row) And If $cVal[Row] <> $cOldVal[Row] Then 
+    '     gvwExpr.Data.Background = $iChangeColor 'Color.Lighter(Color.Yellow)
+    '     gvwExpr.Data.Font.Bold = True
+    '   Endif
+    '   
+    ' Else
+    '   
+    '   gvwExpr.Data.Text = Mid$(gvwExpr.Data.Text, 2)
+    '   gvwExpr.Data.Background = $iErrorColor 'Color.Lighter(Color.Red)
+    '   
+    ' Endif 
     
     gvwExpr.Data.Font = txtExpr.Font
 
@@ -346,6 +364,7 @@ Private Sub Init(sInfo As String, bNew As Boolean) As Boolean
   Dim nRowAsArray As Integer = -1
   Dim bShowHidden As Boolean = btnShowAll.Value
   Dim bHasHidden As Boolean
+  Dim bShowButton As Boolean
 
   $aSym = Split(sInfo, " ", Chr$(34))
   If $aSym.Count < 3 Then
@@ -359,6 +378,8 @@ Private Sub Init(sInfo As String, bNew As Boolean) As Boolean
   
   $iRowStatic = -1
   $iRowDynamic = -1
+  
+  If sType = "C:" Or If sType = "A:" Then bShowButton = True
   
   If sType = "C:" And If Not bShowHidden Then
 
@@ -524,23 +545,23 @@ Private Sub Init(sInfo As String, bNew As Boolean) As Boolean
   
   If Not bNew Then Try gvwExpr.Columns[0].Width = -1
   
-  btnShowAll.Visible = $bArray Or $bCollection Or bHasHidden
+  btnShowAll.Visible = bShowButton Or bHasHidden
 
 End
 
 Public Sub RefreshInfo(sInfo As String)
 
-  Dim xStr As String
+  Dim sStr As String
 
-    $sInfo = sInfo
-    Me.Enabled = True
+  $sInfo = sInfo
+  Me.Enabled = True
 
-    For Each xStr In $cVal
-      $cOldVal.Add(xStr, $cVal.Key)
-    Next 
+  For Each sStr In $cVal
+    $cOldVal.Add(sStr, $cVal.Key)
+  Next 
 
-    $cVal.Clear
-    Init(sInfo, False) 
+  $cVal.Clear
+  Init(sInfo, False) 
 
 End
 
@@ -762,7 +783,7 @@ Static Public Sub ReadConfig()
   
   Dim hWin As FDebugExpr
 
-  $iChangeColor = MTheme.GetColor("CurrentLine")
+  $iChangeColor = Color.Merge(MTheme.GetColor("Highlight"), Color.Background)
   $iErrorColor = MTheme.GetColor("Error")
 
   For Each hWin In $cAll
@@ -857,7 +878,7 @@ Public Sub mnuWatch_Click()
   
   sExpr = GetCurrentExpr()
   If Not sExpr Then Return
-  FDebugInfo.AddWatch(sExpr)
+  FDebugger.AddWatch(sExpr)
   
 End
 

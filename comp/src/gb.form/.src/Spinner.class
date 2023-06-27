@@ -4,34 +4,56 @@ Export
 
 Inherits UserControl
 
-Public Const _Properties As String = "*,Border,Label"
+Public Const _Properties As String = "*,Border,Label,Padding{Range:0;63},Margin=False,Type={Spinner.*}"
 Public Const _DefaultSize As String = "8,8"
+
+'' Spinner type drawing lines.
+Public Const {Line} As Integer = 0
+
+'' Spinner type drawing dots.
+Public Const Dot As Integer = 1
+
+'' Spinner type drawing a ring.
+Public Const Circle As Integer = 2
 
 Property Border As Boolean
 Property Label As Boolean
 Property Value As Float
 Property Enabled As Boolean
+Property Padding As Integer
 
-Private $hDrawingArea As DrawingArea
+'' @{since 3.16}
+''
+'' Return or set if there is an inner margin between the spinner and the control border.
+
+Property Margin As Boolean
+
+'' @{since 3.16}
+''
+'' Return or set the Spinner type.
+''
+'' The following types are implemented: [../line], [../dot], [../circle].
+''
+'' The default type is [../line].
+
+Property Type As Integer
+
 Private $fStartTime As Float
 Private $hTimer As Timer
 Private $bBorder As Boolean
 Private $bLabel As Boolean
 Private $fValue As Float
 Private $fLastWait As Float
-
-Public Sub _new()
-  
-  $hDrawingArea = New DrawingArea(Me) As "DrawingArea"
-  
-End
+Private $iPadding As Integer
+Private $iType As Integer
+Private $bMargin As Boolean
 
 Public Sub Start()
   
   $fStartTime = Timer
   $hTimer = New Timer As "Timer"
   $hTimer.Delay = 50
-  $hDrawingArea.Refresh
+  Me.Refresh
   
 End
 
@@ -54,27 +76,37 @@ Public Sub Wait()
 End
 
 
-Public Sub DrawingArea_Draw()
+Public Sub UserControl_Draw()
   
   'Dim iFlag As Integer
   Dim A As Float
   Dim X As Float
   Dim Y As Float
-  Dim R As Variant
+  Dim R As Float
   Dim D As Float
   Dim I As Integer
   Dim C As Float
   Dim W As Float
   Dim H As Float
   Dim HL As Integer
+  Dim iFg As Integer
+  Dim XC, YC As Float
+  Dim P As Integer
   
   If Not Me.Design Then
     If $fStartTime = 0 Then Goto DRAW_BORDER
     D = Frac(Timer - $fStartTime) * Pi(2)
   Endif
   
-  W = Paint.W
-  H = Paint.H
+  iFg = Style.ForegroundOf(Me)
+  
+  P = $iPadding
+  If $bMargin Then P += Desktop.Scale
+  
+  W = Paint.W - P * 2
+  H = Paint.H - P * 2
+  
+  Paint.Translate(P, P)
   
   If $bLabel Then
     HL = Paint.Font.Height + Desktop.Scale
@@ -83,32 +115,78 @@ Public Sub DrawingArea_Draw()
   
   If H > 0 Then
   
-    X = W / 2
-    Y = H / 2
-    R = Min(W, H) / 2 * 7 / 8
-    
-    Paint.LineWidth = R / 8
-    Paint.LineCap = Paint.LineCapRound
-    
-    For I = 0 To 11
+    Select Case $iType
       
-      A = Pi(2) * I / 12
-      C = Frac(1 + (D - A) / Pi(2))
+      Case Circle
       
-      'Paint.Background = Color.Merge(Color.Background, Color.Foreground, C / 4)
-      Paint.Background = Color.SetAlpha(Color.Foreground, 255 * (1 - C / 4))
-      Paint.MoveTo(X + Cos(A) * R / 2, Y + Sin(A) * R / 2)
-      Paint.LineTo(X + Cos(A) * R, Y + Sin(A) * R)
-      Paint.Stroke
+        R = Min(W, H) / 2 * 3 / 4
+        Paint.LineCap = Paint.LineCapButt
+        Paint.LineWidth = R / 2
+        
+        Paint.Background = Color.SetAlpha(iFg, &HD0)
+        Paint.Arc(W / 2, H / 2, R)
+        Paint.Stroke
+
+        Paint.Background = Color.SetAlpha(iFg, &HD0)
+        If $fValue = 0 Or If $fValue = 1 Then
+          Paint.Arc(W / 2, H / 2, R, D, Pi(2) / 3)
+        Else
+          D = Frac((Timer - $fStartTime) / 4) * Pi(2)
+          Paint.Arc(W / 2, H / 2, R, D, Pi(2 * $fValue))
+        Endif
+        Paint.Stroke
+
+      Case Dot
+        
+        X = W / 2
+        Y = H / 2
+        R = Min(W, H) / 2 * 13 / 16
+        
+        For I = 0 To 15
+          
+          A = Pi(2) * I / 16
+          C = Frac(1 + (D - A) / Pi(2))
+          
+          Paint.Background = Color.SetAlpha(iFg, 255 * (1 - C / 2))
+          XC = X + Cos(A) * R
+          YC = Y + Sin(A) * R
+          Paint.Ellipse(XC - R / 8, YC - R / 8, R / 4, R / 4)
+          Paint.Fill
+          
+        Next
+
+      Case Else
       
-    Next
+        X = W / 2
+        Y = H / 2
+        R = Min(W, H) / 2 * 7 / 8
+        
+        Paint.LineWidth = R / 8
+        Paint.LineCap = Paint.LineCapRound
+        
+        For I = 0 To 11
+          
+          A = Pi(2) * I / 12
+          C = Frac(1 + (D - A) / Pi(2))
+          
+          'Paint.Background = Color.Merge(Color.Background, Color.Foreground, C / 4)
+          Paint.Background = Color.SetAlpha(iFg, 255 * (1 - C / 2))
+          Paint.MoveTo(X + Cos(A) * R / 2, Y + Sin(A) * R / 2)
+          Paint.LineTo(X + Cos(A) * R, Y + Sin(A) * R)
+          Paint.Stroke
+          
+        Next
+        
+    End Select
     
   Endif
   
   If $bLabel Then
-    Paint.Background = Color.Foreground
-    Paint.DrawText(Format($fValue, "0%"), 0, Paint.H - HL, Paint.W, HL - Desktop.Scale, Align.Center)
+    Paint.Background = iFg
+    Paint.DrawText(Format($fValue, "0 %"), 0, Paint.H - HL, Paint.W, HL - Desktop.Scale, Align.Center)
   Endif
+  
+  Paint.Translate(-P, -P)
   
 DRAW_BORDER:
   
@@ -122,7 +200,7 @@ End
 
 Public Sub Timer_Timer()
   
-  $hDrawingArea.Refresh
+  Me.Refresh
   $hTimer.Stop
   
 End
@@ -136,7 +214,7 @@ End
 Private Sub Border_Write(Value As Boolean)
 
   $bBorder = Value
-  $hDrawingArea.Refresh
+  Me.Refresh
 
 End
 
@@ -149,7 +227,7 @@ End
 Private Sub Label_Write(Value As Boolean)
 
   $bLabel = Value
-  $hDrawingArea.Refresh
+  Me.Refresh
 
 End
 
@@ -162,7 +240,7 @@ End
 Private Sub Value_Write(Value As Float)
 
   $fValue = Max(0, Min(1, Value))
-  $hDrawingArea.Refresh
+  Me.Refresh
 
 End
 
@@ -176,6 +254,48 @@ Private Sub Enabled_Write(Value As Boolean)
 
   If Value = Me.Enabled Then Return
   Super.Enabled = Value
-  $hDrawingArea.Refresh
+  Me.Refresh
+
+End
+
+Private Function Padding_Read() As Integer
+
+  Return $iPadding
+
+End
+
+Private Sub Padding_Write(Value As Integer)
+
+  If $iPadding = Value Then Return
+  $iPadding = Value
+  Me.Refresh
+
+End
+
+Private Function Type_Read() As Integer
+
+  Return $iType
+
+End
+
+Private Sub Type_Write(Value As Integer)
+
+  If $iType = Value Then Return
+  $iType = Value
+  Me.Refresh
+
+End
+
+Private Function Margin_Read() As Boolean
+
+  Return $bMargin
+
+End
+
+Private Sub Margin_Write(Value As Boolean)
+
+  If $bMargin = Value Then Return
+  $bMargin = Value
+  Me.Refresh
 
 End

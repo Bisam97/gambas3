@@ -1,0 +1,62 @@
+' Gambas test file
+
+''' This test can be executed to test a summary. Will fail.
+
+'' Will succeed
+Public Sub DoSomeAsserts()
+
+  Assert.Pass("Bla 1")
+  Assert.Pass("Bla 2")
+  Assert.Pass("Bla 3")
+
+End
+
+'' Will succeed
+Public Sub DoSkip()
+
+  Test.Skip("I skip this test to test Test.Skip.")
+
+End
+
+'' Will succeed
+Public Sub DoTodo()
+
+  Test.Todo("This fails but is todo.")
+  Assert.Ok(False, "Must be ok.")
+
+  Test.Todo("This todo seems not to be removed yet, it is a bonus.")
+  Assert.Ok(True, "Must be ok.")
+
+End
+
+Public Sub TodoErrorCode()
+
+    Dim r As Float
+    Test.Plan(2)
+    
+    Try r = 2 / 1
+    Test.Todo("See automatic diagnostics 1/2")
+    Assert.ErrorCode(26, "Division by zero?")
+
+    Try r = 2 / 0
+    Test.Todo("See automatic diagnostics 2/2")
+    Assert.ErrorCode(25, "Division by zero?")
+
+End
+
+
+'' Will fail
+Public Sub DoOneFailure()
+
+    Test.IntendedFailure()
+    Assert.Ok(False, "Intentional failure")
+
+End
+
+Public Sub DoBadPlan()
+
+    Test._Subtest("Bad plan will appear in the summary", 2)
+        Assert.Ok(True)
+    Test._Finish()
+
+End

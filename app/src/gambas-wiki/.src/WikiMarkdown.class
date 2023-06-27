@@ -91,6 +91,8 @@ Public Sub Command(sCommand As String) As String[]
   Dim aClass As String[]
   Dim aSearch As String[]
   Dim sLink As String
+  Dim sSort As String
+  Dim sQuery As String
   
   aArg = Split(sCommand, " ", Chr$(34))
   sCommand = aArg[0]
@@ -107,28 +109,35 @@ Public Sub Command(sCommand As String) As String[]
       For I = 1 To aArg.Max
         If aArg[I] Begins "col=" Then
           Try NC = CInt(Mid$(aArg[I], 5))
+          aArg.Remove(I)
+          Break
         Endif
       Next
       
       If IsDir(sDir) Then
         
         For Each sDir In Dir(sDir, "*", gb.Directory)
+          
           sPath = "/" &/ aArg[1] &/ sDir
           If Not Main.ExistPage(sPath) Then Continue
+          
           sTitle = Main.GetPageTitle(sPath)
           If aArg.Count > 2 And If Comp(Left(sTitle, Len(aArg[2])), aArg[2], gb.Language + gb.IgnoreCase) = 0 Then sTitle = LTrim(Mid$(sTitle, Len(aArg[2]) + 1))
           
+          sSort = sTitle
           Do
-            sLetter = String.Left(sTitle)
+            sLetter = String.Left(sSort)
             If Len(sLetter) > 1 Then Break
             If Not IsPunct(sLetter) Then Break
             If Not sTitle Then Break
-            sTitle = String.Mid$(sTitle, 2)
+            sSort = String.Mid$(sSort, 2)
           Loop
           
-          If Not sTitle Then sTitle = " "
+          If Not sSort Then sSort = " "
           
-          aDir.Add(sTitle & "\n[" & sPath & "]")
+          If aDir.Exist(sSort & "\n" & sTitle & "\n*", gb.Like) Then Continue
+          
+          aDir.Add(sSort & "\n" & sTitle & "\n[" & sPath & "]")
         Next
         
         If aDir.Count Then
@@ -209,6 +218,10 @@ Public Sub Command(sCommand As String) As String[]
     Endif
     
     Return MakeError(("This symbol does not exist."))
+    
+  Else If sCommand = "help" And If Main.Class Then
+    
+    Return Split(Main.GetDefaultHelp(), "\n")
 
   Else If sCommand = "stat" Then
     
@@ -238,33 +251,66 @@ Public Sub Command(sCommand As String) As String[]
     
     Return Main.GetProjectDependencies(aArg[1])
 
-  Else If sCommand = "search-query" Then
+  Else If sCommand = "search-entry" Then
     
-    Return [Session["search-query"]]
+    aResult = New String[]
+    
+    If Session.Id Then
+    
+      aResult.Add("<div class=\"search\"><input id=\"search\" name=\"search\" type=\"text\" placeholder=\"" & ("Enter a word to search through the wiki...") & "\" onfocus=\"this.value ='';\" value=\"" & Html(Session["search-query"]) & "\" /></div>")
+      
+    Else 
+      
+      aResult.Add("<div class=\"unknown\">" & ("Search is not available if you are not identified.") & "</div>")
+      
+    Endif
+    
+    Return aResult
 
   Else If sCommand = "search-result" Then
 
     aResult = New String[]
-    aSearch = Session["search-result"]
-    If aSearch And If aSearch.Count Then
-      aResult.Add("[[")
-      For Each sLink In aSearch
-        aResult.Add("==")
-        sTitle = Main.GetPageTitle(sLink)
-        aResult.Add("<a href=\"" & Html(Application.Root &/ sLink & "?ht=" & URL.Encode(Session["search-query"])) & "\">" & Html(sTitle) & "</a>")
-        'aResult.Add("[" & Main.GetPageTitle(sLink) & "](" & sLink & "?ht=" & URL.Encode(Session["search-query"]) & ")")
-        aResult.Add("--")
-        aResult.Add("`" & sLink & "`")
-      Next
-      aResult.Add("]]")
-    Else
-      aResult.Add(("No match found."))
+
+    If Session.Id Then
+
+      sQuery = Session["search-query"]
+  
+      If sQuery Then
+        
+        aResult.Add("### " & ("Result"))
+        aSearch = Session["search-result"]
+        If aSearch And If aSearch.Count Then
+          aResult.Add("[[")
+          For Each sLink In aSearch
+            aResult.Add("==")
+            sTitle = Main.GetPageTitle(sLink)
+            aResult.Add("<a href=\"" & Html(Application.Root &/ sLink & "?ht=" & URL.Encode(Session["search-query"])) & "\">" & Html(sTitle) & "</a>")
+            'aResult.Add("[" & Main.GetPageTitle(sLink) & "](" & sLink & "?ht=" & URL.Encode(Session["search-query"]) & ")")
+            aResult.Add("--")
+            aResult.Add("`" & sLink & "`")
+          Next
+          aResult.Add("]]")
+        Else
+          aResult.Add(("No match found."))
+        Endif
+        
+      Endif
+      
     Endif
+      
     Return aResult
+    
+  Else If sCommand = "class" Then
+    
+    If Main.Class Then Return [Main.GetClassTitle(Main.Path)]
+    
+  Else If sCommand = "how-to-install" Then
+    
+    Return Main.GetHowToInstall(aArg[1])
     
   Else
     
-    Return ["**COMMAND: `" & sCommand & "`**"]
+    Return [Subst("<div class=\"error\">Unknown command `@{&1}`</div>", sCommand)]
     
   Endif
   
@@ -282,6 +328,7 @@ MAKE_INDEX_LETTER:
     For J = J To J + N - 1
       If J >= I Then Break
       iPos = InStr(aDir[J], "\n")
+      iPos = InStr(aDir[J], "\n", iPos + 1)
       aResult.Add(Mid$(aDir[J], iPos + 1) & "\\")
     Next
   

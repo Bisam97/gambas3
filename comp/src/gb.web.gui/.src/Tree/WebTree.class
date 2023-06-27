@@ -1,0 +1,1615 @@
+' Gambas class file
+
+''' This control implements a tree view of selectable text items with icons.
+'''
+''' Tree view items are indexed by a key. They display a string and an icon for each item.
+''' 
+''' This control has an internal cursor used for accessing its items. Use the [./movefirst], [./movenext], [./moveto]... methods to move the
+''' internal cursor, and the [./item] property to get the item it points at.
+
+Export
+Inherits WebControl
+
+Public Const _Properties As String = "*,Border=True,Mode{Select.*}=Single,ShowCheck,ShowHeader"
+Public Const _Group As String = "View"
+Public Const _DrawWith As String = "TreeView"
+Public Const _DefaultSize As String = "24,24"
+Public Const _DefaultEvent As String = "Click"
+
+'' Returns the number of items in the view.
+Property Read Count As Integer
+
+'' Returns or sets the selection mode.
+''
+'' See the [../select] class For a list of constants to use with this property.
+Property Mode As Integer
+
+'' Return a list of all items keys
+Property Read Keys As String[]
+
+'' Return the item pointed by the internal cursor, or [/lang/null] if the internal cursor is not available.
+Property Read Item As _WebTreeItem
+
+'' Return the current item, i.e. the item is selected in single selection mode.
+Property Read Current As _WebTreeItem
+
+'' Return the key of the [../current] item.
+Property Key As String
+
+'' Return if the [../item] property is valid.
+Property Read Available As Boolean
+'Property Read Renaming As Boolean
+'Property Editable As Boolean
+Property Compare As Integer
+
+'' Return the keys of the selected items as as string array.
+Property Read Selection As String[]
+
+'' Return or set if the header is visible.
+Property ShowHeader As Boolean
+
+'' Return or set if selection is indicated by check boxes and radio buttons, or by highlighting the items.
+''
+'' Check boxes are used in multiple selection mode, radio buttons in single selection mode.
+Property ShowCheck As Boolean
+
+'' Return a virtual collection of the columns of the view.
+Property Read Columns As _WebTreeColumns
+
+'' Return or set the horizontal scrolling position.
+Property ScrollX As Integer
+
+'' Return or set the vertical scrolling position.
+Property ScrollY As Integer
+
+'' This event is raised when an item is double-clicked.
+''
+'' The internal cursor is set to the clicked item.
+Event Activate
+
+'' This event is raised when the selection changes.
+''
+'' The internal cursor is set to the expanded item.
+Event Select
+
+'' This event is raised when an item is expanded.
+''
+'' The internal cursor is set to the expanded item.
+Event Expand
+
+'' This event is raised when an item is collapsed.
+''
+'' The internal cursor is set to the collapsed item.
+Event Collapse
+'Event Rename
+'Event Cancel
+Event Compare((Key) As String, OtherKey As String)
+
+'' This event is raised when the contents of a specific item is needed (usually to draw it).
+'' 
+'' - ~Key~ is the item key.
+'' - ~Column~ is the item column.
+''
+'' You must provide the item contents by setting the fields of the ~Data~ argument.
+Event Data((Key) As String, Column As Integer, Data As WebTreeData)
+
+'' This event is raised when a control [embedded in a cell](../../webtreedata/control) raises its 'Click' event.
+Event Click((Key) As String, Column As Integer)
+
+Static Private $iNoEvent As Integer
+
+Private $cItem As New Collection
+Private $hRoot As _WebTreeItem
+Private $sCursor As String
+Private $sSaveCursor As String
+Private $iCompare As Integer
+Private $iLock As Integer
+Private $sLastKey As String
+Private $iLastRow As Integer = -2
+
+Private $hSelection As WebTreeSelection
+Private $iSaveSelection As Integer
+Private $vSaveSelection As Variant
+
+Private $bShowCheck As Boolean
+
+Private $iMode As Integer = Select.Single
+
+Private $hColumns As _WebTreeColumns
+Private $bShowHeader As Boolean
+Private $iScrollX As Integer
+Private $iScrollY As Integer
+
+Private $sKey As String
+
+'' Create a new WebTree control.
+
+Public Sub _new()
+  
+  $hColumns = New _WebTreeColumns As "Columns"
+  $hSelection = New WebTreeSelection As "Selection"
+  
+  '$bNoRoot = Me Is ListView
+  
+  $hRoot = New _WebTreeItem("", "") As "Item"
+  
+  Me._Proxy = ":table"
+  
+  AddColumn("")
+  
+End
+
+'' Return an item from its key.
+
+Public Sub _get((Key) As String) As _WebTreeItem
+  
+  If Not Key Then Error.Raise("Null key")
+  If Not $cItem.Exist(Key) Then Error.Raise("Unknown item: " & Key)
+  Return $cItem[Key]
+  
+End
+
+'' Clear the view.
+
+Public Sub Clear()
+
+  $cItem.Clear
+  $sKey = ""
+  $hSelection.UnSelectAll()
+  $sCursor = ""
+  $hRoot = New _WebTreeItem("", "") As "Item"
+  _RefreshView
+  
+End
+
+' Public Sub _SortParent(sKey As String)
+'   
+'   If sKey Then
+'     $cSort[sKey] = True
+'   Else
+'     $bSortRoot = True
+'   Endif
+'   If Not $hSortTimer Then
+'     $hSortTimer = New Timer As "Sort"
+'     $hSortTimer.Trigger
+'   Endif
+'   
+' End
+
+'' Add an item to the view.
+'' 
+'' * ~Key~ is the key of the new item.
+'' * ~Text~ is the text of the new item.
+'' * ~Image~ is the relative path of the image displayed besides the item. By default, no image is displayed.
+'' * ~Parent~ is the key of the parent item where the item will be inserted. By default, the new item is a root item.
+'' * ~After~ is the key of an item that the new item will directly follows. This item and the new item must have the same parent. By default, the new item become the last child of its parent.
+'' 
+'' The newly created item is returned.
+
+Public Sub Add((Key) As String, Text As String, Optional Image As String, Optional Parent As String, Optional After As String) As _WebTreeItem
+  
+  Dim hItem, hParent As _WebTreeItem
+  
+  'If $hRenameBox Then Cancel()
+  
+  If Not Key Then Error.Raise("Null key")
+  If $cItem.Exist(Key) Then Error.Raise("Key already used: " & Key)
+  If Parent And If Not $cItem.Exist(Parent) Then Error.Raise("Parent item does not exist: " & Parent)
+  If After And If Not $cItem.Exist(After) Then Error.Raise("After item does not exist: " & After)
+  
+  hItem = New _WebTreeItem(Key, Parent) As "Item"
+  
+  $cItem[Key] = hItem
+  
+  If Parent Then
+    hParent = $cItem[Parent]
+  Else
+    hParent = $hRoot
+  Endif
+  
+  hParent._AddChild(Key)
+
+  Inc $iLock
+  
+  hItem._Index = hParent.Count - 1
+  'hItem.Editable = $bEditable
+  hItem.Text = Text
+  hItem.Image = Image
+  
+  Dec $iLock
+
+  If After Then 
+    _MoveItem(hItem, After, False)
+  Endif
+  
+  'If $bSorted Then _SortParent(Parent)
+  
+  $sCursor = Key
+  
+  _RefreshView
+  
+  Return hItem
+  
+End
+
+Public Sub _GetParentItem(hItem As _WebTreeItem) As _WebTreeItem
+  
+  If hItem.ParentKey Then
+    Return $cItem[hItem.ParentKey]
+  Else If Not hItem._IsRoot() Then
+    Return $hRoot
+  Endif
+  
+End
+
+Private Sub RemoveRec((Key) As String, Optional bDoNotDestroy As Boolean)
+  
+  Dim hItem As _WebTreeItem
+  Dim hParent As _WebTreeItem
+  Dim sKey As String
+
+  hItem = $cItem[Key]
+  
+  If Not bDoNotDestroy And If hItem.Count Then
+    For Each sKey In hItem._GetChildren().Copy()
+      RemoveRec(sKey)
+    Next
+  Endif
+  
+  hParent = _GetParentItem(hItem)
+  
+  hParent._RemoveChild(hItem)
+  While hParent.Expanded 
+    Dec hParent._Rows
+    If hParent._IsRoot() Then Break
+    hParent = $cItem[hParent.ParentKey]
+    If Not hParent Then hParent = $hRoot
+  Wend
+  
+  If Not bDoNotDestroy Then
+    $cItem.Remove(Key)
+    _SetSelected(Key, False)
+  Endif
+  
+End
+
+'' Remove an item from the view.
+''
+'' ~Key~ is the key of the item to remove.
+
+Public Sub Remove((Key) As String)
+  
+  Dim hItem As _WebTreeItem
+  
+  'If $hRenameBox Then Cancel()
+  
+  If Not Key Then Error.Raise("Null key")
+  
+  hItem = $cItem[Key]
+  
+  If Not hItem Then Error.Raise("Unknown item: " & Key)
+  
+  RemoveRec(Key)
+  _RefreshView
+  
+End
+
+Public Sub _ReparentItem(hItem As _WebTreeItem, Parent As String)
+  
+  Dim hParent, hCheck As _WebTreeItem
+  Dim sKey As String
+  Dim bExpanded As Boolean
+  
+  If Not Parent Then
+    hParent = $hRoot
+  Else
+    hParent = $cItem[Parent]
+    If Not hParent Then Error.Raise("Unknown parent item: " & Parent)
+  Endif
+  
+  If hItem.ParentKey = Parent Then Return
+  
+  hCheck = hParent
+  While hCheck
+    If hCheck = hItem Then Error.Raise("New parent cannot be a child item")
+    sKey = hCheck.ParentKey
+    If Not sKey Then Break
+    hCheck = $cItem[sKey]
+  Wend
+  
+  Inc $iLock
+
+  bExpanded = hItem.Expanded
+  hItem.Expanded = False
+  sKey = hItem.Key
+  
+  RemoveRec(sKey, True)
+  _AddCount(0)
+  _GetParentItem(hItem)._ComputeGrandChildren()
+  
+  hParent._AddChild(sKey)
+  
+  hItem._Index = hParent.Count - 1
+  hItem._SetParent(Parent)
+  hItem._ComputeRows(1)
+  hParent._ComputeGrandChildren()
+  hItem.Expanded = bExpanded
+
+  Dec $iLock
+  
+  '_UpdateItemHeight(hItem, True)
+  
+  'If $bSorted Then _SortParent(Parent)
+  
+  _RefreshView
+  
+End
+
+Private Sub GetNextItem(hItem As _WebTreeItem) As _WebTreeItem
+  
+  Dim hParent As _WebTreeItem
+  Dim aChildren As String[]
+  Dim iPos As Integer
+  
+  If hItem.Count And If hItem.Expanded Then
+    aChildren = hItem._GetChildren()
+    Return $cItem[aChildren[0]]
+  Endif
+  
+  Do
+    hParent = _GetParentItem(hItem)
+    aChildren = hParent._GetChildren()
+    iPos = hItem._Index 'aChildren.Find(hItem.Key)
+    If iPos < aChildren.Max Then Return $cItem[aChildren[iPos + 1]]
+    If hParent._IsRoot() Then Return
+    hItem = hParent
+  Loop
+  
+End
+
+Private Sub GetPreviousItem(hItem As _WebTreeItem) As _WebTreeItem
+  
+  Dim hParent As _WebTreeItem
+  Dim aChildren As String[]
+  
+  If hItem._Index = 0 Then Return $cItem[hItem.ParentKey]
+  
+  hParent = _GetParentItem(hItem)
+  aChildren = hParent._GetChildren()
+  hItem = $cItem[aChildren[hItem._Index - 1]]
+  
+  Do
+    If Not hItem.Expanded Or If hItem.Count = 0 Then Return hItem
+    hItem = $cItem[hItem._GetChildren()[hItem.Count - 1]]
+  Loop
+
+End
+
+Public Sub _RowToItem(iRow As Integer) As _WebTreeItem
+  
+  Dim hParent As _WebTreeItem
+  Dim hChild As _WebTreeItem
+  Dim sKey As String
+  Dim aChildren As String[]
+  
+  If iRow < 0 Or If iRow >= $cItem.Count Then Return
+  
+  'Print iRow;; $iLastRow
+  
+  If $sLastKey Then hChild = $cItem[$sLastKey]
+  
+  If iRow = $iLastRow Then Return hChild
+  
+  If iRow = ($iLastRow + 1) Then
+    $iLastRow = iRow
+    hChild = GetNextItem(hChild)
+    $sLastKey = hChild.Key
+    Return hChild
+  Endif
+  
+  If iRow = ($iLastRow - 1) Then
+    $iLastRow = iRow
+    hChild = GetPreviousItem(hChild)
+    $sLastKey = hChild.Key
+    Return hChild
+  Endif
+  
+  hParent = $hRoot
+  $iLastRow = iRow
+  
+  Do
+    
+    If hParent._GrandChildren = 0 Then
+      
+      aChildren = hParent._GetChildren()
+      sKey = aChildren[iRow]
+      $sLastKey = sKey
+      Return $cItem[sKey]
+      
+    Else
+    
+      For Each sKey In hParent._GetChildren()
+        hChild = $cItem[sKey]
+        If iRow = 0 Then 
+          $sLastKey = sKey
+          Return hChild
+        Endif
+        If iRow < hChild._Rows Then
+          Dec iRow
+          hParent = hChild
+          Break
+        Endif
+        iRow -= hChild._Rows
+      Next
+    
+    Endif
+    
+  Loop
+  
+End
+
+Public Sub _ItemToRow(hItem As _WebTreeItem) As Integer
+  
+  Dim hParent As _WebTreeItem
+  Dim iRow As Integer
+  Dim sItemKey As String
+  Dim sKey As String
+  Dim iPos As Integer
+  
+  If Not hItem Then Debug System.Backtrace.Join(" ")
+  
+  If hItem._IsRoot() Then Return -1
+  
+  sItemKey = hItem.Key
+  hParent = _GetParentItem(hItem)
+  
+  If hParent._IsRoot() Then
+    iRow = -1
+  Else
+    If Not hParent.Expanded Then Return -1
+    iRow = _ItemToRow(hParent)
+    If iRow < 0 Then Return iRow
+  Endif
+  
+  Inc iRow
+  
+  If hParent._GrandChildren = 0 Then
+  
+    iPos = hParent._GetChildren().Find(sItemKey)
+    If iPos >= 0 Then
+      iRow += iPos
+      Return iRow
+    Endif
+  
+  Else
+    
+    For Each sKey In hParent._GetChildren()
+      If sKey = sItemKey Then 
+        'Debug sKey; " -> "; iRow
+        Return iRow
+      Endif
+      hItem = $cItem[sKey]
+      iRow += hItem._Rows
+    Next
+    
+  Endif
+  
+  Return -1
+  
+End
+
+Public Sub _AddCount(iCount As Integer)
+  
+  $hRoot._Rows += iCount
+  '$hView.Rows.Count = $hRoot._Rows
+  $iLastRow = -2
+  $sLastKey = ""
+  
+End
+
+' Public Sub GridView_Activate()
+'   
+'   Dim hItem As _WebTreeItem = _RowToItem($hView.Row)
+'   Dim bCancel As Boolean
+'   Dim sCursor As String
+'   
+'   If Not hItem Then Return ' The item may have been destroyed during the click event
+'   
+'   sCursor = $sCursor
+'   SetCursor(hItem.Key)
+'   bCancel = Raise Activate
+'   $sCursor = sCursor
+'   
+'   If bCancel Then Return
+'   hItem.Expanded = Not hItem.Expanded
+'   
+' End
+
+Private Function Count_Read() As Integer
+
+  Return $cItem.Count
+
+End
+
+Private Function Mode_Read() As Integer
+
+  Return $iMode
+
+End
+
+Private Sub Mode_Write(Value As Integer)
+
+  $iMode = Value
+  UnSelectAll
+  Me.Refresh
+
+End
+
+' Private Function Sorted_Read() As Boolean
+' 
+'   Return $bSorted
+' 
+' End
+
+Public Sub _RaiseCompare(sKey As String, sOtherKey As String) As Integer
+
+  Dim bCancel As Boolean
+  
+  bCancel = Raise Compare(sKey, sOtherKey)
+  Return bCancel
+  
+End
+
+
+' Private Sub SortItem(hItem As _WebTreeItem)
+'   
+'   Dim aChildren As String[]
+'   Dim aItem As _WebTreeItem[]
+'   Dim I As Integer
+'   Dim hTree As WebTree
+'   
+'   If hItem.Count = 0 Then Return
+'   
+'   aChildren = hItem._GetChildren()
+'   aItem = New _WebTreeItem[aChildren.Count]
+'   For I = 0 To aItem.Max
+'     aItem[I] = $cItem[aChildren[I]]
+'   Next
+'   
+'   hTree = _WebTreeItem._Tree
+'   'System._Breakpoint
+'   If Object.CanRaise(Me, "Compare") Then
+'     _WebTreeItem._Tree = Me
+'   Else
+'     _WebTreeItem._Tree = Null
+'   Endif
+'   
+'   aItem.Sort(If($hColumns.Ascending, gb.Ascent, gb.Descent))
+'   
+'   _WebTreeItem._Tree = hTree
+'   
+'   For I = 0 To aItem.Max
+'     aChildren[I] = aItem[I].Key
+'     aItem[I]._Index = I
+'   Next
+'   
+'   _RefreshView
+'   
+'   For I = 0 To aItem.Max
+'     _UpdateItemHeight(aItem[I])
+'   Next
+'   
+' End
+
+' Private Sub SortItemRec(hParent As _WebTreeItem)
+'   
+'   Dim sKey As String
+'   Dim hItem As _WebTreeItem
+'   
+'   If hParent.Count = 0 Then Return
+'   SortItem(hParent)
+'   For Each sKey In hParent._GetChildren()
+'     hItem = $cItem[sKey]
+'     If hItem.Count Then SortItemRec(hItem)
+'   Next
+'   
+' End
+
+' Private Sub Sorted_Write(Value As Boolean)
+' 
+'   $bSorted = Value
+'   If $bSorted Then
+'     $cSort = New Collection
+'     GridView_Sort
+'   Else
+'     $cSort = Null
+'   Endif
+'   $bSortRoot = False
+' 
+' End
+
+' Public Sub GridView_Select()
+'   
+'   Dim sCursor As String
+'   
+'   If $iNoEvent Then Return
+'   If $hView.Row < 0 And If $hView.Mode <> Select.Multiple Then Return
+'   
+'   sCursor = $sCursor
+'   SetCursor(Key_Read()) '_RowToItem($hView.Row).Key)
+'   Raise Select
+'   $sCursor = sCursor
+'   
+' End
+
+' Public Sub ResizeRows_Timer()
+'   
+'   Dim iRow As Integer
+'   Dim hItem As _WebTreeItem
+'   Dim PH As Integer
+'   
+'   $hResizeRowsTimer = Null
+'   
+'   For Each hItem In $cResizeRows
+'     iRow = $cResizeRows.Key
+'     PH = _GetItemHeight(hItem)
+'     If PH <> $hView.Rows[iRow].H Then
+'       $hView.Rows[iRow].H = PH
+'     Endif
+'   Next
+'   
+'   $cResizeRows.Clear
+'   
+' End
+
+'' Return if an item exists with the ~Key~ key.
+
+Public Sub Exist((Key) As String) As Boolean
+  
+  Return $cItem.Exist(Key)
+  
+End
+
+Private Function Item_Read() As _WebTreeItem
+
+  Return $cItem[$sCursor]
+
+End
+
+Public Sub _RaiseExpand(sKey As String, bExpand As Boolean)
+  
+  Dim sCursor As String = $sCursor
+  
+  $sCursor = sKey
+  
+  If bExpand Then
+    Raise Expand
+  Else
+    Raise Collapse
+  Endif
+  
+  $sCursor = sCursor
+  
+End
+
+Private Sub SetCursor(sKey As String) As Boolean
+  
+  If Not sKey Then $sSaveCursor = $sCursor
+  $sCursor = sKey
+  Return Not sKey
+  
+End
+
+'' Move the internal cursor to the first item of the view.
+'' 
+'' Return [/lang/true] if the view is void.
+
+Public Sub MoveFirst() As Boolean
+  
+  Dim sKey As String
+  
+  Try sKey = $hRoot._GetChildren()[0]
+  Return SetCursor(sKey)
+  
+End
+
+'' Move the internal cursor to the last item of the view.
+'' 
+'' Return [/lang/true] if the view is void.
+
+Public Sub MoveLast() As Boolean
+  
+  Dim aChildren As String[]
+  Dim sKey As String
+  
+  aChildren = $hRoot._GetChildren()
+  Try sKey = aChildren[aChildren.Max]
+  Return SetCursor(sKey)
+  
+End
+
+'' When one of the other Move... methods has failed, you can use this one
+'' to move the internal cursor back to its position before the move.
+'' 
+'' Return [/lang/true] if the internal cursor was not at a valid position.
+
+Public Sub MoveBack() As Boolean
+
+  Dim sKey As String
+  
+  sKey = $sSaveCursor
+  $sSaveCursor = ""
+  Return SetCursor(sKey)
+  
+End
+
+'' Move the internal cursor to a specified item.
+'' 
+'' Return [/lang/true] if the item does not exist.
+
+Public Sub MoveTo((Key) As String) As Boolean
+  
+  If Not $cItem.Exist(Key) Then Key = ""
+  Return SetCursor(Key)
+  
+End
+
+'' Move the internal cursor one visible item above.
+'' 
+'' Return [/lang/true] if there is no item above.
+
+Public Sub MoveAbove() As Boolean
+  
+  Dim sKey As String
+  Dim hItem As _WebTreeItem
+  
+  hItem = $cItem[$sCursor]
+  Try sKey = GetPreviousItem(hItem).Key
+  Return SetCursor(sKey)
+  
+End
+
+'' Move the internal cursor one visible item below.
+'' 
+'' Return [/lang/true] if there is no item below.
+
+Public Sub MoveBelow() As Boolean
+  
+  Dim sKey As String
+  Dim hItem As _WebTreeItem
+  
+  hItem = $cItem[$sCursor]
+  Try sKey = GetNextItem(hItem).Key
+  Return SetCursor(sKey)
+  
+End
+
+'' Move the internal cursor to the first child item of the item currently pointed by the internal cursor.
+'' 
+'' Returns [/lang/true] if there is no child item.
+
+Public Sub MoveChild() As Boolean
+  
+  Dim sKey As String
+  
+  Try sKey = $cItem[$sCursor]._GetChildren()[0]
+  Return SetCursor(sKey)
+  
+End
+
+Private Sub GetSibling(sKey As String, Optional iAdd As Integer) As String
+  
+  Dim hItem, hParent As _WebTreeItem
+  Dim aChildren As String[]
+  
+  If Not sKey Then Return
+  
+  hItem = $cItem[sKey]
+  hParent = _GetParentItem(hItem)
+  
+  aChildren = hParent._GetChildren() 
+  'Try Return aChildren[aChildren.Find(hItem.Key) + iAdd]
+  Try Return aChildren[hItem._Index + iAdd]
+  
+End
+
+'' Move the internal cursor to the next child item.
+'' 
+'' Return [/lang/true] if there is no child item left.
+
+Public Sub MoveNext() As Boolean
+  
+  Return SetCursor(GetSibling($sCursor, 1))
+  
+End
+
+'' Move the internal cursor to the previous child item.
+'' 
+'' Return [/lang/true] if there is no child item left.
+
+Public Sub MovePrevious() As Boolean
+  
+  Return SetCursor(GetSibling($sCursor, -1))
+  
+End
+
+'' Move the internal cursor to the parent item of the item currently pointed by the internal cursor.
+'' 
+'' Return [/lang/true] if there is no parent item.
+
+Public Sub MoveParent() As Boolean
+  
+  Dim sKey As String
+  
+  Try sKey = $cItem[$sCursor].ParentKey
+  Return SetCursor(sKey)
+  
+End
+
+Private Function Available_Read() As Boolean
+
+  Return $sCursor
+
+End
+
+'' Select all items in the view.
+
+Public Sub SelectAll()
+
+  If $iMode <> Select.Multiple Then Return
+  If $hSelection.SelectAll() Then Return
+  Raise Select
+  Me.Refresh
+  
+End
+
+'' Unselect all items in the view.
+
+Public Sub UnselectAll()
+  
+  If $iMode = Select.Multiple Then
+    If $hSelection.UnSelectAll() Then Return
+    Raise Select
+  Else If $iMode = Select.Single Then
+    If Not $sKey Then Return
+    $sKey = ""
+    Raise Select
+  Endif
+  Me.Refresh
+  
+End
+
+Public Sub _MoveItem(hItem As _WebTreeItem, sKey As String, bBefore As Boolean) As Boolean
+  
+  Dim hParent As _WebTreeItem = _GetParentItem(hItem)
+  Dim aChildren As String[]
+  Dim iPos, iPosKey, iNewPos As Integer
+  Dim iStart, I As Integer
+  
+  'If $bSorted Then Return
+
+  aChildren = hParent._GetChildren()
+  
+  'iPos = aChildren.Find(hItem.Key)
+  iPos = hItem._Index
+  If iPos < 0 Then Return
+  
+  If sKey Then
+    ' FIXME: check we have the same parent!
+    iPosKey = $cItem[sKey]._Index 'aChildren.Find(sKey)
+    If iPosKey < 0 Then Return
+    If iPos <= iPosKey Then Dec iPosKey
+  Endif
+  
+  If sKey Then
+    If Not bBefore Then
+      iNewPos = iPosKey + 1
+    Else
+      iNewPos = iPosKey 
+    Endif
+  Else
+    If bBefore Then
+      iNewPos = aChildren.Count
+    Else
+      iNewPos = 0
+    Endif
+  Endif
+  
+  If iPos = iNewPos Then Return True
+  
+  aChildren.Remove(iPos)
+  aChildren.Add(hItem.Key, iNewPos)
+  
+  iStart = Min(iPos, iNewPos)
+  For I = iStart To aChildren.Max
+    hItem = $cItem[aChildren[I]]
+    hItem._Index = I
+    '_UpdateItemHeight(hItem)
+  Next
+  
+  _RefreshView
+  
+End
+
+Public Sub _IsSelected(sKey As String) As Boolean
+  
+  If $iMode = Select.Multiple Then
+    Return $hSelection.IsSelected(sKey)
+  Else If $iMode = Select.Single Then
+    Return $sKey = sKey
+  Endif
+  
+End
+
+Public Sub _SetSelected(sKey As String, bSelected As Boolean, Optional bNoRefresh As Boolean)
+  
+  If $iMode = Select.Single Then
+    If bSelected Then
+      $sKey = sKey
+      If Not bNoRefresh Then Me.Refresh
+      Raise Select
+    Else
+      If $sKey = sKey Then
+        $sKey = ""
+        If Not bNoRefresh Then Me.Refresh
+      Endif
+    Endif
+    Return
+  Endif
+  
+  $hSelection.SelectItem(sKey, bSelected)
+  Raise Select
+  
+End
+
+Private Function Compare_Read() As Integer
+
+  Return $iCompare
+
+End
+
+Private Sub Compare_Write(Value As Integer)
+
+  $iCompare = Value
+
+End
+
+' Private Sub UpdateRenameBox() As Boolean
+' 
+'   Dim hItem As _WebTreeItem
+'   Dim X As Integer
+'   Dim W As Integer
+'   
+'   If Not $hRenameBox Then Return
+'   
+'   hItem = $cItem[$sKeyRenaming]
+'   
+'   '' TODO: System.RightToLeft
+'   
+'   If $iColRenaming = 0 Then
+'     X = hItem.X - $hView.ScrollX
+'     If hItem.Picture Then X += hItem.Picture.W + Desktop.Scale \ 2
+'     W = Min($hView.ClientW, $hView.Columns[0].Width) - X
+'   Else
+'     X = $hView.Columns[$iColRenaming].X - $hView.ScrollX
+'     W = Min($hView.ClientW - X, $hView.Columns[$iColRenaming].Width)
+'   Endif
+'   
+'   If W < 32 Then 
+'     Cancel
+'     Return
+'   Endif
+'   
+'   $hRenameBox.Move(X, hItem.Y, W, hItem.H)
+' 
+' End
+' 
+' Public Sub _Rename(hItem As _WebTreeItem, iCol As Integer)
+'   
+'   Dim X As Integer
+'   Dim SX As Integer
+'   
+'   If iCol < 0 Or If iCol >= $hView.Columns.Count Then Error.Raise("Out of bounds")
+'   
+'   Cancel()
+'   
+'   _EnsureVisible(hItem)
+'   Wait
+'   Key_Write(hItem.Key)
+'   
+'   Do
+'     X = hItem.X 
+'     If iCol Then X += $hView.Columns[iCol].X
+'     SX = Max(0, X - $hView.ClientW - 32)
+'     If SX = $hView.ScrollX Then Break
+'     $hView.ScrollX = SX
+'   Loop
+'   
+'   $hRenameBox = New RenameBox(Me, $hView.Padding, False) As "Editor"
+'   $hRenameBox.Text = hItem[iCol]
+'   $hRenameBox.SetFocus
+'   
+'   $sKeyRenaming = hItem.Key
+'   $iColRenaming = iCol
+'   
+'   UpdateRenameBox
+'   
+' End
+' 
+' Private Sub Cancel(Optional bOK As Boolean)
+'   
+'   Dim sCursor As String 
+'   Dim bStop As Boolean
+'   Dim hItem As _WebTreeItem
+'   
+'   If Not $hRenameBox Then Return
+'   
+'   $hRenameBox.Delete
+'   $hRenameBox = Null
+'   $hView.SetFocus
+' 
+'   sCursor = $sCursor
+'   $sCursor = $sKeyRenaming
+'   If bOK Then
+'     bStop = Raise Rename
+'   Else
+'     Raise Cancel
+'   Endif
+'   $sCursor = sCursor
+'   
+'   hItem = $cItem[$sKeyRenaming]
+'   $sKeyRenaming = ""
+'   If bStop Then _Rename(hItem, $iColRenaming)
+'   
+' End
+
+
+Public Sub _RefreshView()
+  
+  $iLastRow = -2
+  $sLastKey = ""
+  Me.Refresh
+  
+End
+
+' Public Sub Sort_Timer()
+'   
+'   $hSortTimer = Null
+'   If Not $cSort Then Return
+'   
+'   Raise BeforeSort
+'   
+'   _SaveSelection
+'   
+'   For Each $cSort
+'     SortItem($cItem[$cSort.Key])
+'   Next
+'   If $bSortRoot Then
+'     SortItem($hRoot)
+'   Endif
+'   $bSortRoot = False
+'   $cSort.Clear
+'   
+'   'If hItem Then _SetItemSelected(hItem, True)
+'   _RestoreSelection
+'   
+' End
+
+' Public Sub GridView_Sort()
+' 
+'   Raise BeforeSort
+' 
+'   _SaveSelection
+'   
+'   SortItemRec($hRoot)
+'   
+'   _RestoreSelection
+'   _RefreshView
+'   
+' End
+
+' Public Sub GridView_Scroll()
+'   
+'   Cancel
+'   Raise Scroll
+'   
+' End
+
+Private Function Selection_Read() As String[]
+
+  If $iMode = Select.Multiple Then
+    Return $hSelection.GetSelectedRows()
+  Else If $iMode = Select.Single Then
+    If $sKey Then 
+      Return [$sKey]
+    Else 
+      Return New String[]
+    Endif
+  Endif
+
+End
+
+' Private Sub Selection_Write(Value As String[])
+' 
+'   Dim sKey As String
+'   Dim hItem As _WebTreeItem
+'   
+'   If $hView.Mode = Select.Single Then
+'     Try sKey = Value[Value.Max] 
+'     Key_Write(sKey)
+'   Else If $hView.Mode = Select.Multiple Then
+'     Inc $iNoEvent
+'     UnselectAll
+'     For Each sKey In Value
+'       If Not sKey Then Continue
+'       hItem = $cItem[sKey]
+'       If hItem Then hItem.Selected = True
+'     Next
+'     Dec $iNoEvent
+'   Endif
+'   
+'   If $iNoEvent Then Return
+'   Raise Select
+' 
+' End
+
+Public Sub _SaveSelection()
+  
+  If $iSaveSelection = 0 Then
+    $vSaveSelection = $hSelection.Save()
+  Endif
+  
+  Inc $iSaveSelection
+  
+End
+
+Public Sub _RestoreSelection()
+  
+  Dim cSel As Collection
+  
+  Dec $iSaveSelection
+  
+  If $iSaveSelection = 0 Then 
+    
+    Inc $iNoEvent
+    Inc $iSaveSelection
+    
+    'If $hView.Mode = Select.Multiple Then
+      cSel = $vSaveSelection
+      For Each cSel
+        If Not $cItem.Exist(cSel.Key) Then cSel.Remove(cSel.Key)
+      Next
+      $hSelection.Restore(cSel)
+    'Else
+    '  Key_Write($vSaveSelection)
+    'Endif
+    
+    Dec $iSaveSelection
+    Dec $iNoEvent
+    $vSaveSelection = Null
+    
+  Endif
+  
+End
+
+Public Function _GetLayout() As Variant
+
+  Dim hItem As _WebTreeItem
+  Dim cLayout As New Collection
+
+  For Each hItem In $cItem
+    If hItem.Expanded Then cLayout[hItem.Key] = True
+  Next
+  
+  Return cLayout
+
+End
+
+Public Sub _SetLayout(Value As Variant)
+
+  Dim cLayout As Collection
+  Dim hItem As _WebTreeItem
+  
+  Try cLayout = Value
+  If Error Then Error.Raise("Bad layout")
+  
+  _SaveSelection
+  For Each hItem In $cItem.Copy()
+    hItem.Expanded = cLayout.Exist(hItem.Key)
+  Next
+  _RestoreSelection
+
+End
+
+Private Function Keys_Read() As String[]
+
+  Dim aKeys As New String[]
+
+  For Each $cItem
+    aKeys.Add($cItem.Key)
+  Next
+  Return aKeys
+
+End
+
+Private Function ShowCheck_Read() As Boolean
+
+  Return $bShowCheck
+
+End
+
+Private Sub ShowCheck_Write(Value As Boolean)
+
+  If $bShowCheck = Value Then Return
+  $bShowCheck = Value
+  Me.Refresh
+
+End
+
+Private Function Columns_Read() As _WebTreeColumns
+
+  Return $hColumns
+
+End
+
+Private Function ShowHeader_Read() As Boolean
+
+  Return $bShowHeader
+
+End
+
+Private Sub ShowHeader_Write(Value As Boolean)
+
+  If $bShowHeader = Value Then Return
+  $bShowHeader = Value
+  Me.Refresh
+
+End
+
+Private Sub PrintItem(hItem As _WebTreeItem, iLevel As Integer, bVisible As Boolean, bData As Boolean)
+
+  Dim sKey As String = hItem.Key
+  Dim sKeyBase64 As String = Base64(sKey)
+  Dim iCol As Integer
+  Dim hCol As _WebTableColumn
+  Dim NX As Integer
+  Dim sStyle As String
+  Dim hData As WebTreeData
+  Dim sText As String
+
+  If Not bVisible Then Return
+
+  Print "<tr";
+  If $iMode Then
+    
+    If Not $bShowCheck Then
+      Print " id=\""; Me.Name & ":" & sKeyBase64; "\""
+      If _IsSelected(sKey) Then Print " class=\"gw-selected\";"
+    'Print Me._GetUpdateJS("onclick", "$" & CStr(iRow));
+      Print " onmousedown=\"gw.table.select("; JS(Me.Name); ","; JS(sKeyBase64); 
+    Else
+      Print " onmousedown=\"gw.table.check("; JS(Me.Name); ","; JS(sKeyBase64); 
+    Endif
+    
+    If $iMode <> Select.Single Then Print ",event";
+    Print ");\"";
+    
+  Endif
+    
+  Print Me._GetUpdateJS("ondblclick", "%" & JS(sKeyBase64));
+    
+  If Not bVisible Then Print " style=\"display:none;\"";
+  Print ">";
+  
+  Print "<td class=\"gw-tree-item\" style=\"padding-left:"; iLevel; "em;\"><div>";
+  
+  If hItem.Children Then
+    Print "<div class=\"gw-tree-arrow ";
+    If hItem.Expanded Then
+      Print "gw-tree-expanded";
+    Else
+      Print "gw-tree-collapsed";
+    Endif
+    Print "\" onmousedown=\"gw.tree.expand("; JS(Me.Name); ","; JS(sKey); ","; JS(Not hItem.Expanded); ", event);\"></div>";
+  Else
+    Print "<div class=\"gw-tree-arrow\"></div>";
+  Endif
+  
+  If $iMode And If $bShowCheck Then
+    'Print "<td onmousedown=\"gw.table.check("; JS(Me.Name); ","; CStr(iRow); 
+    'If $iMode <> Select.Single Then Print ",event"; 
+    'Print ")\">";
+    'Print "<div class=\"gw-tree-check\">";
+    If $iMode = Select.Single Then
+      Print "<input type=\"radio\" name=\""; Me.Name; "\""; 
+    Else
+      Print "<input type=\"checkbox\""; 
+    Endif
+    Print " id=\""; Me.Name & ":c:" & Base64(sKey); "\" class=\"gw-tree-check\"";
+    'Print Me._GetUpdateJS("onchange", "!" & CStr(iRow), "this.checked");
+    If _IsSelected(sKey) Then Print " checked";
+    Print ">";
+    'Print "</div>";
+  Endif
+
+  If hItem.Image Then
+    Print "<img class=\"gw-tree-image\" src=\""; Html(Me._GetImageLink(hItem.Image)); "\">";
+  Endif
+  Print "<div class=\"gw-tree-text\">"; If(hItem.Html, hItem.Html, Html(hItem.Text)); "</div>";
+  
+  Print "</div></td>";
+  
+  If Not $bShowHeader Then
+    For iCol = 0 To $hColumns.Count - 1
+      If $hColumns[iCol].Expand Then Inc NX
+    Next
+  Endif
+
+  For iCol = 1 To $hColumns.Count - 1
+    
+    hCol = $hColumns[iCol]
+    If hCol.Hidden Then Continue
+    
+    If bData Then
+      hData = New WebTreeData
+      Raise Data(hItem.Key, iCol, hData)
+    Endif
+    
+    Print "<td class=\"gw-tree-item\"";
+    hCol._PrintAlignment()
+    sStyle = ""
+    If Not $bShowHeader And If iLevel = 0 Then
+      If hCol.Expand Then 
+        Print " width=\""; 100 \ NX; "%\"";
+      Else If hCol.Width Then
+        sStyle &= "min-width:" & hCol.Width & ";"
+      Endif
+    Endif
+    
+    If bData Then
+      If hData.Background <> Color.Default Then sStyle &= "background-color:" & Color.ToHTML(hData.Background) & ";"
+      If hData.Foreground <> Color.Default Then sStyle &= "color:" & Color.ToHTML(hData.Foreground) & ";"
+    Endif
+    
+    If sStyle Then Print " style=\""; sStyle; "\"";
+    Print "><div>";
+    
+    If bData Then
+
+      If hData.Control Then
+        
+        sText = ""
+        With hData.Control
+          WebControl._SetCurrentCell(Me, CStr(iCol) & ":" & hItem.Key)
+          ._BeforeRender()
+          ._Render()
+          ._AfterRender()
+          WebControl._SetCurrentCell()
+        End With
+        
+      Else
+      
+        If hData.Image Then
+          Print "<img class=\"gw-tree-image\" src=\""; Html(Me._GetImageLink(hData.Image)); "\">";
+        Endif
+        If hData.Html Then
+          sText = hData.Html
+        Else If hData.Text Then
+          sText = Html(hData.Text)
+        Else 
+          sText = Html(hItem[iCol])
+        Endif
+        
+      Endif 
+      
+    Else
+      
+      sText = Html(hItem[iCol])
+      
+    Endif
+    
+    If sText Then Print "<div class=\"gw-tree-text\">"; sText; "</div>"
+    
+    Print "</div></td>";
+    
+  Next
+  
+  Print "</tr>"
+
+  If hItem.Children Then
+    Inc iLevel
+    If Not hItem.Expanded Then bVisible = False
+    For Each sKey In hItem._GetChildren()
+      PrintItem($cItem[sKey], iLevel, bVisible, bData)
+    Next
+    Dec iLevel
+  Endif
+  
+End
+
+Public Sub _Render()
+  
+  Dim sKey As String
+  Dim bData As Boolean
+  
+  bData = Object.CanRaise(Me, "Data")
+  
+  Print "<div class=\"gw-tree-contents\" onscroll=\"gw.scrollview.onScroll("; JS(Me.Name); ");\">";
+  'If $bFixed Then
+  '  Print "<table style=\"table-layout:fixed;\">"
+  'Else
+    Print "<table id=\""; Me.Name; ":table\" width=\"100%\" cellspacing=\"0\" cellpadding=\"0\">"
+  'Endif
+
+  If $bShowHeader Then $hColumns._Render()
+  
+  If $cItem.Count Then
+    For Each sKey In $hRoot._GetChildren()
+      PrintItem($cItem[sKey], 0, True, bData)
+    Next
+  Endif
+  
+  Print "</table>"
+  
+  Print "</div>"
+  
+  If $iMode = Select.Single Then WebForm._AddJavascript("$_(" & JS(Me.Name) & ").gw_current = " & JS(Base64($sKey)) & ";")
+
+  WebForm._AddJavascript("gw.scrollview.scroll(" & JS(Me.Name) & "," & JS($iScrollX) & "," & JS($iScrollY) & ");")
+
+End
+
+Public Sub _IsEverythingSelected() As Boolean
+  
+  Return $hSelection.IsEverythingSelected()
+  
+End
+
+Public Sub _UpdateProperty(sProp As String, vValue As Variant)
+  
+  Dim aProp As String[]
+  Dim hItem As _WebTreeItem
+  Dim sKey As String
+  Dim sCursor As String
+  Dim bCancel As Boolean
+  
+  If sProp Begins "^" Then
+    
+    hItem = $cItem[Mid$(sProp, 2)]
+    hItem.Expanded = vValue
+  
+  Else If sProp Begins "!" Then
+    
+    If sProp = "!!" Then
+      If vValue Then
+        SelectAll
+      Else
+        UnselectAll
+      Endif
+    Else
+      aProp = Split(Mid$(sProp, 2), ":")
+      Try _SetSelected(FromBase64(aProp[0]), vValue, True)
+    Endif
+    
+  Else If Left(sProp) = "?" Then
+    
+    Try _SetSelected(FromBase64(Mid$(sProp, 2)), True)
+    
+  Else If Left(sProp) = "$" Then
+    
+    sKey = FromBase64(Mid$(sProp, 2))
+    If _IsSelected(sKey) Then
+      If $iMode = Select.Multiple Then _SetSelected(sKey, False, True)
+    Else
+      _SetSelected(sKey, True, True)
+    Endif
+    
+  Else If sProp Begins "%" Then
+    
+    If Object.CanRaise(Me, "Activate") Then
+      sCursor = $sCursor
+      $sCursor = FromBase64(Mid$(sProp, 2))
+      bCancel = Raise Activate
+      $sCursor = sCursor
+    Endif
+    If Not bCancel Then
+      hItem = $cItem[FromBase64(Mid$(sProp, 2))]
+      If hItem.Children Then hItem.Expanded = Not hItem.Expanded
+    Endif
+  
+  Else If sProp = "#scroll" Then
+    
+    Inc Me._NoRefresh
+    Me.ScrollX = vValue[0]
+    Me.ScrollY = vValue[1]
+    Dec Me._NoRefresh
+    
+  Endif
+  
+End
+
+Private Function ScrollX_Read() As Integer
+
+  Return $iScrollX
+
+End
+
+Private Sub ScrollX_Write(Value As Integer)
+
+  $iScrollX = Value
+  Me.Refresh
+
+End
+
+Private Function ScrollY_Read() As Integer
+
+  Return $iScrollY
+
+End
+
+Private Sub ScrollY_Write(Value As Integer)
+
+  $iScrollY = Value
+  Me.Refresh
+
+End
+
+'' Add a new column to the view.
+'' 
+'' - ~Text~ is the title of the column.
+'' - ~Width~ is its width, or '*' if the column must expand. If the width is not specified, the column will fit its contents.
+'' - ~Alignment~ is the column alignment, among [Align.Left](../../align/left), [Align.Center](../../align/center),[Align.Right](../../align/right) and [Align.Normal](../../align/normal) (the default).
+'' 
+'' The column object is returned.
+
+Public Sub AddColumn(Text As String, Optional Width As String, Alignment As Integer = Align.Normal) As _WebTableColumn
+  
+  Dim hCol As _WebTableColumn
+  
+  Inc Me.Columns.Count
+  
+  hCol = Me.Columns[Me.Columns.Count - 1]
+  hCol.Text = Text
+  If Width = "*" Then
+    hCol.Expand = True
+  Else If Width Then
+    hCol.Width = Width
+  Endif
+  hCol.Alignment = Alignment
+  
+  Return hCol
+  
+End
+
+
+Private Function Current_Read() As _WebTreeItem
+
+  Try Return $cItem[$sKey]
+
+End
+
+Private Function Key_Read() As String
+
+  Return $sKey
+
+End
+
+Private Sub Key_Write(Value As String)
+
+  If Not $cItem.Exist(Value) Then Value = ""
+  If $iMode = Select.Single And If $sKey Then _SetSelected($sKey, False)
+  $sKey = Value
+  If $iMode = Select.Single Then _SetSelected($sKey, True)
+
+End
+
+Public Sub _RaiseCellEvent(sCell As String, sEvent As String, (aArg) As Variant[])
+  
+  Dim iPos As Integer
+  
+  If sEvent == "click" Then
+    iPos = InStr(sCell, ":")
+    If iPos > 0 Then Raise Click(Mid$(sCell, iPos + 1), CInt(Left$(sCell, iPos - 1)))
+  Endif
+  
+End

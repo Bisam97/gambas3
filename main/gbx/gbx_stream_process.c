@@ -2,7 +2,7 @@
 
 	gbx_stream_process.c
 
-	(c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+	(c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -47,6 +47,7 @@
 static int stream_open(STREAM *stream, const char *path, int mode, CPROCESS *process)
 {
 	stream->process.process = process;
+	stream->common.check_read = TRUE;
 	STREAM_blocking(stream, FALSE);
 	return FALSE;
 }

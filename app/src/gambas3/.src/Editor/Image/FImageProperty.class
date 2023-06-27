@@ -3,7 +3,6 @@
 Private $aDefaultColor As Integer[] = [Color.Black, Color.White, Color.DarkGray, Color.Gray, Color.LightGray, Color.Blue, Color.Cyan, Color.Green, Color.Yellow, Color.Orange, Color.Red, Color.Magenta]
 
 Private $aGradient As New CReportBrush[]
-Private $aShape As CImageSelection[]
 
 Private $aClipboard As New CImageClipboard[]
 
@@ -20,22 +19,24 @@ Private $lblA2 As DrawingArea
 Private $MX As Integer
 Private $MY As Integer
 'Valeur radiales
-Private $fX As Float = 0.5
-Private $fY As Float = 0.5
-Private $cX As Float = 0.5
-Private $cY As Float = 0.5
+Private $FX As Float = 0.5
+Private $FY As Float = 0.5
+Private $CX As Float = 0.5
+Private $CY As Float = 0.5
 Private $fRadius As Float = 1 / Sqr(2)
 'valeur linéaires
-Private $flX1 As Float = 0
-Private $flY1 As Float = 0.5
-Private $flX2 As Float = 1
-Private $flY2 As Float = 0.5
+Private $X1 As Float = 0
+Private $Y1 As Float = 0.5
+Private $X2 As Float = 1
+Private $Y2 As Float = 0.5
 
 Private $iLineCap As Integer
 Private $iLineJoin As Integer
 Private $iFillRule As Integer
 
 Private $iNoUpdateBalance As Integer
+Private $bChangingTab As Boolean
+Private $bDoNotUpdateGrid As Boolean
 
 'Static Public Value As String  '"radialgradient(0.5,0.5,1,0.5,0.5,[&hFFFFFF,&h000000,&h00FF00],[0,0.5,1])" '"lineargradient(0,0.5,1,0.5,[&hFFFFFF,&h000000,&h00FF00],[0,0.5,1])"
 
@@ -62,19 +63,13 @@ Public Sub _new()
   gvwClipboard.Columns[2].Width = Desktop.Scale * 4
   gvwClipboard.Rows.H = Desktop.Scale * 8
   
-  gvwShape.Columns.Count = 3
-  gvwShape.Columns[0].Width = Desktop.Scale * 12
-  gvwShape.Columns[1].Expand = True
-  gvwShape.Columns[2].Width = Desktop.Scale * 4
-  gvwShape.Rows.H = Desktop.Scale * 8
-  
   $aGradient.Add(CReportBrush["LinearGradient(0,0.5,1,0.5,[#000000,#FFFFFF],[0,1])"])
   $aGradient.Add(CReportBrush["LinearGradient(0,0.5,1,0.5,[#000000,#FFFFFFFF],[0,1])"])
   
   palColor.Colors = $aDefaultColor
   
-  SetLineCap(Paint.LineCapRound)
-  SetLineJoin(Paint.LineJoinRound)
+  SetLineCap(Paint.LineCapButt)
+  SetLineJoin(Paint.LineJoinMiter)
   SetFillRule(Paint.FillRuleWinding)
   'RefreshTextOption
   
@@ -110,10 +105,21 @@ Public Sub Form_Open()
   
   ReadConfig
   
+  InitSelection
+  
   AddClipboard(Null, "")
   'UpdateClipboard
   
+  cmbOperator.Index = Paint.OperatorOver
+  
 End
+
+Public Sub Form_Close()
+  
+  SaveAllSelections
+  
+End
+
 
 Private Sub RememberColor(iColor As Integer)
   
@@ -335,13 +341,13 @@ Public Sub dwgGradient_Draw()
   ' If radRadial.Value Then
   '   
   '   
-  '   Paint.Brush = Paint.RadialGradient((Paint.Width - 10) * $cX, (Paint.Height - 10) * $cY, (Paint.Width - 10) * 2 * $fRadius, (Paint.Width - 10) * $fX, (Paint.Height - 10) * $fY, $aGradientColors, $aGradientPos)
+  '   Paint.Brush = Paint.RadialGradient((Paint.Width - 10) * $CX, (Paint.Height - 10) * $CY, (Paint.Width - 10) * 2 * $fRadius, (Paint.Width - 10) * $FX, (Paint.Height - 10) * $FY, $aGradientColors, $aGradientPos)
   '   Paint.Rectangle(5, 5, Paint.Width - 10, Paint.Height - 10)
   '   Paint.Fill
   '   
   ' Else
   '   
-  '   Paint.Brush = Paint.LinearGradient((Paint.Width - 10) * $flX1, (Paint.Height - 10) * $flY1, (Paint.Width - 10) * $flX2, (Paint.Height - 10) * $flY2, $aGradientColors, $aGradientPos)
+  '   Paint.Brush = Paint.LinearGradient((Paint.Width - 10) * $X1, (Paint.Height - 10) * $Y1, (Paint.Width - 10) * $X2, (Paint.Height - 10) * $Y2, $aGradientColors, $aGradientPos)
   '   Paint.Rectangle(5, 5, Paint.Width - 10, Paint.Height - 10)
   '   Paint.Fill
   '   Paint.Brush = Paint.Color(Color.Black)
@@ -477,9 +483,9 @@ End
 '       
 '     Case CReportBrush.TYPE_LINEAR_GRADIENT, CReportBrush.TYPE_RADIAL_GRADIENT
 '       If cmbType.Index = CReportBrush.TYPE_RADIAL_GRADIENT Then
-'         sValue = "RadialGradient(" & $cx & "," & $cy & "," & $fRadius & "," & $fx & "," & $fy & ",["
+'         sValue = "RadialGradient(" & $CX & "," & $CY & "," & $fRadius & "," & $FX & "," & $FY & ",["
 '       Else
-'         sValue = "LinearGradient(" & $flX1 & "," & $flY1 & "," & $flX2 & "," & $flY2 & ",["
+'         sValue = "LinearGradient(" & $X1 & "," & $Y1 & "," & $X2 & "," & $Y2 & ",["
 '       Endif
 '       
 '       For Each i In $aGradientColors
@@ -529,19 +535,19 @@ Private Sub UpdateAngle()
     
     If hLabel.Tag = 1 Then
       If radLinear.Value Then
-        $flX1 = X
-        $flY1 = Y
+        $X1 = X
+        $Y1 = Y
       Else
-        $cX = X
-        $cY = Y
+        $CX = X
+        $CY = Y
       Endif
     Else
       If radLinear.Value Then
-        $flX2 = X
-        $flY2 = Y
+        $X2 = X
+        $Y2 = Y
       Else
-        $fX = X
-        $fY = Y
+        $FX = X
+        $FY = Y
       Endif
     Endif
     
@@ -735,15 +741,15 @@ Private Sub MoveLabels()
   Dim X1, X2, Y1, Y2 As Float
 
   If radLinear.Value Then
-    X1 = $flX1
-    Y1 = $flY1
-    X2 = $flX2
-    Y2 = $flY2
+    X1 = $X1
+    Y1 = $Y1
+    X2 = $X2
+    Y2 = $Y2
   Else
-    X1 = $cX
-    Y1 = $cY
-    X2 = $fX
-    Y2 = $fY
+    X1 = $CX
+    Y1 = $CY
+    X2 = $FX
+    Y2 = $FY
     sldRadius.Value = $fRadius * 100
   Endif
 
@@ -770,6 +776,11 @@ Public Sub GetRoundness() As Integer
   
 End
 
+Public Sub GetOperator() As Integer
+  
+  Return cmbOperator.Index
+  
+End
 
 Public Sub ReadConfig()
   
@@ -877,16 +888,24 @@ End
 
 Private Sub RefreshClipboard()
 
-  'Dim aFormat As String[]
-  'Dim iFormat As Integer
+  Dim aFormat As String[]
+  Dim iFormat As Integer
   
   If Not Clipboard.HasChanged Then Return
+  If $aClipboard.Count = 0 Then Return
   
   Inc Application.Busy
   'aFormat = Clipboard.Formats
   'iFormat = aFormat.Find("image/*", gb.Like)
   'If iFormat >= 0 Then 
-    Try $aClipboard[0].Image = Clipboard.Paste()
+  Try $aClipboard[0].Image = Clipboard.Paste()
+  If Error Then
+    aFormat = Clipboard.Formats
+    iFormat = aFormat.Find("image/*", gb.Like)
+    If iFormat >= 0 Then 
+      Try $aClipboard[0].Image = Clipboard.Paste(aFormat[iFormat])
+    Endif
+  Endif
   'Endif
   Dec Application.Busy
   
@@ -919,7 +938,11 @@ Public Sub GetClipboard() As Image
 
   Dim hImage As Image
   
-  If tabBrush.Index <> 2 Then tabBrush.Index = 2
+  If Not $bChangingTab Then
+    $bChangingTab = True
+    If tabBrush.Index <> 2 Then tabBrush.Index = 2
+    $bChangingTab = False
+  Endif
   
   Try hImage = $aClipboard[gvwClipboard.Row].Image
   If Not hImage Then Return
@@ -927,14 +950,6 @@ Public Sub GetClipboard() As Image
   Return hImage.Copy().Opacity(slbOpacity.Value / 255)
  
 End
-
-Public Sub GetShape() As CImageSelection
-  
-  If tabBrush.Index <> 3 Then Return
-  Try Return $aShape[gvwShape.Row]
-  
-End
-
 
 Public Sub slbValue_Change()
 
@@ -1019,16 +1034,31 @@ End
 Public Sub OnProjectActivate()
   
   Dim hCurrent As FImageEditor
+  Dim vGrid As Variant
   
   UpdateBalance
   'UpdateInfo
   
   hCurrent = GetCurrent()
-  If hCurrent Then
-    ShowGridOption(hCurrent.HasGrid())
-    ShowTextOption(hCurrent.GetTool() = "text")
-    Me.Enabled = Not hCurrent.ReadOnly
+  If Not hCurrent Then Return
+  
+  OnToolChange(hCurrent.GetTool())
+  
+  ShowGridOption(hCurrent.HasGrid())
+  
+  If Not btnLockGrid.Value Then
+    vGrid = hCurrent.GetGrid()
+    If vGrid Then
+      $bDoNotUpdateGrid = True
+      txtGridRes.Value = vGrid[0]
+      txtGridSnap.Value = vGrid[1]
+      chkGridSnap.Value = vGrid[2]
+      chkGridDiag.Value = vGrid[3]
+      $bDoNotUpdateGrid = False
+    Endif
   Endif
+  
+  Me.Enabled = Not hCurrent.ReadOnly
   
 End
 
@@ -1045,16 +1075,16 @@ Private Sub ToBrush() As CReportBrush
   
   If radLinear.Value Then
     hBrush.Type = CReportBrush.TYPE_LINEAR_GRADIENT
-    hBrush.X1 = $flX1
-    hBrush.Y1 = $flY1
-    hBrush.X2 = $flX2
-    hBrush.Y2 = $flY2
+    hBrush.X1 = $X1
+    hBrush.Y1 = $Y1
+    hBrush.X2 = $X2
+    hBrush.Y2 = $Y2
   Else
     hBrush.Type = CReportBrush.TYPE_RADIAL_GRADIENT
-    hBrush.X1 = $fX
-    hBrush.Y1 = $fY
-    hBrush.X2 = $cX
-    hBrush.Y2 = $cY
+    hBrush.X1 = $FX
+    hBrush.Y1 = $FY
+    hBrush.X2 = $CX
+    hBrush.Y2 = $CY
     hBrush.Radius = $fRadius
   Endif
   
@@ -1071,16 +1101,16 @@ Private Sub FromBrush(hBrush As CReportBrush)
     
     If .Type = CReportBrush.TYPE_LINEAR_GRADIENT Then
       radLinear.Value = True
-      $flX1 = .X1
-      $flY1 = .Y1
-      $flX2 = .X2
-      $flY2 = .Y2
+      $X1 = .X1
+      $Y1 = .Y1
+      $X2 = .X2
+      $Y2 = .Y2
     Else
       radRadial.Value = True
-      $fX = .X1
-      $fY = .Y1
-      $cX = .X2
-      $cY = .Y2
+      $FX = .X1
+      $FY = .Y1
+      $CX = .X2
+      $CY = .Y2
       $fRadius = .Radius
     Endif
     
@@ -1176,103 +1206,95 @@ End
 
 Public Sub tabBrush_Click()
 
-  If tabBrush.Text = ("Shapes") Then
-    If Not $aShape Then InitShapes
-  Else If tabBrush.Text = ("Clipboard") Then
+  If tabBrush.Text = ("Clipboard") Then
     RefreshClipboard
     UpdateClipboard
   Endif
 
 End
 
-Public Sub gvwShape_Data(Row As Integer, Column As Integer)
-
-  Select Case Column
-    
-    Case 1
-      
-      gvwShape.Data.Text = $aShape[Row].Name
-    
-    ' Case 2
-    '   
-    '   With gvwShape.Data
-    '     .Picture = Picture["icon:/small/delete"]
-    '     .Alignment = Align.Center
-    '     .Padding = Desktop.Scale
-    '   End With
-    
-  End Select
-
-End
-
-Public Sub gvwShape_Draw(X As Integer, Y As Integer, Width As Integer, Height As Integer, Row As Integer, Column As Integer)
-
-  Dim hShape As CImageSelection = $aShape[Row]
-  Dim S As Float
-
-  If Column = 0 Then
-    
-    X += 4
-    Y += 4
-    Width -= 8
-    Height -= 8
-    Paint.Rectangle(X, Y, Width, Height)
-    Paint.Clip
-    
-    With hShape.GetExtents()
-      
-      S = Min((Width - 16) / .W, (Height - 16) / .H)
-    
-      Paint.Background = Color.Black
-      Paint.LineWidth = 2 / S
-      Paint.LineCap = Paint.LineCapRound
-      Paint.Translate(X - .X * S + (Width - .W * S) / 2, Y - .Y * S + (Height - .H * S) / 2)
-      Paint.Scale(S, S)
-      
-    End With
-    
-    $aShape[Row].Paint(Null, CImageSelection.ACTION_STROKE)
-    
-  Endif
-
-End
 
 
-Public Sub gvwShape_Activate()
+Private Sub AddSelection(hImageSelection As CImageSelection, Optional bNoDelete As Boolean)
 
-  Project.ActiveForm.PasteShape($aShape[gvwShape.Row])
+  Dim hSelBox As ImageSelectionBox
 
-End
-
-Private Sub InitShapes()
-
-  $aShape = New CImageSelection[]
+  hSelBox = New ImageSelectionBox(svwSelection, hImageSelection, bNoDelete) As "ImageSelection"
   
-  $aShape.Add(CImageSelection.FromString(("Arrow"), "-0.5,0.5*;1,0.5* 0.8,0.3*;1,0.5*;0.8,0.7*"))
-  '$aShape.Add(CImageSelection.FromString(("Double arrow"), "-0.5,0.5*;1,0.5*  0.8,0.3*;1,0.5*;0.8,0.7*"))
-  $aShape.Add(CImageSelection.FromString(("Arrow #2"), "0,1;0,2;4,2;4,3;6,1.5*;4,0;4,1;0,1;0.5,1.5+"))
-  $aShape.Add(CImageSelection.FromString(("Triangle"), "0,0*;0,1*;0.86602540378444,0.5*;0,0;0.28867513459481,0.5+;0,0.5+;0.43301270189222,0.75+;0.43301270189222,0.25+"))
-  $aShape.Add(CImageSelection.FromString(("Square triangle"), "0,0*;1,0*;0,1*;0,0;1,0+;0,1+;0.333333333333,0.333333333333+;0.5,0+;0.5,0.5+;0,0.5+"))
-  $aShape.Add(CImageSelection.FromString(("Pentagon"), "1,0*;0.3090169944,0.9510565163*;-0.8090169944,0.5877852523*;-0.8090169944,-0.5877852523*;0.3090169944,-0.9510565163*;1,0"))
-  $aShape.Add(CImageSelection.FromString(("Hexagon"), "1,0*;0.5,0.8660254038*;-0.5,0.8660254038*;-1,0*;-0.5,-0.8660254038*;0.5,-0.8660254038*;1,0*"))
+End
+
+Public Sub ImageSelection_Add()
+
+  Dim hImageEditor As FImageEditor
   
-  gvwShape.Rows.Count = $aShape.Count
+  Try hImageEditor = Project.ActiveForm
+  If Not hImageEditor Then Return
+  
+  hImageEditor.PasteSelection(Last.Shape)
+  
+End
+
+Private Sub InitSelection()
+
+  If svwSelection.Children.Count Then Return
+
+  AddSelection(CImageSelection.FromString(("Arrow"), "-0.5,0.5*;1,0.5* 0.8,0.3*;1,0.5*;0.8,0.7*"), True)
+  AddSelection(CImageSelection.FromString(("Arrow #2"), "0,1;0,2;4,2;4,3;6,1.5*;4,0;4,1;0,1;0.5,1.5+"), True)
+  AddSelection(CImageSelection.FromString(("Triangle"), "0,0*;0,1*;0.86602540378444,0.5*;0,0;0.28867513459481,0.5+;0,0.5+;0.43301270189222,0.75+;0.43301270189222,0.25+"), True)
+  AddSelection(CImageSelection.FromString(("Square triangle"), "0,0*;1,0*;0,1*;0,0;1,0+;0,1+;0.333333333333,0.333333333333+;0.5,0+;0.5,0.5+;0,0.5+"), True)
+  AddSelection(CImageSelection.FromString(("Pentagon"), "1,0*;0.3090169944,0.9510565163*;-0.8090169944,0.5877852523*;-0.8090169944,-0.5877852523*;0.3090169944,-0.9510565163*;1,0"), True)
+  AddSelection(CImageSelection.FromString(("Hexagon"), "1,0*;0.5,0.8660254038*;-0.5,0.8660254038*;-1,0*;-0.5,-0.8660254038*;0.5,-0.8660254038*;1,0*"), True)
+  
+  LoadAllSelections()
+  
+End
+
+Public Sub SaveSelection(hImageSelection As CImageSelection)
+  
+  AddSelection(hImageSelection)
+  SaveAllSelections
+  tabBrush.Index = 3
+  
+End
+
+
+Private Sub UpdateGrid()
+
+  Dim vGrid As Variant
+  
+  If $bDoNotUpdateGrid Then Return
+  vGrid = [txtGridRes.Value, txtGridSnap.Value, chkGridSnap.Value, chkGridDiag.Value]
+  Try GetCurrent().UpdateGrid(vGrid)
 
 End
+
+Private Sub UpdateOperator()
+  
+  Try GetCurrent().UpdateOperator()
+  
+End
+
 
 Public Sub txtGridRes_Change()
 
   txtGridSnap.MaxValue = txtGridRes.Value
   txtGridSnap.Step = Lsl(1, Max(0, CInt(Log2(txtGridRes.Value)) - 3))
-  Try GetCurrent().UpdateGrid
+  UpdateGrid
 
 End
 
 Public Sub txtGridSnap_Change()
 
-  'Try GetCurrent().UpdateGrid
+  UpdateGrid
 
 End
+
+Public Sub IsGridLocked() As Boolean
+  
+  Return btnLockGrid.Value
+  
+End
+
 
 Public Sub GetGridDiagonal() As Boolean
   
@@ -1286,9 +1308,16 @@ Public Sub GetGridResolution() As Integer
   
 End
 
+Public Sub SetGridResolution(iSize As Integer) As Integer
+  
+  txtGridRes.Value = iSize
+  
+End
+
+
 Public Sub GetGridSnap() As Integer
   
-  Return txtGridSnap.Value
+  If chkGridSnap.Value Then Return txtGridSnap.Value
   
 End
 
@@ -1318,10 +1347,8 @@ Public Sub ShowGridOption(bShow As Boolean)
   
   panGrid.Visible = bShow
   sepGrid.Visible = bShow
-  
+
 End
-
-
 
 Public Sub RefreshTextOption()
   
@@ -1369,12 +1396,6 @@ Public Sub btnTextAlign_Click()
 
 End
 
-Public Sub panEffect_Arrange()
-
-  panEffect.Parent.H = panEffect.H + Desktop.Scale * 2
-
-End
-
 Public Sub slbOpacity_Change()
 
   UpdateBalance
@@ -1389,9 +1410,10 @@ End
 
 Public Sub OnToolChange(sTool As String)
   
-  If sTool <> "text" Then ShowTextOption(False)
+  ShowTextOption(sTool = "text")
   panRoundness.Visible = sTool = "rectangle"
   panTolerance.Visible = sTool = "magic"
+  panOperator.Visible = sTool = "paste"
   
 End
 
@@ -1426,7 +1448,7 @@ Private Sub SetLineCap(iLineCap As Integer)
       sImage = "square"
   End Select
   
-  btnLineCap.Picture = Picture["img/draw/cap-" & sImage & ".png"]
+  btnLineCap.Picture = Picture["icon:/small/cap-" & sImage]
   
   $iLineCap = iLineCap
 
@@ -1445,7 +1467,7 @@ Private Sub SetLineJoin(iLineJoin As Integer)
       sImage = "round"
   End Select
   
-  btnLineJoin.Picture = Picture["img/draw/join-" & sImage & ".png"]
+  btnLineJoin.Picture = Picture["icon:/small/join-" & sImage]
   
   $iLineJoin = iLineJoin
 
@@ -1474,7 +1496,7 @@ Private Sub SetFillRule(iFillRule As Integer)
       sImage = "union"
   End Select
   
-  btnFillRule.Picture = Picture["img/draw/" & sImage & ".png"]
+  btnFillRule.Picture = Picture["icon:/small/" & sImage]
   
   $iFillRule = iFillRule
 
@@ -1501,12 +1523,66 @@ End
 
 Public Sub chkGridDiag_Click()
 
-  Try GetCurrent().UpdateGrid
+  UpdateGrid
 
 End
 
 Public Sub cchColor_Change()
 
   palColor.Current = cchColor.Value
+
+End
+
+Public Sub chkGridSnap_Click()
+
+  UpdateGrid
+
+End
+
+Public Sub panEffect_BeforeArrange()
+
+  panEffect.Parent.H = panEffect.H + Desktop.Scale * 2
+
+End
+
+Private Sub SaveAllSelections()
+
+  Dim hSelBox As ImageSelectionBox
+  Dim aSave As New String[]
+
+  For Each hSelBox In svwSelection.Children
+    
+    If hSelBox.NoDelete Then Continue
+    aSave.Add(hSelBox.Shape.Save())
+    
+  Next
+  
+  Settings["/FImageProperty/Selections"] = aSave
+
+End
+
+Private Sub LoadAllSelections()
+
+  Dim aSave As String[]
+  Dim sSave As String
+  Dim hSel As CImageSelection
+  
+  aSave = Settings["/FImageProperty/Selections"]
+  If Not aSave Then Return
+  For Each sSave In aSave
+    hSel = New CImageSelection
+    Try hSel.Load(sSave)
+    If Error Then 
+      Error "gambas3: warning: unable to load saved selection: "; Error.Text
+      Continue
+    Endif
+    AddSelection(hSel)
+  Next
+
+End
+
+Public Sub cmbOperator_Click()
+
+  UpdateOperator
 
 End

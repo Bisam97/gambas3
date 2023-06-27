@@ -154,6 +154,8 @@ struct _GtkTextViewPrivate
   guint in_scroll : 1;
 };
 
+#define TEXT_AREA(_textview) (gtk_text_view_get_window(GTK_TEXT_VIEW(_textview), GTK_TEXT_WINDOW_TEXT))
+
 #else
 
 // Private structure took from GTK+ 2.10 code. Used for setting the text area cursor.
@@ -178,6 +180,9 @@ void gtk_text_layout_get_size(struct _GtkTextLayout  *layout, gint *width, gint 
 void gtk_text_layout_invalidate (struct _GtkTextLayout *layout, const GtkTextIter *start, const GtkTextIter *end);
 void gtk_text_layout_validate (struct _GtkTextLayout *layout, gint max_pixels);
 }
+
+#define TEXT_AREA(_textview) (((PrivateGtkTextWindow *)GTK_TEXT_VIEW(_textview)->text_window)->bin_window)
+
 #endif
 
 #if !GLIB_CHECK_VERSION(2, 32, 0)
@@ -326,7 +331,8 @@ void gTextAreaAction::addText(char *add, int len)
 
 static void cb_changed(GtkTextBuffer *buf, gTextArea *data)
 {
-	data->emit(SIGNAL(data->onChange));
+	data->updateFixSpacing();
+	CB_textarea_change(data);
 } 
 
 static void cb_mark_set(GtkTextBuffer *buf, GtkTextIter *location, GtkTextMark *mark, gTextArea *data)
@@ -341,7 +347,7 @@ static void cb_insert_text(GtkTextBuffer *buf, GtkTextIter *location, gchar *tex
 	
 	if (gKey::gotCommit())
 	{
-		gcb_im_commit(NULL, text, NULL);
+		gcb_im_commit(NULL, text, ctrl);
 		if (gKey::canceled())
 		{
 			g_signal_stop_emission_by_name(G_OBJECT(buf), "insert-text");
@@ -467,7 +473,6 @@ static gboolean cb_keypress(GtkWidget *widget, GdkEvent *event, gTextArea *ctrl)
 
 gTextArea::gTextArea(gContainer *parent) : gControl(parent)
 {
-	g_typ = Type_gTextArea;
 	_align_normal = false;
 	_last_pos = -1;
 	
@@ -478,10 +483,12 @@ gTextArea::gTextArea(gContainer *parent) : gControl(parent)
 	_undo_in_progress = false;
 	_has_input_method = true;
 	_use_wheel = true;
+	_fix_spacing_tag = NULL;
+	_has_native_popup = true;
+	_eat_return_key = true;
+	_text_area_visible = false;
+	_no_background = true;
 	
-	onChange = 0;
-	onCursor = 0;
-
 	textview = gtk_text_view_new();
 	realizeScrolledWindow(textview);
 
@@ -534,7 +541,7 @@ gTextArea::~gTextArea()
 	clearUndoStack();
 }
 
-char *gTextArea::text()
+char *gTextArea::text() const
 {
 	GtkTextIter start;
 	GtkTextIter end;
@@ -559,9 +566,10 @@ void gTextArea::setText(const char *txt, int len)
 	begin();
 	gtk_text_buffer_set_text(_buffer, (const gchar *)txt, len);
 	end();
+	refresh();
 }
 
-bool gTextArea::readOnly()
+bool gTextArea::readOnly() const
 {
 	return !gtk_text_view_get_editable(GTK_TEXT_VIEW(textview));
 }
@@ -570,9 +578,10 @@ void gTextArea::setReadOnly(bool vl)
 {
 	gtk_text_view_set_editable(GTK_TEXT_VIEW(textview), !vl);
 	gtk_text_view_set_cursor_visible(GTK_TEXT_VIEW(textview), !vl);
+	_eat_return_key = !vl;
 }
 
-GtkTextIter *gTextArea::getIterAt(int pos)
+GtkTextIter *gTextArea::getIterAt(int pos) const
 {
 	static GtkTextIter iter;
 	
@@ -584,7 +593,7 @@ GtkTextIter *gTextArea::getIterAt(int pos)
 	return &iter;
 }
 
-int gTextArea::line()
+int gTextArea::line() const
 {
 	return gtk_text_iter_get_line(getIterAt());
 }
@@ -613,7 +622,7 @@ void gTextArea::setLine(int vl)
 	ensureVisible();
 }
 
-int gTextArea::column()
+int gTextArea::column() const
 {
 	return gtk_text_iter_get_line_offset(getIterAt());
 }
@@ -637,7 +646,7 @@ void gTextArea::setColumn(int vl)
 	ensureVisible();
 }
 
-int gTextArea::position()
+int gTextArea::position() const
 {
 	return gtk_text_iter_get_offset(getIterAt());
 }
@@ -651,7 +660,7 @@ void gTextArea::setPosition(int vl)
 	ensureVisible();
 }
 
-int gTextArea::length()
+int gTextArea::length() const
 {
 	GtkTextIter iter;
 	
@@ -659,7 +668,7 @@ int gTextArea::length()
 	return gtk_text_iter_get_offset(&iter);
 }
 
-bool gTextArea::wrap()
+bool gTextArea::wrap() const
 {
 	return (gtk_text_view_get_wrap_mode(GTK_TEXT_VIEW(textview)) != GTK_WRAP_NONE);
 }
@@ -703,7 +712,10 @@ void gTextArea::paste()
 	
 	txt = gClipboard::getText(&len, "text/plain");
 	if (txt)
+	{
 		gtk_text_buffer_insert_at_cursor(_buffer, (const gchar *)txt, len);
+		refresh();
+	}
 }
 
 void gTextArea::insert(const char *txt)
@@ -712,9 +724,10 @@ void gTextArea::insert(const char *txt)
 		return;
 	
 	gtk_text_buffer_insert_at_cursor(_buffer, (const gchar *)txt, -1);
+	refresh();
 }
 
-int gTextArea::toLine(int pos)
+int gTextArea::toLine(int pos) const
 {
 	if (pos < 0)
 		pos=0;
@@ -724,7 +737,7 @@ int gTextArea::toLine(int pos)
 	return gtk_text_iter_get_line(getIterAt(pos));
 }
 
-int gTextArea::toColumn(int pos)
+int gTextArea::toColumn(int pos) const
 {
 	if (pos < 0)
 		pos=0;
@@ -734,7 +747,7 @@ int gTextArea::toColumn(int pos)
 	return gtk_text_iter_get_line_offset(getIterAt(pos));
 }
 
-int gTextArea::toPosition(int line, int col)
+int gTextArea::toPosition(int line, int col) const
 {
 	GtkTextIter iter;
 	int lm, cm;
@@ -768,13 +781,13 @@ gTextArea selection
 
 ***********************************************************************************/
 
-bool gTextArea::isSelected()
+bool gTextArea::isSelected() const
 {
 	return gtk_text_buffer_get_selection_bounds(_buffer, NULL, NULL);
 	//return gtk_text_buffer_get_has_selection(buf); // Only since 2.10
 }
 
-int gTextArea::selStart()
+int gTextArea::selStart() const
 {
 	GtkTextIter start, end;
 	
@@ -782,7 +795,7 @@ int gTextArea::selStart()
 	return gtk_text_iter_get_offset(&start);	
 }
 
-int gTextArea::selEnd()
+int gTextArea::selEnd() const
 {
 	GtkTextIter start, end;
 	
@@ -790,7 +803,7 @@ int gTextArea::selEnd()
 	return gtk_text_iter_get_offset(&end);
 }
 
-char *gTextArea::selText()
+char *gTextArea::selText() const
 {
 	GtkTextIter start, end;
 	char *text;
@@ -811,7 +824,8 @@ void gTextArea::setSelText(const char *vl)
 	if (gtk_text_buffer_get_selection_bounds(_buffer, &start, &end))
 		gtk_text_buffer_delete(_buffer, &start, &end);
 	
-	gtk_text_buffer_insert(_buffer, &start, vl, -1);	
+	gtk_text_buffer_insert(_buffer, &start, vl, -1);
+	refresh();
 }
 
 void gTextArea::selDelete()
@@ -851,14 +865,8 @@ void gTextArea::selSelect(int pos, int length)
 
 void gTextArea::updateCursor(GdkCursor *cursor)
 {
-  GdkWindow *win;
+  GdkWindow *win = TEXT_AREA(textview);
 
-#ifdef GTK3
-	win = gtk_text_view_get_window(GTK_TEXT_VIEW(textview), GTK_TEXT_WINDOW_TEXT);
-#else
-	win = ((PrivateGtkTextWindow *)GTK_TEXT_VIEW(textview)->text_window)->bin_window;
-#endif
-  
   gControl::updateCursor(cursor);
   
   if (!win)
@@ -1040,24 +1048,53 @@ GtkIMContext *gTextArea::getInputMethod()
 #endif
 }
 
+void gTextArea::updateFixSpacing()
+{
+	GtkTextIter start;
+	GtkTextIter end;
+	
+	if (font()->mustFixSpacing())
+	{
+		if (!_fix_spacing_tag)
+			_fix_spacing_tag = gtk_text_buffer_create_tag(_buffer, NULL, "letter-spacing", PANGO_SCALE, NULL);
+	
+		gtk_text_buffer_get_bounds(_buffer, &start, &end);
+		gtk_text_buffer_apply_tag (_buffer, _fix_spacing_tag, &start, &end);
+	}
+	else
+	{
+		if (_fix_spacing_tag)
+		{
+			gtk_text_buffer_get_bounds(_buffer, &start, &end);
+			gtk_text_buffer_remove_tag(_buffer, _fix_spacing_tag, &start, &end);
+			gtk_text_tag_table_remove(gtk_text_buffer_get_tag_table(_buffer), _fix_spacing_tag);
+			_fix_spacing_tag = NULL;
+		}
+	}
+}
+
 #ifdef GTK3
 GtkWidget *gTextArea::getStyleSheetWidget()
 {
 	return textview;
 }
 
-int gTextArea::minimumWidth() const
+const char *gTextArea::getStyleSheetColorNode()
 {
-	return gDesktop::scale() * 4;
+	return "text";
 }
 
-int gTextArea::minimumHeight() const
+void gTextArea::customStyleSheet(GString *)
 {
-	return gDesktop::scale() * 8;
+	gtk_text_view_set_pixels_inside_wrap(GTK_TEXT_VIEW(widget), font()->mustFixSpacing());
+	gtk_text_view_set_pixels_below_lines(GTK_TEXT_VIEW(widget), font()->mustFixSpacing());
+	
+	updateFixSpacing();
 }
+
 #endif
 
-void gTextArea::getCursorPos(int *x, int *y, int pos)
+void gTextArea::getCursorPos(int *x, int *y, int pos) const
 {
 	GdkRectangle rect;
 	int f = getFrameWidth();
@@ -1077,5 +1114,53 @@ void gTextArea::emitCursor()
 		return;
 	
 	_last_pos = pos;
-	emit(SIGNAL(onCursor));
+	CB_textarea_cursor(this);
+}
+
+#ifdef GTK3
+void gTextArea::onEnterEvent()
+{
+	if (_text_area_visible)
+		gdk_window_show(TEXT_AREA(textview));
+}
+
+void gTextArea::onLeaveEvent()
+{
+	_text_area_visible = !hasFocus() && gdk_window_is_visible(TEXT_AREA(textview));
+	if (_text_area_visible)
+		gdk_window_hide(TEXT_AREA(textview));
+}
+#endif
+
+void gTextArea::setMinimumSize()
+{
+	if (scrollBar())
+		_min_h = gApplication::getScrollbarBigSize(); // + font()->height() + (hasBorder() ? 4 : 0);
+	else
+		_min_h = font()->height() + (hasBorder() ? 4 : 0);
+	
+	_min_w = _min_h;
+}
+
+void gTextArea::updateScrollBar()
+{
+	gControl::updateScrollBar();
+	setMinimumSize();
+}
+
+void gTextArea::setFont(gFont *ft)
+{
+	gControl::setFont(ft);
+	setMinimumSize();
+}
+
+void gTextArea::setBorder(bool b)
+{
+	gControl::setBorder(b);
+	setFramePadding(hasBorder() ? gDesktop::scale() * 3 / 4 : 0);
+}
+
+gColor gTextArea::defaultBackground() const
+{
+	return gDesktop::getColor(gDesktop::TEXT_BACKGROUND, !isEnabled());
 }

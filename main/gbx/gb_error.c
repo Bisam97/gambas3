@@ -2,7 +2,7 @@
 
 	gb_error.c
 
-	(c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+	(c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -33,6 +33,7 @@
 #include "gbx_api.h"
 #include "gbx_stack.h"
 #include "gbx_project.h"
+#include "gbx.h"
 #include "gb_error.h"
 
 //#define DEBUG_ERROR 1
@@ -48,7 +49,7 @@ int ERROR_depth = 0;
 static int _lock = 0;
 static char *_print_prefix = NULL;
 
-static const char *const _message[74] =
+static const char *const _message[78] =
 {
 	/*  0 E_UNKNOWN     */ "Unknown error",
 	/*  1 E_MEMORY      */ "Out of memory",
@@ -115,7 +116,7 @@ static const char *const _message[74] =
 	/* 62 E_BYREF       */ "Argument cannot be passed by reference",
 	/* 63 E_OVERRIDE    */ ".3'&1.&2' is incorrectly overridden in class '&3'",
 	/* 64 E_NKEY        */ "Void key",
-	/* 65 E_SARRAY      */ "Embedded array",
+	/* 65 E_SARRAY      */ "Read-only array",
 	/* 66 E_EXTCB       */ ".1Cannot create callback: &1",
 	/* 67 E_SERIAL      */ "Serialization error",
 	/* 68 E_CHILD       */ ".2Cannot run child process: &1&2",
@@ -123,8 +124,43 @@ static const char *const _message[74] =
 	/* 70 E_NEMPTY      */ "Directory is not empty",
 	/* 71 E_UTYPE       */ "Unsupported datatype",
 	/* 72 E_FREEREF     */ "Free object referenced",
-	/* 73 E_ASSERT      */ "Assertion failed"
+	/* 73 E_ASSERT      */ "Assertion failed",
+	/* 74 E_MARRAY      */ "Multidimensional array",
+	/* 75 E_UCLASS      */ ".1Unknown class '&1'",
+	/* 76 E_SPEC        */ ".2Incorrect declaration of symbol '&1' in class '&2'",
+	/* 77 E_USIZE       */ "Unknow stream size"
 };
+
+static void clear_info(ERROR_INFO *info)
+{
+	if (!info->code)
+		return;
+	
+	if (info->free)
+	{
+		STRING_unref(&info->msg);
+		info->msg = NULL;
+		info->free = FALSE;
+	}
+	
+	info->code = 0;
+	info->msg = NULL;
+}
+
+static void copy_info(ERROR_INFO *src, ERROR_INFO *dst)
+{
+	clear_info(dst);
+	*dst = *src;
+	if (dst->free)
+		STRING_ref(dst->msg);
+}
+
+static void move_info(ERROR_INFO *src, ERROR_INFO *dst)
+{
+	clear_info(dst);
+	*dst = *src;
+	CLEAR(src);
+}
 
 #if DEBUG_ERROR
 void ERROR_debug(const char *msg, ...)
@@ -167,16 +203,7 @@ void ERROR_unlock()
 
 void ERROR_reset(ERROR_INFO *info)
 {
-	if (!info->code)
-		return;
-
-	info->code = 0;
-	if (info->free)
-	{
-		STRING_unref(&info->msg);
-		info->free = FALSE;
-	}
-	info->msg = NULL;
+	clear_info(info);
 }
 
 static void ERROR_clear()
@@ -428,8 +455,8 @@ void ERROR_define(const char *pattern, char *arg[])
 				*msg = 0;
 			}
 
-			/*fprintf(stderr, "msg: %s\n", ERROR_current->info.msg);
-			if (strcmp(ERROR_current->info.msg, "Type mismatch: wanted WebView, got Function instead") == 0)
+			//fprintf(stderr, "msg: %p '%s'\n", ERROR_current->info.msg, ERROR_current->info.msg);
+			/*if (strcmp(ERROR_current->info.msg, "Type mismatch: wanted WebView, got Function instead") == 0)
 			{
 				BREAKPOINT();
 				STRING_watch = ERROR_current->info.msg;
@@ -509,6 +536,11 @@ void THROW_STACK(void)
 	THROW(E_STACK);
 }
 
+void THROW_BOUND(void)
+{
+	THROW(E_BOUND);
+}
+
 void THROW_SYSTEM(int err, const char *path)
 {
 	char buf[6];
@@ -545,6 +577,16 @@ void THROW_SYSTEM(int err, const char *path)
 	}
 }
 
+void THROW_MATH(bool zero)
+{
+	THROW(zero ? E_ZERO : E_MATH);
+}
+
+void THROW_OVERFLOW_(void)
+{
+	THROW(E_OVERFLOW);
+}
+
 
 void ERROR_fatal(const char *error, ...)
 {
@@ -578,7 +620,7 @@ void ERROR_panic(const char *error, ...)
 	{
 		fprintf(stderr, "** \n");
 		_print_prefix = "** ";
-		ERROR_print();
+		ERROR_print(FALSE);
 		_print_prefix = NULL;
 	}
 	fprintf(stderr, "** \n** Please send a bug report to the gambas bugtracker [1] or to the gambas mailing-list [2].\n** [1] http://gambaswiki.org/bugtracker\n** [2] https://lists.gambas-basic.org/listinfo/user\n** \n\n");
@@ -593,27 +635,29 @@ static void print_prefix(FILE *where)
 
 void ERROR_print_at(FILE *where, bool msgonly, bool newline)
 {
-	if (!ERROR_current->info.code)
+	ERROR_INFO *info = &ERROR_current->info;
+	
+	if (!info->code)
 		return;
 
 	print_prefix(where);
 	
 	if (!msgonly)
 	{
-		if (ERROR_current->info.cp && ERROR_current->info.fp && ERROR_current->info.pc)
-			fprintf(where, "%s: ", DEBUG_get_position(ERROR_current->info.cp, ERROR_current->info.fp, ERROR_current->info.pc));
+		if (info->cp && info->fp && info->pc)
+			fprintf(where, "%s: ", DEBUG_get_position(info->cp, info->fp, info->pc));
 		else
 			fprintf(where, "ERROR: ");
 		/*if (ERROR_current->info.code > 0 && ERROR_current->info.code < 256)
 			fprintf(where, "%ld:", ERROR_current->info.code);*/
-		if (ERROR_current->info.code > 0)
-			fprintf(where, "#%d: ", ERROR_current->info.code);
-		if (ERROR_current->info.msg)
-			fprintf(where, "%s", ERROR_current->info.msg);
+		if (info->code > 0)
+			fprintf(where, "#%d: ", info->code);
+		if (info->msg)
+			fputs(info->msg, where);
 	}
 	else
 	{
-		char *p = ERROR_current->info.msg;
+		char *p = info->msg;
 		unsigned char c;
 
 		if (p)
@@ -630,17 +674,10 @@ void ERROR_print_at(FILE *where, bool msgonly, bool newline)
 		fputc('\n', where);
 }
 
-void ERROR_print(void)
+bool ERROR_print(bool can_ignore)
 {
 	static bool lock = FALSE;
-
-	if (EXEC_main_hook_done && !EXEC_debug && EXEC_Hook.error && !lock)
-	{
-		lock = TRUE;
-		GAMBAS_DoNotRaiseEvent = TRUE;
-		HOOK(error)(ERROR_current->info.code, ERROR_current->info.msg, DEBUG_get_position(ERROR_current->info.cp, ERROR_current->info.fp, ERROR_current->info.pc));
-		lock = FALSE;
-	}
+	bool ignore = FALSE;
 
 	ERROR_print_at(stderr, FALSE, TRUE);
 
@@ -649,38 +686,42 @@ void ERROR_print(void)
 		print_prefix(stderr);
 		DEBUG_print_backtrace(ERROR_backtrace);
 	}
-}
 
-static void ERROR_copy(ERROR_INFO *save, ERROR_INFO *last)
-{
-	ERROR_reset(save);
-	*save = ERROR_current->info;
-
-	if (last)
+	if (EXEC_main_hook_done && !EXEC_debug && EXEC_Hook.error && !lock)
 	{
-		ERROR_reset(last);
-		*last = ERROR_last;
+		lock = TRUE;
+		GAMBAS_DoNotRaiseEvent = TRUE;
+		ignore = HOOK(error)(ERROR_current->info.code, ERROR_current->info.msg, DEBUG_get_position(ERROR_current->info.cp, ERROR_current->info.fp, ERROR_current->info.pc), can_ignore);
+		GAMBAS_DoNotRaiseEvent = !ignore;
+		lock = FALSE;
 	}
+
+	return ignore;
 }
 
 void ERROR_save(ERROR_INFO *save, ERROR_INFO *last)
 {
-	ERROR_copy(save, last);
-
+	clear_info(save);
+	*save = ERROR_current->info;
 	CLEAR(&ERROR_current->info);
+
 	if (last)
+	{
+		clear_info(last);
+		*last = ERROR_last;
 		CLEAR(&ERROR_last);
+	}
 }
 
 void ERROR_restore(ERROR_INFO *save, ERROR_INFO *last)
 {
-	ERROR_reset(&ERROR_current->info);
+	clear_info(&ERROR_current->info);
 	ERROR_current->info = *save;
 	CLEAR(save);
 
 	if (last)
 	{
-		ERROR_reset(&ERROR_last);
+		clear_info(&ERROR_last);
 		ERROR_last = *last;
 		CLEAR(last);
 	}
@@ -688,10 +729,7 @@ void ERROR_restore(ERROR_INFO *save, ERROR_INFO *last)
 
 void ERROR_set_last(bool bt)
 {
-	ERROR_reset(&ERROR_last);
-	ERROR_last = ERROR_current->info;
-	if (ERROR_last.free)
-		STRING_ref(ERROR_last.msg);
+	copy_info(&ERROR_current->info, &ERROR_last);
 	
 	if (bt && !ERROR_backtrace)
 		ERROR_backtrace = STACK_get_backtrace();
@@ -699,10 +737,7 @@ void ERROR_set_last(bool bt)
 
 void ERROR_define_last(void)
 {
-	ERROR_reset(&ERROR_current->info);
-	ERROR_current->info = ERROR_last;
-	if (ERROR_last.free)
-		STRING_ref(ERROR_last.msg);
+	copy_info(&ERROR_last, &ERROR_current->info);
 }
 
 void ERROR_warning(const char *warning, ...)
@@ -713,7 +748,7 @@ void ERROR_warning(const char *warning, ...)
 
 	fflush(NULL);
 
-	fprintf(stderr, "gbx" GAMBAS_VERSION_STRING ": warning: ");
+	fprintf(stderr, "gbx" GAMBAS_VERSION_STRING " [%d]: warning: ", getpid());
 	vfprintf(stderr, warning, args);
 
 	va_end(args);
@@ -738,6 +773,7 @@ void ERROR_hook(void)
 
 	ERROR_INFO save = { 0 };
 	ERROR_INFO last = { 0 };
+	STACK_BACKTRACE *save_bt = NULL;
 	CLASS_DESC_METHOD *handle_error;
 
 	if (no_rec)
@@ -745,12 +781,16 @@ void ERROR_hook(void)
 
 	if (PROJECT_class && CLASS_is_loaded(PROJECT_class))
 	{
-		handle_error = (CLASS_DESC_METHOD *)CLASS_get_symbol_desc_kind(PROJECT_class, "Application_Error", CD_STATIC_METHOD, 0);
+		handle_error = (CLASS_DESC_METHOD *)CLASS_get_symbol_desc_kind(PROJECT_class, "Application_Error", CD_STATIC_METHOD, 0, T_VOID);
 
 		if (handle_error)
 		{
 			no_rec = TRUE;
-			ERROR_save(&save, &last);
+			
+			copy_info(&ERROR_current->info, &save);
+			copy_info(&ERROR_last, &last);
+			
+			if (ERROR_backtrace) save_bt = STACK_copy_backtrace(ERROR_backtrace);
 
 			TRY
 			{
@@ -758,13 +798,22 @@ void ERROR_hook(void)
 			}
 			CATCH
 			{
-				ERROR_save(&save, &last);
 			}
 			END_TRY
 
-			ERROR_restore(&save, &last);
+			move_info(&save, &ERROR_current->info);
+			move_info(&last, &ERROR_last);
+			
+			STACK_free_backtrace(&ERROR_backtrace);
+			if (save_bt)
+				ERROR_backtrace = save_bt;
+			
 			no_rec = FALSE;
 		}
 	}
 }
 
+const char *ERROR_get_message(void)
+{
+	return ERROR_current->info.msg;
+}

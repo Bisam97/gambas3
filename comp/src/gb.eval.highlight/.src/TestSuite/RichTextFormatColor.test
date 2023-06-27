@@ -1,0 +1,13 @@
+' Gambas test file
+
+Public Sub ColorRTFText()
+  
+
+ Dim hText As TextHighlighter
+ hText = TextHighlighter["gambas"]
+ Dim program As String = File.Load("UnitTest/TestProgram")
+ Dim hProgram As String = hText.ToRichText(program)
+'file.save("~/RTFTestResults", hProgram)                                                       'enable this and import result, when  changes to toRichText
+Assert.Equals(Trim(hProgram), Trim(File.Load("UnitTest/RTFTestResults")))
+
+End

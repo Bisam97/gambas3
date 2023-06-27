@@ -29,27 +29,21 @@
 
 DECLARE_EVENT(EVENT_Click);
 
-void gb_raise_button_Click(gControl *sender)
+void CB_button_click(gControl *sender)
 {
 	CWIDGET *ob = GetObject(sender);
 	
-	if (!ob) return;
 	GB.Ref(ob);
-	GB.Raise((void*)ob,EVENT_Click,0);
+	GB.Raise((void *)ob, EVENT_Click, 0);
 	CACTION_raise(ob);
 	GB.Unref(POINTER(&ob));
 }
 
-/***************************************************************
-
-CONSTRUCTORS
-
-****************************************************************/
+//-------------------------------------------------------------------------
 
 BEGIN_METHOD(CBUTTON_new, GB_OBJECT parent)
 
 	InitControl(new gButton(CONTAINER(VARG(parent)), gButton::Button), (CWIDGET*)THIS);
-	BUTTON->onClick=gb_raise_button_Click;
 
 END_METHOD
 
@@ -57,28 +51,24 @@ END_METHOD
 BEGIN_METHOD(CTOGGLEBUTTON_new, GB_OBJECT parent)
 
 	InitControl(new gButton(CONTAINER(VARG(parent)), gButton::Toggle), (CWIDGET*)THIS);
-	BUTTON->onClick=gb_raise_button_Click;
 
 END_METHOD
 
 BEGIN_METHOD(CCHECKBOX_new, GB_OBJECT parent)
 
 	InitControl(new gButton(CONTAINER(VARG(parent)), gButton::Check), (CWIDGET*)THIS);
-	BUTTON->onClick = gb_raise_button_Click;
 
 END_METHOD
 
 BEGIN_METHOD(CRADIOBUTTON_new, GB_OBJECT parent)
 	
 	InitControl(new gButton(CONTAINER(VARG(parent)), gButton::Radio), (CWIDGET*)THIS);
-	BUTTON->onClick=gb_raise_button_Click;
 
 END_METHOD
 
 BEGIN_METHOD(CTOOLBUTTON_new, GB_OBJECT parent)
 
 	InitControl(new gButton(CONTAINER(VARG(parent)), gButton::Tool), (CWIDGET*)THIS);
-	BUTTON->onClick=gb_raise_button_Click;
 
 END_METHOD
 
@@ -196,6 +186,17 @@ BEGIN_PROPERTY(CBUTTON_autoresize)
 
 END_PROPERTY
 
+BEGIN_PROPERTY(CheckBox_Invert)
+
+	if (READ_PROPERTY)
+		GB.ReturnBoolean(BUTTON->isInverted());
+	else
+		BUTTON->setInverted(VPROP(GB_BOOLEAN));
+
+END_PROPERTY
+
+//-------------------------------------------------------------------------
+
 GB_DESC CButtonDesc[] =
 {
   GB_DECLARE("Button", sizeof(CBUTTON)), GB_INHERITS("Control"),
@@ -250,6 +251,7 @@ GB_DESC CRadioButtonDesc[] =
   GB_PROPERTY("Caption", "s", CBUTTON_text),
   GB_PROPERTY("Value", "b", CBUTTON_value),
 	GB_PROPERTY("AutoResize", "b", CBUTTON_autoresize),
+	GB_PROPERTY("Invert", "b", CheckBox_Invert),
 
   GB_EVENT("Click", 0, 0, &EVENT_Click),
 
@@ -272,6 +274,7 @@ GB_DESC CCheckBoxDesc[] =
   GB_PROPERTY("Caption", "s", CBUTTON_text),
   GB_PROPERTY("Tristate", "b", CCHECKBOX_tristate),
 	GB_PROPERTY("AutoResize", "b", CBUTTON_autoresize),
+	GB_PROPERTY("Invert", "b", CheckBox_Invert),
 
   GB_PROPERTY("Value", "i", CCHECKBOX_value),
 

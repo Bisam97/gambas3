@@ -2,7 +2,7 @@
 
   cpaint.c
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -107,6 +107,14 @@ bool PAINT_is_painted(void *device)
 	return PAINT_from_device(device) != NULL;
 }
 
+void PAINT_set_background(GB_COLOR color)
+{
+	if (!THIS)
+		return;
+	
+	PAINT->Background(THIS, TRUE, &color);
+	GB.StoreObject(NULL, POINTER(&THIS->brush));
+}
 
 bool PAINT_open(GB_PAINT *paint)
 {
@@ -153,7 +161,7 @@ bool PAINT_begin(void *device)
 
 	if (!desc)
 	{
-		GB.Error("Not a paintable object");
+		GB.Error("Not a paintable device");
 		return TRUE;
 	}
 
@@ -170,6 +178,7 @@ bool PAINT_begin(void *device)
 	paint->has_path = FALSE;
 	paint->tag = NULL;
 	paint->area.x = paint->area.y = 0;
+	paint->fontScale = 1;
 	
 	paint->previous = _current;
 	_current = paint;
@@ -189,6 +198,7 @@ bool PAINT_begin(void *device)
 		paint->brush = other->brush;
 		if (paint->brush)
 			GB.Ref(paint->brush);
+		paint->fontScale = other->fontScale;
 		PAINT->Save(THIS);
 	}
 	else
@@ -222,7 +232,7 @@ void PAINT_end()
 	GB.Free(POINTER(&paint));
 }
 
-void PAINT_translate(double tx, double ty)
+void PAINT_translate(float tx, float ty)
 {
 	GB_TRANSFORM transform;
 
@@ -231,7 +241,21 @@ void PAINT_translate(double tx, double ty)
 
 	MPAINT->Create(&transform);
 	PAINT->Matrix(THIS, FALSE, transform);
-	MPAINT->Translate(transform, (float)tx, (float)ty);
+	MPAINT->Translate(transform, tx, ty);
+	PAINT->Matrix(THIS, TRUE, transform);
+	MPAINT->Delete(&transform);
+}
+
+void PAINT_scale(float sx, float sy)
+{
+	GB_TRANSFORM transform;
+	
+	if (sx == 1.0 && sy == 1.0)
+		return;
+	
+	MPAINT->Create(&transform);
+	PAINT->Matrix(THIS, FALSE, transform);
+	MPAINT->Scale(transform, sx, sy);
 	PAINT->Matrix(THIS, TRUE, transform);
 	MPAINT->Delete(&transform);
 }
@@ -298,6 +322,8 @@ GB_DESC PaintExtentsDesc[] =
 	GB_PROPERTY_READ("Y", "f", PaintExtents_Y),
 	GB_PROPERTY_READ("X2", "f", PaintExtents_X2),
 	GB_PROPERTY_READ("Y2", "f", PaintExtents_Y2),
+	GB_PROPERTY_READ("W", "f", PaintExtents_Width),
+	GB_PROPERTY_READ("H", "f", PaintExtents_Height),
 	GB_PROPERTY_READ("Width", "f", PaintExtents_Width),
 	GB_PROPERTY_READ("Height", "f", PaintExtents_Height),
 	
@@ -678,9 +704,7 @@ BEGIN_PROPERTY(Paint_Background)
 	}
 	else
 	{
-		value = (uint)VPROP(GB_INTEGER);
-		PAINT->Background(THIS, TRUE, &value);
-		GB.StoreObject(NULL, POINTER(&THIS->brush));
+		PAINT_set_background(VPROP(GB_INTEGER));
 	}
 
 END_METHOD
@@ -1045,24 +1069,30 @@ BEGIN_METHOD(Paint_Rectangle, GB_FLOAT x; GB_FLOAT y; GB_FLOAT w; GB_FLOAT h; GB
 	float h = VARG(h);
 	float r = VARGOPT(radius, 0.0);
 	
+	if (w == 0.0 || h == 0.0)
+		return;
+
+	float sw = w > 0.0 ? 1 : -1;
+	float sh = h > 0.0 ? 1 : -1;
+
 	if (r <= 0.0)
+	{
 		PAINT->Rectangle(THIS, x, y, w, h);
+	}
 	else
 	{
-		r = Min(r, Min(w, h) / 2);
+		r = Min(r, Min(fabsf(w), fabsf(h)) / 2);
 		float r2 = r * (1-0.55228475);
 
-		//PAINT->NewPath(THIS);
-		
-		PAINT->MoveTo(THIS, x + r, y);
-		PAINT->LineTo(THIS, x + w - r, y);
-		PAINT->CurveTo(THIS, x + w - r2, y, x + w, y + r2, x + w, y + r);
-		PAINT->LineTo(THIS, x + w, y + h - r);
-		PAINT->CurveTo(THIS, x + w, y + h - r2, x + w - r2, y + h, x + w - r, y + h);
-		PAINT->LineTo(THIS, x + r, y + h);
-		PAINT->CurveTo(THIS, x + r2, y + h, x, y + h - r2, x, y + h - r);
-		PAINT->LineTo(THIS, x, y + r);
-		PAINT->CurveTo(THIS, x, y + r2, x + r2, y, x + r, y);
+		PAINT->MoveTo(THIS, x + r * sw, y);
+		PAINT->LineTo(THIS, x + w - r * sw, y);
+		PAINT->CurveTo(THIS, x + w - r2 * sw, y, x + w, y + r2 * sh, x + w, y + r * sh);
+		PAINT->LineTo(THIS, x + w, y + h - r * sh);
+		PAINT->CurveTo(THIS, x + w, y + h - r2 * sh, x + w - r2 * sw, y + h, x + w - r * sw, y + h);
+		PAINT->LineTo(THIS, x + r * sw, y + h);
+		PAINT->CurveTo(THIS, x + r2 * sw, y + h, x, y + h - r2 * sh, x, y + h - r * sh);
+		PAINT->LineTo(THIS, x, y + r * sh);
+		PAINT->CurveTo(THIS, x, y + r2 * sh, x + r2 * sw, y, x + r * sw, y);
 	}
 
 	THIS->has_path = TRUE;
@@ -1071,6 +1101,19 @@ END_METHOD
 
 
 IMPLEMENT_PROPERTY(Paint_Font, Font, GB_FONT, GB_OBJECT, GB.ReturnObject)
+
+BEGIN_PROPERTY(Paint_FontScale)
+
+	if (READ_PROPERTY)
+		GB.ReturnFloat(THIS->fontScale);
+	else
+	{
+		THIS->fontScale = VPROP(GB_FLOAT);
+		if (THIS->fontScale == 0)
+			THIS->fontScale = 1;
+	}
+
+END_PROPERTY
 
 
 BEGIN_METHOD(Paint_Text, GB_STRING text; GB_FLOAT x; GB_FLOAT y; GB_FLOAT w; GB_FLOAT h; GB_INTEGER align)
@@ -1174,6 +1217,17 @@ BEGIN_METHOD(Paint_TextSize, GB_STRING text)
 	GB.ReturnObject(size);
 
 END_METHOD
+
+
+BEGIN_PROPERTY(Paint_TextHeight)
+
+	float h;
+
+	CHECK_DEVICE();
+	PAINT->TextSize(THIS, " ", 1, NULL, &h);
+	GB.ReturnFloat(h);
+
+END_PROPERTY
 
 
 BEGIN_METHOD(Paint_RichTextSize, GB_STRING text; GB_FLOAT width)
@@ -1334,14 +1388,11 @@ END_METHOD
 
 BEGIN_METHOD(Paint_Scale, GB_FLOAT sx; GB_FLOAT sy)
 
-	GB_TRANSFORM transform;
-
 	CHECK_DEVICE();
-	MPAINT->Create(&transform);
-	PAINT->Matrix(THIS, FALSE, transform);
-	MPAINT->Scale(transform, (float)VARG(sx), (float)VARG(sy));
-	PAINT->Matrix(THIS, TRUE, transform);
-	MPAINT->Delete(&transform);
+	double sx = VARG(sx);
+	double sy = VARGOPT(sy, sx);
+
+	PAINT_scale(sx, sy);
 
 END_METHOD
 
@@ -1738,7 +1789,9 @@ GB_DESC PaintDesc[] =
 	GB_STATIC_PROPERTY("Brush", "PaintBrush", Paint_Brush),
 	GB_STATIC_PROPERTY("BrushOrigin", "PointF", Paint_BrushOrigin),
 	GB_STATIC_PROPERTY("Dash", "Float[]", Paint_Dash),
+	GB_STATIC_PROPERTY("LineDash", "Float[]", Paint_Dash),
 	GB_STATIC_PROPERTY("DashOffset", "f", Paint_DashOffset),
+	GB_STATIC_PROPERTY("LineDashOffset", "f", Paint_DashOffset),
 	GB_STATIC_PROPERTY("FillRule", "i", Paint_FillRule),
 	GB_STATIC_PROPERTY("LineCap", "i", Paint_LineCap),
 	GB_STATIC_PROPERTY("LineJoin", "i", Paint_LineJoin),
@@ -1767,8 +1820,10 @@ GB_DESC PaintDesc[] =
 	GB_STATIC_METHOD("MoveTo", NULL, Paint_MoveTo, "(X)f(Y)f"),
 	GB_STATIC_METHOD("RelMoveTo", NULL, Paint_RelMoveTo, "(X)f(Y)f"),
 	GB_STATIC_PROPERTY("Font", "Font", Paint_Font),
+	GB_STATIC_PROPERTY("FontScale", "f", Paint_FontScale),
 	GB_STATIC_METHOD("Text", NULL, Paint_Text, "(Text)s[(X)f(Y)f(Width)f(Height)f(Alignment)i]"),
 	GB_STATIC_METHOD("TextSize", "RectF", Paint_TextSize, "(Text)s"),
+	GB_STATIC_PROPERTY_READ("TextHeight", "f", Paint_TextHeight),
 	GB_STATIC_METHOD("RichText", NULL, Paint_RichText, "(Text)s[(X)f(Y)f(Width)f(Height)f(Alignment)i]"),
 	GB_STATIC_METHOD("RichTextSize", "RectF", Paint_RichTextSize, "(Text)s[(Width)f]"),
 	GB_STATIC_METHOD("DrawText", NULL, Paint_DrawText, "(Text)s[(X)f(Y)f(Width)f(Height)f(Alignment)i]"),
@@ -1785,7 +1840,7 @@ GB_DESC PaintDesc[] =
 
 	GB_STATIC_METHOD("Reset", NULL, Paint_Reset, NULL),
 	GB_STATIC_METHOD("Translate", NULL, Paint_Translate, "(TX)f(TY)f"),
-	GB_STATIC_METHOD("Scale", NULL, Paint_Scale, "(SX)f(SY)f"),
+	GB_STATIC_METHOD("Scale", NULL, Paint_Scale, "(SX)f[(SY)f]"),
 	GB_STATIC_METHOD("Rotate", NULL, Paint_Rotate, "(Angle)f"),
 	
 	//GB_STATIC_METHOD("Clear", NULL, Paint_Clear, NULL),
@@ -1793,7 +1848,6 @@ GB_DESC PaintDesc[] =
 	GB_STATIC_METHOD("DrawImage", NULL, Paint_DrawImage, "(Image)Image;(X)f(Y)f[(Width)f(Height)f(Opacity)f(Source)Rect;]"),
 	GB_STATIC_METHOD("DrawPicture", NULL, Paint_DrawPicture, "(Picture)Picture;(X)f(Y)f[(Width)f(Height)f(Source)Rect;]"),
 	GB_STATIC_METHOD("ZoomImage", NULL, Paint_ZoomImage, "(Image)Image;(Zoom)i(X)i(Y)i[(Grid)i(Source)Rect;]"),
-
 
 	GB_END_DECLARE
 };

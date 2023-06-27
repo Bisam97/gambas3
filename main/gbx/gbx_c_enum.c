@@ -2,7 +2,7 @@
 
   gbx_c_enum.c
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -75,6 +75,9 @@ BEGIN_METHOD_VOID(CENUM_free)
   #ifdef DEBUG_ME
   fprintf(stderr, "CENUM_free: %p <%p>\n", THIS, THIS->enum_object);
   #endif
+	
+	if (THIS->free)
+		(*THIS->free)(&THIS->data);
 
   LIST_remove(&_enum_list, THIS, &THIS->list);
   OBJECT_UNREF(THIS->enum_object);
@@ -88,7 +91,7 @@ static bool check_enum()
 {
 	if (!EXEC_enum)
 	{
-		GB_Error("No current enumeration");
+		GB_Error((char *)E_ENUM); //"No current enumeration");
 		return TRUE;
 	}
 	else

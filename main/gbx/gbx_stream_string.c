@@ -2,7 +2,7 @@
 
   gbx_stream_string.c
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -81,7 +81,7 @@ static int stream_read(STREAM *stream, char *buffer, int len)
 
 static int stream_write(STREAM *stream, char *buffer, int len)
 {
-	if ((stream->common.mode & STO_WRITE) == 0)
+	if ((stream->common.mode & GB_ST_WRITE) == 0)
 		THROW(E_ACCESS);
 
 	stream->string.buffer = STRING_add(stream->string.buffer, buffer, len);

@@ -6,6 +6,7 @@ Inherits UserContainer
 Public Const _Properties As String = "*,Count{Range:1;256}=1,Index,Text,TextFont,Picture,Animated,Border"
 Public Const _Similar As String = "TabStrip"
 Public Const _IsMultiContainer As Boolean = True
+Public Const _DefaultText As String = "Toolbar &1"
 
 Event Click
 
@@ -19,10 +20,12 @@ Property TextFont As Font
 Property Border As Boolean
 
 Private $hWatcher As Watcher
-Private $aToolBar As New ToolPanelContainer[]
+Private $aCont As New _ToolPanelContainer[]
 Private $iCurrent As Integer
 Private $bAnimate As Boolean
 Private $hPanel As Panel
+Private $hTimer As Timer
+Private $aTargetY As Integer[]
 
 Public Sub _new()
 
@@ -37,46 +40,46 @@ End
 
 Private Function Count_Read() As Integer
 
-  Return $aToolBar.Count
+  Return $aCont.Count
 
 End
 
 Private Sub Count_Write(iCount As Integer)
 
   Dim iInd As Integer
-  Dim hToolbar As ToolPanelContainer
+  Dim hToolbar As _ToolPanelContainer
   Dim hFont As Font
 
   If iCount < 1 Then Error.Raise("Bad argument")
-  If iCount = $aToolbar.Count Then Return
+  If iCount = $aCont.Count Then Return
 
-  If iCount < $aToolBar.Count Then
+  If iCount < $aCont.Count Then
 
-    For iInd = $aToolBar.Max To iCount Step -1
-      hToolbar = $aToolBar[iInd]
+    For iInd = $aCont.Max To iCount Step -1
+      hToolbar = $aCont[iInd]
       If hToolbar._Container.Children.Count Then Error.Raise("ToolPanel container is not empty")
     Next
 
-    For iInd = $aToolBar.Max To iCount Step -1
-      $aToolBar[iInd].Delete
+    For iInd = $aCont.Max To iCount Step -1
+      $aCont[iInd].Delete
     Next
 
-    $aToolBar.Remove(iCount, -1)
+    $aCont.Remove(iCount, -1)
     Index_Write(Min($iCurrent, iCount - 1))
 
   Else
 
     'hCont = ME.Container
     'ME.Container = $hPanel
-    Try hFont = $aToolBar[0].TextFont
+    Try hFont = $aCont[0].TextFont
     
-    For iInd = $aToolBar.Count To iCount - 1
-      hToolbar = New ToolPanelContainer($hPanel) As "ToolPanelContainer"
+    For iInd = $aCont.Count To iCount - 1
+      hToolbar = New _ToolPanelContainer($hPanel) As "ToolPanelContainer"
       hToolbar.Width = Me.Width
-      hToolbar.Text = "Toolbar " & CInt(iInd)
+      hToolbar.Text = Subst(_DefaultText, CInt(iInd + 1))
       hToolBar.Tag = iInd
       hToolBar.TextFont = hFont
-      $aToolBar.Add(hToolbar)
+      $aCont.Add(hToolbar)
     Next
     'ME.Container = hCont
 
@@ -95,9 +98,9 @@ End
 
 Private Sub Index_Write(iIndex As Integer)
 
-  If iIndex < 0 Or iIndex >= $aToolBar.Count Then Error.Raise("Bad index")
+  If iIndex < 0 Or iIndex >= $aCont.Count Then Error.Raise("Bad index")
 
-  Me._Container = $aToolBar[iIndex]
+  Me._Container = $aCont[iIndex]
   $iCurrent = iIndex
 
   MoveToolbar(Me.Visible)
@@ -106,53 +109,64 @@ End
 
 Private Sub MoveToolbar(Optional bAnim As Boolean)
 
-  Dim hToolBar As ToolPanelContainer
+  Dim hToolBar As _ToolPanelContainer
   Dim Y As Integer
   Dim YY As Integer
   Dim iInd As Integer
   Dim iRest As Integer
   Dim bCurrent As Boolean
+  Dim BH As Integer
+
+  If bAnim Then
+    If Not $bAnimate Or If Not Application.Animations Or If Me.Design Then
+      bAnim = False
+    Endif
+  Endif
+
+  If bAnim Then
+    $aTargetY = New Integer[$aCont.Count]
+  Endif
 
   Y = $hPanel.ClientY
+  For iInd = 0 To $aCont.Max
 
-  For iInd = 0 To $aToolBar.Max
-
-    hToolBar = $aToolBar[iInd]
+    hToolBar = $aCont[iInd]
     If Not hToolbar.Visible Then Continue 
-    
-    bCurrent = iInd = $iCurrent
+
     hToolBar._Container.Visible = True
-
-    If bAnim And $bAnimate Then
-      If ((hToolBar.Y < Y) And iInd = $aToolBar.Max) Or ((hToolBar.Y > Y) And bCurrent) Then
-        For YY = hToolBar.Y To Y Step 8 * Sgn(Y - hToolBar.Y)
-          hToolBar.Y = YY
-          Wait
-        Next
-      Endif
-    Endif
-
-    'hToolBar.ShowToolBar(bCurrent)
-
+    
     If iInd = $iCurrent Then
-      YY = $hPanel.ClientY + $hPanel.ClientH
-      For iRest = iInd + 1 To $aToolBar.Max
-        If Not $aToolBar[iRest].Visible Then Continue
-        YY -= $aToolBar[iRest].GetButtonHeight()
+      BH = $aCont[0]._GetButtonHeight()
+      YY = $hPanel.ClientY + Max($hPanel.ClientH, BH * $aCont.Count + BH + Desktop.Scale * 8)
+      For iRest = iInd + 1 To $aCont.Max
+        If Not $aCont[iRest].Visible Then Continue
+        YY -= BH
       Next
     Else
-      YY = Y + hToolbar.GetButtonHeight()
+      YY = Y + hToolbar._GetButtonHeight()
     Endif
 
-    'hToolBar.Move($hPanel.ClientX, Y, $hPanel.ClientW, YY - Y)
-    hToolBar.Move($hPanel.ClientX, Y, $hPanel.ClientW, YY - Y)
+    If bAnim Then
+      $aTargetY[iInd] = Y
+    Else
+      hToolBar.Move($hPanel.ClientX, Y, $hPanel.ClientW, YY - Y)
+    Endif
+
     Y = YY
-
+    
   Next
+  
+  If bAnim Then
+    If Not $hTimer Then
+      $hTimer = New Timer As "Animate"
+      $hTimer.Delay = 20
+    Endif
+    $hTimer.Restart
+  Endif
+  
+  For iInd = 0 To $aCont.Max
 
-  For iInd = 0 To $aToolBar.Max
-
-    hToolBar = $aToolBar[iInd]
+    hToolBar = $aCont[iInd]
     bCurrent = iInd = $iCurrent
     hToolBar._Container.Visible = bCurrent
 
@@ -160,31 +174,61 @@ Private Sub MoveToolbar(Optional bAnim As Boolean)
   
 End
 
+Public Sub Animate_Timer()
+
+  Dim bAnim As Boolean
+  Dim iInd As Integer
+  Dim hToolBar As _ToolPanelContainer
+  Dim Y As Integer
+  Dim YY As Integer
+  
+  YY = $hPanel.ClientH
+  For iInd = $aCont.Max DownTo 0
+
+    hToolBar = $aCont[iInd]
+    If Not hToolbar.Visible Then Continue 
+  
+    Y = hToolbar.Y
+    If Y <> $aTargetY[iInd] Then
+      bAnim = True
+      Y += ($aTargetY[iInd] - Y + Sgn($aTargetY[iInd] - Y)) \ 2
+      hToolBar.Move($hPanel.ClientX, Y, hToolbar.W, YY - Y)
+    Endif
+    
+    YY = Y
+    
+  Next
+  
+  If Not bAnim Then Stop Event
+    
+End
+
+
 Private Function Text_Read() As String
 
-  Return $aToolBar[$iCurrent].Text
+  Return $aCont[$iCurrent].Text
 
 End
 
 Private Sub Text_Write(sText As String)
 
-  $aToolBar[$iCurrent].Text = sText
+  $aCont[$iCurrent].Text = sText
 
 End
 
 Private Function Picture_Read() As Picture
 
-  Return $aToolBar[$iCurrent].Picture
+  Return $aCont[$iCurrent].Picture
 
 End
 
 Private Sub Picture_Write(hPict As Picture)
 
-  $aToolBar[$iCurrent].Picture = hPict
+  $aCont[$iCurrent].Picture = hPict
 
 End
 
-Public Sub ToolPanelContainer_Change()
+Public Sub ToolPanelContainer__Change()
 
   Index_Write(Last.Tag)
   Raise Click
@@ -209,10 +253,10 @@ Private Sub Animated_Write(bAnim As Boolean)
 
 End
 
-Public Function _get(Index As Integer) As ToolPanelContainer
+Public Function _get(Index As Integer) As _ToolPanelContainer
 
-  If Index < 0 Or Index >= $aToolBar.Count Then Error.Raise("Bad index")
-  Return $aToolBar[Index]
+  If Index < 0 Or Index >= $aCont.Count Then Error.Raise("Bad index")
+  Return $aCont[Index]
 
 End
 
@@ -224,11 +268,11 @@ End
 
 Private Sub Font_Write(hFont As Font)
 
-  Dim hToolbar As ToolPanelContainer
+  Dim hToolbar As _ToolPanelContainer
 
   Super.Font = hFont
 
-  For Each hToolbar In $aToolbar
+  For Each hToolbar In $aCont
     hToolBar.Text = hToolBar.Text
   Next
 
@@ -244,14 +288,14 @@ End
 
 Private Sub Border_Write(bBorder As Boolean)
 
-  $hPanel.Border = If(bBorder, Border.Sunken, Border.None)
+  $hPanel.Border = If(bBorder, Border.Plain, Border.None)
   MoveToolbar(False)
 
 End
 
 Private Function TextFont_Read() As Font
 
-  Dim hToolbar As ToolPanelContainer = $aToolBar[0]
+  Dim hToolbar As _ToolPanelContainer = $aCont[0]
 
   Return hToolBar.GetTextFont()
 
@@ -259,12 +303,25 @@ End
 
 Private Sub TextFont_Write(Value As Font)
 
-  Dim hToolbar As ToolPanelContainer
+  Dim hToolbar As _ToolPanelContainer
 
-  For Each hToolbar In $aToolbar
+  For Each hToolbar In $aCont
     hToolBar.TextFont = Value
   Next
 
   MoveToolBar(False)
+  
+End
+
+Public Sub FindPanel(Text As String) As Integer
+
+  Dim I As Integer
+  Dim hCont As _ToolPanelContainer
+  
+  For I = 0 To $aCont.Max
+    hCont = $aCont[I]
+    If hCont.Text = Text Then Return I
+  Next
+  Return -1
   
 End

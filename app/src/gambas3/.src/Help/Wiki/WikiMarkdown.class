@@ -7,6 +7,8 @@ Public Sub Link(hLink As MarkdownLink)
   Dim sPath As String
   Dim sLink As String = hLink.Link
   Dim iPos As Integer
+  Dim sClass As String
+  Dim sSymbol As String
   
   If sLink Begins "/" Then
     sPath = sLink
@@ -18,10 +20,28 @@ Public Sub Link(hLink As MarkdownLink)
     
     sLink = hLink.Text
     iPos = InStr(sLink, ".")
-    If iPos Then
-      hLink.Text = ""
-      sPath = "/comp/gb" &/ Trim(Left$(sLink, iPos - 1)) &/ Trim(Mid$(sLink, iPos + 1))
+    
+    If iPos Then 
+      
+      sClass = Left$(sLink, iPos - 1)
+      sSymbol = Mid$(sLink, iPos + 1)
+      
+    Else 
+      
+      sClass = sLink
+    
     Endif
+    
+    If Project.ExistClass(sClass) Then
+    
+      hLink.Link = "gambas://project/" & sClass &/ sSymbol
+      hLink.Text = sLink
+      Return
+      
+    Endif
+    
+    hLink.Text = ""
+    sPath = "/comp/gb" &/ sClass &/ sSymbol
     
   Else
     
@@ -186,13 +206,52 @@ Public Sub Command(sCommand As String) As String[]
     
     Return MakeError(("This symbol does not exist."))
 
+  Else If sCommand = "help" And If Wiki.Class Then
+    
+    Return Split(Wiki.GetDefaultHelp(), "\n")
+
   Else If sCommand = "stat" Then
     
     Return Wiki.GetStat()
 
   Else If sCommand = "todo" Or If sCommand = "changes" Then
     
-    Return ["Unavailable in offline help."]
+    Goto NOT_AVAILABLE
+
+  Else If sCommand = "package-table" Then
+
+    Goto NOT_AVAILABLE
+
+  Else If sCommand = "developer-table" Then
+    
+    Goto NOT_AVAILABLE
+
+  Else If sCommand = "translator-table" Then
+
+    Goto NOT_AVAILABLE
+    'Return Main.GetTranslatorTable()
+    
+  Else If sCommand = "project-dependencies" Then
+    
+    Goto NOT_AVAILABLE
+    'Return Main.GetProjectDependencies(aArg[1])
+
+  Else If sCommand = "search-query" Then
+    
+    Goto NOT_AVAILABLE
+
+  Else If sCommand = "search-result" Then
+
+    Goto NOT_AVAILABLE
+    
+  Else If sCommand = "class" Then
+    
+    If Wiki.Class Then Return [Wiki.GetClassTitle(Wiki.Path)]
+    
+  Else If sCommand = "how-to-install" Then
+    
+    Goto NOT_AVAILABLE
+    'Return Main.GetHowToInstall(aArg[1])
 
   Else
     
@@ -224,6 +283,10 @@ MAKE_INDEX_LETTER:
   aResult.Add("</tr>")
   
   Return
+  
+NOT_AVAILABLE:
+    
+    Return ["<span color=\"gray\"><i>Unavailable in offline help.</i></span>"]
   
 End
 

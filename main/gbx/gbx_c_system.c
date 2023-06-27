@@ -2,7 +2,7 @@
 
   gbx_c_system.c
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -37,7 +37,9 @@
 
 #include "gb_common.h"
 #include "gb_common_case.h"
+#include "gb_system.h"
 #include "gb_error.h"
+#include "gb_overflow.h"
 #include "gbx_api.h"
 #include "gbx_class.h"
 #include "gbx_date.h"
@@ -48,8 +50,11 @@
 #include "gbx_exec.h"
 #include "gbx_extern.h"
 #include "gbx_object.h"
+#include "gbx_jit.h"
 #include "gbx_c_process.h"
 #include "gbx_c_system.h"
+
+#include "gb_system_temp.h"
 
 typedef
 	struct {
@@ -220,6 +225,7 @@ BEGIN_PROPERTY(System_Shell)
 
 END_PROPERTY
 
+
 BEGIN_PROPERTY(System_Profile)
 
 	if (READ_PROPERTY)
@@ -229,17 +235,30 @@ BEGIN_PROPERTY(System_Profile)
 
 END_PROPERTY
 
+
+BEGIN_PROPERTY(System_Trace)
+
+	if (READ_PROPERTY)
+		GB_ReturnBoolean(EXEC_trace);
+	else
+		EXEC_trace = VPROP(GB_BOOLEAN);
+
+END_PROPERTY
+
+
 BEGIN_METHOD_VOID(System_Breakpoint)
 
 	BREAKPOINT();
 
 END_METHOD
 
+
 BEGIN_PROPERTY(System_TimeZone)
 
 	GB_ReturnInteger(DATE_get_timezone());
 
 END_PROPERTY
+
 
 BEGIN_PROPERTY(System_BreakOnError)
 
@@ -249,6 +268,7 @@ BEGIN_PROPERTY(System_BreakOnError)
 		EXEC_break_on_error = VPROP(GB_BOOLEAN);
 
 END_METHOD
+
 
 BEGIN_METHOD(System_Log, GB_STRING message)
 
@@ -292,6 +312,7 @@ BEGIN_METHOD(System_Log, GB_STRING message)
 
 END_METHOD
 
+
 BEGIN_METHOD(System_Find, GB_STRING program)
 
 	const char *path;
@@ -304,17 +325,67 @@ BEGIN_METHOD(System_Find, GB_STRING program)
 
 END_METHOD
 
+
 BEGIN_METHOD(System_Exist, GB_STRING program)
 
 	GB_ReturnBoolean(CPROCESS_search_program_in_path(GB_ToZeroString(ARG(program))) != NULL);
 
 END_METHOD
 
+
+BEGIN_METHOD(System_GetFormat, GB_INTEGER format)
+
+	const char *fmt = LOCAL_get_format(&LOCAL_local, VARG(format));
+	if (!fmt)
+		GB_ReturnNull();
+	else
+		GB_ReturnNewZeroString(fmt);
+
+END_METHOD
+
+
+BEGIN_PROPERTY(System_Cores)
+
+	GB_ReturnInteger(SYSTEM_get_cpu_count());
+
+END_PROPERTY
+
+
+BEGIN_PROPERTY(System_IgnoreOverflow)
+
+#if DO_NOT_CHECK_OVERFLOW
+
+	if (READ_PROPERTY)
+		GB_ReturnBoolean(TRUE);
+	else if (!VPROP(GB_BOOLEAN))
+		GB_Error("Overflow detection is not supported on this system");
+
+#else
+
+	if (READ_PROPERTY)
+		GB_ReturnBoolean(!EXEC_check_overflow);
+	else
+		EXEC_check_overflow = !VPROP(GB_BOOLEAN);
+
+#endif
+
+END_PROPERTY
+
+
 //-------------------------------------------------------------------------
 
 BEGIN_PROPERTY(Jit_Time)
 
 	GB_ReturnFloat(0);
+
+END_PROPERTY
+
+BEGIN_PROPERTY(Jit_Enabled)
+
+	if (READ_PROPERTY)
+		GB_ReturnBoolean(!JIT_disabled);
+	else
+		JIT_disabled = !VPROP(GB_BOOLEAN);
 
 END_PROPERTY
 
@@ -348,6 +419,8 @@ GB_DESC NATIVE_System[] =
 	GB_STATIC_PROPERTY("FirstDayOfWeek", "i", System_FirstDayOfWeek),
 	GB_STATIC_PROPERTY("Shell", "s", System_Shell),
 	GB_STATIC_PROPERTY("Profile", "b", System_Profile),
+	GB_STATIC_PROPERTY("Trace", "b", System_Trace),
+	GB_STATIC_PROPERTY("IgnoreOverflow", "b", System_IgnoreOverflow),
 
 	GB_STATIC_PROPERTY_READ("RightToLeft", "b", System_RightToLeft),
 	GB_STATIC_PROPERTY_READ("Charset", "s", System_Charset),
@@ -356,6 +429,7 @@ GB_DESC NATIVE_System[] =
 	GB_STATIC_PROPERTY_READ("ByteOrder", "i", System_ByteOrder),
 	GB_STATIC_PROPERTY_READ("Error", "i", System_Error),
 	GB_STATIC_PROPERTY_READ("TimeZone", "i", System_TimeZone),
+	GB_STATIC_PROPERTY_READ("Cores", "i", System_Cores),
 
 	GB_CONSTANT("Family", "s", SYSTEM),
 	GB_CONSTANT("Architecture", "s", ARCHITECTURE),
@@ -370,6 +444,8 @@ GB_DESC NATIVE_System[] =
 	GB_STATIC_METHOD("Exist", "b", System_Exist, "(Program)s"),
 	GB_STATIC_METHOD("Find", "s", System_Find, "(Program)s"),
 
+	GB_STATIC_METHOD("GetFormat", "s", System_GetFormat, "(Format)i"),
+	
 	GB_END_DECLARE
 };
 
@@ -378,6 +454,7 @@ GB_DESC NATIVE_Jit[] =
 	GB_DECLARE_STATIC("Jit"),
 	
 	GB_STATIC_PROPERTY_READ("Time", "f", Jit_Time),
+	GB_STATIC_PROPERTY("Enabled", "b", Jit_Enabled),
 	
 	GB_END_DECLARE
 };

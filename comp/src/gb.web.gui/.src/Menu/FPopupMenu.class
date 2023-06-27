@@ -1,0 +1,94 @@
+' Gambas class file
+
+Static Private $aStack As New Object[]
+
+Private $hMenu As WebMenu
+
+' Public Sub WebForm_Open()
+'   
+'   WebControl.FromId(Me._Window).Class = "gw-menu-shadow"
+'   
+' End
+
+Public Sub _new(hMenu As WebMenu)
+  
+  $hMenu = hMenu
+  $aStack.Push(Me)
+  
+End
+
+
+Public Sub panMenu_Render()
+
+  Dim hMenu As WebMenu
+  
+  For Each hMenu In $hMenu.Children
+    
+    If Not hMenu.Visible Then Continue
+    
+    If hMenu.Text Then
+    
+      Print "<div class=\"gw-menuitem\"";
+      If hMenu.Enabled And If Not hMenu.HasChildren() Then Print Me._GetUpdateWaitJS("onmouseup", "#click", JS(hMenu.Name));
+      Print ">";
+      If hMenu.Image Then
+        Print "<img class=\"gw-menuitem-icon\" src=\""; hMenu._GetImageLink(hMenu.Image); "\">";
+      Else
+        Print "<div class=\"gw-menuitem-icon\"></div>";
+      Endif
+      Print "<div class=\"gw-menuitem-text\">"; Html(hMenu.Text); "</div>";
+      
+      If hMenu.HasChildren() Then
+        Print "<div class=\"gw-menuitem-arrow\" id=\""; Html(hMenu.Name); "\""; Me._GetUpdateJS("onmouseover", "#popup", JS(hMenu.Name)); "></div>";
+      Else If hMenu.Shortcut Then
+        Print "<div class=\"gw-menuitem-shortcut\">"; Html(hMenu.Shortcut); "</div>";
+      Endif
+      Print "</div>";
+      
+    Else
+      
+      Print "<div class=\"gw-separator-hline\"><div></div></div>"
+  
+    Endif
+    
+  Next
+  
+End
+
+Private Sub PopupMenu(hMenu As WebMenu) As String
+
+  Dim sClick As String
+  Dim hPopup As FPopupMenu
+  
+  hPopup = New FPopupMenu(hMenu)
+  sClick = hPopup.ShowPopup(hMenu)
+  If sClick Then Return sClick
+  
+End
+
+Public Sub _UpdateProperty(sProp As String, vValue As Variant)
+
+  Dim hMenu As WebMenu
+  Dim sClick As String
+  
+  If sProp = "#click" Then
+
+    Me.Close(vValue)
+    
+  Else If sProp = "#popup" Then
+
+    WebForm._AddJavascript("$_(" & JS(vValue) & ").parentNode.addClass('gw-active');")
+    hMenu = WebForm.FromName(vValue)
+    sClick = PopupMenu(hMenu)
+    WebForm._AddJavascript("$_(" & JS(vValue) & ") && $_(" & JS(vValue) & ").parentNode.removeClass('gw-active');")
+    If sClick Then Me.Close(sClick)
+    
+  Endif
+  
+End
+
+Public Sub WebForm_Close()
+  
+  $aStack.Pop()
+  
+End

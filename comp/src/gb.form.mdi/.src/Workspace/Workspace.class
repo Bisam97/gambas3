@@ -25,6 +25,7 @@ Property Image As Image
 Property Picture As Picture
 Property CloseWithMouse As Boolean
 Property CloseButton As Boolean ''if false the close all tabs button is not shown
+Property Read TabPanel As TabPanel
 
 Static Private $bPictureWarning As Boolean
 
@@ -71,8 +72,6 @@ Public Sub Attach(hWindow As Window)
   
 End
 
-
-
 Public Sub Lock()
   
   $hWorkspace.Lock
@@ -90,7 +89,6 @@ End
 '   $hWorkspace.SetResizable(Window, Resizable, Grid)
 '   
 ' END
-
 
 Private Function ActiveWindow_Read() As Window
 
@@ -143,8 +141,6 @@ Public Sub _RaiseCloseAll()
   
 End
 
-
-
 ' Private Function ShowTitle_Read() As Boolean
 ' 
 '   Return $hWorkspace.IsShowTitle()
@@ -159,13 +155,13 @@ End
 
 Private Function Font_Read() As Font
 
-  Return $hWorkspace.GetFont()
+  Return $hWorkspace.GetTabPanel().Font
 
 End
 
 Private Sub Font_Write(Value As Font)
 
-  $hWorkspace.SetFont(Value)
+  $hWorkspace.GetTabPanel().Font = Value
 
 End
 
@@ -273,4 +269,16 @@ Private Sub CloseButton_Write(Value As Boolean)
 
   $hWorkspace.CloseButton = Value
 
+End
+
+Private Function TabPanel_Read() As TabPanel
+
+  Return $hWorkspace.GetTabPanel()
+
+End
+
+Public Sub _RefreshPicture()
+
+  ' Prevent the Workspace Picture property to be refreshed.
+  
 End

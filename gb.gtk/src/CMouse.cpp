@@ -130,26 +130,7 @@ END_PROPERTY
 BEGIN_PROPERTY(Mouse_State)
 	
 	CHECK_VALID();
-	
-	int state = gMouse::state();
-	int result = 0;
-	
-	if (state & GDK_BUTTON1_MASK)
-		result |= MOUSE_LEFT;
-	if (state & GDK_BUTTON2_MASK)
-		result |= MOUSE_MIDDLE;
-	if (state & GDK_BUTTON3_MASK)
-		result |= MOUSE_RIGHT;
-	if (state & GDK_SHIFT_MASK)
-		result |= MOUSE_SHIFT;
-	if (state & GDK_CONTROL_MASK)
-		result |= MOUSE_CTRL;
-	if (state & GDK_MOD1_MASK)
-		result |= MOUSE_ALT;
-	if (state & GDK_MOD2_MASK)
-		result |= MOUSE_META;
-	
-	GB.ReturnInteger(result);
+	GB.ReturnInteger(gMouse::state());
 
 END_PROPERTY
 
@@ -176,35 +157,35 @@ END_PROPERTY
 
 BEGIN_PROPERTY(Mouse_Shift)
 
-	CHECK_VALID();
+	//CHECK_VALID();
 	GB.ReturnBoolean(gMouse::shift());
 
 END_PROPERTY
 
 BEGIN_PROPERTY(Mouse_Control)
 
-	CHECK_VALID();
+	//CHECK_VALID();
 	GB.ReturnBoolean(gMouse::control());
 
 END_PROPERTY
 
 BEGIN_PROPERTY(Mouse_Alt)
 
-	CHECK_VALID();
+	//CHECK_VALID();
 	GB.ReturnBoolean(gMouse::alt());
 
 END_PROPERTY
 
 BEGIN_PROPERTY(Mouse_Meta)
 
-	CHECK_VALID();
+	//CHECK_VALID();
 	GB.ReturnBoolean(gMouse::meta());
 
 END_PROPERTY
 
 BEGIN_PROPERTY(Mouse_Normal)
 
-	CHECK_VALID();
+	//CHECK_VALID();
 	GB.ReturnBoolean(gMouse::normal());
 
 END_PROPERTY
@@ -261,6 +242,12 @@ BEGIN_METHOD(Mouse_Translate, GB_INTEGER dx; GB_INTEGER dy)
 	gMouse::translate(VARG(dx), VARG(dy));
 
 END_METHOD
+
+BEGIN_PROPERTY(Mouse_Click)
+
+	GB.ReturnInteger(gMouse::clickCount());
+
+END_PROPERTY
 
 //-------------------------------------------------------------------------
 
@@ -336,6 +323,64 @@ GB_DESC CCursorDesc[] =
 	GB_METHOD("_new", 0, CCURSOR_new, "(Picture)Picture;[(X)i(Y)i]"),
 	GB_METHOD("_free", 0, CCURSOR_delete, NULL),
 
+	GB_CONSTANT("Custom", "i", CURSOR_CUSTOM),
+	GB_CONSTANT("Default", "i", CURSOR_DEFAULT),
+
+	GB_CONSTANT("Blank", "i", CURSOR_NONE),
+	GB_CONSTANT("Arrow", "i", CURSOR_ARROW),
+	GB_CONSTANT("Cross", "i", CURSOR_CROSSHAIR),
+	GB_CONSTANT("Wait", "i", CURSOR_WAIT),
+	GB_CONSTANT("Text", "i", CURSOR_TEXT),
+	GB_CONSTANT("SizeAll", "i", CURSOR_MOVE),
+	GB_CONSTANT("SizeH", "i", CURSOR_EW_RESIZE),
+	GB_CONSTANT("SizeV", "i", CURSOR_NS_RESIZE),
+	GB_CONSTANT("SizeN", "i", CURSOR_N_RESIZE),
+	GB_CONSTANT("SizeS", "i", CURSOR_S_RESIZE),
+	GB_CONSTANT("SizeW", "i", CURSOR_W_RESIZE),
+	GB_CONSTANT("SizeE", "i", CURSOR_E_RESIZE),
+	GB_CONSTANT("SizeNW", "i", CURSOR_NW_RESIZE), //FDiag
+	GB_CONSTANT("SizeSE", "i", CURSOR_SE_RESIZE),
+	GB_CONSTANT("SizeNE", "i", CURSOR_NE_RESIZE), //BDiag
+	GB_CONSTANT("SizeSW", "i", CURSOR_SW_RESIZE),
+	GB_CONSTANT("SizeNWSE", "i", CURSOR_NWSE_RESIZE),
+	GB_CONSTANT("SizeNESW", "i", CURSOR_NESW_RESIZE),
+	GB_CONSTANT("SplitH", "i", CURSOR_COL_RESIZE), // SplitH
+	GB_CONSTANT("SplitV", "i", CURSOR_ROW_RESIZE), // SplitV
+	GB_CONSTANT("Pointing", "i", CURSOR_POINTER),
+
+	GB_CONSTANT("None", "i", CURSOR_NONE),
+	GB_CONSTANT("Help", "i", CURSOR_HELP),
+	GB_CONSTANT("Pointer", "i", CURSOR_POINTER),
+	GB_CONSTANT("ContextMenu", "i", CURSOR_CONTEXT_MENU),
+	GB_CONSTANT("Progress", "i", CURSOR_PROGRESS),
+	GB_CONSTANT("Cell", "i", CURSOR_CELL),
+	GB_CONSTANT("CrossHair", "i", CURSOR_CROSSHAIR),
+	GB_CONSTANT("VerticalText", "i", CURSOR_VERTICAL_TEXT),
+	GB_CONSTANT("Alias", "i", CURSOR_ALIAS),
+	GB_CONSTANT("Copy", "i", CURSOR_COPY),
+	GB_CONSTANT("NoDrop", "i", CURSOR_NO_DROP),
+	GB_CONSTANT("Move", "i", CURSOR_MOVE),
+	GB_CONSTANT("NotAllowed", "i", CURSOR_NOT_ALLOWED),
+	GB_CONSTANT("Grab", "i", CURSOR_GRAB),
+	GB_CONSTANT("Grabbing", "i", CURSOR_GRABBING),
+	GB_CONSTANT("AllScroll", "i", CURSOR_ALL_SCROLL),
+	GB_CONSTANT("ColResize", "i", CURSOR_COL_RESIZE),
+	GB_CONSTANT("RowResize", "i", CURSOR_ROW_RESIZE),
+	GB_CONSTANT("NResize", "i", CURSOR_N_RESIZE),
+	GB_CONSTANT("EResize", "i", CURSOR_E_RESIZE),
+	GB_CONSTANT("SResize", "i", CURSOR_S_RESIZE),
+	GB_CONSTANT("WResize", "i", CURSOR_W_RESIZE),
+	GB_CONSTANT("NEResize", "i", CURSOR_NE_RESIZE),
+	GB_CONSTANT("NWResize", "i", CURSOR_NW_RESIZE),
+	GB_CONSTANT("SWResize", "i", CURSOR_SW_RESIZE),
+	GB_CONSTANT("SEResize", "i", CURSOR_SE_RESIZE),
+	GB_CONSTANT("EWResize", "i", CURSOR_EW_RESIZE),
+	GB_CONSTANT("NSResize", "i", CURSOR_NS_RESIZE),
+	GB_CONSTANT("NESWResize", "i", CURSOR_NESW_RESIZE),
+	GB_CONSTANT("NWSEResize", "i", CURSOR_NWSE_RESIZE),
+	GB_CONSTANT("ZoomIn", "i", CURSOR_ZOOM_IN),
+	GB_CONSTANT("ZoomOut", "i", CURSOR_ZOOM_OUT),
+
 	GB_PROPERTY_READ("X", "i", CCURSOR_x),
 	GB_PROPERTY_READ("Y", "i", CCURSOR_y),
 
@@ -352,36 +397,30 @@ GB_DESC CMouseDesc[] =
 	GB_STATIC_METHOD("Move", 0, Mouse_Move, "(X)i(Y)i"),
 	GB_STATIC_METHOD("Inside", "b", Mouse_Inside, "(Control)Control"),
 
-	GB_CONSTANT("Default", "i", CURSOR_DEFAULT),
 	GB_CONSTANT("Custom", "i", CURSOR_CUSTOM),
-	GB_CONSTANT("Blank", "i", GDK_BLANK_CURSOR),
-	GB_CONSTANT("Arrow", "i", GDK_LEFT_PTR),
-	GB_CONSTANT("Cross", "i", GDK_CROSSHAIR),
-	GB_CONSTANT("Wait", "i", GDK_WATCH),
-	GB_CONSTANT("Text", "i", GDK_XTERM),
-	GB_CONSTANT("SizeAll", "i", GDK_FLEUR),
-	GB_CONSTANT("SizeH", "i", GDK_SB_H_DOUBLE_ARROW),
-	GB_CONSTANT("SizeV", "i", GDK_SB_V_DOUBLE_ARROW),
-	GB_CONSTANT("SizeN", "i", GDK_TOP_SIDE),
-	GB_CONSTANT("SizeS", "i", GDK_BOTTOM_SIDE),
-	GB_CONSTANT("SizeW", "i", GDK_LEFT_SIDE),
-	GB_CONSTANT("SizeE", "i", GDK_RIGHT_SIDE),
-	//GB_CONSTANT("SizeNW", "i", GDK_LAST_CURSOR+1), //FDiag
-	GB_CONSTANT("SizeNW", "i", GDK_TOP_LEFT_CORNER), //FDiag
-	//GB_CONSTANT("SizeSE", "i", GDK_LAST_CURSOR+1),
-	GB_CONSTANT("SizeSE", "i", GDK_BOTTOM_RIGHT_CORNER),
-	//GB_CONSTANT("SizeNE", "i", GDK_LAST_CURSOR+2), //BDiag
-	GB_CONSTANT("SizeNE", "i", GDK_TOP_RIGHT_CORNER), //BDiag
-	//GB_CONSTANT("SizeSW", "i", GDK_LAST_CURSOR+2),
-	GB_CONSTANT("SizeSW", "i", GDK_BOTTOM_LEFT_CORNER),
-	GB_CONSTANT("SizeNWSE", "i", GDK_LAST_CURSOR+1),
-	GB_CONSTANT("SizeNESW", "i", GDK_LAST_CURSOR+2),
-	//GB_CONSTANT("SplitH", "i", GDK_LAST_CURSOR+3), // SplitH
-	//GB_CONSTANT("SplitV", "i", GDK_LAST_CURSOR+4), // SplitV
-	GB_CONSTANT("SplitH", "i", GDK_SB_H_DOUBLE_ARROW), // SplitH
-	GB_CONSTANT("SplitV", "i", GDK_SB_V_DOUBLE_ARROW), // SplitV
-	GB_CONSTANT("Pointing", "i", GDK_HAND2),
-
+	GB_CONSTANT("Default", "i", CURSOR_DEFAULT),
+	GB_CONSTANT("Blank", "i", CURSOR_NONE),
+	GB_CONSTANT("Arrow", "i", CURSOR_ARROW),
+	GB_CONSTANT("Cross", "i", CURSOR_CROSSHAIR),
+	GB_CONSTANT("Wait", "i", CURSOR_WAIT),
+	GB_CONSTANT("Text", "i", CURSOR_TEXT),
+	GB_CONSTANT("SizeAll", "i", CURSOR_MOVE),
+	GB_CONSTANT("SizeH", "i", CURSOR_EW_RESIZE),
+	GB_CONSTANT("SizeV", "i", CURSOR_NS_RESIZE),
+	GB_CONSTANT("SizeN", "i", CURSOR_N_RESIZE),
+	GB_CONSTANT("SizeS", "i", CURSOR_S_RESIZE),
+	GB_CONSTANT("SizeW", "i", CURSOR_W_RESIZE),
+	GB_CONSTANT("SizeE", "i", CURSOR_E_RESIZE),
+	GB_CONSTANT("SizeNW", "i", CURSOR_NW_RESIZE), //FDiag
+	GB_CONSTANT("SizeSE", "i", CURSOR_SE_RESIZE),
+	GB_CONSTANT("SizeNE", "i", CURSOR_NE_RESIZE), //BDiag
+	GB_CONSTANT("SizeSW", "i", CURSOR_SW_RESIZE),
+	GB_CONSTANT("SizeNWSE", "i", CURSOR_NWSE_RESIZE),
+	GB_CONSTANT("SizeNESW", "i", CURSOR_NESW_RESIZE),
+	GB_CONSTANT("SplitH", "i", CURSOR_COL_RESIZE), // SplitH
+	GB_CONSTANT("SplitV", "i", CURSOR_ROW_RESIZE), // SplitV
+	GB_CONSTANT("Pointing", "i", CURSOR_POINTER),
+	
 	GB_CONSTANT("Horizontal", "i", 0),
 	GB_CONSTANT("Vertical", "i", 1),
 
@@ -402,6 +441,7 @@ GB_DESC CMouseDesc[] =
 	GB_STATIC_PROPERTY_READ("Orientation", "i", Mouse_Orientation),
 	GB_STATIC_PROPERTY_READ("Delta", "f", Mouse_Delta),
 	GB_STATIC_PROPERTY_READ("Forward", "b", Mouse_Forward),
+	GB_STATIC_PROPERTY_READ("Click", "i", Mouse_Click),
 	
 	GB_STATIC_METHOD("Translate", NULL, Mouse_Translate, "(DX)i(DY)i"),
 

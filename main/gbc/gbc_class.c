@@ -2,7 +2,7 @@
 
   gbc_class.c
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -58,8 +58,8 @@ void CLASS_create(CLASS **result)
 	ARRAY_create(&class->structure);
 	ARRAY_create(&class->names);
 
-	TABLE_create(&class->table, sizeof(CLASS_SYMBOL), TF_IGNORE_CASE);
-	TABLE_create(&class->string, sizeof(SYMBOL), TF_NORMAL);
+	TABLE_create_inc(&class->table, sizeof(CLASS_SYMBOL), TF_IGNORE_CASE, 1024);
+	TABLE_create_inc(&class->string, sizeof(SYMBOL), TF_NORMAL, 1024);
 
 	CLEAR(&func);
 	TYPE_clear(&func.type);
@@ -82,6 +82,7 @@ void CLASS_create(CLASS **result)
 static void delete_function(FUNCTION *func)
 {
 	ARRAY_delete(&func->local);
+	ARRAY_delete(&func->stat);
 	if (func->code)
 		FREE(&func->code);
 
@@ -118,44 +119,46 @@ void CLASS_delete(CLASS **class)
 {
 	int i;
 
-	if (*class)
-	{
-		TABLE_delete(&((*class)->table));
-		TABLE_delete(&((*class)->string));
+	if (!*class)
+		return;
+	
+	CLASS_set_current_function(NULL);
+	
+	TABLE_delete(&((*class)->table));
+	TABLE_delete(&((*class)->string));
 
-		for (i = 0; i < ARRAY_count((*class)->function); i++)
-			delete_function(&((*class)->function[i]));
+	for (i = 0; i < ARRAY_count((*class)->function); i++)
+		delete_function(&((*class)->function[i]));
 
-		for (i = 0; i < ARRAY_count((*class)->event); i++)
-			delete_event(&((*class)->event[i]));
+	for (i = 0; i < ARRAY_count((*class)->event); i++)
+		delete_event(&((*class)->event[i]));
 
-		for (i = 0; i < ARRAY_count((*class)->ext_func); i++)
-			delete_extfunc(&((*class)->ext_func[i]));
+	for (i = 0; i < ARRAY_count((*class)->ext_func); i++)
+		delete_extfunc(&((*class)->ext_func[i]));
 
-		for (i = 0; i < ARRAY_count((*class)->structure); i++)
-			delete_structure(&((*class)->structure[i]));
+	for (i = 0; i < ARRAY_count((*class)->structure); i++)
+		delete_structure(&((*class)->structure[i]));
 
-		for (i = 0; i < ARRAY_count((*class)->names); i++)
-			FREE(&((*class)->names[i]));
+	for (i = 0; i < ARRAY_count((*class)->names); i++)
+		FREE(&((*class)->names[i]));
 
-		ARRAY_delete(&((*class)->function));
-		ARRAY_delete(&((*class)->event));
-		ARRAY_delete(&((*class)->prop));
-		ARRAY_delete(&((*class)->ext_func));
-		ARRAY_delete(&((*class)->constant));
-		ARRAY_delete(&((*class)->class));
-		ARRAY_delete(&((*class)->unknown));
-		ARRAY_delete(&((*class)->stat));
-		ARRAY_delete(&((*class)->dyn));
-		ARRAY_delete(&((*class)->array));
-		ARRAY_delete(&((*class)->structure));
-		ARRAY_delete(&((*class)->names));
+	ARRAY_delete(&((*class)->function));
+	ARRAY_delete(&((*class)->event));
+	ARRAY_delete(&((*class)->prop));
+	ARRAY_delete(&((*class)->ext_func));
+	ARRAY_delete(&((*class)->constant));
+	ARRAY_delete(&((*class)->class));
+	ARRAY_delete(&((*class)->unknown));
+	ARRAY_delete(&((*class)->stat));
+	ARRAY_delete(&((*class)->dyn));
+	ARRAY_delete(&((*class)->array));
+	ARRAY_delete(&((*class)->structure));
+	ARRAY_delete(&((*class)->names));
 
-		if ((*class)->name != NULL)
-			STR_free((*class)->name);
+	if ((*class)->name) STR_free((*class)->name);
+	if ((*class)->export_name) STR_free((*class)->export_name);
 
-		FREE(class);
-	}
+	FREE(class);
 }
 
 
@@ -228,6 +231,9 @@ void CLASS_check_unused_global(CLASS *class)
 		sym = CLASS_get_symbol(class, i);
 		type = sym->global.type;
 		
+		if (sym->global_no_warning)
+			continue;
+		
 		if (sym->global_used && sym->global_assigned)
 			continue;
 		
@@ -252,7 +258,7 @@ void CLASS_check_unused_global(CLASS *class)
 }
 
 
-void CLASS_add_function(CLASS *class, TRANS_FUNC *decl)
+int CLASS_add_function(CLASS *class, TRANS_FUNC *decl)
 {
 	FUNCTION *func;
 	int i;
@@ -270,6 +276,7 @@ void CLASS_add_function(CLASS *class, TRANS_FUNC *decl)
 	func->name = NO_SYMBOL;
 
 	ARRAY_create(&func->local);
+	ARRAY_create(&func->stat);
 	//ARRAY_create_inc(&func->code, 512);
 	func->code = NULL;
 	func->ncode = 0;
@@ -278,13 +285,13 @@ void CLASS_add_function(CLASS *class, TRANS_FUNC *decl)
 	if (JOB->debug)
 		ARRAY_create(&func->pos_line);
 
-	if (!decl) return;
-
-	sym = CLASS_declare(class, decl->index, TK_FUNCTION, TRUE);
-	/*CLASS_add_symbol(class, JOB->table, decl->index, &sym, NULL);*/
-
-	sym->global.type = decl->type;
-	sym->global.value = ARRAY_count(class->function) - 1;
+	if (decl->index != NO_SYMBOL)
+	{
+		sym = CLASS_declare(class, decl->index, TK_FUNCTION, TRUE);
+		sym->global.type = decl->type;
+		sym->global.value = count;
+		sym->global_no_warning = decl->no_warning;
+	}
 
 	if (TYPE_is_static(decl->type))
 		class->has_static = TRUE;
@@ -312,7 +319,7 @@ void CLASS_add_function(CLASS *class, TRANS_FUNC *decl)
 	func->vararg = decl->vararg;
 	func->fast = decl->fast;
 	func->unsafe = decl->unsafe;
-
+	
 	// Function startup
 
 	CODE_begin_function(func);
@@ -340,6 +347,8 @@ void CLASS_add_function(CLASS *class, TRANS_FUNC *decl)
 
 	if (func->npmin < 0)
 		func->npmin = func->nparam;
+	
+	return count;
 }
 
 
@@ -371,7 +380,7 @@ void CLASS_add_event(CLASS *class, TRANS_EVENT *decl)
 
 	if (event->nparam)
 	{
-		ALLOC(&event->param, decl->nparam * sizeof(PARAM));
+		ALLOC_ZERO(&event->param, decl->nparam * sizeof(PARAM));
 
 		for (i = 0; i < decl->nparam; i++)
 		{
@@ -396,8 +405,8 @@ void CLASS_add_property(CLASS *class, TRANS_PROPERTY *decl)
 	prop = ARRAY_add_void(&class->prop);
 	TYPE_clear(&prop->type);
 	prop->name = NO_SYMBOL;
-	prop->read = TRUE;
-	prop->write = decl->read == 0;
+	prop->read = decl->write_only ? 0 : -1;
+	prop->write = decl->read_only ? 0 : -1;
 	prop->synonymous = -1;
 
 	sym = CLASS_declare(class, decl->index, TK_PROPERTY, TRUE);
@@ -413,14 +422,15 @@ void CLASS_add_property(CLASS *class, TRANS_PROPERTY *decl)
 	prop->name = decl->index;
 	prop->line = decl->line;
 	prop->comment = decl->comment;
+	prop->use = decl->use;
 	
 	for (i = 0; i < decl->nsynonymous; i++)
 	{
 		prop = ARRAY_add_void(&class->prop);
 		TYPE_clear(&prop->type);
 		prop->name = NO_SYMBOL;
-		prop->read = TRUE;
-		prop->write = decl->read == 0;
+		prop->read = decl->write_only ? 0 : -1;
+		prop->write = decl->read_only ? 0 : -1;
 		prop->synonymous = index;
 
 		sym = CLASS_declare(class, decl->synonymous[i], TK_PROPERTY, TRUE);
@@ -500,6 +510,7 @@ int CLASS_add_constant(CLASS *class, TRANS_DECL *decl)
 	desc->value = decl->value;
 	if (TYPE_get_id(decl->type) == T_LONG)
 		desc->lvalue = decl->lvalue;
+	desc->is_integer = decl->is_integer;
 
 	desc->line = JOB->line;
 
@@ -525,16 +536,16 @@ static int add_class(CLASS *class, int index, bool used, bool exported)
 
 		sym->class = num + 1;
 
-		if (JOB->verbose)
-			printf("Adding class %.*s %s%s\n", sym->symbol.len, sym->symbol.name, used ? "" : "Unused ", exported ? "Exported" : "");
+		if (COMP_verbose)
+			fprintf(stderr, "Adding class %.*s %s%s\n", sym->symbol.len, sym->symbol.name, used ? "" : "Unused ", exported ? "Exported" : "");
 		
 		JOB->class->class[num].exported = exported;
 	}
 
 	if (used != JOB->class->class[num].used)
 	{
-		if (JOB->verbose)
-			printf("Switching class %.*s to %s\n", sym->symbol.len, sym->symbol.name, used ? "Used" : "Unused");
+		if (COMP_verbose)
+			fprintf(stderr, "Switching class %.*s to %s\n", sym->symbol.len, sym->symbol.name, used ? "Used" : "Unused");
 		
 		JOB->class->class[num].used = used;
 	}
@@ -561,7 +572,6 @@ int CLASS_add_class_exported_unused(CLASS *class, int index)
 {
 	return add_class(class, index, FALSE, TRUE);
 }
-
 
 bool CLASS_exist_class(CLASS *class, int index)
 {
@@ -681,13 +691,61 @@ int CLASS_add_array(CLASS *class, TRANS_ARRAY *array)
 }
 
 
-void CLASS_begin_init_function(CLASS *class, int type)
+FUNCTION *CLASS_set_current_function(FUNCTION *func)
 {
-	FUNCTION *func = &class->function[type];
-	CODE_begin_function(func);
 	JOB->func = func;
+	return CODE_set_function(func);
 }
 
+
+void CLASS_add_static_declaration(CLASS *class, int index, TYPE type, CLASS_SYMBOL *sym, bool local)
+{
+	VARIABLE *var;
+	int count = ARRAY_count(class->stat);
+	
+	if (count >= MAX_CLASS_SYMBOL)
+		THROW("Too many static variables");
+	
+	if (local)
+		sym->local.value = count;
+	else
+		sym->global.value = count;
+	
+	var = ARRAY_add(&class->stat);
+
+	var->type = type;
+	var->index = index;
+
+	class->has_static = TRUE;
+}
+
+
+void CLASS_init_global_declaration(CLASS *class, TRANS_DECL *decl, CLASS_SYMBOL *sym, bool local)
+{
+	FUNCTION *prev_func;
+	bool is_static;
+	
+	if (!TRANS_has_init_var(decl))
+		return;
+	
+	is_static = TYPE_is_static(decl->type);
+	prev_func = CLASS_set_current_init_function(class, is_static ? FUNC_INIT_STATIC : FUNC_INIT_DYNAMIC);
+
+	FUNCTION_add_all_pos_line();
+	TRANS_init_var(decl);
+	if (local)
+	{
+		CODE_pop_global(sym->local.value, is_static);
+		sym->local_assigned = TRUE;
+	}
+	else
+	{
+		CODE_pop_global(sym->global.value, is_static);
+		sym->global_assigned = TRUE;
+	}
+	
+	CLASS_set_current_function(prev_func);
+}
 
 void CLASS_add_declaration(CLASS *class, TRANS_DECL *decl)
 {
@@ -718,30 +776,8 @@ void CLASS_add_declaration(CLASS *class, TRANS_DECL *decl)
 	}
 	else if (TYPE_is_static(decl->type))
 	{
-		count = ARRAY_count(class->stat);
-		if (count >= MAX_CLASS_SYMBOL)
-			THROW("Too many static variables");
-		
-		sym->global.value = count;
-		var = ARRAY_add(&class->stat);
-
-		var->type = decl->type;
-		var->index = decl->index;
-		//var->pos = class->size_stat;
-		//var->size = TYPE_sizeof(var->type);
-
-		//class->size_stat += var->size;
-
-		CLASS_begin_init_function(class, FUNC_INIT_STATIC);
-
-		if (TRANS_has_init_var(decl))
-		{
-			FUNCTION_add_all_pos_line();
-			TRANS_init_var(decl);
-			CODE_pop_global(sym->global.value, TRUE);
-			sym->global_assigned = TRUE;
-		}
-		class->has_static = TRUE;
+		CLASS_add_static_declaration(class, decl->index, decl->type, sym, FALSE);
+		CLASS_init_global_declaration(class, decl, sym, FALSE);
 	}
 	else
 	{
@@ -754,12 +790,10 @@ void CLASS_add_declaration(CLASS *class, TRANS_DECL *decl)
 
 		var->type = decl->type;
 		var->index = decl->index;
-		//var->pos = class->size_dyn;
-		//var->size = TYPE_sizeof(var->type);
 
-		//class->size_dyn += var->size;
+		CLASS_init_global_declaration(class, decl, sym, FALSE);
 		
-		CLASS_begin_init_function(class, FUNC_INIT_DYNAMIC);
+		/*CLASS_begin_init_function(class, FUNC_INIT_DYNAMIC);
 
 		if (TRANS_has_init_var(decl))
 		{
@@ -767,55 +801,11 @@ void CLASS_add_declaration(CLASS *class, TRANS_DECL *decl)
 			TRANS_init_var(decl);
 			CODE_pop_global(sym->global.value, FALSE);
 			sym->global_assigned = TRUE;
-		}
+		}*/
 	}
+	
+	CLASS_check_variable_prefix(sym, FALSE);
 }
-
-#if 0
-static void reorder_decl(CLASS *class, VARIABLE *tvar, const char *desc)
-{
-	int count;
-	int pos;
-	VARIABLE *var;
-	int i, j;
-	int n;
-
-	/* variables statiques */
-
-	count = ARRAY_count(tvar);
-	if (count > 1)
-	{
-		if (JOB->verbose)
-			printf("Reordering %s variables:", desc);
-
-		pos = 0;
-		for (i = 0; i < 3; i++)
-		{
-			for (j = 0; j < count; j++)
-			{
-				var = &tvar[j];
-				n = var->size & 3;
-
-				switch (i)
-				{
-					case 0: if (n != 0) continue; else break;
-					case 1: if (n != 2) continue; else break;
-					case 2: if (n != 1 && n != 3) continue; else break;
-				}
-
-				var->pos = pos;
-				pos += var->size;
-
-				if (JOB->verbose)
-					printf(" %s (%d) ", TABLE_get_symbol_name(class->table, var->index), var->pos);
-			}
-		}
-
-		if (JOB->verbose)
-			printf("\n");
-	}
-}
-#endif
 
 // Don't do that! The order of variables must be kept.
 
@@ -879,66 +869,123 @@ static int check_one_property_func(CLASS *class, PROPERTY *prop, bool write)
 {
 	CLASS_SYMBOL *sym;
 	char *name;
+	//char *name_alloc;
 	bool is_static;
 	FUNCTION *func;
 	int index;
+	int value = 0;
 
 	JOB->line = prop->line;
+	JOB->current = NULL;
 
 	is_static = TYPE_is_static(prop->type);
 
 	name = STR_copy(TABLE_get_symbol_name_suffix(class->table, prop->name, write ? "_Write" : "_Read"));
 
 	if (!TABLE_find_symbol(class->table, name, strlen(name), &index))
-		THROW("&1 is not declared", name);
-
-	sym = (CLASS_SYMBOL *)TABLE_get_symbol(class->table, index);
-	
-	if (TYPE_get_kind(sym->global.type) != TK_FUNCTION)
-		THROW("&1 is declared but is not a function", name);
-
-	func = &class->function[sym->global.value];
-	JOB->line = func->line;
-
-	if (TYPE_is_public(sym->global.type))
-		THROW("A property implementation cannot be public");
-
-	if (is_static != TYPE_is_static(sym->global.type))
 	{
-		if (is_static)
-			THROW("&1 must be static", name);
+		TRANS_FUNC decl;
+		
+		if (prop->use == 0)
+			THROW("&1 is not declared", name);
+		
+		CLEAR(&decl);
+		//name_alloc = CLASS_add_name(class, name, strlen(name));
+		decl.index = index = NO_SYMBOL; //CLASS_add_symbol(class, name_alloc);
+		
+		if (write)
+		{
+			decl.nparam = 1;
+			decl.param[0].type = prop->type;
+			decl.param[0].index = NO_SYMBOL;
+		}
 		else
-			THROW("&1 cannot be static", name);
+		{
+			decl.type = prop->type;
+			TYPE_clear_flag(&decl.type, TF_PUBLIC);
+		}
+		
+		decl.line = prop->line;
+		
+		TYPE_set_kind(&decl.type, TK_FUNCTION);
+		if (is_static)
+			TYPE_set_flag(&decl.type, TF_STATIC);
+		
+		value = CLASS_add_function(JOB->class, &decl);
+		JOB->nobreak = TRUE;
+		
+		sym = CLASS_get_symbol(JOB->class, prop->use);
+		
+		if (write)
+		{
+			sym->global_assigned = TRUE;
+			CODE_push_local(-1);
+			CODE_pop_global(sym->global.value, is_static);
+			CODE_return(2);
+		}
+		else
+		{
+			sym->global_used = TRUE;
+			CODE_push_global(sym->global.value, is_static, FALSE);
+			CODE_return(1);
+		}
+		
+		FUNCTION_add_last_pos_line();
+		JOB->func->stack = CODE_stack_usage;
+		JOB->nobreak = FALSE;
 	}
 
-	if (write)
+	if (index != NO_SYMBOL)
 	{
-		if (TYPE_get_id(func->type) != T_VOID)
-			goto _BAD_SIGNATURE;
+		sym = (CLASS_SYMBOL *)TABLE_get_symbol(class->table, index);
+		
+		if (TYPE_get_kind(sym->global.type) != TK_FUNCTION)
+			THROW("&1 is declared but is not a function", name);
 
-		if (func->nparam != 1 || func->npmin != 1)
-			goto _BAD_SIGNATURE;
+		func = &class->function[sym->global.value];
+		JOB->line = func->line;
 
-		if (!TYPE_compare(&func->param[0].type, &prop->type))
-			goto _BAD_SIGNATURE;
-	}
-	else
-	{
-		if (!TYPE_compare(&func->type, &prop->type))
-			goto _BAD_SIGNATURE;
+		if (TYPE_is_public(sym->global.type))
+			THROW("A property implementation cannot be public");
 
-		if (func->nparam != 0 || func->npmin != 0)
-			goto _BAD_SIGNATURE;
+		if (is_static != TYPE_is_static(sym->global.type))
+		{
+			if (is_static)
+				THROW("&1 must be static", name);
+			else
+				THROW("&1 cannot be static", name);
+		}
+
+		if (write)
+		{
+			if (TYPE_get_id(func->type) != T_VOID)
+				goto _BAD_SIGNATURE;
+
+			if (func->nparam != 1 || func->npmin != 1)
+				goto _BAD_SIGNATURE;
+
+			if (!TYPE_compare(&func->param[0].type, &prop->type))
+				goto _BAD_SIGNATURE;
+		}
+		else
+		{
+			if (!TYPE_compare(&func->type, &prop->type))
+				goto _BAD_SIGNATURE;
+
+			if (func->nparam != 0 || func->npmin != 0)
+				goto _BAD_SIGNATURE;
+		}
+	
+		sym->global_used = TRUE;
+		value = sym->global.value;
 	}
 
 	STR_free(name);
-	sym->global_used = TRUE;
-	return sym->global.value;
+	return value;
 
 _BAD_SIGNATURE:
 
 	THROW("&1 declaration does not match", name);
-
 }
 
 
@@ -957,57 +1004,60 @@ void CLASS_check_properties(CLASS *class)
 		}
 		else
 		{
-			prop->read = check_one_property_func(class, prop, FALSE);
-			if (prop->write)
-				prop->write = check_one_property_func(class, prop, TRUE);
-			else
-				prop->write = NO_SYMBOL;
+			// TODO: if COMPILER_version < 0x3180000, and if there is no prop->read, then
+			// replace it by a function that raises an error.
+			prop->read = prop->read ? check_one_property_func(class, prop, FALSE) : NO_SYMBOL;
+			prop->write = prop->write ? check_one_property_func(class, prop, TRUE) : NO_SYMBOL;
 		}
 	}
 }
 
 
-CLASS_SYMBOL *CLASS_get_local_symbol(int local)
+void CLASS_check_variable_prefix(CLASS_SYMBOL *sym, bool local)
 {
-	PARAM *param;
+	char *name = sym->symbol.name;
+	int len = sym->symbol.len;
+	int len_prefix;
+	char *p;
+	TYPE type;
 	
-	param = &JOB->func->local[local];
-	return (CLASS_SYMBOL *)TABLE_get_symbol(JOB->class->table, param->index);
-}
-
-
-char *TYPE_get_desc(TYPE type)
-{
-  static char buf[256];
-
-  TYPE_ID id;
-  int value;
-	CLASS_SYMBOL *sym;
-
-  id = TYPE_get_id(type);
-  value = TYPE_get_value(type);
-
-  if (id == T_ARRAY)
-  {
-    strcpy(buf, TYPE_name[JOB->class->array[value].type.t.id]);
-    strcat(buf, "[]");
-  }
-  else if (id == T_OBJECT)
+	if (!JOB->check_prefix)
+		return;
+	
+	type = local ? sym->local.type : sym->global.type;
+	if (TYPE_is_null(type))
+		return;
+	
+	if (len >= 1 && *name == '$')
 	{
-		if (value == -1)
-			strcpy(buf, "Object");
-		else
-		{
-			sym = CLASS_get_symbol(JOB->class, JOB->class->class[value].index);
-			sprintf(buf, "%.*s", sym->symbol.len, sym->symbol.name);
-		}
+		name++;
+		len--;
 	}
-  else
-  {
-    strcpy(buf, TYPE_name[id]);
-  }
-  
-  return buf;
+	
+	if (len <= 1)
+		return;
+	
+	len_prefix = 0;
+	p = name;
+	while (len > 0 && islower(*p))
+	{
+		p++;
+		len--;
+		len_prefix++;
+	}
+	
+	if (TYPE_check_prefix(type, name, len_prefix))
+		COMPILE_print(MSG_WARNING, -1, "variable prefix does not match its datatype: &1", SYMBOL_get_name(&sym->symbol));
 }
 
 
+char *CLASS_get_export_name(CLASS *class)
+{
+	if (!class->exported)
+		return NULL;
+	
+	if (class->export_name)
+		return class->export_name;
+	
+	return class->name;
+}

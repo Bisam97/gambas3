@@ -9,6 +9,8 @@ Property Read Authors As String[]
 Property Read Icon As String
 Property Read Startup As String
 Property Read Components As String[]
+Property Read Deleted As Boolean Use $bDeleted
+Property Read Branch As String Use $sBranch
 
 Public Type As Integer
 Public Translate As Boolean
@@ -26,9 +28,9 @@ Private $sIcon As String
 Private $sStartup As String
 Private $aComponents As New String[]
 
-Private $bRead As Boolean
 Private $sTranslatedTitle As String
 Private $sTranslatedDescription As String
+Private $dDate As Date
 
 Private Sub GetProjectPath(sPath As String) As String
   
@@ -49,15 +51,24 @@ Private Sub ReadProject()
   Dim iPos As Integer
   Dim sKey As String
   Dim sVal As String
-  
-  If $bRead Then Return
-  $bRead = True
+  Dim dDate As Date
+  Dim sPath As String
   
   If Not $sPath Then Return
+
+  sPath = $sPath &/ ".project"
+  Try dDate = Stat(sPath).LastModified
+  If Error Then
+    $dDate = Now
+    $bDeleted = True
+    Return
+  Endif
+  If $dDate And If $dDate = dDate Then Return
+  $dDate = dDate
   
   $aComponents = New String[]
-    
-  hFile = Open $sPath &/ ".project"
+  
+  hFile = Open sPath 
   
   For Each sLine In hFile.Lines
     sLine = Trim(sLine)
@@ -76,6 +87,8 @@ Private Sub ReadProject()
         $sTitle = sVal
 
       Case "version"
+        iPos = InStr(sVal, " ")
+        If iPos Then sVal = Left(sVal, iPos - 1)
         $sVersion = sVal
         
       Case "description"
@@ -117,8 +130,10 @@ Private Sub ReadProject()
   
   Next
   
-  Close #hFile
+  $sBranch = VersionControl.GetBranchFromDir($sPath)
 
+  Close #hFile
+  
 End
 
 Public Sub _new(sPath As String)
@@ -164,7 +179,7 @@ Private Function Title_Read() As String
 End
 
 Private Function Version_Read() As String
-
+  
   ReadProject
   Return $sVersion
 
@@ -220,12 +235,19 @@ Private Sub GetTranslation(sStr As String) As String
 
   Dim sLang As String
   Dim sPath As String
+  Dim sTrans As String
   
-  sLang = Language.Find(System.Language)  
+  sLang = MyLanguage.Find(System.Language)  
+  If Error Then Return sStr
   sPath = $sPath &/ ".lang" &/ sLang & ".po"
   If Not Exist(sPath) Then Return sStr
   
-  Return CTranslation.FindTranslation(sPath, sStr)
+  sTrans = CTranslation.FindTranslation(sPath, sStr)
+  If sTrans Then
+    Return sTrans
+  Else
+    Return sStr
+  Endif
   
   ' aTrans = Split(File.Load(sPath), "\n")
   ' iPos = aTrans.Find("msgid " & Quote(sStr))

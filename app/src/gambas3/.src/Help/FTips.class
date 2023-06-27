@@ -4,21 +4,12 @@ Static Private $aOrder As New String[]
 
 Static Private $iTip As Integer
 
-Static Public Sub Run()
-
-  Dim hForm As Form
-
-  hForm = New FTips
-  hForm.ShowModal
-
-End
-
 Static Public Sub _init()
 
   Dim hFic As File
   Dim sLig As String
 
-  hFic = Open "tips/tips.en"
+  hFic = Open "tips/tips.en.txt"
 
   While Not Eof(hFic)
     Line Input #hFic, sLig
@@ -70,22 +61,22 @@ Private Function GetNextTip(Optional bPrev As Boolean) As String
   iPos = RInStr(sLang, ".")
   If iPos Then sLang = Left(sLang, iPos - 1)
 
-  sFile = "tips/tips." & sLang
+  sFile = "tips/tips." & sLang & ".txt"
   If Not Exist(sFile) Then
     iPos = InStr(sLang, "_")
     If iPos Then
       sLang = Left$(sLang, iPos - 1)
-      sFile = "tips/tips." & sLang
+      sFile = "tips/tips." & sLang & ".txt"
     Endif
   Endif
   If Not Exist(sFile) Then
-    sFile = "tips/tips.en"
+    sFile = "tips/tips.en.txt"
   Endif
 
   sTip = File.Load(sFile)
   iPos = InStr(sTip, "[" & $aOrder[$iTip - 1] & "]")
   If iPos = 0 Then
-    sTip = File.Load("tips/tips.en")
+    sTip = File.Load("tips/tips.en.txt")
   Endif
   iPos = InStr(sTip, "[" & $aOrder[$iTip - 1] & "]")
   If iPos = 0 Then Return
@@ -101,7 +92,7 @@ Private Function GetNextTip(Optional bPrev As Boolean) As String
 
 Catch
 
-  Message.Error(("Unable to read tip of the day !") & "\n\n" & Error.Text)
+  FMain.ShowErrorWith(("Unable to read tip of the day !"))
 
 End
 
@@ -150,7 +141,7 @@ End
 Private Sub PaintRoundedRect(X As Integer, Y As Integer, W As Integer, H As Integer, R As Float)
 
   Dim fArcToBezier As Float = 0.55228475
-  Dim fRadiusX, fRadiusY, c1, c2 As Float
+  Dim fRadiusX, fRadiusY, C1, C2 As Float
 
   fRadiusX = R
   fRadiusY = R
@@ -159,19 +150,19 @@ Private Sub PaintRoundedRect(X As Integer, Y As Integer, W As Integer, H As Inte
   If fRadiusY > H - fRadiusY Then fRadiusY = H / 2
 
   '#approximate(quite Close )the arc using a bezier curve
-  c1 = fArcToBezier * fRadiusX
-  c2 = fArcToBezier * fRadiusY
+  C1 = fArcToBezier * fRadiusX
+  C2 = fArcToBezier * fRadiusY
 
   Paint.NewPath()
   Paint.MoveTo(x + fRadiusX, y)
   Paint.RelLineTo(w - 2 * fRadiusX, 0.0)
-  Paint.RelCurveTo(c1, 0.0, fRadiusX, c2, fRadiusX, fRadiusY)
+  Paint.RelCurveTo(C1, 0.0, fRadiusX, C2, fRadiusX, fRadiusY)
   Paint.RelLineTo(0, h - 2 * fRadiusY)
-  Paint.RelCurveTo(0.0, c2, c1 - fRadiusX, fRadiusY, -fRadiusX, fRadiusY)
+  Paint.RelCurveTo(0.0, C2, C1 - fRadiusX, fRadiusY, -fRadiusX, fRadiusY)
   Paint.RelLineTo(-w + 2 * fRadiusX, 0)
-  Paint.RelCurveTo(-c1, 0, -fRadiusX, -c2, -fRadiusX, -fRadiusY)
+  Paint.RelCurveTo(-C1, 0, -fRadiusX, -C2, -fRadiusX, -fRadiusY)
   Paint.RelLineTo(0, -h + 2 * fRadiusY)
-  Paint.RelCurveTo(0.0, -c2, fRadiusX - c1, -fRadiusY, fRadiusX, -fRadiusY)
+  Paint.RelCurveTo(0.0, -C2, fRadiusX - C1, -fRadiusY, fRadiusX, -fRadiusY)
   Paint.ClosePath()
 
 End
@@ -179,7 +170,7 @@ End
 Public Sub dwgBackground_Draw()
 
   Paint.Brush = Paint.Color(Color.LightBackground)
-  PaintRoundedRect(0, 0, dwgBackground.W, dwgBackground.H, 8)
+  PaintRoundedRect(0, 0, dwgBackground.W, dwgBackground.H, Paint.H / 2)
   Paint.Fill
 
 End

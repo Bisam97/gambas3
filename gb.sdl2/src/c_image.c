@@ -2,7 +2,7 @@
 
   c_image.c
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -70,7 +70,6 @@ static void *temp_image(GB_IMG *img)
 	
 	if (img && img->data)
 		surface = SDL_CreateRGBSurfaceFrom(img->data, img->width, img->height, 32, img->width * sizeof(int), RMASK, GMASK, BMASK, AMASK);
-
 	
 	return SDL_CreateImage(surface);
 }
@@ -116,13 +115,21 @@ CIMAGE *IMAGE_create(SDL_Image *image)
 	return img;
 }
 
-SDL_Texture *SDL_GetTextureFromImage(SDL_Image *image, CWINDOW *window)
+SDL_Texture *SDL_GetTextureFromImage(SDL_Image *image, CWINDOW *window, bool modified)
 {
-	if (image->texture && image->window != window)
+	if (image->texture)
 	{
-		SDL_DestroyTexture(image->texture);
-		GB.Unref(POINTER(&image->window));
-		image->texture = NULL;
+		if (image->window != window)
+		{
+			SDL_DestroyTexture(image->texture);
+			GB.Unref(POINTER(&image->window));
+			image->texture = NULL;
+		}
+		else if (modified)
+		{
+			SDL_DestroyTexture(image->texture);
+			image->texture = NULL;
+		}
 	}
 
 	if (!image->texture)
@@ -138,7 +145,9 @@ SDL_Texture *SDL_GetTextureFromImage(SDL_Image *image, CWINDOW *window)
 
 SDL_Texture *IMAGE_get_texture(CIMAGE *_object, CWINDOW *window)
 {
-	return SDL_GetTextureFromImage(IMAGE_get(THIS), window);
+	SDL_Texture *texture = SDL_GetTextureFromImage(IMAGE_get(THIS), window, THIS->img.modified);
+	THIS->img.modified = FALSE;
+	return texture;
 }
 
 CIMAGE *IMAGE_create_from_window(CWINDOW *window, int x, int y, int w, int h)

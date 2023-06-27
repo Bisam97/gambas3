@@ -2,7 +2,7 @@
 
   ccomplex.c
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -40,6 +40,12 @@ CCOMPLEX *COMPLEX_create(double re, double im)
 	static GB_CLASS CLASS_Complex = (GB_CLASS)NULL;
 	CCOMPLEX *c;
 	
+	if (!isfinite(re) || !isfinite(im))
+	{
+		GB.Error(GB_ERR_MATH);
+		return NULL;
+	}
+
 	if (!CLASS_Complex)
 		CLASS_Complex = GB.FindClass("Complex");
 	
@@ -56,6 +62,12 @@ static inline CCOMPLEX *COMPLEX_make(CCOMPLEX *a, const double re, const double 
 {
 	if (a->ob.ref <= 1)
 	{
+		if (!isfinite(re) || !isfinite(im))
+		{
+			GB.Error(GB_ERR_MATH);
+			return NULL;
+		}
+
 		a->v[0] = re;
 		a->v[1] = im;
 		return a;

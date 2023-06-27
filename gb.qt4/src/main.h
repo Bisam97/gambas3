@@ -2,7 +2,7 @@
 
 	main.h
 
-	(c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+	(c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -24,9 +24,6 @@
 #ifndef __MAIN_H
 #define __MAIN_H
 
-#include "gb_common.h"
-#include "gambas.h"
-
 #include <QEvent>
 #include <QApplication>
 #include <QTimerEvent>
@@ -34,6 +31,9 @@
 #include <QSessionManager>
 #include <QClipboard>
 #include <QFont>
+
+#include "gb_common.h"
+#include "gambas.h"
 
 #define DO_NOT_USE_QT_INTERFACE
 #include "gb.qt.h"
@@ -55,6 +55,9 @@ extern bool MAIN_key_debug;
 extern bool MAIN_right_to_left;
 #ifndef NO_X_WINDOW
 extern int MAIN_x11_last_key_code;
+#define MAIN_platform "x11"
+#else
+#define MAIN_platform ""
 #endif
 
 extern GB_CLASS CLASS_Control;

@@ -1,0 +1,295 @@
+' Gambas class file
+
+Export
+
+Public Const _Properties As String = "*,NoHeader"
+Public Const _DrawWith As String = "WebView"
+
+Inherits WebView
+
+Event Ready
+Event Resize
+
+Property NoHeader As Boolean Use $bNoHeader
+Property NoMenu As Boolean Use $bNoMenu
+
+Private $hObs As Observer
+Private $hWatcher As Watcher
+Private $hSpinner As Spinner
+Private $sNextUrl As String
+Private $hNotExist As Label
+Private $hTimerNotExist As Timer
+
+Public Sub _new()
+
+  $hObs = New Observer(Me) As "WebView"
+  $hWatcher = New Watcher(Me) As "Watcher"
+  
+  $hSpinner = New Spinner(Me.Window)
+  $hSpinner.Hide
+  $hSpinner.Ignore = True
+  $hSpinner.ResizeScaled(8, 8)
+  $hSpinner.Type = Spinner.Circle
+  
+  $hNotExist = New Label(Me.Window) As "lblNotExist"
+  $hNotExist.Hide
+  $hNotExist.Ignore = True
+  $hNotExist.Alignment = Align.Center
+  $hNotExist.ResizeScaled(20, 3)
+  $hNotExist.Text = "  " & ("This page does not exist.") & "  "
+  $hNotExist.AutoResize = True
+  $hNotExist.Font.Bold = True
+  '$hNotExist.Border = Border.Plain
+  $hNotExist.Background = Color.SetAlpha(Color.TooltipBackground, 64)
+  $hNotExist.Foreground = Color.TooltipForeground
+  
+End
+
+Private Sub ShowWaiting(bShow As Boolean)
+
+  If $hSpinner.Visible = bShow Then Return
+
+  If bShow Then
+    $hSpinner.Show
+    Watcher_Move
+    $hSpinner.Raise
+    $hSpinner.Start
+  Else
+    $hSpinner.Stop
+    $hSpinner.Hide
+  Endif
+
+End
+
+' Public Sub WebView_Error()
+'   
+'   Dim sLastUrl As String
+'   
+'   ShowWaiting(False)
+'   
+'   If Not $sLastUrl Then 
+'     sLastUrl = Me.Url
+'   Else
+'     sLastUrl = $sLastUrl
+'     $sLastUrl = ""
+'   Endif
+'   
+'   If sLastUrl Begins "/" Then sLastUrl = Project.WIKI_ROOT &/ sLastUrl
+'   
+'   If sLastUrl Begins "gambas://" Then 
+'     
+'     Me.Stop
+'     MHelp.ManageSpecialLink(Me, sLastUrl)
+'     Return
+'     
+'   Else If sLastUrl Begins "wiki://" Then
+'     
+'     MHelp.MakeOffline(Me, sLastUrl, $bNoHeader)
+'     Return
+'     
+'   Endif
+'   
+' End
+
+Public Sub Watcher_Move()
+  
+  Dim hWin As Window
+  
+  If Not $hSpinner Then Return
+  
+  With Me
+    hWin = $hSpinner.Window
+    $hSpinner.Move(.ScreenX - hWin.ScreenX - hWin.ClientX + (.W - $hSpinner.W) \ 2, .ScreenY - hWin.ScreenY - hWin.ClientY + (.H - $hSpinner.H) \ 2)
+  End With
+  
+  $hNotExist.Hide
+  
+End
+
+Public Sub Watcher_Resize()
+
+  Watcher_Move
+  Raise Resize
+  
+End
+
+Public Sub WebView_NewView()
+  
+  Project.OpenWebPage(Me.Link)
+  
+End
+
+Private Sub GetHelpView() As HelpView
+
+  Return Object.Parent(Me)
+
+End
+
+Private Sub HandleSpecialURL()
+
+  Dim hWin As Window
+  
+  'Debug $sNextUrl
+  
+  If $sNextUrl Begins "gambas://" Then 
+    
+    MHelp.ManageSpecialLink(GetHelpView(), $sNextUrl)
+    
+  Else If $sNextUrl Begins "wiki://" Then
+    
+    If MHelp.MakeOffline(GetHelpView(), $sNextUrl, $bNoHeader) Then
+      hWin = Me.Window
+      $hNotExist.Move(Me.ScreenX - hWin.ScreenX + Desktop.Scale, Me.ScreenY - hWin.ScreenY + Me.Height - $hNotExist.H - Desktop.Scale)
+      $hNotExist.Show
+      $hNotExist.Raise
+      
+      If Not $hTimerNotExist Then
+        $hTimerNotExist = New Timer As "TimerNotExist"
+        $hTimerNotExist.Delay = 5000
+        $hTimerNotExist.Ignore = True
+      Endif
+      $hTimerNotExist.Restart
+      
+    Endif
+    
+  Endif
+  
+  $sNextUrl = ""
+  
+End
+
+' Public Sub WebView_Navigate()
+' 
+'   Dim sUrl As String
+'   Dim hTimer As Timer
+'   
+'   sUrl = Me.Link
+'   Debug sUrl
+'   
+' End
+
+' Public Sub WebView_Link()
+'   
+'   Debug Me.Link
+'   
+' End
+
+Public Sub WebView_Start()
+  
+  Dim sUrl As String
+  Dim hTimer As Timer
+  
+  sUrl = Me.Link
+  If Not sUrl Then sUrl = Me.Url
+
+  ShowWaiting(True)
+  $hNotExist.Hide
+
+  If sUrl Begins "gambas://" Or If sUrl Begins "wiki://" Then 
+
+    $sNextUrl = sUrl
+    'Me.Stop
+    hTimer = New Timer As "TimerUrl"
+    hTimer.Trigger
+    
+    Stop Event
+    Return
+    
+  Endif
+      
+  ' sLastUrl = Me.Link
+  ' If Not sLastUrl Then sLastUrl = Me.Url
+  ' 
+  ' ' If $sLastUrl Then
+  ' '   sLastUrl = $sLastUrl
+  ' '   $sLastUrl = ""
+  ' ' Else
+  ' '   sLastUrl = Me.Url
+  ' ' Endif
+  ' 
+  ' If sLastUrl Begins "/" Then sLastUrl = Project.WIKI_ROOT &/ sLastUrl
+  ' 
+  ' If sLastUrl Begins "gambas://" Or If sLastUrl Begins "wiki://" Then 
+  '   
+  '   $sNextUrl = sLastUrl
+  '   'Me.Stop
+  '   hTimer = New Timer As "TimerUrl"
+  '   hTimer.Trigger
+  '   
+  '   'Debug Me;; sLastUrl
+  '   Me.Stop
+  '  
+  ' Endif
+      
+End
+  
+Public Sub WebView_Error()   
+  
+  ShowWaiting(False)
+  HandleSpecialURL
+  
+End
+  
+Public Sub WebView_Finish()
+  
+  ShowWaiting(False)
+  Raise Ready
+  
+End
+
+Public Sub WebView_Progress()
+  
+  $hSpinner.Value = Me.Progress
+  
+End
+
+Public Sub Stop()
+  
+  Super.Stop
+  ShowWaiting(False)
+  
+End
+
+Public Sub lblNotExist_MouseDown()
+  
+  $hNotExist.Hide
+  
+End
+
+Public Sub Clear()
+
+  Dim fZoom As Float
+  
+  fZoom = Me.Zoom
+  Super.Clear
+  Me.Zoom = fZoom
+  $hNotExist.Hide
+  
+End
+
+Public Sub TimerNotExist_Timer()
+  
+  $hNotExist.Hide
+  $hTimerNotExist = Null
+  Stop Event
+  
+End
+
+Public Sub ZoomIn()
+  
+  Me.Zoom = Round(Me.Zoom * 1.125, -3)
+  
+End
+
+Public Sub ZoomOut()
+  
+  Me.Zoom = Round(Me.Zoom / 1.125, -3)
+  
+End
+
+Public Sub ZoomNormal()
+  
+  Me.Zoom = 1
+  
+End
+

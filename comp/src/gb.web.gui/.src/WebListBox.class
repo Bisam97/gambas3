@@ -1,0 +1,346 @@
+' Gambas class file
+
+Export
+Inherits WebControl
+
+Public Const _Properties As String = "*,Border=True,List,Text,Mode{Select.*}=Single,UseHTML"
+Public Const _Group As String = "View"
+Public Const _DrawWith As String = "ListBox"
+Public Const _DefaultSize As String = "24,4"
+Public Const _Similar As String = "WebTextBox"
+Public Const _DefaultEvent As String = "Click"
+
+'' This event is raised when an item is clicked in the list box.
+Event Click
+'' This event is raised when an item is clicked twice.
+Event Activate
+'' This event is raised when the selection changes.
+Event Select
+
+
+'' Return the listbox selection mode.
+Property Mode As Integer
+'' Return or set the text of the current selected item.
+Property Text As String
+'' Return the number of items in the combo-box popup.
+Property Read Count As Integer
+'' Return or set the index of the current selected item.
+Property Index, Current As Integer
+'' Return or set the contents of the combo-box popup as a string array.
+Property List As String[]
+'' Return the list of selected items.
+Property Read Selection As Integer[]
+'' Return or set if the items are HTML or plain text.
+Property UseHTML As Boolean
+
+Property ScrollX As Integer
+Property ScrollY As Integer
+
+Private $aList As New String[]
+Private $iMode As Integer
+Private $hSelection As CSelection
+Private $bHtml As Boolean
+Private $iScrollX As Integer
+Private $iScrollY As Integer
+
+Public Sub _new()
+  
+  Mode_Write(Select.Single)
+  
+End
+
+Public Sub _RenderStyleSheet()
+  
+  Me._StartStyleSheet
+  
+  Super._RenderStyleSheet()
+  
+  If $iMode = Select.None Then Me._AddStyleSheet("pointer-events: none;")
+    
+  Me._EndStyleSheet
+  
+End
+
+Public Sub _BeforeRender()
+  
+  Print "<div"; Me._GetClassId(); " tabindex=\"0\"";
+  Print " onscroll=\"gw.scrollview.onScroll("; JS(Me.Name); ");\"";
+  If $iMode = Select.Single Then Print " onkeydown=\"gw.listbox.onKeyDown("; JS(Me.Name); ",event);\"";
+  Me._RenderStyleSheet()
+  Print ">";
+  
+End
+
+Public Sub _Render()
+  
+  Dim I As Integer
+  
+  For I = 0 To $aList.Max
+    Print "<div";
+    If IsSelected(I) Then Print " class=\"gw-selected\"";
+    If $iMode Then
+      Print " onmousedown=\"gw.listbox.select("; JS(Me.Name); ","; I; ",event,"; JS($iMode = Select.Multiple); ");\"";
+    Endif
+    If Object.CanRaise(Me, "Activate") Then Print Me._GetEventJS("ondblclick", "Activate");
+    
+    Print ">"; 
+    If $bHtml Then
+      Print $aList[I];
+    Else
+      Print Html($aList[I]); 
+    Endif
+    Print "</div>";
+  Next
+  
+  If $iMode = Select.Single Then WebForm._AddJavascript("$_(" & JS(Me.Name) & ").gw_current = " & Index_Read() & ";")
+  
+  If $iScrollX Or If $iScrollY Then WebForm._AddJavascript("gw.scrollview.scroll(" & JS(Me.Name) & "," & JS($iScrollX) & "," & JS($iScrollY) & ");")
+  
+End
+
+Public Sub _UpdateProperty(sProp As String, vValue As Variant)
+
+  Select Case sProp
+    
+    Case "+"
+    
+      Inc Me._NoRefresh
+      Try Select(vValue[0], vValue[1])
+      Dec Me._NoRefresh
+    
+    Case "-"
+    
+      Inc Me._NoRefresh
+      Try Unselect(vValue[0], vValue[1])
+      Dec Me._NoRefresh
+      
+    Case "$"
+    
+      Inc Me._NoRefresh
+      Try Select(vValue)
+      Dec Me._NoRefresh
+      
+    Case "#scroll"
+
+      Inc Me._NoRefresh
+      Me.ScrollX = vValue[0]
+      Me.ScrollY = vValue[1]
+      Dec Me._NoRefresh
+      
+  End Select
+  
+End
+
+Private Function Text_Read() As String
+
+  Try Return $aList[Index_Read()]
+
+End
+
+Private Sub Text_Write(Value As String)
+
+  Me.Index = $aList.Find(Value)
+
+End
+
+Private Function Count_Read() As Integer
+
+  Return $aList.Count
+
+End
+
+Private Function Index_Read() As Integer
+
+  If $iMode <> Select.None Then
+    Return $hSelection.GetCurrent()
+  Else
+    Return -1
+  Endif
+
+End
+
+Private Sub Index_Write(Value As Integer)
+
+  If $iMode = Select.None Then Return
+  If $hSelection Then $hSelection.UnselectAll
+  Select(Value)
+
+End
+
+Private Function List_Read() As String[]
+
+  Return $aList.Copy()
+
+End
+
+Private Sub List_Write(Value As String[])
+
+  UnselectAll
+  If Not Value Then
+    $aList.Clear
+  Else
+    $aList = Value.Copy()
+  Endif
+  Me.Refresh
+
+End
+
+Private Function Mode_Read() As Integer
+
+  Return $iMode
+
+End
+
+Private Sub SetSelection()
+  
+  If $iMode = Select.None Then
+    $hSelection = Null
+  Else
+    If Not $hSelection Then $hSelection = New CSelection As "Selection"
+  Endif
+  
+End
+
+Private Sub Mode_Write(Value As Integer)
+
+  If $iMode = Value Then Return
+  $iMode = Value
+  SetSelection
+  Me.Refresh
+
+End
+
+Public Sub Clear()
+  
+  UnselectAll
+  $aList.Clear
+  Me.ScrollX = 0
+  Me.ScrollY = 0
+  Me.Refresh
+  
+End
+
+Public Sub SelectAll()
+  
+  If $hSelection Then 
+    $hSelection.SelectAll
+    Raise Select
+  Endif
+  
+End
+
+Public Sub UnselectAll()
+  
+  If $hSelection Then 
+    $hSelection.UnselectAll
+    Raise Select
+  Endif    
+  
+End
+
+Public Sub Select(Row As Integer, Optional Length As Integer = 1)
+  
+  If $hSelection Then 
+  
+    If $iMode = Select.Single Then
+      
+      $hSelection.UnselectAll
+      $hSelection.Select(Row)
+      
+    Else
+      
+      $hSelection.Select(Row, Length)
+      
+    Endif
+    
+    Raise Select
+    
+  Endif
+  
+End
+
+Public Sub Unselect(Row As Integer, Optional Length As Integer = 1)
+  
+  If $hSelection Then 
+    $hSelection.Unselect(Row, Length)
+    Raise Select
+  Endif
+  
+End
+
+Public Sub IsSelected(Row As Integer) As Boolean
+  
+  If $hSelection Then Return $hSelection.IsSelected(Row)
+  
+End
+
+Private Function Selection_Read() As Integer[]
+
+  If $hSelection Then Return $hSelection.GetSelectedRows()
+
+End
+
+'' Add an item to the list.
+''
+'' - ~Item~ is the text of the item to add.
+'' - ~Index~ is the position the item will be inserted from. If not specified, the item is added at the end of the popup list.
+
+Public Sub Add(Item As String, Optional Index As Integer = -1)
+  
+  $aList.Add(Item, Index)
+  If $hSelection Then $hSelection.InsertRow(Index)
+  Me.Refresh
+  
+End
+
+'' Remove an item from the list.
+''
+'' - ~Index~ is the index of the item to remove, between 0 and [../count] - 1.
+
+Public Sub Remove(Index As Integer)
+  
+  $aList.Remove(Index)
+  If $hSelection Then $hSelection.RemoveRow(Index)
+  Me.Refresh
+  
+End
+
+Private Function UseHtml_Read() As Boolean
+
+  Return $bHtml
+
+End
+
+Private Sub UseHtml_Write(Value As Boolean)
+
+  If $bHtml = Value Then Return
+  $bHtml = Value
+  Me.Refresh
+
+End
+
+Private Function ScrollX_Read() As Integer
+
+  Return $iScrollX
+
+End
+
+Private Sub ScrollX_Write(Value As Integer)
+
+  $iScrollX = Value
+  Me.Refresh
+
+End
+
+Private Function ScrollY_Read() As Integer
+
+  Return $iScrollY
+
+End
+
+Private Sub ScrollY_Write(Value As Integer)
+
+  $iScrollY = Value
+  Me.Refresh
+
+End

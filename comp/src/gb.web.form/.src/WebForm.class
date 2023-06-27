@@ -1,16 +1,22 @@
 ' Gambas class file
 
+''' This class represents the different pages and dialogs of your Web application.
+
 Export
 Create Static
 
 Inherits WebContainer
 
 Public Const _IsForm As Boolean = True
-Public Const _HiddenControls As String = "WebControl,WebForm,WebWindow,Timer"
+Public Const _HiddenControls As String = "WebControl,WebForm,Timer"
 Public Const _Properties As String = "*,Title,Resizable,Persistent"
 Public Const _DefaultEvent As String = "Open"
 
+'' Return or set if debugging messages are printed in the javascript console of the browser.
 Static Property Debug As Boolean
+'' Return or set the name of the startup form.
+''
+'' By default, this is the startup class of your project.
 Static Property Startup As String
 
 Static Public _InExec As Integer
@@ -25,16 +31,34 @@ Static Private $cLibrary As New Collection
 Static Private $iDownload As Integer
 'Static Private $aPreload As String[]
 
+'' This event is raised when the form is opened.
 Event Open
+'' This event is raised each time an event is handled by the form.
 Event Event
+'' This event is raised when the form is closed.
 Event Close
 
+'' Return or set the form title.
+''
+'' This title is used as HTML page title if the form is the main form.
 Property Title As String
+'' Return or set if the form is resizable when used as a dialog.
 Property Resizable As Boolean
+'' Return or set the minimum width of the form.
+''
+'' This property can take any valid CSS size. If not set, the control will have no minimum width.
 Property Width, W As String
+'' Return or set the minimum height of the form.
+''
+'' This property can take any valid CSS size. If not set, the control will have no minimum height.
 Property Height, H As String
+'' Return if the form is a popup.
 Property Read Popup As Boolean
+'' Return the control that owns the popup.
 Property Read PopupParent As WebControl
+'' Return or set if the form is persistent.
+''
+'' Closing a non-persistent form automatically destroys it.
 Property Persistent As Boolean
 
 Static Public _DisableRefresh As Integer
@@ -63,6 +87,9 @@ Static Public Sub _init()
   
 End
 
+'' This method is called when the form is used as startup class.
+''
+'' It handles all HTTP requests received by your application.
 
 Static Public Sub Main()
 
@@ -215,10 +242,10 @@ Catch
   
   Response.Cancel
   Response.Begin
-  Print "<html><body><script type\"text/javascript\">"
+  If sPath <> "x" Then Print "<html><body><script type\"text/javascript\">"
   Print "console.log("; JS(sErr); ");"
   Print "alert("; JS(sErr); ");"
-  Print "</script></body></html>"
+  If sPath <> "x" Then Print "</script></body></html>"
   Response.End
   'System.Log("End request")
   
@@ -255,24 +282,40 @@ Static Public Sub _AddJavascriptBefore(sStr As String)
   
 End
 
+'' Create a new WebForm
+''
+'' You can embed a webform into a container. In that case the webform acts like a WebContainer.
+
 Public Sub _new()
-  
-  $hWindowContainer = New WebContainer(Me)
-  $hWindowContainer.Ignore = True
-  $hWindowContainer._Naked = True
-  $hWindowContainer.Class = "gw-window-container"
+
+  If Not Me.Parent Then  
+    $hWindowContainer = New WebContainer(Me)
+    $hWindowContainer.Ignore = True
+    $hWindowContainer._Naked = True
+    $hWindowContainer.Class = "gw-window-container"
+  Endif
   
 End
 
 Public Sub _ready()
+
+  If Not Me.Parent Then 
+    Me._InitProperties
+    $hWindowContainer.Raise
+  Endif
   
-  Me._InitProperties
-  $hWindowContainer.Raise
   _Loaded = True
+  
+  'If Me.Parent And If Then Raise Open
 
 End
 
 Public Sub _BeforeRender()
+  
+  If Me.Parent Then 
+    Super._BeforeRender()
+    Return
+  Endif
   
   Print "<div class=\"gw-form";
   If Me.Class Then Print " "; Me.Class;
@@ -332,6 +375,8 @@ Public Sub _EndJavascript(vSave As Variant)
   
 End
 
+'' Render the form contents to the standard output as HTML.
+
 Public Sub Render()
 
   Dim sImage As String
@@ -350,7 +395,7 @@ Public Sub Render()
   
   Print "<div id=\"gw-preload\" style=\"display:none;\">";
   For Each sImage In ["error.png", "info.png", "question.png", "warning.png"]
-    Print "<img src=\""; Application.Root &/ sImage; "\">";
+    Print "<img src=\""; Application.Root &/ "message" &/ sImage; "\">";
   Next
   Print "</div>"
   Print "<div id=\"gw-modal\" onmousedown=\"gw.window.onDownModal();\"></div>"
@@ -446,11 +491,15 @@ Private Sub Title_Write(Value As String)
 
 End
 
+'' Print some text to the browser javascript console.
+
 Static Public Sub Print(Text As String)
   
   $aJavascript.Add("console.log(" & JS(Text) & ")")
   
 End
+
+'' Execute some javascript into the browser.
 
 Static Public Sub Exec(Javascript As String)
   
@@ -532,6 +581,12 @@ Catch
   
 End
 
+'' Close the form.
+''
+'' If the form was a dialog, you can specify a return value with the optional ~ReturnValue~ argument.
+'' 
+'' That return value will be passed as an argument to the [../control/.dialog] event of the control that owns the dialog.
+
 Public Sub Close(Optional ReturnValue As Variant)
   
   ' Dim bCancel As Boolean
@@ -578,9 +633,16 @@ End
 '   
 ' End
 
+'' Hide the form.
+
 Public Sub Hide()
   
   Dim hWindow As WebControl
+  
+  If Me.Parent Then
+    Super.Hide()
+    Return
+  Endif
   
   If _Window = 0 Then Return
   
@@ -608,42 +670,61 @@ Private Sub DoShow()
   
 End
 
+'' Show the form.
 
 Public Sub Show()
 
+  If Me.Parent Then Return
   DoShow  
   Raise Open
   
 End
 
+'' Show the form as a modal dialog.
+''
+'' ~Parent~ is the owner of the dialog. If not specified, then the value of [/lang/last] is used as owner.
+'' 
+'' An error is raised if you try to call this method on an embedded form.
+
 Public Sub ShowModal(Optional Parent As WebControl)
   
   Dim hWindow As WebWindow
   
+  If Me.Parent Then Error.Raise("Form is embedded")
   If _Window = 0 Then DoShow()
   
   hWindow = WebControl.FromId(_Window)
   If hWindow Then
     hWindow.Modal = True
-    If IsMissing(Parent) Then Parent = Last
-    If Parent Then hWindow.ParentControl = Parent
+    If IsMissing(Parent) Then Try Parent = Last
+    If Parent Then hWindow.ParentControl = Parent.Name
   Endif
   
   Raise Open
   
 End
 
+'' Show the form as a popup.
+''
+'' - ~Control~ is the owner of the popup. It is normally the control the popup is attached to.
+'' - ~Alignment~ defines the position of the popup on the screen:
+''   - [Align.Left](../../align/left) : the popup is aligned to the left of its owner.
+''   - [Align.Right](../../align/eight) : the popup is aligned to the right of its owner.
+''
+'' By default the popup is aligned to the left of its owner.
+
 Public Sub ShowPopup(Control As WebControl, Optional Alignment As Integer = Align.Left)
   
   Dim hWindow As WebWindow
   
+  If Me.Parent Then Error.Raise("Form is embedded")
   If _Window Then Return
   
   hWindow = New WebWindow(WebForm._Current._GetWindowContainer())
   hWindow.Child = Me
   hWindow.Resizable = $bResizable
   hWindow.PopupAlignment = Alignment
-  hWindow.PopupControl = Control
+  hWindow.PopupControl = Control.Name
   hWindow.Modal = True  
   
   _Window = hWindow.Id
@@ -652,8 +733,10 @@ Public Sub ShowPopup(Control As WebControl, Optional Alignment As Integer = Alig
   
 End
 
-
-
+'' Move and/or resize the form.
+'' [[ warning
+'' A main form cannot be moved nor resized.
+'' ]]
 Public Sub Move(X As String, Y As String, Optional Width As String, Optional Height As String)
   
   Dim hWindow As WebWindow = WebControl.FromId(_Window)
@@ -668,6 +751,10 @@ Public Sub Move(X As String, Y As String, Optional Width As String, Optional Hei
   
 End
 
+'' Resize the form.
+'' [[ warning
+'' A main form cannot be resized.
+'' ]]
 Public Sub Resize(Width As String, Height As String)
   
   Dim hWindow As WebWindow = WebControl.FromId(_Window)
@@ -780,7 +867,8 @@ Private Sub Height_Write(Value As String)
 End
 
 Public Sub _GetWindowContainer() As WebContainer
-  
+
+  'If Me.Parent Then Return Me.Form._GetWindowContainer()  
   Return $hWindowContainer
   
 End
@@ -809,7 +897,7 @@ End
 Private Function PopupParent_Read() As WebControl
 
   Dim hWindow As WebWindow = WebForm.FromId(Me._Window)
-  If hWindow Then Return hWindow.PopupControl
+  If hWindow Then Return WebControl.FromName(hWindow.PopupControl)
 
 End
 
@@ -843,6 +931,10 @@ Catch
 
 End
 
+'' Reload the form.
+''
+'' It the form is not a main form, then it is refreshed.
+
 Public Sub Reload()
   
   If Me = _Current Then
@@ -865,6 +957,8 @@ Public Sub _GetJavascriptExternFiles() As String[]
   
 End
 
+'' Add a javascript file to the list of javascript ressources defined by the `<style>` markups of the page header.
+
 Public Sub AddJavascriptFile(sFile As String)
   
   If sFile Begins "http://" Or If sFile Begins "https://" Then
@@ -877,6 +971,12 @@ Public Sub AddJavascriptFile(sFile As String)
   Endif
   
 End
+
+'' Start a file download.
+''
+'' - ~Path~ is the path of the file on the server.
+'' - ~ContentType~ is the mime type of the file. If not specified, it will deducted from the file extension.
+'' - ~Remove~ is an optional boolean argument that specifies if the file should removed from the server once it is downloaded.
 
 Static Public Sub Download(Path As String, Optional ContentType As String, Optional Remove As Boolean)
 

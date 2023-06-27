@@ -24,40 +24,31 @@
 #include "widgets.h"
 #include "gb.form.font.h"
 
-#ifndef GAMBAS_DIRECTFB
-#ifdef GDK_WINDOWING_X11
-#include <gdk/gdkx.h>
-#include <X11/X.h>
-#include <X11/Xlib.h>
-#include "x11.h"
-#endif
-#endif
-
 #include "gcursor.h"
 
 gCursor::gCursor(gPicture *pic, int px, int py)
 {
 	static bool check = false;
 	GdkDisplay *dp = gdk_display_get_default();
-	
+
 	if (!check)
 	{
 		if (!gdk_display_supports_cursor_color(dp) || !gdk_display_supports_cursor_alpha(dp))
-			fprintf(stderr, "gb.gtk: warning: RGBA cursors are not supported\n");
+			fprintf(stderr, GTK_NAME ": warning: RGBA cursors are not supported\n");
 		check = true;
 	}
-	
+
 	x = px;
 	y = py;
 	cur = NULL;
 	if (!pic || pic->isVoid())
 		return;
-	
+
 	if (pic->width() <= x)
 		x = pic->width() - 1;
 	if (pic->height() <= y)
 		y = pic->height() - 1;
-	
+
 	cur=gdk_cursor_new_from_pixbuf(dp, pic->getPixbuf(), x, y);
 }
 
@@ -66,7 +57,7 @@ gCursor::gCursor(gCursor *cursor)
 	cur = NULL;
 	if (!cursor) return;
 	if (!cursor->cur) return;
-	
+
 	cur = cursor->cur;
 	x = cursor->x;
 	y = cursor->y;

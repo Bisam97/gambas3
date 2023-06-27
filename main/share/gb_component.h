@@ -2,7 +2,7 @@
 
   gb_component.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -46,6 +46,7 @@ typedef
 #define LIB_GAMBAS       "GB"
 #define LIB_JIT          "JIT"
 #define LIB_MAIN         "GB_MAIN"
+#define LIB_FORK         "GB_FORK"
 
 #ifdef DONT_USE_LTDL
  #if defined(OS_MACOSX)

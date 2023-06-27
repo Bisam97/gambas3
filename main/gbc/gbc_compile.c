@@ -2,7 +2,7 @@
 
   gbc_compile.c
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -54,16 +54,24 @@
 
 /*#define DEBUG*/
 
+bool COMP_verbose = FALSE;
+
 char *COMP_root = NULL;
+char *COMP_dir;
 char *COMP_project;
 char *COMP_project_name;
 char *COMP_info_path;
 char *COMP_lib_path;
-static char *COMP_classes = NULL;
+char *COMP_classes = NULL;
 COMPILE COMP_current;
-uint COMPILE_version = GAMBAS_PCODE_VERSION;
+uint COMP_version = GAMBAS_PCODE_VERSION;
+char *COMP_default_namespace = NULL;
+bool COMP_do_not_lock = TRUE;
 
 #define STARTUP_MAX_LINE 256
+
+static FILE *_file = NULL;
+static const char *_file_name = NULL;
 
 const FORM_FAMILY COMP_form_families[] =
 {
@@ -128,14 +136,20 @@ static void add_memory_list(char *p, int size)
 	}
 }
 
-static void add_file_list(FILE *fi)
+static bool add_file_list(const char *path)
 {
+	FILE *f;
 	char line[256];
 	int len;
 
+	f = fopen(path, "r");
+
+	if (!f)
+		return TRUE;
+
 	for(;;)
 	{
-		if (read_line(fi, line, sizeof(line)))
+		if (read_line(f, line, sizeof(line)))
 			break;
 
 		len = strlen(line);
@@ -144,6 +158,9 @@ static void add_file_list(FILE *fi)
 
 		COMPILE_add_class(line, len);
 	}
+	
+	fclose(f);
+	return FALSE;
 }
 
 static void add_library_list_file(const char *path, bool ref)
@@ -152,6 +169,7 @@ static void add_library_list_file(const char *path, bool ref)
 	ARCH_FIND find;
 	const char *name;
 	char *rpath = NULL;
+	bool is_file = FALSE;
 
 	if (*path == ':')
 	{
@@ -174,16 +192,31 @@ static void add_library_list_file(const char *path, bool ref)
 		name = path;
 		if (!FILE_exist(path))
 			path = NULL;
+		/*
+		{
+			is_file = TRUE;
+			path = FILE_cat(FILE_get_dir(path), ".list", NULL);
+			if (!FILE_exist(path))
+				path = NULL;
+		}
+		*/
 	}
 
 	if (path)
 	{
-		arch = ARCH_open(path);
+		if (is_file)
+		{
+			add_file_list(path);
+		}
+		else
+		{
+			arch = ARCH_open(path);
 
-		if (!ARCH_find(arch, ".list", 0, &find))
-			add_memory_list(&arch->addr[find.pos], find.len);
+			if (!ARCH_find(arch, ".list", 0, &find))
+				add_memory_list(&arch->addr[find.pos], find.len);
 
-		ARCH_close(arch);
+			ARCH_close(arch);
+		}
 	}
 	else
 		ERROR_warning((ref ? "cannot find reference: %s" : "cannot find library: %s"), name);
@@ -193,16 +226,17 @@ static void add_library_list_file(const char *path, bool ref)
 }
 
 
-static void add_component_list_file(char *name)
+void COMPILE_add_component(const char *name)
 {
 	char *path;
-	FILE *fi;
 
+	if (COMP_verbose)
+		fprintf(stderr, "Loading information from component '%s'\n", name);
+	
 	path = (char *)FILE_cat(COMP_info_path, name, NULL);
 	strcat(path, ".list");
-	fi = fopen(path, "r");
 
-	if (!fi)
+	if (add_file_list(path))
 	{
 		// Do not raise an error if a component self-reference is not found
 		if (strcmp(name, COMP_project_name))
@@ -210,10 +244,6 @@ static void add_component_list_file(char *name)
 			THROW("Component not found: &1", name);
 		return;
 	}
-
-	add_file_list(fi);
-
-	fclose(fi);
 }
 
 
@@ -233,7 +263,7 @@ static bool line_begins_with(const char *line, const char *key, int len)
 	return strncmp(line, key, len) == 0;
 }
 
-static void startup_print(FILE *fs, const char *key, const char *def)
+static void find_lines(const char *key, const char *def, void (*print_func)(const char *line))
 {
 	FILE *fp;
 	char line[256];
@@ -249,7 +279,7 @@ static void startup_print(FILE *fs, const char *key, const char *def)
 
 		if (line_begins_with(line, key, len))
 		{
-			fprintf(fs, "%s\n", &line[len]);
+			(*print_func)(&line[len]);
 			print = TRUE;
 		}
 	}
@@ -257,7 +287,7 @@ static void startup_print(FILE *fs, const char *key, const char *def)
 	fclose(fp);
 
 	if (!print && def)
-		fprintf(fs, "%s\n", def);
+		(*print_func)(def);
 }
 
 static char *find_version_in_file(void)
@@ -302,11 +332,13 @@ static char *find_version_in_file(void)
 	return STR_copy(line);
 }
 
-static void startup_print_version(FILE *fs)
+static void print_version()
 {
 	FILE *fp;
 	char line[256];
 	char *version = NULL;
+	char *branch = NULL;
+	bool add_branch = FALSE;
 
 	fp = open_project_file();
 
@@ -315,17 +347,18 @@ static void startup_print_version(FILE *fs)
 		if (read_line(fp, line, sizeof(line)))
 			break;
 
-		if (line_begins_with(line, "VersionFile=", 12))
+		if (line_begins_with(line, "Version=", 8))
+		{
+			version = STR_copy(&line[8]);
+			branch = index(version, ' ');
+		}
+		else if (line_begins_with(line, "VersionFile=", 12))
 		{
 			if (line[12] == '1')
 			{
 				version = find_version_in_file();
-				break;
+				add_branch = TRUE;
 			}
-		}
-		else if (line_begins_with(line, "Version=", 8))
-		{
-			version = STR_copy(&line[8]);
 		}
 	}
 
@@ -333,41 +366,88 @@ static void startup_print_version(FILE *fs)
 
 	if (version)
 	{
-		fputs(version, fs);
-		fputc('\n', fs);
+		fputs(version, _file);
+		if (add_branch && branch)
+			fputs(branch, _file);
+		fputc('\n', _file);
 		STR_free(version);
 	}
 	else
-		fputs("0.0.0\n", fs);
+		fputs("0.0.0\n", _file);
 }
+
+
+static void create_file(const char *file)
+{
+	const char *path = FILE_cat(FILE_get_dir(COMP_project), file, NULL);
+
+	_file_name = file;
+	_file = fopen(path, "w");
+
+	if (!_file)
+		THROW("Cannot create '&1' file", _file_name);
+
+	FILE_set_owner(path, COMP_project);
+}
+
+
+static void close_file()
+{
+	const char *path = FILE_cat(FILE_get_dir(COMP_project), _file_name, NULL);
+
+	if (fclose(_file))
+		THROW("Cannot create '&1' file", _file_name);
+
+	_file = NULL;
+	_file_name = NULL;
+
+	if (FILE_get_size(path) == 0)
+		FILE_unlink(path);
+}
+
+
+static void print_line(const char *line)
+{
+	fputs(line, _file);
+	fputc('\n', _file);
+}
+
+
+static void print_environment(const char *line)
+{
+	if (*line && *line != ' ')
+		print_line(line);
+}
+
 
 static void create_startup_file()
 {
-	const char *name;
-	FILE *fs;
+	create_file(".startup");
 
-	name = FILE_cat(FILE_get_dir(COMP_project), ".startup", NULL);
-	fs = fopen(name, "w");
-	if (!fs)
-		THROW("Cannot create .startup file");
+	find_lines("Startup=", "", print_line);
+	find_lines("Title=", "", print_line);
 
-	// Do that now, otherwise file buffer can be erased
-	FILE_set_owner(name, COMP_project);
+	fputc('#', _file);
+	fputs(COMP_project_name, _file);
+	fputc('\n', _file);
 
-	startup_print(fs, "Startup=", "");
-	startup_print(fs, "Title=", "");
-	startup_print(fs, "Stack=", "0");
-	startup_print(fs, "StackTrace=", "0");
+	//startup_print(fs, "Stack=", "0");
+	find_lines("StackTrace=", "0", print_line);
 
-	startup_print_version(fs);
+	print_version();
 
-	fputc('\n', fs);
-	startup_print(fs, "Component=", NULL);
-	startup_print(fs, "Library=", NULL);
-	fputc('\n', fs);
+	fputc('\n', _file);
+	find_lines("Component=", NULL, print_line);
+	find_lines("Library=", NULL, print_line);
+	fputc('\n', _file);
 
-	if (fclose(fs))
-		THROW("Cannot create .startup file");
+	close_file();
+
+	create_file(".environment");
+
+	find_lines("StartupEnvironment=", NULL, print_environment);
+
+	close_file();
 }
 
 #undef isdigit
@@ -430,7 +510,7 @@ static void init_version(void)
 			}
 		}
 
-		COMPILE_version = v;
+		COMP_version = v;
 	}
 }
 
@@ -469,7 +549,7 @@ void COMPILE_init(void)
 
 	BUFFER_create(&COMP_classes);
 
-	add_component_list_file("gb");
+	COMPILE_add_component("gb");
 
 	fp = open_project_file();
 
@@ -481,7 +561,7 @@ void COMPILE_init(void)
 		/*printf("%s\n", line);*/
 
 		if (strncmp(line, "Component=", 10) == 0)
-			add_component_list_file(&line[10]);
+			COMPILE_add_component(&line[10]);
 		else if (strncmp(line, "Library=", 8) == 0)
 			add_library_list_file(&line[8], FALSE);
 		else if (strncmp(line, "Reference=", 10) == 0)
@@ -489,6 +569,10 @@ void COMPILE_init(void)
 	}
 
 	fclose(fp);
+	
+	// Add local ".list" file
+	// Not possible at the moment.
+	// add_file_list(FILE_cat(FILE_get_dir(COMP_project), ".list", NULL));
 
 	// Startup file
 
@@ -529,9 +613,6 @@ void COMPILE_init(void)
 
 void COMPILE_begin(const char *file, bool trans, bool debug)
 {
-	struct stat info;
-	off_t size;
-
 	CLEAR(JOB);
 
 	JOB->name = STR_copy(file);
@@ -544,6 +625,13 @@ void COMPILE_begin(const char *file, bool trans, bool debug)
 		JOB->trans = TRUE;
 		JOB->tname = OUTPUT_get_trans_file(JOB->name);
 	}
+}
+
+
+void COMPILE_alloc()
+{
+	struct stat info;
+	off_t size;
 
 	BUFFER_create(&JOB->source);
 	CLASS_create(&JOB->class);
@@ -582,7 +670,7 @@ void COMPILE_load(void)
 }
 
 
-void COMPILE_end(void)
+void COMPILE_free(void)
 {
 	CLASS_delete(&JOB->class);
 	BUFFER_delete(&JOB->source);
@@ -591,7 +679,10 @@ void COMPILE_end(void)
 
 	if (JOB->help)
 		ARRAY_delete(&JOB->help);
+}
 
+void COMPILE_end(void)
+{
 	STR_free(JOB->name);
 	STR_free(JOB->form);
 	STR_free(JOB->output);
@@ -602,25 +693,43 @@ void COMPILE_end(void)
 }
 
 
-void COMPILE_exit(void)
+void COMPILE_exit(bool can_dump_count)
 {
+	/*if (COMP_verbose && can_dump_count)
+		PCODE_dump_count(stdout);*/
+
 	RESERVED_exit();
 	BUFFER_delete(&COMP_classes);
 	STR_free(COMP_project_name);
 	STR_free(COMP_project);
 	STR_free(COMP_info_path);
+	STR_free(COMP_dir);
 	STR_free(COMP_root);
+	STR_free(COMP_default_namespace);
+}
+
+static void add_class(const char *name, int len)
+{
+	unsigned char clen = (unsigned char)len;
+	
+	if (clen != len)
+		ERROR_panic("Class name is too long");
+
+	//fprintf(stderr, "add_class: %.*s\n", len, name);
+	
+	BUFFER_add(&COMP_classes, &clen, 1);
+	BUFFER_add(&COMP_classes, name, len);
 }
 
 void COMPILE_add_class(const char *name, int len)
 {
-	unsigned char clen = len;
+	char *p;
 
-	if (clen != len)
-		ERROR_panic("Class name is too long");
-
-	BUFFER_add(&COMP_classes, &clen, 1);
-	BUFFER_add(&COMP_classes, name, len);
+	p = memchr(name, ' ', len);
+	if (!p)
+		add_class(name, len);
+	else
+		add_class(name, p - name);
 }
 
 void COMPILE_end_class(void)
@@ -629,18 +738,49 @@ void COMPILE_end_class(void)
 	BUFFER_add(&COMP_classes, &clen, 1);
 }
 
-void COMPILE_enum_class(char **name, int *len)
+int COMPILE_lock_file(const char *name)
 {
-	char *p = *name;
+	const char *path;
+	int fd;
+	
+	if (COMP_do_not_lock)
+		return -1;
+	
+	path = FILE_cat(COMP_dir, name, NULL);
+	
+	fd = open(path, O_CREAT | O_WRONLY | O_CLOEXEC, 0666);
+	if (fd < 0)
+		goto __ERROR;
+	if (lockf(fd, F_LOCK, 0) < 0)
+		goto __ERROR;
+	
+	return fd;
+		
+__ERROR:
 
-	if (!p)
-		p = COMP_classes;
-	else
-		p += p[-1];
-
-	*len = *p;
-	*name = p + 1;
+	ERROR_fail("unable to lock file: %s: %s", path, strerror(errno));
 }
+
+
+void COMPILE_unlock_file(int fd)
+{
+	if (!COMP_do_not_lock)
+		close(fd);
+}
+
+
+void COMPILE_remove_lock(const char *name)
+{
+	const char *path;
+	
+	if (COMP_do_not_lock)
+		return;
+	
+	path = FILE_cat(COMP_dir, name, NULL);
+	if (FILE_exist(path))
+		FILE_unlink(path);
+}
+
 
 void COMPILE_print(int type, int line, const char *msg, ...)
 {
@@ -648,10 +788,13 @@ void COMPILE_print(int type, int line, const char *msg, ...)
   va_list args;
 	const char *arg[4];
 	int col = -1;
+	int lock;
 
 	if (!JOB->warnings && type == MSG_WARNING)
 		return;
 
+	lock = COMPILE_lock_file(".gbc.stderr");
+	
   va_start(args, msg);
 
 	if (line < 0)
@@ -668,7 +811,8 @@ void COMPILE_print(int type, int line, const char *msg, ...)
 		else if (JOB->step == JOB_STEP_CODE)
 		{
 			line = JOB->line;
-			col = COMPILE_get_column(JOB->current);
+			if (JOB->current)
+				col = COMPILE_get_column(JOB->current);
 		}
 	}
 
@@ -707,7 +851,20 @@ void COMPILE_print(int type, int line, const char *msg, ...)
 		fputs(ERROR_info.msg, stderr);
 		putc('\n', stderr);
 	}
+	
+	COMPILE_unlock_file(lock);
 
 	va_end(args);
+}
+
+
+void COMPILE_create_file(FILE **fw, const char *file)
+{
+	if (!*fw)
+	{
+		*fw = fopen(file, "w");
+		if (!*fw)
+			THROW("Cannot create file: &1: &2", FILE_cat(FILE_get_dir(COMP_project), file, NULL), strerror(errno));
+	}
 }
 

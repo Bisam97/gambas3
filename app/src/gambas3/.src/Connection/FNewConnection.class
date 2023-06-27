@@ -273,7 +273,7 @@ Private Sub FillDatabaseList()
 
   lvwDatabase.Clear
   For Each sName In aName
-    lvwDatabase.Add(sName, sName, Picture["icon:/16/database"]).Selected = sName = Trim(txtDatabase.Text)
+    lvwDatabase.Add(sName, sName, Picture["icon:/small/database"]).Selected = sName = Trim(txtDatabase.Text)
   Next
   Try lvwDatabase[Trim(txtDatabase.Text)].Selected = True
   UpdateCreateDatabase
@@ -317,7 +317,7 @@ Public Sub txtDatabase_Click()
 Catch
 
   Application.Busy = 0
-  Balloon.Error(Error.Text, txtDatabase)
+  FMain.ShowErrorWith(("Unable to list databases."))
 
 End
 
@@ -390,7 +390,7 @@ Public Sub btnCreateDatabase_Click()
 Catch
 
   Application.Busy = 0
-  Balloon.Error(("Unable to create database.") & "\n\n" & Error.Text, btnCreateDatabase)
+  FMain.ShowErrorWith(("Unable to create database."))
   txtDatabase.SetFocus
 
 End
@@ -410,7 +410,7 @@ Public Sub btnDeleteDatabase_Click()
 Catch
 
   Application.Busy = 0
-  Balloon.Error(("Unable to delete database.") & "\n\n" & Error.Text, btnDeleteDatabase)
+  FMain.ShowErrorWith(("Unable to delete database."))
   txtDatabase.SetFocus
 
 End

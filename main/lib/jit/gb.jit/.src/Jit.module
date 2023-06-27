@@ -10,6 +10,20 @@ Public _Time As Float
 
 Private $bDebug As Integer
 
+Private Sub GetArchiveName(sArch As String) As String
+  
+  If Not sArch Then Return "gb"
+  Return Replace(sArch, "/", ".")
+  
+End
+
+Public Sub _Search() As Boolean
+  
+  Try CCompilation.Init()
+  If Error Then Return True
+  
+End
+
 Public Sub _Compile(sArch As String) As Boolean
 
   Dim sFile As String
@@ -26,10 +40,9 @@ Public Sub _Compile(sArch As String) As Boolean
   
   Try $bDebug = CInt(Env["GB_JIT_DEBUG"])
   
-  If $bDebug Then Error "gb.jit: translating "; If(sArch, sArch, "project")
+  If $bDebug Then Error "gb.jit: translating "; If(sArch, "'" & sArch & "'", "project"); "..."
   
-  sName = sArch
-  If Not sName Then sName = "gb"
+  sName = GetArchiveName(sArch)
   
   sDir = File.Dir(Temp$()) &/ "jit"
   Try Mkdir sDir
@@ -44,16 +57,19 @@ Public Sub _Compile(sArch As String) As Boolean
     
     Print #hFile, "#define NO_CONFIG_H"
     
-    Print #hFile, File.Load("gambas.h");
-    Print #hFile, File.Load("jit.h");
-    Print #hFile, File.Load("gb.jit.h");
-
+    Print #hFile, File.Load("gambas.h")
+    Print #hFile, File.Load("gb_overflow.h")
+    Print #hFile, File.Load("jit.h")
+    Print #hFile, File.Load("gb.jit.h")
+    
     Print #hFile, "GB_INTERFACE * GB_PTR;"
     Print #hFile, "#define GB (*GB_PTR)"
     Print #hFile, "JIT_INTERFACE * JIT_PTR;"
     Print #hFile, "#define JIT (*JIT_PTR)"
+
+    Print #hFile, File.Load("gb_error_common.h")
     
-    Print #hFile, File.Load("gb_error_common.h");
+    Print #hFile, File.Load("jit_after.h")
     
     Close #hFile
     
@@ -89,7 +105,7 @@ Public Sub _Compile(sArch As String) As Boolean
   Print #hFile
 
   If sArch Then
-    sDir = "." &/ sArch
+    sDir = "." &/ sName
   Else
     sDir = "..."
   Endif
@@ -99,7 +115,11 @@ Public Sub _Compile(sArch As String) As Boolean
     If Not _ClassStat.HasFast Then Continue 
     sFile = _ClassStat.Name
     If $bDebug Then Error "gb.jit: translating class "; sFile
-    Print #hFile, __Jit.Translate(sFile, sArch)
+    If $bDebug Then
+      Print #hFile, Replace(__Jit.Translate(sFile, sArch), ";", ";\n")
+    Else 
+      Print #hFile, __Jit.Translate(sFile, sArch)
+    Endif
   Next
   
   Close #hFile
@@ -120,7 +140,7 @@ Public Sub _Compile(sArch As String) As Boolean
   
   hComp = New CCompilation(sName, sPathSO, fTime)
   
-  hComp.Run(sPath, sPathSO, "-w -fPIC -shared -lm")
+  hComp.Run(sPath, "-w -fPIC -shared -lm")
 
   ' If $bDebug Then Error "gb.jit: linking to "; sPathSO
   ' 
@@ -141,8 +161,7 @@ Public Sub _Wait(sArch As String) As String
   Dim hComp As CCompilation
   Dim sResult As String
   
-  If Not sArch Then sArch = "gb"
-  hComp = CCompilation.All[sArch]
+  hComp = CCompilation.All[GetArchiveName(sArch)]
   If Not hComp Then Return
   
   sResult = hComp.Wait()
@@ -154,6 +173,8 @@ Public Sub _Abort()
 
   Dim hComp As CCompilation
   
+  If CCompilation.All.Count = 0 Then Return
+  
   For Each hComp In CCompilation.All
     hComp.Kill
   Next
@@ -161,8 +182,6 @@ Public Sub _Abort()
   CCompilation.All.Clear
   
 End
-
-
 
 Private Function Time_Read() As Float
 

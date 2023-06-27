@@ -1,0 +1,320 @@
+' Gambas class file
+
+Inherits PaintDriver
+
+Private $aEnd As New String[]
+
+Public Sub Begin()
+
+  Dim hDrawingArea As WebDrawingArea
+  
+  WebForm._AddJavascript("{ var $_c = $_(" & JS(Me.Device.Name & ":canvas") & ").getContext('2d');")
+  WebForm._AddJavascript("$_c.save();")
+  WebForm._AddJavascript("$_c.beginPath();")
+  
+  hDrawingArea = Me.Device
+  
+  Paint.W = hDrawingArea._Width
+  Paint.H = hDrawingArea._Height
+
+End
+
+Public Sub End()
+
+  WebForm._AddJavascript("$_c.restore();")
+  WebForm._AddJavascript($aEnd.Join(""))
+  WebForm._AddJavascript("}")
+End
+
+Public Sub Save()
+
+  WebForm._AddJavascript("$_c.save();")
+
+End
+
+Public Sub Restore()
+
+  WebForm._AddJavascript("$_c.restore();")
+
+End
+
+Public Sub Rectangle(X As Float, Y As Float, Width As Float, Height As Float)
+
+  WebForm._AddJavascript("$_c.rect(" & JS(X) & "," & JS(Y) & "," & JS(Width) & "," & JS(Height) & ");")
+
+End
+
+Private Sub HandleStyle(hStyle As Variant, sProperty As String) As Boolean
+
+  Dim hBrush As PaintBrush
+  Dim hGradient As Gradient
+  
+  If IsNull(hStyle) Then hStyle = Me.Brush
+  If IsNull(hStyle) Then Return ' default brush
+
+  If TypeOf(hStyle) = gb.Integer Then
+
+    WebForm._AddJavascript("$_c." & sProperty & " = " & JS(Color.ToHTML(hStyle)) & ";")
+
+  Else If TypeOf(hStyle) = gb.String
+    
+    WebForm._AddJavascript("$_c." & sProperty & " = " & JS(hStyle) & ";")
+
+  Else If TypeOf(hStyle) = gb.Object And If hStyle Is PaintBrush Then
+    
+    hBrush = hStyle
+    
+    Select hBrush._Type
+      
+      Case Me.BRUSH_GRADIENT
+        
+        hGradient = hBrush._Gradient
+        WebForm._AddJavascript("$_c." & sProperty & " = gw.paint.makeGradient($_c, " & JS(hGradient.Type) & "," & JS(hGradient.Coordinates) & "," & JS(hGradient.ColorStops) & ");")
+        
+      Case Me.BRUSH_COLOR
+        
+        WebForm._AddJavascript("$_c." & sProperty & " = " & hBrush._Color & ";")
+        
+    End Select
+
+  Else 
+    
+    Error.Raise("Incorrect style/brush type")
+    
+  Endif
+
+End
+
+Public Sub Fill(Style As Variant, Preserve As Boolean)
+
+  HandleStyle(Style, "fillStyle")
+  WebForm._AddJavascript("$_c.fill();")
+  If Not Preserve Then WebForm._AddJavascript("$_c.beginPath();")
+
+End
+
+Public Sub Stroke(Style As Variant, Preserve As Boolean)
+
+  HandleStyle(Style, "strokeStyle")
+  WebForm._AddJavascript("$_c.stroke();")
+  If Not Preserve Then WebForm._AddJavascript("$_c.beginPath();")
+
+End
+
+Public Sub MoveTo(X As Float, Y As Float)
+
+  WebForm._AddJavascript("$_c.moveTo(" & JS(X) & "," & JS(Y) & ");")
+
+End
+
+Public Sub LineTo(X As Float, Y As Float)
+
+  WebForm._AddJavascript("$_c.lineTo(" & JS(X) & "," & JS(Y) & ");")
+
+End
+
+Public Sub SetLineWidth(LineWidth As Float)
+
+  WebForm._AddJavascript("$_c.lineWidth = " & JS(LineWidth) & ";")
+
+End
+
+Public Sub Arc(XC As Float, YC As Float, Radius As Float, Angle As Float, Length As Float)
+
+  If Length = 0 Then
+    If Angle = 0 Then
+      Length = Pi(2)
+    Else
+      Return
+    Endif
+  Endif
+
+  WebForm._AddJavascript("$_c.arc(" & JS(XC) & "," & JS(YC) & "," & JS(Radius) & "," & JS(Angle) & "," & JS(Angle + Length) & "," & JS(Length < 0) & ");")
+
+End
+
+Public Sub Ellipse(X As Float, Y As Float, Width As Float, Height As Float, Angle As Float, Length As Float)
+
+  Dim RX As Float
+  Dim RY As Float
+
+  RX = Width / 2
+  RY = Height / 2
+  X += RX
+  Y += RY
+
+  If Length = 0 Then
+    If Angle = 0 Then
+      Length = Pi(2)
+    Else
+      Return
+    Endif
+  Endif
+
+  WebForm._AddJavascript("$_c.ellipse(" & JS(X) & "," & JS(Y) & "," & JS(RX) & "," & JS(RY) & ",0," & JS(Angle) & "," & JS(Angle + Length) & "," & JS(Length < 0) & ");")
+
+End
+
+Public Sub CurveTo(X1 As Float, Y1 As Float, X2 As Float, Y2 As Float, X3 As Float, Y3 As Float)
+
+  WebForm._AddJavascript("$_c.bezierCurveTo(" & JS(X1) & "," & JS(Y1) & "," & JS(X2) & "," & JS(Y2) & "," & JS(X3) & "," & JS(Y3) & ");")
+
+End
+
+Public Sub NewPath()
+
+  WebForm._AddJavascript("$_c.beginPath();")
+
+End
+
+Public Sub ClosePath()
+
+  WebForm._AddJavascript("$_c.closePath();")
+
+End
+
+Public Sub Clip(Preserve As Boolean)
+
+  WebForm._AddJavascript("$_c.clip();")
+  If Not Preserve Then WebForm._AddJavascript("$_c.beginPath();")
+
+End
+
+Public Sub DrawImage(Image As String, X As Float, Y As Float, Width As Float, Height As Float, Opacity As Float, Source As Rect)
+  
+  Dim sCode As String
+  
+  WebForm._AddJavascript("gw.paint.loadImage(" & JS(WebControl._GetImageLink(Image)) & ", function(img) {")
+  
+  If Opacity < 1.0 Then WebForm._AddJavascript("$_c.globalAlpha = " & JS(Opacity) & ";")
+  
+  If Not Source Then
+    If Width = 0 Or If Height = 0 Then
+      WebForm._AddJavascript("$_c.drawImage(img," & JS(X) & "," & JS(Y) & ");")
+    Else
+      WebForm._AddJavascript("$_c.drawImage(img," & JS(X) & "," & JS(Y) & "," & JS(Width) & "," & JS(Height) & ");")
+    Endif
+  Else
+    sCode = "$_c.drawImage(img," & JS(Source.X) & "," & JS(Source.Y) & "," & JS(Source.Width) & "," & JS(Source.Height) & ","
+    If Width = 0 Or If Height = 0 Then
+      WebForm._AddJavascript(sCode & JS(X) & "," & JS(Y) & ");")
+    Else
+      WebForm._AddJavascript(sCode & JS(X) & "," & JS(Y) & "," & JS(Width) & "," & JS(Height) & ");")
+    Endif
+  Endif
+  
+  If Opacity < 1.0 Then WebForm._AddJavascript("$_c.globalAlpha = 1;")
+
+  $aEnd.Add("});\n")
+  
+End
+
+Public Sub Translate(TX As Float, TY As Float)
+  
+  WebForm._AddJavascript("$_c.translate(" & JS(TX) & "," & JS(TY) & ");")
+  
+End
+
+Public Sub Rotate(Angle As Float)
+  
+  WebForm._AddJavascript("$_c.rotate(" & JS(Angle) & ");")
+  
+End
+
+Public Sub Scale(SX As Float, SY As Float)
+  
+  WebForm._AddJavascript("$_c.scale(" & JS(SX) & "," & JS(SY) & ");")
+  
+End
+
+Public Sub Reset()
+  
+  WebForm._AddJavascript("$_c.resetTransform();")
+  
+End
+
+Public Sub SetOperator(Op As Integer)
+  
+  Dim sOp As String
+  
+  Select Case Op
+    Case Paint.OperatorOver
+      sOp = "source-over"
+    Case Paint.OperatorIn
+      sOp = "source-in"
+    Case Paint.OperatorOut
+      sOp = "source-out"
+    Case Paint.OperatorATop
+      sOp = "source-atop"
+    Case Paint.OperatorDestOver
+      sOp = "destination-over"
+    Case Paint.OperatorDestIn
+      sOp = "destination-in"
+    Case Paint.OperatorDestOut
+      sOp = "destination-out"
+    Case Paint.OperatorDestATop
+      sOp = "destination-atop"
+    Case Paint.OperatorAdd
+      sOp = "lighter"
+    Case Paint.OperatorSource
+      sOp = "copy"
+    Case Paint.OperatorXor
+      sOp = "xor"
+  End Select
+  
+  If sOp Then WebForm._AddJavascript("$_c.globalCompositeOperation = " & JS(sOp) & ";")
+  
+End
+
+Public Sub SetLineCap(Value As Integer)
+  
+  Dim sValue As String
+  
+  Select Case Value
+    Case Paint.LineCapButt
+      sValue = "butt"
+    Case Paint.LineCapRound
+      sValue = "round"
+    Case Paint.LineCapSquare
+      sValue = "square"
+  End Select
+  
+  If sValue Then WebForm._AddJavascript("$_c.lineCap = " & JS(sValue) & ";")
+  
+End
+
+Public Sub SetLineJoin(Value As Integer)
+  
+  Dim sValue As String
+  
+  Select Case Value
+    Case Paint.LineJoinMiter
+      sValue = "miter"
+    Case Paint.LineJoinRound
+      sValue = "round"
+    Case Paint.LineJoinBevel
+      sValue = "bevel"
+  End Select
+  
+  If sValue Then WebForm._AddJavascript("$_c.lineJoin = " & JS(sValue) & ";")
+  
+End
+
+Public Sub SetMiterLimit(Value As Float)
+  
+  WebForm._AddJavascript("$_c.miterLimit = " & JS(Value) & ";")
+  
+End
+
+Public Sub SetLineDash(Value As Float[])
+  
+  WebForm._AddJavascript("$_c.setLineDash(" & JS(Value) & ");")
+  
+End
+
+Public Sub SetLineDashOffset(Value As Float)
+  
+  WebForm._AddJavascript("$_c.lineDashOffset = " & JS(Value) & ";")
+  
+End
+

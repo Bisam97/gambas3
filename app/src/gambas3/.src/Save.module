@@ -1,5 +1,7 @@
 ' Gambas module file
 
+Public NewFile As Boolean
+
 Private $sPath As String
 Private $bRename As Boolean
 
@@ -7,12 +9,16 @@ Public Sub Begin(sPath As String, Optional bKeep As Boolean)
   
   $bRename = False
   $sPath = sPath
-    
+  
+  NewFile = Not Exist(sPath)
+  
   Try Kill sPath & "~"
-  If bKeep Then
-    Copy sPath To sPath & "~"
-  Else
-    Move sPath To sPath & "~"
+  If Not NewFile Then
+    If bKeep Then
+      Copy sPath To sPath & "~"
+    Else
+      Move sPath To sPath & "~"
+    Endif
   Endif
   
   $bRename = True
@@ -24,12 +30,12 @@ Public Sub End()
   Dim sForm As String
   
   VersionControl.UpdatePath($sPath)
-  Project.Tree.RefreshKey($sPath)
+  Try Project.Tree.RefreshKey($sPath)
   If File.Ext($sPath) = "class" Then
     sForm = Project.Tree.FindForm(File.BaseName($sPath))
-    If sForm Then Project.Tree.RefreshKey(sForm)
+    If sForm Then Try Project.Tree.RefreshKey(sForm)
   Endif
-  Project.Tree.SelectKey($sPath)
+  Try Project.Tree.SelectKey($sPath)
   $sPath = ""
   $bRename = False
   
@@ -48,7 +54,7 @@ Public Function Error() As Boolean
     Try Move $sPath & "~" To $sPath
   Endif
   
-  FMain.ShowError("<b>" & ("Cannot save file !") & "</b>\n\n" & sError, $sPath)
+  FMain.ShowError("<b>" & ("Unable to save file.") & "</b>\n\n" & sError, $sPath)
   Try Save.End
   Return True
   

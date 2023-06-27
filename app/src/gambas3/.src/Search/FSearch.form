@@ -1,7 +1,7 @@
 # Gambas Form File 3.0
 
 { Form Form
-  MoveScaled(0,0,102,37)
+  MoveScaled(0,0,94,46)
   Visible = False
   Action = "find"
   Text = ("Search & Replace")
@@ -9,154 +9,182 @@
   Persistent = True
   Resizable = False
   Utility = True
-  Arrangement = Arrange.Horizontal
+  Arrangement = Arrange.Vertical
+  AutoResize = True
   Spacing = True
   Margin = True
-  { VBox3 VBox
-    MoveScaled(1,1,59,35)
-    Expand = True
+  { Panel2 HBox
+    MoveScaled(1,1,92,39)
     Spacing = True
-    { HBox1 HBox
-      MoveScaled(0,0,51,4)
-      { Label1 Label
-        MoveScaled(0,0,16,4)
-        Text = ("Search")
-      }
-      { cmbSearch ComboBox
-        MoveScaled(18,0,32,4)
-        Expand = True
-      }
-    }
-    { HBox2 HBox
-      MoveScaled(0,5,51,4)
-      { Label2 Label
-        MoveScaled(0,0,16,4)
-        Text = ("Replace")
-      }
-      { cmbReplace ComboBox
-        MoveScaled(18,0,32,4)
-        Expand = True
-      }
-    }
-    { HBox4 Panel
-      MoveScaled(-1,10,58,25)
+    { VBox3 VBox
+      MoveScaled(0,0,59,37)
       Expand = True
-      Arrangement = Arrange.Horizontal
       Spacing = True
-      Margin = True
-      Border = Border.Plain
-      { VBox2 VBox
-        MoveScaled(1,0,26,25)
+      { HBox1 HBox
+        MoveScaled(0,0,51,4)
+        { Label1 Label
+          MoveScaled(0,0,16,4)
+          Text = ("Search")
+        }
+        { cmbSearch ComboBox
+          MoveScaled(18,0,32,4)
+          Expand = True
+        }
+      }
+      { HBox2 HBox
+        MoveScaled(0,5,51,4)
+        { Label2 Label
+          MoveScaled(0,0,16,4)
+          Text = ("Replace")
+        }
+        { cmbReplace ComboBox
+          MoveScaled(18,0,32,4)
+          Expand = True
+        }
+      }
+      { HBox4 Panel
+        MoveScaled(-1,10,58,27)
         Expand = True
-        { Label4 Label
-          MoveScaled(0,0,19,3)
-          Font = Font["Bold"]
-          Text = ("Options")
-          Alignment = Align.TopNormal
+        Arrangement = Arrange.Horizontal
+        Spacing = True
+        Margin = True
+        Border = Border.Plain
+        { VBox2 VBox
+          MoveScaled(1,0,29,27)
+          Expand = True
+          { Label4 Label
+            MoveScaled(0,0,19,3)
+            Font = Font["Bold"]
+            Alignment = Align.TopNormal
+            Text = ("Options")
+          }
+          { chkCaseSensitive CheckBox
+            MoveScaled(0,3,30,4)
+            Text = Shortcut(("Case sensitive"), "C")
+          }
+          { chkWordsOnly CheckBox
+            MoveScaled(0,7,30,4)
+            Text = Shortcut(("Words only"), "W")
+          }
+          { chkRegularExpression CheckBox
+            MoveScaled(0,11,30,4)
+            Text = Shortcut(("Regular expression"), "x")
+          }
+          { Panel4 HBox
+            MoveScaled(1,15,27,4)
+            { Panel5 Panel
+              MoveScaled(1,0,2,4)
+            }
+            { chkReplaceCaptureGroups CheckBox
+              MoveScaled(4,0,21,4)
+              Enabled = False
+              Expand = True
+              Text = ("Replace capture groups")
+            }
+          }
+          { chkIgnoreStrings CheckBox
+            MoveScaled(0,19,30,4)
+            Text = Shortcut(("Ignore strings"), "I")
+          }
+          { chkIgnoreComments CheckBox
+            MoveScaled(0,23,30,4)
+            Text = Shortcut(("Ignore comments"), "g")
+          }
         }
-        { chkCaseSensitive CheckBox
-          MoveScaled(0,3,25,4)
-          Text = Shortcut(("Case sensitive"), "C")
+        { Panel3 Panel
+          MoveScaled(30,11,1,5)
         }
-        { chkWordOnly CheckBox
-          MoveScaled(0,6,25,4)
-          Text = Shortcut(("Words only"), "W")
-        }
-        { chkRegularExpression CheckBox
-          MoveScaled(0,9,25,4)
-          Text = Shortcut(("Regular expression"), "x")
-        }
-        { chkIgnoreStrings CheckBox
-          MoveScaled(0,15,25,4)
-          Text = Shortcut(("Ignore strings"), "I")
-        }
-        { chkIgnoreComments CheckBox
-          MoveScaled(0,18,25,4)
-          Text = Shortcut(("Ignore comments"), "g")
+        { panSearchIn VBox
+          MoveScaled(31,0,26,24)
+          { Label3 Label
+            MoveScaled(0,0,19,3)
+            Font = Font["Bold"]
+            Alignment = Align.TopNormal
+            Text = ("Search in")
+          }
+          { radCurrentProcedure RadioButton radSearch
+            Name = "radCurrentProcedure"
+            MoveScaled(0,4,25,4)
+            Text = Shortcut(("Current function"), "u")
+          }
+          { radCurrentFile RadioButton radSearch
+            Name = "radCurrentFile"
+            MoveScaled(0,8,25,4)
+            Text = Shortcut(("Current file"), "f")
+            Value = True
+          }
+          { radSourceFileOnly RadioButton radSearch
+            Name = "radSourceFileOnly"
+            MoveScaled(0,12,25,4)
+            Text = Shortcut(("Source files"), "S")
+          }
+          { radDataFileOnly RadioButton radSearch
+            Name = "radDataFileOnly"
+            MoveScaled(0,16,25,4)
+            Text = Shortcut(("Data files"), "D")
+          }
+          { radEverywhere RadioButton radSearch
+            Name = "radEverywhere"
+            MoveScaled(0,20,25,4)
+            Text = Shortcut(("All files"), "l")
+          }
         }
       }
-      { Panel3 Panel
-        MoveScaled(29,11,1,5)
+    }
+    { HBox5 VBox
+      MoveScaled(61,0,23,35)
+      Spacing = True
+      { btnNext Button
+        MoveScaled(0,0,22,4)
+        Text = Shortcut(("Next"), "N")
+        Picture = Picture["icon:/small/down"]
       }
-      { panSearchIn VBox
-        MoveScaled(32,0,24,24)
+      { btnPrevious Button
+        MoveScaled(0,5,21,4)
+        Text = Shortcut(("Previous"), "P")
+        Picture = Picture["icon:/small/up"]
+      }
+      { btnBrowse Button
+        MoveScaled(0,10,17,4)
+        Visible = False
+        Text = Shortcut(("Browse"), "B")
+        Picture = Picture["icon:/small/find"]
+      }
+      { btnReplace Button
+        MoveScaled(1,14,17,4)
+        Text = Shortcut(("Replace"), "R")
+        Picture = Picture["icon:/small/replace"]
+      }
+      { btnReplaceAll Button
+        MoveScaled(2,18,17,4)
+        Text = Shortcut(("Replace all"), "a")
+        Picture = Picture["icon:/small/wizard"]
+      }
+      { Panel1 Panel
+        MoveScaled(7,26,3,3)
         Expand = True
-        { Label3 Label
-          MoveScaled(0,0,19,3)
-          Font = Font["Bold"]
-          Text = ("Search in")
-          Alignment = Align.TopNormal
-        }
-        { radCurrentProcedure RadioButton radSearch
-          Name = "radCurrentProcedure"
-          MoveScaled(0,4,25,4)
-          Text = Shortcut(("Current procedure"), "u")
-        }
-        { radCurrentFile RadioButton radSearch
-          Name = "radCurrentFile"
-          MoveScaled(0,8,25,4)
-          Text = Shortcut(("Current file"), "f")
-          Value = True
-        }
-        { radSourceFileOnly RadioButton radSearch
-          Name = "radSourceFileOnly"
-          MoveScaled(0,12,25,4)
-          Text = Shortcut(("Source files"), "S")
-        }
-        { radDataFileOnly RadioButton radSearch
-          Name = "radDataFileOnly"
-          MoveScaled(0,16,25,4)
-          Text = Shortcut(("Data files"), "D")
-        }
-        { radEverywhere RadioButton radSearch
-          Name = "radEverywhere"
-          MoveScaled(0,20,25,4)
-          Text = Shortcut(("All files"), "l")
-        }
       }
+      { chkHighlight CheckBox
+        MoveScaled(0,30,25,4)
+        Text = Shortcut(("Highlight search"), "H")
+      }
+    }
+    { timRefresh #Timer
+      #MoveScaled(52,1)
+      Delay = 500
+    }
+    { timFillList #Timer
+      #MoveScaled(73,24)
+      Delay = 100
     }
   }
-  { HBox5 VBox
-    MoveScaled(62,1,23,35)
-    Spacing = True
-    { btnNext Button
-      MoveScaled(0,0,22,4)
-      Text = Shortcut(("Next"), "N")
-      Picture = Picture["icon:/small/down"]
-    }
-    { btnPrevious Button
-      MoveScaled(0,5,21,4)
-      Text = Shortcut(("Previous"), "P")
-      Picture = Picture["icon:/small/up"]
-    }
-    { btnBrowse Button
-      MoveScaled(0,10,17,4)
-      Visible = False
-      Text = Shortcut(("Browse"), "B")
-      Picture = Picture["icon:/small/find"]
-    }
-    { btnReplace Button
-      MoveScaled(1,14,17,4)
-      Text = Shortcut(("Replace"), "R")
-      Picture = Picture["icon:/small/replace"]
-    }
-    { btnReplaceAll Button
-      MoveScaled(2,18,17,4)
-      Text = Shortcut(("Replace all"), "a")
-      Picture = Picture["icon:/small/wizard"]
-    }
-    { Panel1 Panel
-      MoveScaled(7,22,3,3)
-      Expand = True
-    }
-    { chkHighlight CheckBox
-      MoveScaled(0,29,25,4)
-      Text = Shortcut(("Highlight search"), "H")
-    }
-  }
-  { timRefresh #Timer
-    #MoveScaled(53,2)
-    Delay = 500
+  { lblMessage Label
+    MoveScaled(1,41,64,4)
+    Visible = False
+    Font = Font["Bold"]
+    Background = Color.TooltipBackground
+    Foreground = Color.TooltipForeground
+    Border = Border.Plain
   }
 }
 
@@ -164,7 +192,7 @@
 
 { Actions
   { Action find
-    Text = "Search  Replace"
+    Text = "Search & Replace"
     Picture = "icon:/small/find"
   }
 }

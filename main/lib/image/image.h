@@ -2,7 +2,7 @@
 
   image.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -41,7 +41,7 @@ static inline int GRAY(uint rgba) { return (RED(rgba) * 11 + GREEN(rgba) * 16 + 
 
 int IMAGE_size(GB_IMG *img);
 
-void IMAGE_create(GB_IMG *img, int width, int height, int format);
+void IMAGE_create(GB_IMG *img, int width, int height, int format, GB_COLOR fill);
 void IMAGE_create_with_data(GB_IMG *img, int width, int height, int format, unsigned char *data);
 
 void IMAGE_take(GB_IMG *img, GB_IMG_OWNER *owner, void *owner_handle, int width, int height, unsigned char *data);

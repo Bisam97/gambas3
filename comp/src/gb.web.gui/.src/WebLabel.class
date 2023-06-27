@@ -1,0 +1,95 @@
+' Gambas class file
+
+Export
+Inherits WebControl
+
+Public Const _Properties As String = "*,Text,Alignment{Align.Normal;Left;Right;Center}=Normal,Border"
+Public Const _DrawWith As String = "Label"
+Public Const _DefaultSize As String = "24,4"
+
+Property Text As String
+Property Alignment As Integer
+
+Private $sText As String
+Private $iAlign As Integer
+
+Public Sub _new()
+  
+  Me.Border = False
+  
+End
+
+
+Private Function Text_Read() As String
+
+  Return $sText
+
+End
+
+Private Sub GetRenderText() As String
+  
+  If Not $sText Then
+    'Return "&nbsp;"
+  Else
+    Return Replace(Replace(Html($sText), "\n", "<br>"), " ", "&nbsp;")
+  Endif
+  
+End
+
+
+Private Sub Text_Write(Value As String)
+
+  If $sText = Value Then Return
+  $sText = Value
+  
+  If Me._CanRefresh() Then
+    Me._AddRefresh("gw.setInnerHtml(" & JS(Me.Name) & "," & JS(GetRenderText()) & ");")
+  Endif
+
+End
+
+Public Sub _Render()
+
+  Print GetRenderText();
+  
+End
+
+Public Sub _RenderStyleSheet()
+  
+  If $iAlign Then
+  
+    Me._StartStyleSheet
+    
+    Super._RenderStyleSheet()
+    
+    Select Case $iAlign
+      Case Align.Left
+        Me._AddStyleSheet("justify-content:flex-start;")
+      Case Align.Right
+        Me._AddStyleSheet("justify-content:flex-end;")
+      Case Align.Center
+        Me._AddStyleSheet("text-align:center;justify-content:center;")
+    End Select
+    
+    Me._EndStyleSheet
+    
+  Else
+    
+    Super._RenderStyleSheet
+    
+  Endif
+  
+End
+
+Private Function Alignment_Read() As Integer
+
+  Return $iAlign
+
+End
+
+Private Sub Alignment_Write(Value As Integer)
+
+  $iAlign = Value
+  Me.Refresh
+
+End

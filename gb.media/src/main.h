@@ -4,7 +4,7 @@
 
   gb.media component
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -36,6 +36,7 @@
 #include "gb.image.h"
 
 #ifndef __MAIN_C
+extern bool MAIN_debug;
 extern GB_INTERFACE GB;
 extern IMAGE_INTERFACE IMAGE;
 #endif

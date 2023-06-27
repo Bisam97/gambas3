@@ -2,6 +2,10 @@
 
 'Static Private $hLogo As Image
 
+Property Volume As Float
+Property Muted As Boolean
+Property Read State As Integer
+
 Private $hPlayer As MediaPlayer
 Private $hImage As MediaControl
 
@@ -110,6 +114,7 @@ Public Sub btnPlay_Click()
     'timTime.Start
     dwgTime.Refresh
     sldVolume_Change
+    dwgVideo.Cached = True ' Force the drawing area to have its own window on gb.gtk(3)
     $hImage.SetWindow(dwgVideo)
     '$hPlayer.Rate = -1
     $hPlayer.Play
@@ -137,6 +142,7 @@ Public Sub btnStop_Click()
   'timTime.Stop
   $bPlaying = False
   'HidePause
+  dwgVideo.Cached = False
   dwgVideo.Refresh
   dwgTime.Refresh
   btnPlay.Picture = Picture["icon:/small/play"]
@@ -171,6 +177,7 @@ Public Sub SetShowControl(bShow As Boolean)
   
   panControl.Visible = bShow
   dwgTime.Visible = bShow
+  panSpacer.Visible = bShow
   
 End
 
@@ -217,8 +224,6 @@ Public Sub dwgTime_Draw()
   
   If fLength > 0 Then
     sText &= " / " & Format(CDate((fLength + 0.5) / 86400), "hh:nn:ss")
-  Else
-    sText &= " / 00:00:00"
   Endif
   
   Paint.Background = Color.White
@@ -231,6 +236,8 @@ End
 Private Sub SetPos(fPos As Float)
   
   Dim fLength As Float
+  
+  If Not $hPlayer Then Return
   
   If $hPlayer.State = Media.Paused Or If $hPlayer.State = Media.Playing Then
     fLength = $hPlayer.Duration
@@ -287,6 +294,8 @@ Public Sub btnVolume_Click()
 
 End
 
+
+
 ' Public Sub GetShowVideo() As Boolean
 '   
 '   Return Not $bNoVideo
@@ -320,7 +329,8 @@ End
 
 Public Sub Form_Close()
 
-  Try $hPlayer.Stop
+  Try $hPlayer.Close()
+  $hPlayer = Null
 
 End
 
@@ -371,7 +381,7 @@ Public Sub SetPosition(fPos As Float)
 
   Dim fLength As Float
   
-  fLength = $hPlayer.Duration
+  Try fLength = $hPlayer.Duration
   
   If fLength Then
     SetPos(fPos / fLength)
@@ -383,6 +393,7 @@ End
 
 Public Sub dwgTime_MouseWheel()
 
+  If Not $hPlayer Then Return
   If Mouse.Forward Then
     SetPosition(GetPosition() + 10)
   Else
@@ -416,6 +427,13 @@ Public Sub MediaPlayer_Position()
   
 End
 
+Public Sub MediaPlayer_Duration()
+  
+  dwgTime.Refresh
+  
+End
+
+
 Public Sub GetSpeed() As Float
   
   Return $hPlayer.Speed
@@ -439,4 +457,41 @@ Public Sub timResize_Timer()
   If $hPlayer And If $hPlayer.State <> Media.Playing Then $hPlayer.Pos = $hPlayer.Pos
   timResize.Stop
   
+End
+
+Public Sub _new()
+
+  Me.Proxy = dwgVideo
+
+End
+
+Private Function Volume_Read() As Float
+
+  Return $hPlayer.Audio.Volume
+
+End
+
+Private Sub Volume_Write(Value As Float)
+
+  Try sldVolume.Value = Value * 100
+
+End
+
+Private Function Muted_Read() As Boolean
+
+  Return sldVolume.Enabled
+
+End
+
+Private Sub Muted_Write(Value As Boolean)
+
+  If sldVolume.Enabled = Value Then Return
+  btnVolume_Click
+
+End
+
+Private Function State_Read() As Integer
+
+  If $hPlayer Then Return $hPlayer.State
+
 End

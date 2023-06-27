@@ -2,7 +2,7 @@
 
   ctrayicon.cpp
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -175,7 +175,6 @@ BEGIN_PROPERTY(TrayIcon_Picture)
 		GB.StoreObject(PROP(GB_OBJECT), POINTER(&THIS->icon));
 		define_icon(THIS);
 	}
-	
 
 END_PROPERTY
 
@@ -390,10 +389,17 @@ bool TrayIconManager::eventFilter(QObject *o, QEvent *e)
 		CTRAYICON *_object = find_trayicon(o);
 		if (THIS)
 		{
-			bool cancel;
+			bool cancel = true;
 			QWheelEvent *ev = (QWheelEvent *)e;
 			
+#ifdef QT5
+			if (ev->angleDelta().x())
+				cancel = GB.Raise(THIS, EVENT_Scroll, 2, GB_T_FLOAT, ev->angleDelta().x() / 120.0, GB_T_INTEGER, false);
+			if (ev->angleDelta().y())
+				cancel = GB.Raise(THIS, EVENT_Scroll, 2, GB_T_FLOAT, ev->angleDelta().y() / 120.0, GB_T_INTEGER, true);
+#else
 			cancel = GB.Raise(THIS, EVENT_Scroll, 2, GB_T_FLOAT, ev->delta() / 120.0, GB_T_INTEGER, ev->orientation() == Qt::Vertical);
+#endif
 			
 			if (cancel)
 				return true;

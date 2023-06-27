@@ -86,11 +86,12 @@ End
 ' End
 ' 
 
-Private Sub GetUploadDir() As String
+Private Sub GetUploadDir(Optional sRoot As String) As String
 
   Dim sDir As String
   
-  sDir = File.Dir(File.Dir(Temp$())) &/ "upload"
+  If Not sRoot Then sRoot = File.Dir(File.Dir(Temp$()))
+  sDir = sRoot &/ "upload"
   Try Mkdir sDir
   sDir &/= Session.Id
   Try Mkdir sDir
@@ -120,16 +121,12 @@ Public Sub _UploadFinish()
     WebForm.Print("_UploadFinish: sPath = " & sPath)
     sName = Request["name"]
     
-    If Request.TempDir Then
-      sTemp = sPath
-    Else
-      sTemp = GetUploadDir() &/ Me.Name & "." & File.Ext(sName)
-      Try Kill sTemp
-      Try Move sPath To sTemp
-      If Error Then 
-        WebForm.Print("_UploadFinish: " & Error.Text & ": " & sPath & " -> " & sTemp)
-        Break
-      Endif
+    sTemp = GetUploadDir(Request.TempDir) &/ Me.Name & "." & File.Ext(sName)
+    Try Kill sTemp
+    Try Move sPath To sTemp
+    If Error Then 
+      WebForm.Print("_UploadFinish: " & Error.Text & ": " & sPath & " -> " & sTemp)
+      Break
     Endif
     
     Me["path"] = sTemp
@@ -189,7 +186,7 @@ Public Sub Clear()
   sPath = Me["path"]
   If sPath Then
     Try Kill sPath
-    If Not Request.TempDir Then Try Rmdir File.Dir(sPath)
+    Try Rmdir File.Dir(sPath)
     Me["name"] = ""
     Me["path"] = ""
     Me["file"] = ""

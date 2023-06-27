@@ -2,7 +2,7 @@
 
 	gb_table.h
 
-	(c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+	(c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -37,7 +37,6 @@ typedef
 		uint key;
 #endif
 		}
-	PACKED
 	SYMBOL;
 
 typedef
@@ -64,6 +63,7 @@ void TABLE_create_static(TABLE *table, size_t size, TABLE_FLAG flag);
 void TABLE_delete_static(TABLE *table);
 
 void TABLE_create(TABLE **result, size_t size, TABLE_FLAG flag);
+void TABLE_create_inc(TABLE **result, size_t size, TABLE_FLAG flag, uint inc);
 void TABLE_create_from(TABLE **result, size_t size, const char *sym_list[], TABLE_FLAG flag);
 void TABLE_delete(TABLE **table);
 

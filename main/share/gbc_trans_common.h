@@ -2,7 +2,7 @@
 
 	gbc_trans_common.h
 
-	(c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+	(c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -31,6 +31,7 @@ typedef
 		PATTERN *optional;
 		short value;
 		unsigned ignore : 1;
+		unsigned byref : 1;
 		}
 	TRANS_PARAM;
 
@@ -59,7 +60,7 @@ typedef
 	struct {
 		int index;                  // index in symbol table
 		TYPE type;                  // data type
-		int value;                  // value
+		int value;                  // value or pattern index
 		TRANS_ARRAY array;          // array dimensions
 		PATTERN *init;              // initialization code
 		int64_t lvalue;             // The value of a LONG constant
@@ -68,7 +69,6 @@ typedef
 		unsigned is_embedded : 1;   // if it is an embedded array
 		unsigned no_warning : 1;    // The symbol name is between braces
 		}
-	PACKED
 	TRANS_DECL;
 
 typedef
@@ -77,15 +77,15 @@ typedef
 		TYPE type;
 		short nparam;
 		unsigned vararg : 1;
-		unsigned _reserved : 15;
+		unsigned no_warning : 1;    // The symbol name is between braces
+		unsigned fast : 1;
+		unsigned unsafe : 1;
+		unsigned _reserved : 12;
 		TRANS_PARAM param[MAX_PARAM_FUNC];
 		PATTERN *start;
 		int line;
 		uint64_t byref;
-		unsigned fast : 1;
-		unsigned unsafe : 1;
 		}
-	PACKED
 	TRANS_FUNC;
 
 typedef
@@ -96,7 +96,6 @@ typedef
 		short _reserved;
 		TRANS_PARAM param[MAX_PARAM_FUNC];
 		}
-	PACKED
 	TRANS_EVENT;
 
 typedef
@@ -105,12 +104,12 @@ typedef
 		TYPE type;
 		short nparam;
 		unsigned vararg : 1;
-		unsigned _reserved : 15;
+		unsigned no_warning : 1;    // The symbol name is between braces
+		unsigned _reserved : 14;
 		TRANS_PARAM param[MAX_PARAM_FUNC];
 		int library;
 		int alias;
 		}
-	PACKED
 	TRANS_EXTERN;
 
 typedef
@@ -120,11 +119,11 @@ typedef
 		int line;
 		int comment;
 		int synonymous[3];
-		bool read;
-		unsigned char nsynonymous;
-		bool _reserved[2];
+		int use;
+		unsigned nsynonymous : 3;
+		unsigned read_only : 1;
+		unsigned write_only : 1;
 		}
-	PACKED
 	TRANS_PROPERTY;
 
 typedef
@@ -140,7 +139,6 @@ typedef
 		ushort *pos_break;
 		ushort *pos_continue;
 		}
-	PACKED
 	TRANS_CTRL;
 
 typedef
@@ -153,7 +151,6 @@ typedef
 		unsigned on_goto : 1;
 		unsigned _reserved : 30;
 		}
-	PACKED
 	TRANS_GOTO;
 
 typedef
@@ -162,7 +159,6 @@ typedef
 		ushort pos;
 		short ctrl_id;
 		}
-	PACKED
 	TRANS_LABEL;
 
 typedef

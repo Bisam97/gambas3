@@ -104,12 +104,14 @@ END_PROPERTY
 
 static void return_unicode_string(const Unicode *unicode, int len)
 {
-	static UnicodeMap *uMap = NULL;
-	
 	GooString gstr;
 	char buf[8]; /* 8 is enough for mapping an unicode char to a string */
 	int i, n;
 
+#if POPPLER_VERSION_0_85
+	const UnicodeMap *uMap = globalParams->getUtf8Map();
+#else
+	static UnicodeMap *uMap = NULL;
 	if (uMap == NULL) 
 	{
 		GooString *enc = new GooString("UTF-8");
@@ -117,6 +119,7 @@ static void return_unicode_string(const Unicode *unicode, int len)
 		uMap->incRefCnt();
 		delete enc;
 	}
+#endif
 		
 	for (i = 0; i < len; ++i) {
 		n = uMap->mapUnicode(unicode[i], buf, sizeof(buf));
@@ -241,11 +244,7 @@ static uint32_t aux_get_page_from_action(void *_object, const_LinkAction *act)
 {
 	Ref pref;       
 	const_LinkDest *dest = get_dest(act);
-	#if POPPLER_VERSION_0_6
 	const_GooString *name;
-	#else
-	UGooString *name;
-	#endif
 
 	if (!dest)
 	{
@@ -256,12 +255,12 @@ static uint32_t aux_get_page_from_action(void *_object, const_LinkAction *act)
 		{
 			name = ((LinkGoTo*)act)->getNamedDest();
 			if (name) {
-			#if POPPLER_VERSION_0_64
+			#if POPPLER_VERSION_0_86
+				dest = THIS->doc->findDest(name).get();
+			#elif POPPLER_VERSION_0_64
 				dest = THIS->doc->findDest(name);
-			#elif POPPLER_VERSION_0_6
-				dest = THIS->doc->findDest((GooString *) name);
 			#else
-				dest = THIS->doc->findDest((UGooString *) name);
+				dest = THIS->doc->findDest((GooString *) name);
 			#endif
 			}
 		}
@@ -307,9 +306,12 @@ static double aux_get_zoom_from_action(const_LinkAction *act)
 
 static char* aux_get_target_from_action(const_LinkAction *act)
 {
-	char *vl=NULL;
-	char *uni=NULL;	
-	const_GooString *tmp=NULL;
+	char *vl = NULL;
+	char *uni = NULL;	
+	const_GooString *tmp = NULL;
+#if POPPLER_VERSION_0_86
+	GooString gstr;
+#endif
 
 	switch (act->getKind())
 	{
@@ -320,17 +322,31 @@ static char* aux_get_target_from_action(const_LinkAction *act)
 			tmp=((LinkLaunch*)act)->getFileName(); break;
 
 		case actionURI:
-			tmp=((LinkURI*)act)->getURI(); break;
+#if POPPLER_VERSION_0_86
+			gstr = GooString(((LinkURI*)act)->getURI());
+			tmp = &gstr;
+#else
+			tmp = ((LinkURI*)act)->getURI(); 
+#endif
+			break;
 			
 		case actionNamed:
-			tmp=((LinkNamed*)act)->getName(); break;
+#if POPPLER_VERSION_0_86
+			gstr = GooString(((LinkNamed*)act)->getName());
+			tmp = &gstr;
+#else
+			tmp = ((LinkNamed*)act)->getName(); 
+#endif
+			break;
 
 		case actionMovie:
-			#if POPPLER_VERSION_0_8
-			tmp=((LinkMovie*)act)->getAnnotTitle(); break;
-			#else
-			tmp=((LinkMovie*)act)->getTitle(); break;
-			#endif
+#if POPPLER_VERSION_0_86
+			gstr = GooString(((LinkMovie*)act)->getAnnotTitle());
+			tmp = &gstr;
+#else
+			tmp = ((LinkMovie*)act)->getAnnotTitle();
+#endif
+			break;
 
 		default:
 			break;
@@ -461,12 +477,12 @@ int32_t open_document (void *_object, char *sfile, int32_t lfile)
 	if ( GB.LoadFile(sfile,lfile,&buf,&len) ) return -1;
 
 	#if POPPLER_VERSION_0_58
-	stream=new MemStream(buf,0,(uint)len,std::move(obj));
+	stream = new MemStream(buf,0,(uint)len,std::move(obj));
 	#else
 	obj.initNull();
-	stream=new MemStream(buf,0,(uint)len,&obj);
+	stream = new MemStream(buf,0,(uint)len,&obj);
 	#endif
-	test=new PDFDoc (stream,0,0);
+	test = new PDFDoc(stream);
 
 	if (!test->isOk())
 	{
@@ -486,13 +502,7 @@ int32_t open_document (void *_object, char *sfile, int32_t lfile)
 
 	white[0] = 0xFF; white[1] = 0xFF; white[2] = 0xFF;
 	THIS->dev=new SplashOutputDev(splashModeRGB8, 3, false, white);
-
-	#if POPPLER_VERSION_0_20
 	THIS->dev->startDoc(THIS->doc);
-	#else
-	THIS->dev->startDoc(THIS->doc->getXRef ());
-	#endif
-	
 	outline=THIS->doc->getOutline();
 	if (outline) THIS->index=outline->getItems();
 	
@@ -605,11 +615,7 @@ END_PROPERTY
 BEGIN_PROPERTY(PDFINFO_format)
 
 	char ctx[16];
-	#if POPPLER_VERSION_0_11_3
-		snprintf(ctx, sizeof(ctx), "%.2g", THIS->doc->getPDFMajorVersion () + THIS->doc->getPDFMinorVersion() / 10.0);
-	#else
-		snprintf(ctx, sizeof(ctx), "%.2g", THIS->doc->getPDFVersion());
-	#endif
+	snprintf(ctx, sizeof(ctx), "%.2g", THIS->doc->getPDFMajorVersion () + THIS->doc->getPDFMinorVersion() / 10.0);
 	GB.ReturnNewZeroString(ctx);
 
 END_PROPERTY
@@ -760,8 +766,10 @@ BEGIN_PROPERTY(PDFINDEX_is_open)
 
 	if (VPROP(GB_INTEGER))
 		item->open();
+#ifndef POPPLER_VERSION_21_06_0
 	else
 		item->close();
+#endif
 
 END_PROPERTY
 
@@ -927,22 +935,12 @@ static uint32_t *get_page_data(CPDFDOCUMENT *_object, int32_t x, int32_t y, int3
 
 	if ( (w<0) || (h<0) ) return NULL;
 
-	#if POPPLER_VERSION_0_20
 	THIS->page->displaySlice(THIS->dev,72.0*scale,72.0*scale,
 			   rotation,
 			   false,
 			   true,
 			   x,y,w,h,
 			   false);
-	#else
-	THIS->page->displaySlice(THIS->dev,72.0*scale,72.0*scale,
-			   rotation,
-			   false,
-			   true,
-			   x,y,w,h,
-			   false,
-			   THIS->doc->getCatalog ());
-	#endif
 	
 	map=THIS->dev->getBitmap();
 	
@@ -1001,13 +999,8 @@ BEGIN_METHOD(PDFPAGE_select, GB_INTEGER X; GB_INTEGER Y; GB_INTEGER W; GB_INTEGE
 	w = VARGOPT(W, (int32_t)THIS->page->getMediaWidth());
 	h = VARGOPT(H, (int32_t)THIS->page->getMediaHeight());
 
-	#if POPPLER_VERSION_0_20
 	dev = new TextOutputDev (NULL, true, 0, false, false);
 	gfx = THIS->page->createGfx(dev,72.0,72.0,0,false,true,-1, -1, -1, -1, false, NULL, NULL);
-	#else
-	dev = new TextOutputDev (NULL, true, false, false);
-	gfx = THIS->page->createGfx(dev,72.0,72.0,0,false,true,-1, -1, -1, -1, false,THIS->doc->getCatalog (),NULL, NULL, NULL, NULL);
-	#endif
 
 	THIS->page->display(gfx);
 	dev->endPage();
@@ -1036,30 +1029,47 @@ END_METHOD
 
 void aux_fill_links(void *_object)
 {
-	#if POPPLER_VERSION_0_20
 	THIS->links = new Links (THIS->page->getAnnots ());
-	#elif POPPLER_VERSION_0_17
-	THIS->links = new Links (THIS->page->getAnnots (THIS->doc->getCatalog()));
-	#else
-	Object obj;
-	
-	THIS->links = new Links (THIS->page->getAnnots (&obj),THIS->doc->getCatalog()->getBaseURI ());
-	obj.free();
-	#endif
 }
 
 BEGIN_PROPERTY (PDFPAGELINKS_count)
 
 	if (!THIS->links) aux_fill_links(_object);
 	if (!THIS->links) { GB.ReturnInteger(0); return; }
-	GB.ReturnInteger(THIS->links->getNumLinks());
 
+#if POPPLER_VERSION_22_06_0
+	int numlinks = 0;
+	for (AnnotLink *link : THIS->links->getLinks()) {
+		numlinks++;
+	}
+	GB.ReturnInteger(numlinks);
+#else
+	GB.ReturnInteger(THIS->links->getNumLinks());
+#endif
 
 END_PROPERTY
 
 BEGIN_METHOD (PDFPAGELINKS_get,GB_INTEGER ind;)
 
-	bool pok=true;
+#if POPPLER_VERSION_22_06_0
+
+ 	if (!THIS->links) aux_fill_links(_object);
+	if (THIS->links && VARG(ind)>0)
+ 	{
+		int i = 0;
+		for (AnnotLink *link : THIS->links->getLinks()) {
+			if (VARG(ind)==i) {
+				THIS->action=link->getAction();
+				RETURN_SELF();
+			}
+		}
+ 	}
+	GB.Error("Out of bounds");
+    return;
+
+#else
+
+	bool pok = true;
 
 	if (!THIS->links) aux_fill_links(_object);
 	if (!THIS->links) pok=false;
@@ -1078,6 +1088,8 @@ BEGIN_METHOD (PDFPAGELINKS_get,GB_INTEGER ind;)
 	THIS->action=THIS->links->getLink(THIS->lcurrent)->getAction();
 
 	RETURN_SELF();
+
+#endif
 
 END_METHOD
 
@@ -1147,9 +1159,26 @@ static void aux_get_link_dimensions(void *_object, CPDFRECT *rect)
 	pw=THIS->page->getMediaWidth();	
 	ph=THIS->page->getMediaHeight();
 
+#if POPPLER_VERSION_22_06_0
+
+	uint i = 0;
+	l = t = w = h = 0;
+	for (AnnotLink *link : THIS->links->getLinks()) {
+		if (i == THIS->lcurrent) {
+			link->getRect(&l, &t, &w, &h);
+			break;
+		}
+		i++;
+	}
+
+#else
+
 	THIS->links->getLink(THIS->lcurrent)->getRect(&l, &t, &w, &h);
-	w=w-l;
-	h=h-t;	
+
+#endif
+
+	w -= l;
+	h -= t;
 
 	switch (get_rotation(THIS))
 	{
@@ -1222,22 +1251,13 @@ BEGIN_METHOD (PDFPAGE_find,GB_STRING Text; GB_BOOLEAN Sensitive;)
 
 	if (!MISSING(Sensitive)) sensitive=VARG(Sensitive);
 
-	#if POPPLER_VERSION_0_20
 	textdev = new TextOutputDev (NULL, true, 0, false, false);
 	THIS->page->display (textdev, 72, 72, 0, false, false, false);
-	#else
-	textdev = new TextOutputDev (NULL, true, false, false);
-	THIS->page->display (textdev, 72, 72, 0, false, false, false, THIS->doc->getCatalog());
-	#endif
 
 	if (THIS->Found) { GB.FreeArray(POINTER(&THIS->Found)); THIS->Found=NULL; }
 
 	count = 0;
-	#if POPPLER_VERSION_0_20
 	while (textdev->findText (block,nlen,false,true,true,false,sensitive,false,false,&x0,&y0,&x1,&y1))
-	#else
-	while (textdev->findText (block,nlen,false,true,true,false,sensitive,false,&x0,&y0,&x1,&y1))
-	#endif
 	{
 		if (!THIS->Found)
 			GB.NewArray(POINTER(&THIS->Found),sizeof(CPDFFIND),1);

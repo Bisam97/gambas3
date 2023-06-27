@@ -56,6 +56,8 @@ AC_DEFUN([GB_PRINT_MESSAGES],
     echo
   fi
   
+  rm -f $srcdir/warnings.log.before;
+  
   if test -e FAILED && test "x${GAMBAS_CONFIG_FAILURE}" != "x"; then
      AC_MSG_ERROR([Failed to configure $3])
   fi
@@ -70,8 +72,10 @@ AC_DEFUN([GB_INIT_AUTOMAKE],
 [
   AM_INIT_AUTOMAKE([subdir-objects])
   m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES(yes)])
-  AC_CONFIG_HEADER([config.h])
+  AC_CONFIG_HEADERS([config.h])
   AC_PREFIX_DEFAULT(/usr)
+  MAKEFLAGS=--silent
+  AC_SUBST(MAKEFLAGS)
 
   GAMBAS_VERSION=GB_VERSION_MAJOR
   GAMBAS_MINOR_VERSION=GB_VERSION_MINOR
@@ -90,6 +94,46 @@ AC_DEFUN([GB_INIT_AUTOMAKE],
   AC_DEFINE(GAMBAS_PCODE_VERSION_MIN, GB_PCODE_VERSION_MIN, [Minimum Gambas bytecode version])
 
   GB_CLEAR_MESSAGES
+])
+
+## ---------------------------------------------------------------------------
+## GB_TRUNK_VERSION
+## detect version and branch (svn and git supported)
+## ---------------------------------------------------------------------------
+
+AC_DEFUN([GB_TRUNK_VERSION],
+[
+  gb_detect_git=`which git 2> /dev/null`
+  gb_vcs_hash=""
+  gb_vcs_branch=""
+  gb_vcs_version=""
+
+  AC_MSG_CHECKING(for vcs revision)
+
+  if test "x${gb_detect_git}" != "x"; then
+    gb_vcs_branch=`git rev-parse --abbrev-ref HEAD 2> /dev/null`
+    gb_vcs_hash=`git rev-parse --short HEAD 2> /dev/null`
+  else
+    gb_detect_svn=`which svn 2> /dev/null`
+      if test "x${gb_detect_svn}" != "x"; then
+        gb_vcs_hash=`svn info --show-item last-changed-revision 2> /dev/null`
+      fi
+  fi
+
+  if test "x${gb_vcs_branch}" != "x"; then
+    gb_vcs_version="${gb_vcs_hash} (${gb_vcs_branch})"
+  else
+    if test "x${gb_vcs_hash}" != "x"; then
+      gb_vcs_version="r${gb_vcs_hash}"
+    fi
+  fi
+
+  if test "x${gb_vcs_version}" != "x"; then
+    AC_DEFINE_UNQUOTED(TRUNK_VERSION, "${gb_vcs_version}", [vcs revision])
+    AC_MSG_RESULT([$gb_vcs_version])
+  else
+    AC_MSG_RESULT(not found)
+  fi
 ])
 
 ## ---------------------------------------------------------------------------
@@ -148,9 +192,8 @@ AC_DEFUN([GB_INIT_SHORT],
 
 AC_DEFUN([GB_LIBTOOL],
 [
-  AC_LIBTOOL_DLOPEN
-  ##AC_LIBLTDL_CONVENIENCE
-  AC_LIBTOOL_WIN32_DLL
+  dnl AC_LIBTOOL_DLOPEN
+  dnl AC_LIBTOOL_WIN32_DLL
   AC_DISABLE_STATIC
 
   AC_SUBST(INCLTDL)
@@ -161,6 +204,9 @@ AC_DEFUN([GB_LIBTOOL],
     LD_FLAGS="$LD_FLAGS -no-undefined"
   fi
   AC_SUBST(LD_FLAGS)
+
+  AM_LIBTOOLFLAGS="--silent"
+  AC_SUBST(AM_LIBTOOLFLAGS)
 ])
 
 AC_DEFUN([GB_INIT],
@@ -176,7 +222,6 @@ AC_DEFUN([GB_INIT],
   dnl ---- Checks for header files.
 
   dnl AC_HEADER_DIRENT
-  dnl AC_HEADER_STDC
   dnl AC_HEADER_SYS_WAIT
 
   dnl ---- Checks for typedefs, structures, and compiler characteristics.
@@ -184,15 +229,21 @@ AC_DEFUN([GB_INIT],
   dnl AC_C_CONST
   dnl AC_TYPE_PID_T
   dnl AC_TYPE_SIZE_T
-  dnl AC_HEADER_TIME
+  dnl AC_CHECK_HEADERS_ONCE([sys/time.h])
+
   dnl AC_STRUCT_TM
-  dnl AC_C_LONG_DOUBLE
+
+  AC_TYPE_LONG_DOUBLE_WIDER
+  ac_cv_c_long_double=$ac_cv_type_long_double_wider
+  if test $ac_cv_c_long_double = yes; then
+    AC_DEFINE([HAVE_LONG_DOUBLE],[1],[Define to 1 if the type `long double' works and has more range or
+    precision than `double'.])
+  fi
 
   dnl ---- Checks for library functions.
 
   dnl AC_FUNC_ALLOCA
   dnl AC_PROG_GCC_TRADITIONAL
-  dnl AC_TYPE_SIGNAL
   dnl AC_FUNC_STRCOLL
   dnl AC_FUNC_STRFTIME
   dnl AC_FUNC_VPRINTF
@@ -359,6 +410,18 @@ AC_DEFUN([GB_INIT],
     AC_DEFINE(HAVE_GCC_STD_CPP11, 1, [Whether g++ supports -std=c++11])
   fi
   
+  dnl ---- check for -std=c++17 compiler flag
+  
+  GB_CXXFLAGS_GCC_OPTION([-std=c++17],,
+    [
+      GB_CXXFLAGS_STD_CPP17=" -std=c++17"
+      have_gcc_std_cpp17x=yes
+    ])
+  
+  if test "$have_gcc_std_cpp17" = "yes"; then
+    AC_DEFINE(HAVE_GCC_STD_CPP17, 1, [Whether g++ supports -std=c++17])
+  fi
+  
   dnl ---- Debug flags
 
   if test "$gambas_debug" = "yes"; then
@@ -370,9 +433,9 @@ AC_DEFUN([GB_INIT],
 
   if test "x$gambas_optimization" = "xyes"; then
     AM_CFLAGS_OPT="$AM_CFLAGS -O3"
-    AM_CFLAGS="$AM_CFLAGS -Os"
+    AM_CFLAGS="$AM_CFLAGS -O2"
     AM_CXXFLAGS_OPT="$AM_CXXFLAGS -O3 -fno-omit-frame-pointer"
-    AM_CXXFLAGS="$AM_CXXFLAGS -Os -fno-omit-frame-pointer"
+    AM_CXXFLAGS="$AM_CXXFLAGS -O2 -fno-omit-frame-pointer"
   else
     AM_CFLAGS_OPT="$AM_CFLAGS -O0"
     AM_CFLAGS="$AM_CFLAGS -O0"
@@ -382,10 +445,12 @@ AC_DEFUN([GB_INIT],
 
   dnl ---- Checks for programs
 
+  save_CFLAGS=$CFLAGS
   AC_PROG_CPP
   AC_PROG_CXX
   AC_PROG_CC
   AC_PROG_MAKE_SET
+  CFLAGS=$save_CFLAGS
 
   AC_SUBST(AM_CFLAGS)
   AC_SUBST(AM_CFLAGS_OPT)
@@ -393,6 +458,7 @@ AC_DEFUN([GB_INIT],
   AC_SUBST(AM_CXXFLAGS_OPT)
   AC_SUBST(GB_CFLAGS_LTO)
   AC_SUBST(GB_CXXFLAGS_STD_CPP11)
+  AC_SUBST(GB_CXXFLAGS_STD_CPP17)
 
   rm -f DISABLED DISABLED.* FAILED
 ])
@@ -500,19 +566,17 @@ AC_DEFUN([GB_MATH],
 AC_DEFUN([GB_CHECK_MATH_FUNC],
 [AC_CACHE_CHECK(for $1,
   gb_cv_math_$1,
-  [AC_TRY_COMPILE(
-    [
+  [AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
       #define _ISOC9X_SOURCE	1
       #define _ISOC99_SOURCE	1
+      #define _GNU_SOURCE	1
       #define __USE_ISOC99	1
       #define __USE_ISOC9X	1
       #include <math.h>
-    ],
-    [
+    ]], [[
       int value = $1 (1.0);
-    ],
-    gb_cv_math_$1=yes, gb_cv_math_$1=no
-    )])
+    ]])],[gb_cv_math_$1=yes],[gb_cv_math_$1=no
+    ])])
   
   if test $gb_cv_math_$1 = yes; then
     AC_DEFINE(HAVE_$2, 1, [Define if you have $1 function.])
@@ -638,6 +702,11 @@ AC_DEFUN([GB_SYSTEM],
       ARCH=ARM
       AC_DEFINE(ARCH_ARM, 1, [Target architecture is ARM])
       AC_DEFINE(ARCHITECTURE, "arm", [Architecture])
+      ;;
+    aarch64*-*-* )
+      ARCH=AARCH64
+      AC_DEFINE(ARCH_AARCH64, 1, [Target architecture is AARCH64])
+      AC_DEFINE(ARCHITECTURE, "aarch64", [Architecture])
       ;;
     powerpc*-*-* )
       ARCH=PPC
@@ -906,6 +975,7 @@ cd $gb_save
 
 AC_DEFUN([GB_COMPONENT_PKG_CONFIG],
 [
+  AC_REQUIRE([PKG_PROG_PKG_CONFIG])
   AC_ARG_ENABLE(
     $1,
     [  --enable-$1                enable $3 (default: yes)],
@@ -921,6 +991,8 @@ AC_DEFUN([GB_COMPONENT_PKG_CONFIG],
   dnl   [  --with-$1-libraries     where the $3 libraries are located. ],
   dnl   [  gb_lib_$1="$withval" ])
 
+  cp warnings.log warnings.log.before
+  
   have_$1=no
   
   if test "$gb_enable_$1" = "yes" && test ! -e DISABLED && test ! -e DISABLED.$3; then
@@ -933,17 +1005,17 @@ AC_DEFUN([GB_COMPONENT_PKG_CONFIG],
     have_$1=yes
     gb_testval=""
 
-    pkg-config --silence-errors --exists $5
+    $PKG_CONFIG --silence-errors --exists $5
     if test $? -eq "0"; then
 
       ## Checking for headers
 
-      $2_INC="`pkg-config --cflags $5`"
+      $2_INC="`$PKG_CONFIG --cflags $5`"
 
       ## Checking for libraries
 
-      $2_LIB="`pkg-config --libs-only-l $5`"
-      $2_LDFLAGS="`pkg-config --libs-only-L $5` `pkg-config --libs-only-other $5`"
+      $2_LIB="`$PKG_CONFIG --libs-only-l $5`"
+      $2_LDFLAGS="`$PKG_CONFIG --libs-only-L $5` `$PKG_CONFIG --libs-only-other $5`"
       $2_DIR=$4
 
     else
@@ -964,13 +1036,13 @@ AC_DEFUN([GB_COMPONENT_PKG_CONFIG],
     fi
 
     if test "$gb_enable_$1" = "yes"; then
-      AC_MSG_RESULT(no)
+      AC_MSG_RESULT(failed)
     fi
 
     for pkgcmp in $5
     do
 
-      pkg-config --silence-errors --exists $pkgcmp
+      $PKG_CONFIG --silence-errors --exists $pkgcmp
       if test $? -eq "1"; then
         GB_WARNING([Unable to met pkg-config requirement: $pkgcmp])
       fi
@@ -993,9 +1065,9 @@ AC_DEFUN([GB_COMPONENT_PKG_CONFIG],
     $2_DIR=""
     if test "$gb_in_component_search" != "yes"; then
       if test x"$6" = x; then
-	GB_WARNING([$3 is disabled])
+        GB_MESSAGE([$3 is disabled])
       else
-	GB_WARNING([$6])
+        GB_MESSAGE([$6])
       fi
     fi
 
@@ -1005,6 +1077,34 @@ AC_DEFUN([GB_COMPONENT_PKG_CONFIG],
   AC_SUBST($2_LIB)
   AC_SUBST($2_LDFLAGS)
   AC_SUBST($2_DIR)
+])
+
+
+## ---------------------------------------------------------------------------
+## GB_COMPONENT_PKG_CONFIG_AGAIN
+## Try again a component detection macro based on pkg-config
+##
+##   $1 = Component key in lower case (ex: pgsql)
+##   $2 = Component key in upper case (ex: PGSQL)
+##   $3 = Component name (ex: gb.db.postgresql)
+##   $4 = Sub-directory name
+##   $5 = pkg-config module(s) name(s) with optional required version(s)
+##   $6 = Try again message
+##   $7 = Warning message (optional)
+##
+## ---------------------------------------------------------------------------
+
+AC_DEFUN([GB_COMPONENT_PKG_CONFIG_AGAIN],
+[
+  if test "$have_$1" != "yes"; then
+
+    AC_MSG_WARN([$6...])
+    rm DISABLED.$3 FAILED;
+    cp warnings.log.before warnings.log;
+
+    GB_COMPONENT_PKG_CONFIG($1, $2, $3, $4, $5, $7)
+
+  fi
 ])
 
 
@@ -1226,6 +1326,52 @@ gb_in_component_search=no
 
 
 ## ---------------------------------------------------------------------------
+## GB_COMPONENT_SEARCH_BOTH
+## Component detection macro that uses GB_COMPONENT_PKG_CONFIG and
+## GB_COMPONENT. both having to succeed
+##
+##   $1  = Component key in lower case (ex: postgresql)
+##   $2  = Component key in upper case (ex: POSTGRESQL)
+##   $3  = Component name (ex: gb.db.postgresql)
+##   $4  = Sub-directory name
+##   $5  = pkg-config module name (optional)
+##   $6  = How to get include path (must return it in gb_val)
+##   $7  = How to get library path (must return it in gb_val)
+##   $8  = Libraries
+##   $9  = Compiler flags (optional)
+##   $10 = Warning message (optional)
+##
+##   => defines HAVE_*_COMPONENT (to know if you can compile the component)
+##      *_INC (for the compiler) and *_LIB (for the linker)
+## ---------------------------------------------------------------------------
+
+AC_DEFUN([GB_COMPONENT_SEARCH_BOTH],
+[
+  GB_COMPONENT_PKG_CONFIG(
+    $1,
+    $2,
+    $3,
+    $4,
+    $5,
+    $10
+  )
+  if test ! -e DISABLED.$3; then
+    GB_COMPONENT(
+      $1,
+      $2,
+      $3,
+      $4,
+      $6,
+      $7,
+      $8,
+      $9,
+      $10
+    )
+  fi
+])
+
+
+## ---------------------------------------------------------------------------
 ## GB_FIND_QT_MOC
 ## Find QT moc compiler
 ##
@@ -1369,12 +1515,12 @@ rm -f conftest*
 dnl Check if the type socklen_t is defined anywhere
 AC_DEFUN([AC_C_SOCKLEN_T],
 [AC_CACHE_CHECK(for socklen_t, ac_cv_c_socklen_t,
-[ AC_TRY_COMPILE([
+[ AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
 #include <sys/types.h>
 #include <sys/socket.h>
-],[
+]], [[
 socklen_t foo;
-],[
+]])],[
   ac_cv_c_socklen_t=yes
 ],[
   ac_cv_c_socklen_t=no
@@ -1386,11 +1532,9 @@ dnl Check nicked from aclocal.m4 from GNU bash 2.01
 AC_DEFUN([AC_SYS_ERRLIST],
 [AC_MSG_CHECKING([for sys_errlist and sys_nerr])
 AC_CACHE_VAL(ac_cv_sys_errlist,
-[AC_TRY_LINK([#include <errno.h>],
-[extern char *sys_errlist[];
+[AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <errno.h>]], [[extern char *sys_errlist[];
  extern int sys_nerr;
- char *msg = sys_errlist[sys_nerr - 1];],
-    ac_cv_sys_errlist=yes, ac_cv_sys_errlist=no)])dnl
+ char *msg = sys_errlist[sys_nerr - 1];]])],[ac_cv_sys_errlist=yes],[ac_cv_sys_errlist=no])])dnl
 AC_MSG_RESULT($ac_cv_sys_errlist)
 if test $ac_cv_sys_errlist = yes; then
 AC_DEFINE(HAVE_SYS_ERRLIST)
@@ -1449,14 +1593,13 @@ AS_VAR_PUSHDEF([VAR],[ac_cv_cflags_gcc_option_$2])dnl
 AC_CACHE_CHECK([m4_ifval($1,$1,FLAGS) for gcc m4_ifval($2,$2,-option)],
 VAR,[VAR="no, unknown"
  AC_LANG_SAVE
- AC_LANG_C
+ AC_LANG([C])
  ac_save_[]FLAGS="$[]FLAGS"
 for ac_arg dnl
 in "-pedantic  % m4_ifval($2,$2,-option)"  dnl   GCC
    #
 do FLAGS="$ac_save_[]FLAGS "`echo $ac_arg | sed -e 's,%%.*,,' -e 's,%,,'`
-   AC_TRY_COMPILE([],[return 0;],
-   [VAR=`echo $ac_arg | sed -e 's,.*% *,,'` ; break])
+   AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[]], [[return 0;]])],[VAR=`echo $ac_arg | sed -e 's,.*% *,,'` ; break],[])
 done
  FLAGS="$ac_save_[]FLAGS"
  AC_LANG_RESTORE
@@ -1490,8 +1633,7 @@ for ac_arg dnl
 in "-pedantic  % m4_ifval($2,$2,-option)"  dnl   GCC
    #
 do FLAGS="$ac_save_[]FLAGS "`echo $ac_arg | sed -e 's,%%.*,,' -e 's,%,,'`
-   AC_TRY_COMPILE([],[return 0;],
-   [VAR=`echo $ac_arg | sed -e 's,.*% *,,'` ; break])
+   AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[]], [[return 0;]])],[VAR=`echo $ac_arg | sed -e 's,.*% *,,'` ; break],[])
 done
  FLAGS="$ac_save_[]FLAGS"
  AC_LANG_RESTORE
@@ -1518,14 +1660,13 @@ AS_VAR_PUSHDEF([VAR],[ac_cv_cflags_gcc_option_$1])dnl
 AC_CACHE_CHECK([m4_ifval($2,$2,FLAGS) for gcc m4_ifval($1,$1,-option)],
 VAR,[VAR="no, unknown"
  AC_LANG_SAVE
- AC_LANG_C
+ AC_LANG([C])
  ac_save_[]FLAGS="$[]FLAGS"
 for ac_arg dnl
 in "-pedantic  % m4_ifval($1,$1,-option)"  dnl   GCC
    #
 do FLAGS="$ac_save_[]FLAGS "`echo $ac_arg | sed -e 's,%%.*,,' -e 's,%,,'`
-   AC_TRY_COMPILE([],[return 0;],
-   [VAR=`echo $ac_arg | sed -e 's,.*% *,,'` ; break])
+   AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[]], [[return 0;]])],[VAR=`echo $ac_arg | sed -e 's,.*% *,,'` ; break],[])
 done
  FLAGS="$ac_save_[]FLAGS"
  AC_LANG_RESTORE
@@ -1559,8 +1700,7 @@ for ac_arg dnl
 in "-pedantic  % m4_ifval($1,$1,-option)"  dnl   GCC
    #
 do FLAGS="$ac_save_[]FLAGS "`echo $ac_arg | sed -e 's,%%.*,,' -e 's,%,,'`
-   AC_TRY_COMPILE([],[return 0;],
-   [VAR=`echo $ac_arg | sed -e 's,.*% *,,'` ; break])
+   AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[]], [[return 0;]])],[VAR=`echo $ac_arg | sed -e 's,.*% *,,'` ; break],[])
 done
  FLAGS="$ac_save_[]FLAGS"
  AC_LANG_RESTORE

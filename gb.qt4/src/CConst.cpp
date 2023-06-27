@@ -2,7 +2,7 @@
 
   CConst.cpp
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -63,37 +63,6 @@ static int _horizontal_alignment[] =
 	CONST_MAGIC
 };
 
-static int _line_style[] =
-{
-	LINE_NONE, Qt::NoPen,
-	LINE_SOLID, Qt::SolidLine,
-	LINE_DASH, Qt::DashLine,
-	LINE_DOT, Qt::DotLine,
-	LINE_DASH_DOT, Qt::DashDotLine,
-	LINE_DASH_DOT_DOT, Qt::DashDotDotLine,
-	CONST_MAGIC
-};
-
-static int _fill_style[] =
-{
-	FILL_NONE, Qt::NoBrush,
-	FILL_SOLID, Qt::SolidPattern,
-	FILL_DENSE_94, Qt::Dense1Pattern,
-	FILL_DENSE_88, Qt::Dense2Pattern,
-	FILL_DENSE_63, Qt::Dense3Pattern,
-	FILL_DENSE_50, Qt::Dense4Pattern,
-	FILL_DENSE_37, Qt::Dense5Pattern,
-	FILL_DENSE_12, Qt::Dense6Pattern,
-	FILL_DENSE_06, Qt::Dense7Pattern,
-	FILL_HORIZONTAL, Qt::HorPattern,
-	FILL_VERTICAL, Qt::VerPattern,
-	FILL_CROSS, Qt::CrossPattern,
-	FILL_DIAGONAL, Qt::BDiagPattern,
-	FILL_BACK_DIAGONAL, Qt::FDiagPattern,
-	FILL_CROSS_DIAGONAL, Qt::DiagCrossPattern,
-	CONST_MAGIC
-};
-
 int CCONST_convert(int *tab, int value, int def, bool to_qt)
 {
 	int *p = tab;
@@ -137,16 +106,6 @@ int CCONST_horizontal_alignment(int value, int def, bool to_qt)
 	return CCONST_convert(_horizontal_alignment, value, def, to_qt);
 }
 
-int CCONST_line_style(int value, int def, bool to_qt)
-{
-	return CCONST_convert(_line_style, value, def, to_qt);
-}
-
-int CCONST_fill_style(int value, int def, bool to_qt)
-{
-	return CCONST_convert(_fill_style, value, def, to_qt);
-}
-
 #define IMPLEMENT_ALIGN(_method, _code) \
 BEGIN_METHOD(_method, GB_INTEGER align) \
 	int a = VARG(align); \
@@ -160,9 +119,17 @@ IMPLEMENT_ALIGN(Align_IsLeft, ALIGN_IS_LEFT(a))
 IMPLEMENT_ALIGN(Align_IsRight, ALIGN_IS_RIGHT(a))
 IMPLEMENT_ALIGN(Align_IsCenter, ALIGN_IS_CENTER(a))
 
-GB_DESC CAlignDesc[] =
+BEGIN_METHOD(Align_Make, GB_INTEGER halign; GB_INTEGER valign)
+
+  GB.ReturnInteger(ALIGN_MAKE(VARG(halign), VARG(valign)));
+
+END_METHOD
+
+//-------------------------------------------------------------------------
+
+GB_DESC AlignDesc[] =
 {
-  GB_DECLARE("Align", 0), GB_VIRTUAL_CLASS(),
+  GB_DECLARE_STATIC("Align"),
 
   GB_CONSTANT("Normal", "i", ALIGN_NORMAL),
   GB_CONSTANT("Left", "i", ALIGN_LEFT),
@@ -188,13 +155,15 @@ GB_DESC CAlignDesc[] =
   GB_STATIC_METHOD("IsCenter", "b", Align_IsCenter, "(Alignment)i"),
   GB_STATIC_METHOD("IsRight", "b", Align_IsRight, "(Alignment)i"),
 
+  GB_STATIC_METHOD("Make", "i", Align_Make, "(Horizontal)i(Vertical)i"),
+
   GB_END_DECLARE
 };
 
 
-GB_DESC CArrangeDesc[] =
+GB_DESC ArrangeDesc[] =
 {
-  GB_DECLARE("Arrange", 0), GB_VIRTUAL_CLASS(),
+  GB_DECLARE_STATIC("Arrange"),
 
   GB_CONSTANT("None", "i", ARRANGE_NONE),
   GB_CONSTANT("Horizontal", "i", ARRANGE_HORIZONTAL),
@@ -209,9 +178,9 @@ GB_DESC CArrangeDesc[] =
 };
 
 
-GB_DESC CBorderDesc[] =
+GB_DESC BorderDesc[] =
 {
-  GB_DECLARE("Border", 0), GB_VIRTUAL_CLASS(),
+  GB_DECLARE_STATIC("Border"),
 
   GB_CONSTANT("None", "i", BORDER_NONE),
   GB_CONSTANT("Plain", "i", BORDER_PLAIN),
@@ -223,9 +192,9 @@ GB_DESC CBorderDesc[] =
 };
 
 
-GB_DESC CScrollDesc[] =
+GB_DESC ScrollDesc[] =
 {
-  GB_DECLARE("Scroll", 0), GB_VIRTUAL_CLASS(),
+  GB_DECLARE_STATIC("Scroll"),
 
   GB_CONSTANT("None", "i", SCROLL_NONE),
   GB_CONSTANT("Horizontal", "i", SCROLL_HORIZONTAL),
@@ -236,9 +205,9 @@ GB_DESC CScrollDesc[] =
 };
 
 
-GB_DESC CSelectDesc[] =
+GB_DESC SelectDesc[] =
 {
-  GB_DECLARE("Select", 0), GB_VIRTUAL_CLASS(),
+  GB_DECLARE_STATIC("Select"),
 
   GB_CONSTANT("None", "i", SELECT_NONE),
   GB_CONSTANT("Single", "i", SELECT_SINGLE),
@@ -248,4 +217,13 @@ GB_DESC CSelectDesc[] =
 };
 
 
+GB_DESC DirectionDesc[] =
+{
+  GB_DECLARE_STATIC("Direction"),
 
+  GB_CONSTANT("Default", "i", DIRECTION_DEFAULT),
+  GB_CONSTANT("LeftToRight", "i", DIRECTION_LTR),
+  GB_CONSTANT("RightToLeft", "i", DIRECTION_RTL),
+
+  GB_END_DECLARE
+};

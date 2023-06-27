@@ -1,0 +1,29 @@
+#!/usr/bin/java --source 11
+
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+
+public final class string
+{
+  public static void main(String[] args)
+  {
+    String s = "abcdefgh" + "efghefgh";
+    int m = (1024 / s.length()) * 512;
+    String g = "";
+    int i, l;
+    Instant timer = Instant.now();
+
+    i = 0;
+    while (i < (m + 1000))
+    {
+      i++;
+      g += s;
+      g = g.replace("efgh", "____");
+      l = g.length();
+      if (l % (1024 * 64) == 0)
+      {
+        System.out.println(timer.until(Instant.now(), ChronoUnit.MILLIS) / 1000 + " sec\t\t" + (l / 1024) + "kb");
+      }
+    }
+  }
+}

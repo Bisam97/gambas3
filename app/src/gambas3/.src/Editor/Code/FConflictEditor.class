@@ -297,6 +297,7 @@ Public Sub Editors_KeyPress()
    
   If Key.Code = Key.Return Or If Key.Code = Key.Enter Then
     If Key.Normal Then
+      
       If $bWebPage Then
         If InAlternate() And If Not FindCloseAlternate() Then
           $hEditor.Insert("\n%>")
@@ -304,7 +305,13 @@ Public Sub Editors_KeyPress()
           Stop Event
         Endif
       Endif
+      
     Endif
+    
+  Else If Key.Code = Key.Insert Then
+    
+    Project.UpdateStatus()
+    
   Endif
   
 End
@@ -485,11 +492,7 @@ End
 
 Public Sub mnuGotoLine_Click()
 
-  Dim iLine As Integer
-
-  iLine = FGotoLine.Run($hEditor.Line + 1)
-  If iLine <= 0 Then Return
-  GotoCenter(iLine - 1)
+  $hEditor.ShowGotoPanel()
 
 End
 
@@ -649,15 +652,15 @@ Private Sub InitEditor(hEditor As TextEditor)
     .ReadConfig(True)
     .ShowExpand = False
     
-    If Color[.Styles[Highlight.Background].Color].Luminance >= 128 Then
-      .Styles[Highlight.Custom].Background = Color.SetAlpha(Color.Green, 224)
-      .Styles[Highlight.Custom + 1].Background = Color.SetAlpha(Color.Red, 224)
-    Else
-      .Styles[Highlight.Custom].Background = Color.SetAlpha(Color.Green, 160)
-      .Styles[Highlight.Custom + 1].Background = Color.SetAlpha(Color.Red, 160)
-    Endif
-    .Styles[Highlight.Custom].Color = .Styles[Highlight.Normal].Color
-    .Styles[Highlight.Custom + 1].Color = .Styles[Highlight.Normal].Color
+    ' If Color[.Styles[Highlight.Background].Color].Luminance >= 128 Then
+    '   .Styles[Highlight.Custom].Background = Color.SetAlpha(Color.Green, 224)
+    '   .Styles[Highlight.Custom + 1].Background = Color.SetAlpha(Color.Red, 224)
+    ' Else
+    '   .Styles[Highlight.Custom].Background = Color.SetAlpha(Color.Green, 160)
+    '   .Styles[Highlight.Custom + 1].Background = Color.SetAlpha(Color.Red, 160)
+    ' Endif
+    ' .Styles[Highlight.Custom].Color = .Styles[Highlight.Normal].Color
+    ' .Styles[Highlight.Custom + 1].Color = .Styles[Highlight.Normal].Color
     
   End With 
   
@@ -750,15 +753,9 @@ Public Sub GetPosition() As Integer
 
 End
 
-Public Sub SetPosition(hResult As CFindResult, Optional bJustCheck As Boolean) As Boolean
+Public Sub SetPosition(hResult As CSearchResult, Optional bJustCheck As Boolean) As Boolean
   
   Return $hEditor.SetPosition(hResult, bJustCheck)
-  
-End
-
-Public Sub Replace(sReplace As String)
-  
-  $hEditor.Replace(sReplace)
   
 End
 
@@ -815,24 +812,9 @@ End
 Public Sub Editors_Cursor()
 
   RefreshLineInfo()
-  CPosition.SaveCurrent(Me)
+  Project.UpdateStatus(True)
 
 End
-
-Public Sub Editors_MouseDown()
-  
-  CPosition.Disable
-  
-End
-
-Public Sub Editors_MouseUp()
-  
-  CPosition.Enable
-  CPosition.SaveCurrent(Me)
-  
-End
-
-
 
 Public Sub mnuLowerCase_Click()
   
@@ -860,11 +842,11 @@ Public Sub mnuUpperCase_Click()
   
 End
 
-Public Sub ShowErrorMessage(sMsg As String, (sIcon) As String)
+Public Sub ShowErrorMessage(sMsg As String)
 
   $hEditor.SetFocus
   Wait
-  $hEditor.ShowMessageLabel(Html(sMsg), Highlight.Breakpoint)
+  $hEditor.ShowMessageLabel(Html(sMsg), "Breakpoint")
 
 End
 
@@ -1012,7 +994,7 @@ Public Sub Form_Open()
 
   ReadConfig
   SetReadOnly
-  Action[".wrap", Me].Value = Settings["/Editor/WrapTextByDefault", False]
+  Action[".wrap", Me].Value = Settings["/Editor/WrapTextByDefault", True]
   Action[".tab-indent", Me].Value = Settings["/Editor/TabIndentByDefault", False]
 
 End
@@ -1419,19 +1401,19 @@ End
 Public Sub Editors_Highlight(Text As String)
   
   If Text Begins "<<<<<<" Then 
-    TextHighlighter.Add(Highlight.Custom, String.Len(Text))
-    TextHighlighter.State = Highlight.Custom
+    TextHighlighter.Add(Highlight.Removed, String.Len(Text))
+    TextHighlighter.State = Highlight.Removed
   Else If Text Begins "======" Then
     TextHighlighter.Add(Highlight.Comment, String.Len(Text))
     TextHighlighter.State = Highlight.Normal
     TextHighlighter.Tag = 1
   Else If Text Begins ">>>>>>" Then
-    TextHighlighter.Add(Highlight.Custom + 1, String.Len(Text))
-    TextHighlighter.State = Highlight.Custom + 1
+    TextHighlighter.Add(Highlight.Added, String.Len(Text))
+    TextHighlighter.State = Highlight.Added
     TextHighlighter.Tag = 2
   Else
     If TextHighlighter.Tag = 1 Then 
-      TextHighlighter.State = Highlight.Custom + 1
+      TextHighlighter.State = Highlight.Added
       TextHighlighter.Tag = 0
     Else If TextHighlighter.Tag = 2 Then 
       TextHighlighter.State = Highlight.Normal
@@ -1572,5 +1554,11 @@ Private Sub HasConflict() As Boolean
     sLine = Left($hEditor[Y].Text, 6)
     If sLine = "<<<<<<" Or If sLine = "======" Or If sLine = ">>>>>>" Then Return True
   Next
+  
+End
+
+Public Sub PaintStatus()
+  
+  FEditor.PaintEditorStatus($hEditor)
   
 End

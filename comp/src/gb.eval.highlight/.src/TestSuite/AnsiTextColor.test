@@ -1,0 +1,13 @@
+' Gambas test file
+
+Public Sub ColorConsoleAnsiText()
+  
+  Dim hText As TextHighlighter = TextHighlighter["gambas"]
+  Dim program As String = File.Load("UnitTest/TestProgram")
+  Dim hProgram As String = hText.ToANSI(program)
+  
+  'File.Save("~/ANSITestResults", hProgram)
+  Assert.Equals(hProgram, File.Load("UnitTest/ANSITestResults"))
+
+End
+

@@ -1,0 +1,141 @@
+' Gambas module file
+
+Private $iSectionSize As Integer
+Private $iSectionPos As Integer
+
+Private Sub GotoNextSection(hFile As File)
+  
+  $iSectionPos += $iSectionSize
+  Seek #hFile, $iSectionPos
+  $iSectionSize = Read #hFile As Integer
+  $iSectionPos += 4
+  
+End
+
+Private Sub ReadZeroString(hFile As File) As String
+  
+  Dim sStr As String
+  Dim iPos As Integer
+  
+  Do
+    sStr &= Read #hFile, Min(16, Lof(hFile) - Seek(hFile))
+    iPos = InStr(sStr, Chr$(0))
+    If iPos Then Return Left(sStr, iPos - 1)
+  Loop
+  
+End
+
+Public Sub CheckTestModule(Name As String) As String
+
+  Dim sPath As String
+  Dim hFile As File
+  Dim iVal As Integer
+  Dim iParent As Integer
+  Dim iFlag As Short
+  Dim bDebug As Boolean
+  Dim iStringPos As Integer
+  Dim sName As String
+  
+  sPath = ".../.gambas" &/ UCase(Name)
+  If Not Exist(sPath) Then Error.Raise("Class not found")
+  
+  $iSectionPos = 0
+  $iSectionSize = 0
+  
+  hFile = Open sPath
+  
+  Seek #hFile, 8
+  iVal = Read #hFile As Integer
+  If iVal <> &H12345678 Then hFile.ByteOrder = 1 - hFile.ByteOrder
+  Seek #hFile, 12
+  iVal = Read #hFile As Integer
+  bDebug = iVal And 1
+  
+  $iSectionSize = 16
+  
+  GotoNextSection(hFile) ' info
+  Seek #hFile, $iSectionPos
+  iParent = Read #hFile As Short
+  iFlag = Read #hFile As Short
+  
+  'hStat.Exported = BTst(iFlag, 0)
+  'hStat.AutoCreate = BTst(iFlag, 1)
+  'hStat.Optional = BTst(iFlag, 2)
+  'hStat.NoCreate = BTst(iFlag, 3)
+  'hStat.HasFast = BTst(iFlag, 4)
+  If BTst(iFlag, 5) Then
+  
+    GotoNextSection(hFile) ' description
+    GotoNextSection(hFile) ' constant
+    GotoNextSection(hFile) ' reference
+    
+    If iParent <> -1 Then
+    
+      Seek #hFile, $iSectionPos + iParent * 4
+      iParent = Read #hFile As Integer
+      iParent = Abs(iParent)
+    
+    Endif
+      
+    Do
+      iStringPos = $iSectionPos
+      Try GotoNextSection(hFile)
+      If Error Then Break
+    Loop
+    
+    Seek #hFile, iStringPos
+    sName = ReadZeroString(hFile)
+  
+    Close hFile
+    
+  Endif
+  
+  Return sName
+   
+End
+
+Public Function GetTestSuiteByName(Name As String) As String
+
+  Dim hFile As File
+  Dim sLine As String
+  Dim sName As String
+  Dim sTests As String
+  Dim bName As Boolean
+  Dim bTests As Boolean
+
+  If Name Begins "@" Then Name = Mid$(Name, 2)
+
+  hFile = Open ".../.test"
+  For Each sLine In hFile.Lines
+        
+    If sLine Begins "[" Then
+      bName = False
+      bTests = False
+    Else If sLine Begins "Name=" Then
+      sName = UnQuote(Mid$(sLine, 6))
+      If bTests And If sName = Name Then Return sTests
+      bName = True
+    Else If sLine Begins "Tests=" Then
+      sTests = UnQuote(Mid$(sLine, 7))
+      If bName And If sName = Name Then Return sTests
+      bTests = True
+    Endif
+        
+  Next
+
+    ' Dim Set As New Settings(Application.Path &/ ".test")
+    ' Dim sKey As String
+    ' 
+    ' If Name Begins "@" Then
+    '     Name = Right(Name, String.Len(Name) - 1)
+    ' Endif
+    ' 
+    ' For Each sKey In Set.Keys
+    '     If Set[sKey &/ "Name"] = Name Then
+    '         Return Set[sKey &/ "Tests"]
+    '     Endif
+    ' Next
+    ' 
+  Error.Raise(Subst(("Could not find a test suite with the name '&1'"), Name))
+
+End

@@ -2,7 +2,7 @@
 
   c_system.c
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -30,11 +30,11 @@
 
 static GB_ARRAY _keywords = 0;
 static GB_ARRAY _datatypes = 0;
+static GB_ARRAY _subroutines = 0;
 
-BEGIN_PROPERTY(CSYSTEM_keywords)
+BEGIN_PROPERTY(System_Keywords)
 
 	COMP_INFO *info;
-	SUBR_INFO *subr;
 	char *str;
 
 	if (!_keywords)
@@ -50,12 +50,7 @@ BEGIN_PROPERTY(CSYSTEM_keywords)
 			}
 		}
 
-  	for (subr = &COMP_subr_info[0]; subr->name; subr++)
-	  {
-      str = GB.NewZeroString(subr->name);
-      *((char **)GB.Array.Add(_keywords)) = str;
-		}
-
+		GB.Array.SetReadOnly(_keywords);
 		GB.Ref(_keywords);
 	}
 
@@ -63,7 +58,30 @@ BEGIN_PROPERTY(CSYSTEM_keywords)
 
 END_PROPERTY
 
-BEGIN_PROPERTY(CSYSTEM_datatypes)
+BEGIN_PROPERTY(System_Subroutines)
+
+	SUBR_INFO *subr;
+	char *str;
+
+	if (!_subroutines)
+	{
+	  GB.Array.New(&_subroutines, GB_T_STRING, 0);
+
+  	for (subr = &COMP_subr_info[0]; subr->name; subr++)
+	  {
+      str = GB.NewZeroString(subr->name);
+      *((char **)GB.Array.Add(_subroutines)) = str;
+		}
+
+		GB.Array.SetReadOnly(_subroutines);
+		GB.Ref(_subroutines);
+	}
+
+	GB.ReturnObject(_subroutines);
+
+END_PROPERTY
+
+BEGIN_PROPERTY(System_Datatypes)
 
 	COMP_INFO *info;
 	char *str;
@@ -81,6 +99,7 @@ BEGIN_PROPERTY(CSYSTEM_datatypes)
 			}
 		}
 
+		GB.Array.SetReadOnly(_datatypes);
 		GB.Ref(_datatypes);
 	}
 
@@ -92,6 +111,7 @@ BEGIN_METHOD_VOID(CSYSTEM_exit)
 
 	GB.Unref((void **)&_keywords);
 	GB.Unref((void **)&_datatypes);
+	GB.Unref((void **)&_subroutines);
 
 END_METHOD
 
@@ -102,8 +122,9 @@ GB_DESC CSystemDesc[] =
 
 	GB_STATIC_METHOD("_exit", NULL, CSYSTEM_exit, NULL),
 
-  GB_STATIC_PROPERTY_READ("Keywords", "String[]", CSYSTEM_keywords),
-  GB_STATIC_PROPERTY_READ("Datatypes", "String[]", CSYSTEM_datatypes),
+  GB_STATIC_PROPERTY_READ("Keywords", "String[]", System_Keywords),
+  GB_STATIC_PROPERTY_READ("Datatypes", "String[]", System_Datatypes),
+  GB_STATIC_PROPERTY_READ("Subroutines", "String[]", System_Subroutines),
 
   GB_END_DECLARE
 };

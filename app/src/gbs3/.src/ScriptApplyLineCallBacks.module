@@ -1,0 +1,19 @@
+' Gambas module file
+
+Export
+
+''' Apply each of the Line level callbacks
+''' listed in the line Callback table to the provided program
+
+'' Apply the Line level callbacks
+Public Sub _call(sLine As String) As String
+  
+  If ScriptSetPreProcessCallBack.HasLinePreProcess() Then 
+     For Each oPreProc As Object In ScriptSetPreProcessCallBack.PreLineCallBacks
+       sLine = oPreProc.PreProcessLine(sLine)
+     Next
+  Endif
+  
+  Return sLine
+  
+End

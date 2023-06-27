@@ -3,7 +3,7 @@
 Export
 Inherits UserControl
 
-Public Const _Properties As String = "*,Action,Border=True"
+Public Const _Properties As String = "*,Path,Action,Title,Border=True"
 Public Const _DefaultEvent As String = "Click"
 Public Const _DefaultSize As String = "32,4"
 Public Const _Similar As String = "TextBox"
@@ -12,10 +12,12 @@ Public Const _Group As String = "Chooser"
 Event Click
 Event Change
 
-Property Value As String
+Property Value, Path As String
 Property Border As Boolean
+Property Title As String
 
 Private $hButtonBox As ButtonBox
+Private $sTitle As String
 
 Public Sub _new()
   
@@ -52,14 +54,41 @@ Private Sub Value_Write(Value As String)
 End
 
 Public Sub Button_Click()
+
+  Dim sSaveTitle As String
+  Dim bCancel As Boolean
   
+  sSaveTitle = Dialog.Title
+  
+  Dialog.Title = $sTitle
   Dialog.Path = $hButtonBox.Text
-  If Dialog.SelectDirectory() Then Return
   
-  $hButtonBox.Text = Dialog.Path
-  '$hButtonBox.Foreground = Color.Foreground
+  bCancel = Dialog.SelectDirectory()
   
-  Raise Click
+  Dialog.Title = sSaveTitle
+  
+  If Not bCancel Then
+    $hButtonBox.Text = Dialog.Path
+    Raise Click
+  Endif
+  
+End
+
+Public Sub Button_Change()
+  
   Raise Change
   
+End
+
+
+Private Function Title_Read() As String
+
+  Return $sTitle
+
+End
+
+Private Sub Title_Write(Value As String)
+
+  $sTitle = Value
+
 End

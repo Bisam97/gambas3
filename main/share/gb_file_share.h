@@ -2,7 +2,7 @@
 
   gb_file_share.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -104,7 +104,8 @@ void FILE_dir_first(const char *path, const char *pattern, int attr);
 bool FILE_dir_next(char **path, int *len);
 
 void FILE_rmdir(const char *path);
-void FILE_mkdir(const char *path);
+void FILE_mkdir_mode(const char *path, mode_t mode);
+#define FILE_mkdir(_path) FILE_mkdir_mode((_path), S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH)
 void FILE_copy(const char *src, const char *dst);
 
 bool FILE_access(const char *path, int mode);
@@ -129,6 +130,7 @@ void FILE_chgrp(const char *path, const char *group);
 
 bool FILE_exist(const char *path);
 time_t FILE_get_time(const char *path);
+size_t FILE_get_size(const char *path);
 bool FILE_copy(const char *src, const char *dst);
 
 #endif

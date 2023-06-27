@@ -5,32 +5,220 @@ Export
 Inherits _Connection
 
 Private Const TEMPLATE_MAGIC As String = "# Gambas Database Template File 3.0"
+Private DEBUG_ME As Boolean
 
+Property Read Url As String
 Property Read SQL As SQLRequest
 
-Public Sub ApplyTemplate(Template As String)
+'' Return or set the connection options.
+''
+'' These options are specific to the database type.
+
+Property Options As Collection
+
+Private $hOptions As Collection
+
+Public Sub _new(Optional DatabaseURL As String)
   
-  Dim hFile As File
-  Dim sLine As String
+  Dim iPos As Integer
+  Dim sIdent As String
+  
+  If Not DatabaseURL Then Return
+  
+  ' <type>://<user>:<password>@<host>:<port>/<name>
+  
+  iPos = InStr(DatabaseURL, "://")
+  If iPos = 0 Then Goto BAD_URL
+  
+  Me.Type = Left(DatabaseURL, iPos - 1)
+  DatabaseURL = Mid$(DatabaseURL, iPos + 3)
+  
+  iPos = RInStr(DatabaseURL, "/")
+  If iPos Then
+    Me.Name = FromUrl(Mid$(DatabaseURL, iPos + 1))
+    DatabaseURL = Left(DatabaseURL, iPos - 1)
+  Endif
+  
+  iPos = InStr(DatabaseURL, "@")
+  If iPos Then
+    
+    sIdent = Left(DatabaseURL, iPos - 1)
+    DatabaseURL = Mid$(DatabaseURL, iPos + 1)
+    
+    iPos = InStr(sIdent, ":")
+    If iPos Then
+      Me.Password = FromUrl(Mid$(sIdent, iPos + 1))
+      Me.User = FromUrl(Left$(sIdent, iPos - 1))
+    Else
+      Me.User = FromUrl(sIdent)
+    Endif
+    
+  Endif
+  
+  iPos = InStr(DatabaseURL, ":")
+  If iPos Then
+    Me.Host = FromUrl(Left$(DatabaseURL, iPos - 1))
+    Me.Port = FromUrl(Mid$(DatabaseURL, iPos + 1))
+  Else
+    Me.Host = FromUrl(DatabaseURL)
+  Endif
+  
+  Return
+  
+BAD_URL:
+
+  Error.Raise("Malformed URL")
+  
+End
+
+
+Private Function GetTempTableName() As String
+
+  Dim iInd As Integer
+  Dim sTemp As String
+
+  For iInd = 0 To 99
+    sTemp = "_gb_temp"
+    If iInd Then sTemp = sTemp & "_" & iInd
+    If Not Me.Tables.Exist(sTemp) Then Break
+    Inc iInd
+    sTemp = ""
+  Next
+
+  If Not sTemp Then Error.Raise("Cannot find a free temporary table name")
+
+  Return sTemp
+
+End
+
+Private Sub Convert(vVal As Variant, iType As Integer) As Variant
+
+  Select iType
+    Case db.Float
+      vVal = Val(vVal)
+      If TypeOf(vVal) <= gb.Float Then Return vVal
+    Case db.Date
+      vVal = Val(vVal)
+      If TypeOf(vVal) = gb.Date Then Return vVal
+  End Select
+  
+  Error.Raise("Type mismatch")
+
+End
+
+Private Function CopyTable(sTable As String) As String
+
+  Dim sTemp As String
+  Dim iInd As Integer
+  Dim sReq As String
+  Dim hSrc As Table
+  Dim hDst As Table
+  Dim rSrc As Result
+  Dim rDst As Result
+  Dim hField As Field
+  Dim sError As String
+  Dim iMax As Integer
+
+  sTemp = GetTempTableName()
+
+  Select Case Me.Type
+
+    Case "postgresql"
+      sReq = "SELECT * INTO TABLE " & sTemp & " FROM \"" & sTable & "\""
+      Me.Exec(sReq)
+
+    Case "mysql"
+      sReq = "CREATE TABLE " & sTemp & " SELECT * FROM `" & sTable & "`"
+      Me.Exec(sReq)
+
+    'CASE "sqlite"
+    '  sReq = "INSERT INTO " & sTemp & " SELECT * FROM " & sTable
+
+    Default
+
+      hSrc = Me.Tables[sTable]
+      hDst = Me.Tables.Add(sTemp, hSrc.Type)
+
+      'IF NOT hSrc.PrimaryKey THEN Error.Raise("No primary key")
+
+      For Each hField In hSrc.Fields
+        With hField
+          hDst.Fields.Add(.Name, .Type, .Length, .Default)
+        End With
+      Next
+      
+      iMax = hSrc.Fields.Count - 1
+
+      hDst.PrimaryKey = hSrc.PrimaryKey
+
+      hDst.Update
+
+      Me.Begin
+
+      rSrc = Me.Find(sTable)
+      rDst = Me.Create(sTemp)
+      
+      For Each rSrc
+        For iInd = 0 To iMax
+          rDst[iInd] = rSrc[iInd]
+        Next
+        rDst.Update
+      Next
+
+      Me.Commit
+
+  End Select
+
+  Return sTemp
+
+Catch
+
+  sError = Error.Text
+
+  Select Case Me.Type
+
+    Case "postgresql"
+
+    Case "mysql"
+      Try Me.Rollback
+      If Me.Tables.Exist(sTable) Then
+         Try Me.Tables.Remove(sTemp)
+      Else
+         If Me.Tables.Exist(sTemp) Then
+            sReq = "RENAME TABLE " & sTemp & " TO " & sTable
+            Try Me.Exec(sReq)
+         Else
+            Error.Raise("Severe Error: Table has been lost!!")
+         Endif
+      Endif
+
+    Default
+      Try Me.Rollback
+      If Me.Tables.Exist(sTable) Then
+         Try Me.Tables.Remove(sTemp)
+      Else
+         If Me.Tables.Exist(sTable) Then
+            Error.Raise("Severe Error: Table " & sTable & " has not been recreated. Data held in " & sTemp)
+         Endif
+      Endif
+
+  End Select
+
+  Error.Raise("Cannot copy table data: " & sError)
+
+End
+
+Private Sub ReadTemplate(hFile As File, Optional iLine As Integer) As Collection[]
+
+  Dim cResult As New Collection[]
   
   Dim cTable As Collection
   Dim cField As Collection
   Dim cIndex As Collection
+  Dim sLine As String
   Dim cCurrent As Collection
-  Dim iLine As Integer
-  Dim iPos As Integer
-  Dim sTable As Variant
-  Dim hTable As Table
-  Dim iLength As Integer
   Dim sErr As String
-  Dim sColl As String
-  Dim aKey As String[]
-  
-  hFile = Open String Template
-  
-  Line Input #hFile, sLine
-  If sLine <> "# Gambas Database Template File 3.0" Then Error.Raise("Bad database template format")
-  iLine = 1
+  Dim iPos As Integer
   
   For Each sLine In hFile.Lines
     
@@ -49,7 +237,7 @@ Public Sub ApplyTemplate(Template As String)
         cField = Null
         cCurrent = cTable
       Else If cTable Then
-        GoSub CREATE_TABLE
+        cResult.Add(cTable)
         cTable = Null
         cIndex = Null
         cField = Null
@@ -95,43 +283,228 @@ Public Sub ApplyTemplate(Template As String)
   
   If cCurrent Then Goto SYNTAX_ERROR
   
-  Close #hFile
-  Return
+  Return cResult
     
 SYNTAX_ERROR:
 
   If Not sErr Then sErr = "`" & sLine & "`"
   Error.Raise("Syntax error in database template at line " & CStr(iLine) & ": " & sErr)
   
-CREATE_TABLE:
+End
 
-  sTable = cTable["Name"]
-  If Not sTable Then Return
-  If Me.Tables.Exist(sTable) Then Return
+Private Sub IsSameTable(cTable As Collection, cTable2 As Collection) As Boolean
+
+  Dim hFile As File
+  Dim sTable As String
+  Dim sTable2 As String
+
+  hFile = Open String For Write
   
-  'Print "create table: "; sTable;; cTable["Type"];; cTable["Fields"].Count
-  hTable = Me.Tables.Add(sTable, cTable["Type"])
-  For Each cField In cTable["Fields"]
-    iLength = 0
-    Try iLength = cField["Length"]
-    'Print "create field: "; cField["Name"];; cField["Type"];; iLength;; cField["Default"];; cField["Collation"]
-    sColl = cField["Collation"]
-    If sColl = "default" Then sColl = ""
-    hTable.Fields.Add(cField["Name"], cField["Type"], iLength, cField["Default"], sColl)
+  Write #hFile, cTable As Collection
+  sTable = Close #hFile
+  
+  hFile = Open String For Write
+  Write #hFile, cTable2 As Collection
+  sTable2 = Close #hFile
+  
+  Return sTable = sTable2
+  
+End
+
+Public Sub ApplyTemplate(Template As String)
+  
+  Dim hFile As File
+  Dim sLine As String
+  Dim cTable As Collection
+  Dim cField As Collection
+  Dim cIndex As Collection
+  Dim sTable As String
+  Dim hTable As Table
+  Dim iLength As Integer
+  Dim sColl As String
+  Dim aKey As String[]
+  Dim sCopyTable As String
+  Dim sName As String
+  Dim rTemp As Result
+  Dim rTable As Result
+  Dim cTableOrg As Collection
+  Dim aTables As Collection[]
+
+  DEBUG_ME = Env["GB_DB_DEBUG_TEMPLATE"] = "1"
+  
+  If DEBUG_ME Then Error "gb.db: applying template to: "; Me.Url; "..."
+  
+  hFile = Open String Template
+  
+  Line Input #hFile, sLine
+  If sLine <> "# Gambas Database Template File 3.0" Then Error.Raise("Bad database template format")
+  
+  aTables = ReadTemplate(hFile, 1)
+  
+  Close #hFile
+  
+  For Each cTable In aTables
+  
+    sTable = cTable["Name"]
+    If Not sTable Then Continue
+  
+    If Me.Tables.Exist(sTable) Then 
+      
+      'If Not UpdateExistingTables Then Continue
+      
+      hFile = Open String For Write
+      WriteTable(hFile, sTable)
+      Seek #hFile, 0
+      cTableOrg = ReadTemplate(hFile)[0]
+      Close #hFile
+      
+      If IsSameTable(cTable, cTableOrg) Then 
+        Continue
+      Endif
+      
+      If DEBUG_ME Then Error "gb.db: updating table "; sTable
+    
+      sCopyTable = CopyTable(sTable)
+      Try Me.Tables.Remove(sTable)
+    
+    Else
+      
+      If DEBUG_ME Then Error "gb.db: creating table "; sTable
+      sCopyTable = ""
+
+    Endif
+    
+    'Print "create table: "; sTable;; cTable["Type"];; cTable["Fields"].Count
+    hTable = Me.Tables.Add(sTable, cTable["Type"])
+    For Each cField In cTable["Fields"]
+      iLength = 0
+      Try iLength = cField["Length"]
+      'Print "create field: "; cField["Name"];; cField["Type"];; iLength;; cField["Default"];; cField["Collation"]
+      sColl = cField["Collation"]
+      If sColl = "default" Then sColl = ""
+      hTable.Fields.Add(cField["Name"], cField["Type"], iLength, cField["Default"], sColl)
+    Next
+    
+    'Print "primary key: "; cTable["PrimaryKey"].Join(",")
+    aKey = cTable["PrimaryKey"]
+    If aKey.Count = 1 And If aKey[0] = "" Then aKey.Clear
+    If aKey.Count Then hTable.PrimaryKey = cTable["PrimaryKey"]
+    hTable.Update
+    
+    For Each cIndex In cTable["Indexes"]
+      'Print "create index: "; cIndex["Name"];; cIndex["Fields"].Join(",");; cIndex["Unique"]
+      hTable.Indexes.Add(cIndex["Name"], cIndex["Fields"], cIndex["Unique"])
+    Next
+    
+    If sCopyTable Then
+      
+      rTemp = Me.Find(sCopyTable)
+      If rTemp.Count Then
+      
+        If DEBUG_ME Then Error "gb.db: copying "; rTemp.Count; " records in the new table..."
+      
+        Me.Begin
+        
+        rTable = Me.Create(sTable)
+         
+        For Each rTemp
+          
+          For Each cField In cTable["Fields"]
+            sName = cField["Name"]
+            Try rTable[sName] = rTemp[sName]
+            If Error Then 
+              Try rTable[sName] = Convert(rTemp[sName], cField["Type"])
+            Endif
+          Next
+          
+          Try rTable.Update
+          
+        Next
+        
+        Try Me.Commit
+        
+      Endif
+      
+    Endif
+    
+  Next
+
+End
+
+Private Sub WriteTable(hFile As Stream, sTable As String) As String
+
+  Dim hTable As Table
+  Dim hField As Field
+  Dim hIndex As Index
+  Dim aKey As String[]
+
+  hTable = Me.Tables[sTable]
+  
+  Print #hFile, "{ Table"
+  Print #hFile, "  Name="; Quote(hTable.Name)
+  If hTable.Type Then Print #hFile, "  Type="; Quote(hTable.Type)
+  aKey = hTable.PrimaryKey
+  If aKey.Count Then Print #hFile, "  PrimaryKey=[\""; aKey.Join("\",\""); "\"]"
+  
+  For Each hField In hTable.Fields
+    
+    Print #hFile, "  { Field"
+    Print #hFile, "    Name="; Quote(hField.Name)
+    Print #hFile, "    Type=";
+    
+    Select hField.Type
+      Case db.Blob
+        Print #hFile, "db.Blob"
+      Case db.Boolean
+        Print #hFile, "db.Boolean"
+      Case db.Date
+        Print #hFile, "db.Date"
+      Case db.Float
+        Print #hFile, "db.Float"
+      Case db.Integer
+        Print #hFile, "db.Integer"
+      Case db.Long
+        Print #hFile, "db.Long"
+      Case db.Serial
+        Print #hFile, "db.Serial"
+      Case db.String
+        Print #hFile, "db.String"
+        If hField.Length Then Print #hFile, "    Length="; hField.Length
+      Case Else
+        Error.Raise("Unknown database field type")
+    End Select
+    
+    If Not IsNull(hField.Default) Then
+      Print #hFile, "    Default=";
+      If hField.Type = db.String Then
+        Print #hFile, Quote(hField.Default)
+      Else If hField.Type = db.Boolean Then
+        Print #hFile, If(hField.Default, "True", "False")
+      Else If hField.Type = db.Date Then
+        Print #hFile, "CDate(\""; CStr(hField.Default); "\")"
+      Else
+        Print #hFile, CStr(hField.Default)
+      Endif
+    Endif
+    
+    If hField.Collation Then
+      Print #hFile, "    Collation="; Quote(hField.Collation)
+    Endif
+    
+    Print #hFile, "  }"
+    
   Next
   
-  'Print "primary key: "; cTable["PrimaryKey"].Join(",")
-  aKey = cTable["PrimaryKey"]
-  If aKey.Count = 1 And If aKey[0] = "" Then aKey.Clear
-  If aKey.Count Then hTable.PrimaryKey = cTable["PrimaryKey"]
-  hTable.Update
-  
-  For Each cIndex In cTable["Indexes"]
-    'Print "create index: "; cIndex["Name"];; cIndex["Fields"].Join(",");; cIndex["Unique"]
-    hTable.Indexes.Add(cIndex["Name"], cIndex["Fields"], cIndex["Unique"])
+  For Each hIndex In hTable.Indexes
+    If hIndex.Primary Then Continue
+    Print #hFile, "  { Index "
+    Print #hFile, "    Name="; Quote(hIndex.Name)
+    Print #hFile, "    Unique="; If(hIndex.Unique, "True", "False")
+    Print #hFile, "    Fields=[\""; hIndex.Fields.Join("\",\""); "\"]"
+    Print #hFile, "  }"
   Next
   
-  Return
+  Print #hFile, "}"
 
 End
 
@@ -141,10 +514,7 @@ Public Sub GetTemplate() As String
   Dim aTable As String[]
   Dim hTable As Table
   Dim sTable As String
-  Dim hField As Field
-  Dim hIndex As Index
   Dim sTemplate As String
-  Dim aKey As String[]
 
   hFile = Open String For Write
   
@@ -159,73 +529,7 @@ Public Sub GetTemplate() As String
   
   For Each sTable In aTable
     
-    hTable = Me.Tables[sTable]
-    
-    Print #hFile, "{ Table"
-    Print #hFile, "  Name="; Quote(hTable.Name)
-    If hTable.Type Then Print #hFile, "  Type="; Quote(hTable.Type)
-    aKey = hTable.PrimaryKey
-    If aKey.Count Then Print #hFile, "  PrimaryKey=[\""; aKey.Join("\",\""); "\"]"
-    
-    For Each hField In hTable.Fields
-      
-      Print #hFile, "  { Field"
-      Print #hFile, "    Name="; Quote(hField.Name)
-      Print #hFile, "    Type=";
-      
-      Select hField.Type
-        Case db.Blob
-          Print #hFile, "db.Blob"
-        Case db.Boolean
-          Print #hFile, "db.Boolean"
-        Case db.Date
-          Print #hFile, "db.Date"
-        Case db.Float
-          Print #hFile, "db.Float"
-        Case db.Integer
-          Print #hFile, "db.Integer"
-        Case db.Long
-          Print #hFile, "db.Long"
-        Case db.Serial
-          Print #hFile, "db.Serial"
-        Case db.String
-          Print #hFile, "db.String"
-          If hField.Length Then Print #hFile, "    Length="; hField.Length
-        Case Else
-          Error.Raise("Unknown database field type")
-      End Select
-      
-      If Not IsNull(hField.Default) Then
-        Print #hFile, "    Default=";
-        If hField.Type = db.String Then
-          Print #hFile, Quote(hField.Default)
-        Else If hField.Type = db.Boolean Then
-          Print #hFile, If(hField.Default, "True", "False")
-        Else If hField.Type = db.Date Then
-          Print #hFile, "CDate(\""; CStr(hField.Default); "\")"
-        Else
-          Print #hFile, CStr(hField.Default)
-        Endif
-      Endif
-      
-      If hField.Collation Then
-        Print #hFile, "    Collation="; Quote(hField.Collation)
-      Endif
-      
-      Print #hFile, "  }"
-      
-    Next
-    
-    For Each hIndex In hTable.Indexes
-      If hIndex.Primary Then Continue
-      Print #hFile, "  { Index "
-      Print #hFile, "    Name="; Quote(hIndex.Name)
-      Print #hFile, "    Unique="; If(hIndex.Unique, "True", "False")
-      Print #hFile, "    Fields=[\""; hIndex.Fields.Join("\",\""); "\"]"
-      Print #hFile, "  }"
-    Next
-    
-    Print #hFile, "}"
+    WriteTable(hFile, sTable)
     
   Next
   
@@ -252,10 +556,37 @@ Public Sub Copy() As Connection
   
 End
 
-
-
 Private Function SQL_Read() As SQLRequest
 
   Return New SQLRequest(Me)
+
+End
+
+Private Function Url_Read() As String
+
+  Dim sUrl As String
+
+  sUrl = Me.Type & "://"
+  If Me.User Then sUrl &= Me.User & "@"
+  sUrl &= Me.Host &/ Me.Name
+  Return sUrl
+
+End
+
+
+Private Function Options_Read() As Collection
+
+  If Not $hOptions Then $hOptions = New Collection
+  Return $hOptions
+
+End
+
+Private Sub Options_Write(Value As Collection)
+
+  If Not Value Then
+    $hOptions = Null
+  Else
+    $hOptions = Value.Copy()
+  Endif
 
 End

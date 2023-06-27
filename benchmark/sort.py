@@ -112,4 +112,4 @@ for t in range(100):
 	tab = src[:]
 	bubblesort(tab)
 
-print tab
+print(tab)

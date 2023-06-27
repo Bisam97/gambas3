@@ -1,7 +1,7 @@
 # Gambas Form File 3.0
 
 { Form Form
-  MoveScaled(0,0,125,50)
+  MoveScaled(0,0,141,50)
   Text = ("Debug")
   Persistent = True
   Arrangement = Arrange.Fill
@@ -13,140 +13,20 @@
     }
   }
   { wizDebug Wizard
-    MoveScaled(2,5,122,41)
+    MoveScaled(1,2,137,46)
     Arrangement = Arrange.Vertical
     Count = 7
     ShowTitle = False
     ShowButton = False
     Border = False
     Index = 0
-    Text = ("Debugging")
-    { panDebug HBox
-      MoveScaled(2,1,112,36)
-      Expand = True
-      { lvwStack ListView
-        MoveScaled(5,2,16,33)
-        Mouse = Mouse.Pointing
-        Border = False
-      }
-      { Separator2 Separator
-        MoveScaled(27,2,0,23)
-      }
-      { Panel7 VBox
-        MoveScaled(32,2,74,32)
-        Expand = True
-        { panWatch HBox
-          MoveScaled(1,1,71,3)
-          Drop = True
-          { Panel5 HBox
-            MoveScaled(1,0,41,3)
-            Background = Color.TextBackground
-            Expand = True
-            { btnKillWatch ToolButton
-              MoveScaled(0,0,3,3)
-              ToolTip = ("Remove current expression")
-              Picture = Picture["icon:/tiny/remove"]
-            }
-            { btnAddWatch ToolButton
-              MoveScaled(3,0,3,3)
-              ToolTip = ("Add expression")
-              Picture = Picture["icon:/tiny/watch"]
-            }
-            { cmbWatch ComboBox
-              MoveScaled(6,0,27,3)
-              Expand = True
-              Border = False
-            }
-          }
-          { Separator6 Separator
-            MoveScaled(52,0,0,3)
-          }
-          { btnShowMe ToolButton
-            MoveScaled(56,0,4,3)
-            #Translate = False
-            Font = Font["-1"]
-            ToolTip = "Display ME"
-            Text = "ME"
-          }
-          { Separator3 Separator
-            MoveScaled(63,0,0,3)
-          }
-        }
-        { Separator4 Separator
-          MoveScaled(4,11,30,0)
-        }
-        { cvwVariable ColumnView
-          MoveScaled(2,13,42,18)
-          Expand = True
-          Header = False
-          Border = False
-        }
-      }
-      { Panel4 Panel
-        MoveScaled(107,1,4,4)
-      }
-    }
-    Index = 1
     Text = ("Console")
     { panConsole Panel
-      MoveScaled(5,4,24,24)
+      MoveScaled(1,1,113,24)
       Expand = True
       Arrangement = Arrange.Fill
     }
-    Index = 2
-    Text = ("Breakpoints")
-    { panBreakpoint HBox
-      MoveScaled(0,0,76,4)
-      { btnRemoveBreakpoint ToolButton
-        MoveScaled(3,0,11,4)
-        ToolTip = ("Remove breakpoint")
-        AutoResize = True
-        Text = ("Remove")
-        Picture = Picture["icon:/small/remove"]
-      }
-      { btnDisableBreakpoint ToolButton
-        MoveScaled(14,0,11,4)
-        ToolTip = ("Disable breakpoint")
-        AutoResize = True
-        Text = ("Disable")
-        Picture = Picture["icon:/small/cancel"]
-      }
-      { btnEnableBreakpoint ToolButton
-        MoveScaled(25,0,11,4)
-        ToolTip = ("Enable breakpoint")
-        AutoResize = True
-        Text = ("Enable")
-        Picture = Picture["icon:/small/apply"]
-      }
-      { btnRemoveAllBreakpoint ToolButton
-        MoveScaled(37,0,13,4)
-        ToolTip = ("Remove all breakpoints")
-        AutoResize = True
-        Text = ("Remove all")
-        Picture = Picture["icon:/small/trash"]
-      }
-      { Spring2 Spring
-        MoveScaled(62,0,4,4)
-      }
-      { Panel6 Panel
-        MoveScaled(66,0,4,4)
-      }
-    }
-    { Separator1 Separator
-      MoveScaled(34,5,8,0)
-    }
-    { gvwBreakpoint GridView
-      MoveScaled(7,9,53,28)
-      Expand = True
-      Border = False
-      Mode = Select.Multiple
-      Header = GridView.Horizontal
-    }
-    { timBreakpoint #Timer
-      #MoveScaled(74,8)
-      Delay = 50
-    }
-    Index = 3
+    Index = 1
     Text = ("Warnings")
     { Panel2 HBox
       MoveScaled(28,9,53,24)
@@ -162,7 +42,7 @@
         MoveScaled(46,5,4,4)
       }
     }
-    Index = 4
+    Index = 2
     Text = ("Tasks")
     { Panel3 HBox
       MoveScaled(10,10,61,24)
@@ -180,49 +60,216 @@
     }
     { timTask #Timer
       #MoveScaled(73,17)
+      Ignore = True
+    }
+    Index = 3
+    Text = ("Unit tests")
+    { Panel12 HBox
+      MoveScaled(0,0,127,4)
+      { panTest HBox
+        MoveScaled(0,0,116,4)
+        Expand = True
+        { btnTestClear ToolButton
+          MoveScaled(0,0,4,4)
+          ToolTip = ("Clear console")
+          Picture = Picture["icon:/small/clear"]
+        }
+        { btnTest ToolButton
+          MoveScaled(5,0,12,4)
+          Action = "test"
+          AutoResize = True
+          Text = ("Run test")
+          Picture = Picture["icon:/small/ok"]
+        }
+        { Panel6 Panel
+          MoveScaled(18,0,42,4)
+          Arrangement = Arrange.Vertical
+          Centered = True
+          { cmbTest ComboBox
+            MoveScaled(0,0,40,3)
+            Background = Color.Background
+            ReadOnly = True
+          }
+        }
+        { Panel4 Panel
+          MoveScaled(61,0,1,3)
+        }
+        { spnTest Spinner
+          MoveScaled(63,0,3,4)
+          Visible = False
+          Type = Spinner.Circle
+        }
+        { panTestResult DrawingArea
+          MoveScaled(67,0,27,4)
+          Arrangement = Arrange.Horizontal
+          Centered = True
+          Spacing = True
+          { picTestResult PictureBox
+            MoveScaled(3,0,4,4)
+            Alignment = Align.Center
+          }
+          { lblTestResult Label
+            MoveScaled(9,0,12,4)
+            Font = Font["Bold"]
+            AutoResize = True
+          }
+        }
+        { Spring2 Spring
+          MoveScaled(95,2,5,1)
+        }
+        { btnConfigTest ToolButton
+          MoveScaled(100,0,15,4)
+          Action = "test-suite"
+          AutoResize = True
+          Text = ("Test suites") & "..."
+          Picture = Picture["icon:/small/text-list"]
+        }
+      }
+      { Panel13 Panel
+        MoveScaled(119,0,4,4)
+      }
+    }
+    { Separator2 Separator
+      MoveScaled(19,6,34,0)
+    }
+    { trmTest TerminalView
+      MoveScaled(1,8,69,27)
+      Expand = True
+      Border = False
+      Limit = 65536
+      Blink = True
+      ShowScrollBar = True
+      ShowLink = True
+      ReadOnly = True
+    }
+    Index = 4
+    Text = ("Version control")
+    { Panel8 HBox
+      MoveScaled(0,0,120,4)
+      { panVersionControl HBox
+        MoveScaled(0,0,114,4)
+        Expand = True
+        { btnVcClear ToolButton
+          MoveScaled(0,0,4,4)
+          ToolTip = ("Clear console")
+          Picture = Picture["icon:/small/clear"]
+        }
+        { btnVcChanges ToolButton
+          MoveScaled(5,0,8,4)
+          AutoResize = True
+          Text = ("Modifications.") & "..."
+          Picture = Picture["icon:/small/modified"]
+        }
+        { btnVcCommit ToolButton
+          MoveScaled(15,0,10,4)
+          AutoResize = True
+          Text = ("Commit") & "..."
+          Picture = Picture["icon:/small/upload"]
+        }
+        { Separator1 Separator
+          MoveScaled(26,0,1,4)
+        }
+        { btnVcUpdate ToolButton
+          MoveScaled(28,0,11,4)
+          AutoResize = True
+          Text = ("Synchronize repository") & "..."
+          Picture = Picture["icon:/small/download"]
+        }
+        { btnVcAddAll ToolButton
+          MoveScaled(42,0,13,4)
+          AutoResize = True
+          Text = ("Add everything to repository")
+          Picture = Picture["icon:/small/added"]
+        }
+        { Separator3 Separator
+          MoveScaled(56,0,1,4)
+        }
+        { btnRepository ToolButton
+          MoveScaled(60,0,14,4)
+          Text = ("Repository") & "..."
+          Picture = Picture["icon:/small/version-control"]
+        }
+        { Spring1 Spring
+          MoveScaled(82,0,4,4)
+        }
+        { btnVcBranch MenuButton
+          MoveScaled(101,0,11,4)
+          AutoResize = True
+          Picture = Picture["icon:/small/tag"]
+          Border = False
+          Menu = "mnuVcBranch"
+          MenuOnly = True
+        }
+      }
+      { Panel14 Panel
+        MoveScaled(115,0,4,4)
+      }
+    }
+    { Separator7 Separator
+      MoveScaled(19,6,34,0)
+    }
+    { trmVersionControl TerminalView
+      MoveScaled(1,8,69,27)
+      Expand = True
+      Border = False
+      Limit = 65536
+      Blink = True
+      CursorStyle = TerminalView.Underline
+      ShowLink = True
+      ReadOnly = True
     }
     Index = 5
     Text = ("Search result")
-    { panSearch HBox
-      MoveScaled(1,0,83,4)
-      { btnCancelSearch ToolButton
-        MoveScaled(0,0,10,4)
-        Visible = False
-        ToolTip = ("Cancel current search")
-        AutoResize = True
-        Text = ("Cancel")
-        Picture = Picture["icon:/small/halt"]
-      }
-      { btnCloseSearch ToolButton
-        MoveScaled(11,0,10,4)
-        AutoResize = True
-        Text = ("Close")
-        Picture = Picture["icon:/small/close"]
-      }
-      { btnRefreshSearch ToolButton
-        MoveScaled(22,0,18,4)
-        AutoResize = True
-        Text = ("Search again")
-        Picture = Picture["icon:/small/refresh"]
-      }
-      { btnShowSearch ToolButton
-        MoveScaled(41,0,19,4)
-        AutoResize = True
-        Text = ("Show search window")
-        Picture = Picture["icon:/small/find"]
-      }
-      { Panel1 Panel
-        MoveScaled(62,0,2,4)
+    { Panel15 HBox
+      MoveScaled(1,0,108,4)
+      { panSearch HBox
+        MoveScaled(0,0,97,4)
         Expand = True
-      }
-      { lblBrowse Label
-        MoveScaled(66,0,11,4)
-        Font = Font["Italic"]
-        Padding = 4
-        AutoResize = True
+        { btnCancelSearch ToolButton
+          MoveScaled(0,0,10,4)
+          Visible = False
+          ToolTip = ("Cancel current search")
+          AutoResize = True
+          Text = ("Cancel")
+          Picture = Picture["icon:/small/halt"]
+        }
+        { btnCloseSearch ToolButton
+          MoveScaled(11,0,10,4)
+          AutoResize = True
+          Text = ("Close")
+          Picture = Picture["icon:/small/close"]
+        }
+        { btnShowSearch ToolButton
+          MoveScaled(21,0,21,4)
+          AutoResize = True
+          Text = ("Show search window")
+          Picture = Picture["icon:/small/find"]
+        }
+        { btnRefreshSearch ToolButton
+          MoveScaled(43,0,18,4)
+          AutoResize = True
+          Text = ("Search again")
+          Picture = Picture["icon:/small/refresh"]
+        }
+        { Panel1 Panel
+          MoveScaled(62,0,2,4)
+          Expand = True
+        }
+        { lblBrowse Label
+          MoveScaled(73,0,11,4)
+          Font = Font["Italic"]
+          Padding = 4
+          AutoResize = True
+        }
+        { spnSearch Spinner
+          MoveScaled(86,0,4,4)
+          Visible = False
+          Padding = 4
+          Type = Spinner.Circle
+        }
       }
       { panButtonSearch Panel
-        MoveScaled(78,0,4,4)
+        MoveScaled(100,0,4,4)
       }
     }
     { Separator5 Separator
@@ -237,6 +284,8 @@
         Visible = False
         Border = False
         Mode = Select.Single
+        Grid = False
+        Padding = 0
         Header = GridView.Horizontal
       }
       { lblNotFound TextLabel
@@ -248,66 +297,92 @@
       }
     }
     Index = 6
-    Text = ("Version control")
-    { panVersionControl HBox
-      MoveScaled(0,0,119,4)
-      { btnVcCommit ToolButton
-        MoveScaled(0,0,12,4)
+    Text = ("DBus explorer")
+    { panDbusExplorer HBox
+      MoveScaled(1,1,127,4)
+      Indent = True
+      { btnDbusRefresh ToolButton
+        MoveScaled(0,0,11,4)
         AutoResize = True
-        Text = ("Commit") & "..."
-        Picture = Picture["icon:/small/upload"]
-      }
-      { btnVcUpdate ToolButton
-        MoveScaled(13,0,15,4)
-        AutoResize = True
-        Text = ("Synchronize")
+        Text = ("Refresh")
         Picture = Picture["icon:/small/refresh"]
       }
-      { btnVcRevert ToolButton
-        MoveScaled(29,0,20,4)
+      { btnDBusId ToolButton
+        MoveScaled(13,0,25,4)
         AutoResize = True
-        Text = ("Revert all changes")
-        Picture = Picture["icon:/small/undo"]
+        Text = ("Show DBus identifiers")
+        Picture = Picture["icon:/small/key"]
+        Toggle = True
       }
-      { btnVcAddAll ToolButton
-        MoveScaled(50,0,27,4)
+      { btnDbusPasteSymbol ToolButton
+        MoveScaled(38,0,18,4)
         AutoResize = True
-        Text = ("Add everything to repository")
-        Picture = Picture["icon:/small/add"]
-      }
-      { Spring1 Spring
-        MoveScaled(82,0,4,4)
-      }
-      { lblVcName Label
-        MoveScaled(90,0,6,4)
-        Font = Font["Bold"]
-        AutoResize = True
+        Text = ("Paste symbol")
+        Picture = Picture["icon:/small/paste"]
       }
       { Panel9 Panel
-        MoveScaled(99,0,1,4)
-      }
-      { btnVcBranch MenuButton
-        MoveScaled(102,0,11,4)
-        AutoResize = True
-        Picture = Picture["icon:/small/bookmark"]
-        Border = False
-        Menu = "mnuVcBranch"
-        MenuOnly = True
-      }
-      { Panel8 Panel
-        MoveScaled(114,0,4,4)
+        MoveScaled(122,0,4,4)
       }
     }
-    { Separator7 Separator
-      MoveScaled(19,6,34,0)
+    { Separator10 Separator
+      MoveScaled(63,6,13,0)
     }
-    { trmVersionControl TerminalView
-      MoveScaled(1,8,69,27)
+    { splDbusExplorer Splitter
+      MoveScaled(2,7,127,36)
       Expand = True
       Border = False
-      Limit = 65536
-      Blink = True
+      { Panel5 VBox
+        MoveScaled(4,3,26.875,28.875)
+        { HBox1 HBox
+          MoveScaled(1,1,24,3)
+          Font = Font["-2"]
+          { btnDbusSystem ToolButton btnDBusBus
+            Name = "btnDbusSystem"
+            MoveScaled(0,0,12,3)
+            AutoResize = True
+            Text = ("System")
+            Picture = Picture["icon:/small/system"]
+            Radio = True
+            Toggle = True
+            Value = True
+          }
+          { btnDBusUser ToolButton btnDBusBus
+            Name = "btnDBusUser"
+            MoveScaled(12,0,12,3)
+            AutoResize = True
+            Text = ("Session")
+            Picture = Picture["icon:/small/user"]
+            Radio = True
+            Toggle = True
+          }
+        }
+        { Separator4 Separator
+          MoveScaled(3,5,16,0)
+        }
+        { lstDbusExplorer ListBox
+          MoveScaled(2,8,21,16)
+          Expand = True
+          Border = False
+        }
+      }
+      { tvwDbusExplorer TreeView
+        MoveScaled(62,5,37,27)
+        Border = False
+      }
     }
     Index = 0
+  }
+}
+
+# Gambas Action File 3.0
+
+{ Actions
+  { Action test
+    Text = "Run test"
+    Picture = "icon:/small/ok"
+  }
+  { Action test-suite
+    Text = "Test suites"
+    Picture = "icon:/small/text-list"
   }
 }

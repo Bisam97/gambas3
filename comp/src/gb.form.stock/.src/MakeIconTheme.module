@@ -1,0 +1,226 @@
+' Gambas module file
+
+Private Sub MakeDir(Path As String)
+
+  Dim sElt As String
+  Dim sMake As String = "/"
+
+  If Path Begins "~/" Then Path = User.Home &/ Mid$(Path, 3)
+
+  For Each sElt In Split(Path, "/")
+    sMake &/= sElt
+    If IsDir(sMake) Then Continue
+    Try Mkdir sMake
+  Next
+  
+  If Not Exist(Path) Or If Not IsDir(Path) Then Error.Raise("Cannot create directory")
+
+End
+
+Public Sub Run()
+
+  Dim sSize As String
+  Dim hFile As File
+  Dim sLine As String
+  Dim iPos As Integer
+  Dim sIcon As String
+  Dim aTarget As String[]
+  Dim sIconPath As String
+  Dim sTarget As String
+  Dim sTargetDir As String
+  Dim cMime As New Collection
+  Dim sTargetPath As String
+  Dim sRoot As String
+  Dim aDirectories As New String[]
+  Dim sDir As String
+  Dim sName As String
+  Dim hImage As Image
+  Dim sMakeLink As String
+  Dim sLink As String
+  Dim cTarget As Collection
+  Dim sStyle As String
+  Dim bDark As Boolean
+  Dim sOrigin As String
+  Dim sFile As String
+  Dim hIcon As Image
+
+  hFile = Open "links" For Input 
+  While Not Eof(hFile)
+    
+    Line Input #hFile, sLine
+    sLine = Trim(sLine)
+    If Not sLine Then Continue
+    
+    iPos = InStr(sLine, "->")
+    If iPos = 0 Then Continue
+    
+    sIcon = Trim(Mid(sLine, iPos + 2))
+    sTarget = Trim(Left(sLine, iPos - 1))
+    
+    aTarget = cMime[sIcon]
+    If Not aTarget Then 
+      aTarget = New String[]
+      cMime[sIcon] = aTarget
+    Endif
+    
+    aTarget.Add("$(mime)" &/ sTarget)
+    
+  Wend
+  
+  Close #hFile
+
+  For Each sStyle In ["gambas", "gambas-mono", "gambas-dark", "gambas-mono-dark"]
+
+    sRoot = "~/.local/share/icons/" & sStyle
+    bDark = sStyle Ends "-dark"
+    sOrigin = sStyle
+    If bDark Then sOrigin = Left(sOrigin, -5)
+  
+    hFile = Open "icon.map" For Input 
+    While Not Eof(hFile)
+  
+      Line Input #hFile, sLine
+      sLine = Trim(sLine)
+      If Not sLine Then Continue
+      
+      iPos = InStr(sLine, " ")
+      If iPos = 0 Then Continue
+      
+      sIcon = Left(sLine, iPos - 1)
+      aTarget = Split(Trim(Mid(sLine, iPos + 1)), ";", "", True)
+      If cMime.Exist(sIcon) Then aTarget.Insert(cMime[sIcon])
+  
+      For Each sSize In ["16", "32", "48", "64", "128"]
+        
+        If sSize = "16" Then
+          sIconPath = sOrigin &/ "32" &/ sIcon & ".png"
+          If Not Exist(sIconPath) Then sIconPath = sOrigin &/ "128" &/ sIcon & ".png"
+          hImage = Image.Load(sIconPath).Stretch(16, 16)
+          sIconPath = Temp$("image") & ".png"
+          hImage.Save(sIconPath)
+        ' Else If sSize = "48" Or If sSize = "64" Then
+        '   sIconPath = sStyle &/ "128" &/ sIcon & ".png"
+        '   If Not Exist(sIconPath) Then Continue
+        '   hImage = Image.Load(sIconPath).Stretch(CInt(sSize), CInt(sSize))
+        '   sIconPath = Temp$("image") & ".png"
+        '   hImage.Save(sIconPath)
+        Else
+          sIconPath = sOrigin &/ sSize &/ sIcon & ".png"
+        Endif
+        
+        If Not Exist(sIconPath) Then Continue
+        
+        sMakeLink = ""
+        cTarget = New Collection
+        
+        For Each sTarget In aTarget
+          If sTarget = "#" Then Continue
+          
+          If sTarget Begins "[" Then
+            If sTarget Begins "[-" Then Continue
+            iPos = InStr(sTarget, "]")
+            sTarget = Mid(sTarget, iPos + 1)
+          Endif
+          
+          If cTarget.Exist(sTarget) Then Continue
+          cTarget[sTarget] = True
+          
+          iPos = InStr(sTarget, "/")
+          sTargetDir = Left(sTarget, iPos - 1)
+          sTarget = Mid(sTarget, iPos + 1)
+          
+          If sTargetDir = "$(mime)" Then sTargetDir = "mimetypes"
+          
+          sTargetDir = sSize & "x" & sSize &/ sTargetDir
+          If Not aDirectories.Exist(sTargetDir) Then aDirectories.Add(sTargetDir)
+          sTargetPath = sRoot &/ sTargetDir &/ sTarget & ".png"
+          Print sTargetPath
+          
+          MakeDir(File.Dir(sTargetPath))
+          Try Kill sTargetPath
+          
+          If sMakeLink Then
+            sLink = sMakeLink
+            If sLink & "/" Begins sTargetDir & "/" Then
+              sLink = File.Name(sLink)
+            Else 
+              sLink = ".." &/ sMakeLink
+            Endif
+            Link sLink To sTargetPath
+          Else
+            Copy sIconPath To sTargetPath
+            sMakeLink = Mid$(sTargetDir, InStr(sTargetDir, "/") + 1) &/ sTarget & ".png"
+            If bDark Then
+              Image.Load(sTargetPath).Invert(True).Save(sTargetPath)
+            Endif
+          Endif
+          
+        Next
+        
+      Next
+      
+    Wend
+    
+    Close #hFile
+    
+    For Each sFile In Dir(sOrigin &/ "app")
+      If sFile Ends "~" Then Continue
+      hImage = Image.Load(sOrigin &/ "app" &/ sFile)
+      For Each sSize In ["16", "32", "128"]
+        sTargetPath = sRoot &/ (sSize & "x" & sSize) &/ "apps" &/ sFile
+        Print sTargetPath
+        hIcon = hImage.Stretch(CInt(sSize), CInt(sSize))
+        If bDark Then hIcon = hIcon.Invert(True)
+        hIcon.Save(sTargetPath)
+      Next
+    Next
+  
+    hFile = Open sRoot &/ "index.theme" For Output Create
+    
+    Print #hFile, "[Icon Theme]"
+    Print #hFile, "Name="; sStyle
+    Print #hFile, "Comment="; sStyle; " icon theme"
+    Print #hFile, "Inherits=";
+    Select Case sStyle
+      Case "gambas"
+        Print #hFile, "Papirus,breeze,hicolor"
+      Case "gambas-dark"
+        Print #hFile, "Papirus-Dark,breeze-dark,hicolor"
+      Case "gambas-mono", "gambas-mono-dark"
+        Print #hFile, "HighContrast"
+    End Select
+    
+    Print #hFile, "Directories="; aDirectories.Sort(gb.Natural).Join(",")
+    Print #hFile
+    ' Print #hFile, "DesktopDefault=48"
+    ' Print #hFile, "ToolbarDefault=16"
+    ' Print #hFile, "ToolbarSizes=16,22,32,48"
+    ' Print #hFile, "MainToolbarDefault=16"
+    ' Print #hFile, "MainToolbarSizes=16,22,32,48"
+    ' Print #hFile, "PanelDefault=22"
+    ' Print #hFile, "PanelSizes=16,22,32,48,64,128,256"
+    Print #hFile, "FollowsColorScheme=true"
+    Print #hFile
+    
+    For Each sDir In aDirectories
+      Print #hFile, "["; sDir; "]"
+      iPos = InStr(sDir, "x")
+      Print #hFile, "Size="; Left(sDir, iPos - 1)
+      Print #hFile, "Type=Fixed"
+      sName = File.Name(sDir)
+      Select Case sName
+        Case "mimetypes"
+          Print #hFile, "Context=MimeTypes"
+        Case "apps", "preferences", "applets"
+          Print #hFile, "Context=Applications"
+        Case Else
+          Print #hFile, "Context="; UCase(Left(sName)); Mid(sName, 2)
+      End Select
+      Print #hFile
+    Next
+    
+    Close #hFile
+    
+  Next
+
+End

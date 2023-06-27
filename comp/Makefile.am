@@ -10,15 +10,14 @@ install-exec-local:
 	 ROOT=$DESTDIR; \
 	fi
 	
-	@echo "Installing the components..."
 	@(cd $(srcdir)/src; d=`pwd`; for p in `cat order`; do \
-	  echo "Compiling $$p..."; \
+	  echo "Compiling '$$p' component..."; \
 	  cd $$d/$$p; \
 	  $(DESTDIR)$(bindir)/gbc$(GAMBAS_VERSION) -agt -r $(DESTDIR)$(prefix); \
 	  if test $$? -eq 0; then \
 	    $(DESTDIR)$(bindir)/gba$(GAMBAS_VERSION); \
 	    rm -rf .gambas; \
-	    echo "Installing $$p..."; \
+	    echo "Installing '$$p' component..."; \
 	    rm -f $(DESTDIR)$(gblibdir)/$$p.so $(DESTDIR)$(gblibdir)/$$p.so.* $(DESTDIR)$(gblibdir)/$$p.la; \
 	    $(INSTALL) $$p.gambas $(DESTDIR)$(gblibdir); \
 	    $(INSTALL) .component $(DESTDIR)$(gblibdir)/$$p.component; \
@@ -35,17 +34,20 @@ install-exec-local:
 	    $(DESTDIR)$(bindir)/gbi$(GAMBAS_VERSION) -r $(DESTDIR)$(prefix) $$p > /dev/null; \
 	    $(DESTDIR)$(bindir)/gbi$(GAMBAS_VERSION) -r $(DESTDIR)$(prefix) > /dev/null; \
 	  else \
-	    echo "|| Unable to compile $$p" >> ../../../warnings.log; \
+	    echo "|| Unable to compile '$$p' component" >> ../../../warnings.log; \
 	  fi \
 	  done; true)
 
 uninstall-local:
-	@(cd $(srcdir)/src; for p in *; do \
+	@(cd $(srcdir)/src; for p in gb.*; do \
+	  echo "Uninstalling '$$p' component..."; \
 	  rm -f $(DESTDIR)$(gblibdir)/$$p.gambas; \
 	  rm -f $(DESTDIR)$(gblibdir)/$$p.component; \
 	  rm -f $(DESTDIR)$(gbdatadir)/info/$$p.info; \
 	  rm -f $(DESTDIR)$(gbdatadir)/info/$$p.list; \
+	  rm -rf $(DESTDIR)$(gbdatadir)/control/$$p; \
 	  done)
+	@rmdir --ignore-fail-on-non-empty $(DESTDIR)$(gbdatadir)/info $(DESTDIR)$(gbdatadir)/control $(DESTDIR)$(gbdatadir) $(DESTDIR)$(gblibdir)
 
 dist-hook:
 	@(cd $(distdir)/src; rm -rf `find . -name ".gambas" -o -name ".action" -o -name ".lock" -o -name ".xvpics" -o -name "*~" -o -name "*.out"  -o -name "*.pot" -o -name "*.gambas" -o -name "core*" -o -name ".kdbg*" -o -name ".svn"`;)

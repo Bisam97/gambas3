@@ -11,7 +11,7 @@ Static Public ALLOWED_CONTROL_PROP As String[] = ["Text", "Foreground", "Backgro
 Static Public CreatingSpecialProperty As Boolean
 
 Static Private $cRedirect As New Collection
-Static Private $cTranslate As New Collection
+Static Private $cTranslate As New Collection(gb.IgnoreCase)
 Static Private $cUpdateName As New Collection
 Static Private $cAlwaysRead As New Collection
 Static Private $cShortcut As New Collection
@@ -46,6 +46,7 @@ Static Public Sub _init()
   $cRedirect["Tag"] = True
   $cRedirect["Password"] = True
   $cRedirect["Mouse"] = True
+  $cRedirect["Cursor"] = True
   $cRedirect["ToolTip"] = True
   $cRedirect["Drop"] = True
   $cRedirect["List"] = True
@@ -105,7 +106,7 @@ Static Public Sub _init()
   $cRedirect["Connection"] = True
 
   $cTranslate["Text"] = True
-  $cTranslate["PlaceHolder"] = True
+  $cTranslate["Placeholder"] = True
   $cTranslate["Title"] = True
   $cTranslate["List"] = True
   $cTranslate["FileChooser.Filter"] = True
@@ -288,7 +289,7 @@ GET_KIND:
   ' {...:Arg}
     
   iPos = RInStr(sKind, ":")
-  If iPos Then 
+  If iPos Then
     Argument = Mid$(sKind, iPos + 1)
     sKind = Left$(sKind, iPos - 1)
   Endif
@@ -353,7 +354,6 @@ GET_KIND:
     Type = sKind
     
   Endif
-  
 
   If Type = "i" Then
     If Name = "Background" Or Name = "Foreground" Or InStr(Name, "Color") > 0 Then

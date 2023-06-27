@@ -54,6 +54,25 @@ static void CAVLTREE_init(CAVLTREE *tree)
 	tree->count = tree->height = 0;
 }
 
+/* In-order. */
+static NODE *CAVLTREE_next(CAVLTREE *tree, NODE *node)
+{
+	NODE *next;
+
+	if ((next = node->right)) {
+		while (next->left)
+			next = next->left;
+		return next;
+	}
+	for (next = node->parent; node == next->right; next = next->parent)
+		node = next;
+	/* This condition is only met when climing from the right subtree to
+	 * root in the above loop. We're done then. */
+	if (node == next)
+		return NULL;
+	return next;
+}
+
 static NODE *NODE_new(NODE *parent, char *key, size_t length)
 {
 	NODE *node;
@@ -105,27 +124,14 @@ struct enum_state {
 
 static void CAVLTREE_clear(CAVLTREE *tree)
 {
-	NODE *node = CAVLTREE_first(tree), *parent;
+	NODE *node = CAVLTREE_first(tree);
 
-	/* We ought to traverse the tree from children to parents */
-	while (node) {
-		while (node->left)
-			node = node->left;
-		while (node->right)
-			node = node->right;
-		parent = node->parent;
-		if (node == parent) {
-			parent = NULL;
-		} else {
-			if (parent->left == node)
-				parent->left = NULL;
-			else
-				parent->right = NULL;
-		}
+	while (node) 
+	{
 		NODE_destroy(node);
-		node = parent;
+		node = CAVLTREE_next(tree, node);
 	}
-
+	
 	/* Fix enumerators */
 	void *ebuf;
 	struct enum_state *state;
@@ -186,25 +192,6 @@ BEGIN_METHOD(AvlTree_get, GB_STRING key)
 	GB.ReturnVariant(&node->val);
 
 END_METHOD
-
-/* In-order. */
-static NODE *CAVLTREE_next(CAVLTREE *tree, NODE *node)
-{
-	NODE *next;
-
-	if ((next = node->right)) {
-		while (next->left)
-			next = next->left;
-		return next;
-	}
-	for (next = node->parent; node == next->right; next = next->parent)
-		node = next;
-	/* This condition is only met when climing from the right subtree to
-	 * root in the above loop. We're done then. */
-	if (node == next)
-		return NULL;
-	return next;
-}
 
 #if 0
 /* Reverse in-order */
@@ -458,13 +445,13 @@ static void CAVLTREE_remove(CAVLTREE *tree, char *key, size_t length)
 
 	/* Detach replacement node */
 	reb = rep->parent;
-	d = LIKELY(rep == reb->left) ? 1 : -1;
+	d = rep == reb->left ? 1 : -1;
 	if (reb == node)
 		goto replace;
 	child = rep->left ? : rep->right;
 	if (child)
 		child->parent = reb;
-	if (LIKELY(rep == reb->left))
+	if (rep == reb->left)
 		reb->left = child;
 	else
 		reb->right = child;

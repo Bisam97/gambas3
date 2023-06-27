@@ -13,4 +13,5 @@ gb_gsl_la_SOURCES = \
  c_complex.c c_complex.h \
  c_vector.c c_vector.h \
  c_matrix.c c_matrix.h \
- c_polynomial.c c_polynomial.h
+ c_polynomial.c c_polynomial.h \
+ c_float_array.c c_float_array.h

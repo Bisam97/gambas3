@@ -149,7 +149,7 @@ Private Sub GetActionText(sAction As String) As String
     Case "-"
       Return ("Space")
     Case Else
-      Return MAction.Actions[sAction].Text
+      Try Return MAction.Actions[sAction].Text
   End Select
 
 End
@@ -171,6 +171,7 @@ Private Sub DrawItem(hCtrl As Control, sAction As String, bScreenshot As Boolean
   Paint.DrawRect(1, 1, Paint.W - 2, Paint.H - 2, Color.LightForeground)
   
   If hCtrl.Hovered Then
+    Paint.FillRect(0, 0, Paint.W, Paint.H, Style.BackgroundOf($hToolbar))
     Paint.DrawRect(0, 0, Paint.W, Paint.H, Color.LightBackground)
   Endif
   
@@ -286,9 +287,14 @@ Public Sub DragAction(hCtrl As Control, sAction As String)
     Drag.Icon = Null
   Endif
 
-  'Debug "START DRAG";; sAction
+  ' Debug "START DRAG";; sAction
   hDest = Drag(hCtrl, sAction, MAction.MIME)
-  'Debug "END DRAG"
+  ' Debug "END DRAG";;
+  ' If hDest Then 
+  '   Error hDest.Name
+  ' Else 
+  '   Error
+  ' Endif
   
   If hDest Then
   

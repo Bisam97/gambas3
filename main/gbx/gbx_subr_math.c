@@ -2,7 +2,7 @@
 
 	gbx_subr_math.c
 
-	(c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+	(c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -424,86 +424,79 @@ __END:
 void SUBR_and_(ushort code)
 {
 	static void *jump[] = {
-		&&__UNKNOWN, &&__BOOLEAN, &&__BYTE, &&__SHORT, &&__INTEGER, &&__LONG, &&__OTHER, &&__VARIANT, &&__ERROR
+		&&__UNKNOWN, &&__UNKNOWN, &&__UNKNOWN, NULL,
+		&&__BOOLEAN_AND, &&__BOOLEAN_OR, &&__BOOLEAN_XOR, NULL, 
+		&&__BYTE_AND, &&__BYTE_OR, &&__BYTE_XOR, NULL,
+		&&__SHORT_AND, &&__SHORT_OR, &&__SHORT_XOR, NULL,
+		&&__INTEGER_AND, &&__INTEGER_OR, &&__INTEGER_XOR, NULL,
+		&&__LONG_AND, &&__LONG_OR, &&__LONG_XOR, NULL,
+		&&__OTHER, &&__OTHER, &&__OTHER, NULL,
+		&&__VARIANT, &&__VARIANT, &&__VARIANT, NULL,
+		&&__ERROR
 		};
 
 	TYPE type;
 	VALUE *P1, *P2;
 	void *jump_end;
-	short op;
 
 	P1 = SP - 2;
 	P2 = P1 + 1;
 
 	jump_end = &&__END;
 	type = code & 0x0F;
-	op = (code >> 8)  - (C_AND >> 8);
-	goto *jump[type];
+	goto *jump[(code >> 8)  - (C_AND >> 8) + type * 4];
 
-__BYTE:
+__BOOLEAN_AND:
+	P1->type = T_BOOLEAN; P1->_integer.value &= P2->_integer.value; goto *jump_end;
 
-	P1->type = type;
+__BOOLEAN_OR:
+	P1->type = T_BOOLEAN; P1->_integer.value |= P2->_integer.value; goto *jump_end;
 
-	{
-		static void *exec[] = { &&__AND_C, && __OR_C, &&__XOR_C };
-		goto *exec[op];
+__BOOLEAN_XOR:
+	P1->type = T_BOOLEAN; P1->_integer.value ^= P2->_integer.value; goto *jump_end;
+	
+__BYTE_AND:
+	P1->type = T_BYTE; P1->_integer.value = (unsigned char)(P1->_integer.value & P2->_integer.value); goto *jump_end;
 
-		__AND_C: P1->_integer.value = (unsigned char)(P1->_integer.value & P2->_integer.value); goto *jump_end;
-		__OR_C: P1->_integer.value = (unsigned char)(P1->_integer.value | P2->_integer.value); goto *jump_end;
-		__XOR_C: P1->_integer.value = (unsigned char)(P1->_integer.value ^ P2->_integer.value); goto *jump_end;
-	}
+__BYTE_OR:
+	P1->type = T_BYTE; P1->_integer.value = (unsigned char)(P1->_integer.value | P2->_integer.value); goto *jump_end;
 
-	goto *jump_end;
+__BYTE_XOR:
+	P1->type = T_BYTE; P1->_integer.value = (unsigned char)(P1->_integer.value ^ P2->_integer.value); goto *jump_end;
 
-__SHORT:
+__SHORT_AND:
+	P1->type = T_SHORT; P1->_integer.value = (short)(P1->_integer.value & P2->_integer.value); goto *jump_end;
 
-	P1->type = type;
+__SHORT_OR:
+	P1->type = T_SHORT; P1->_integer.value = (short)(P1->_integer.value | P2->_integer.value); goto *jump_end;
 
-	{
-		static void *exec[] = { &&__AND_H, && __OR_H, &&__XOR_H };
-		goto *exec[op];
+__SHORT_XOR:
+	P1->type = T_SHORT; P1->_integer.value = (short)(P1->_integer.value ^ P2->_integer.value); goto *jump_end;
 
-		__AND_H: P1->_integer.value = (short)(P1->_integer.value & P2->_integer.value); goto *jump_end;
-		__OR_H: P1->_integer.value = (short)(P1->_integer.value | P2->_integer.value); goto *jump_end;
-		__XOR_H: P1->_integer.value = (short)(P1->_integer.value ^ P2->_integer.value); goto *jump_end;
-	}
+__INTEGER_AND:
+	P1->type = T_INTEGER; P1->_integer.value &= P2->_integer.value; goto *jump_end;
 
-	goto *jump_end;
+__INTEGER_OR:
+	P1->type = T_INTEGER; P1->_integer.value |= P2->_integer.value; goto *jump_end;
 
-__BOOLEAN:
-__INTEGER:
+__INTEGER_XOR:
+	P1->type = T_INTEGER; P1->_integer.value ^= P2->_integer.value; goto *jump_end;
 
-	P1->type = type;
-
-	{
-		static void *exec[] = { &&__AND_I, && __OR_I, &&__XOR_I };
-		goto *exec[op];
-
-		__AND_I: P1->_integer.value &= P2->_integer.value; goto *jump_end;
-		__OR_I: P1->_integer.value |= P2->_integer.value; goto *jump_end;
-		__XOR_I: P1->_integer.value ^= P2->_integer.value; goto *jump_end;
-	}
-
-	goto *jump_end;
-
-__LONG:
-
+__LONG_AND:
 	VALUE_conv(P1, T_LONG);
 	VALUE_conv(P2, T_LONG);
+	P1->_long.value &= P2->_long.value; goto *jump_end;
 
-	P1->type = type;
+__LONG_OR:
+	VALUE_conv(P1, T_LONG);
+	VALUE_conv(P2, T_LONG);
+	P1->_long.value |= P2->_long.value; goto *jump_end;
 
-	{
-		static void *exec[] = { &&__AND_L, && __OR_L, &&__XOR_L };
-		goto *exec[op];
+__LONG_XOR:
+	VALUE_conv(P1, T_LONG);
+	VALUE_conv(P2, T_LONG);
+	P1->_long.value ^= P2->_long.value; goto *jump_end;
 
-		__AND_L: P1->_long.value &= P2->_long.value; goto *jump_end;
-		__OR_L: P1->_long.value |= P2->_long.value; goto *jump_end;
-		__XOR_L: P1->_long.value ^= P2->_long.value; goto *jump_end;
-	}
-
-	goto *jump_end;
-	
 __UNKNOWN:
 
 	type = Max(P1->type, P2->type);
@@ -517,18 +510,32 @@ __UNKNOWN:
 	}
 	
 	*PC |= type;
-	goto *jump[type];
+	goto *jump[(code >> 8)  - (C_AND >> 8) + type * 4];
 
 __OTHER:
 	
 	if (!TYPE_is_integer_long(P1->type))
+	{
+		if (TYPE_is_number(P1->type))
+		{
+			type = P1->type;
+			goto __ERROR;
+		}
 		VALUE_convert_boolean(P1);
+	}
 
 	if (!TYPE_is_integer_long(P2->type))
+	{
+		if (TYPE_is_number(P2->type))
+		{
+			type = P2->type;
+			goto __ERROR;
+		}
 		VALUE_convert_boolean(P2);
+	}
 	
 	type = Max(P1->type, P2->type);
-	goto *jump[type];
+	goto *jump[(code >> 8)  - (C_AND >> 8) + type * 4];
 
 __VARIANT:
 
@@ -539,22 +546,36 @@ __VARIANT:
 		VARIANT_undo(P2);
 	
 	if (!TYPE_is_integer_long(P1->type))
+	{
+		if (TYPE_is_number(P1->type))
+		{
+			type = P1->type;
+			goto __ERROR;
+		}
 		VALUE_convert_boolean(P1);
+	}
 
 	if (!TYPE_is_integer_long(P2->type))
+	{
+		if (TYPE_is_number(P2->type))
+		{
+			type = P2->type;
+			goto __ERROR;
+		}
 		VALUE_convert_boolean(P2);
-
+	}
+	
 	type = Max(P1->type, P2->type);
 
 	if (TYPE_is_integer_long(type))
 	{
 		jump_end = &&__VARIANT_END;
-		goto *jump[type];
+		goto *jump[(code >> 8)  - (C_AND >> 8) + type * 4];
 	}
 
 __ERROR:
 
-	THROW(E_TYPE, "Number", TYPE_get_name(type));
+	THROW(E_TYPE, "Number, String or Object", TYPE_get_name(type));
 
 __VARIANT_END:
 

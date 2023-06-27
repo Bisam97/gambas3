@@ -27,21 +27,22 @@
 #include <gdk/gdkkeysyms.h>
 #include "gkey.h"
 
+//-------------------------------------------------------------------------
 
 BEGIN_METHOD(Key_get, GB_STRING key)
 
 	char *key = GB.ToZeroString(ARG(key));
-
-	if (!GB.GetProperty((void *)GB.FindClass("Key"), key))
-	{
-		GB.Error(NULL);
-		GB.ReturnInteger(gKey::fromString(GB.ToZeroString(ARG(key))));
-	}
+	int val = KEY_get_keyval_from_name(key);
+	
+	if (!val)
+		val = gKey::fromString(key);
+	
+	GB.ReturnInteger(val);
 
 END_METHOD
 
 #define CHECK_VALID() \
-  if (gKey::valid() == 0) \
+  if (!gKey::isValid()) \
   { \
     GB.Error("No keyboard event data"); \
     return; \
@@ -103,7 +104,23 @@ BEGIN_PROPERTY(Key_Normal)
 
 END_PROPERTY
 
+BEGIN_PROPERTY(Key_Shortcut)
 
+	static GB_FUNCTION func;
+	static bool init = FALSE;
+	
+	if (!init)
+	{
+		init = TRUE;
+		GB.GetFunction(&func, (void *)GB.FindClass("Shortcut"), "FromKey", NULL, "s");
+	}
+	
+	if (GB_FUNCTION_IS_VALID(&func))
+		GB.Call(&func, 0, FALSE);
+	else
+		GB.ReturnNull();
+
+END_PROPERTY
 
 GB_DESC CKeyDesc[] =
 {
@@ -115,7 +132,7 @@ GB_DESC CKeyDesc[] =
   GB_CONSTANT("Escape", "i", GDK_Escape),
   GB_CONSTANT("Tab", "i", GDK_Tab),
   GB_CONSTANT("BackTab", "i", GDK_ISO_Left_Tab),
-  GB_CONSTANT("BackSpace", "i", GDK_BackSpace),
+  GB_CONSTANT("Backspace", "i", GDK_BackSpace),
   GB_CONSTANT("Return", "i", GDK_Return),
   GB_CONSTANT("Enter", "i", GDK_KP_Enter),
   GB_CONSTANT("Ins", "i", GDK_Insert),
@@ -139,6 +156,7 @@ GB_DESC CKeyDesc[] =
   GB_CONSTANT("ControlKey", "i", GDK_Control_L),
   GB_CONSTANT("MetaKey", "i", GDK_Meta_L),
   GB_CONSTANT("AltKey", "i", GDK_Alt_L),
+  GB_CONSTANT("AltGrKey", "i", GDK_ISO_Level3_Shift),
   GB_CONSTANT("CapsLock", "i", GDK_Caps_Lock),
   GB_CONSTANT("NumLock", "i", GDK_Num_Lock),
   GB_CONSTANT("ScrollLock", "i", GDK_Scroll_Lock),
@@ -179,6 +197,33 @@ GB_DESC CKeyDesc[] =
   GB_STATIC_PROPERTY_READ("Meta", "b", Key_Meta),
   GB_STATIC_PROPERTY_READ("Normal", "b", Key_Normal),
 
+  GB_STATIC_PROPERTY_READ("Shortcut", "s", Key_Shortcut),
+  
   GB_END_DECLARE
 };
+
+
+//-------------------------------------------------------------------------
+
+int KEY_get_keyval_from_name(const char *name)
+{
+	const GB_DESC *p;
+	const char *pname;
+
+	if (!name || !*name)
+		return 0;
+	
+	if (!name[1])
+		return gKey::fromString(name);
+	
+	for(p = &CKeyDesc[3]; (pname = p->name); p++)
+	{
+		if (*pname != GB_CONSTANT_ID)
+			continue;
+		if (strcasecmp(name, &pname[1]) == 0)
+			return (int)p->val2;
+	}
+	
+	return gKey::fromString(name);
+}
 

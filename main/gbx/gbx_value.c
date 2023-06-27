@@ -2,7 +2,7 @@
 
   gbx_value.c
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@
 
 #include "gb_common.h"
 #include "gb_common_case.h"
+#include "gb_overflow.h"
 
 #include "gbx_math.h"
 #include "gbx_type.h"
@@ -354,16 +355,16 @@ void VALUE_convert(VALUE *value, TYPE type)
 	/*   ,------>  void       b          c          h          i          l          g          f          d          cs         s          p          v          func       class      n         */
 	//  |
 	/* void   */ { &&__OK,    &&__NR,    &&__NR,    &&__NR,    &&__NR,    &&__NR,    &&__NR,    &&__NR,    &&__NR,    &&__NR,    &&__NR,    &&__NR,    &&__NR,    &&__NR,    &&__NR,    &&__NR,    },
-	/* b      */ { &&__N,     &&__OK,    &&__b2c,   &&__b2h,   &&__TYPE,  &&__b2l,   &&__b2g,   &&__b2f,   &&__N,     &&__b2s,   &&__b2s,   &&__N,     &&__2v,    &&__N,     &&__N,     &&__N,     },
-	/* c      */ { &&__N,     &&__c2b,   &&__OK,    &&__c2h,   &&__TYPE,  &&__c2l,   &&__c2g,   &&__c2f,   &&__c2d,   &&__c2s,   &&__c2s,   &&__N,     &&__2v,    &&__N,     &&__N,     &&__N,     },
-	/* h      */ { &&__N,     &&__h2b,   &&__h2c,   &&__OK,    &&__TYPE,  &&__h2l,   &&__h2g,   &&__h2f,   &&__h2d,   &&__h2s,   &&__h2s,   &&__N,     &&__2v,    &&__N,     &&__N,     &&__N,     },
+	/* b      */ { &&__N,     &&__OK,    &&__b2c,   &&__b2h,   &&__TYPE,  &&__b2l,   &&__b2g,   &&__b2f,   &&__N,     &&__b2s,   &&__b2s,   &&__b2p,   &&__2v,    &&__N,     &&__N,     &&__N,     },
+	/* c      */ { &&__N,     &&__c2b,   &&__OK,    &&__c2h,   &&__TYPE,  &&__c2l,   &&__c2g,   &&__c2f,   &&__c2d,   &&__c2s,   &&__c2s,   &&__c2p,   &&__2v,    &&__N,     &&__N,     &&__N,     },
+	/* h      */ { &&__N,     &&__h2b,   &&__h2c,   &&__OK,    &&__TYPE,  &&__h2l,   &&__h2g,   &&__h2f,   &&__h2d,   &&__h2s,   &&__h2s,   &&__h2p,   &&__2v,    &&__N,     &&__N,     &&__N,     },
 	/* i      */ { &&__N,     &&__i2b,   &&__i2c,   &&__i2h,   &&__OK,    &&__i2l,   &&__i2g,   &&__i2f,   &&__i2d,   &&__i2s,   &&__i2s,   &&__i2p,   &&__2v,    &&__N,     &&__N,     &&__N,     },
 	/* l      */ { &&__N,     &&__l2b,   &&__l2c,   &&__l2h,   &&__l2i,   &&__OK,    &&__l2g,   &&__l2f,   &&__l2d,   &&__l2s,   &&__l2s,   &&__l2p,   &&__2v,    &&__N,     &&__N,     &&__N,     },
 	/* g      */ { &&__N,     &&__g2b,   &&__g2c,   &&__g2h,   &&__g2i,   &&__g2l,   &&__OK,    &&__g2f,   &&__g2d,   &&__g2s,   &&__g2s,   &&__N,     &&__2v,    &&__N,     &&__N,     &&__N,     },
 	/* f      */ { &&__N,     &&__f2b,   &&__f2c,   &&__f2h,   &&__f2i,   &&__f2l,   &&__f2g,   &&__OK,    &&__f2d,   &&__f2s,   &&__f2s,   &&__N,     &&__2v,    &&__N,     &&__N,     &&__N,     },
 	/* d      */ { &&__N,     &&__d2b,   &&__d2c,   &&__d2h,   &&__d2i,   &&__d2l,   &&__d2g,   &&__d2f,   &&__OK,    &&__d2s,   &&__d2s,   &&__N,     &&__2v,    &&__N,     &&__N,     &&__N,     },
-	/* cs     */ { &&__N,     &&__s2b,   &&__s2c,   &&__s2h,   &&__s2i,   &&__s2l,   &&__s2g,   &&__s2f,   &&__s2d,   &&__OK,    &&__OK,    &&__N,     &&__s2v,   &&__N,     &&__N,     &&__N,     },
-	/* s      */ { &&__N,     &&__s2b,   &&__s2c,   &&__s2h,   &&__s2i,   &&__s2l,   &&__s2g,   &&__s2f,   &&__s2d,   &&__OK,    &&__OK,    &&__N,     &&__s2v,   &&__N,     &&__N,     &&__N,     },
+	/* cs     */ { &&__N,     &&__s2b,   &&__s2c,   &&__s2h,   &&__s2i,   &&__s2l,   &&__s2g,   &&__s2f,   &&__s2d,   &&__OK,    &&__OK,    &&__s2p,   &&__s2v,   &&__N,     &&__N,     &&__N,     },
+	/* s      */ { &&__N,     &&__s2b,   &&__s2c,   &&__s2h,   &&__s2i,   &&__s2l,   &&__s2g,   &&__s2f,   &&__s2d,   &&__OK,    &&__OK,    &&__s2p,   &&__s2v,   &&__N,     &&__N,     &&__N,     },
 	/* p      */ { &&__N,     &&__p2b,   &&__N,     &&__N,     &&__p2i,   &&__p2l,   &&__N,     &&__N,     &&__N,     &&__p2s,   &&__p2s,   &&__OK,    &&__2v,    &&__N,     &&__N,     &&__N,     },
 	/* v      */ { &&__N,     &&__v2,    &&__v2,    &&__v2,    &&__v2,    &&__v2,    &&__v2,    &&__v2,    &&__v2,    &&__v2,    &&__v2,    &&__v2,    &&__OK,    &&__N,     &&__v2,    &&__v2,    },
 	/* func   */ { &&__N,     &&__func,  &&__func,  &&__func,  &&__func,  &&__func,  &&__func,  &&__func,  &&__func,  &&__func,  &&__func,  &&__F2p,   &&__func,  &&__OK,    &&__N,     &&__func,  },
@@ -419,19 +420,51 @@ __p2b:
 	value->type = T_BOOLEAN;
 	return;
 
+#if DO_NOT_CHECK_OVERFLOW
+
 __b2c:
 __h2c:
 __i2c:
-
-	value->_integer.value = (unsigned char)value->_integer.value;
+	value->_integer.value = (uchar)value->_integer.value;
 	value->type = T_BYTE;
 	return;
 
 __l2c:
-
-	value->_integer.value = (unsigned char)value->_long.value;
+	value->_integer.value = (uchar)value->_long.value;
 	value->type = T_BYTE;
 	return;
+
+#else
+
+__b2c:
+	value->_integer.value = (uchar)value->_integer.value;
+	value->type = T_BYTE;
+	return;
+
+__h2c:
+__i2c:
+	{
+		uchar result;
+
+		if (__builtin_add_overflow(value->_integer.value, 0, &result))
+			THROW_OVERFLOW();
+		value->_integer.value = result;
+		value->type = T_BYTE;
+		return;
+	}
+
+__l2c:
+	{
+		uchar result;
+
+		if (__builtin_add_overflow(value->_long.value, 0, &result))
+			THROW_OVERFLOW();
+		value->_integer.value = result;
+		value->type = T_BYTE;
+		return;
+	}
+
+#endif
 
 __g2c:
 
@@ -445,19 +478,49 @@ __f2c:
 	value->type = T_BYTE;
 	return;
 
+#if DO_NOT_CHECK_OVERFLOW
+
 __b2h:
 __c2h:
 __i2h:
-
-	value->_integer.value = (short)value->_integer.value;
 	value->type = T_SHORT;
 	return;
 
 __l2h:
-
 	value->_integer.value = (short)value->_long.value;
 	value->type = T_SHORT;
 	return;
+
+#else
+
+__b2h:
+__c2h:
+	value->type = T_SHORT;
+	return;
+
+__i2h:
+	{
+		short result;
+
+		if (__builtin_add_overflow(value->_integer.value, 0, &result))
+			THROW_OVERFLOW();
+		value->_integer.value = result;
+		value->type = T_SHORT;
+		return;
+	}
+
+__l2h:
+	{
+		short result;
+
+		if (__builtin_add_overflow(value->_long.value, 0, &result))
+			THROW_OVERFLOW();
+		value->_integer.value = result;
+		value->type = T_SHORT;
+		return;
+	}
+
+#endif
 
 __g2h:
 
@@ -471,11 +534,22 @@ __f2h:
 	value->type = T_SHORT;
 	return;
 
-__l2i:
+#if DO_NOT_CHECK_OVERFLOW
 
+__l2i:
 	value->_integer.value = (int)value->_long.value;
 	value->type = T_INTEGER;
 	return;
+
+#else
+
+__l2i:
+	if (__builtin_add_overflow(value->_long.value, 0, &value->_integer.value))
+		THROW_OVERFLOW();
+	value->type = T_INTEGER;
+	return;
+
+#endif
 
 __g2i:
 
@@ -756,6 +830,12 @@ __s2d:
 
 	STRING_unref(&addr);
 	return;
+	
+__s2p:
+
+	value->_pointer.value = value->_string.addr + value->_string.start;
+	value->type = T_POINTER;
+	return;
 
 __n2b:
 
@@ -815,6 +895,9 @@ __func:
 
 	goto __N;
 
+__b2p:
+__c2p:
+__h2p:
 __i2p:
 	value->_pointer.value = (void *)(intptr_t)value->_integer.value;
 	value->type = T_POINTER;
@@ -928,7 +1011,7 @@ __OBJECT:
 				{
 					if (!((*class->convert)(NULL, value->type, value)))
 					{
-						OBJECT_REF(value->_object.object);
+						OBJECT_REF_CHECK(value->_object.object);
 						goto __TYPE;
 					}
 				}
@@ -970,7 +1053,7 @@ __RETRY:
 		if (!((*class->convert)(value->_object.object, type, value)))
 		{
 			OBJECT_UNREF(unref);
-			OBJECT_REF(value->_object.object);
+			OBJECT_REF_CHECK(value->_object.object);
 			goto __TYPE;
 		}
 	}
@@ -982,7 +1065,7 @@ __RETRY:
 		if (!((*class2->convert)(NULL, OBJECT_class(unref), value)))
 		{
 			OBJECT_UNREF(unref);
-			OBJECT_REF(value->_object.object);
+			OBJECT_REF_CHECK(value->_object.object);
 			goto __TYPE;
 		}
 	}
@@ -1052,7 +1135,7 @@ __OBJECT:
 __CLASS:
 {
 	void *object = value->_variant.value._object;
-	OBJECT_REF(object);
+	OBJECT_REF_CHECK(object);
 	VARIANT_free((VARIANT *)addr);
 	((VARIANT *)addr)->type = type;
 	((VARIANT *)addr)->value._object = object;
@@ -1143,7 +1226,7 @@ __OBJECT:
 
 	VALUE_conv(value, type);
 
-	OBJECT_REF(value->_object.object);
+	OBJECT_REF_CHECK(value->_object.object);
 	OBJECT_UNREF(*((void **)addr));
 	*((void **)addr) = value->_object.object;
 	return;
@@ -1335,7 +1418,7 @@ void VALUE_free(void *addr, TYPE type)
 
 
 
-void VALUE_to_string(VALUE *value, char **addr, int *len)
+void VALUE_to_local_string(VALUE *value, char **addr, int *len)
 {
 	static void *jump[16] = {
 		&&__VOID, &&__BOOLEAN, &&__BYTE, &&__SHORT, &&__INTEGER, &&__LONG, &&__SINGLE, &&__FLOAT, &&__DATE,
@@ -1359,15 +1442,13 @@ __BOOLEAN:
 
 	if (value->_boolean.value)
 	{
-		*addr = (char *)LOCAL_gettext("True");
-		*len = strlen(*addr);
+		*addr = LOCAL_local.true_str;
+		*len = LOCAL_local.len_true_str;
 	}
 	else
 	{
-		*addr = (char *)LOCAL_gettext("False");
-		*len = strlen(*addr);
-		//*addr = LOCAL_local.false_str;
-		//*len = LOCAL_local.len_false_str;
+		*addr = LOCAL_local.false_str;
+		*len = LOCAL_local.len_false_str;
 	}
 	return;
 
@@ -1388,9 +1469,11 @@ __LONG:
 	return;
 
 __DATE:
-
-	LOCAL_format_date(DATE_split(value), LF_STANDARD, NULL, 0, addr, len);
-	return;
+	{
+		const DATE_SERIAL *date = DATE_split(value);
+		LOCAL_format_date(date, DATE_SERIAL_has_no_date(date) ? LF_LONG_TIME : LF_STANDARD, NULL, 0, addr, len);
+		return;
+	}
 
 __SINGLE:
 
@@ -1468,7 +1551,7 @@ __FUNCTION:
 }
 
 
-void VALUE_from_string(VALUE *value, const char *addr, int len)
+void VALUE_from_local_string(VALUE *value, const char *addr, int len)
 {
 	while (len > 0 && isspace(*addr))
 		addr++, len--;
@@ -1505,9 +1588,8 @@ void VALUE_from_string(VALUE *value, const char *addr, int len)
 
 void VALUE_class_read(CLASS *class, VALUE *value, char *addr, CTYPE ctype, void *ref)
 {
-	VALUE_class_read_inline(class, value, addr, ctype, ref);
+	VALUE_class_read_inline(class, value, addr, ctype, ref, VCR);
 }
-
 
 void VALUE_class_write(CLASS *class, VALUE *value, char *addr, CTYPE ctype)
 {
@@ -1517,20 +1599,71 @@ void VALUE_class_write(CLASS *class, VALUE *value, char *addr, CTYPE ctype)
 
 		VALUE_conv(value, type);
 
-		OBJECT_REF(value->_object.object);
+		OBJECT_REF_CHECK(value->_object.object);
 		OBJECT_UNREF(*((void **)addr));
 		*((void **)addr) = value->_object.object;
-		//VALUE_write(value, addr, (ctype.value >= 0) ? (TYPE)class->load->class_ref[ctype.value] : T_OBJECT);
 	}
 	else if (ctype.id == TC_STRUCT)
 	{
-		TYPE type = (TYPE)class->load->class_ref[ctype.value];
-		VALUE_conv(value, type);
-		THROW_ILLEGAL();
+		int i;
+		CLASS *sclass;
+		CLASS_DESC *desc;
+		void *src;
+		char *saddr;
+		VALUE temp;
+		int offset;
+		
+		sclass = class->load->class_ref[ctype.value];
+		VALUE_conv(value, (TYPE)sclass);
+		src = value->_object.object;
+		
+		for (i = 0; i < sclass->n_desc; i++)
+		{
+			desc = sclass->table[i].desc;
+			ctype = desc->variable.ctype;
+			offset = desc->variable.offset;
+			
+			if (((CSTRUCT *)src)->ref)
+				saddr = (char *)((CSTATICSTRUCT *)src)->addr;
+			else
+				saddr = (char *)src + sizeof(CSTRUCT);
+		
+			VALUE_class_read(desc->variable.class, &temp, &saddr[offset], ctype, src);
+			//BORROW(&temp);
+			VALUE_class_write(sclass, &temp, &addr[offset], ctype);
+			RELEASE(&temp);
+		}	
 	}
 	else if (ctype.id == TC_ARRAY)
 	{
-		THROW_ILLEGAL();
+		CLASS_ARRAY *adesc = class->load->array[ctype.value];
+		CLASS *aclass = CARRAY_get_array_class(class, adesc->ctype);
+		int acount = CARRAY_get_static_count(adesc);
+		int i, count;
+		CARRAY *src;
+		VALUE temp;
+		char *saddr;
+		
+		VALUE_conv(value, (TYPE)aclass);
+		src = (CARRAY *)value->_object.object;
+		
+		ctype = adesc->ctype;
+		
+		count = src->count;
+		if (count > acount)
+			count = acount;
+		
+		saddr = CARRAY_get_data(src, 0);
+		
+		for (i = 0; i < count; i++)
+		{
+			VALUE_class_read(class, &temp, saddr, ctype, src);
+			//BORROW(&temp);
+			VALUE_class_write(class, &temp, addr, ctype);
+			RELEASE(&temp);
+			saddr += src->size;
+			addr += src->size;
+		}
 	}
 	else
 	{
@@ -1749,7 +1882,12 @@ __CONV:
 
 __l2i:
 
+#if DO_NOT_CHECK_OVERFLOW
 	value->_integer.value = (int)value->_long.value;
+#else
+	if (__builtin_add_overflow(value->_long.value, 0, &value->_integer.value))
+		THROW_OVERFLOW();
+#endif
 	goto __TYPE;
 
 __g2i:
@@ -2052,136 +2190,6 @@ __NR:
 	THROW(E_NRETURN);
 }
 
-#if 0
-void VALUE_convert_object(VALUE *value, TYPE type)
-{
-	CLASS *class;
-
-__CONV:
-
-	#if 0
-	if (!TYPE_is_object(type))
-	{
-		if (type == T_BOOLEAN)
-		{
-			test = (value->_object.object != NULL);
-			OBJECT_UNREF(value->_object.object);
-			value->_boolean.value = test ? -1 : 0;
-			goto __TYPE;
-		}
-
-		if (type == T_VARIANT)
-			goto __2v;
-
-		goto __N;
-	}
-	#endif
-
-	if (!TYPE_is_object(value->type))
-	{
-		if (value->type == T_NULL)
-		{
-			OBJECT_null(value, (CLASS *)type); /* marche aussi pour type = T_OBJECT */
-			goto __TYPE;
-		}
-
-		if (value->type == T_VARIANT)
-			goto __v2;
-
-		if (value->type == T_FUNCTION)
-			goto __func;
-
-		if (value->type == T_CLASS)
-		{
-			class = value->_class.class;
-
-			if (CLASS_is_virtual(class))
-				THROW(E_VIRTUAL);
-
-			CLASS_load(class);
-
-			if (class->auto_create)
-				value->_object.object = CLASS_auto_create(class, 0);
-			else
-				value->_object.object = class;
-
-			OBJECT_REF(value->_object.object);
-			value->type = T_OBJECT;
-			/* on continue... */
-		}
-		else
-			goto __N;
-
-	}
-
-	if (value->_object.object == NULL)
-		goto __TYPE;
-
-	if (value->type == T_OBJECT)
-	{
-		/*if (value->_object.object == NULL)
-			goto __TYPE;*/
-
-		class = OBJECT_class(value->_object.object);
-		/* on continue */
-	}
-	else
-		class = value->_object.class;
-
-	if (CLASS_is_virtual(class))
-		THROW(E_VIRTUAL);
-
-	if (type == T_OBJECT)
-		goto __TYPE;
-
-__RETRY:
-
-	if ((class == (CLASS *)type) || CLASS_inherits(class, (CLASS *)type))
-		goto __TYPE;
-
-	if (value->type != T_OBJECT && value->_object.object)
-	{
-		class = OBJECT_class(value->_object.object);
-		value->type = T_OBJECT;
-		goto __RETRY;
-	}
-
-	if (class->special[SPEC_CONVERT] != NO_SYMBOL)
-	{
-		void *conv = ((void *(*)())(CLASS_get_desc(class, class->special[SPEC_CONVERT])->constant.value._pointer))(value->_object.object, type);
-		if (conv)
-		{
-			OBJECT_REF(conv);
-			OBJECT_UNREF(value->_object.object);
-			value->_object.object = conv;
-			goto __TYPE;
-		}
-	}
-
-	THROW(E_TYPE, TYPE_get_name(type), TYPE_get_name((TYPE)class));
-
-__v2:
-
-	undo_variant(value);
-	goto __CONV;
-
-__func:
-
-	//if (unknown_function(value))
-	//	goto __CONV;
-	//else
-		goto __N;
-
-__TYPE:
-
-	value->type = type;
-	return;
-
-__N:
-
-	THROW(E_TYPE, TYPE_get_name(type), TYPE_get_name(value->type));
-}
-#endif
 
 void VALUE_undo_variant(VALUE *value)
 {

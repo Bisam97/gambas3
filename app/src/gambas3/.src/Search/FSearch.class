@@ -1,10 +1,11 @@
 ' Gambas class file
 
-Public CaseSensitive As Boolean
+Public IgnoreCase As Boolean
 Public RegularExpression As Boolean
+Public ReplaceCaptureGroups As Boolean
 Public IgnoreStrings As Boolean
 Public IgnoreComments As Boolean
-Public WordOnly As Boolean
+Public WordsOnly As Boolean
 Public CurrentProcedure As Boolean
 Public CurrentProcedureName As String
 Public SearchString As String
@@ -13,20 +14,16 @@ Public BrowseTimeStamp As Integer
 Public OnlySource As Boolean
 Public OnlyData As Boolean
 
-Public InBrowse As Boolean
-
 Private $hCurrent As Object
 Private $sGrep As String
 Private $bReplace As Boolean
-Private $aBrowse As New CFindResult[]
-Private $aExt As String[] = ["JPG", "JPEG", "BMP", "GIF", "PNG", "ICO", "XPM", "GAMBAS", "WAV", "OGG"]
+'Private $aBrowse As New CSearchResult[]
 Private $bCancel As Boolean
 
 Private $cGrepCache As New Collection
 Private $cRefreshBrowse As New Collection
 Private $hFont As Font
 Private $CW As Float
-Private $hStyle As TextHighlighterStyle[]
 
 Private gvwFind As GridView
 
@@ -35,12 +32,31 @@ Private Const GO_BACKWARD As Integer = 1
 Private Const DO_REPLACE As Integer = 2
 Private Const DO_ALL As Integer = 4
 
+Private Enum SEARCH_STRING, SEARCH_REPLACE, SEARCH_AFTER_REPLACE, SEARCH_UPDATE
+
+Private $hTask As CSearchTask
+Private $sTaskBuffer As String
+Private $sTaskPath As String
+Private $bTaskOnDisk As Boolean
+Private $aResult As New CSearchResult[]
+Private $iTaskIndex As Integer
+Private $sTaskFullPath As String
+Private $bTaskUpdate As Boolean
+
+Private $bReplaceAll As Boolean
+Private $iReplaceFrom As Integer
+Private $bIgnoreFileChange As Boolean
+Private $nReplace As Integer
+Private $bUseReplaceString As Boolean
+
 Public Sub _new()
 
   Me.Utility = Settings["/UseUtilityWindows", 1]
   
   gvwFind = FDebugInfo.GetSearchList()
   Object.Attach(gvwFind, Me, "gvwFind")
+  
+  lblMessage.Padding = Desktop.Scale
   
   ReadConfig
 
@@ -56,10 +72,17 @@ Public Sub Form_Open()
   chkIgnoreComments.Value = Settings["/FSearch/IgnoreComments", False]
   chkIgnoreStrings.Value = Settings["/FSearch/IgnoreStrings", False]
   chkRegularExpression.Value = Settings["/FSearch/RegularExpression", False]
-  chkWordOnly.Value = Settings["/FSearch/WordOnly", False]
+  If chkRegularExpression.Value Then
+    chkReplaceCaptureGroups.Value = Settings["/FSearch/ReplaceCaptureGroups", False]
+  Else
+    chkReplaceCaptureGroups.Value = False
+  Endif
+  chkWordsOnly.Value = Settings["/FSearch/WordsOnly", False]
   'radSourceFileOnly.Value = Settings["/FSearch/SourceOnly", False]
   
   gvwFind_Font
+  
+  lblMessage.Hide
   
 End
 
@@ -73,7 +96,8 @@ Public Sub Form_Close()
   Settings["/FSearch/IgnoreComments"] = CBool(chkIgnoreComments.Value)
   Settings["/FSearch/IgnoreStrings"] = CBool(chkIgnoreStrings.Value)
   Settings["/FSearch/RegularExpression"] = CBool(chkRegularExpression.Value)
-  Settings["/FSearch/WordOnly"] = CBool(chkWordOnly.Value)
+  Settings["/FSearch/ReplaceCaptureGroups"] = CBool(chkReplaceCaptureGroups.Value)
+  Settings["/FSearch/WordsOnly"] = CBool(chkWordsOnly.Value)
   'Settings["/FSearch/SourceOnly"] = CBool(radSourceFileOnly.Value)
 
 End
@@ -88,18 +112,17 @@ Public Sub ReadConfig()
     Dec $hFont.Size
     If $hFont.Size < 6 Then Break
   Wend
-  $CW = Paint._EstimateFixedFontCharWidth($hFont)
+  $CW = Paint._EstimateFontCharWidth($hFont)
   
-  $hStyle = MTheme.GetStyles()
-  For I = 0 To $aBrowse.Max
-    $aBrowse[I].RichText = ""
+  For I = 0 To $aResult.Max
+    $aResult[I].RichText = ""
   Next
   
   gvwFind.Refresh
 
 End
 
-Private Sub UpdateTitle()
+Public Sub UpdateTitle()
 
   Dim sWhere As String
 
@@ -114,7 +137,6 @@ Private Sub UpdateTitle()
   Me.Title = ("Search & Replace") & " - " & sWhere
   
 End
-
 
 Public Sub Update(Optional bForce As Boolean)
   
@@ -180,20 +202,20 @@ End
 
 Public Sub cmbSearch_Activate()
 
-  If btnBrowse.Visible Then
-    btnBrowse.Value = True
-  Else
+  If btnNext.Visible Then
     btnNext.Value = True
+  Else
+    btnBrowse.Value = True
   Endif
 
 End
 
 Public Sub cmbReplace_Activate()
 
-  If btnBrowse.Visible Then
-    btnReplaceAll.Value = True
-  Else
+  If btnReplace.Visible Then
     btnReplace.Value = True
+  Else If btnReplaceAll.Visible Then
+    btnReplaceAll.Value = True
   Endif
 
 End
@@ -201,56 +223,15 @@ End
 Private Sub ShowMessage(sMsg As String, hCtrl As Control)
   
   If Me.Visible Then
-    Balloon.Info(sMsg, hCtrl)
+    lblMessage.Text = sMsg
+    lblMessage.Show
   Else 
     Project.SetMessage(sMsg)
   Endif
   
+  hCtrl.SetFocus
+  
 End
-
-' Private Sub GetCurrentPosition()
-'   
-'   Dim hFirst As Object
-'   
-'   If $hCurrent Then
-'     $hPosition = $hCurrent.GetFindPosition()
-'   Else
-'     hFirst = Project.Get
-'   Endif
-'   
-' End
-
-' Public Sub Grep_Read()
-'   
-'   Dim sData As String
-'   
-'   sData = Read #Last, Lof(Last)
-'   $sGrep &= sData
-'   
-' End
-
-' Private Sub MakeResult(sResult As String) As CFindResult
-'   
-'   Dim aResult As String[]
-'   Dim hResult As New CFindResult
-'   
-'   aResult = Split(sResult, ":")
-'   
-'   iLine = CInt(aResult[1]) - 1
-'   If iLine < hPos.Line Then Continue
-'   
-'   iCol = 0
-'   iPos = CInt(aResult[2])
-'   While iPos > 0
-'     If Mid$(sText, iPos, 1) = "\n" Then Break
-'     Dec iPos
-'     Inc iCol
-'   Wend
-'   
-'   hResult = New CFindResult
-'   hResult.Line = 
-'   
-' End
 
 Private Sub GrepQuote(sStr As String) As String
 
@@ -271,13 +252,13 @@ Private Sub GrepQuote(sStr As String) As String
 
 End
 
-Private Sub GrepFile(hFile As Object, Optional sPath As String, Optional bUseReplaceString As Boolean) As CFindResult[]
+Private Sub GrepFile(hFile As Object, Optional sPath As String, Optional bUseReplaceString As Boolean) As CSearchResult[]
   
   Dim sText As String
   Dim aGrep As String[]
-  Dim aResult As New CFindResult[]
+  Dim aResult As New CSearchResult[]
   Dim sFind As String
-  Dim hResult As CFindResult
+  Dim hResult As CSearchResult
   Dim sTemp As String
   Dim iAge As Integer
   Dim hGrepResult As CGrepResult
@@ -304,10 +285,10 @@ Private Sub GrepFile(hFile As Object, Optional sPath As String, Optional bUseRep
     aGrep.Add("--")
     aGrep.Add(ReplaceString)
   Else
-    If Not CaseSensitive Then aGrep.Add("-i")
+    If IgnoreCase Then aGrep.Add("-i")
     If RegularExpression Then 
       aGrep.Add("-E")
-    Else If WordOnly Then 
+    Else If WordsOnly Then 
       aGrep.Add("-E")
     Else
       aGrep.Add("-F")
@@ -315,7 +296,7 @@ Private Sub GrepFile(hFile As Object, Optional sPath As String, Optional bUseRep
     aGrep.Add("--")
     
     sSearch = SearchString
-    If WordOnly Then sSearch = "(^|[^_$[:alnum:]])" & GrepQuote(SearchString) & "($|[^_$[:alnum:]])"
+    If WordsOnly Then sSearch = "(^|[^_$[:alnum:]])" & GrepQuote(SearchString) & "($|[^_$[:alnum:]])"
     aGrep.Add(sSearch)
   Endif
   
@@ -345,7 +326,7 @@ Private Sub GrepFile(hFile As Object, Optional sPath As String, Optional bUseRep
 
   For Each sFind In Split($sGrep, "\n", "", True)
     
-    hResult = New CFindResult
+    hResult = New CSearchResult
     
     If hFile Then
       ' If hFile Is FOutput Then
@@ -374,8 +355,12 @@ Private Sub GrepFile(hFile As Object, Optional sPath As String, Optional bUseRep
     hResult.Pos = CInt(Left(sFind, iPos - 1))
     sFind = Mid$(sFind, iPos + 1)
 
-    If WordOnly Then
-      If String.Left(sFind) <> String.Left(SearchString) Then hResult.Pos += String.Len(String.Left(sFind))
+    If WordsOnly Then
+      If IgnoreCase Then
+        If String.LCase(sFind) Not Begins String.LCase(SearchString) Then hResult.Pos += String.Len(String.Left(sFind))
+      Else
+        If sFind Not Begins SearchString Then hResult.Pos += String.Len(String.Left(sFind))
+      Endif
       sFind = SearchString
     Endif
     
@@ -410,11 +395,12 @@ Private Sub InitSearch() As Boolean
   Project.StoreCombo(cmbSearch)
   Project.StoreCombo(cmbReplace)
   
-  CaseSensitive = chkCaseSensitive.Value
+  IgnoreCase = Not chkCaseSensitive.Value
   IgnoreStrings = chkIgnoreStrings.Value
   IgnoreComments = chkIgnoreComments.Value
   RegularExpression = chkRegularExpression.Value
-  WordOnly = chkWordOnly.Value
+  ReplaceCaptureGroups = chkReplaceCaptureGroups.Value
+  WordsOnly = chkWordsOnly.Value
   CurrentProcedure = radCurrentProcedure.Value
   OnlySource = radSourceFileOnly.Value
   OnlyData = radDataFileOnly.Value
@@ -423,7 +409,7 @@ Private Sub InitSearch() As Boolean
   
 End
 
-Private Sub DoReplace(aResult As CFindResult[], iInd As Integer, sReplace As String)
+Private Sub DoReplace(aResult As CSearchResult[], iInd As Integer, sReplace As String)
 
   Dim iAdd As Integer
   
@@ -439,13 +425,14 @@ End
 
 Private Sub Run(iAction As Integer)
   
-  Dim aResult As CFindResult[]
+  Dim aResult As CSearchResult[]
   Dim iCurrentPos, iPos, iInd As Integer
   Dim iTry As Integer
   Dim nReplace As Integer
   Dim hEditor As FEditor
   Dim hTextEditor As TextEditor
   Dim iLastPos As Integer
+  Dim sReplace As String
   
   If InitSearch() Then Return
   ResetBrowse
@@ -464,18 +451,21 @@ Private Sub Run(iAction As Integer)
   
   If iAction And DO_REPLACE And If iAction And DO_ALL Then
     
-    Try hTextEditor.Begin
-    While aResult.Count
-      If $hCurrent.SetPosition(aResult[0], False) Then 
-        aResult.Remove(0)
-      Else
-        If Not $hCurrent.Replace(ReplaceString) Then
-          Inc nReplace
-          DoReplace(aResult, 0, ReplaceString)
+    If hTextEditor Then
+      hTextEditor.Begin
+      While aResult.Count
+        If $hCurrent.SetPosition(aResult[0], True) Then 
+          aResult.Remove(0)
+        Else
+          $hCurrent.SetPosition(aResult[0], False)
+          If Not hTextEditor.SearchReplace(ByRef sReplace) Then
+            Inc nReplace
+            DoReplace(aResult, 0, sReplace)
+          Endif
         Endif
-      Endif
-    Wend
-    Try hTextEditor.End
+      Wend
+      hTextEditor.End
+    Endif
     
   Else
 
@@ -520,11 +510,12 @@ Private Sub Run(iAction As Integer)
           
         Endif
       
-        If $hCurrent.SetPosition(aResult[iInd], False) Then Goto FIND_NEXT
+        If $hCurrent.SetPosition(aResult[iInd], True) Then Goto FIND_NEXT
+        $hCurrent.SetPosition(aResult[iInd], False)
         
         If iAction And DO_REPLACE And If iPos = iLastPos Then 
-          If Not $hCurrent.Replace(ReplaceString) Then
-            DoReplace(aResult, iInd, ReplaceString)
+          If Not hTextEditor.SearchReplace(ByRef sReplace) Then
+            DoReplace(aResult, iInd, sReplace)
           Endif
           iAction = iAction And Not DO_REPLACE
         Else
@@ -557,7 +548,7 @@ End
 
 ' Private Sub UpdateSpan(iRow As Integer)
 '   
-'   Dim hResult As CFindResult
+'   Dim hResult As CSearchResult
 '   Dim iLastFile, iLastLine As Integer
 '   
 '   If iRow >= $aBrowse.Count Then Return
@@ -590,20 +581,20 @@ End
 ' End
 
 
-Public Sub AddFound(hResult As CFindResult, Optional iIndex As Integer = -1)
+Public Sub AddFound(hResult As CSearchResult, Optional iIndex As Integer = -1)
   
   If iIndex < 0 Then
-    iIndex = $aBrowse.Count
-    $aBrowse.Add(hResult)
+    iIndex = $aResult.Count
+    $aResult.Add(hResult)
   Else
-    $aBrowse.Add(hResult, iIndex)
+    $aResult.Add(hResult, iIndex)
   Endif
   
   If iIndex > 0 Then 
-    If hResult.File = $aBrowse[iIndex - 1].File Then
-      hResult.Dark = $aBrowse[iIndex - 1].Dark
+    If hResult.File = $aResult[iIndex - 1].File Then
+      hResult.Dark = $aResult[iIndex - 1].Dark
     Else
-      hResult.Dark = Not $aBrowse[iIndex - 1].Dark
+      hResult.Dark = Not $aResult[iIndex - 1].Dark
     Endif
   Endif
   
@@ -628,8 +619,14 @@ Private Sub FindPathInBrowseResult(sPath As String) As Integer
   
   Dim iInd As Integer
   
-  For iInd = 0 To $aBrowse.Max
-    If $aBrowse[iInd].Path = sPath Then Return iInd
+  For iInd = 0 To $aResult.Max
+    If $aResult[iInd].Path = sPath Then
+      Repeat
+        $aResult.Remove(iInd)
+        If iInd >= $aResult.Count Then Break
+      Until $aResult[iInd].Path <> sPath
+      Return iInd
+    Endif
   Next
   
   Return -1
@@ -638,194 +635,209 @@ End
 
 Private Sub UpdateSearchList()
 
-  Dim iLen As Integer
+  Dim sMsg As String
+  
+  gvwFind.Rows.Count = $aResult.Count
+  gvwFind.Refresh
 
-  iLen = gvwFind.Rows.Count
-  If iLen = 0 Then
-    FDebugInfo.SetSearchListInfo()
-  Else If iLen = 1 Then
-    FDebugInfo.SetSearchListInfo(("One match"))
+  If $aResult.Count = 0 Then
+    sMsg = ""
+  Else If $aResult.Count = 1 Then
+    sMsg = ("One match")
   Else
-    FDebugInfo.SetSearchListInfo(Subst(("&1 matches"), iLen))
+    sMsg = Subst(("&1 matches"), $aResult.Count)
   Endif
   
-  gvwFind.Columns[4].W = -1
-    
-End
-
-Private Sub BrowseFile(sPath As String, bReplace As Boolean, Optional iIndex As Integer = -1, Optional bRefresh As Boolean)
-  
-  Dim hFile As Object
-  Dim aResult As CFindResult[]
-  Dim iInd As Integer
-  Dim hResult As CFindResult
-  Dim iStart As Integer
-  
-  If iIndex < 0 Then
-    iStart = $aBrowse.Count
-  Else
-    iStart = iIndex
-  Endif
-  
-  hFile = Project.Files[sPath]
-  aResult = GrepFile(hFile, sPath)
-  If aResult.Count = 0 Then Return
-  
-  Try hFile = Project.LoadFile(sPath)
-  If Not hFile Then Return
-  
-  If bReplace Then
-    
-    For iInd = aResult.Max DownTo 0
-      hResult = aResult[iInd]
-      If hFile.SetPosition(hResult) Then Continue
-      hFile.Replace(ReplaceString)
-    Next
-    
-    aResult = GrepFile(hFile, sPath, True)
-    
-  Endif
-  
-  For iInd = 0 To aResult.Max
-    hResult = aResult[iInd]
-    If Not hFile.SetPosition(hResult, True) Then 
-      hResult.Path = sPath
-      AddFound(hResult, iIndex)
-      If bRefresh Then 
-        If iIndex >= 0 Then gvwFind.Rows[iIndex].Refresh
-      Endif
-      If iIndex >= 0 Then Inc iIndex
+  If $nReplace Then
+    If sMsg Then sMsg &= " ‒ "
+    If $nReplace = 1 Then
+      sMsg &= ("One replacement")
+    Else
+      sMsg &= Subst(("&1 replacements"), $nReplace)
     Endif
-  Next
+  Endif
   
-  gvwFind.Rows.Count = $aBrowse.Count
-  UpdateSearchList
+  FDebugInfo.SetSearchListInfo(sMsg)
   
 End
 
-Public Sub ResetBrowse()
+' Private Sub BrowseFile(sPath As String, bReplace As Boolean, Optional iIndex As Integer = -1, Optional bRefresh As Boolean)
+'   
+'   Dim hFile As Object
+'   Dim aResult As CSearchResult[]
+'   Dim iInd As Integer
+'   Dim hResult As CSearchResult
+'   Dim iStart As Integer
+'   
+'   If iIndex < 0 Then
+'     iStart = $aResult.Count
+'   Else
+'     iStart = iIndex
+'   Endif
+'   
+'   hFile = Project.Files[sPath]
+'   aResult = GrepFile(hFile, sPath)
+'   If aResult.Count = 0 Then Return
+'   
+'   Try hFile = Project.LoadFile(sPath)
+'   If Not hFile Then Return
+'   
+'   If bReplace Then
+'     
+'     For iInd = aResult.Max DownTo 0
+'       hResult = aResult[iInd]
+'       If hFile.SetPosition(hResult) Then Continue
+'       hFile.Replace(ReplaceString)
+'     Next
+'     
+'     aResult = GrepFile(hFile, sPath, True)
+'     
+'   Endif
+'   
+'   For iInd = 0 To aResult.Max
+'     hResult = aResult[iInd]
+'     If Not hFile.SetPosition(hResult, True) Then 
+'       hResult.Path = sPath
+'       AddFound(hResult, iIndex)
+'       If bRefresh Then 
+'         If iIndex >= 0 Then gvwFind.Rows[iIndex].Refresh
+'       Endif
+'       If iIndex >= 0 Then Inc iIndex
+'     Endif
+'   Next
+'   
+'   UpdateSearchList
+'   
+' End
+
+Public Sub ResetBrowse(Optional bKeepResult As Boolean)
   
-  gvwFind.Rows.Count = 0
+  If $hTask Then $hTask.Stop()
+  timFillList.Stop
+  
+  If bKeepResult Then Return
+    
+  $bReplaceAll = False
+  $bUseReplaceString = False
+  'gvwFind.Rows.Count = 0
   gvwFind.Clear
-  gvwFind.Rows.Height = Max(gvwFind.Font.Height, $hFont.Height) + 4
-  $aBrowse.Clear
+  gvwFind_Font '.Rows.Height = Max(gvwFind.Font.Height, $hFont.Height) + 4
+  $aResult.Clear
   ClearCache
   UpdateSearchList
   
 End
 
 
-Private Sub Browse(Optional bReplace As Boolean, Optional bAgain As Boolean)
-  
-  Dim sDir As String
-  Dim sFile As String
-  Dim sPath As String
-  Dim sName As String
-  Dim sExt As String
-  Dim fTime As Float
-  
-  If Not bAgain Then
-    If InitSearch() Then Return
-  Else
-    If Not SearchString Then Return
-  Endif
-  'OnlySource = bOnlySource
-  
-  InBrowse = True
-  
-  CurrentProcedure = False
-  BrowseTimeStamp = Project.TimeStamp
-  
-  FDebugInfo.ShowSearchList
-  
-  Inc Application.Busy
-  FDebugInfo.EnableGUI(False)
-  'tabSearch.Enabled = False
-  
-  'btnClose.Text = ("Cancel")
-  $bCancel = False
-  
-  ResetBrowse
-  
-  Inc FMain.NoMessage
-  
-  If OnlySource Then
-    sDir = Project.Dir &/ ".src"
-  Else
-    sDir = Project.Dir
-  Endif
-  
-  fTime = Timer
-  
-  For Each sFile In RDir(sDir).Sort()
-  
-    If Left(sFile) = "." And If sFile Not Begins ".public/" Then
-      If OnlyData Then Continue
-      If sFile Not Begins ".src/" Then Continue
-    Endif
-    
-    If Right(sFile) = "~" Then Continue
-    
-    sPath = sDir &/ sFile
-  
-    If IsDir(sPath) Then Continue
-    If InStr(sPath, "/.svn/") Then Continue
-    
-    sExt = UCase(File.Ext(sFile))
-    If $aExt.Exist(sExt) Then Continue
-    
-    sName = File.Name(sPath)
-    If sName Begins "core." Then Continue
-    If sName Begins "vgcore." Then Continue
-    If sName Begins "callgrind.out." Then Continue
-    If sName Begins "cachegrind.out." Then Continue
-    
-    If Not Project.IsTextFile(sPath) Then Continue
-    
-    If bReplace And If Not Access(sPath) Then Continue
-    
-    If sFile Begins ".src/" Then
-      FDebugInfo.SetSearchListInfo(sName)
-    Else
-      FDebugInfo.SetSearchListInfo(sFile)
-    Endif
-  
-    BrowseFile(sPath, bReplace)
-    If (Timer - fTime) > 0.2 Then
-      fTime = Timer
-      Wait 0.01
-    Endif
-    If $bCancel Then Break
-    
-    'Debug sName
-  Next
-  
-  gvwFind.Columns[0].Width = -1
-  gvwFind.Columns[1].Width = -1
-  
-  If bReplace Then 
-    SearchString = ReplaceString
-    CaseSensitive = True
-    RegularExpression = False
-    WordOnly = False
-  Endif
-  
-Finally
-  
-  Dec FMain.NoMessage
-  
-  UpdateSearchList
-  
-  'lblBrowse.Hide
-  FDebugInfo.EnableGUI(True)
-  'btnClose.Text = ("Close")
-  Dec Application.Busy
-  
-  InBrowse = False
-
-End
-
-
+' Private Sub Browse(Optional bReplace As Boolean, Optional bAgain As Boolean)
+'   
+'   Dim sDir As String
+'   Dim sFile As String
+'   Dim sPath As String
+'   Dim sName As String
+'   Dim sExt As String
+'   Dim fTime As Float
+'   
+'   If Not bAgain Then
+'     If InitSearch() Then Return
+'   Else
+'     If Not SearchString Then Return
+'   Endif
+'   'OnlySource = bOnlySource
+'   
+'   InBrowse = True
+'   
+'   CurrentProcedure = False
+'   BrowseTimeStamp = Project.TimeStamp
+'   
+'   FDebugInfo.ShowSearchList
+'   
+'   Inc Application.Busy
+'   FDebugInfo.EnableGUI(False)
+'   'tabSearch.Enabled = False
+'   
+'   'btnClose.Text = ("Cancel")
+'   $bCancel = False
+'   
+'   ResetBrowse
+'   
+'   Inc FMain.NoMessage
+'   
+'   If OnlySource Then
+'     sDir = Project.Dir &/ ".src"
+'   Else
+'     sDir = Project.Dir
+'   Endif
+'   
+'   fTime = Timer
+'   
+'   For Each sFile In RDir(sDir).Sort()
+'   
+'     If Left(sFile) = "." And If sFile Not Begins ".public/" Then
+'       If OnlyData Then Continue
+'       If sFile Not Begins ".src/" Then Continue
+'     Endif
+'     
+'     If Right(sFile) = "~" Then Continue
+'     
+'     sPath = sDir &/ sFile
+'   
+'     If IsDir(sPath) Then Continue
+'     If InStr(sPath, "/.svn/") Then Continue
+'     
+'     sExt = UCase(File.Ext(sFile))
+'     If $aExt.Exist(sExt) Then Continue
+'     
+'     sName = File.Name(sPath)
+'     If sName Begins "core." Then Continue
+'     If sName Begins "vgcore." Then Continue
+'     If sName Begins "callgrind.out." Then Continue
+'     If sName Begins "cachegrind.out." Then Continue
+'     
+'     If Not Project.IsTextFile(sPath) Then Continue
+'     
+'     If bReplace And If Not Access(sPath) Then Continue
+'     
+'     If sFile Begins ".src/" Then
+'       FDebugInfo.SetSearchListInfo(sName)
+'     Else
+'       FDebugInfo.SetSearchListInfo(sFile)
+'     Endif
+'   
+'     BrowseFile(sPath, bReplace)
+'     If (Timer - fTime) > 0.2 Then
+'       fTime = Timer
+'       Wait 0.01
+'     Endif
+'     If $bCancel Then Break
+'     
+'     'Debug sName
+'   Next
+'   
+'   gvwFind.Columns[0].Width = -1
+'   gvwFind.Columns[1].Width = -1
+'   
+'   If bReplace Then 
+'     SearchString = ReplaceString
+'     IgnoreCase = False
+'     RegularExpression = False
+'     WordsOnly = False
+'   Endif
+'   
+' Finally
+'   
+'   Dec FMain.NoMessage
+'   
+'   UpdateSearchList
+'   
+'   'lblBrowse.Hide
+'   FDebugInfo.EnableGUI(True)
+'   'btnClose.Text = ("Close")
+'   Dec Application.Busy
+'   
+'   InBrowse = False
+' 
+' End
 
 Public Sub btnNext_Click()
 
@@ -871,13 +883,13 @@ Public Sub FindProject(sText As String)
   'WakeUp(False)
   cmbSearch.Text = sText
   radEverywhere.Value = True
-  Browse()
+  Search(SEARCH_STRING)
   
 End
 
 Public Sub BrowseAgain()
   
-  Browse(False, True)
+  Search(SEARCH_STRING)
   
 End
 
@@ -892,7 +904,7 @@ Private Sub ShowString()
 
   Dim hForm As Object
   Dim bIgnoreCase As Boolean = chkCaseSensitive.Value = False
-  Dim bWordOnly As Boolean = chkWordOnly.Value
+  Dim bWordOnly As Boolean = chkWordsOnly.Value
   Dim sStr As String
   
   If chkHighlight.Value And If Me.Visible And If chkRegularExpression.Value = False Then sStr = cmbSearch.Text
@@ -908,6 +920,7 @@ Public Sub cmbSearch_Change()
   'If Not cmbSearch.Text Then Stop
   'FMain.UpdateSearchString(cmbSearch.Text)
   ShowString
+  lblMessage.Hide
   
 End
 
@@ -918,7 +931,7 @@ Public Sub OnNewForm(hForm As Object)
   
   If chkHighlight.Value And If Me.Visible And If chkRegularExpression.Value = False Then sStr = cmbSearch.Text
   
-  Try hForm.OnShowString(sStr, chkCaseSensitive.Value = False, chkWordOnly.Value)
+  Try hForm.OnShowString(sStr, chkCaseSensitive.Value = False, chkWordsOnly.Value)
   
 End
 
@@ -946,7 +959,7 @@ Public Sub btnReplaceAll_Click()
   If Message.Question(("Do you really want to replace every string?"), ("Replace"), ("Cancel")) <> 1 Then Return
   
   If btnBrowse.Visible Then
-    Browse(True)
+    Search(SEARCH_REPLACE)
   Else
     Run(GO_FORWARD + DO_REPLACE + DO_ALL)
   Endif
@@ -993,158 +1006,129 @@ End
 
 Public Sub btnBrowse_Click()
 
-  Browse(False)
+  'Browse(False)
+  
+  Search(SEARCH_STRING)
 
 End
 
 Public Sub gvwFind_Font()
   
-  gvwFind.Rows.Height = Max(gvwFind.Font.Height, $hFont.Height) + 4
+  gvwFind.Rows.Height = Max(gvwFind.Font.Height, $hFont.Height) + Desktop.Scale
   gvwFind.Columns[0].Width = -1
   gvwFind.Columns[1].Width = -1
+  gvwFind.Columns[0].Width = Max(gvwFind.Columns[0].Width, Desktop.Scale * 20)
+  gvwFind.Columns[1].Width = Max(gvwFind.Columns[1].Width, Desktop.Scale * 20)
   gvwFind.Refresh
-
+  
 End
 
-Public Sub gvwFind_Draw(X As Integer, Y As Integer, (Width) As Integer, Height As Integer, Row As Integer, Column As Integer)
+Public Sub gvwFind_Draw(X As Integer, Y As Integer, Width As Integer, Height As Integer, Row As Integer, Column As Integer)
 
-  Dim hResult As CFindResult
+  Dim hResult As CSearchResult
   Dim sText As String
   Dim iCol As Integer
   Dim XX As Integer
   Dim WW As Integer
+  Dim iPos As Integer
 
   If Column <> 4 Then Return
 
-  hResult = $aBrowse[Row]
+  hResult = $aResult[Row]
 
-  sText = hResult.Text
+  sText = Replace(hResult.Text, "\t", " ")
   iCol = hResult.Column
   
   Paint.Font = $hFont
   
   X += Desktop.Scale \ 2
   
-  If hResult.Highlight And Len(sText) < 1024 Then
+  iPos = Max(1, iCol - CInt(Width / 2 / $CW))
 
-    If $CW Then
-      XX = $CW * iCol
-      WW = $CW * hResult.Length
-      X -= Max(0, XX - $CW * 40)
-    Else
-      XX = $hFont.TextWidth(String.Left(sText, iCol))
-      WW = $hFont.TextWidth(String.Left(sText, iCol + hResult.Length)) - XX
-      X -= Max(0, XX - $hFont.TextWidth("0") * 40)
-    Endif
+  XX = $hFont.TextWidth(String.Mid$(sText, iPos, iCol - iPos + 1))
+  WW = $hFont.TextWidth(String.Mid$(sText, iPos, iCol - iPos + 1 + hResult.Length)) - XX
+  Paint.FillRect(X + XX, Y, WW, Height, MTheme.GetColor("Highlight"))
 
-    Paint.FillRect(X + XX, Y, WW, Height, $hStyle[Highlight.Highlight].Color)
-    TextHighlighter[hResult.Highlight].Paint(sText, X, Y, $hStyle)
-    
-  Else
-    
-    If iCol > 40 Then
-      sText = String.Mid$(sText, iCol - 40)
-      iCol = 41
-    Endif
-    
-    If $CW Then
-      XX = $CW * iCol
-      WW = $CW * hResult.Length
-    Else
-      XX = $hFont.TextWidth(String.Left(sText, iCol))
-      WW = $hFont.TextWidth(String.Left(sText, iCol + hResult.Length)) - XX
-    Endif
-    
-    Paint.FillRect(X + XX, Y, WW, Height, $hStyle[Highlight.Highlight].Color)
-    
-    Paint.Background = $hStyle[Highlight.Normal].Color
-    Paint.DrawText(sText, X, Y + $hFont.Ascent)
-    
+  If hResult.Highlight = "gambas" Then
+    TextHighlighter[hResult.Highlight].Paint(sText, X, Y, MTheme.Theme, iPos)
+  Else 
+    Paint.DrawText(String.Mid$(sText, iPos, 512), X, Y + $hFont.Ascent)
   Endif
-  
-  ' If $CW And If hResult.Highlight And If iLen < 1024 Then
-  ' 
-  '   sText = hResult.RichText
-  '   
-  '   If Not sText Then
-  '     sText = TextHighlighter[TextEditor.GetModeFromPath(hResult.Path)].ToRichText(hResult.Text, $hStyle)
-  '     hResult.RichText = sText
-  '   Endif
-  '   
-  '   bRichText = True
-  '   
-  ' Endif
-  ' 
-  ' Paint.Font = $hFont
-  ' 
-  ' ' If bRichText Then
-  ' '   If iCol >= 40 Then
-  ' '     X -= (iCol - 40) * $CW
-  ' '   Endif
-  ' ' Else 
-  '   If iCol >= 40 Then
-  '     sText = String.Mid$(sText, iCol - 39)
-  '     iCol = 40
-  '   Endif
-  ' 'Endif
-  ' 
-  ' If System.RightToLeft Then
-  '   X -= -1000000
-  '   Width += 1000000
-  '   Width -= Desktop.Scale \ 2
-  ' Else
-  '   X += Desktop.Scale \ 2
-  '   Width = 1000000
-  '   If $CW Then
-  '     XX = X + $CW * iCol '$hFont.TextWidth(String.Left(sText, iCol))
-  '     WW = $CW * hResult.Length '$hFont.TextWidth(String.Mid$(sText, iCol + 1, hResult.Length))
-  '   Else
-  '     XX = X + $hFont.TextWidth(String.Left(sText, iCol))
-  '     WW = $hFont.TextWidth(String.Mid$(sText, iCol + 1, hResult.Length))
-  '   Endif
-  ' Endif
-  ' 
-  ' Paint.FillRect(XX, Y, WW, Height, $hStyle[Highlight.Highlight].Color)
-  ' 
-  ' Paint.Background = $hStyle[Highlight.Normal].Color
-  ' 
-  ' If bRichText Then
-  '   Paint.DrawRichText(sText, X, Y, Width, Height, Align.Normal)
-  ' Else
-  '   Paint.DrawText(sText, X, Y, Width, Height, Align.Normal)
-  ' Endif
   
 End
 
 
 Public Sub gvwFind_Data(Row As Integer, Column As Integer)
 
-  Dim hResult As CFindResult
+  Dim hResult As CSearchResult
+  Dim hPrevResult As CSearchResult
   Dim iCol As Integer
+  Dim hBorder As Border
   
-  If Row > $aBrowse.Max Then Return
+  If Row > $aResult.Max Then Return
 
    With gvwFind.Data
     
-    hResult = $aBrowse[Row]
+    hResult = $aResult[Row]
+    If Row Then hPrevResult = $aResult[Row - 1]
+    
+    hBorder = New Border
+    hBorder.Style = Border.None
+    
+    If hPrevResult And If hPrevResult.File <> hResult.File Then
+      hBorder.TopStyle = Border.Solid
+      hBorder.TopWidth = 2
+      hBorder.TopColor = Color.LightForeground
+    Else If Not hPrevResult Or If hPrevResult.Location <> hResult.Location Then
+      hBorder.TopStyle = Border.Solid
+      hBorder.TopWidth = 1
+      hBorder.TopColor = Color.LightForeground
+    Else If hPrevResult.Line <> hResult.Line Then
+      hBorder.TopStyle = Border.Solid
+      hBorder.TopWidth = 1
+      hBorder.TopColor = Color.SetAlpha(Color.LightForeground, 192)
+    Endif
+    
+    If Row = $aResult.Max Then
+      hBorder.BottomStyle = Border.Solid
+      hBorder.BottomWidth = 1
+      hBorder.BottomColor = Color.LightForeground
+    Endif
+    
+    hBorder.Padding = Desktop.Scale \ 2
+    
+    If Column = 3 Then
+      hBorder.RightStyle = Border.Solid
+      hBorder.RightWidth = 1
+      hBorder.RightColor = Color.LightForeground
+    Endif
+    
+    .Border = hBorder
     
     Select Case Column
       Case 0
-        .Text = hResult.File
-        .Alignment = Align.Normal
+        If Not hPrevResult Or If hPrevResult.File <> hResult.File Then
+          .Text = hResult.File
+          .Alignment = Align.Normal
+          .Picture = Project.GetFileIcon(Project.Dir &/ hResult.Path, 16)
+        Endif
       Case 1
-        .Text = hResult.GetLocation()
-        .Alignment = Align.Normal
+        If Not hPrevResult Or If hPrevResult.File <> hResult.File Or If hPrevResult.Location <> hResult.Location Then
+          .Text = hResult.Location
+          .Alignment = Align.Normal
+        Endif
       Case 2
-        .Text = CStr(hResult.Line + 1) & " "
-        .Alignment = Align.Right
+        If Not hPrevResult Or If hPrevResult.File <> hResult.File Or If hPrevResult.Location <> hResult.Location Or If hPrevResult.Line <> hResult.Line Then
+          .Text = CStr(hResult.Line) & " "
+          .Alignment = Align.Right
+        Endif
       Case 3
         .Text = CStr(hResult.Column + 1) & " "
         .Alignment = Align.Right
     End Select
 
     If Column = 4 Then
-      iCol = $hStyle[Highlight.Background].Color
+      iCol = MTheme.GetColor("Background")
       'If hResult.Dark Then iCol = Color.Merge(iCol, $hStyle[Highlight.Normal].Color, 0.05)
       .Background = iCol
     Else
@@ -1164,16 +1148,16 @@ End
 
 Public Sub gvwFind_Select()
 
-  Dim hFind As CFindResult
+  Dim hFind As CSearchResult
   Dim hForm As Object
 
-  If $aBrowse.Count = 0 Then Return
+  If $aResult.Count = 0 Then Return
   If gvwFind.Row < 0 Then Return
   If Not gvwFind.Rows[gvwFind.Row].Selected Then Return
   
-  hFind = $aBrowse[gvwFind.Row]
+  hFind = $aResult[gvwFind.Row]
   
-  Try hForm = Project.OpenFile(hFind.Path)
+  Try hForm = Project.OpenFile(Project.Dir &/ hFind.Path)
   If Not hForm Then Return
   
   Project.Activate(hForm)
@@ -1188,7 +1172,7 @@ End
 Public Sub Form_KeyPress()
 
   If Key.Code = Key.Escape Then 
-    If InBrowse Then
+    If IsSearching() Then
       Cancel
     Else
       Me.Close
@@ -1203,6 +1187,7 @@ Private Sub ClearCache()
   
   $cGrepCache.Clear
   $cRefreshBrowse.Clear
+  timRefresh.Stop
   
 End
 
@@ -1211,15 +1196,16 @@ Public Sub OnProjectChange()
   ClearCache
   gvwFind.Rows.Count = 0
   gvwFind.Hide
-  $aBrowse.Clear
+  $aResult.Clear
   Update(True)
   
 End
 
 Public Sub OnFileChange(sPath As String)
   
-  If Not $cGrepCache.Exist(sPath) Then Return
-  
+  'If Not $cGrepCache.Exist(sPath) Then Return
+  If $bIgnoreFileChange Then Return
+  'Debug sPath
   $cRefreshBrowse[sPath] = True
   timRefresh.Restart
   
@@ -1228,33 +1214,25 @@ End
 Public Sub RefreshBrowse()
   
   Dim sPath As String
-  Dim iIndex As Integer
+  Dim aPath As String[]
   
   If Not FDebugInfo.IsSearchListVisible() Then Return
   If $cRefreshBrowse.Count = 0 Then Return
-  If InBrowse Then Return
+  If IsSearching() Then Return
   
   Object.Lock(gvwFind)
   
+  aPath = New String[]
   For Each $cRefreshBrowse
     sPath = $cRefreshBrowse.Key
-    
     $cGrepCache[sPath] = Null
-    
-    iIndex = FindPathInBrowseResult(sPath)
-    If iIndex >= 0 Then
-      While $aBrowse[iIndex].Path = sPath
-        $aBrowse.Remove(iIndex)
-        If iIndex >= $aBrowse.Count Then Break
-      Wend
-    Endif
-    BrowseFile(sPath, False, iIndex)
-    
+    aPath.Add(sPath)
   Next
+  
+  If aPath.Count Then Search(SEARCH_UPDATE, aPath)
   
   $cRefreshBrowse.Clear
   Object.Unlock(gvwFind)
-  gvwFind.Rows.Count = $aBrowse.Count
   gvwFind.Refresh
   gvwFind.ScrollX = 0
   timRefresh.Stop
@@ -1304,13 +1282,12 @@ Public Sub OnProjectDebug()
   
 End
 
-
 Public Sub radSearch_Click()
 
-  btnBrowse.Visible = radEverywhere.Value Or radSourceFileOnly.Value Or radDataFileOnly.Value
-  btnReplace.Visible = Not btnBrowse.Visible
-  btnNext.Visible = Not btnBrowse.Visible
-  btnPrevious.Visible = Not btnBrowse.Visible
+  btnBrowse.Visible = radEverywhere.Value Or radSourceFileOnly.Value Or radDataFileOnly.Value Or radCurrentFile.Value
+  btnReplace.Visible = Not (radEverywhere.Value Or radSourceFileOnly.Value Or radDataFileOnly.Value)
+  btnNext.Visible = btnReplace.Visible
+  btnPrevious.Visible = btnReplace.Visible
   
   UpdateReplaceState
   
@@ -1331,7 +1308,7 @@ End
 ' 
 ' End
 
-Public Sub chkWordOnly_Click()
+Public Sub chkWordsOnly_Click()
 
   ShowString
 
@@ -1339,12 +1316,222 @@ End
 
 Public Sub chkRegularExpression_Click()
 
+  chkReplaceCaptureGroups.Enabled = chkRegularExpression.Value
+  If Not chkRegularExpression.Value Then chkReplaceCaptureGroups.Value = False
   ShowString
 
 End
 
-Public Sub GetHighlightStyle() As TextHighlighterStyle[]
+Public Sub IsSearching() As Boolean
   
-  Return $hStyle
+  Return timFillList.Enabled
+  
+End
+  
+Public Sub SearchTask_Read(Data As String)
+
+  $sTaskBuffer &= Data  
+  timFillList.Start
+  
+End
+
+Public Sub timFillList_Timer()
+  
+  Dim sLine As String
+  Dim hResult As CSearchResult
+  Dim hFile As Object
+  Dim fTimer As Float
+  Dim iPos As Integer
+  Dim bUndo As Boolean
+  Dim hNewFile As Object
+  Dim hEditor As TextEditor
+  Dim sReplace As String
+  
+  fTimer = Timer
+  
+  $bIgnoreFileChange = True
+  
+  While (Timer - fTimer) < 0.02
+    
+    If $iReplaceFrom > 0 Then
+      
+      Dec $iReplaceFrom
+      hResult = $aResult[$iReplaceFrom]
+
+      hNewFile = Project.LoadFile(Project.Dir &/ hResult.Path)
+      If hNewFile <> hFile Then
+        If bUndo Then
+          Try hFile.GetEditor().End
+          bUndo = False
+        Endif
+        hFile = hNewFile
+      Endif
+      
+      If Not hFile Then Continue
+      If hFile.SetPosition(hResult) Then Continue
+      
+      If Not bUndo Then
+        Try hFile.GetEditor().Begin
+        bUndo = True
+      Endif
+      
+      hEditor = Null
+      Try hEditor = hFile.GetEditor()
+      If hEditor Then
+        If Not hEditor.SearchReplace(ByRef sReplace) Then
+          hResult.Text = String.Left(hResult.Text, hResult.Column) & sReplace & String.Mid(hResult.Text, hResult.Column + hResult.Length + 1)
+          hResult.Length = String.Len(sReplace)
+          hResult.Bytes = Len(sReplace)
+          Inc $nReplace
+        Endif
+      Endif
+      
+      Continue
+      
+    Endif
+    
+    iPos = InStr($sTaskBuffer, "\n")
+    If iPos = 0 Then Break
+    sLine = Left($sTaskBuffer, iPos - 1)
+    $sTaskBuffer = Mid$($sTaskBuffer, iPos + 1)
+    
+    If sLine Begins "/" Then
+      
+      $sTaskPath = Mid$(sLine, 2)
+      $sTaskFullPath = Project.Dir &/ sLine
+      If $bTaskUpdate Then
+        $iTaskIndex = FindPathInBrowseResult($sTaskPath)
+      Else
+        $iTaskIndex = -1
+      Endif
+      hFile = Project.Files[$sTaskFullPath]
+      If hFile And If hFile.IsModified() Then
+        $bTaskOnDisk = False
+      Else 
+        $bTaskOnDisk = True
+      Endif
+      hFile = Null
+      
+    Else
+      
+      If Not hFile Then hFile = Project.LoadFile($sTaskFullPath)
+      If Not hFile Then Continue
+      
+      hResult = New CSearchResult
+      hResult.Path = $sTaskPath
+      hResult.File = hFile.Name
+      hResult.OnDisk = $bTaskOnDisk
+      
+      If hResult.InitFromLine(sLine) Then 
+        Error "gambas3: warning: incorrect search result: "; sLine
+        Continue
+      Endif
+      
+      If hFile.SetPosition(hResult, True) Then Continue
+      
+      hResult.Highlight = TextEditor.GetModeFromPath($sTaskFullPath)
+
+      AddFound(hResult, $iTaskIndex)
+      If $iTaskIndex >= 0 Then Inc $iTaskIndex
+      
+      'FOutput.Insert(hResult.File & " " & hResult.Line & " " & hResult.Column & "\n")
+      
+    Endif
+    
+  Wend
+  
+  $bIgnoreFileChange = False
+  
+  UpdateSearchList
+  
+  If bUndo Then 
+    $bIgnoreFileChange = True
+    Try hFile.GetEditor().End
+    $bIgnoreFileChange = False
+  Endif
+
+  If $sTaskBuffer Then Return
+  If $hTask Then Return
+  If $iReplaceFrom > 0 Then Return
+
+  If $bReplaceAll Then 
+    If $iReplaceFrom < 0 Then
+      $iReplaceFrom = $aResult.Count
+      Return
+    Endif
+  Endif
+  
+  gvwFind.Columns[0].Width = -1
+  gvwFind.Columns[1].Width = -1
+  If gvwFind.Columns[1].Width >= Desktop.Scale * 32 Then gvwFind.Columns[1].Width = Desktop.Scale * 32
+  gvwFind.Columns[4].W = -1
+      
+  timFillList.Stop
+  FDebugInfo.StopSearch
+  
+  ' If $bReplaceAll Then
+  '   ClearCache
+  '   Search(SEARCH_AFTER_REPLACE)
+  ' Endif
+  
+End
+
+Public Sub SearchTask_Kill()
+  
+  If $hTask = Last Then $hTask = Null
+  
+End
+
+Private Sub Search(iMode As Integer, Optional aPath As String[])
+  
+  If InitSearch() Then Return
+  
+  Me.Hide
+  FDebugInfo.ShowSearchList
+  FDebugInfo.StartSearch
+  
+  $sTaskBuffer = ""
+  $sTaskPath = ""
+  $bTaskOnDisk = False
+  $iTaskIndex = -1
+  $bTaskUpdate = iMode = SEARCH_UPDATE
+
+  ResetBrowse($bTaskUpdate)
+  
+  $hTask = New CSearchTask As "SearchTask"
+  
+  If iMode = SEARCH_AFTER_REPLACE Then $bUseReplaceString = True
+  
+  With $hTask
+    
+    If $bUseReplaceString Then
+      .Search = ReplaceString
+      .IgnoreCase = False
+      .RegularExpression = False
+      .WordsOnly = False
+    Else
+      .Search = SearchString
+      .IgnoreCase = IgnoreCase
+      .RegularExpression = RegularExpression
+      .WordsOnly = WordsOnly
+    Endif
+    
+    If $bTaskUpdate Then
+      .Update = aPath
+    Else If radEverywhere.Value Then
+      .Where = CSearchTask.ALL_FILES
+    Else If radSourceFileOnly.Value Then
+      .Where = CSearchTask.SOURCE_FILES
+    Else If radDataFileOnly.Value Then
+      .Where = CSearchTask.DATA_FILES
+    Else
+      .Where = $hCurrent.Path
+    Endif
+    
+  End With
+  
+  $bReplaceAll = iMode = SEARCH_REPLACE
+  $iReplaceFrom = -1
+  If iMode = SEARCH_STRING Or If iMode = SEARCH_REPLACE Then $nReplace = 0
   
 End

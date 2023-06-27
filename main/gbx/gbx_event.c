@@ -2,7 +2,7 @@
 
   gbx_event.c
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -27,6 +27,7 @@
 #include "gb_common_buffer.h"
 #include "gbx_exec.h"
 #include "gbx_api.h"
+#include "gbx_signal.h"
 
 #include "gbx_event.h"
 
@@ -231,6 +232,8 @@ bool EVENT_check_post(void)
 	fprintf(stderr, "EVENT_check_post: START\n");
 	#endif
 
+	SIGNAL_check(SIGCHLD);
+	
 	while (_post_list)
 	{
 		ret = TRUE;

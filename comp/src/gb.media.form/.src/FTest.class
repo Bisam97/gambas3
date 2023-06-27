@@ -1,1 +1,29 @@
 ' Gambas class file
+
+Public Sub Button1_Click()
+
+  MediaView1.Volume = Rnd
+
+End
+
+Static Public Sub _init()
+  
+  Component.Load("gb.form")
+  Application.Theme = "Gambas"
+  
+End
+
+Public Sub Button2_Click()
+
+  MediaView1.Visible = Not MediaView1.Visible
+
+End
+
+Public Sub btnOpen_Click()
+
+  If Dialog.OpenFile() Then Return 
+  MediaView1.Stop
+  MediaView1.URL = Dialog.Path
+  MediaView1.Play
+
+End

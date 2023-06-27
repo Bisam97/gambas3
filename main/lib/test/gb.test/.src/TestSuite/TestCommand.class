@@ -1,0 +1,127 @@
+' Gambas class file
+
+''' The class TestCommand stores the names of a testmodule and optional tests to be executed.
+''' It also contains methods to translate testcommands to string and vice versa.
+
+Export
+Create Static
+
+'' Name of the testmodule to be called
+Public ModuleName As String
+
+'' Name of tests in a testmodule to be called. If empty, all will be called.
+Public Methods As New String[]
+
+'' Finds the Command for the TestModule with name TestModuleName
+Static Public Function _Find(Commands As TestCommand[], TestModuleName As String) As TestCommand
+
+    Dim Command As TestCommand
+
+    For Each Command In Commands
+        If Lower(Command.ModuleName) = Lower(TestModuleName) Then
+            Return Command
+        Endif
+    Next
+
+End
+
+'' Creates a string from an array of testcommands
+Static Public Function ToString(Commands As TestCommand[]) As String
+
+    Dim Command As TestCommand
+    Dim asBuf As New String[]
+
+    Commands.Sort()
+    For Each Command In Commands
+        If Command.Methods.Count = 0 Then
+            asBuf.Add(Command.ModuleName)
+        Else
+            Command.Methods.Sort()
+            asBuf.Add(Command.ModuleName & "." & Command.Methods.Join(";"))
+        Endif
+    Next
+
+    Return asBuf.Join(",")
+
+End
+
+'' Parses a string with comma separated tests and creates an array of TestCommands.
+Static Public Function FromString(Tests As String) As TestCommand[]
+
+    Dim asAll, asMethod As String[]
+    Dim sCommand, sModulename, sMethod As String
+    Dim Command As TestCommand
+    Dim Commands As New TestCommand[]
+    Dim i As Integer
+
+    If Tests <> Null Then
+        'Commands = New TestCommand[]
+
+        asAll = Split(Tests, ",", Null, True)
+
+        For i = 0 To asAll.Count - 1
+            asAll[i] = Trim(asAll[i])
+        Next
+
+        asAll.Sort
+
+        For Each sCommand In asAll
+
+            'just to be sure
+            sModulename = Null
+            sMethod = Null
+            i = 0
+
+            Command = New TestCommand
+
+            With Command
+                If InStr(sCommand, ".") > 0 Then
+                    sModulename = Trim(Left(sCommand, InStr(sCommand, ".") - 1))
+                    sMethod = Trim(Right(sCommand, Len(sCommand) - InStr(sCommand, ".")))
+
+                    If InStr(sMethod, ";") > 0 Then
+                        asMethod = Split(sMethod, ";")
+                        .Methods = asMethod
+                    Else
+                        .Methods.Add(sMethod)
+                    Endif
+                    .ModuleName = sModulename
+                Else
+                    .ModuleName = Trim(sCommand)
+                Endif
+            End With
+
+            'If InStr(Command, ".") > 0 Then
+            If Not Commands.Exist(Command) Then
+                Commands.Add(Command)
+            Endif
+
+            For Each Commands
+                If Commands[i].ModuleName = sModulename And If Commands[i].Methods.Count > 0 Then
+                    If Not Commands[i].Methods.Exist(sMethod) And If InStr(sMethod, ";") = 0 Then
+                        Commands[i].Methods.Add(sMethod)
+                    Endif
+                Endif
+                Inc i
+            Next
+        Next
+
+        For Each Command In Commands
+            Command.Methods = Command.Methods.Sort()
+        Next
+
+        Commands = Commands.Sort()
+    Endif
+
+    Return Commands
+
+End
+
+Public Function _compare(TC As TestCommand) As Integer
+
+    Dim ret As Integer
+
+    ret = Comp(ModuleName, TC.ModuleName, gb.Binary)
+    Return ret
+
+End

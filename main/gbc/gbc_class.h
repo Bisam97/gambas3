@@ -2,7 +2,7 @@
 
   gbc_class.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -30,6 +30,7 @@
 
 #define FUNC_INIT_STATIC    0
 #define FUNC_INIT_DYNAMIC   1
+#define FUNC_INIT_MAX       1
 
 typedef
 	struct {
@@ -37,7 +38,6 @@ typedef
 		int value;
 		int line;
 		}
-	PACKED
 	CLASS_SYMBOL_INFO;
 
 typedef
@@ -49,11 +49,11 @@ typedef
 		int unknown;
 		unsigned global_used : 1;
 		unsigned global_assigned : 1;
+		unsigned global_no_warning : 1;
 		unsigned local_used : 1;
 		unsigned local_assigned : 1;
-		unsigned _reserved : 28;
+		unsigned _reserved : 27;
 		}
-	PACKED
 	CLASS_SYMBOL;
 
 typedef
@@ -63,8 +63,6 @@ typedef
 	struct {
 		TYPE type;
 		int index;
-		int pos;
-		int size;
 		}
 	VARIABLE;
 
@@ -82,6 +80,7 @@ typedef
 		int value;
 		int line;
 		int64_t lvalue;
+		unsigned is_integer : 1;
 		}
 	CONSTANT;
 
@@ -96,13 +95,15 @@ typedef
 		unsigned fast : 1;             // If this function is jit compiled
 		unsigned unsafe : 1;           // If this function is unsafe
 		unsigned use_is_missing : 1;   // If this function uses IsMissing()
-		unsigned _reserved : 12;
+		unsigned no_debug : 1;         // Do not output deubgging information
+		unsigned _reserved : 11;
 		short nlocal;                  // Local variable count
 		short nctrl;                   // Control structure variable count
 		
 		uint64_t byref;                // Byref mask
 		PARAM *local;                  // Datatypes of local variables
 		PARAM *param;                  // Datatypes of arguments
+		PARAM *stat;                   // Datatypes of static local variables
 
 		PATTERN *start;                // Starts compilation from there
 		
@@ -121,8 +122,10 @@ typedef
 		ushort last_code2;             // Last last compiled bytecode position
 		ushort finally;                // FINALLY position
 		ushort catch;                  // CATCH position
+		
+		short code_stack_usage;        // save state of code generation
+		short code_stack;		
 		}
-	PACKED
 	FUNCTION;
 
 typedef
@@ -133,7 +136,6 @@ typedef
 		short nparam;                  // Number of arguments
 		short _reserved;
 		}
-	PACKED
 	EVENT;
 
 typedef
@@ -147,7 +149,6 @@ typedef
 		int library;                   // Library name index
 		int alias;                     // Real function name index
 		}
-	PACKED
 	EXTFUNC;
 
 typedef
@@ -157,10 +158,10 @@ typedef
 		int line;                      // The line where the property is declared
 		int comment;                   // Property string description, added to datatype
 		int synonymous;                // Synonymous property index (-1 if not a synonymous)
+		int use;                       // Associated global private variable
 		short read;                    // Read function
 		short write;                   // Write function
 		}
-	PACKED
 	PROPERTY;
 
 typedef
@@ -221,6 +222,7 @@ typedef
 		CLASS_ARRAY *array;            // array definitions
 		CLASS_STRUCT *structure;       // structs definitions
 		char **names;                  // when some symbols must be created like object arrays
+		char *export_name;             // export name of the class
 		}
 	CLASS;
 
@@ -236,13 +238,19 @@ void CLASS_delete(CLASS **class);
 
 CLASS_SYMBOL *CLASS_declare(CLASS *class, int index, int type, bool global);
 void CLASS_check_unused_global(CLASS *class);
-void CLASS_begin_init_function(CLASS *class, int type);
 
-void CLASS_add_function(CLASS *class, TRANS_FUNC *decl);
+FUNCTION *CLASS_set_current_function(FUNCTION *func);
+#define CLASS_set_current_init_function(_class, _type) CLASS_set_current_function(&(_class)->function[_type])
+
+int CLASS_add_function(CLASS *class, TRANS_FUNC *decl);
 void CLASS_add_event(CLASS *class, TRANS_EVENT *decl);
 void CLASS_add_property(CLASS *class, TRANS_PROPERTY *prop);
 void CLASS_add_extern(CLASS *class, TRANS_EXTERN *decl);
+
 void CLASS_add_declaration(CLASS *class, TRANS_DECL *decl);
+void CLASS_add_static_declaration(CLASS *class, int index, TYPE type, CLASS_SYMBOL *sym, bool local);
+void CLASS_init_global_declaration(CLASS *class, TRANS_DECL *decl, CLASS_SYMBOL *sym, bool local);
+
 int CLASS_add_constant(CLASS *class, TRANS_DECL *decl);
 int CLASS_add_class(CLASS *class, int index);
 int CLASS_add_class_unused(CLASS *class, int index);
@@ -263,9 +271,9 @@ int CLASS_add_symbol(CLASS *class, const char *name);
 void CLASS_sort_declaration(CLASS *class);
 void CLASS_check_properties(CLASS *class);
 
-CLASS_SYMBOL *CLASS_get_local_symbol(int local);
+void CLASS_check_variable_prefix(CLASS_SYMBOL *sym, bool local);
 
-char *TYPE_get_desc(TYPE type);
+char *CLASS_get_export_name(CLASS *class);
 
 // gbc_dump.c
 

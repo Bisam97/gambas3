@@ -2,7 +2,7 @@
 
 	gbx_archive.c
 
-	(c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+	(c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -67,7 +67,7 @@ ARCHIVE *ARCHIVE_create(const char *name, const char *path)
 	ALLOC_ZERO(&arch, sizeof(ARCHIVE));
 
 	arch->name = name;
-	arch->path = path;
+	arch->path = STRING_new_zero(path);
 
 	arch->domain = STRING_new_zero(name ? name : "gb");
 
@@ -90,6 +90,7 @@ void ARCHIVE_load_exported_class(ARCHIVE *arch, int pass)
 	char *buffer;
 	int len;
 	char *name;
+	char *file_name;
 	CLASS *class;
 	int i;
 	COMPONENT *current;
@@ -135,6 +136,10 @@ void ARCHIVE_load_exported_class(ARCHIVE *arch, int pass)
 						fprintf(stderr, "Check %s global\n", name);
 					#endif
 
+					file_name = strchr(name, ' ');
+					if (file_name)
+						*file_name++ = 0;
+						
 					len = strlen(name);
 					optional = FALSE;
 
@@ -154,24 +159,18 @@ void ARCHIVE_load_exported_class(ARCHIVE *arch, int pass)
 
 					name[len] = 0;
 
-					/*
-					class = CLASS_look_global(name, strlen(name));
-
-					if (class)
-					{
-						#if DEBUG_COMP
-							fprintf(stderr, "...override!\n");
-						#endif
-						CLASS_load(class);
-						CLASS_check_global(class);
-					}
-					else
-						class = CLASS_find_global(name);*/
-
 					if (!optional || CLASS_look_global(name, len) == NULL)
 					{
-						class = CLASS_find_global(name);
-						CLASS_check_global(class);
+						class = CLASS_find_export(file_name, name);
+						
+						if (file_name)
+						{
+							ALLOC(&class->data, len + 1);
+							strcpy(class->data, file_name);
+							class->data[len] = 0;
+						}
+						
+						class = CLASS_check_global(class);
 
 						#if DEBUG_COMP
 							fprintf(stderr, "Add to load: %p %s\n", class, name);
@@ -332,14 +331,20 @@ void ARCHIVE_load_main()
 
 void ARCHIVE_delete(ARCHIVE *arch)
 {
+	int i;
 	LIST_remove(&_archive_list, arch, &arch->list);
 
 	if (arch->arch)
 		ARCH_close(arch->arch);
 
+	for (i = 0; i < TABLE_count(arch->classes); i++)
+		IFREE(TABLE_get_symbol(arch->classes, i)->name);
+	
 	TABLE_delete(&arch->classes);
+	
 	STRING_free(&arch->domain);
 	STRING_free(&arch->version);
+	STRING_free(&arch->path);
 
 	FREE(&arch);
 }
@@ -493,6 +498,9 @@ bool ARCHIVE_get(ARCHIVE *arch, const char **ppath, ARCHIVE_FIND *find)
 		find->arch = NULL;
 		return FALSE;
 	}
+	
+	if (!arch->arch) // archive has been created but loading has failed
+		return TRUE;
 
 	if (ARCH_find(arch->arch, *ppath, 0, &f))
 		return TRUE;
@@ -770,7 +778,7 @@ char *ARCHIVE_get_version(ARCHIVE *arch)
 			while (line)
 			{
 				n++;
-				if (n == 5)
+				if (n == 4)
 				{
 					arch->version = STRING_new_zero(line);
 					break;

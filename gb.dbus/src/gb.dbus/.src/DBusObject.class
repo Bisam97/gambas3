@@ -126,8 +126,8 @@ Public Sub _Register(hConnection As DBusConnection, sFullPath As String, Optiona
   Inc $iRegister
   
   If Not $sName Then 
-    $sName = DBus._RegisterApplication(hConnection)
-    If Not DBus.Unique Then $sName = Left($sName, - Len(CStr(Application.Id)) - 1)
+    $sName = hConnection.Open()
+    If Not DBus.Unique Then $sName = Left($sName, -Len(CStr(Application.Id)) - 1)
   Endif
   
   iPos = InStr(sFullPath, "/")
@@ -210,7 +210,7 @@ Public Sub _Unregister(hConnection As DBusConnection)
   $sPath = ""
   
   If _ObjectCache.Count = 0 Then 
-    DBus._UnregisterApplication(hConnection)
+    hConnection.Close()
     $sName = ""
   Endif
   
@@ -387,7 +387,7 @@ Public Sub _Introspect() As String
         sArg = ""
 
         For iInd = 0 To aSign.Max
-          sArg &= "      <arg name=\"arg" & CStr(iInd + 1) & "\" type=\"" & aSign[iInd] & "\"/>\n"
+          sArg &= "      <arg name=\"arg" & CStr(iInd + 1) & "\" type=\"" & aSign[iInd] & "\" direction=\"in\"/>\n"
         Next
 
         If sKind = Class.Event Then
@@ -419,7 +419,9 @@ Public Sub _Introspect() As String
         
       Case Class.Property
         
-        sDesc &= "    <property name=\"" & sSymbol & "\" type=\"" & sType & "\" access=\"" & If(bReadOnly, "read", "readwrite") & "\"/>\n"
+        sDesc &= "    <property name=\"" & sSymbol & "\" type=\"" & sType & "\" access=\"" & If(bReadOnly, "read", "readwrite") & "\">\n"
+        'sDesc &= "      <annotation name=\"org.freedesktop.DBus.Property.EmitsChangedSignal\" value=\"false\"/>"
+        sDesc &= "    </property>"
         
     End Select
     
@@ -613,6 +615,8 @@ Public Sub DBusObserver_Message()
     If sMethod = "Introspect" Then
       hObs.Reply("s", [_Introspect()])
       Return
+    Else If sMethod = "GetMachineId" Then
+      hObs.Reply("s", [DBus.MachineId])
     Endif
   Endif
   

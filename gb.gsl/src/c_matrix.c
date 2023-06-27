@@ -4,7 +4,7 @@
 
 	gb.gsl component
 
-	(c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+	(c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -604,7 +604,7 @@ static CMATRIX *_powf(CMATRIX *a, double f, bool invert)
 	if (invert || f != (double)(int)f)
 		return NULL;
 	
-	CMATRIX *m;
+	CMATRIX *m = NULL;
 	int n = (int)f;
 	
 	if (n == 0)

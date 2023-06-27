@@ -2,7 +2,7 @@
 
   eval_code.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -29,7 +29,6 @@
 #ifndef __CODE_C
 EXTERN short CODE_stack_usage;
 #endif
-
 
 PUBLIC void CODE_begin_function(FUNCTION *func);
 PUBLIC void CODE_end_function(FUNCTION *func);

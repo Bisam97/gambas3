@@ -2,7 +2,7 @@
 
   cpaint_impl.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -36,7 +36,8 @@ extern GB_PAINT_MATRIX_DESC PAINT_MATRIX_Interface;
 #endif
 
 void PAINT_begin(void *device);
-void PAINT_end();
+void PAINT_end(void);
+bool PAINT_is_internal(void);
 void PAINT_clip(int x, int y, int w, int h);
 #ifndef GTK3
 void PAINT_clip_region(GdkRegion *region);

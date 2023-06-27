@@ -2,7 +2,7 @@
 
   gtextbox.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -27,22 +27,23 @@
 class gTextBox : public gControl
 {
 public:
-	gTextBox(gContainer *parent, bool combo = false);
+	gTextBox(gContainer *parent);
 	~gTextBox();
 
 //"Properties"
-	int alignment();
-	bool hasBorder();
+	int alignment() const;
+	bool hasBorder() const { return _has_border; }
 	virtual int length();
-	int maxLength();
-	bool password();
-	int position();
+	int maxLength() const;
+	bool password() const;
+	int position() const;
 	virtual char *text();
-	virtual bool isReadOnly();
-	int selLength();
-	int selStart();
-	char* selText();
-	bool isSelected();
+	virtual char *placeholder() const;
+	virtual bool isReadOnly() const;
+	int selLength() const;
+	int selStart() const;
+	char* selText() const;
+	bool isSelected() const;
 
 	void setAlignment(int vl);
 	void setBorder(bool vl);
@@ -51,6 +52,7 @@ public:
 	void setPosition(int pos);
 	virtual void setReadOnly(bool vl);
 	virtual void setText(const char *vl);
+	virtual void setPlaceholder(const char *vl);
 	void setSelText(char *txt, int len);
 
 //"Methods"
@@ -64,23 +66,41 @@ public:
 
 	void getCursorPos(int *x, int *y, int pos);
 	
-//"Signals"
-	void (*onChange)(gTextBox *sender);
-	void (*onActivate)(gTextBox *sender);
-
+#ifdef GTK3
+	virtual void customStyleSheet(GString *css);
+#endif
+	
 //"Private"
   virtual void updateCursor(GdkCursor *cursor);
   void initEntry();
-  GtkWidget *entry;
-	virtual int minimumHeight();
 	virtual GtkIMContext *getInputMethod();
-
-	unsigned _changed : 1;
-	unsigned _border : 1;
+	
+	virtual void setMinimumSize();
+	virtual void setFont(gFont *ft);
+	
+	virtual gColor defaultBackground() const;
 
 #ifdef GTK3
-	static GtkCssProvider *_style_provider;
+	virtual void onEnterEvent();
+	virtual void onLeaveEvent();
+#endif
+
+	GtkWidget *entry;
+
+	unsigned _changed : 1;
+	unsigned _has_border : 1;
+	unsigned _text_area_visible : 1;
+	
+	int _last_position;
+
+#ifndef GTK3
+	char *_placeholder;
 #endif
 };
+
+// Callbacks
+void CB_textbox_change(gTextBox *sender);
+void CB_textbox_activate(gTextBox *sender);
+void CB_textbox_cursor(gTextBox *sender);
 
 #endif

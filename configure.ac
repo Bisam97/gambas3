@@ -6,7 +6,7 @@ dnl ****************************************************************************
 dnl ---- Initialization
 
 m4_include([version.m4])
-AC_INIT(gambas3, GB_VERSION, GB_MAIL, [], GB_URL)
+AC_INIT([gambas3],[GB_VERSION],[GB_MAIL],[],[GB_URL])
 AC_CONFIG_MACRO_DIR([m4])
 AC_PROG_LN_S
 
@@ -14,6 +14,7 @@ AC_CONFIG_SUBDIRS(main)
 
 GB_CONFIG_SUBDIRS(bzlib2, gb.compress.bzlib2)
 GB_CONFIG_SUBDIRS(zlib, gb.compress.zlib)
+GB_CONFIG_SUBDIRS(zstd, gb.compress.zstd)
 GB_CONFIG_SUBDIRS(mysql, gb.db.mysql)
 GB_CONFIG_SUBDIRS(odbc, gb.db.odbc)
 GB_CONFIG_SUBDIRS(postgresql, gb.db.postgresql)
@@ -38,6 +39,7 @@ GB_CONFIG_SUBDIRS(opengl, gb.opengl)
 GB_CONFIG_SUBDIRS(x11, gb.desktop.x11)
 GB_CONFIG_SUBDIRS(keyring, gb.desktop.gnome.keyring)
 GB_CONFIG_SUBDIRS(pdf, gb.pdf)
+GB_CONFIG_SUBDIRS(poppler, gb.poppler)
 GB_CONFIG_SUBDIRS(cairo, gb.cairo)
 GB_CONFIG_SUBDIRS(imageio, gb.image.io)
 GB_CONFIG_SUBDIRS(imageimlib, gb.image.imlib)
@@ -49,6 +51,7 @@ GB_CONFIG_SUBDIRS(media, gb.media)
 GB_CONFIG_SUBDIRS(httpd, gb.httpd)
 GB_CONFIG_SUBDIRS(openssl, gb.openssl)
 GB_CONFIG_SUBDIRS(openal, gb.openal)
+GB_CONFIG_SUBDIRS(htmlview, gb.form.htmlview)
 
 AC_CONFIG_SUBDIRS(comp)
 AC_CONFIG_SUBDIRS(app)
@@ -69,7 +72,8 @@ AC_SUBST(gblibdir)
 gbdatadir=$datadir/gambas$GAMBAS_VERSION/
 AC_SUBST(gbdatadir)
 
-AC_OUTPUT(Makefile)
+AC_CONFIG_FILES([Makefile])
+AC_OUTPUT
 
 GB_CLEAR_MESSAGES
 

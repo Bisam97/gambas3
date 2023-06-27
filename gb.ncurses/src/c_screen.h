@@ -40,6 +40,7 @@ typedef struct {
 	int cursor;
 	int input;
 	int buffered;
+	int suspended;
 } CSCREEN;
 
 int SCREEN_init();

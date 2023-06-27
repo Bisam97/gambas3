@@ -1,0 +1,62 @@
+' Gambas class file
+
+'Export 
+
+Inherits UserControl
+
+Public Const _Properties As String = "*,-Password,-MaxLength,Action,Filter,Mask,ShowDefault,Prompt{MaskBox.*}"
+'Public Const _DefaultEvent As String = "Click"
+'Public Const _DefaultSize As String = "24,4"
+Public Const _Similar As String = "TextBox"
+Public Const _DrawWith As String = "TextBox"
+
+Public Enum Space, Underscore, Bracket, Dash, Square, Circle
+
+Event Filter(Char As String)
+Event Validate
+
+Property Mask As String
+
+Private $sMask As String
+'Property Filter As String
+'Property ShowDefault As Boolean
+'Property Text As String
+'Property Prompt As Integer
+
+Public Sub _new()
+  
+  UpdateMask
+  
+End
+
+Private Function Mask_Read() As String
+
+  Return $sMask
+
+End
+
+Private Sub Mask_Write(Value As String)
+
+  If Value = $sMask Then Return
+  $sMask = Value
+  UpdateMask
+
+End
+
+Private Sub UpdateMask()
+
+  Dim hChild As Control
+  Dim hTextBox As TextBox
+
+  For Each hChild In Me.Children
+    hChild.Delete
+  Next
+
+  If Not $sMask Then
+    
+    hTextBox = New TextBox(Me)
+    Me.Proxy = hTextBox
+    
+  Endif
+
+End

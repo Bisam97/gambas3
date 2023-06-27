@@ -23,20 +23,17 @@ ac_lib_var=`echo $1['_']$2['_']$5 | sed 'y%./+- %__p__%'`
 AC_CACHE_VAL(ac_cv_lbl_lib_$ac_lib_var,
 [ac_save_LIBS="$LIBS"
 LIBS="-l$1 $5 $LIBS"
-AC_TRY_LINK(dnl
-ifelse([$2], [main], , dnl Avoid conflicting decl of main.
-[/* Override any gcc2 internal prototype to avoid an error.  */
-]ifelse(_AC_LANG_CURRENT, CPLUSPLUS, [#ifdef __cplusplus
+AC_LINK_IFELSE([AC_LANG_PROGRAM([[dnl
+ifelse($2, main, , dnl Avoid conflicting decl of main.
+/* Override any gcc2 internal prototype to avoid an error.  */
+ifelse(_AC_LANG_CURRENT, CPLUSPLUS, #ifdef __cplusplus
 extern "C"
 #endif
-])dnl
-[/* We use char because int might match the return type of a gcc2
+)dnl
+/* We use char because int might match the return type of a gcc2
     builtin and then its argument prototype would still apply.  */
 char $2();
-]),
-	    [$2()],
-	    eval "ac_cv_lbl_lib_$ac_lib_var=yes",
-	    eval "ac_cv_lbl_lib_$ac_lib_var=no")
+)]], [[$2()]])],[eval "ac_cv_lbl_lib_$ac_lib_var=yes"],[eval "ac_cv_lbl_lib_$ac_lib_var=no"])
 LIBS="$ac_save_LIBS"
 ])dnl
 if eval "test \"`echo '$ac_cv_lbl_lib_'$ac_lib_var`\" = yes"; then
@@ -127,12 +124,9 @@ dnl
 AC_DEFUN([GB_AC_ACME_TM_GMTOFF],
     [AC_MSG_CHECKING(if struct tm has tm_gmtoff member)
     AC_CACHE_VAL(ac_cv_acme_tm_has_tm_gmtoff,
-	AC_TRY_COMPILE([
+	AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
 #	include <sys/types.h>
-#	include <time.h>],
-	[u_int i = sizeof(((struct tm *)0)->tm_gmtoff)],
-	ac_cv_acme_tm_has_tm_gmtoff=yes,
-	ac_cv_acme_tm_has_tm_gmtoff=no))
+#	include <time.h>]], [[u_int i = sizeof(((struct tm *)0)->tm_gmtoff)]])],[ac_cv_acme_tm_has_tm_gmtoff=yes],[ac_cv_acme_tm_has_tm_gmtoff=no]))
     AC_MSG_RESULT($ac_cv_acme_tm_has_tm_gmtoff)
     if test $ac_cv_acme_tm_has_tm_gmtoff = yes ; then
 	    AC_DEFINE([HAVE_TM_GMTOFF], [], [if struct tm has the BSD tm_gmtoff member])
@@ -152,11 +146,8 @@ dnl
 AC_DEFUN([GB_AC_ACME_INT64T],
     [AC_MSG_CHECKING(if int64_t exists)
     AC_CACHE_VAL(ac_cv_acme_int64_t,
-	AC_TRY_COMPILE([
-#	include <sys/types.h>],
-	[int64_t i64],
-	ac_cv_acme_int64_t=yes,
-	ac_cv_acme_int64_t=no))
+	AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+#	include <sys/types.h>]], [[int64_t i64]])],[ac_cv_acme_int64_t=yes],[ac_cv_acme_int64_t=no]))
     AC_MSG_RESULT($ac_cv_acme_int64_t)
     if test $ac_cv_acme_int64_t = yes ; then
 	    AC_DEFINE([HAVE_INT64T], [], [if int64_t exists])
@@ -176,12 +167,9 @@ dnl
 AC_DEFUN([GB_AC_ACME_SOCKLENT],
     [AC_MSG_CHECKING(if socklen_t exists)
     AC_CACHE_VAL(ac_cv_acme_socklen_t,
-	AC_TRY_COMPILE([
+	AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
 #	include <sys/types.h>
-#	include <sys/socket.h>],
-	[socklen_t slen],
-	ac_cv_acme_socklen_t=yes,
-	ac_cv_acme_socklen_t=no))
+#	include <sys/socket.h>]], [[socklen_t slen]])],[ac_cv_acme_socklen_t=yes],[ac_cv_acme_socklen_t=no]))
     AC_MSG_RESULT($ac_cv_acme_socklen_t)
     if test $ac_cv_acme_socklen_t = yes ; then
 	    AC_DEFINE([HAVE_SOCKLENT], [], [if socklen_t exists])

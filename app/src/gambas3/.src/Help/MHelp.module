@@ -33,6 +33,9 @@ Public Sub _init()
   For Each sComp In ["gb.qt5.webkit", "gb.gui.qt.webkit"]
     $cSubstComponent[sComp] = "gb.qt4.webkit"
   Next
+  For Each sComp In ["gb.qt4.webview", "gb.qt5.webview", "gb.gtk3.webview"]
+    $cSubstComponent[sComp] = "gb.gui.webview"
+  Next
   
 End
 
@@ -358,7 +361,7 @@ End
 '' - `TYPE_KEYWORD` for a language keyword.
 '' - `TYPE_SPECIAL` for a special method.
 
-Public Sub InitWebViewWith(hWebView As WebView, iType As Integer, sSymbol As String, Optional sClass As String, Optional sMore As String, Optional hEditor As FEditor)
+Public Sub InitWebViewWith(hView As HelpView, iType As Integer, sSymbol As String, Optional sClass As String, Optional sMore As String, Optional hEditor As FEditor)
   
   Dim hSymbol As CSymbolInfo
   Dim hClass As CClassInfo
@@ -369,11 +372,12 @@ Public Sub InitWebViewWith(hWebView As WebView, iType As Integer, sSymbol As Str
   Dim sTemp As String
   Dim bHelpBrowser As Boolean
   
-  If Not hWebView Then 
+  If Not hView Then 
     If Not Class.IsLoaded("FHelpBrowser") Or If Not FHelpBrowser.Visible Then Return
-    bHelpBrowser = True
-    hWebView = FHelpBrowser.GetBrowser()
+    hView = FHelpBrowser.GetBrowser()
   Endif
+  
+  bHelpBrowser = hView.Browser
   
   If iType = TYPE_NATIVE Then
     
@@ -444,18 +448,16 @@ Public Sub InitWebViewWith(hWebView As WebView, iType As Integer, sSymbol As Str
     Endif
     
   Endif
-  
-  hWebView.Stop
-  hWebView.History.Clear
-  
+
   If sHtml Then
     
     sTemp = File.Dir(Temp$()) &/ "help"
     Try Mkdir sTemp
     sTemp &/= Replace(sUrl, "/", "|") & ".html"
     File.Save(sTemp, sHtml)
-    hWebView.Url = "file://" & sTemp
-    
+
+    hView.Load(sTemp)
+
   Else If sUrl Then
     
     If bHelpBrowser Then 
@@ -466,17 +468,28 @@ Public Sub InitWebViewWith(hWebView As WebView, iType As Integer, sSymbol As Str
     sUrl = URL.SetQuery(sUrl, "l", GetLanguage())
     sUrl = URL.SetQuery(sUrl, "nl")
     If sMore Then sUrl &= "&" & sMore
-    hWebView.Url = sUrl
+    
+    hView.SetUrl(sUrl)
     
   Else
     
-    hWebView.HTML = "<html><body><h2><i>" & ("No help found.") & "</i></h2></body></html>"
+    hView.SetHtml("<html><body><h2><i>" & ("No help found.") & "</i></h2></body></html>")
     
   Endif
   
-  'hWebView.TextZoom = 0.8
+End
+
+Public Sub InitWebViewWithHtml(hView As HelpView, sHtml As String)
+  
+  If Not hView Then 
+    If Not Class.IsLoaded("FHelpBrowser") Or If Not FHelpBrowser.Visible Then Return
+    hView = FHelpBrowser.GetBrowser()
+  Endif
+  
+  hView.SetHtml(sHtml)
   
 End
+
 
 Public Sub LoadHelpBrowser()
   
@@ -703,9 +716,9 @@ End
 ' 
 ' End
 
-'' Manage 'the gambas://' links
+'' Manage the 'gambas://' links
 
-Public Sub ManageSpecialLink(hWebView As WebView, sUrl As String)
+Public Sub ManageSpecialLink(hView As Object, sUrl As String)
   
   Dim sClass As String
   Dim sSymbol As String
@@ -740,20 +753,20 @@ Public Sub ManageSpecialLink(hWebView As WebView, sUrl As String)
         FMain.Show
       Else
         If aValues.Count = 4 Then
-          InitWebViewWith(hWebView, TYPE_CLASS, aValues[3])
+          InitWebViewWith(hView, TYPE_CLASS, aValues[3])
         Else
-          InitWebViewWith(hWebView, TYPE_SYMBOL, aValues[4], aValues[3])
+          InitWebViewWith(hView, TYPE_SYMBOL, aValues[4], aValues[3])
         Endif
       Endif 
       
     Else If aValues[2] = "library" Then
       
       If aValues.Count = 4 Then
-        InitWebViewWith(hWebView, TYPE_COMPONENT, aValues[3])
+        InitWebViewWith(hView, TYPE_COMPONENT, aValues[3])
       Else If aValues.Count = 5 Then
-        InitWebViewWith(hWebView, TYPE_CLASS, aValues[3] &/ aValues[4])
+        InitWebViewWith(hView, TYPE_CLASS, aValues[3] &/ aValues[4])
       Else If aValues.Count = 6
-        InitWebViewWith(hWebView, TYPE_SYMBOL, aValues[5], aValues[3] &/ aValues[4])
+        InitWebViewWith(hView, TYPE_SYMBOL, aValues[5], aValues[3] &/ aValues[4])
       Endif
       
     Endif
@@ -762,7 +775,7 @@ Public Sub ManageSpecialLink(hWebView As WebView, sUrl As String)
     
     sSymbol = aValues[3]
     sClass = File.Name(File.Dir(sUrl))
-    InitWebViewWith(hWebView, TYPE_SYMBOL, sSymbol, sClass)
+    InitWebViewWith(hView, TYPE_SYMBOL, sSymbol, sClass)
     
   Endif 
   
@@ -775,6 +788,8 @@ Public Sub Clear()
 End
 
 Public Sub LoadProxyConfig()
+  
+  Return
   
   With WebSettings.Proxy
     
@@ -888,37 +903,103 @@ Public Sub GetOfflineState() As Integer
   
 End
 
+Public Sub MakePage(sPath As String, Optional cSubst As Collection) As String
 
-Public Sub MakeOffline(hWebView As WebView, sUrl As String, Optional bNoHeader As Boolean)
-  
-  Dim sFile As String
-  Dim sHtml As String
+  Dim sStr As String
   Dim hFile As File
+  Dim sHtml As String
   Dim iPos As Integer
   Dim iPos2 As Integer
+  Dim sKey As String
+  
+  hFile = Open String For Write
+  Output To #hFile
+  
+  sHtml = File.Load(sPath)
+  iPos = 0
+  
+  Do
+    
+    iPos2 = InStr(sHtml, "$(", iPos + 1)
+    If iPos2 = 0 Then
+      Print Mid$(sHtml, iPos + 1);
+      Break
+    Endif
+    
+    Print Mid$(sHtml, iPos + 1, iPos2 - iPos - 1);
+    iPos = InStr(sHtml, ")", iPos2 + 2)
+    If iPos = 0 Then Break
+    
+    sKey = Mid$(sHtml, iPos2 + 2, iPos - iPos2 - 2)
+    Select Case sKey
+      Case "root"
+        InitOffline
+        Print GetOfflineDir();
+      Case "parent"
+        Wiki.PrintParent
+      Case "link"
+        Wiki.PrintLink
+      Case "page"
+        Wiki.PrintPage
+      Case Else 
+        If cSubst And If cSubst.Exist(sKey) Then
+          Print cSubst[sKey];
+        Endif
+    End Select
+    
+  Loop
+  
+  Output To Default
+  sStr = Close #hFile
+  Return sStr
+  
+
+End
+
+Private Sub InitOffline()
+
+  Dim sDir As String
+  Dim sFile As String
+  Dim sCss As String
+  
+  If Not $bInitOffline Then
+    
+    sDir = GetOfflineDir()
+    Shell.MkDir(sDir)
+    
+    For Each sFile In ["up.png", "critical.png", "info.png", "tip.png", "vb.png", "warning.png", "error-bg.png", "highlight.js"]
+      Try Kill sDir &/ sFile
+      Copy "help/wiki" &/ sFile To sDir &/ sFile
+    Next
+  
+    sCss = File.Load("help/wiki/style.css") & "\n" & File.Load("help/wiki/style-offline.css")
+    sCss = Replace(sCss, "font-family: sans-serif;", "")
+    sCss = Replace(sCss, "<%/%>", sDir)
+    File.Save(sDir &/ "style.css", sCss)
+    
+    $bInitOffline = True
+    
+  Endif
+  
+End
+
+Public Sub MakeOffline(hView As HelpView, sUrl As String, Optional bNoHeader As Boolean, Optional sHighlight As String) As Boolean
+  
+  Dim iPos As Integer
   Dim sQuery As String
   Dim sPath As String
+  Dim sDir As String
+  Dim cSubst As Collection
   
   Wiki.Root = GetOfflineDir()
   Wiki.InfoDir = CComponent.GetInfoDir()
   
   If Not IsDir(Wiki.Root) Then
-    hWebView.HTML = "<h2>" & ("Documentation is not available.") & "</h2>"
+    hView.SetHtml("<h2>" & ("Documentation is not available.") & "</h2>")
     Return
   Endif
   
-  If Not $bInitOffline Then
-    
-    For Each sFile In ["up.png", "critical.png", "info.png", "tip.png", "vb.png", "warning.png", "error-bg.png"]
-      Try Kill GetOfflineDir() &/ sFile
-      Copy "help/wiki" &/ sFile To GetOfflineDir() &/ sFile
-    Next
-  
-    File.Save(GetOfflineDir() &/ "style.css", Replace(File.Load("help/wiki/style.css"), "<%/%>", GetOfflineDir()) & "\n" & File.Load("help/wiki/style-offline.css"))
-    
-    $bInitOffline = True
-    
-  Endif
+  InitOffline
   
   iPos = InStr(sUrl, "?")
   If iPos Then
@@ -930,71 +1011,65 @@ Public Sub MakeOffline(hWebView As WebView, sUrl As String, Optional bNoHeader A
   Wiki.Path = "/" &/ Mid$(sUrl, 8)
   Wiki.AnalyzePath()
   
-  sPath = GetOfflineDir() &/ "data" &/ Wiki.Lang &/ Wiki.Path &/ "page.html"
-  If True Then 'Not Exist(sPath) Then
+  sDir = GetOfflineDir() &/ "data" &/ Wiki.Lang &/ Wiki.Path
+  sPath = sDir &/ "page.html"
   
-    hFile = Open sPath For Create
-    Output To #hFile
-    
-    sHtml = File.Load("help/wiki/page.html")
-    iPos = 0
-    
-    Do
-      
-      iPos2 = InStr(sHtml, "$(", iPos + 1)
-      If iPos2 = 0 Then
-        Print Mid$(sHtml, iPos + 1);
-        Break
-      Endif
-      
-      Print Mid$(sHtml, iPos + 1, iPos2 - iPos - 1);
-      iPos = InStr(sHtml, ")", iPos2 + 2)
-      If iPos = 0 Then Break
-      
-      Select Case Mid$(sHtml, iPos2 + 2, iPos - iPos2 - 2)
-        Case "root"
-          Print GetOfflineDir();
-        Case "parent"
-          Wiki.PrintParent
-        Case "link"
-          Wiki.PrintLink
-        Case "page"
-          Wiki.PrintPage
-        Case "noheader"
-          If bNoHeader Then 
-            Print "<style type=\"text/css\">"
-            Print ".header { display: none; }"
-            Print ".page { top: 0; }"
-            Print "</style>"
-          Endif
-      End Select
-      
-    Loop
-    
-    Output To Default
-    Close #hFile
-    
+  If Not IsDir(File.Dir(sPath)) Then
+    If Wiki.Class And If Wiki.HasDefaultHelp() Then
+      Mkdir File.Dir(sPath)
+    Endif
+  Endif
+  
+  If Not IsDir(sDir) Then
+    sPath = File.SetExt(Temp$("help"), "html")
   Endif
 
-  'Desktop.Open($sOffline)  
-  hWebView.Url = "file:///" &/ URL.Encode(sPath)
+  If bNoHeader Then cSubst = ["noheader": "<style type=\"text/css\">" ".header { display: none; }" ".page { top: 0; }" "</style>"]
+  File.Save(sPath, MakePage("help/wiki/page.html", cSubst))
+
+  hView.Load(sPath, sHighlight)
   
 Catch
   
   Output To Default
-  hWebView.Html = "<h2>" & ("This page does not exist.") & "</h2>"
+  Return True
+  'hWebView.SetHtml("<h2>" & ("This page does not exist.") & "</h2>")
   
 End
 
-Public Sub LoadCustom(sPage As String) As String
+' Public Sub LoadCustom(sPage As String) As String
+' 
+'   Dim sHtml As String
+' 
+'   sHtml = File.Load("help" &/ sPage)
+'   sHtml = Replace(sHtml, "$(style)", File.Load("help/wiki/style.css") & File.Load("help/wiki/style-custom.css"))
+'   
+'   Return sHtml
+' 
+' End
 
-  Dim sHtml As String
-
-  sHtml = File.Load("help" &/ sPage)
-  sHtml = Replace(sHtml, "$(style)", File.Load("help/wiki/style.css") & File.Load("help/wiki/style-custom.css"))
+Public Sub OnDocumentationUpdate()
   
-  Return sHtml
-
+  $bInitOffline = False
   
+End
 
+Public Sub HandleSpecialURL(hView As HelpView, sUrl As String) As Boolean
+
+  If sUrl Begins "gambas://" Then 
+    
+    ManageSpecialLink(hView, sUrl)
+    
+  Else If sUrl Begins "wiki://" Then
+    
+    If MakeOffline(hView, sUrl, True) Then
+      Return True
+    Endif
+    
+  Else 
+    
+    Return True
+    
+  Endif
+  
 End

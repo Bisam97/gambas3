@@ -1,0 +1,40 @@
+' Gambas module file
+
+Export 
+''' This will configure the reader to apply an alias to the input line
+''' Format is the key is the value to replace and the 
+''' value is the value in the collection
+''' if an alias is found and the last two characters of the key are
+''' () then the line is checked for a following open brace
+''' and every value seperated by a comma, is substitutes into the value string
+''' Up to a maximum of 20 parameters
+''' Aliases will only be applied once but will try all until all have been applied 
+''' or there are no more matches
+'''
+''' Examples
+'''    "Dog":"MyAnimals.add(\"Dog\")"
+'''    "Animal()":"Animals.add(&1,&2)"  in program looks like : Animal("dog","Big")
+
+''' Any part of the value that is surrounded by {} will be evaluated in the current context
+''' after all aliases are applied
+''' Example
+''' "Dog()":"Animals.add(&1,{quote(str(now))})" In Program dog("Red") expanded to Animals.add("red","2/2/2 19:00:00")
+
+Public Sub _call(AliasList As Collection)
+  If Not Class.IsLoaded("RegExp") Then 
+    Try Component.Load("gb.pcre")
+    If Error Then 
+        Warning("Component gb.pcre not found, filter will be ignored")
+        Return 
+    Endif
+    Try Class.Load("RegExp")
+    If Error Then 
+      Warning("Unable to load regexp, filter will be ignored")
+      Return
+    Endif
+  Endif
+  
+  Reader.$sScriptAlias = AliasList
+  
+End
+

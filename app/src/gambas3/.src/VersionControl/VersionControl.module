@@ -4,6 +4,8 @@ Property Read Name As String
 Property Read Enabled As Boolean
 Property Read Output As String
 Property Read DoNotPush As Boolean
+Property Read CanCreateBranch As Boolean
+Property Read HasIdentity As Boolean
 
 Private $hVC As CVersionControl
 
@@ -29,10 +31,45 @@ Public LANG_ENV As String[] = ["LC_ALL=C.UTF-8", "LANG=C.UTF-8", "LANGUAGE=C.UTF
 Public Const DELIM_CHANGE As String = ("This line and the following will be ignored")
 Public Enum ACCEPT_OURS = 1, ACCEPT_THEIRS = 2
 
+Private $bCancel As Boolean
+
+Private $sCurrentBranch As String
+Private $cBranchColor As New Collection
+
+Private $aBranchColor As Integer[] = [&HE00000, &HE00070, &HE000E0, &H6C00E0, &H0000E0, &H0060C0, &H00C0C0, &H00C000, &HC0C000, &HE0A400, &HC05C00, &HA00000, &HA00050, &HA000A0, &H008080, &H008000, &H808000, &HA07800, &HA04A00]
+
+Private Const DEFAULT_BRANCH_COLOR As Integer = &H606060
+
 Private Sub OnVersionControlChange()
 
   FMain.OnVersionControlChange
   FDebugInfo.OnVersionControlChange  
+  FDebugButton.OnVersionControlChange
+
+End
+
+Private Sub GetTextEditor() As String
+
+  Dim aProg As String[]
+  Dim sProg As String
+  
+  If Desktop.Is("kde4") Or If Desktop.Is("kde5") Then
+    aProg = ["kwrite"]
+  Else If Desktop.Is("xfce") Then
+    aProg = ["mousepad"]
+  Else If Desktop.Is("lxde") Then
+    aProg = ["leafpad"]
+  Else If Desktop.Is("mate") Then
+    aProg = ["pluma"]
+  Else
+    aProg = ["gnome-text-editor", "gedit"]
+  Endif
+  
+  aProg.Insert(["kwrite", "kate", "gnome-text-editor", "gedit", "editor", "emacs", "vim"])
+  
+  For Each sProg In aProg
+    If System.Exist(sProg) Then Return sProg
+  Next
 
 End
 
@@ -51,9 +88,23 @@ Public Sub Refresh()
     Endif
   Endif
   
+  $sCurrentBranch = ""
   $bAuth = False
   CheckPaths
   OnVersionControlChange
+  
+  If $bEnabled Then
+    
+    If Not Env["EDITOR"] Then
+      Env["EDITOR"] = GetTextEditor()
+      If Not Env["EDITOR"] Then
+        Message.Warning(("Please set the $EDITOR environment variable with your favorite graphical text editor. Some version control commands need it."))
+      Endif
+    Endif
+    
+    Project.UpdateBookmarks
+    
+  Endif
   
 End
 
@@ -73,7 +124,7 @@ Public Sub Insert(sText As String)
   If $hEditor Then
     $hEditor.Print(DConv(sText))
   Else
-    If Not Settings["/QuietExternalCommands", False] Then FDebugInfo.InsertVersionControl(sText)
+    FDebugInfo.InsertVersionControl(sText)
   Endif
 
 End
@@ -92,6 +143,26 @@ Public Sub Shell(sCmd As String, Optional bSilent As Boolean, Optional aEnv As S
   
 End
 
+Public Sub Exec(aCmd As String[], Optional bSilent As Boolean, Optional aEnv As String[]) As String
+  
+  Dim sResult As String
+  Dim sArg As String
+  
+  If Not bSilent Then
+    For Each sArg In aCmd
+      If InStr(sArg, " ") Then sArg = Quote(sArg)
+      Insert(sArg)
+    Next
+    Insert("\n")
+  Endif
+  Exec aCmd With aEnv To sResult
+  If Process.LastValue Then 
+    $sLastResult = sResult
+    Insert(sResult)
+  Endif
+  Return sResult
+  
+End
 
 Public Sub Run(aCmd As String[], Optional bIdent As Boolean, Optional bOutput As Boolean, Optional aEnv As String[]) As Integer
 
@@ -105,6 +176,7 @@ Public Sub Run(aCmd As String[], Optional bIdent As Boolean, Optional bOutput As
   $bOutput = bOutput
   $dOutput = Now
   $sLastResult = ""
+  $bCancel = False
   
   ' If bIdent Then
   '   'aCmd.Add("--non-interactive")
@@ -131,14 +203,18 @@ Public Sub Run(aCmd As String[], Optional bIdent As Boolean, Optional bOutput As
     
     If $bEnd Then Break
     
-    If DateDiff($dOutput, Now, gb.Second) >= 15 Then
-      Close #hProcess
+    If DateDiff($dOutput, Now, gb.Second) >= 30 Then
+      Try Close #hProcess
       hProcess.Kill
       Process_Error(("Command timeout.") & "\n" & ("Please check your network connection.") & "\n")
+      $bCancel = True
+      Break
     Endif
     
     Sleep 0.1
   Loop
+  
+  If $bCancel Then Return -1
   
   If Process.LastValue Then $sLastResult = $sOutput
   
@@ -153,14 +229,16 @@ Public Sub Process_Error(({Error}) As String)
   
 End
 
-
 Public Sub Process_Read()
 
   Dim sData As String
   Dim iPos As Integer
   Dim sLine As String
+  Dim hProcess As Process
 
-  sData = Read #Last, -4096
+  hProcess = Last
+  
+  sData = Read #hProcess, -4096
   $sOutput &= Replace(sData, "\r", "")
   If $bOutput Then Insert(sData)
   'Insert(sData)
@@ -177,25 +255,31 @@ Public Sub Process_Read()
     If Right(RTrim(sLine)) = ":" Then
       If InStr(sLine, "username", 1, gb.IgnoreCase) Then 
         'If $bOutput Then Insert(sLine)
-        If Not $bAuth Then GetAuthentication()
+        If Not $bAuth Then
+          If GetAuthentication() Then Goto CANCEL
+        Endif
         If Not $sUser Then Goto CANCEL
         Print #Last, $sUser
         Insert($sUser & "\n")
         $sOutput = ""
       Else If InStr(sLine, "password", 1, gb.IgnoreCase) Then 
         'If $bOutput Then Insert(sLine)
-        If Not $bAuth Then GetAuthentication()
+        If Not $bAuth Then
+          If GetAuthentication() Then Goto CANCEL
+        Endif
         Print #Last, $sPassword
         Insert("********" & "\n")
         $sOutput = ""
       Else If InStr(sLine, "passphrase", 1, gb.IgnoreCase) Then 
         'If $bOutput Then Insert(sLine)
-        If Not $bAuth Then GetAuthentication(True)
+        If Not $bAuth Then 
+          If GetAuthentication(True) Then Goto CANCEL
+        Endif
         Print #Last, $sPassword
         Insert("********" & "\n")
         $sOutput = ""
       Endif
-    Else If RTrim(sLine) Ends "(yes/no)?" Then
+    Else If RTrim(sLine) Like "*(yes/no*)?" Then
       Print #Last, "yes"
       Insert("yes\n")
       $sOutput = ""
@@ -206,7 +290,8 @@ Public Sub Process_Read()
   
 CANCEL:
 
-  Last.Kill
+  $bCancel = True
+  hProcess.Kill
 
 End
 
@@ -219,6 +304,7 @@ End
 Public Sub AddFile(sPath As String, Optional bForce As Boolean)
 
   $hVC.AddFile(sPath, bForce)
+  $hVC.UpdatePath(sPath)
 
   ' If $bCVS Then
   '   'NB: For CVS file must already exist
@@ -252,7 +338,6 @@ Public Sub RemoveFile(sPath As String, Optional (bForce) As Boolean)
 End
 
 ' Must be called *after* the directory has been deleted
-' The directory must be empty
 
 Public Sub RemoveDir(sPath As String)
 
@@ -331,19 +416,21 @@ End
 
 Public Sub Update()
 
-  Dim bErr As Boolean
   Dim hFile As Object
   Dim sFile As String
   Dim sPath As String
   Dim aRemove As String[]
+  Dim iResult As Integer
 
   Inc Application.Busy
-  bErr = $hVC.Update()
+  iResult = $hVC.Update()
   CheckPaths
   Project.Refresh
   Dec Application.Busy
 
-  If bErr Then  
+  If iResult < 0 Then Return ' cancelled
+  
+  If iResult Then  
     ShowError(("Unable to update project from repository."))
   Else
     Message.Info(("Project has been updated from repository successfully."))
@@ -367,11 +454,10 @@ Public Sub Update()
   Next
   Project.Workspace.Unlock
   
-  If aRemove.Count Then
-    
-    Project.Reload
+  Project.Reload
+  
+  If aRemove.Count Then    
     FMain.DoFilter(Project.FILTER_CONFLICT)
-    
   Endif
 
 End
@@ -439,12 +525,26 @@ End
 ' 
 ' End
 
-Public Sub Diff(Optional sPath As String) As String
+Public Sub Diff(Optional sPath As String, Optional bFull As Boolean, bNoWhiteSpace As Boolean) As String
 
   If Not sPath Then sPath = Project.Dir
-  Return $hVC.Diff(sPath)
+  Return $hVC.Diff(sPath, bFull, bNoWhiteSpace)
 
 End
+
+Public Sub History(Optional sPath As String, sPath2 As String, bFull As Boolean) As String
+
+  If Not sPath Then sPath = Project.Dir
+  Return $hVC.History(sPath, sPath2, bFull)
+
+End
+
+Public Sub HighlightHistory(sText As String)
+  
+  $hVC.HighlightHistory(sText)
+  
+End
+
 
 Public Sub CanControlProject() As Boolean
 
@@ -532,6 +632,13 @@ Private Function Output_Read() As String
 
 End
 
+Public Sub GetCurrentBranch() As String
+  
+  If Not $sCurrentBranch Then $sCurrentBranch = $hVC.GetCurrentBranch()
+  Return $sCurrentBranch
+    
+End
+
 Public Sub GetBranches(ByRef sCurrent As String) As String[]
   
   Return $hVC.GetBranches(ByRef sCurrent)
@@ -560,11 +667,11 @@ Public Sub GetDelimChange() As String
 
 End
 
-Private Sub GetAuthentication(Optional bNoUser As Boolean) 
+Private Sub GetAuthentication(Optional bNoUser As Boolean) As Boolean
 
   Dialog.NoUser = bNoUser
   Dialog.Key = Project.Name &/ "VersionControl"
-  If Dialog.AskPassword() Then Return
+  If Dialog.AskPassword() Then Return True
   $sUser = Dialog.User
   $sPassword = Dialog.Password
   $bAuth = True
@@ -583,13 +690,16 @@ Public Sub SetBranch(sBranch As String)
 
   Inc Application.Busy  
   $hVC.SetBranch(sBranch)
-  GetBranches(ByRef sCurrent)
+  $sCurrentBranch = ""
+  sCurrent = GetCurrentBranch()
   If sCurrent = sBranch Then Project.Reload
   Dec Application.Busy
   
   If sCurrent <> sBranch Then
     ShowError(Subst(("Unable to switch to branch `&1`."), sBranch))
   Endif
+  
+  Refresh()
   
 End
 
@@ -624,7 +734,7 @@ End
 
 Public Sub ShowError(sErr As String)
   
-  FVersionError.Run(sErr, $sLastResult)
+  FCommandError.Run(sErr, $sLastResult)
   
 End
 
@@ -643,6 +753,170 @@ End
 Public Sub NeedMove() As Boolean
   
   Return $hVC.NeedMove
+  
+End
+
+Public Sub GetBranchColor(sBranch As String) As Integer
+  
+  Dim iColor As Integer
+  Dim I As Integer
+  Dim iHash As Integer
+  'Dim iPos As Integer
+  Dim sCar As String
+  
+  If Not sBranch Then 
+  
+    iColor = DEFAULT_BRANCH_COLOR
+  
+  Else
+  
+    Try iColor = $cBranchColor[sBranch]
+    If Error Then
+      
+      ' static size_t fnv1a_hash(const char* cp)
+      ' {
+      '     size_t hash = 0x811c9dc5;
+      '     while (*cp) {
+      '         hash ^= (unsigned char) *cp++;
+      '         hash *= 0x01000193;
+      '     }
+      '     return hash;
+      ' }
+      
+      sBranch = LCase(sBranch)
+      
+      Select Case sBranch
+        
+        Case "master"
+          iColor = DEFAULT_BRANCH_COLOR
+          
+        Case Else 
+          
+          iHash = 5381
+          For I = 1 To Len(sBranch)
+            sCar = Mid$(sBranch, I, 1)
+            If Not IsAlnum(sCar) Then sCar = "-"
+            iHash += Asc(sCar)
+            iHash = (iHash * 33) Mod $aBranchColor.Count
+          Next
+          
+          iColor = $aBranchColor[iHash]
+        
+      End Select
+      
+      $cBranchColor[sBranch] = iColor
+      
+    Endif
+    
+  Endif
+  
+  If Application.DarkTheme Then iColor = Color.Invert(iColor, True)
+  Return iColor
+  
+End
+
+Public Sub GetBranchFromDir(sDir As String) As String
+
+  sDir = CVersionControlGit.FindRoot(sDir)
+  If sDir Then Try Return Trim(Split(File.Load(sDir &/ "HEAD"), "/").Last)
+
+End
+
+Public Sub GetRoot() As String
+  
+  Return $hVC.GetRoot()
+  
+End
+
+Public Sub CreateBranch(sNewBranch As String) As Boolean
+  
+  If $hVC.CreateBranch(sNewBranch) Then
+    ShowError(("Unable to create a new branch."))
+    Return True
+  Endif
+  
+End
+
+Public Sub GetIdentity(ByRef sName As String, ByRef sEmail As String)
+  
+  $hVC.GetIdentity(ByRef sName, ByRef sEmail)
+  
+End
+
+Public Sub SetIdentity(sName As String, sEmail As String)
+  
+  $hVC.SetIdentity(sName, sEmail)
+  
+End
+
+Private Function CanCreateBranch_Read() As Boolean
+
+  Return $hVC.CanCreateBranch
+
+End
+
+Private Function HasIdentity_Read() As Boolean
+
+  Return $hVC.HasIdentity
+
+End
+
+Public Sub FillBranchMenu(hParent As Menu, Optional hMenuButton As MenuButton)
+  
+  Dim sCurrent As String
+  Dim aBranches As String[]
+  Dim sBranch As String
+  Dim hMenu As Menu
+  
+  aBranches = GetBranches(ByRef sCurrent)
+  
+  If Not sCurrent Then
+    If hMenuButton Then
+      hMenuButton.Hide
+    Else 
+      hParent.Hide
+    Endif
+  Else
+    If hMenuButton Then
+      hMenuButton.Show
+      hMenuButton.Text = sCurrent
+    Else
+      hParent.Show
+    Endif
+    hParent.Children.Clear
+    
+    For Each sBranch In aBranches
+      hMenu = New Menu(hParent) As "mnuVcBranchSet"
+      hMenu.Text = sBranch
+      hMenu.Tag = sBranch
+      hMenu.Radio = True
+      hMenu.Checked = sBranch = sCurrent
+    Next
+    
+    If VersionControl.CanCreateBranch Then
+      
+      hMenu = New Menu(hParent)
+      
+      hMenu = New Menu(hParent) As "mnuVcBranchCreate"
+      hMenu.Text = Subst(("Create new branch") & "...", sCurrent)
+      hMenu.Picture = Picture["icon:/small/new-tag"]
+      
+    Endif
+    
+  Endif
+  
+End
+
+Public Sub mnuVcBranchSet_Click()
+  
+  VersionControl.SetBranch(Last.Tag)
+  
+End
+
+Public Sub mnuVcBranchCreate_Click()
+  
+  If FCreateBranch.Run() Then Return
+  Refresh()
   
 End
 

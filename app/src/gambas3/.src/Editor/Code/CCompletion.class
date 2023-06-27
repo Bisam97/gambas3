@@ -4,12 +4,27 @@ Public Const GAMBAS As String = "g"
 
 Property Read Enabled As Boolean
 
+Public Mode As String
+Public Code As Integer
+Public Text As String
+Public Column As Integer
+Public Backspace As Boolean
+
 Private $hModule As Object
 Private $bCompletion As Boolean
+Private $hTimerCompletion As Timer
 
 Public Sub _new(hModule As Object)
   
   $hModule = hModule
+  $hTimerCompletion = New Timer As "CheckCompletion"
+  $hTimerCompletion.Delay = 50
+  
+End
+
+Public Sub GetModule() As Object
+  
+  Return $hModule
   
 End
 
@@ -18,7 +33,6 @@ Private Sub GetEditor() As TextEditor
   Return $hModule.GetEditor()
   
 End
-
 
 Public Sub ReadConfig()
   
@@ -34,13 +48,71 @@ End
 
 Private Sub CheckCompletion(sMode As String)
   
-  If Not $bCompletion Then Return
-  If GetEditor().Selected Then Return
+  Dim hEditor As TextEditor
   
-  $hModule.CheckCompletion(sMode)
+  If Not $bCompletion Then Return
+  
+  hEditor = GetEditor()
+  If hEditor.Selected Then Return
+  
+  Mode = sMode
+  Code = Key.Code
+  Text = Key.Text
+  Column = hEditor.Column
+  Backspace = sMode = "<"
+  
+  $hTimerCompletion.Restart
   
 End
 
+Public Sub CheckCompletion_Timer()
+
+  Dim hEditor As TextEditor
+  Dim iSave As Integer
+  Dim sWord As String
+  Dim iPos As Integer
+  Dim sLine As String
+  
+  $hTimerCompletion.Stop
+  
+  hEditor = GetEditor()
+  If hEditor.Selected Then Return
+  
+  If Backspace Then
+    
+    If Not FCompletion.VisibleFrom(hEditor) Then
+      
+      sLine = String.Left$(hEditor.Current.Text, hEditor.Column)
+      sWord = GetRightString(sLine)
+      
+      If sWord Then
+        
+        If IsPath(sWord) Then
+          iSave = hEditor.Column
+          iPos = String.RInStr(sWord, "/")
+          sWord = String.Mid$(sWord, iPos + 1)
+          hEditor.Goto(hEditor.Column - String.Len(sWord), hEditor.Line)
+          Mode = "/"
+          $hModule.CheckCompletion()
+          FCompletion.SetText(sWord)
+          hEditor.Goto(iSave, hEditor.Line)
+        Endif
+        
+        Goto CHECK_SIGNATURE
+      
+      Endif
+      
+    Endif
+    
+  Endif
+  
+  $hModule.CheckCompletion()
+  
+CHECK_SIGNATURE:
+
+  Try $hModule.CheckSignature()
+  
+End
 
 Public Sub OnKeyPress() As Boolean
 
@@ -68,10 +140,10 @@ Public Sub OnKeyPress() As Boolean
   Else If Key.Code = Key.Backspace Then
 
     CheckCompletion("<")
-    If iCol <> hEditor.Column Then
-      Stop Event
-      Return True
-    Endif
+    ' If iCol <> hEditor.Column Then
+    '   Stop Event
+    '   Return True
+    ' Endif
 
   Else If Key.Text = "." Then
 
@@ -127,3 +199,84 @@ Public Sub GetWord(sLine As String, iPos As Integer) As String
 Catch
 
 End
+
+Public Sub GetPath(sLine As String, iPos As Integer) As String
+
+  Dim sCar As String
+  Dim iPos2 As Integer
+
+  iPos2 = iPos
+
+  Do
+    If iPos <= 0 Then Break
+    sCar = String.Mid$(sLine, iPos, 1)
+    If Not $hModule.IsWordChar(sCar) Then Break
+    Dec iPos
+  Loop
+
+  Inc iPos
+
+  Do
+    If iPos2 > String.Len(sLine) Then Break
+    sCar = String.Mid$(sLine, iPos, 1)
+    If Not $hModule.IsWordChar(sCar) Then Break
+    Inc iPos2
+  Loop
+
+  Return String.Mid$(sLine, iPos, iPos2 - iPos)
+
+Catch
+
+End
+
+Public Sub Position()
+
+  Dim hEditor As TextEditor = GetEditor()
+  
+  If Not FCompletion.VisibleFrom(hEditor) Then Return
+  FCompletion.Position(hEditor)
+  
+End
+
+Public Sub Open(Optional sClass As String, bStatic As Boolean, bHidden As Boolean)
+  
+  FCompletion.Open(Me, Mode, sClass, bStatic, bHidden)
+  
+End
+
+Public Sub OpenMode(sMode As String, Optional sClass As String, bStatic As Boolean, bHidden As Boolean)
+  
+  FCompletion.Open(Me, sMode, sClass, bStatic, bHidden)
+  
+End
+
+Public Sub IsPath(sWord As String) As Boolean
+  
+   If Left(sWord) = "/" Or If Left(sWord) = "~" Or If Left(sWord, 2) = "./" Or If sWord Begins "icon:/" Or If sWord Begins "flag:/" Then Return True
+  
+End
+
+Public Sub GetRightString(sLine As String) As String
+
+  Dim I, iPos As Integer
+  Dim sCar As String
+  Dim bInside As Boolean
+  
+  For I = 1 To Len(sLine)
+    sCar = Mid$(sLine, I, 1)
+    If bInside Then
+      If sCar = "\\" Then
+        Inc I
+      Else If sCar = Chr$(34) Then
+        bInside = False
+      Endif
+    Else If sCar = Chr$(34) Then
+      bInside = True
+      iPos = I
+    Endif
+  Next
+  
+  If bInside Then Return Mid$(sLine, iPos + 1)
+  
+End
+

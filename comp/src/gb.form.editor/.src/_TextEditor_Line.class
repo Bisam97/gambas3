@@ -1,20 +1,56 @@
 ' Gambas class file
 
+''' This virtual class represents a specific line of a [../texteditor].
+
 Export
 
 Event _Fake
 
 Public _Line As Integer
 
+'' Return or set the text contents of the line.
+''
+'' You must not put line separator characters (`"\r"` or `"\n"`) in the text of a line.
+
 Property Text As String
+
+'' Return the line length in UTF-8 characters.
+
 Property Read Length As Integer
+
+'' Return if the line has a limit mark, i.e. if it is the beginning of a function.
+
 Property Read Limit As Boolean
+
+'' Return a virtual object that represents the initial highlighting state of the line.
+
 Property Read InitialState As _TextEditor_State
+
+'' Return the line height in pixels.
+
 Property Read Height, H As Integer
+
+'' Return or set if the line is expanded.
+''
+'' Only lines whose [../limit] is 'TRUE' can be expanded or collapsed.
+
 Property Expanded As Boolean
+
+'' Return or set if the line is a breakpoint.
+
 Property Breakpoint As Boolean
+
+'' Return or set if the line is a disabled breakpoint.
+
 Property Disabled As Boolean
+
+'' Return or set if the line is a bookmark.
+
 Property Bookmark As Boolean
+
+'' Return if the line is an added line in "diff mode".
+
+Property Read Added As Boolean
 
 Private Sub GetView() As TextEditor
   
@@ -56,11 +92,13 @@ Private Sub Text_Write(Value As String)
 
 End
 
+'' Refresh that line.
+
 Public Sub Refresh()
   
   With GetDoc()
     .Info(_Line).ClearHighlight
-    .HighlightFrom(_Line)
+    '.HighlightFrom(_Line)
     .Refresh(_Line)
   End With
   
@@ -69,7 +107,11 @@ End
 
 Private Function Limit_Read() As Boolean
 
-  Return GetDoc().Info(_Line).Limit
+  Dim hDoc As CDocument
+
+  hDoc = GetDoc()
+  hDoc.HighlightUntil(_Line)
+  Return hDoc.Info(_Line).Limit
 
 End
 
@@ -81,8 +123,10 @@ End
 
 Private Sub Breakpoint_Write(Value As Boolean)
 
-  GetDoc().SetBreakpoint(_Line, Value, GetDoc().IsBreakpointDisabled(_Line))
-  Refresh
+  With GetDoc()
+    .SetBreakpoint(_Line, Value, GetDoc().IsBreakpointDisabled(_Line))
+    .Refresh(_Line)
+  End With
 
 End
 
@@ -94,8 +138,10 @@ End
 
 Private Sub Bookmark_Write(Value As Boolean)
 
-  GetDoc().SetBookmark(_Line, Value)
-  Refresh
+  With GetDoc()
+    .SetBookmark(_Line, Value)
+    .Refresh(_Line)
+  End With
 
 End
 
@@ -108,6 +154,14 @@ Private Function InitialState_Read() As _TextEditor_State
   Return hState
 
 End
+
+'' Purge the line from its comments and/or strings, according to its highlighting.
+''
+'' - If ~KeepComment~ is set, the comments are kept intact. Comments are the characters associated with [Highlight.Comment](/comp/gb.eval/highlight/comment) or [Highlight.Help](/comp/gb.eval/highlight/help) styles.
+'' - If ~KeepString~ is set, the strings are kept intact. Strings are the characters associated with [Highlight.String](/comp/gb.eval/highlight/string) style.
+'' - ~Replace~ is the character that replaces the removed elements. By default it is a space.
+''
+'' If the line is not highlighted, then it is returned as is.
 
 Public Sub Purge(Optional KeepComment As Boolean, KeepString As Boolean, Replace As String = " ") As String
 
@@ -132,7 +186,8 @@ Public Sub Purge(Optional KeepComment As Boolean, KeepString As Boolean, Replace
       If iState = Highlight.Comment Or If iState = Highlight.Help Then
         bReplace = True
       Endif
-    Else If Not KeepString And If iState = Highlight.String Then
+    Endif
+    If Not KeepString And If iState = Highlight.String Then
       bReplace = True
     Endif
     If bReplace Then
@@ -179,7 +234,26 @@ End
 
 Private Sub Disabled_Write(Value As Boolean)
 
-  GetDoc().SetBreakpoint(_Line, GetDoc().HasBreakpoint(_Line), Value)
-  Refresh
+  With GetDoc()
+    .SetBreakpoint(_Line, GetDoc().HasBreakpoint(_Line), Value)
+    .Refresh(_Line)
+  End With
+  
+End
+
+'' Paint that line on the current painter at a specified position.
+''
+'' - ~X~ and ~Y~ are the top left position where the line must be painted.
+
+Public Sub Paint(X As Integer, Y As Integer)
+
+  GetDoc().HighlightUntil(Y)
+  GetView()._PaintRow(_Line, X, Y)
+  
+End
+
+Private Function Added_Read() As Boolean
+
+  Return GetView()._IsAdded(_Line)
 
 End

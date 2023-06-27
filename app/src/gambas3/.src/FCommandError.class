@@ -1,0 +1,53 @@
+' Gambas class file
+
+Static Private $sText As String
+Static Private $sDetail As String
+Static Private $sTitle As String
+
+Public Sub Run(sText As String, sDetail As String, Optional sTitle As String) 
+
+  Dim iBusy As Integer
+  
+  $sText = sText
+  $sDetail = Trim(sDetail)
+  $sTitle = sTitle
+
+  iBusy = Application.Busy
+  Application.Busy = 0
+  Me.ShowModal()
+  Application.Busy = iBusy
+
+End
+
+Public Sub btnOK_Click()
+
+  Me.Close
+
+End
+
+Public Sub Form_Open()
+
+  Dim DS As Integer = Desktop.Scale
+  
+  If $sTitle Then Me.Title = $sTitle
+  
+  lblError.Text = Html($sText)
+  
+  If $sDetail Then 
+  
+    Project.SetEditorFont(trmDetail)
+    MTheme.InitControl(trmDetail)
+    panExpand.Hide
+    trmDetail.Print(Replace($sDetail, "\n", "\r\n"))
+    trmDetail.Show
+    Me.Resize(DS * 100, trmDetail.Y + DS * 30)
+    
+  Else
+    
+    trmDetail.Hide
+    panExpand.Show
+    Me.Resize(Min(lblError.Font.TextWidth($sText), DS * 40), trmDetail.Y + DS * 6)
+    
+  Endif
+  
+End

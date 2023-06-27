@@ -374,7 +374,7 @@ GB_DESC CReaderReadFlagsDesc[] =
 	GB_DECLARE(".XmlReaderReadFlags", 0), GB_VIRTUAL_CLASS(),
 
     GB_METHOD("_get", "b", CReaderReadFlags_get, "(Flag)i"),
-    GB_METHOD("_put", "b", CReaderReadFlags_put, "(Value)b(Flag)i"),
+    GB_METHOD("_put", NULL, CReaderReadFlags_put, "(Value)b(Flag)i"),
 
 	GB_END_DECLARE
 };

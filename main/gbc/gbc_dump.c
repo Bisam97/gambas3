@@ -2,7 +2,7 @@
 
 	gbc_dump.c
 
-	(c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+	(c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -41,10 +41,12 @@
 #include "gbc_help.h"
 #include "gbc_output.h"
 
-
 static FILE *_finfo;
 static char *_buffer = NULL;
 static int _buffer_ptr = 0;
+
+static char *_list_buffer = NULL;
+static TABLE *_list_table = NULL;
 
 static const char *get_name(int index)
 {
@@ -324,14 +326,17 @@ static void export_type(TYPE type, bool scomma)
 static void export_signature(int nparam, int npmin, PARAM *param, bool vararg)
 {
 	int i;
+	PARAM *p;
 
 	for (i = 0; i < nparam; i++)
 	{
+		p = &param[i];
+		
 		if (i == npmin)
 			fprintf(_finfo, "[");
 
-		fprintf(_finfo, "(%s)", get_name(param[i].index));
-		export_type(param[i].type, TRUE);
+		fprintf(_finfo, "(%s%s)", (p->byref ? "&" : ""), get_name(p->index));
+		export_type(p->type, TRUE);
 	}
 
 	if (npmin < nparam)
@@ -343,16 +348,6 @@ static void export_signature(int nparam, int npmin, PARAM *param, bool vararg)
 	export_newline();
 }
 
-
-static void create_file(FILE **fw, const char *file)
-{
-	if (!*fw)
-	{
-		*fw = fopen(file, "w");
-		if (!*fw)
-			THROW("Cannot create file: &1", FILE_cat(FILE_get_dir(COMP_project), file, NULL));
-	}
-}
 
 static void close_file_and_rename(FILE *f, const char *file, const char *dest)
 {
@@ -370,6 +365,7 @@ static void close_file_and_rename(FILE *f, const char *file, const char *dest)
 	}
 }
 
+
 static bool exist_bytecode_file(char *name)
 {
 	char *output = OUTPUT_get_file(name);
@@ -377,6 +373,7 @@ static bool exist_bytecode_file(char *name)
 	STR_free(output);
 	return exist;
 }
+
 
 static void read_line(char **line, int *len)
 {
@@ -413,6 +410,7 @@ static void read_line(char **line, int *len)
 	*len = l;
 }
 
+
 static bool load_file(const char *name)
 {
 	_buffer_ptr = 0;
@@ -426,6 +424,7 @@ static bool load_file(const char *name)
 		return FALSE;
 }
 
+
 static void class_update_exported(CLASS *class)
 {
 	FILE *fw = NULL;
@@ -435,12 +434,11 @@ static void class_update_exported(CLASS *class)
 	bool optional;
 	bool has_static;
 	int cmp;
+	char *file_name = NULL;
+	char *export_name;
 
 	if (load_file(".list") && !class->exported)
 		return;
-
-	//if (!fr && !class->exported)
-	//	return;
 
 	for(;;)
 	{
@@ -452,69 +450,96 @@ static void class_update_exported(CLASS *class)
 			cmp = 1;
 		else
 		{
+			file_name = memchr(name, ' ', len);
+			if (file_name)
+			{
+				len = file_name - name;
+				*file_name++ = 0;
+			}
+			else
+				file_name = name;
+			
 			if (name[len - 1] == '?')
 			{
 				optional = TRUE;
 				name[len - 1] = 0;
 				len--;
 			}
+			
 			if (name[len - 1] == '!')
 			{
 				has_static = TRUE;
 				name[len - 1] = 0;
 				len--;
 			}
-			cmp = strcmp(name, class->name);
+			
+			cmp = strcmp(file_name, class->name);
 		}
 
 		if (cmp == 0)
 		{
-			if (JOB->verbose)
+			if (COMP_verbose)
 				printf("Remove '%s' from .list file\n", name);
 			continue;
 		}
 		else if ((cmp > 0) && class->exported && !inserted)
 		{
-			create_file(&fw, ".list#");
-			if (JOB->verbose)
-				printf("Insert '%s%s' into .list file\n", class->name, class->optional ? "?" : "");
-			fputs(class->name, fw);
-			if (class->has_static && COMPILE_version >= 0x03060090)
+			export_name = CLASS_get_export_name(class);
+			
+			COMPILE_create_file(&fw, ".list#");
+			if (COMP_verbose)
+				printf("Insert '%s%s' into .list file\n", export_name, class->optional ? "?" : "");
+			fputs(export_name, fw);
+			if (class->has_static && COMP_version >= 0x03060090)
 				fputc('!', fw);
 			if (class->optional)
 				fputc('?', fw);
+			if (class->export_name)
+			{
+				fputc(' ', fw);
+				fputs(class->name, fw);
+			}
 			fputc('\n', fw);
 			inserted = TRUE;
 		}
 
+		if (file_name != name)
+			TABLE_add_symbol(_list_table, name, len);
+		
 		if (!name)
 			break;
 
-		if (exist_bytecode_file(name))
+		if (exist_bytecode_file(file_name))
 		{
-			if (JOB->verbose)
+			if (COMP_verbose)
 				printf("Copy '%s' in .list file\n", name);
 
-			create_file(&fw, ".list#");
+			COMPILE_create_file(&fw, ".list#");
 			fputs(name, fw);
-			if (has_static && COMPILE_version >= 0x03060090)
+			if (has_static && COMP_version >= 0x03060090)
 				fputc('!', fw);
 			if (optional)
 				fputc('?', fw);
+			if (file_name  != name)
+			{
+				fputc(' ', fw);
+				fputs(file_name, fw);
+			}
 			fputc('\n', fw);
 		}
 		else
 		{
-			if (JOB->verbose)
+			if (COMP_verbose)
 				printf("Remove '%s' from .list file\n", name);
 		}
 	}
 
-	if (_buffer)
-		BUFFER_delete(&_buffer);
+	_list_buffer = _buffer;
+	_buffer = NULL;
 
 	close_file_and_rename(fw, ".list#", ".list");
 }
+
 
 static void insert_class_info(CLASS *class, FILE *fw)
 {
@@ -530,13 +555,16 @@ static void insert_class_info(CLASS *class, FILE *fw)
 	int line;
 	const char *str;
 	int len;
+	const char *export_name;
 
-	if (JOB->verbose)
-		printf("Insert '%s' information into .info file\n", class->name);
+	export_name = CLASS_get_export_name(class);	
+	
+	if (COMP_verbose)
+		printf("Insert '%s' information into .info file\n", export_name);
 
 	_finfo = fw;
 
-	fprintf(_finfo, "#%s\n", class->name);
+	fprintf(_finfo, "#%s\n", export_name);
 
 	if (class->parent != NO_SYMBOL)
 		fprintf(_finfo, "%s", get_name(JOB->class->class[class->parent].index));
@@ -758,6 +786,11 @@ void CLASS_export(void)
 	CLASS *class = JOB->class;
 	int cmp;
 	const char *msg;
+	char *export_name;
+	int index;
+	SYMBOL *sym;
+	char *name;
+	char *file_name;
 
 	if (chdir(FILE_get_dir(COMP_project)))
 	{
@@ -765,6 +798,13 @@ void CLASS_export(void)
 		goto __ERROR;
 	}
 
+	TABLE_create(&_list_table, sizeof(SYMBOL), TF_IGNORE_CASE);
+	
+	if (class->exported)
+		export_name = CLASS_get_export_name(class);
+	else
+		export_name = class->name;
+	
 	class_update_exported(class);
 
 	load_file(".info");
@@ -776,12 +816,12 @@ void CLASS_export(void)
 		if (!line)
 			cmp = 1;
 		else
-			cmp = strcmp(&line[1], class->name);
+			cmp = strcmp(&line[1], export_name);
 
 		if (cmp == 0)
 		{
-			if (JOB->verbose)
-				printf("Remove '%s' information from .info file\n", class->name);
+			if (COMP_verbose)
+				printf("Remove '%s' information from .info file\n", export_name);
 
 			for(;;)
 			{
@@ -795,7 +835,7 @@ void CLASS_export(void)
 
 		if (cmp > 0 && class->exported && !inserted)
 		{
-			create_file(&fw, ".info#");
+			COMPILE_create_file(&fw, ".info#");
 			insert_class_info(class, fw);
 			inserted = TRUE;
 		}
@@ -805,13 +845,24 @@ void CLASS_export(void)
 
 		// copying class information
 
-		if (exist_bytecode_file(&line[1]))
+		name = &line[1];
+		if (TABLE_find_symbol(_list_table, name, strlen(name), &index))
 		{
-			if (JOB->verbose)
+			sym = TABLE_get_symbol(_list_table, index);
+			file_name = &sym->name[sym->len];
+			while (!*file_name)
+				file_name++;
+		}
+		else
+			file_name = name;
+		
+		if (exist_bytecode_file(file_name))
+		{
+			if (COMP_verbose)
 				printf("Copy '%s' information in .info file\n", &line[1]);
 			for(;;)
 			{
-				create_file(&fw, ".info#");
+				COMPILE_create_file(&fw, ".info#");
 				fputs(line, fw);
 				fputc('\n', fw);
 				read_line(&line, &len);
@@ -821,7 +872,7 @@ void CLASS_export(void)
 		}
 		else
 		{
-			if (JOB->verbose)
+			if (COMP_verbose)
 				printf("Remove '%s' information from .info file\n", &line[1]);
 			for(;;)
 			{
@@ -834,6 +885,10 @@ void CLASS_export(void)
 
 	if (_buffer)
 		BUFFER_delete(&_buffer);
+	if (_list_buffer)
+		BUFFER_delete(&_list_buffer);
+	
+	TABLE_delete(&_list_table);
 
 	close_file_and_rename(fw, ".info#", ".info");
 	return;

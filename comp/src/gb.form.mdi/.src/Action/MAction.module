@@ -99,7 +99,7 @@ Private Sub LoadAction(sFile As String)
       sAction = Trim(Mid$(sLine, 10))
     Else If sLine Begins "{ Toolbar " Then
       cSlot.Clear
-      sToolbar = Trim(Mid$(sLine, 10))
+      sToolbar = File.BaseName(sFile) & "." & Trim(Mid$(sLine, 10))
     Else If sLine = "}" Then
       If sAction Then
         hAction = New CAction(sAction, bHasShortcut, cSlot, Actions[sAction])

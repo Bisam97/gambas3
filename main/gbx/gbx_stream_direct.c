@@ -2,7 +2,7 @@
 
   gbx_stream_direct.c
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -49,24 +49,30 @@ static int stream_open(STREAM *stream, const char *path, int mode)
 	int fmode, omode;
 	VALUE val;
 	
-	if (mode & STO_CREATE)
+	if (mode & GB_ST_CREATE)
+	{
 		fmode = O_CREAT | O_TRUNC; // | O_EXCL;
-	else if (mode & STO_APPEND)
+		mode |= GB_ST_WRITE;
+	}
+	else if (mode & GB_ST_APPEND)
 		fmode = O_APPEND | O_CREAT;
 	else
 		fmode = 0;
 
-	switch (mode & STO_MODE)
+	switch (mode & GB_ST_MODE)
 	{
-		case STO_READ: fmode |= O_RDONLY; break;
-		case STO_WRITE: fmode |= O_WRONLY; break;
-		case STO_READ_WRITE: fmode |= O_RDWR; break;
+		case GB_ST_READ: fmode |= O_RDONLY; break;
+		case GB_ST_WRITE: fmode |= O_WRONLY; break;
+		case GB_ST_READ_WRITE: fmode |= O_RDWR; break;
 		default: fmode |= O_RDONLY;
 	}
 
+	stream->direct.has_size = FALSE;
+	stream->direct.use_size = FALSE;
+	
 	if (path[0] == '.' && isdigit(path[1]))
 	{
-		if ((mode & STO_CREATE) || (mode & STO_APPEND))
+		if ((mode & GB_ST_CREATE) || (mode & GB_ST_APPEND))
 			THROW(E_ACCESS);
 		
 		if (NUMBER_from_string(NB_READ_INTEGER, &path[1], strlen(path) - 1, &val) || val._integer.value < 0)
@@ -80,9 +86,9 @@ static int stream_open(STREAM *stream, const char *path, int mode)
 		if (omode < 0)
 			return TRUE;
 		
-		if (((mode & STO_MODE) == STO_READ && (omode & O_ACCMODE) == O_WRONLY)
-			  || ((mode & STO_MODE) == STO_WRITE && (omode & O_ACCMODE) == O_RDONLY)
-			  || ((mode & STO_MODE) == STO_READ_WRITE && (omode & O_ACCMODE) != O_RDWR))
+		if (((mode & GB_ST_MODE) == GB_ST_READ && (omode & O_ACCMODE) == O_WRONLY)
+			  || ((mode & GB_ST_MODE) == GB_ST_WRITE && (omode & O_ACCMODE) == O_RDONLY)
+			  || ((mode & GB_ST_MODE) == GB_ST_READ_WRITE && (omode & O_ACCMODE) != O_RDWR))
 			THROW(E_ACCESS);
 		
 		stream->direct.watch = TRUE;
@@ -102,25 +108,26 @@ static int stream_open(STREAM *stream, const char *path, int mode)
 			return TRUE;
 		}
 
-		if (S_ISDIR(info.st_mode))
+		/*if (S_ISDIR(info.st_mode))
 		{
 			close(fd);
 			errno = EISDIR;
 			return TRUE;
-		}
+		}*/
 
 		if (!S_ISREG(info.st_mode))
 		{
 			stream->common.available_now = FALSE;
 			stream->common.no_read_ahead = TRUE;
+			stream->direct.has_size = TRUE;
 			fcntl(fd, F_SETFL, O_NONBLOCK);
 		}
 		else
+		{
 			stream->common.available_now = TRUE;
+		}
 	}
 
-	stream->direct.has_size = FALSE;
-	
 	FD = fd;
 	return FALSE;
 }

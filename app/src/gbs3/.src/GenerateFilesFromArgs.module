@@ -1,0 +1,92 @@
+' Gambas module file
+
+'' The following table is used by the precompiler to translate from {i} to Integer for example
+' Public $cNativeTypes As Collection = ["i": "Integer", "s": "String", "f": "Float", "d": "Date", "b": "Boolean", "v": "Variant", "o": "Object", "l": "Long", "p": "Pointer"]
+' Public $aVarsDecl As New Collection                    ' Used by preprocessor to store generated variable definitions
+
+Public Sub _Call($oContext As Context, sLine As String, sPrjPath As String)
+
+  Dim bCrochetOuvert As Boolean
+  Dim s As String
+  Dim i As Integer
+  Dim sCode As String
+
+  'Use management
+  If $oContext.$sUse Then
+    UseLibComp._FromString($oContext.$sUse)
+  Endif
+
+  For i = 1 To Len(sLine)
+    s = Mid(sLine, i, 1)
+    If s = "[" Then bCrochetOuvert = True
+    If s = "]" Then bCrochetOuvert = False
+
+    If s = ":" And Not bCrochetOuvert Then s = "\n"
+    sCode &= s
+
+  Next
+  sCode &= "\n"
+  $oContext.$bExecuteFromArgs = True
+  GenerateFiles($oContext, sCode, sPrjPath)
+  ' $aVarsDecl.Clear()
+
+  ' If $oContext.$bPrecompiler Then
+  '   For Each s In Split(sCode, "\n")
+  '     sNew &= PrecompileLine(s) & "\n"
+  '   Next
+  '   'We look in the code if none of the insertion declaration exist already.
+  '   For Each sI As String In $aVarsDecl
+  '     If Not InStr(sNew, sI, 0, gb.IgnoreCase) Then
+  '       aDims.Add(sI)
+  '     Endif
+  '   Next
+  ' 
+  '   sCode = sNew
+  ' 
+  ' Endif
+
+  'scode = "Public Sub Main()\n" & aDims.Join("\n") & "\n" & sCode
+ '  scode = "Public Sub Main()\n" & sCode & "\nEnd\n"
+
+ ' $oContext.$sFinalProgram &= sCode
+ 
+ 
+End
+
+'Public Function PrecompileLine(sLine As String) As String
+' 
+'   Dim sVar As String
+'   Dim sType As String
+'   Dim sDecl As String
+'   Dim aSymbols As String[] = Highlight.Analyze(sline, True)
+'   Dim aTypes As Integer[] = highlight.types
+' 
+'   For i As Integer = 0 To aSymbols.Max
+' 
+'     If aTypes[i] = highlight.symbol And If aSymbols[i].len = 3 And If (aSymbols[i][0] = "{" And aSymbols[i][2] = "}") And If i + 1 <= aSymbols.max And If aTypes[i + 1] = Highlight.Symbol Then
+'       If $cNativeTypes.Exist(aSymbols[i][1]) Then
+'         sType = $cNativeTypes[aSymbols[i][1]]
+'         sVar = aSymbols[i + 1]
+'         sDecl = "Dim " & sVar & " As " & sType
+'         'If Not $aVarsDecl.Exist(sDecl) Then $aVarsDecl.Add(sDecl)
+'         If Not $aVarsDecl.Exist(sVar) Then
+'           $aVarsDecl.Add(sDecl, sVar)
+'         Else
+'           If $aVarsDecl[sVar] <> sDecl Then
+'              CompileError(sline, 1, ("Redefinition of variable") & " " & sDecl & " " & ("From") & " " & $aVarsDecl[sVar] & " " & ("Not Allowed"))
+'           Endif
+'         Endif
+'         Inc i
+'       Endif
+'     Endif
+'   Next
+' 
+'   For i = 0 To aSymbols.max
+'     If aTypes[i] = Highlight.symbol And If aSymbols[i].len = 3 And If (aSymbols[i][0] = "{" And aSymbols[i][2] = "}") Then
+'       sLine = Replace(sline, aSymbols[i], "")
+'     Endif
+'   Next
+' 
+'   Return sLine
+' 
+' End

@@ -26,27 +26,33 @@
 #include <unistd.h>
 
 #include "widgets.h"
+
+#ifndef GTK3
 #include "x11.h"
+#include "sm/sm.h"
+#endif
+
 #include "gapplication.h"
 #include "gtrayicon.h"
 #include "gdesktop.h"
 #include "gkey.h"
 #include "gmenu.h"
-#include "gmessage.h"
 #include "gdialog.h"
 #include "gclipboard.h"
 #include "gmouse.h"
 #include "gprinter.h"
-#include "sm/sm.h"
 #include "gmainwindow.h"
 
 //#define DEBUG_ENTER_LEAVE 1
+//#define DEBUG_FIND_CONTROL 1
+//#define DEBUG_FOCUS 1
+
+#ifdef GTK3
+static GtkApplication *_app;
+GtkStyleProvider *_tooltip_css = NULL;
+#endif
 
 static bool _debug_keypress = false;
-
-bool gApplication::fix_breeze = false;
-bool gApplication::fix_oxygen = false;
-
 
 /**************************************************************************
 
@@ -55,6 +61,7 @@ bool gApplication::fix_oxygen = false;
 **************************************************************************/
 
 static bool _focus_change = false;
+static bool _doing_focus_change = false;
 
 static GtkWindowGroup *get_window_group(GtkWidget *widget)
 {
@@ -69,79 +76,57 @@ static GtkWindowGroup *get_window_group(GtkWidget *widget)
     return gtk_window_get_group(NULL);
 }
 
-/*static gboolean close_dialog(GtkButton *button)
-{
-	gtk_button_clicked(button);
-	return FALSE;
-}*/
-
-/*static bool raise_key_event_to_parent_window(gControl *control, int type)
-{
-	gMainWindow *win;
-
-	while (control->parent())
-	{
-		win = control->parent()->window();
-		if (win->onKeyEvent && win->canRaise(win, type))
-		{
-			//fprintf(stderr, "onKeyEvent: %d %p %s\n", type, win, win->name());
-			if (win->onKeyEvent(win, type))
-				return true;
-		}
-
-		control = win;
-	}
-
-	return false;
-}*/
-
-/*
-static bool check_crossing_event(GdkEvent *event)
-{
-	#if DEBUG_ENTER_LEAVE
-	fprintf(stderr, "check_crossing_event: %d / %d\n", event->crossing.detail, event->crossing.mode);
-	#endif
-
-	return true;
-
-	if ((event->crossing.mode == GDK_CROSSING_NORMAL || event->crossing.mode == GDK_CROSSING_STATE_CHANGED))
-		// || event->crossing.mode == GDK_CROSSING_UNGRAB || event->crossing.mode == GDK_CROSSING_GTK_UNGRAB))
-		return true;
-	else
-	{
-		fprintf(stderr, "ignore\n");
-		return false;
-	}
-}*/
-
 static gControl *find_child(gControl *control, int rx, int ry, gControl *button_grab = NULL)
 {
 	gContainer *cont;
 	gControl *child;
+	gMainWindow *window;
 	int x, y;
 	int cx, cy, cw, ch;
+	#ifdef GTK3
+	GtkAllocation a;
+	#endif
 
 	if (gApplication::_control_grab)
 		return gApplication::_control_grab;
 
-	/*grab = gtk_grab_get_current();
-	if (grab)
-	{
-		child = gt_get_control(grab);
-		if (child)
-			return child;
-	}*/
-
 	if (button_grab)
+	{
+		#if DEBUG_FIND_CONTROL
+		fprintf(stderr, "find_child -> %s (button grab)\n", button_grab->name());
+		#endif
 		return button_grab;
+	}
 
-	//fprintf(stderr, "find_child: %s\n", control->name());
+	window = control->topLevel();
+	control = window;
+	
+	#ifdef GTK3
+	gtk_widget_get_allocation(window->frame, &a);
+	//fprintf(stderr, "find_child: %d %d window: %d %d %d %d\n", rx, ry, a.x, a.y, a.width, a.height);
+	rx -= a.x;
+	ry -= a.y;
+	#endif
 
-	control = control->topLevel();
+	#if DEBUG_FIND_CONTROL
+	fprintf(stderr, "find_child: [%s %p] %s (%d %d)\n", window->name(), window, control->name(), rx, ry);
+	#endif
 
 	while (control->isContainer())
 	{
 		control->getScreenPos(&x, &y);
+		#ifdef GTK3
+		if (!control->isTopLevel())
+		{
+			x -= a.x;
+			y -= a.y;
+		}
+		#endif
+
+		#if DEBUG_FIND_CONTROL
+		fprintf(stderr, "  screen pos %s = %d %d\n", control->name(), x ,y);
+		#endif
+		
 		cont = (gContainer *)control;
 
 		cx = cont->clientX();
@@ -149,16 +134,24 @@ static gControl *find_child(gControl *control, int rx, int ry, gControl *button_
 		cw = cont->clientWidth();
 		ch = cont->clientHeight();
 
-		//fprintf(stderr, "client area of %s: %d %d %d %d\n", control->name(), cx, cy, cw, ch);
+		#if DEBUG_FIND_CONTROL
+		fprintf(stderr, "  client area of %s: %d %d %d %d\n", control->name(), cx, cy, cw, ch);
+		#endif
 
 		x = rx - x;
 		y = ry - y;
 		if (x < cx || y < cy || x >= (cx + cw) || y >= (cy + ch))
 		{
-			//fprintf(stderr, "outside of client area of %s\n", control->name());
-			return NULL;
+			#if DEBUG_FIND_CONTROL
+			fprintf(stderr, "  outside of client area of %s\n", control->name());
+			#endif
+			control = NULL;
+			break;
 		}
 
+		#if DEBUG_FIND_CONTROL
+		fprintf(stderr, "  find coord %d %d\n", x, y);
+		#endif
 		child = cont->find(x, y);
 		if (!child)
 			break;
@@ -166,7 +159,9 @@ static gControl *find_child(gControl *control, int rx, int ry, gControl *button_
 		control = child;
 	}
 
-	//fprintf(stderr, "-> %s\n", control->name());
+	#if DEBUG_FIND_CONTROL
+	fprintf(stderr, "find_child -> %s\n", control ? control->name() : "NULL");
+	#endif
 
 	return control;
 }
@@ -213,7 +208,7 @@ static void gambas_handle_event(GdkEvent *event)
 #ifdef GTK3
 	GdkDevice *device;
 #endif
-	gControl *control, *save_control;
+	gControl *control = NULL, *save_control;
 	gControl *button_grab;
 	int x, y, xs, ys, xc, yc;
 	bool cancel;
@@ -258,14 +253,35 @@ static void gambas_handle_event(GdkEvent *event)
 			fprintf(stderr, "**** GDK_GRAB_BROKEN inside popup: %s %swindow = %p grab_window = %p popup_window = %p\n", event->grab_broken.keyboard ? "keyboard" : "pointer",
 							event->grab_broken.implicit ? "implicit " : "", event->grab_broken.window, event->grab_broken.grab_window, gApplication::_popup_grab_window);
 	}*/
-
+	
 	if (!((event->type >= GDK_MOTION_NOTIFY && event->type <= GDK_FOCUS_CHANGE) || event->type == GDK_SCROLL))
 		goto __HANDLE_EVENT;
 
+	if (gApplication::_disable_input_events)
+	{
+		switch(event->type)
+		{
+			case GDK_ENTER_NOTIFY:
+			case GDK_LEAVE_NOTIFY:
+			case GDK_BUTTON_PRESS:
+			case GDK_2BUTTON_PRESS:
+			case GDK_BUTTON_RELEASE:
+			case GDK_MOTION_NOTIFY:
+			case GDK_SCROLL:
+			case GDK_KEY_PRESS:
+			case GDK_KEY_RELEASE:
+				//gApplication::pushInputEvent(event);
+				return;
+			default:
+				;
+		}
+	}
+
 	widget = gtk_get_event_widget(event);
+	
 	if (!widget)
 		goto __HANDLE_EVENT;
-
+	
 	if (_debug_keypress && (event->type == GDK_KEY_PRESS || event->type == GDK_KEY_RELEASE))
 	{
 		fprintf(stderr, "[%p] %s: keyval = %d state = %08X (%08X) is_modifier = %d hardware = %d send_event = %d for %p\n", event, event->type == GDK_KEY_PRESS ? "GDK_KEY_PRESS" : "GDK_KEY_RELEASE",
@@ -305,7 +321,7 @@ static void gambas_handle_event(GdkEvent *event)
 
 	if (gMenu::currentPopup())
 	{
-		grab = GTK_WIDGET(gMenu::currentPopup()->child);
+		grab = GTK_WIDGET(gMenu::currentPopup()->_popup);
 		//fprintf(stderr, "[2] popup menu: grab = %p\n", grab);
 		if (get_window_group(grab) != get_window_group(widget) && (event->type == GDK_ENTER_NOTIFY || event->type == GDK_LEAVE_NOTIFY))
 			goto __RETURN;
@@ -340,11 +356,14 @@ static void gambas_handle_event(GdkEvent *event)
 		control = NULL;
 		//if (GTK_IS_WINDOW(widget))
 		control = gt_get_control(widget);
+		
+		if (!control || control->isDesign())
+			goto __HANDLE_EVENT;
 		//fprintf(stderr, "GDK_FOCUS_CHANGE: widget = %p %d : %s %d\n", widget, GTK_IS_WINDOW(widget), control ? control->name() : NULL, event->focus_change.in);
 
 		//if (GTK_IS_WINDOW(widget))
 		{
-			control = gt_get_control(widget);
+			//control = gt_get_control(widget);
 			if (control)
 				gApplication::setActiveControl(control, event->focus_change.in);
 			else if (event->focus_change.in)
@@ -426,12 +445,15 @@ __FOUND_WIDGET:
 	{
 		case GDK_ENTER_NOTIFY:
 
+			if (event->crossing.detail == GDK_NOTIFY_INFERIOR)
+				break;
+			
 			control = find_child(control, (int)event->crossing.x_root, (int)event->crossing.y_root);
 			if (!control)
 				goto __HANDLE_EVENT;
 
 #if DEBUG_ENTER_LEAVE
-			fprintf(stderr, "GDK_ENTER_NOTIFY: %s (%s) %d %d %p %p\n", control->name(), gApplication::_enter ? gApplication::_enter->name() : "ø", (int)event->crossing.x_root, (int)event->crossing.y_root, event->crossing.window, event->crossing.subwindow);
+			fprintf(stderr, "GDK_ENTER_NOTIFY: %s (%s) %d %d %p [%d] %p\n", control->name(), gApplication::_enter ? gApplication::_enter->name() : "ø", (int)event->crossing.x_root, (int)event->crossing.y_root, event->crossing.window, gdk_window_is_input_only(event->crossing.window), event->crossing.subwindow);
 #endif
 
 			if (button_grab)
@@ -472,12 +494,15 @@ __FOUND_WIDGET:
 		case GDK_LEAVE_NOTIFY:
 
 #if DEBUG_ENTER_LEAVE
-			fprintf(stderr, "GDK_LEAVE_NOTIFY: %s %p %p\n", control->name(), event->crossing.window, event->crossing.subwindow);
+			fprintf(stderr, "GDK_LEAVE_NOTIFY: %s (%d %d) %p %p\n", control->name(), event->crossing.mode, event->crossing.detail, event->crossing.window, event->crossing.subwindow);
 #endif
 
 			if (button_grab)
 				break;
 
+			if (event->crossing.detail == GDK_NOTIFY_INFERIOR)
+				break;
+			
 			//control = find_child(control, (int)event->button.x_root, (int)event->button.y_root);
 
 			gApplication::_leave = control;
@@ -520,7 +545,7 @@ __FOUND_WIDGET:
 				fprintf(stderr, "GDK_BUTTON_PRESS: %p / %p / %p\n", control, button_grab, gApplication::_control_grab);*/
 			/*else if (event->type == GDK_BUTTON_RELEASE)
 				fprintf(stderr, "GDK_BUTTON_RELEASE: %p / %p\n", control, button_grab);*/
-			
+
 			switch ((int)event->type)
 			{
 				case GDK_BUTTON_PRESS: type = gEvent_MousePress; break;
@@ -529,7 +554,12 @@ __FOUND_WIDGET:
 			}
 
 			save_control = find_child(control, (int)event->button.x_root, (int)event->button.y_root, button_grab);
-			//fprintf(stderr, "save_control = %p %s\n", save_control, save_control ? save_control->name() : "");
+			
+			/*if (type == gEvent_MousePress)
+				fprintf(stderr, "save_control = %p %s\n", save_control, save_control ? save_control->name() : "");*/
+			
+			if (save_control)
+				save_control = save_control->ignoreDesign();
 			
 			if (!save_control)
 			{
@@ -539,33 +569,41 @@ __FOUND_WIDGET:
 					if (win->isPopup())
 						win->close();
 				}
+				
+				//fprintf(stderr, "handle event %s\n", type == gEvent_MousePress ? "press" : type == gEvent_MouseRelease ? "release" : "other");
 			
 				goto __HANDLE_EVENT;
 			}
-			
+
 			control = save_control;
 
-			bool menu = false;
+#if GTK_CHECK_VERSION(3, 4, 0)
+			bool menu = gdk_event_triggers_context_menu(event);
+#else
+			bool menu = (event->button.button == 3) && (event->type == GDK_BUTTON_PRESS);
+#endif
 
 			if (event->type != GDK_BUTTON_RELEASE)
 			{
-				if (control->canFocus() && !control->hasFocus())
+				#if DEBUG_FOCUS
+				fprintf(stderr, "GDK_BUTTON_PRESS: %s canFocus = %d design = %d\n", control->name(), control->canFocus(), control->isDesign());
+				#endif
+				if (control->canFocusOnClick())
 					control->setFocus();
 				if (!control->_no_auto_grab)
 					gApplication::setButtonGrab(control);
 			}
 
+			if (event->type == GDK_BUTTON_PRESS)
+				gMouse::handleClickCount(event);
 
 		__BUTTON_TRY_PROXY:
 		
-			if (!control->design() && !control->isEnabled())
-				goto __HANDLE_EVENT;
-
 			cancel = false;
 
-			if (control->onMouseEvent)
+			if (control->isDesign() || control->isEnabled())
 			{
-				if (control->canRaise(control, type))
+				if (event->type == GDK_BUTTON_PRESS || CB_control_can_raise(control, type))
 				{
 					control->getScreenPos(&xc, &yc);
 					xs = (int)event->button.x_root;
@@ -580,16 +618,18 @@ __FOUND_WIDGET:
 					switch ((int)event->type)
 					{
 						case GDK_BUTTON_PRESS:
+							gMouse::setControl(control);
 							gMouse::setStart(x, y);
-							cancel = control->onMouseEvent(control, gEvent_MousePress);
+							cancel = CB_control_mouse(control, gEvent_MousePress);
 							break;
 
 						case GDK_2BUTTON_PRESS:
-							cancel = control->onMouseEvent(control, gEvent_MouseDblClick);
+							cancel = CB_control_mouse(control, gEvent_MouseDblClick);
 							break;
 
 						case GDK_BUTTON_RELEASE:
-							cancel = control->onMouseEvent(control, gEvent_MouseRelease);
+							gMouse::setControl(NULL);
+							cancel = CB_control_mouse(control, gEvent_MouseRelease);
 							break;
 					}
 
@@ -597,32 +637,10 @@ __FOUND_WIDGET:
 				}
 			}
 
-			/*if (type == gEvent_MousePress && control->isTopLevel())
-			{
-				gMainWindow *win = ((gMainWindow *)control);
-				if (win->isPopup())
-				{
-					control->getScreenPos(&xc, &yc);
-					xs = (int)event->button.x_root;
-					ys = (int)event->button.y_root;
-					x = xs - xc;
-					y = ys - yc;
-
-					if (x < 0 || y < 0 || x >= win->width() || y >= win->height())
-						win->close();
-				}
-			}
-			else*/ if (type == gEvent_MouseRelease && control->_grab)
+			if (type == gEvent_MouseRelease && control->_grab)
 			{
 				gApplication::exitLoop(control);
 			}
-
-#if GTK_CHECK_VERSION(3, 4, 0)
-			if (gdk_event_triggers_context_menu(event))
-#else
-			if (event->button.button == 3 && event->type == GDK_BUTTON_PRESS)
-#endif
-				menu = true;
 
 			if (!cancel)
 			{
@@ -639,11 +657,15 @@ __FOUND_WIDGET:
 				control = save_control;
 				while (control)
 				{
-					if (control->onMouseEvent(control, gEvent_MouseMenu))
+					//fprintf(stderr, "menu %s D = %d DI = %d\n", control->name(), control->isDesign(), control->isDesignIgnore());
+					if (CB_control_mouse(control, gEvent_MouseMenu))
 					{
 						cancel = true;
 						break;
 					}
+					if (control->hasNativePopup())
+						goto __HANDLE_EVENT;
+					
 					control = control->_proxy_for;
 				}
 			}
@@ -672,16 +694,21 @@ __FOUND_WIDGET:
 			if (!control)
 				goto __HANDLE_EVENT;
 
-			//fprintf(stderr, "GDK_MOTION_NOTIFY: (%p %s) grab = %p\n", control, control->name(), button_grab);
+			control = control->ignoreDesign();
+			/*while (control->isDesignIgnore())
+				control = control->parent();*/
+			//fprintf(stderr, "GDK_MOTION_NOTIFY: (%p %s) grab = %p state = %d tracking = %d\n", control, control->name(), button_grab, event->motion.state, control->isTracking());
 
 			gApplication::checkHoveredControl(control);
 
 		__MOTION_TRY_PROXY:
 
-			if (!control->design() && !control->isEnabled())
+			//fprintf(stderr, "--> try (%p %s) / %s\n", control, control->name(), control->_proxy_for ? control->_proxy_for->name() : "-");
+
+			if (!control->isDesign() && !control->isEnabled())
 				goto __HANDLE_EVENT;
 
-			if (control->onMouseEvent && (control->canRaise(control, gEvent_MouseMove) || control->canRaise(control, gEvent_MouseDrag))
+			if ((CB_control_can_raise(control, gEvent_MouseMove) || CB_control_can_raise(control, gEvent_MouseDrag))
 					&& (control->isTracking() || (event->motion.state & (GDK_BUTTON1_MASK | GDK_BUTTON2_MASK | GDK_BUTTON3_MASK))))
 			{
 				control->getScreenPos(&xc, &yc);
@@ -696,7 +723,7 @@ __FOUND_WIDGET:
 
 				//fprintf(stderr, "pressure = %g\n", gMouse::getAxis(GDK_AXIS_PRESSURE));
 
-				cancel = control->onMouseEvent(control, gEvent_MouseMove);
+				cancel = CB_control_mouse(control, gEvent_MouseMove);
 
 				//if (data->acceptDrops() && gDrag::checkThreshold(data, gMouse::x(), gMouse::y(), gMouse::startX(), gMouse::startY()))
 				if (!cancel && (event->motion.state & (GDK_BUTTON1_MASK | GDK_BUTTON2_MASK | GDK_BUTTON3_MASK))
@@ -704,7 +731,7 @@ __FOUND_WIDGET:
 						&& gDrag::checkThreshold(control, gMouse::x(), gMouse::y(), gMouse::startX(), gMouse::startY()))
 				{
 					//fprintf(stderr, "gEvent_MouseDrag: event = %p\n", gApplication::lastEvent());
-					cancel = control->onMouseEvent(control, gEvent_MouseDrag);
+					cancel = CB_control_mouse(control, gEvent_MouseDrag);
 				}
 				gMouse::invalidate();
 
@@ -731,14 +758,20 @@ __FOUND_WIDGET:
 			if (!control)
 				goto __HANDLE_EVENT;
 
+			control = control->ignoreDesign();
+			/*while (control->isDesignIgnore())
+				control = control->parent();*/
+			
 		__SCROLL_TRY_PROXY:
 
-			if (!control->design() && !control->isEnabled())
+			if (!control->isDesign() && !control->isEnabled())
 				goto __HANDLE_EVENT;
 
-			if (control->onMouseEvent && control->canRaise(control, gEvent_MouseWheel))
+			if (CB_control_can_raise(control, gEvent_MouseWheel))
 			{
 				int dir, dt, ort;
+				
+				control->setFocus();
 
 				control->getScreenPos(&xc, &yc);
 				xs = (int)event->scroll.x_root;
@@ -773,7 +806,7 @@ __FOUND_WIDGET:
 				gMouse::setEvent(event);
 				gMouse::setMouse(x, y, xs, ys, 0, event->scroll.state);
 				gMouse::setWheel(dt, ort);
-				cancel = control->onMouseEvent(control, gEvent_MouseWheel);
+				cancel = CB_control_mouse(control, gEvent_MouseWheel);
 				gMouse::invalidate();
 			}
 
@@ -788,7 +821,7 @@ __FOUND_WIDGET:
 				control = control->_proxy_for;
 				goto __SCROLL_TRY_PROXY;
 			}
-			
+
 			if (!control->_use_wheel)
 			{
 				control = control->parent();
@@ -808,20 +841,25 @@ __FOUND_WIDGET:
 
 			if (event->key.keyval)
 				gKey::_last_key_press = event->key.keyval;
-			send_to_window = control->isWindow();
+			send_to_window = control->isTopLevel();
 			goto __HANDLE_EVENT;
 
 		case GDK_KEY_RELEASE:
 
 			if (event->key.keyval)
 				gKey::_last_key_release = event->key.keyval;
-			send_to_window = control->isWindow();
+			send_to_window = control->isTopLevel();
 			goto __HANDLE_EVENT;
+			
+		default:
+			
+			handle_event = true;
+			goto __RETURN;
 	}
 
 __HANDLE_EVENT:
 
-	handle_event = true;
+	handle_event = !control || !control->isDesign();
 
 __RETURN:
 
@@ -834,10 +872,10 @@ __RETURN:
 		}
 		gApplication::setButtonGrab(NULL);
 	}
-	
+
 	if (handle_event)
 		gtk_main_do_event(event);
-	
+
 	if (send_to_window)
 		gcb_key_event(widget, event, control);
 
@@ -859,6 +897,7 @@ __RETURN:
 		}
 	}
 
+	gApplication::_event = NULL;
 }
 
 
@@ -874,6 +913,7 @@ int appEvents;
 bool gApplication::_init = false;
 bool gApplication::_busy = false;
 char *gApplication::_title = NULL;
+char *gApplication::_theme = NULL;
 int gApplication::_in_popup = 0;
 GtkWidget *gApplication::_popup_grab = NULL;
 int gApplication::_loopLevel = 0;
@@ -897,6 +937,16 @@ void (*gApplication::onEnterEventLoop)();
 void (*gApplication::onLeaveEventLoop)();
 bool gApplication::_must_quit = false;
 GdkEvent *gApplication::_event = NULL;
+bool gApplication::_keep_focus = false;
+bool gApplication::_disable_mapping_events = false;
+
+bool gApplication::_disable_input_events = false;
+//GQueue *gApplication::_input_events = NULL;
+
+bool gApplication::_fix_breeze = false;
+bool gApplication::_fix_oxygen = false;
+int gApplication::_scrollbar_size = 0;
+int gApplication::_scrollbar_big_size = 0;
 
 void gApplication::grabPopup()
 {
@@ -905,7 +955,7 @@ void gApplication::grabPopup()
 	if (!_popup_grab)
 		return;
 
-	gt_grab(_popup_grab, TRUE, GDK_CURRENT_TIME);
+	gt_grab(_popup_grab, TRUE, _event_time); //GDK_CURRENT_TIME);
 }
 
 void gApplication::ungrabPopup()
@@ -913,9 +963,32 @@ void gApplication::ungrabPopup()
 	//fprintf(stderr, "ungrabPopup: %p\n", _popup_grab);
 	//gtk_grab_remove(_popup_grab);
 
-	_popup_grab = NULL;
-	gt_ungrab();
+	if (_popup_grab)
+	{
+		_popup_grab = NULL;
+		gt_ungrab();
+	}
 }
+
+#ifdef GTK3
+
+bool gApplication::areTooltipsEnabled()
+{
+	return _tooltip_css == NULL;
+}
+
+void gApplication::enableTooltips(bool vl)
+{
+	if (vl == areTooltipsEnabled())
+		return;
+
+	gt_define_style_sheet(&_tooltip_css, NULL);
+
+	if (!vl)
+		gt_define_style_sheet(&_tooltip_css, g_string_new("tooltip { opacity: 0; }"));
+}
+
+#else
 
 bool gApplication::areTooltipsEnabled()
 {
@@ -937,55 +1010,13 @@ void gApplication::enableTooltips(bool vl)
   g_object_set (settings, "gtk-enable-tooltips", enabled, (char *)NULL);
 }
 
-void gApplication::suspendEvents(bool vl)
-{
-	if (!vl) appEvents=3; //all
-	else appEvents=1;     //user
-}
-
-void gApplication::enableEvents()
-{
-	appEvents=0;
-}
-
-bool gApplication::userEvents()
-{
-	if (appEvents) return false;
-	return true;
-}
-
-bool gApplication::allEvents()
-{
-	if (appEvents & 2) return false;
-	return true;
-}
+#endif
 
 static void do_nothing()
 {
 }
 
-/*#ifdef GTK3
-static void (*_old_scrollbar_button_press)();
-static void (*_old_scrollbar_button_release)();
-
-static gint scrollbar_button_press(GtkWidget *widget, GdkEventButton *event)
-{
-	gint ret = ((gint (*)(GtkWidget *, GdkEventButton *))_old_scrollbar_button_press)(widget, event);
-	if (ret)
-		gtk_grab_add(widget);
-	return ret;
-}
-
-static gint scrollbar_button_release(GtkWidget *widget, GdkEventButton *event)
-{
-	gint ret = ((gint (*)(GtkWidget *, GdkEventButton *))_old_scrollbar_button_release)(widget, event);
-	if (ret)
-		gtk_grab_remove(widget);
-	return ret;
-}
-
-#endif*/
-
+#ifndef GTK3
 static gboolean master_client_save_yourself(GnomeClient *client, gint phase, GnomeSaveStyle save_style, gboolean is_shutting_down, GnomeInteractStyle interact_style, gboolean fast, gpointer user_data)
 {
 	if (gApplication::mainWindow())
@@ -1006,16 +1037,34 @@ static void master_client_die(GnomeClient *client, gpointer user_data)
 	gApplication::quit();
 	MAIN_check_quit();
 }
+#endif
+
+static void cb_theme_changed(GtkSettings *settings, GParamSpec *param, gpointer data)
+{
+	gApplication::onThemeChange();
+	gDesktop::onThemeChange();
+}
 
 void gApplication::init(int *argc, char ***argv)
 {
-	appEvents=0;
+	GtkSettings *settings;
+	
+	appEvents = 0;
 
-	gtk_init(argc, argv);
+	#ifdef GTK3
+	_app = gtk_application_new(NULL, G_APPLICATION_FLAGS_NONE);
+	g_object_set(G_OBJECT(_app), "register-session", TRUE, NULL);
+	#else
 	session_manager_init(argc, argv);
 	g_signal_connect(gnome_master_client(), "save-yourself", G_CALLBACK(master_client_save_yourself), NULL);
 	g_signal_connect(gnome_master_client(), "die", G_CALLBACK(master_client_die), NULL);
+	#endif
 
+	getStyleName();
+
+	settings = gtk_settings_get_default();
+	g_signal_connect(G_OBJECT(settings), "notify::gtk-theme-name", G_CALLBACK(cb_theme_changed), 0);
+	
 	gdk_event_handler_set((GdkEventFunc)gambas_handle_event, NULL, NULL);
 
 	gKey::init();
@@ -1031,43 +1080,34 @@ void gApplication::init(int *argc, char ***argv)
 	if (env && strcmp(env, "0"))
 		_debug_keypress = true;
 
-	fix_breeze = strcasecmp(getStyleName(), "breeze") == 0 || strcasecmp(getStyleName(), "breeze dark") == 0 ;
-	fix_oxygen = strcasecmp(getStyleName(), "oxygen-gtk") == 0;
-
+#ifdef GTK3
+	// Override theme
+	GtkCssProvider *css = gtk_css_provider_new();
+	gtk_css_provider_load_from_data(css, "button { min-width:0;min-height:0; } button.combo { padding-top:0;padding-bottom:0; }", -1, NULL);
+	gtk_style_context_add_provider_for_screen(gdk_screen_get_default(), GTK_STYLE_PROVIDER(css), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+#endif
+	
 	gApplication::_init = true;
 }
 
 void gApplication::exit()
 {
+	#ifdef GTK3
+	g_object_unref(_app);
+	#else
 	session_manager_exit();
+	#endif
 
 	if (_title)
 		g_free(_title);
+	if (_theme)
+		g_free(_theme);
 
 	gKey::exit();
 	gTrayIcon::exit();
-  gDesktop::exit();
-  gMessage::exit();
   gDialog::exit();
   gFont::exit();
   gt_exit();
-}
-
-int gApplication::controlCount()
-{
-	GList *iter;
-	int ct=1;
-
-	if (!gControl::controlList()) return 0;
-
-	iter=g_list_first(gControl::controlList());
-	while (iter->next)
-	{
-		ct++;
-		iter=iter->next;
-	}
-
-	return ct;
 }
 
 gControl* gApplication::controlItem(GtkWidget *wid)
@@ -1085,41 +1125,25 @@ gControl* gApplication::controlItem(GtkWidget *wid)
 	return NULL;
 }
 
-gControl* gApplication::controlItem(int index)
+static void cb_update_busy(gControl *control)
 {
-	GList *iter;
-
-	if (!gControl::controlList()) return NULL;
-	iter=g_list_nth(gControl::controlList(),index);
-	if (!iter) return NULL;
-	return (gControl*)iter->data;
+	if (control->mustUpdateCursor())
+		control->setMouse(control->mouse());
 }
 
 void gApplication::setBusy(bool b)
 {
-	GList *iter;
-	gControl *control;
-
 	if (b == _busy)
 		return;
 
 	_busy = b;
 
-	iter = g_list_first(gControl::controlList());
-
-	while (iter)
-	{
-		control = (gControl *)iter->data;
-
-		if (control->mustUpdateCursor())
-			control->setMouse(control->mouse());
-
-		iter = g_list_next(iter);
-	}
-
+	forEachControl(cb_update_busy);
+	
 	gdk_display_flush(gdk_display_get_default());
 }
 
+#if 0
 static bool _dirty = false;
 
 static gboolean update_geometry(void *data)
@@ -1152,6 +1176,7 @@ void gApplication::setDirty()
 	_dirty = true;
 	g_timeout_add(0, (GSourceFunc)update_geometry, NULL);
 }
+#endif
 
 void gApplication::setDefaultTitle(const char *title)
 {
@@ -1170,7 +1195,7 @@ GtkWindowGroup *gApplication::enterGroup()
 
 	while (control)
 	{
-		control->emit(SIGNAL(control->onEnterLeave), gEvent_Leave);
+		CB_control_enter_leave(control, gEvent_Leave);
 		control = control->parent();
 	}
 
@@ -1187,15 +1212,15 @@ void gApplication::enterLoop(void *owner, bool showIt, GtkWindow *modal)
 {
 	void *old_owner = _loop_owner;
 	int l = _loopLevel;
-	//GtkWindowGroup *oldGroup;
+	bool d; 
 
 	if (showIt) ((gControl *)owner)->show();
 
-	//oldGroup = enterGroup();
-
 	_loopLevel++;
 	_loop_owner = owner;
+	setButtonGrab(NULL);
 
+	d = gApplication::disableInputEvents(false);
 	(*onEnterEventLoop)();
 	do
 	{
@@ -1203,17 +1228,16 @@ void gApplication::enterLoop(void *owner, bool showIt, GtkWindow *modal)
 	}
 	while (_loopLevel > l);
 	(*onLeaveEventLoop)();
+	gApplication::disableInputEvents(d);
 
 	_loop_owner = old_owner;
-
-	//exitGroup(oldGroup);
 }
 
 void gApplication::enterPopup(gMainWindow *owner)
 {
 	void *old_owner;
 	int l;
-	//GtkWindowGroup *oldGroup;
+	bool d;
 	GtkWindow *window = GTK_WINDOW(owner->border);
 	GtkWidget *old_popup_grab;
 
@@ -1222,12 +1246,9 @@ void gApplication::enterPopup(gMainWindow *owner)
 	// Remove possible current button grab
 	gApplication::setButtonGrab(NULL);
 //
-	//oldGroup = enterGroup();
-
 	gtk_window_set_modal(window, true);
-	gdk_window_set_override_redirect(gtk_widget_get_window(owner->border), true);
-	
 	owner->show();
+	gdk_window_set_override_redirect(gtk_widget_get_window(owner->border), true);
 	
 	if (!owner->isDestroyed())
 	{
@@ -1235,7 +1256,7 @@ void gApplication::enterPopup(gMainWindow *owner)
 		_popup_grab = owner->border;
 
 		if (_in_popup == 1)
-			gApplication::grabPopup();
+			owner->_grab_on_show = TRUE;
 
 		l = _loopLevel;
 		old_owner = _loop_owner;
@@ -1243,15 +1264,26 @@ void gApplication::enterPopup(gMainWindow *owner)
 		_loopLevel++;
 		_loop_owner = owner;
 
+		d = gApplication::disableInputEvents(false);
 		(*onEnterEventLoop)();
+		//fprintf(stderr, "event loop <----\n");
 		do
 		{
 			MAIN_do_iteration(false);
 		}
 		while (_loopLevel > l);
+		//fprintf(stderr, "event loop ---->\n");
 		(*onLeaveEventLoop)();
+		gApplication::disableInputEvents(d);
 
-		gApplication::ungrabPopup();
+		if (_in_popup == 1)
+		{
+			if (owner->_grab_on_show)
+				owner->_grab_on_show = FALSE;
+			else
+				gApplication::ungrabPopup();
+		}
+		
 		_popup_grab = old_popup_grab;
 
 		_loop_owner = old_owner;
@@ -1261,10 +1293,7 @@ void gApplication::enterPopup(gMainWindow *owner)
 			gdk_window_set_override_redirect(gtk_widget_get_window(owner->border), false);
 			gtk_window_set_modal(window, false);
 		}
-		//exitGroup(oldGroup);
 	}
-	else
-		gControl::cleanRemovedControls();
 
 	_in_popup--;
 }
@@ -1301,49 +1330,63 @@ static void post_focus_change(void *)
 {
 	gControl *current, *control, *next;
 
-	if (!_focus_change)
+	#if DEBUG_FOCUS
+	fprintf(stderr, "post_focus_change: %d %d\n", !_focus_change, _doing_focus_change);
+	#endif
+	
+
+	if (!_focus_change || _doing_focus_change)
 		return;
 
-	//fprintf(stderr, "post_focus_change\n");
+	#if DEBUG_FOCUS
+	fprintf(stderr, "post_focus_change: %s -> %s\n", gApplication::_old_active_control ? gApplication::_old_active_control->name() : "nil", gApplication::_active_control ? gApplication::_active_control->name() : "nil");
+	#endif
+	
+	_doing_focus_change = true;
 
 	for(;;)
 	{
 		current = gApplication::activeControl();
-		//fprintf(stderr, "activeControl = %s\n", current ? current->name() : NULL);
 		if (current == gApplication::_old_active_control)
 			break;
 
 		control = gApplication::_old_active_control;
+		//if (control) fprintf(stderr, "check focus out %s\n", control->name());
 		while (control)
 		{
 			next = control->_proxy_for;
-			if (control->onFocusEvent)
-				control->onFocusEvent(control, gEvent_FocusOut);
+			#if DEBUG_FOCUS
+			fprintf(stderr, "focus out %s\n", control->name());
+			#endif
+			CB_control_focus(control, gEvent_FocusOut);
 			control = next;
 		}
-
-		current = gApplication::activeControl();
-		if (current == gApplication::_old_active_control)
-			break;
-
+		
 		gApplication::_old_active_control = current;
-		//fprintf(stderr, "_old_active_control = %s\n", current ? current->name() : NULL);
 		gMainWindow::setActiveWindow(current);
 
-		control = gApplication::activeControl();
+		control = current; //gApplication::activeControl();
+		//if (control) fprintf(stderr, "check focus in %s\n", control->name());
 		while (control)
 		{
 			next = control->_proxy_for;
-			if (control->onFocusEvent)
-				control->onFocusEvent(control, gEvent_FocusIn);
+			#if DEBUG_FOCUS
+			fprintf(stderr, "focus in %s\n", control->name());
+			#endif
+			CB_control_focus(control, gEvent_FocusIn);
 			control = next;
 		}
 	}
 
-	_focus_change = FALSE;
+	_focus_change = false;
+	_doing_focus_change = false;
+	
+	#if DEBUG_FOCUS
+	fprintf(stderr, "post_focus_change: END\n");
+	#endif
 }
 
-void gApplication::handleFocusNow()
+void gApplication::finishFocus()
 {
 	post_focus_change(NULL);
 }
@@ -1353,18 +1396,40 @@ static void handle_focus_change()
 	if (_focus_change)
 		return;
 
-	_focus_change = TRUE;
+	_focus_change = true;
 	GB.Post((void (*)())post_focus_change, (intptr_t)NULL);
 }
 
 void gApplication::setActiveControl(gControl *control, bool on)
 {
+	if (control->isWindow() && on)
+	{
+		gControl *focus = ((gMainWindow *)control)->getInitialFocus();
+		if (focus != control)
+		{
+			focus->setFocus();
+			control = focus;
+		}
+	}
+	
+	while (!control->canFocus())
+	{
+		control = control->parent();
+		if (!control)
+			return;
+	}
+	
 	if (on == (_active_control == control))
 		return;
 
-	//fprintf(stderr, "setActiveControl: %s %d\n", control->name(), on);
-
-	if (_active_control)
+	#if DEBUG_FOCUS
+	fprintf(stderr, "setActiveControl: %s %s %d / %d\n", GB.GetClassName(control->hFree), control->name(), on, _focus_change);
+	#endif
+	
+	/*if (!::strcmp(GB.GetClassName(control->hFree), "FEditor") && !on)
+		BREAKPOINT();*/
+	
+	if (_active_control && !_focus_change)
 		_previous_control = _active_control;
 
 	_active_control = on ? control : NULL;
@@ -1374,12 +1439,6 @@ void gApplication::setActiveControl(gControl *control, bool on)
 
 int gApplication::getScrollbarSize()
 {
-	//GtkStyle* st;
-	gint trough_border;
-	gint slider_width;
-
-	//st = gtk_rc_get_style_by_paths(gtk_settings_get_default(), NULL, "OsBar", G_TYPE_NONE);
-
 	if (g_type_from_name("OsBar"))
 	{
 		char *env = getenv("LIBOVERLAY_SCROLLBAR");
@@ -1387,10 +1446,49 @@ int gApplication::getScrollbarSize()
 			return 1;
 	}
 
+#ifdef GTK3
+
+	if (_scrollbar_size == 0)
+	{
+		GtkWidget *widget = 
+		#ifdef GTK3
+			gtk_scrollbar_new(GTK_ORIENTATION_VERTICAL, NULL);
+		#else
+			gtk_hscrollbar_new(NULL);
+		#endif
+		gtk_widget_show(widget);
+		gtk_widget_get_preferred_width(widget, NULL, &_scrollbar_size); //, &minimum_size, &natural_size);
+		gtk_widget_get_preferred_height(widget, NULL, &_scrollbar_big_size); //, &minimum_size, &natural_size);
+		gtk_widget_destroy(widget);
+		
+		if (_fix_breeze)
+			_scrollbar_size += 3;
+		//fprintf(stderr, "getScrollbarSize = %d\n", size);
+	}
+	
+	return _scrollbar_size;
+	
+#else
+	
+	gint trough_border;
+	gint slider_width;
+
 	gt_get_style_property(GTK_TYPE_SCROLLBAR, "slider-width", &slider_width);
 	gt_get_style_property(GTK_TYPE_SCROLLBAR, "trough-border", &trough_border);
 
 	return (trough_border) * 2 + slider_width;
+	
+#endif
+}
+
+int gApplication::getScrollbarBigSize()
+{
+#ifdef GTK3
+	getScrollbarSize();
+	return _scrollbar_big_size;
+#else
+	return getScrollbarSize();
+#endif
 }
 
 int gApplication::getScrollbarSpacing()
@@ -1404,7 +1502,7 @@ int gApplication::getScrollbarSpacing()
 
 int gApplication::getInnerWidth()
 {
-	if (fix_oxygen)
+	if (_fix_oxygen)
 		return 1;
 	else
 		return 0;
@@ -1415,7 +1513,7 @@ int gApplication::getFrameWidth()
 	int w;
 #ifdef GTK3
 	int h;
-	
+
 	getBoxFrame(&w, &h);
 	w = h;
 
@@ -1446,7 +1544,7 @@ void gApplication::getBoxFrame(int *pw, int *ph)
 	int w, h;
 
 #ifdef GTK3
-	
+
 	GtkStyleContext *context = gt_get_style(GTK_TYPE_ENTRY);
   GtkBorder border;
 	GtkBorder padding;
@@ -1460,18 +1558,18 @@ void gApplication::getBoxFrame(int *pw, int *ph)
   gtk_style_context_get(context, STATE_FOCUSED, GTK_STYLE_PROPERTY_BORDER_RADIUS, &radius, NULL);
 	//fprintf(stderr, "border-radius: %d\n", radius);
 	radius /= 2;
-	
+
 	w = MAX(border.left + padding.left, border.right + padding.right);
 	w = MAX(w, radius);
-	
+
 	h = MAX(border.top + padding.top, border.bottom + padding.bottom);//, MAX(padding.top, padding.bottom));
 	h = MAX(h, radius);
-	
+
 	w = MAX(2, w);
 	h = MAX(2, h);
 
 #else
-	
+
 	GtkStyle *style;
 	gint focus_width;
 	gboolean interior_focus;
@@ -1494,7 +1592,7 @@ void gApplication::getBoxFrame(int *pw, int *ph)
 	inner = getInnerWidth();
 	w += inner;
 	h += inner;
-	
+
 #endif
 
 	*pw = w;
@@ -1503,17 +1601,31 @@ void gApplication::getBoxFrame(int *pw, int *ph)
 
 char *gApplication::getStyleName()
 {
-	static char *_theme = NULL;
-
 	if (!_theme)
 	{
+		char *p;
 		GtkSettings *settings = gtk_settings_get_default();
 		g_object_get(settings, "gtk-theme-name", &_theme, (char *)NULL);
+
+		p = _theme = g_strdup(_theme);
+		while (*p)
+		{
+			*p = tolower(*p);
+			p++;
+		}
+		
+		_fix_breeze = false;
+		_fix_oxygen = false;
+		if (strcasecmp(_theme, "breeze") == 0 || strcasecmp(_theme, "breeze dark") == 0)
+			_fix_breeze = true;
+		else if (strcasecmp(_theme, "oxygen-gtk") == 0)
+			_fix_oxygen = true;
 	}
 
 	return _theme;
 }
 
+#ifndef GTK3
 static GdkFilterReturn x11_event_filter(GdkXEvent *xevent, GdkEvent *event, gpointer data)
 {
 	((X11_EVENT_FILTER)data)((XEvent *)xevent);
@@ -1540,6 +1652,7 @@ void gApplication::setEventFilter(X11_EVENT_FILTER filter)
 
 	save_filter = filter;
 }
+#endif
 
 void gApplication::setMainWindow(gMainWindow *win)
 {
@@ -1557,3 +1670,161 @@ int gApplication::dblClickTime()
   g_object_get (gtk_settings_get_default(), "gtk-double-click-time", &value, (char *)NULL);
 	return value;
 }
+
+void gApplication::onThemeChange()
+{
+	if (_theme)
+	{
+		g_free(_theme);
+		_theme = NULL;
+	}
+	
+	getStyleName();
+	_scrollbar_size = 0;
+}
+
+static void for_each_filter(gContainer *cont, GPtrArray *list, bool (*filter)(gControl *))
+{
+	int i;
+	gControl *control;
+	
+	if ((*filter)(cont))
+		g_ptr_array_add(list, cont);
+	
+	for (i = 0; i < cont->childCount(); i++)
+	{
+		control = cont->child(i);
+		if (control->isContainer())
+			for_each_filter((gContainer *)control, list, filter);
+		else
+		{
+			if ((*filter)(control))
+				g_ptr_array_add(list, control);
+		}
+	}
+}
+
+static void for_each_control(gContainer *cont, void (*cb)(gControl *))
+{
+	//GPtrArray *children;
+	int i;
+	gControl *control;
+	
+	(*cb)(cont);
+	
+	//children = cont->childrenCopy();
+	//for (i = 0; i < children->len; i++)
+	//{
+	//	control = (gControl *)g_ptr_array_index(children, i);
+	for (i = 0; i < cont->childCount(); i++)
+	{
+		control = cont->child(i);
+		
+		if (control->isContainer())
+			for_each_control((gContainer *)control, cb);
+		else
+			(*cb)(control);
+	}
+	//g_ptr_array_unref(children);
+}
+
+// Of the callback may destroy controls, the filter must be specified!
+
+void gApplication::forEachControl(void (*cb)(gControl *), bool (*filter)(gControl *))
+{
+	GList *iter_win;
+	gMainWindow *win;
+	
+	iter_win = g_list_first(gMainWindow::windows);
+	while (iter_win)
+	{
+		win = (gMainWindow *)iter_win->data;
+		iter_win = g_list_next(iter_win);
+		
+		if (filter)
+		{
+			uint i;
+			gControl *control;
+			GPtrArray *list = g_ptr_array_new();
+			
+			for_each_filter(win, list, filter);
+			
+			for (i = 0; i < list->len; i++)
+			{
+				control = (gControl *)g_ptr_array_index(list, i);
+				if (control->isDestroyed())
+					continue;
+				//fprintf(stderr, "[%d] %s\n", i, control->name());
+				(*cb)(control);
+			}
+			
+			g_ptr_array_unref(list);
+		}
+		else
+		{
+			for_each_control(win, cb);
+		}
+	}
+}
+
+#if 0
+void gApplication::pushInputEvent(GdkEvent *event)
+{
+	if (!_input_events)
+		_input_events = g_queue_new();
+	
+	g_queue_push_tail(_input_events, gdk_event_copy(event));
+}
+
+bool gApplication::processInputEvent()
+{
+	GdkEvent *event;
+	
+	if (!areInputEventsEnabled())
+		return true;
+	
+	if (!_input_events || g_queue_is_empty(_input_events))
+		return true;
+	
+	event = (GdkEvent *)g_queue_pop_head(_input_events);
+	gambas_handle_event(event);
+	gdk_event_free(event);
+	return false;
+}
+#endif
+
+bool gApplication::disableInputEvents(bool disable)
+{
+	bool d = _disable_input_events;
+	_disable_input_events = disable;
+	return d;
+}
+
+bool gApplication::eventsPending()
+{
+	/*if (areInputEventsEnabled() && _input_events && !g_queue_is_empty(_input_events))
+		return true;*/
+	
+	return gtk_events_pending();
+		
+}
+
+#ifdef GTK3
+bool gApplication::hasMiddleClickPaste()
+{
+  gboolean enabled;
+  GtkSettings *settings;
+
+  settings = gtk_settings_get_default();
+
+  g_object_get(settings, "gtk-enable-primary-paste", &enabled, (char *)NULL);
+
+  return enabled;
+}
+#else
+bool gApplication::hasMiddleClickPaste()
+{
+	return TRUE;
+}
+#endif
+

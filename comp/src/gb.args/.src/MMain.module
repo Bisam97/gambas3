@@ -3,13 +3,21 @@
 Public Sub Main()
 
   Dim iStack As Integer
-  
+
+  Args.Abort = False
+
   Args.Begin() '"Usage: gbx3 <options> <project>\n       gbx3 -e <expression>")
   
   Args.Has("k", "no-unload", "Do not unload shared libraries")
   Args.Get("p", "profile", "Activate profiling mode", "path")
   iStack = Args.GetInteger("s", "stack-size", "Stack size [256]", "kilobytes", 256)
-  
+
+  If Args.Has("h", "help", "custom help") Then
+    Print "I CAN PREFIX....."
+    Print Args.HelpText()
+    Print "I CAN SUFFIX..."
+  Endif
+
   Print Args.End().Join(",")
   Print iStack
 

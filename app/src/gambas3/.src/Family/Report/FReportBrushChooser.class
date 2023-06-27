@@ -16,16 +16,16 @@ Private $lblA2 As DrawingArea
 Private $MX As Integer
 Private $MY As Integer
 'Valeur radiales
-Private $fX As Float = 0.5
-Private $fY As Float = 0.5
-Private $cX As Float = 0.50
-Private $cY As Float = 0.50
+Private $FX As Float = 0.5
+Private $FY As Float = 0.5
+Private $CX As Float = 0.50
+Private $CY As Float = 0.50
 Private $fRadius As Float = 0.5
 'valeur linéaires
-Private $flX1 As Float = 0
-Private $flY1 As Float = 0.5
-Private $flX2 As Float = 1
-Private $flY2 As Float = 0.5
+Private $X1 As Float = 0
+Private $Y1 As Float = 0.5
+Private $X2 As Float = 1
+Private $Y2 As Float = 0.5
 
 Static Public Value As String  '"radialgradient(0.5,0.5,1,0.5,0.5,[&hFFFFFF,&h000000,&h00FF00],[0,0.5,1])" '"lineargradient(0,0.5,1,0.5,[&hFFFFFF,&h000000,&h00FF00],[0,0.5,1])"
 
@@ -69,19 +69,19 @@ Public Sub Form_Open()
       txtImage.Text = $hBrush.Path
       
     Case CReportBrush.TYPE_RADIAL_GRADIENT
-      $cX = $hBrush.X1
-      $cy = $hBrush.Y1
+      $CX = $hBrush.X1
+      $CY = $hBrush.Y1
       $fRadius = $hBrush.Radius
-      $fX = $hBrush.X2
-      $fY = $hBrush.Y2
+      $FX = $hBrush.X2
+      $FY = $hBrush.Y2
       $aGradientColors = $hBrush.Colors
       $aGradientPos = $hBrush.Positions
       
     Case CReportBrush.TYPE_LINEAR_GRADIENT
-      $flX1 = $hBrush.X1
-      $flY1 = $hBrush.Y1
-      $flX2 = $hBrush.X2
-      $flY2 = $hBrush.Y2
+      $X1 = $hBrush.X1
+      $Y1 = $hBrush.Y1
+      $X2 = $hBrush.X2
+      $Y2 = $hBrush.Y2
       $aGradientColors = $hBrush.Colors
       $aGradientPos = $hBrush.Positions
       
@@ -170,13 +170,13 @@ Public Sub dwgGradient_Draw()
   
   If cmbType.Index = CReportBrush.TYPE_RADIAL_GRADIENT Then
     
-    Paint.Brush = Paint.RadialGradient((Paint.Width - 10) * $cX, (Paint.Height - 10) * $cY, (Paint.Width - 10) * 2 * $fRadius, (Paint.Width - 10) * $fX, (Paint.Height - 10) * $fY, $aGradientColors, $aGradientPos)
+    Paint.Brush = Paint.RadialGradient((Paint.Width - 10) * $CX, (Paint.Height - 10) * $CY, (Paint.Width - 10) * 2 * $fRadius, (Paint.Width - 10) * $FX, (Paint.Height - 10) * $FY, $aGradientColors, $aGradientPos)
     Paint.Rectangle(5, 5, Paint.Width - 10, Paint.Height - 10)
     Paint.fill
     
   Else
     
-    Paint.Brush = Paint.LinearGradient((Paint.Width - 10) * $flX1, (Paint.Height - 10) * $flY1, (Paint.Width - 10) * $flX2, (Paint.Height - 10) * $flY2, $aGradientColors, $aGradientPos)
+    Paint.Brush = Paint.LinearGradient((Paint.Width - 10) * $X1, (Paint.Height - 10) * $Y1, (Paint.Width - 10) * $X2, (Paint.Height - 10) * $Y2, $aGradientColors, $aGradientPos)
     Paint.Rectangle(5, 5, Paint.Width - 10, Paint.Height - 10)
     Paint.Fill
     Paint.Brush = Paint.Color(Color.Black)
@@ -325,9 +325,9 @@ Public Sub btnOK_Click()
       
     Case CReportBrush.TYPE_LINEAR_GRADIENT, CReportBrush.TYPE_RADIAL_GRADIENT
       If cmbType.Index = CReportBrush.TYPE_RADIAL_GRADIENT Then
-        sValue = "RadialGradient(" & $cx & "," & $cy & "," & $fRadius & "," & $fx & "," & $fy & ",["
+        sValue = "RadialGradient(" & $CX & "," & $CY & "," & $fRadius & "," & $FX & "," & $FY & ",["
       Else
-        sValue = "LinearGradient(" & $flX1 & "," & $flY1 & "," & $flX2 & "," & $flY2 & ",["
+        sValue = "LinearGradient(" & $X1 & "," & $Y1 & "," & $X2 & "," & $Y2 & ",["
       Endif
       
       For Each i In $aGradientColors
@@ -377,19 +377,19 @@ Private Sub UpdateAngle()
     
     If hLabel.Tag = 1 Then
       If cmbType.Index = CReportBrush.TYPE_LINEAR_GRADIENT Then
-        $flX1 = X
-        $flY1 = Y
+        $X1 = X
+        $Y1 = Y
       Else
-        $cX = X
-        $cY = Y
+        $CX = X
+        $CY = Y
       Endif
     Else
       If cmbType.Index = CReportBrush.TYPE_LINEAR_GRADIENT Then
-        $flX2 = X
-        $flY2 = Y
+        $X2 = X
+        $Y2 = Y
       Else
-        $fX = X
-        $fY = Y
+        $FX = X
+        $FY = Y
       Endif
     Endif
     

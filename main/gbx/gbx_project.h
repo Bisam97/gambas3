@@ -2,7 +2,7 @@
 
   gbx_project.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -40,6 +40,7 @@ typedef
 EXTERN char *PROJECT_path;
 EXTERN char *PROJECT_exec_path;
 EXTERN char *PROJECT_name;
+EXTERN char *PROJECT_source;
 EXTERN char *PROJECT_title;
 EXTERN char *PROJECT_version;
 EXTERN const char *PROJECT_startup;
@@ -50,6 +51,8 @@ EXTERN char **PROJECT_argv;
 EXTERN char *PROJECT_oldcwd;
 EXTERN char *PROJECT_user_home;
 EXTERN bool PROJECT_run_httpd;
+EXTERN bool PROJECT_run_tests;
+EXTERN const char *PROJECT_override;
 #endif
 
 void PROJECT_init(const char *file);

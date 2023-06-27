@@ -2,6 +2,8 @@
 
 Export
 
+Static Private $cNameFromKey As Collection
+
 Static Public Sub _call(Text As String, Shortcut As String, Optional AddIfMissing As Boolean) As String
 
   Dim iPos As Integer
@@ -29,21 +31,30 @@ Static Public Sub FromKey() As String
   Dim sShortcut As String
   Dim sSymbol As String
   Dim hClass As Class
+  Dim sName As String
   
-  If Key.Control Then sShortcut &= "Ctrl+"
-  If Key.Shift Then sShortcut &= "Shift+"
-  If Key.Alt Then sShortcut &= "Alt+"
-  If Key.Meta Then sShortcut &= "Meta+"
+  If Key.Control And If Key.Code <> Key.ControlKey Then sShortcut &= "Ctrl+"
+  If Key.Shift And If Key.Code <> Key.ShiftKey Then sShortcut &= "Shift+"
+  If Key.Alt And If Key.Code <> Key.AltKey Then sShortcut &= "Alt+"
+  If Key.Meta And If Key.Code <> Key.MetaKey Then sShortcut &= "Meta+"
   
-  hClass = Classes["Key"]
-  For Each sSymbol In hClass.Symbols
-    With hClass[sSymbol]
-      If .Kind = Class.Constant And If .Value = Key.Code Then
-        Return sShortcut & .Name
-      Endif
-    End With
-  Next
+  If Not $cNameFromKey Then
   
-  Return sShortcut & String.Chr(Key.Code)
+    $cNameFromKey = New Collection
+    hClass = Classes["Key"]
+    For Each sSymbol In hClass.Symbols
+      With hClass[sSymbol]
+        If .Kind = Class.Constant Then $cNameFromKey[.Value] = .Name
+      End With
+    Next
+  
+  Endif
+  
+  sName = $cNameFromKey[Key.Code]
+  If sName Then
+    Return sShortcut & sName
+  Else
+    Return sShortcut & String.Chr(Key.Code)
+  Endif
   
 End

@@ -2,7 +2,7 @@
 
   gb.image.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -156,6 +156,10 @@ typedef
 		GB_COLOR (*DarkerColor)(GB_COLOR col);
 		// Return the image format as a string
 		const char *(*FormatToString)(int format);
+		// Return the luminance of a color
+		int (*GetLuminance)(GB_COLOR col);
+		// Invert an image, eventually preserving the color hue.
+		void (*Invert)(GB_IMG *img, bool keep_hue);
 		}
 	IMAGE_INTERFACE;
 

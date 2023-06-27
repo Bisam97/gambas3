@@ -2,7 +2,7 @@
 
   gb_code.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -26,7 +26,7 @@
 
 #include "gb_pcode.h"
 
-#ifndef __CODE_C
+#ifndef __GB_CODE_C
 EXTERN short CODE_stack_usage;
 EXTERN unsigned char CODE_disabled;
 #endif
@@ -43,27 +43,35 @@ EXTERN unsigned char CODE_disabled;
 
 void CODE_begin_function(void);
 void CODE_end_function(void);
-bool CODE_popify_last(void);
+bool CODE_popify_last(bool no_conv);
 
 #else
 
 #include "gb_common_swap.h"
 
+#ifndef __GB_CODE_C
+EXTERN FUNCTION *CODE_current_func;
+EXTERN bool CODE_break_is_allowed;
+#endif
+
 void CODE_begin_function(FUNCTION *func);
 void CODE_end_function(FUNCTION *func);
+FUNCTION *CODE_set_function(FUNCTION *func);
 
-bool CODE_popify_last(void);
+bool CODE_popify_last(bool no_conv);
 bool CODE_check_statement_last(void);
 bool CODE_check_pop_local_last(short *local);
 bool CODE_check_jump_not(void);
+bool CODE_check_fast_cat(void);
 
 bool CODE_check_varptr(void);
 bool CODE_check_ismissing(void);
 
-void CODE_allow_break(void);
+#define CODE_allow_break() (CODE_break_is_allowed = TRUE)
 //void CODE_break(void);
 
 void CODE_pop_local(short num);
+void CODE_pop_local_noref(short num);
 //void CODE_pop_param(short num);
 void CODE_pop_global(short global, bool is_static);
 void CODE_pop_symbol(short symbol);
@@ -79,8 +87,7 @@ void CODE_gosub(int ctrl_local);
 void CODE_on(uchar num);
 void CODE_jump_first(short local);
 void CODE_jump_next(void);
-void CODE_jump_if_true(void);
-void CODE_jump_if_false(void);
+void CODE_jump_if(bool test, bool fast);
 void CODE_jump_length(ushort src, ushort dst);
 void CODE_first(short local);
 void CODE_next(bool drop);
@@ -99,18 +106,25 @@ void CODE_catch(void);
 
 void CODE_pop_ctrl(short num);
 
-#endif /* PROJECT_COMP */
+#endif /* PROJECT_EXEC */
 
+#ifdef PROJECT_EXEC
 ushort CODE_get_current_pos(void);
+#else
+#define CODE_get_current_pos() (CODE_current_func->ncode)
+#endif
+
 ushort CODE_set_current_pos(ushort pos);
 void CODE_ignore_next_stack_usage(void);
 
 void CODE_dump(PCODE *code, int count);
 
 void CODE_push_number(int value);
+void CODE_push_float(int value);
 void CODE_push_const(ushort value);
 
-void CODE_push_local(short num);
+void CODE_push_local_ref(short num, bool noref);
+#define CODE_push_local(_num) CODE_push_local_ref(_num, TRUE);
 //void CODE_push_param(short num);
 void CODE_push_array(short nparam);
 void CODE_push_global(short global, bool is_static, bool is_function);
@@ -132,6 +146,7 @@ void CODE_push_complex();
 
 void CODE_push_vargs();
 void CODE_drop_vargs();
+void CODE_end_vargs();
 
 void CODE_dup(void);
 

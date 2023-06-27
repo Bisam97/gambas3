@@ -7,6 +7,7 @@ Inherits Panel
 Event Change
 Event BeforeSave(Data As Result)
 Event BeforeDelete(Keys As Variant[])
+Event Invalid(Field As String)
 
 Property Connection As Connection
 Property Table As String
@@ -18,19 +19,21 @@ Property Read Count As Integer
 Property ReadOnly As Boolean
 Property Sort As String
 Property Ascending As Boolean
+Property IgnoreParent As Boolean
 
 'Property CacheSize As Integer
 
 ' Pb si on fait de Connection une propriété de l'IDE: le controle
 ' Connection doit être créé AVANT l'affectation à la propriété,
-' et l'IDE ne sait pas géré ça!
+' et l'IDE ne sait pas gérer ça!
 
-Public Const _Properties As String = "*,Connection{Connection},Table{Table},Filter,ReadOnly" ',CacheSize{Range:0;1024;64}"
+Public Const _Properties As String = "*,Connection{Connection},Table{Table},Filter,ReadOnly,IgnoreParent" ',CacheSize{Range:0;1024;64}"
 Public Const _Group As String = "Data"
 'PUBLIC CONST _DrawWith AS String = "DrawingArea"
 
 Private $sTable As String
 Private $sFilter As String
+Private $bIgnoreParent As Boolean
 Private $bReadOnly As Boolean
 Private $bRequest As Boolean
 
@@ -48,6 +51,7 @@ Private $sError As String
 Private Const ACTION_SAVE As Integer = 0
 Private Const ACTION_CONTINUE As Integer = 1
 Private Const ACTION_CANCEL As Integer = 2
+Private $bSaving As Boolean
 
 Public Sub _new()
   
@@ -122,6 +126,12 @@ Private Sub SetFocus(sKey As String)
   
 End
 
+Private Sub GetParent() As DataSource
+  
+  If Not $bIgnoreParent Then Return Common.GetSource(Me)
+  
+End
+
 
 Private Function GetFilter() As String
 
@@ -130,7 +140,7 @@ Private Function GetFilter() As String
   Dim vVal As Variant
   Dim sField As String
   
-  hSrc = Common.GetSource(Me)
+  hSrc = GetParent()
   If hSrc Then 
     For Each sField In hSrc.GetKeys()
       'iPos = $hTable.Keys.Find(sField) 
@@ -349,7 +359,7 @@ Public Sub _EditCurrent() As Result
   If Not aVal Then Return
   aKey = $hTable.Keys
   
-  hSrc = Common.GetSource(Me)
+  hSrc = GetParent()
   If hSrc Then
     For Each sKey In hSrc.GetKeys()
       iPos = aKey.Find(sKey)
@@ -383,7 +393,7 @@ Public Sub _CreateCurrent() As Result
   
   rData = _GetDB().Create($sTable)
 
-  hSrc = Common.GetSource(Me)
+  hSrc = GetParent()
   If hSrc Then
     For Each sKey In hSrc.GetKeys()
       Try rData[sKey] = hSrc[sKey]
@@ -404,18 +414,23 @@ Public Function Save(Optional bMessage As Boolean = True) As Boolean
   Dim aVal As Variant[]
   Dim bCancel As Boolean
 
+  If $bSaving Then Return True
+
   Inc Application.Busy
   
   For Each hChild In GetChildren()
     If Common.IsControl(hChild) Then
       If Not hChild.Valid Then
         Dec Application.Busy
-        Message.Warning(("Invalid value."))
+        bCancel = Raise Invalid(hChild.Field)
+        If Not bCancel Then Message.Warning(("Invalid value."))
         hChild.SetFocus
         Return True
       Endif
     Endif
   Next
+  
+  $bSaving = True
     
   aKey = $hTable.Keys
   
@@ -487,6 +502,7 @@ Public Function Save(Optional bMessage As Boolean = True) As Boolean
   
 Finally
 
+  $bSaving = False
   Dec Application.Busy
 
 Catch
@@ -513,7 +529,7 @@ Public Sub _DeleteCurrent() As Boolean
   
   aKey = $hTable.Keys
   
-  hSrc = Common.GetSource(Me)
+  hSrc = GetParent()
   If hSrc Then
     For Each sKey In hSrc.GetKeys()
       iPos = aKey.Find(sKey)
@@ -554,6 +570,19 @@ Public Function _get((Key) As String) As Variant
   Endif
   
 End
+
+Public Function Find(Where As String, ...) As Integer
+  
+  Return $hTable.Find($DB.Subst(Where, ...))
+  
+End
+
+Public Function FindNext(Index As Integer, Where As String, ...) As Integer
+  
+  Return $hTable.Find($DB.Subst(Where, ...), Index)
+  
+End
+
 
 Public Function _GetInfo((Key) As String) As DataField
   
@@ -666,8 +695,6 @@ Public Function _GetDB() As Connection
   
 End
 
-
-
 Private Function ReadOnly_Read() As Boolean
   
   Return $bReadOnly Or $bRequest
@@ -760,5 +787,19 @@ Private Sub Ascending_Write(Value As Boolean)
   Endif
   $hTable.Ascending = Value
   Redraw
+
+End
+
+Private Function IgnoreParent_Read() As Boolean
+
+  Return $bIgnoreParent
+
+End
+
+Private Sub IgnoreParent_Write(Value As Boolean)
+
+  If Value = $bIgnoreParent Then Return
+  $bIgnoreParent = Value
+  Load
 
 End

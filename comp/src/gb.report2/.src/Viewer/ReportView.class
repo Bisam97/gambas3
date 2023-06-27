@@ -115,7 +115,7 @@ Public Sub Area_MouseWheel()
 
   If Not $hView.Arrangement = Arrange.Row Then
     $hView.Arrangement = Arrange.Row
-    $hView.Column = 0
+    $hView.Columns = 0
   Endif
 
 End
@@ -125,7 +125,7 @@ Public Sub Area_Draw()
   Dim sText As String
   Dim iTextWidth As Integer
 
-  sText = Str($hView.FirstVisibleDocument + 1) & "/" & Str($hView.Count)
+  sText = Str($hView.FirstVisiblePage + 1) & "/" & Str($hView.Count)
   iTextWidth = Paint.TextSize(sText).Width + 10
   Paint.Rectangle(Paint.Width - iTextWidth - 10, 10, iTextWidth, 25, 5)
   Paint.Brush = Paint.Color(Color.SetAlpha(Color.black, 125))
@@ -184,40 +184,37 @@ Private Sub Report_Write(Value As Report)
 
 End
 
-Public Sub MoveNext()
-
-  $hView.MoveNext
-  $hView.Item.EnsureVisible
-
-End
-
-Public Sub MovePrevious()
-
-  $hView.MovePrevious
-  $hView.Item.EnsureVisible
-
-End
-
-Public Sub MoveFirst()
-
-  $hView.MoveFirst
-  $hView.Item.EnsureVisible
-
-End
-
-Public Sub MoveLast()
-
-  $hView.MoveLast
-  $hView.Item.EnsureVisible
-
-End
-
-Public Sub MoveTo((Page) As Integer)
-
-  $hView.MoveTo(Page)
-  $hView.Item.EnsureVisible
-
-End
+' Public Sub MoveNext()
+' 
+'   $hView.MoveNext
+'   $hView.Item.EnsureVisible
+' 
+' End
+' 
+' Public Sub MovePrevious()
+' 
+'   $hView.MovePrevious
+'   $hView.Item.EnsureVisible
+' 
+' End
+' 
+' Public Sub MoveFirst()
+' 
+'   $hView[0].EnsureVisible
+' 
+' End
+' 
+' Public Sub MoveLast()
+' 
+'   $hView[$hView.Count - 1].EnsureVisible
+' 
+' End
+' 
+' Public Sub MoveTo((Page) As Integer)
+' 
+'   $hView.
+' 
+' End
 
 
 Private Function LayoutInProgress_Read() As Boolean
@@ -236,25 +233,25 @@ Private Sub ScaleMode_Write(Value As Integer)
 
   $iScaleMode = Value
 
-  $hView.AutoCenter = False
+  $hView.Center = False
 
   Select Case Value
     Case Me.Custom
-      $hView.Column = 0
+      $hView.Columns = 0
       $hView.Arrangement = Arrange.Row
     Case Me.Page
-      $hView.Column = 0
+      $hView.Columns = 0
       $hView.Arrangement = Arrange.Fill
-      $hView.AutoCenter = True
+      $hView.Center = True
     Case Me.DualPage
-      $hView.Column = 2
+      $hView.Columns = 2
       $hView.Arrangement = Arrange.Row
-      $hView.AutoCenter = True
+      $hView.Center = True
     Case Me.FullWidth
-      $hView.Column = 0
+      $hView.Columns = 0
       $hView.Arrangement = Arrange.Vertical
     Case Me.RealSize
-      $hView.Column = 0
+      $hView.Columns = 0
       $hView.Arrangement = Arrange.Row
       $hView.Zoom = 1
   End Select
@@ -320,9 +317,9 @@ Finally
 Fin:
   If $aRangePage.Count > 0 Then
     $hView.Count = $aRangePage.Count
-    Me.MoveFirst
+    Try $hView[0].EnsureVisible
   Else
-    Me.MoveFirst
+    Try $hView[0].EnsureVisible
     $hView.Count = $hReport.PageCount
   Endif
   tmrView.Trigger

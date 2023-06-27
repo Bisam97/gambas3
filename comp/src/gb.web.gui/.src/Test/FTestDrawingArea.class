@@ -1,0 +1,99 @@
+' Gambas class file
+
+'Export
+
+Private $X As Integer
+Private $Y As Integer
+Private $iHue As Integer
+
+Public Sub _new()
+  
+  WebForm.Debug = True
+  
+End
+
+
+Public Sub WebDrawingArea1_Draw()
+
+  Paint.LineWidth = 8
+
+  ' Paint.Rectangle(50, 50, 150, 150)
+  ' Paint.Stroke(Color.Red, True)
+  ' Paint.Fill(Color.SetAlpha(Color.SoftBlue, 192))
+  ' 
+  ' Paint.Rectangle(80, 80, 150, 150)
+  ' Paint.Stroke(Color.SetAlpha(Color.Yellow, 64))
+  
+  Paint.Arc(100, 100, 60)
+  Paint.Fill(Color.Red)
+  Paint.Rectangle(80, 60, 120, 70)
+  Paint.Fill(Color.SetAlpha(Color.Royal, 64))
+  
+  Paint.Ellipse(80, 60, 120, 70, 0, -Pi / 2)
+  Paint.Stroke(Color.Green)
+  
+  Paint.Rectangle(80, 200, 120, 70)
+  Paint.Brush = Paint.LinearGradient(80, 200, 80, 270, [Color.Red, Color.Green, Color.Violet], [0, 0.5, 1])
+  Paint.Fill()
+ 
+  Paint.Rectangle(220, 200, 120, 70)
+  Paint.Brush = Paint.LinearGradient(220, 200, 340, 200, [Color.Red, Color.Green, Color.Violet], [0, 0.5, 1])
+  Paint.Fill()
+  
+  Paint.Arc(100, 320, 40)
+  Paint.Brush = Paint.RadialGradient(100, 320, 2, 100, 320, 40, ["red", "yellow", "lightblue"], [0, 0.6, 1])
+  Paint.Fill()
+  
+  Paint.DrawImage("https://gambas.sf.net/logo-circle.png", 150, 10, 200, 200, 0.5, Rect(10, 10, 100, 100))
+  
+  Paint.Rectangle(5.5, 5.5, Paint.W - 12, Paint.H - 12)
+  Paint.LineWidth = 2
+  Paint.LineDash = [8, 4]
+  Paint.Stroke(Color.Red)
+
+End
+
+Static Public Sub _init()
+
+  'WebForm.Debug = True
+
+End
+
+Public Sub WebButton1_Click()
+
+  WebDrawingArea1.Refresh
+
+End
+
+Public Sub WebDrawingArea1_MouseDown()
+
+  WebForm.Print("MouseDown: " & CStr(Mouse.X) & "," & CStr(Mouse.Y))
+  $X = Mouse.X
+  $Y = Mouse.Y
+
+End
+
+Public Sub WebDrawingArea1_MouseMove()
+
+  'WebForm.Print("MouseMove: " & CStr(Mouse.X) & "," & CStr(Mouse.Y))
+  Paint.Begin(Last)
+  Paint.LineWidth = 4
+  Paint.MoveTo($X, $Y)
+  Paint.LineTo(Mouse.X, Mouse.Y)
+  $iHue = ($iHue + 2) Mod 360
+  Paint.Stroke(Subst("hsl(&1,75%,50%)", $iHue))
+  Paint.End
+  $X = Mouse.X
+  $Y = Mouse.Y
+
+End
+
+Public Sub WebDrawingArea1_MouseUp()
+
+  WebForm.Print("MouseUp: " & CStr(Mouse.X) & "," & CStr(Mouse.Y))
+  Paint.Begin(Last)
+  Paint.Arc($X, $Y, 8)
+  Paint.Fill(Color.SetAlpha(Color.Black, 192))
+  Paint.End
+
+End

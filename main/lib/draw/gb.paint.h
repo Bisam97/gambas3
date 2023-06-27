@@ -2,7 +2,7 @@
 
   gb.paint.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -129,6 +129,7 @@ typedef
 		int resolutionX;                   // device horizontal resolution in DPI
 		int resolutionY;                   // device vertical resolution in DPI
 		PAINT_BRUSH *brush;                // current brush
+		double fontScale;                  // font scale
 		void *extra;                       // driver-specific state
 		unsigned opened : 1;               // if the painting has been opened
 		unsigned other : 1;                // if painting are imbricated on that device

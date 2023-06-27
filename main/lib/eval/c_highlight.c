@@ -2,7 +2,7 @@
 
   c_highlight.c
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -137,6 +137,7 @@ static int convState(int state)
 		case RT_RESERVED: return HIGHLIGHT_KEYWORD;
 		case RT_IDENTIFIER: return HIGHLIGHT_SYMBOL;
 		case RT_CLASS: return HIGHLIGHT_DATATYPE;
+		case RT_INTEGER: return HIGHLIGHT_NUMBER;
 		case RT_NUMBER: return HIGHLIGHT_NUMBER;
 		case RT_STRING: return HIGHLIGHT_STRING;
 		case RT_SUBR: return HIGHLIGHT_SUBR;
@@ -165,7 +166,9 @@ static void analyze(const char *src, int len_src, bool rewrite, int state)
 	n = 0;
 	for (i = 0; i < result.len; i++)
 	{
-		if (result.color[i].state != RT_END)
+		if (result.color[i].state == RT_END)
+			break;
+		if (result.color[i].state != RT_SPACE)
 			n++;
 	}
 
@@ -180,19 +183,23 @@ static void analyze(const char *src, int len_src, bool rewrite, int state)
 	{
 		len = result.color[p].len;
 
-		ulen = 0;
-		for (l = 0; l < len; l++)
-			ulen += get_char_length(result.str[upos + ulen]);
-		
-		if (result.color[p].state != RT_END)
+		if (result.color[p].state == RT_SPACE)
 		{
+			ulen = len;
+		}
+		else
+		{
+			ulen = 0;
+			for (l = 0; l < len; l++)
+				ulen += get_char_length(result.str[upos + ulen]);
+
 			str = GB.NewString(&result.str[upos], ulen);
 			*((char **)GB.Array.Get(garray, i)) = str;
 			*((int *)GB.Array.Get(tarray, i)) = convState(result.color[p].state);
 			*((int *)GB.Array.Get(parray, i)) = pos;
 			i++;
 		}
-
+		
 		pos += len;
 		upos += ulen;
 	}
@@ -268,13 +275,6 @@ BEGIN_PROPERTY(Highlight_TextAfter)
 
 END_PROPERTY
 
-BEGIN_PROPERTY(Highlight_Alternate)
-
-	GB.Deprecated("gb.eval", "Highlight.Alternate", NULL);
-	GB.ReturnInteger(-1);
-
-END_PROPERTY
-
 GB_DESC CHighlightDesc[] =
 {
 	GB_DECLARE("Highlight", 0), GB_VIRTUAL_CLASS(),
@@ -300,9 +300,10 @@ GB_DESC CHighlightDesc[] =
 	GB_CONSTANT("Escape", "i", HIGHLIGHT_ESCAPE),
 	GB_CONSTANT("Label", "i", HIGHLIGHT_LABEL),
 	GB_CONSTANT("Constant", "i", HIGHLIGHT_CONSTANT),
+	GB_CONSTANT("Alternate", "i", HIGHLIGHT_ALTERNATE),
+	GB_CONSTANT("Added", "i", HIGHLIGHT_ADDED),
+	GB_CONSTANT("Removed", "i", HIGHLIGHT_REMOVED),
 	GB_CONSTANT("Custom", "i", HIGHLIGHT_NUM_COLOR),
-	
-	GB_STATIC_PROPERTY_READ("Alternate", "i", Highlight_Alternate),
 	
 	GB_STATIC_METHOD("_exit", NULL, Highlight_exit, NULL),
 	GB_STATIC_METHOD("Analyze", "String[]", Highlight_Analyze, "(Code)s[(Rewrite)b(State)i]"),

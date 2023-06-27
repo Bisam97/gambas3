@@ -2,7 +2,6 @@
 
 Inherits UserControl
 
-Property Image As Image
 Property Selected As Boolean
 
 Private $hView As DrawingArea
@@ -57,15 +56,13 @@ Private Sub Selected_Write(Value As Boolean)
 
 End
 
-Private Function Image_Read() As Image
+Public Sub SetImage(hImage As Image, iColor As Integer)
 
-  Return $hImage
-
-End
-
-Private Sub Image_Write(Value As Image)
-
-  $hImage = Value
+  If hImage Then
+    If Application.DarkTheme Then hImage = hImage.Invert(True)
+    hImage = hImage.Colorize(iColor)
+  Endif
+  $hImage = hImage
   $hView.Refresh
 
 End

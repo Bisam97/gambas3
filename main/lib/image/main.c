@@ -2,7 +2,7 @@
 
   main.c
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -37,8 +37,8 @@ GB_INTERFACE GB EXPORT;
 
 GB_DESC *GB_CLASSES[] EXPORT =
 {
-	CColorInfoDesc,
-	CColorDesc,
+	ColorInfoDesc,
+	ColorDesc,
 	CImageDesc,
 	CImageStatDesc,
   NULL
@@ -69,6 +69,8 @@ void *GB_IMAGE_1[] EXPORT =
 	(void *)COLOR_lighter,
 	(void *)COLOR_darker,
 	(void *)IMAGE_format_to_string,
+	(void *)COLOR_get_luminance,
+	(void *)IMAGE_invert,
   NULL
 };
 

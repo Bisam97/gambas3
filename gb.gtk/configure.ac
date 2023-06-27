@@ -1,11 +1,11 @@
 dnl ---- configure.ac for gb.gtk component
 
 m4_include([../version.m4])
-AC_INIT(gambas3-gb-gtk, GB_VERSION, GB_MAIL, [], GB_URL)
+AC_INIT([gambas3-gb-gtk],[GB_VERSION],[GB_MAIL],[],[GB_URL])
 AC_CONFIG_MACRO_DIR([m4])
 
 GB_INIT(gb.gtk)
-AC_PROG_LIBTOOL
+LT_INIT
 
 GB_CHECK_XWINDOW()
 
@@ -19,10 +19,11 @@ GB_COMPONENT_PKG_CONFIG(
   gtkglext-1.0 gl x11
 )
 
-AC_OUTPUT( \
+AC_CONFIG_FILES([\
 Makefile \
 src/Makefile \
 src/opengl/Makefile \
-)
+])
+AC_OUTPUT
 
 GB_PRINT_MESSAGES

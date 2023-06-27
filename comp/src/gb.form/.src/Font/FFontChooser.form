@@ -1,27 +1,66 @@
 # Gambas Form File 3.0
 
 { Form Form
-  MoveScaled(0,0,80,65)
+  MoveScaled(0,0,80,64)
   Arrangement = Arrange.Fill
   { panBorder Panel
-    MoveScaled(1,3,77,58)
+    MoveScaled(2,2,77,60)
     Arrangement = Arrange.Vertical
     Border = Border.Plain
-    { cmbFamily ComboBox
-      MoveScaled(40,1,27,4)
-      Visible = False
-      ReadOnly = True
-      Text = ("ComboBox1")
+    { panFamily HBox
+      MoveScaled(5,1,63,4)
+      { cmbFamily ComboBox
+        MoveScaled(0,0,27,4)
+        Expand = True
+        ReadOnly = True
+        Border = False
+      }
+      { btnSelectFont ToolButton
+        MoveScaled(31,0,4,4)
+        Picture = Picture["icon:/small/font"]
+      }
     }
-    { lblFont Label
-      MoveScaled(3,1,32,4)
-      Padding = 4
+    { panFilter HBox
+      MoveScaled(4,7,70,4)
+      Background = Color.TextBackground
+      { txtFilter ButtonBox
+        MoveScaled(0,0,51,4)
+        Expand = True
+        Picture = Picture["icon:/small/refresh"]
+        Border = False
+        Button = False
+        ClearButton = True
+        Filter = True
+      }
+      { spnCache Spinner
+        MoveScaled(56,0,4,4)
+        Visible = False
+        ToolTip = ("Building cache") & "..."
+        Margin = True
+        Type = Spinner.Circle
+      }
+      { btnRefresh ToolButton
+        MoveScaled(61,0,4,4)
+        ToolTip = ("Refresh cache")
+        Picture = Picture["icon:/small/refresh"]
+      }
+      { btnPreview ToolButton
+        MoveScaled(65,0,4,4)
+        ToolTip = ("Show font preview")
+        Picture = Picture["icon:/small/preview"]
+        Toggle = True
+        Value = True
+      }
     }
-    { sepToolbar Separator
-      MoveScaled(3,7,35,0)
+    { sepFilter Separator
+      MoveScaled(17,14,35,0)
+    }
+    { txtFamily Label
+      MoveScaled(14,15,36,3)
+      Alignment = Align.BottomNormal
     }
     { panFont HBox
-      MoveScaled(3,8,71,4)
+      MoveScaled(3,19,73,4)
       { panStyle HBox
         MoveScaled(0,0,16,4)
         { btnBold ToolButton
@@ -57,33 +96,41 @@
       { Panel1 Panel
         MoveScaled(29,0,1,4)
       }
-      { txtSize SpinBox
-        MoveScaled(31,0,7,4)
-        Background = Color.Background
-        Border = False
-      }
       { sldSize Slider
-        MoveScaled(42,0,28,4)
+        MoveScaled(32,0,15,4)
         Expand = True
+        Orientation = ScrollBar.Horizontal
+      }
+      { txtSize SpinBox
+        MoveScaled(58,0,13,4)
+        Alignment = Align.Right
+        ReadOnly = True
+        ShowSign = True
       }
     }
-    { sepFamily Separator
-      MoveScaled(17,14,35,0)
+    { sepToolbar Separator
+      MoveScaled(15,24,35,0)
     }
     { tvwFamily TreeView
-      MoveScaled(5,16,66,14)
+      MoveScaled(3,26,66,14)
       Expand = True
       Border = False
       ScrollBar = Scroll.Vertical
     }
-    { sepExample Separator
-      MoveScaled(16,34,35,0)
+    { sepTree Separator
+      MoveScaled(17,44,35,0)
     }
-    { txtExample Label
-      MoveScaled(4,36,62,8)
+    { panExample Panel
+      MoveScaled(4,47,62.875,10.875)
       Background = Color.TextBackground
-      Foreground = Color.TextForeground
-      Alignment = Align.Center
+      Arrangement = Arrange.Vertical
+      Margin = True
+      { txtExample Label
+        MoveScaled(0,3,62,5)
+        Background = Color.TextBackground
+        Foreground = Color.TextForeground
+        Expand = True
+      }
     }
   }
 }

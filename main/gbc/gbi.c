@@ -2,7 +2,7 @@
 
 	gbi.c
 
-	(c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+	(c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -24,7 +24,6 @@
 #define __GBI_C
 
 #include "config.h"
-#include "trunk_version.h"
 
 #include "gb_limit.h"
 #include "gb_common.h"
@@ -456,13 +455,12 @@ static void analyze_classes(GB_DESC **desc)
 	FREE(&sort);
 }
 
-static bool analyze_native_component(const char *path)
+static bool analyze_native_component(const char *path, bool for_include)
 {
 	lt_dlhandle lib;
 	GB_DESC **desc;
 	GB_DESC **desc_opt;
 	char **include;
-	bool ret = FALSE;
 
 	if (_verbose)
 		fprintf(stderr, "Loading native component: %s\n", path);
@@ -472,7 +470,8 @@ static bool analyze_native_component(const char *path)
 	lib = lt_dlopenext(path);
 	if (!lib)
 	{
-		error(FALSE, "Cannot load shared library: %s", lt_dlerror());
+		if (!for_include || _verbose)
+			error(FALSE, "Cannot load shared library: %s", lt_dlerror());
 		return TRUE;
 	}
 
@@ -500,7 +499,7 @@ static bool analyze_native_component(const char *path)
 	lt_dlclose(lib);
 	#endif
 
-	return ret;
+	return FALSE;
 }
 
 
@@ -600,8 +599,8 @@ static bool analyze(const char *comp, bool include)
 
 	if (_verbose)
 		fprintf(stderr, "%s component %s\n", include ? "Including" : "Analyzing", name);
-	else if (!include)
-		puts(name);
+	/*else if (!include)
+		puts(name);*/
 	
 	native = find_native_component(name);
 		
@@ -611,7 +610,7 @@ static bool analyze(const char *comp, bool include)
 	if (!native && !gambas)
 	{
 		if (!include || !_no_include_warning)
-			warning("component %s not found", name);
+			warning("component not found: %s", name);
 		STR_free(name);
 		return TRUE;
 	}
@@ -645,7 +644,7 @@ static bool analyze(const char *comp, bool include)
 	{
 		snprintf(_buffer, sizeof(_buffer), LIB_PATTERN, _lib_path, name);
 
-		if (analyze_native_component(_buffer))
+		if (analyze_native_component(_buffer, include))
 			ok = FALSE;
 	}
 
@@ -682,7 +681,7 @@ static bool analyze(const char *comp, bool include)
 	
 	STR_free(name);
 	
-	return FALSE;
+	return !ok;
 }
 
 static void run_myself(const char *path, const char *name)
@@ -693,7 +692,7 @@ static void run_myself(const char *path, const char *name)
 	int status;
 	
 	if (_verbose)
-		fprintf(stderr, "Running myself for component %s\n", name);
+		fprintf(stderr, "Running myself for component '%s'...\n\n", name);
 	
 	argv[n++] = path;
 	if (_verbose)
@@ -714,6 +713,8 @@ static void run_myself(const char *path, const char *name)
 		snprintf(_env, sizeof(_env), "LD_PRELOAD=%s", _buffer);
 		putenv(_env);
 	}
+	else
+		unsetenv("LD_PRELOAD");
 
 	pid = fork();
 	switch (pid)
@@ -728,6 +729,9 @@ static void run_myself(const char *path, const char *name)
 		default:
 			waitpid(pid, &status, 0);
 	}
+	
+	if (_verbose)
+		fputc('\n', stderr);
 }
 
 static void make_component_list()
@@ -750,12 +754,29 @@ static void make_component_list()
 		if (strcmp(FILE_get_ext(name), "component"))
 			continue;
 		name = FILE_get_basename(name);
+		if (strcmp(name, "gb") == 0)
+			continue;
 		*((char **)ARRAY_add(&_components)) = STR_copy(name);
 	}
 
 	closedir(dir);
 	
 	qsort(_components, ARRAY_count(_components), sizeof(*_components), (int (*)(const void *, const void *))compare_components);
+}
+
+static void print_version()
+{
+	#ifdef TRUNK_VERSION
+	printf(VERSION " " TRUNK_VERSION "\n");
+	#else /* no TRUNK_VERSION */
+	printf(VERSION "\n");
+	#endif
+}
+
+static void print_title()
+{
+	printf("\nGambas informer version ");
+	print_version();
 }
 
 int main(int argc, char **argv)
@@ -781,16 +802,7 @@ int main(int argc, char **argv)
 		switch (opt)
 		{
 			case 'V':
-				#ifdef TRUNK_VERSION
-				#ifdef TRUNK_VERSION_GIT
-				printf(VERSION " " TRUNK_VERSION "\n");
-				#else /* from svn */
-				printf(VERSION " r" TRUNK_VERSION "\n");
-				#endif
-				#else /* no TRUNK_VERSION */
-				printf(VERSION "\n");
-				#endif
-				exit(0);
+				print_version();
 
 			case 'v':
 				_verbose = TRUE;
@@ -811,35 +823,36 @@ int main(int argc, char **argv)
 				break;
 				
 			case 'L':
-				printf(
-					"\nGAMBAS Component Informer version " VERSION "\n"
-					COPYRIGHT
-					);
+				print_title();
+				printf(COPYRIGHT);
 				exit(0);
 
 			case 'h':
+				print_title();
 				printf(
 					"\nGenerate component description files.\n"
-					"\nUsage: gbi" GAMBAS_VERSION_STRING " [options] [components]\n"
+					"\n    gbi" GAMBAS_VERSION_STRING " [options] [components]\n"
 					"\nOptions:"
 					#if HAVE_GETOPT_LONG
-					"\n"
+					"\n\n"
+					"  -h  --help                 display this help\n"
+					"  -L  --license              display license\n"
 					#if DO_PRELOADING
 					"  -p                         disable preloading\n"
 					#endif
 					"  -r  --root <directory>     gives the gambas installation directory\n"
+					"  -v                         verbose output\n"
 					"  -V  --version              display version\n"
-					"  -L  --license              display license\n"
-					"  -h  --help                 display this help\n"
 					#else
-					" (no long options on this system)\n"
+					" (no long options on this system)\n\n"
+					"  -h                         display this help\n"
+					"  -L                         display license\n"
 					#if DO_PRELOADING
 					"  -p                         disable preloading\n"
 					#endif
 					"  -r <directory>             gives the gambas installation directory\n"
+					"  -v                         verbose output\n"
 					"  -V                         display version\n"
-					"  -L                         display license\n"
-					"  -h                         display this help\n"
 					#endif
 					"\n"
 					);
@@ -880,8 +893,8 @@ int main(int argc, char **argv)
 	
 			if (_verbose)
 			{
-				fprintf(stderr, "component path: %s\n", _lib_path);
-				fprintf(stderr, "info path: %s\n", _info_path);
+				fprintf(stderr, "Browsing component directory: %s\n", _lib_path);
+				fprintf(stderr, "*.info files are stored in: %s\n\n", _info_path);
 			}
 			
 			make_component_list();
@@ -897,6 +910,7 @@ int main(int argc, char **argv)
 		}
 		else
 		{
+#if 0
 			if (!getenv("GB_PRELOAD"))
 			{
 				for (ind = optind; ind < argc; ind++)
@@ -908,6 +922,7 @@ int main(int argc, char **argv)
 						preload(argv, "libqt-mt.so.3");*/
 				}
 			}
+#endif
 		
 			for (ind = optind; ind < argc; ind++)
 			{

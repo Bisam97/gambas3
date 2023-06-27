@@ -33,6 +33,7 @@ typedef
 		GB_BASE ob;
 		CWIDGET *wid;
 		int x, y, w, h;
+		unsigned visible : 1;
 	}
 	CWATCHER;
 

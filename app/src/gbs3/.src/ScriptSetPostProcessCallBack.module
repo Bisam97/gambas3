@@ -1,0 +1,40 @@
+' Gambas module file
+
+Export 
+
+''' Post Process of Program Before it is compiled
+''' This is called after the program has bee processed
+''' and before the compiler is called
+
+Public PostProgramCallBacks As New Object[]
+
+''  Called to set up the post process table
+''  each element of the table is called in order in the
+''  post program process phase.
+''  Note that successive calls to this SUB
+''  is cumulative.
+Public Sub _call(PostProgCallBacks As Object[])
+  
+  If PostProgCallBacks.count > 0 Then 
+    PostProgramCallBacks.Insert(PostProgCallBacks)
+  Endif
+  
+End
+
+
+'' Clears the list of post process callbacks
+Public Sub clear()
+  
+  PostProgramCallBacks.Clear()
+  
+End
+
+Public Sub HasCallBacks() As Boolean
+  
+  If PostProgramCallBacks.count > 0 Then Return True
+  Return False
+  
+End
+
+
+

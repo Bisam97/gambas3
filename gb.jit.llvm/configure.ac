@@ -1,11 +1,11 @@
 dnl ---- configure.ac for gb.jit
 
 m4_include([../version.m4])
-AC_INIT(gambas3-gb-jit-llvm, GB_VERSION, GB_MAIL, [], GB_URL)
+AC_INIT([gambas3-gb-jit-llvm],[GB_VERSION],[GB_MAIL],[],[GB_URL])
 AC_CONFIG_MACRO_DIR([m4])
 
 GB_INIT(gb.jit.llvm)
-AC_PROG_LIBTOOL
+LT_INIT
 
 min_llvm_version=3.1
 max_llvm_version=3.5
@@ -48,6 +48,7 @@ GB_COMPONENT(
   [$C_LIB `$LLVM_CONFIG --ldflags` $LLVM_LIBS],
   [-I../../main/gbx -I../../main/share -D_DEBUG -D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS])
 
-AC_OUTPUT(Makefile src/Makefile)
+AC_CONFIG_FILES([Makefile src/Makefile])
+AC_OUTPUT
 
 GB_PRINT_MESSAGES

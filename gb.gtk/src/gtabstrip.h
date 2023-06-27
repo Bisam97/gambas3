@@ -2,7 +2,7 @@
 
   gtabstrip.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -60,10 +60,11 @@ public:
 	virtual int childCount() const;
 	virtual gControl *child(int index) const;
 
-#ifndef GTK3
-	virtual void setRealBackground(gColor color);
-#else
+#ifdef GTK3
+	virtual void customStyleSheet(GString *css);
 	virtual void updateColor();
+#else
+	virtual void setRealBackground(gColor color);
 #endif
 	virtual void setRealForeground(gColor color);
 	virtual void updateFont();
@@ -71,10 +72,8 @@ public:
 	gFont *textFont();
 	void setTextFont(gFont *ft);
 
-	//"Events"
-	void (*onClick)(gTabStrip *sender);
-	void (*onClose)(gTabStrip *sender, int index);
-
+	virtual void setMinimumSize();
+	
 //"Private"
 	virtual GtkWidget *getContainer();
 	int getRealIndex(GtkWidget *page) const;
@@ -89,5 +88,11 @@ private:
 	gTabStripPage *get(int ind) const;
 	void destroyTab(int ind);
 };
+
+// Callbacks
+void CB_tabstrip_click(gTabStrip *sender);
+void CB_tabstrip_close(gTabStrip *sender, int index);
+
+
 
 #endif

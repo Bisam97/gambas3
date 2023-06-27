@@ -348,7 +348,7 @@ void SDLfont::OpenFont(const char* file)
 
 	hSDLfont = TTF_OpenFont(file, hfontsize);
 	
-	if (UNLIKELY(hSDLfont == NULL))
+	if (hSDLfont == NULL)
 		SDLerror::RaiseError(TTF_GetError());
 }
 #if 0

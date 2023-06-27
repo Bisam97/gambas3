@@ -2,7 +2,7 @@
 
 	CConnection.c
 
-	(c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+	(c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -79,7 +79,11 @@ static SUBCOLLECTION_DESC _tables_desc =
 
 static void open_connection(CCONNECTION *_object)
 {
-	if (DB_Open(&THIS->desc, &THIS->driver, &THIS->db))
+	GB_COLLECTION options;
+	
+	options = GB.GetProperty(THIS, "Options")->_object.value;
+	
+	if (DB_Open(&THIS->desc, &THIS->driver, &THIS->db, options))
 		return;
 
 	THIS->limit = 0;
@@ -147,9 +151,7 @@ static void close_connection(CCONNECTION *_object)
 }
 
 
-BEGIN_METHOD(CCONNECTION_new, GB_STRING url)
-
-	char *url, *name, *p;
+BEGIN_METHOD_VOID(Connection_new)
 
 	THIS->db.handle = NULL;
 	THIS->db.ignore_case = FALSE; // Now case is sensitive by default!
@@ -159,55 +161,10 @@ BEGIN_METHOD(CCONNECTION_new, GB_STRING url)
 	if (_current == NULL)
 		_current = THIS;
 
-	if (MISSING(url))
-		return;
-
-	url = GB.ToZeroString(ARG(url));
-
-	p = index(url, ':');
-	if (!p || p == url) goto __BAD_URL;
-	*p++ = 0;
-	if (p[0] != '/' || p[1] != '/') goto __BAD_URL;
-	p += 2;
-
-	THIS->desc.type = GB.NewZeroString(url);
-	url = p;
-
-	p = rindex(url, '/');
-	if (!p || p == url) goto __BAD_URL;
-	*p++ = 0;
-
-	name = p;
-
-	p = index(url, '@');
-	if (p)
-	{
-		if (p == url)
-			goto __BAD_URL;
-		*p = 0;
-		THIS->desc.user = GB.NewZeroString(url);
-		url = p + 1;
-	}
-
-	p = index(url, ':');
-	if (p)
-	{
-		*p = 0;
-		THIS->desc.port = GB.NewZeroString(p + 1);
-	}
-
-	THIS->desc.host = GB.NewZeroString(url);
-	THIS->desc.name = GB.NewZeroString(name);
-	return;
-
-__BAD_URL:
-
-	GB.Error("Malformed URL");
-
 END_METHOD
 
 
-BEGIN_METHOD_VOID(CCONNECTION_free)
+BEGIN_METHOD_VOID(Connection_free)
 
 	close_connection(THIS);
 
@@ -225,8 +182,8 @@ BEGIN_METHOD_VOID(CCONNECTION_free)
 END_METHOD
 
 
-#define IMPLEMENT(_prop) \
-BEGIN_PROPERTY(CCONNECTION_##_prop) \
+#define IMPLEMENT(_name, _prop) \
+BEGIN_PROPERTY(Connection_##_name) \
 \
 	if (READ_PROPERTY) \
 		GB.ReturnString(THIS->desc._prop); \
@@ -235,15 +192,15 @@ BEGIN_PROPERTY(CCONNECTION_##_prop) \
 \
 END_PROPERTY
 
-IMPLEMENT(type)
-IMPLEMENT(host)
-IMPLEMENT(user)
-IMPLEMENT(password)
-IMPLEMENT(name)
-IMPLEMENT(port)
+IMPLEMENT(Type, type)
+IMPLEMENT(Host, host)
+IMPLEMENT(User, user)
+IMPLEMENT(Password, password)
+IMPLEMENT(Name, name)
+IMPLEMENT(Port, port)
 
 
-BEGIN_PROPERTY(CCONNECTION_version)
+BEGIN_PROPERTY(Connection_Version)
 
 	CHECK_DB();
 	CHECK_OPEN();
@@ -275,7 +232,7 @@ END_PROPERTY
 #endif
 
 
-BEGIN_PROPERTY(CCONNECTION_opened)
+BEGIN_PROPERTY(Connection_Opened)
 
 	CHECK_DB();
 
@@ -284,7 +241,7 @@ BEGIN_PROPERTY(CCONNECTION_opened)
 END_PROPERTY
 
 
-BEGIN_PROPERTY(CCONNECTION_error)
+BEGIN_PROPERTY(Connection_Error)
 
 	CHECK_DB();
 
@@ -302,7 +259,7 @@ END_PROPERTY
 END_PROPERTY*/
 
 
-BEGIN_METHOD_VOID(CCONNECTION_open)
+BEGIN_METHOD_VOID(Connection_Open)
 
 	CHECK_DB();
 
@@ -317,7 +274,7 @@ BEGIN_METHOD_VOID(CCONNECTION_open)
 END_METHOD
 
 
-BEGIN_METHOD_VOID(CCONNECTION_close)
+BEGIN_METHOD_VOID(Connection_Close)
 
 	CHECK_DB();
 
@@ -349,7 +306,7 @@ BEGIN_PROPERTY(CCONNECTION_ignore_case)
 END_PROPERTY
 #endif
 
-BEGIN_PROPERTY(CCONNECTION_ignore_charset)
+BEGIN_PROPERTY(Connection_IgnoreCharset)
 
 	CHECK_DB();
 
@@ -367,15 +324,21 @@ BEGIN_PROPERTY(Connection_Collations)
 	CHECK_DB();
 	CHECK_OPEN();
 
-	array = THIS->driver->GetCollations(&THIS->db);
-	if (array)
-		GB.ReturnObject(array);
-	else
-		GB.Error("Collations are not supported");
+	if (!THIS->db.flags.no_collation)
+	{
+		array = THIS->driver->GetCollations(&THIS->db);
+		if (array)
+		{
+			GB.ReturnObject(array);
+			return;
+		}
+	}
+	
+	GB.Error("Collations are not supported");
 
 END_PROPERTY
 
-BEGIN_METHOD_VOID(CCONNECTION_begin)
+BEGIN_METHOD_VOID(Connection_Begin)
 
 	CHECK_DB();
 	CHECK_OPEN();
@@ -387,13 +350,16 @@ BEGIN_METHOD_VOID(CCONNECTION_begin)
 END_METHOD
 
 
-BEGIN_METHOD_VOID(CCONNECTION_commit)
+BEGIN_METHOD_VOID(Connection_Commit)
 
 	CHECK_DB();
 	CHECK_OPEN();
 
 	if (THIS->trans == 0)
+	{
+		//GB.Error("Not in a transaction");
 		return;
+	}
 
 	THIS->trans--;
 	if (!THIS->db.flags.no_nest || THIS->trans == 0)
@@ -402,13 +368,16 @@ BEGIN_METHOD_VOID(CCONNECTION_commit)
 END_METHOD
 
 
-BEGIN_METHOD_VOID(CCONNECTION_rollback)
+BEGIN_METHOD_VOID(Connection_Rollback)
 
 	CHECK_DB();
 	CHECK_OPEN();
 
 	if (THIS->trans == 0)
+	{
+		//GB.Error("Not in a transaction");
 		return;
+	}
 
 	THIS->trans--;
 	if (!THIS->db.flags.no_nest || THIS->trans == 0)
@@ -417,7 +386,7 @@ BEGIN_METHOD_VOID(CCONNECTION_rollback)
 END_METHOD
 
 
-BEGIN_METHOD(CCONNECTION_limit, GB_INTEGER limit)
+BEGIN_METHOD(Connection_Limit, GB_INTEGER limit)
 
 	CHECK_DB();
 	CHECK_OPEN();
@@ -446,7 +415,7 @@ static char *make_query(CCONNECTION *_object, char *pattern, int len, int narg, 
 	const char *keyword;
 	char buffer[32];
 
-	query = DB_MakeQuery(THIS->driver, pattern, len, narg, arg);
+	query = DB_MakeQuery(THIS->driver, &THIS->db, pattern, len, narg, arg);
 
 	if (query && THIS->limit > 0 && strncasecmp(query, "SELECT ", 7) == 0)
 	{
@@ -477,7 +446,7 @@ static char *make_query(CCONNECTION *_object, char *pattern, int len, int narg, 
 	return query;
 }
 
-BEGIN_METHOD(CCONNECTION_exec, GB_STRING query; GB_VALUE param[0])
+BEGIN_METHOD(Connection_Exec, GB_STRING query; GB_VALUE param[0])
 
 	char *query;
 	CRESULT *result;
@@ -497,7 +466,7 @@ BEGIN_METHOD(CCONNECTION_exec, GB_STRING query; GB_VALUE param[0])
 END_METHOD
 
 
-BEGIN_METHOD(CCONNECTION_create, GB_STRING table)
+BEGIN_METHOD(Connection_Create, GB_STRING table)
 
 	CRESULT *result;
 	char *table = GB.ToZeroString(ARG(table));
@@ -549,7 +518,7 @@ static char *get_query(char *prefix, CCONNECTION *_object, char *table, int len_
 }
 
 
-BEGIN_METHOD(CCONNECTION_find, GB_STRING table; GB_STRING query; GB_VALUE param[0])
+BEGIN_METHOD(Connection_Find, GB_STRING table; GB_STRING query; GB_VALUE param[0])
 
 	char *query;
 	CRESULT *result;
@@ -573,7 +542,7 @@ BEGIN_METHOD(CCONNECTION_find, GB_STRING table; GB_STRING query; GB_VALUE param[
 END_METHOD
 
 
-BEGIN_METHOD(CCONNECTION_delete, GB_STRING table; GB_STRING query; GB_VALUE param[0])
+BEGIN_METHOD(Connection_Delete, GB_STRING table; GB_STRING query; GB_VALUE param[0])
 
 	char *query;
 
@@ -593,7 +562,7 @@ BEGIN_METHOD(CCONNECTION_delete, GB_STRING table; GB_STRING query; GB_VALUE para
 END_METHOD
 
 
-BEGIN_METHOD(CCONNECTION_edit, GB_STRING table; GB_STRING query; GB_VALUE param[0])
+BEGIN_METHOD(Connection_Edit, GB_STRING table; GB_STRING query; GB_VALUE param[0])
 
 	char *query;
 	CRESULT *result;
@@ -621,7 +590,7 @@ BEGIN_METHOD(CCONNECTION_edit, GB_STRING table; GB_STRING query; GB_VALUE param[
 END_METHOD
 
 
-BEGIN_METHOD(CCONNECTION_quote, GB_STRING name; GB_BOOLEAN is_table)
+BEGIN_METHOD(Connection_Quote, GB_STRING name; GB_BOOLEAN is_table)
 
 	char *name = STRING(name);
 	int len = LENGTH(name);
@@ -643,7 +612,7 @@ BEGIN_METHOD(CCONNECTION_quote, GB_STRING name; GB_BOOLEAN is_table)
 END_METHOD
 
 
-BEGIN_METHOD(CCONNECTION_format_blob, GB_STRING data)
+BEGIN_METHOD(Connection_FormatBlob, GB_STRING data)
 
 	DB_BLOB blob;
 
@@ -661,7 +630,7 @@ BEGIN_METHOD(CCONNECTION_format_blob, GB_STRING data)
 END_METHOD
 
 
-BEGIN_METHOD(CCONNECTION_subst, GB_STRING query; GB_VALUE param[0])
+BEGIN_METHOD(Connection_Subst, GB_STRING query; GB_VALUE param[0])
 
 	char *query;
 
@@ -678,7 +647,7 @@ BEGIN_METHOD(CCONNECTION_subst, GB_STRING query; GB_VALUE param[0])
 END_METHOD
 
 
-BEGIN_PROPERTY(CCONNECTION_current)
+BEGIN_PROPERTY(Connection_Current)
 
 	if (READ_PROPERTY)
 		GB.ReturnObject(_current);
@@ -688,7 +657,7 @@ BEGIN_PROPERTY(CCONNECTION_current)
 END_PROPERTY
 
 
-BEGIN_PROPERTY(CCONNECTION_charset)
+BEGIN_PROPERTY(Connection_Charset)
 
 	CHECK_DB();
 	CHECK_OPEN();
@@ -701,7 +670,7 @@ BEGIN_PROPERTY(CCONNECTION_charset)
 END_PROPERTY
 
 
-BEGIN_PROPERTY(CCONNECTION_databases)
+BEGIN_PROPERTY(Connection_Databases)
 
 	CHECK_DB();
 	CHECK_OPEN();
@@ -712,7 +681,7 @@ BEGIN_PROPERTY(CCONNECTION_databases)
 END_PROPERTY
 
 
-BEGIN_PROPERTY(CCONNECTION_users)
+BEGIN_PROPERTY(Connection_Users)
 
 	CHECK_DB();
 	CHECK_OPEN();
@@ -723,7 +692,7 @@ BEGIN_PROPERTY(CCONNECTION_users)
 END_PROPERTY
 
 
-BEGIN_PROPERTY(CCONNECTION_tables)
+BEGIN_PROPERTY(Connection_Tables)
 
 	CHECK_DB();
 	CHECK_OPEN();
@@ -745,7 +714,7 @@ END_PROPERTY
 END_PROPERTY*/
 
 
-BEGIN_PROPERTY(CCONNECTION_debug)
+BEGIN_PROPERTY(Connection_Debug)
 
 	if (READ_PROPERTY)
 		GB.ReturnBoolean(DB_IsDebug());
@@ -776,50 +745,50 @@ GB_DESC CConnectionDesc[] =
 {
 	GB_DECLARE("_Connection", sizeof(CCONNECTION)),
 
-	GB_METHOD("_new", NULL, CCONNECTION_new, "[(DatabaseURL)s]"),
-	GB_METHOD("_free", NULL, CCONNECTION_free, NULL),
+	GB_METHOD("_new", NULL, Connection_new, NULL),
+	GB_METHOD("_free", NULL, Connection_free, NULL),
 
-	GB_PROPERTY("Type", "s", CCONNECTION_type),
-	GB_PROPERTY("Host", "s", CCONNECTION_host),
-	GB_PROPERTY("Login", "s", CCONNECTION_user),
-	GB_PROPERTY("User", "s", CCONNECTION_user),
-	GB_PROPERTY("Password", "s", CCONNECTION_password),
-	GB_PROPERTY("Name", "s", CCONNECTION_name),
-	GB_PROPERTY("Port", "s", CCONNECTION_port),
+	GB_PROPERTY("Type", "s", Connection_Type),
+	GB_PROPERTY("Host", "s", Connection_Host),
+	GB_PROPERTY("Login", "s", Connection_User),
+	GB_PROPERTY("User", "s", Connection_User),
+	GB_PROPERTY("Password", "s", Connection_Password),
+	GB_PROPERTY("Name", "s", Connection_Name),
+	GB_PROPERTY("Port", "s", Connection_Port),
 	GB_PROPERTY("Timeout", "i", Connection_Timeout),
 	//GB_PROPERTY("Timezone", "i", Connection_Timezone),
-	GB_PROPERTY_READ("Charset", "s", CCONNECTION_charset),
-	GB_PROPERTY_READ("Version", "i", CCONNECTION_version),
-	GB_PROPERTY_READ("Opened", "b", CCONNECTION_opened),
-	GB_PROPERTY_READ("Error", "i", CCONNECTION_error),
+	GB_PROPERTY_READ("Charset", "s", Connection_Charset),
+	GB_PROPERTY_READ("Version", "i", Connection_Version),
+	GB_PROPERTY_READ("Opened", "b", Connection_Opened),
+	GB_PROPERTY_READ("Error", "i", Connection_Error),
 	//GB_PROPERTY_READ("Transaction", "i", Connection_Transaction),
-	GB_PROPERTY("IgnoreCharset", "b", CCONNECTION_ignore_charset),
+	GB_PROPERTY("IgnoreCharset", "b", Connection_IgnoreCharset),
 	GB_PROPERTY_READ("Collations", "String[]", Connection_Collations),
 	GB_PROPERTY_READ("Handle", "p", Connection_Handle),
 	
 	GB_PROPERTY_READ("LastInsertId", "l", Connection_LastInsertId),
 
-	GB_METHOD("Open", NULL, CCONNECTION_open, NULL),
-	GB_METHOD("Close", NULL, CCONNECTION_close, NULL),
+	GB_METHOD("Open", NULL, Connection_Open, NULL),
+	GB_METHOD("Close", NULL, Connection_Close, NULL),
 
-	GB_METHOD("Limit", "Connection", CCONNECTION_limit, "(Limit)i"),
-	GB_METHOD("Exec", "Result", CCONNECTION_exec, "(Request)s(Arguments)."),
-	GB_METHOD("Create", "Result", CCONNECTION_create, "(Table)s"),
-	GB_METHOD("Find", "Result", CCONNECTION_find, "(Table)s[(Request)s(Arguments).]"),
-	GB_METHOD("Edit", "Result", CCONNECTION_edit, "(Table)s[(Request)s(Arguments).]"),
-	GB_METHOD("Delete", NULL, CCONNECTION_delete, "(Table)s[(Request)s(Arguments).]"),
-	GB_METHOD("Subst", "s", CCONNECTION_subst, "(Format)s(Arguments)."),
+	GB_METHOD("Limit", "Connection", Connection_Limit, "(Limit)i"),
+	GB_METHOD("Exec", "Result", Connection_Exec, "(Request)s(Arguments)."),
+	GB_METHOD("Create", "Result", Connection_Create, "(Table)s"),
+	GB_METHOD("Find", "Result", Connection_Find, "(Table)s[(Request)s(Arguments).]"),
+	GB_METHOD("Edit", "Result", Connection_Edit, "(Table)s[(Request)s(Arguments).]"),
+	GB_METHOD("Delete", NULL, Connection_Delete, "(Table)s[(Request)s(Arguments).]"),
+	GB_METHOD("Subst", "s", Connection_Subst, "(Format)s(Arguments)."),
 
-	GB_METHOD("Begin", NULL, CCONNECTION_begin, NULL),
-	GB_METHOD("Commit", NULL, CCONNECTION_commit, NULL),
-	GB_METHOD("Rollback", NULL, CCONNECTION_rollback, NULL),
+	GB_METHOD("Begin", NULL, Connection_Begin, NULL),
+	GB_METHOD("Commit", NULL, Connection_Commit, NULL),
+	GB_METHOD("Rollback", NULL, Connection_Rollback, NULL),
 
-	GB_METHOD("Quote", "s", CCONNECTION_quote, "(Name)s[(Table)b]"),
-	GB_METHOD("FormatBlob", "s", CCONNECTION_format_blob, "(Data)s"),
+	GB_METHOD("Quote", "s", Connection_Quote, "(Name)s[(Table)b]"),
+	GB_METHOD("FormatBlob", "s", Connection_FormatBlob, "(Data)s"),
 
-	GB_PROPERTY("Tables", ".Connection.Tables", CCONNECTION_tables),
-	GB_PROPERTY("Databases", ".Connection.Databases", CCONNECTION_databases),
-	GB_PROPERTY("Users", ".Connection.Users", CCONNECTION_users),
+	GB_PROPERTY("Tables", ".Connection.Tables", Connection_Tables),
+	GB_PROPERTY("Databases", ".Connection.Databases", Connection_Databases),
+	GB_PROPERTY("Users", ".Connection.Users", Connection_Users),
 	//GB_PROPERTY("Views", ".ConnectionViews", CCONNECTION_views),
 
 	GB_CONSTANT("_Properties", "s", "Type,Host,Login,Password,Name,Port"),
@@ -841,41 +810,43 @@ GB_DESC CDBDesc[] =
 	GB_CONSTANT("Serial", "i", DB_T_SERIAL),
 	GB_CONSTANT("Blob", "i", DB_T_BLOB),
 
-	GB_STATIC_PROPERTY("Current", "Connection", CCONNECTION_current),
+	GB_STATIC_PROPERTY("Current", "Connection", Connection_Current),
 
-	GB_STATIC_METHOD("Open", NULL, CCONNECTION_open, NULL),
-	GB_STATIC_METHOD("Close", NULL, CCONNECTION_close, NULL),
+	GB_STATIC_METHOD("Open", NULL, Connection_Open, NULL),
+	GB_STATIC_METHOD("Close", NULL, Connection_Close, NULL),
 
-	GB_STATIC_PROPERTY_READ("Charset", "s", CCONNECTION_charset),
-	GB_STATIC_PROPERTY_READ("Version", "i", CCONNECTION_version),
-	GB_STATIC_PROPERTY_READ("Opened", "b", CCONNECTION_opened),
-	GB_STATIC_PROPERTY_READ("Error", "i", CCONNECTION_error),
+	GB_STATIC_PROPERTY_READ("Charset", "s", Connection_Charset),
+	GB_STATIC_PROPERTY_READ("Version", "i", Connection_Version),
+	GB_STATIC_PROPERTY_READ("Opened", "b", Connection_Opened),
+	GB_STATIC_PROPERTY_READ("Error", "i", Connection_Error),
 	//GB_STATIC_PROPERTY_READ("Transaction", "i", Connection_Transaction),
-	GB_STATIC_PROPERTY("IgnoreCharset", "b", CCONNECTION_ignore_charset),
+	GB_STATIC_PROPERTY("IgnoreCharset", "b", Connection_IgnoreCharset),
 	GB_STATIC_PROPERTY_READ("Collations", "String[]", Connection_Collations),
 	GB_STATIC_PROPERTY_READ("Handle", "p", Connection_Handle),
 
-	GB_STATIC_PROPERTY("Debug", "b", CCONNECTION_debug),
+	GB_STATIC_PROPERTY_READ("LastInsertId", "l", Connection_LastInsertId),
 
-	GB_STATIC_METHOD("Limit", "Connection", CCONNECTION_limit, "(Limit)i"),
-	GB_STATIC_METHOD("Exec", "Result", CCONNECTION_exec, "(Request)s(Arguments)."),
-	GB_STATIC_METHOD("Create", "Result", CCONNECTION_create, "(Table)s"),
-	GB_STATIC_METHOD("Find", "Result", CCONNECTION_find, "(Table)s[(Request)s(Arguments).]"),
-	GB_STATIC_METHOD("Edit", "Result", CCONNECTION_edit, "(Table)s[(Request)s(Arguments).]"),
-	GB_STATIC_METHOD("Delete", NULL, CCONNECTION_delete, "(Table)s[(Request)s(Arguments).]"),
-	GB_STATIC_METHOD("Subst", "s", CCONNECTION_subst, "(Format)s(Arguments)."),
+	GB_STATIC_PROPERTY("Debug", "b", Connection_Debug),
 
-	GB_STATIC_METHOD("Begin", NULL, CCONNECTION_begin, NULL),
-	GB_STATIC_METHOD("Commit", NULL, CCONNECTION_commit, NULL),
-	GB_STATIC_METHOD("Rollback", NULL, CCONNECTION_rollback, NULL),
+	GB_STATIC_METHOD("Limit", "Connection", Connection_Limit, "(Limit)i"),
+	GB_STATIC_METHOD("Exec", "Result", Connection_Exec, "(Request)s(Arguments)."),
+	GB_STATIC_METHOD("Create", "Result", Connection_Create, "(Table)s"),
+	GB_STATIC_METHOD("Find", "Result", Connection_Find, "(Table)s[(Request)s(Arguments).]"),
+	GB_STATIC_METHOD("Edit", "Result", Connection_Edit, "(Table)s[(Request)s(Arguments).]"),
+	GB_STATIC_METHOD("Delete", NULL, Connection_Delete, "(Table)s[(Request)s(Arguments).]"),
+	GB_STATIC_METHOD("Subst", "s", Connection_Subst, "(Format)s(Arguments)."),
 
-	GB_STATIC_METHOD("Quote", "s", CCONNECTION_quote, "(Name)s[(Table)b]"),
-	GB_STATIC_METHOD("FormatBlob", "s", CCONNECTION_format_blob, "(Data)s"),
+	GB_STATIC_METHOD("Begin", NULL, Connection_Begin, NULL),
+	GB_STATIC_METHOD("Commit", NULL, Connection_Commit, NULL),
+	GB_STATIC_METHOD("Rollback", NULL, Connection_Rollback, NULL),
 
-	GB_STATIC_PROPERTY("Tables", ".Connection.Tables", CCONNECTION_tables),
+	GB_STATIC_METHOD("Quote", "s", Connection_Quote, "(Name)s[(Table)b]"),
+	GB_STATIC_METHOD("FormatBlob", "s", Connection_FormatBlob, "(Data)s"),
+
+	GB_STATIC_PROPERTY("Tables", ".Connection.Tables", Connection_Tables),
 	//GB_STATIC_PROPERTY("Views", ".ConnectionViews", CCONNECTION_views),
-	GB_STATIC_PROPERTY("Databases", ".Connection.Databases", CCONNECTION_databases),
-	GB_STATIC_PROPERTY("Users", ".Connection.Users", CCONNECTION_users),
+	GB_STATIC_PROPERTY("Databases", ".Connection.Databases", Connection_Databases),
+	GB_STATIC_PROPERTY("Users", ".Connection.Users", Connection_Users),
 	
 	GB_END_DECLARE
 };

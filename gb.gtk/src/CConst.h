@@ -27,13 +27,12 @@
 #include "gambas.h"
 
 #ifndef __CCONST_CPP
-extern GB_DESC CAlignDesc[];
-extern GB_DESC CArrangeDesc[];
-extern GB_DESC CBorderDesc[];
-extern GB_DESC CScrollDesc[];
-extern GB_DESC CLineDesc[];
-extern GB_DESC CFillDesc[];
-extern GB_DESC CSelectDesc[];
+extern GB_DESC AlignDesc[];
+extern GB_DESC ArrangeDesc[];
+extern GB_DESC BorderDesc[];
+extern GB_DESC ScrollDesc[];
+extern GB_DESC SelectDesc[];
+extern GB_DESC DirectionDesc[];
 #endif
 
 

@@ -2,7 +2,7 @@
 
   gbc_type.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -79,6 +79,8 @@ EXTERN char *TYPE_name[];
 
 #define TYPE_is_array(type)      (TYPE_get_id(type) == T_ARRAY)
 #define TYPE_is_object(type)     ((TYPE_get_id(type) == T_OBJECT) && (TYPE_get_value(type) >= 0))
+#define TYPE_is_boolean(type) (TYPE_get_id(type) == T_BOOLEAN)
+#define TYPE_can_be_long(type)  (TYPE_get_id(type) <= T_LONG)
 
 #define TYPE_get_value(type)     ((type).t.value)
 #define TYPE_get_kind(type)      ((type).t.flag & 0x7)
@@ -88,21 +90,25 @@ EXTERN char *TYPE_name[];
 
 #define TYPE_set_value(type, _value)     ((type)->t.value = (_value))
 #define TYPE_set_id(type, _id)           ((type)->t.id = (_id))
-#define TYPE_set_kind(type, _kind)       ((type)->t.flag |= (_kind))
+#define TYPE_set_kind(type, _kind)       ((type)->t.flag &= ~0x7, (type)->t.flag |= (_kind))
 #define TYPE_set_flag(type, _flag)       ((type)->t.flag |= (_flag))
+#define TYPE_clear_flag(type, _flag)     ((type)->t.flag &= ~(_flag))
 #define TYPE_clear(type)                 ((type)->l = 0)
-
-#define TYPE_can_be_long(type)  (TYPE_get_id(type) <= T_LONG)
 
 #define TYPE_compare(_t1, _t2) ((_t1)->t.id == (_t2)->t.id && (_t1)->t.value == (_t2)->t.value)
 
 #define TYPE_make_simple(_id) ({ TYPE _t; _t.t.flag = 0; _t.t.id = (_id); _t.t.value = -1; _t; })
 #define TYPE_make(_id, _value, _flag) ({ TYPE _t; _t.t.flag = (_flag); _t.t.id = (_id); _t.t.value = ((_id) == T_OBJECT || (_id) == T_ARRAY || (_id) == T_STRUCT) ? (_value) : -1; _t; })
 
+#define TYPE_must_ref(type)  (TYPE_get_id(type) >= T_STRING)
+
 /*PUBLIC long TYPE_get_class(TYPE type);*/
 //TYPE TYPE_make(TYPE_ID id, short value, int flag);
 const char *TYPE_get_short_desc(TYPE type);
-size_t TYPE_sizeof(TYPE type);
+//size_t TYPE_sizeof(TYPE_ID type);
+
+char *TYPE_get_desc(TYPE type);
+bool TYPE_check_prefix(TYPE type, const char *prefix, int len);
 
 #endif
 

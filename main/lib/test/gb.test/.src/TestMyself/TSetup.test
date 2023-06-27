@@ -1,0 +1,52 @@
+' Gambas test file
+
+'Plan is one more because Test in _TeardownEach is counted twice!
+
+Private $Done As New String[]
+
+
+Public Sub _SeTuP()
+
+    $Done.Add("Setup")
+
+End
+
+Public Sub _SeTuPeAcH()
+
+    $Done.Add("SetupEach")
+
+End
+
+Public Sub _TeArDoWneAcH()
+
+    $Done.Add("TeardownEach")
+    
+End
+
+Public Sub A()
+
+    $Done.Add("A")
+    Test.Plan(1)
+    
+    Assert.Equals($Done.Join(), "Setup,SetupEach,A")
+
+End
+
+Public Sub B()
+
+    Test.Plan(1)
+    $Done.Add("B")
+
+    Assert.Equals($Done.Join(), "Setup,SetupEach,A,TeardownEach,SetupEach,B")
+
+End
+
+Public Sub _TeArDoWn()
+
+    $Done.Add("Teardown")
+    If $Done.Join() <> "Setup,SetupEach,A,TeardownEach,SetupEach,B,TeardownEach,Teardown" Then
+        'Assertion forbidden inside _Setup or _Teardown, so we can just bail out to report the failure
+        Test.BailOut("_Teardown failed. Expected '" & "Setup,SetupEach,A,TeardownEach,SetupEach,B,TeardownEach,Teardown'" & " but got '" & $Done.Join() & "'")
+    Endif
+    
+End

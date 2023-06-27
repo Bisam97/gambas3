@@ -1,17 +1,96 @@
 # Gambas Form File 3.0
 
 { Form Form
-  MoveScaled(0,0,36,47)
+  MoveScaled(0,0,36,50)
   Persistent = True
-  Arrangement = Arrange.Fill
+  Arrangement = Arrange.Vertical
+  { mnuToolbox Menu
+    Visible = False
+    { mnuShow Menu
+      Text = ("Show")
+    }
+    { mnuSize Menu
+      Text = ("Button size")
+      Picture = Picture["icon:/small/zoom-in"]
+      { Menu1 Menu mnuSize
+        Name = "Menu1"
+        Text = ("Tiny")
+        Radio = True
+        Tag = "0"
+      }
+      { Menu2 Menu mnuSize
+        Name = "Menu2"
+        Text = ("Small")
+        Radio = True
+        Tag = "1"
+      }
+      { Menu3 Menu mnuSize
+        Name = "Menu3"
+        Text = ("Medium")
+        Radio = True
+        Tag = "2"
+      }
+      { Menu4 Menu mnuSize
+        Name = "Menu4"
+        Text = ("Large")
+        Radio = True
+        Tag = "3"
+      }
+    }
+    { mnuDeprecated Menu
+      Text = ("Deprecated controls")
+      Picture = Picture["img/control/deprecated.png"]
+      Toggle = True
+    }
+    { mnuHelp Menu
+      #Translate = False
+      Text = "Help"
+      Picture = Picture["icon:/small/help"]
+      Visible = False
+    }
+  }
   { tabTool TabPanel
-    MoveScaled(1,1,33,45)
+    MoveScaled(1,1,34,35)
     Font = Font["-1"]
+    Expand = True
     Arrangement = Arrange.Fill
     Padding = 2
     Border = False
+    CloseButton = True
+    Highlight = True
     Index = 0
     Text = ("")
     Index = 0
+  }
+  { Separator1 Separator
+    MoveScaled(8,44,21,0)
+  }
+  { panTooltip HBox
+    MoveScaled(1,45,33,4)
+    { lblControl Label
+      MoveScaled(0,0,10,3)
+      Font = Font["Bold"]
+      Expand = True
+      Alignment = Align.Right
+    }
+    { Panel1 Panel
+      MoveScaled(11,0,1,3)
+    }
+    { lblComp TextLabel
+      MoveScaled(12,0,10,3)
+      Expand = True
+      Alignment = Align.Left
+    }
+    { btnZoom ToolButton
+      MoveScaled(25,0,4,4)
+      ToolTip = ("Change button size")
+      Picture = Picture["icon:/small/zoom-in"]
+    }
+    { btnDeprecated ToolButton
+      MoveScaled(29,0,4,4)
+      ToolTip = ("Show deprecated controls")
+      Picture = Picture["icon:/small/delete"]
+      Toggle = True
+    }
   }
 }

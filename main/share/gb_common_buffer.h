@@ -2,7 +2,7 @@
 
   gb_common_buffer.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,23 +24,41 @@
 #ifndef __GB_COMMON_BUFFER_H
 #define __GB_COMMON_BUFFER_H
 
-#define COMMON_BUF_MAX 512
+#define COMMON_BUF_MAX PATH_MAX
 
 #ifndef __COMMON_BUFFER_C
 EXTERN int COMMON_pos;
 EXTERN int COMMON_len;
 EXTERN char COMMON_buffer[];
+EXTERN char *COMMON_start;
+EXTERN int COMMON_last;
 #endif
 
 void COMMON_init(void);
 
 void COMMON_buffer_init(const char *str, int len);
-int COMMON_get_char(void);
-int COMMON_last_char(void);
-int COMMON_look_char(void);
-int COMMON_put_char(char c);
 void COMMON_jump_space(void);
-char *COMMON_get_current(void);
-int COMMON_get_size_left(void);
 bool COMMON_has_string(const char *str, int len);
+
+#define COMMON_get_char(void) (COMMON_last = (COMMON_pos >= COMMON_len) ? (int)-1 : (int)(unsigned char)(COMMON_start[COMMON_pos++]))
+
+#define COMMON_look_char() ((COMMON_pos >= COMMON_len) ? (int)-1 : (int)(unsigned char)(COMMON_start[COMMON_pos]))
+
+#define COMMON_put_char(_c) \
+({ \
+  if (COMMON_pos >= COMMON_len) \
+    (-1); \
+	else \
+	{ \
+		COMMON_start[COMMON_pos++] = (_c); \
+		0; \
+	} \
+})
+
+#define COMMON_last_char() (COMMON_last)
+
+#define COMMON_get_current() (&COMMON_start[COMMON_pos])
+
+#define COMMON_get_size_left(void) (COMMON_len - COMMON_pos)
+
 #endif

@@ -8,25 +8,23 @@ Public Const _DefaultSize As String = "36,36"
 Public Const _Group As String = "View"
 
 Event Data
+Event Click
 
 Property Path As String
 Property Border As Boolean
 Property Read Data As _FilePropertiesData
+
+Property Index As Integer
+
 
 Private frmDialog As FFileProperties
 Private $hData As _FilePropertiesData
 
 Public Sub _new()
 
-  frmDialog = New FFileProperties(Me) As "frmDialog"
+  frmDialog = New FFileProperties(Me)
   'Object.Attach(frmDialog, Me, "frmDialog")
   
-End
-
-Public Sub frmChooser_Open()
-
-  Last.Form_Open
-
 End
 
 Private Function Path_Read() As String
@@ -41,9 +39,9 @@ Private Sub Path_Write(Value As String)
 
 End
 
-Public Sub Add((Panel) As Control, Title As String)
+Public Sub Add((Panel) As Control, Title As String) As Integer
   
-  frmDialog.Add(Panel, Title)
+  Return frmDialog.Add(Panel, Title)
   
 End
 
@@ -81,3 +79,20 @@ Public Sub _RaiseData() As _FilePropertiesData
   
 End
 
+Public Sub _RaiseClick()
+  
+  Raise Click
+  
+End
+
+Private Function Index_Read() As Integer
+
+  Return frmDialog.GetIndex()
+
+End
+
+Private Sub Index_Write(Value As Integer)
+
+  frmDialog.SetIndex(Value)
+
+End

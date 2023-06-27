@@ -1,0 +1,31 @@
+' Gambas module file
+
+
+Public Sub Main()
+
+
+Dim hScan As New Scanner("hpaio:/net/OfficeJet_5200_series?ip=192.168.1.25")
+Dim s As String
+Dim sUnit As String
+
+For Each s In hScan
+  Print hScan[s].Name
+  'Print hScan[s].Info
+  
+  
+  If hScan[s].List Then 
+    sUnit = hScan[s].Unit
+    Print "      " & hScan[s].List.Join("|") & sUnit & " (Default: " & hScan[s].Value & sUnit & ")   " & IIf(hScan[s].IsActive, "Active", "Inactive")
+  Endif
+  
+  If hScan[s].IsRange Then
+    Print "      " & hScan[s].MinValue & " .. " & hScan[s].MaxValue & hScan[s].Unit & " (Default:" & hScan[s].Value & hScan[s].Unit & ")   " & IIf(hScan[s].IsActive, "Active", "Inactive")  
+  Endif
+  
+  Print
+Next
+
+
+
+  
+End

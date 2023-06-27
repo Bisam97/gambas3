@@ -59,6 +59,9 @@ End
 Private Sub UpdateColors()
 
   $hView.ResizeContents($aColors.Count * (CUSTOM_W + CUSTOM_D) + CUSTOM_D, $hView.ClientH)
+  $iIndex = -1
+  $iLastIndex = -1
+  View_MouseMove
   $hView.Refresh
 
 End
@@ -86,8 +89,6 @@ Public Sub Clear()
   UpdateColors
   
 End
-
-
 
 Public Sub Add((Color) As Integer)
 
@@ -237,6 +238,8 @@ End
 Public Sub View_Menu()
   
   If $bReadOnly Then Return
+  
+  If $iLastIndex < 0 Or If $iLastIndex >= $aColors.Count Then Return
   
   If Not mnuPopup Then
     

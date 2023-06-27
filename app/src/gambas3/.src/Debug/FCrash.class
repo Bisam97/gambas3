@@ -20,8 +20,7 @@ Public Sub btnOK_Click()
   Dim sCore As String
   Dim sTemp As String
   Dim sCmd As String
-  'Dim hProcess As Process
-  Dim aSendCC As String[]
+  Dim aSend As String[]
 
   If txtDesc.Visible And If txtDesc.Foreground <> Color.Default Then
     txtDesc.SetFocus
@@ -72,9 +71,13 @@ Public Sub btnOK_Click()
     
     If Not Exist(sTemp) Then Error.Raise(Subst$(("The '&1' command has failed."), "tar"))
     
-    If Stat(sTemp).Size <= 256000 Then aSendCC = ["Gambas mailing list <user@lists.gambas-basic.org>"]
+    If Stat(sTemp).Size <= 500000 Then
+      aSend = ["Gambas mailing list <user@lists.gambas-basic.org>"]
+    Else 
+      aSend = ["Benoît Minisini <benoit.minisini@gambas-basic.org>"]
+    Endif
     
-    Desktop.SendMail(["Benoît Minisini <g4mba5@gmail.com>"], aSendCC,, "[CRASH REPORT] " & If(Project.Title, Project.Title, Project.Name), "Hello,\n\nDamned, my program crashed Gambas that way :\n\n" & Trim(txtDesc.Text) & "\n\n", sTemp)
+    Desktop.SendMail(aSend,,, "[CRASH REPORT] " & If(Project.Title, Project.Title, Project.Name), "Hello,\n\nDamned, my program crashed Gambas that way :\n\n" & Trim(txtDesc.Text) & "\n\n", sTemp)
     
     Dec Application.Busy
     
@@ -86,7 +89,7 @@ Public Sub btnOK_Click()
 Catch
   
   Application.Busy = 0
-  Message.Error(("Unable to send bug report.") & "\n\n" & Error.Text)
+  FMain.ShowErrorWith(("Unable to send bug report."))
   $bWorking = False
 
 End

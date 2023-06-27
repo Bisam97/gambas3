@@ -1,0 +1,703 @@
+' Gambas class file
+
+Export
+Inherits UserControl
+
+Public Const _Properties As String = "*,Action,ReadOnly,List,Text,Password,MaxLength,Placeholder,Sorted,Border=True"
+Public Const _DefaultEvent As String = "Click"
+Public Const _DefaultSize As String = "16,4"
+Public Const _IsContainer As Boolean = False
+Public Const _Group As String = "Form"
+
+Event Change
+Event Activate
+Event Cursor
+Event Click
+
+Property ReadOnly As Boolean
+Property Border As Boolean
+Property List As String[]
+Property Read Count As Integer
+Property Index As Integer
+Property Text As String
+Property Read Length As Integer
+Property Read Current As _ComboBox_Item
+Property Sorted As Boolean
+Property Background As Integer
+
+Property Pos As Integer
+Property Password As Boolean
+Property MaxLength As Integer
+Property Placeholder As String
+Property Read Selection As _ComboBox_Selection
+Property Read Selected As Boolean
+
+Private $bReadOnly As Boolean
+Private $bBorder As Boolean = True
+Private $aList As New String[]
+Private $iIndex As Integer = -1
+Private $iBg As Integer = Color.Default
+
+Private $hObs As Observer
+Private $hTextBox As TextBox
+Private $hArrowBox As Panel
+Private $hSelection As _ComboBox_Selection
+Private $hPopup As FComboBoxPopup
+
+Private $bSorted As Boolean
+Private $bDirty As Boolean
+
+Public Sub _new()
+  
+  Me._Arrangement = Arrange.Horizontal
+  Me._Invert = True
+  
+  $hObs = New Observer(Me) As "ComboBox"
+  
+  $hArrowBox = New Panel(Me) As "ArrowBox"
+  
+  $bReadOnly = True
+  ReadOnly_Write(False)
+  
+End
+
+Public Sub UserControl_Draw()
+  
+  Dim iState As Integer
+  Dim D As Integer
+  Dim iBg, iFg As Integer
+  Dim bHovered As Boolean
+  Dim bHasFocus As Boolean
+  
+  iState = Style.StateOf(Me)
+  
+  bHovered = Me.Hovered
+  If $bReadOnly Then
+    bHasFocus = Me.HasFocus
+  Else 
+    bHasFocus = $hTextBox.HasFocus
+    If bHasFocus Then iState = iState Or Style.HasFocus
+  Endif
+  
+  If Me.Design Then
+    iState = Style.Normal
+    bHasFocus = False
+    bHovered = False
+  Endif
+
+  iBg = $iBg
+  If iBg = Color.Default Then iBg = If($bReadOnly, Color.ButtonBackground, Color.TextBackground)
+  If Not Me.Enabled And Not $bReadOnly Then iBg = Style.BackgroundOf($hTextBox) 'Color.Merge(iBg, Color.TextForeground)
+  
+  If $bBorder Or If bHovered Or If bHasFocus Or If $hPopup Then
+    If $bReadOnly Then
+      Style.PaintButton(0, 0, Paint.W, Paint.H, False, iState, False, iBg)
+    Else
+      Style.PaintBox(0, 0, Paint.W, Paint.H, iState, iBg)
+    Endif
+  Else
+    Paint.FillRect(0, 0, Paint.W, Paint.H, iBg)
+  Endif
+  
+  iFg = Style.ForegroundOf(Me)
+  If Not Me.Enabled Then iFg = Color.Merge(iFg, iBg)
+  Paint.Background = iFg
+
+  D = Desktop.Scale
+  If Not $bBorder Then D \= 2
+  
+  If $bReadOnly And If $iIndex >= 0 Then
+    Paint.Save
+    Paint.ClipRect = Rect(0, 0, Paint.W - Desktop.Scale * 3 - D, Paint.H)
+    Paint.DrawText($aList[$iIndex], D, 0, Paint.W - Desktop.Scale * 3 - D, Paint.H, Align.Normal)
+    Paint.Restore
+  Endif
+  
+  If $aList.Count = 0 Then Paint.Background = Color.Merge(Style.ForegroundOf(Me), iBg)
+
+  If $bReadOnly Then
+    Paint.Arrow($hArrowBox.X + $hArrowBox.W - Desktop.Scale * 2 - D, $hArrowBox.Y, Desktop.Scale * 1.5, $hArrowBox.H, Align.Bottom)
+  Else
+    Paint.Arrow($hArrowBox.X, $hArrowBox.Y, Desktop.Scale * 1.5, $hArrowBox.H, Align.Bottom)
+  Endif
+  
+  Paint.LineWidth = 1.5
+  Paint.Stroke
+  'Style.PaintArrow(, Style.StateOf(Me))
+  
+End
+
+Public Sub UserControl_Font()
+  
+  Me.Refresh
+  
+End
+
+Public Sub UserControl_Change()
+  
+  Me.Refresh
+  
+End
+
+Private Function ReadOnly_Read() As Boolean
+
+  Return $bReadOnly
+
+End
+
+Private Sub UpdatePadding()
+
+  If $bReadOnly Then
+    Me._Padding = 0
+  Else If $bBorder Then
+    Me._Padding = Style.BoxFrameHeight
+  Else
+    Me._Padding = Style.FrameWidth + 1
+  Endif
+
+End
+
+Private Sub ReadOnly_Write(Value As Boolean)
+
+  Dim bHasFocus As Boolean
+  
+  If $bReadOnly = Value Then Return
+  
+  $bReadOnly = Value
+  
+  bHasFocus = Me.HasFocus
+  
+  If $bReadOnly Then
+    $hTextBox.Delete
+    $hTextBox = Null
+    Me._Focus = True
+  Else 
+    Me._Focus = False
+    $hTextBox = New TextBox(Me) As "TextBox"
+    $hTextBox.Border = False
+    $hTextBox.Expand = True
+    $hTextBox.Background = $iBg
+    Me.Proxy = $hTextBox
+  Endif
+  
+  UpdatePadding
+  
+  If bHasFocus Then Me.SetFocus
+  
+  $hArrowBox.Expand = $bReadOnly
+  $hArrowBox.Width = Desktop.Scale * 2
+  
+  Me.Refresh
+
+End
+
+Private Function Border_Read() As Boolean
+
+  Return $bBorder
+
+End
+
+Private Sub Border_Write(Value As Boolean)
+
+  $bBorder = Value
+  UpdatePadding
+  Me.Refresh
+
+End
+
+Private Sub Sort(Optional bForce As Boolean)
+
+  Dim sText As String
+  
+  If Not $bSorted Then Return
+  If Not $bDirty And Not bForce Then Return
+  
+  If $bReadOnly Then sText = Text_Read()
+  $aList.Sort(gb.Natural + gb.IgnoreCase)
+  $bDirty = False
+  If $bReadOnly And If sText Then $iIndex = FindItem(sText)
+
+End
+
+Private Function List_Read() As String[]
+
+  Sort()
+  Return $aList.Copy()
+
+End
+
+Private Sub ResetIndex()
+  
+  Me.Refresh
+  If $bReadOnly And If $aList.Count And If $iIndex < 0 Then
+    Sort()
+    $iIndex = 0
+    'Raise Click
+  Endif
+  
+End
+
+Private Sub List_Write(Value As String[])
+
+  $aList.Clear
+  $iIndex = -1
+  $bDirty = False
+  If Not Value Then Return
+
+  $aList = Value.Copy()
+  Sort(True)
+  ResetIndex
+
+End
+
+Private Function Count_Read() As Integer
+
+  Return $aList.Count
+
+End
+
+Public Sub TextBox_GotFocus()
+  
+  Me.Refresh
+  
+End
+
+Private Sub FindItem(sItem As String) As Integer
+  
+  Sort()
+  Return $aList.Find(sItem)
+  
+End
+
+
+Public Sub TextBox_LostFocus()
+
+  Dim iIndex As Integer
+  
+  iIndex = FindItem($hTextBox.Text)
+  If iIndex <> $iIndex Then 
+    $iIndex = iIndex
+    Raise Click
+  Endif
+  Me.Refresh
+  
+End
+
+Public Sub ComboBox_Enter()
+  
+  Me.Refresh
+  
+End
+
+Public Sub ComboBox_Leave()
+  
+  Me.Refresh
+  
+End
+
+Public Sub ComboBox_GotFocus()
+  
+  Me.Refresh
+  
+End
+
+Public Sub ComboBox_LostFocus()
+  
+  Me.Refresh
+  
+End
+
+Public Sub ComboBox_KeyPress()
+  
+  Select Case Key.Code
+    
+    Case Key.Space
+      If Key.Normal And If $bReadOnly Then
+        ArrowBox_MouseDown
+        Stop Event 
+      Endif
+      
+    Case Key.Up, Key.PageUp
+      If Key.Normal Then
+        MoveCurrent(False)
+        Stop Event 
+      Endif
+    
+    Case Key.Down, Key.PageDown
+      If Key.Normal Then
+        MoveCurrent(True)
+        Stop Event 
+      Endif
+    
+  End Select
+  
+End
+
+Public Sub TextBox_KeyPress()
+  
+  ComboBox_KeyPress
+  
+End
+
+
+Public Sub ArrowBox_MouseDown()
+  
+  Dim iIndex As Integer
+  
+  If $aList.Count = 0 Then Return
+  
+  Me.Refresh
+  iIndex = Index_Read()
+  
+  $hPopup = New FComboBoxPopup
+  $hPopup.Font = Me.Font
+  iIndex = $hPopup.Open($aList, iIndex, Me)
+  $hPopup = Null
+  If iIndex >= 0 Then Index_Write(iIndex)
+  Me.SetFocus
+  
+End
+
+Public Sub Popup()
+
+  ArrowBox_MouseDown
+  
+End
+
+Public Sub Close()
+  
+  If $hPopup Then $hPopup.Close()
+  
+End
+
+
+Public Sub ArrowBox_MouseWheel()
+  
+  MoveCurrent(Mouse.Delta < 0)
+  
+End
+
+Public Sub TextBox_MouseWheel()
+  
+  MoveCurrent(Mouse.Delta < 0)
+  
+End
+
+Private Function Index_Read() As Integer
+
+  Sort()
+  If $bReadOnly Then
+    Return $iIndex
+  Else
+    Return FindItem($hTextBox.Text)
+  Endif
+
+End
+
+Private Sub Index_Write(Value As Integer)
+
+  Dim sText As String
+  
+  If Value < -1 Or If Value >= $aList.Count Then Error.Raise("Bad argument")
+  
+  If $iIndex < 0 And If Value < 0 Then Return
+  
+  Sort()
+  If $bReadOnly Then
+    If $iIndex <> Value Then
+      $iIndex = Value
+      Me.Refresh
+    Endif
+  Else 
+    $iIndex = Value
+    Try sText = $aList[$iIndex]
+    $hTextBox.Text = sText
+  Endif
+
+  Raise Click
+  
+End
+
+Public Sub Clear()
+  
+  $aList.Clear
+  $iIndex = -1
+  $bDirty = False
+  If Not $bReadOnly Then $hTextBox.Clear
+  Me.Refresh
+  
+End
+
+Public Sub Add(Item As String, Optional Index As Integer)
+  
+  If IsMissing(Index) Then
+    $aList.Add(Item)
+  Else
+    $aList.Add(Item, Index)
+  Endif
+  $bDirty = True
+  ResetIndex
+  
+End
+
+Public Sub Remove(Index As Integer)
+  
+  If Index < 0 Or If Index >= $aList.Count Then Error.Raise("Bad argument")
+  $aList.Remove(Index)
+  If $iIndex = Index Then 
+    $iIndex = -1
+    Me.Refresh
+  Else If $iIndex > Index Then
+    Dec $iIndex
+  Endif
+  $bDirty = True
+  
+End
+
+Private Function Text_Read() As String
+
+  If $bReadOnly Then
+    If $iIndex >= 0 Then Return $aList[$iIndex]
+  Else
+    Return $hTextBox.Text
+  Endif
+
+End
+
+Private Sub Text_Write(Value As String)
+
+  Dim iIndex As Integer
+
+  If $bReadOnly Then
+    Me.Refresh
+  Else
+    $hTextBox.Text = Value
+  Endif
+
+  iIndex = FindItem(Value)
+  If iIndex <> $iIndex Then
+    $iIndex = iIndex
+    If iIndex >= 0 Then Raise Click
+  Endif
+
+End
+
+Private Function Length_Read() As Integer
+
+  Return String.Len(Text_Read())
+
+End
+
+Private Sub MoveCurrent(bUp As Boolean)
+
+  If bUp Then
+    If $iIndex < $aList.Max Then Index_Write($iIndex + 1)
+  Else
+    If $iIndex > 0 Then Index_Write($iIndex - 1)
+  Endif
+
+End
+
+Private Sub CheckEditable()
+  
+  If $bReadOnly Then Error.Raise("Combo-box is read-only")
+  
+End
+
+Private Function Pos_Read() As Integer
+
+  CheckEditable
+  Return $hTextBox.Pos
+
+End
+
+Private Sub Pos_Write(Value As Integer)
+
+  CheckEditable
+  $hTextBox.Pos = Value
+
+End
+
+Private Function Password_Read() As Boolean
+
+  CheckEditable
+  Return $hTextBox.Password
+
+End
+
+Private Sub Password_Write(Value As Boolean)
+
+  CheckEditable
+  $hTextBox.Password = Value
+
+End
+
+Private Function MaxLength_Read() As Integer
+
+  CheckEditable
+  Return $hTextBox.MaxLength
+
+End
+
+Private Sub MaxLength_Write(Value As Integer)
+
+  CheckEditable
+  $hTextBox.MaxLength = Value
+
+End
+
+Private Function Placeholder_Read() As String
+
+  CheckEditable
+  Return $hTextBox.Placeholder
+
+End
+
+Private Sub Placeholder_Write(Value As String)
+
+  CheckEditable
+  $hTextBox.Placeholder = Value
+
+End
+
+Public Sub Select(Optional Start As Integer, Length As Integer)
+  
+  CheckEditable
+  
+  If IsMissing(Start) And If IsMissing(Length) Then
+    $hTextBox.Select()
+  Else If Not IsMissing(Start) And If Not IsMissing(Length) Then
+    $hTextBox.Select(Start, Length)
+  Endif
+  
+End
+
+Public Sub SelectAll()
+  
+  CheckEditable
+  $hTextBox.SelectAll()
+  
+End
+
+Public Sub Unselect()
+  
+  CheckEditable
+  $hTextBox.Unselect()
+  
+End
+
+Public Sub Insert(Text As String)
+  
+  CheckEditable
+  $hTextBox.Insert(Text)
+  
+End
+
+Public Sub Find(Item As String) As Integer
+  
+  Return FindItem(Item)
+  
+End
+
+Public Sub CursorAt(Optional Pos As Integer) As Point
+  
+  CheckEditable()
+  If IsMissing(Pos) Then
+    Return $hTextBox.CursorAt()
+  Else
+    Return $hTextBox.CursorAt(Pos)
+  Endif
+  
+End
+
+Public Sub TextBox_Change()
+  
+  Raise Change
+  
+End
+
+Public Sub TextBox_Cursor()
+  
+  Raise Cursor
+  
+End
+
+Public Sub TextBox_Activate()
+  
+  Raise Activate
+  
+End
+
+Public Sub _get(Index As Integer) As _ComboBox_Item
+  
+  Return New _ComboBox_Item(Index) As "Item"
+  
+End
+
+Public Sub _GetText(iIndex As Integer) As String
+  
+  Try Return $aList[iIndex]
+  
+End
+
+Public Sub _SetText(iIndex As Integer, sText As String)
+  
+  Try $aList[iIndex] = sText
+  'SortLater
+  
+End
+
+Private Function Current_Read() As _ComboBox_Item
+
+  Try Return _get($iIndex)
+
+End
+
+Private Function Selection_Read() As _ComboBox_Selection
+
+  CheckEditable
+  If Not $hSelection Then $hSelection = New _ComboBox_Selection As "Selection"
+  Return $hSelection
+
+End
+
+Private Function Sorted_Read() As Boolean
+
+  Return $bSorted
+
+End
+
+Private Sub Sorted_Write(Value As Boolean)
+
+  If $bSorted = Value Then Return
+  $bSorted = Value
+  If $bSorted Then $bDirty = True
+
+End
+
+Private Function Background_Read() As Integer
+
+  Return $iBg
+
+End
+
+Private Sub Background_Write(Value As Integer)
+
+  $iBg = Value
+  If $hTextBox Then $hTextBox.Background = $iBg
+  Me.Refresh
+
+End
+
+Private Function Selected_Read() As Boolean
+
+  CheckEditable
+  Return $hTextBox.Selected
+
+End
+
+Public Sub _GetTextBox() As TextBox
+  
+  Return $hTextBox
+  
+End

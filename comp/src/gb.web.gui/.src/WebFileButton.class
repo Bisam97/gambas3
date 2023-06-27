@@ -1,0 +1,201 @@
+' Gambas class file
+
+''' This class implements a file selector button.
+
+Export
+Inherits WebControl
+
+Public Const _Properties As String = "*,Border=True,Text,Image{WebImage}"
+'Public Const _DrawWith As String '= "Button"
+Public Const _DefaultEvent As String = "Click"
+Public Const _DefaultSize As String = "16,4"
+
+'' This event is raised when the button is pressed.
+Event Click
+Event Progress
+Event Finish
+Event Abort(Reason As String)
+
+'' Return or set the button text.
+Property Text As String
+'' Return or set the button image relative path.
+Property Image As String
+'' Return the name of the selected file.
+Property Read File As String
+'' Return the upload progression as a number between 0 and 1.
+Property Read Progress As Float
+'' Return the path of the uploaded file on the disk
+Property Read Path As String
+
+Property Enabled As Boolean
+
+Private $sText As String
+Private $sImage As String
+Private $sFile As String
+Private $sKey As String
+
+Private $bUpload As Boolean
+Private $fProgress As Float
+Private $sError As String
+
+Private Function Text_Read() As String
+
+  Return $sText
+
+End
+
+Private Sub Text_Write(Value As String)
+
+  If $sText = Value Then Return
+  $sText = Value
+  If Me._CanRefresh() Then
+    Me._AddRefresh("gw.button.setText(" & JS(Me.Name) & "," & JS(Html(Value)) & ");")
+  Endif
+
+End
+
+Private Function Image_Read() As String
+
+  Return $sImage
+
+End
+
+Private Sub Image_Write(Value As String)
+
+  If $sImage = Value Then Return
+  $sImage = Value
+  Me.Refresh
+
+End
+
+Public Sub _BeforeRender()
+  
+  Print "<button"; Me._GetClassId("gw-button gw-filebutton"); 
+  Print " onclick=\"gw.file.select(" & JS(Me.Name) & ");\"";
+  Me._RenderStyleSheet()
+  If Not Me.Enabled Then Print " disabled";
+  Print ">";
+  
+End
+
+Public Sub _Render()
+  
+  If $sImage Then 
+    Print "<img src=\""; Me._GetImageLink($sImage); "\"";
+    Print " class=\"gw-button-image\"";
+    ' If Me.Height Then
+    '   Print " style=\"max-height:"; Me.Height; "\"";
+    ' Else
+    '   Print " style=\"height:1em;\"";
+    ' Endif
+    Print ">";
+  Endif
+  If $sText Then Print "<div class=\"gw-button-text\">"; Html($sText); "</div>";
+
+  Print "<input type=\"file\" id=\""; Me.Name; ":file\""; Me._GetUpdateJS("onchange", "file", "this.files[0].name"); ">";
+  
+End
+
+Public Sub _AfterRender()
+  
+  Raise Render
+  Print "</button>"
+  
+End
+
+Public Sub Upload()
+
+  If $sKey Then Upload.Cancel($sKey)
+  
+  $sKey = Upload.Start(Me)
+  
+  WebForm.Exec("gw.file.upload(" & JS(Me.Name) & "," & JS($sKey) & ")")
+  
+End
+
+Public Sub Abort()
+  
+  If Not $sKey Then Return
+  
+  WebForm.Exec("gw.file.abort(" & JS(Me.Name) & ")")
+  
+End
+
+Public Sub _Finish()
+  
+  Raise Finish
+  $sKey = ""
+  
+End
+
+Public Sub _Abort(sErr As String)
+
+  $sError = sErr
+  $sKey = ""
+  
+End
+
+Public Sub _UpdateProperty(sProp As String, vValue As Variant)
+  
+  If sProp = "file" Then
+    
+    $sFile = vValue
+    Raise Click
+  
+  Else If sProp = "progress" Then
+  
+    $fProgress = vValue
+    
+    If $fProgress = 0 Then
+      $bUpload = True
+      Me.Refresh
+    Endif
+    
+    Raise Progress
+    
+    If $fProgress = 1 Then
+      If $sError Then
+        Raise Abort($sError)
+        $sError = ""
+      Endif
+      $bUpload = False
+      Me.Refresh
+    Endif
+    
+  Endif
+  
+End
+
+Private Function File_Read() As String
+
+  Return $sFile
+
+End
+
+Private Function Progress_Read() As Float
+
+  Return $fProgress
+
+End
+
+Private Function Enabled_Read() As Boolean
+
+  If $bUpload Then Return True
+  Return Super.Enabled
+
+End
+
+Private Sub Enabled_Write(Value As Boolean)
+
+  Super.Enabled = Value
+
+End
+
+Private Function Path_Read() As String
+
+  Dim sPath As String
+
+  sPath = Upload.Path &/ $sKey
+  If Exist(sPath) Then Return sPath
+
+End

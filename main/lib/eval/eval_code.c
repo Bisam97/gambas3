@@ -2,7 +2,7 @@
 
   eval_code.c
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@
 ***************************************************************************/
 
 #define __EVAL_CODE_C
+#define __GB_CODE_C
 
 #define PROJECT_EXEC
 
@@ -33,5 +34,7 @@
 #include "gb_code.h"
 #include "gb_limit.h"
 #include "eval.h"
+
+#define COMP_version 0x03180000
 
 #include "gb_code_temp.h"

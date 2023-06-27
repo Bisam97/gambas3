@@ -263,12 +263,12 @@ Private Sub CheckOpen(sLine As String) As String
   
   If aSym.Count < 5 Then Return
   
-  If UCase(aSym[iPos]) = "TRY" Then 
+  If aSym[iPos] == "TRY" Then 
     sLine = Trim(Mid$(sLine, 4))
     sTry = "Try "
     Inc iPos
   Endif
-  If UCase(aSym[iPos]) <> "OPEN" Then Return
+  If Not (aSym[iPos] == "OPEN") Then Return
   
   iPos = InStr(sLine, " AS ", 1, gb.IgnoreCase)
   If iPos = 0 Then Return
@@ -368,7 +368,7 @@ Private Sub CheckQuoteShell(sLine As String) As String
   aSym = Highlight.Analyze(sLine, True)
   
   For I = aSym.Max - 3 DownTo 0 
-    If aSym[I] = "Quote" And If aSym[I + 1] = "." And If aSym[I + 2] = "Shell" And If aSym[I + 3] = "(" Then
+    If aSym[I] == "Quote" And If aSym[I + 1] = "." And If aSym[I + 2] == "Shell" And If aSym[I + 3] = "(" Then
       sLine = String.Left$(sLine, Highlight.Positions[I]) & "Shell$" & String.Mid$(sLine, Highlight.Positions[I + 3] + 1)
       bFound = True
     Endif

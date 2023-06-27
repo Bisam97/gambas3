@@ -1,0 +1,90 @@
+' Gambas class file
+
+Public Sub SetIcon(sIcon As String)
+  
+  imgIcon.Image = "message" &/ sIcon & ".png"
+  
+End
+
+Public Sub SetText(sText As String)
+  
+  txtMessage.Text = sText
+  
+End
+
+Public Sub SetButton(sButton1 As String, Optional sButton2 As String, sButton3 As String)
+  
+  Dim hLast As WebButton
+  
+  If sButton1 Then
+    btnButton1.Text = sButton1
+    btnButton1.Default = True
+    hLast = btnButton1
+  Endif
+  
+  If sButton2 Then
+    btnButton2.Text = sButton2
+    btnButton2.Show
+    hLast = btnButton2
+  Endif
+  
+  If sButton3 Then
+    btnButton3.Text = sButton3
+    btnButton3.Show
+    hLast = btnButton3
+  Endif
+  
+  If Not hLast Then
+    btnButton1.Text = ("OK")
+    btnButton1.Default = True
+    hLast = btnButton1
+  Endif
+  
+  If hLast Then hLast.Cancel = True
+  
+End
+
+Public Sub _new()
+
+  Dim hCtrl As WebButton
+  
+  Me.Style["min-width"] = "24em"
+  Me.Style["min-height"] = "12em"
+  
+  For Each hCtrl In [btnButton1, btnButton2, btnButton3]
+    hCtrl.Style["min-width"] = "8em"
+  Next
+  
+  imgIcon.Style["margin-right"] = "1em"
+
+End
+
+Private Sub HandleClick(iButton As Integer)
+
+  Me.Close(iButton)
+
+End
+
+Public Sub btnButton1_Click()
+
+  HandleClick(1)
+
+End
+
+Public Sub btnButton2_Click()
+
+  HandleClick(2)
+
+End
+
+Public Sub btnButton3_Click()
+
+  HandleClick(3)
+
+End
+
+Public Sub WebForm_Open()
+
+  btnButton1.SetFocus
+
+End

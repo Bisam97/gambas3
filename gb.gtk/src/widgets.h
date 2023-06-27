@@ -24,22 +24,27 @@
 #ifndef __WIDGETS_H
 #define __WIDGETS_H
 
+#define GLIB_VERSION_MIN_REQUIRED GLIB_VERSION_2_26
+
 #include <gdk/gdk.h>
 #include <gdk/gdkkeysyms.h>
+#include <gtk/gtk.h>
+
+#include <gdk-pixbuf/gdk-pixbuf.h>
+
+#ifdef GTK3
+#include <gdk/gdkkeysyms-compat.h>
+#else
 #ifndef GAMBAS_DIRECTFB
 #ifdef GDK_WINDOWING_X11
 #include <gdk/gdkx.h>
+#include <X11/Xlib.h>
+#include <X11/Xatom.h>
+#include <X11/Xutil.h>
+#include <X11/keysymdef.h>
+#include <X11/X.h>
 #endif
 #endif
-#include <gtk/gtk.h>
-
-#ifdef GTK3
-
-#ifdef GDK_WINDOWING_X11
-#include <gtk/gtkx.h>
-#endif
-#include <gdk/gdkkeysyms-compat.h>
-
 #endif
 
 #include <stdio.h>
@@ -64,36 +69,6 @@
 #include "main.h"
 //#define GTK_DEBUG_SIGNALS
 //#define GTK_DEBUG_OBJECTS
-
-enum
-{
-	Type_gLabel       = 0x0001,
-	Type_gTextLabel   = 0x0002,
-	Type_gButton      = 0x0003,
-	Type_gPictureBox  = 0x0007,
-	Type_gProgressBar = 0x000A,
-	Type_gSlider      = 0x000E,
-	Type_gScrollBar   = 0x000F,
-	Type_gPlugin      = 0x0013,
-	Type_gMovieBox    = 0x0014,
-	Type_gSpinBox     = 0x0016,
-	Type_gSeparator   = 0x0018,
-	Type_gFrame       = 0x0105,
-	Type_gMainWindow  = 0x0106,
-	Type_gPanel       = 0x0108,
-	Type_gDrawingArea = 0x0109,
-	Type_gTabStrip    = 0x0111,
-	Type_gSplitter    = 0x0117,
-	Type_gScrollView  = 0x0115,
-	Type_gTextBox     = 0x1004,
-	Type_gTextArea    = 0x100B,
-	Type_gComboBox    = 0x100C,
-	Type_gListBox     = 0x100D,
-	Type_gListView    = 0x1010,
-	Type_gColumnView  = 0x1012,
-	Type_gTreeView    = 0x1014,
-	Type_gGLArea      = 0x0018,
-};
 
 enum
 {
@@ -136,6 +111,14 @@ typedef
 #define STATE_PRELIGHT GTK_STATE_FLAG_PRELIGHT
 #define STATE_SELECTED GTK_STATE_FLAG_SELECTED
 #define STATE_FOCUSED GTK_STATE_FLAG_FOCUSED
+#define STATE_LINK GTK_STATE_FLAG_LINK
+#define STATE_VISITED GTK_STATE_FLAG_VISITED
+
+#if GTK_CHECK_VERSION(3, 14, 0)
+#else
+#define GTK_STATE_FLAG_CHECKED GTK_STATE_FLAG_ACTIVE
+#endif
+
 
 #define gtk_hbox_new(_homogeneous, _spacing) gtk_box_new(GTK_ORIENTATION_HORIZONTAL, _spacing)
 #define gtk_vbox_new(_homogeneous, _spacing) gtk_box_new(GTK_ORIENTATION_VERTICAL, _spacing)
@@ -158,6 +141,8 @@ typedef
 #define STATE_INSENSITIVE GTK_STATE_INSENSITIVE
 #define STATE_PRELIGHT GTK_STATE_PRELIGHT
 #define STATE_SELECTED GTK_STATE_SELECTED
+#define STATE_LINK GTK_STATE_NORMAL
+#define STATE_VISITED GTK_STATE_NORMAL
 
 #endif
 

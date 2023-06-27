@@ -1,0 +1,217 @@
+' Gambas class file
+
+''' This class implements a push button.
+
+Export
+Inherits WebControl
+
+Public Const _Properties As String = "*,Border=True,Text,Image{WebImage},Immediate,ShowArrow,Default,Cancel"
+'Public Const _DrawWith As String '= "Button"
+Public Const _DefaultEvent As String = "Click"
+Public Const _DefaultSize As String = "16,4"
+
+'' This event is raised when the button is pressed.
+''
+'' ### See also
+'' [../immediate]
+Event Click
+Event Menu
+
+'' Return or set the button text.
+Property Text As String
+'' Return or set the button image relative path.
+Property Image As String
+'' If the Immediate property is set, the [../click] event is raised to generate javascript code that will be executed on the client side when
+'' the button is clicked.
+''
+'' In that case, the Click event handler should only call methods that generate javascript on the client side:
+'' - [../../webform/exec](WebForm.Exec)
+'' - [../../webtextbox/copy](WebTextBox.Copy)
+'' - ...
+Property Immediate As Boolean
+
+'' Return or set if the button displays an arrow
+Property ShowArrow As Boolean
+
+Property Default As Boolean
+Property Cancel As Boolean
+
+Private $sText As String
+Private $sImage As String
+Private $bImmediate As Boolean
+Private $bShowArrow As Boolean
+
+Private Function Text_Read() As String
+
+  Return $sText
+
+End
+
+Private Sub Text_Write(Value As String)
+
+  If $sText = Value Then Return
+  $sText = Value
+  If Me._CanRefresh() Then Me._AddRefresh("gw.button.setText(" & JS(Me.Name) & "," & JS(Html(Value)) & ");")
+
+End
+
+Private Function Image_Read() As String
+
+  Return $sImage
+
+End
+
+Private Sub Image_Write(Value As String)
+
+  If $sImage = Value Then Return
+  $sImage = Value
+  Me.Refresh
+
+End
+
+Public Sub _RenderStyleSheet()
+  
+  Me._StartStyleSheet
+  
+  Super._RenderStyleSheet()
+  
+  If $bShowArrow Then Me._AddStyleSheet("padding-right:0;")
+    
+  Me._EndStyleSheet
+  
+End
+
+Public Sub _BeforeRender()
+  
+  Dim vSave As Variant
+  Dim sClass As String
+  
+  sClass = "gw-button"
+  If Me.Default Then sClass &= " gw-button-default"
+  
+  Print "<button"; Me._GetClassId(sClass); 
+  If Me.Enabled Then
+    'Print " tabindex=\"0\"";
+    If $bImmediate Then
+      Print " onclick=\"";
+      vSave = WebForm._BeginJavascript()
+      Raise Click
+      WebForm._EndJavascript(vSave)
+      Print "\"";
+    Else
+      Print Me._GetEventJS("onclick", "click");
+    Endif
+  Endif
+  
+  Me._RenderStyleSheet()
+  'If Not Me.Enabled Then Print " disabled";
+  Print ">";
+  
+End
+
+
+Public Sub _Render()
+  
+  If $sImage Then 
+    Print "<img src=\""; Me._GetImageLink($sImage); "\"";
+    Print " class=\"gw-button-image\"";
+    'If Not Me.Height Then Print ""
+    '   Print " style=\"max-height:"; Me.Height; "\"";
+    ' Else
+    '   Print " style=\"height:1em;\"";
+    ' Endif
+    ' If Me.Width Or If Me.Height Then
+    '   Print " style=\"";
+    '   If Me.Width Then Print "max-width:"; Me.Width; ";"
+    '   If Me.Height Then Print "max-height:"; Me.Height; ";"
+    '   Print "\"";
+    ' Endif
+    Print " />";
+  Endif
+  If $sText Then Print "<div class=\"gw-button-text\">"; Html($sText); "</div>";
+  If $bShowArrow Then
+    Print "<div class=\"gw-button-arrow\"";
+    If Object.CanRaise(Me, "Menu") Then
+      Print " onmousedown=\"gw.raise("; JS(Me.Name); ",'menu');return true;\"";
+    Else
+      'Print " onclick=\"gw.textbox.clear("; JS(Me.Name); ")\">";
+    Endif
+    Print "></div>"
+  Endif
+  
+End
+
+Public Sub _AfterRender()
+  
+  Raise Render
+  Print "</button>"
+  
+End
+
+'' Click on the button.
+
+Public Sub Click()
+  
+  Object.Raise(Me, "Click")
+  
+End
+
+Private Function Immediate_Read() As Boolean
+
+  Return $bImmediate
+
+End
+
+Private Sub Immediate_Write(Value As Boolean)
+
+  If $bImmediate = Value Then Return
+  $bImmediate = Value
+
+End
+
+Private Function ShowArrow_Read() As Boolean
+
+  Return $bShowArrow
+  
+End
+
+Private Sub ShowArrow_Write(Value As Boolean)
+
+  If $bShowArrow = Value Then Return
+  $bShowArrow = Value
+  Me.Refresh
+
+End
+
+Private Function Default_Read() As Boolean
+
+  Return Me._GetTopLevel()._GetDefault() = Me.Id
+
+End
+
+Private Sub Default_Write(Value As Boolean)
+
+  If Value Then
+    Me._GetTopLevel()._SetDefault(Me)
+  Else If Default_Read() Then
+    Me._GetTopLevel()._SetDefault(Null)
+  Endif
+
+End
+
+Private Function Cancel_Read() As Boolean
+
+  Return Me._GetTopLevel()._GetCancel() = Me.Id
+  
+
+End
+
+Private Sub Cancel_Write(Value As Boolean)
+
+  If Value Then
+    Me._GetTopLevel()._SetCancel(Me)
+  Else If Default_Read() Then
+    Me._GetTopLevel()._SetCancel(Null)
+  Endif
+
+End

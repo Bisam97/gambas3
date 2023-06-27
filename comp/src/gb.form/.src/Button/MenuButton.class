@@ -25,10 +25,12 @@ Property MenuOnly As Boolean
 Property Value As Boolean
 Property AutoResize As Boolean
 Property Border As Boolean
+Property Background As Integer
 
 Private $hDrawingArea As DrawingArea
 Private $hPicture As Picture
 Private $sText As String
+Private $sActualText As String
 Private $bBorder As Boolean
 Private $sMenu As String
 Private $hButton As Button
@@ -40,7 +42,7 @@ Private $bPressed As Boolean
 Private $bArrow As Boolean
 Private $bAutoResize As Boolean
 Private $bMenuOnly As Boolean
-Private $hLastFocus As Control
+Private $iBg As Integer = Color.Default 
 
 Static Private $hCurrent As MenuButton
 Static Private $hCurrentMenu As Menu
@@ -48,7 +50,7 @@ Static Private $hCurrentMenu As Menu
 Public Sub _new()
   
   $hDrawingArea = New DrawingArea(Me) As "DrawingArea"
-  $hDrawingArea.Focus = True
+  '$hDrawingArea.Focus = True
   
   $bBorder = True
   $bArrow = True
@@ -79,26 +81,43 @@ End
 Private Sub Text_Write(Value As String)
 
   Dim iPos As Integer
+  'Dim S As Integer
 
   $sText = Value
+  $sActualText = $sText
+  
   $iShortcutPos = 0
   
   Do
+    
     iPos = String.InStr($sText, "&", iPos + 1)
     If iPos = 0 Then Break
     If String.Mid$($sText, iPos + 1, 1) = "&" Then
       Inc iPos
       Continue
     Endif
+    
     If Not $hButton Then
       $hButton = New Button(Me) As "Button"
       $hButton.Ignore = True
-      $hButton.Move(-16, -16, 8, 8)
+      $hButton.Border = False
+      $hButton.AutoResize = True
+      'S = Desktop.Scale * 3
+      $hButton.Lower()
     Endif
+    
     $hButton.Text = String.Mid$($sText, iPos, 2)
+    $hButton.Enabled = Not Me.Design
     $iShortcutPos = iPos
+    $sActualText = String.Left($sText, iPos - 1) & String.Mid($sText, iPos + 1)
+    
+    $hButton.Y = -$hButton.H
+    
     Break
+    
   Loop
+  
+  $sActualText = Replace($sActualText, "&&", "&")
   
   UpdateSize
 
@@ -118,7 +137,6 @@ End
 
 Public Sub Button_GotFocus()
   
-  _SetLastFocus
   $hDrawingArea.SetFocus
   'Button_Click
   
@@ -167,10 +185,13 @@ Static Private Sub HandleMenu(hCurrent As MenuButton)
   
   Dim hMenu As Menu
   Dim hWatch As Timer
+  Dim hFocus As Control
   
   hWatch = New Timer As "WatchTimer"
-  hWatch.Delay = 50
+  hWatch.Delay = 100
   hWatch.Start
+  
+  hFocus = Application.ActiveControl
   
   While hCurrent
     
@@ -181,42 +202,40 @@ Static Private Sub HandleMenu(hCurrent As MenuButton)
     $hCurrent = hCurrent
     $hCurrentMenu = hMenu
     
-    hCurrent._SetLastFocus()
-    hCurrent.SetFocus ' Should refresh old and new menus
+    'hCurrent.SetFocus ' Should refresh old and new menus
+    hCurrent.Refresh
     
     hMenu.Popup(hCurrent.ScreenX, hCurrent.ScreenY + hCurrent.H)
-    
+
     If $hCurrent = hCurrent Then Break
     hCurrent = $hCurrent
     
   Wend
   
-  Try $hCurrent.Refresh
   hWatch.Stop
   hWatch = Null
-  
-  $hCurrent._RestoreLastFocus()
   
   $hCurrent = Null
   $hCurrentMenu = Null
   
+  Try hCurrent.Refresh
+  Try hFocus.SetFocus
   
 End
-
-
 
 Private Sub Arrow_Click()
 
   If Not $sMenu Or If Not Main.FindMenu(Me, $sMenu) Then
     $hCurrent = Me
     $hCurrentMenu = Null
-    Me.SetFocus
+    'Me.SetFocus
     Me.Refresh
     Raise Click
     $hCurrent = Null
     Return
   Endif
   
+  Try DrawingArea_MouseUp
   HandleMenu(Me)
   
 End
@@ -265,7 +284,7 @@ Private Sub UpdateSize()
   Dim W As Integer
   
   If $bAutoResize Then 
-    If $sText Then W = Me.Font.TextWidth($sText) + Desktop.Scale
+    If $sActualText Then W = Me.Font.TextWidth($sActualText) + Desktop.Scale
     If $hPicture Then W += $hPicture.W + Desktop.Scale
     If $bArrow Then W += Desktop.Scale * 2
     W += Desktop.Scale
@@ -305,13 +324,16 @@ End
 
 Public Sub DrawingArea_GotFocus()
 
-  _SetLastFocus  
+  If Me.Design Then Return
+  If $hButton And If Not Me.Design Then $hButton.Enabled = False
   $hDrawingArea.Refresh
   
 End
 
 Public Sub DrawingArea_LostFocus()
   
+  If Me.Design Then Return
+  If $hButton And If Not Me.Design Then $hButton.Enabled = True
   $hDrawingArea.Refresh
   
 End
@@ -345,11 +367,12 @@ Public Sub DrawingArea_MouseDown()
     $bInsideArrow = $sMenu ' if the arrow is hidden, the all button will popup the menu
   Endif
   
-  $hDrawingArea.SetFocus
+  '$hDrawingArea.SetFocus
   $hDrawingArea.Refresh
   
   If $bInsideArrow Or $bMenuOnly Then
     Arrow_Click
+    If Not Object.IsValid(Me) Then Return
     DrawingArea_MouseUp
     'If Not Mouse.Inside($hDrawingArea) Then DrawingArea_Leave
   Endif
@@ -402,13 +425,11 @@ Public Sub DrawingArea_Draw()
   iFlag = Style.StateOf($hDrawingArea)
   
   If $hCurrent Then
-    If $hCurrent = Me Then iFlag = iFlag Or Draw.Hover
+    If $hCurrent = Me Then iFlag = iFlag Or Style.Hovered
   Else
-    If $bInside Then iFlag = iFlag Or Draw.Hover
+    If $bInside And If $hDrawingArea.HasFocus Then iFlag = iFlag Or Style.Hovered
   Endif
-  'If $bInside And If Me.Enabled And If Not Me.Design Then iFlag += Draw.Hover
-  'If Not Me.Enabled Then iFlag += Draw.Disabled
-  If $hDrawingArea.HasFocus Then iFlag += Draw.Hover
+  If $hDrawingArea.HasFocus Then iFlag = iFlag Or Style.HasFocus Or Style.Hovered
   
   bDrawArrow = $bArrow And (Me.W > DS * 4)
   
@@ -419,15 +440,21 @@ Public Sub DrawingArea_Draw()
 
   If bMenu Then
     Paint.FillRect(1, 1, Me.W - 2, Me.H - 2, Color.SelectedBackground)
-  Else If $bInsideArrow Or If $bMenuOnly Then
-    Style.PaintButton(0, 0, Me.W, Me.H, False, iFlag, bFlat)
-  Else
-    Style.PaintButton(0, 0, Me.W, Me.H, $bPressed, iFlag, bFlat)
+  Else 
+    If $bInsideArrow Or If $bMenuOnly Then
+      Style.PaintButton(0, 0, Me.W, Me.H, False, iFlag, bFlat, $iBg)
+    Else
+      Style.PaintButton(0, 0, Me.W, Me.H, $bPressed, iFlag, bFlat, $iBg)
+    Endif
+  Endif
+  
+  If $bPressed And If Not bMenu Then 
+    Paint.Translate(1, 1)
   Endif
   
   If $hPicture Then
     
-    If System.RightToLeft Then
+    If Me.RightToLeft Then
       X = Paint.W - DS - $hPicture.W
     Else
       X = DS
@@ -436,30 +463,35 @@ Public Sub DrawingArea_Draw()
     If Me.Enabled Then
       Paint.DrawPicture($hPicture, X, (Me.H - $hPicture.H) / 2)
     Else
-      Paint.DrawImage($hPicture.Image.Desaturate(), X, (Me.H - $hPicture.H) / 2)
+      Paint.DrawImage($hPicture.Image.Desaturate().Contrast(-1), X, (Me.H - $hPicture.H) / 2)
     Endif
     
   Endif
   
   If bDrawArrow Then
-    If System.RightToLeft Then
-      Style.PaintArrow(DS, 0, DS, Me.H, Align.Bottom, iFlag)
+    If Me.RightToLeft Then
+      Paint.Arrow(DS, 0, DS, Me.H, Align.Bottom)
     Else
-      Style.PaintArrow(Me.W - DS * 2, 0, DS, Me.H, Align.Bottom, iFlag)
+      Paint.Arrow(Me.W - DS * 2, 0, DS, Me.H, Align.Bottom)
     Endif
+    Paint.LineWidth = DS / 6
+    iFg = Style.ForegroundOf($hDrawingArea)
+    If Not Me.Enabled Or If Not $sMenu Then iFg = Color.Merge(Color.ButtonBackground, iFg)
+    Paint.Background = iFg
+    Paint.Stroke
   Endif
   
-  If $sText Then 
+  If $sActualText Then 
     
-    iFg = Style.ForegroundOf(Me)
+    iFg = Style.ForegroundOf($hDrawingArea)
     If Not Me.Enabled Then iFg = Color.Merge(Color.ButtonBackground, iFg)
     If bMenu Then iFg = Color.SelectedForeground
     Paint.Background = iFg
     
-    sText = $sText
-    If $iShortcutPos Then sText = String.Left($sText, $iShortcutPos - 1) & String.Mid$($sText, $iShortcutPos + 1)
+    sText = $sActualText
     
     X = DS
+    Y = 0
     W = Me.W - DS * 2
     
     If Not $hPicture And If Not bDrawArrow Then
@@ -468,16 +500,16 @@ Public Sub DrawingArea_Draw()
       iAlign = Align.Normal
       If $hPicture Then
         W -= $hPicture.W + DS
-        If Not System.RightToLeft Then X += $hPicture.W + DS
+        If Not Me.RightToLeft Then X += $hPicture.W + DS
       Endif
       If bDrawArrow Then
-        If System.RightToLeft Then X += DS * 2
+        If Me.RightToLeft Then X += DS * 2
         W -= DS * 2
       Endif
     Endif
     
-    Paint.ClipRect = Rect(X, 0, W, Me.H)
-    Paint.DrawText(sText, X, 0, W, Me.H, iAlign)
+    Paint.ClipRect = Rect(X, Y, W, Me.H)
+    Paint.DrawText(sText, X, Y, W, Me.H, iAlign)
     
     If $iShortcutPos Then
       hFont = Paint.Font
@@ -485,7 +517,9 @@ Public Sub DrawingArea_Draw()
       X2 = X + hFont.TextWidth(String.Left(sText, $iShortcutPos))
       X += hFont.TextWidth(String.Left(sText, $iShortcutPos - 1))
       Y = (Me.H - hFont.Height) / 2 + hFont.Ascent + 1
-      If System.RightToLeft Then
+      If Main.UseGTK() Then Inc Y
+      
+      If Me.RightToLeft Then
         Paint.FillRect(Paint.W - X, Y, X2 - X, 1, iFg)
       Else
         Paint.FillRect(X, Y, X2 - X, 1, iFg)
@@ -500,11 +534,11 @@ Public Sub DrawingArea_KeyPress()
   If Key.Code = Key.Space Then 
     $bPressed = True
     $hDrawingArea.Refresh
-  Else If Key.Code = Key.Tab Then
-    If $hButton Then
-      Try Me.Next.SetFocus
-      Stop Event
-    Endif
+  ' Else If Key.Code = Key.Tab Then
+  '   If $hButton Then
+  '     Try Me.Next.SetFocus
+  '     Stop Event
+  '   Endif
   Endif
   
 End
@@ -538,30 +572,15 @@ Public Sub DrawingArea_Font()
   
 End
 
-Public Sub _SetLastFocus()
-  
-  If $hLastFocus Then
-    'Debug " already set"
-    Return
-  Endif
-  $hLastFocus = Application.PreviousControl
-  ' If $hLastFocus Then
-  '   Debug $hLastFocus.Name
-  ' Else
-  '   Debug "NULL"
-  ' Endif
-  
+Private Function Background_Read() As Integer
+
+  Return $iBg
+
 End
 
+Private Sub Background_Write(Value As Integer)
 
-Public Sub _RestoreLastFocus()
-  
-  If $hLastFocus Then
-    'Debug $hLastFocus.Name
-    If $hDrawingArea.HasFocus Then $hLastFocus.SetFocus
-    $hLastFocus = Null
-  ' Else
-  '   Debug "NULL"
-  Endif
-  
+  $iBg = Value
+  $hDrawingArea.Refresh
+
 End

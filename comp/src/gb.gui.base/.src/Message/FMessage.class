@@ -2,8 +2,18 @@
 
 Static Private $iButton As Integer
 
-Public Sub Run(sIcon As String, sText As String, aButton As String[]) As Integer
+Static Public Sub Run(sIcon As String, sText As String, aButton As String[], aDefault As String[]) As Integer
 
+  Dim hForm As FMessage
+  
+  hForm = New FMessage
+  Return hForm.Display(sIcon, sText, aButton, aDefault)
+  
+End
+
+Public Sub Display(sIcon As String, sText As String, aButton As String[], aDefault As String[]) As Integer
+
+  Dim DS As Integer = Desktop.Scale
   Dim sTitle As String
   Dim hPict As Picture
   Dim H As Integer
@@ -11,56 +21,124 @@ Public Sub Run(sIcon As String, sText As String, aButton As String[]) As Integer
   Dim I As Integer
   Dim hButton As Button
   Dim iBusy As Integer
+  Dim WB As Integer
+  Dim HT As Integer
+  Dim sStyle As String
 
   sTitle = Message.Title
   If Not sTitle Then sTitle = Application.Title
   Message.Title = ""
-  Me.Title = sTitle
   
-  Do
-    If aButton.Count = 0 Then
-      aButton = [("OK")]
-      Break
+  sStyle = Message.Style
+
+  Select Case sStyle
+    
+    Case "flat"
+      
+      Me.Border = False
+      lblTitle.Show
+      panFrame.Border = Border.Plain
+      panColor.Background = Color.TextBackground
+      panColor.Margin = True
+      
+      If sTitle Then
+        lblTitle.Text = sTitle
+        lblTitle.H = lblTitle.Font.H
+        lblTitle.Show
+      Else
+        lblTitle.Hide
+      Endif
+      
+    Default
+      
+      lblTitle.Hide
+      Me.Title = sTitle
+      
+  End Select
+
+  While I < aButton.Count
+    If Not Trim(aButton[I]) Then
+      aButton.Remove(I)
+    Else
+      Inc I
     Endif
-    If aButton.Last Then Break
-    aButton.Pop()
-  Loop
+  Wend
+  
+  If aButton.Count = 0 Then aButton = aDefault
+  If aButton.Count = 0 Then aButton = [("OK")]
   
   hPict = Picture["icon:/64/" & sIcon]
-  If Not hPict Then hPict = Picture["message" &/ sIcon & ".png"]
-  If Not hPict Then hPict = Picture["message/info.png"]
+  If Not hPict Then hPict = Picture["./gb.gui.base/message" &/ sIcon & ".png"]
+  If Not hPict Then hPict = Picture["./gb.gui.base/message/info.png"]
   picMessage.Picture = hPict
   
   sText = Replace(sText, "\n", "<br>")
   
   txtMessage.Ignore = True
-  txtMessage.W = Screen.AvailableWidth \ 3
+  txtMessage.W = Screen.AvailableWidth \ 4
   txtMessage.Text = sText
   txtMessage.Adjust
-  
-  W = Max(txtMessage.W, (aButton.Count * 15) * Desktop.Scale) + picMessage.W + Desktop.Scale * 4
-  H = Max(Desktop.Scale * 8, txtMessage.H) + panButton.H + Desktop.Scale * 5
-  
+  HT = txtMessage.H
   txtMessage.Ignore = False
   
+  H = 0
   For I = 0 To aButton.Max
     hButton = New Button(panButton) As "Button"
     hButton.Tag = I
     hButton.Text = aButton[I]
-    hButton.W = Max(Desktop.Scale * 14, hButton.Font.TextWidth(hButton.Text) + Desktop.Scale * 2)
-    If I = 0 Then hButton.Default = True
-    If I = aButton.Max Then hButton.Cancel = True
+    hButton.W = Max(DS * 14, hButton.Font.TextWidth(hButton.Text) + DS * 2)
+    H = Max(H, hButton.Font.TextHeight(hButton.Text))
+    WB += hButton.W + DS
+    'If I = 0 Then hButton.SetFocus()
+    If I = aButton.Max Then 
+      If Message.ColoredButtons And If aButton.Count >= 2 Then
+        If Application.DarkTheme Then
+          hButton.Background = Color.DarkRed
+        Else
+          hButton.Background = Color.SetHSV(Color.Red,, 128)
+        Endif
+        'hButton.Foreground = Color.TextBackground
+      Endif
+      hButton.Cancel = True
+      If Not Message.DefaultButton Then hButton.SetFocus
+    Else If I = 0 Then
+      If Message.ColoredButtons And If aButton.Count >= 2 Then
+        If Application.DarkTheme Then
+          hButton.Background = Color.DarkGreen
+        Else
+          hButton.Background = Color.SetHSV(Color.Green,, 128)
+        Endif
+        'hButton.Foreground = Color.TextBackground
+      Endif
+      If Message.DefaultButton Then
+        hButton.Default = True
+        hButton.SetFocus
+      Endif
+    Endif
   Next
+  'hSpace = New Spring(panButton)
+  
+  panButton.H = Max(H, DS * 4)
+  
+  W = Max(DS * 32, Max(txtMessage.W + 2, WB) + picMessage.W + DS * 7)
+  H = Max(DS * 8, HT) + panButton.H + DS * 7
+  If panColor.Margin Then
+    W += DS * 2
+    H += DS * 2
+  Endif
+  If lblTitle.Visible Then H += lblTitle.H + DS
   
   Me.Resize(W, H)
   
   If Application.ActiveWindow Then Me.SkipTaskbar = True
   
-  $iButton = aButton.Max
+  $iButton = -1
   
   iBusy = Application.Busy
   Application.Busy = 0
+  
   Me.ShowModal()
+  
   Application.Busy = iBusy
 
   Return $iButton + 1
@@ -71,6 +149,93 @@ Public Sub Button_Click()
   
   $iButton = Last.Tag
   Me.Close
+  
+End
+
+Private Sub SetCurrentButton(iDir As Integer)
+
+  Dim hButton As Button
+  
+  Try hButton = Application.ActiveControl
+  
+  If hButton Then 
+    If iDir < 0 Then
+      Try hButton = hButton.Previous
+    Else 
+      Try hButton = hButton.Next
+    Endif
+    If Error Then hButton = Null
+  Endif
+  
+  If Not hButton Then
+    If iDir < 0 Then
+      hButton = panButton.Children[panButton.Children.Max]
+    Else
+      hButton = panButton.Children[0]
+    Endif
+  Endif
+  
+  hButton.SetFocus
+  
+End
+
+
+Public Sub Form_KeyPress()
+
+  Dim hButton As Button
+  
+  Select Key.Code
+    
+    Case Key.Return, Key.Enter, Key.Space
+    
+      Try hButton = Application.ActiveControl
+      If hButton Then 
+        hButton.Value = True
+        Stop Event
+      Endif
+      
+    Case Key.Left, Key.Up
+      
+      If Key.Normal Then SetCurrentButton(-1)
+      Stop Event
+      
+    Case Key.Right, Key.Down
+    
+      If Key.Normal Then SetCurrentButton(1)
+      Stop Event
+    
+  End Select
+  
+End
+
+Public Sub mnuCopy_Click()
+
+  Me.Foreground = Color.SelectedForeground
+  Me.Background = Color.SelectedBackground
+  Component.Load("gb.util")
+  Clipboard.Copy(String.FromHTML(txtMessage.Text))
+  Wait 0.15
+  Me.Foreground = Color.Foreground
+  Me.Background = Color.Background
+
+End
+
+Public Sub Form_Close()
+
+  If $iButton < 0 Then Stop Event
+
+End
+
+
+Public Sub lblTitle_MouseMove()
+
+  panFrame_MouseMove
+
+End
+
+Public Sub panFrame_MouseMove()
+
+  If Mouse.Left Then Me.Move(Me.X + Mouse.X - Mouse.StartX, Me.Y + Mouse.Y - Mouse.StartY)
   
 End
 

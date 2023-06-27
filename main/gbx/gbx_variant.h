@@ -2,7 +2,7 @@
 
   gbx_variant.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -81,7 +81,7 @@ typedef
   } \
   else if (TYPE_is_object((_var)->type)) \
   { \
-    OBJECT_REF((_var)->value._object); \
+    OBJECT_REF_CHECK((_var)->value._object); \
   } \
 })
 

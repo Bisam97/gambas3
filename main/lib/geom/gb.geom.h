@@ -2,7 +2,7 @@
 
   gb.geom.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -49,6 +49,8 @@ enum
 #define ALIGN_IS_LEFT(_align) (((_align) & 0xF) == 0x1 || (((_align) & 0xF) == 0x0 && !GB.System.IsRightToLeft()))
 #define ALIGN_IS_RIGHT(_align) (((_align) & 0xF) == 0x2 || (((_align) & 0xF) == 0x0 && GB.System.IsRightToLeft()))
 #define ALIGN_IS_CENTER(_align) (((_align) & 0xF) == 0x3)
+#define ALIGN_IS_NORMAL(_align) (((_align) & 0xF) == 0x0)
+#define ALIGN_MAKE(_halign, _valign) (((_halign) & 0xF) | ((_valign) & 0xF0))
 
 typedef
 	struct {
@@ -74,7 +76,6 @@ typedef
 		int w;
 		int h;
 		}
-	PACKED
 	GEOM_RECT;
 
 typedef
@@ -85,7 +86,6 @@ typedef
 		double w;
 		double h;
 		}
-	PACKED
 	GEOM_RECTF;
 
 #define GEOM_INTERFACE_VERSION 1

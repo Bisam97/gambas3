@@ -254,7 +254,11 @@ Private Sub GetSymbolLink(sName As String, Optional sTitle As String, Optional s
     sRes &= "<div class=\"tooltip\"><div class=\"tooltip-contents\">" & sDesc & "</div></div>"
   Endif
   
-  sLink = "/comp" &/ LCase(hSym.Component &/ hSym.Class &/ sName)
+  If sName = "_new" Then
+    sLink = "/comp" &/ LCase(Component &/ Name &/ sName)
+  Else
+    sLink = "/comp" &/ LCase(hSym.Component &/ hSym.Class &/ sName)
+  Endif
 
   If hSym.Class <> Name Or If hSym.Component <> Component Then
   Else If hSym.Class <> Main.Class Or If hSym.Component <> Main.Component Then
@@ -521,6 +525,19 @@ Public Sub HasEvents() As Boolean
 
 End
 
+Public Sub IsRedirected() As Boolean
+
+  Dim sPath As String
+  
+  sPath = "/comp" &/ LCase(Component &/ Name)
+  sPath = Main.GetPagePathFrom(sPath)
+  
+  If Exist(sPath) Then 
+    If LTrim(File.Load(sPath)) Begins "==>" Then Return True
+  Endif
+  
+End
+
 Public Sub GetDescription() As String
   
   Dim sPath As String
@@ -529,13 +546,44 @@ Public Sub GetDescription() As String
   Dim sData As String
   Dim sDesc As String
   Dim sCar As String
+  Dim sSave As String
+  Dim sFirst As String
+  Dim nTry As Integer
   
-  sPath = Main.GetPagePathFrom("/comp" &/ LCase(Component &/ Name))
-  If Not Exist(sPath) Then Return 
+  sPath = "/comp" &/ LCase(Component &/ Name)
   
-  aData = Split(File.Load(sPath), "\n")
+TRY_AGAIN:
+  
+  sPath = Main.GetPagePathFrom(sPath)
+  
+  If Exist(sPath) Then 
+    
+    aData = Split(File.Load(sPath), "\n")
+    If aData.Count Then
+      sFirst = Trim(aData[0])
+      If sFirst Begins "-->" Or If sFirst Begins "==>" Then
+        sPath = Trim(Mid$(sFirst, 4))
+        Inc nTry
+        If nTry < 8 Then Goto TRY_AGAIN
+      Endif
+    Endif
+    
+  Else
+    
+    aData = ["@{help}"]
+    
+  Endif
+  
   While iPos < aData.Count
-    sData = LTrim(aData[iPos])
+    sData = aData[iPos]
+    If Trim(sData) = "@{help}" Then 
+      sSave = Main.Class
+      Main.Class = Me.Name
+      aData.Remove(iPos)
+      aData.Insert(Split(Main.GetDefaultHelp(), "\n"), iPos)
+      Main.Class = sSave
+      Continue
+    Endif
     If sData Then
       sCar = String.Left(sData)
       If Len(sCar) >= 2 Or If IsLetter(sCar) Then
@@ -548,7 +596,7 @@ Public Sub GetDescription() As String
     Endif
     Inc iPos
   Wend
-  
+
   Return sDesc
   
 End

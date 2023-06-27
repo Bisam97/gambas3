@@ -6,7 +6,7 @@ Inherits UserControl
 Event Change
 Event Activate
 
-Public Const _Properties As String = "*,Border=True,FixedOnly,ShowStyle=True,ShowPreview=True,ShowRelative=True"
+Public Const _Properties As String = "*,Border=True,FixedOnly,ShowStyle=True,ShowPreview=True,ShowRelative=True,ShowFont=True"
 Public Const _DefaultEvent As String = "Change"
 Public Const _DefaultSize As String = "36,36"
 Public Const _Group As String = "Chooser"
@@ -18,6 +18,10 @@ Property ShowStyle As Boolean
 Property ShowPreview As Boolean
 Property ShowLabel As Boolean '' Deprecated
 Property ShowRelative As Boolean
+
+'' Return or set if font preview is displayed
+Property ShowFont As Boolean
+
 Property Border As Boolean
 
 Private frmChooser As FFontChooser
@@ -25,6 +29,7 @@ Private frmChooser As FFontChooser
 Public Sub _new()
 
   frmChooser = New FFontChooser(Me)
+  Me.Proxy = frmChooser
   'Object.Attach(frmChooser, ME, "frmChooser")
 
 End
@@ -76,7 +81,7 @@ End
 Private Sub FixedOnly_Write(bFixedOnly As Boolean)
 
   frmChooser.ShowFixed = bFixedOnly
-  frmChooser.RefreshFamily
+  frmChooser.RefreshFamily(True)
 
 End
 
@@ -149,5 +154,17 @@ End
 Private Sub ShowRelative_Write(Value As Boolean)
 
   frmChooser.SetShowRelative(Value)
+
+End
+
+Private Function ShowFont_Read() As Boolean
+
+  Return frmChooser.HasShowFont()
+
+End
+
+Private Sub ShowFont_Write(Value As Boolean)
+
+  frmChooser.SetShowFont(Value)
 
 End

@@ -51,14 +51,14 @@ Public Sub Form_Open()
   MConnection.InitFrom($hConn, hConfig, $sConnection, True)
   Try $hConn.Open
   If Error Then
-    Balloon.Error(("Unable to open connection.") & "\n\n" & Error.Text, lblConnection)
+    FMain.ShowErrorWith(("Unable to open connection."))
     Goto DISABLE
   Endif
   
   lblTable.Text = $sTable
   aField = MConnection.GetFields($hConn, $sTable)
   If Not aField Then
-    Balloon.Error(("Unable to get table fields.") & "\n\n" & Error.Text, lblTable)
+    FMain.ShowErrorWith(("Unable to get table fields."))
     Goto DISABLE
   Endif
   

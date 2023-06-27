@@ -528,6 +528,13 @@ Static Private Sub CreateClass(sClass As String, sParent As String, sComp As Str
   
 End
 
+Static Private Sub SubstInfo(sKey As String) As String
+  
+  If sKey Begins "gb.qt4" Then sKey = Replace(sKey, "gb.qt4", "gb.qt5")
+  Return sKey
+  
+End
+
 Public Sub Load()
   
   Dim aLine As String[]
@@ -548,6 +555,7 @@ Public Sub Load()
   Dim sElt As String
   Dim cCycle As Collection
   Dim I As Integer
+  Dim sInfo As String
   
   If $bLoaded Then Return
 
@@ -583,10 +591,12 @@ Public Sub Load()
 
   'sPath = Main.InfoFilePath &/ Name & ".info"
   
+  sInfo = SubstInfo(Key)
+  
   If Main.InfoDir Then
-    sPath = Main.InfoDir &/ Key & ".info"
+    sPath = Main.InfoDir &/ sInfo & ".info"
   Else
-    sPath = System.Path &/ "share/gambas" & System.Version &/ "info" &/ Key & ".info"
+    sPath = System.Path &/ "share/gambas" & System.Version &/ "info" &/ sInfo & ".info"
   Endif
   
   If Not Exist(sPath) Then

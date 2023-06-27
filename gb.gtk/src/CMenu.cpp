@@ -39,43 +39,9 @@ static CMENU *_popup_menu_clicked = NULL;
 static GB_FUNCTION _init_shortcut_func;
 
 #define HANDLE_PROXY(_ob) \
-	while (((CMENU *)(_ob))->proxy) \
-		_ob = (__typeof__ _ob)(((CMENU *)(_ob))->proxy);
+	while (((CMENU *)(_ob))->widget->proxy()) \
+		_ob = (__typeof__ _ob)(((CMENU *)(_ob))->widget->proxy()->hFree);
 
-static void register_proxy(void *_object, CMENU *proxy)
-{
-	CMENU *check = proxy;
-
-	while (check)
-	{
-		if (check == THIS)
-		{
-			GB.Error("Circular proxy chain");	
-			return;
-		}
-		
-		check = (CMENU *)check->proxy;
-	}
-	
-	//if (THIS_EXT && THIS_EXT->proxy && EXT(THIS_EXT->proxy))
-	//	EXT(THIS_EXT->proxy)->proxy_for = NULL;
-	
-	
-	GB.Unref(POINTER(&THIS->proxy));
-	
-	if (!MENU)
-		return;
-	
-	if (proxy)
-	{
-		GB.Ref(proxy);
-		THIS->proxy = proxy;
-		MENU->setProxy((gMenu *)proxy->widget);
-	}
-	else
-		MENU->setProxy(NULL);
-	
-}
 
 static void send_click_event(void *_object)
 {
@@ -86,21 +52,7 @@ static void send_click_event(void *_object)
 
 static int CMENU_check(void *_object)
 {
-	return (MENU == NULL);
-}
-
-#ifdef GTK3
-
-static void delete_menu(gMenu *menu)
-{
-	delete menu;
-}
-
-#else
-
-static void delete_later(gMenu *menu)
-{
-	delete menu;
+	return (MENU == NULL || MENU->isDestroyed());
 }
 
 static void delete_menu(gMenu *menu)
@@ -110,15 +62,11 @@ static void delete_menu(gMenu *menu)
 	if (!MENU)
 		return;
 
-	menu->willBeDeletedLater();
+	menu->destroy();
 	THIS->widget = NULL;
-
-	GB.Post((GB_CALLBACK)delete_later, (intptr_t)menu);
 }
 
-#endif
-
-static void cb_finish(gMenu *sender)
+void CB_menu_finish(gMenu *sender)
 {
 	CMENU *_object = (CMENU*)sender->hFree;
 	if (_object)
@@ -131,7 +79,7 @@ static void cb_finish(gMenu *sender)
 	}
 }
 
-static void cb_click(gMenu *sender)
+void CB_menu_click(gMenu *sender)
 {
 	void *_object = sender->hFree;
 
@@ -143,10 +91,10 @@ static void cb_click(gMenu *sender)
 		_popup_menu_clicked = THIS;
 	}
 	else
-		send_click_event(THIS);
+		GB.Post((GB_CALLBACK)send_click_event, (intptr_t)THIS);
 }
 
-static void cb_show(gMenu *sender)
+void CB_menu_show(gMenu *sender)
 {
 	static bool init = FALSE;
 
@@ -172,7 +120,7 @@ static void cb_show(gMenu *sender)
 	GB.Unref(POINTER(&_object));
 }
 
-static void cb_hide(gMenu *sender)
+void CB_menu_hide(gMenu *sender)
 {
 	void *_object = sender->hFree;
 	GB.Raise(THIS, EVENT_Hide, 0);
@@ -219,7 +167,6 @@ BEGIN_METHOD(Menu_new, GB_OBJECT parent; GB_BOOLEAN hidden)
 		}
 
 		THIS->widget = new gMenu((gMenu*)((CMENU*)parent)->widget, hidden);
-		MENU->onClick = cb_click;
 		goto __OK;
 	}
 
@@ -229,9 +176,6 @@ BEGIN_METHOD(Menu_new, GB_OBJECT parent; GB_BOOLEAN hidden)
 __OK:
 
 	MENU->hFree = (void*)THIS;
-	MENU->onFinish = cb_finish;
-	MENU->onShow = cb_show;
-	MENU->onHide = cb_hide;
 
 	name = GB.GetLastEventName();
 	if (!name)
@@ -247,7 +191,6 @@ END_METHOD
 BEGIN_METHOD_VOID(Menu_free)
 
 	GB.FreeString(&THIS->save_text);
-	register_proxy(THIS, NULL);
 	if (MENU) MENU->destroy();
 
 END_METHOD
@@ -267,7 +210,7 @@ BEGIN_PROPERTY(Menu_Text)
 	{
 		MENU->setText(GB.ToZeroString(PROP(GB_STRING)));
 
-		if (!MENU->topLevel())
+		if (!MENU->isTopLevel())
 			((CMENU *)GetObject((gMenu *)MENU->parent()))->init_shortcut = FALSE;
 
 		GB.FreeString(&THIS->save_text);
@@ -294,8 +237,10 @@ END_PROPERTY
 
 BEGIN_PROPERTY(Menu_Enabled)
 
-	if (READ_PROPERTY) { GB.ReturnBoolean(MENU->enabled()); return; }
-	MENU->setEnabled(VPROP(GB_BOOLEAN));
+	if (READ_PROPERTY)
+		GB.ReturnBoolean(MENU->isEnabled());
+	else
+		MENU->setEnabled(VPROP(GB_BOOLEAN));
 
 END_PROPERTY
 
@@ -322,7 +267,7 @@ BEGIN_PROPERTY(Menu_Value)
 	{
 		GB.ReturnBoolean(0);
 	}
-	else if (!MENU->topLevel())
+	else if (!MENU->isTopLevel())
 	{
 		GB.Ref(THIS);
 		send_click_event(THIS);
@@ -334,28 +279,29 @@ END_PROPERTY
 BEGIN_PROPERTY(Menu_Shortcut)
 
 	if (READ_PROPERTY)
-	{
 		GB.ReturnNewZeroString(MENU->shortcut());
-		return;
-	}
-
-	MENU->setShortcut(GB.ToZeroString(PROP(GB_STRING)));
+	else
+		MENU->setShortcut(GB.ToZeroString(PROP(GB_STRING)));
 
 END_PROPERTY
 
 
 BEGIN_PROPERTY(Menu_Visible)
 
-	if (READ_PROPERTY) { GB.ReturnBoolean(MENU->isVisible()); return; }
-	MENU->setVisible(VPROP(GB_BOOLEAN));
+	if (READ_PROPERTY)
+		GB.ReturnBoolean(MENU->isVisible());
+	else
+		MENU->setVisible(VPROP(GB_BOOLEAN));
 
 END_PROPERTY
+
 
 BEGIN_METHOD_VOID(Menu_Show)
 
 	MENU->setVisible(true);
 
 END_METHOD
+
 
 BEGIN_METHOD_VOID(Menu_Hide)
 
@@ -380,17 +326,21 @@ END_PROPERTY
 
 BEGIN_METHOD_VOID(MenuChildren_next)
 
-	CMENU *Mn;
 	gMenu *mn;
 	int *ct;
 
-	ct=(int*)GB.GetEnum();
+	ct = (int*)GB.GetEnum();
 
-	if ( ct[0]>=MENU->childCount()  ) { GB.StopEnum(); return; }
-	mn=MENU->childMenu(ct[0]);
-	Mn=(CMENU*)mn->hFree;
-	ct[0]++;
-	GB.ReturnObject(Mn);
+	if (*ct >= MENU->childCount())
+	{
+		GB.StopEnum();
+		return; 
+	}
+	
+	mn = MENU->child(*ct);
+	(*ct)++;
+	
+	GB.ReturnObject(mn->hFree);
 
 END_PROPERTY
 
@@ -405,14 +355,15 @@ BEGIN_METHOD(MenuChildren_get, GB_INTEGER index)
 		return;
 	}
 
-	GB.ReturnObject(MENU->childMenu(index)->hFree);
+	GB.ReturnObject(MENU->child(index)->hFree);
 
 END_METHOD
+
 
 BEGIN_METHOD_VOID(MenuChildren_Clear)
 
 	while (MENU->childCount())
-		delete_menu(MENU->childMenu(0));
+		delete_menu(MENU->child(0));
 
 	THIS->init_shortcut = FALSE;
 
@@ -432,6 +383,7 @@ BEGIN_METHOD(Menu_Popup, GB_INTEGER x; GB_INTEGER y)
 
 END_METHOD
 
+
 BEGIN_METHOD_VOID(Menu_Close)
 
 	HANDLE_PROXY(_object);
@@ -448,6 +400,7 @@ BEGIN_PROPERTY(Menu_Tag)
 		GB.StoreVariant(PROP(GB_VARIANT), (void *)&THIS->tag);
 
 END_METHOD
+
 
 BEGIN_PROPERTY(Menu_Toggle)
 
@@ -472,6 +425,16 @@ END_PROPERTY
 BEGIN_PROPERTY(Menu_Window)
 
 	GB.ReturnObject(GetObject(MENU->window()));
+
+END_PROPERTY
+
+
+BEGIN_PROPERTY(Menu_Parent)
+
+	if (MENU->isTopLevel())
+		GB.ReturnNull();
+	else
+		GB.ReturnObject(GetObject(MENU->parentMenu()));
 
 END_PROPERTY
 
@@ -512,7 +475,10 @@ END_PROPERTY
 BEGIN_PROPERTY(Menu_Proxy)
 
 	if (READ_PROPERTY)
-		GB.ReturnObject(THIS->proxy);
+	{
+		gMenu *proxy = MENU->proxy();
+		GB.ReturnObject(proxy ? proxy->hFree : NULL);
+	}
 	else
 	{
 		CMENU *menu = (CMENU *)VPROP(GB_OBJECT);
@@ -520,7 +486,8 @@ BEGIN_PROPERTY(Menu_Proxy)
 		if (menu && GB.CheckObject(menu))
 			return;
 		
-		register_proxy(THIS, menu);
+		if (MENU->setProxy(menu ? menu->widget : NULL))
+			GB.Error("Circular proxy chain");	
 	}
 
 END_PROPERTY
@@ -532,7 +499,6 @@ BEGIN_PROPERTY(Menu_Closed)
 	GB.ReturnBoolean(MENU->isClosed());
 
 END_PROPERTY
-
 
 
 //---------------------------------------------------------------------------
@@ -559,7 +525,6 @@ GB_DESC CMenuDesc[] =
 	GB_METHOD("_new", 0, Menu_new, "(Parent)o[(Hidden)b]"),
 	GB_METHOD("_free", 0, Menu_free, 0),
 
-
 	GB_PROPERTY("Name", "s", Menu_Name),
 	GB_PROPERTY("Caption", "s", Menu_Text),
 	GB_PROPERTY("Text", "s", Menu_Text),
@@ -575,6 +540,7 @@ GB_DESC CMenuDesc[] =
 	GB_PROPERTY("Value", "b", Menu_Value),
 	//GB_PROPERTY("TearOff", "b", CMENU_tear_off),
 	GB_PROPERTY("Action", "s", Menu_Action),
+	GB_PROPERTY_READ("Parent", "Menu", Menu_Parent),
 	GB_PROPERTY_READ("Window", "Window", Menu_Window),
 	GB_PROPERTY("Proxy", "Menu", Menu_Proxy),
 

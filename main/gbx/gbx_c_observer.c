@@ -2,7 +2,7 @@
 
   gbx_c_observer.c
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -132,6 +132,20 @@ BEGIN_PROPERTY(Observer_Tag)
 	
 END_PROPERTY
 
+BEGIN_METHOD_VOID(Observer_Detach)
+
+	OBJECT_EVENT *ev;
+	
+	if (!THIS->object)
+		return;
+	
+	ev = OBJECT_event(THIS->object);
+	LIST_remove((void **)&ev->observer, THIS, &THIS->list);
+	THIS->object = NULL;
+	OBJECT_UNREF(_object);
+
+END_METHOD
+
 #endif
 
 GB_DESC NATIVE_Observer[] =
@@ -143,6 +157,8 @@ GB_DESC NATIVE_Observer[] =
   
   GB_PROPERTY_READ("Object", "o", Observer_Object),
   GB_PROPERTY("Tag", "v", Observer_Tag),
+  
+  GB_METHOD("Detach", NULL, Observer_Detach, NULL),
   
   GB_END_DECLARE
 };

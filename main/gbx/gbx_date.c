@@ -2,7 +2,7 @@
 
   gbx_date.c
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -41,16 +41,6 @@
 #include "gbx_date.h"
 
 //#define DEBUG_DATE
-
-#define buffer_init COMMON_buffer_init
-#define get_char COMMON_get_char
-#define last_char COMMON_last_char
-#define look_char COMMON_look_char
-#define put_char COMMON_put_char
-#define jump_space COMMON_jump_space
-#define get_current COMMON_get_current
-#define buffer_pos COMMON_pos
-#define get_size_left COMMON_get_size_left
 
 static const char days_in_months[2][13] =
 {  /* error, jan feb mar apr may jun jul aug sep oct nov dec */
@@ -216,11 +206,10 @@ DATE_SERIAL *DATE_split_local(VALUE *value, bool local)
 }
 
 
-bool DATE_make_local(DATE_SERIAL *date, VALUE *val, bool local)
+static bool make_date(DATE_SERIAL *date, VALUE *val)
 {
 	short year;
 	int nday;
-	bool timezone;
 
 	if (!date_is_valid(date))
 		return TRUE;
@@ -228,7 +217,6 @@ bool DATE_make_local(DATE_SERIAL *date, VALUE *val, bool local)
 	if (date->year == 0)
 	{
 		nday = 0; /*(-DATE_NDAY_BC - 1);*/
-		timezone = FALSE;
 	}
 	else
 	{
@@ -246,28 +234,41 @@ bool DATE_make_local(DATE_SERIAL *date, VALUE *val, bool local)
 		nday += days_in_year[date_is_leap_year(date->year)][(short)date->month] + date->day;
 
 		/*nday -= DATE_NDAY_BC;*/
-
-		timezone = local;
 	}
 
 	val->_date.date = nday;
-	val->_date.time = ((date->hour * 60) + date->min) * 60 + date->sec;
-	if (timezone)
-		val->_date.time += DATE_get_timezone();
+	val->_date.time = (((date->hour * 60) + date->min) * 60 + date->sec) * 1000 + date->msec;
+
+	val->type = T_DATE;
+
+	return FALSE;
+
+}
+
+static void add_timezone(VALUE *val, int timezone)
+{
+	val->_date.time += timezone * 1000;
 
 	if (val->_date.time < 0)
 	{
 		val->_date.date--;
-		val->_date.time += 86400;
+		val->_date.time += 86400000;
 	}
-	else if (val->_date.time >= 86400)
+	else if (val->_date.time >= 86400000)
 	{
 		val->_date.date++;
-		val->_date.time -= 86400;
+		val->_date.time -= 86400000;
 	}
+}
 
-	val->_date.time = val->_date.time * 1000 + date->msec;
-	val->type = T_DATE;
+
+bool DATE_make_local(DATE_SERIAL *date, VALUE *val, bool local)
+{
+	if (make_date(date, val))
+		return TRUE;
+
+	if (local && date->year)
+		add_timezone(val, DATE_get_timezone());
 
 	return FALSE;
 }
@@ -362,15 +363,15 @@ static bool read_integer(int *number, bool *zero)
 	int c;
 	bool minus = FALSE;
 
-	c = get_char();
+	c = COMMON_get_char();
 
 	if (c == '-')
 	{
 		minus = TRUE;
-		c = get_char();
+		c = COMMON_get_char();
 	}
 	else if (c == '+')
-		c = get_char();
+		c = COMMON_get_char();
 
 	if ((c < 0) || !isdigit(c))
 		return TRUE;
@@ -385,11 +386,11 @@ static bool read_integer(int *number, bool *zero)
 			return TRUE;
 		nbr = nbr2;
 
-		c = look_char();
+		c = COMMON_look_char();
 		if ((c < 0) || !isdigit(c))
 			break;
 
-		buffer_pos++;
+		COMMON_pos++;
 	}
 
 	if (minus)
@@ -407,7 +408,7 @@ static bool read_msec(int *number)
 	int c;
 	int i;
 
-	c = get_char();
+	c = COMMON_get_char();
 
 	if ((c < 0) || !isdigit(c))
 		return TRUE;
@@ -424,11 +425,11 @@ static bool read_msec(int *number)
 		if (i == 3)
 			break;
 
-		c = look_char();
+		c = COMMON_look_char();
 		if ((c < 0) || !isdigit(c))
 			break;
 
-		buffer_pos++;
+		COMMON_pos++;
 	}
 
 	for (; i < 3; i++)
@@ -470,6 +471,78 @@ static void set_time(DATE_SERIAL *date, int which, int value)
 }
 
 
+static bool read_timezone(int *timezone)
+{
+	int c;
+	int nbr;
+	bool neg;
+	int save_pos = COMMON_pos;
+
+	if (!COMMON_has_string("UTC", 3) && !COMMON_has_string("GMT", 3))
+		goto __ERROR;
+
+	COMMON_pos += 3;
+	*timezone = 0;
+
+	c = COMMON_look_char();
+	if (c < 0)
+		return TRUE;
+
+	if (c != '+' && c != '-')
+		goto __ERROR;
+
+	neg = c == '-';
+	COMMON_pos++;
+
+	if (read_integer(&nbr, NULL))
+		goto __ERROR;
+
+	if (nbr < 0 || nbr > 24)
+		goto __ERROR;
+
+	*timezone = nbr * 3600;
+
+	c = COMMON_look_char();
+	if (c < 0)
+		goto __OK;
+
+	if (c != ':')
+		goto __ERROR;
+
+	COMMON_pos++;
+
+	nbr = 0;
+	c = COMMON_look_char();
+	if (c < 0 || !isdigit(c))
+		goto __ERROR;
+	nbr += (c - '0') * 10;
+	COMMON_pos++;
+
+	c = COMMON_look_char();
+	if (c < 0 || !isdigit(c))
+		goto __ERROR;
+	nbr += c - '0';
+
+	if (nbr > 59)
+		goto __ERROR;
+
+	COMMON_pos++;
+
+	*timezone += nbr * 60;
+
+__OK:
+
+	if (!neg)
+		*timezone = (- *timezone);
+
+	return TRUE;
+
+__ERROR:
+
+	COMMON_pos = save_pos;
+	return FALSE;
+}
+
 bool DATE_from_string(const char *str, int len, VALUE *val, bool local)
 {
 	DATE_SERIAL date;
@@ -478,7 +551,8 @@ bool DATE_from_string(const char *str, int len, VALUE *val, bool local)
 	int c, i;
 	bool has_date = FALSE;
 	bool zero, zero2;
-	//bool has_time = FALSE;
+	bool has_timezone = FALSE;
+	int timezone = 0;
 
 	if (!len)
 	{
@@ -488,15 +562,15 @@ bool DATE_from_string(const char *str, int len, VALUE *val, bool local)
 
 	CLEAR(&date);
 
-	buffer_init(str, len);
-	jump_space();
+	COMMON_buffer_init(str, len);
+	COMMON_jump_space();
 
 	if (read_integer(&nbr, &zero))
 		return TRUE;
 
 	c = COMMON_get_unicode_char();
 
-	if (c == info->date_sep)
+	if (c == info->date_sep[info->date_order[0]])
 	{
 		has_date = TRUE;
 
@@ -505,14 +579,26 @@ bool DATE_from_string(const char *str, int len, VALUE *val, bool local)
 
 		c = COMMON_get_unicode_char();
 
-		if (c == info->date_sep)
+		if (c == info->date_sep[info->date_order[1]])
 		{
 			set_date(&date, info->date_order[0], nbr, zero);
 			set_date(&date, info->date_order[1], nbr2, zero2);
 
 			if (read_integer(&nbr, &zero))
-				return TRUE;
-
+			{
+				if (!info->date_tail_sep)
+					return TRUE;
+				else
+					goto _OK;
+			}
+			
+			if (info->date_sep[info->date_order[2]])
+			{
+				c = COMMON_get_unicode_char();
+				if (c > 0 && c != info->date_sep[info->date_order[2]])
+					return TRUE;
+			}
+			
 			set_date(&date, info->date_order[2], nbr, zero);
 		}
 		else if ((c < 0) || isspace(c))
@@ -528,9 +614,9 @@ bool DATE_from_string(const char *str, int len, VALUE *val, bool local)
 			set_date(&date, info->date_order[i], nbr2, zero2);
 		}
 
-		jump_space();
+		COMMON_jump_space();
 
-		c = look_char();
+		c = COMMON_look_char();
 		if (c < 0)
 			goto _OK;
 
@@ -540,31 +626,42 @@ bool DATE_from_string(const char *str, int len, VALUE *val, bool local)
 		c = COMMON_get_unicode_char();
 	}
 
-	if (c == info->time_sep)
+	if (c == info->time_sep[info->time_order[0]])
 	{
-		//has_time = TRUE;
-
 		if (read_integer(&nbr2, NULL))
 			return TRUE;
 
 		c = COMMON_get_unicode_char();
 
-		if (c == info->time_sep)
+		if (c == info->time_sep[info->time_order[1]])
 		{
 			set_time(&date, info->time_order[0], nbr);
 			set_time(&date, info->time_order[1], nbr2);
 
 			if (read_integer(&nbr, NULL))
-				return TRUE;
+			{
+				if (!info->time_tail_sep)
+					return TRUE;
+				else
+					goto _OK;
+			}
 
 			set_time(&date, info->time_order[2], nbr);
 
-			c = get_char();
+			c = COMMON_look_char();
 			if (c == '.') // msec separator
 			{
+				COMMON_pos++;
 				if (read_msec(&nbr))
 					return TRUE;
 				date.msec = nbr;
+			}
+
+			if (info->time_sep[info->time_order[2]])
+			{
+				c = COMMON_get_unicode_char();
+				if (c > 0 && c != info->time_sep[info->time_order[2]])
+					return TRUE;
 			}
 		}
 		else if ((c < 0) || isspace(c))
@@ -578,8 +675,18 @@ bool DATE_from_string(const char *str, int len, VALUE *val, bool local)
 			set_time(&date, info->time_order[i], nbr2);
 		}
 
-		c = get_char();
-		if ((c < 0) || isspace(c))
+		COMMON_jump_space();
+
+		if (has_date)
+		{
+			has_timezone = read_timezone(&timezone);
+
+			if (has_timezone)
+				COMMON_jump_space();
+		}
+
+		c = COMMON_get_char();
+		if (c < 0)
 			goto _OK;
 	}
 
@@ -587,8 +694,16 @@ bool DATE_from_string(const char *str, int len, VALUE *val, bool local)
 
 _OK:
 
-	if (DATE_make_local(&date, val, local))
+	if (make_date(&date, val))
 		return TRUE;
+
+	if (date.year)
+	{
+		if (has_timezone)
+			add_timezone(val, timezone);
+		else if (local)
+			add_timezone(val, DATE_get_timezone());
+	}
 
 	if (!has_date)
 		val->_date.date = 0;

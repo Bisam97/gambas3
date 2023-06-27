@@ -1,0 +1,47 @@
+' Gambas module file
+
+Public Sub _call(oContext As Context, sPrjPath As String, CompileErrors As String) As String
+  Dim aErrors As String[] = Split(CompileErrors, "\n", "", True, True)
+  Dim sOutput As String = ""
+  For Each CompileError As String In aErrors 
+        Dim aErrorParts As String[] = Split(CompileError, ":")
+        Dim sSource As String
+        Try sSource = File.Load(sPrjPath &/ ".src" &/ aErrorParts[0])
+        If Error Then
+            Return "Error : UnKnown Module/Class Dumping everything!:\n" & DumpAll(oContext, sPrjPath)
+        Endif
+        Dim aFileParts As String[] = Split(aErrorParts[0], ".")
+        If Trim(aErrorParts[2]) == "error" Then aErrorParts.add("0", 2) 
+        sOutPut &= Subst("# Gambas &1 file : &2:&3:&4:&5\n", aFileParts[1], aFileparts[0], aErrorParts[1], aErrorParts[2], aErrorParts.last) & 
+                                   GenListing(oContext, sSource, aErrorParts[1], aErrorParts[2], aErrorParts.extract(4, -1).Join(":"))
+  Next
+  Return sOutPut
+End
+
+Public Sub GenListing(oContext As Context, sSource As String, Optional iLine As Integer = 0, iPosition As Integer = 0, sError As String = "") As String
+  
+  Dim aLines As String[] = Split(sSource, "\n", "\"\"", False, True)
+  Dim sOutput As String = "\n"
+  For i As Integer = 0 To aLines.Max
+          If Not oContext.$bTerseListing Or If i + 1 = iline Or If oContext.$bVerbose And iLine = 0 Then
+               sOutPut &= Subst("&1&2:&3\n", Format(i + 1, "####0"), IIf((i + 1) = iLine, "*", " "), aLines[i])
+          Endif
+          If i + 1 = iLine Then
+             sOutPut &= Space(5 + iPosition) & " ^" & sError & "\n"
+         Endif
+  Next
+  Return sOutput
+End
+
+Private Sub DumpAll(oContext As Context, sPrjPath As String) As String
+  Dim sOutPut As String = ""
+  For Each sPrjSource As String In Dir(sPrjPath &/ ".src")
+        sOutPut = Subst("# Gambas &1 file :&2\n", Split(sPrjSource, ".")[1], Split(sPrjSource, ".")[0])
+        sOutPut &= GenListing(oContext, File.Load(sPrjPath &/ ".src" &/ sPrjSource)) & "\n"
+      Next
+  Return sOutPut
+End
+
+
+
+

@@ -1,11 +1,11 @@
 dnl ---- configure.ac for gb.httpd
 
 m4_include([../version.m4])
-AC_INIT(gambas3-gb-httpd, GB_VERSION, GB_MAIL, [], GB_URL)
+AC_INIT([gambas3-gb-httpd],[GB_VERSION],[GB_MAIL],[],[GB_URL])
 AC_CONFIG_MACRO_DIR([m4])
 
 GB_INIT(gb.httpd)
-AC_PROG_LIBTOOL
+LT_INIT
 
 V_CCOPT="-O"
 if test "$GCC" = yes ; then
@@ -28,7 +28,7 @@ dnl
 AC_MSG_CHECKING(how to link static binaries)
 AC_CACHE_VAL(ac_cv_lbl_static_flag,
     ac_cv_lbl_static_flag=unknown
-    echo 'main() {}' > conftest.c
+    echo 'int main() {}' > conftest.c
     if test "$GCC" != yes ; then
 	    trial_flag="-Bstatic"
 	    test=`$CC $trial_flag -o conftest conftest.c 2>&1`
@@ -53,11 +53,9 @@ fi
 
 AC_MSG_CHECKING(for __progname)
 AC_CACHE_VAL(ac_cv_extern__progname,
-    AC_TRY_LINK([],
-	[extern char *__progname; 
-	puts(__progname)],
-	ac_cv_extern__progname=yes,
-	ac_cv_extern__progname=no))
+    AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <stdio.h>]],
+        [[extern char *__progname;
+	puts(__progname)]])],[ac_cv_extern__progname=yes],[ac_cv_extern__progname=no]))
 if test $ac_cv_extern__progname = yes ; then
 	AC_DEFINE([HAVE__PROGNAME], [], [have __progname])
 	AC_MSG_RESULT(yes)
@@ -66,7 +64,8 @@ else
 fi
 
 AC_CHECK_HEADERS(fcntl.h grp.h memory.h paths.h poll.h sys/poll.h sys/devpoll.h sys/event.h osreldate.h)
-AC_HEADER_TIME
+AC_CHECK_HEADERS_ONCE([sys/time.h])
+
 AC_HEADER_DIRENT
 
 dnl d="/usr/local/v6/lib"
@@ -146,5 +145,6 @@ GB_COMPONENT(
   [],
   [])
 
-AC_OUTPUT( Makefile src/Makefile )
+AC_CONFIG_FILES([Makefile src/Makefile ])
+AC_OUTPUT
 GB_PRINT_MESSAGES

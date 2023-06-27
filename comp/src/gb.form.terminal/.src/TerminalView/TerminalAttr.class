@@ -1,22 +1,39 @@
 ' Gambas class file
 
+''' This class represents the attributes of a terminal character.
+
 Export
 Fast
 
-Private Enum FLAG_BG, FLAG_FG, FLAG_BOLD, FLAG_DIM, FLAG_REV, FLAG_UND, FLAG_BLK
+Private Enum FLAG_BG, FLAG_FG, FLAG_BOLD, FLAG_DIM, FLAG_REV, FLAG_UND, FLAG_BLK, FLAG_BG_RGB, FLAG_FG_RGB
 
+'' Return or set the character foreground color index.
 Public Foreground As Integer = -1
+'' Return or set the character foreground color.
+Public ForegroundRGB As Integer = -1
+'' Return or set the character background color index.
 Public Background As Integer = -1
+'' Return or set the character background color.
+Public BackgroundRGB As Integer = -1
+'' Return or set the character "bold" attribute.
 Public Bold As Boolean
+'' Return or set the character "dim" attribute.
 Public Dim As Boolean
+'' Return or set the character "underscore" attribute.
 Public Underscore As Boolean
+'' Return or set the character "reverse" attribute.
 Public Reverse As Boolean
+'' Return or set the character "blink" attribute.
 Public Blink As Boolean
+
+'' Reset the character flags.
 
 Public Sub Reset()
   
   Foreground = -1
   Background = -1
+  ForegroundRGB = -1
+  BackgroundRGB = -1
   Bold = False
   {Dim} = False
   Underscore = False
@@ -25,27 +42,37 @@ Public Sub Reset()
   
 End
 
+'' Return if the character attributes are the default ones.
+
 Public Sub IsVoid() As Boolean
   
   If Foreground >= 0 Then Return
   If Background >= 0 Then Return
+  If ForegroundRGB >= 0 Then Return
+  If BackgroundRGB >= 0 Then Return
   If Bold Or If {Dim} Or If Underscore Or If Reverse Or If Blink Then Return
   Return True
   
 End
 
-Public Sub _FillFrom(iAttr As Integer)
+Public Sub _FillFrom(iAttr As Long) As Integer
 
-  If BTst(iAttr, FLAG_BG) Then
+  Background = Color.Default
+  BackgroundRGB = Color.Default
+  
+  If BTst(iAttr, FLAG_BG_RGB) Then
+    BackgroundRGB = Color.RGB(Lsr(iAttr, 16) And 255, Lsr(iAttr, 32) And 255, Lsl(iAttr, 48) And 255)
+  Else If BTst(iAttr, FLAG_BG) Then
     Background = Lsr(iAttr, 16) And 255
-  Else
-    Background = Color.Default
   Endif
 
-  If BTst(iAttr, FLAG_FG) Then
+  Foreground = Color.Default
+  ForegroundRGB = Color.Default
+  
+  If BTst(iAttr, FLAG_FG_RGB) Then
+    ForegroundRGB = Color.RGB(Lsr(iAttr, 24) And 255, Lsr(iAttr, 40) And 255, Lsl(iAttr, 56) And 255)
+  Else If BTst(iAttr, FLAG_FG) Then
     Foreground = Lsr(iAttr, 24) And 255
-  Else
-    Foreground = Color.Default
   Endif
   
   Bold = BTst(iAttr, FLAG_BOLD)
@@ -53,5 +80,36 @@ Public Sub _FillFrom(iAttr As Integer)
   Reverse = BTst(iAttr, FLAG_REV)
   Underscore = BTst(iAttr, FLAG_UND)
   Blink = BTst(iAttr, FLAG_BLK)
+  
+  Return (Lsr(iAttr, 9) And 127) + 1
+  
+End
+
+Public Sub _ToValue() As Long
+  
+  Dim iAttr As Long
+  Dim hInfo As ColorInfo
+  
+  If BackgroundRGB <> Color.Default Then
+    hInfo = Color[BackgroundRGB]
+    iAttr = BSet(iAttr, FLAG_BG_RGB) + Lsl(CLong(hInfo.Red), 16) + Lsl(CLong(hInfo.Green), 32) + Lsl(CLong(hInfo.Blue), 48)
+  Else If Background <> Color.Default Then
+    iAttr = BSet(iAttr, FLAG_BG) + Lsl(Background And 255, 16)
+  Endif
+
+  If ForegroundRGB <> Color.Default Then
+    hInfo = Color[ForegroundRGB]
+    iAttr = BSet(iAttr, FLAG_FG_RGB) + Lsl(CLong(hInfo.Red), 24) + Lsl(CLong(hInfo.Green), 40) + Lsl(CLong(hInfo.Blue), 56)
+  Else If Foreground <> Color.Default Then
+    iAttr = BSet(iAttr, FLAG_FG) + Lsl(Foreground And 255, 24)
+  Endif
+  
+  If Bold Then iAttr = BSet(iAttr, FLAG_BOLD)
+  If {Dim} Then iAttr = BSet(iAttr, FLAG_DIM)
+  If Reverse Then iAttr = BSet(iAttr, FLAG_REV)
+  If Underscore Then iAttr = BSet(iAttr, FLAG_UND)
+  If Blink Then iAttr = BSet(iAttr, FLAG_BLK)
+  
+  Return iAttr
   
 End

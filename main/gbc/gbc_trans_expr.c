@@ -2,7 +2,7 @@
 
   gbc_trans_expr.c
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,7 +21,7 @@
 
 ***************************************************************************/
 
-#define _TRANS_EXPR_C
+#define __GBC_TRANS_EXPR_C
 
 #include <stdlib.h>
 #include <string.h>
@@ -38,11 +38,6 @@
 //#define DEBUG 1
 
 //static bool _accept_statement = FALSE;
-
-static int *_tree_pos = NULL;
-static int _tree_length = 0;
-static int _tree_index = 0;
-static int _tree_line;
 
 static bool _must_drop_vargs = FALSE;
 
@@ -77,7 +72,8 @@ static void _drop_type(int n)
 #define push_type_id(_id) fprintf(stderr, "push_type_id: %d in %s.%d\n", (_id), __func__, __LINE__), _push_type(TYPE_make_simple(_id))
 #define pop_type() (fprintf(stderr, "pop_type: in %s.%d\n", __func__, __LINE__),(_type[--_type_level]))
 #define drop_type(_n) fprintf(stderr, "drop_type: %d in %s.%d\n", (_n), __func__, __LINE__),_drop_type(_n)
-#define get_type_id(_i, _nparam) (fprintf(stderr, "get_type(%d,%d): %d in %s.%d\n", (_i), (_nparam), (_type[_type_level + (_i) - (_nparam)].t.id), __func__, __LINE__),(_type[_type_level + (_i) - (_nparam)].t.id))
+#define get_type(_i, _nparam) (fprintf(stderr, "get_type(%d,%d): %d in %s.%d\n", (_i), (_nparam), (_type[_type_level + (_i) - (_nparam)].l), __func__, __LINE__),(_type[_type_level + (_i) - (_nparam)]))
+#define get_type_id(_i, _nparam) (fprintf(stderr, "get_type_id(%d,%d): %d in %s.%d\n", (_i), (_nparam), (_type[_type_level + (_i) - (_nparam)].t.id), __func__, __LINE__),(_type[_type_level + (_i) - (_nparam)].t.id))
 #define dup_type() fprintf(stderr, "dup_type: in %s.%d\n", __func__, __LINE__),push_type(_type[_type_level - 1])
 
 #else
@@ -105,7 +101,7 @@ static void drop_type(int n)
 
 #endif
 
-static short get_nparam(PATTERN *tree, int count, int *pindex, uint64_t *byref)
+static short get_nparam(PATTERN *tree, int count, int *pindex)
 {
 	PATTERN pattern;
 	int nparam = 0;
@@ -120,42 +116,61 @@ static short get_nparam(PATTERN *tree, int count, int *pindex, uint64_t *byref)
 			nparam = PATTERN_index(pattern);
 		}
 
-		if (byref)
+		while (index < count)
 		{
-			int shift = 0;
-			*byref = 0;
-			while (index < count)
-			{
-				pattern = tree[index + 1];
-				if (!PATTERN_is_param(pattern))
-					break;
-				index++;
-				*byref |= (uint64_t)PATTERN_index(pattern) << shift;
-				shift += 16;
-			}
-		}
-		else
-		{
-			while (index < count)
-			{
-				pattern = tree[index + 1];
-				if (!PATTERN_is_param(pattern))
-					break;
-				index++;
-			}
+			pattern = tree[index + 1];
+			if (!PATTERN_is_param(pattern))
+				break;
+			index++;
 		}
 
 		*pindex = index;
 	}
 
-	/*
-		Gère le cas où on a codé un subr sans mettre de parenthèses
-		=> nparam = 0
-	*/
+	// Handle the case of a subroutine without parenthesis
+	return (short)nparam;
+}
+
+static short get_nparam_byref(PATTERN *tree, int count, int *pindex, uint64_t *byref)
+{
+	PATTERN pattern;
+	int nparam = 0;
+	int index = *pindex;
+	int shift;
+
+	if (index < count)
+	{
+		pattern = tree[index + 1];
+		if (PATTERN_is_param(pattern))
+		{
+			index++;
+			nparam = PATTERN_index(pattern);
+		}
+
+		shift = 0;
+		*byref = 0;
+		while (index < count)
+		{
+			pattern = tree[index + 1];
+			if (!PATTERN_is_param(pattern))
+				break;
+			index++;
+			*byref |= (uint64_t)PATTERN_index(pattern) << shift;
+			shift += 16;
+		}
+
+		*pindex = index;
+	}
 
 	return (short)nparam;
 }
 
+
+static void push_integer(int index)
+{
+	CODE_push_number(index);
+	push_type_id(T_INTEGER);
+}
 
 static void push_number(int index)
 {
@@ -168,6 +183,10 @@ static void push_number(int index)
 	if (number.type == T_INTEGER)
 	{
 		CODE_push_number(number.ival);
+	}
+	else if (number.type == T_FLOAT && COMP_version >= 0x03180000 && number.dval == (double)(int)number.dval && number.dval >= -128 && number.dval <= 127)
+	{
+		CODE_push_float(number.dval);
 	}
 	else
 	{
@@ -240,15 +259,7 @@ bool TRANS_string(PATTERN pattern)
 
 static void trans_class(int index)
 {
-	const char *name;
-
-	if (!CLASS_exist_class(JOB->class, index))
-	{
-		name = TABLE_get_symbol_name(JOB->class->table, index);
-		THROW("Unknown identifier: &1", name);
-	}
-	
-	CODE_push_class(CLASS_add_class(JOB->class, index));
+	CODE_push_class(TRANS_get_class(index));
 	push_type_id(T_OBJECT);
 }
 
@@ -269,7 +280,11 @@ static void trans_identifier(int index, bool point, PATTERN next)
 	
 	if (!TYPE_is_null(sym->local.type) && !point)
 	{
-		CODE_push_local(sym->local.value);
+		if (TYPE_is_static(sym->local.type))
+			CODE_push_global(sym->local.value, TRUE, FALSE);
+		else
+			CODE_push_local_ref(sym->local.value, TYPE_must_ref(sym->local.type));
+		
 		push_type(sym->local.type);
 		sym->local_used = TRUE;
 		_last_symbol_used = sym;
@@ -437,6 +452,7 @@ static void trans_operation(short op, short nparam, PATTERN previous)
 					case T_VARIANT:
 					case T_STRUCT:
 					case T_STRING:
+					case T_ARRAY:
 						break;
 						
 					default:
@@ -476,6 +492,13 @@ static void trans_operation(short op, short nparam, PATTERN previous)
 			else
 				CODE_op(info->code, info->subcode, nparam, TRUE);
 			break;
+			
+		case OP_AMP:
+			if (nparam == 1)
+				CODE_op(info->code, 1, 2, TRUE);
+			else
+				CODE_op(info->code, info->subcode, nparam, FALSE);
+			break;
 
 		default:
 			CODE_op(info->code, info->subcode, nparam, (info->flag != RSF_OPN));
@@ -493,7 +516,7 @@ static void trans_operation(short op, short nparam, PATTERN previous)
 				type = T_FLOAT;
 			ftype = TYPE_make_simple(type);
 			break;
-			
+
 		case RST_AND:
 			type1 = get_type_id(0, nparam);
 			type2 = get_type_id(1, nparam);
@@ -535,8 +558,21 @@ static void trans_operation(short op, short nparam, PATTERN previous)
 			ftype = TYPE_make_simple(Max(type1, type2));
 			break;
 			
+		case RST_DIV:
+			type = Max(get_type_id(0, nparam), get_type_id(1, nparam));
+			if (type <= T_FLOAT)
+				type = T_FLOAT;
+			else
+				type = T_VARIANT;
+			ftype = TYPE_make_simple(type);
+			break;
+
 		case RST_GET:
 			ftype = TYPE_make_simple(T_VARIANT);
+			break;
+			
+		case RST_BCLR:
+			ftype = get_type(0, nparam);
 			break;
 			
 		/*case RST_GET:
@@ -554,6 +590,8 @@ static void trans_operation(short op, short nparam, PATTERN previous)
 			break;*/
 		
 		default:
+			if (type > T_OBJECT)
+				ERROR_panic("Operator type analysis not implemented.");
 			ftype = TYPE_make_simple(type);
 			
 	}
@@ -570,11 +608,15 @@ static void trans_call(short nparam, uint64_t byref)
 	if (!byref)
 	{
 		CODE_call(nparam);
+		if (_must_drop_vargs)
+		{
+			CODE_end_vargs();
+			_must_drop_vargs = FALSE;
+		}
 	}
 	else
 	{
 		CODE_call_byref(nparam, byref);
-
 		if (_must_drop_vargs)
 		{
 			CODE_drop_vargs();
@@ -590,7 +632,7 @@ static void trans_call(short nparam, uint64_t byref)
 static void trans_expr_from_tree(TRANS_TREE *tree, int count)
 {
 	static void *jump[] = {
-		&&__CONTINUE, &&__CONTINUE, &&__RESERVED, &&__IDENTIFIER, &&__NUMBER, &&__STRING, &&__TSTRING, &&__CONTINUE, &&__SUBR, &&__CLASS, &&__CONTINUE, &&__CONTINUE
+		&&__CONTINUE, &&__CONTINUE, &&__RESERVED, &&__IDENTIFIER, &&__INTEGER, &&__NUMBER, &&__STRING, &&__TSTRING, &&__CONTINUE, &&__SUBR, &&__CLASS, &&__CONTINUE, &&__CONTINUE
 	};
 	
 	int i, op;
@@ -608,12 +650,17 @@ static void trans_expr_from_tree(TRANS_TREE *tree, int count)
 	
 	for (i = 0; i < count; i++)
 	{
-		_tree_index = i;
+		TRANS_tree_index = i;
 		prev_pattern = pattern;
 		pattern = tree[i];
 		next_pattern = tree[i + 1];
 
 		goto *jump[PATTERN_type(pattern)];
+		
+	__INTEGER:
+		
+		push_integer(PATTERN_signed_index(pattern));
+		continue;
 		
 	__NUMBER:
 		
@@ -642,7 +689,7 @@ static void trans_expr_from_tree(TRANS_TREE *tree, int count)
 
 	__SUBR:
 	
-		nparam = get_nparam(tree, count, &i, NULL);
+		nparam = get_nparam(tree, count, &i);
 		trans_subr(PATTERN_index(pattern), nparam);
 		continue;
 		
@@ -686,7 +733,7 @@ static void trans_expr_from_tree(TRANS_TREE *tree, int count)
 		}
 		else if (PATTERN_is(pattern, RS_AT))
 		{
-			if (TRANS_popify_last())
+			if (TRANS_popify_last(FALSE))
 				THROW("This expression cannot be passed by reference");
 		}
 		else if (PATTERN_is(pattern, RS_COMMA))
@@ -725,12 +772,12 @@ static void trans_expr_from_tree(TRANS_TREE *tree, int count)
 			op = PATTERN_index(pattern);
 			if (op == RS_LBRA)
 			{
-				nparam = get_nparam(tree, count, &i, &byref);
+				nparam = get_nparam_byref(tree, count, &i, &byref);
 				trans_call(nparam, byref);
 			}
 			else
 			{
-				nparam = get_nparam(tree, count, &i, NULL);
+				nparam = get_nparam(tree, count, &i);
 				trans_operation((short)op, nparam, prev_pattern);
 			}
 		}
@@ -739,6 +786,7 @@ static void trans_expr_from_tree(TRANS_TREE *tree, int count)
 		;
 	}
 	
+	TRANS_tree_index = -1;
 	_last_type = pop_type();
 }
 
@@ -756,7 +804,8 @@ void TRANS_new(void)
 
 	if (PATTERN_is_class(*JOB->current))
 	{
-		index = CLASS_add_class(JOB->class, PATTERN_index(*JOB->current));
+		index = TRANS_get_class(PATTERN_index(*JOB->current));
+		//CLASS_add_class(JOB->class, PATTERN_index(*JOB->current));
 		if (PATTERN_is(JOB->current[1], RS_LSQR))
 			index = CLASS_get_array_class(JOB->class, T_OBJECT, index);
 
@@ -865,6 +914,7 @@ void TRANS_new(void)
 static void trans_expression(bool check_statement)
 {
 	TRANS_TREE *tree;
+	int tree_length;
 
 	if (!check_statement)
 	{
@@ -878,18 +928,20 @@ static void trans_expression(bool check_statement)
 			TRANS_read();
 			return;
 		}
+		else if (TRANS_is(RS_PEEK))
+		{
+			TRANS_peek();
+			return;
+		}
 	}
 
-	_tree_line = JOB->line;
-	TRANS_tree(check_statement, &tree, &_tree_length, &_tree_pos);
+	TRANS_tree(check_statement, &tree, &tree_length);
 
 	JOB->step = JOB_STEP_TREE;
-	trans_expr_from_tree(tree, _tree_length);
+	trans_expr_from_tree(tree, tree_length);
 	JOB->step = JOB_STEP_CODE;
 
-	FREE(&tree);
-	_tree_pos = NULL;
-	_tree_length = 0;
+	//FREE(&tree);
 	
 	if (check_statement)
 	{
@@ -902,35 +954,10 @@ static void trans_expression(bool check_statement)
 	}
 }
 
-int TRANS_get_column(int *pline)
-{
-	int i;
-	int line;
-	int col;
-	
-	if (!_tree_pos)
-	{
-		*pline = -1;
-		return -1;
-	}
-	
-	line = _tree_line;
-	col = _tree_pos[0];
-	for (i = 1; i <= _tree_index; i++)
-	{
-		col = _tree_pos[i];
-		if (col < 0)
-			line++;
-	}
-	
-	*pline = line;
-	return abs(col);
-}
-
 
 void TRANS_ignore_expression()
 {
-	TRANS_tree(FALSE, NULL, NULL, NULL);
+	TRANS_tree(FALSE, NULL, NULL);
 }
 
 
@@ -942,7 +969,7 @@ TYPE TRANS_variable_get_type()
 	int index;
 	CLASS_SYMBOL *sym;
 
-	TRANS_tree(FALSE, &tree, &count, NULL);
+	TRANS_tree(FALSE, &tree, &count);
 
 	if (count == 1 && PATTERN_is_identifier(*tree))
 	{
@@ -961,15 +988,15 @@ TYPE TRANS_variable_get_type()
 		}
 	}
 
-	FREE(&tree);
+	//FREE(&tree);
 
 	return type;
 }
 
 
-bool TRANS_popify_last()
+bool TRANS_popify_last(bool no_conv)
 {
-	if (!CODE_popify_last())
+	if (!CODE_popify_last(no_conv))
 		return TRUE;
 	
 	if (_last_symbol_used)
@@ -987,7 +1014,15 @@ bool TRANS_popify_last()
 void TRANS_reference(void)
 {
 	TRANS_expression(FALSE);
-	if (TRANS_popify_last())
+	if (TRANS_popify_last(FALSE))
+		THROW("Invalid assignment");
+}
+
+
+void TRANS_reference_type(TYPE type)
+{
+	TRANS_expression(FALSE);
+	if (TRANS_popify_last(TYPE_get_id(_last_type) == TYPE_get_id(type)))
 		THROW("Invalid assignment");
 }
 
@@ -1105,8 +1140,11 @@ bool TRANS_affectation(bool dup)
 		{
 			push_type(_last_type);
 			push_type(type);
-			trans_operation(op, 2, NULL_PATTERN);
-			pop_type();
+			/*if (op == RS_AMP && COMP_version >= 0x03150000)
+				trans_operation(op, 1, NULL_PATTERN);
+			else*/
+				trans_operation(op, 2, NULL_PATTERN);
+			_last_type = pop_type();
 		}
 	}
 
@@ -1115,21 +1153,24 @@ bool TRANS_affectation(bool dup)
 	if (dup)
 		CODE_dup();
 
-	if (COMPILE_version >= 0x03070000)
+	if (COMP_version >= 0x03070000)
 	{
 		if (id == RS_EXEC || id == RS_SHELL)
 			CODE_dup();
 	}
 
 	JOB->current = left;
-	TRANS_reference();
+	TRANS_reference_type(_last_type);
 
 	if (!PATTERN_is_newline(*JOB->current))
 		THROW(E_SYNTAX);
 
+	if (COMP_version >= 0x03150000 && op == RS_AMP)
+		CODE_check_fast_cat();
+	
 	JOB->current = after;
 
-	if (COMPILE_version >= 0x03070000)
+	if (COMP_version >= 0x03070000)
 	{
 		if (id == RS_EXEC || id == RS_SHELL)
 		{
@@ -1148,3 +1189,8 @@ void TRANS_expression(bool check_statement)
 	trans_expression(check_statement);
 }
 
+
+TYPE TRANS_get_last_type(void)
+{
+	return _last_type;
+}

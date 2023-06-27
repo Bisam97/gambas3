@@ -2,16 +2,28 @@
 
 Export
 
+Property Abort As Boolean Use $bAbort = True
+
 Private $cArg As Collection
 Private $aRest As Integer[]
 Private $aHelp As String[]
 Private $sUsage As String
+Private $bManualVersion As Boolean
+Private $bManualHelp As Boolean
 
-Private Sub Abort(sErr As String)
+Private Sub DoAbort(sErr As String)
   
-  Error Application.Name; ": "; sErr
-  Quit 1
+  If $bAbort Then
   
+    Error Application.Name; ": "; sErr
+    Quit 1
+    
+  Else 
+    
+    Error.Raise(sErr)
+    
+  Endif
+    
 End
 
 
@@ -70,26 +82,23 @@ Public Sub End() As String[]
   Dim aRest As New String[]
   Dim I As Integer
   
-  If Has("V", "version", ("Display version")) Then
-    Print Application.Version
-    Quit
+  If Not $bManualVersion Then
+    If Has("V", "version", ("Display version")) Then
+      Print Application.Version
+      Quit
+    Endif
   Endif
   
-  If Has("h", "help", ("Display this help")) Then
-    If $sUsage Then
-      Print $sUsage
-    Else
-      Print Subst(("Usage: &1 <options> <arguments>"), Application.Title)
+  If Not $bManualHelp Then
+    If Has("h", "help", ("Display this help")) Then
+      HelpText(True)
+      Quit
     Endif
-    Print
-    Print ("Options:")
-    Print $aHelp.Join("\n")
-    Quit
   Endif
   
   If $cArg.Count Then
     For Each $cArg
-      Abort(Subst(("unknown option: &1"), $cArg.Key))
+      DoAbort(Subst(("unknown option: &1"), $cArg.Key))
     Next
   Endif
   
@@ -100,6 +109,31 @@ Public Sub End() As String[]
   Return aRest
   
 End
+
+'' Get the default help message.<br>Must be used **after** Args.Begin()\
+'' Returns the message text and will Print to stdout if boolean arg PrintText is True.
+Public Sub HelpText(Optional PrintText As Boolean) As String
+
+If Not $aHelp Then
+  DoAbort(("Error: Args.Helptext() must be called after the command Args.Begin()"))
+Endif
+
+  Dim sVar As String
+    If $sUsage Then
+      sVar &= $sUsage & "\n"
+    Else
+      sVar &= Subst(("Usage: &1 <options> <arguments>"), Application.Title) & "\n"
+    Endif
+
+    sVar &= "\n" & ("Options:") & "\n"
+    sVar &= $aHelp.Join("\n")
+  
+  If PrintText Then Print sVar
+  
+  Return sVar
+
+End
+
 
 Private Sub GetKey(ShortName As String, LongName As String) As String
   
@@ -140,6 +174,12 @@ Public Sub Has(ShortName As String, LongName As String, Optional Description As 
   
   AddHelp(ShortName, LongName, Description)
   
+  If ShortName = "V" Then 
+    $bManualVersion = True
+  Else If ShortName = "h" Then 
+    $bManualHelp = True
+  Endif
+
   vShort = $cArg["-" & ShortName]
   vLong = $cArg["--" & LongName]
   
@@ -152,23 +192,23 @@ Public Sub Has(ShortName As String, LongName As String, Optional Description As 
   
 End
 
-Public Sub Get(ShortName As String, LongName As String, Optional Description As String, Optional ArgName As String) As String
+Public Sub Get(ShortName As String, LongName As String, Optional Description As String, Optional ArgName As String, Optional {Default} As String) As String
   
   Dim sKey As String = GetKey(ShortName, LongName)
   Dim vShort, vLong As Variant
   
-  If Not sKey Then Return
+  If Not sKey Then Return {Default}
   AddHelp(ShortName, LongName, Description, ArgName)
   
   vShort = $cArg["-" & ShortName]
   vLong = $cArg["--" & LongName]
   
-  If IsNull(vShort) And If IsNull(vLong) Then Return ""
+  If IsNull(vShort) And If IsNull(vLong) Then Return {Default}
 
-  If TypeOf(vShort) = gb.Boolean Then Abort(Subst("argument missing for option -&1", ShortName))
-  If TypeOf(vLong) = gb.Boolean Then Abort(Subst("argument missing for option --&1", LongName))
+  If TypeOf(vShort) = gb.Boolean Then DoAbort(Subst("argument missing for option -&1", ShortName))
+  If TypeOf(vLong) = gb.Boolean Then DoAbort(Subst("argument missing for option --&1", LongName))
   
-  If vShort And If vLong Then Abort(Subst("argument specified twice for option -&1", ShortName))
+  If vShort And If vLong Then DoAbort(Subst("argument specified twice for option -&1", ShortName))
   
   $cArg["-" & ShortName] = Null
   $cArg["--" & LongName] = Null
@@ -182,6 +222,8 @@ Public Sub Get(ShortName As String, LongName As String, Optional Description As 
     Return Args[vLong]
   Endif
   
+  Return {Default}
+  
 End
 
 Public Sub GetInteger(ShortName As String, LongName As String, Optional Description As String, Optional ArgName As String, Optional {Default} As Integer) As Integer
@@ -194,7 +236,7 @@ Public Sub GetInteger(ShortName As String, LongName As String, Optional Descript
     Try iVal = Val("&H" & sVal)
     If Not Error Then Return iVal
   Endif
-  If Not IsInteger(sVal) Then Abort(Subst("option &1 needs an integer argument"), GetKey(ShortName, LongName))
+  If Not IsInteger(sVal) Then DoAbort(Subst("option &1 needs an integer argument"), GetKey(ShortName, LongName))
   Return CInt(sVal)
    
 End
@@ -206,9 +248,8 @@ Public Sub GetFloat(ShortName As String, LongName As String, Optional Descriptio
    
   If Not sVal Then Return {Default}
   Try fVal = CFloat(sVal)
-  If Error Then Abort(Subst("option &1 needs a floating point number argument"), GetKey(ShortName, LongName))
+  If Error Then DoAbort(Subst("option &1 needs a floating point number argument"), GetKey(ShortName, LongName))
   Return fVal
    
 End
  
-

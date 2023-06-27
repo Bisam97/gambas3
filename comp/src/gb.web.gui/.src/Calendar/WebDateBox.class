@@ -1,0 +1,132 @@
+' Gambas class file
+
+Export
+Inherits WebControl
+
+Public Const _Properties As String = "*,Border=True,ReadOnly=True,DateTime"
+Public Const _Group As String = "Chooser"
+Public Const _DrawWith As String = "ComboBox"
+Public Const _DefaultSize As String = "24,4"
+Public Const _Similar As String = "WebTextBox"
+Public Const _DefaultEvent As String = "Click"
+
+Event Click
+Event Change
+
+Property Text As String
+Property Date, Value As Date
+Property ReadOnly As Boolean
+Property DateTime As Boolean
+
+Private $bReadOnly As Boolean = True
+Private $dDate As Date
+Private $bDateTime As Boolean
+
+Public Sub _new()
+  
+  Me._Proxy = ":entry"
+  
+End
+
+
+Public Sub _Render()
+  
+  Print "<input id=\""; Me.Name; ":entry\" class=\"gw-combobox-text";
+  If $bDateTime Then Print " gw-datebox-time";
+  Print "\" type=\"text\" value=\""; Html(Text_Read()); "\""; Me._GetUpdateJS("onchange", "text", "this.value"); ">";
+  Print "<div class=\"gw-combobox-arrow\""; Me._GetUpdateJS("onmousedown", "#popup"); "></div>"
+  'Print "displayCalendar($_("; JS(Me.Name & ":entry"); "),'dd/mm/yyyy'"; '"; If(bTime And Not bChooseDate, "dd/mm/yyyy hh:nn", "dd/mm/yyyy"); 
+  'Print ",$_("; JS(Me.Name); "),false,false);"; '; If(bTime And Not bChooseDate, "true", "false"); ","; If(bSubmit, "true", "false"); ")\""; 
+  'Print "\"></div>"
+  'WebForm._AddJavascript("gw.load('calendar.css');")
+  'WebForm._AddJavascript("gw.load('calendar.js');")
+  
+End
+
+Public Sub _UpdateProperty(sProp As String, vValue As Variant)
+  
+  Dim hCalendar As Object
+  
+  If sProp = "text" Then
+    Try Me.Text = vValue
+    If Error Then Me.Refresh
+  Else If sProp = "#popup" Then
+    Try hCalendar = Classes["FCalendar"].Instance
+    If hCalendar Then
+      WebForm.PrintLog("Open calendar popup (" & Object.Count(hCalendar) & ")")
+    Else
+      WebForm.PrintLog("Open calendar popup (0)")
+    Endif
+    FCalendar.Value = Date_Read()
+    FCalendar.ShowPopup(Me)
+  Endif
+  
+End
+
+Public Sub Clear()
+  
+  Date_Write(Null)
+  
+End
+
+Private Function ReadOnly_Read() As Boolean
+
+  Return $bReadOnly
+
+End
+
+Private Sub ReadOnly_Write(Value As Boolean)
+
+  $bReadOnly = Value
+  Me.Refresh
+
+End
+
+Private Function Date_Read() As Date
+
+  Return $dDate
+
+End
+
+Private Sub Date_Write(Value As Date)
+
+  $dDate = Value
+  Me.Refresh
+  Raise Change
+
+End
+
+Private Function Text_Read() As String
+
+  If Not $dDate Then Return
+
+  If $bDateTime Then
+    Return Format($dDate, gb.Standard)
+  Else
+    Return Format($dDate, gb.MediumDate)
+  Endif
+
+End
+
+Private Sub Text_Write(Value As String)
+
+  If IsDate(Value) Or If IsNull(Value) Then 
+    Date_Write(Val(Value))
+  Else
+    Error.Raise("Invalid date")
+  Endif
+
+End
+
+Private Function DateTime_Read() As Boolean
+
+  Return $bDateTime
+
+End
+
+Private Sub DateTime_Write(Value As Boolean)
+
+  $bDateTime = Value
+  Me.Refresh
+
+End

@@ -4,7 +4,7 @@ Export
 
 Inherits UserControl
 
-Public Const _Properties As String = "*,Action,Value,Animated"
+Public Const _Properties As String = "*,Action,Value"
 Public Const _DefaultEvent As String = "Click"
 Public Const _DefaultSize As String = "16,4"
 Public Const _Similar As String = "Button"
@@ -21,7 +21,6 @@ Private $fTargetValue As Float
 Private $hTimer As Timer
 Private $bPressed As Boolean
 Private $iBg As Integer = Color.Default
-Private $bAnimated As Boolean
 
 Public Sub _new()
   
@@ -33,14 +32,18 @@ End
 
 Private Function Animated_Read() As Boolean
 
-  Return $bAnimated
+  Return True
 
 End
 
-Private Sub Animated_Write(Value As Boolean)
+Private Sub Animated_Write((Value) As Boolean)
 
-  $bAnimated = Value
+  Static bWarn As Boolean
   
+  If bWarn Then Return
+  Error "gb.form: warning: SwitchButton.Animated is deprecated."
+  bWarn = True
+
 End
 
 Private Function Value_Read() As Boolean
@@ -70,36 +73,39 @@ Public Sub DrawingArea_Draw()
   Dim X As Float
   Dim Y As Integer
   Dim DS As Integer
+  Dim F As Integer
+  Dim S As Integer
 
-  iCol = Color.Merge(Color.Merge(Color.TextForeground, Color.SelectedBackground, $fValue), Color.Background)
-  If iFlag And Style.Disabled Then iCol = Color.Merge(iCol, Color.Background, 0.75)
+  iCol = Color.Merge(Color.LightForeground, Color.SelectedBackground, $fValue)
+  iCol = Color.SetHSV(iCol, Color[Color.SelectedBackground].Hue)
+  If iFlag And Style.Disabled Then iCol = Color.Merge(Color.Background, Color.Desaturate(iCol))
   
   DS = Desktop.Scale
-  Paint.Rectangle(DS, (Paint.H - DS * 1.5) / 2, Paint.W - DS * 2, DS * 1.5, DS)
+  Paint.Rectangle(DS, (Paint.H - DS) / 2, Paint.W - DS * 2, DS, DS)
   Paint.Background = iCol
   Paint.Fill
   
-  X = (Paint.W - DS * 4) * $fValue + DS / 2
-  Y = (Paint.H - DS * 3) / 2
+  S = DS * 2.5
   
-  Paint.Ellipse(X, Y, DS * 3, DS * 3)
+  X = (Paint.W - S - DS) * $fValue + DS / 2
+  Y = (Paint.H - S) / 2
+  
+  Paint.Ellipse(X, Y, S, S)
   Paint.Background = iCol
   Paint.Fill()
   
-  iCol = Color.Merge(Color.ButtonBackground, Color.SelectedBackground, $fValue)
-  If iFlag And Style.Disabled Then iCol = Color.Merge(iCol, Color.Background, 0.75)
+  iCol = Color.Merge(Color.ButtonBackground, iCol)
 
-  Paint.Ellipse(X + 2, Y + 2, DS * 3 - 4, DS * 3 - 4)
+  F = Max(1, DS \ 4)
+  Paint.Ellipse(X + F, Y + F, S - F * 2, S - F * 2)
   Paint.Background = iCol
   Paint.Fill()
   
   If iFlag And Style.HasFocus Then
-    Paint.Ellipse(X - DS / 2, Y - DS / 2, DS * 4, DS * 4)
+    Paint.Ellipse(X - DS / 2, Y - DS / 2, S + DS, S + DS)
     Paint.Background = Color.SetAlpha(Color.SelectedBackground, 200)
     Paint.Fill
   Endif
-  
-  
   
 End
 
@@ -155,7 +161,7 @@ End
 
 Private Sub ToggleAnimate()
   
-  If $bAnimated And If Application.Animations Then
+  If _Gui.MustAnimate(Me) Then
     If $fValue < 0.5 Then
       $fTargetValue = 1
     Else
@@ -193,7 +199,7 @@ Public Sub Timer_Timer()
   Dim fInc As Float
   
   fInc = ($fTargetValue - $fValue) / 2
-  If Abs(fInc) < 0.01 Then fInc = 0.05 * Sgn(fInc)
+  If Abs(fInc) < 0.01 Then fInc = 0.01 * Sgn(fInc)
   $fValue += fInc
   
   If $fValue < 0 Then

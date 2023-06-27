@@ -2,7 +2,7 @@
 
   gbc_preprocess.c
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -301,23 +301,14 @@ int PREP_analyze(PATTERN *line)
 	}
 	else if (PATTERN_is(*line, RS_P_LINE))
 	{
-		TRANS_NUMBER result;
-		
 		line++;
-		if (!PATTERN_is_number(*line))
+		if (!PATTERN_is_integer(*line))
 			THROW_UNEXPECTED(line);
 		
-		TRANS_get_number(PATTERN_index(*line), &result);
-		if (result.type != T_INTEGER)
-			THROW_UNEXPECTED(line);
-		
-		PREP_next_line = result.ival - 1;
+		PREP_next_line = PATTERN_index(*line) - 1;
 		return PREP_LINE;
 	}
-	else if (PATTERN_is(*line, RS_P_CONST))
-	{
-		// TODO
-	}
+	// else if (PATTERN_is(*line, RS_P_CONST)) TODO
 	else
 		THROW(E_SYNTAX);
 	

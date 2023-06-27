@@ -1,6 +1,7 @@
 ' Gambas module file
 
 Export
+
 Private $aDay As String[]
 Private $aMonth As String[]
 Private $dEpoch As Date
@@ -95,8 +96,6 @@ Private Sub GetRFC822Zone(sZone As String) As Float
   
 End
 
-
-
 Public Sub ToRFC822({Date} As Date, Optional TimeZone As String = "GMT") As String
   
   InitDaysMonths
@@ -157,5 +156,60 @@ Public Sub IsWeekEnd({Date} As Date) As Boolean
   
   Dim iDay As Integer = WeekDay({Date})
   If iDay = gb.Sunday Or If iDay = gb.Saturday Then Return True
+  
+End
+
+'' @{since 3.15}
+''
+'' Convert a date to the ISO-8601 format.
+''
+'' - ~Date~ is the date to convert.
+'' - ~Timezone~ is the timezone of the date in RFC822 format. By default, the local timezone is used.
+
+Public Sub ToISO8601({Date} As Date, Optional Timezone As String) As String
+
+  Dim iYear As Integer
+  Dim sResult As String
+  Dim sMicroseconds As String
+  Dim fTimeZone As Float
+  
+  If Not IsMissing(TimeZone) Then
+    fTimeZone = GetRFC822Zone(TimeZone)
+  Else
+    fTimeZone = -System.TimeZone / 86400
+  Endif
+  
+  {Date} = ToUTC({Date}) + fTimeZone
+
+  If fTimeZone > 0 Then
+    TimeZone = "+" & Format(CDate(fTimeZone), "hhnn")
+  Else If fTimeZone < 0 Then
+    TimeZone = "-" & Format(CDate(-fTimeZone), "hhnn")
+  Else
+    TimeZone = "Z"
+  Endif
+  
+  iYear = Year({Date})
+  
+  If iYear Then
+    
+    If iYear < 0 Then sResult = "B"
+    sResult &= Format(iYear, "0000") & "-" & Format(Month({Date}), "00") & "-" & Format(Day({Date}), "00")
+    
+  Endif
+  
+  sResult &= "T" & Format({Date}, "hhnnss")
+  
+  sMicroseconds = Format({Date}, "uuu")
+  If sMicroseconds <> "000" Then sResult &= "," & sMicroseconds
+  
+  Return sResult & TimeZone
+  
+End
+
+Public Sub DaysInMonth(Month As Integer, Optional Year As Integer = Year(Now)) As Integer
+  
+  If Month = 12 Then Return 31
+  Return Day(DateAdd(Date(Year, Month + 1, 1), gb.Day, -1))
   
 End

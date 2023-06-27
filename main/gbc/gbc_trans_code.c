@@ -2,7 +2,7 @@
 
 	gbc_trans_code.c
 
-	(c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+	(c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -34,9 +34,9 @@
 #include "gb_code.h"
 #include "gb_limit.h"
 
-/*#define DEBUG*/
+//#define DEBUG
 
-ushort *TRANS_labels = NULL;
+//ushort *TRANS_labels = NULL;
 
 static FUNCTION *_func;
 
@@ -46,24 +46,33 @@ static CLASS_SYMBOL *add_local(int sym_index, TYPE type, int value, bool used)
 	PARAM *loc;
 	bool warnings = JOB->warnings;
 
-	if (ARRAY_count(_func->local) >= MAX_LOCAL_SYMBOL)
-		THROW("Too many local variables");
-
-	loc = ARRAY_add(&_func->local);
-	loc->index = sym_index;
-	loc->type = type;
-	loc->value = value;
-
 	if (used)
 		JOB->warnings = FALSE;
 	sym = CLASS_declare(JOB->class, sym_index, TK_VARIABLE, FALSE);
 	if (used)
 		JOB->warnings = warnings;
 
+	if (TYPE_is_static(type))
+	{
+		CLASS_add_static_declaration(JOB->class, sym_index, type, sym, TRUE);
+		loc = ARRAY_add(&_func->stat);
+	}
+	else
+	{
+		if (value > MAX_LOCAL_SYMBOL)
+			THROW("Too many local variables");
+
+		sym->local.value = value;
+		sym->local_used = used;
+		loc = ARRAY_add(&_func->local);
+	}
+
+	loc->index = sym_index;
+	loc->type = type;
+	loc->value = sym->local.value;
 	sym->local.type = type;
-	sym->local.value = value;
-	sym->local_used = used;
 	
+	CLASS_check_variable_prefix(sym, TRUE);
 	return sym;
 }
 
@@ -83,30 +92,33 @@ static void create_local_from_param()
 	JOB->line++;
 }
 
+static void check_local(CLASS_SYMBOL *sym)
+{
+	if (!sym->local_used)
+	{
+		if (sym->local.value < 0)
+			COMPILE_print(MSG_WARNING, sym->local.line, "unused argument: &1", SYMBOL_get_name(&sym->symbol));
+		else
+			COMPILE_print(MSG_WARNING, sym->local.line, "unused variable: &1", SYMBOL_get_name(&sym->symbol));
+	}
+	else if (!sym->local_assigned)
+	{
+		if (sym->local.value >= 0)
+			COMPILE_print(MSG_WARNING, sym->local.line, "uninitialized variable: &1", SYMBOL_get_name(&sym->symbol));
+	}
+
+	TYPE_clear(&sym->local.type);
+}
+
 static void remove_local()
 {
 	int i;
-	CLASS_SYMBOL *sym;
 
 	for (i = 0; i < ARRAY_count(_func->local); i++)
-	{
-		sym = CLASS_get_symbol(JOB->class, _func->local[i].index);
-
-		if (!sym->local_used)
-		{
-			if (sym->local.value < 0)
-				COMPILE_print(MSG_WARNING, sym->local.line, "unused argument: &1", SYMBOL_get_name(&sym->symbol));
-			else
-				COMPILE_print(MSG_WARNING, sym->local.line, "unused variable: &1", SYMBOL_get_name(&sym->symbol));
-		}
-		else if (!sym->local_assigned)
-		{
-			if (sym->local.value >= 0)
-				COMPILE_print(MSG_WARNING, sym->local.line, "uninitialized variable: &1", SYMBOL_get_name(&sym->symbol));
-		}
-
-		TYPE_clear(&sym->local.type);
-	}
+		check_local(CLASS_get_symbol(JOB->class, _func->local[i].index));
+	
+	for (i = 0; i < ARRAY_count(_func->stat); i++)
+		check_local(CLASS_get_symbol(JOB->class, _func->stat[i].index));
 }
 
 
@@ -119,12 +131,14 @@ static bool TRANS_local(void)
 	int f;
 	bool no_warning;
 	bool save_warnings;
+	bool is_static;
 
-	if (!TRANS_is(RS_DIM))
+	if (TRANS_is(RS_DIM))
+		is_static = FALSE;
+	else if (TRANS_is(RS_STATIC))
+		is_static = TRUE;
+	else
 		return FALSE;
-	/*JOB->current++;
-	else if (!TRANS_check_declaration())
-		return FALSE;*/
 
 	for(;;)
 	{
@@ -152,11 +166,14 @@ static bool TRANS_local(void)
 		}
 
 		f = TT_DO_NOT_CHECK_AS | TT_CAN_ARRAY | TT_CAN_NEW;
-		//if (!many)
-		//	f |= TT_CAN_SQUARE;
+		if (is_static)
+			f |= TT_CAN_EMBED;
 
 		if (!TRANS_type(f, &decl))
 			THROW(E_SYNTAX);
+		
+		if (is_static)
+			TYPE_set_flag(&decl.type, TF_STATIC);
 
 		for(;;)
 		{
@@ -180,16 +197,27 @@ static bool TRANS_local(void)
 				JOB->warnings = save_warnings;
 			}
 
-			_func->nlocal++;
-
-			if (TRANS_init_var(&decl))
+			if (is_static)
 			{
-				CODE_pop_local(_func->nlocal - 1);
-				sym->local_assigned = TRUE;
+				CLASS_init_global_declaration(JOB->class, &decl, sym, TRUE);
+				
+				if (COMP_verbose)
+					printf("STATIC %s AS %s\n", TABLE_get_symbol_name(JOB->class->table, sym_index), TYPE_get_desc(decl.type));
 			}
+			else
+			{
+				_func->nlocal++;
 
-			if (JOB->verbose)
-				printf("LOCAL %s AS %s\n", TABLE_get_symbol_name(JOB->class->table, sym_index), TYPE_get_desc(decl.type));
+				if (TRANS_init_var(&decl))
+				{
+					CODE_push_local_ref(sym->local.value, TYPE_must_ref(sym->local.type));
+					TRANS_popify_last(TYPE_get_id(TRANS_get_last_type()) == TYPE_get_id(sym->local.type));
+					sym->local_assigned = TRUE;
+				}
+
+				if (COMP_verbose)
+					printf("DIM %s AS %s\n", TABLE_get_symbol_name(JOB->class->table, sym_index), TYPE_get_desc(decl.type));
+			}
 
 			if (!PATTERN_is(*pattern, RS_COMMA))
 				break;
@@ -233,7 +261,7 @@ int TRANS_loop_local(bool allow_arg)
 		}
 	}
 	
-	if (TYPE_is_null(sym->local.type))
+	if (TYPE_is_null(sym->local.type) || TYPE_is_static(sym->local.type))
 	{
 		if (TYPE_is_null(sym->global.type))
 			THROW("Unknown identifier: &1", TABLE_get_symbol_name(JOB->class->table, sym_index));
@@ -314,6 +342,7 @@ void TRANS_statement(void)
 	PATTERN *look = JOB->current;
 	TRANS_STATEMENT *st;
 	COMP_INFO *info;
+	int index;
 
 	if (PATTERN_is_reserved(look[0]))
 	{
@@ -340,11 +369,21 @@ void TRANS_statement(void)
 			return;
 		}
 	}
-	else if (PATTERN_is_subr(look[0]) && (PATTERN_index(look[0]) == SUBR_Mid || PATTERN_index(look[0]) == SUBR_MidS))
+	else if (PATTERN_is_subr(look[0]))
 	{
-		JOB->current++;
-		TRANS_mid();
-		return;
+		index = PATTERN_index(look[0]);
+
+		if (index == SUBR_Mid || index == SUBR_MidS)
+		{
+			JOB->current++;
+			TRANS_mid();
+			return;
+		}
+		else if (COMP_version >= 0x03180000 && COMP_subr_info[index].opcode == (CODE_POKE - CODE_FIRST_SUBR))
+		{
+			TRANS_poke();
+			return;
+		}
 	}
 
 	if (!TRANS_affectation(FALSE))
@@ -399,12 +438,6 @@ static void translate_body()
 			if (TRANS_is_end_function(is_proc, &look[1]))
 				break;
 
-		/*if (PATTERN_is_newline(look[0]))
-		{
-			JOB->current++;
-			JOB->line++;
-			continue;
-		}*/
 		if (TRANS_newline())
 			continue;
 
@@ -415,7 +448,7 @@ static void translate_body()
 			just_got_select = FALSE;
 		}
 
-		if (PATTERN_is(look[0], RS_DIM))
+		if (PATTERN_is(look[0], RS_DIM) || PATTERN_is(look[0], RS_STATIC))
 		{
 			TRANS_local();
 		}
@@ -593,15 +626,20 @@ static void trans_call(const char *name, int nparam)
 
 void TRANS_code(void)
 {
-	int i;
+	int i, j, n;
 
-	for (i = 0; i < ARRAY_count(JOB->class->function); i++)
+	// We must compile initialization functions at the end, because static local variables can modify them.
+	
+	n = ARRAY_count(JOB->class->function);
+	for (j = 0; j < n; j++)
 	{
+		i = (j + FUNC_INIT_MAX + 1) % n;
+		
 		_func = &JOB->class->function[i];
 		
 		CODE_begin_function(_func);
 
-		if (JOB->verbose)
+		if (COMP_verbose)
 		{
 			printf("Compiling %s()...\n", TABLE_get_symbol_name(JOB->class->table, _func->name));
 			if (_func->fast)
@@ -630,7 +668,7 @@ void TRANS_code(void)
 
 			FUNCTION_add_last_pos_line();
 			CODE_op(C_RETURN, 0, 0, TRUE);
-			if (JOB->verbose)
+			if (COMP_verbose)
 				CODE_dump(_func->code, _func->ncode);
 
 			continue;
@@ -647,7 +685,7 @@ void TRANS_code(void)
 
 		_func->stack = _func->nlocal + _func->nctrl + CODE_stack_usage;
 
-		if (JOB->verbose)
+		if (COMP_verbose)
 		{
 			CODE_dump(_func->code, _func->ncode);
 			printf("%d local(s) %d control(s) ", _func->nlocal, _func->nctrl);

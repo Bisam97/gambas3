@@ -452,7 +452,7 @@ End
 Static Private Sub RoundRect(x As Float, y As Float, w As Float, h As Float, Radius_X As Float[], radius_y As Float[])
 
   Dim ARC_TO_BEZIER As Float = 0.55228475
-  Dim c1, c2 As Float
+  Dim C1, C2 As Float
   Dim i As Integer
 
   For i = 0 To 3
@@ -481,33 +481,33 @@ Static Private Sub RoundRect(x As Float, y As Float, w As Float, h As Float, Rad
   Paint.LineTo(x + w - radius_x[1], y)
 
   '-->C
-  c1 = ARC_TO_BEZIER * radius_x[1]
-  c2 = ARC_TO_BEZIER * radius_y[1]
-  Paint.RelCurveTo(c1, 0.0, radius_x[1], c2, radius_x[1], radius_y[1])
+  C1 = ARC_TO_BEZIER * radius_x[1]
+  C2 = ARC_TO_BEZIER * radius_y[1]
+  Paint.RelCurveTo(C1, 0.0, radius_x[1], C2, radius_x[1], radius_y[1])
 
   '-->D
   Paint.LineTo(x + w, y + h - radius_y[2])
 
   '-->E
-  c1 = ARC_TO_BEZIER * radius_x[2]
-  c2 = ARC_TO_BEZIER * radius_y[2]
-  Paint.RelCurveTo(0.0, c2, c1 - radius_x[2], radius_y[2], -radius_x[2], radius_y[2])
+  C1 = ARC_TO_BEZIER * radius_x[2]
+  C2 = ARC_TO_BEZIER * radius_y[2]
+  Paint.RelCurveTo(0.0, C2, C1 - radius_x[2], radius_y[2], -radius_x[2], radius_y[2])
 
   '-->F
   Paint.LineTo(x + radius_x[3], y + h)
 
   '-->G
-  c1 = ARC_TO_BEZIER * radius_x[3]
-  c2 = ARC_TO_BEZIER * radius_y[3]
-  Paint.RelCurveTo(-c1, 0, -radius_x[3], -c2, -radius_x[3], -radius_y[3])
+  C1 = ARC_TO_BEZIER * radius_x[3]
+  C2 = ARC_TO_BEZIER * radius_y[3]
+  Paint.RelCurveTo(-C1, 0, -radius_x[3], -C2, -radius_x[3], -radius_y[3])
   
   '-->H
   Paint.LineTo(x, y + radius_y[0])
 
   '-->A
-  c1 = ARC_TO_BEZIER * radius_x[0]
-  c2 = ARC_TO_BEZIER * radius_y[0]
-  Paint.relcurveto(0.0, -c2, radius_x[0] - c1, -radius_y[0], radius_x[0], -radius_y[0])
+  C1 = ARC_TO_BEZIER * radius_x[0]
+  C2 = ARC_TO_BEZIER * radius_y[0]
+  Paint.RelCurveTo(0.0, -C2, radius_x[0] - C1, -radius_y[0], radius_x[0], -radius_y[0])
 
   'Paint.closepath()
 

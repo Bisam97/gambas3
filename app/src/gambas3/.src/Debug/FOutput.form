@@ -1,7 +1,7 @@
 # Gambas Form File 3.0
 
 { Form Form
-  MoveScaled(0,0,97,54)
+  MoveScaled(0,0,117,54)
   Text = ("Console - Gambas")
   Icon = Picture["icon:/small/terminal"]
   Persistent = True
@@ -28,79 +28,87 @@
       Shortcut = "Ctrl+L"
     }
   }
-  { panToolbar HBox
-    MoveScaled(1,1,93,4)
-    { btnUndock ToolButton
-      MoveScaled(0,0,4,4)
-      ToolTip = ("Undock console")
-      Picture = Picture["icon:/small/fullscreen"]
-      Toggle = True
+  { Panel1 HBox
+    MoveScaled(1,1,103,4)
+    { panToolbar HBox
+      MoveScaled(0,0,93,4)
+      Expand = True
+      { btnUndock ToolButton
+        MoveScaled(0,0,4,4)
+        ToolTip = ("Undock console")
+        Picture = Picture["icon:/small/fullscreen"]
+        Toggle = True
+      }
+      { btnAbove ToolButton
+        MoveScaled(4,0,4,4)
+        ToolTip = ("Keep above")
+        Picture = Picture["icon:/small/top"]
+        Toggle = True
+      }
+      { btnClear ToolButton
+        MoveScaled(8,0,4,4)
+        ToolTip = ("Clear console")
+        Picture = Picture["icon:/small/clear"]
+      }
+      { btnSuspend ToolButton
+        MoveScaled(12,0,4,4)
+        Visible = False
+        ToolTip = ("Suspend terminal")
+        Picture = Picture["icon:/small/lock"]
+        Toggle = True
+      }
+      { btnCopy ToolButton
+        MoveScaled(16,0,4,4)
+        ToolTip = ("Copy")
+        Picture = Picture["icon:/small/copy"]
+      }
+      { btnPaste ToolButton
+        MoveScaled(20,0,4,4)
+        ToolTip = ("Paste")
+        Picture = Picture["icon:/small/paste"]
+      }
+      { btnEcho ToolButton
+        MoveScaled(24,0,9,4)
+        ToolTip = ("Entered text echo")
+        AutoResize = True
+        Text = ("Echo")
+        Toggle = True
+      }
+      { Separator1 Separator
+        MoveScaled(37,0,1,4.125)
+      }
+      { btnEdit ToolButton
+        MoveScaled(39,0,18,4)
+        AutoResize = True
+        Text = ("Open contents") & "..."
+        Picture = Picture["icon:/small/edit"]
+      }
+      { sepCharset Separator
+        MoveScaled(60,0,1,4)
+        Visible = False
+      }
+      { chkCharset CheckBox
+        MoveScaled(62,0,27,4)
+        Visible = False
+        AutoResize = True
+        Text = ("Use system charset")
+      }
     }
-    { btnAbove ToolButton
-      MoveScaled(4,0,4,4)
-      ToolTip = ("Keep above")
-      Toggle = True
-    }
-    { btnClear ToolButton
-      MoveScaled(8,0,4,4)
-      ToolTip = ("Clear console")
-      Picture = Picture["icon:/small/clear"]
-    }
-    { btnSuspend ToolButton
-      MoveScaled(12,0,4,4)
-      Visible = False
-      ToolTip = ("Suspend terminal")
-      Picture = Picture["icon:/small/lock"]
-      Toggle = True
-    }
-    { btnCopy ToolButton
-      MoveScaled(16,0,4,4)
-      ToolTip = ("Copy")
-      Picture = Picture["icon:/small/copy"]
-    }
-    { btnPaste ToolButton
-      MoveScaled(20,0,4,4)
-      ToolTip = ("Paste")
-      Picture = Picture["icon:/small/paste"]
-    }
-    { btnEcho ToolButton
-      MoveScaled(24,0,9,4)
-      ToolTip = ("Entered text echo")
-      AutoResize = True
-      Text = ("Echo")
-      Toggle = True
-    }
-    { Separator1 Separator
-      MoveScaled(37,0,1,4.125)
-    }
-    { btnEdit ToolButton
-      MoveScaled(39,0,18,4)
-      AutoResize = True
-      Text = ("Open contents") & "..."
-      Picture = Picture["icon:/small/edit"]
-    }
-    { sepCharset Separator
-      MoveScaled(60,0,1,4)
-      Visible = False
-    }
-    { chkCharset CheckBox
-      MoveScaled(62,0,27,4)
-      Visible = False
-      AutoResize = True
-      Text = ("Use system charset")
+    { Panel2 Panel
+      MoveScaled(97,0,4,4)
     }
   }
   { Separator2 Separator
     MoveScaled(34,8,13,0)
   }
   { trmOutput TerminalView
-    MoveScaled(5,13,69,27)
+    MoveScaled(5,13,72,27)
     Expand = True
     Border = False
-    AutoResize = False
     Limit = 65536
     Blink = True
     ShowScrollBar = True
+    ShowLink = True
   }
   { sepEnter Separator
     MoveScaled(24,45,34,0)

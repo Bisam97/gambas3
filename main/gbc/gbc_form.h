@@ -2,7 +2,7 @@
 
   gbc_form.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -45,12 +45,14 @@ typedef
 
 #define FORM_FIRST_LINE 100000
 #define FORM_FIRST_LINE_STRING "100000"
-	
-void FORM_do(char *source, bool ctrl_public);
+
+void FORM_set_target(char **target);
+void FORM_do(char *source, bool convert, bool ctrl_public);
 char *FORM_get_file_family(const char *file, const FORM_FAMILY **family);
 void FORM_print_len(const char *buffer, int len);
 void FORM_print(const char *buffer);
 void FORM_print_char(char c);
+void FORM_convert(const char *path);
 
 void FORM_webpage(char *source);
 

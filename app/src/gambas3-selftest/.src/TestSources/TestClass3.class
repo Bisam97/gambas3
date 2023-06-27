@@ -1,0 +1,41 @@
+' Gambas class file
+
+Event TestEvent()
+
+Public a As Integer = 1336
+
+Public Sub _unknown(...)
+  
+ Inc a
+  
+End
+
+Fast Public Sub RaiseEvent()
+  
+  Raise TestEvent()
+  
+End
+
+Static Private Sub ByrefSub(ByRef iNum As Integer)
+  
+  Inc iNum
+  
+End
+
+Static Public Function TestByref() As Boolean
+  
+  Dim ii As Integer = 1
+  
+  ByrefSub(ii)
+  ByrefSub(ByRef ii)
+  
+  If ii <> 2 Then
+    Return False
+  Else
+    Return True
+  Endif
+  
+End
+
+
+

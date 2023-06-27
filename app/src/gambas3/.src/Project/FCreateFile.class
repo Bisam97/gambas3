@@ -1,37 +1,49 @@
 ' Gambas class file
 
+Public Const DIRECTORY As String = "*"
+
 Private $sPath As String
 Private $sDir As String
 Private $sType As String
 Private $bDoNotSetName As Boolean
 
-Public Sub Run(sPath As String, sDir As String, sType As String)
+Public Sub Run(sPath As String, sDir As String, sType As String) As Boolean
   
   $sPath = sPath
   $sDir = sDir
   $sType = sType
-  If Not Me.ShowModal() Then Return
+  If Not Me.ShowModal() Then Return True
+  
+  Project.Tree.SelectKey($sPath)
+  If Not IsDir($sPath) Then Project.OpenFile($sPath)
   
 End
 
 Public Sub btnCancel_Click()
-
+  
   Me.Close  
-
+  
 End
 
-Public Sub UpdateLayout()
-
+Private Sub UpdateLayout()
+  
   Dim sPrefix As String
   Dim hChild As Control
   Dim bOpt As Boolean
- 
+  
   sPrefix = $sType
   For Each hChild In panOption.Children
     If Not hChild.Tag Then Continue
     hChild.Visible = Split(hChild.Tag, ",").Exist(sPrefix)
     bOpt = bOpt Or hChild.Visible
   Next
+  
+  Select Case $sType
+    Case "image"
+      txtWidth.Value = Settings["/FCreateFile/ImageWidth", 8]
+      txtHeight.Value = Settings["/FCreateFile/ImageHeight", 8]
+      cmbImageType.Text = Settings["/FCreateFile/ImageType", "PNG"]
+  End Select
   
   lblOption.Visible = bOpt
   
@@ -41,6 +53,7 @@ Public Sub UpdateLayout()
     Select Case LCase(sPrefix)
       Case "text", "image", "html", "css", "js"
         txtName.Text = Project.GetNewName(sPrefix, $sDir)
+      Case DIRECTORY
       Case Else
         txtName.Text = Project.GetNewName(sPrefix)
     End Select
@@ -54,30 +67,34 @@ Public Sub UpdateLayout()
 End
 
 Public Sub Form_Open()
-
+  
   Dim hPict As Picture
-
+  
   $bDoNotSetName = False
   
   'Settings.Read(Me)
   
-  If Project.IsSourceDir($sDir) Then
-
-    hPict = Project.MakeModuleIcon($sType, 64).Picture
-  
-  Else
-  
-    Select Case $sType
-      Case "css"
-        hPict = Picture["icon:/64/html"]
-      Case "js"
-        hPict = Picture["icon:/64/script"]
-      Case Else
+  Select Case $sType
+    
+    Case DIRECTORY
+      
+      hPict = Picture["icon:/64/directory"]
+      Me.Title = ("New directory")
+      
+    Case Else
+      
+      If Project.IsSourceDir($sDir) Then
+        
+        hPict = Project.MakeModuleIcon($sType, 64).Picture
+        
+      Else
+        
         Try hPict = Picture["icon:/64/" & $sType]
         If Error Then hPict = Picture["icon:/64/text"]
-    End Select
-  
-  Endif
+        
+      Endif
+      
+  End Select
   
   picFile.Picture = hPict
   
@@ -90,25 +107,25 @@ Public Sub Form_Open()
   
   If Not $sType Then $sType = "module"
   UpdateLayout
-
+  
 End
 
 Public Sub txtWidth_Change()
-
+  
   If btnLinked.Value Then txtHeight.Value = txtWidth.Value  
-
+  
 End
 
 Public Sub txtHeight_Change()
-
+  
   If btnLinked.Value Then txtWidth.Value = txtHeight.Value    
-
+  
 End
 
 Public Sub txtName_Change()
-
+  
   $bDoNotSetName = txtName.Text  
-
+  
 End
 
 Private Sub CreateFile() As Boolean
@@ -118,11 +135,20 @@ Private Sub CreateFile() As Boolean
   Dim sMsg As String
   Dim sTemp As String
   Dim hImage As Image
-
-  Select Case sType
   
+  Select Case sType
+      
+    Case "image"
+      Settings["/FCreateFile/ImageWidth"] = txtWidth.Value
+      Settings["/FCreateFile/ImageHeight"] = txtHeight.Value
+      Settings["/FCreateFile/ImageType"] = cmbImageType.Text
+      
+  End Select
+  
+  Select Case sType
+      
     Case "text", "image", "html", "css", "js"
-    
+      
       If sName And If chkExt.Value Then
         If sType = "image" Then 
           sName = File.SetExt(sName, LCase(cmbImageType.Text))
@@ -130,35 +156,50 @@ Private Sub CreateFile() As Boolean
           sName = File.SetExt(sName, sType)
         Endif
       Endif
-    
+      
       sMsg = Project.CheckFileName(sName, $sDir)
       If sMsg Then 
         txtName.SetFocus
-        Balloon.Warning(sMsg, txtName)
+        Message.Warning(sMsg)
         Return True
       Endif
-  
+      
+    Case DIRECTORY
+      
+      sMsg = Project.CheckFileName(sName, $sDir)
+      If sMsg Then 
+        txtName.SetFocus
+        Message.Warning(sMsg)
+        Return True
+      Endif
+      
     Case Else
-
+      
       sMsg = Project.CheckClassName(sName, True)
       If sMsg Then 
         txtName.SetFocus
-        Balloon.Warning(sMsg, txtName)
+        Message.Warning(sMsg)
         Return True
       Endif
-  
+      
   End Select 
   
   Select Case sType
-  
+      
     Case "module"
-    
+      
       sTemp = "' Gambas module file\n\n"
       
-      Project.InsertSource(sName, sType, $sDir, sTemp)
-  
+      $sPath = Project.InsertSource(sName, sType, $sDir, sTemp,, True)
+      
+    Case "test"
+      
+      sTemp = "' Gambas test file\n\n"
+      
+      $sPath = Project.InsertSource(sName, sType, $sDir, sTemp,, True)
+      
     Case "class"
-    
+      
       sTemp = "' Gambas class file\n\n"
       
       If chkExport.Value Then sTemp &= "Export\n"
@@ -172,10 +213,10 @@ Private Sub CreateFile() As Boolean
       If cmbParent.Index > 0 Then sTemp &= "Inherits " & cmbParent.Text & "\n"
       sTemp = RTrim(sTemp) & "\n"
       
-      Project.InsertSource(sName, sType, $sDir, sTemp)
-  
+      $sPath = Project.InsertSource(sName, sType, $sDir, sTemp,, True)
+      
     Case "form", "report", "webform", "termform"
-    
+      
       sTemp = "' Gambas class file\n\n"
       
       If sType = "webform" Then
@@ -184,49 +225,49 @@ Private Sub CreateFile() As Boolean
       
       If chkDialog.Value Then 
         sTemp &= "Public Sub Run() As Boolean\n\n"
-                 "\tReturn Not Me.ShowModal()\n\n"
-                 "End\n\n"
-                 "Public Sub btnOK_Click()\n\n"
-                 "\tMe.Close(TRUE)\n\n"
-                 "End\n\n"
-                 "Public Sub btnCancel_Click()\n\n"
-                 "\tMe.Close\n\n"
-                 "End\n\n" 
+          "\tReturn Not Me.ShowModal()\n\n"
+          "End\n\n"
+          "Public Sub btnOK_Click()\n\n"
+          "\tMe.Close(TRUE)\n\n"
+          "End\n\n"
+          "Public Sub btnCancel_Click()\n\n"
+          "\tMe.Close\n\n"
+          "End\n\n" 
         sTemp = Replace(sTemp, "\t", Space$(Project.TabSize))
       Endif
       
       Project.InsertSource(sName, "class", $sDir, sTemp, True, True)
       
       sTemp = Project.FORM_MAGIC & "\n\n" &   
-              "{ " & sName & " " & CFamily.Get(sType).Name & "\n"
+        "{ " & sName & " " & CFamily.Get(sType).Name & "\n"
       
       If sType = "form" Then
-      
+        
         sTemp &= "  MoveScaled(0,0,64,64)\n"
         
         If chkDialog.Value Then
           sTemp &= "  Resizable = False\n"
-                   "  Arrangement = Arrange.Vertical\n"
-                   "  Spacing = True\n"
-                   "  Margin = True\n"
+            "  Arrangement = Arrange.Vertical\n"
+            "  Spacing = True\n"
+            "  Margin = True\n"
           sTemp &= "{ HBox1 HBox\n"
-                   "  MoveScaled(1,59,62,4)\n"
-                   "  Spacing = True\n"
-                   "  { Panel1 Panel\n"
-                   "    MoveScaled(4,0,4,4)\n"
-                   "    Expand = True\n"
-                   "  }\n"
-                   "  { btnOK Button\n"
-                   "    MoveScaled(29,0,16,4)\n"
-                   "    Text = (\"OK\")\n"
-                   "    Default = True\n"
-                   "  }\n"
-                   "  { btnCancel Button\n"
-                   "    MoveScaled(46,0,16,4)\n"
-                   "    Text = (\"Cancel\")\n"
-                   "    Cancel = True\n"
-                   "  }\n"
-                   "}\n"
+            "  MoveScaled(1,59,62,4)\n"
+            "  Spacing = True\n"
+            "  { Panel1 Panel\n"
+            "    MoveScaled(4,0,4,4)\n"
+            "    Expand = True\n"
+            "  }\n"
+            "  { btnOK Button\n"
+            "    MoveScaled(29,0,16,4)\n"
+            "    Text = (\"OK\")\n"
+            "    Default = True\n"
+            "  }\n"
+            "  { btnCancel Button\n"
+            "    MoveScaled(46,0,16,4)\n"
+            "    Text = (\"Cancel\")\n"
+            "    Cancel = True\n"
+            "  }\n"
+            "}\n"
         Endif
         
       Else
@@ -237,37 +278,37 @@ Private Sub CreateFile() As Boolean
       
       sTemp &= "}\n"
       
-      Project.InsertSource(sName, sType, $sDir, sTemp)
+      $sPath = Project.InsertSource(sName, sType, $sDir, sTemp,, True)
       
     Case "webpage"
-
+      
       Project.InsertSource(sName, "class", $sDir, "' Gambas class file\n\n", True, True)
-      Project.InsertSource(sName, "webpage", $sDir, "<html>\n<body>\n<%\nPrint \"<h1>Gambas</h1>\";\n%>\n</body>\n</html>\n")
+      $sPath = Project.InsertSource(sName, "webpage", $sDir, "<html>\n<body>\n<%\nPrint \"<h1>Gambas</h1>\";\n%>\n</body>\n</html>\n",, True)
       
     Case "text"
-    
+      
       File.Save($sDir &/ sName, "")
       Inc FMain.NoMessage
-      Project.InsertFile(sName, $sDir)
+      $sPath = Project.InsertFile(sName, $sDir,, True)
       Dec FMain.NoMessage
-  
+      
     Case "html"
-    
+      
       File.Save($sDir &/ sName, "<html>\n\n<head>\n</head>\n\n<body>\n</body>\n\n</html>\n")
-      Project.InsertFile(sName, $sDir)
-  
+      $sPath = Project.InsertFile(sName, $sDir,, True)
+      
     Case "css"
-    
+      
       File.Save($sDir &/ sName, "BODY\n{\n}\n")
-      Project.InsertFile(sName, $sDir)
-  
+      $sPath = Project.InsertFile(sName, $sDir,, True)
+      
     Case "js"
-    
+      
       File.Save($sDir &/ sName, "// " & sName & "\n\nfunction foo()\n{\n}\n")
-      Project.InsertFile(sName, $sDir)
-  
+      $sPath = Project.InsertFile(sName, $sDir,, True)
+      
     Case "image"
-    
+      
       hImage = New Image(txtWidth.Value, txtHeight.Value)
       If cmbImageType.Text = "JPEG" Then
         hImage.Fill(Color.White)
@@ -275,22 +316,27 @@ Private Sub CreateFile() As Boolean
         hImage.Fill(Color.Transparent)
       Endif
       hImage.Save($sDir &/ sName)
-
-      Project.InsertFile(sName, $sDir)
-  
-  End Select  
+      
+      $sPath = Project.InsertFile(sName, $sDir,, True)
+      
+    Case DIRECTORY
+      
+      $sPath = $sDir &/ sName
+      Project.InsertDirectory($sDir &/ sName)
+      
+  End Select
   
 End
 
 Public Sub btnOK_Click()
-
+  
   If CreateFile() Then Return
   Me.Close(True)
-
+  
 Catch 
-
+  
   FMain.NoMessage = 0
-  FMain.ShowError(("Cannot add file.") & "\n\n" & Error.Text & "\n" & Error.Where)
+  FMain.ShowErrorWith(("Cannot add file."))
   
 End
 
@@ -300,34 +346,34 @@ End
 '   
 ' End
 
-
 Public Sub panType_Arrange()
-
+  
   Dim hPictureBox As PictureBox = Last.Children[0]
-  hPictureBox.W = hPictureBox.H
 
+  hPictureBox.W = hPictureBox.H
+  
 End
 
 Public Sub panOption_Arrange()
-
+  
   Dim hChild As Control
   Dim H As Integer
-
+  
   For Each hChild In panOption.Children
     If hChild.Visible Then H = Max(H, hChild.Y + hChild.H)
   Next
   panNewFile.H = H + Desktop.Scale * 2
-
+  
 End
 
 Public Sub chkCreatePrivate_Click()
-
+  
   If chkCreatePrivate.Value Then chkCreateStatic.Value = False
-
+  
 End
 
 Public Sub chkCreateStatic_Click()
-
+  
   If chkCreateStatic.Value Then chkCreatePrivate.Value = False
-
+  
 End

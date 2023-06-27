@@ -12,7 +12,7 @@ Private Sub Decode()
   
   If $cVal Then Return
   $cVal = New Collection
-  Main.DecodeURL(CGI["QUERY_STRING"], $aField, $cVal)
+  Main.DecodeURL(CGI["QUERY_STRING"], $aField, $cVal, True)
   
 End
 
@@ -38,11 +38,9 @@ Public Sub Exist(Field As String) As Boolean
   
 End
 
-Public Sub _Reload()
-  
-  If Not $cVal Then Return
+Public Sub _Reset()
   
   $cVal = Null
-  Decode
+  $aField.Clear
   
 End

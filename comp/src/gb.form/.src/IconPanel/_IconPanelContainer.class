@@ -5,9 +5,16 @@ Export
 Inherits UserControl
 
 Property Text As String
+
+'' Return or set the title of the icon panel as rich text.
+Property RichText As String
 Property Picture As Picture
 Property Read Container As Container
 Property Visible As Boolean
+
+Private $sText As String
+Private $hPict As Picture
+Private $bRichText As Boolean
 
 Private Sub GetIconPanel() As IconPanel
   
@@ -35,27 +42,47 @@ End
 
 Private Function Text_Read() As String
 
-  Try Return GetView()[GetIndex(), 0].Text
+  If Not $bRichText Then Return $sText
+  'Try Return GetView()[GetIndex(), 0].Text
 
 End
 
 Private Sub Text_Write(sText As String)
 
-  Try GetView()[GetIndex(), 0].Text = sText
+  $sText = sText
+  $bRichText = False
   GetIconPanel()._UpdateIconViewWidth
+  GetView()[GetIndex(), 0].Refresh
+
+End
+
+Private Function RichText_Read() As String
+
+  If $bRichText Then Return $sText
+  'Try Return GetView()[GetIndex(), 0].Text
+
+End
+
+Private Sub RichText_Write(sText As String)
+
+  $sText = sText
+  $bRichText = True
+  GetIconPanel()._UpdateIconViewWidth
+  GetView()[GetIndex(), 0].Refresh
 
 End
 
 Private Function Picture_Read() As Picture
 
-  Try Return GetView()[GetIndex(), 0].Picture
+  Return $hPict
 
 End
 
 Private Sub Picture_Write(hPict As Picture)
 
-  Try GetView()[GetIndex(), 0].Picture = hPict
+  $hPict = hPict
   GetIconPanel()._UpdateIconViewWidth
+  GetView()[GetIndex(), 0].Refresh
 
 End
 

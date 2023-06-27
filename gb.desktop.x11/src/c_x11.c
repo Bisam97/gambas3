@@ -2,7 +2,7 @@
 
   c_x11.c
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -653,7 +653,7 @@ END_METHOD
 
 GB_DESC X11Desc[] =
 {
-  GB_DECLARE("X11", 0), GB_VIRTUAL_CLASS(),
+  GB_DECLARE_STATIC("_X11"),
   
   //GB_STATIC_METHOD("Init", NULL, CDESKTOP_init, NULL),
   

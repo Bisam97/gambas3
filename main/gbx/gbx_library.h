@@ -2,7 +2,7 @@
 
   gbx_library.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -73,5 +73,7 @@ void LIBRARY_get_interface(LIBRARY *lib, int version, void *iface);
 
 void LIBRARY_exec(LIBRARY *lib, int argc, char **argv);
 void LIBRARY_after_init(LIBRARY *lib);
+
+void LIBRARY_before_fork(LIBRARY *lib);
 
 #endif

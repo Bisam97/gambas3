@@ -2,7 +2,7 @@
 
   gbx_subr_string.c
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -39,65 +39,86 @@
 #include "gbx_local.h"
 #include "gbx_compare.h"
 
-//static int _count = 0;
-
 //---------------------------------------------------------------------------
 
 void SUBR_cat(ushort code)
 {
 	SUBR_ENTER();
 
-	if (NPARAM == 2)
+	if (NPARAM <= 2)
 	{
 		int len, len2;
 		char *str;
 
-		VALUE_conv_string(&PARAM[0]);
-		len = PARAM[0]._string.len ;
-		VALUE_conv_string(&PARAM[1]);
-		len2 = PARAM[1]._string.len;
-
-		#if 0
-		if (EXEC_string_add)
+		if (NPARAM == 1)
 		{
-			EXEC_string_add = FALSE;
-
-			str = PARAM[0]._string.addr;
-
-			if (0 && PARAM[0].type == T_STRING && PARAM[0]._string.start == 0 && STRING_length(str) == len)
+			PARAM--;
+			
+			VALUE_conv_string(&PARAM[1]);
+			len2 = PARAM[1]._string.len;
+			
+			if (PARAM[0].type == T_STRING)
 			{
-				if (str && !STRING_extend_will_realloc(str, len + len2))
+				if (len2 == 0)
 				{
-					//_count++;
-					//fprintf(stderr, "[%d] &= optimization: str = %p (%d) param2 = %p (%d)\n", _count, str, len, PARAM[1]._string.addr + PARAM[1]._string.start, len2);
-					str = STRING_add(str, PARAM[1]._string.addr + PARAM[1]._string.start, len2);
-					/*if (str != PARAM[0]._string.addr)
-					{
-						//fprintf(stderr, "--> %p !\n", str);
-						BREAKPOINT();
-					}*/
+					RELEASE_STRING(&PARAM[0]);
 					RELEASE_STRING(&PARAM[1]);
-
 					SP -= 2;
-					//SP->type = T_STRING;
-					//SP->_string.addr = str;
-					//SP->_string.start = 0;
-					SP->_string.len += len2;
-					SP++;
+					PC++;
+					return;
+				}
+			
+				str = PARAM[0]._string.addr;
+				len = PARAM[0]._string.len;
+				
+				if (len && PARAM[0]._string.start == 0 && len == STRING_length(str) && STRING_from_ptr(str)->ref == 2)
+				{
+					STRING_from_ptr(str)->ref--;
+					
+					str = STRING_add(str, PARAM[1]._string.addr + PARAM[1]._string.start, len2);
+				
+					if (PCODE_is(PC[1], C_POP_LOCAL))
+					{
+						VALUE *bp = &BP[(signed char)PC[1]];
+						bp->_string.addr = str;
+						bp->_string.len += len2;
+					}
+					else if (PCODE_is(PC[1], C_POP_PARAM))
+					{
+						VALUE *pp = &PP[(signed char)PC[1]];
+						pp->_string.addr = str;
+						pp->_string.len += len2;
+					}
+					else if (PCODE_is_xxx(PC[1], C_POP_STATIC))
+					{
+						CLASS_VAR *var = &CP->load->stat[PC[1] & 0x7FF];
+						*(char **)((char *)CP->stat + var->pos) = str;
+					}
+					else if (PCODE_is_xxx(PC[1], C_POP_DYNAMIC))
+					{
+						CLASS_VAR *var = &CP->load->dyn[PC[1] & 0x7FF];
+						*(char **)(OP + var->pos) = str;
+					}
+						
+					RELEASE_STRING(&PARAM[1]);
+					SP -= 2;
+					PC++;
 					return;
 				}
 			}
-			/*else
+			else
 			{
-				if (PARAM[0].type != T_STRING)
-					fprintf(stderr, "PARAM[0].type == %ld\n", PARAM[0].type);
-				else if (PARAM[0]._string.start)
-					fprintf(stderr, "PARAM[0]._string.start == %d\n", PARAM[0]._string.start);
-				else if (STRING_length(str) != len)
-					fprintf(stderr, "len == %d / %d\n", len, STRING_length(str));
-			}*/
+				VALUE_conv_string(&PARAM[0]);
+				len = PARAM[0]._string.len ;
+			}
 		}
-		#endif
+		else
+		{
+			VALUE_conv_string(&PARAM[0]);
+			len = PARAM[0]._string.len ;
+			VALUE_conv_string(&PARAM[1]);
+			len2 = PARAM[1]._string.len;
+		}
 
 		str = STRING_new(NULL, len + len2);
 
@@ -174,10 +195,11 @@ void SUBR_file(ushort code)
 
 	for (i = 0; i < NPARAM; i++)
 	{
-		/*VALUE_conv(&PARAM[i], T_STRING);*/
-		SUBR_get_string_len(&PARAM[i], &addr, &len);
+		VALUE_conv_string(&PARAM[i]);
+		VALUE_get_string(&PARAM[i], &addr, &len);
+		//SUBR_get_string_len(&PARAM[i], &addr, &len);
 
-		if (len > 0)
+		if (addr && len > 0)
 		{
 			if (length > 0)
 			{
@@ -468,13 +490,6 @@ void SUBR_instr(ushort code)
 	pp = PARAM[1]._string.addr + PARAM[1]._string.start;
 
 	pos = STRING_search(ps, ls, pp, lp, is, right, nocase);
-	/*pos2 = STRING_search2(ps, ls, pp, lp, is, right, nocase);
-	
-	if (pos != pos2)
-	{
-		for(;;)
-			usleep(1000);
-	}*/
 
 __FOUND:
 
@@ -825,67 +840,32 @@ void SUBR_sconv(ushort code)
 	SUBR_LEAVE();
 }
 
-static int _is_ascii(int c)
-{
-	return (c & ~0x7F) == 0;
-}
-
-static int _is_letter(int c)
-{
-	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
-}
-
-static int _is_lower(int c)
-{
-	return (c >= 'a' && c <= 'z');
-}
-
-static int _is_upper(int c)
-{
-	return (c >= 'A' && c <= 'Z');
-}
-
-static int _is_digit(int c)
-{
-	return (c >= '0' && c <= '9');
-}
-
-static int _is_hexa(int c)
-{
-	return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
-}
-
-static int _is_space(int c)
-{
-	return strchr(" \n\r\t\f\v", c) != NULL;
-}
-
-static int _is_blank(int c)
-{
-	return (c == 32 || c == '\t');
-}
-
-static int _is_punct(int c)
-{
-	return ((c > 32) && (c < 128) && !(_is_letter(c) || _is_digit(c)));
-}
-
-static int _is_alnum(int c)
-{
-	return _is_letter(c) || _is_digit(c);
-}
-
 void SUBR_is_chr(ushort code)
 {
-	static void *jump[] =
-	{
-		NULL, _is_ascii, _is_letter, _is_lower, _is_upper, _is_digit, _is_hexa, _is_space, _is_blank, _is_punct, _is_alnum
+	static ushort test[256] = {
+		0x0041, 0x0001, 0x0001, 0x0001, 0x0001, 0x0001, 0x0001, 0x0001, 
+		0x0001, 0x00C1, 0x0041, 0x0041, 0x0041, 0x0041, 0x0001, 0x0001, 
+		0x0001, 0x0001, 0x0001, 0x0001, 0x0001, 0x0001, 0x0001, 0x0001, 
+		0x0001, 0x0001, 0x0001, 0x0001, 0x0001, 0x0001, 0x0001, 0x0001, 
+		0x00C1, 0x0101, 0x0101, 0x0101, 0x0101, 0x0101, 0x0101, 0x0101, 
+		0x0101, 0x0101, 0x0101, 0x0101, 0x0101, 0x0101, 0x0101, 0x0101, 
+		0x0231, 0x0231, 0x0231, 0x0231, 0x0231, 0x0231, 0x0231, 0x0231, 
+		0x0231, 0x0231, 0x0101, 0x0101, 0x0101, 0x0101, 0x0101, 0x0101, 
+		0x0101, 0x022B, 0x022B, 0x022B, 0x022B, 0x022B, 0x022B, 0x020B, 
+		0x020B, 0x020B, 0x020B, 0x020B, 0x020B, 0x020B, 0x020B, 0x020B, 
+		0x020B, 0x020B, 0x020B, 0x020B, 0x020B, 0x020B, 0x020B, 0x020B, 
+		0x020B, 0x020B, 0x020B, 0x0101, 0x0101, 0x0101, 0x0101, 0x0101, 
+		0x0101, 0x0227, 0x0227, 0x0227, 0x0227, 0x0227, 0x0227, 0x0207, 
+		0x0207, 0x0207, 0x0207, 0x0207, 0x0207, 0x0207, 0x0207, 0x0207, 
+		0x0207, 0x0207, 0x0207, 0x0207, 0x0207, 0x0207, 0x0207, 0x0207, 
+		0x0207, 0x0207, 0x0207, 0x0101, 0x0101, 0x0101, 0x0101, 0x0101
 	};
-
+	
 	char *addr;
 	int len;
 	int i;
-	int (*func)(int);
+	bool ret;
+	ushort bit;
 
 	SUBR_ENTER_PARAM(1);
 
@@ -894,20 +874,29 @@ void SUBR_is_chr(ushort code)
 	//SUBR_get_string_len(PARAM, &addr, &len);
 	VALUE_get_string(PARAM, &addr, &len);
 
-	func = jump[code & 0x3F];
-
-	i = len;
-	while(i)
+	if (len == 1)
+		ret = (test[(unsigned char)*addr] & (1 << ((code & 0xF) - 1))) != 0;
+	else if (len <= 0)
+		ret = FALSE;
+	else
 	{
-		if (!(*func)(*addr++))
-			break;
-		i--;
+		bit = 1 << ((code & 0xF) - 1);
+		ret = TRUE;
+		for (i = 0; i < len; i++)
+		{
+			if ((test[(unsigned char)addr[i]] & bit) == 0)
+			{
+				ret = FALSE;
+				break;
+			}
+		}
 	}
-
+	
 	RELEASE_STRING(PARAM);
+	
 	SP--;
 	SP->type = T_BOOLEAN;
-	SP->_boolean.value = (len > 0 && i == 0) ? -1 : 0;
+	SP->_boolean.value = ret;
 	SP++;
 }
 
@@ -944,7 +933,10 @@ static void make_hex_char(uchar c)
 
 void SUBR_quote(ushort code)
 {
-	static void *jump[8] = { &&__QUOTE, &&__SHELL, &&__HTML, &&__BASE64, &&__URL , &&__ILLEGAL, &&__ILLEGAL, &&__ILLEGAL };
+	static void *jump[8] = {
+		&&__QUOTE, &&__SHELL, &&__HTML, &&__BASE64, &&__URL , &&__ILLEGAL, &&__ILLEGAL, &&__ILLEGAL
+	};
+
 	char *str;
 	int lstr;
 	int i;
@@ -958,9 +950,11 @@ void SUBR_quote(ushort code)
 	str = PARAM->_string.addr + PARAM->_string.start;
 	lstr = PARAM->_string.len;
 
+	code &= 0x7;
+
 	STRING_start_len(lstr);
 
-	goto *jump[code & 0x7];
+	goto *jump[code];
 
 __QUOTE:
 
@@ -1100,14 +1094,12 @@ __BASE64:
 
 __URL:
 
-	// Warning! '/' is not encoded, so that the function is more pratical, by supposing that no file url will have '/' in its name.
+	// Warning! '/' is not encoded, so that the function is more practical, by supposing that no file url will have '/' in its name.
 
 	for (i = 0; i < lstr; i++)
 	{
 		c = str[i];
-		if (c == ' ')
-			STRING_make_char('+');
-		else if ((c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || index("-._~,$!/", c))
+		if ((c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || index("-._~,$!/", c))
 			STRING_make_char(c);
 		else
 		{
@@ -1117,42 +1109,6 @@ __URL:
 	}
 
 	goto __END;
-
-#if 0
-__JAVASCRIPT:
-	{
-		STRING_make_char('\'');
-
-		for (i = 0; i < lstr; i++)
-		{
-			c = str[i];
-			if (c >= ' ' && c <= 126 && c != '\\' && c != '\'')
-				STRING_make_char(c);
-			else
-			{
-				STRING_make_char('\\');
-				if (c == '\n')
-					c = 'n';
-				else if (c == '\r')
-					c = 'r';
-				else if (c == '\t')
-					c = 't';
-				else if (!(c == '\'' || c == '\\'))
-				{
-					snprintf(buf, sizeof(buf), "x%02X", c);
-					STRING_make(buf, 3);
-					continue;
-				}
-				STRING_make_char(c);
-			}
-		}
-
-		STRING_make_char('\'');
-	}
-
-	goto __END;
-
-#endif
 
 __ILLEGAL:
 

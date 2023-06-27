@@ -5,6 +5,7 @@ Inherits CBookmark[]
 Property Private As Collection[]
 
 Private $aPrivate As Collection[]
+Private $iBookmarkAge As Integer
 
 Public Sub _new()
   
@@ -40,6 +41,10 @@ Public Sub Load()
   Dim hSettings As Settings 
   Dim aBookmark As String[]
   Dim cPrivate As Collection
+  Dim hBookmark As Bookmark
+
+  If $iBookmarkAge = Bookmarks._Age Then Return
+  $iBookmarkAge = Bookmarks._Age
   
   Me.Clear()
   
@@ -48,6 +53,10 @@ Public Sub Load()
     AddBookmark("$" & Desktop.Path, ("Desktop"), "icon:/small/desktop")
   Endif
   AddBookmark("$/", ("System"), "icon:/small/system")
+
+  For Each hBookmark In Bookmarks._GetAll()
+    Try AddBookmark("#" & hBookmark.Path, hBookmark.Name, hBookmark.Icon)
+  Next
 
   If $aPrivate Then
     For Each cPrivate In $aPrivate
@@ -121,6 +130,17 @@ Public Sub FindBookmark({Link} As String) As CBookmark
       If hBookmark.Path = {Link} Then Return hBookmark
     Next
   Endif
+  
+End
+
+Public Sub FindBookmarkByName(Name As String) As CBookmark
+  
+  Dim hBookmark As CBookmark
+  
+  For Each hBookmark In Me
+    If Not hBookmark.Exist() Then Continue
+    If hBookmark.Name = Name Then Return hBookmark
+  Next
   
 End
 

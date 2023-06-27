@@ -1,0 +1,20 @@
+' Gambas module file
+
+Export
+''' Apply each of the Program level Post process callbacks
+''' listed in the Post Program  Callback table to the provided program
+''' The progrm source is provided as a string[] array to be processed
+''' 
+
+'' Apply the Post Process Program level callbacks
+Public Sub _call(sProgram As String[]) As String[]
+  
+  If ScriptSetPostProcessCallBack.HasCallBacks() Then 
+     For Each oPreProc As Object In ScriptSetPostProcessCallBack.PostProgramCallBacks
+       sProgram = oPreProc.PostProcessProgram(sProgram)
+     Next
+  Endif
+  
+  Return sProgram
+  
+End

@@ -44,6 +44,8 @@
 DECLARE_EVENT(EVENT_Connection);
 DECLARE_EVENT(EVENT_Error);
 
+//-------------------------------------------------------------------------
+
 static void srvsock_post_error(CSERVERSOCKET *_object)
 {
 	GB.Raise(THIS, EVENT_Error, 0);
@@ -61,19 +63,19 @@ static void CServerSocket_CallBack(int fd, int type, intptr_t lParam)
 
 	SOCKET->status = NET_PENDING;
 	clen = sizeof(struct sockaddr_in);
-	THIS->Client = accept(SOCKET->socket, (struct sockaddr*)&THIS->so_client.in, &clen);
+	THIS->client = accept(SOCKET->socket, (struct sockaddr*)&THIS->so_client.in, &clen);
 	
-	if (THIS->Client == -1)
+	if (THIS->client == -1)
 	{
-		//close(THIS->Client);
+		//close(THIS->client);
 		SOCKET->status = NET_ACTIVE;
 		return;
 	}
 	
-	if ((!THIS->iMaxConn) || (THIS->iCurConn < THIS->iMaxConn))
+	if ((!THIS->max_conn) || (THIS->num_conn < THIS->max_conn))
 		okval = 1;
 	
-	if ((!THIS->iPause) && (okval))
+	if ((!THIS->pause) && (okval))
 	{
 		remote_ip = GB.NewZeroString(inet_ntoa(THIS->so_client.in.sin_addr));
 		GB.Raise(THIS, EVENT_Connection, 1, GB_T_STRING, remote_ip, GB.StringLength(remote_ip));
@@ -82,8 +84,8 @@ static void CServerSocket_CallBack(int fd, int type, intptr_t lParam)
 	
 	if (SOCKET->status == NET_PENDING)
 	{
-		close(THIS->Client);
-		THIS->Client = -1;
+		close(THIS->client);
+		THIS->client = -1;
 	}
 	
 	SOCKET->status = NET_ACTIVE;
@@ -100,21 +102,23 @@ static void CServerSocket_CallBackUnix(int fd, int type, intptr_t lParam)
 
 	SOCKET->status = NET_PENDING;
 	ClientLen=sizeof(struct sockaddr_un);
-	THIS->Client=accept(SOCKET->socket,(struct sockaddr*)&THIS->so_client.un,&ClientLen);
-	if (THIS->Client == -1)
+	THIS->client=accept(SOCKET->socket,(struct sockaddr*)&THIS->so_client.un,&ClientLen);
+	if (THIS->client == -1)
 	{
-		close(THIS->Client);
+		close(THIS->client);
 		SOCKET->status = NET_ACTIVE;
 		return;
 	}
-	if ( (!THIS->iMaxConn) || (THIS->iCurConn < THIS->iMaxConn) ) okval=1;
-	if ( (!THIS->iPause) && (okval) )
+	if ( (!THIS->max_conn) || (THIS->num_conn < THIS->max_conn) ) okval=1;
+	if ( (!THIS->pause) && (okval) )
 		GB.Raise(THIS,EVENT_Connection,1,GB_T_STRING,NULL,0);
-	if  ( SOCKET->status == NET_PENDING) close(THIS->Client);
+	if  ( SOCKET->status == NET_PENDING) close(THIS->client);
 	SOCKET->status = NET_ACTIVE;
 
 }
 
+
+//-------------------------------------------------------------------------
 
 /*********************************************************
  Starts listening (TCP/UDP/UNIX)
@@ -125,7 +129,7 @@ static int do_srvsock_listen(CSERVERSOCKET* _object, int mymax)
 	int retval;
 	int auth = 1;
 
-	if (THIS->iPort == 0 && THIS->type == NET_TYPE_INTERNET)
+	if (THIS->port == 0 && THIS->type == NET_TYPE_INTERNET)
 		return 8;
 
 	if (SOCKET->status > NET_INACTIVE) return 1;
@@ -133,21 +137,21 @@ static int do_srvsock_listen(CSERVERSOCKET* _object, int mymax)
 	if (mymax < 0)
 		return 13;
 
-	if (THIS->type == NET_TYPE_LOCAL && !THIS->sPath)
+	if (THIS->type == NET_TYPE_LOCAL && !THIS->path)
 		return 7;
 
 	if (THIS->type == NET_TYPE_INTERNET)
 	{
 		THIS->so_server.in.sin_family = AF_INET;
 		THIS->so_server.in.sin_addr.s_addr = INADDR_ANY;
-		THIS->so_server.in.sin_port = htons(THIS->iPort);
+		THIS->so_server.in.sin_port = htons(THIS->port);
 		SOCKET->socket = socket(PF_INET, SOCK_STREAM, 0);
 	}
 	else
 	{
-		unlink(THIS->sPath);
+		unlink(THIS->path);
 		THIS->so_server.un.sun_family = AF_UNIX;
-		strcpy(THIS->so_server.un.sun_path, THIS->sPath);
+		strcpy(THIS->so_server.un.sun_path, THIS->path);
 		SOCKET->socket=socket(AF_UNIX, SOCK_STREAM,0);
 	}
 
@@ -204,8 +208,8 @@ static int do_srvsock_listen(CSERVERSOCKET* _object, int mymax)
 		GB.Post(srvsock_post_error,(intptr_t)THIS);
 		return 14;
 	}
-	THIS->iCurConn=0;
-	THIS->iMaxConn=mymax;
+	THIS->num_conn = 0;
+	THIS->max_conn = mymax;
 	SOCKET->status = NET_ACTIVE;
 
 	//CServerSocket_AssignCallBack((intptr_t)THIS,SOCKET->socket);
@@ -272,8 +276,10 @@ void CServerSocket_OnClose(void *child)
 	if (!THIS) return;
 	
 	remove_child(THIS, child);
-	THIS->iCurConn--;
+	THIS->num_conn--;
 }
+
+//-------------------------------------------------------------------------
 
 /***************************************************
  This property reflects current status of the
@@ -292,7 +298,7 @@ BEGIN_PROPERTY(ServerSocket_Port)
 
 	if (READ_PROPERTY)
 	{
-		GB.ReturnInteger(THIS->iPort);
+		GB.ReturnInteger(THIS->port);
 		return;
 	}
 	if (SOCKET->status > NET_INACTIVE)
@@ -300,12 +306,12 @@ BEGIN_PROPERTY(ServerSocket_Port)
 		GB.Error("Port cannot be changed when socket is active");
 		return;
 	}
-	if ( (VPROP(GB_INTEGER)<1) || (VPROP(GB_INTEGER)>65535) )
+	if ( (VPROP(GB_INTEGER) < 1) || (VPROP(GB_INTEGER) > 65535) )
 	{
 		GB.Error("Invalid port Value");
 		return;
 	}
-	THIS->iPort=VPROP(GB_INTEGER);
+	THIS->port = VPROP(GB_INTEGER);
 
 END_PROPERTY
 
@@ -317,7 +323,7 @@ BEGIN_PROPERTY(ServerSocket_Path)
 
 	if (READ_PROPERTY)
 	{
-		GB.ReturnString(THIS->sPath);
+		GB.ReturnString(THIS->path);
 		return;
 	}
 	if (SOCKET->status > NET_INACTIVE)
@@ -327,10 +333,10 @@ BEGIN_PROPERTY(ServerSocket_Path)
 	}
 	if (PLENGTH() > NET_UNIX_PATH_MAX)
 	{
-		GB.Error ("Path is too long");
+		GB.Error("Path is too long");
 		return;
 	}
-	GB.StoreString(PROP(GB_STRING), &THIS->sPath);
+	GB.StoreString(PROP(GB_STRING), &THIS->path);
 
 END_PROPERTY
 
@@ -339,7 +345,7 @@ BEGIN_PROPERTY(ServerSocket_Interface)
 
 	if (READ_PROPERTY)
 	{
-		GB.ReturnString(THIS->sPath);
+		GB.ReturnString(THIS->path);
 	}
 	else
 	{
@@ -363,7 +369,7 @@ END_PROPERTY
 /***************************************************************
  This property gets/sets the socket type (0 -> TCP, 1 -> UNIX)
  ***************************************************************/
-BEGIN_PROPERTY ( ServerSocket_Type )
+BEGIN_PROPERTY(ServerSocket_Type)
 
 	if (READ_PROPERTY)
 	{
@@ -414,25 +420,25 @@ BEGIN_METHOD(ServerSocket_new, GB_STRING sPath; GB_INTEGER iMaxConn)
 				GB.Error("Invalid Host");
 				return;
 			}
-			if (nport<1)
+			if (nport < 1)
 			{
 				GB.Error("Invalid Port");
 				return;
 			}
 
 			THIS->type = NET_TYPE_INTERNET;
-			THIS->iPort=nport;
+			THIS->port = nport;
 			srvsock_listen(THIS, iMax);
 			break;
 			
 		case 2:
 			THIS->type = NET_TYPE_LOCAL;
-			if (LENGTH(sPath) >NET_UNIX_PATH_MAX)
+			if (LENGTH(sPath) > NET_UNIX_PATH_MAX)
 			{
 				GB.Error ("Path is too long");
 				return;
 			}
-			GB.StoreString(ARG(sPath), &THIS->sPath);
+			GB.StoreString(ARG(sPath), &THIS->path);
 			break;
 	}
 	
@@ -460,8 +466,9 @@ BEGIN_METHOD_VOID(ServerSocket_free)
 
 	close_server(THIS);
 	GB.FreeArray(&THIS->children);
-	GB.FreeString(&THIS->sPath);
+	GB.FreeString(&THIS->path);
 	GB.FreeString(&THIS->interface);
+	GB.StoreVariant(NULL, POINTER(&(THIS->tag)));
 
 END_METHOD
 
@@ -480,7 +487,7 @@ END_METHOD
  *********************************************************/
 BEGIN_METHOD_VOID(ServerSocket_Pause)
 
-	THIS->iPause=1;
+	THIS->pause = TRUE;
 
 END_METHOD
 
@@ -489,7 +496,7 @@ END_METHOD
  *********************************************************/
 BEGIN_METHOD_VOID(ServerSocket_Resume)
 
-	THIS->iPause=0;
+	THIS->pause = FALSE;
 
 END_METHOD
 
@@ -516,36 +523,35 @@ BEGIN_METHOD_VOID(ServerSocket_Accept)
 	}
 
 	socket = GB.New(GB.FindClass("Socket"), "Socket", NULL);
-	socket->common.socket = THIS->Client;
+	socket->common.socket = THIS->client;
 	socket->common.status = NET_CONNECTED;
 	socket->OnClose = CServerSocket_OnClose;
 	
-	THIS->iCurConn++;
+	THIS->num_conn++;
 	
-	GB.FreeString(&socket->sRemoteHostIP);
-	GB.FreeString(&socket->sLocalHostIP);
-	GB.FreeString(&socket->sPath);
+	GB.FreeString(&socket->remote_host_ip);
+	GB.FreeString(&socket->local_host_ip);
+	//GB.FreeString(&socket->sPath);
 	
-	socket->iLocalPort = 0;
-	socket->iPort = 0;
+	socket->local_port = 0;
+	socket->port = 0;
 	socket->conn_type = THIS->type;
 	
 	if (THIS->type == NET_TYPE_INTERNET)
 	{
-		socket->sRemoteHostIP = GB.NewZeroString(inet_ntoa(THIS->so_client.in.sin_addr));
-		socket->Host = GB.NewZeroString (inet_ntoa(THIS->so_client.in.sin_addr));
+		socket->remote_host_ip = GB.NewZeroString(inet_ntoa(THIS->so_client.in.sin_addr));
+		socket->host = GB.NewZeroString (inet_ntoa(THIS->so_client.in.sin_addr));
 		mylen = sizeof(struct sockaddr);
 		getsockname(socket->common.socket, (struct sockaddr*)&myhost, &mylen);
-		socket->sLocalHostIP = GB.NewZeroString(inet_ntoa(myhost.sin_addr));
-		socket->iLocalPort = ntohs(myhost.sin_port);
-		socket->iPort = ntohs(THIS->so_client.in.sin_port);
-		socket->iUsePort = ntohs(THIS->so_client.in.sin_port);
+		socket->local_host_ip = GB.NewZeroString(inet_ntoa(myhost.sin_addr));
+		socket->local_port = ntohs(myhost.sin_port);
+		socket->port = ntohs(THIS->so_client.in.sin_port);
+		socket->use_port = ntohs(THIS->so_client.in.sin_port);
 	}
 	else
 	{
 		socket->conn_type=1;
-		socket->sPath = GB.NewZeroString(THIS->sPath);
-		socket->Path = GB.NewZeroString(THIS->sPath);
+		socket->path = GB.NewZeroString(THIS->path);
 	}
 
 	add_child(THIS, socket);
@@ -585,10 +591,18 @@ BEGIN_PROPERTY(ServerSocket_count)
 
 END_PROPERTY
 
+BEGIN_PROPERTY(ServerSocket_Tag)
 
-/****************************************************************
- Here we declare public structure of the ServerSocket class
-*****************************************************************/
+	if (READ_PROPERTY)
+		GB.ReturnVariant(&THIS->tag);
+	else
+		GB.StoreVariant(PROP(GB_VARIANT), POINTER(&(THIS->tag)));
+
+END_METHOD
+
+
+//-------------------------------------------------------------------------
+
 GB_DESC CServerSocketDesc[] =
 {
   GB_DECLARE("ServerSocket", sizeof(CSERVERSOCKET)),
@@ -608,7 +622,8 @@ GB_DESC CServerSocketDesc[] =
   GB_PROPERTY("Path","s",ServerSocket_Path),
   GB_PROPERTY("Port", "i", ServerSocket_Port),
   GB_PROPERTY("Interface", "s", ServerSocket_Interface),
-  GB_PROPERTY_READ("Status","i",ServerSocket_Status),
+  GB_PROPERTY_READ("Status","i", ServerSocket_Status),
+  GB_PROPERTY("Tag", "v", ServerSocket_Tag),
 
   GB_METHOD("_next", "Socket", ServerSocket_next, NULL),
   GB_PROPERTY_READ("Count", "i", ServerSocket_count),

@@ -1,0 +1,42 @@
+' Gambas test file
+
+Public AliasList As Collection = New Collection(gb.ignoreCase) 
+
+Public Program As String[] = ["dog", 
+                              "red(\"apples\",\"orange\")",
+                              "grape(frog,\"orange\")",
+                              "grape (frog,\"orange\")"]
+                              
+Public Results As String[] = ["Big Dogs Are Fun ",
+                              "Purple = \"apples\", [\"orange\"] ",
+                              "Red_wine = [\"Good\"] ",
+                              "Red_wine = [\"Bad\"] (frog,\"orange\")"]
+                              
+Public Sub _TearDown()
+  
+  
+  
+End
+
+
+
+Public Sub CheckAlias()
+
+  Dim Result As String[]
+  AliasList.add("Big Dogs Are Fun", "dog")
+  AliasList.add("Purple = &1, [&2]", "red()")
+  AliasList.Add("Red_wine", "wine")
+  AliasList.add("Wine = [\"Good\"]", "grape()")
+  AliasList.add("Wine = [\"Bad\"]", "grape")
+  
+  
+  Dim count As Integer = 0
+  For Each s As String In Program
+    Result = ScriptApplyAlias(s, AliasList)
+    assert.Equals(Result[0], Results[count])
+    Inc count
+  Next
+  
+End
+
+

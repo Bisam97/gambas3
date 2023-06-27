@@ -1,0 +1,283 @@
+' Gambas class file
+
+''' This class implements a combo-box control.
+
+Export
+Inherits WebControl
+
+Public Const _Properties As String = "*,Border=True,ReadOnly=True,PlaceHolder,Text,List"
+Public Const _DrawWith As String = "ComboBox"
+Public Const _DefaultSize As String = "24,4"
+Public Const _Similar As String = "WebTextBox"
+Public Const _DefaultEvent As String = "Click"
+
+'' This event is raised when an item is selected in the list box.
+Event Click
+'' This event is raised when the combo-box text has changed. Works only if the combo-box is editable.
+Event Change
+'' This event is raised when the ENTER key is hit. Works only if the combo-box is editable.
+Event Activate
+
+'' Return or set the combo-box text.
+Property Text As String
+'' Return the number of items in the combo-box popup.
+Property Read Count As Integer
+'' Return or set the index of the current selected item.
+Property Index As Integer
+'' Return or set the contents of the combo-box popup as a string array.
+Property List As String[]
+'' Return or set if the combo-box is read-only, i.e. not editable.
+Property ReadOnly As Boolean
+'' Return or set the placeholder text displayed when the editable combo-box is empty.
+Property PlaceHolder As String
+
+Private $iIndex As Integer = -1
+Private $sText As String
+Private $aList As New String[]
+Private $bReadOnly As Boolean = True
+Private $sPlaceHolder As String
+
+'' Create a new WebComboBox control.
+
+Public Sub _new()
+  
+  Me._Proxy = ":entry"
+  
+End
+
+
+Public Sub _BeforeRender()
+  
+  Dim sClass As String
+  
+  If $bReadOnly Then
+    sClass = "gw-selectbox"
+  Else
+    sClass = "gw-combobox"
+  Endif
+  
+  Print "<div"; Me._GetClassId(sClass);
+  Me._RenderStyleSheet()
+  Print ">"
+  
+End
+
+Public Sub _Render()
+  
+  Dim I As Integer
+  
+  If Not $bReadOnly Then
+    Print "<input id=\""; Me.Name; ":entry\" class=\"gw-combobox-text\" type=\"text\" value=\""; Html(Text_Read()); "\""; Me._GetUpdateJS("onchange", "text", "this.value"); Me._GetUpdateJS("onblur", "text", "this.value"); 
+    If Object.CanRaise(Me, "Activate") Then
+      Print " onkeydown=\"gw.textbox.onActivate("; JS(Me.Name); ",event);\""; 'WebForm._AddJavascript("gw.textbox.onActivate(" & JS(Me.Name) & ");")
+    Endif
+    If Not Me.Enabled Then Print " disabled";
+    If $sPlaceHolder Then Print " placeholder=\""; Html($sPlaceHolder); "\"";
+    Print ">";
+    Print "<div class=\"gw-combobox-arrow\">";
+  Endif
+  
+  Print "<select id=\""; Me.Name; ":select\" autocomplete=\"off\""; 
+  Print Me._GetUpdateWaitJS("oninput", "index", "this.selectedIndex"); 
+  Print Me._GetUpdateWaitJS("onclick", "index", "this.selectedIndex"); 
+  If Not Me.Enabled Then Print " disabled";
+  Print ">"
+  
+  For I = 0 To $aList.Max
+    Print "<option";
+    If I = $iIndex Then Print " selected";
+    Print ">"; Html($aList[I]); "</option>"
+  Next
+  
+  Print "</select>";
+  
+  If Not $bReadOnly Then
+    Print "</div>";
+    WebForm._AddJavascript("gw.combobox.resize(" & JS(Me.Name) & ");")
+  Else
+    If $iIndex < 0 Then WebForm._AddJavascript("gw.combobox.update(" & JS(Me.Name) & ",-1);")
+  Endif
+  Print
+  
+End
+
+Public Sub _UpdateProperty(sProp As String, vValue As Variant)
+  
+  If sProp = "index" Then 
+    Try Me.Index = vValue
+  Else If sProp = "text" Then
+    Try Me.Text = vValue
+  Endif
+  
+End
+
+Private Function Index_Read() As Integer
+
+  Return $iIndex
+
+End
+
+Private Sub Index_Write(Value As Integer)
+
+  If Value < -1 Or If Value >= $aList.Count Then Error.Raise("Out of bounds")
+  If $iIndex = Value Then Return
+  
+  $iIndex = Value
+  If Not $bReadOnly Then 
+    If $iIndex < 0 Then
+      $sText = ""
+    Else
+      $sText = $aList[$iIndex]
+    Endif
+  Endif
+
+  'Me.Refresh
+  If Me._CanRefresh() Then Me._AddRefresh("gw.combobox.update(" & JS(Me.Name) & "," & CStr($iIndex) & If($bReadOnly, "", "," & JS($sText)) & ");")
+
+  Raise Click
+
+End
+
+Private Function Count_Read() As Integer
+
+  Return $aList.Count
+
+End
+
+Private Function List_Read() As String[]
+
+  Return $aList.Copy()
+
+End
+
+Private Sub CheckIndex()
+  
+  If $iIndex < 0 Or If $iIndex >= $aList.Count Then
+    Index_Write(-1)
+  Endif
+
+End
+
+Private Sub List_Write(Value As String[])
+
+  If Value Then
+    $aList = Value.Copy()
+  Else
+    $aList = New String[]
+  Endif
+  If $bReadOnly Then
+    If $aList.Count >= 1 Then
+      Index_Write(0)
+    Else
+      Index_Write(-1)
+    Endif
+  Endif
+  Me.Refresh
+
+End
+
+'' Clear the contents of the combo-box and its popup.
+Public Sub Clear()
+  
+  $aList.Clear
+  Index_Write(-1)
+  Me.Refresh
+  If Not $bReadOnly Then Text_Write("")
+  
+End
+
+Private Function ReadOnly_Read() As Boolean
+
+  Return $bReadOnly
+
+End
+
+Private Sub ReadOnly_Write(Value As Boolean)
+
+  $bReadOnly = Value
+  If $bReadOnly Then
+    Me._Proxy = ""
+  Else
+    Me._Proxy = ":entry"
+    If $iIndex >= 0 Then $sText = $aList[$iIndex]
+  Endif
+  Me.Refresh
+
+End
+
+'' Add an item to the popup list.
+''
+'' - ~Item~ is the text of the item to add.
+'' - ~Index~ is the position the item will be inserted from. If not specified, the item is added at the end of the popup list.
+
+Public Sub Add(Item As String, Optional Index As Integer = -1)
+  
+  $aList.Add(Item, Index)
+  CheckIndex
+  Me.Refresh
+  
+End
+
+'' Remove an item from the popup list.
+''
+'' - ~Index~ is the index of the item to remove, between 0 and [../count] - 1.
+
+Public Sub Remove(Index As Integer)
+  
+  $aList.Remove(Index)
+  CheckIndex
+  Me.Refresh
+  
+End
+
+Private Function Text_Read() As String
+
+  If $bReadOnly Then
+    Try Return $aList[$iIndex]
+    Return -1
+  Else
+    Return $sText
+  Endif
+
+End
+
+Private Sub Text_Write(Value As String)
+
+  Dim iIndex As Integer
+  
+  If $bReadOnly Then
+    
+    Index_Write($aList.Find(Value))
+    
+  Else
+    
+    If $sText = Value Then Return
+    iIndex = $aList.Find(Value)
+    
+    $sText = Value
+    
+    If Me._CanRefresh() Then Me._AddRefresh("gw.combobox.update(" & JS(Me.Name) & "," & CStr(iIndex) & "," & JS($sText) & ");")
+    
+    If iIndex <> $iIndex Then 
+      $iIndex = iIndex
+      Raise Click
+    Endif
+    
+    Raise Change
+    
+  Endif
+
+End
+
+Private Function PlaceHolder_Read() As String
+
+  Return $sPlaceHolder
+
+End
+
+Private Sub PlaceHolder_Write(Value As String)
+
+  $sPlaceHolder = Value
+  Me.Refresh
+
+End

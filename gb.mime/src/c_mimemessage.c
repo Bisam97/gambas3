@@ -4,7 +4,7 @@
 
   gb.mime component
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
   (c) 2018      Bastian Germann <bastiangermann@fishpost.de>
 
   This program is free software; you can redistribute it and/or modify
@@ -136,19 +136,22 @@ END_PROPERTY
 #define IMPLEMENT_LIST_PROPERTY(_name, _func) \
 BEGIN_PROPERTY(MimeMessage_##_name) \
 \
-	InternetAddressList *list; \
 	InternetAddress *addr; \
+	InternetAddressList *list; \
+	\
 	if (READ_PROPERTY) \
 	{ \
 		list = g_mime_message_get_##_func(MESSAGE); \
-		addr = internet_address_list_get_address(list, 0); \
-		GB.ReturnNewZeroString(internet_address_to_string(addr, NULL, FALSE)); \
+		char *result = internet_address_list_to_string(list NULLGM3, FALSE); \
+		GB.ReturnNewZeroString(result); \
+		g_free(result); \
 	} \
 	else \
 	{ \
 		addr = internet_address_mailbox_new("", GB.ToZeroString(PROP(GB_STRING))); \
 		list = g_mime_message_get_##_func(MESSAGE); \
-		internet_address_list_set_address(list, 0, addr); \
+		internet_address_list_clear(list); \
+		internet_address_list_add(list, addr); \
 	} \
 \
 END_PROPERTY

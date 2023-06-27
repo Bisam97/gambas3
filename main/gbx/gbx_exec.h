@@ -2,7 +2,7 @@
 
   gbx_exec.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -26,6 +26,7 @@
 
 #include "gb_alloc.h"
 #include "gb_error.h"
+#include "gb_overflow.h"
 #include "gbx_class.h"
 #include "gbx_value.h"
 #include "gb_pcode.h"
@@ -45,6 +46,31 @@ typedef
 typedef
 	void (*EXEC_FUNC_CODE)(ushort);
 	
+typedef
+	void (*EXEC_FUNC_CODE_SP)(ushort, VALUE *);
+
+typedef
+	struct {
+		unsigned debug : 1;            // running in debugging mode
+		unsigned got_error : 1;        // if a native function has returned an error
+		unsigned debug_inside : 1;     // debug inside components
+		unsigned debug_hold : 1;       // hold execution at program end
+		unsigned task : 1;             // I am a background task
+		unsigned profile : 1;          // profiling mode
+		unsigned profile_instr : 1;    // profiling mode at instruction level
+		unsigned trace : 1;            // tracing mode
+		unsigned arch : 1;             // executing an archive
+		unsigned fifo : 1;             // debugging through a fifo
+		unsigned keep_library : 1;     // do not unload libraries
+		unsigned main_hook_done : 1;   // the main hook has been run
+		unsigned break_on_error : 1;   // if we must break into the debugger as soon as there is an error.
+		unsigned in_event_loop : 1;    // if we are in the event loop
+		unsigned check_overflow : 1;   // if we should check for overflow
+		unsigned big_endian : 1;       // if the CPU is big endian
+		unsigned has_forked : 1;       // if the process has forked
+	}
+	EXEC_FLAG;
+
 typedef
 	struct {
 		CLASS *class;
@@ -68,7 +94,7 @@ typedef
 		void (*watch)();
 		void (*post)();
 		void (*quit)();
-		void (*error)();
+		bool (*error)();
 		double (*timeout)();
 		}
 	EXEC_HOOK;
@@ -92,25 +118,34 @@ extern VALUE RET;
 
 extern VALUE *EXEC_super;
 
+/*
 extern bool EXEC_debug;
+extern bool EXEC_got_error;
+extern bool EXEC_debug_inside;
+extern bool EXEC_debug_hold;
 extern bool EXEC_task;
 extern bool EXEC_profile;
-extern const char *EXEC_profile_path;
+extern bool EXEC_trace;
 extern bool EXEC_profile_instr;
 extern bool EXEC_arch;
 extern bool EXEC_fifo;
-extern const char *EXEC_fifo_name;
 extern bool EXEC_keep_library;
-extern bool EXEC_string_add;
 extern bool EXEC_break_on_error;
+extern bool EXEC_in_event_loop;
+#if DO_NOT_CHECK_OVERFLOW
+#else
+extern bool EXEC_check_overflow;
+#endif
+extern bool EXEC_big_endian;
+extern bool EXEC_main_hook_done;
+*/
+
+extern const char *EXEC_fifo_name;
+extern const char *EXEC_profile_path;
 
 extern EXEC_HOOK EXEC_Hook;
 
 extern CENUM *EXEC_enum;
-
-extern bool EXEC_big_endian;
-extern bool EXEC_main_hook_done;
-extern bool EXEC_got_error;
 
 extern const char EXEC_should_borrow[];
 
@@ -119,10 +154,28 @@ extern char EXEC_unknown_nparam;
 extern uchar EXEC_quit_value;
 
 extern EXEC_GLOBAL EXEC;
+extern EXEC_FLAG FLAG;
 
 extern const void *EXEC_subr_table[];
 
 #endif
+
+#define EXEC_debug FLAG.debug
+#define EXEC_got_error FLAG.got_error
+#define EXEC_debug_inside FLAG.debug_inside
+#define EXEC_profile FLAG.profile
+#define EXEC_fifo FLAG.fifo
+#define EXEC_arch FLAG.arch
+#define EXEC_profile_instr FLAG.profile_instr
+#define EXEC_trace FLAG.trace
+#define EXEC_big_endian FLAG.big_endian
+#define EXEC_break_on_error FLAG.break_on_error
+#define EXEC_debug_hold FLAG.debug_hold
+#define EXEC_task FLAG.task
+#define EXEC_keep_library FLAG.keep_library
+#define EXEC_main_hook_done FLAG.main_hook_done
+#define EXEC_check_overflow FLAG.check_overflow
+
 
 // Local variables base pointer
 #define BP EXEC_current.bp
@@ -162,6 +215,8 @@ void EXEC_enter_quick(void);
 void EXEC_leave_keep();
 void EXEC_leave_drop();
 void EXEC_loop(void);
+void EXEC_init_bytecode_check(void);
+void EXEC_check_bytecode(void);
 
 #define EXEC_object_2(_val, _pclass, _pobject) \
 ({ \
@@ -181,7 +236,7 @@ void EXEC_loop(void);
 })
 
 #define EXEC_object(_val, _pclass, _pobject) \
-	((LIKELY(TYPE_is_pure_object((_val)->type))) ? EXEC_object_2(_val, _pclass, _pobject), TRUE : \
+	((TYPE_is_pure_object((_val)->type)) ? EXEC_object_2(_val, _pclass, _pobject), TRUE : \
 	TYPE_is_variant((_val)->type) ? (*(_pclass) = EXEC_object_variant(_val, _pobject)), FALSE : \
 	EXEC_object_other(_val, _pclass, _pobject))
 
@@ -244,13 +299,14 @@ void EXEC_do_quit(void);
 void EXEC_dup(int n);
 
 void EXEC_borrow(TYPE type, VALUE *val);
-void UNBORROW(VALUE *val);
+void EXEC_unborrow(VALUE *val);
 void EXEC_release(TYPE type, VALUE *val);
 void RELEASE_many(VALUE *val, int n);
 
 void EXEC_push_complex(void);
 
 void EXEC_push_vargs(void);
+void EXEC_end_vargs(void);
 void EXEC_drop_vargs(void);
 
 #define BORROW(_value) \
@@ -259,7 +315,7 @@ do { \
 	TYPE type = _v->type; \
 	if (TYPE_is_object(type)) \
 	{ \
-		OBJECT_REF(_v->_object.object); \
+		OBJECT_REF_CHECK(_v->_object.object); \
 	} \
 	else if (EXEC_should_borrow[type]) \
 	{ \
@@ -287,6 +343,20 @@ do { \
 	} \
 } while (0)
 
+#if DEBUG_REF
+
+#define UNBORROW(_value) \
+do { \
+	fprintf(stderr, "@%s\n", OBJECT_where_am_i(__FILE__, __LINE__, __func__)); \
+	EXEC_unborrow(_value); \
+} while (0)
+
+#else
+
+#define UNBORROW EXEC_unborrow
+
+#endif
+
 #define RELEASE_STRING(_value) \
 do { \
 	if ((_value)->type == T_STRING) STRING_unref(&(_value)->_string.addr); \
@@ -298,21 +368,30 @@ do { \
 	OBJECT_UNREF(_v->_object.object); \
 } while (0)
 
+#define RELEASE_VARIANT(_value) \
+do { \
+	VALUE *_v = (_value); \
+	if (_v->_variant.vtype == T_STRING) \
+		STRING_unref(&_v->_variant.value._string); \
+	else if (TYPE_is_object(_v->_variant.vtype)) \
+		OBJECT_UNREF(_v->_variant.value._object); \
+} while (0)
+
 #define RELEASE_MANY(_val, _n) \
 do { \
-if (_n) \
-{ \
-	if ((_n) == 1) \
+	if (_n) \
 	{ \
-		_val--; \
-		RELEASE((_val)); \
+		if ((_n) == 1) \
+		{ \
+			_val--; \
+			RELEASE((_val)); \
+		} \
+		else \
+		{ \
+			RELEASE_many((_val), (_n)); \
+			_val -= (_n); \
+		} \
 	} \
-	else \
-	{ \
-		RELEASE_many((_val), (_n)); \
-		_val -= (_n); \
-	} \
-} \
 } while (0)
 
 #define PUSH() \
@@ -327,10 +406,24 @@ do { \
 	RELEASE(SP); \
 } while (0)
 
+#define PUSH_OBJECT(__class, __object) \
+({ \
+	SP->_object.class = (__class); \
+	SP->_object.object = OBJECT_REF(__object); \
+	SP++; \
+})
+
 #define COPY_VALUE(_dst, _src) VALUE_copy(_dst, _src)
 
 #define EXEC_set_native_error(_err) (ERROR_current->info.native = (_err))
 #define EXEC_has_native_error() (ERROR_current->info.native)
+
+#define EXEC_move_ret_to_temp() \
+({ \
+	TEMP = *RP; \
+	UNBORROW(RP); \
+	RP->type = T_VOID; \
+})
 
 bool EXEC_check_operator_single(VALUE *P1, uchar op);
 int EXEC_check_operator(VALUE *P1, VALUE *P2, uchar op);
@@ -341,13 +434,11 @@ void EXEC_operator_object_sgn(VALUE *P1);
 void EXEC_operator_object_fabs(VALUE *P1);
 void EXEC_operator_object_single(uchar op, VALUE *P1);
 
-void SUBR_left(ushort code);
-void SUBR_mid(ushort code);
-void SUBR_right(ushort code);
-
 void EXEC_quit(ushort code);
 
 void EXEC_push_array(ushort code);
 void EXEC_pop_array(ushort code);
+
+void EXEC_set_got_error(bool err);
 
 #endif /* */

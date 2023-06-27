@@ -2,7 +2,7 @@
 
   gbx_stream_lock.c
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -48,7 +48,7 @@ static int stream_open(STREAM *stream, const char *path, int mode)
 	
 	stream->direct.watch = FALSE;
 		
-	fd = open(path, O_CREAT | O_WRONLY, 0666);
+	fd = open(path, O_CREAT | O_WRONLY | O_CLOEXEC, 0666);
 	if (fd < 0)
 		return TRUE;
 

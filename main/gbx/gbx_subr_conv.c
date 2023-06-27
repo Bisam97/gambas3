@@ -1,23 +1,23 @@
 /***************************************************************************
 
-  gbx_subr_conv.c
+	gbx_subr_conv.c
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+	(c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; either version 2, or (at your option)
-  any later version.
+	This program is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 2, or (at your option)
+	any later version.
 
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	See the
+	GNU General Public License for more details.
 
-  You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software
-  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
-  MA 02110-1301, USA.
+	You should have received a copy of the GNU General Public License
+	along with this program; if not, write to the Free Software
+	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+	MA 02110-1301, USA.
 
 ***************************************************************************/
 
@@ -54,7 +54,7 @@ void SUBR_is_type(ushort code)
 
 	//VALUE_conv_string(PARAM);
 	SUBR_get_string_len(PARAM, &addr, &len);
-	VALUE_from_string(&temp, addr, len);
+	VALUE_from_local_string(&temp, addr, len);
 
 	goto *jump[code];
 
@@ -105,145 +105,152 @@ __END:
 /*
 void SUBR_conv(ushort code)
 {
-  VALUE_convert(SP - 1, code & 0x3F);
+	VALUE_convert(SP - 1, code & 0x3F);
 }
 */
 
 void SUBR_type(ushort code)
 {
-  TYPE type;
+	TYPE type;
 	int val;
+	CLASS *class;
 
-  SUBR_ENTER_PARAM(1);
+	SUBR_ENTER_PARAM(1);
 
 	if (code & 0x3F)
 	{
-		val = TYPE_sizeof_memory(SUBR_get_integer(PARAM));
+		if (PARAM->type == T_CLASS)
+		{
+			class = PARAM->_class.class;
+			val = CLASS_sizeof(class) - (class->size - class->off_event);
+		}
+		else
+			val = TYPE_sizeof_memory(SUBR_get_integer(PARAM));
 	}
 	else
-  {
+	{
 		type = PARAM->type;
 		if (type == T_VARIANT)
 			type = PARAM->_variant.vtype;
 
-    if (type == T_CSTRING)
-      val = T_STRING;
-    else if (TYPE_is_object(type) && type != T_NULL)
-      val = T_OBJECT;
-    else
+		if (type == T_CSTRING)
+			val = T_STRING;
+		else if (TYPE_is_object(type) && type != T_NULL)
+			val = T_OBJECT;
+		else
 			val = type;
-  }
+	}
 
-  RETURN->_integer.value = val;
-  RETURN->type = T_INTEGER;
+	RETURN->_integer.value = val;
+	RETURN->type = T_INTEGER;
 
-  SUBR_LEAVE();
+	SUBR_LEAVE();
 }
 
 
 void SUBR_str(void)
 {
-  char *addr;
-  int len;
+	char *addr;
+	int len;
 
-  SUBR_ENTER_PARAM(1);
+	SUBR_ENTER_PARAM(1);
 
-  VALUE_to_string(PARAM, &addr, &len);
-  STRING_new_temp_value(RETURN, addr, len);
+	VALUE_to_local_string(PARAM, &addr, &len);
+	STRING_new_temp_value(RETURN, addr, len);
 
-  SUBR_LEAVE();
+	SUBR_LEAVE();
 }
 
 
 void SUBR_val(void)
 {
-  char *addr;
-  int len;
+	char *addr;
+	int len;
 
-  SUBR_ENTER_PARAM(1);
+	SUBR_ENTER_PARAM(1);
 
-  if (SUBR_check_string(PARAM))
+	if (SUBR_check_string(PARAM))
 		VALUE_null(RETURN);
 	else
 	{
 		VALUE_get_string(PARAM, &addr, &len);
-		VALUE_from_string(RETURN, addr, len);
+		VALUE_from_local_string(RETURN, addr, len);
 		VALUE_conv_variant(RETURN);
 	}
 
-  SUBR_LEAVE();
+	SUBR_LEAVE();
 }
 
 
 void SUBR_format(ushort code)
 {
-  int fmt_type;
-  char *format = NULL;
-  int len = 0;
-  DATE_SERIAL *date;
-  char *str;
-  int len_str;
+	int fmt_type;
+	char *format = NULL;
+	int len = 0;
+	DATE_SERIAL *date;
+	char *str;
+	int len_str;
 
-  SUBR_ENTER();
+	SUBR_ENTER();
 
-  if (NPARAM == 1)
-    fmt_type = LF_STANDARD;
-  else
-  {
+	if (NPARAM == 1)
+		fmt_type = LF_STANDARD;
+	else
+	{
 		if (PARAM[1].type == T_VARIANT)
 			VARIANT_undo(&PARAM[1]);
 
-    if (TYPE_is_string(PARAM[1].type))
-    {
-      fmt_type = LF_USER;
-      VALUE_get_string(&PARAM[1], &format, &len);
+		if (TYPE_is_string(PARAM[1].type))
+		{
+			fmt_type = LF_USER;
+			VALUE_get_string(&PARAM[1], &format, &len);
 			if (!len)
 				fmt_type = LF_STANDARD;
-    }
-    else if (TYPE_is_integer(PARAM[1].type))
-    {
-      fmt_type = PARAM[1]._integer.value;
+		}
+		else if (TYPE_is_integer(PARAM[1].type))
+		{
+			fmt_type = PARAM[1]._integer.value;
 			if (fmt_type <= LF_USER || fmt_type >= LF_MAX)
 				THROW(E_ARG);
-    }
-    else
-      THROW_TYPE(T_INTEGER, PARAM[1].type);
-  }
+		}
+		else
+			THROW_TYPE(T_INTEGER, PARAM[1].type);
+	}
 
 	if (PARAM->type == T_VARIANT)
 		VARIANT_undo(PARAM);
 
-  if (PARAM->type == T_DATE)
-  {
-    date = DATE_split(PARAM);
-    if (LOCAL_format_date(date, fmt_type, format, len, &str, &len_str))
-      THROW(E_FORMAT);
-  }
-  else
-  {
-    VALUE_conv_float(PARAM);
-    if (LOCAL_format_number(PARAM->_float.value, fmt_type, format, len, &str, &len_str, TRUE))
-      THROW(E_FORMAT);
-  }
+	if (PARAM->type == T_DATE)
+	{
+		date = DATE_split(PARAM);
+		if (LOCAL_format_date(date, fmt_type, format, len, &str, &len_str))
+			THROW(E_FORMAT);
+	}
+	else
+	{
+		VALUE_conv_float(PARAM);
+		if (LOCAL_format_number(PARAM->_float.value, fmt_type, format, len, &str, &len_str, TRUE))
+			THROW(E_FORMAT);
+	}
 
-  /*if (NPARAM >= 2)
-    RELEASE_STRING(&PARAM[1]);*/
+	/*if (NPARAM >= 2)
+		RELEASE_STRING(&PARAM[1]);*/
 
-  STRING_new_temp_value(RETURN, str, len_str);
+	STRING_new_temp_value(RETURN, str, len_str);
 
-  SUBR_LEAVE();
+	SUBR_LEAVE();
 }
 
 
 void SUBR_hex_bin(ushort code)
 {
-  int prec = 0;
-  int base;
-  int max_prec;
+	int prec = 0;
+	int base;
+	int max_prec;
 
-  SUBR_ENTER();
+	SUBR_ENTER();
 
-  VALUE_conv(PARAM, T_LONG);
+	VALUE_conv(PARAM, T_LONG);
 
 	switch(code >> 8)
 	{
@@ -251,12 +258,12 @@ void SUBR_hex_bin(ushort code)
 			base = 2;
 			max_prec = 64;
 			break;
-			
+
 		case CODE_HEX:
 			base = 16;
 			max_prec = 16;
 			break;
-			
+
 		default:
 			if (NPARAM == 0) // Compatibility with 2010 bytecode
 			{
@@ -268,19 +275,17 @@ void SUBR_hex_bin(ushort code)
 			break;
 	}
 
-  if (NPARAM == 2)
-  {
-    VALUE_conv_integer(&PARAM[1]);
+	if (NPARAM == 2)
+	{
+		VALUE_conv_integer(&PARAM[1]);
 
-    prec = PARAM[1]._integer.value;
+		prec = PARAM[1]._integer.value;
 
-    if (prec < 1 || prec > max_prec)
-      THROW(E_ARG);
-  }
+		if (prec < 1 || prec > max_prec)
+			THROW(E_ARG);
+	}
 
-  NUMBER_int_to_string(PARAM->_long.value, prec, base, RETURN);
+	NUMBER_int_to_string(PARAM->_long.value, prec, base, RETURN);
 
-  SUBR_LEAVE();
+	SUBR_LEAVE();
 }
-
-

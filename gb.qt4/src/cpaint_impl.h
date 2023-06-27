@@ -2,7 +2,7 @@
 
   cpaint_impl.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -49,7 +49,7 @@ void PAINT_clip(int x, int y, int w, int h);
 class MyPaintEngine: public QPaintEngine
 {
 public:
-	MyPaintEngine();
+	explicit MyPaintEngine();
   virtual ~MyPaintEngine();
 
 	virtual bool begin(QPaintDevice *pdev);
@@ -78,7 +78,7 @@ public:
 class MyPaintDevice: public QPaintDevice
 {
 public:
-	MyPaintDevice();
+	explicit MyPaintDevice();
 	virtual QPaintEngine *paintEngine() const;
 	
 protected:

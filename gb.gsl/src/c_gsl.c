@@ -34,7 +34,7 @@ MA 02110-1301, USA.
 	Number testing functions
 --------------------------------*/
 
-BEGIN_METHOD(GSL_ISNAN, GB_FLOAT x;)
+BEGIN_METHOD(Gsl_IsNan, GB_FLOAT x;)
 		// This function returns 1 if x is not-a-number.
 		// Call GSL Function int gsl_isnan(const double x)
 		int c;
@@ -46,7 +46,7 @@ BEGIN_METHOD(GSL_ISNAN, GB_FLOAT x;)
 END_METHOD
 
 
-BEGIN_METHOD(GSL_ISINF, GB_FLOAT x;)
+BEGIN_METHOD(Gsl_IsInf, GB_FLOAT x;)
 		// This function returns +1 if x is positive infinity,
 		// -1 if x is negative infinity and 0 otherwise.
 		// Call GSL Function int gsl_isinf(const double x)
@@ -59,7 +59,7 @@ BEGIN_METHOD(GSL_ISINF, GB_FLOAT x;)
 END_METHOD
 
 
-BEGIN_METHOD(GSL_ISFINITE, GB_FLOAT x;)
+BEGIN_METHOD(Gsl_IsFinite, GB_FLOAT x;)
 		// This function returns 1 if x is a real number,
 		// and -1 if it is infinite or not-a-number.
 		// Call GSL Function int gsl_isfinite(const double x)
@@ -72,7 +72,7 @@ BEGIN_METHOD(GSL_ISFINITE, GB_FLOAT x;)
 END_METHOD
 
 
-BEGIN_METHOD(GSL_FCMP, GB_FLOAT x; GB_FLOAT y; GB_FLOAT e;)
+BEGIN_METHOD(Gsl_Fcmp, GB_FLOAT x; GB_FLOAT y; GB_FLOAT e;)
 		// Function: int gsl_fcmp (double x, double y, double epsilon)
 		// This function determines whether x and y are approximately
 		// equal to a relative accuracy epsilon.
@@ -95,7 +95,7 @@ END_METHOD
 Elementary Functions
 -----------------------------------------------*/
 
-BEGIN_METHOD(GSL_LOG1P, GB_FLOAT x;)
+BEGIN_METHOD(Gsl_Log1p, GB_FLOAT x;)
 		// This function computes the value of \log(1+x)
 		// in a way that is accurate for small x.
 		// Call GSL Function int gsl_isnan(const double x)
@@ -104,7 +104,7 @@ BEGIN_METHOD(GSL_LOG1P, GB_FLOAT x;)
 END_METHOD
 
 
-BEGIN_METHOD(GSL_EXPM1, GB_FLOAT x;)
+BEGIN_METHOD(Gsl_Expm1, GB_FLOAT x;)
 		// This function computes the value of \exp(x)-1
 		// in a way that is accurate for small x.
 		GB.ReturnFloat(gsl_expm1 (VARG(x)));
@@ -112,7 +112,7 @@ BEGIN_METHOD(GSL_EXPM1, GB_FLOAT x;)
 END_METHOD
 
 
-BEGIN_METHOD(GSL_HYPOT, GB_FLOAT x; GB_FLOAT y;)
+BEGIN_METHOD(Gsl_Hypot, GB_FLOAT x; GB_FLOAT y;)
 		// This function computes the value of
 		// \sqrt{x^2 + y^2} in a way that avoids overflow.
 		// Call GSL function double gsl_hypot (const double x, const double y)
@@ -121,7 +121,7 @@ BEGIN_METHOD(GSL_HYPOT, GB_FLOAT x; GB_FLOAT y;)
 END_METHOD
 
 
-BEGIN_METHOD(GSL_HYPOT3, GB_FLOAT x; GB_FLOAT y; GB_FLOAT z;)
+BEGIN_METHOD(Gsl_Hypot3, GB_FLOAT x; GB_FLOAT y; GB_FLOAT z;)
 		// This function computes the value of \sqrt{x^2 + y^2 + z^2}
 		// in a way that avoids overflow.
 		// Call GSL function double gsl_hypot3 (const double x, const double y, const double z)
@@ -130,29 +130,41 @@ BEGIN_METHOD(GSL_HYPOT3, GB_FLOAT x; GB_FLOAT y; GB_FLOAT z;)
 
 END_METHOD
 
+/*static void Gsl_Hypot3(ushort code, GB_VALUE *sp)
+{
+	int nparam = code & 0x3F;
+	GB_VALUE *param = (sp - nparam);
+	
+	if (param[0].type != GB_T_FLOAT) GB.Conv(&param[0], GB_T_FLOAT);
+	if (param[1].type != GB_T_FLOAT) GB.Conv(&param[1], GB_T_FLOAT);
+	if (param[2].type != GB_T_FLOAT) GB.Conv(&param[2], GB_T_FLOAT);
+	
+	param[0]._float.value = gsl_hypot3(param[0]._float.value, param[1]._float.value, param[2]._float.value);
+}*/
 
-BEGIN_METHOD(GSL_ACOSH, GB_FLOAT x;)
+
+BEGIN_METHOD(Gsl_Acosh, GB_FLOAT x;)
 		// This function computes the value of \arccosh(x).
 		// It provides an alternative to the standard math function acosh(x).
 		GB.ReturnFloat(gsl_acosh(VARG(x)));
 
 END_METHOD
 
-BEGIN_METHOD(GSL_ASINH, GB_FLOAT x;)
+BEGIN_METHOD(Gsl_Asinh, GB_FLOAT x;)
 		// Function: double gsl_asinh (const double x)
 		// This function computes the value of arcsinh(x).
 		// It provides an alternative to the standard math function asinh(x).
 		GB.ReturnFloat(gsl_asinh(VARG(x)));
 END_METHOD
 
-BEGIN_METHOD(GSL_ATANH, GB_FLOAT x;)
+BEGIN_METHOD(Gsl_Atanh, GB_FLOAT x;)
 		// Function: double gsl_atanh (const double x)
 		// This function computes the value of \arctanh(x).
 		// It provides an alternative to the standard math function atanh(x).
 		GB.ReturnFloat(gsl_atanh(VARG(x)));
 END_METHOD
 
-BEGIN_METHOD(GSL_LDEXP, GB_FLOAT x; GB_INTEGER e;)
+BEGIN_METHOD(Gsl_Ldexp, GB_FLOAT x; GB_INTEGER e;)
 		// Function: double gsl_ldexp (double x, int e)
 		// This function computes the value of x * 2^e.
 		// It provides an alternative to the standard math function ldexp(x,e).
@@ -160,7 +172,7 @@ BEGIN_METHOD(GSL_LDEXP, GB_FLOAT x; GB_INTEGER e;)
 END_METHOD
 
 
-BEGIN_METHOD(GSL_FREXP, GB_FLOAT x;)
+BEGIN_METHOD(Gsl_Frexp, GB_FLOAT x;)
 	// Function: double gsl_frexp (double x, int * e)
 	// This function splits the number x into its normalized 
 	// fraction f and exponent e, such that x = f * 2^e and
@@ -258,26 +270,26 @@ END_METHOD
 /**************************************************
 	Describe Class properties and methods to Gambas
 **************************************************/
-GB_DESC CGslDesc[] =
+GB_DESC GslDesc[] =
 {
-		GB_DECLARE("GSL",0), GB_NOT_CREATABLE(),
+		GB_DECLARE("Gsl",0), GB_NOT_CREATABLE(),
 
 		// Number testing functions
-		GB_STATIC_METHOD("IsNan", "b", GSL_ISNAN, "(X)f"),
-		GB_STATIC_METHOD("IsInf", "i", GSL_ISINF, "(X)f"),
-		GB_STATIC_METHOD("IsFinite", "b", GSL_ISFINITE, "(X)f"),
-		GB_STATIC_METHOD("Fcmp", "i", GSL_FCMP, "(X)f(Y)f(E)f"),
+		GB_STATIC_METHOD("IsNan", "b", Gsl_IsNan, "(X)f"),
+		GB_STATIC_METHOD("IsInf", "i", Gsl_IsInf, "(X)f"),
+		GB_STATIC_METHOD("IsFinite", "b", Gsl_IsFinite, "(X)f"),
+		GB_STATIC_METHOD("Fcmp", "i", Gsl_Fcmp, "(X)f(Y)f(E)f"),
 
 		// Elementary Functions
-		GB_STATIC_METHOD("Log1p", "f", GSL_LOG1P, "(X)f"),
-		GB_STATIC_METHOD("Expm1", "f", GSL_EXPM1, "(X)f"),
-		GB_STATIC_METHOD("Hypot", "f", GSL_HYPOT, "(X)f(Y)f"),
-		GB_STATIC_METHOD("Hypot3", "f", GSL_HYPOT3, "(X)f(Y)f(Z)f"),
-		GB_STATIC_METHOD("Acosh", "f", GSL_ACOSH, "(X)f"),
-		GB_STATIC_METHOD("Asinh", "f", GSL_ASINH, "(X)f"),
-		GB_STATIC_METHOD("Atanh", "f", GSL_ATANH, "(X)f"),
-		GB_STATIC_METHOD("Ldexp", "f", GSL_LDEXP, "(X)f(E)i"),
-		GB_STATIC_METHOD("Frexp", "Float[]", GSL_FREXP, "(X)f"),
+		GB_STATIC_METHOD("Log1p", "f", Gsl_Log1p, "(X)f"),
+		GB_STATIC_METHOD("Expm1", "f", Gsl_Expm1, "(X)f"),
+		GB_STATIC_METHOD("Hypot", "f", Gsl_Hypot, "(X)f(Y)f"),
+		GB_STATIC_METHOD("Hypot3", "f", Gsl_Hypot3, "(X)f(Y)f(Z)f"),
+		GB_STATIC_METHOD("Acosh", "f", Gsl_Acosh, "(X)f"),
+		GB_STATIC_METHOD("Asinh", "f", Gsl_Asinh, "(X)f"),
+		GB_STATIC_METHOD("Atanh", "f", Gsl_Atanh, "(X)f"),
+		GB_STATIC_METHOD("Ldexp", "f", Gsl_Ldexp, "(X)f(E)i"),
+		GB_STATIC_METHOD("Frexp", "Float[]", Gsl_Frexp, "(X)f"),
 
 		// Return x^y using a small int safe method
 		/*GB_STATIC_METHOD("IntPow", "f", GSL_INTPOW, "(X)f(I)i"),

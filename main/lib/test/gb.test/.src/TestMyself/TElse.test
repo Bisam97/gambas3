@@ -1,0 +1,31 @@
+' Gambas test file
+
+Public Sub NoMessage()
+
+    'There is no message
+    Test.Plan(1)
+    Assert.Ok(True)
+
+End
+
+Public Sub NoMessageInbetween()
+
+    Test.Plan(4)
+    Assert.Ok(True, "TestNoMessageInbetween Assert 1 description defined")
+    Assert.Ok(True)
+    Assert.Ok(True, "Assert 3 description defined")
+    Assert.Ok(True)
+
+End
+
+Public Sub Note()
+
+    Test.Note("This\nis\na\nnote")
+    Test.Plan(0)
+    Test.Note("The next note is Null and that's alright:")
+    Test.Note(Null)
+    Test.SkipAll("This doesn't actually assert anything")
+
+End
+
+

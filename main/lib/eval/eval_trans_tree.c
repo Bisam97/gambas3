@@ -2,7 +2,7 @@
 
   eval_trans_tree.c
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -362,7 +362,7 @@ static void analyze_call()
 
 		check_last_first(1);
 	}
-	else if (PATTERN_is_string(last_pattern) || PATTERN_is_number(last_pattern))
+	else if (PATTERN_is_string(last_pattern) || PATTERN_is_integer(last_pattern) || PATTERN_is_number(last_pattern))
 		THROW(E_SYNTAX);
 
 	/* N.B. Le cas où last_pattern = "." n'a pas de test spécifique */

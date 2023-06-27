@@ -2,7 +2,7 @@
 
   CSlider.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,19 +24,21 @@
 #ifndef __CSLIDER_H
 #define __CSLIDER_H
 
-#include "gambas.h"
-#include "CWidget.h"
 #include <QSlider>
 #include <QResizeEvent>
 
+#include "gambas.h"
+
+#include "CWidget.h"
+
 #ifndef __CSLIDER_CPP
 
-extern GB_DESC CSliderDesc[];
+extern GB_DESC SliderDesc[];
 
 #else
 
 #define THIS    ((CSLIDER *)_object)
-#define WIDGET  ((QSlider *)((QT_WIDGET *)_object)->widget)
+#define WIDGET  ((MySlider *)((QT_WIDGET *)_object)->widget)
 
 #endif
 
@@ -52,7 +54,8 @@ class MySlider : public QSlider
 
 public:
 
-  MySlider(QWidget *);
+  explicit MySlider(QWidget *);
+	void updateOrientation();
 
 protected:
 

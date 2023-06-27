@@ -1,0 +1,627 @@
+' Gambas module file
+
+Export
+
+Fast
+
+Private $sGrep As String
+Private sSearch As New String[]
+
+Private arr As New Integer[2, 2]
+Public hFormForEvent As New TestClass3
+
+Private iTestAndIf As Integer = 0
+Private iseek As Integer
+
+Private hCrash2 As New ChildClass
+Public hChild As New ChildClass
+
+Public timo As Integer
+
+Public Const gDay As Integer = 739992
+Public Const gHour As Integer = 30833
+
+Public Const bbb As Integer = 50
+Public bArray As New Boolean[100]
+
+Fast Private Sub VoidFn()
+
+End
+
+Fast Public Sub Func1(Optional i As Integer = arr[0, 0])
+
+End
+
+Fast Public Function Test(Optional n As Integer) As Integer
+
+    Return 10 + n
+
+End
+
+Fast Public Function Func2(Optional i As Integer = Test()) As Integer
+
+    Return i
+
+End
+
+Fast Sub CrashMe()
+
+    Dim x As Collection = ["a": Object]
+
+End
+
+Private Sub Ploo()
+
+    Dim ii As Integer
+    Dim hFile As File
+
+    File.Save("/tmp/TEST", "")
+
+    hFile = Open "/tmp/TEST"
+
+    ii = Read #hFile As Integer
+
+    hFile.Close
+
+    Kill "/tmp/TEST"
+
+End
+
+Public Sub Ploo2(hFileArg As File)
+
+    Dim ii As Integer
+
+    Seek #hFileArg, iseek
+    ii = Read #hFileArg As Integer
+    Inc iseek
+
+End
+
+' Private Sub Ploo2()
+'
+'  Dim ii As Integer
+'  Dim bDone As Boolean = Exist("/tmp/TEST")
+'
+'  If bDone = False Then
+'   File.Save("/tmp/TEST", "1234")
+'   hFile2 = Open "/tmp/TEST"
+'  Endif
+'
+'  ii = Read #hFile2 As Integer
+'
+'  If bDone = True Then
+'   hFile2.Close
+'   Kill "/tmp/TEST"
+'  Endif
+'
+' End
+
+' Fast Public Sub Process_Read()
+'
+'   Dim sTmp As String = Read #hProcess, 1
+'
+'   sTest &= sTmp
+'
+' End
+
+Fast Public Function OptArg(Optional x As Integer = OptArg(1)) As Integer
+
+    Return 1
+
+End
+
+Fast Public Function OptArgII(Optional x As Integer = 1 / 0) As Integer
+
+    Return 1
+
+End
+
+Fast Public Function ArgumentTest(a1 As Integer, a2 As Integer, a3 As Integer, a4 As Integer, a5 As Integer, a6 As Integer, a7 As Integer, a8 As Integer, a9 As Integer, a10 As Integer, a11 As Integer, a12 As Integer, a13 As Integer, a14 As Integer, a15 As Integer, a16 As Integer, a17 As Integer, a18 As Integer, a19 As Integer, a20 As Integer, a21 As Integer, a22 As Integer, a23 As Integer, a24 As Integer, a25 As Integer, a26 As Integer, a27 As Integer, a28 As Integer, a29 As Integer, a30 As Integer, Optional a31 As Integer = ArgumentTest(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 0)) As Integer
+
+    Return a1 + a2 + a3 + a4 + a5 + a6 + a7 + a8 + a9 + a10 + a11 + a12 + a13 + a14 + a15 + a16 + a17 + a18 + a19 + a20 + a21 + a22 + a23 + a24 + a25 + a26 + a27 + a28 + a29 + a30
+
+End
+
+Fast Public Function TestAndIf() As Integer
+
+    iTestAndIf = 1
+    Return 0
+
+End
+
+Fast Public Function TheLoop(nn As Integer) As Boolean
+
+    Dim ii As Integer
+
+    For ii = Choose(nn, 10, 1) To Choose(nn, 1, 10) Step Choose(nn, -1, 1)
+
+        If ii <= 0 Then Return False
+
+        If ii = 1 And nn = 1 Then
+            If TheLoop(2) = False Then
+                Return False
+            Endif
+        Endif
+
+    Next
+
+    Return True
+
+End
+
+'' Test
+Public Sub CrashFunction(Optional a As Integer, ...)
+
+End
+
+'' Testing testing
+'' =======
+'' Test
+Fast Public Sub CrashSub()
+
+    Dim ii As Integer
+    Dim jj As Integer
+
+    With [1]
+        For ii = 1 To 2
+            GoSub lbl
+        Next
+    End With
+
+    Return
+
+lbl:
+    Inc jj
+
+Catch
+    Print "Catching";; Error.Text
+    Return
+
+End
+
+Fast Public Function TestErrorManagment(iWhich As Integer) As Integer
+
+    Dim iError As Integer
+
+    If iWhich = 1 Then
+        iError = 1 / 0
+    Else
+        iError = 20
+    Endif
+
+    Inc iError
+
+Finally
+    Inc iError
+    Return iError
+
+Catch
+    iError = 3
+
+End
+
+Fast Public Function TestErrorManagment2(iWhich As Integer) As Integer
+
+    Dim iError As Integer
+
+    Try iError = 1
+    If Error Then Return 1
+
+    If iWhich = 1 Then
+        Try iError = 1 / 0
+    Else
+        Try iError = 20
+    Endif
+
+    If Error Then Return 2
+
+    Return 3
+
+End
+
+Fast Public Function TestErrorManagment3(iWhich As Integer) As Integer
+
+    Dim iError As Integer
+
+    If iWhich = 1 Then
+        iError = 1 / 0
+    Else
+        iError = 20
+    Endif
+
+    Inc iError
+    Return iError
+
+Catch
+    Return 3
+
+End
+
+' Private Sub Grep_Read()
+'
+'   Dim sData As String
+'
+'   sData = Read #Last, Lof(Last)
+'   $sGrep = sData
+'
+' End
+
+Fast Public Sub TestTester() As Boolean
+
+    Dim aGrep As String[]
+    Dim sTemp As String
+    Dim sText As String
+    Dim sTmp As String
+    Dim sArr As String
+    Dim bTmp As Boolean
+    Dim n As Integer
+    Dim sMissing As String
+    Dim good As Boolean = False
+
+    sText = File.Load(Application.Path &/ ".src" &/ "Tests" &/ "GambasSelftests.test")
+
+    InitSearch()
+
+    sTemp = Temp$("grep")
+    File.Save(sTemp, sText)
+
+    For n = 0 To sSearch.Max
+        'aGrep = ["grep", "-nosiwF", "-m", "1", "--", sSearch[n], sTemp]
+        aGrep = ["grep", "-siwF", "-m", "1", "--", sSearch[n], sTemp]
+        Exec aGrep To $sGrep
+
+        If $sGrep = "" Then
+            sMissing &= sSearch[n] & gb.NewLine
+        Else If Left$($sGrep, 1) = "'" Then
+
+            aGrep = ["grep", "-siwF", "--", sSearch[n], sTemp]
+            Exec aGrep To $sGrep
+            bTmp = False
+            For Each sTmp In Split($sGrep, gb.NewLine)
+                If sTmp Then
+                    If Left$(sTmp, 1) <> "'" Then
+                        bTmp = True
+                        Break
+                    Endif
+                Endif
+            Next
+
+            If bTmp = False Then
+                sMissing &= sSearch[n] & gb.NewLine
+            Endif
+
+        Endif
+    Next
+
+    Kill sTemp
+
+    If sMissing = "EndOf" & "ThisList" & gb.NewLine Then
+        good = True
+    Else
+        ' Debug Split(sMissing, gb.NewLine).Count
+        sMissing = ("These key words are missing from test:") & gb.NewLine & sMissing
+        Test.Note(sMissing)
+        'Message.Warning(sMissing)
+        good = False
+    Endif
+
+    Return good
+
+End
+
+Fast Public Function ArrayBoundsTest(iMyArray1 As Object, iMyArray2 As Integer[], iMyArray3 As Float[], iMyArray4 As Boolean[]) As Integer[]
+
+    ' Debug gb.Integer
+    ' Debug TypeOf(iMyArray1.Bounds.Count);; TypeOf(iMyArray2.Bounds.Count);; TypeOf(iMyArray3.Bounds.Count);; TypeOf(iMyArray4.Bounds.Count)
+    ' Debug [iMyArray1.Bounds.Count, iMyArray2.Bounds.Count, iMyArray3.Bounds.Count, iMyArray4.Bounds.Count]
+
+    Return [iMyArray1.Bounds.Count, iMyArray2.Bounds.Count, iMyArray3.Bounds.Count, iMyArray4.Bounds.Count]
+
+End
+
+Fast Private Sub InitSearch()
+
+    Dim sTmp As String
+
+    sTmp = File.Load("SearchList")
+
+    sSearch = Split(sTmp, gb.NewLine)
+
+End
+
+Fast Public Sub Main()
+
+    Print ("This is the Gambas Selftest. To run it in the IDE hit F4.")
+
+    '  Dim iResult As Integer = GambasSelftests.FastTests()
+    '
+    '   If TestClass2.iEventTest <> -1 Then
+    '     Errors.Add(System.Backtrace[0])
+    '   Endif
+    '
+    '   hFormForEvent.RaiseEvent()
+    '
+    '   If TestClass2.iEventTest <> 12345 Then
+    '     Errors.Add(System.Backtrace[0])
+    '   Endif
+    '
+    ' Print "Test took " & CStr(Timer - fTime) & " s to run."
+    '
+    ' If iResult = 0 And Errors.Max = 0 And Errors[0] = "Test" Then
+    '   Inform(("Test passed!"))
+    '   Quit 0
+    ' Else
+    '   Errors.Remove(0)
+    '   Inform(("ERRORS: ") & gb.NewLine & Errors.Join(gb.NewLine))
+    ' Endif
+
+    Quit 1
+
+End
+
+Public Sub CrashJIT1(Optional s As String = "a")
+
+End
+
+Public Sub CrashJIT2(Optional o As Object = Null)
+
+End
+
+Public Sub CrashJIT3(Optional v As Variant = 1)
+
+End
+
+Private Function CJ3(Optional v As Variant = Null, s As String = ("b"), v2 As Variant = ["1"], o As Object = ["a", "b", "c"]) As Object
+
+    Return v2
+
+End
+
+Private Function CJ2(Optional v As Variant = CJ3(), Optional b As Boolean = True) As Object
+
+    If v[0] = "1" Then
+        Return [1, 2, 3]
+    Else
+        Print 1 / 0
+    Endif
+
+End
+
+Private Function CJ1(Optional o As Object = CJ2(), Optional b As Boolean = False) As String
+
+    If o Is Array Then
+        Return "TEST"
+    Else
+        Print 1 / 0
+    Endif
+
+End
+
+Public Function CrashJIT4(x As String, Optional s As String = CJ1(), Optional b As Boolean = True) As Byte
+
+    If s = "TEST" Then
+        Return 255
+    Else
+        Print 1 / 0
+    Endif
+
+End
+
+Public Function CrashJIT5() As Point
+
+    Dim oo As New Crash3
+    Dim ss As String[]
+
+    ss = Split("1,2,3,4,5,6", ",")
+    If ss.Count <> 6 Then
+        Print 1 / 0
+    Endif
+
+    Crash3(Null, Null)
+
+End
+
+Public Sub CrashJIT6(x As Integer, Optional b1 As Boolean = False, b2 As Boolean = False)
+
+End
+
+Public Sub CrashJIT7(o1 As BaseClass)
+
+    Dim ii As Integer = o1.x
+    Dim jj As Integer = o1.y.x
+
+End
+
+Public Function JITTest() As Boolean
+
+    Dim x As BaseClass = hCrash2
+    Dim bb As Boolean
+
+    Select x.x
+
+        Case 0
+            bb = JITTestOpt(x, hCrash2.b)
+
+    End Select
+
+    JITTestOpt2(x)
+
+    Return bb
+
+End
+
+Public Sub JITTestPublic()
+
+    Dim x As Object = hCrash2
+    Dim bb As Boolean
+
+    Select x.x
+
+        Case 0
+            JITTestOpt2(x)
+            bb = JITTestOpt(x, hCrash2.b)
+
+        Case 1
+            'Debug
+        Case -1
+            'Debug
+
+    End Select
+
+End
+
+Fast Private Sub JITTestOpt2(x As Object)
+
+    Dim ii, jj As Integer
+    Dim bb As Boolean
+
+    For ii = 0 To 100
+        For jj = 0 To 100
+            If Crash3(x, Point(ii, jj)) = False Then
+                bb = True
+            Endif
+        Next
+    Next
+
+    For ii = 0 To 100
+        For jj = 0 To 100
+            If Crash2(x, hCrash2) = False Then
+                bb = True
+            Endif
+        Next
+    Next
+
+    If bb = True Then
+        ii = 0
+        'Debug 1 / ii
+    Endif
+
+End
+
+Fast Public Function JITTestOpt(x As Object, Optional bBool As Boolean = False) As Boolean
+
+    Dim hCol As New Collection
+    Dim hObj As ChildClass
+    Dim hObj2 As BaseClass
+    Dim ii, jj As Integer
+    Dim tmpPic As Picture
+    Dim pic2 As New Picture(100, 100)
+    Dim var1 As Boolean[]
+    Dim var2 As New Integer[]
+
+    For ii = 1 To 100
+        hObj = New ChildClass
+        hCol.Add(hObj, ii)
+    Next
+
+    For ii = 0 To 100
+        For jj = 0 To 100
+            If Crash2(x, hObj) = False Then
+                Return False
+            Endif
+        Next
+    Next
+
+    With Draw
+
+        tmpPic = pic2.Copy()
+        .Begin(tmpPic)
+
+        If bBool = False Then
+
+            hObj = New ChildClass
+
+            For Each hObj In hCol
+
+                If x.x = 0 Then
+
+                    If hObj.x = 0 Then
+
+                        If Crash2(x, hObj) = False Then
+                            Return False
+                        Else
+                            'Return True
+                        Endif
+
+                        If Crash3(hObj2, hObj) = False Or Crash3(hObj, hObj2) = False Or Crash3(x, hObj) = False Or Crash3(x, hObj2) = False Then
+                            Return False
+                        Else
+                            'Return True
+                        Endif
+
+                    Else
+                        Return False
+                    Endif
+
+                Endif
+            Next
+
+        Endif
+
+        .End
+    End With
+
+    Return True
+
+End
+
+Public Function JITTestOnceMore() As Boolean
+
+    Dim x As Object = New Class5
+    Dim bb As Boolean
+
+    Select x.x
+
+        Case 0
+            Return JITTestOrTwice(x)
+
+        Case 1
+            'Debug
+        Case -1
+            'Debug
+
+    End Select
+
+End
+
+Public Function JITTestOrTwice(x As Object) As Boolean
+
+    Dim jj As Integer, ii As Integer
+    Dim bb As Boolean
+
+    For ii = 0 To 38
+        For jj = 0 To 38
+            If Crash3(x, POINT3D(ii, jj, 0)) = True Then
+                BB = True
+            Endif
+        Next
+    Next
+
+    Return bb
+
+End
+
+Public Sub JITTestBoolArray(a As String, b As Integer, c As Object, d As Object, Optional e As Boolean = True, Optional f As Boolean = False)
+
+    If bArray[b] = True Then
+    Endif
+
+    If IsNull(c) = False And If bArray[bbb] = True Then
+    Endif
+
+    If IsNull(d) = True And If bArray[bbb] = True Then
+    Endif
+
+    More(a, e, f)
+
+    Return
+
+End
+
+Public Sub More(a As String, Optional e As Boolean = True, Optional f As Boolean = False)
+
+    If e = False And f = False Then
+
+    Endif
+
+End

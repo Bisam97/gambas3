@@ -2,7 +2,7 @@
 
 	CSlider.cpp
 
-	(c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+	(c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -26,11 +26,7 @@
 #include "main.h"
 #include "gambas.h"
 
-#include <qapplication.h>
-#include <qslider.h>
-//Added by qt3to4:
-#include <QResizeEvent>
-
+#include "gb.form.const.h"
 #include "CWidget.h"
 #include "CSlider.h"
 
@@ -49,17 +45,27 @@ MySlider::MySlider(QWidget *parent)
 {
 }
 
+void MySlider::updateOrientation()
+{
+	CSLIDER *_object = (CSLIDER *)CWidget::get(this);
+	
+	if (!THIS->widget.flag.orientation)
+	{
+		if (width() >= height())
+			setOrientation(Qt::Horizontal);
+		else
+			setOrientation(Qt::Vertical);
+	}
+}
 
 void MySlider::resizeEvent(QResizeEvent *e)
 {
-	//CSCROLLVIEW *ob = (CSCROLLVIEW *)CWidget::get(this);
+	CSLIDER *_object = (CSLIDER *)CWidget::get(this);
 
 	QSlider::resizeEvent(e);
-
-	if (width() >= height())
-		setOrientation(Qt::Horizontal);
-	else
-		setOrientation(Qt::Vertical);
+	
+	if (!THIS->widget.flag.orientation)
+		WIDGET->updateOrientation();
 }
 
 
@@ -69,7 +75,7 @@ void MySlider::resizeEvent(QResizeEvent *e)
 
 ***************************************************************************/
 
-BEGIN_METHOD(CSLIDER_new, GB_OBJECT parent)
+BEGIN_METHOD(Slider_new, GB_OBJECT parent)
 
 	MySlider *wid = new MySlider(QCONTAINER(VARG(parent)));
 
@@ -94,7 +100,7 @@ BEGIN_METHOD(CSLIDER_new, GB_OBJECT parent)
 END_METHOD
 
 
-BEGIN_PROPERTY(CSLIDER_tracking)
+BEGIN_PROPERTY(Slider_Tracking)
 
 	if (READ_PROPERTY)
 		GB.ReturnBoolean(WIDGET->hasTracking());
@@ -131,7 +137,7 @@ BEGIN_PROPERTY(CSLIDER_orientation)
 END_PROPERTY
 */
 
-BEGIN_PROPERTY(CSLIDER_value)
+BEGIN_PROPERTY(Slider_Value)
 
 	if (READ_PROPERTY)
 		GB.ReturnInteger(WIDGET->value());
@@ -163,7 +169,7 @@ END_PROPERTY
 */
 
 
-BEGIN_PROPERTY(CSLIDER_mark)
+BEGIN_PROPERTY(Slider_Mark)
 
 	if (READ_PROPERTY)
 		GB.ReturnBoolean(WIDGET->tickPosition() != QSlider::NoTicks);
@@ -178,7 +184,7 @@ BEGIN_PROPERTY(CSLIDER_mark)
 END_PROPERTY
 
 
-BEGIN_PROPERTY(CSLIDER_minval)
+BEGIN_PROPERTY(Slider_MinValue)
 
 	if (READ_PROPERTY)
 		GB.ReturnInteger(WIDGET->minimum());
@@ -187,7 +193,7 @@ BEGIN_PROPERTY(CSLIDER_minval)
 
 END_PROPERTY
 
-BEGIN_PROPERTY(CSLIDER_maxval)
+BEGIN_PROPERTY(Slider_MaxValue)
 
 	if (READ_PROPERTY)
 		GB.ReturnInteger(WIDGET->maximum());
@@ -196,7 +202,7 @@ BEGIN_PROPERTY(CSLIDER_maxval)
 
 END_PROPERTY
 
-BEGIN_PROPERTY(CSLIDER_linestep)
+BEGIN_PROPERTY(Slider_LineStep)
 
 	if (READ_PROPERTY)
 		GB.ReturnInteger(WIDGET->singleStep());
@@ -205,7 +211,7 @@ BEGIN_PROPERTY(CSLIDER_linestep)
 
 END_PROPERTY
 
-BEGIN_PROPERTY(CSLIDER_pagestep)
+BEGIN_PROPERTY(Slider_PageStep)
 
 	if (READ_PROPERTY)
 		GB.ReturnInteger(WIDGET->pageStep());
@@ -217,12 +223,38 @@ BEGIN_PROPERTY(CSLIDER_pagestep)
 
 END_PROPERTY
 
+BEGIN_PROPERTY(Slider_Orientation)
 
-/***************************************************************************
+	if (READ_PROPERTY)
+	{
+		if (!THIS->widget.flag.orientation)
+			GB.ReturnInteger(ORIENTATION_AUTO);
+		else if (WIDGET->orientation() == Qt::Vertical)
+			GB.ReturnInteger(ORIENTATION_VERTICAL);
+		else
+			GB.ReturnInteger(ORIENTATION_HORIZONTAL);
+	}
+	else
+	{
+		switch(VPROP(GB_INTEGER))
+		{
+			case ORIENTATION_HORIZONTAL:
+				WIDGET->setOrientation(Qt::Horizontal);
+				THIS->widget.flag.orientation = true;
+				break;
+			case ORIENTATION_VERTICAL:
+				WIDGET->setOrientation(Qt::Vertical);
+				THIS->widget.flag.orientation = true;
+				break;
+			default:
+				THIS->widget.flag.orientation = false;
+				WIDGET->updateOrientation();
+		}
+	}
 
-	class CSlider
+END_PROPERTY
 
-***************************************************************************/
+//-------------------------------------------------------------------------
 
 CSlider CSlider::manager;
 
@@ -232,47 +264,22 @@ void CSlider::event_change(void)
 	GB.Raise(THIS, EVENT_Change, 0);
 }
 
-/*void CSlider::event_sliderpressed(void)
-{
-	void *object = QT.GetObject((QWidget *)sender());
-	GB.Raise(object, EVENT_SliderPressed, NULL);
-}*/
+//-------------------------------------------------------------------------
 
-/*void CSlider::event_slidermove(void)
-{
-	void *object = QT.GetObject((QWidget *)sender());
-	GB.Raise(object, EVENT_SliderMove, NULL);
-}*/
-
-/*
-void CSlider::event_sliderreleased(void)
-{
-	void *object = QT.GetObject((QWidget *)sender());
-	GB.Raise(object, EVENT_SliderReleased, NULL);
-}
-*/
-
-GB_DESC CSliderDesc[] =
+GB_DESC SliderDesc[] =
 {
 	GB_DECLARE("Slider", sizeof(CSLIDER)), GB_INHERITS("Control"),
 
-	GB_METHOD("_new", NULL, CSLIDER_new, "(Parent)Container;"),
+	GB_METHOD("_new", NULL, Slider_new, "(Parent)Container;"),
 
-	//GB_CONSTANT("NoMarks","i", QSlider::NoMarks),
-	//GB_CONSTANT("Both","i", QSlider::Both),
-	//GB_CONSTANT("AboveOrLeft","i", QSlider::Above), //when orientation is horizontal Above is valid, when Vertical Left
-	//GB_CONSTANT("BelowOrRight","i", QSlider::Below),
-	//GB_CONSTANT("Vertical","i", Qt::Vertical),
-	//GB_CONSTANT("Horizontal","i", Qt::Horizontal),
-	GB_PROPERTY("Tracking", "b", CSLIDER_tracking),
-	GB_PROPERTY("Value", "i", CSLIDER_value),
-	//GB_PROPERTY("MarkGap", "i", CSLIDER_tickinterval),
-	GB_PROPERTY("Mark", "b", CSLIDER_mark),
-	GB_PROPERTY("MinValue", "i", CSLIDER_minval),
-	GB_PROPERTY("MaxValue", "i", CSLIDER_maxval),
-	GB_PROPERTY("Step", "i", CSLIDER_linestep),
-	GB_PROPERTY("PageStep", "i", CSLIDER_pagestep),
-	//GB_PROPERTY("Orientation", "i<Slider,Vertical,Horizontal>", CSLIDER_orientation),
+	GB_PROPERTY("Tracking", "b", Slider_Tracking),
+	GB_PROPERTY("Value", "i", Slider_Value),
+	GB_PROPERTY("Mark", "b", Slider_Mark),
+	GB_PROPERTY("MinValue", "i", Slider_MinValue),
+	GB_PROPERTY("MaxValue", "i", Slider_MaxValue),
+	GB_PROPERTY("Step", "i", Slider_LineStep),
+	GB_PROPERTY("PageStep", "i", Slider_PageStep),
+	GB_PROPERTY("Orientation", "i", Slider_Orientation),
 
 	GB_EVENT("Change", NULL, NULL, &EVENT_Change),
 

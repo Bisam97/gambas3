@@ -4,6 +4,8 @@ Export
 Inherits UserControl
 
 Class Watch
+Class DesktopMime
+Class DesktopFile
 
 Public Const _Properties As String = "*,Border=True,Root,Picture,ShowHidden,HideRoot"
 Public Const _DefaultEvent As String = "Click"
@@ -25,10 +27,14 @@ Property Read Renaming As Boolean
 Property Settings As Variant[]
 Property HideRoot As Boolean
 
+Static Private $hRootPict As Picture
+Static Private $bDesktopIsLoaded As Boolean
+Static Private $cDesktopDirCache As Collection
+Static Private $bWatchIsLoaded As Boolean
+
 Private $sRoot As String
 Private $hTreeView As TreeView
 Private $bShowHidden As Boolean
-Private $hRootPict As Picture
 Private $hPict As Picture
 Private $bDeleteOnCancel As Boolean
 Private $bNoExpand As Boolean
@@ -38,22 +44,58 @@ Private $bInRename As Boolean
 Private $bHideRoot As Boolean
 
 Private $cWatch As Collection
-Private $bWatch As Boolean
 Private $hRefreshTimer As Timer
 Private $bRefreshTimerTriggered As Boolean
 Private $hWatcher As Watcher
 Private $bRefreshAfterRename As Boolean
 
+Static Private Sub AddDesktopIcon(sKey As String, sIcon As String)
+  
+  Dim sDir As String
+  
+  sDir = Desktop.GetDirectory(sKey)
+  If sDir Then $cDesktopDirCache[sDir] = sIcon
+  
+End
+
+
+Static Public Sub _CheckComponents()
+
+  $bDesktopIsLoaded = Component.IsLoaded("gb.desktop")
+  $bWatchIsLoaded = Component.IsLoaded("gb.inotify")
+  
+  If $bDesktopIsLoaded Then
+    If Not $cDesktopDirCache Then
+      $cDesktopDirCache = New Collection
+      
+      AddDesktopIcon("DESKTOP", "desktop")
+      AddDesktopIcon("DOWNLOAD", "folder-download")
+      AddDesktopIcon("DOCUMENTS", "folder-document")
+      AddDesktopIcon("MUSIC", "folder-music")
+      AddDesktopIcon("PICTURES", "folder-image")
+      AddDesktopIcon("VIDEOS", "folder-video")
+      AddDesktopIcon("PUBLICSHARE", "folder-share")
+      AddDesktopIcon("TEMPLATES", "folder-template")
+      
+      $cDesktopDirCache[User.Home] = "folder-home"
+      $cDesktopDirCache["/"] = "folder-root"
+      
+    Endif
+  Endif
+  
+End
+
 Public Sub _new()
 
-  $bWatch = Component.IsLoaded("gb.inotify")
-  If $bWatch Then $hWatcher = New Watcher(Me) As "Watcher"
+  _CheckComponents
+
+  If $bWatchIsLoaded Then $hWatcher = New Watcher(Me) As "Watcher"
   
   $hTreeView = New TreeView(Me) As "TreeView"
   $hTreeView.Editable = True
   $hTimerExpand = New Timer As "TimerExpand"
   Me.Proxy = $hTreeView
-  $hRootPict = Picture["icon:/small/directory"] 'open
+  If Not $hRootPict Then $hRootPict = Picture["icon:/small/directory"] 'open
   ClearView
   $hRefreshTimer = New Timer As "Refresh"
 
@@ -96,7 +138,7 @@ Private Sub ClearView()
   $bNoEvent = True
   $hTreeView.Clear
   
-  If $bWatch Then
+  If $bWatchIsLoaded Then
     If $cWatch Then $cWatch.Clear
   Endif
   
@@ -201,6 +243,7 @@ Public Sub TreeView_Expand()
   Dim sDir As String
   Dim sDelete As String
   Dim hCache As DirCache
+  Dim aDir As String[]
 
   If Not $hTreeView.Item Then Stop
 
@@ -208,7 +251,7 @@ Public Sub TreeView_Expand()
   
   sDir = $hTreeView.Item.Key
   
-  If $bWatch Then AddWatch(sDir)
+  If $bWatchIsLoaded Then AddWatch(sDir)
   
   If sDir = GetRoot() Then
     $hTreeView.Item.Picture = $hRootPict
@@ -226,10 +269,13 @@ Public Sub TreeView_Expand()
 
   hCache = DirCache[sDir]
   hCache.Lock
-  For Each sFile In hCache.GetFiles().Sort(gb.Natural + gb.IgnoreCase)
-    If Not hCache.IsDir(sFile) Then Continue
-    AddDir(sDir, sFile)
-  Next
+  Try aDir = hCache.GetFiles().Sort(gb.Natural + gb.IgnoreCase)
+  If Not Error Then
+    For Each sFile In aDir
+      If Not hCache.IsDir(sFile) Then Continue
+      AddDir(sDir, sFile)
+    Next
+  Endif
   hCache.Unlock
 
   If $hTreeView[sDir].Children = 0 Then
@@ -258,7 +304,7 @@ Public Sub TreeView_Collapse()
   Last.Item.Selected = True
   $bNoExpand = False
   
-  If $bWatch Then RemoveWatch(Last.Item.Key)
+  If $bWatchIsLoaded Then RemoveWatch(Last.Item.Key)
 
 End
 
@@ -460,13 +506,44 @@ Private Function Border_Read() As Boolean
 
 End
 
+Static Public Sub _GetIcon(sPath As String, iSize As Integer) As Picture
+  
+  Dim hDesktopFile As DesktopFile
+  Dim sIcon As String
+  
+  If Exist(sPath &/ ".directory") Then
+  
+    Try hDesktopFile = New DesktopFile(sPath &/ ".directory")
+    If Not Error Then
+      Try Return hDesktopFile.GetIcon(iSize).Picture
+    Endif
+    
+  Endif
+  
+  If $bDesktopIsLoaded Then
+    sIcon = $cDesktopDirCache[sPath]
+    If sIcon Then Return Picture["icon:/" & CStr(iSize) &/ sIcon]
+  Endif
+  
+End
+
 Private Function GetIcon(sPath As String) As Picture
 
-  If sPath = GetRoot() Then Return $hRootPict  
+  Dim hPict As Picture
+  
+  If sPath = GetRoot() Then Return $hRootPict
   $hPict = Null
   Try Raise Icon(sPath)
   If $hPict Then Return $hPict
-  Return Picture["icon:/small/directory"]
+  
+  If Not hPict And If $bDesktopIsLoaded Then
+    hPict = _GetIcon(sPath, Stock.GetSize("small"))
+  Endif
+  
+  If Not hPict Then hPict = Picture["icon:/small/directory"]
+
+  If Not Access(sPath, gb.Write) Then hPict = Main.AddEmblem(hPict, "lock")
+  Return hPict
   
 End
 
@@ -706,7 +783,7 @@ End
 Public Sub Watcher_Show()
   
   'Debug
-  If $bWatch And If Not $cWatch Then 
+  If $bWatchIsLoaded And If Not $cWatch Then 
     $cWatch = New Collection
     RefreshView
   Endif

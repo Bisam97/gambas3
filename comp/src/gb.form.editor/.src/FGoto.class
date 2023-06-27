@@ -1,0 +1,52 @@
+' Gambas class file
+
+Private Sub GetEditor() As TextEditor
+
+  Return Me.Parent.Parent
+
+End
+
+Public Sub Form_GotFocus()
+
+  With GetEditor()
+    spnLine.MinValue = 1
+    spnLine.MaxValue = .Count
+    lblCount.Text = Subst(("&1 lines"), Format(.Count, ",0"))
+  End With
+  
+  spnLine.W = spnLine.Font.TextWidth(String$(Len(CStr(spnLine.MaxValue)), "9")) + Desktop.Scale * 10
+
+  spnLine.SetFocus
+  spnLine.SelectAll()
+
+End
+
+Public Sub btnClose_Click()
+
+  Dim hEditor As TextEditor = GetEditor()
+  Me.Hide
+  hEditor.HighlightString("")
+  hEditor.SetFocus
+
+End
+
+Public Sub Form_KeyPress()
+
+  Select Case Key.Code
+    
+    Case Key.Escape 
+      
+      btnClose_Click
+      Stop Event
+    
+    Case Key.Enter, Key.Return
+      
+      GetEditor().GotoCenter(0, spnLine.Value - 1)
+      btnClose_Click
+      Stop Event
+    
+  End Select
+
+End
+
+

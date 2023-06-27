@@ -21,14 +21,12 @@ Private $bButton As Boolean
 Private $bIgnoreHide As Boolean
 Private $bIgnoreCancel As Boolean
 Private $bSort As Boolean
-Private $bDisableIntegratedHelp As Boolean
-Private $hWebView As WebView
 
 Private $iBgDefault As Integer
 Private $iBgSet As Integer
 Private $iBgModified As Integer
 
-Static Private $aFieldUseDelete As String[] = ["Font", "Picture", "String[]", "Path", "Color", "Field", "Fields", "Field[]", "Image", "WebImage", "SvgImage", "ReportCoord", "ReportPadding", "ReportMargin", "ReportBorder", "ReportBoxShadow", "ReportBrush", "Table", "WebCoord", "WebFont"]
+Static Private $aFieldUseDelete As String[] = ["Font", "Picture", "String[]", "Path", "Color", "Field", "Fields", "Field[]", "Image", "Animation", "WebImage", "SvgImage", "ReportCoord", "ReportPadding", "ReportMargin", "ReportBorder", "ReportBoxShadow", "ReportBrush", "Table", "WebCoord", "WebFont"]
 
 Private Const PADDING As Integer = 6
 Private $cInitialValue As Collection
@@ -73,7 +71,7 @@ Public Sub Form_Resize()
   '
   ' IF grdProperty.Columns.Count < 2 THEN RETURN
   '
-  iWidth = Min(128, grdProperty.ClientWidth \ 2)
+  iWidth = Min(Desktop.Scale * 20, grdProperty.ClientWidth \ 2)
   grdProperty.Columns[0].Width = iWidth
   grdProperty.Columns[1].Width = grdProperty.ClientWidth - iWidth - 4
   ' 'grdProperty.Columns.Width = 100 'ME.ClientWidth / 4
@@ -136,28 +134,32 @@ Public Sub RefreshAll()
     If sClass = "" Then
       $hObject = hCtrl
       sClass = hCtrl.Kind
-    Else If sClass <> hCtrl.Kind Then
+    Endif
+    
+    If sClass <> hCtrl.Kind Then
       bDiff = True
       Break
     Endif
 
   Next
 
-  If bDiff Then sClass = $hFamily.ControlClass
+  grdProperty.Enabled = Not $hObject.Locked
   
   UpdateLabel
 
-  $sClass = sClass
+  If bDiff Then 
+    sClass = $hFamily.ControlClass
+  Endif
+  
+  If $hObject.Locked Then
+    $sClass = $hObject.Kind
+  Else
+    $sClass = sClass
+  Endif
 
-  'If Not $bDisableIntegratedHelp Then
-  MHelp.InitWebViewWith($hWebView, MHelp.TYPE_CLASS, sClass,, "noimage")
-  'Endif
-
-  'PRINT "Kind = "; sClass
-  'cProp = CControl.PropertiesInOrder[sClass]
-  Try aProp = Project.Documentation.Classes[sClass].PropertyList
+  Try aProp = Project.Documentation.Classes[$sClass].PropertyList
   If Not aProp Then
-    Error "gambas3: cannot get property list of "; sClass
+    'Error "gambas3: cannot get property list of "; sClass
     aProp = New String[]
   Else
     '     sClassColor = sClass
@@ -170,12 +172,12 @@ Public Sub RefreshAll()
 
   grdProperty.Rows.Count = aProp.Count + 2
   grdProperty.Clear
-  grdProperty.Rows.Height = grdProperty.Font.Height + 6
+  grdProperty.Rows.Height = grdProperty.Font.Height + Desktop.Scale
 
   grdProperty.Columns.Count = 2
 
   grdProperty[iRow, 0].Text = "Class"
-  grdProperty[iRow, 1].Text = $hObject.Kind
+  grdProperty[iRow, 1].Text = $sClass
   grdProperty[iRow, 0].Padding = PADDING
 
   Inc iRow
@@ -240,40 +242,17 @@ Public Sub RefreshAll()
   ' Can be lesser than predicted, as some properties may be hidden
   grdProperty.Rows.Count = iRow
 
-  'grdProperty.Rows.Count = iRow
-
-  '   iRow = 3
-  '   WHILE aColor.Count
-  '     FOR iRow = iRow TO aColor[0] + 2
-  '       grdProperty[iRow, 0].
-  '     NEXT
-  '   WEND
-
-  ' FOR iRow = 0 TO grdProperty.Rows.Count - 1
-  '   grdProperty[iRow, 0].Font = grdProperty.Font
-  '   grdProperty[iRow, 0].Font.Bold = TRUE
-  '   grdProperty[iRow, 0].Alignment = Align.TopNormal
-  '   grdProperty[iRow, 1].Alignment = Align.TopNormal
-  ' NEXT
-
   Form_Resize
   panProperty.Show
   sepProperty.Show
-  'lblMessage.Hide
-  'lblMessage.Ignore = TRUE
-
-  'TODO save/restore last height
-  CheckIntegratedHelpSetting
 
   grdProperty.Show
   lblName.Show
-  'VSplit1.Show
 
   If Not $bMany Then
     FFormStack.SelectCurrent
   Endif
 
-  'If btnLock.Value Then
   If $sFocus Then
     iRow = FindProperty($sFocus)
     If iRow >= 0 Then
@@ -281,6 +260,8 @@ Public Sub RefreshAll()
       ShowProperty
     Endif
   Endif
+  
+  
 
   Return
 
@@ -295,7 +276,6 @@ Public Sub HideAll()
   HideProperty
   grdProperty.Hide
   lblName.Hide
-  spnHelp.Hide
   panProperty.Hide
   sepProperty.Hide
   'lblMessage.Show
@@ -323,6 +303,7 @@ Public Sub RefreshOne(hCtrl As CControl, sProp As String)
 
   If Not $bMany Then
     If $hObject <> hCtrl Then Return
+    If $hObject.Locked Then Return
   Endif
 
   If sProp = "Name" Then
@@ -341,11 +322,12 @@ Public Sub RefreshOne(hCtrl As CControl, sProp As String)
 
     If sVal = $cInitialValue[sProp] Then
       iBg = If(CControl.WasDefaultValue, $iBgDefault, $iBgSet)
-      grdProperty[iRow, 0].Font.Bold = True
+      'grdProperty[iRow, 0].Font.Bold = True
     Else
       iBg = $iBgModified
-      grdProperty[iRow, 0].Font.Bold = True
+      'grdProperty[iRow, 0].Font.Bold = True
     Endif
+    grdProperty[iRow, 0].Font.Bold = Not CControl.WasDefaultValue
     
     grdProperty[iRow, 0].Background = iBg
     grdProperty[iRow, 1].Background = iBg
@@ -367,7 +349,7 @@ Public Function SaveProperty() As Boolean
   Dim sOldVal As String
 
   If Not $hForm Or If Not Object.IsValid($hForm) Then Return
-  If $hForm.ReadOnly Then Return
+  If $hForm.ReadOnly Or If $hForm.DiffMode Then Return
   If IsNull($hEditor) Then Return False
 
   sVal = $hEditor.Text
@@ -409,8 +391,8 @@ Public Function SaveProperty() As Boolean
 
     Case "f"
 
-      If Not IsNumber(sVal) Then Goto _BAD
-      vVal = CFloat(Val(sVal))
+      Try vVal = CFloat(sVal)
+      If Error Then Goto _BAD
 
     Case "d"
 
@@ -425,7 +407,7 @@ Public Function SaveProperty() As Boolean
         vVal = sVal
       Endif
 
-    Case "s", "Font", "Picture", "Constant", "List", "Path", "Image", "WebImage", "SvgImage", "ReportCoord", "ReportPadding", "ReportMargin", "ReportBoxShadow", "ReportBorder", "ReportBrush", "Field", "Menu", "Table", "WebCoord", "WebFont"
+    Case "s", "Font", "Picture", "Constant", "List", "Path", "Image", "Animation", "WebImage", "SvgImage", "ReportCoord", "ReportPadding", "ReportMargin", "ReportBoxShadow", "ReportBorder", "ReportBrush", "Field", "Menu", "Table", "WebCoord", "WebFont", "WebAudio"
       
       vVal = sVal
 
@@ -455,12 +437,15 @@ Public Function SaveProperty() As Boolean
   If $bMany Then
 
     For Each hCtrl In $hForm.Selection
+      If hCtrl.Locked Then Continue
       If hCtrl.SetProperty($sLast, vVal) Then Goto _BAD
     Next
 
   Else
 
-    If $hObject.SetProperty($sLast, vVal) Then Goto _BAD
+    If Not $hObject.Locked Then
+      If $hObject.SetProperty($sLast, vVal) Then Goto _BAD
+    Endif
 
   Endif
 
@@ -574,20 +559,6 @@ Private Sub InitComboWith(aList As String[], Optional sVoid As String)
   If Not IsMissing(sVoid) Then aList.Add(sVoid, 0)
   cmbProperty.List = aList
 
-  ' Dim hMenu As Menu
-  ' Dim sVal As String
-  ' 
-  ' mnuProperty.Children.Clear
-  ' 
-  ' If sVoid Then
-  '   hMenu = New Menu(mnuProperty) As "mnuProperty"
-  '   hMenu.Text = sVoid
-  ' Endif
-  ' For Each sVal In aList
-  '   hMenu = New Menu(mnuProperty) As "mnuProperty"
-  '   hMenu.Text = sVal
-  ' Next
-
 End
 
 Private Sub ShowProperty(Optional sFocus As String)
@@ -604,10 +575,11 @@ Private Sub ShowProperty(Optional sFocus As String)
   Dim sHTML As String
   Dim iRow As Integer
   Dim bWarning As Boolean
+  Dim sWarning As String
 
   If Project.Running Then Return
   If Not $hForm Then Return
-  If $hForm.ReadOnly Then Return
+  If $hForm.ReadOnly Or If $hForm.DiffMode Then Return
 
   If $sFocus Then sFocus = $sFocus
 
@@ -616,7 +588,10 @@ Private Sub ShowProperty(Optional sFocus As String)
     If iRow >= 0 Then grdProperty.Row = iRow
   Endif
 
-  If grdProperty.Row < 0 Then Return
+  If grdProperty.Row < 0 Then 
+    MHelp.InitWebViewWith(GetWebView(), MHelp.TYPE_CLASS, $sClass,, "noimage")
+    Return
+  Endif
 
   If $sLast Then HideProperty()
 
@@ -653,7 +628,7 @@ Private Sub ShowProperty(Optional sFocus As String)
   Else
 
     sProp = grdProperty[grdProperty.Row, 0].Text
-    hProp = Project.Documentation.Classes[$hObject.Kind].GetProperties()[sProp]
+    hProp = Project.Documentation.Classes[$sClass].GetProperties()[sProp]
     sType = hProp.Type
     sOption = hProp.Argument
 
@@ -674,8 +649,8 @@ Private Sub ShowProperty(Optional sFocus As String)
     Else If hProp.Virtual Then
       sHelp = "?"
     Else
-      hSymbol = Project.Documentation.Classes[$hObject.Kind].Symbols[hProp.Name]
-      MHelp.InitWebViewWith($hWebView, MHelp.TYPE_SYMBOL, hSymbol.Name, hSymbol.Class, If($hWebView, "notitle", ""))
+      hSymbol = Project.Documentation.Classes[$sClass].Symbols[hProp.Name]
+      MHelp.InitWebViewWith(GetWebView(), MHelp.TYPE_SYMBOL, hSymbol.Name, hSymbol.Class, If(GetWebView(), "notitle", ""))
     Endif
 
     'Endif
@@ -683,28 +658,17 @@ Private Sub ShowProperty(Optional sFocus As String)
 
   If sHelp Then
     If sHelp <> "?" Then
-      sHTML = MHelp.LoadCustom("property-help.html")
-      sHTML = Replace(sHTML, "$(class)", "Control")
-      sHTML = Replace(sHTML, "$(name)", grdProperty[grdProperty.Row, 0].Text)
-      sHTML = Replace(sHTML, "$(help)", Html(sHelp))
-      sHTML = Replace(sHTML, "$(type)", sHelpType)
-      sHTML = Replace(sHTML, "$(lctype)", sHelpLcType)
-      If bWarning Then 
-        sHTML = Replace(sHTML, "$(warning)", ("This property is virtual: it is only implemented in the IDE, and has no existence at runtime."))
-      Else
-        sHTML = Replace(sHTML, "$(warning)", "")
-      Endif
+      If bWarning Then sWarning = ("This property is virtual: it is only implemented in the IDE, and has no existence at runtime.")
+      sHTML = MHelp.MakePage("help/property-help.html", ["class": "Control", "name": grdProperty[grdProperty.Row, 0].Text, "help": Html(sHelp), "type": sHelpType, "lctype": sHelpLcType, "warning": sWarning])
+      ' sHTML = Replace(sHTML, "$(class)", "Control")
+      ' sHTML = Replace(sHTML, "$(name)", grdProperty[grdProperty.Row, 0].Text)
+      ' sHTML = Replace(sHTML, "$(help)", Html(sHelp))
+      ' sHTML = Replace(sHTML, "$(type)", sHelpType)
+      ' sHTML = Replace(sHTML, "$(lctype)", sHelpLcType)
     Endif
-    If Not $hWebView Then
-      If Class.IsLoaded("FHelpBrowser") And If FHelpBrowser.Visible Then
-        sHTML = Replace(sHTML, "$(hide-title)", "")
-        FHelpBrowser.webHelp.HTML = sHTML
-      Endif
-    Else
-      'sHTML = Replace(sHTML, "$(hide-title)", "style=\"display:none;\"")
-      sHTML = Replace(sHTML, "$(hide-title)", "")
-      $hWebView.HTML = sHTML
-    Endif
+    
+    MHelp.InitWebViewWithHtml(GetWebView(), sHTML)
+    
   Endif
 
   $sLast = sProp
@@ -718,8 +682,8 @@ Private Sub ShowProperty(Optional sFocus As String)
 
   Select Case $sType
 
-    Case "i", "l", "f", "d", "v", "Name", "Group" ', "EventName"
-
+    Case "i", "l", "f", "d", "v", "Name"
+      
     Case "s"
       If hProp.ConstantList Then
         hEditor = cmbProperty
@@ -764,7 +728,7 @@ Private Sub ShowProperty(Optional sFocus As String)
       cmbProperty.ReadOnly = True
       InitComboWith(["False", "True"])
 
-    Case "Font", "Picture", "Path", "Color", "Image", "WebImage", "SvgImage", "ReportPadding", "ReportMargin", "ReportBoxShadow", "ReportBorder", "ReportBrush", "WebFont"
+    Case "Font", "Picture", "Path", "Color", "Image", "Animation", "WebImage", "SvgImage", "ReportPadding", "ReportMargin", "ReportBoxShadow", "ReportBorder", "ReportBrush", "WebFont", "WebAudio"
 
       bButton = True
       txtProperty.ReadOnly = True
@@ -821,6 +785,12 @@ Private Sub ShowProperty(Optional sFocus As String)
     Case "Angle"
       hEditor = txtAngle
 
+    Case "Group"
+
+      hEditor = cmbProperty
+      cmbProperty.ReadOnly = False
+      InitComboWith(GetGroupList())
+
     Case Else 'object
 
       hEditor = cmbProperty
@@ -876,6 +846,7 @@ End
 
 Public Sub txtProperty_Clear()
   
+  txtProperty.Text = $hObject.GetDefaultValueString($sLast)
   SaveProperty
   
 End
@@ -942,6 +913,7 @@ Private Sub GetConnection() As String
   Dim sResult As String
 
   For Each hCtrl In $hForm.Selection
+    If hCtrl.Locked Then Continue
     sConn = hCtrl.GetConnection()
     If Not sResult Then
       sResult = sConn
@@ -961,6 +933,7 @@ Private Sub GetTable(Optional sField As String) As String
   Dim sResult As String
 
   For Each hCtrl In $hForm.Selection
+    If hCtrl.Locked Then Continue
     sTable = hCtrl.GetTable(sField)
     If Not sResult Then
       sResult = sTable
@@ -987,7 +960,7 @@ Public Sub txtProperty_Click()
 
     Case "s"
       SaveProperty
-      If FText.Run($sOldVal, $sLast) Then Goto _EXIT
+      If FText.Run($sOldVal, Subst(("Edit '&1' property"), $sLast)) Then Goto _EXIT
       $hEditor.Text = FText.Value
 
     Case "String[]"
@@ -1021,19 +994,19 @@ Public Sub txtProperty_Click()
       Endif
 
       If FColorChooser.Run(sColor, True) Then Goto _EXIT
-      $hEditor.Text = FColorChooser.Color
+      $hEditor.Text = FColorChooser.ColorName
 
-    Case "Picture", "Image", "WebImage", "SvgImage"
+    Case "Picture", "Image", "Animation", "WebImage", "SvgImage"
 
       sDest = $hFamily.SelectImage($sType, $sOldVal)
       If Not sDest Then Goto _EXIT
       $hEditor.Text = sDest
+      
+    Case "WebAudio"
 
-    ' Case "WebImage"
-    '   
-    '   sDest = FSelectIcon.Run($sOldVal, FSelectIcon.SELECT_IMAGE + FSelectIcon.SELECT_SVGIMAGE + FSelectIcon.SELECT_PUBLIC)
-    '   If Not sDest Then Goto _EXIT
-    '   $hEditor.Text = sDest
+      sDest = $hFamily.SelectAudio($sType, $sOldVal)
+      If Not sDest Then Goto _EXIT
+      $hEditor.Text = sDest
 
     Case "Path"
       
@@ -1075,7 +1048,7 @@ Public Sub txtProperty_Click()
         If FFieldChooser.Run(sConnection, sTable, True, $sOldVal) Then Goto _EXIT
         $hEditor.Text = FFieldChooser.Value
       Else
-        If FText.Run($sOldVal, $sLast) Then Goto _EXIT
+        If FText.Run($sOldVal, Subst(("Edit '&1' property"), $sLast)) Then Goto _EXIT
         $hEditor.Text = FText.Value
       Endif
 
@@ -1162,6 +1135,8 @@ Public Function GetProperty(sProp As String) As String
 
   For Each hCtrl In $hForm.Selection
 
+    If hCtrl.Locked Then Continue
+    
     If bFirst Then
       If sVal <> hCtrl.GetPropertyString(sProp) Then
         CControl.WasDefaultValue = False
@@ -1209,41 +1184,28 @@ End
 
 Public Sub ReadConfig()
 
-  $bSort = Settings["/SortProperties", True]
+  Dim H As Integer
+  
+  btnSortProperties.Value = Settings["/SortProperties", True]
+  
   Project.SetNormalFont(grdProperty)
 
-  webHelp.Zoom = Settings["/Help/Zoom", 80] / 100
+  hvwHelp.ReadConfig
+  hvwHelp.Zoom = Settings["/Help/Zoom", 80] / 100
   
   txtProperty.Font = grdProperty.Font
   cmbProperty.Font = grdProperty.Font
   spnProperty.Font = grdProperty.Font
   panProperty.Font = grdProperty.Font
   crdProperty.Font = grdProperty.Font
-  ' MTheme.InitControl(grdProperty)
-  ' MTheme.InitControl(cmbProperty)
-  ' MTheme.InitControl(crdProperty)
-  ' MTheme.InitControl(spnProperty)
-  ' MTheme.InitControl(txtProperty)
-  ' MTheme.InitControl(btnProperty)
-  '$iHighlightColor = MTheme.GetColor("Selection")
+  
+  Project.SetSmallFont(lblHelp)
+  H = FMain.GetTabBarHeight()
+  lblHelp.Parent.H = H
+  btnCloseHelp.Resize(H, H)
+  
   MoveProperty
   RefreshAll
-
-End
-
-Public Sub CheckIntegratedHelpSetting()
-
-  $bDisableIntegratedHelp = Not Settings["/PropertyHelp", True]
-  If $bDisableIntegratedHelp Then
-    webHelp.Stop
-    webHelp.HTML = ""
-    spnHelp.Hide
-    $hWebView = Null
-  Else
-    spnHelp.Show
-    $hWebView = webHelp
-    ShowProperty
-  Endif
 
 End
 
@@ -1297,12 +1259,12 @@ Public Sub Form_KeyPress()
 
 End
 
-Public Sub panProperty_Arrange()
-
-  lblName.Move(4, (panProperty.H - lblName.H) \ 2, panProperty.ClientW - btnLock.W, panProperty.ClientH)
-  btnLock.Move(panProperty.W - btnLock.W, (panProperty.H - btnLock.H) \ 2)
-
-End
+' Public Sub panProperty_Arrange()
+' 
+'   lblName.Move(4, (panProperty.H - lblName.H) \ 2, panProperty.ClientW - btnLock.W, panProperty.ClientH)
+'   btnLock.Move(panProperty.W - btnLock.W, (panProperty.H - btnLock.H) \ 2)
+' 
+' End
 
 Public Sub btnLock_Click()
 
@@ -1349,3 +1311,69 @@ Public Sub Form_Activate()
 
 End
 
+Public Sub IsHelpHidden() As Boolean
+  
+  Return spnHelp.Hidden
+  
+End
+
+Public Sub btnCloseHelp_Click()
+
+  spnHelp.Hidden = True
+
+End
+
+Public Sub ShowHelp(Optional bShow As Boolean = True)
+  
+  spnHelp.Hidden = Not bShow
+  
+End
+
+
+Public Sub spnHelp_Show()
+
+  ShowProperty
+  FMain.UpdatePropertyButtons
+
+End
+
+Public Sub spnHelp_Hide()
+
+  FMain.UpdatePropertyButtons
+
+End
+
+Private Sub GetWebView() As HelpView
+  
+  If spnHelp.Hidden Then Return
+  Return hvwHelp
+  
+End
+
+Public Sub btnSortProperties_Click()
+
+  $bSort = btnSortProperties.Value
+  Settings["/SortProperties"] = $bSort
+  RefreshAll
+
+End
+
+Private Sub GetGroupList() As String[]
+
+  Dim hCCtrl As CControl
+  Dim aGroup As New String[]
+  Dim sGroup As String
+
+  For Each hCCtrl In $hForm.Control
+    If hCCtrl.Kind = "Menu" Then Continue
+    sGroup = hCCtrl.GetProperty(CPropertyInfo.EVENT_NAME)
+    If Not sGroup Then Continue
+    If aGroup.ExistSorted(sGroup) Then Continue 
+    aGroup.Add(sGroup)
+    aGroup.Sort()
+  Next
+  
+  aGroup.Add("", 0)
+  Return aGroup
+  
+End

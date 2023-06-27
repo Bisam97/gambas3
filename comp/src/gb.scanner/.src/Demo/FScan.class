@@ -1,0 +1,397 @@
+' Gambas class file
+
+
+Private $hScan As Scanner     'Variable to store the current scanner instance
+Private $aImg As New Image[]      'Variable to store images from the scanner
+Private $bSaved As Boolean    'Variable to indicate if the scanned content have been already saved.
+Private $sAppName As String = "Gambas Easy Scan"
+Private $aTrySearchDelays As Integer[] = [10, 30, 60, 120]
+Private $iTryDelayIndex As Short
+Private $iTryDelayCnt As Short
+Private $tmrTry As Timer
+
+Public Sub form_Open()
+   Dim s As String
+  'Attach Scanner static class to the form class to
+  'catch events
+  Object.Attach(Scanners, Me, "Scanners")
+  btnScan.SetFocus
+
+
+
+  'Load saved settings
+  s = Settings["General/Scanner"]
+  'if the current Scanner is defined then
+  If s Then
+    'create a new instance but not by using Scanners class
+    'because it launch a sync search with a long waiting
+    $hScan = New Scanner(s)
+    'Take a look if this scanner is available
+    If $hScan.IsAvailable() Then
+      SetScanner()
+      vbWait.Hide
+      dvPages.Show
+    Else
+      Me.Title = $sAppName & " - Searching scanners..."
+      $hScan = Null
+      'Display the waiting spinner And run it
+      vbWait.Show
+      spnWait.Start
+
+    Endif
+  Endif
+
+
+  'Launch the initialization in background
+  Scanners.Search
+
+
+End
+
+Public Sub Scanners_Found()
+
+  Dim hMenu As Menu
+  Dim s As String
+  
+   mnuScanners.Children.Clear
+   
+  'ok the scanner searching process is finished
+
+  'Lets fill the menu and  see if we got an available candidate
+  'if true, then select it and fill sub options
+
+  For Each s In Scanners
+    hMenu = New Menu(mnuScanners) As "mnuScanners"
+    hMenu.Text = Scanners[s].Name
+    hMenu.Enabled = Scanners[s].IsAvailable()
+    If Not $hScan And If hMenu.Enabled Then
+      $hScan = Scanners[s]
+      SetScanner()
+    Endif
+  Next
+  
+  If Not $hScan Then
+    $iTryDelayCnt = $aTrySearchDelays[Min($iTryDelayIndex, $aTrySearchDelays.Max)]
+    Inc $iTryDelayIndex
+    Me.Title = $sAppName & " - No scanner available... New try in " & $iTryDelayCnt & "s"
+    $tmrTry = New Timer As "tmrTry"
+    $tmrTry.Delay = 1000
+    $tmrTry.Start
+  Else
+    $iTryDelayIndex = 0
+  Endif
+  
+  hMenu = New Menu(mnuScanners)
+  hMenu = New Menu(mnuScanners) As "mnuScannersRefresh"
+  hMenu.Text = "Refresh"
+  hMenu.Picture = Picture["icon:/32/refresh"]
+
+  'link Menu to button
+  mnbScanner.Menu = "mnuScanners"
+  mnbScanner.Enabled = True
+
+  'Stop and Hide the spinner
+  spnWait.Stop
+  vbWait.Hide
+
+  'Show the DocView
+  dvPages.Show
+
+End
+
+
+
+
+
+Public Sub Form_Close()
+
+  'Release the scanner searching process
+  Scanners.Close
+
+End
+
+Public Sub btnScan_Click()
+
+  'be sure that the scanning process is aSync
+  $hScan.ASync = True
+
+  'Setup scan options
+  $hScan["Resolution"].Value = MnbResolution.Tag
+  $hScan["Mode"].Value = mnbMode.Tag
+  $hScan["Source"].Value = mnbSource.Tag
+  $hScan["Height"].Value = Min(297, $hScan["Height"].MaxValue)
+  'Launch the scanning process
+  $hScan.Scan
+
+End
+
+
+Private Sub SetScanner()
+
+  'Set window title
+  Dim s As String
+  Dim sCur As String
+  Dim hMenu As Menu
+  Dim i As Integer
+  Dim aList As String[]
+  Dim aSources As String[] = [("FlatBed"), ("Feeder"), ("Feeder Double Side")]
+
+
+  '$hScan.Debug = True
+  Object.Attach($hScan, Me, "Scanner")
+  
+  Settings["General/Scanner"] = $hScan.Name
+  
+  Me.Title = "Gambas Easy Scan - " & $hScan.Name
+
+  'Loading Source menu
+  'It need some parsing
+  If $hScan.Exist("Source") Then
+    sCur = $hScan["Source"].Value
+
+    'just use the first three entry
+    'normally it is in this order :
+    '[Flatbed, ADF, duplex] for all scanners
+
+    aList = $hScan["Source"].List
+    For i = 0 To aList.Max
+      If i > 2 Then Break
+      hMenu = New Menu(mnuSources) As "mnuSources"
+      hMenu.Text = aSources[i]
+      hMenu.Tag = aList[i]
+
+      If sCur = aList[i] Then
+        mnbSource.Text = ("Source : ") & hMenu.Text
+        mnbSource.Tag = hMenu.Tag
+      Endif
+    Next
+
+    'Link menu to button
+    mnbSource.Menu = "mnuSources"
+  Endif
+
+  'Loading Resolution menu
+
+  If $hScan.Exist("Resolution") Then
+    sCur = $hScan["Resolution"].Value
+    For Each s In $hScan["Resolution"].List
+      hMenu = New Menu(mnuResolutions) As "mnuResolutions"
+      hMenu.Text = s
+      hMenu.Tag = s
+
+      If s = sCur Then
+        MnbResolution.Text = ("Resolution : ") & hMenu.Text
+        MnbResolution.Tag = hMenu.Tag
+      Endif
+
+    Next
+    MnbResolution.Menu = "mnuResolutions"
+  Endif
+
+  If $hScan.Exist("Mode") Then
+    sCur = $hScan["Mode"].Value
+    For Each s In $hScan["Mode"].List
+      'Well loading Modes as it because
+      'they are too many modes style to manage
+      'and I don't want to limit my scanners options
+
+      hMenu = New Menu(mnuModes) As "mnuModes"
+      hMenu.Text = s
+      hMenu.Tag = s
+      If sCur = s Then
+        mnbMode.Text = ("Mode : ") & s
+        mnbMode.Tag = s
+      Endif
+    Next
+    mnbMode.Menu = "mnuModes"
+  Endif
+
+hbScanOptions.Show
+
+'Set Values from settings
+'Take a look if settings for this scanner exist
+If Settings[$hScan.Name &/ "mode"] = Null Then Return
+
+'Set the Mode
+mnbMode.Text = Split(Settings[$hScan.Name &/ "mode"])[0]
+mnbMode.Tag = Split(Settings[$hScan.Name &/ "mode"])[1]
+'Set the Resolution
+MnbResolution.Text = Split(Settings[$hScan.Name &/ "resolution"])[0]
+MnbResolution.Tag = Split(Settings[$hScan.Name &/ "resolution"])[1]
+'Set the Source
+mnbSource.Text = Split(Settings[$hScan.Name &/ "source"])[0]
+mnbSource.Tag = Split(Settings[$hScan.Name &/ "source"])[1]
+
+End
+
+Public Sub mnuScanners_Click()
+  
+  If Last.Text = $hScan.Name Then Return
+  $hScan = Scanners[Last.Text]
+  SetScanner()
+  
+End
+
+
+
+Public Sub mnuSources_Click()
+
+  mnbSource.Text = ("Source : ") & Last.Text
+  mnbSource.Tag = Last.Tag
+  Settings[$hScan.Name &/ "source"] = [mnbSource.Text, CStr(mnbSource.Tag)].Join()
+
+End
+
+
+Public Sub mnuResolutions_Click()
+
+  MnbResolution.Text = ("Resolution : ") & Last.Text
+  MnbResolution.Tag = Last.tag
+  Settings[$hScan.Name &/ "resolution"] = [MnbResolution.Text, CStr(MnbResolution.Tag)].Join()
+End
+
+
+Public Sub mnuModes_Click()
+
+  mnbMode.Text = ("Mode : ") & Last.Text
+  mnbMode.Tag = Last.Tag
+  Settings[$hScan.Name &/ "mode"] = [mnbMode.Text, CStr(mnbMode.Tag)].Join()
+End
+
+
+Public Sub Scanner_Begin()
+
+Spring1.Hide
+hbProgress.Show
+
+End
+
+Public Sub Scanner_PageBegin()
+
+
+
+End
+
+
+Public Sub Scanner_PageEnd()
+
+  Dim hImg As Image
+  Dim s As String
+
+  Try hImg = Last.Peek()
+
+  If Not hImg Then
+    msvError.Open("Error : Can't load image.", Picture["icon:/32/warning"])
+    Return
+  Endif
+
+  $aImg.Add(hImg)
+  dvPages.Count = $aImg.Count
+
+  'Show the toolbar
+  hbToolbar.Show
+
+End
+
+Public Sub Scanner_End()
+
+  hbProgress.Hide
+  Spring1.Show
+End
+
+
+Public Sub Scanner_Error(ErrorText As String)
+
+  msvError.Open(ErrorText, Picture["icon:/32/error"])
+
+End
+
+Public Sub Scanner_Progress()
+  
+  pgbScan.Value = Last.Progress
+  
+End
+
+
+
+
+
+Public Sub dvPages_Draw(Page As Integer, Width As Integer, Height As Integer)
+
+  Paint.DrawImage($aImg[Page], 0, 0, Width, Height)
+
+End
+
+Public Sub btnPrint_Click()
+
+  Dim hPrinter As New Printer As "Printer"
+  hPrinter.FullPage = True
+  hPrinter.Paper = hPrinter.A4
+  hPrinter.Preview()
+
+End
+
+Public Sub Printer_Begin()
+
+  Last.count = $aImg.Count
+
+End
+
+Public Sub Printer_Draw()
+
+  Paint.DrawImage($aImg[Last.Page - 1], 0, 0, Paint.Width, Paint.Height)
+
+End
+
+
+Public Sub btnNew_Click()
+
+  If Not $bSaved Then
+    If Message.Warning("You have not saved the current scanning session !\nAre you sure you want to clear all ?", "&No", "&Yes") = 0 Then
+      Return
+    Endif
+  Endif
+  $aImg.Clear
+  dvPages.Count = 0
+  hbToolbar.Hide
+
+End
+
+
+Public Sub mnuScannersRefresh_Click()
+  
+  Scanners.Search
+  
+End
+
+
+Public Sub btnSave_Click()
+
+  Dim hPrinter As New Printer As "Printer"
+  Dim sPath As String
+  Dim hImg As Image
+  Dim i As Integer
+  
+  Dialog.Path = Settings["General/SavePath", User.home & "/"]
+  If Not Dialog.SaveFile() Then
+  sPath = Dialog.Path
+  If File.Ext(sPath) = "jpg" Then
+    For i = 0 To $aImg.Max
+      $aImg[i].Save(File.SetBaseName(sPath, File.BaseName(sPath) & Format(i, "000")))
+    Next
+  Endif
+  Endif
+End
+
+
+Public Sub tmrTry_Timer()
+  
+  Dec $iTryDelayCnt
+  Me.Title = $sAppName & " - No scanner available... New try in " & $iTryDelayCnt & "s"
+  If $iTryDelayCnt = 0 Then
+    Me.Title = $sAppName & " - Searching scanners..."
+    $tmrTry.Stop
+    $tmrTry = Null
+    Scanners.Search
+  Endif
+End

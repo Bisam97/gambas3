@@ -1,0 +1,190 @@
+' Gambas module file
+
+Property Read TimeStamp As Integer Use $iTimeStamp
+
+Private $cBreakpoints As Collection
+
+Public Sub OnProjectChange()
+  
+  $cBreakpoints = Project.Config["/Debug/Breakpoints"]
+  If Not $cBreakpoints Then $cBreakpoints = New Collection
+  
+  $iTimeStamp = Project.TimeStamp
+  
+End
+
+Public Sub Load(hModule As FEditor)
+
+  Dim aBreakpoints As Integer[]
+  Dim hEditor As TextEditor
+  'Dim iLine As Integer
+  'Dim I As Integer
+  'Dim aDisabled As Integer[]
+  
+  aBreakpoints = $cBreakpoints[hModule.GetNameForBreakpoint()]
+  If Not aBreakpoints Then Return
+  
+  hEditor = hModule.GetEditor()
+  
+  ' aDisabled = New Integer[]
+  ' 
+  ' For I = 0 To aBreakpoints.Max
+  '   iLine = aBreakpoints[I]
+  '   If iLine < 0 Then
+  '     aBreakpoints[I] = -iLine
+  '     aDisabled.Add(-iLine)
+  '   Endif
+  ' Next
+  
+  hEditor.Breakpoints = aBreakpoints
+  hModule.CheckBreakpoints()
+  'hEditor.DisabledBreakpoints = aDisabled
+  
+End
+
+Public Sub Clear()
+
+  Dim hEditor As TextEditor
+  Dim hForm As Object
+  
+  For Each hForm In Project.Files
+    If hForm Not Is FEditor Then Continue
+    hEditor = hForm.GetEditor()
+    hEditor.Breakpoints = Null
+  Next
+  
+  $cBreakpoints.Clear
+  
+End
+
+Private Sub Synchronize()
+  
+  Dim hForm As Object
+  Dim hEditor As TextEditor
+  Dim aBreakpoints As Integer[]
+  Dim sClass As String
+  
+  If $iTimeStamp = Project.TimeStamp Then Return
+
+  For Each hForm In Project.Files
+    If hForm Not Is FEditor Then Continue
+    
+    sClass = hForm.GetNameForBreakpoint()
+    hEditor = hForm.GetEditor()
+    hForm.CheckBreakpoints()
+    aBreakpoints = hEditor.Breakpoints
+    
+    If aBreakpoints.Count = 0 Then
+      $cBreakpoints[sClass] = Null
+    Else 
+      $cBreakpoints[sClass] = aBreakpoints
+    Endif
+    
+  Next
+  
+  ' For Each $cBreakpoints
+  '   If Not Project.ExistClass($cBreakpoints.Key) Then $cBreakpoints.Remove($cBreakpoints.Key)
+  ' Next
+  
+  $iTimeStamp = Project.TimeStamp
+  
+End
+
+Public Sub GetCommands() As String[]
+
+  Dim aResult As New String[]
+  Dim aBreakpoints As Integer[]
+  Dim sClass As String
+  Dim iLine As Integer
+  
+  Synchronize()
+  
+  For Each aBreakpoints In $cBreakpoints
+    sClass = $cBreakpoints.Key
+    
+    For Each iLine In aBreakpoints
+      aResult.Add("+" & sClass & "." & CStr(iLine + 1))
+    Next
+    
+  Next
+
+  Return aResult
+  
+End
+
+Public Sub GetAll() As String[]
+  
+  Dim aResult As New String[]
+  Dim aBreakpoints As Integer[]
+  Dim sClass As String
+  Dim iLine As Integer
+  
+  Synchronize()
+  
+  For Each aBreakpoints In $cBreakpoints
+    sClass = $cBreakpoints.Key
+    
+    For Each iLine In aBreakpoints
+      aResult.Add(sClass & "." & CStr(iLine + 1))
+    Next
+    
+  Next
+
+  aResult.Sort(gb.Natural)
+  Return aResult
+  
+End
+
+Public Sub Save()
+  
+  Synchronize()
+  
+  Project.Config["/Debug/Breakpoints"] = $cBreakpoints
+  
+End
+
+Public Sub Rename(sOld As String, sNew As String)
+  
+  $cBreakpoints[sNew] = $cBreakpoints[sOld]
+  $cBreakpoints[sOld] = Null
+  
+End
+
+' Warning: lines start with 0 in the location
+Public Sub FromString(sLoc As String) As String[]
+  
+  Dim iPos As Integer
+  Dim sComp As String
+  Dim aLoc As String[]
+  
+  If sLoc Begins "[" Then
+    iPos = InStr(sLoc, "].")
+    If iPos Then
+      sComp = Mid$(sLoc, 2, iPos - 2)
+      If sComp = "$" Then sComp = ""
+      sLoc = Mid$(sLoc, iPos + 2)
+    Endif
+  Endif
+  
+  aLoc = Split(sLoc, ".")
+  aLoc.Add(sComp, 0)
+  If aLoc.Count = 3 Then aLoc.Add("", 2)
+  Try aLoc[3] = CStr(CInt(aLoc[3]))
+  If Error Then aLoc[3] = "0"
+  
+  Return aLoc
+  
+End
+
+' Warning: lines start with 1 in the result
+Public Sub ToString(aBreakpoint As String[]) As String
+
+  Dim sResult As String
+  Dim iLine As Integer
+  
+  If aBreakpoint[0] Then sResult = "[" & aBreakpoint[0] & "]."
+  Try iLine = CInt(aBreakpoint.Last) + 1
+  sResult &= aBreakpoint[1] & "." & CStr(iLine)
+  Return sResult
+  
+End

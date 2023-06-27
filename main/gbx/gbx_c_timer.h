@@ -2,7 +2,7 @@
 
   gbx_c_timer.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -29,13 +29,24 @@
 #include "gb_list.h"
 
 typedef
-	GB_TIMER CTIMER;
+	struct {
+		GB_TIMER_CALLBACK callback;
+		intptr_t tag;
+	}
+	CTIMER_EXT;
 
+typedef GB_TIMER CTIMER;
+	
 #ifndef __GBX_C_TIMER_C
+
 extern GB_DESC NATIVE_Timer[];
+
+extern int CTIMER_active_count;
+
 #else
 
 #define THIS ((CTIMER *)_object)
+#define THIS_EXT ((CTIMER_EXT *)THIS->ext)
 
 #endif
 

@@ -1,0 +1,41 @@
+' Gambas module file
+
+'' returns the addition to the plugin class file to support plugin information
+'' adds version property to plugin file to get the actual plugin version not the called app version
+'' adds all #Script entries as read only properties that were defined in the script
+
+Public Sub _call() As String
+  
+  Dim InfoProgPart As String = ""
+  Dim InfoPropertyPart As String = ""
+  Dim InfoDefPart As String = ""
+  
+  For Each sEntry As String In ScriptPreProcess.ProjectInfo
+    
+    If ScriptPreProcess.PropertyRW.Exist(ScriptPreProcess.ProjectInfo.key) Then
+      InfoDefPart &= "Private $s" & ScriptPreProcess.ProjectInfo.key & " as variant = " & Quote(sEntry) & "\n"
+      InfoPropertyPart &= "Property " & ScriptPreProcess.ProjectInfo.key & " as variant\n"
+      InfoProgPart &= "Function " & ScriptPreProcess.ProjectInfo.key & "_Write(value as variant)\n"
+      InfoProgPart &= "$s" & ScriptPreProcess.ProjectInfo.key & "= value\n"
+      InfoProgPart &= "end\n"
+      InfoProgPart &= "Function " & ScriptPreProcess.ProjectInfo.key & "_Read() as variant\n"
+      InfoProgPart &= "Return $s" & ScriptPreProcess.ProjectInfo.key & "\n"
+      InfoProgPart &= "end\n"
+    Else
+      InfoPropertyPart &= "Property Read " & ScriptPreProcess.ProjectInfo.key & " as string\n"
+      InfoDefPart &= "Private $s" & ScriptPreProcess.ProjectInfo.key & " as string = " & Quote(sEntry) & "\n"
+      InfoProgPart &= "Function " & ScriptPreProcess.ProjectInfo.key & "_Read() as string\n"
+      InfoProgPart &= "Return $s" & ScriptPreProcess.ProjectInfo.key & "\n"
+      InfoProgPart &= "end\n"
+    Endif
+    
+    
+    
+    
+    
+  Next
+
+  Return InfoPropertyPart & InfoDefPart & InfoProgPart
+End
+
+

@@ -2,7 +2,7 @@
 
 	gbx_subr_file.c
 
-	(c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+	(c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -94,21 +94,21 @@ static STREAM *get_default(intptr_t val)
 	{
 		case 0:
 			if (_default_in)
-				stream = CSTREAM_stream(((CSTREAM_NODE *)_default_in)->stream);
-			else if (CFILE_in)
-				stream = CSTREAM_stream(CFILE_in);
+				stream = CSTREAM_TO_STREAM(((CSTREAM_NODE *)_default_in)->stream);
+			else
+				stream = CSTREAM_TO_STREAM(CFILE_get_standard_stream(CFILE_IN));
 			break;
 		case 1:
 			if (_default_out)
-				stream = CSTREAM_stream(((CSTREAM_NODE *)_default_out)->stream);
-			else if (CFILE_out)
-				stream = CSTREAM_stream(CFILE_out);
+				stream = CSTREAM_TO_STREAM(((CSTREAM_NODE *)_default_out)->stream);
+			else
+				stream = CSTREAM_TO_STREAM(CFILE_get_standard_stream(CFILE_OUT));
 			break;
 		case 2:
 			if (_default_err)
-				stream = CSTREAM_stream(((CSTREAM_NODE *)_default_err)->stream);
-			else if (CFILE_err)
-				stream = CSTREAM_stream(CFILE_err);
+				stream = CSTREAM_TO_STREAM(((CSTREAM_NODE *)_default_err)->stream);
+			else
+				stream = CSTREAM_TO_STREAM(CFILE_get_standard_stream(CFILE_ERR));
 			break;
 	}
 
@@ -129,7 +129,7 @@ static inline STREAM *_get_stream(VALUE *value, bool can_default)
 	else
 	{
 		if (TYPE_is_object(value->type) && value->_object.object && OBJECT_class(value->_object.object)->is_stream)
-			stream = CSTREAM_stream(value->_object.object);
+			stream = CSTREAM_TO_STREAM(value->_object.object);
 		else
 		{
 			if (VALUE_is_null(value))
@@ -153,7 +153,7 @@ static inline STREAM *_get_stream(VALUE *value, bool can_default)
 	else \
 	{ \
 		if (TYPE_is_object((_value)->type) && (_value)->_object.object && OBJECT_class((_value)->_object.object)->is_stream) \
-			stream = CSTREAM_stream((_value)->_object.object); \
+			stream = CSTREAM_TO_STREAM((_value)->_object.object); \
 		else \
 		{ \
 			if (VALUE_is_null(_value)) \
@@ -204,7 +204,7 @@ void SUBR_open(ushort code)
 	SUBR_ENTER_PARAM(2);
 
 	SUBR_check_integer(&PARAM[1]);
-	mode = PARAM[1]._integer.value;
+	mode = PARAM[1]._integer.value ^ GB_ST_BUFFERED;
 
 	if (code & 0x3F)
 	{
@@ -213,9 +213,9 @@ void SUBR_open(ushort code)
 		else
 			THROW_TYPE(T_POINTER, PARAM->type);
 		
-		STREAM_open(&stream, (char *)addr, mode | STO_MEMORY);
+		STREAM_open(&stream, (char *)addr, mode | GB_ST_MEMORY);
 	}
-	else if (mode & STO_STRING)
+	else if (mode & GB_ST_STRING)
 	{
 		char *str;
 
@@ -225,7 +225,7 @@ void SUBR_open(ushort code)
 		{
 			str = SUBR_get_string(PARAM);
 			
-			if (mode & STO_WRITE)
+			if (mode & GB_ST_WRITE)
 			{
 				stream.string.buffer = STRING_new(str, STRING_length(str));
 			}
@@ -316,8 +316,7 @@ void SUBR_print(ushort code)
 	for (i = 1; i < NPARAM; i++)
 	{
 		PARAM++;
-		//PRINT_value(PARAM);
-		VALUE_to_string(PARAM, &addr, &len);
+		VALUE_to_local_string(PARAM, &addr, &len);
 		if (len == 1 && *addr == '\n')
 			STREAM_write_eol(_stream);
 		else
@@ -381,7 +380,7 @@ void SUBR_input(ushort code)
 		SP->_string.len = STRING_length(addr);
 	}
 	else
-		VALUE_null(SP);
+		STRING_void_value(SP);
 		
 	SP++;
 }
@@ -493,13 +492,16 @@ void SUBR_read(ushort code)
 		
 		if (len == 0)
 		{
-			VALUE_null(RETURN);
+			STRING_void_value(RETURN);
 		}
 		else if (len > 0)
 		{
 			data = STRING_new_temp(NULL, len);
 			
-			STREAM_read(stream, data, len);
+			if ((code & 0x3F) == 2)
+				STREAM_peek(stream, data, len);
+			else
+				STREAM_read(stream, data, len);
 			
 			RETURN->type = T_STRING;
 			RETURN->_string.addr = data;
@@ -516,7 +518,7 @@ void SUBR_read(ushort code)
 			
 			if (eff == 0)
 			{
-				VALUE_null(RETURN);
+				STRING_void_value(RETURN);
 				STRING_free(&data);
 			}
 			else
@@ -569,7 +571,6 @@ void SUBR_write(ushort code)
 				lenw = 0;
 			len = lenw;
 			str = (char *)PARAM[1]._pointer.value;
-			fprintf(stderr, "%p\n", str);
 		}
 		else
 		{
@@ -776,7 +777,7 @@ void SUBR_kill(ushort code)
 			break;
 			
 		case 1:
-			FILE_mkdir(get_path(PARAM));
+			FILE_mkdir_mode(get_path(PARAM), CFILE_default_dir_auth);
 			break;
 			
 		case 2:
@@ -992,7 +993,7 @@ void SUBR_access(ushort code)
 	SUBR_ENTER();
 
 	if (NPARAM == 1)
-		access = R_OK;
+		access = GB_ST_READ;
 	else
 	{
 		VALUE_conv_integer(&PARAM[1]);
@@ -1035,7 +1036,7 @@ void SUBR_lock(ushort code)
 
 		for(;;)
 		{
-			STREAM_open(&stream, path, STO_LOCK);
+			STREAM_open(&stream, path, GB_ST_LOCK);
 			
 			if (!STREAM_lock_all(&stream) && FILE_exist(path))
 				break;
@@ -1055,7 +1056,7 @@ void SUBR_lock(ushort code)
 			THROW(E_LOCK);
 		}
 
-		file = CFILE_create(&stream, STO_LOCK);
+		file = CFILE_create(&stream, GB_ST_LOCK);
 		OBJECT_put(RETURN, file);
 		SUBR_LEAVE();
 	}

@@ -2,7 +2,7 @@
 
   gbx_string.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -41,7 +41,7 @@ typedef
   void (*SUBST_FUNC)(int, char **, int *);
 
 typedef
-  void (*SUBST_ADD_FUNC)(int);
+  void (*SUBST_ADD_FUNC)(int, char, char);
 
 #define STRING_MAKE_TEMP 32
 
@@ -62,6 +62,9 @@ typedef
 #define SC_UNICODE ((char *)-1)
 #define SC_UTF8 ((char *)-2)
 
+#define STRING_from_ptr(_ptr) ((STRING *)((_ptr) - offsetof(STRING, data)))
+#define STRING_length(_ptr) ((_ptr) == NULL ? 0 : STRING_from_ptr(_ptr)->len)
+
 #ifndef __STRING_C
 extern STRING_MAKE STRING_make_buffer;
 extern const char STRING_char_table[];
@@ -69,7 +72,7 @@ extern const char STRING_char_table[];
 
 void STRING_init(void);
 void STRING_exit(void);
-void STRING_clear_cache(void);
+//void STRING_clear_cache(void);
 
 char *STRING_new(const char *src, int len);
 #define STRING_new_zero(_src) \
@@ -84,13 +87,16 @@ int STRING_get_free_index(void);
 
 #define STRING_new_temp(_src, _len) STRING_free_later(STRING_new(_src, _len))
 #define STRING_new_temp_zero(_src) STRING_free_later(STRING_new_zero(_src))
+#define STRING_copy(_src) STRING_new((_src), STRING_length(_src))
 
 char *STRING_extend(char *str, int new_len);
 bool STRING_extend_will_realloc(char *str, int new_len);
 
 //void STRING_extend_end(char *str);
 char *STRING_add(char *str, const char *src, int len);
+#define STRING_add_zero(_str, _src) STRING_add((_str), (_src), -1)
 char *STRING_add_char(char *str, char c);
+#define STRING_add_string(_str, _add) STRING_add((_str), (_add), STRING_length(_add))
 
 #define STRING_extend_end(_str) \
 do { \
@@ -142,12 +148,11 @@ void STRING_void_value(VALUE *value);
 
 char *STRING_subst(const char *str, int len, SUBST_FUNC get_param);
 char *STRING_subst_add(const char *str, int len, SUBST_ADD_FUNC add_param);
+void STRING_subst_add_unquote();
+
 int STRING_conv(char **result, const char *str, int len, const char *src, const char *dst, bool throw);
 char *STRING_conv_file_name(const char *name, int len);
 char *STRING_conv_to_UTF8(const char *name, int len);
-
-#define STRING_from_ptr(_ptr) ((STRING *)((_ptr) - offsetof(STRING, data)))
-#define STRING_length(_ptr) ((_ptr) == NULL ? 0 : STRING_from_ptr(_ptr)->len)
 
 #if DEBUG_STRING
 
@@ -168,7 +173,7 @@ void STRING_unref_real(char **ptr);
 ({ \
   char **pptr = _p; \
   char *ptr = *pptr; \
-  if (LIKELY(ptr != NULL)) \
+  if (ptr) \
   { \
   	STRING_free_real(ptr); \
   	*pptr = NULL; \
@@ -178,7 +183,7 @@ void STRING_unref_real(char **ptr);
 #define STRING_ref(_p) \
 ({ \
   char *ptr = _p; \
-  if (LIKELY(ptr != NULL)) \
+  if (ptr) \
 	{ \
     STRING_from_ptr(ptr)->ref++; \
   } \
@@ -189,7 +194,7 @@ void STRING_unref_real(char **ptr);
   char **pptr = _p; \
   char *ptr = *pptr; \
   STRING *str; \
-  if (LIKELY(ptr != NULL)) \
+  if (ptr) \
   { \
 	  str = STRING_from_ptr(ptr); \
   	if ((--str->ref) <= 0) \
@@ -205,7 +210,6 @@ void STRING_unref_real(char **ptr);
 void STRING_unref_keep(char **ptr);
 
 int STRING_search(const char *ps, int ls, const char *pp, int lp, int is, bool right, bool nocase);
-int STRING_search2(const char *ps, int ls, const char *pp, int lp, int is, bool right, bool nocase);
 
 void STRING_start_len(int len);
 #define STRING_start() STRING_start_len(0)
@@ -216,9 +220,17 @@ void STRING_make_dump();
 
 #define STRING_make_char(_c) \
 ({ \
-	if (UNLIKELY(STRING_make_buffer.ntemp == STRING_MAKE_TEMP)) \
+	if (STRING_make_buffer.ntemp == STRING_MAKE_TEMP) \
 		STRING_make_dump(); \
 	STRING_make_buffer.temp[STRING_make_buffer.ntemp++] = (_c); \
+})
+
+#define STRING_make_undo_char() \
+({ \
+	if (STRING_make_buffer.ntemp) \
+		STRING_make_buffer.ntemp--; \
+	else if (STRING_make_buffer.len > 0) \
+		STRING_make_buffer.len--; \
 })
 
 #endif

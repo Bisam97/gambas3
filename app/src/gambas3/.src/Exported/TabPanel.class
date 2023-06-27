@@ -1,0 +1,98 @@
+' Gambas class file
+
+Export
+
+Private $aButtonLeft As ToolButton[]
+Private $aButtonRight As ToolButton[]
+Private $hObs As Observer
+Private $bUpdateButtons As Boolean
+
+Public Sub AddButton(hButton As ToolButton, iAlign As Integer)
+
+  Dim aButton As ToolButton[]
+  
+  aButton = If((iAlign = Align.Right) Xor System.RightToLeft, $aButtonRight, $aButtonLeft)
+  
+  If Not aButton Then 
+    aButton = New ToolButton[]
+    If iAlign = Align.Right Then
+      $aButtonRight = aButton
+    Else
+      $aButtonLeft = aButton
+    Endif
+  Endif
+  
+  hButton.Ignore = True
+  hButton.Hide
+  aButton.Add(hButton)
+  
+  If Not $hObs Then $hObs = New Observer(Me) As "UpdateButtons"
+  
+  UpdateButtons
+  
+End
+
+Public Sub ShowButton(hButton As ToolButton, bVisible As Boolean)
+  
+  hButton.Visible = bVisible
+  UpdateButtons
+  
+End
+
+Private Sub UpdateButtons()
+  
+  Dim I As Integer
+  Dim hButton As ToolButton
+  Dim X As Integer
+  Dim H As Integer
+  Dim Y As Integer
+  Dim W As Integer
+  
+  If Not $aButtonLeft And If Not $aButtonRight Then Return
+  
+  If $bUpdateButtons Then Return
+  $bUpdateButtons = True
+  
+  X = 0
+  Y = If(Me.Orientation = Align.Top, 0, Me.H - H)
+  H = Me.TabBarSize
+  
+  If $aButtonLeft Then
+    
+    For I = 0 To $aButtonLeft.Max
+      hButton = $aButtonLeft[I]
+      If Not hButton.Visible Then Continue
+      hButton.Move(X, Y, H, H)
+      X += H
+    Next
+    
+  Endif
+  
+  Me.TabBarPaddingStart = X
+  
+  X = 0
+  W = Me.W
+  If Me.CloseButton Then W -= H
+  
+  If $aButtonRight Then
+    
+    For I = 0 To $aButtonRight.Max
+      hButton = $aButtonRight[I]
+      If Not hButton.Visible Then Continue
+      hButton.Move(W - X - H, Y, H, H)
+      X += H
+    Next
+    
+  Endif
+  
+  Me.TabBarPaddingEnd = X
+  
+  $bUpdateButtons = False
+  
+End
+
+Public Sub UpdateButtons_Arrange()
+  
+  UpdateButtons
+  
+End

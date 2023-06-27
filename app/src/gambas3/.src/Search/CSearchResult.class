@@ -1,0 +1,34 @@
+' Gambas class file
+
+Public Path As String
+Public (File) As String
+Public (Line) As Integer
+Public Pos As Integer
+Public Column As Integer
+Public Text As String
+Public Bytes As Integer
+Public Length As Integer
+Public Control As String
+Public {Property} As String
+Public (Highlight) As String
+Public RichText As String
+Public Location As String
+Public Dark As Boolean
+Public OnDisk As Boolean
+
+Public Sub InitFromLine(sLine As String) As Boolean
+
+  Dim aResult As String[]
+
+  aResult = Split(sLine, ":")
+  
+  {Line} = CInt(aResult[0])
+  Pos = CInt(aResult[1])
+  Bytes = CInt(aResult[2])
+  Length = CInt(aResult[3])
+      
+Catch
+
+  Return True  
+  
+End

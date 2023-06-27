@@ -2,7 +2,7 @@
 
   gbc_read.h
 
-  (c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+  (c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -29,13 +29,9 @@
 #include <ctype.h>
 
 #undef isdigit
-#define isdigit(_c) (READ_digit_car[(uchar)(_c)])
+#define isdigit(_c) ((_c) >= '0' && (_c) <= '9')
 #undef isspace
-#define isspace(_c) (((uchar)_c) <= ' ')
-
-#ifndef __GBC_READ_C
-extern char READ_digit_car[];
-#endif
+#define isspace(_c) (((uchar)(_c)) <= ' ')
 
 void READ_do(void);
 void READ_dump_pattern(PATTERN *pattern);

@@ -1,6 +1,6 @@
 ' Gambas class file
 
-Static Public (Color) As String
+Static Public ColorName As String
 Static Public Value As Integer
 Static Public Pattern As String
 
@@ -30,8 +30,6 @@ Static Private Sub GetColor(sName As String) As Integer
   
 End
 
-
-
 Static Public Sub FromString(sColor As String) As Integer
   
   If sColor == "None" Then Return -1
@@ -45,8 +43,6 @@ Catch
   
 End
 
-
-
 Static Public Function Run(Optional sColor As String, Optional bAlpha As Boolean, Optional sTitle As String, Optional aPrefix As String[]) As Boolean
 
   $bInsert = False
@@ -59,10 +55,10 @@ Static Public Function Run(Optional sColor As String, Optional bAlpha As Boolean
 
 End
 
-Static Public Sub Insert(bAlpha As Boolean, sTitle As String, aPrefix As String[]) As Boolean
+Static Public Sub Insert(bAlpha As Boolean, sTitle As String, aPrefix As String[], Optional sColor As String) As Boolean
   
   $bInsert = True
-  $sColor = ""
+  $sColor = sColor
   $bAlpha = bAlpha
   $sTitle = sTitle
   $aPattern = aPrefix
@@ -70,9 +66,6 @@ Static Public Sub Insert(bAlpha As Boolean, sTitle As String, aPrefix As String[
   Return Not FColorChooser.ShowModal() 
   
 End
-
-
-
 
 Public Sub btnOK_Click()
 
@@ -86,6 +79,16 @@ Public Sub btnCancel_Click()
 
 End
 
+Public Sub _new()
+
+  gvwColor.AddColumn("", Desktop.Scale * 4, Align.Center)
+  gvwColor.AddColumn(("Color")).Expand = True
+  gvwColor.AddColumn(("R"), Desktop.Scale * 6, Align.Center)
+  gvwColor.AddColumn(("G"), Desktop.Scale * 6, Align.Center)
+  gvwColor.AddColumn(("B"), Desktop.Scale * 6, Align.Center)
+  
+End
+
 Public Sub Form_Open()
 
   Dim hClass As CClassInfo
@@ -93,6 +96,8 @@ Public Sub Form_Open()
   Dim sColor As String
   Dim iIndex As Integer
   Dim I As Integer
+  Dim aColor As String[]
+  Dim iSep As Integer
   
   Settings.Read(Me)
 
@@ -112,28 +117,45 @@ Public Sub Form_Open()
     
   Endif
 
-  $aColorName = New String[]
-  
   hClass = Project.Documentation.Classes["Color"]
   If hClass Then
+
+    $aColorName = ["", "Transparent", "-"]
     
+    aColor = New String[]
     For Each hSym In hClass.Symbols
       sColor = hSym.Name
-      If sColor = "Default" Then Continue
-      If InStr("RC", hSym.Kind) And If hSym.Type = "i" And If Not $aColorName.Exist(sColor) Then
-        $aColorName.Add(sColor)
-      Endif
+      If sColor = "Default" Or If hSym.Kind <> "R" Or If hSym.Type <> "i" Or If aColor.Exist(sColor) Then Continue
+      aColor.Add(sColor)
     Next
+    aColor.Sort(gb.Natural)
+    $aColorName.Insert(aColor)
     
-    $aColorName.Sort()
+    If aColor.Count Then
+      iSep = $aColorName.Count
+      $aColorName.Add("-")
+    Endif
+
+    aColor = New String[]
+    For Each hSym In hClass.Symbols
+      sColor = hSym.Name
+      If sColor = "Default" Or If hSym.Kind <> "C" Or If hSym.Type <> "i" Or If $aColorName.Exist(sColor) Or If aColor.Exist(sColor) Then Continue
+      aColor.Add(sColor)
+    Next
+    aColor.Sort(gb.Natural)
     
+    $aColorName.Insert(aColor)
+
     $aPict = New Picture[$aColorName.Count]
   
-    gvwColor.Columns.Count = 2
-    gvwColor.Mode = Select.Single
-    gvwColor.Columns[0].W = 24
-    gvwColor.Columns[0].Alignment = Align.Center
-    gvwColor.Rows.Count = $aColorName.Count + 1
+    gvwColor.Rows.Count = $aColorName.Count
+    gvwColor.Rows.H = Desktop.Scale * 4
+    gvwColor.Rows[2].H = 1
+    gvwColor[2, 0].ColumnSpan = gvwColor.Columns.Count
+    If iSep Then
+      gvwColor.Rows[iSep].H = 1
+      gvwColor[iSep, 0].ColumnSpan = gvwColor.Columns.Count
+    Endif
     
   Endif
 
@@ -143,7 +165,7 @@ Public Sub Form_Open()
     iIndex = 1
   Else
     If $sColor Then
-      gvwColor.Row = $aColorName.Find($sColor) + 1
+      gvwColor.Row = $aColorName.Find($sColor)
     Else
       gvwColor.Row = 0
     Endif
@@ -153,9 +175,17 @@ Public Sub Form_Open()
   If Not hClass Then
     iIndex = 1
     tabColor[0].Visible = False
+    tabColor.ShowTabBar = False
+    tabColor.Border = False
+    panFreeColor.Margin = False
+  Else
+    tabColor[0].Visible = True
+    tabColor.ShowTabBar = True
+    tabColor.Border = True
+    panFreeColor.Margin = True
   Endif
   
-  If Not $bInsert Then tabColor.Index = iIndex
+  tabColor.Index = iIndex
   
   dlgColor.ShowAlpha = $bAlpha
   
@@ -207,24 +237,30 @@ Private Sub UpdateColor()
   Dim I As Integer
 
   If tabColor.Index = 0 Then
-    Try sColor = $aColorName[gvwColor.Row - 1]
+    Try sColor = $aColorName[gvwColor.Row]
   Else
     sColor = CStr(dlgColor.Value)
   Endif
+  
+  If sColor = "-" Then Return
 
   If Not sColor Then
-    Color = ""
+    ColorName = ""
     Value = -1
   Else If IsLetter(Left(sColor)) Then
-    Color = sColor
+    ColorName = sColor
     Value = GetColor(sColor)
   Else
     Value = Val(sColor)
     If $bAlpha Then
-      Color = "&H" & Hex$(Value, 8) & "&"
+      ColorName = "&H" & Hex$(Value, 8)
     Else
-      Color = "&H" & Hex$(Value, 6) & "&"
+      ColorName = "&H" & Hex$(Value, 6)
     Endif
+  Endif
+  
+  If tabColor.Index = 0 Then
+    If Value >= 0 Then dlgColor.Value = Value
   Endif
 
   If $aPattern Then
@@ -259,37 +295,57 @@ Public Sub tabColor_Click()
 
 End
 
+Public Sub gvwColor_Draw(X As Integer, Y As Integer, Width As Integer, Height As Integer, Row As Integer, (Column) As Integer)
+  
+  If $aColorName[Row] = "-" Then Paint.FillRect(X, Y, Width, Height, Color.LightForeground)
+  
+End
+
 Public Sub gvwColor_Data(Row As Integer, Column As Integer)
 
   Dim hPict As Picture
   Dim hImage As Image
+  Dim S As Integer
+  Dim sName As String
+  
+  sName = $aColorName[Row]
+  If sName = "-" Then Return
   
   With gvwColor.Data
 
     Select Case Column
       
       Case 0
-        If Row = 0 Then
-          hPict = Picture["img/16/tile.png"]
-        Else
-          hPict = $aPict[Row - 1]
+        If Row > 0 Then
+          hPict = $aPict[Row]
+          If Not hPict Then
+            S = Stock.GetSize("small")
+            hImage = Picture["img/32/tile.png"].Image
+            Paint.Begin(hImage)
+            Paint.DrawRect(0, 0, 32, 32, Color.TextForeground, 2)
+            Paint.FillRect(2, 2, 28, 28, GetColor(sName))
+            Paint.End
+            hPict = hImage.Stretch(S, S).Picture
+            $aPict[Row] = hPict
+          Endif
+          .Picture = hPict
         Endif
-        If Not hPict Then
-          hImage = New Image(16, 16, 0)
-          Paint.Begin(hImage)
-          Paint.FillRect(1, 1, 14, 14, GetColor($aColorName[Row - 1]))
-          Paint.End
-          hPict = hImage.Picture
-          $aPict[Row - 1] = hPict
-        Endif
-        .Picture = hPict
       
       Case 1
         If Row = 0 Then
-          .Text = "None"
+          .Text = " Default"
         Else
-          .Text = $aColorName[Row - 1]
+          .Text = " " & $aColorName[Row]
         Endif
+        
+      Case 2
+        If Row > 0 And If sName <> "Transparent" Then .Text = CStr(Color[GetColor(sName)].Red)
+        
+      Case 3
+        If Row > 0 And If sName <> "Transparent" Then .Text = CStr(Color[GetColor(sName)].Green)
+        
+      Case 4
+        If Row > 0 And If sName <> "Transparent" Then .Text = CStr(Color[GetColor(sName)].Blue)
         
     End Select
     
@@ -299,7 +355,11 @@ End
 
 Public Sub gvwColor_Activate()
 
-  btnOK.Value = True
+  If $aButtonPattern And If $aButtonPattern.Count Then
+    $aButtonPattern[0].Value = True
+  Else
+    btnOK.Value = True
+  Endif
 
 End
 

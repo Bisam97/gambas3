@@ -130,7 +130,7 @@ BEGIN_PROPERTY(Clipboard_Formats)
 
 END_PROPERTY
 
-BEGIN_PROPERTY(CCLIPBOARD_type)
+BEGIN_PROPERTY(Clipboard_Type)
 
 	GB.ReturnInteger(gClipboard::getType());
 
@@ -257,7 +257,7 @@ GB_DESC CClipboardDesc[] =
   
   GB_STATIC_PROPERTY_READ("Format", "s", Clipboard_Format),
   GB_STATIC_PROPERTY_READ("Formats", "String[]", Clipboard_Formats),
-  GB_STATIC_PROPERTY_READ("Type", "i", CCLIPBOARD_type),
+  GB_STATIC_PROPERTY_READ("Type", "i", Clipboard_Type),
 	GB_STATIC_PROPERTY_READ("HasChanged", "b", Clipboard_HasChanged),
 
   GB_STATIC_METHOD("Copy", 0, Clipboard_Copy, "(Data)v[(Format)s]"),
@@ -324,6 +324,19 @@ BEGIN_METHOD(Drag_call, GB_OBJECT source; GB_VARIANT data; GB_STRING format)
 	GB.ReturnObject(CDRAG_drag((CWIDGET *)VARG(source), &VARG(data), MISSING(format) ? NULL : GB.ToZeroString(ARG(format))));
 
 END_METHOD
+
+
+BEGIN_PROPERTY(Drag_Target)
+
+	if (READ_PROPERTY)
+		GB.ReturnObject(GetObject(gDrag::getDestination()));
+	else
+	{
+		CWIDGET *dest = (CWIDGET *)VPROP(GB_OBJECT);
+		gDrag::setDestination(dest ? dest->widget : NULL);
+	}
+
+END_PROPERTY
 
 
 BEGIN_PROPERTY(Drag_Icon)
@@ -566,9 +579,9 @@ GB_DESC CDragDesc[] =
   GB_CONSTANT("Text", "i", gDrag::Text),
   GB_CONSTANT("Image", "i", gDrag::Image),
 
-  GB_CONSTANT("Copy", "i", 0),
-  GB_CONSTANT("Link", "i", 1),
-  GB_CONSTANT("Move", "i", 2),
+  GB_CONSTANT("Copy", "i", DRAG_COPY),
+  GB_CONSTANT("Link", "i", DRAG_LINK),
+  GB_CONSTANT("Move", "i", DRAG_MOVE),
 
   GB_STATIC_PROPERTY("Icon", "Picture", Drag_Icon),
   GB_STATIC_PROPERTY("IconX", "i", Drag_IconX),
@@ -583,6 +596,7 @@ GB_DESC CDragDesc[] =
   GB_STATIC_PROPERTY("X", "i", Drag_X),
   GB_STATIC_PROPERTY("Y", "i", Drag_Y),
   GB_STATIC_PROPERTY_READ("Pending", "b", Drag_Pending),
+	GB_STATIC_PROPERTY("_Target", "Control", Drag_Target),
 
   GB_STATIC_METHOD("_call", "Control", Drag_call, "(Source)Control;(Data)v[(Format)s]"),
   GB_STATIC_METHOD("_exit", 0, Drag_exit, 0),

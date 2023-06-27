@@ -12,6 +12,7 @@ Private $bShort As Boolean
 Private $iCurrentTime As Integer = -1
 Private $dCurrentDate As Date
 Private $iMonthWidth As Integer
+Private $bShowWeek As Boolean
 
 'Private mnuMonth As Menu
 
@@ -63,11 +64,25 @@ Private Sub GetTimeFormat() As String
   
 End
 
+Private Sub UpdateTimeWidth()
+
+  If panDate.Visible Then
+    If panTime.Visible Then
+      panTime.Expand = False
+      panTime.W = Desktop.Scale * 32
+    Else
+    Endif
+  Else
+    If panTime.Visible Then
+      panTime.Expand = True
+    Endif
+  Endif
+
+End
 
 Public Sub _new()
   
-  panTime.W = Desktop.Scale * 16
-  
+  UpdateTimeWidth
   FillMonth(False)
   
   $dDate = Now  
@@ -204,6 +219,23 @@ Public Sub GetValue() As Date
   
 End
 
+Private Sub CalcGrid(ByRef W As Integer, ByRef H As Integer, Optional ByRef XD As Integer, ByRef YD As Integer) As Boolean
+  
+  H = dwgMonth.ClientH / 7
+  W = dwgMonth.ClientW 
+  If $bShowWeek Then 
+    W -= H
+    XD = H
+  Else
+    XD = 0
+  Endif
+  W = W \ 7
+  
+  YD = dwgMonth.ClientH - H * 6
+  
+  If W = 0 Or If H = 0 Then Return True
+  
+End
 
 Public Sub dwgMonth_Draw()
 
@@ -217,23 +249,19 @@ Public Sub dwgMonth_Draw()
   Dim bToday As Boolean
   Dim hDate As _DateChooser_Date
   Dim fSize As Float
+  Dim iWeek As Integer
+  
+  If CalcGrid(ByRef W, ByRef H, ByRef XD, ByRef YD) Then Return
   
   iForeground = dwgMonth.Foreground 'Draw.Foreground
   iBackground = dwgMonth.Background 'Draw.Background
   
-  W = dwgMonth.ClientW / 7
-  H = dwgMonth.ClientH / 7
-  
-  If W = 0 Or H = 0 Then Return
-  
-  XD = 0 '(Draw.W - W * 7) / 2
-  YD = dwgMonth.ClientH - H * 6
   
   Draw.FillStyle = Fill.Solid
   Draw.LineStyle = Line.None
   
   Draw.Font = dwgMonth.Font
-  fSize = Draw.Font.Size * H / Draw.Font.Height * 0.7
+  fSize = Draw.Font.Size * H / Draw.Font.Height * 0.6
   Draw.Font.Size = fSize
   Draw.Font.Bold = True
 
@@ -256,8 +284,32 @@ Public Sub dwgMonth_Draw()
   
   Draw.LineStyle = Line.Solid
   Draw.Foreground = Color.LightForeground
-  Draw.Line(XD, YD - 1, XD + Draw.W - 1, YD - 1)
+  Draw.Line(0, YD - 1, Draw.W - 1, YD - 1)
   Draw.LineStyle = Line.None
+
+  dDate = $dStart
+  Paint.Font = GetParent().Font
+  Paint.Font.Size = fSize
+  
+  If $bShowWeek Then
+    
+    dDate = $dStart
+    X = 0
+    Y = YD
+    For J = 0 To 5
+      If Year(dDate) <> Year($dDate) Then
+        iWeek = Week(DateAdd(dDate, gb.Day, 6))
+      Else
+        iWeek = Week(dDate)
+      Endif
+      Paint.DrawText(CStr(iWeek), X, Y, XD, H, Align.Center)
+      Y += H
+      dDate += 7
+    Next
+    
+    Paint.FillRect(XD, YD, 1, Paint.H - YD, Color.LightForeground)
+    
+  Endif
 
   dDate = $dStart
   Y = YD
@@ -422,17 +474,11 @@ Private Sub CalcCurrentDate() As Boolean
   
   $dCurrentDate = Null
   
-  W = dwgMonth.ClientW / 7
-  H = dwgMonth.ClientH / 7
+  If CalcGrid(ByRef W, ByRef H, ByRef XD, ByRef YD) Then Return True
   
-  If W = 0 Or H = 0 Then Return True
+  If Mouse.X < XD Or If Mouse.Y < YD Then Return True
   
-  XD = 0 '(Draw.W - W * 7) / 2
-  YD = dwgMonth.ClientH - H * 6
-
-  If Mouse.Y < YD Then Return True
-  
-  dDate = $dStart + Min(6, Mouse.X \ W) + ((Mouse.Y - YD) \ H) * 7
+  dDate = $dStart + Min(6, (Mouse.X - XD) \ W) + ((Mouse.Y - YD) \ H) * 7
   If CheckDate(dDate) <> dDate Then Return True
   $dCurrentDate = dDate
   
@@ -527,6 +573,8 @@ Public Sub Form_Resize()
   Endif
   
   FillMonth(cmbMonth.Width < $iMonthWidth)
+  
+  If $bShowWeek Then UpdateReloadSize
 
 End
 
@@ -725,6 +773,7 @@ Public Sub SetShowTime(bShowTime As Boolean)
   If Not GetShowDate() And Not bShowTime Then Error.Raise("Bad argument")
   panTime.Visible = bShowTime
   sepTime.Visible = GetShowTime() And GetShowDate()
+  UpdateTimeWidth
   
 End
 
@@ -739,6 +788,7 @@ Public Sub SetShowDate(bShowDate As Boolean)
   If Not GetShowTime() And Not bShowDate Then Error.Raise("Bad argument")
   panDate.Visible = bShowDate
   sepTime.Visible = GetShowTime() And GetShowDate()
+  UpdateTimeWidth
   
 End
 
@@ -829,6 +879,7 @@ Public Sub txtHour_MouseWheel()
   Endif
   
   SetTime(Time(iHour, Minute($dTime), 0))
+  If panDate.Visible Then btnOK_Click
 
 End
 
@@ -838,13 +889,28 @@ Public Sub txtMinute_MouseWheel()
 
   If Mouse.Forward Then
     Inc iMinute
-    If iMinute > 59 Then iMinute = 0
+    If iMinute > 59 Then
+      If Hour($dTime) = 23 Then 
+        Stop Event
+        Return
+      Endif
+      iMinute = 0
+      txtHour_MouseWheel
+    Endif
   Else
     Dec iMinute
-    If iMinute < 0 Then iMinute = 59
+    If iMinute < 0 Then
+      If Hour($dTime) = 0 Then 
+        Stop Event
+        Return
+      Endif
+      iMinute = 59
+      txtHour_MouseWheel
+    Endif
   Endif
   
   SetTime(Time(Hour($dTime), iMinute, 0))
+  If panDate.Visible Then btnOK_Click
 
 End
 
@@ -914,4 +980,46 @@ Public Sub dwgMonth_MouseWheel()
   
   SetDate(Year(dDate), Month(dDate), Day(dDate))
 
+End
+
+Private Sub UpdateReloadSize()
+
+  Dim W As Integer
+  Dim H As Integer
+  Dim XD, YD As Integer
+
+  If Not $bShowWeek Then Return
+  
+  If CalcGrid(ByRef W, ByRef H, ByRef XD, ByRef YD) Then 
+    btnReload.Hide
+  Else
+    btnReload.Move(0, 0, XD, YD)
+    btnReload.Show
+  Endif
+
+End
+
+Public Sub SetShowWeek(bWeek As Boolean)
+  
+  If $bShowWeek = bWeek Then Return
+  $bShowWeek = bWeek
+
+  If $bShowWeek Then
+    btnReload.Reparent(dwgMonth)
+    btnReload.Ignore = True
+    UpdateReloadSize
+  Else
+    btnReload.Reparent(panToolbar)
+    btnReload.Lower()
+    btnReload.Ignore = False
+  Endif
+  
+  dwgMonth.Refresh
+  
+End
+
+Public Sub GetShowWeek() As Boolean
+  
+  Return $bShowWeek
+  
 End

@@ -1,0 +1,2417 @@
+' Gambas test file
+
+Fast
+
+Library "libc:6"
+Private Extern modf(param As Float, pp As Pointer) As Float
+
+#If SYSTEM = "Linux"
+Private sSystem As String = "Linux"
+#Else If SYSTEM = "FreeBSD"
+Private sSystem As String = "FreeBSD"
+#Else If SYSTEM = "OpenBSD"
+Private sSystem As String = "OpenBSD"
+#Else If SYSTEM = "NetBSD"
+Private sSystem As String = "NetBSD"
+#Else If SYSTEM = "Solaris"
+Private sSystem As String = "Solaris"
+#Else
+Private sSystem As String = "Unknown"
+#Endif
+
+#If ARCHITECTURE = "x86"
+Private sArchitecture As String = "x86"
+#Else If ARCHITECTURE = "x86_64"
+Private sArchitecture As String = "x86_64"
+#Else If ARCHITECTURE = "ARM"
+Private sArchitecture As String = "ARM"
+#Else If ARCHITECTURE = "PPC"
+Private sArchitecture As String = "PPC"
+#Else
+Private sArchitecture As String = "Unknown"
+#Endif
+
+#If Debug
+Private DebuggingEnabled As Boolean = True
+#Else
+Private DebuggingEnabled As Boolean = False
+#Endif
+
+'Private $sGrep As String
+'Private sSearch As New String[]
+Private Const TestConst2 As Integer = 2
+Public Const LowestLong As Long = -9223372036854775808
+Public Const HighestLong As Long = 9223372036854775807
+Public Const LowestInteger As Integer = -2147483648
+Public Const HighestInteger As Integer = 2147483647
+Public Const LowestShort As Short = -32768
+Public Const HighestShort As Short = 32767
+
+Public Struct MyPoint
+    x As Integer
+    y As Integer
+End Struct
+
+'Private arr As New Integer[2, 2]
+
+Private sTest As String '
+'
+Private bReadOK As Boolean
+Private bWriteOK As Boolean
+Private hWatchFile As File
+
+Private hStillHere1 As New MyPoint
+
+Public hFormForEvent As New TestClass3
+
+Private iTestAndIf As Integer = 0
+
+Private iseek As Integer
+
+Public Const kkX As Integer = 1999
+Public Const kkY As Integer = 1499
+
+Public hChild As New ChildClass
+
+Public timo As Integer
+
+Public Const gDay As Integer = 739992
+Public Const gHour As Integer = 30833
+
+Public Const bbb As Integer = 50
+Public bArray As New Boolean[100]
+Private ctrl_dc[7] As Integer
+
+Public sPublic As String = "Test"
+
+'' A lot of fast running tests testing diffrent commands of the Gambas3 language.
+
+Fast Public Function FastTests() As Integer
+
+    Dim hSt As Stream
+    Dim sStr As String
+    Dim tmp As String
+    Dim ii As Integer
+    Dim jj, kk As Integer
+    Dim nn As Integer
+    Dim pp As Pointer
+    Dim pp2 As Pointer
+    Dim bTest As Boolean
+    Dim cCol As Collection = ["A": 1, "B": 2, "C": 3]
+    Dim InlineArr As String[] = ["A", "B", "C"]
+    Dim ClassTest As New TestClass2
+    Dim ClassTestb As New TestClass2
+    Dim ClassTestc As New TestClass3
+
+    Dim ClassArray As New TestClass2[]
+
+    Dim hFile As File
+    Dim TestPoint As New MyPoint
+    Dim tt As Float
+
+    Dim TestByte As Byte
+    Dim TestShort As Short
+    Dim TestLong As Long
+
+    Dim hStillHere2 As New MyPoint
+
+    Dim TestSingle As Single
+
+    Dim fArr As New Float[]
+    Dim sngArr As New Single[]
+
+    Dim iArr As New Integer[]
+    Dim shrArr As New Short[]
+
+    Dim bArr As New Boolean[]
+    Dim sArr As New String[]
+    Dim dArr As New Date[]
+    Dim vArr As New Variant[]
+    Dim oo As Object
+    Dim e As New Collection
+
+    Dim {Dim} As Integer = 6
+    Dim a As New Integer[1]
+    Dim b As New Float[1]
+    Dim hVar As Variant[]
+
+    Dim hDate As Date
+
+    Dim l1, l2 As Long
+
+    Dim hTest3 As New Crash2
+
+    Dim hCrash As New ChildClass
+
+    Dim sDescription As String
+
+    hStillHere1.x = 123
+    hStillHere1.y = 456
+    hStillHere2.x = 123
+    hStillHere2.y = 456
+
+    'TODO: Check prerequisites in _Setup()
+    ' ------------------------------------------------- Prerequisites
+
+    If Exist(Application.Path &/ ".src" &/ "TestSources" &/ "mTest.module") = False Then
+        'Message.Error("Cannot open source file for testing! Test must be executed from GambasTest project root folder.")
+        Error.Raise(("Cannot open source file for testing! Test must be executed from GambasTest project root folder."))
+        'Return -1
+    Endif
+
+    If DebuggingEnabled = False Then
+        Error.Raise(("GambasTester cannot be run without debugging information! Recompile debugging information enabled."))
+        'Return -1
+    Endif
+
+    ' ------------------------------------------------- End Prerequisites
+
+    ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+    ''Crash and compiler tests.
+    ''Big thanks to Emil Lenngren (+ other people who have filed bug reports) from Gambas mailing list!
+
+    Test.Note("Start Crash and compiler tests")
+
+    'ByRefTest(ii)
+
+    ctrl_dc[1] = 0
+
+    iseek = 0
+    Try mTest.Ploo()
+
+    File.Save("/tmp/TEST", "1234567890123456789")
+    hFile = Open "/tmp/TEST"
+
+    Seek #hFile, 1
+    mTest.Ploo2(hFile)
+
+    Seek #hFile, 20
+
+    Do
+        Try mTest.Ploo2(hFile)
+        If Error Then Break
+    Loop
+
+    hFile.Close
+
+    mTest.CrashMe
+
+    mTest.CrashJIT1
+    mTest.CrashJIT2
+    mTest.CrashJIT3
+
+    Try ii = mTest.CrashJIT4()
+    ii = mTest.CrashJIT4("something")
+
+    If ii <> 255 Then
+        Print 1 / 0
+    Endif
+
+    ii = 0
+
+    mTest.CrashJIT5()
+
+    mTest.CrashJIT6(ii,, True)
+
+    mTest.CrashJIT7(hCrash)
+
+    sStr = "sdfds$£½435dgfh321 dfgfd8(/$£½fdg"
+    sStr = RegExp.Replace(sStr, "[[:^alnum:]]", "")
+
+    sStr = String.InStr("Test", "")
+
+    sStr = Subst$("&1", IIf(False, "x", ""))
+
+    sStr = ""
+
+    If bTest = True And sStr Then
+    Endif
+
+    hVar = [a, b, 1]
+
+    '#If False
+    Try ClassTestc.abc = 123
+    Try TestClass3.abc()
+    '#Endif
+
+    mTest.CrashFunction(2147483647, 2147483647, 2147483647, 2147483647)
+
+    '#If False
+    'Try oo = [TestClass1]
+    Try oo = [TestClass1]
+    '#Endif
+
+    mTest.Func1()
+    {Dim} += mTest.Func2()
+
+    '#If False
+    Try Print [mTest.VoidFn()]
+    '#Endif
+
+    iArr.Add(1)
+    fArr.Add(1)
+
+    vArr.Add([iArr, fArr, 1])
+
+    iArr.Clear()
+    fArr.Clear()
+    vArr.Clear()
+
+    For ii = 1 To 2
+        e["hello"] = 1
+        For Each jj In e
+            e.Clear()
+        Next
+    Next
+    e.Clear()
+
+    mTest.CrashSub()
+
+    '#If False
+    Try ii = 1 ^ ([1, "kk"][0])
+    '#Endif
+
+    ii = 0
+
+    hTest3.hTest.x = 1
+
+    Try bArr = cCol[mTest.CrashMe]
+
+    Test.Note("End Crash and compiler tests")
+
+    ''Crash test end
+    ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+    Dim sStr1 As String = ""
+    Dim sStr2 As String = "Gambas"
+    Dim sStr3 As String = "Mätä"
+    Dim bByte As Byte = 255
+    Dim iShort As Short = -1
+    Dim bBoolean As Boolean = True
+    sStr = Temp
+    ii = 0
+
+    'again:
+
+    hFile = Open sStr For Read Write Create
+
+    Write #hFile, bBoolean As Boolean
+    Write #hFile, sStr3 As String
+    Write #hFile, iShort As Short
+    Write #hFile, bByte As Byte
+    Write #hFile, sStr1 As String
+    Write #hFile, bByte As Byte
+    Write #hFile, sStr2 As String
+    Write #hFile, bByte As Byte
+
+    Seek #hFile, 0
+
+    bBoolean = Read #hFile As Boolean
+    Assert.Ok(bBoolean, "ReadFileBoolean")
+
+    sStr3 = Read #hFile As String
+    Assert.StringEquals(sStr3, "Mätä", "ReadFileString")
+
+    iShort = Read #hFile As Short
+    Assert.Equals(iShort, -1, "ReadFileShort")
+
+    bByte = Read #hFile As Byte
+    Assert.Equals(bByte, 255, "ReadFileByte")
+
+    sStr1 = Read #hFile As String
+    Assert.Equals(sStr1, "", "ReadFileString2")
+
+    bByte = Read #hFile As Byte
+    Assert.Equals(bByte, 255, "ReadFileByte2")
+
+    sStr2 = Read #hFile As String
+    Assert.Equals(sStr2, "Gambas", "ReadFileGambas")
+
+    bByte = Read #hFile As Byte
+    Assert.Equals(bByte, 255, "ReadFileByte3")
+
+    hFile.Close
+
+    sDescription = "Testing StringArray"
+
+    For Each sStr In ["Integer[]", "Short[]", "Long[]", "Float[]", "Single[]", "Variant[]", "Pointer[]"]
+
+        oo = Null
+        oo = Object.New(sStr)
+        oo.Clear
+
+        For ii = 1 To 10000
+            oo.Add(ii)
+        Next
+
+        Assert.NotOk(oo.Find(0) <> -1 Or oo.Find(10001) <> -1 Or oo.Find(999) = -1, sDescription)
+
+        oo.Fill(666, 0, 10000)
+
+        Assert.NotOk(oo.Find(0) <> -1 Or oo.Find(10000) <> -1 Or oo.Find(666) = -1, sDescription)
+
+        oo.Clear
+
+    Next
+    sStr = ""
+    oo = Null
+
+    Assert.NotOk("abc" == "ab", "String Comparison 1")
+    If Not ("abc" == "ab") Then
+        sStr = "T"
+    Endif
+
+    Assert.Ok("abc" == "abc", "String Comparison 2")
+    If "abc" == "abc" Then
+        sStr &= "h"
+    Endif
+
+    Assert.Ok("abc" == "abC", "String Comparison 3")
+    If "abc" == "abC" Then
+        sStr &= "i"
+    Endif
+
+    Assert.Ok("abc" <> "ab", "String Comparison 4")
+    If "abc" <> "ab" Then
+        sStr &= "s"
+    Endif
+
+    Assert.NotOk("abc" = "abC", "String Comparison 5")
+    If Not ("abc" = "abC") Then
+        sStr &= " "
+    Endif
+
+    Assert.ok("abc" = "abc", "String Comparison 6")
+    If "abc" = "abc" Then
+        sStr &= UCase$("g")
+    Endif
+
+    sStr &= Mid$("Alphabets", 5, 1) 'a
+    sStr &= LCase$(Left$("Mustard", 1)) 'm
+    sStr &= Mid$(Right$("Alphabets", 4), 1, 1) 'b
+
+    sStr &= Chr$(Asc("a"))
+
+    sStr &= "X"
+    sStr = Replace$(sStr, "X", "s")
+
+    Assert.StringEquals(sStr, "This Gambas", "Playing with Strings")
+
+    sDescription = "Testing RInStr"
+
+    If Assert.Ok(RInStr("Gambas is basic", "bas") = 11, sDescription) Then
+        If Assert.Ok(RInStr("Gambas is basic", "bas", 10) = 4, sDescription) Then
+            If Assert.Ok(RInStr("Gambas is basic", "not") = 0, sDescription) Then
+                sStr &= " "
+            Endif
+        Endif
+    Endif
+
+    If Assert.Ok(Html$(">Gambas<") Ends "&lt;", "Html lt") Then
+        sStr &= "v"
+    Endif
+
+    If Assert.Ok(Html$(">Gambas<") Begins "&gt;", "Html gt") Then
+        sStr &= "e"
+    Endif
+
+    Assert.NotOk(Html$(">Gambas") Ends "&lt;" Or Html$("Gambas<") Begins "&gt;", "Bad Html gt lt")
+
+    If Assert.Ok("Gambas" Like "G*", "Like 1") Then
+        sStr &= "r"
+    Endif
+
+    If Assert.Ok("Gambas" Like "?[Aa]*", "Like 2") Then
+        sStr &= "s"
+    Endif
+
+    If Assert.NotOk(("Gambas" Like "G[^Aa]*"), "Like 3") Then
+        sStr &= RTrim$("i ")
+    Endif
+
+    If Assert.Ok(InStr("Gambas is basic", "bas") = 4, "Instr 1") Then
+        If Assert.Ok(InStr("Gambas is basic", "bas", 10) = 11, "Instr 2") Then
+            If Assert.Ok(InStr("Gambas is basic", "not") = 0, "Instr 3") Then
+                sStr &= Trim$(" o ")
+            Endif
+        Endif
+    Endif
+
+    sStr &= LTrim$(" n")
+
+    If Assert.Ok(Split(sStr, " ").Count = 3, "Split string") Then
+        sStr &= Space$(1)
+    Endif
+
+    If Assert.Ok(Scan(sStr, "* * *").Count = 3, "Scan string") Then
+        sStr &= "i"
+    Endif
+
+    If Assert.Ok("abcd" > "abc", "string greater") Then
+        sStr &= "s"
+    Endif
+
+    If Assert.NotOk("abcd" < "abc", "string not smaller") Then
+        sStr &= " "
+    Endif
+
+    If Assert.ok("abcd" >= "abc", "string greater equals") Then
+        sStr &= "s"
+    Endif
+
+    If Assert.Ok("abc" >= "abc", "string greater equals 2") Then
+        sStr &= "o"
+    Endif
+
+    If Assert.Ok("abc" <= "abcd", "string samller equals") Then
+        sStr &= "m"
+    Endif
+
+    If Assert.Ok("abc" <= "abc", "string samller equals 2") Then
+        sStr &= "e"
+    Endif
+
+    sStr &= "&1&2&4&3"
+    sStr = Subst$(sStr, "w", "h", "t", "a")
+
+    Assert.StringEquals(UnQuote$("This is not a \\\"quoted\\\"\\nmulti-line string."), "This is not a \"quoted\"\nmulti-line string.", "UnQuote$")
+
+    sStr &= " tested for string e"
+
+    sStr &= String$(2, "r")
+
+    sStr &= "ors."
+
+    Assert.Equals(Len(sStr), 57, "Lenstr57")
+
+    Shell "echo '" & sStr & "' | md5sum" To tmp
+
+    Assert.StringEquals(Left$(tmp, 32), "d2cbdfdf41d7aafb66c0df1c9ffd482f", "Validate result with md5sum.")
+
+    ' TODO: Really the same???? This:
+    Assert.equals(Sin(0.5) ^ 2 + Cos(0.5) ^ 2, 1, "Trigonometric 1")
+    Assert.equals(Sin(0.5) ^ 2.0 + Cos(0.5) ^ 2.0, 1, "Trigonometric 2")
+
+    ' And This:
+    If (Sin(0.5) ^ 2 + Cos(0.5) ^ 2) <> 1 Or If (Sin(0.5) ^ 2.0 + Cos(0.5) ^ 2.0) <> 1 Then
+        Assert.Fail("Trigonometric 1+2")
+    Endif
+
+    Assert.equals(Sin(ASin(0.5)), 0.5, "Trigonometric 3")
+
+    Assert.equals(Sin(ASin(0.5)) ^ 5, 0.5 ^ 5, "Trigonometric 4")
+
+    Assert.LessEqual(Abs(Cos(ACos(0.5)) - 0.5), 1.1102230246252E-16, "Trigonometric 5")
+
+    Assert.NotOk(Abs(Tan(ATan(0.5)) - 0.5) > 5.5511151231259E-17, "Trigonometric 4")
+
+    Assert.Equals(Str(ACosh(2)), Str(1.31695789692482), "Str(ACosh(2))")
+
+    Assert.Equals(Deg(Ang(-1, 1)), 135, "Deg(Ang(-1,1))")
+
+    Assert.Equals(Str(ATanh(0.5)), Str(0.549306144334055), "Str(ATanh(0.5))")
+
+    Assert.Equals(Str(Sinh(1)), Str(1.1752011936438), "Str(Sinh(1))")
+
+    Assert.Equals(((8 Or 32) Xor 16), 56, "((8 Or 32) Xor 16)")
+
+    ii = BClr(40, 3) '32
+    ii = BSet(ii, 30)
+    ii += BChg(0, 3)
+    ii = Lsl(ii, 1)
+    ii = -ii
+    ii = Lsr(ii, 1) '1073741784
+    ii += Shl(9, 2) ' 111111111111111111111111111100
+    ii += Shr(24, 3) '111111111111111111111111111111
+
+    For jj = 0 To 31
+        ii = Rol(ii, jj)
+    Next
+
+    Assert.Ok(BTst(ii, 13), "Bit manipulation 1")
+
+    Assert.NotOk(BTst(ii, 14), "Bit manipulation 2")
+
+    For jj = 0 To 31
+        ii = Ror(ii, jj)
+    Next
+
+    l1 = 1
+    For l2 = 0 To 63
+        l1 = BChg(l1, l2)
+    Next
+
+    Assert.Equals(l1, -2, "Bit manipulation 3")
+    Assert.Equals(Bin$(ii), "111111111111111111111111111111", "Bit manipulation 4")
+    Assert.Equals(Asr(CShort(-4), 1), -2, "Bit manipulation 5")
+    Assert.Equals(BSet(CShort(-2), 0), -1, "Bit manipulation 6")
+    Assert.Equals(Ror(CShort(1), 1), -32768, "Bit manipulation 7")
+    Assert.Equals(Shl(CShort(-1), 0), -1, "Bit manipulation 8")
+
+    ii = Abs(-100)
+    Dec ii
+    Inc ii
+    ii /= 3
+    ii = Fix(ii)
+
+    Assert.Equals(Frac(ii / 2), 0.5, "Some numbers crumpling")
+
+    Assert.Equals(Int(Pi), 3, "Int Pi")
+
+    Assert.Equals(Int(-Pi), -4, "Int -Pi")
+
+    Assert.Equals(Max(Pi, 2), Pi, "Max Pi")
+
+    Assert.Equals(Min(Pi, 2), 2, "Min Pi")
+
+    Assert.Equals(Sgn(-123456789), -1, "Sgn(-123456789)")
+
+    Assert.Equals(Sgn(-Pi), -1, "Sgn(-Pi)")
+
+    Assert.Equals(Round(Pi, -2), 3.14, "Round(Pi, -2)")
+    Assert.Equals(Round(CSingle(6) + 0.01), 6, "Round(CSingle(6) + 0.01)")
+
+    Assert.Equals(Round(1972, 2), 2000, "Round(1972, 2)")
+
+    Randomize 123
+    If Assert.Ok(CInt(Rnd(1, 10)) = 3 And CInt(Rnd(1, 10)) = 3 And CInt(Rnd(1, 10)) = 9, "Rnd 1") Then
+        Select Case 5
+            Case CInt(Rnd(1, 10))
+                Assert.Fail("Rnd 2")
+            Case CInt(Rnd(1, 10)) '5
+                Assert.Pass("Rnd 3")
+            Case CInt(Rnd(1, 10))
+                Assert.Fail("Rnd 4")
+        End Select
+    Else
+        Assert.Fail("Rnd 5")
+    Endif
+
+    ii = 3
+
+    Assert.StringEquals(Choose(ii, "one", "two", "three", "four"), "three", "Choose 1")
+
+    ii = 3
+    Assert.Ok(IsNull(Choose(ii * 2, "one", "two", "three", "four")), "Choose 2")
+    Assert.Ok(IsNull(Choose(-2, "one", 2)), "Choose 3")
+    Assert.Ok(IsNull(Choose(2000000000, True, Date(Now))), "Choose 4")
+    Assert.Ok(IsNull(Choose(-2000000000, True, Date(Now))), "Choose 5")
+
+    ii = 7
+    sStr = If((ii Mod 2) = 0, "even", "odd")
+    Assert.StringEquals(sStr, "odd", "IIf ii Mod 2")
+
+    ii = 2
+
+    Try ii /= 0
+    Assert.Error("ii /= 0")
+
+    ii = 0
+    Try ii = 3 / ii
+    Assert.Error("ii = 3 / 0")
+    Try ii = "cat or dog"
+    Assert.Error("ii = cat or dog")
+
+    '#If False
+    Try ii = 1.234 Div 5
+    Assert.Error("ii = 1.234 Div 5")
+
+    '#Endif
+
+    Assert.Equals(19 Div 5, 19 \ 5, "Is 19 Div 5")
+
+    Assert.Equals(19 Div 5, 3, "Is2 19 Div 5")
+
+    'If "And If" fails, this raises division by zero.
+    If 1 = 2 And If 1 / 0 Then
+    Else
+        Assert.Pass("And If test 1")
+    Endif
+
+    If 1 = 2 And If Me._TestAndIf() = 0 Then
+        Assert.Fail("And If test 2")
+    Endif
+
+    Assert.Equals(iTestAndIf, 0)
+
+    ii = 3
+    ii ^= 2
+    ii -= 1
+    ii = ii ^ 2
+
+    Assert.Equals(ii, 64)
+    Assert.Equals(CStr(2 ^ 23), "8388608", "Int 1")
+
+    Assert.Equals(ii ^ 2, ii * ii, "Int 2")
+
+    ii *= 2
+    Assert.Equals(ii, 128, "Int 3")
+
+    ii \= 3
+
+    Assert.Equals(ii, 42, "Int 4")
+
+    Assert.Equals(Asl(12, 3), Shl(12, 3), "Asl Shl")
+
+    Assert.Equals(Asr(12, 3), Shr(12, 3), "Asr Shr")
+
+    Assert.Equals(Ang(-1, 1), ATan2(1, -1), "Ang Atan2")
+
+    Assert.Equals(Sinh(ASinh(0.5)) - 0.5, 0, "Sinh ASinh")
+
+    Assert.Ok(TestClass3.TestByref(), "TestClass3.TestByref")
+
+    ii = 0
+    Do
+        Inc ii
+        If ii = 10 Then Break
+    Loop
+
+    Assert.Equals(ii, 10, "Breaktest")
+
+    ii = 0
+    With TestClass2
+        ii = .TestConst + TestConst2
+    End With
+
+    Assert.Equals(ii, 3, "Test With")
+
+    Assert.Equals(Cbr(1000), 10, "Cbr")
+
+    Assert.Equals(Sqr(100), 10, "Sqr")
+
+    Assert.LessEqual((Cbr(Pi ^ 3) - Pi), 4.4408920985007E-16, "Cbr(Pi ^ 3) - Pi")
+
+    Assert.Equals(Sqr(Pi ^ 2), Pi, "Sqr(Pi ^ 2)")
+
+    Assert.Equals(CByte(17), 17, "CByte(17)")
+
+    'Assert.Equals(CByte(100000), 160, "CByte(100000)")
+
+    Assert.Equals(CByte(True), 255, "CByte(True)")
+
+    Test.Note("Or Or Xor")
+    If (1 = 2 Or 3 = 4) Or (1 = 1 Xor 2 = 2) Then
+        Assert.Fail("Or Or Xor")
+    Endif
+
+    Test.Note("Or If Else")
+    If 1 = 1 Or If 1 / 0 Then
+    Else
+        Assert.Fail("Or If Else")
+    Endif
+
+    Test.Note("CBool")
+    If CBool(1) = False Or CBool(0) = True Or CBool("Gambas") = False Or CBool("") = True Or CBool(Null) = True Then
+        Assert.Fail("CBool")
+    Endif
+
+    Assert.LessEqual(Abs((ACosh(Cosh(0.5)) - 0.5)), 1.7E-16, "Abs((ACosh(Cosh(0.5)) - 0.5)")
+
+    Test.Note("CFloat")
+    If CFloat("+3.1416") <> 3.1416 Or CFloat("1.0E+3") <> 1000 Or CFloat(0.00005) <> CFloat(CStr(CFloat(0.00005))) Or CFloat(10000400000000) <> 1.00004E+13 Then
+        Assert.Fail("CFloat")
+    Endif
+
+    Test.Note("CShort")
+    If CShort("17") <> 17 Or CShort(True) <> -1 Then
+        Assert.Fail("CShort")
+    Endif
+
+    Test.Note("CSingle")
+    If Format$(CSingle("+3.1416"), "#.####") <> Str$(3.1416) Or CSingle("1.0E+3") <> 1000 Then
+        '' Or CSng(Pi) <> 3.141592741013 Then' Actually gives 3.14159274101257  Which is correct?
+        Assert.Fail("CSingle")
+    Endif
+
+    Assert.Equals(Format$(Pi, "#.##"), Str$(3.14), "Format Pi")
+
+    Test.Note("VarPtr")
+    bTest = True
+    pp = VarPtr(bTest)
+    If Boolean@(pp) <> bTest Or Boolean@(pp) = False Then
+        Assert.Fail("VarPtr")
+    Endif
+
+    Test.Note("VarPtr2")
+    bTest = False
+    pp = VarPtr(bTest)
+    If Boolean@(pp) <> bTest Or Boolean@(pp) = True Then
+        Assert.Fail("VarPtr2")
+    Endif
+
+    Assert.Equals(Val(Format$(Exp(20), "#########.#####")), 485165195.40979, "Val(Format$(Exp(20)")
+
+    Assert.Equals(CInt(Exp10(4)), 10000, "CInt(Exp10(4))")
+    Assert.Equals(CInt("12"), 12, "CInt 12")
+
+    Assert.Equals(Exp2(4), 16, "Exp2(4)")
+
+    Assert.Equals(Expm(0.5), (Exp(0.5) - 1), "Expm vs Exp")
+
+    Test.Note("Goto Test")
+TestLabel1:
+    Goto TestLabel3
+TestLabel2:
+    Assert.Fail("Goto TestLabel3 did not happen")
+TestLabel3:
+
+    Assert.Equals(Eval(Quote$("This is not a \\\"quoted\\\"\\nmulti-line string.")), "This is not a \\\"quoted\\\"\\nmulti-line string.", "Eval Quote Test")
+
+    Assert.Equals(Eval("A + B + C", cCol), 6, "Eval(A + B + C, cCol)")
+
+    Assert.Equals(InlineArr.Join("/"), "A/B/C", "InlineArr.Join")
+
+    If InlineArr[0] <> "A" Or InlineArr[1] <> "B" Or InlineArr[2] <> "C" Then
+        Assert.Fail(InlineArr)
+    Endif
+
+    Assert.Equals(Hyp(1.2, -2.3), Sqr(1.2 ^ 2 + -2.3 ^ 2), "Hyp = Sqr")
+
+    If IsBoolean("False") = False Or IsBoolean("FALSE") = False Or IsBoolean("true") = False Or IsBoolean("123") = True Then
+        Assert.Fail("IsBoolean")
+    Else
+        Assert.Pass("IsBoolean")
+    Endif
+
+    If IsBoolean("-1") = True Or IsBoolean("") = True Then
+        Assert.Fail("IsBoolean2")
+    Else
+        Assert.Pass("IsBoolean2")
+    Endif
+
+    If HighestLong <> 9223372036854775807 Or LowestLong <> -9223372036854775808 Or (HighestLong + LowestLong) <> -1 Or HighestInteger <> 2147483647 Or LowestInteger <> -2147483648 Or (HighestInteger + LowestInteger) <> -1 Or HighestShort <> 32767 Or LowestShort <> -32768 Or (HighestShort + LowestShort) <> -1 Then
+        Assert.Fail("HighestLong LowestLong")
+    Else
+        Assert.Pass("HighestLong LowestLong")
+    Endif
+
+    If System.Architecture <> sArchitecture Or System.Family <> sSystem Then
+        Assert.Fail("System.Architecture System.Family")
+    Else
+        Assert.Pass("System.Architecture System.Family")
+    Endif
+
+    iTestAndIf = 0
+    If 1 = 2 Or Me._TestAndIf() = 1 Then
+        Assert.Fail("Is 1 = 2 Or Me._TestAndIf() = 1")
+    Else
+        Assert.Pass("Is 1 = 2 Or Me._TestAndIf() = 1")
+    Endif
+
+    Assert.Notequals(iTestAndIf, 0, "iTestAndIf = 1")
+
+    If 1 = 2 Or If Me._TestAndIf() = 1 Then
+        Assert.Fail("Is 1 = 2 Or If Me._TestAndIf() = 1")
+    Else
+        Assert.Pass("Is 1 = 2 Or If Me._TestAndIf() = 1")
+    Endif
+
+    Assert.Equals(iTestAndIf, 1, "iTestAndIf = 1")
+    iTestAndIf = 0
+
+    If IsBlank("Cheque") = True Or IsBlank(" \t") = False Then
+        Assert.Fail("IsBlank")
+    Else
+        Assert.Pass("IsBlank")
+    Endif
+
+    Assert.Ok(IsDigit("1972"), "IsDigit(1972)")
+
+    If IsDigit("three") = True Or IsDigit("123a") = True Then
+        Assert.Fail("IsDigit")
+    Else
+        Assert.Pass("IsDigit")
+    Endif
+
+    Assert.Ok(IsDir(Application.Path), "IsDir(Application.Path)")
+    Assert.NotOk(IsDir(Application.Path &/ ".src" &/ "mTest.module"), "IsDir <> File")
+    Assert.NotOk(IsDir("c24b7a17-c968-4145-b03d-da0ac6477cdc"), "Not existent dir/file")
+    Assert.Equals(ClassTest.x, 1, "ClassTest.x = 1 ")
+
+    jj = 1
+    For Each ii In cCol
+        If ii = 2 Then Continue
+        Inc jj
+    Next
+
+    If jj <> 3 Then
+        Assert.Fail("Continue failure")
+    Else
+        Assert.Pass("Continue ok")
+    Endif
+
+    ' -------------------------------------------------
+
+    sDescription = "Test Hex$"
+
+    If Hex$(1972) <> "7B4" Or Hex$(1972, 8) <> "000007B4" Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    Assert.Ok(IsLCase("gambas"), "IsLCase 1")
+
+    ' If IsLCase("gambas") = False Then
+    '     Errors.Add(System.Backtrace[0])
+    ' Endif
+
+    sDescription = "IsLCase 2"
+
+    If IsLCase("Cool") = True Or IsLCase("jürgen") = True Or IsLCase("ab3as") = True Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "IsUCase GAMBAS"
+    If IsUCase("GAMBAS") = False Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "IsUCase Cool"
+    If IsUCase("Cool") = True Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "CVariant array"
+    If Object.Type([CVariant("a"), "b", "c"]) <> "Variant[]" Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "String array"
+    If Object.Type(["a", "b", "c"]) <> "String[]" Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "9A177BA5"
+    If IsHexa("9A177BA5") = False Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "IsHexa"
+    If IsHexa("GAMBAS") = True Or IsHexa("") = True Or IsHexa(Null) = True Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    ''IsNumber now takes only string.
+    sDescription = "IsNumber"
+    If IsNumber("1") = False Or IsNumber("False") = True Or IsNumber(Str(Pi)) = False Or IsNumber("9223372036854775807") = False Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "IsNumber2"
+    If IsNumber(CStr(Now)) = True Or IsNumber("") = True Or IsNumber("123a") = True Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "IsFloat"
+    If IsFloat(Str(1.2345)) = False Or IsFloat("123") = False Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "IsFloat2"
+    If IsFloat("Pi") = True Or IsFloat("3.36.1") = True Or IsFloat(CStr(Now)) = True Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "Val Str"
+    If (Val(Str(0.02 - 0.03)) + 0.04) <> 0.03 Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    ClassTest = New TestClass2
+    ClassTest.y = 1
+    ClassArray.Add(ClassTest)
+
+    ClassTest = New TestClass2
+    ClassTest.y = 2
+    ClassArray.Add(ClassTest)
+
+    ClassTest = New TestClass2
+    ClassTest.y = 3
+    ClassArray.Add(ClassTest)
+
+    ClassTest = New TestClass2
+    ClassTest.y = 2
+
+    ClassTestb = New TestClass2
+    ClassTestb.y = 10
+
+    sDescription = "ClassArray"
+    If ClassArray.Exist(ClassTest) = False Or ClassArray.Find(ClassTest) = -1 Or ClassArray.Exist(ClassTestb) = True Or ClassArray.Find(ClassTestb) <> -1 Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "IsInteger"
+    If IsInteger("12") = False Or IsInteger("12 + 5 + 4") = True Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "IsInteger2"
+    If IsInteger(CStr(Pi)) = True Or IsInteger("12.3") = True Or IsInteger("") = True Or IsInteger(CStr(Now)) = True Or IsInteger(Null) = True Or IsInteger("12 + 5.4") = True Or IsInteger(CStr(12 + 5.4)) = True Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "IsPunct"
+    If IsPunct(":-)") = False Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "IsPunct2"
+    If IsPunct(":-p") = True Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "IsAscii"
+    If IsAscii("Gambas") = False Or IsAscii(Now) = False Or IsAscii(188) = False Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "IsAscii2"
+    If IsAscii("Benoît") = True Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "IsDate"
+    dArr.Add(Now)
+    If IsDate(Str(Now)) = False Or IsDate(Str(CDate(Now + 1))) = False Or IsDate(Str(dArr[0])) = False Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "IsDate2"
+    If IsDate("1") = True Or IsDate(CStr(Now + 1)) = True Or IsDate("2488329.65453707") = True Then
+        Print IsDate("1");; IsDate(CStr(Now + 1));; CStr(Now + 1);; IsDate("2488329.65453707")
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "IsLetter"
+    If IsLetter("Gambas") = False Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "IsLetter2"
+    If IsLetter("Cool!") = True Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "IsLong"
+    If IsLong("1") = False Or IsLong("9223372036854775807") = False Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "Typeof Lof"
+    hfile = Open Application.Path &/ ".src" &/ "TestSources" &/ "mTest.module"
+    If TypeOf(Lof(hFile)) <> gb.Long Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+    Close hFile
+
+    sDescription = "IsSpace"
+    If IsSpace("\n \r\n") = False Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "IsSpace2"
+    If IsSpace("Gambas\n") = True Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "Floor"
+    If Floor(Pi) <> 3 Or Floor(-Pi) <> -4 Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "Ceil"
+    If Ceil(Pi) <> 4 Or Ceil(-Pi) <> -3 Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "Log2"
+    If Log2(16) <> 4 Or (Log2(536870912) <> CInt(Log2(536870912))) Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "Log2-2"
+    If Log2(16) <> Log(16) / Log(2) Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "Format$ Log"
+    If Format$(Log(2.71828), "0.############") <> Str$(0.999999327347) Then ''Is this OK?
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "Log10"
+    If Log10(10) <> 1 Or Log10(1000) <> 3 Or Log10(1000000) <> 6 Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "Log10-2"
+    If Format$(Log10(2.5), "0.############") <> Str$(0.397940008672) Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sStr = Format(Date(2014, 8, 27, 15, 28, 55), "hh:nn dd/mm/yyyy")
+
+    ii = String.InStr(sStr, "15")
+    tmp = Mid(sStr, ii + 2, 1)
+
+    sDescription = "Mid"
+    If tmp <> ":" And tmp <> "." Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    tmp = Mid(sStr, ii + 3, 1)
+
+    sDescription = "Mid2"
+    If tmp <> "2" Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    ii = String.InStr(sStr, "28")
+    tmp = Mid(sStr, ii + 2, 1)
+
+    sDescription = "Mid3"
+    If tmp <> " " Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    ii = String.InStr(sStr, "27")
+    tmp = Mid(sStr, ii + 2, 1)
+
+    sDescription = "Mid4"
+    If tmp <> "/" And tmp <> "." And tmp <> "-" Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    tmp = Mid(sStr, ii + 3, 1)
+
+    sDescription = "Mid5"
+    If tmp <> "0" Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    ii = String.InStr(sStr, "08")
+    tmp = Mid(sStr, ii + 2, 1)
+
+    sDescription = "Mid6"
+    If tmp <> "/" And tmp <> "." And tmp <> "-" Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    tmp = Mid(sStr, ii + 3, 1)
+
+    sDescription = "Mid7"
+    If tmp <> "2" Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "Logp"
+    If Logp(2.5) <> Log(1 + 2.5) Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "Logp2"
+    If Logp(5) <> Log(1 + 5) Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "mTest.Test()"
+    If mTest.Test() <> 10 Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    ii = 0
+    jj = 1
+    Let ii = jj
+
+    sDescription = "Let"
+    If ii <> jj Or ii <> 1 Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "Hyp Mag"
+    If Hyp(1, 1) <> Mag(1, 1) Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "Day"
+    If Day(Now) < 1 Or Day(Now) > 31 Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    Test.Note("500 Dates")
+
+    For kk = 1 To 500
+        For Each ii In [gb.Second, gb.Minute, gb.Day, gb.Week, gb.Month, gb.Year]
+
+            hDate = Date(Rand(1980, 2020), Rand(1, 12), Rand(1, 28), Rand(0, 23), Rand(0, 59), Rand(0, 59))
+            jj = Rand(-1000, 1000)
+
+            If DateDiff(hDate, DateAdd(hDate, ii, jj), ii) <> jj Then
+                Assert.Fail("One of 500 Dates: Number " & ii)
+                'Errors.Add(System.Backtrace[0] & " " & Format(hDate, "dd.mm.yyyy hh:nn:ss") & " " & Format(DateAdd(hDate, ii, jj), "dd.mm.yyyy hh:nn:ss") & " " & CStr(ii) & " " & CStr(jj))
+                kk = 500
+                Break
+            Endif
+        Next
+    Next
+
+    sDescription = "DateDiff"
+    If DateDiff(Now, DateAdd(Now, gb.Day, 2), gb.Day) <> 2 Then
+        Assert.Fail(sDescription)
+        Test.Note(DateDiff(Date(2015, 1, 1, 0, 0, 0, 0), Date(2015, 1, 1, 23, 0, 0, 0), gb.Day))
+        Test.Note(DateAdd(Now, gb.Day, 2))
+        Test.Note(Now)
+        Test.Note(DateDiff(Now, DateAdd(Now, gb.Day, 2), gb.Day))
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "Month"
+    If Month(Now) < 1 Or Month(Now) > 12 Or Month(Date(1999, 3, 9, 9, 9, 9)) <> 3 Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "Hour"
+    If Hour(Now) < 0 Or Hour(Now) > 23 Or Hour(Date(2010, 12, 4, 15, 8, 9)) <> 15 Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "Minute"
+    If Minute(Now) < 0 Or Minute(Now) > 59 Or Minute(Date(2010, 12, 4, 15, 8, 9)) <> 8 Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "Second"
+    If Second(Now) < 0 Or Second(Now) > 59 Or Second(Date(2010, 12, 4, 15, 8, 9)) <> 9 Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "Access"
+    If Access("~", gb.Write Or gb.Exec) = False Or Access("/", gb.Write Or gb.Exec) = True Then
+        Test.Note("Are you running this as root!!?")
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "ClassTest symbol not exist"
+    If ClassTest.DoNotExist(0) <> 0 Or ClassTest.AlsoDoNotExist(123, "test", 5) <> 128 Or TestClass2() <> "Called" Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "ClassTest 1"
+    ii = ClassTest[1]
+    If ii <> ClassTest.y Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "ClassTest 2"
+    ii = ClassTest[2]
+    If ii <> ClassTest.z Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "ClassTest 3"
+    ClassTest[1] = 123
+    If ClassTest.y <> 123 Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "ClassTest 4"
+    ClassTest[2] = 321
+    If ClassTest.z <> 321 Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "ClassTest 5"
+    ClassTest.JustTesting()
+    If ClassTest.x <> 0 Or ClassTest.y <> 0 Or ClassTest.z <> 0 Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "ClassTest 6"
+    ClassTest.TestVar = 111
+    If ClassTest.TestVar <> 111 Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "TestPoint 1"
+    TestPoint.x = 2
+    TestPoint.y = 3
+    If TestPoint.x + TestPoint.y <> 5 Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "TestPoint 2"
+    Swap TestPoint.x, TestPoint.y
+    If TestPoint.x <> 3 Or TestPoint.y <> 2 Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "mTest.Test1"
+    If mTest.Test(1) <> 11 Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "TestClass2.iInitVar"
+    If TestClass2.iInitVar <> 20 Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "ClassTest 7"
+    ClassTest.y = 10
+    ClassTestb.y = 1
+    If ClassTest = ClassTestb Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "ClassTest 8"
+    ClassTestb.y = 10
+    If ClassTest <> ClassTestb Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "Format$ Rad"
+    If Format$(Rad(90), "#.############") <> Str$(1.570796326795) Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "Rad(180) - Pi"
+    If (Rad(180) - Pi) <> 0 Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "Repeat Until"
+    ii = 0
+    Repeat
+        Inc ii
+    Until ii = 10
+    If ii <> 10 Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "While Wend"
+    ii = 0
+    While ii < 10
+        Inc ii
+    Wend
+    If ii <> 10 Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "For Next"
+    For ii = 1 To 2
+
+        If ii = 1 Then
+            jj = Int(IIf(ii = 1, 1.0, 1))
+        Endif
+
+        If ii = 2 Then
+            nn = Int(IIf(ii = 1, 1.0, 1))
+        Endif
+
+    Next
+
+    ii = 0
+    ii = IIf(1 = 2, 10, 20)
+    If ii <> 20 Or jj <> 1 Or nn <> 1 Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "IIf(1 = 1, 10, 20)"
+    jj = 0
+    nn = 0
+
+    ii = IIf(1 = 1, 10, 20)
+    If ii <> 10 Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "CLong(Pi)"
+    If CLong(Pi) <> 3 Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "CLong(Pi ^ (Pi ^ Pi))"
+    If CLong(Pi ^ (Pi ^ Pi)) <> 1340164183006339840 Then
+        Assert.Fail(sDescription) ''             1340164183006357435 'From wolfram|alpha, Is this OK?
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "For To"
+    nn = 0
+    For ii = -2000000000 To 2000000000
+        Inc nn
+        If ii = -1999999900 Then
+            Break
+        Endif
+    Next
+
+    For TestByte = 200 To 255
+        If TestByte = 199 Then Break
+    Next
+
+    jj = 0
+    For ii = 1 To 10 Step 2
+        jj += ii '1, 3, 5, 7, 9
+    Next
+
+    If jj <> 25 Or nn <> 101 Or mTest.TheLoop(1) = False Or TestByte <> 199 Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "Stat ~"
+    With Stat("~")
+        If .Type <> gb.Directory Then
+            Assert.Fail(sDescription)
+        Else
+            Assert.Pass(sDescription)
+        Endif
+        If .Size <= 0 Then
+            Assert.Fail(sDescription)
+        Else
+            Assert.Pass(sDescription)
+        Endif
+    End With
+
+    sDescription = "-2E-16"
+    If -2E-16 <> -0.0000000000000002 Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "Pointer Magic"
+    ii = 1234567
+    pp = VarPtr(ii)
+    pp2 = VarPtr(pp)
+    If Pointer@(pp2) <> pp Or Integer@(pp) <> 1234567 Or Integer@(Pointer@(pp2)) <> 1234567 Or Integer@(MkInteger$(1234567)) <> 1234567 Or Long@(MkLong$(HighestLong)) <> HighestLong Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "Open File Create/Read"
+    sStr = ""
+    ii = 0
+    hFile = Open "/tmp/test" For Create
+    Write #hFile, 123 As Short
+    Write #hFile, sStr As String
+    Close #hFile
+
+    hFile = Open "/tmp/test" For Read
+    ii = Read #hFile As Short
+    sStr = Read #hFile As String
+    Close #hFile
+
+    If sStr <> "" Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    ii = 0
+    jj = 0
+    pp = Alloc(SizeOf(gb.Integer), 4)
+
+    hSt = Memory pp For Write
+    Write #hSt, 1 As Integer
+    Write #hSt, 2 As Integer
+    Write #hSt, 3 As Integer
+    Write #hSt, 4 As Integer
+    Close #hSt
+
+    ii = Integer@(pp) '1
+    pp += 4
+    jj = Integer@(pp) '2
+    pp += 8
+    nn = Integer@(pp) '4
+
+    pp -= 12
+
+    Error.Clear
+    Try Free(pp)
+
+    sDescription = "Memory Write"
+    If Error = True Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "Memory Write 2"
+
+    If ii <> 1 Or jj <> 2 Or nn <> 4 Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "Memory Write 3"
+    ii = Not 128
+    jj = 8 And 24
+    nn = -(8 Or 32)
+    If ii <> -129 Or jj <> 8 Or nn <> -40 Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    ' sStr = ("Tämä on Suomeksi")
+    ' If Tr$("Tämä on Suomeksi") <> "This is in Finnish" And ... Then
+    ' Return
+    ' Endif
+
+    sDescription = "Translate"
+    If Tr$("This is not, and should not be translated.") <> "This is not, and should not be translated." Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "Format$ Tanh"
+    If Format$(Tanh(1), "0.##############") <> Str$(0.76159415595576) Then
+        ''                                            0.7615941559557648881194
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    Try ii = 1
+    Try Time(99, 0, 0, 0)
+
+    sDescription = "Test Time"
+    If Error = False Or Time(14, 8, 25) <> "14:08:25" Or Time(23, 59, 59) <> "23:59:59" Or CDate((60 * 60) / (24 * 60 * 60)) <> "01:00:00" Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    bArr.Add(True)
+    sngArr.Add(1)
+    shrArr.Add(1)
+    sDescription = "Array play"
+    If TypeOf(ii) <> gb.Integer Or TypeOf(bArr[0]) <> gb.Boolean Or TypeOf(tt) <> gb.Float Or TypeOf(CByte(3)) <> gb.Byte Or TypeOf(sngArr[0]) <> gb.Single Or TypeOf(shrArr[0]) <> gb.Short Or TypeOf(CLong(5.1)) <> gb.long Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "Test Str$"
+    If Left(Str$(123.456), 3) <> "123" Or Right$(Str$(123.456), 3) <> "456" Or Str$(123 + 4) <> "127" Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "Test {Dim}"
+    {Dim} += 100
+    If {Dim} <> 116 Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    TestShort = 12
+    pp = VarPtr(TestShort)
+    sDescription = "VarPtr Short"
+    If Short@(pp) <> 12 Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    TestSingle = 33.1
+    pp = VarPtr(TestSingle)
+    sDescription = "VarPtr Single"
+    If Single@(pp) <> CSingle(33.1) Then
+        'Debug Single@(pp)
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    TestLong = 12345678
+    pp = VarPtr(TestLong)
+    sDescription = "VarPtr Long"
+    If Long@(pp) <> 12345678 Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sStr = "Test!"
+    sPublic = sStr
+    pp = VarPtr(sPublic)
+    sDescription = "VarPtr String"
+    If Str@(Pointer@(pp)) <> "Test!" Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    tt = Pi
+    pp = VarPtr(tt)
+    sDescription = "VarPtr Float"
+    If Float@(pp) <> Pi Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    ii = 1234567890
+    pp = VarPtr(ii)
+    sDescription = "VarPtr Int"
+    If Int@(pp) <> 1234567890 Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    TestByte = 255
+    pp = VarPtr(TestByte)
+    sDescription = "VarPtr Byte"
+    If Byte@(pp) <> 255 Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "Date play 1"
+    If InStr(CStr(Now), CStr(Year(Now))) = 0 Or Year(Date(1854, 1, 2, 3, 4, 5)) <> 1854 Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "Date play 2"
+    If Week(Date(2005, 7, 24), gb.Monday, True) <> 29 Or Week(Date(2005, 1, 1), gb.Monday, True) <> 0 Or Week(Date(2004, 1, 1), gb.Monday, False) <> 1 Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "Date play 3"
+    If WeekDay(Now) < 0 Or WeekDay(Now) > 6 Or WeekDay(Date(2004, 1, 8)) <> 4 Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    ii = mTest.TestErrorManagment(1)
+    sDescription = "mTest.TestErrorManagment 1"
+    If ii <> 1 Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    ii = mTest.TestErrorManagment(2)
+    sDescription = "mTest.TestErrorManagment 2"
+    If ii <> 22 Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    ii = mTest.TestErrorManagment2(1)
+    sDescription = "mTest.TestErrorManagment 3"
+    If ii <> 2 Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    ii = mTest.TestErrorManagment2(2)
+    sDescription = "mTest.TestErrorManagment 4"
+    If ii <> 3 Then
+        'Debug ii
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    ii = 100
+    sDescription = "Test Case"
+    Select Case ii
+        Case 1
+            Assert.Fail(sDescription)
+        Case 2
+            Assert.Fail(sDescription)
+        Default
+    End Select
+
+    ii = 100
+    sDescription = "Test Case 2"
+    Select Case ii
+        Case 1
+            Assert.Fail(sDescription)
+        Case 2
+            Assert.Fail(sDescription)
+        Case Else
+    End Select
+
+    sStr = "/"
+    sStr &/= "/test/"
+    sStr &/= "/test/"
+    sStr &/= "test"
+    sStr &/= "test"
+    sDescription = "Test &/"
+    If sStr <> "/test/test/test/test" Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    Try Kill "/tmp/testingtesting/2/Test.txt"
+    Try Kill "/tmp/testingtesting/link.txt"
+    Try Kill "/tmp/testingtesting/Test.txt"
+    Try Rmdir "/tmp/testingtesting/2/"
+    Try Rmdir "/tmp/testingtesting"
+
+    Mkdir "/tmp/testingtesting"
+    sDescription = "Test Mkdir IsDir"
+    If IsDir("/tmp/testingtesting") = False Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    hFile = Open "/tmp/testingtesting/Test.txt" For Output Create
+    Print #hFile, "Test1"
+    Print #hFile, 123
+    Print #hFile, CStr(CDate(2484515))
+    Print #hFile, "1-2/3/4/5_6*7-8+9"
+    Close hFile
+
+    sStr = ""
+    sTest = ""
+    hFile = Open "/tmp/testingtesting/Test.txt" For Input
+    For ii = 1 To 5
+        Input #hFile, sStr
+        If sStr = Time(CDate(2484515)) Then sStr = " " & sStr
+        sTest &= sStr
+    Next
+    Close hFile
+
+    sDescription = "date to file"
+    If sTest <> "Test1" & "123" & CDate(2484515) & "1-2/3/4/5_6*7-8+9" Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    Link "/tmp/testingtesting/Test.txt" To "/tmp/testingtesting/link.txt"
+
+    sStr = ""
+    hFile = Open "/tmp/testingtesting/link.txt" For Input
+    Input #hFile, sStr
+    Close hFile
+
+    sDescription = "Test Link"
+    If sStr <> "Test1" Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    Kill "/tmp/testingtesting/link.txt"
+
+    hFile = Open "/tmp/testingtesting/Test.txt" For Output Append
+    Print #hFile, "Test2"
+    Close hFile
+
+    sTest = ""
+    sStr = ""
+    ii = 0
+    hFile = Open "/tmp/testingtesting/Test.txt" For Input
+    While Not Eof(hFile)
+        Inc ii
+        Line Input #hFile, sStr
+        sTest &= sStr
+        If ii = 1 Then
+            sStr = ""
+        Endif
+    Wend
+    Close hFile
+
+    sDescription = "Test file Line Input"
+    If sStr <> "Test2" Or sTest <> "Test1" & "123" & CDate(2484515) & "1-2/3/4/5_6*7-8+9Test2" Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    Kill "/tmp/testingtesting/Test.txt"
+    hFile = Open "/tmp/testingtesting/Test.txt" For Create
+    Write #hFile, CInt(10102) As Integer
+    Write #hFile, CFloat(Pi) As Float
+    Close hFile
+
+    jj = 0
+    ii = 0
+    tt = 0
+    hFile = Open "/tmp/testingtesting/Test.txt" For Read
+    ii = Read #hFile As Integer
+    tt = Read #hFile As Float
+    Seek #hFile, 0
+    jj = Read #hFile As Integer
+    Close hFile
+
+    sDescription = "Test Read file"
+    If ii <> 10102 Or tt <> Pi Or ii <> jj Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sArr.Clear()
+    sArr = Dir("/tmp/testingtesting", "*.txt")
+    sDescription = "Dir 1"
+    If sArr[0] <> "Test.txt" Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    Mkdir "/tmp/testingtesting/2/"
+    Move "/tmp/testingtesting/Test.txt" To "/tmp/testingtesting/2/Test.txt"
+
+    sArr.Clear()
+    sArr = RDir("/tmp/testingtesting", "*.txt")
+
+    sDescription = "RDir 1"
+
+    If sArr[0] <> "2/Test.txt" Or sArr.Count <> 1 Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    Copy "/tmp/testingtesting/2/Test.txt" To "/tmp/testingtesting/Test.txt"
+
+    sArr.Clear()
+    sArr = RDir("/tmp/testingtesting", "*.txt", gb.File)
+
+    sDescription = "RDir 2"
+
+    If sArr[0] <> "2/Test.txt" Or sArr[1] <> "Test.txt" Or sArr.Count <> 2 Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    Kill "/tmp/testingtesting/2/Test.txt"
+    Kill "/tmp/testingtesting/Test.txt"
+    sArr.Clear()
+    sArr = Dir("/tmp/testingtesting", "*.txt")
+
+    sDescription = "Dir 2"
+    If sArr.Count <> 0 Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "test Dfree"
+    If Dfree("/tmp/testingtesting/2/") < 1 Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    Rmdir "/tmp/testingtesting/2/"
+    Rmdir "/tmp/testingtesting"
+
+    sDescription = "IsDir with not dir"
+    If IsDir("/tmp/testingtesting") = True Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    tt = Pi
+    pp = Alloc(SizeOf(gb.Float))
+
+    sDescription = "test Alloc"
+    If modf(tt, pp) <> (Pi - 3) Or Float@(pp) <> 3 Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    tt = -Pi
+    pp = Realloc(pp, SizeOf(gb.Byte), SizeOf(gb.Float))
+
+    sDescription = "test Realloc"
+    If modf(tt, pp) <> -(Pi - 3) Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    hSt = Memory pp For Read
+    ii = Read #hSt As Float
+    Close #hSt
+
+    Free(pp)
+
+    sDescription = "ii = -3"
+    If ii <> -3 Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "Comp 1"
+    If Comp("123abc", "123abc", gb.Binary) Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "Comp 2"
+    If Comp("123Abc", "123abc", gb.Binary) <> -1 Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "Comp 3"
+    If Comp("123Abc", "123abc", gb.IgnoreCase) Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "Comp 4"
+    If Comp("123bc", "123abc", gb.IgnoreCase) <> 1 Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "Comp 5"
+    If Comp("Gambas", "?[Aa]*", gb.Like) Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "Comp 6"
+    If Comp("123Abc", "G[^Aa]*", gb.Like) <> -1 Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    ii = mTest.TestErrorManagment3(1)
+
+    sDescription = "mTest.TestErrorManagment3(1)"
+    If ii <> 3 Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    ii = mTest.TestErrorManagment3(2)
+
+    sDescription = "mTest.TestErrorManagment3(2)"
+    If ii <> 21 Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    iArr.Clear()
+    iArr = New Integer[12, 34]
+    bArr = New Boolean[10, 10]
+
+    Dim iRetArr As New Integer[10, 10]
+
+    'Debug "here"
+    mTest.ArrayBoundsTest(bArr, iArr, iArr, iRetArr)
+
+    iRetArr = mTest.ArrayBoundsTest(bArr, bArr, bArr, bArr)
+
+    Dim bArraysOK As Boolean = True
+
+    For ii = 0 To 3
+        If iRetArr[ii] <> 2 Then
+            bArraysOK = False
+        Endif
+    Next
+
+    sDescription = "mTest.ArrayBoundsTest"
+    If iArr.Bounds[0] <> 12 Or iArr.Bounds[1] <> 34 Or bArraysOK = False Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    'If Screen.AvailableHeight <> Desktop.Height Then
+    '  Errors.Add(System.Backtrace[0])
+    'Endif
+
+    ii = 0
+    GoSub TestGosub
+
+    sDescription = "Test TestGosub"
+    If ii <> 1 Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    Goto Pass
+
+TestGosub:
+    ii = 1
+    Return
+
+Pass:
+
+    ii = 7
+    jj = 8
+
+    sDescription = "Even Odd"
+    If Even(1.5) = True Or Even(3) = True Or Even(ii) = True Or Even(9223372036854775807) = True Or Odd(jj) = True Or Odd(2) = True Or Odd(2.2) = True Or Odd(9223372036854775806) = True Or Even(0) = False Or Odd(0) = True Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    ii = 16777218
+
+    sDescription = "Byte@ VarPtr"
+    If System.ByteOrder = gb.LittleEndian Then
+        If Byte@(VarPtr(ii)) <> 2 Or Byte@(VarPtr(ii) + 1) <> 0 Or Byte@(VarPtr(ii) + 2) <> 0 Or Byte@(VarPtr(ii) + 3) <> 1 Then
+            Assert.Fail(sDescription)
+        Else
+            Assert.Pass(sDescription)
+        Endif
+    Else
+        If Byte@(VarPtr(ii)) <> 1 Or Byte@(VarPtr(ii) + 1) <> 0 Or Byte@(VarPtr(ii) + 2) <> 0 Or Byte@(VarPtr(ii) + 3) <> 2 Then
+            Assert.Fail(sDescription)
+        Else
+            Assert.Pass(sDescription)
+        Endif
+    Endif
+
+    bWriteOK = False
+    hWatchFile = Open "/dev/full" For Write Watch
+
+    Close #hWatchFile
+
+    jj = 0
+    kk = 0
+    nn = 0
+
+    For ii = 1 To 1000000
+        Select Case Rand(1, 3)
+            Case 1
+                Inc jj
+            Case 2
+                Inc kk
+            Case 3
+                Inc nn
+        End Select
+    Next
+    sDescription = "For .. Round"
+    If Round((jj / 1000000), -2) <> 0.33 Or Round((kk / 1000000), -2) <> 0.33 Or Round((nn / 1000000), -2) <> 0.33 Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    ii = 0
+
+    #If True
+    Inc ii
+    #Endif
+
+    #If False
+    Inc ii
+    #Endif
+    sDescription = "Test If False"
+    If ii <> 1 Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    sDescription = "JITTest"
+    If mTest.JITTest() = False Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    mTest.JITTestPublic()
+
+    oo = New YetAnotherClass
+    oo.ThisObject_Gets_Lost
+    sDescription = "YetAnotherClass ThisObject_Gets_Lost"
+    If mTest.JITTestOnceMore() = False Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    TestClass2.Runshit
+
+    For ii = 0 To 10
+        mTest.JITTestBoolArray("abc", ii, Null, Null)
+    Next
+    sDescription = "JITTestBoolArray"
+    If hStillHere1.x <> hStillHere2.x Or hStillHere1.y <> hStillHere2.y Or hStillHere1.x <> 123 Or hStillHere1.y <> 456 Then
+        Assert.Fail(sDescription)
+    Else
+        Assert.Pass(sDescription)
+    Endif
+
+    ' If bRun = False Then
+    '     bRun = True
+    '     DoTests
+    ' Endif
+
+    ''JIT ignores the division by zero
+    'If OptArgII(1) <> 1 Then
+    'Errors.Add(System.Backtrace[0])
+    'Endif
+
+    ' If ArgumentTest(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 0) <> 465 Then
+    ' Errors.Add(System.Backtrace[0])
+    ' Endif
+
+    'If ArgumentTest(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, ArgumentTest(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, ArgumentTest(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1))) <> 88 Then
+    'Errors.Add(System.Backtrace[0])
+    'Endif
+
+    ' Tests missing keywords
+    Test.Note("- - - - - - - - - - - - - - - - - - - - - - - - - - - Missing tests")
+    Test.TODO("Tests missing")
+    Assert.Ok(mTest.TestTester())
+
+    'done
+
+End
+
+Public Sub TVal()
+
+    Dim d As Date
+    Dim s As String
+
+    ' ------------------------------------------------- Date Standard
+    d = Date(Year(Now), Month(Now), Day(Now), Hour(Now), Minute(Now), Second(Now))
+    s = Format(d, gb.Standard)
+    Assert.Equals(Val(s), d, "Val Date Standard")
+
+    s = Str(3.14)
+    Assert.Equals(Val(s), 3.14, "Str-Val")
+    Assert.Equals(Val("-25"), -25, "Val -25")
+    Assert.Equals(Val("&H123abc"), 1194684, "Val string representing hex number")
+    Assert.Ok(Val("True"), " Val \"True\"")
+    Assert.NotOk(Val("False"), " Val \"False\"")
+    Assert.Null(Val("Gambas"), "Val \"Gambas\" is Null")
+
+End
+
+Public Sub TCatch()
+
+    Dim f As Float
+    'do an error
+    f = 2 / 0
+
+Catch
+    Print Error.Text
+
+    Assert.Equals(Error.Code, 26, "division 0")
+
+End
+
+'' Tests a Error an Error.Clear
+Public Sub TError()
+
+    Dim f As Float
+    'do an error
+    Try f = 2 / 0
+
+    'first test if error is handled
+    Assert.GreaterEqual(Error.Code, 0, "Error.Code > 0")
+    Assert.NotNull(Error.Text, "Error.Text not null")
+    Assert.Error("Test Error happened")
+
+    'test error clear
+    Try f = 2 / 0
+    Error.Clear
+    Assert.Equals(Error.Code, 0, "Error.Code = 0")
+    Assert.Null(Error.Text, "Error.Text Null")
+    Assert.Null(Error.Where, "Error.Where Null")
+
+End
+
+Fast Public Function _TestAndIf() As Integer
+
+    iTestAndIf = 1
+    Return 0
+
+End
+
+Fast Public Sub IntegerOverflows()
+
+    Dim s As Short
+    Dim i As Integer
+    Dim l As Integer
+    Dim bIgnoreOverflows As Boolean
+
+    Test.Plan(7)
+
+    bIgnoreOverflows = System.IgnoreOverflow
+    Assert.Equals(bIgnoreOverflows, False, "Expect System.IgnoreOverflow beeing False")
+
+    Test.Note("Short Overflow")
+    Try s = HighestShort + 1
+    Assert.Error("Short overflow error")
+
+    Test.Note("Integer Overflow")
+    Try i = HighestInteger + 1
+    Assert.Error("Int overflow error")
+
+    Test.Note("Long Overflow")
+    Try l = HighestLong + 1
+    Assert.Error("Long overflow error")
+
+    Test.Note("Short Underflow")
+    Try s = LowestShort - 1
+    Assert.Error("Short underflow error")
+
+    Test.Note("Integer Underflow")
+    Try i = LowestInteger - 1
+    Assert.Error("Int underflow error")
+
+    Test.Note("Long Underflow")
+    Try l = LowestLong - 1
+    Assert.Error("Long underflow error")
+
+    ' ------------------------------------------------- Ignore Overflows
+
+    If Jit.Enabled = False Then
+
+        System.IgnoreOverflow = True
+
+        Test.Note("Ignore Short Overflow")
+        s = HighestShort + 1
+
+        Test.Note("Ignore Integer Overflow")
+        i = HighestInteger + 1
+
+        Test.Note("Ignore Long Overflow")
+        l = HighestLong + 1
+
+        Test.Note("Ignore Short Underflow")
+        s = LowestShort - 1
+
+        Test.Note("Ignore Integer Underflow")
+        i = LowestInteger - 1
+
+        Test.Note("Ignore Long Underflow")
+        l = LowestLong - 1
+
+        ' ------------------------------------------------- Restore original behavior
+
+        System.IgnoreOverflow = bIgnoreOverflows
+        
+    Endif
+
+End
+
+Fast Unsafe Public Sub IntegerOverflowsUnsafe()
+
+    Dim s As Short
+    Dim i As Integer
+    Dim l As Integer
+
+    If Jit.Enabled Then
+
+        Test.Plan(6)
+
+        Test.Note("Short Unsafe Overflow")
+        s = HighestShort + 1
+        Assert.Noterror()
+
+        Test.Note("Integer Unsafe Overflow")
+        i = HighestInteger + 1
+        Assert.Noterror()
+
+        Test.Note("Long Unsafe Overflow")
+        l = HighestLong + 1
+        Assert.Noterror()
+        
+        Test.Note("Short Unsafe Underflow")
+        s = LowestShort - 1
+        Assert.Noterror()
+
+        Test.Note("Integer Unsafe Underflow")
+        i = LowestInteger - 1
+        Assert.Noterror()
+
+        Test.Note("Long Unsafe Underflow")
+        l = LowestLong - 1
+        Assert.Noterror()
+
+    Else
+        Test.Note("Jit disabled")
+        Test.Plan(1)
+        'minimum 1 test
+        Assert.Equals(1, 1, "useless test, otherwise gb.test reports a failure")
+    Endif
+
+End

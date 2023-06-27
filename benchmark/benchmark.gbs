@@ -7,6 +7,8 @@ Private Sub RunScript(sScript As String, sRun As String, bGambasOnly As Boolean)
   Dim aResult as String[]
   Dim sResult As String
   Dim fTime As Float
+
+  If Not Exist(Application.Dir &/ sScript) Then Return -1
   
   If bGambasOnly Then
     Print "Running benchmark: '"; sRun; " "; sScript; "'"
@@ -31,20 +33,22 @@ Private Sub RunScript(sScript As String, sRun As String, bGambasOnly As Boolean)
 
 End
 
-Private Sub FormatResult(cResult As Collection, sLang As String) As String
+Private Sub FormatResult(cResult As Collection, iCount As Integer, sLang As String) As String
 
   Dim bBetter As Boolean = True
   Dim sFormat As String
   Dim sTest As String
 
-  For Each sTest In ["python", "perl", "gambas"]
+  If cResult[sLang] <= 0 Then Return "-"
+
+  For Each sTest In ["python", "perl", "java","gambas"]
     If cResult[sTest] < cResult[sLang] Then
       bBetter = False
       Break
     Endif
   Next
 
-  sFormat = Format(cResult[sLang], "0.00")
+  sFormat = Format(cResult[sLang] / iCount, "0.00")
   If bBetter Then sFormat = "<b>" & sFormat & "</b>"
   Return sFormat
 
@@ -52,41 +56,67 @@ End
 
 Dim sBenchmark As String
 Dim cResult As Collection
-Dim aResult As New Collection[]
+Dim cAllResult As New Collection
 Dim sLang As String 
 Dim sResult As String
 Dim iPos As Integer
 Dim bGambasOnly As Boolean
 Dim sBenchmarkOnly As String
+Dim iCount As Integer = 1
 Dim I As Integer
+Dim fTime As Float
 
 For I = 1 To Args.Max
 
   If Args[I] = "-gambas" Then
     bGambasOnly = True
+	Else If Args[I] = "-count" Then
+		If I < Args.Max And If Args[I + 1] Not Begins "-" Then
+		  Try iCount = Max(1, CInt(Args[I + 1]))
+			inc I
+		Endif
   Else
     sBenchmarkOnly = Args[I]
   Endif
 
 Next
 
-For Each sBenchmark In Dir(Application.Dir, "*.gbs")
+For I = 1 To iCount
 
-  sBenchmark = File.BaseName(sBenchmark)
-  If sBenchmark = "benchmark" Then Continue
-  If sBenchmarkOnly And If sBenchmark <> sBenchmarkOnly Then Continue
+  If iCount > 1 Then Print "-------- Run #"; I;" --------"
 
-  cResult = New Collection
-  aResult.Add(cResult)
-  
-  cResult!name = sBenchmark
-  If Not bGambasOnly Then cResult!python = RunScript(sBenchmark & ".py", "python", bGambasOnly)
-  If Not bGambasOnly Then cResult!perl = RunScript(sBenchmark & ".pl", "perl", bGambasOnly)
-  cResult!gambasjit = RunScript(sBenchmark & ".gbs", "gbs3 -f -U -c", bGambasOnly)
-  cResult!gambasjitwct = cResult!gambasjit - $fCompileTime
-  cResult!gambas = RunScript(sBenchmark & ".gbs", "gbs3 -c", bGambasOnly)
+	For Each sBenchmark In Dir(Application.Dir, "*.gbs").Sort()
 
+		sBenchmark = File.BaseName(sBenchmark)
+		If sBenchmark = "benchmark" Then Continue
+		If sBenchmarkOnly And If sBenchmark <> sBenchmarkOnly Then Continue
+
+		cResult = cAllResult[sBenchmark]
+		If Not cResult Then
+			cResult = New Collection
+			cResult.Default = 0.0
+			cResult!name = sBenchmark
+			cAllResult[sBenchmark] = cResult
+		Endif
+		
+		If Not bGambasOnly Then
+          cResult!python += RunScript(sBenchmark & ".py", "python", bGambasOnly)
+          cResult!perl += RunScript(sBenchmark & ".pl", "perl", bGambasOnly)
+          If sBenchmark Not Begins "string" Then
+            cResult!java += RunScript(sBenchmark & ".jvs", "java -Xint --source 11", bGambasOnly)
+          Endif
+          cResult!javajit += RunScript(sBenchmark & ".jvs", "java --source 11", bGambasOnly)
+        Endif
+		fTime = RunScript(sBenchmark & ".gbs", "gbs3 -f -U -c", bGambasOnly)
+		cResult!gambasjit += fTime
+		cResult!gambasjitwct += fTime - $fCompileTime
+		cResult!gambas += RunScript(sBenchmark & ".gbs", "gbs3 -c", bGambasOnly)
+
+	Next
+	
 Next
+
+Print
 
 ' Print "<div style=\"border:solid 1px gray;padding:8px;display:inline-table;background:\">"
 ' 
@@ -108,26 +138,28 @@ Next
 
 If bGambasOnly Then
 
-  For Each cResult In aResult
-    Print cResult!name; Space$(20 - Len(cResult!name)); ": "; Format(cResult!gambas, "0.00"); " / ";Format(cResult!gambasjit, "0.00");" (jit)"; " / ";Format(cResult!gambasjitwct, "0.00");" (jit without compilation time)"
+  For Each cResult In cAllResult
+    Print cResult!name; Space$(20 - Len(cResult!name)); ": "; Format(cResult!gambas / iCount, "0.00"); " / ";Format(cResult!gambasjit / iCount, "0.00");" (jit)"; " / ";Format(cResult!gambasjitwct / iCount, "0.00");" (jit without compilation time)"
   Next
 
 Else
 
   Print "<table class=\"table\">"
   Print "<tr>\n<th>Benchmark</th>"
-  For Each sLang In ["Python", "Perl", "Gambas", "Gambas JIT", "Gambas JIT without compilation time"]
+  For Each sLang In ["Python", "Perl", "Java", "Gambas", "Java JIT", "Gambas JIT", "Gambas JIT without compilation time"]
     Print "<th style=\"width:12em;\">"; Html(sLang); "</th>"
   Next
   Print "</tr>"
-  For Each cResult In aResult
+  For Each cResult In cAllResult
     Print "<tr>"
     Print "<td><tt>"; cResult!name; "</tt></td>"
-    Print "<td align=\"right\">"; FormatResult(cResult, "python"); "&nbsp;</td>"
-    Print "<td align=\"right\">"; FormatResult(cResult, "perl"); "&nbsp;</td>"
-    Print "<td align=\"right\">"; FormatResult(cResult, "gambas"); "&nbsp;</td>"
-    Print "<td align=\"right\">"; Format(cResult!gambasjit, "0.00"); "&nbsp;</td>"
-    Print "<td align=\"right\">"; Format(cResult!gambasjitwct, "0.00"); "&nbsp;</td>"
+    Print "<td align=\"right\">"; FormatResult(cResult, iCount, "python"); "&nbsp;</td>"
+    Print "<td align=\"right\">"; FormatResult(cResult, iCount, "perl"); "&nbsp;</td>"
+    Print "<td align=\"right\">"; FormatResult(cResult, iCount, "java"); "&nbsp;</td>"
+    Print "<td align=\"right\">"; FormatResult(cResult, iCount, "gambas"); "&nbsp;</td>"
+    Print "<td align=\"right\">"; Format(cResult!javajit / iCount, "0.00"); "&nbsp;</td>"
+    Print "<td align=\"right\">"; Format(cResult!gambasjit / iCount, "0.00"); "&nbsp;</td>"
+    Print "<td align=\"right\">"; Format(cResult!gambasjitwct / iCount, "0.00"); "&nbsp;</td>"
     Print "</tr>"
   Next
   Print "</table>"

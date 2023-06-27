@@ -1,0 +1,204 @@
+' Gambas class file
+
+''' Low-level class for planning and printing test results in Test Anything Protocol ([TAP]) format.
+'''
+''' [TAP]: http://testanything.org/tap-specification.html
+
+Event Filter
+
+Property {Output} As Stream Use $hOutput
+Property Read Session As TapContext
+
+Property Line As String Use $sLine
+
+Private $aSubtests As New TapContext[]
+Private $hCurrent As New TapContext
+
+Public Sub _new(Optional Tests As Integer, Optional Comment As String, Optional {Output} As Stream = File.Out)
+
+    $hOutput = {Output}
+    With $hCurrent
+        .Plan = Test.NO_PLAN
+        .TestsRun = 0
+        .LastId = 0
+        .Finished = False
+    End With
+    If Not IsMissing(Tests) Then Plan(Tests, Comment)
+
+End
+
+Public Sub Subtest(Description As String, Optional Tests As Integer, Optional Comment As String)
+
+    Print(Subst$("Test &1", Description))
+    $aSubtests.Push($hCurrent)
+    With $hCurrent = New TapContext
+        .Summary.Description = Description
+        .Summary.Comment = Comment
+        .Plan = Test.NO_PLAN
+        .TestsRun = 0
+        .LastId = 0
+        .Finished = False
+    End With
+    If Tests Then Plan(Tests)
+
+End
+
+Public Sub Plan(Tests As Integer, Optional Comment As String)
+
+    With $hCurrent
+        If .Finished Or .SkipAll Then Error.Raise(("Tests already finished"))
+        If .TestsRun Then Error.Raise(Subst$(("Too late to plan. Already ran &1 tests"), .TestsRun))
+        ' TAP specification lists '1..0 # Skipped: WWW::Mechanize not installed'
+        ' as a valid example.
+        If Tests <= Test.NO_PLAN Then Error.Raise(("Number of tests must be non-negative"))
+        .Plan = Tests
+    End With
+    Print(Subst$("1..&1&2", Tests, IIf(Comment, " # " & Comment, "")))
+
+End
+
+Public Sub SkipAll(Optional Comment As String)
+
+    Plan(0, "SKIP" & IIf(Comment, " ", "") & Comment)
+    $hCurrent.SkipAll = True
+
+End
+
+Public Sub Finish()
+
+    Dim hFinished As TapContext
+
+    With $hCurrent
+        Dim hTest As TestAssertion
+
+        If .Finished Then Error.Raise(("Tests already finished"))
+
+        ' Print a plan line after the fact
+        If .Plan = Test.NO_PLAN Then
+            .Plan = .TestsRun
+            Print("1.." & .Plan)
+        Endif
+
+        ' Sum up this subtest
+        .Finished = True
+        .Summary.SubPlanned = .Plan
+        .Summary.SubSkippedAll = .SkipAll
+        .Summary.Ok = (.Plan > 0 Or .SkipAll) And (.TestsRun = .Plan)
+        For Each hTest In .Summary.Subtests
+            .Summary.Ok = .Summary.Ok And hTest.Success
+        Next
+    End With
+
+    ' Go one level up if possible. Unless we are the top-level test,
+    ' we add one assertion for this finishing subtest.
+    hFinished = $hCurrent
+    Try $hCurrent = $aSubtests.Pop()
+    If Not Error Then
+        Assert(hFinished.Summary)
+    Endif
+
+End
+
+Public Sub Assert(Assertion As TestAssertion) As TestAssertion
+
+    Dim sDirective As String
+    Dim sLine As String
+
+    With Assertion
+        If $hCurrent.Finished Or $hCurrent.SkipAll Then Error.Raise(("Tests already finished"))
+
+        ' It is not advised to start a description with a number token because
+        ' it will be interpreted as the (optional) test ID. We issue a warning
+        ' about this but fix it anyway by always printing the ID before *and*
+        ' prefixing the Description with a dash, as is common.
+        If .Description Match "^[0-9]+(\\s|$)" Then
+            Error Subst$(("Warning: Description '&1' should not start with a number"), .Description)
+        Endif
+        ' If .Description Like "*#*" Then
+        '     Error.Raise(Subst$(("Description '&1' may not contain a '#' character"), .Description))
+        ' Endif
+
+        Inc $hCurrent.TestsRun
+        If Not .Id Then .Id = $hCurrent.TestsRun
+        $hCurrent.LastId = .Id
+        If .Line Then
+            sLine = Subst$("&1 &2 - &3: &4", IIf(.Ok, "ok", "not ok"), .Id, .Line, .Description)
+        Else
+            sLine = Subst$("&1 &2 - &3", IIf(.Ok, "ok", "not ok"), .Id, .Description)
+        Endif
+
+        If .Directive <> TestAssertion.NONE Then
+            ' Matches the values of the Enum TestAssertion.TODO, TestAssertion.SKIP
+            sDirective = Choose(.Directive, "TODO", "SKIP")
+            If Not sDirective Then Error.Raise(Subst$(("Unsupported directive '&1'"), .Directive))
+            sLine &= " # " & sDirective
+            If .Comment Then sLine &= " " & .Comment
+        Endif
+    End With
+
+    Print(sLine)
+    $hCurrent.Summary.Subtests.Push(Assertion)
+    Return Assertion
+
+End
+
+'' Unwinds the subtest stack. BailOut will always bail out of all the subtests.
+Private Sub Unwind()
+
+    While $aSubtests.Count > 0
+        Note("Unwinding subtest stack!")
+        Finish()
+    Wend
+
+End
+
+Public Sub BailOut(Optional Comment As String)
+
+    Unwind()
+    'The string "Bail out!" must not be changed!
+    Print("Bail out!" & IIf(Comment, " " & Comment, ""))
+    $hCurrent.Finished = True
+
+End
+
+Public Sub Diagnostic(Comment As String)
+
+    Dim sLine As String
+
+    ' Split on these doesn't do what I mean: on the empty string, we get
+    ' zero lines, on a newline we get two. I want one in both cases.
+    If Not Comment Or If Comment = gb.Lf Then
+        Print("#")
+        Return
+    Endif
+
+    For Each sLine In Split(Comment, "\n")
+        Print("# " & sLine)
+    Next
+
+End
+
+Public Sub Note(Comment As String)
+
+    Diagnostic(Comment)
+
+End
+
+Public Sub Print({Line} As String)
+
+    Dim bCancel As Boolean
+
+    $sLine = {Line}
+    bCancel = Raise Filter
+    If bCancel Then Return
+    Print #$hOutput, String$($aSubtests.Count, "  "); $sLine
+    Flush #$hOutput
+
+End
+
+Private Function Session_Read() As TapContext
+
+    If $aSubtests.Count Then Return $aSubtests[0]
+    Return $hCurrent
+
+End

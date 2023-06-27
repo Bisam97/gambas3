@@ -1,0 +1,63 @@
+#!/usr/bin/gbs3
+' Gambas module file
+
+Public Struct newit
+  x[20] As Byte
+End Struct
+
+Public Struct byeit
+  c As Integer
+  b As Float
+  e[20] As Struct Newit 
+End Struct
+
+Public Struct Hello
+  b As Integer
+  c As Integer
+  d As Long
+  e As Float
+  f As Struct Byeit
+  g[20] As Struct Byeit
+End Struct
+
+Enum er, et, ey = 20
+
+' We will use memcpy for two purposes , get the real address of the data, actually copy the data
+Extern memcpy(dest As Hello, src As Hello, len As Integer) As Pointer In "libc:6"
+Extern Arraymemcpy(dest As Pointer, src As Pointer, len As Integer) As Pointer In "libc:6" Exec "memcpy"
+Const unitcount As Integer = 20 
+
+Public b As Struct Hello
+Public c[20] As Struct Hello 
+
+Sub test()
+    'Static xx As Struct Hello
+    Static Bogon As Integer = 0
+    Print "Test Sub"
+End
+
+Public Sub Main()
+  b.b = 43
+  Dim a As Variant = b
+  Dim e As Hello = c[1]  ' these just set pointers
+  Dim f As Hello = c[2]
+  Dim g As Hello = c[3]
+  g.d = 500
+  g.e = 3.67
+  c[3].g[0].e[0].x[0] = 32
+  ' Calc Struct length do pointer math c[1]-c[0]
+  Dim iStructLen As Integer = memcpy(c[1], c[1], 0) - memcpy(c[0], c[0], 0)
+  
+  Print "Struct len = "; iStructLen, "Dest Values before copy ", f.d, f.e, f.g[0].e[0].x[0]
+  'Copy one entry to another
+  memcpy(f, g, iStructLen)
+  Print c[2].d, c[2].e, c[2].g[0].e[0].x[0] ' g = c[3] f = c[2]
+  a.b = 45
+  
+  Print a.b, b.b
+  ' Display the actual address Of Each element And root
+  Print memcpy(a, a, 0), memcpy(b, b, 0), arraymemcpy(VarPtr(c), VarPtr(c), 0), memcpy(e, e, 0), memcpy(f, f, 0), memcpy(g, g, 0)
+  Print VarPtr(a), VarPtr(b), VarPtr(c)
+  Print "Hello world"
+
+End

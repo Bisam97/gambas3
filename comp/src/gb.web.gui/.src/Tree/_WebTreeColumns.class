@@ -1,0 +1,108 @@
+' Gambas class file
+
+Export
+
+Property Count As Integer
+
+Event _Fake
+
+Private $aColumns As New _WebTreeColumn[]
+
+Private Sub GetParent() As WebTree
+  
+  Return Object.Parent(Me)
+  
+End
+
+Private Function Count_Read() As Integer
+
+  Return $aColumns.Count
+
+End
+
+Private Sub Count_Write(Value As Integer)
+
+  Dim iOldCount As Integer = $aColumns.Count
+  Dim I As Integer
+  
+  If Value = iOldCount Then Return
+  
+  Try $aColumns.Resize(Value)
+  If Error Then Error.Raise("Bad argument")
+  
+  If Value > iOldCount Then
+    For I = iOldCount To Value - 1
+      $aColumns[I] = New _WebTreeColumn As "Column"
+      $aColumns[I]._Column = I
+    Next
+  Endif
+  
+  GetParent().Refresh
+
+End
+
+Public Sub _Render()
+  
+  Dim hTree As WebTree = GetParent()
+  Dim hCol As _WebTableColumn
+  Dim iMode As Integer
+  Dim NX As Integer
+  Dim I As Integer
+  Dim sStyle As String
+  
+  Print "<thead><tr>";
+  
+  iMode = hTree.Mode
+  
+  For Each hCol In $aColumns
+    If hCol.Expand Then Inc NX
+  Next
+  
+  For I = 0 To $aColumns.Max
+    
+    hCol = $aColumns[I]
+    If hCol.Hidden Then Continue
+    
+    Print "<th";
+    sStyle = ""
+    If hCol.Expand Then 
+      Print " width=\""; 100 \ NX; "%\"";
+    Else If hCol.Width Then
+      sStyle &= "min-width:" & hCol.Width & ";"
+    Endif
+    If Not hCol.Wrap Then Print " nowrap";
+    If sStyle Then Print " style=\""; sStyle; "\"";
+    Print ">";
+    
+    If I = 0 Then
+      If iMode = Select.Multiple And If hTree.ShowCheck Then
+        Print "<input class=\"gw-tree-check\" type=\"checkbox\"";
+        Print hTree._GetUpdateJS("onchange", "!!", "this.checked");
+        If hTree._IsEverythingSelected() Then Print " checked";
+        Print ">";
+      Endif
+      Print "<div class=\"gw-tree-header\">"; Html(hCol.Text); "</div>";
+    Else
+      If hCol.Text Then
+        Print "<div";
+        hCol._PrintAlignment()
+        Print ">";
+        Print Html(hCol.Text);
+        Print "</div>";
+      Else 
+        Print "&nbsp;";
+      Endif
+    Endif
+    
+    Print "</th>"
+  Next
+  
+  Print "</tr></thead>"
+  
+End
+
+Public Sub _get(Index As Integer) As _WebTreeColumn
+  
+  Return $aColumns[Index]
+  
+End

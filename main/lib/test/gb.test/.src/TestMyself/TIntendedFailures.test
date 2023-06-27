@@ -1,0 +1,66 @@
+' Gambas test file
+
+''' Every test in this class failes, but is reverted to be reported as good
+
+Public Sub StringFailure()
+
+    Test.Plan(1)
+    Test.IntendedFailure()
+    Assert.StringEquals("Lisa", "Paul", "Intentional String failure. Ok if not ok.")
+
+End
+
+Public Sub LongFailure()
+
+    Test.Plan(1)
+    Test.IntendedFailure()
+    Assert.Equals(2, 3, "Intentional Long failure. Ok if not ok.")
+
+End
+
+Public Sub LongTypeMismatchFailure()
+
+    Dim s As String = "3.0"
+
+    Test.Plan(1)
+    Test.IntendedFailure()
+    Assert.Equals(s, 3, "Intentional Long type mismatch failure. Ok if not ok.")
+
+End
+
+Public Sub EqualsFailure()
+
+    Dim oOne, oTwo As Object
+
+    Test.Plan(4)
+    Test.Note("Equals failures")
+    Test.IntendedFailure()
+    Assert.Equals(2, 3)
+
+    Test.IntendedFailure()
+    Assert.Equals("3", 2.0)
+
+    Test.IntendedFailure()
+    Assert.Equals("2", 2.1)
+
+    oOne = New Test
+    oTwo = New Test
+    Test.IntendedFailure()
+    Assert.Equals(oOne, oTwo)
+
+End
+
+Public Sub Error()
+
+    Dim a As Long
+
+    Test.Plan(2)
+    Try a = 3 / 0
+    Test.IntendedFailure()
+    Assert.ErrorCode(5, "Wanted error 5. Ok if not ok.")
+
+    ' No Error, AssertError has to report a failure
+    Test.IntendedFailure()
+    Assert.Error("No Error but error expected. Ok if not ok.")
+
+End

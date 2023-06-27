@@ -15,22 +15,19 @@ Private $aSel As New Integer[]
 '   Print
 '   
 ' End
+
+Public Sub Save() As Variant
+  
+  Return $aSel.Copy()
+  
+End
+
+Public Sub Restore(vSel As Variant)
+  
+  $aSel = vSel.Copy()
+  
+End
 ' 
-Public Sub SetSelection(aSel As Integer[])
-  
-  $aSel = aSel
-  
-End
-
-Public Sub Copy() As GridViewSelection
-  
-  Dim hSel As GridViewSelection = New GridViewSelection
-
-  hSel.SetSelection($aSel.Copy())
-  Return hSel
-  
-End
-
 Public Sub Select(iStart As Integer, Optional iLength As Integer = 1)
   
   Dim I, S, L As Integer
@@ -98,9 +95,16 @@ End
 Public Sub UnSelectAll()
   
   $aSel.Clear
-  'Dump
   
 End
+
+Public Sub SelectAll(nRows As Integer)
+  
+  UnSelectAll
+  Select(0, nRows)
+  
+End
+
 
 Public Sub IsSelected(iIndex As Integer) As Boolean
   

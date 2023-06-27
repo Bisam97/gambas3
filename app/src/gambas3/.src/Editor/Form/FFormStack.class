@@ -122,7 +122,7 @@ Public Sub RefreshReadOnly()
   
   If GetForm() Then Return
 
-  panControl.Visible = Not $hForm.ReadOnly  
+  panControl.Visible = Not $hForm.ReadOnly And Not $hForm.DiffMode
   
 End
 
@@ -144,31 +144,16 @@ Public Sub DoRefreshAll(Optional (sKey) As String, Optional bForce As Boolean)
   If Not Me.Visible Then Return
 
   If GetForm() Then Return
-  
-  'IF NOT Project.IsForm($hForm) THEN RETURN
 
-  ' If Not sKey Then
-  '   Try sKey = $hForm.Master.Name
-  ' Endif 
-  
   If bForce Then $cPict.Clear
 
+  Object.Lock(tvwControl)
   tvwControl.Clear
   FillTree($hForm.Control[$hForm.Name])
+  Object.Unlock(tvwControl)
   tvwControl.Show
-  'sepControl.Show
-  'lblMessage.Hide
   RefreshReadOnly
   SelectCurrent
-  
-  ' If sKey Then
-  '   Object.Lock(tvwControl)
-  '   Try tvwControl[sKey].Selected = True
-  '   Object.Unlock(tvwControl)
-  '   Try tvwControl[sKey].EnsureVisible
-  ' Endif
-  ' 
-  ' $iNoSelect = False
   
 End
 
@@ -177,7 +162,9 @@ Public Sub RefreshOne(sKey As String)
   If Not Me.Visible Then Return
   If GetForm() Then Return
   
+  Object.Lock(tvwControl)
   FillTree($hForm.Control[sKey])
+  Object.Unlock(tvwControl)
   SelectCurrent
   'TRY tvwControl[sKey].Selected = TRUE
   'TRY tvwControl[sKey].EnsureVisible

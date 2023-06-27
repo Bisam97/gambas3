@@ -2,7 +2,7 @@
 
 	CTable.c
 
-	(c) 2000-2017 Benoît Minisini <g4mba5@gmail.com>
+	(c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -201,7 +201,11 @@ BEGIN_PROPERTY(CTABLE_primary_key)
 		if (READ_PROPERTY)
 		{
 			if (THIS->driver->Table.PrimaryKey(&THIS->conn->db, THIS->name, &THIS->primary))
+			{
+				if (!GB.HasError())
+					GB.Error("Unable to retrieve primary key for table: &1", THIS->name);
 				return;
+			}
 
 			GB.ReturnObject(DB_StringArrayToGambasArray(THIS->primary));
 			DB_FreeStringArray(&THIS->primary);
