@@ -180,7 +180,7 @@ Public Sub OnKeyPress(hEditor As TextEditor) As Boolean
     iPos = InStr(sSearch, sCar)
     If iPos = 0 Then Return
     
-    If InStr(Me.STRING_DELIM, sCar) And If String.Mid$(sLine, X - 1, 1) = Me.ESCAPE_CHAR Then Return
+    If X >= 2 And If InStr(Me.STRING_DELIM, sCar) And If String.Mid$(sLine, X - 1, 1) = Me.ESCAPE_CHAR Then Return
     
     sSearch = ""
     If CloseBraces Then sSearch = Me.BRACES_CLOSE
