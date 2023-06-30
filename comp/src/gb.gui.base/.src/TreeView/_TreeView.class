@@ -111,6 +111,8 @@ Private $vSaveSelection As Variant
 Private $iDepthW As Integer
 Private $bShowLines As Boolean
 Private $bShowCheck As Boolean
+
+Public _MustUpdateSpan As Boolean
 Private $hUpdateSpan As Timer
 
 Public Sub _new()
@@ -1921,6 +1923,7 @@ End
 
 Public Sub _UpdateSpan()
   
+  If Not _MustUpdateSpan Then Return
   $hUpdateSpan.Trigger
   
 End
