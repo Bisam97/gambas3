@@ -633,6 +633,22 @@ End
 
 Static Public Sub PickColor() As Integer
   
-  Return DesktopPortal.PickColor()
+  Dim hGrab As Panel
+  
+  If Desktop.Platform = "x11" Then
+  
+    hGrab = New Panel(Application.ActiveWindow)
+    hGrab.Ignore = True
+    hGrab.Mouse = Mouse.Cross
+    hGrab.Grab
+    hGrab.Delete
+    
+    Return Super.Screenshot(Mouse.ScreenX, Mouse.ScreenY, 1, 1).Image[0, 0]
+    
+  Else 
+    
+    Return DesktopPortal.PickColor()
+    
+  Endif
   
 End
