@@ -203,11 +203,11 @@ Public Sub View_Draw()
 
   iCol = $hTextBox.Background
   If iCol = Color.Default Then
-    If $hTextBox.ReadOnly Then
-      iCol = Color.Background
-    Else
+    'If $hTextBox.ReadOnly Then
+    '  iCol = Color.Background
+    'Else
       iCol = Color.TextBackground
-    Endif
+    'Endif
   Endif
   
   If $bBorder Then  
@@ -223,12 +223,12 @@ Public Sub View_Draw()
 
   Endif
   
-  If $hTextBox.ReadOnly Then Return
+  'If $hTextBox.ReadOnly Then Return
   
   If Not $bWide Then
   
     hRect = GetArrowRect(ARROW_TOP, True)
-    If $iValue = $iMax Or If $hTextBox.ReadOnly Then
+    If $iValue = $iMax Then
       iState = Style.Disabled
     Else If $iInsideArrow = ARROW_TOP
       iState = Style.Hovered
@@ -238,7 +238,7 @@ Public Sub View_Draw()
     Style.PaintArrow(hRect.X, hRect.Y, hRect.W, hRect.H, Align.Top, iState)
   
     hRect = GetArrowRect(ARROW_BOTTOM, True)
-    If $iValue = $iMin Or If $hTextBox.ReadOnly Then
+    If $iValue = $iMin Then
       iState = Style.Disabled
     Else If $iInsideArrow = ARROW_BOTTOM
       iState = Style.Hovered
@@ -255,7 +255,7 @@ Private Sub ChangeValue(bAdd As Boolean, Optional bFocus As Boolean)
 
   Dim iValue As Integer
   
-  If $hTextBox.ReadOnly Then Return
+  'If $hTextBox.ReadOnly Then Return
   iValue = $iValue
   SetValue($iValue + $iStep * If(bAdd, 1, -1), bFocus)
   If $iValue = iValue Then Raise Limit
@@ -265,7 +265,7 @@ End
 Public Sub View_MouseWheel()
   
   If Object.CanRaise(Me, "MouseWheel") Then Return
-  If $hTextBox.ReadOnly Then Return
+  'If $hTextBox.ReadOnly Then Return
   
   CheckValue
   ChangeValue(Mouse.Delta > 0, True)
@@ -335,7 +335,7 @@ Private Sub SetValue(iValue As Integer, Optional bFocus As Boolean)
   Endif
   $hView.Refresh
 
-  If bFocus Then
+  If bFocus And If Not $hTextBox.ReadOnly Then
     $hTextBox.SetFocus
     $hTextBox.SelectAll
   Endif
@@ -397,10 +397,10 @@ End
 Public Sub TextBox_LostFocus()
   
   'Debug
-  If Not $hTextBox.ReadOnly Then 
+  'If Not $hTextBox.ReadOnly Then 
     CheckValue
     SetValue($iValue)
-  Endif
+  'Endif
   
   $hView.Refresh
   
@@ -444,7 +444,7 @@ Public Sub View_MouseDown()
     Return
   Endif
   
-  If $hTextBox.ReadOnly Then Return
+  'If $hTextBox.ReadOnly Then Return
   
   If $iInsideArrow = ARROW_TOP Then
     $bTimerAdd = True
@@ -731,10 +731,10 @@ End
 
 Private Sub UpdateButtons()
 
-  If Not $hButtonInc Then Return
-  
-  $hButtonInc.Enabled = Not Me.ReadOnly
-  $hButtonDec.Enabled = Not Me.ReadOnly
+  ' If Not $hButtonInc Then Return
+  ' 
+  ' $hButtonInc.Enabled = Not Me.ReadOnly
+  ' $hButtonDec.Enabled = Not Me.ReadOnly
 
 End
 
