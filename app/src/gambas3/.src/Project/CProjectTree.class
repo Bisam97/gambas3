@@ -335,6 +335,7 @@ Private Procedure AddDir(Optional sDir As String)
     If $sDir <> $sSourceDir Then aDir.Add($sSourceDir)
   Endif
 
+  $hTree._SaveSelection()
   $hTree._Begin()
 
   Repeat
@@ -373,6 +374,7 @@ Private Procedure AddDir(Optional sDir As String)
   Until aDir.Count = 0
 
   $hTree._End()
+  $hTree._RestoreSelection()
 
 End
 
