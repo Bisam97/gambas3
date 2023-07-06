@@ -327,6 +327,7 @@ Private Procedure AddDir(Optional sDir As String)
   Dim aDir As New String[]
   Dim sFile As String
   Dim aFile As New String[]
+  Dim aSelection As String[]
 
   If sDir Then 
     aDir.Add(sDir)
@@ -335,7 +336,7 @@ Private Procedure AddDir(Optional sDir As String)
     If $sDir <> $sSourceDir Then aDir.Add($sSourceDir)
   Endif
 
-  $hTree._SaveSelection()
+  aSelection = $hTree.Selection
   $hTree._Begin()
 
   Repeat
@@ -374,7 +375,7 @@ Private Procedure AddDir(Optional sDir As String)
   Until aDir.Count = 0
 
   $hTree._End()
-  $hTree._RestoreSelection()
+  $hTree.Selection = aSelection
 
 End
 
