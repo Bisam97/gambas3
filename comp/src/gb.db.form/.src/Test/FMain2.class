@@ -71,7 +71,7 @@ Public Sub DataSource1_BeforeDelete(Keys As Variant[])
   Next
   Print
   
-  Stop Event
+  'Stop Event
 
 End
 
@@ -79,5 +79,24 @@ Public Sub DataSource1_Invalid(Field As String)
 
   Message.Warning(Subst("La valeur du champ « &1 » est invalide.", Field))
   Stop Event
+
+End
+
+Public Sub Button2_Click()
+
+  DataBrowser1.MoveTo(2)
+
+End
+
+Public Sub btnFind_Click()
+
+  Dim iId As Integer
+
+  Try iId = CInt(txtId.Text)
+  If iId = 0 Then Return
+  
+  iId = DataSource1.Find("id = &1", iId)
+  'DataSource1.MoveTo(iId)
+  DataBrowser1.MoveTo(iId)
 
 End
