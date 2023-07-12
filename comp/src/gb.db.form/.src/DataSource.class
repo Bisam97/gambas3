@@ -413,6 +413,7 @@ Public Function Save(Optional bMessage As Boolean = True) As Boolean
   Dim iInd As Integer
   Dim aVal As Variant[]
   Dim bCancel As Boolean
+  Dim iIndex As Integer
 
   If $bSaving Then Return True
 
@@ -454,16 +455,24 @@ Public Function Save(Optional bMessage As Boolean = True) As Boolean
       Endif
     Next
     
+    iIndex = -1
     aVal = New Variant[aKey.Count]
     For iInd = 0 To aKey.Max
       aVal[iInd] = rData[aKey[iInd]]
     Next
     
     bCancel = Raise BeforeSave(rData)
-    If Not bCancel Then rData.Update
-  
+    If Not bCancel Then 
+      rData.Update
+      iIndex = Find(Replace(Common.MakeWhere(aKey, aVal), "&", "&&"))
+    Endif 
+    
     Redraw(True)
+    
     If Not $bCheckModified Then Create(True)
+    
+    $iIndex = iIndex
+    Redraw
 
   Else
 

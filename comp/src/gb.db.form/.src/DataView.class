@@ -684,11 +684,12 @@ Public Sub TableView_Save(Row As Integer, Column As Integer, Value As String)
   iRow = $hCtrl.Row
   iCol = $hCtrl.Column
   
-  If hSrc.MoveTo(Row) Then Return
-  
   If Row <> $iRowNewRecord Then
+    If hSrc.MoveTo(Row) Then Return
     rData = hSrc._EditCurrent()
     If Not rData.Available Then Return
+  Else
+    hSrc.MoveTo(-1)
   Endif
   
   hField = $aType[Column]
