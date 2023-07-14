@@ -653,9 +653,14 @@ END_METHOD
 
 BEGIN_METHOD_VOID(Result_Update)
 
-	int i;
+	int i, j;
 	bool comma;
 	DB_INFO *info = &THIS->info;
+	int ret_first = -1;
+	int ret_count = 0;
+	GB_VARIANT_VALUE *ret_buffer;
+	bool err;
+	DB_RESULT res;
 
 	if (check_available(THIS))
 		return;
@@ -717,8 +722,55 @@ BEGIN_METHOD_VOID(Result_Update)
 
 			q_add(" )");
 
-			if (!THIS->driver->Exec(&THIS->conn->db, q_get(), NULL, "Cannot create record: &1"))
-				void_buffer(THIS);
+			if (THIS->returning)
+			{
+				comma = FALSE;
+				for (i = 0; i < info->nfield; i++)
+				{
+					if (info->field[i].type == DB_T_SERIAL)
+					{
+						ret_count++;
+						if (comma)
+							q_add(", ");
+						else
+						{
+							q_add(" RETURNING ");
+							ret_first = i;
+						}
+						q_add(THIS->driver->GetQuote());
+						q_add(info->field[i].name);
+						q_add(THIS->driver->GetQuote());
+						comma = TRUE;
+					}
+				}
+
+				GB.Alloc(POINTER(&ret_buffer), sizeof(GB_VARIANT_VALUE) * ret_count);
+				for (i = 0; i < ret_count; i++)
+					ret_buffer[i].type = GB_T_NULL;
+			}
+
+			if (ret_count)
+				err = THIS->driver->Exec(&THIS->conn->db, q_get(), &res, "Cannot create record: &1");
+			else
+				err = THIS->driver->Exec(&THIS->conn->db, q_get(), NULL, "Cannot create record: &1");
+
+			if (!err)
+			{
+				if (!THIS->returning)
+					void_buffer(THIS);
+				else if (ret_count)
+				{
+					if (THIS->driver->Result.Fill(&THIS->conn->db, res, 0, ret_buffer, FALSE) == DB_OK)
+					{
+						THIS->buffer[ret_first] = ret_buffer[0];
+						for (i = ret_first + 1, j = 1; i < info->nfield; i++)
+						{
+							if (info->field[i].type == DB_T_SERIAL)
+								THIS->buffer[i] = ret_buffer[j++];
+						}
+					}
+				}
+			}
 
 			break;
 
