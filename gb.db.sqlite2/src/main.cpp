@@ -488,8 +488,7 @@ static int WalkDirectory(const char *dir, char ***databases)
 
 static int init_version(DB_DATABASE *db)
 {
-	char *version;
-	int dbversion = 0;
+	const char *version;
 	unsigned int verMain, verMajor, verMinor;
 
 	version = sqlite_libversion();
