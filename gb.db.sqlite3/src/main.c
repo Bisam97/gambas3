@@ -626,7 +626,7 @@ static int open_database(DB_DESC *desc, DB_DATABASE *db)
 	/* flags */
 	db->flags.no_table_type = TRUE;
 	db->flags.no_nest = TRUE;
-	db->flags.no_returning = TRUE; //db->version < 33500; // RETURNING keyword has been introduced in SQLite 3.35.0
+	db->flags.no_returning = db->version < 33500; // RETURNING keyword has been introduced in SQLite 3.35.0
 
 	db->db_name_char = ".";
 
