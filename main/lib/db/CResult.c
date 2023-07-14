@@ -658,7 +658,7 @@ BEGIN_METHOD_VOID(Result_Update)
 	DB_INFO *info = &THIS->info;
 	int ret_first = -1;
 	int ret_count = 0;
-	GB_VARIANT_VALUE *ret_buffer;
+	GB_VARIANT_VALUE *ret_buffer = NULL;
 	bool err;
 	DB_RESULT res;
 
@@ -769,8 +769,12 @@ BEGIN_METHOD_VOID(Result_Update)
 								THIS->buffer[i] = ret_buffer[j++];
 						}
 					}
+
+					THIS->driver->Result.Release(res, NULL, FALSE);
 				}
 			}
+
+			GB.Free(POINTER(&ret_buffer));
 
 			break;
 
