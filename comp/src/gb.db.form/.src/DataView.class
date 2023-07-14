@@ -275,7 +275,6 @@ Public Sub Update()
   
 End
 
-
 Private Function Columns_Read() As String[]
   
   Return $aColumns.Copy()
@@ -804,10 +803,7 @@ End
 
 Public Sub MoveNext()
   
-  If $bCreate Then
-    MoveFirst
-    Return
-  Endif
+  If $bCreate Then Return
   If $hCtrl.Row >= $hCtrl.Rows.Max Then Return
   If $hCtrl.Row < 0 Then Return
   Inc $hCtrl.Row
@@ -818,7 +814,7 @@ End
 Public Sub MovePrevious()
   
   If $bCreate Then
-    MoveFirst
+    MoveLast
     Return
   Endif
   If $hCtrl.Row <= 0 Then Return
@@ -829,6 +825,8 @@ End
 
 Public Sub MoveTo(Index As Integer)
   
+  If Index = Index_Read() Then Return
+  If $bCreate Then $hCtrl.Row = -1
   SetCreate(False)
   $hCtrl.Row = Index
   $hCtrl.Rows[$hCtrl.Row].Selected = True
