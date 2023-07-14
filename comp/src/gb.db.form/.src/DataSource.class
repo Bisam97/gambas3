@@ -391,7 +391,7 @@ Public Sub _CreateCurrent() As Result
   Dim hSrc As DataSource
   Dim sKey As String
   
-  rData = _GetDB().Create($sTable)
+  rData = _GetDB().Create($sTable, True)
 
   hSrc = GetParent()
   If hSrc Then
@@ -456,14 +456,14 @@ Public Function Save(Optional bMessage As Boolean = True) As Boolean
     Next
     
     iIndex = -1
-    aVal = New Variant[aKey.Count]
-    For iInd = 0 To aKey.Max
-      aVal[iInd] = rData[aKey[iInd]]
-    Next
     
     bCancel = Raise BeforeSave(rData)
     If Not bCancel Then 
       rData.Update
+      aVal = New Variant[aKey.Count]
+      For iInd = 0 To aKey.Max
+        aVal[iInd] = rData[aKey[iInd]]
+      Next
       iIndex = Find(Replace(Common.MakeWhere(aKey, aVal), "&", "&&"))
     Endif 
     
