@@ -544,14 +544,13 @@ static int do_query(DB_DATABASE *db, const char *error, PGresult **pres, const c
 	return ret;
 }
 
-/* Internal function to check database version number */
+// Internal function to get database version
 
-static int db_version(DB_DATABASE *db)
+static void init_version(DB_DATABASE *db)
 {
 	unsigned int verMain = 0, verMajor = 0, verMinor = 0;
 	const char *query = "select version()";
 	const char *version;
-	int dbversion = 0;
 	PGresult *res;
 
 	if (!do_query(db, NULL, &res, query, 0))
@@ -563,14 +562,14 @@ static int db_version(DB_DATABASE *db)
 		
 		if (*version)
 		{
+			db->full_version = GB.NewZeroString(version);
+
 			sscanf(version, "%2u.%2u.%2u", &verMain, &verMajor, &verMinor);
-			dbversion = ((verMain * 10000) + (verMajor * 100) + verMinor);
+			db->version = ((verMain * 10000) + (verMajor * 100) + verMinor);
 		}
 		
 		PQclear(res);
 	}
-	
-	return dbversion;
 }
 
 /* Internal function that fills field information from a schema request.
@@ -785,7 +784,9 @@ static int open_database(DB_DESC *desc, DB_DATABASE *db)
 	/* get version */
 
 	db->handle = conn;
-	db->version = db_version(db);
+
+	init_version(db);
+
 	db->data = (void *)0; // transaction level
 
 	if (db->version >= 90000)
@@ -817,6 +818,7 @@ static int open_database(DB_DESC *desc, DB_DATABASE *db)
 	//db->flags.no_case = TRUE;
 	db->flags.schema = TRUE;
 	db->flags.no_collation = db->version < 90100;
+	db->flags.no_returning = db->version < 80200; // It seems that RETURNING has been introduced in PostgreSQL 8.2
 
 	/* encoding */
 
