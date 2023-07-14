@@ -492,7 +492,7 @@ static int init_version(DB_DATABASE *db)
 	int dbversion = 0;
 	unsigned int verMain, verMajor, verMinor;
 
-	version = sqlite3_libversion();
+	version = sqlite_libversion();
 	db->full_version = GB.NewZeroString(version);
 
 	sscanf(version, "%2u.%2u.%2u", &verMain, &verMajor, &verMinor);
