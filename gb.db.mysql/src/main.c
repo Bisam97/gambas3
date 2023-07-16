@@ -591,25 +591,26 @@ static int do_query_cached(DB_DATABASE *db, const char *error, MYSQL_RES **pres,
 }
 
 
-/* Internal function to return database version number as a XXYYZZ integer number*/
+// Internal function to get database version
 
-static int db_version(DB_DATABASE *db)
+static void init_version(DB_DATABASE *db)
 {
-	//Check db version
-	const char *vquery = "select left(version(),6)";
-	long dbversion =0;
+	const char *query = "select version()";
+	char *version;
+	uint verMain, verMajor, verMinor;
 	MYSQL_RES *res;
-	MYSQL_ROW row;
 
-	if (!do_query(db, NULL, &res, vquery, 0))
+	if (!do_query(db, NULL, &res, query, 0))
 	{
-		unsigned int verMain, verMajor, verMinor;
-		row = mysql_fetch_row(res);
-		sscanf(row[0],"%2u.%2u.%2u", &verMain, &verMajor, &verMinor);
-		dbversion = ((verMain * 10000) + (verMajor * 100) + verMinor);
+		version = mysql_fetch_row(res)[0];
+
+		db->full_version = GB.NewZeroString(version);
+
+		sscanf(version, "%2u.%2u.%2u", &verMain, &verMajor, &verMinor);
+		db->version = ((verMain * 10000) + (verMajor * 100) + verMinor);
+
 		mysql_free_result(res);
 	}
-	return dbversion;
 }
 
 /* Search in the first column a result for a specific name */
@@ -975,7 +976,7 @@ static int open_database(DB_DESC *desc, DB_DATABASE *db)
 	}
 
 	db->handle = conn;
-	db->version = db_version(db);
+	init_version(db);
 
 	set_character_set(db);
 	

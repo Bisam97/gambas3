@@ -5,8 +5,9 @@ Public Sub Main()
   Dim hConn As New Connection
   
   hConn.Type = "postgresql"
-  hConn.Options["dbname"] = "omogen_benoit_kubuntu_sanef_fox2"
   hConn.Open
+  
+  Print hConn.SQL.From("$").OrderBy(["a DESC", "b"])()
   
   Print hConn.Tables.Count
   

@@ -858,7 +858,9 @@ fflush(stderr);
 	odbc->user_name = malloc(sizeof(char) * strlen(user));
 	strcpy(odbc->user_name, user);
 
+	// TODO: Use SQLGetInfo() to retrieve the DBMS version string
 	db->version = 3;
+	db->full_version = GB.NewZeroString("3");
 
 	retcode = SQLGetFunctions(odbc->odbcHandle, SQL_API_SQLFETCHSCROLL, &odbc->drvrCanFetchScroll);
     if (!SQL_SUCCEEDED(retcode))

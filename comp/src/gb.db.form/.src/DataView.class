@@ -275,7 +275,6 @@ Public Sub Update()
   
 End
 
-
 Private Function Columns_Read() As String[]
   
   Return $aColumns.Copy()
@@ -684,11 +683,12 @@ Public Sub TableView_Save(Row As Integer, Column As Integer, Value As String)
   iRow = $hCtrl.Row
   iCol = $hCtrl.Column
   
-  If hSrc.MoveTo(Row) Then Return
-  
   If Row <> $iRowNewRecord Then
+    If hSrc.MoveTo(Row) Then Return
     rData = hSrc._EditCurrent()
     If Not rData.Available Then Return
+  Else
+    hSrc.MoveTo(-1)
   Endif
   
   hField = $aType[Column]
@@ -803,10 +803,7 @@ End
 
 Public Sub MoveNext()
   
-  If $bCreate Then
-    MoveFirst
-    Return
-  Endif
+  If $bCreate Then Return
   If $hCtrl.Row >= $hCtrl.Rows.Max Then Return
   If $hCtrl.Row < 0 Then Return
   Inc $hCtrl.Row
@@ -817,7 +814,7 @@ End
 Public Sub MovePrevious()
   
   If $bCreate Then
-    MoveFirst
+    MoveLast
     Return
   Endif
   If $hCtrl.Row <= 0 Then Return
@@ -828,6 +825,8 @@ End
 
 Public Sub MoveTo(Index As Integer)
   
+  If Index = Index_Read() Then Return
+  If $bCreate Then $hCtrl.Row = -1
   SetCreate(False)
   $hCtrl.Row = Index
   $hCtrl.Rows[$hCtrl.Row].Selected = True
@@ -1305,6 +1304,15 @@ Public Sub UnselectAll()
 End
 
 Public Sub Find(Where As String, ...)
+  
+  Dim iIndex As Integer
+  
+  iIndex = GetSource().Find(Where, ...)
+  MoveTo(iIndex)
+  
+End
+
+Public Sub FindNext(Where As String, ...)
   
   Dim iIndex As Integer
   

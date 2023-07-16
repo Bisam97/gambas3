@@ -68,6 +68,7 @@ typedef
 		unsigned available : 1;
 		unsigned no_seek : 1;
 		unsigned mode : 2;
+		unsigned returning : 1;
 		}
 	CRESULT;
 

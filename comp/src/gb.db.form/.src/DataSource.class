@@ -391,7 +391,7 @@ Public Sub _CreateCurrent() As Result
   Dim hSrc As DataSource
   Dim sKey As String
   
-  rData = _GetDB().Create($sTable)
+  rData = _GetDB().Create($sTable, True)
 
   hSrc = GetParent()
   If hSrc Then
@@ -413,6 +413,7 @@ Public Function Save(Optional bMessage As Boolean = True) As Boolean
   Dim iInd As Integer
   Dim aVal As Variant[]
   Dim bCancel As Boolean
+  Dim iIndex As Integer
 
   If $bSaving Then Return True
 
@@ -454,16 +455,24 @@ Public Function Save(Optional bMessage As Boolean = True) As Boolean
       Endif
     Next
     
-    aVal = New Variant[aKey.Count]
-    For iInd = 0 To aKey.Max
-      aVal[iInd] = rData[aKey[iInd]]
-    Next
+    iIndex = -1
     
     bCancel = Raise BeforeSave(rData)
-    If Not bCancel Then rData.Update
-  
+    If Not bCancel Then 
+      rData.Update
+      aVal = New Variant[aKey.Count]
+      For iInd = 0 To aKey.Max
+        aVal[iInd] = rData[aKey[iInd]]
+      Next
+      iIndex = Find(Replace(Common.MakeWhere(aKey, aVal), "&", "&&"))
+    Endif 
+    
     Redraw(True)
+    
     If Not $bCheckModified Then Create(True)
+    
+    $iIndex = iIndex
+    Redraw
 
   Else
 
@@ -573,13 +582,13 @@ End
 
 Public Function Find(Where As String, ...) As Integer
   
-  Return $hTable.Find($DB.Subst(Where, ...))
+  Return $hTable.Find(_GetDB().Subst(Where, ...))
   
 End
 
 Public Function FindNext(Index As Integer, Where As String, ...) As Integer
   
-  Return $hTable.Find($DB.Subst(Where, ...), Index)
+  Return $hTable.Find(_GetDB().Subst(Where, ...), Index)
   
 End
 

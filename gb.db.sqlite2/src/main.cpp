@@ -484,16 +484,20 @@ static int WalkDirectory(const char *dir, char ***databases)
 	return GB.Count(databases);
 }
 
-/* Internal function to check database version number */
-int db_version()
+// Internal function to get database version
+
+static int init_version(DB_DATABASE *db)
 {
-	//Check db version
-	int dbversion =0;
+	const char *version;
 	unsigned int verMain, verMajor, verMinor;
-	sscanf(sqlite_version,"%2u.%2u.%2u", &verMain, &verMajor, &verMinor);
-	dbversion = ((verMain * 10000) + (verMajor * 100) + verMinor);
-	return dbversion;
+
+	version = sqlite_libversion();
+	db->full_version = GB.NewZeroString(version);
+
+	sscanf(version, "%2u.%2u.%2u", &verMain, &verMajor, &verMinor);
+	db->version = ((verMain * 10000) + (verMajor * 100) + verMinor);
 }
+
 
 /*****************************************************************************
 
@@ -581,7 +585,7 @@ static int open_database(DB_DESC *desc, DB_DATABASE *db)
 	db->charset = GB.NewZeroString(strcmp(sqlite_encoding, "iso8859") == 0 ? "ISO-8859-1" : "UTF-8");
 
 	/* set dbversion */
-	db->version = db_version();
+	init_version(db);
 
 	/* flags */
 	db->flags.no_table_type = TRUE;
@@ -589,6 +593,7 @@ static int open_database(DB_DESC *desc, DB_DATABASE *db)
 	db->flags.no_blob = TRUE;
 	db->flags.no_nest = TRUE;
 	db->flags.no_collation = TRUE;
+	db->flags.no_returning = TRUE;
 
 	db->db_name_char = ".";
 	

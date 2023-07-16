@@ -348,8 +348,8 @@ Private Sub CreateProject() As Boolean
   sTemplate = $hTemplate.Current.Path
   
   Project.CopyProject(sTemplate, sDir)
-  
   Shell "rm -rf " & Shell$(sDir &/ ".lang") Wait
+  Shell "rm -rf " & Shell$(sDir &/ ".hidden") Wait
   Try Kill sDir &/ "icon.png"
   
   sTemp = Temp$()

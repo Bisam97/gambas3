@@ -137,6 +137,7 @@ lib/gui.webview/Makefile \
 lib/gui.qt/Makefile \
 lib/gui.qt.webkit/Makefile \
 lib/gui.qt.opengl/Makefile \
+lib/gui.qt.ext/Makefile \
 lib/gui.trayicon/Makefile \
 lib/image/Makefile \
 lib/image.effect/Makefile \
