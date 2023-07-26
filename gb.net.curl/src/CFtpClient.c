@@ -118,6 +118,8 @@ static void ftp_initialize_curl_handle(void *_object)
 	CURL_init_options(THIS);
 
 	curl_easy_setopt(THIS_CURL, CURLOPT_FTP_USE_EPSV, (long)(THIS_FTP->no_epsv ? 0 : 1));
+	curl_easy_setopt(THIS_CURL, CURLOPT_QUOTE, NULL);
+	curl_easy_setopt(THIS_CURL, CURLOPT_NOBODY, 0);
 
 	ftp_reset(THIS_FTP);
 	THIS_STATUS = NET_CONNECTING;

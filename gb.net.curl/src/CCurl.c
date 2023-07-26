@@ -215,38 +215,27 @@ void CURL_manage_error(void *_object, int error)
 		THIS_FILE = NULL;
 	}
 	
-	switch (error)
+	if (THIS->async)
 	{
-		case CURLE_OK:
-			
-			if (THIS->async) 
-			{
-				#if DEBUG
-				fprintf(stderr, "-- [%p] curl_multi_remove_handle(%p)\n", THIS, THIS_CURL);
-				#endif
-				curl_multi_remove_handle(CCURL_multicurl,THIS_CURL);
-			}
-			GB.Ref(THIS);
-			GB.Post(CURL_raise_finished, (intptr_t)THIS);
-			CURL_stop(THIS);
-			THIS_STATUS = NET_INACTIVE;
-			break;
-			
-		default:
-			
-			if (THIS->async) 
-			{
-				#if DEBUG
-				fprintf(stderr, "-- [%p] curl_multi_remove_handle(%p)\n", THIS, THIS_CURL);
-				#endif
-				curl_multi_remove_handle(CCURL_multicurl,THIS_CURL);
-			}
-			GB.Ref(THIS);
-			GB.Post(CURL_raise_error, (intptr_t)THIS);
-			CURL_stop(THIS);
-			THIS_STATUS = (- (1000 + error));
-			break;
+		#if DEBUG
+		fprintf(stderr, "-- [%p] curl_multi_remove_handle(%p)\n", THIS, THIS_CURL);
+		#endif
+		curl_multi_remove_handle(CCURL_multicurl,THIS_CURL);
 	}
+
+	GB.Ref(THIS);
+
+	if (error == CURLE_OK)
+		GB.Post(CURL_raise_finished, (intptr_t)THIS);
+	else
+		GB.Post(CURL_raise_error, (intptr_t)THIS);
+
+	CURL_stop(THIS);
+
+	if (error == CURLE_OK)
+		THIS_STATUS = NET_INACTIVE;
+	else
+		THIS_STATUS = (- (1000 + error));
 }
 
 void CURL_init_stream(void *_object)
