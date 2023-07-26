@@ -213,7 +213,7 @@ bool CURL_check_userpwd(CURL_USER *user)
 	if (tmp && user->userpwd)
 		ret = (strcmp(tmp, user->userpwd) != 0);
 	else
-		ret = (tmp == user->userpwd);
+		ret = (tmp != user->userpwd);
 	
 	GB.FreeString(&tmp);
 	return ret;

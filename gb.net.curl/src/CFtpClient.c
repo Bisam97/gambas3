@@ -90,11 +90,14 @@ static void ftp_reset(void *_object)
 
 static void ftp_initialize_curl_handle(void *_object)
 {
+	fprintf(stderr, "ftp_initialize_curl_handle: %p\n", THIS_CURL);
+
 	if (THIS_CURL)
 	{
 		if (CURL_check_userpwd(&THIS->user))
 		{
 			CURL_stop(_object);
+			CURL_clean(_object);
 			ftp_reset(_object);
 			THIS_CURL = curl_easy_init();
 			#if DEBUG
@@ -109,6 +112,8 @@ static void ftp_initialize_curl_handle(void *_object)
 		fprintf(stderr, "-- [%p] curl_easy_init() -> %p\n", THIS, THIS_CURL);
 		#endif
 	}
+
+	fprintf(stderr, "ftp_initialize_curl_handle: --> %p\n", THIS_CURL);
 
 	CURL_init_options(THIS);
 

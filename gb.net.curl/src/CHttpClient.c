@@ -186,6 +186,7 @@ static void http_initialize_curl_handle(void *_object, GB_ARRAY custom_headers)
 		if (CURL_check_userpwd(&THIS->user))
 		{
 			CURL_stop(_object);
+			CURL_clean(_object);
 			http_reset(_object);
 			THIS_CURL = curl_easy_init();
 		}

@@ -348,19 +348,6 @@ void CURL_stop(void *_object)
 	if (THIS_STATUS == NET_INACTIVE)
 		return;
 	
-	if (THIS_CURL)
-	{
-		#if DEBUG
-		fprintf(stderr, "-- CURL_stop: [%p] curl_multi_remove_handle(%p)\n", THIS, THIS_CURL);
-		#endif
-		curl_multi_remove_handle(CCURL_multicurl,THIS_CURL);
-		#if DEBUG
-		fprintf(stderr, "-- CURL_stop: [%p] curl_easy_cleanup(%p)\n", THIS, THIS_CURL);
-		#endif
-		curl_easy_cleanup(THIS_CURL);
-		THIS_CURL = NULL;
-	}
-
 	if (THIS_FILE)
 	{
 		fclose(THIS_FILE);
@@ -370,6 +357,22 @@ void CURL_stop(void *_object)
 	THIS_STATUS = NET_INACTIVE;
 	
 	remove_from_async_list(THIS);
+}
+
+void CURL_clean(void *_object)
+{
+	if (THIS_CURL)
+	{
+		#if DEBUG
+		fprintf(stderr, "-- CURL_clean: [%p] curl_multi_remove_handle(%p)\n", THIS, THIS_CURL);
+		#endif
+		curl_multi_remove_handle(CCURL_multicurl,THIS_CURL);
+		#if DEBUG
+		fprintf(stderr, "-- CURL_clean: [%p] curl_easy_cleanup(%p)\n", THIS, THIS_CURL);
+		#endif
+		curl_easy_cleanup(THIS_CURL);
+		THIS_CURL = NULL;
+	}
 }
 
 static void init_post(void)
@@ -601,6 +604,7 @@ BEGIN_METHOD_VOID(Curl_free)
 	#endif
 	
 	CURL_stop(THIS);
+	CURL_clean(THIS);
 	
 	GB.FreeString(&THIS_URL);
 	GB.FreeString(&THIS->target);
