@@ -189,42 +189,29 @@ Public Sub gvwExpr_Data(Row As Integer, Column As Integer)
     
   Endif
 
-  sVal = $cVal[Row]
-  
-  If sVal Then
-    If Left(sVal) <> "!" Then
-  
-      If $cOldVal.Exist(Row) And If sVal <> $cOldVal[Row] Then 
-        gvwExpr.Data.Background = $iChangeColor 'Color.Lighter(Color.Yellow)
-      Endif
-      
-    Else
-      
-      gvwExpr.Data.Text = Mid$(sVal, 2)
-      gvwExpr.Data.Background = $iErrorColor 'Color.Lighter(Color.Red)
-      
-    Endif 
-    
-  Endif
-
   If Column <> 0 Then 
-    
-    ' If Left(gvwExpr.Data.Text) <> "!" Then
-    ' 
-    '   If $cVal.Exist(Row) And If $cOldVal.Exist(Row) And If $cVal[Row] <> $cOldVal[Row] Then 
-    '     gvwExpr.Data.Background = $iChangeColor 'Color.Lighter(Color.Yellow)
-    '     gvwExpr.Data.Font.Bold = True
-    '   Endif
-    '   
-    ' Else
-    '   
-    '   gvwExpr.Data.Text = Mid$(gvwExpr.Data.Text, 2)
-    '   gvwExpr.Data.Background = $iErrorColor 'Color.Lighter(Color.Red)
-    '   
-    ' Endif 
     
     gvwExpr.Data.Font = txtExpr.Font
 
+    sVal = $cVal[Row]
+    
+    If sVal Then
+      If Left(sVal) <> "!" Then
+    
+        If $cOldVal.Exist(Row) And If sVal <> $cOldVal[Row] Then 
+          gvwExpr.Data.Background = $iChangeColor 'Color.Lighter(Color.Yellow)
+        Endif
+        
+      Else
+        
+        gvwExpr.Data.Text = Mid$(sVal, 2)
+        gvwExpr.Data.Background = $iErrorColor
+        gvwExpr.Data.Font.Bold = True
+        
+      Endif 
+      
+    Endif
+  
   Else
     
     gvwExpr.Data.Text &= "  "
@@ -783,8 +770,8 @@ Static Public Sub ReadConfig()
   
   Dim hWin As FDebugExpr
 
-  $iChangeColor = Color.Merge(MTheme.GetColor("Highlight"), Color.Background)
-  $iErrorColor = MTheme.GetColor("Error")
+  $iChangeColor = Color.SetAlpha(MTheme.GetColor("Highlight"), 128)
+  $iErrorColor = Color.SetAlpha(Color.SoftRed, 128)
 
   For Each hWin In $cAll
     hWin.UpdateConfig
