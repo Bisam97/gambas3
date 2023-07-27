@@ -878,12 +878,15 @@ _INIT_AGAIN:
     
   Endif
 
-  If Not IsFake() And If Settings["/RestoreFiles", 1] Then LoadLastOpenedFiles
+  GoSub _STOP_CONVERT
+
+  If Not IsFake() Then
+    If Not IsDir(Project.Dir &/ ".gambas") Or If Dir(Project.Dir &/ ".gambas").Count = 0 Then Compile(True)
+    If Settings["/RestoreFiles", 1] Then LoadLastOpenedFiles
+  Endif
   
   RecentFiles = New String[]
   CPosition.Clear
-
-  GoSub _STOP_CONVERT
 
   If ReadOnly Then 
     FMain.ShowWarning(("This project is read-only."))
