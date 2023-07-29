@@ -30,6 +30,7 @@
 #include "main.h"
 #include "gb.draw.h"
 #include "cpaint_impl.h"
+#include "CDraw.h"
 #include "CPicture.h"
 #include "CWidget.h"
 #include "CWindow.h"
@@ -102,8 +103,14 @@ static char *get_style_name()
 
 static void init_option(QStyleOption &opt, int x, int y, int w, int h, int state, GB_COLOR color = COLOR_DEFAULT, QPalette::ColorRole role = QPalette::Window)
 {
+	GB_PAINT *paint = (GB_PAINT *)DRAW.Paint.GetCurrent();
+
 	opt.rect = QRect(x, y, w ,h);
-	opt.state = QStyle::State_None;
+
+	if (state == GB_DRAW_STATE_DEFAULT && paint)
+		opt.initFrom(((CWIDGET *)paint->device)->widget);
+	else
+		opt.state = QStyle::State_None;
 
 	if (!(state & GB_DRAW_STATE_DISABLED))
 		opt.state |= QStyle::State_Enabled;
@@ -482,7 +489,7 @@ BEGIN_METHOD(Style_StateOf, GB_OBJECT control)
 	if (CWIDGET_is_visible(control) && control->flag.inside && !design)
 		state |= GB_DRAW_STATE_HOVER;
 
-	GB.ReturnInteger(state);
+	GB.ReturnInteger(state | GB_DRAW_STATE_DEFAULT);
 
 END_METHOD
 
@@ -550,6 +557,7 @@ GB_DESC StyleDesc[] =
 	GB_STATIC_METHOD("PaintHandle", NULL, Style_PaintHandle, "(X)i(Y)i(Width)i(Height)i[(Vertical)b(Flag)i]"),
 	GB_STATIC_METHOD("PaintBox", NULL, Style_PaintBox, "(X)i(Y)i(Width)i(Height)i[(Flag)i(Color)i]"),
 	
+	GB_CONSTANT("Default", "i", GB_DRAW_STATE_DEFAULT),
 	GB_CONSTANT("Normal", "i", GB_DRAW_STATE_NORMAL),
 	GB_CONSTANT("Disabled", "i", GB_DRAW_STATE_DISABLED),
 	GB_CONSTANT("HasFocus", "i", GB_DRAW_STATE_FOCUS),
