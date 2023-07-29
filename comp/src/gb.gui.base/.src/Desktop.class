@@ -13,29 +13,27 @@ Static Private Sub GetDesktop() As String
   If $sDesktop Then Return $sDesktop
 
   If Not $aDesktopType Then 
-    $aDesktopType = Split(UCase(Application.Env["XDG_CURRENT_DESKTOP"]), ":")
+    $aDesktopType = Split(UCase(Env["XDG_CURRENT_DESKTOP"]), ":")
   Endif
   
   If $aDesktopType.Count = 0 Then
     
-    If Application.Env["KDE_FULL_SESSION"] Then
+    If Env["KDE_FULL_SESSION"] Then
       $aDesktopType.Add("KDE")
-    Else If Application.Env["GNOME_DESKTOP_SESSION_ID"] Then
+    Else If Env["GNOME_DESKTOP_SESSION_ID"] Then
       $aDesktopType.Add("GNOME")
-    Else If Application.Env["MATE_DESKTOP_SESSION_ID"] Or If Application.Env["MATECORBA_SOCKETDIR"] Then
+    Else If Env["MATE_DESKTOP_SESSION_ID"] Or If Env["MATECORBA_SOCKETDIR"] Then
       $aDesktopType.Add("MATE")
-    Else If Application.Env["E_BIN_DIR"] And If Application.Env["E_LIB_DIR"] Then
+    Else If Env["E_BIN_DIR"] And If Env["E_LIB_DIR"] Then
       $aDesktopType.Add("ENLIGHTENMENT")
-    Else If Application.Env["WMAKER_BIN_NAME"] Then
+    Else If Env["WMAKER_BIN_NAME"] Then
       $aDesktopType.Add("WINDOWMAKER")
-    Else If Application.Env["DESKTOP_SESSION"] = "LXDE" Then
-      $aDesktopType.Add("LXDE")
-    Else If UCase(Env["DESKTOP_SESSION"]) = "XCFE" Then
-      $aDesktopType.Add("XFCE")
     Else If UCase(Env["XDG_MENU_PREFIX"]) Begins "XCFE" Then
       $aDesktopType.Add("XFCE")
     Else If InStr(Env["XDG_DATA_DIR"], "/xfce") Then
       $aDesktopType.Add("XFCE")
+    Else If Env["DESKTOP_SESSION"] Then
+      $aDesktopType.Add(UCase(Env["DESKTOP_SESSION"]))
     Else 
       $aDesktopType.Add("UNKNOWN")
     Endif
@@ -45,9 +43,9 @@ Static Private Sub GetDesktop() As String
   If $aDesktopType.Count Then 
   
     If $aDesktopType[0] = "KDE" Then
-      If Application.Env["KDE_SESSION_VERSION"] = "4" Then
+      If Env["KDE_SESSION_VERSION"] = "4" Then
         $aDesktopType.Add("KDE4")
-      Else If Application.Env["KDE_SESSION_VERSION"] = "5" Then
+      Else If Env["KDE_SESSION_VERSION"] = "5" Then
         $aDesktopType.Add("KDE5")
       Endif
     Endif
