@@ -2,7 +2,7 @@
 
 Private $hManager As DownloadManager
 
-Public Sub Main()
+Public Sub Main1()
 
   $hManager = New DownloadManager As "Manager"
   $hManager.MaxClient = 3
@@ -39,4 +39,16 @@ Public Sub Manager_Size(Key As String)
   
   Print "["; Key; "] size = "; $hManager[Key].Size
   
+End
+
+Public Sub Main()
+
+  Dim hDictClient As DictClient
+
+  hDictClient = New DictClient
+  hDictClient.Url = "dict://dict.org/d:monkey"
+  hDictClient.Async = False
+  hDictClient.Get()
+  Print hDictClient.Peek()
+
 End

@@ -3,6 +3,7 @@
   CFtpClient.c
 
   (c) 2003-2008 Daniel Campos Fernández <dcamposf@gmail.com>
+	(c) Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -83,14 +84,16 @@ static int ftp_write_curl(void *buffer, size_t size, size_t nmemb, void *_object
 
 static void ftp_reset(void *_object)
 {
-	GB.FreeString(&THIS->data);
+	CURL_reset(THIS);
 	GB.Unref(&THIS_FTP->commands);
 }
 
 
 static void ftp_initialize_curl_handle(void *_object)
 {
+	#if DEBUG
 	fprintf(stderr, "ftp_initialize_curl_handle: %p\n", THIS_CURL);
+	#endif
 
 	if (THIS_CURL)
 	{
@@ -113,7 +116,9 @@ static void ftp_initialize_curl_handle(void *_object)
 		#endif
 	}
 
+	#ifdef DEBUG
 	fprintf(stderr, "ftp_initialize_curl_handle: --> %p\n", THIS_CURL);
+	#endif
 
 	CURL_init_options(THIS);
 

@@ -3,7 +3,7 @@
 	CHttpClient.c
 
 	(c) 2003-2008 Daniel Campos Fernández <dcamposf@gmail.com>
-	(c) 2000-2017 Benoît Minisini <benoit.minisini@gambas-basic.org>
+	(c) Benoît Minisini <benoit.minisini@gambas-basic.org>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -153,7 +153,7 @@ static int http_write_curl(void *buffer, size_t size, size_t nmemb, void *_objec
 
 static void http_reset(void *_object)
 {
-	GB.FreeString(&THIS->data);
+	CURL_reset(THIS);
 	
 	GB.Unref(&THIS_HTTP->headers);
 	THIS_HTTP->headers = NULL;
