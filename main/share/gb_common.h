@@ -116,14 +116,6 @@
 
 #endif
 
-#ifdef ARCH_E2K // According to AltLinux Sisyphus RPM packages patchs
-
-#ifdef __cplusplus
-#include <bits/locale_facets.h>
-#endif
-
-#endif
-
 #ifndef FALSE
 	enum
 	{
