@@ -21,6 +21,8 @@ fi
 
 dnl ---- Check for internationalization library
 
+if test "x$INTL_LIB" != x; then
+
 GB_COMPONENT(
   intl, INTL, libintl, [],
   [GB_FIND(libintl.h, /opt/local /usr/local /usr, include)],
@@ -29,11 +31,15 @@ GB_COMPONENT(
   [],
   [Cannot find 'libintl' library. It may be located inside the system C library, so you can ignore that warning...])
 
+fi
+
 dnl ---- Remove DISABLED file that could have been generated before
 
 rm -f FAILED DISABLED DISABLED.*
 
 dnl ---- Check for charset conversion library
+
+if test "x$ICONV_LIB" != x; then
 
 GB_COMPONENT(
   conv, CONV, libiconv, [],
@@ -42,6 +48,8 @@ GB_COMPONENT(
   [-liconv],
   [],
   [Cannot find 'libiconv' library. It may be merged inside the system C library, so you can ignore that warning...])
+
+fi
 
 dnl ---- Remove DISABLED file that could have been generated before
 
