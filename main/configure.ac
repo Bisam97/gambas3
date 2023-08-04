@@ -21,7 +21,7 @@ fi
 
 dnl ---- Check for internationalization library
 
-if test "x$INTL_LIB" != x; then
+if test "x$GB_INTL_LIB" != x; then
 
 GB_COMPONENT(
   intl, INTL, libintl, [],
@@ -39,7 +39,7 @@ rm -f FAILED DISABLED DISABLED.*
 
 dnl ---- Check for charset conversion library
 
-if test "x$ICONV_LIB" != x; then
+if test "x$GB_ICONV_LIB" != x; then
 
 GB_COMPONENT(
   conv, CONV, libiconv, [],
