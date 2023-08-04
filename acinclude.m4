@@ -825,6 +825,9 @@ AC_DEFUN([GB_INTL],
   AC_MSG_CHECKING(for external internationalization library)
 
   case "${host}" in
+    *-musl)
+      GB_INTL_LIB=-lintl
+      ;;
     *)
       GB_INTL_LIB=
       ;;
