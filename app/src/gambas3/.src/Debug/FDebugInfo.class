@@ -97,7 +97,7 @@ Public Sub ReadConfig()
   Project.SetConsoleFont(trmTest)
   MTheme.InitControl(trmTest)
 
-  For Each hCtrl In [panSearch, panVersionControl, panTest, panDbusExplorer]
+  For Each hCtrl In [panSearch, panVersionControl, panTest, panDbusExplorer, panWarning]
     Project.SetSmallFont(hCtrl)
   Next
   
@@ -621,7 +621,7 @@ Public Sub gvwCompilation_Font()
 End
 
 
-Public Sub gvwCompilation_Select()
+Public Sub gvwCompilation_Activate()
   
   Dim I As Integer = gvwCompilation.Row
   'Dim iCol As Integer
@@ -1084,3 +1084,30 @@ Public Sub btnDbusPasteSymbol_Click()
   tvwDbusExplorer_Activate
 
 End
+
+Public Sub btnCopyWarning_Click()
+
+  Dim iRow As Integer
+  Dim aCopy As New String[]
+
+  With gvwCompilation
+    For iRow = 0 To gvwCompilation.Rows.Max
+      aCopy.Add(.[iRow, 0].Text & "." & .[iRow, 1].Text & ": " & .[iRow, 2].Text & "\n")
+    Next
+  End With
+  
+  Clipboard.Copy(aCopy.Join(""))
+  
+End
+
+' Public Sub btnSelectAllWarning_Click()
+' 
+'   gvwCompilation.Rows.SelectAll
+' 
+' End
+' 
+' Public Sub btnUnselectAllWarning_Click()
+' 
+'   gvwCompilation.Rows.UnSelectAll
+' 
+' End

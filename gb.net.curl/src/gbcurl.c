@@ -37,7 +37,7 @@
 
 CURL_PROXY CURL_default_proxy = { CURLPROXY_HTTP, CURLAUTH_NONE, NULL, NULL, NULL, NULL };
 
-static char *_protocols[] = { "ftp://", "ftps://", "http://", "https://", NULL };
+static char *_protocols[] = { "ftp://", "ftps://", "http://", "https://", "dict://", NULL };
 
 static void warning(const char *msg)
 {
@@ -102,6 +102,12 @@ bool CURL_set_url(void *_object, const char *src, int len)
 	{
 		protocol = CURL_get_protocol(url, "http://");
 		if (strcmp(protocol, "http://") && strcmp(protocol, "https://"))
+			goto UNKNOWN_PROTOCOL;
+	}
+	else if (GB.Is(THIS, GB.FindClass("DictClient")))
+	{
+		protocol = CURL_get_protocol(url, "dict://");
+		if (strcmp(protocol, "dict://"))
 			goto UNKNOWN_PROTOCOL;
 	}
 	else
@@ -213,7 +219,7 @@ bool CURL_check_userpwd(CURL_USER *user)
 	if (tmp && user->userpwd)
 		ret = (strcmp(tmp, user->userpwd) != 0);
 	else
-		ret = (tmp == user->userpwd);
+		ret = (tmp != user->userpwd);
 	
 	GB.FreeString(&tmp);
 	return ret;

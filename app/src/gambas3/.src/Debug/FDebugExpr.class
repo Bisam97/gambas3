@@ -76,6 +76,8 @@ Public Sub _new(sExpr As String, sInfo As String)
   $sKey = Replace(sExpr, "/", "|")
   $sInfo = sInfo
   
+  Project.Config["DebugWindow" &/ $sKey &/ "Geometry"] = Null
+  
   'Project.Config.Read(ME, $sKey)
   btnShowAll.Value = Project.Config["DebugWindow" &/ $sKey &/ "ShowHidden", False]
   
@@ -91,7 +93,7 @@ Public Sub _new(sExpr As String, sInfo As String)
   
   $sLastGood = sExpr
   txtExpr.Text = sExpr
-
+  
 End 
 
 Private Sub GetIndiceFromRow(iRow As Integer) As String
@@ -189,42 +191,29 @@ Public Sub gvwExpr_Data(Row As Integer, Column As Integer)
     
   Endif
 
-  sVal = $cVal[Row]
-  
-  If sVal Then
-    If Left(sVal) <> "!" Then
-  
-      If $cOldVal.Exist(Row) And If sVal <> $cOldVal[Row] Then 
-        gvwExpr.Data.Background = $iChangeColor 'Color.Lighter(Color.Yellow)
-      Endif
-      
-    Else
-      
-      gvwExpr.Data.Text = Mid$(sVal, 2)
-      gvwExpr.Data.Background = $iErrorColor 'Color.Lighter(Color.Red)
-      
-    Endif 
-    
-  Endif
-
   If Column <> 0 Then 
-    
-    ' If Left(gvwExpr.Data.Text) <> "!" Then
-    ' 
-    '   If $cVal.Exist(Row) And If $cOldVal.Exist(Row) And If $cVal[Row] <> $cOldVal[Row] Then 
-    '     gvwExpr.Data.Background = $iChangeColor 'Color.Lighter(Color.Yellow)
-    '     gvwExpr.Data.Font.Bold = True
-    '   Endif
-    '   
-    ' Else
-    '   
-    '   gvwExpr.Data.Text = Mid$(gvwExpr.Data.Text, 2)
-    '   gvwExpr.Data.Background = $iErrorColor 'Color.Lighter(Color.Red)
-    '   
-    ' Endif 
     
     gvwExpr.Data.Font = txtExpr.Font
 
+    sVal = $cVal[Row]
+    
+    If sVal Then
+      If Left(sVal) <> "!" Then
+    
+        If $cOldVal.Exist(Row) And If sVal <> $cOldVal[Row] Then 
+          gvwExpr.Data.Background = $iChangeColor 'Color.Lighter(Color.Yellow)
+        Endif
+        
+      Else
+        
+        gvwExpr.Data.Text = Mid$(sVal, 2)
+        gvwExpr.Data.Background = $iErrorColor
+        gvwExpr.Data.Font.Bold = True
+        
+      Endif 
+      
+    Endif
+  
   Else
     
     gvwExpr.Data.Text &= "  "
@@ -734,11 +723,13 @@ Public Sub Form_Open()
 
   Dim aGeom As Integer[]
   
+  UpdateConfig
+  
   aGeom = Project.Config["DebugWindow" &/ $sKey &/ "Geometry"]
-  If aGeom Then 
-    Try Me.Move(aGeom[0], aGeom[1], aGeom[2], aGeom[3])
-  Else
-    Me.Move(FMain.X, FMain.Y)
+  Try Me.Move(aGeom[0], aGeom[1], aGeom[2], aGeom[3])
+  If Error Then
+    Me.Resize(Desktop.Scale * 48, Max(Desktop.Scale * 8, Min(Desktop.Scale * 64, gvwExpr.ScrollH)) + txtExpr.H + Desktop.Scale)
+    Me.Center
   Endif
 
   If $sLastExpr Then 
@@ -752,9 +743,8 @@ Public Sub Form_Open()
   
   gvwExpr.SetFocus
 
-  UpdateConfig
   Try gvwExpr.Columns[0].Width = -1
-
+  
 End
 
 Public Sub UpdateConfig()
@@ -783,8 +773,8 @@ Static Public Sub ReadConfig()
   
   Dim hWin As FDebugExpr
 
-  $iChangeColor = Color.Merge(MTheme.GetColor("Highlight"), Color.Background)
-  $iErrorColor = MTheme.GetColor("Error")
+  $iChangeColor = Color.SetAlpha(MTheme.GetColor("Highlight"), 128)
+  $iErrorColor = Color.SetAlpha(Color.SoftRed, 128)
 
   For Each hWin In $cAll
     hWin.UpdateConfig

@@ -215,38 +215,27 @@ void CURL_manage_error(void *_object, int error)
 		THIS_FILE = NULL;
 	}
 	
-	switch (error)
+	if (THIS->async)
 	{
-		case CURLE_OK:
-			
-			if (THIS->async) 
-			{
-				#if DEBUG
-				fprintf(stderr, "-- [%p] curl_multi_remove_handle(%p)\n", THIS, THIS_CURL);
-				#endif
-				curl_multi_remove_handle(CCURL_multicurl,THIS_CURL);
-			}
-			GB.Ref(THIS);
-			GB.Post(CURL_raise_finished, (intptr_t)THIS);
-			CURL_stop(THIS);
-			THIS_STATUS = NET_INACTIVE;
-			break;
-			
-		default:
-			
-			if (THIS->async) 
-			{
-				#if DEBUG
-				fprintf(stderr, "-- [%p] curl_multi_remove_handle(%p)\n", THIS, THIS_CURL);
-				#endif
-				curl_multi_remove_handle(CCURL_multicurl,THIS_CURL);
-			}
-			GB.Ref(THIS);
-			GB.Post(CURL_raise_error, (intptr_t)THIS);
-			CURL_stop(THIS);
-			THIS_STATUS = (- (1000 + error));
-			break;
+		#if DEBUG
+		fprintf(stderr, "-- [%p] curl_multi_remove_handle(%p)\n", THIS, THIS_CURL);
+		#endif
+		curl_multi_remove_handle(CCURL_multicurl,THIS_CURL);
 	}
+
+	GB.Ref(THIS);
+
+	if (error == CURLE_OK)
+		GB.Post(CURL_raise_finished, (intptr_t)THIS);
+	else
+		GB.Post(CURL_raise_error, (intptr_t)THIS);
+
+	CURL_stop(THIS);
+
+	if (error == CURLE_OK)
+		THIS_STATUS = NET_INACTIVE;
+	else
+		THIS_STATUS = (- (1000 + error));
 }
 
 void CURL_init_stream(void *_object)
@@ -348,19 +337,6 @@ void CURL_stop(void *_object)
 	if (THIS_STATUS == NET_INACTIVE)
 		return;
 	
-	if (THIS_CURL)
-	{
-		#if DEBUG
-		fprintf(stderr, "-- CURL_stop: [%p] curl_multi_remove_handle(%p)\n", THIS, THIS_CURL);
-		#endif
-		curl_multi_remove_handle(CCURL_multicurl,THIS_CURL);
-		#if DEBUG
-		fprintf(stderr, "-- CURL_stop: [%p] curl_easy_cleanup(%p)\n", THIS, THIS_CURL);
-		#endif
-		curl_easy_cleanup(THIS_CURL);
-		THIS_CURL = NULL;
-	}
-
 	if (THIS_FILE)
 	{
 		fclose(THIS_FILE);
@@ -370,6 +346,22 @@ void CURL_stop(void *_object)
 	THIS_STATUS = NET_INACTIVE;
 	
 	remove_from_async_list(THIS);
+}
+
+void CURL_clean(void *_object)
+{
+	if (THIS_CURL)
+	{
+		#if DEBUG
+		fprintf(stderr, "-- CURL_clean: [%p] curl_multi_remove_handle(%p)\n", THIS, THIS_CURL);
+		#endif
+		curl_multi_remove_handle(CCURL_multicurl,THIS_CURL);
+		#if DEBUG
+		fprintf(stderr, "-- CURL_clean: [%p] curl_easy_cleanup(%p)\n", THIS, THIS_CURL);
+		#endif
+		curl_easy_cleanup(THIS_CURL);
+		THIS_CURL = NULL;
+	}
 }
 
 static void init_post(void)
@@ -452,6 +444,93 @@ bool CURL_copy_from(CCURL *dest, CCURL *src)
 	COPY_STRING(proxy.userpwd);
 
 	return FALSE;
+}
+
+static int curl_write_cb(void *buffer, size_t size, size_t nmemb, void *_object)
+{
+	THIS_STATUS = NET_RECEIVING_DATA;
+	nmemb *= size;
+
+	if (THIS_FILE)
+	{
+		return fwrite(buffer,size,nmemb,THIS_FILE);
+	}
+	else
+	{
+		THIS->data = GB.AddString(THIS->data, buffer, nmemb);
+	}
+
+	if (THIS->async)
+	{
+		GB.Ref(THIS);
+		GB.Post(CURL_raise_read, (intptr_t)THIS);
+	}
+
+	return nmemb;
+}
+
+
+void CURL_reset(void *_object)
+{
+	GB.FreeString(&THIS->data);
+}
+
+
+static void CURL_init_handle(void *_object)
+{
+	if (THIS_CURL)
+	{
+		if (CURL_check_userpwd(&THIS->user))
+		{
+			CURL_stop(_object);
+			CURL_clean(_object);
+			CURL_reset(_object);
+			THIS_CURL = curl_easy_init();
+		}
+	}
+	else
+	{
+		THIS_CURL = curl_easy_init();
+	}
+
+	CURL_init_options(THIS);
+
+	curl_easy_setopt(THIS_CURL, CURLOPT_WRITEFUNCTION, (curl_write_callback)curl_write_cb);
+	curl_easy_setopt(THIS_CURL, CURLOPT_WRITEDATA, THIS);
+
+	CURL_reset(THIS);
+	THIS_STATUS = NET_CONNECTING;
+
+	CURL_init_stream(THIS);
+}
+
+
+static void CURL_get(void *_object, char *target)
+{
+	if (!target)
+		target = THIS->target;
+
+	if (target && *target)
+	{
+		target = GB.FileName(target, 0);
+		THIS_FILE = fopen(target, "w");
+		if (!THIS_FILE)
+		{
+			GB.Error("Unable to open file for writing: &1", target);
+			return;
+		}
+	}
+
+	CURL_init_handle(_object);
+	CURL_set_progress(THIS, TRUE, NULL);
+
+	if (THIS->async)
+	{
+		CURL_start_post(THIS);
+		return;
+	}
+
+	CURL_manage_error(THIS, curl_easy_perform(THIS_CURL));
 }
 
 //---------------------------------------------------------------------------
@@ -601,6 +680,8 @@ BEGIN_METHOD_VOID(Curl_free)
 	#endif
 	
 	CURL_stop(THIS);
+	CURL_clean(THIS);
+	CURL_reset(THIS);
 	
 	GB.FreeString(&THIS_URL);
 	GB.FreeString(&THIS->target);
@@ -694,6 +775,39 @@ BEGIN_PROPERTY(Curl_TargetFile)
 END_PROPERTY
 
 
+BEGIN_METHOD_VOID(Curl_Stop)
+
+	CURL_stop(THIS);
+	GB.Ref(THIS);
+	CURL_raise_cancel(THIS);
+
+END_METHOD
+
+BEGIN_METHOD(Curl_Get, GB_STRING target)
+
+	char *target = NULL;
+
+	if (MISSING(target))
+		target = THIS->target;
+	else
+		target = GB.FileName(STRING(target), LENGTH(target));
+
+	if (target && *target)
+	{
+		THIS_FILE = fopen(target, "w");
+
+		if (!THIS_FILE)
+		{
+			GB.Error("Unable to open file for writing");
+			return;
+		}
+	}
+
+	CURL_get(THIS, target);
+
+END_METHOD
+
+
 //---------------------------------------------------------------------------
 
 BEGIN_PROPERTY(Curl_SSL_VerifyPeer)
@@ -759,6 +873,9 @@ GB_DESC CurlDesc[] =
 	GB_PROPERTY("Debug", "b", Curl_Debug),
 	GB_PROPERTY("BufferSize", "i", Curl_BufferSize),
 	GB_PROPERTY("TargetFile", "s", Curl_TargetFile),
+
+  GB_METHOD("Stop", NULL, Curl_Stop, NULL),
+  GB_METHOD("Get", NULL, Curl_Get, "[(TargetFile)s]"),
 
 	GB_PROPERTY_READ("Downloaded", "l", Curl_Downloaded),
 	GB_PROPERTY_READ("Uploaded", "l", Curl_Uploaded),
