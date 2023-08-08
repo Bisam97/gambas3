@@ -390,14 +390,6 @@ Private Sub Update()
 
   Endif
   
-  If Not $bReallyVertical Then
-    sepToolbar.Move(0, Me.H - 1, Me.W, 1)
-  Else
-    sepToolbar.Move(Me.W - 1, 0, 1, Me.H)
-  Endif
-  
-  'dwgHandle.Refresh
-  
   If sepToolbar.Visible Then 
     If $bReallyVertical Then
       Inc W
@@ -406,8 +398,11 @@ Private Sub Update()
     Endif
   Endif
   
-  'Debug panToolBar.X;; panToolBar.Y;; panToolBar.W;; panToolBar.H;; "/";; W;; H
-  'If panToolBar.Children.Count Then Debug "=>";; panToolBar.Children[0].X;; panToolBar.Children[0].Y;; panToolBar.Children[0].W;; panToolBar.Children[0].H
+  If Not $bReallyVertical Then
+    sepToolbar.Move(0, H - 1, W, 1)
+  Else
+    sepToolbar.Move(W - 1, 0, 1, H)
+  Endif
   
   If Not $bDesign Then 
     Me.Resize(W, H)
