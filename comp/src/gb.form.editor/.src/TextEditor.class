@@ -2100,7 +2100,7 @@ Public Sub View_KeyPress()
       'Y = ViewToReal(Y)
       'Goto($X, Max(0, Y), Key.Shift)
       If Not Key.Control And If Not Key.Alt And If Not Key.Meta Then
-        If GotoXY($X0 + $MW - $hView.ScrollX, $hRows._GetRowY($Y) + $XY.Y - $hView.ClientH - $hView.ScrollY, Key.Shift) Then
+        If GotoXY($X0 + $MW - $hView.ScrollX, $hRows._GetRowY($Y) + $XY.Y - $hView.ClientH - $hView.ScrollY + $LH \ 2, Key.Shift) Then
           Goto(0, 0, Key.Shift)
         Endif
       Endif
@@ -2115,7 +2115,7 @@ Public Sub View_KeyPress()
       'Goto($X, $hDoc.Max, Key.Shift)
       'Endif
       If Not Key.Control And If Not Key.Alt And If Not Key.Meta Then
-        If GotoXY($X0 + $MW - $hView.ScrollX, $hRows._GetRowY($Y) + $XY.Y + $hView.ClientH - $hView.ScrollY, Key.Shift) Then
+        If GotoXY($X0 + $MW - $hView.ScrollX, $hRows._GetRowY($Y) + $XY.Y + $hView.ClientH - $hView.ScrollY + $LH \ 2, Key.Shift) Then
           Goto(-1, $hDoc.Max, Key.Shift)
         Endif
       Endif
