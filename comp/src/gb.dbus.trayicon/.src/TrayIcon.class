@@ -13,6 +13,7 @@ Public Enum Horizontal, Vertical
 Event Click
 Event MiddleClick
 Event Scroll(Delta As Float, Orientation As Integer)
+Event Menu
 
 Property Name As String
 Property Picture, Icon As Picture
@@ -224,13 +225,11 @@ Private Sub GetMenu() As Menu
 
 End
 
-' Public Sub _ContextMenu(X As Integer, Y As Integer)
-'   
-'   Dim hMenu As Menu = GetMenu()
-'   
-'   If hMenu Then hMenu.Popup(X, Y)
-'   
-' End
+Public Sub _ContextMenu(X As Integer, Y As Integer)
+  
+  If Not $sMenu Then Raise Menu
+  
+End
 
 Private Function PopupMenu_Read() As String
 
