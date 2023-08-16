@@ -125,7 +125,12 @@ void SUBR_type(ushort code)
 			val = CLASS_sizeof(class) - (class->size - class->off_event);
 		}
 		else
-			val = TYPE_sizeof_memory(SUBR_get_integer(PARAM));
+		{
+			val = SUBR_get_integer(PARAM);
+			if (val < T_BOOLEAN || val > T_OBJECT)
+				THROW(E_ARG);
+			val = TYPE_sizeof_memory(val);
+		}
 	}
 	else
 	{
