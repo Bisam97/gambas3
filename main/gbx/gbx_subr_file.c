@@ -451,7 +451,7 @@ void SUBR_seek(ushort code)
 			VALUE_conv_integer(&PARAM[2]);
 			whence = PARAM[2]._integer.value;
 			if (whence != SEEK_SET && whence != SEEK_CUR && whence != SEEK_END)
-				THROW(E_ARG);
+				THROW_ARG();
 		}
 		else
 		{

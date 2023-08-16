@@ -587,6 +587,11 @@ void THROW_OVERFLOW_(void)
 	THROW(E_OVERFLOW);
 }
 
+void THROW_ARG(void)
+{
+	THROW(E_ARG);
+}
+
 
 void ERROR_fatal(const char *error, ...)
 {

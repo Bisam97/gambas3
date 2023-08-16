@@ -176,7 +176,7 @@ bool EVAL_compile(EXPRESSION *expr, bool force_assign)
 
 			if (PATTERN_is_end(*EVAL->current))
 			{
-				CODE_return(4);
+				CODE_return(3);
 				break;
 			}
 			else

@@ -1011,7 +1011,7 @@ void LOCAL_set_lang(const char *lang)
 	char *var;
 
 	if (lang && (strlen(lang) > MAX_LANG))
-		THROW(E_ARG);
+		THROW_ARG();
 	
 	#ifdef DEBUG_LANG
 	fprintf(stderr, "******** LOCAL_set_lang: %s\n", lang ? lang : "(null)");

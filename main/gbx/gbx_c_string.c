@@ -415,7 +415,7 @@ static void String_Mid(ushort code, VALUE *sp)
 	start = PARAM[1]._integer.value - 1;
 
 	if (start < 0)
-		THROW(E_ARG);
+		THROW_ARG();
 
 	if (null)
 		return;
@@ -906,7 +906,7 @@ void BoxedString_get(ushort code)
 	start = PARAM[1]._integer.value;
 
 	if (start < 0)
-		THROW(E_ARG);
+		THROW_ARG();
 
 	if (null)
 		goto _SUBR_MID_FIN;

@@ -164,7 +164,7 @@ void SUBR_exec(ushort code)
 	}
 
 	if (!cmd)
-		THROW(E_ARG);
+		THROW_ARG();
 
 	if (VALUE_is_null(&PARAM[1]))
 		env = NULL;

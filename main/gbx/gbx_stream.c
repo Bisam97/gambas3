@@ -685,7 +685,7 @@ void STREAM_seek(STREAM *stream, int64_t pos, int whence)
 		switch(errno)
 		{
 			case EINVAL:
-				THROW(E_ARG);
+				THROW_ARG();
 			default:
 				THROW_SYSTEM(errno, NULL);
 		}

@@ -128,7 +128,7 @@ void SUBR_type(ushort code)
 		{
 			val = SUBR_get_integer(PARAM);
 			if (val < T_BOOLEAN || val > T_OBJECT)
-				THROW(E_ARG);
+				THROW_ARG();
 			val = TYPE_sizeof_memory(val);
 		}
 	}
@@ -216,7 +216,7 @@ void SUBR_format(ushort code)
 		{
 			fmt_type = PARAM[1]._integer.value;
 			if (fmt_type <= LF_USER || fmt_type >= LF_MAX)
-				THROW(E_ARG);
+				THROW_ARG();
 		}
 		else
 			THROW_TYPE(T_INTEGER, PARAM[1].type);
@@ -287,7 +287,7 @@ void SUBR_hex_bin(ushort code)
 		prec = PARAM[1]._integer.value;
 
 		if (prec < 1 || prec > max_prec)
-			THROW(E_ARG);
+			THROW_ARG();
 	}
 
 	NUMBER_int_to_string(PARAM->_long.value, prec, base, RETURN);
