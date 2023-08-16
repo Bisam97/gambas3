@@ -69,7 +69,7 @@ Public Sub Run()
   
   Close #hFile
 
-  For Each sStyle In ["gambas", "gambas-mono", "gambas-dark", "gambas-mono-dark"]
+  For Each sStyle In ["gambas", "gambas-mono", "gambas-dark", "gambas-mono-dark", "gambas-thin", "gambas-thin-dark"]
 
     sRoot = "~/.local/share/icons/" & sStyle
     bDark = sStyle Ends "-dark"
@@ -182,9 +182,9 @@ Public Sub Run()
     Print #hFile, "Comment="; sStyle; " icon theme"
     Print #hFile, "Inherits=";
     Select Case sStyle
-      Case "gambas"
+      Case "gambas", "gambas-thin"
         Print #hFile, "Papirus,breeze,hicolor"
-      Case "gambas-dark"
+      Case "gambas-dark", "gambas-thin-dark"
         Print #hFile, "Papirus-Dark,breeze-dark,hicolor"
       Case "gambas-mono", "gambas-mono-dark"
         Print #hFile, "HighContrast"
