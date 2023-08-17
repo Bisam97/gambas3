@@ -124,9 +124,12 @@ Public Sub gvwExpr_Data(Row As Integer, Column As Integer)
 
   Dim sSym As String
   Dim sVal As String
+  Dim bChange As Boolean
 
   If Column = 0 Then gvwExpr.Data.Foreground = Color.Gradient(Color.TextBackground, Color.TextForeground, 0.7)
 
+  sVal = $cVal[Row]
+  
   If $bArray Then 
     
     sSym = GetIndiceFromRow(Row)
@@ -135,7 +138,6 @@ Public Sub gvwExpr_Data(Row As Integer, Column As Integer)
       gvwExpr.Data.Text = sSym
       gvwExpr.Data.Alignment = Align.Right
     Else 
-      sVal = $cVal[Row]
       If sVal Then 
         gvwExpr.Data.Text = sVal
         '$cVal.Remove(Row)
@@ -151,7 +153,6 @@ Public Sub gvwExpr_Data(Row As Integer, Column As Integer)
     If Column = 0 Then 
       gvwExpr.Data.Text = sSym
     Else 
-      sVal = $cVal[Row]
       If sVal Then 
         gvwExpr.Data.Text = sVal
         '$cVal.Remove(Row)
@@ -176,7 +177,6 @@ Public Sub gvwExpr_Data(Row As Integer, Column As Integer)
         If $iRowDynamic < 0 Or If Row < $iRowDynamic Then gvwExpr.Data.Font.Bold = True
       Endif
     Else
-      sVal = $cVal[Row]
       If sVal Then 
         gvwExpr.Data.Text = sVal
       Else 
@@ -191,26 +191,27 @@ Public Sub gvwExpr_Data(Row As Integer, Column As Integer)
     
   Endif
 
+  If Left(sVal) <> "!" Then
+
+    If $cOldVal.Exist(Row) Then
+      If sVal <> $cOldVal[Row] Then 
+        bChange = True
+      Endif
+    Else
+      bChange = True
+    Endif
+    
+  Endif
+        
   If Column <> 0 Then 
     
     gvwExpr.Data.Font = txtExpr.Font
 
-    sVal = $cVal[Row]
+    If Left(sVal) = "!" Then
     
-    If sVal Then
-      If Left(sVal) <> "!" Then
-    
-        If $cOldVal.Exist(Row) And If sVal <> $cOldVal[Row] Then 
-          gvwExpr.Data.Background = $iChangeColor 'Color.Lighter(Color.Yellow)
-        Endif
-        
-      Else
-        
-        gvwExpr.Data.Text = Mid$(sVal, 2)
-        gvwExpr.Data.Background = $iErrorColor
-        gvwExpr.Data.Font.Bold = True
-        
-      Endif 
+      gvwExpr.Data.Text = Mid$(sVal, 2)
+      gvwExpr.Data.Background = $iErrorColor
+      gvwExpr.Data.Font.Bold = True
       
     Endif
   
@@ -219,6 +220,8 @@ Public Sub gvwExpr_Data(Row As Integer, Column As Integer)
     gvwExpr.Data.Text &= "  "
 
   Endif 
+  
+  If bChange Then gvwExpr.Data.Background = $iChangeColor 'Color.Lighter(Color.Yellow)
   
 Catch
 
