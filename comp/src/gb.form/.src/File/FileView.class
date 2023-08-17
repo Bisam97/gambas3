@@ -137,6 +137,7 @@ Private $sLastPreview As String
 Private $bIgnorePreviewCache As Boolean
 Private $bPreviewDone As Boolean
 Private $bRefreshView As Boolean
+Private $sTaskPreviewBuffer As String
 
 Static Public Sub _init()
   
@@ -618,6 +619,7 @@ Private Sub StartPreview(aPreview As String[])
     sDir = File.Dir(Temp$())
   ' Endif
   
+  $sTaskPreviewBuffer = ""
   $hPreview = New CTaskPreview(GetCurrentDir(), GetIconSize(), $iMaxPreviewSize, aPreview, sDir, $bIgnorePreviewCache) As "TaskPreview"
   'Debug Me.Name;; System.Backtrace.Join(" ")
 
@@ -653,12 +655,23 @@ Public Sub TaskPreview_Read(Data As String)
   Dim aLine As String[]
   Dim aRect As String[]
   Dim hRect As Rect
+  Dim iPos As Integer
+  Dim sData As String
   
   If Not $bShowPreview Then Return
   
   DS = Desktop.Scale
   
-  For Each sLine In Split(Data, "\n", "", True)
+  iPos = RInStr(Data, "\n")
+  If iPos = 0 Then
+    $sTaskPreviewBuffer &= Data
+    Return
+  Else
+    sData = $sTaskPreviewBuffer & Left(Data, iPos)
+    $sTaskPreviewBuffer = Mid$(Data, iPos + 1)
+  Endif
+  
+  For Each sLine In Split(sData, "\n", "", True)
   
     If sLine = "." Then
       $bPreviewDone = True
@@ -687,7 +700,7 @@ Public Sub TaskPreview_Read(Data As String)
               
               Paint.Begin(hImage)
               S = GetIconSize() \ 32
-              PaintImageWithOutline(hItem.Picture.Image, hRect.X + hRect.W - DS * 4 - S, hRect.Y + S, DS * 4, DS * 4)
+              PaintImageWithOutline(hItem.Picture.Image, hRect.X + hRect.W - DS * 4 - S, hRect.Y + hRect.H - DS * 4 - S, DS * 4, DS * 4)
               Paint.End
               
             Endif
