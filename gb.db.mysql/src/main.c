@@ -706,7 +706,9 @@ static DB_MYSQL_OPTION _options[] = {
 	{ "LOCAL_INFILE", MYSQL_OPT_LOCAL_INFILE, GB_T_BOOLEAN},
 	{ "PROTOCOL", MYSQL_OPT_PROTOCOL, GB_T_STRING},
 	{ "READ_TIMEOUT", MYSQL_OPT_READ_TIMEOUT, GB_T_INTEGER},
+#if LIBMYSQL_VERSION_ID < 80034
 	{ "RECONNECT", MYSQL_OPT_RECONNECT, GB_T_BOOLEAN},
+#endif
 #if LIBMYSQL_VERSION_ID < 80000
 	{ "SSL_VERIFY_SERVER_CERT", MYSQL_OPT_SSL_VERIFY_SERVER_CERT, GB_T_BOOLEAN},
 #endif
@@ -922,7 +924,6 @@ static int open_database(DB_DESC *desc, DB_DATABASE *db)
 	char *name;
 	char *host;
 	char *socket;
-	char reconnect = TRUE;
 	unsigned int timeout;
 	char *env;
 	#if HAVE_MYSQL_SSL_MODE_DISABLED
@@ -947,7 +948,10 @@ static int open_database(DB_DESC *desc, DB_DATABASE *db)
 	else
 		socket = NULL;
 	
+	#if LIBMYSQL_VERSION_ID < 80034
+	char reconnect = TRUE;
 	mysql_options(conn, MYSQL_OPT_RECONNECT, &reconnect);
+	#endif
 	
 	timeout = db->timeout;
 	mysql_options(conn, MYSQL_OPT_CONNECT_TIMEOUT, &timeout);
