@@ -790,6 +790,7 @@ Public Sub GridView_MouseDown()
   If Mouse.X < X + D Then
     If hItem.Count And If Not $bNoRoot And If Mouse.X >= X Then
       hItem.Expanded = Not hItem.Expanded
+      _EnsureVisible(hItem, hItem.Expanded)
     Else
       If hItem.Selectable Then $hView.Row = iRow
     Endif
