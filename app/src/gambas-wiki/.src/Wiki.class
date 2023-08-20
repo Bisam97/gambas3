@@ -421,6 +421,7 @@ Private Sub _PrintIndex()
 
   $aSel = Main.GetSelection()
   PrintIndexPath()
+  CComponent.Reset
 
 End
 
@@ -506,6 +507,7 @@ Private Sub _PrintMessage()
   Dim aMsg As String[]
   Dim sMsg As String
 
+  If Not Session.Id Then Return
   aMsg = Session["message"]
   If Not aMsg Or If aMsg.Count = 0 Then Return
 

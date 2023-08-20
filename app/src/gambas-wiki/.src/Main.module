@@ -529,6 +529,13 @@ Public Sub Main()
     Endif
   Endif
 
+  If Application.Host <> "gambaswiki.org" And If Application.Host <> "localhost" Then
+    Response.Status = "404"
+    Response.Begin
+    Response.End
+    Return
+  Endif
+
   ' All pages are stored in a "data" directory stored in the root directory.
   ' If the "data" directory does not exist, the wiki is initialized with a default root page.
 
@@ -665,6 +672,7 @@ Public Sub Main()
   Else If Request["login"] And If Request["password"] And If Request["ok"] Then
     
     Session.Abandon
+    Response.Cookie.SameSite = "None"
     
     cUser = LoadUser(Request["login"])
     If cUser And If cUser["password"] = Request["password"] And If cUser["activé"] Then
@@ -854,7 +862,6 @@ Public Sub SolvePath(sPath As String, Optional bFollowRedirect As Boolean) As St
   
 End
 
-
 Public Sub GetPageTitle(sPath As String, Optional bForceReadFile As Boolean) As String
   
   Dim sFile As String
@@ -862,6 +869,12 @@ Public Sub GetPageTitle(sPath As String, Optional bForceReadFile As Boolean) As 
   Dim bComp As Boolean
   Dim sRealPath As String
   
+  bComp = sPath Begins "/comp/"
+  If bComp Then
+    If sPath Like "/comp/*/*/?*" Then Return GetSymbolTitle(sPath)
+    If sPath Like "/comp/*/?*" Then Return GetClassTitle(sPath)
+  Endif
+
   sPath = SolvePath(sPath, IsNull(Session.Id))
   bComp = sPath Begins "/comp/"
   
@@ -1840,7 +1853,7 @@ End
 Public Sub GetSelection() As String[]
 
   If Not $aSelection Then
-    $aSelection = Session["selection"]
+    If Session.Id Then $aSelection = Session["selection"]
     If Not $aSelection Then $aSelection = New String[]
   Endif
   
