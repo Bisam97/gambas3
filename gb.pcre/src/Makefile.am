@@ -9,7 +9,7 @@ gb_pcre_la_CPPFLAGS = @PCRE_INC@
 
 gb_pcre_la_SOURCES = \
  main.h main.c \
- gb.pcre.h
+ gb.pcre.h regexp_common.h
  
 if USE_PCRE2
 
