@@ -173,7 +173,7 @@ Public Sub Find(sWhere As String, Optional iFrom As Integer) As Integer
   sSelect = "ROW_NUMBER() OVER (" & $DB.SQL.OrderBy(GetSortKeys())() & ") AS __index"
   sReq = $DB.SQL.Select([sSelect, "*"]).From($sTable).Where($sFilter)()
   
-  sReq = "SELECT * FROM (" & sReq & ") WHERE " & sWhere
+  sReq = "SELECT * FROM (" & sReq & ") AS __pg_sucks WHERE " & sWhere
   If iFrom > 0 Then sReq &= " AND __index >= " & CStr(iFrom + 1)
 
   rFind = $DB.Limit(1).Exec(sReq)
