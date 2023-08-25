@@ -89,6 +89,7 @@ Public Sub _new()
   $bAllColumns = True
   Update
   Create()
+  UpdateMode
   
   $bHighlight = True
   UpdateHighlightColor
@@ -941,7 +942,7 @@ Private Sub UpdateMode()
   
   Object.Lock($hCtrl)
   
-  If $bCreate And If HasNewRecord() Then
+  If $bCreate And If Not HasNewRecord() Then
     $hCtrl.Mode = Select.None
   Else
     $hCtrl.Mode = $iMode
