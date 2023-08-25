@@ -93,7 +93,7 @@ BEGIN_METHOD(RegExp_Replace, GB_STRING subject; GB_STRING pattern; GB_STRING rep
 			#endif
 			exec(&r, GB.StringLength(subject) - offset);
 
-			if (r.ovector[0] < 0)
+			if (!r.ovector || r.ovector[0] < 0)
 				break;
 
 			_subst_regexp = &r;
