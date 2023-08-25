@@ -918,6 +918,24 @@ static void set_character_set(DB_DATABASE *db)
 	mysql_free_result(res);
 }
 
+
+static bool is_mariadb(DB_DATABASE *db)
+{
+	int len = GB.StringLength(db->full_version);
+	int i;
+	const char *search = "mariadb";
+	const int len_search = strlen(search);
+
+	for (i = 0; i <= len - len_search; i++)
+	{
+		if (GB.StrNCaseCmp(&db->full_version[i], search, len_search) == 0)
+			return TRUE;
+	}
+
+	return FALSE;
+}
+
+
 static int open_database(DB_DESC *desc, DB_DATABASE *db)
 {
 	MYSQL *conn;
@@ -982,10 +1000,15 @@ static int open_database(DB_DESC *desc, DB_DATABASE *db)
 	db->handle = conn;
 	init_version(db);
 
+	if (is_mariadb(db))
+		db->flags.no_returning = db->version >= 100500;
+	else
+		db->flags.no_returning = TRUE;
+
 	set_character_set(db);
-	
+
 	GB.HashTable.New(POINTER(&db->data), GB_COMP_BINARY);
-	/* flags: none at the moment */
+
 	return FALSE;
 }
 
