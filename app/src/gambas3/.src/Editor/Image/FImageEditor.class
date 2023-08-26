@@ -75,7 +75,6 @@ Private $iLastColor As Integer
 Private $cInfo As New Collection
 Private $bInfoTop As Boolean
 
-Private $bFirstGrid As Boolean
 Private $vGrid As Variant
 
 Public Sub _new(sPath As String)
@@ -1615,7 +1614,7 @@ Public Sub Form_KeyPress()
       If $sTool = "paste" Then
         $hPasteCurrent.Translate(DX, DY)
         UpdatePasteCurrent
-      Else
+      Else If $hSelect Then
         AddUndo($hSelect.Copy())
         $hSelect.Translate(DX, DY)
         RefreshSelection
@@ -2342,16 +2341,6 @@ Private Sub EndUndo()
   Dec $iUndoLevel
   If $iUndoLevel = 0 And If $aUndo.Count And If $aUndo.Last.Count = 0 Then $aUndo.Pop()
   
-  ' Dim vUndo As Variant = $aUndo[$aUndo.Max]
-  ' 
-  ' If TypeOf(vUndo) = gb.Integer And If vUndo = BEGIN_UNDO Then
-  '   $aUndo.Pop()
-  ' Else
-  '   $aUndo.Add(END_UNDO)
-  ' Endif
-  ' 
-  ' $aRedo.Clear
-  
 End
 
 Private Sub MergeLastUndo()
@@ -2910,20 +2899,18 @@ End
 
 Public Sub btnGrid_Click()
 
-  Dim iSize As Integer
-
   $bShowGrid = Not $bShowGrid
   imvImage.Refresh
   FImageProperty.ShowGridOption($bShowGrid)
   
-  If $bShowGrid Then
-    If FImageProperty.IsGridLocked() Then
-    Else If Not $bFirstGrid Then 
-      iSize = Min($hImage.Width, $hImage.Height) \ 2
-      FImageProperty.SetGridResolution(iSize)
-    Endif
-    $bFirstGrid = True
-  Endif
+  ' If $bShowGrid Then
+  '   If FImageProperty.IsGridLocked() Then
+  '   Else If Not $bFirstGrid Then 
+  '     iSize = Min($hImage.Width, $hImage.Height) \ 2
+  '     FImageProperty.SetGridResolution(iSize)
+  '   Endif
+  '   $bFirstGrid = True
+  ' Endif
 
 End
 

@@ -1857,6 +1857,8 @@ Public Sub OpenFile(sPath As String, Optional iLine As Integer, Optional iColumn
   hForm = Files[sPath]
   If Not hForm Then Return
 
+  FMain.CloseProjectEditor
+
   CPosition.Disable
   
   Try ShowFile(hForm)
@@ -1873,8 +1875,6 @@ Public Sub OpenFile(sPath As String, Optional iLine As Integer, Optional iColumn
 
   CPosition.Enable
   
-  FMain.CloseProjectEditor
-
   Return hForm
   
 End

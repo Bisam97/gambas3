@@ -8,6 +8,7 @@ End
 
 Public Sub btnOK_Click()
 
+  Project.Config["/FImageQuality/Quality"] = sldQuality.Value
   Me.Close(True)
 
 End
@@ -18,3 +19,9 @@ Public Sub btnCancel_Click()
 
 End
 
+
+Public Sub Form_Open()
+
+  sldQuality.Value = Project.Config["/FImageQuality/Quality", 80]
+
+End

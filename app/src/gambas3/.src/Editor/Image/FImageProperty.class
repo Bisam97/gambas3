@@ -105,6 +105,7 @@ Public Sub Form_Open()
   
   ReadConfig
   
+  LoadGrid
   InitSelection
   
   AddClipboard(Null, "")
@@ -116,6 +117,7 @@ End
 
 Public Sub Form_Close()
   
+  SaveGrid
   SaveAllSelections
   
 End
@@ -1584,5 +1586,25 @@ End
 Public Sub cmbOperator_Click()
 
   UpdateOperator
+
+End
+
+Private Sub SaveGrid()
+
+  Project.Config["/FImageProperty/Grid/Resolution"] = txtGridRes.Value
+  Project.Config["/FImageProperty/Grid/Snap"] = chkGridSnap.Value
+  Project.Config["/FImageProperty/Grid/SnapResolution"] = txtGridSnap.Value
+  Project.Config["/FImageProperty/Grid/Diagonals"] = chkGridDiag.Value
+  Project.Config["/FImageProperty/Grid/Lock"] = btnLockGrid.Value
+
+End
+
+Private Sub LoadGrid()
+
+  txtGridRes.Value = Project.Config["/FImageProperty/Grid/Resolution", 4]
+  chkGridSnap.Value = Project.Config["/FImageProperty/Grid/Snap", 0]
+  txtGridSnap.Value = Project.Config["/FImageProperty/Grid/SnapResolution", 1]
+  chkGridDiag.Value = Project.Config["/FImageProperty/Grid/Diagonals", 0]
+  btnLockGrid.Value = Project.Config["/FImageProperty/Grid/Lock", 0]
 
 End

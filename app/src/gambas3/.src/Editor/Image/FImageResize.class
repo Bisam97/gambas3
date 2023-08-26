@@ -19,6 +19,8 @@ End
 
 Public Sub btnOK_Click()
 
+  Dim hRadioButton As RadioButton
+  
   If $bBorder Then
 
     ImageWidth += txtWidth.Value * 2
@@ -37,6 +39,15 @@ Public Sub btnOK_Click()
 
   Endif
 
+  Project.Config["/FImageResize/Ratio"] = txtRatio.Text
+  
+  For Each hRadioButton In panMode.Children
+    If hRadioButton.Value Then
+      Project.Config["/FImageResize/Mode"] = Mid$(hRadioButton.Name, 4)
+      Break
+    Endif
+  Next
+
   Me.Close(True)
 
 End
@@ -50,10 +61,13 @@ End
 
 Public Sub Form_Open()
 
+  Dim hRadioButton As RadioButton
+  
+  txtRatio.Text = Project.Config["/FImageResize/Ratio", "100"]
+  hRadioButton = Me["opt" & Project.Config["/FImageResize/Mode", "optStretch"]]
+  hRadioButton.Value = True
+
   txtRatio_Change
-  ' txtWidth.Value = ImageWidth
-  ' txtHeight.Value = ImageHeight
-  ' $fProp = ImageWidth / ImageHeight
 
 End
 

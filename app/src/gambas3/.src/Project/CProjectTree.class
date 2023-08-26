@@ -937,8 +937,12 @@ End
 
 Public Sub TreeView_MouseUp()
   
+  Dim hItem As _TreeView_Item
+  
   If $bExpandOnMouseUp And If Not $bHasJustCollapsed Then
-    Try $hTree.Current.Expanded = True
+    hItem = $hTree.Current
+    Try hItem.Expanded = True
+    hItem.EnsureVisible
   Endif
   $bExpandOnMouseUp = False
   $bHasJustCollapsed = False
