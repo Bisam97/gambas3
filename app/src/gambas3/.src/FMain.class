@@ -30,6 +30,7 @@ Private $iTabBarHeight As Integer
 Private $bFirstShowDebug As Boolean
 
 Private $bWorkspaceVisible As Boolean
+Private $sProjectFilter As String
 
 Public Sub _new()
 
@@ -2513,7 +2514,7 @@ End
 
 Public Sub txtSearchProject_Change()
   
-  Project.ProjectFilter = Trim(txtSearchProject.Text)
+  $sProjectFilter = String.RemoveDiacritics(Trim(txtSearchProject.Text))
   
 End
 
@@ -2527,10 +2528,9 @@ Public Sub txtSearchProject_GotFocus()
   
 End
 
-
 Public Sub txtSearchProject_Filter()
   
-  Project.Refresh
+  tvwProject.Filter()
   
 End
 
@@ -2553,28 +2553,35 @@ End
 
 Public Sub DoFilter(sFilter As String)
   
-  Dim sText As String
+  Dim hMenu As Menu
   
   Select Case sFilter
     Case Project.FILTER_ADDED
-      sText = mnuFilterAdd.Text
+      hMenu = mnuFilterAdd
     Case Project.FILTER_CONFLICT
-      sText = mnuFilterConflict.Text
+      hMenu = mnuFilterConflict
     Case Project.FILTER_EXPORTED
-      sText = mnuFilterExport.Text
+      hMenu = mnuFilterExport
     Case Project.FILTER_MODIFIED
-      sText = mnuFilterModified.Text
+      hMenu = mnuFilterModified
     Case Project.FILTER_COMPRESSED
-      sText = mnuFilterCompressed.Text
+      hMenu = mnuFilterCompressed
     Case Project.FILTER_DO_NOT_TRANSLATE
-      sText = mnuFilterDoNotTranslate.Text
+      hMenu = mnuFilterDoNotTranslate
   End Select
   
-  txtSearchProject.Font.Italic = True
-  txtSearchProject.Text = sText
-  Project.ProjectFilter = sFilter
+  If hMenu Then
+    txtSearchProject.FilterPicture = hMenu.Picture'.Stretch(Stock.GetSize("small"))
+  Else
+    txtSearchProject.FilterPicture = Null
+  Endif
+  
   tvwProject.SetFocus
-  txtSearchProject.FilterNow
+
+  If Project.ProjectFilter <> sFilter Then
+    Project.ProjectFilter = sFilter
+    Project.Refresh
+  Endif
   
 End
 
@@ -2611,6 +2618,7 @@ End
 
 Public Sub mnuFilterAll_Click()
   
+  DoFilter("")
   txtSearchProject.Clear
   txtSearchProject.FilterNow
   
@@ -2670,15 +2678,15 @@ Public Sub txtSearchProject_KeyPress()
 
   Dim H As Integer
 
-  If Key.Text = "+" Then
-    Try tvwProject.Current.Expanded = True
-    Stop Event
-    Return
-  Else If Key.Text = "-"
-    Try tvwProject.Current.Expanded = False
-    Stop Event
-    Return
-  Endif
+  ' If Key.Text = "+" Then
+  '   Try tvwProject.Current.Expanded = True
+  '   Stop Event
+  '   Return
+  ' Else If Key.Text = "-"
+  '   Try tvwProject.Current.Expanded = False
+  '   Stop Event
+  '   Return
+  ' Endif
 
   Select Case Key.Code
     
@@ -3435,6 +3443,7 @@ End
 
 Public Sub txtSearchProject_Clear()
 
+  DoFilter("")
   txtSearchProject.SetFocus
 
 End
@@ -3557,5 +3566,18 @@ End
 Public Sub btnShowDebugger_Click()
 
   ShowDebugging
+
+End
+
+Public Sub tvwProject_Filter((Key) As String)
+
+  If tvwProject[Key].Children Then Return
+
+  If $sProjectFilter Then 
+    If InStr(String.RemoveDiacritics(File.Name(Key)), $sProjectFilter, 1, gb.IgnoreCase) = 0 Then
+      Stop Event
+      Return
+    Endif
+  Endif
 
 End

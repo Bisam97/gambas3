@@ -1030,6 +1030,8 @@ Public Function CloseProject() As Boolean
 
     Inc Application.Busy
 
+    FImageProperty.OnProjectClose()
+
     If Not IsFake() Then Breakpoints.Save()
 
     If Settings["/RestoreFiles", 1] Then
@@ -1393,7 +1395,6 @@ Private Sub InitProjectFilter()
 
   Dim sPath As String
   Dim sFile As String
-  Dim sFilter As String
 
   $cProjectFilter = Null
   If Not ProjectFilter Then Return
@@ -1446,23 +1447,23 @@ Private Sub InitProjectFilter()
       AddPathToFilter(Project.Dir &/ sFile)
     Next
 
-  Else
-
-    sFilter = String.LCase(ProjectFilter)
-
-    $cProjectFilter = New Collection
-
-    For Each sFile In Browse(Project.Dir)
-      
-      sPath = Project.Dir &/ sFile
-
-      sFile = File.Name(sFile)
-      If sPath Begins (Project.Dir &/ ".src") Then sFile = File.BaseName(sFile)
-      If InStr(String.LCase(sFile), sFilter) = 0 Then Continue
-
-      AddPathToFilter(sPath)
-
-    Next
+  ' Else
+  ' 
+  '   sFilter = String.LCase(ProjectFilter)
+  ' 
+  '   $cProjectFilter = New Collection
+  ' 
+  '   For Each sFile In Browse(Project.Dir)
+  '     
+  '     sPath = Project.Dir &/ sFile
+  ' 
+  '     sFile = File.Name(sFile)
+  '     If sPath Begins (Project.Dir &/ ".src") Then sFile = File.BaseName(sFile)
+  '     If InStr(String.LCase(sFile), sFilter) = 0 Then Continue
+  ' 
+  '     AddPathToFilter(sPath)
+  ' 
+  '   Next
 
   Endif
 

@@ -33,8 +33,8 @@ Public Sub btnOK_Click()
     Endif
   Next
   
-  Settings["/FImageOffsetSelection/Size"] = txtSize.Value
-  Settings["/FImageOffsetSelection/Mode"] = Mid$(hRadio.Name, 4)
+  Project.Config["/FImageOffsetSelection/Size"] = txtSize.Value
+  Project.Config["/FImageOffsetSelection/Mode"] = Mid$(hRadio.Name, 4)
   
   Me.Close(True)
 
@@ -50,9 +50,9 @@ Public Sub Form_Open()
 
   Dim hRadioButton As RadioButton
 
-  txtSize.Value = Settings["/FImageOffsetSelection/Size", 1]
+  txtSize.Value = Project.Config["/FImageOffsetSelection/Size", 1]
   
-  hRadioButton = Me["rad" & Settings["/FImageOffsetSelection/", "Shrink"]]
+  hRadioButton = Me["rad" & Project.Config["/FImageOffsetSelection/Mode", "Shrink"]]
   hRadioButton.Value = True
 
 End
