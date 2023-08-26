@@ -34,7 +34,7 @@ Public Sub Form_Open()
     If sParent = sDir Then sParent = ""
     With tvwTest.Add(sPath, File.Name(sPath), If(IsDir(sPath), hDirPict, hFilePict), sParent)
       .Span = IsDir(sPath)
-      .Selectable = Not IsDir(sPath)
+      '.Selectable = Not IsDir(sPath)
       .[1] = Stat(sPath).Size
       bDark = Not bDark
       If bDark Then .Background = Color.RGB(0, 0, 0, 240)
@@ -181,5 +181,11 @@ End
 Public Sub Button7_Click()
 
   tvwTest.Enabled = Not tvwTest.Enabled
+
+End
+
+Public Sub Button8_Click()
+
+  tvwTest.Current.Visible = False
 
 End

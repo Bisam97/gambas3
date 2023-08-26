@@ -56,6 +56,13 @@ Property Tag As Variant
 
 Property Read Depth As Integer
 
+'' @{since 3.19}
+''
+'' Return or set if the item is visible.
+
+Property Visible As Boolean
+
+
 Private $sKey As String
 Private $sParent As String
 Private $sText As String
@@ -68,6 +75,7 @@ Private $iBg As Integer = Color.Default
 Private $iFg As Integer = Color.Default
 Private $hFont As Font
 Private $vTag As Variant
+Private $bHidden As Boolean
 
 Private $aChildren As String[]
 Private $aText As String[]
@@ -383,6 +391,7 @@ Public Sub _GetHeight() As Integer
   Dim PH As Integer
   Dim hFont As Font
 
+  If $bHidden Then Return 0
   If $H > 0 Then Return $H
 
   hFont = $hFont
@@ -689,5 +698,28 @@ Private Sub Span_Write(Value As Boolean)
   $bSpan = Value
   GetTree()._MustUpdateSpan = True
   GetTree()._UpdateSpan()
+
+End
+
+Private Function Visible_Read() As Boolean
+
+  Return Not $bHidden
+
+End
+
+Private Sub Visible_Write(Value As Boolean)
+
+  Dim hTree As _TreeView
+  
+  If $bHidden <> Value Then Return
+  
+  $bHidden = Not Value
+  
+  hTree = GetTree()
+  hTree._UpdateItemHeight(Me)
+  
+  If $bExpanded Then Expanded_Write(False)
+  
+  hTree._RefreshView
 
 End

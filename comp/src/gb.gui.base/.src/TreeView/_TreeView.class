@@ -81,6 +81,15 @@ Event Scroll
 
 Event Draw(X As Integer, Y As Integer, Width As Integer, Height As Integer, Key As String, Column As Integer)
 
+'' {@since 3.19}
+''
+'' This event is raised to filter a specific item.
+''
+'' Stop the event to prevent the item from being visible.
+
+Event Filter(Key As String)
+
+
 Static Private $iNoEvent As Integer
 
 Private $hView As GridView
@@ -1129,6 +1138,7 @@ Public Sub _EnsureVisible(hItem As _TreeView_Item, Optional bChild As Boolean)
   
   Dim iRow As Integer
   
+  If Not hItem.Visible Then Return
   SetItemVisible(hItem)
   iRow = _ItemToRow(hItem)
   
@@ -1948,3 +1958,24 @@ Public Sub UpdateSpan_Timer()
   
 End
 
+'' @{since 3.19}
+''
+'' Filter the items according to the [../.filter] event.
+''
+'' You must call this method as soon as the filtering state changes.
+
+Public Sub Filter()
+
+  Dim hItem As _TreeView_Item
+  Dim bCancel As Boolean
+  
+  If Not Object.CanRaise(Me, "Filter") Then Return
+
+  _Begin()  
+  For Each hItem In $cItem
+    bCancel = Raise Filter(hItem.Key)
+    hItem.Visible = Not bCancel
+  Next
+  _End()
+  
+End
