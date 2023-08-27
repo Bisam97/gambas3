@@ -293,3 +293,24 @@ Public Sub UrlListToPath(sData As String) As String[]
   Return aPaths
   
 End
+
+Public Sub FindItem(hView As GridView, sFind As String, aText As String[])
+  
+  Dim I As Integer
+
+  If Not sFind Then 
+    hView.Row = -1
+    Return
+  Endif
+  
+  sFind = String.LCase(sFind)
+
+  For I = 0 To aText.Max
+    If String.LCase(aText[I]) Begins sFind Then
+      hView.Rows[I].EnsureVisible
+      hView.Row = I
+      Break
+    Endif
+  Next
+  
+End

@@ -77,6 +77,14 @@ Static Public Sub Init()
   
 End
 
+Static Public Sub Reset()
+  
+  All.Clear
+  Classes = Null
+  
+End
+
+
 Static Public Sub ListAll() As String[]
   
   Dim sDir As String
@@ -216,9 +224,8 @@ Public Sub _new(sName As String)
   Dim sGroup As String
   Dim aCtrl As String[]
 
-  If Main.InfoDir Then
-    sPath = Main.InfoDir &/ sName & ".component"
-  Else
+  If Main.InfoDir Then sPath = Main.InfoDir &/ sName & ".component"
+  If Not sPath Or If Not Exist(sPath) Then
     sPath = Component.Path &/ sName & ".component"
   Endif
   

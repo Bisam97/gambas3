@@ -846,7 +846,7 @@ void DATE_add(VALUE *date, int period, int val)
 			goto __MAKE_DATE;
 
 		default:
-			THROW(E_ARG);
+			THROW_ARG();
 	}
 
 __ADD_DATE_TIME:
@@ -931,7 +931,7 @@ int DATE_diff(VALUE *date1, VALUE *date2, int period)
 			break;
 
 		default:
-			THROW(E_ARG);
+			THROW_ARG();
 	}
 
 	switch (period)

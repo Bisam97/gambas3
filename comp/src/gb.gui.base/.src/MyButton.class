@@ -1,0 +1,307 @@
+' Gambas class file
+
+'Export
+Inherits UserControl
+
+Public Const _Properties As String = "*,Action,AutoResize,Text,Picture,Border=True,Default,Cancel"
+Public Const _DefaultEvent As String = "Click"
+Public Const _DefaultSize As String = "8,3"
+Public Const _IsContainer As Boolean = False
+Public Const _Group As String = "Form"
+
+Event Click
+
+Property AutoResize As Boolean Use $bAutoResize
+Property Border As Boolean Use $bBorder
+Property Cancel As Boolean
+Property Text, Caption As String
+Property Default As Boolean
+Property Picture As Picture
+Property Value As Boolean
+Property Background As Integer
+
+Private $hView As DrawingArea
+Private $sText As String
+Private $hExt As RectF
+Private $bLocked As Boolean
+Private $bRichText As Boolean = False
+Private $hPict As Picture
+Private $bPressed As Boolean
+Private $bInside As Boolean
+Private $iBg As Integer = Color.Default
+
+Public Sub _new()
+  
+  $hView = New DrawingArea(Me) As "View"
+  $hView.Focus = True
+  $bBorder = True
+  Me.Proxy = $hView
+  
+End
+
+Private Sub GetPadding() As Integer
+  
+  Return Style.FrameWidth
+  
+End
+
+
+Private Sub _UpdateSize()
+  
+  Dim W As Integer
+  Dim H As Integer
+  Dim P As Integer
+  Dim hRect As Rect
+  
+  $hExt = Null  
+  If $bLocked Then Return
+  If Me.Design Then Return
+  If Not $sText Then Return
+  If Not $bAutoResize Then Return
+  
+  $bLocked = True
+
+  P = GetPadding()
+
+  If $bRichText Then
+    'If _Wrap Then
+    '  hRect = Me.Font.RichTextSize($sText, Me.W - P * 2)
+    'Else
+      hRect = Me.Font.RichTextSize($sText)
+    'Endif
+  Else
+    hRect = Me.Font.TextSize($sText)
+  Endif
+  
+  W = hRect.W + P * 2
+  H = hRect.H + P * 2
+  
+  If Not $bRichText Then
+    If H < Me.H Then H = Me.H
+  Endif
+  
+  Me.Resize(W, H)
+  
+  $bLocked = False
+  
+End
+
+Private Sub GetExtents() As RectF
+
+  Dim X As Float
+
+  ' Check Paint.Scalable to workaround a QT bug with Paint.TextExtents() on such fonts
+
+  If Not $hExt Then
+    If $bRichText Then
+      'If _Wrap Then
+      '  $hExt = Paint.RichTextSize($sText, Me.W - GetPadding() * 2)
+      'Else
+        $hExt = Paint.RichTextSize($sText)
+      'Endif
+      If Paint.Font.Scalable Then X = Paint.RichTextExtents($sText).X
+    Else
+      $hExt = Paint.TextSize($sText)
+      If Paint.Font.Scalable Then X = Paint.TextExtents(LTrim($sText)).X
+    Endif
+    
+    'Debug Me.Name; ": "; Paint.Font.ToString();; $hExt.W;; "[";; X;; "]"
+    $hExt.X = X
+    
+  Endif
+  
+  Return $hExt
+
+End
+
+
+
+Private Sub AutoResize_Write(Value As Boolean)
+
+  If $bAutoResize = Value Then Return
+  $bAutoResize = Value
+  _UpdateSize
+
+End
+
+Private Sub Border_Write(Value As Boolean)
+
+  If $bBorder = Value Then Return
+  $bBorder = Value
+  Me.Refresh
+
+End
+
+Private Function Cancel_Read() As Boolean
+
+  
+
+End
+
+Private Sub Cancel_Write(Value As Boolean)
+
+  
+
+End
+
+Private Function Text_Read() As String
+
+  
+
+End
+
+Private Sub Text_Write(Value As String)
+
+  If $sText = Value Then Return
+  $sText = Value
+  _UpdateSize
+  Me.Refresh
+
+End
+
+Private Function Default_Read() As Boolean
+
+  
+
+End
+
+Private Sub Default_Write(Value As Boolean)
+
+  
+
+End
+
+Private Function Picture_Read() As Picture
+
+  Return $hPict
+
+End
+
+Private Sub Picture_Write(Value As Picture)
+
+  $hPict = Value
+  Me.Refresh
+
+End
+
+Private Function Value_Read() As Boolean
+
+End
+
+Private Sub Value_Write(Value As Boolean)
+
+  If Value Then Raise Click
+
+End
+
+Public Sub View_MouseDown()
+  
+  If Mouse.Left Then
+    $bPressed = True
+    $bInside = True
+    Me.Refresh
+  Endif
+  
+End
+
+Public Sub View_MouseUp()
+  
+  If Mouse.Left Then
+    If $bInside Then Raise Click
+    $bPressed = False
+    Me.Refresh
+  Endif
+  
+End
+
+Public Sub View_MouseMove()
+
+  Dim bInside As Boolean
+  
+  bInside = Mouse.Inside($hView)
+  If bInside <> $bInside Then
+    $bInside = bInside
+    Me.Refresh
+  Endif
+  
+End
+
+Public Sub View_Draw()
+
+  Dim P As Integer
+  Dim X, W, H As Integer
+  
+  P = GetPadding()
+  W = Me.W - P * 2
+  H = Me.H - P * 2
+  If W <= 0 Or If H <= 0 Then Return
+
+  If $bBorder Or If $bPressed Or If Me.Hovered Or If $hView.HasFocus Then
+    Style.PaintButton(0, 0, Me.W, Me.H, $bPressed And $bInside, Style.StateOf($hView), Not $bBorder, $iBg)
+  Endif
+  
+  Paint.ClipRect = Rect(P, P, W, H)
+  If $hPict Then
+    X = (Me.W - Paint.TextExtents($sText).Width - $hPict.W - Desktop.Scale) / 2
+    If Me.RightToLeft Then
+    Else
+      Paint.DrawPicture($hPict, X, (Me.H - $hPict.H) \ 2)
+      X += $hPict.W + Desktop.Scale
+      Paint.DrawText($sText, X, P, W, H, Align.Left)
+    Endif
+  Else
+    Paint.DrawText($sText, P, P, W, H, Align.Center)
+  Endif
+  
+End
+
+Public Sub UserControl_Font()
+
+  _UpdateSize()
+  Me.Refresh
+  
+End
+
+Public Sub UserControl_Resize()
+
+  _UpdateSize()
+  
+End
+
+Public Sub View_Enter()
+  
+  Me.Refresh
+  
+End
+
+Public Sub View_Leave()
+  
+  Me.Refresh
+  
+End
+
+Public Sub View_GotFocus()
+  
+  Me.Refresh
+  
+End
+
+Public Sub View_LostFocus()
+  
+  Me.Refresh
+  
+End
+
+Private Function Background_Read() As Integer
+
+  Return $iBg
+
+End
+
+Private Sub Background_Write(Value As Integer)
+
+  If $iBg = Value Then Return
+  $iBg = Value
+  Me.Refresh
+
+End

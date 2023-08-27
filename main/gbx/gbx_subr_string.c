@@ -269,7 +269,7 @@ void SUBR_space(void)
 	len = PARAM->_integer.value;
 
 	if (len < 0)
-		THROW(E_ARG);
+		THROW_ARG();
 
 	if (len == 0)
 	{
@@ -306,7 +306,7 @@ void SUBR_string(void)
 
 	ld = PARAM->_integer.value * ls;
 	if (ld < 0)
-		THROW(E_ARG);
+		THROW_ARG();
 
 	if (ld == 0)
 	{
@@ -421,7 +421,7 @@ void SUBR_chr(void)
 
 	car = PARAM->_integer.value;
 	if (car < 0 || car > 255)
-		THROW(E_ARG);
+		THROW_ARG();
 
 	STRING_char_value(PARAM, car);
 }

@@ -62,7 +62,7 @@ void SUBR_alloc(ushort code)
 	}
 
 	if (count <= 0 || size <= 0)
-	  THROW(E_ARG);
+	  THROW_ARG();
 
 	size *= count;
 
@@ -114,7 +114,7 @@ void SUBR_realloc(ushort code)
   count = SUBR_get_integer(&PARAM[1]);
 
   if (size <= 0 || count <= 0)
-    THROW(E_ARG);
+    THROW_ARG();
 
   ptr = SUBR_get_pointer(&PARAM[0]);
 
@@ -270,7 +270,7 @@ void SUBR_peek(ushort code)
 	CHECK_leave();
 
 	if (CHECK_got_error())
-		THROW(E_ARG);
+		THROW_ARG();
 
 	SUBR_LEAVE();
 }
@@ -290,7 +290,7 @@ void SUBR_poke(ushort code)
 	CHECK_leave();
 
 	if (CHECK_got_error())
-		THROW(E_ARG);
+		THROW_ARG();
 
 	SUBR_LEAVE_VOID();
 }

@@ -84,6 +84,8 @@ NOINLINE static void SUBR_right(ushort code);
 NOINLINE static void SUBR_mid(ushort code);
 NOINLINE static void SUBR_len(void);
 
+NOINLINE static bool _return(ushort code);
+
 //---- Subroutine dispatch table --------------------------------------------
 
 const void *EXEC_subr_table[] =
@@ -211,7 +213,7 @@ static bool _sb_not_3_18 = FALSE;
 
 void EXEC_init_bytecode_check()
 {
-	ushort opcode = C_RETURN + 3;
+	ushort opcode = C_QUIT + 4;
 	PC = &opcode;
 	EXEC_loop();
 }
@@ -1144,6 +1146,12 @@ _JUMP_IF_FALSE_FAST:
 
 _RETURN:
 
+	if (_return(GET_UX()))
+		return;
+
+	goto _NEXT;
+
+#if 0
 	{
 		static const void *return_jump[] = { &&__RETURN_GOSUB, &&__RETURN_VALUE, &&__RETURN_VOID, &&__INIT_BYTECODE_CHECK, &&__RETURN_VALUE_OR_VOID };
 
@@ -1173,8 +1181,9 @@ _RETURN:
 
 	__RETURN_VALUE_OR_VOID:
 
-		if (SP[-1].type == T_VOID)
-			goto __RETURN_VOID;
+		_return_value_or_void();
+
+		goto __RETURN_LEAVE;
 
 	__RETURN_VALUE:
 
@@ -1204,6 +1213,7 @@ _RETURN:
 		_sb_jump_table_3_18_FXXX = jump_table_3_18_FXXX;
 		return;
 	}
+#endif
 
 /*-----------------------------------------------*/
 
@@ -2301,7 +2311,13 @@ _CATCH:
 	if (EC == NULL)
 		goto _NEXT;
 	else
-		goto __RETURN_VOID;
+	{
+		//goto __RETURN_VOID;
+		if (_return(2))
+			return;
+		else
+			goto _NEXT;
+	}
 
 /*-----------------------------------------------*/
 
@@ -2316,6 +2332,14 @@ _BREAK:
 /*-----------------------------------------------*/
 
 _QUIT:
+
+	if (GET_UX() == 4)
+	{
+		_sb_jump_table = jump_table;
+		_sb_jump_table_3_18_AXXX = jump_table_3_18_AXXX;
+		_sb_jump_table_3_18_FXXX = jump_table_3_18_FXXX;
+		return;
+	}
 
 	EXEC_quit(code);
 	goto _NEXT;
@@ -4409,7 +4433,7 @@ void EXEC_pop_array(ushort code)
 	int i;
 	void *data;
 	bool defined;
-	VALUE *NO_WARNING(val);
+	VALUE *val;
 	VALUE swap;
 	int fast;
 	CARRAY *array;
@@ -4696,7 +4720,7 @@ NOINLINE static void SUBR_mid(ushort code)
 	start = PARAM[1]._integer.value - 1;
 
 	if (start < 0)
-		THROW(E_ARG);
+		THROW_ARG();
 
 	if (null)
 		goto _SUBR_MID_FIN;
@@ -4783,4 +4807,71 @@ NOINLINE static void SUBR_len(void)
 
 	PARAM->type = T_INTEGER;
 	PARAM->_integer.value = len;
+}
+
+
+NOINLINE static bool _return(ushort code)
+{
+	static const void *return_jump[] = { &&__RETURN_GOSUB, &&__RETURN_VALUE, &&__RETURN_VOID, &&__RETURN_VALUE_OR_VOID };
+
+	VALUE *val;
+	int ind;
+
+	goto *return_jump[code];
+
+__RETURN_GOSUB:
+
+	if (!GP)
+		goto __RETURN_VOID;
+
+	val = &BP[FP->n_local];
+	GP++;
+
+	for (ind = 0; ind < FP->n_ctrl; ind++)
+	{
+		RELEASE(&val[ind]);
+		val[ind] = GP[ind];
+	}
+
+	GP--;
+
+	SP = GP;
+	PC = (PCODE *)GP->_void.value[0] + 1;
+	GP = (VALUE *)GP->_void.value[1];
+
+	return FALSE;
+
+__RETURN_VALUE_OR_VOID:
+
+	if (SP[-1].type == T_VOID)
+		VALUE_default(RP, FP->type);
+	else
+	{
+		VALUE_conv(&SP[-1], FP->type);
+		SP--;
+		*RP = *SP;
+	}
+
+	goto __RETURN_LEAVE;
+
+__RETURN_VALUE:
+
+	VALUE_conv(&SP[-1], FP->type);
+	SP--;
+	*RP = *SP;
+
+	goto __RETURN_LEAVE;
+
+__RETURN_VOID:
+
+	VALUE_default(RP, FP->type);
+
+__RETURN_LEAVE:
+
+	EXEC_leave_keep();
+
+	if (!PC)
+		return TRUE;
+
+	return FALSE;
 }

@@ -685,6 +685,6 @@ COMPARE_STRING_FUNC COMPARE_get_string_func(int mode)
 		else if (mode & GB_COMP_LANG)
 			return (COMPARE_STRING_FUNC)COMPARE_string_lang;
 		else
-			THROW(E_ARG);
+			THROW_ARG();
 	}
 }

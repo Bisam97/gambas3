@@ -17,9 +17,9 @@ Private $hCursor As Cursor
 
 Private $bFirstTime As Boolean
 
-Private $aUndo As New Variant[]
-Private $aRedo As New Variant[]
-Private Enum BEGIN_UNDO, END_UNDO
+Private $aUndo As New Variant[][]
+Private $aRedo As New Variant[][]
+Private $iUndoLevel As Integer
 
 Private $sTool As String
 Private $sToolBefore As String
@@ -257,10 +257,15 @@ End
 Private Sub AddUndo(hObject As Object)
   
   If Not hObject Then Return
-  If $aUndo.Count = 256 Then $aUndo.Remove(0)
   
-  $aUndo.Add(hObject)
-  $aRedo.Clear
+  If $iUndoLevel = 0 Then
+    BeginUndo
+    AddUndo(hObject)
+    EndUndo
+    Return
+  Endif
+  
+  $aUndo.Last.Add(hObject)
   
 End
 
@@ -607,46 +612,46 @@ End
 Private Sub Undo()
 
   Dim vUndo As Variant
-  Dim iLevel As Integer
   Dim W As Integer
   Dim H As Integer
+  Dim aUndo As Variant[]
+  Dim I As Integer
+  Dim aRedo As Variant[]
 
   If $aUndo.Count = 0 Then Return
   
   W = $hImage.W
   H = $hImage.H
   
-  Repeat
+  aUndo = $aUndo.Pop()
+  aRedo = New Variant[]
   
-    vUndo = $aUndo.Pop()
+  For I = aUndo.Max DownTo 0
     
-    If TypeOf(vUndo) = gb.Integer Then
-      $aRedo.Add(vUndo)
-      If vUndo = END_UNDO Then
-        Inc iLevel
-      Else If vUndo = BEGIN_UNDO Then
-        Dec iLevel
-      Endif
-    Else If vUndo Is Image Then
-      $aRedo.Add($hImage)
+    vUndo = aUndo[I]
+    
+    If vUndo Is Image Then
+      aRedo.Add($hImage)
       $hImage = vUndo
       imvImage.Update($hImage)
       Modify
     Else If vUndo Is CImageSelection Then
       If Not $hSelect Then
         If Not $hNullSelection Then $hNullSelection = New CImageSelection
-        $aRedo.Add($hNullSelection)
+        aRedo.Add($hNullSelection)
       Else
-        $aRedo.Add($hSelect)
+        aRedo.Add($hSelect)
       Endif
       $hSelect = vUndo
       imvImage.Refresh
     Else If vUndo Is PointF Then
-      $aRedo.Add($hLastPoint)
+      aRedo.Add($hLastPoint)
       $hLastPoint = vUndo
     Endif
     
-  Until iLevel = 0
+  Next
+  
+  $aRedo.Add(aRedo)
 
   If $hImage.W <> W Or If $hImage.H <> H Then ZoomFit
   
@@ -657,54 +662,61 @@ End
 
 Public Sub btnUndo_Click()
 
-  Undo
+  Undo()
 
 End
 
-Public Sub btnRedo_Click()
+Private Sub Redo()
 
   Dim vUndo As Variant
-  Dim iLevel As Integer
   Dim W As Integer
   Dim H As Integer
+  Dim aRedo As Variant[]
+  Dim I As Integer
+  Dim aUndo As Variant[]
 
   If $aRedo.Count = 0 Then Return
   
   W = $hImage.W
   H = $hImage.H
   
-  Repeat
-    
-    vUndo = $aRedo.Pop()
+  aRedo = $aRedo.Pop()
+  aUndo = New Variant[]
   
-    If TypeOf(vUndo) = gb.Integer Then
-      $aUndo.Add(vUndo)
-      If vUndo = BEGIN_UNDO Then
-        Inc iLevel
-      Else If vUndo = END_UNDO Then
-        Dec iLevel
-      Endif
-    Else If vUndo Is Image Then
-      $aUndo.Add($hImage)
+  For I = aRedo.Max DownTo 0
+    
+    vUndo = aRedo[I]
+  
+    If vUndo Is Image Then
+      aUndo.Add($hImage)
       $hImage = vUndo
       imvImage.Update($hImage)
       Modify
     Else If vUndo Is CImageSelection Then
-      $aUndo.Add($hSelect)
+      aUndo.Add($hSelect)
       $hSelect = vUndo
       If $hSelect = $hNullSelection Then $hSelect = Null
       imvImage.Refresh
     Else If vUndo Is PointF Then
-      $aUndo.Add($hLastPoint)
+      aUndo.Add($hLastPoint)
       $hLastPoint = vUndo
     Endif
     
-  Until iLevel = 0
+  Next
+
+  $aUndo.Add(aUndo)
 
   If $hImage.W <> W Or If $hImage.H <> H Then ZoomFit
   RefreshSelection
   UpdateInfo
   
+End
+
+
+Public Sub btnRedo_Click()
+
+  Redo()
+
 End
 
 Private Sub GetPos() As Point
@@ -1286,7 +1298,9 @@ Public Sub imvImage_MouseMove()
         
         If $bCtrl Then $hCurrentPoint.Y = $hLastPoint.Y + Abs($hCurrentPoint.X - $hLastPoint.X) * Sgn($hCurrentPoint.Y - $hLastPoint.Y)
         If $hLastPoint.X <> $hCurrentPoint.X Or If $hLastPoint.Y <> $hCurrentPoint.Y Then
-          $hSelect = $aUndo[$aUndo.Max].Copy()
+          
+          Try $hSelect = $aUndo[$aUndo.Max].Last.Copy()
+          If Error Then $hSelect = New CImageSelection
           
           X1 = $hCurrentPoint.X
           Y1 = $hCurrentPoint.Y
@@ -1384,7 +1398,7 @@ Public Sub imvImage_MouseMove()
         Else If $iChangeAction Then
         
           If $sTool = "change" Then
-            $hSelect = $aUndo[$aUndo.Max].Copy()
+            $hSelect = $aUndo[$aUndo.Max].Last.Copy()
             hSelect = $hSelect
           Else
             $hPasteSelect = $hPasteCurrent.Copy()
@@ -2311,40 +2325,41 @@ End
 
 Private Sub BeginUndo()
 
-  $aUndo.Add(BEGIN_UNDO)
-  $aRedo.Clear
+  '$aUndo.Add(BEGIN_UNDO)
+  '$aRedo.Clear
+  If $iUndoLevel = 0 Then 
+    $aUndo.Add([])
+    If $aUndo.Count > 256 Then $aUndo.Remove(0)
+    $aRedo.Clear
+  Endif
+  
+  Inc $iUndoLevel
 
 End
 
 Private Sub EndUndo()
   
-  Dim vUndo As Variant = $aUndo[$aUndo.Max]
+  Dec $iUndoLevel
+  If $iUndoLevel = 0 And If $aUndo.Count And If $aUndo.Last.Count = 0 Then $aUndo.Pop()
   
-  If TypeOf(vUndo) = gb.Integer And If vUndo = BEGIN_UNDO Then
-    $aUndo.Pop()
-  Else
-    $aUndo.Add(END_UNDO)
-  Endif
-  
-  $aRedo.Clear
+  ' Dim vUndo As Variant = $aUndo[$aUndo.Max]
+  ' 
+  ' If TypeOf(vUndo) = gb.Integer And If vUndo = BEGIN_UNDO Then
+  '   $aUndo.Pop()
+  ' Else
+  '   $aUndo.Add(END_UNDO)
+  ' Endif
+  ' 
+  ' $aRedo.Clear
   
 End
 
-Private Sub RemoveLastEndBeginUndo()
+Private Sub MergeLastUndo()
   
-  Dim vUndo As Variant
-  Dim I As Integer
-  
-  For I = $aUndo.Max DownTo 1
-    vUndo = $aUndo[I]
-    If TypeOf(vUndo) = gb.Integer And If vUndo = BEGIN_UNDO Then
-      vUndo = $aUndo[I - 1]
-      If TypeOf(vUndo) = gb.Integer And If vUndo = END_UNDO Then
-        $aUndo.Remove(I - 1, 2)
-        Return
-      Endif
-    Endif
-  Next
+  If $aUndo.Count >= 2 Then
+    $aUndo[$aUndo.Max - 1].Insert($aUndo[$aUndo.Max])
+    $aUndo.Pop()
+  Endif
   
 End
 
@@ -2559,20 +2574,24 @@ Private Sub GetSelectedImage() As Image
   Dim hImage As Image
   Dim hExt As Rect
 
-  $hSelect.Invert($hImage)
-  
   hImage = $hImage.Copy()
-  
-  Paint.Begin(hImage)
-  Paint.Brush = Paint.Color(Color.Black)
-  $hSelect.Paint(hImage, CImageSelection.ACTION_CLEAR)
-  Paint.End
-
-  $hSelect.Invert($hImage)
-
+    
   hExt = $hSelect.GetExtentsInt(True)
-  If hExt Then hImage = hImage.Copy(hExt.X, hExt.Y, hExt.Width, hExt.Height)
+  If hExt And If hExt.Width > 0 And If hExt.Height > 0 Then
+    
+    $hSelect.Invert($hImage)
+    
+    Paint.Begin(hImage)
+    Paint.Brush = Paint.Color(Color.Black)
+    $hSelect.Paint(hImage, CImageSelection.ACTION_CLEAR)
+    Paint.End
   
+    $hSelect.Invert($hImage)
+  
+    hImage = hImage.Copy(hExt.X, hExt.Y, hExt.Width, hExt.Height)
+    
+  Endif
+    
   Return hImage
 
 End
@@ -3439,7 +3458,7 @@ End
 
 Public Sub imvImage_DblClick()
 
-  RemoveLastEndBeginUndo
+  MergeLastUndo
   ClearSelection
   $bDblClick = True
 

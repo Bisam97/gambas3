@@ -490,6 +490,8 @@ gTextArea::gTextArea(gContainer *parent) : gControl(parent)
 	_no_background = true;
 	
 	textview = gtk_text_view_new();
+	_buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(textview));
+
 	realizeScrolledWindow(textview);
 
 	setColorBase();
@@ -497,7 +499,6 @@ gTextArea::gTextArea(gContainer *parent) : gControl(parent)
 	//g_signal_connect_after(G_OBJECT(textview), "motion-notify-event", G_CALLBACK(cb_motion_notify_event), (gpointer)this);
 	g_signal_connect(G_OBJECT(textview), "key-press-event", G_CALLBACK(cb_keypress), (gpointer)this);
 	
-	_buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(textview));
 	g_signal_connect_after(G_OBJECT(_buffer), "changed", G_CALLBACK(cb_changed), (gpointer)this);
 	g_signal_connect_after(G_OBJECT(_buffer), "mark-set", G_CALLBACK(cb_mark_set), (gpointer)this);
 	g_signal_connect(G_OBJECT(_buffer), "insert-text", G_CALLBACK(cb_insert_text), (gpointer)this);

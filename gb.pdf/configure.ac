@@ -10,7 +10,7 @@ PKG_PROG_PKG_CONFIG
 
 GB_COMPONENT_PKG_CONFIG(
   poppler, POPPLER, gb.pdf, [src],
-  'poppler >= 0.20' 'poppler < 23.0'
+  'poppler >= 0.20'
 )
 
 if test "$have_poppler" = "yes"; then

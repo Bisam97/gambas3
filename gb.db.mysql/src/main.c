@@ -706,7 +706,9 @@ static DB_MYSQL_OPTION _options[] = {
 	{ "LOCAL_INFILE", MYSQL_OPT_LOCAL_INFILE, GB_T_BOOLEAN},
 	{ "PROTOCOL", MYSQL_OPT_PROTOCOL, GB_T_STRING},
 	{ "READ_TIMEOUT", MYSQL_OPT_READ_TIMEOUT, GB_T_INTEGER},
+#if LIBMYSQL_VERSION_ID < 80034
 	{ "RECONNECT", MYSQL_OPT_RECONNECT, GB_T_BOOLEAN},
+#endif
 #if LIBMYSQL_VERSION_ID < 80000
 	{ "SSL_VERIFY_SERVER_CERT", MYSQL_OPT_SSL_VERIFY_SERVER_CERT, GB_T_BOOLEAN},
 #endif
@@ -916,13 +918,30 @@ static void set_character_set(DB_DATABASE *db)
 	mysql_free_result(res);
 }
 
+
+static bool is_mariadb(DB_DATABASE *db)
+{
+	int len = GB.StringLength(db->full_version);
+	int i;
+	const char *search = "mariadb";
+	const int len_search = strlen(search);
+
+	for (i = 0; i <= len - len_search; i++)
+	{
+		if (GB.StrNCaseCmp(&db->full_version[i], search, len_search) == 0)
+			return TRUE;
+	}
+
+	return FALSE;
+}
+
+
 static int open_database(DB_DESC *desc, DB_DATABASE *db)
 {
 	MYSQL *conn;
 	char *name;
 	char *host;
 	char *socket;
-	char reconnect = TRUE;
 	unsigned int timeout;
 	char *env;
 	#if HAVE_MYSQL_SSL_MODE_DISABLED
@@ -947,7 +966,10 @@ static int open_database(DB_DESC *desc, DB_DATABASE *db)
 	else
 		socket = NULL;
 	
+	#if LIBMYSQL_VERSION_ID < 80034
+	char reconnect = TRUE;
 	mysql_options(conn, MYSQL_OPT_RECONNECT, &reconnect);
+	#endif
 	
 	timeout = db->timeout;
 	mysql_options(conn, MYSQL_OPT_CONNECT_TIMEOUT, &timeout);
@@ -978,10 +1000,15 @@ static int open_database(DB_DESC *desc, DB_DATABASE *db)
 	db->handle = conn;
 	init_version(db);
 
+	if (is_mariadb(db))
+		db->flags.no_returning = db->version >= 100500;
+	else
+		db->flags.no_returning = TRUE;
+
 	set_character_set(db);
-	
+
 	GB.HashTable.New(POINTER(&db->data), GB_COMP_BINARY);
-	/* flags: none at the moment */
+
 	return FALSE;
 }
 

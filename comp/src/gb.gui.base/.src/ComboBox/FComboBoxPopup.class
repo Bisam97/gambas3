@@ -99,19 +99,7 @@ End
 
 Private Sub FindItem()
 
-  Dim I As Integer
-  Dim sFind As String
-
-  If Not $sFind Then Return
-  sFind = String.LCase($sFind)
-
-  For I = 0 To $aList.Max
-    If String.LCase($aList[I]) Begins sFind Then
-      gvwPopup.Rows[I].EnsureVisible
-      gvwPopup.Row = I
-      Break
-    Endif
-  Next
+  Main.FindItem(gvwPopup, $sFind, $aList)
   
 End
 

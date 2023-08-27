@@ -61,86 +61,90 @@ H1 { display: none; }
 
 <div class="page-frame">
 
-<%If Session.Id Then%>
-<div class="header<%If Main.Edit Then%> header-edit<%Endif%>">
-<%Else%>
-<div class="header header-small">
-<%Endif%>
+<%If Not Request.Exist("nl") And If Not Request.Exist("nh") Then%>
 
-  <div class="header-inside">
+  <%If Session.Id Then%>
+  <div class="header<%If Main.Edit Then%> header-edit<%Endif%>">
+  <%Else%>
+  <div class="header header-small">
+  <%Endif%>
   
-    <div class="header-bar">
-      <%If Main.Edit Then%>
-        <div class="command">
-          <input type="submit" id="preview" name="preview" value="<%=("Preview")%>">
-          <input type="submit" id="save" name="save" value="<%=("Save")%>" style="display:none;">
-          <input type="submit" name="cancel" value="<%=("Cancel")%>">
-        </div>
-      <%Else If Main.Preview Then%>
-        <div class="command">
-          <input type="submit" id="save" name="save" value="<%=("Save")%>">
-          <input type="button" name="cancel" value="<%=("Cancel")%>" onclick="window.history.back();">
-        </div>
-      <%Else If Session.Id Then%>
-        <div class="command">
-          <%If Main.Exist Then%>
-            <%If Main.History Then%>
-              <%If Main.History < GetMaxHistory() Then%>
-                <input type="submit" name="prev" value="<%= ("<")%>">
+    <div class="header-inside">
+    
+      <div class="header-bar">
+        <%If Main.Edit Then%>
+          <div class="command">
+            <input type="submit" id="preview" name="preview" value="<%=("Preview")%>">
+            <input type="submit" id="save" name="save" value="<%=("Save")%>" style="display:none;">
+            <input type="submit" name="cancel" value="<%=("Cancel")%>">
+          </div>
+        <%Else If Main.Preview Then%>
+          <div class="command">
+            <input type="submit" id="save" name="save" value="<%=("Save")%>">
+            <input type="button" name="cancel" value="<%=("Cancel")%>" onclick="window.history.back();">
+          </div>
+        <%Else If Session.Id Then%>
+          <div class="command">
+            <%If Main.Exist Then%>
+              <%If Main.History Then%>
+                <%If Main.History < GetMaxHistory() Then%>
+                  <input type="submit" name="prev" value="<%= ("<")%>">
+                <%Else%>
+                  <input type="submit" name="prev" value="<%= ("<")%>" disabled>
+                <%Endif%>
+                <%If Main.History > 1 Then%>
+                  <input type="submit" name="next" value="<%= (">")%>">
+                <%Else%>
+                  <input type="submit" name="next" value="<%= (">")%>" disabled>
+                <%Endif%>
+                <input type="submit" name="exit" value="<%= ("Exit")%>">
               <%Else%>
-                <input type="submit" name="prev" value="<%= ("<")%>" disabled>
+                <input type="submit" name="edit" value="<%= ("Edit")%>">
+                <input type="submit" name="delete" value="<%= ("Delete")%>">
+                <input type="submit" name="undo" value="<%= ("Undo")%>">
+                <%If GetMaxHistory() > 0 Then%>
+                  <input type="submit" name="historic" value="<%= ("Historic")%>">
+                <%Endif%>
               <%Endif%>
-              <%If Main.History > 1 Then%>
-                <input type="submit" name="next" value="<%= (">")%>">
-              <%Else%>
-                <input type="submit" name="next" value="<%= (">")%>" disabled>
-              <%Endif%>
-              <input type="submit" name="exit" value="<%= ("Exit")%>">
             <%Else%>
-              <input type="submit" name="edit" value="<%= ("Edit")%>">
-              <input type="submit" name="delete" value="<%= ("Delete")%>">
-              <input type="submit" name="undo" value="<%= ("Undo")%>">
-              <%If GetMaxHistory() > 0 Then%>
-                <input type="submit" name="historic" value="<%= ("Historic")%>">
+              <input type="submit" name="create" value="<%=("Create")%>">
+              <input type="submit" name="undo" value="<%=("Undo")%>">
+              <%If Exist(File.Dir(Main.GetPagePath())) Then%>
+                <input type="submit" name="purge" value="<%=("Purge")%>">
               <%Endif%>
             <%Endif%>
-          <%Else%>
-            <input type="submit" name="create" value="<%=("Create")%>">
-            <input type="submit" name="undo" value="<%=("Undo")%>">
-            <%If Exist(File.Dir(Main.GetPagePath())) Then%>
-              <input type="submit" name="purge" value="<%=("Purge")%>">
+            <%If Main.History = 0 Then%>
+              <%If Main.Path Then %>
+                <input type="submit" name="select" value="<%=("Select")%><%_PrintSelectionCount%>" title="<%_PrintSelectionList%>">
+              <%Endif%>
+              <%If Main.HasSelection() Then%>
+                <input type="submit" name="unselect" value="<%=("Unselect")%>">
+                <input type="submit" name="move" value="<%=("Move selection")%>">
+              <%Endif%>
             <%Endif%>
-          <%Endif%>
-          <%If Main.History = 0 Then%>
-            <%If Main.Path Then %>
-              <input type="submit" name="select" value="<%=("Select")%><%_PrintSelectionCount%>" title="<%_PrintSelectionList%>">
-            <%Endif%>
-            <%If Main.HasSelection() Then%>
-              <input type="submit" name="unselect" value="<%=("Unselect")%>">
-              <input type="submit" name="move" value="<%=("Move selection")%>">
-            <%Endif%>
-          <%Endif%>
+          </div>
+        <%Endif%>
+        <div class="header-expand"></div>
+        <%If Session.Id Then%>
+          <div class="last-modified"><%_PrintLastModified%></div>
+        <%Endif%>
+        <div class="header-right">
+        <%If Session.Id Then%>
+          <div class="user-name"><%=Main.FullName%></div>
+          <div class="command"><input type="submit" name="logout" value="<%= ("Logout")%>"></div>
+        <%Else%>
+          <div class="command"><input type="submit" name="ident" value="<%=("Login")%>"></div>
+        <%Endif%>
+        <%_PrintLang%>
         </div>
-      <%Endif%>
-      <div class="header-expand"></div>
-      <%If Session.Id Then%>
-        <div class="last-modified"><%_PrintLastModified%></div>
-      <%Endif%>
-      <div class="header-right">
-      <%If Session.Id Then%>
-        <div class="user-name"><%=Main.FullName%></div>
-        <div class="command"><input type="submit" name="logout" value="<%= ("Logout")%>"></div>
-      <%Else%>
-        <div class="command"><input type="submit" name="ident" value="<%=("Login")%>"></div>
-      <%Endif%>
-      <%_PrintLang%>
       </div>
     </div>
+  
   </div>
 
-</div>
+<%Endif%>
 
-<%If Not Main.Edit And If Request["ident"] Then%>
+<% If Not Main.Edit And If Request["ident"] Then%>
   <div class="login"><div>
     <%If Session.Id Then%>
       <div id="user" class="label-login" align="left"><%=Main.UserName%></div>

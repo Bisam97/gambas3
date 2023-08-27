@@ -487,7 +487,30 @@ static const char *get_conv_format(TYPE src, TYPE dest)
 					return "((int64_t)(%s))";
 			}
 			break;
-			
+
+		case T_POINTER:
+
+			switch(src)
+			{
+				case T_BYTE: case T_SHORT:
+					return "((intptr_t)(%s))";
+				case T_INTEGER:
+					#ifdef OS_64BITS
+						return "((intptr_t)(%s))";
+					#else
+						return "%s";
+					#endif
+				case T_LONG:
+					#ifdef OS_64BITS
+						return "%s";
+					#else
+						if (_unsafe)
+							return "((intptr_t)(%s))";
+						else
+							return "MATH_CONV(intptr_t, (%s))";
+					#endif
+			}
+
 		case T_SINGLE:
 			
 			switch(src)

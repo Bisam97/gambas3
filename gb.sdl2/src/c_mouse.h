@@ -34,6 +34,8 @@ typedef
 	struct {
 		int x;
 		int y;
+    int xrel;
+    int yrel;
 		int wheel_x;
 		int wheel_y;
 		int state;

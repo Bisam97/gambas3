@@ -84,10 +84,13 @@ Static Public Sub LoadImage(sKey As String, iSize As Integer, Optional sStock As
   
   'If sKey = "tools" Then Debug sPath
   
-  If iSize > 32 Then
-    Try hImage = LoadIcon(sKey, 128, sStock)
+  If iSize <= 32 Then
+    Try hImage = LoadIcon(sKey, 32, sStock)
     If Not Error Then Goto RETURN_IMAGE
   Endif
+  
+  Try hImage = LoadIcon(sKey, 128, sStock)
+  If Not Error Then Goto RETURN_IMAGE
   
   hImage = LoadIcon(sKey, 32, sStock)
   

@@ -196,11 +196,33 @@ Private Const UPDATE_ICONS As Boolean = False
 '   
 ' End
 ' 
+
+Private Sub RemoveSimilar()
+
+  Dim sDir As String
+  Dim sFile As String
+  Dim sPath As String
+  Dim sTheme As String
+
+  sDir = "/home/benoit/gambas/git/master/comp/src/gb.form.stock"
+  For Each sTheme In ["gambas-thin", "gambas", "gambas-mono"]
+    For Each sFile In Dir(sDir &/ sTheme &/ "128").Sort()
+      sPath = sDir &/ sTheme &/ "32" &/ sFile
+      Debug sPath
+      Try Kill sPath
+    Next
+  Next
+
+End
+
 Public Sub Main()
 
   Dim sFile As String
   Dim sDir As String
   Dim sPngQuant As String
+
+  'RemoveSimilar
+  'Quit
 
   MakeIconTheme.Run()
   Quit
