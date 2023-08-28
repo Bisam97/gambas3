@@ -449,13 +449,15 @@ Private Sub FillTree(Optional bDoNotRefreshCache As Boolean)
 
   End With
 
-  With $hTree
-    .MoveFirst
-    While .Available
-      .Item.Expanded = True
-      .MoveNext
-    Wend
-  End With
+  ' With $hTree
+  '   .MoveFirst
+  '   While .Available
+  '     .Item.Expanded = True
+  '     .MoveNext
+  '   Wend
+  ' End With
+  
+  CollapseAll
 
   'If sKeyReset Then sKey = sKeyReset
 
@@ -942,7 +944,7 @@ Public Sub TreeView_MouseUp()
   If $bExpandOnMouseUp And If Not $bHasJustCollapsed Then
     hItem = $hTree.Current
     Try hItem.Expanded = True
-    hItem.EnsureVisible
+    Try hItem.EnsureVisible
   Endif
   $bExpandOnMouseUp = False
   $bHasJustCollapsed = False
@@ -1260,3 +1262,83 @@ Private Sub IsClassFromOtherProject(sPath As String) As Boolean
   Return $aOtherProjects.Exist(Left(sPath, iPos - 1))
   
 End
+
+Public Sub ExpandAll()
+  
+  Dim sSave As String
+
+  Inc Application.Busy
+  
+  $hTree._Begin()
+  $hTree.MoveFirst
+
+  Do
+    
+    If Not $hTree.Available Then
+      $hTree.MoveBack
+      $hTree.MoveParent
+      If Not $hTree.Available Then Break
+      $hTree.MoveNext
+      Continue
+    Endif
+    
+    sSave = $hTree.Item.Key
+    $hTree.Item.Expanded = True
+    $hTree.MoveTo(sSave)
+    
+    If $hTree.Item.Children Then
+      $hTree.MoveChild
+      Continue
+    Else
+      $hTree.MoveNext
+    Endif
+
+  Loop
+  
+  $hTree._End()
+  Dec Application.Busy
+
+End
+
+Public Sub CollapseAll()
+  
+  Dim sSave As String
+
+  Inc Application.Busy
+  
+  $hTree._Begin()
+  $hTree.MoveFirst
+
+  Do
+    
+    If Not $hTree.Available Then
+      $hTree.MoveBack
+      $hTree.MoveParent
+      If Not $hTree.Available Then Break
+      $hTree.MoveNext
+      Continue
+    Endif
+    
+    sSave = $hTree.Item.Key
+    If sSave Begins "$" Or If Not $hTree.Item.ParentKey Then
+      $hTree.Item.Expanded = sSave <> KEY_PROJECT
+    Else If IsDir(sSave) And If Dir(sSave, "*", gb.Directory).Count And If Dir(sSave, "*", gb.File).Count = 0 Then
+      $hTree.Item.Expanded = True
+    Else
+      $hTree.Item.Expanded = False
+    Endif
+    $hTree.MoveTo(sSave)
+    
+    If $hTree.Item.Expanded And If $hTree.Item.Children Then
+      $hTree.MoveChild
+    Else
+      $hTree.MoveNext
+    Endif
+
+  Loop
+  
+  $hTree._End()
+  Dec Application.Busy
+
+End
+

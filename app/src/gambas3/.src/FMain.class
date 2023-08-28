@@ -69,6 +69,8 @@ Public Sub _new()
   txtSearchProject._AddButton(btnOpenStartup)
   txtSearchProject._AddButton(btnUseInheritance)
   txtSearchProject._AddButton(btnShowAllClasses)
+  txtSearchProject._AddButton(btnCollapse)
+  txtSearchProject._AddButton(btnExpand)
   
   'FSearch.Load
   FOption.Load
@@ -109,9 +111,12 @@ Public Sub Form_Open()
   Project.UseInheritance = Settings["/UseInheritance", True] 
   btnUseInheritance.Value = Project.UseInheritance
   
-  btnShowAllClasses.Picture = Picture["img/module/class.png"].Stretch(Stock.GetSize("small"))
+  btnShowAllClasses.Picture = Picture["img/module/class.png", "small"]
   Project.ShowAllClasses = Settings["/ShowAllClasses", False] 
   btnShowAllClasses.Value = Project.ShowAllClasses
+  
+  btnExpand.Picture = Picture["img/32/expand.png", "small"]
+  btnCollapse.Picture = Picture["img/32/collapse.png", "small"]
   
   UpdateGlobalLayout
   
@@ -531,7 +536,7 @@ Public Sub mnuPopup_Show()
       mnuNewTest.Show
       
     Endif
-  
+    
   Else
     
     If sRoot = Project.KEY_EXTERN Or If sRoot Begins "/" Then
@@ -2531,6 +2536,10 @@ End
 Public Sub txtSearchProject_Filter()
   
   tvwProject.Filter()
+  If $sProjectFilter Then
+    Project.Tree.CollapseAll()
+    Project.Tree.ExpandAll()
+  Endif
   
 End
 
@@ -3579,5 +3588,17 @@ Public Sub tvwProject_Filter((Key) As String)
       Return
     Endif
   Endif
+
+End
+
+Public Sub btnExpand_Click()
+
+  Project.Tree.ExpandAll()
+
+End
+
+Public Sub btnCollapse_Click()
+
+  Project.Tree.CollapseAll()
 
 End
