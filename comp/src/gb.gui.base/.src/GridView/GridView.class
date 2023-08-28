@@ -1573,6 +1573,7 @@ Public Sub TimerEnsureVisible_Timer()
   Dim iColEV As Integer = $iColEV
   Dim F As Integer = _GetFrameWidth()
   Dim iDir As Integer
+  Dim W, H As Integer
   
   iDir = Scroll.Both
   If iRowEV < 0 Then
@@ -1588,7 +1589,10 @@ Public Sub TimerEnsureVisible_Timer()
   $iColEV = -1
 
   With $hColumns[iColEV]
-    $hView.EnsureVisible(.X, $hRows._GetRowY(iRowEV) + F, Min($hView.ClientW - $hRows.W, .Width + $hRows.Width), $hRows._GetRowHeight(iRowEV) + $hColumns.Height + F, iDir)
+    W = .Width
+    H = $hRows._GetRowHeight(iRowEV)
+    If W <= 0 Or If H <= 0 Then Return
+    $hView.EnsureVisible(.X, $hRows._GetRowY(iRowEV) + F, Min($hView.ClientW - $hRows.W, W + $hRows.Width), H + $hColumns.Height + F, iDir)
   End With
   
 Catch
