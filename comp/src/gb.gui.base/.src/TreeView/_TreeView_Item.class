@@ -724,3 +724,65 @@ Private Sub Visible_Write(Value As Boolean)
   hTree._RefreshView
 
 End
+
+Public Sub _ExpandChildren()
+
+  Dim hTree As _TreeView
+  Dim sChild As String
+  
+  If Not $aChildren Then Return
+  
+  Expanded_Write(True)
+  
+  hTree = GetTree()
+  For Each sChild In $aChildren
+    hTree[sChild]._ExpandChildren()
+  Next
+  
+End
+
+Public Sub _CollapseChildren(Optional bCollapse As Boolean)
+
+  Dim hTree As _TreeView
+  Dim sChild As String
+  
+  If Not $aChildren Then Return
+  
+  hTree = GetTree()
+  For Each sChild In $aChildren
+    hTree[sChild]._CollapseChildren(True)
+  Next
+  
+  ' The hidden root item is assumed to always be expanded, so do not collapse it.
+  If bCollapse Then Expanded_Write(False)
+  
+End
+
+'' @{since 3.19}
+''
+'' Expand all children items recursively.
+
+Public Sub ExpandAll()
+
+  Dim hTree As _TreeView = GetTree()
+
+  hTree._Begin()
+  _ExpandChildren()
+  hTree._End()
+
+End
+
+'' @{since 3.19}
+''
+'' Collapse all children items recursively.
+
+Public Sub CollapseAll()
+  
+  Dim hTree As _TreeView = GetTree()
+
+  hTree._Begin()
+  _CollapseChildren()
+  hTree._End()
+
+End
+

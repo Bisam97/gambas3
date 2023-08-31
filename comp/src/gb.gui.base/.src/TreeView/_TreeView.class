@@ -1773,6 +1773,8 @@ End
 
 Private Sub UpdateRowHeight(hItem As _TreeView_Item, iStart As Integer, Optional iEnd As Integer)
   
+  If $iLock Then Return
+  
   If iEnd = 0 Then
     iEnd = iStart
   Else If iEnd < 0 Then
@@ -1977,5 +1979,25 @@ Public Sub Filter()
     hItem.Visible = Not bCancel
   Next
   _End()
+  
+End
+
+'' @{since 3.19}
+''
+'' Expand all tree items recursively.
+
+Public Sub ExpandAll()
+  
+  $hRoot.ExpandAll()
+  
+End
+
+'' @{since 3.19}
+''
+'' Collapse all tree items recursively.
+
+Public Sub CollapseAll()
+  
+  $hRoot.CollapseAll()
   
 End
