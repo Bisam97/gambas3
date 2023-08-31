@@ -67,8 +67,6 @@ Public Sub _new()
   tabProject.Index = 0
   
   txtSearchProject._AddButton(btnOpenStartup)
-  txtSearchProject._AddButton(btnUseInheritance)
-  txtSearchProject._AddButton(btnShowAllClasses)
   txtSearchProject._AddButton(btnCollapse)
   txtSearchProject._AddButton(btnExpand)
   
@@ -109,11 +107,11 @@ Public Sub Form_Open()
   If Project.WelcomeDialog Then frmWelcome = New FWelcome(dwgWelcome)
   
   Project.UseInheritance = Settings["/UseInheritance", True] 
-  btnUseInheritance.Value = Project.UseInheritance
+  mnuUseInheritance.Value = Project.UseInheritance
   
-  btnShowAllClasses.Picture = Picture["img/module/class.png", "small"]
+  'mnuShowAllClasses.Picture = Picture["img/module/class.png", "small"]
   Project.ShowAllClasses = Settings["/ShowAllClasses", False] 
-  btnShowAllClasses.Value = Project.ShowAllClasses
+  mnuShowAllClasses.Value = Project.ShowAllClasses
   
   btnExpand.Picture = Picture["img/32/expand.png", "small"]
   btnCollapse.Picture = Picture["img/32/collapse.png", "small"]
@@ -2582,7 +2580,7 @@ Public Sub DoFilter(sFilter As String)
   If hMenu Then
     txtSearchProject.FilterPicture = hMenu.Picture'.Stretch(Stock.GetSize("small"))
   Else
-    txtSearchProject.FilterPicture = Null
+    txtSearchProject.FilterPicture = Picture["icon:/small/menu"]
   Endif
   
   tvwProject.SetFocus
@@ -3343,16 +3341,16 @@ Public Sub btnPropertyToolbar_Click()
 
 End
 
-Public Sub btnUseInheritance_Click()
+Public Sub mnuUseInheritance_Click()
 
-  Project.UseInheritance = btnUseInheritance.Value
+  Project.UseInheritance = mnuUseInheritance.Value
   Project.Refresh
 
 End
 
-Public Sub btnShowAllClasses_Click()
+Public Sub mnuShowAllClasses_Click()
 
-  Project.ShowAllClasses = btnShowAllClasses.Value
+  Project.ShowAllClasses = mnuShowAllClasses.Value
   Project.Refresh
 
 End

@@ -180,52 +180,46 @@
     { Separator1 Separator
       MoveScaled(22,0,1,4)
     }
-    { panView HBox
-      MoveScaled(25,0,16,4)
-      { btnViewNormal ToolButton btnView
-        Name = "btnViewNormal"
-        MoveScaled(0,0,4,4)
-        Tag = "0"
-        ToolTip = ("Icon view")
-        Picture = Picture["icon:/small/view-icon"]
-        Radio = True
-        Toggle = True
-        Value = True
-      }
-      { btnViewCompact ToolButton btnView
-        Name = "btnViewCompact"
-        MoveScaled(4,0,4,4)
-        Tag = "1"
-        ToolTip = ("Compact view")
-        Picture = Picture["icon:/small/view-compact"]
-        Radio = True
-        Toggle = True
-      }
-      { btnViewPreview ToolButton btnView
-        Name = "btnViewPreview"
-        MoveScaled(8,0,4,4)
-        Tag = "3"
-        ToolTip = ("Preview view")
-        Picture = Picture["icon:/small/view-preview"]
-        Radio = True
-        Toggle = True
-      }
-      { btnViewDetailed ToolButton btnView
-        Name = "btnViewDetailed"
-        MoveScaled(12,0,4,4)
-        Tag = "2"
-        ToolTip = ("Detailed view")
-        Picture = Picture["icon:/small/view-detail"]
-        Radio = True
-        Toggle = True
-      }
+    { btnViewNormal ToolButton btnView
+      Name = "btnViewNormal"
+      MoveScaled(25,0,4,4)
+      Tag = "0"
+      ToolTip = ("Icon view")
+      Action = ".view-normal"
+      Picture = Picture["icon:/small/view-icon"]
+      Radio = True
+      Toggle = True
+      Value = True
     }
-    { btnProperty ToolButton mnuProperty
-      Name = "btnProperty"
-      MoveScaled(48,0,4,4)
-      ToolTip = ("File properties")
-      Action = ".info"
-      Picture = Picture["icon:/small/info"]
+    { btnViewCompact ToolButton btnView
+      Name = "btnViewCompact"
+      MoveScaled(29,0,4,4)
+      Tag = "1"
+      ToolTip = ("Compact view")
+      Action = ".view-compact"
+      Picture = Picture["icon:/small/view-compact"]
+      Radio = True
+      Toggle = True
+    }
+    { btnViewPreview ToolButton btnView
+      Name = "btnViewPreview"
+      MoveScaled(33,0,4,4)
+      Tag = "3"
+      ToolTip = ("Preview view")
+      Action = ".view-preview"
+      Picture = Picture["icon:/small/view-preview"]
+      Radio = True
+      Toggle = True
+    }
+    { btnViewDetailed ToolButton btnView
+      Name = "btnViewDetailed"
+      MoveScaled(37,0,4,4)
+      Tag = "2"
+      ToolTip = ("Detailed view")
+      Action = ".view-detailed"
+      Picture = Picture["icon:/small/view-detail"]
+      Radio = True
+      Toggle = True
     }
     { Separator2 Separator
       MoveScaled(52,0,1,4)
@@ -277,6 +271,13 @@
       MoveScaled(89,0,4,4)
       Action = ".zoom-in"
       Picture = Picture["icon:/small/zoom-in"]
+    }
+    { btnProperty ToolButton mnuProperty
+      Name = "btnProperty"
+      MoveScaled(97,0,4,4)
+      ToolTip = ("File properties")
+      Action = ".info"
+      Picture = Picture["icon:/small/info"]
     }
   }
   { splProject Splitter
@@ -406,6 +407,22 @@
     Text = "Parent directory"
     Picture = "icon:/small/up"
   }
+  { Action view-compact
+    Text = "Compact view"
+    Picture = "icon:/small/view-compact"
+  }
+  { Action view-detailed
+    Text = "Detailed view"
+    Picture = "icon:/small/view-detail"
+  }
+  { Action view-normal
+    Text = "Icon view"
+    Picture = "icon:/small/view-icon"
+  }
+  { Action view-preview
+    Text = "Preview view"
+    Picture = "icon:/small/view-preview"
+  }
   { Action view-single
     Text = "No split"
     Picture = "icon:/small/view-normal"
@@ -427,7 +444,7 @@
 { Toolbars
   { Toolbar project
     Text = "Project browser"
-    List = "close-browser,refresh,up,view-split,view-single,info,copy,cut,paste,delete,zoom-out,icon-size,zoom-in"
-    Default = "$panSpace,close-browser,refresh,up,view-split,view-single,|,$panView,info,|,copy,cut,paste,delete,|,zoom-out,icon-size,zoom-in"
+    List = "close-browser,refresh,up,view-split,view-single,view-normal,view-compact,view-preview,view-detailed,copy,cut,paste,delete,zoom-out,icon-size,zoom-in,info"
+    Default = "$panSpace,close-browser,refresh,up,view-split,view-single,|,view-normal,view-compact,view-preview,view-detailed,|,copy,cut,paste,delete,|,zoom-out,icon-size,zoom-in,info"
   }
 }
