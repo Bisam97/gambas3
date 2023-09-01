@@ -24,12 +24,12 @@ Private $sStartup As String
 
 Private $aOtherProjects As New String[]
 
-Public Sub _new(sDir As String)
+Public Sub _new(sDir As String, Optional bCurrent As Boolean)
   
   $sDir = sDir
-  $bCurrentProject = $sDir = Project.Dir
+  $bCurrentProject = bCurrent
   
-  If $bCurrentProject Then Project.Tree = Me
+  If bCurrent Then Project.Tree = Me
   
   $sSourceDir = sDir &/ ".src"
   If Not Exist($sSourceDir) Then $sSourceDir = $sDir
@@ -1263,9 +1263,10 @@ Private Sub IsClassFromOtherProject(sPath As String) As Boolean
   
 End
 
-Public Sub ExpandAll()
+Public Sub ExpandAll(Optional bCollapseBefore As Boolean)
   
   Inc Application.Busy
+  If bCollapseBefore Then $hTree.CollapseAll()
   $hTree.ExpandAll()
   Dec Application.Busy
   
@@ -1277,10 +1278,10 @@ Public Sub CollapseAll()
 
   Inc Application.Busy
 
-  $hTree.CollapseAll()
-
   $hTree._Begin()
   
+  $hTree.CollapseAll()
+
   $hTree.MoveFirst
   
   Do
