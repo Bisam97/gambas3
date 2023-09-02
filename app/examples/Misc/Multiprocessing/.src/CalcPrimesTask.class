@@ -1,0 +1,17 @@
+' Gambas class file
+
+''' This is a task implementation that runs in a new forked process when constructed
+
+Inherits Task
+
+Private maxPrime As Long
+
+Public Procedure _new(a_maxPrime As Long)
+    maxPrime = a_maxPrime
+    Application.Priority = 5 ' make this process nicer
+End 
+
+Public Function Main() As Variant
+    ' Note that the result of a Task has to be serializable to be passed to the main process 
+    Return Primes.calcPrimesUpTo(maxPrime).Count
+End
