@@ -1,0 +1,19 @@
+' Gambas class file
+
+Public Sub Form_Open()
+    Db.Debug = True ' log all database requests made by the runtime
+    
+    ' bind the dataSource to the opened DB connection
+    personDataSource.Connection = Db.Current   
+    ' Add labels to the grid's column headers manually. 
+    ' You can do this also at design-time via properties of the DataBrowser control.
+    personDataBrowser.Labels = ["Vorname", "Nachname", "Geburtstag"]
+    personDataBrowser.Update 
+    
+    With personDataBrowser.View
+        .Columns[0].Width = 150 ' make the columns sizees fit
+        .Columns[1].Width = 150
+        .Columns[2].Width = 200
+        .MoveTo(0, 0) ' activate the first row so that the data-bound controls show details of this row
+    End With
+End

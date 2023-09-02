@@ -1,0 +1,45 @@
+' Gambas module file
+
+' Use Main To start up this program because there is a bug in gambas that
+' causes data-bound controls (e.g.DataCombo) to misbehave if connection is
+' set to a DataSource after the controls have been already initialized.
+' This means that creating the connection in Form_Open() is too late.
+Public Sub Main()
+    Dim conn As Connection
+    Try conn = openConnection()    
+    printPersons(conn)
+    ' store the now open connection in DB.Current for the forms to get access to it
+    Db.Current = conn
+    FMain.Show
+    
+Catch 
+    Message.Error("Could not open connection to DB: " & DConv(Error.Text))
+    Quit 
+End
+
+Public Procedure Application_Error() 
+  Debug "Unhandled Error: ", Error.Text, Error.Code, Error.Backtrace  
+End
+
+Private Function openConnection() As Connection
+    Dim result As New Connection
+    With result
+        .Type = "sqlite3"
+        .Host = Application.Path ' Database if part of the project dir
+        .Name = "test.sqlite"
+    End With
+    result.Open
+    Return result
+End
+
+'' prints out all persons in the DB so far for debugging purposes
+Private Procedure printPersons(conn As Connection)
+    Dim rs As Result
+    rs = conn.Exec("SELECT * FROM person2")
+    While rs.Available 
+        Debug Subst(
+            "Person: person_id=&{1}, sex_id=&{2}, name=&{3}, sirname=&{4}, birthdate=&{5}", 
+            rs["person_id"], rs["sex_id"], rs["given_name"], rs["sir_name"], rs["birthdate"])
+        rs.MoveNext
+    Wend    
+End
