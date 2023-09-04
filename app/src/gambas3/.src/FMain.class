@@ -132,29 +132,29 @@ Public Sub Form_Close()
   
   If Project.Close() Then
     Stop Event
-  Else
-    
-    Settings["/UseInheritance"] = Project.UseInheritance
-    Settings["/ShowAllClasses"] = Project.ShowAllClasses
-    
-    Settings.Write(Me)
-    Settings.Write(panProject, "panProject") 
-    Settings.Write(panProperty, "panProperty") 
-    Settings.Write(panTool, "panTool") 
-    'Settings.Write(panStack, "panStack") 
-    Settings.Write(panDebug, "panDebug") 
-    
-    ' We must close them now, otherwise the Close event is raised when the embedded forms
-    ' are destroyed, and then the Settings.Save() method gets no TopLevel form anymore for generating the
-    ' settings key !
-    FProperty.Close
-    FOutput.Close
-    FDebugger.Close
-    FDebugInfo.Close
-    
-    Design.Exit
-    Project.Exit
+    Return
   Endif
+  
+  Settings["/UseInheritance"] = Project.UseInheritance
+  Settings["/ShowAllClasses"] = Project.ShowAllClasses
+  
+  Settings.Write(Me)
+  Settings.Write(panProject, "panProject") 
+  Settings.Write(panProperty, "panProperty") 
+  Settings.Write(panTool, "panTool") 
+  'Settings.Write(panStack, "panStack") 
+  Settings.Write(panDebug, "panDebug") 
+  
+  ' We must close them now, otherwise the Close event is raised when the embedded forms
+  ' are destroyed, and then the Settings.Save() method gets no TopLevel form anymore for generating the
+  ' settings key !
+  FProperty.Close
+  FOutput.Close
+  FDebugger.Close
+  FDebugInfo.Close
+  
+  Design.Exit
+  Project.Exit
   
 End
 

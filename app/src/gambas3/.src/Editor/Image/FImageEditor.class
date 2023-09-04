@@ -892,8 +892,12 @@ Public Sub imvImage_MouseDown()
     
     Case "move"
       
-      $SX = imvImage.ScrollX
-      $SY = imvImage.ScrollY
+      If $bReadOnly Then
+        $SX = imvImage.ScrollX
+        $SY = imvImage.ScrollY
+      Else 
+        $hLastPoint = GetImagePos()
+      Endif
     
     Case "draw", "erase"
       
@@ -1257,7 +1261,11 @@ Public Sub imvImage_MouseMove()
       
       Case "move"
         
-        imvImage.Scroll($SX - (Mouse.X - Mouse.StartX), $SY - (Mouse.Y - Mouse.StartY))
+        If $bReadOnly Then
+          imvImage.Scroll($SX - (Mouse.X - Mouse.StartX), $SY - (Mouse.Y - Mouse.StartY))
+        Else 
+          imvImage.Refresh
+        Endif
       
       Case "draw", "erase"
         
@@ -1664,6 +1672,18 @@ Public Sub imvImage_MouseUp()
      
   Select Case $sTool
     
+    Case "move"
+      
+      If Not $bReadOnly Then
+        
+        hImage = New Image($hImage.W, $hImage.H, Color.Transparent)
+        Paint.Begin(hImage)
+        Paint.DrawImage($hImage, CInt($hCurrentPoint.X - $hLastPoint.X), CInt($hCurrentPoint.Y - $hLastPoint.Y))
+        Paint.End
+        SetImage(hImage)
+
+      Endif
+    
     Case "draw", "erase"
       
       If Not $bShift Then
@@ -1942,7 +1962,14 @@ Public Sub imvImage_Draw(hZoom As Image)
     
   Else
     
-    imvImage._Paint(hZoom, hOffset.X, hOffset.Y)
+    If $sTool = "move" And If Not $bReadOnly And If $bPress Then
+      Paint.Save
+      Paint.ClipRect = Rect(hOffset.X, hOffset.Y, Ceil($hImage.W * imvImage.Zoom), Ceil($hImage.H * imvImage.Zoom))
+      imvImage._Paint(hZoom, hOffset.X + CInt($hCurrentPoint.X - $hLastPoint.X) * imvImage.Zoom, hOffset.Y + CInt($hCurrentPoint.Y - $hLastPoint.Y) * imvImage.Zoom)
+      Paint.Restore
+    Else
+      imvImage._Paint(hZoom, hOffset.X, hOffset.Y)
+    Endif
     
   Endif
   
