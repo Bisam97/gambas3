@@ -73,6 +73,8 @@ Public Sub Form_Open()
   Else
     txtVendorPrefix.Text = Settings["/Packager/VendorPrefix"]
   Endif
+  
+  txtIdentifier.Placeholder = "org.gambas-basic." & LCase(Project.Name)
     
   If Project.License Then
     txtLicense.Text = Project.License
@@ -342,6 +344,7 @@ Public Sub wizInstall_BeforeChange()
       Project.VendorPrefix = Trim(txtVendorPrefix.Text)
       Project.License = Trim(txtLicense.Text)
       Project.Url = Trim(txtUrl.Text)
+      Project.AppId = Trim(txtIdentifier.Text)
       
       If Not Project.Maintainer Then
         Message.Warning(("Please enter your name."))
@@ -360,6 +363,12 @@ Public Sub wizInstall_BeforeChange()
           Stop Event
           Return
         Endif
+      Endif
+      
+      If Project.AppId And Split(Project.AppId, ".").Count < 3 Then 
+        Message.Warning(("Please enter an application identifier following the 'reversed DNS' format."))
+        txtIdentifier.SetFocus
+        Stop Event
       Endif
 
       Project.Description = txtDescribe.Text

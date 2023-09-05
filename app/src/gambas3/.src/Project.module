@@ -86,6 +86,7 @@ Public Maintainer As String
 Public Address As String
 Public Vendor As String
 Public VendorPrefix As String
+Public AppId As String
 Property Url As String Use $sUrl
 Public License As String
 Public CreateEachDirectory As Boolean
@@ -3120,6 +3121,7 @@ Public Sub ReadProject(Optional bConvert As Boolean)
   Maintainer = ""
   Vendor = ""
   VendorPrefix = ""
+  AppId = ""
   Address = ""
   $sUrl = ""
   License = ""
@@ -3382,6 +3384,9 @@ Public Sub ReadProject(Optional bConvert As Boolean)
       Case "vendorprefix"
         VendorPrefix = sVal
         
+      Case "appid"
+        AppId = sVal
+        
       Case "runtimeversion"
         RuntimeVersion = UnQuote(sVal)
 
@@ -3610,6 +3615,7 @@ Public Sub WriteProject(Optional bComponentDoNotChange As Boolean, Optional bMak
   If Maintainer Then Print #hFile, "Maintainer="; Maintainer
   If Vendor Then Print #hFile, "Vendor="; Vendor
   If VendorPrefix Then Print #hFile, "VendorPrefix="; VendorPrefix
+  If AppId Then Print #hFile, "AppId="; AppId
   If Address Then Print #hFile, "Address="; Address
   If $sUrl And If $sUrl <> DEFAULT_URL Then Print #hFile, "Url="; $sUrl
   If License Then Print #hFile, "License="; License

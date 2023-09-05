@@ -534,10 +534,9 @@ Private Function CopyExtraFiles(sSys As String, sBuildDir As String)
 
     Project.MakeDir(sDst)
     If IsDir(sSrc) Then
-      Shell "cp -R --preserve=timestamp " & Shell$(sSrc) & " " & Shell$(sDst) Wait
+      RunCommand("cp -R --preserve=timestamp " & Shell$(sSrc) & " " & Shell$(sDst))
     Else
-      Shell "cp --preserve=timestamp " & Shell$(sSrc) & " " & Shell$(sDst) Wait
-      'Copy sSrc To sBuildDir &/ aFile[1] &/ File.Name(aFile[0])
+      RunCommand("cp --preserve=timestamp " & Shell$(sSrc) & " " & Shell$(sDst))
     Endif
   Next
   
@@ -2815,6 +2814,8 @@ Private Sub MakeAppImagePackage(sSys As String)
   Dim I As Integer
   Dim aDir As String[]
   Dim bHasDatabaseDriver As Boolean
+  Dim sDep As String
+  Dim sAppId As String
   
   AddLog(("Making build directory.")) 
   
@@ -2834,22 +2835,31 @@ Private Sub MakeAppImagePackage(sSys As String)
   
   Project.StretchIcon(Project.Dir &/ Project.Icon, 256).Save(sAppDir &/ "usr/share/icons/hicolor/256x256/apps" &/ $sName & ".png")
 
-  ' 3. Building the 'AppImageBuilder.yml' file
+  ' TODO: 3. Copy the used libraries
+  
+  ' 4. Extra files
+  
+  CopyExtraFiles(sSys, sAppDir)
+  
+  ' 5. Building the 'AppImageBuilder.yml' file
   
   AddLog(("Generating 'AppImageBuilder' configuration file...")) 
   
   sAppImageBuilder = File.Load("install/AppImageBuilder.yml")
   
-  ' 4. Fill the application details
+  ' 6. Fill the application details
+  
+  sAppId = Project.AppId
+  If Not sAppId Then sAppId = "org.gambas-basic." & LCase($sName)
   
   sAppImageBuilder = Replace(sAppImageBuilder, "$(appdir)", sAppDir)
-  sAppImageBuilder = Replace(sAppImageBuilder, "$(id)", "org.gambas-basic." & LCase($sName)) ' TODO: Make that configurable
+  sAppImageBuilder = Replace(sAppImageBuilder, "$(id)", sAppId)
   sAppImageBuilder = Replace(sAppImageBuilder, "$(name)", If(Project.Title, Project.Title, Project.Name))
   sAppImageBuilder = Replace(sAppImageBuilder, "$(icon)", $sName & ".png")
   sAppImageBuilder = Replace(sAppImageBuilder, "$(exec)", $sName)
   sAppImageBuilder = Replace(sAppImageBuilder, "$(version)", $sVersion)
   
-  ' 5. Package sources
+  ' 7. Package sources
   
   hFile = Open "/etc/lsb-release"
   For Each sLine In hFile.Lines
@@ -2876,7 +2886,7 @@ Private Sub MakeAppImagePackage(sSys As String)
   
   sAppImageBuilder = Replace(sAppImageBuilder, "$(sources)", aSources.Join("\n"))
   
-  ' 6. Package dependencies
+  ' 8. Package dependencies
   
   aPackages = New String[]
   aGenericGuiComp = New String[]
@@ -2914,13 +2924,13 @@ Private Sub MakeAppImagePackage(sSys As String)
   
   sAppImageBuilder = Replace(sAppImageBuilder, "$(packages)", aPackages.Join("\n"))
   
-  ' TODO: Extra dependencies
-  
-  ' TODO: Libraries
-  
-  ' TODO: Extra files
-  
-  ' 7. Build that sucker
+  ' 9. Extra dependencies
+
+  For Each sDep In Split(Project.ExtraDependencies[If(Project.SameDependencies, ALL_TARGETS, sSys)], "\n")
+    aPackages.Add("    - " & sDep)
+  Next
+
+  ' 10. Build that sucker
   
   File.Save(sRoot &/ "AppImageBuilder.yml", sAppImageBuilder)
   
