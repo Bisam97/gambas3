@@ -60,6 +60,8 @@ Private RUNTIME_COMPONENTS As String[] = ["gb.debug", "gb.draw", "gb.eval", "gb.
 
 Private DATABASE_DRIVERS As String[] = ["gb.db.sqlite3", "gb.db.mysql", "gb.db.odbc", "gb.db.postgresql"]
 
+Private GUI_COMPONENTS_USING_WAYLAND As String[] = ["gb.qt5", "gb.gtk3", "gb.gui"]
+
 Private GENERIC_GUI_COMPONENT As String[] = ["gb.gui", "gb.gui.opengl", "gb.gui.webview", "gb.gui.qt", "gb.gui.qt.ext", "gb.gui.qt.opengl", "gb.gui.qt.webkit"]
 
 Private Sub CheckProgram(sProg As String) As String
@@ -2816,6 +2818,7 @@ Private Sub MakeAppImagePackage(sSys As String)
   Dim bHasDatabaseDriver As Boolean
   Dim sDep As String
   Dim sAppId As String
+  Dim bAddWayland As Boolean
   
   AddLog(("Making build directory.")) 
   
@@ -2899,6 +2902,7 @@ Private Sub MakeAppImagePackage(sSys As String)
     Else If sComp Begins "gb.gui" And If GENERIC_GUI_COMPONENT.Exist(sComp) Then
       aGenericGuiComp.Add(sComp)
     Endif
+    If GUI_COMPONENTS_USING_WAYLAND.Exist(sComp) Then bAddWayland = True    
     If IsRuntimeComponent(sComp) Then Continue
     aPackages.Add("gambas3-" & Replace(sComp, ".", "-"))
   Next
@@ -2918,18 +2922,20 @@ Private Sub MakeAppImagePackage(sSys As String)
     Endif
   Next
   
+  If bAddWayland Then aPackages.Insert(["libwayland-client0", "libwayland-cursor0", "libwayland-egl1"])
+  
+  ' 9. Extra dependencies
+
+  For Each sDep In Split(Project.ExtraDependencies[If(Project.SameDependencies, ALL_TARGETS, sSys)], "\n")
+    aPackages.Add(Split(sDep, "\t")[0])
+  Next
+
   For I = 0 To aPackages.Max
     aPackages[I] = "    - " & aPackages[I]
   Next
   
   sAppImageBuilder = Replace(sAppImageBuilder, "$(packages)", aPackages.Join("\n"))
   
-  ' 9. Extra dependencies
-
-  For Each sDep In Split(Project.ExtraDependencies[If(Project.SameDependencies, ALL_TARGETS, sSys)], "\n")
-    aPackages.Add("    - " & sDep)
-  Next
-
   ' 10. Build that sucker
   
   File.Save(sRoot &/ "AppImageBuilder.yml", sAppImageBuilder)
@@ -2941,7 +2947,7 @@ Private Sub MakeAppImagePackage(sSys As String)
   aDir = Dir(sRoot, "*.AppImage")
   If aDir.Count = 1 Then
     MoveFile(sRoot &/ aDir[0], Path &/ aDir[0])
-    Try Shell "rm -rf " & Shell$(sRoot) Wait
+    'Try Shell "rm -rf " & Shell$(sRoot) Wait
   Else
     Error.Raise(("Unable to create AppImage."))
   Endif
