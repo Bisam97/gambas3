@@ -116,9 +116,6 @@ Public Sub Form_Open()
   
   Project.SetEditorFont(txtDesktop)
 
-  'InitSystemControls
-  InitSystems
-
   If Project.Type <> Project.TYPE_NORMAL Then
     chkPrefix.Value = True
     chkPrefix.Enabled = False
@@ -230,7 +227,7 @@ Private Sub InitSystemControls()
 
   Inc Application.Busy
   
-  Package.CheckProgram
+  Package.CheckPrograms()
   
   For Each hCtrl In panSystem.Children
     
@@ -268,6 +265,8 @@ Private Sub InitSystemControls()
   Else
     txtMessage.Hide
   Endif
+  
+  InitSystems
   
   Dec Application.Busy
   
@@ -307,7 +306,7 @@ Private Function CheckSys(cCol As Collection) As Boolean
   Dim sSys As String
 
   For Each sSys In Project.Systems
-    If sSys = "autotools" Or If sSys = "self" Then Continue
+    If sSys = "autotools" Or If sSys = "self" Or If sSys = "appimage" Then Continue
     If Not cCol.Exist(sSys) Then Return True
   Next
 
@@ -398,7 +397,7 @@ Public Sub wizInstall_BeforeChange()
       
       bEnabled = False
       For Each sSys In Project.Systems
-        If sSys <> "autotools" And If sSys <> "self" Then
+        If sSys <> "autotools" And If sSys <> "self" And If sSys <> "appimage" Then
           bEnabled = True
           Break
         Endif
@@ -660,7 +659,7 @@ Private Sub FillComboWithSystems(hCombo As ComboBox)
     If hCombo = cmbDep Or If hCombo = cmbFile Then
       If sSys = "autotools" Then Continue
     Else If hCombo = cmbGroup Or If hCombo = cmbMenu Then
-      If sSys = "autotools" Or If sSys = "self" Then Continue
+      If sSys = "autotools" Or If sSys = "self" Or If sSys = "appimage" Then Continue
     Endif
     If hCtrl.Value Then hCombo.Add(GetSystemName(sSys))
   Next

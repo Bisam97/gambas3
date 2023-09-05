@@ -1,7 +1,7 @@
 # Gambas Form File 3.0
 
 { Form Form
-  MoveScaled(0,0,129,79)
+  MoveScaled(0,0,113,79)
   Text = ("Make installation package")
   Icon = Picture["icon:/large/package"]
   Arrangement = Arrange.Vertical
@@ -19,21 +19,27 @@
     ActionPicture = Picture["icon:/small/package"]
     Index = 0
     Text = ("Package information")
-    { TextLabel1 TextLabel
-      MoveScaled(1,0,64,4)
-      Font = Font["Bold"]
-      AutoResize = True
-      Text = ("Package name")
-      Alignment = Align.BottomNormal
-    }
-    { txtPackage Label
-      MoveScaled(1,5,70,4)
-      Font = Font["Bold,+2"]
-      Background = Color.TextBackground
-      Foreground = Color.TextForeground
-      Padding = 4
-      AutoResize = True
-      Border = Border.Plain
+    { Panel19 HBox
+      MoveScaled(1,0,78,4)
+      Spacing = True
+      { TextLabel1 TextLabel
+        MoveScaled(0,0,15,3)
+        Font = Font["Bold"]
+        AutoResize = True
+        Text = ("Package name")
+        Alignment = Align.Normal
+      }
+      { txtPackage Label
+        MoveScaled(16,0,54,4)
+        Font = Font["Bold,+2"]
+        Background = Color.TextBackground
+        Foreground = Color.TextForeground
+        Expand = True
+        Padding = 4
+        AutoResize = True
+        Border = Border.Plain
+        BorderRadius = 32
+      }
     }
     { Panel3 HBox
       MoveScaled(1,10,87,8)
@@ -59,7 +65,7 @@
           Spacing = True
           { Label8 Label
             MoveScaled(0,0,16,4)
-            AutoResize = True
+            Expand = True
             Alignment = Align.Right
             Text = ("Package version")
           }
@@ -217,7 +223,7 @@
         Tag = "archlinux"
         Padding = 4
         { PictureBox1 PictureBox
-          MoveScaled(0,0,8,8)
+          MoveScaled(2,1,6,6)
           Picture = Picture.Load("img/logo/archlinux.png")
           Stretch = True
           Alignment = Align.Center
@@ -321,6 +327,28 @@
           Text = "Mageia"
         }
       }
+      { HBox4 HBox panDistro
+        Name = "HBox4"
+        MoveScaled(43,20,42,9)
+        Tag = "slackware"
+        Padding = 4
+        { PictureBox9 PictureBox
+          MoveScaled(1,1,6,6)
+          Picture = Picture.Load("img/logo/slackware.png")
+          Stretch = True
+          Alignment = Align.Center
+        }
+        { Panel15 Panel
+          MoveScaled(9,1,3,6)
+        }
+        { CheckBox2 CheckBox chkDistro
+          Name = "CheckBox2"
+          MoveScaled(14,2,26,4)
+          #Translate = False
+          Expand = True
+          Text = "Slackware"
+        }
+      }
       { HBox7 HBox panDistro
         Name = "HBox7"
         MoveScaled(0,30,42,9)
@@ -343,26 +371,25 @@
           Text = "OpenSUSE"
         }
       }
-      { HBox4 HBox panDistro
-        Name = "HBox4"
+      { HBox21 HBox panDistro
+        Name = "HBox21"
         MoveScaled(43,30,42,9)
-        Tag = "slackware"
+        Tag = "appimage"
         Padding = 4
-        { PictureBox9 PictureBox
+        { PictureBox8 PictureBox
           MoveScaled(1,1,6,6)
-          Picture = Picture.Load("img/logo/slackware.png")
+          Picture = Picture.Load("img/logo/appimage.png")
           Stretch = True
           Alignment = Align.Center
         }
-        { Panel15 Panel
+        { Panel18 Panel
           MoveScaled(9,1,3,6)
         }
-        { CheckBox2 CheckBox chkDistro
-          Name = "CheckBox2"
+        { CheckBox8 CheckBox chkDistro
+          Name = "CheckBox8"
           MoveScaled(14,2,26,4)
-          #Translate = False
           Expand = True
-          Text = "Slackware"
+          Text = ("AppImage")
         }
       }
       { HBox9 HBox panDistro
@@ -395,7 +422,7 @@
         Padding = 4
         { PictureBox10 PictureBox
           MoveScaled(1,1,6,6)
-          Picture = Picture.Load("img/logo/self-extractible.png")
+          Picture = Picture.Load("icon:/huge/tools")
           Stretch = True
           Alignment = Align.Center
         }
