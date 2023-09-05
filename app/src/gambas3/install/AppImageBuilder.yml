@@ -1,38 +1,27 @@
 # appimage-builder recipe see https://appimage-builder.readthedocs.io for details
 version: 1
-script:
-  - rm -rf AppDir || true
-  - mkdir -p AppDir/usr/bin AppDir/usr/share/icons/hicolor/$(icon-resolution)/apps/
-  - cp $(icon-path) AppDir/usr/share/icons/hicolor/$(icon-resolution)/apps/
-  - cp $(exec-path) AppDir/usr/bin/
 AppDir:
   path: $(appdir)
   app_info:
     id: $(id)
     name: $(name)
     icon: $(icon)
-    version: latest
+    version: $(version)
     exec: usr/bin/gbr3
-    exec_args: $APPDIR/usr/bin/$(exec-name) $@
+    exec_args: $APPDIR/usr/bin/$(exec) $@
   apt:
     arch: amd64
     allow_unauthenticated: true
     sources:
-    $(sources)
-    # - sourceline: deb http://fr.archive.ubuntu.com/ubuntu/ lunar main restricted
-    # - sourceline: deb http://fr.archive.ubuntu.com/ubuntu/ lunar-updates main restricted
-    # - sourceline: deb http://fr.archive.ubuntu.com/ubuntu/ lunar universe
-    # - sourceline: deb http://fr.archive.ubuntu.com/ubuntu/ lunar-updates universe
-    # - sourceline: deb http://fr.archive.ubuntu.com/ubuntu/ lunar multiverse
-    # - sourceline: deb http://fr.archive.ubuntu.com/ubuntu/ lunar-updates multiverse
-    # - sourceline: deb http://fr.archive.ubuntu.com/ubuntu/ lunar-backports main restricted universe multiverse
-    # - sourceline: deb http://security.ubuntu.com/ubuntu/ lunar-security main restricted
-    # - sourceline: deb http://security.ubuntu.com/ubuntu/ lunar-security universe
-    # - sourceline: deb http://security.ubuntu.com/ubuntu/ lunar-security multiverse
-    # - sourceline: deb http://ddebs.ubuntu.com/ lunar main restricted universe multiverse
-    # - sourceline: deb http://ppa.launchpad.net/gambas-team/gambas3/ubuntu lunar main
+$(sources)
     include:
-    $(packages)
+    - gambas3-runtime
+    - gambas3-dev-tools
+$(packages)
+    exclude:
+    - adwaita-icon-theme
+    - adwaita-icon-theme-full
+    - humanity-icon-theme
   files:
     include: []
     exclude:

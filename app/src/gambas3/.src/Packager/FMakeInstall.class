@@ -166,13 +166,14 @@ Public Sub Form_Open()
   lstMime.List = Project.MimeTypes
   txtDesktop.Text = Project.ExtraDesktop
 
-  edtLog.ReadConfig
-  edtLog.ShowModified = False
-  edtLog.ShowLineNumber = False
-  edtLog.ShowIcon = False
-  edtLog.ShowExpand = False
-  edtLog.ShowPosition = False
-  edtLog.Font = Font[Settings["/ConsoleFont", Project.DEFAULT_FONT]]
+  ' edtLog.ReadConfig
+  ' edtLog.ShowModified = False
+  ' edtLog.ShowLineNumber = False
+  ' edtLog.ShowIcon = False
+  ' edtLog.ShowExpand = False
+  ' edtLog.ShowPosition = False
+  trmLog.Font = Font[Settings["/ConsoleFont", Project.DEFAULT_FONT]]
+  MTheme.InitControl(trmLog)
 
 End
 
@@ -234,7 +235,6 @@ Private Sub InitSystemControls()
     If Not hCtrl Is Container Then Continue
     hCont = hCtrl
   
-    'hCont.H = Desktop.Scale * 6
     sMsg = Package.CheckSystem(hCont.Tag)
     If sMsg And If Not aMsg.Exist(sMsg) Then aMsg.Add(sMsg)
     
@@ -630,18 +630,15 @@ End
 
 Public Sub AddLog(sText As String, Optional bNoNewLine As Boolean)
 
-  If Not bNoNewLine Then sText &= "\n"
-  edtLog.Goto(0, edtLog.Count)
-  edtLog.ReadOnly = False
-  edtLog.Print(sText)
-  edtLog.ReadOnly = True
+  If Not bNoNewLine Then sText &= "\r\n"
+  trmLog.Print(sText)
   Wait
 
 End
 
 Public Sub ClearLog()
   
-  edtLog.Clear
+  trmLog.Clear
   Wait
   
 End
@@ -1268,7 +1265,7 @@ End
 
 Public Sub btnCopy_Click()
 
-  Clipboard.Copy(edtLog.Text, "text/plain;charset=utf-8")
+  Clipboard.Copy(trmLog.Text, "text/plain;charset=utf-8")
 
 End
 

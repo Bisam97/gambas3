@@ -58,6 +58,10 @@ Private DEBIAN_ICON_SIZES As Integer[] = [16, 22, 32, 48, 64, 128, 256, 512, 102
 
 Private RUNTIME_COMPONENTS As String[] = ["gb.debug", "gb.draw", "gb.eval", "gb.geom", "gb.gui", "gb.gui.base", "gb.gui.opengl", "gb.gui.qt", "gb.gui.qt.opengl", "gb.gui.qt.webkit", "gb.gui.trayicon", "gb.gui.webview", "gb.hash", "gb.test"]
 
+Private DATABASE_DRIVERS As String[] = ["gb.db.sqlite3", "gb.db.mysql", "gb.db.odbc", "gb.db.postgresql"]
+
+Private GENERIC_GUI_COMPONENT As String[] = ["gb.gui", "gb.gui.opengl", "gb.gui.webview", "gb.gui.qt", "gb.gui.qt.ext", "gb.gui.qt.opengl", "gb.gui.qt.webkit"]
+
 Private Sub CheckProgram(sProg As String) As String
   
   If Not Project.CheckProgram(sProg) Then Return sProg
@@ -87,28 +91,30 @@ Public Sub CheckSystem(sSys As String) As String
   Select Case sSys
   
     Case "mageia", "fedora", "suse"
-      If Not RPMBUILD_PROG Then Return Subst(("'&1' is missing."), "rpmbuild")
+      If Not RPMBUILD_PROG Then Return ("Cannot create Fedora,Mageia or SuSE packages.") & " " & Subst(("'&1' is missing."), "rpmbuild")
       
     Case "debian", "ubuntu"
-      If Not DPKG_PROG Then Return Subst(("'&1' is missing."), "debhelper")
-      If Not FAKEROOT_PROG Then Return Subst(("'&1' is missing."), "fakeroot")
+      If Not DPKG_PROG Then Return ("Cannot create Debian or Ubuntu packages.") & " " & Subst(("'&1' is missing."), "debhelper")
+      If Not FAKEROOT_PROG Then Return ("Cannot create Debian or Ubuntu packages.") & " " & Subst(("'&1' is missing."), "fakeroot")
 
     Case "slackware"
-      If Not TAR_1_13_PROG Then Return Subst(("'&1' is missing."), "tar-1.13")
+      If Not TAR_1_13_PROG Then Return ("Cannot create Slackware packages.") & " " & Subst(("'&1' is missing."), "tar-1.13")
 
     Case "autotools"
-      If Not AUTOCONF_PROG And If Not AUTOMAKE_PROG Then Return Subst(("'&1' and '&2' are missing."), "autoconf", "automake")
-      If Not AUTOCONF_PROG Then Return Subst(("'&1' is missing."), "autoconf")
-      If Not AUTOMAKE_PROG Then Return Subst(("'&1' is missing."), "automake")
+      If Not AUTOCONF_PROG And If Not AUTOMAKE_PROG Then Return ("Cannot create Autotools packages.") & " " & Subst(("'&1' and '&2' are missing."), "autoconf", "automake")
+      If Not AUTOCONF_PROG Then Return ("Cannot create Autotools packages.") & " " & Subst(("'&1' is missing."), "autoconf")
+      If Not AUTOMAKE_PROG Then Return ("Cannot create Autotools packages.") & " " & Subst(("'&1' is missing."), "automake")
       
     Case "archlinux"
-      If Not MAKEPKG_PROG Then Return Subst(("'&1' is missing."), "makepkg")
+      If Not MAKEPKG_PROG Then Return ("Cannot create ArchLinux packages.") & " " & Subst(("'&1' is missing."), "makepkg")
       
     'Case "self"
     '  If Not MAKESELF_PROG Then Return Subst(("'&1' is missing."), "makeself")
     
     Case "appimage"
-      If Not APPIMAGE_PROG Then Return Subst(("'&1' is missing."), "appimage-builder")
+      If Not APPIMAGE_PROG Then Return ("Cannot create AppImage.") & " " & Subst(("'&1' is missing."), "appimage-builder")
+      If Project.Type <> Project.TYPE_NORMAL Then Return ("Cannot create an AppImage of a library or a component.")
+      'If Project.Components.Exist("*.opengl*", gb.Like) Then Return ("AppImage does not support OpenGL.")
 
     Case Else
       Return
@@ -290,7 +296,7 @@ Public Function Make() As Boolean
     MIN_VERSION = aVer[0] & "." & aVer[1]
   Endif
 
-  If Project.Systems.Exist("slackware") Then 
+  If Project.Systems.Exist("slackware") Or If Project.Systems.Exist("appimage") Then 
     If Project.MakeExecutable(True, True, False) Then Return True
   Endif  
   
@@ -753,6 +759,7 @@ Private Sub MakeSupportPackage(sSys As String)
   
   'slackware doesn't use support packages
   If sSys = "slackware" Then Return
+  If sSys = "appimage" Then Return
   
   If $sSupportPackage = "gb.gui" Then
   
@@ -821,6 +828,8 @@ Private Function MakePackage(sSys As String) As Boolean
   Dim sErr As String
   Dim sMsg As String
   
+  Inc Application.Busy
+  
   AddLog("\n" & String(78, "=") & "\n")
   sMsg = Subst(("Creating package for &1."), FMakeInstall.GetSystemName(sSys))
   AddLog(String.UCase(sMsg))
@@ -838,7 +847,7 @@ Private Function MakePackage(sSys As String) As Boolean
       MakeDebPackage(sSys)
       
     Case "slackware"
-      MakeTgzPackage(sSys)
+      MakeSlackwarePackage(sSys)
    
     Case "autotools"
       MakeAutotoolsPackage(sSys)
@@ -847,7 +856,7 @@ Private Function MakePackage(sSys As String) As Boolean
       MakeArchPackage(sSys)
       
     Case "appimage"
-      MakeAppImage(sSys)
+      MakeAppImagePackage(sSys)
 
     Default
       Return True
@@ -857,6 +866,8 @@ Private Function MakePackage(sSys As String) As Boolean
   If $sSupportPackage Then MakeSupportPackage(sSys)
   
   ExitMake(sSys)
+  
+  Dec Application.Busy
   
 Catch
 
@@ -920,8 +931,6 @@ Private Function MakeDebPackage(sSys As String)
   Dim H As Integer
   Dim sExec As String
       
-  Inc Application.Busy
-  
   $sFormatSingle = ", &1"
   $sFormatMin = ", &1 (>= &2)"
   $sFormatMax = ", &1 (<< &3)"
@@ -1212,11 +1221,9 @@ Private Function MakeDebPackage(sSys As String)
   
   RunCommand(GetDebianBuildPackageCommand(), sPackagePath)
   
-  Dec Application.Busy
-
   If Process.LastValue > 2 Then Error.Raise(("'dpkg-buildpackage' has failed."))
 
-  Try Shell "rm -Rf " & Shell$(sPackagePath) Wait
+  Try Shell "rm -rf " & Shell$(sPackagePath) Wait
   Try Shell "rm -f " & Shell$(Path) &/ "*.dsc.asc" Wait 
 
 End
@@ -1230,8 +1237,6 @@ Private Function MakeDebSupportPackage(sSys As String, sSupport As String, aComp
   Dim sLine As String
   Dim sRelease As String
       
-  Inc Application.Busy
-  
   $sFormatSingle = ", &1"
   $sFormatMin = ", &1 (>= &2)"
   $sFormatMax = ", &1 (<< &3)"
@@ -1342,8 +1347,6 @@ Private Function MakeDebSupportPackage(sSys As String, sSupport As String, aComp
   AddLog(("Creating package..."))
   RunCommand(GetDebianBuildPackageCommand(), sPackagePath)
   
-  Dec Application.Busy
-
   If Process.LastValue > 2 Then Error.Raise(("'dpkg-buildpackage' has failed."))
 
   Try Shell "rm -Rf " & Shell$(sPackagePath) Wait
@@ -1474,8 +1477,6 @@ Private Function MakeRpmPackage(sSys As String)
   Dim sVendor As String
   Dim sRelease As String
   Dim sPackageName As String
-
-  Inc Application.Busy
 
   $sFormatSingle = ",&1"
   $sFormatMin = ",&1 >= &2"
@@ -1791,8 +1792,6 @@ Private Function MakeRpmPackage(sSys As String)
 
   System.Language = sLang
 
-  Dec Application.Busy
-
   If Process.LastValue Then Error.Raise(("'rpmbuild' has returned the following error code:") & " " & Process.LastValue)
 
   For Each sCmd In Split(sOutput, "\n")
@@ -1835,8 +1834,6 @@ Private Function MakeRpmSupportPackage(sSys As String, sSupport As String, aComp
   Dim sRelease As String
   Dim sPackageName As String
   Dim sDependency As String
-
-  Inc Application.Busy
 
   $sFormatSingle = ",&1"
   $sFormatMin = ",&1 >= &2"
@@ -1960,8 +1957,6 @@ Private Function MakeRpmSupportPackage(sSys As String, sSupport As String, aComp
 
   System.Language = sLang
 
-  Dec Application.Busy
-
   If Process.LastValue Then Error.Raise(("'rpmbuild' has returned the following error code:") & " " & Process.LastValue)
 
   For Each sCmd In Split(sOutput, "\n")
@@ -2043,7 +2038,7 @@ Private Sub FormatTgzPackageName(sName As String) As String
 
 End
 
-Private Sub MakeTgzPackage(sSys As String)
+Private Sub MakeSlackwarePackage(sSys As String)
 
   Dim sDistribution As String
   Dim sVendor As String
@@ -2058,8 +2053,6 @@ Private Sub MakeTgzPackage(sSys As String)
   Dim sFile As String 
   Dim sPackageName As String
       
-  Inc Application.Busy
-
   $sFormatSingle = "&1\n"
   $sFormatMin = "&1 >= &2\n"
   $sFormatMax = "&1 < &3\n"
@@ -2212,8 +2205,6 @@ Private Sub MakeTgzPackage(sSys As String)
   '   WAIT
   ' UNTIL $bEnd
   
-  Dec Application.Busy
-
   If Process.LastValue Then Error.Raise(("'tar' has returned the following error code:") & " " & Process.LastValue)
 
   AddLog("")
@@ -2236,8 +2227,6 @@ End
 '   Dim sPackage As String
 '   Dim sPackageName As String
 '   
-'   Inc Application.Busy
-' 
 '   $sFormatSingle = "&1\n"
 '   $sFormatMin = "&1 >= &2\n"
 '   $sFormatMax = "&1 < &3\n"
@@ -2298,8 +2287,6 @@ End
 '   '   WAIT
 '   ' UNTIL $bEnd
 '   
-'   Dec Application.Busy
-' 
 '   If Process.LastValue Then Error.Raise(("'tar' has returned the following error code:") & " " & Process.LastValue)
 ' 
 '   AddLog("")
@@ -2322,7 +2309,6 @@ Private Sub MakeAutotoolsPackage((sSys) As String)
   ' 1. Create the temporary build directory
 
   AddLog(("Making build directory."))
-  Inc Application.Busy
 
   sBuildDir = File.SetExt(Temp$("autotools"), "")
   Shell "rm -rf " & Shell(sBuildDir) Wait
@@ -2378,7 +2364,6 @@ Private Sub MakeAutotoolsPackage((sSys) As String)
     RunCommand(sCmd, sBuildDir)
   Next 
   
-  Dec Application.Busy
   AddLog("")
 
   sPackage = Dir(sBuildDir, $sName & "*" & $sVersion & "*")[0]
@@ -2435,8 +2420,6 @@ Private Function MakeArchPackage(sSys As String)
   Dim sPkgDesc As String
   Dim sPackageName As String
   
-  Inc Application.Busy
-
   sPackageName = FormatArchPackageName($sUnsafePackageName)
 
   sPkgDesc = Replace($sDescription, "\n", " ")
@@ -2575,7 +2558,6 @@ Private Function MakeArchPackage(sSys As String)
   For Each sCmd In ["makepkg -m --allsource", "makepkg -m -d"]
     RunCommand(sCmd, sBuildDir)
     If Process.LastValue > 0
-      Dec Application.Busy
       Error.Raise(("'makepkg' has failed."))
     Endif
   Next 
@@ -2584,8 +2566,6 @@ Private Function MakeArchPackage(sSys As String)
 
   ' Remove build dir
   Shell "rm -rf " & Shell(sBuildDir) Wait
-
-  Dec Application.Busy
 
 End 
 
@@ -2598,8 +2578,6 @@ Private Function MakeArchSupportPackage((sSys) As String, sSupport As String, aC
   Dim sPkgDesc As String
   Dim sPackageName As String
   
-  Inc Application.Busy
-
   sPackageName = FormatArchPackageName($sUnsafePackageName & "-" & sSupport)
 
   sPkgDesc = "This is the " & sSupport & " support for " & If(Project.Title, Project.Title, Project.Name)
@@ -2717,7 +2695,6 @@ Private Function MakeArchSupportPackage((sSys) As String, sSupport As String, aC
   For Each sCmd In ["makepkg -m --allsource", "makepkg -m -d"]
     RunCommand(sCmd, sBuildDir)
     If Process.LastValue > 0
-      Dec Application.Busy
       Error.Raise(("'makepkg' has failed."))
     Endif
   Next 
@@ -2726,8 +2703,6 @@ Private Function MakeArchSupportPackage((sSys) As String, sSupport As String, aC
 
   ' Remove build dir
   Shell "rm -rf " & Shell(sBuildDir) Wait
-
-  Dec Application.Busy
 
 End 
 
@@ -2823,6 +2798,142 @@ Public Sub GetPackageFullName(sVendor As String, sVendorPrefix As String, bPrefi
   
 End
 
-Private Sub MakeAppImage(sSys As String)
+Private Sub MakeAppImagePackage(sSys As String)
+
+  Dim sRoot As String
+  Dim sAppDir As String
+  Dim sAppImageBuilder As String
+  Dim hFile As File
+  Dim sLine As String
+  Dim sDistrib As String
+  Dim aSources As String[]
+  Dim sGambasPPA As String
+  Dim sComp As String
+  Dim bHasDatabaseComponent As Boolean
+  Dim aPackages As String[]
+  Dim aGenericGuiComp As String[]
+  Dim I As Integer
+  Dim aDir As String[]
+  Dim bHasDatabaseDriver As Boolean
+  
+  AddLog(("Making build directory.")) 
+  
+  sRoot = User.Home &/ ".var/tmp/AppImage"
+  sAppDir = sRoot &/ "AppDir"
+  
+  RunCommand("rm -rf " & Shell(sAppDir))
+  RunCommand("mkdir -p " & Shell(sAppDir &/ "usr/bin"))
+  RunCommand("mkdir -p " & Shell(sAppDir &/ "usr/share/icons/hicolor/256x256/apps"))
+
+  ' 1. Copy the executable
+  
+  Copy Project.GetExecPath() To sAppDir &/ "/usr/bin" &/ $sName
+  Chmod sAppDir &/ "/usr/bin" &/ $sName To "..x..x..x"
+  
+  ' 2. Copy the icon
+  
+  Project.StretchIcon(Project.Dir &/ Project.Icon, 256).Save(sAppDir &/ "usr/share/icons/hicolor/256x256/apps" &/ $sName & ".png")
+
+  ' 3. Building the 'AppImageBuilder.yml' file
+  
+  AddLog(("Generating 'AppImageBuilder' configuration file...")) 
+  
+  sAppImageBuilder = File.Load("install/AppImageBuilder.yml")
+  
+  ' 4. Fill the application details
+  
+  sAppImageBuilder = Replace(sAppImageBuilder, "$(appdir)", sAppDir)
+  sAppImageBuilder = Replace(sAppImageBuilder, "$(id)", "org.gambas-basic." & LCase($sName)) ' TODO: Make that configurable
+  sAppImageBuilder = Replace(sAppImageBuilder, "$(name)", If(Project.Title, Project.Title, Project.Name))
+  sAppImageBuilder = Replace(sAppImageBuilder, "$(icon)", $sName & ".png")
+  sAppImageBuilder = Replace(sAppImageBuilder, "$(exec)", $sName)
+  sAppImageBuilder = Replace(sAppImageBuilder, "$(version)", $sVersion)
+  
+  ' 5. Package sources
+  
+  hFile = Open "/etc/lsb-release"
+  For Each sLine In hFile.Lines
+    If sLine Begins "DISTRIB_CODENAME=" Then
+      sDistrib = Trim(Mid$(sLine, InStr(sLine, "=") + 1))
+      Break
+    Endif
+  Next
+  
+  If Not sDistrib Then Error.Raise(("Unable to detect distribution."))
+  
+  aSources = New String[]
+  
+  hFile = Open "/etc/apt/sources.list"
+  For Each sLine In hFile.Lines
+    sLine = Trim(sLine)
+    If sLine Not Begins "deb " Then Continue
+    If InStr(sLine, " " & sDistrib) = 0 Then Continue
+    aSources.Add("    - sourceline: " & sLine)
+  Next
+  
+  sGambasPPA = "    - sourceline: deb http://ppa.launchpad.net/gambas-team/gambas3/ubuntu " & sDistrib & " main"
+  If Not aSources.Exist(sGambasPPA) Then aSources.Add(sGambasPPA)
+  
+  sAppImageBuilder = Replace(sAppImageBuilder, "$(sources)", aSources.Join("\n"))
+  
+  ' 6. Package dependencies
+  
+  aPackages = New String[]
+  aGenericGuiComp = New String[]
+  
+  For Each sComp In Project.Components
+    If sComp = "gb.db" Then
+      bHasDatabaseComponent = True
+    Else If sComp Begins "gb.db." And If DATABASE_DRIVERS.Exist(sComp) Then
+      bHasDatabaseDriver = True
+    Else If sComp Begins "gb.gui" And If GENERIC_GUI_COMPONENT.Exist(sComp) Then
+      aGenericGuiComp.Add(sComp)
+    Endif
+    If IsRuntimeComponent(sComp) Then Continue
+    aPackages.Add("gambas3-" & Replace(sComp, ".", "-"))
+  Next
+  
+  If bHasDatabaseComponent And If Not bHasDatabaseDriver Then
+    For Each sComp In DATABASE_DRIVERS
+      aPackages.Add("gambas3-" & Replace(sComp, ".", "-"))
+    Next
+  Endif
+  
+  For Each sComp In aGenericGuiComp
+    If sComp Begins "gb.gui.qt" Then
+      aPackages.Add("gambas3-" & Replace(Replace(sComp, ".gui.qt", ".qt5"), ".", "-"))
+    Else
+      aPackages.Add("gambas3-" & Replace(Replace(sComp, ".gui", ".qt5"), ".", "-"))
+      aPackages.Add("gambas3-" & Replace(Replace(sComp, ".gui", ".gtk3"), ".", "-"))
+    Endif
+  Next
+  
+  For I = 0 To aPackages.Max
+    aPackages[I] = "    - " & aPackages[I]
+  Next
+  
+  sAppImageBuilder = Replace(sAppImageBuilder, "$(packages)", aPackages.Join("\n"))
+  
+  ' TODO: Extra dependencies
+  
+  ' TODO: Libraries
+  
+  ' TODO: Extra files
+  
+  ' 7. Build that sucker
+  
+  File.Save(sRoot &/ "AppImageBuilder.yml", sAppImageBuilder)
+  
+  AddLog(("Creating AppImage..."))
+  
+  RunCommand(APPIMAGE_PROG & " --skip-script --skip-tests", sRoot)
+  
+  aDir = Dir(sRoot, "*.AppImage")
+  If aDir.Count = 1 Then
+    MoveFile(sRoot &/ aDir[0], Path &/ aDir[0])
+    Try Shell "rm -rf " & Shell$(sRoot) Wait
+  Else
+    Error.Raise(("Unable to create AppImage."))
+  Endif
   
 End
