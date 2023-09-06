@@ -730,14 +730,15 @@ Public Sub _ExpandChildren()
   Dim hTree As _TreeView
   Dim sChild As String
   
+  Expanded_Write(True)
   If Not $aChildren Then Return
   
-  Expanded_Write(True)
-  
   hTree = GetTree()
-  For Each sChild In $aChildren
-    hTree[sChild]._ExpandChildren()
-  Next
+  If $aChildren Then
+    For Each sChild In $aChildren
+      hTree[sChild]._ExpandChildren()
+    Next
+  Endif
   
 End
 
