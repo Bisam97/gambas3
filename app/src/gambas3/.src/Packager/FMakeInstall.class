@@ -9,14 +9,15 @@ Private $sLastCat As String
 Private $aDep As String[]
 Private $aFile As String[]
 
-Private Const TAB_GROUP As Integer = 3
-Private Const TAB_MENU As Integer = 4
-Private Const TAB_MIME As Integer = 5
-Private Const TAB_DEP As Integer = 6
-Private Const TAB_FILE As Integer = 7
-Private Const TAB_TEST As Integer = 8
-Private Const TAB_DIR As Integer = 9
-Private Const TAB_CREATE As Integer = 10
+Private Const TAB_APPIMAGE As Integer = 3
+Private Const TAB_GROUP As Integer = 4
+Private Const TAB_MENU As Integer = 5
+Private Const TAB_MIME As Integer = 6
+Private Const TAB_DEP As Integer = 7
+Private Const TAB_FILE As Integer = 8
+Private Const TAB_TEST As Integer = 9
+Private Const TAB_DIR As Integer = 10
+Private Const TAB_CREATE As Integer = 11
 
 Private Sub HasDebianTarget() As Boolean
   
@@ -168,14 +169,12 @@ Public Sub Form_Open()
   lstMime.List = Project.MimeTypes
   txtDesktop.Text = Project.ExtraDesktop
 
-  ' edtLog.ReadConfig
-  ' edtLog.ShowModified = False
-  ' edtLog.ShowLineNumber = False
-  ' edtLog.ShowIcon = False
-  ' edtLog.ShowExpand = False
-  ' edtLog.ShowPosition = False
   trmLog.Font = Font[Settings["/ConsoleFont", Project.DEFAULT_FONT]]
   MTheme.InitControl(trmLog)
+  
+  txtAppImageRepository.Text = Project.AppImageRepository
+  cmbAppImageDistribution.Text = Project.AppImageDistribution
+  chkAppImageUseSystem.Value = Project.AppImageUseSystem
 
 End
 
@@ -314,7 +313,6 @@ Private Function CheckSys(cCol As Collection) As Boolean
 
 End
 
-
 Public Sub wizInstall_BeforeChange()
 
   Dim sFile As String
@@ -433,6 +431,28 @@ Public Sub wizInstall_BeforeChange()
         wizInstall[TAB_MIME].Enabled = False
       Endif
       
+      wizInstall[TAB_APPIMAGE].Enabled = Project.Systems.Exist("appimage")
+      
+    Case TAB_APPIMAGE
+    
+      Project.AppImageUseSystem = chkAppImageUseSystem.Value
+      Project.AppImageRepository = Trim(txtAppImageRepository.Text)
+      Project.AppImageDistribution = Trim(cmbAppImageDistribution.Text)
+      
+      If Not Project.AppImageRepository Then
+        Message.Warning(("Please enter the Ubuntu repository used for generating the AppImage."))
+        txtAppImageRepository.SetFocus
+        Stop Event
+        Return
+      Endif
+    
+      If Not Project.AppImageDistribution Then
+        Message.Warning(("Please choose the Ubuntu distribution used for generating the AppImage."))
+        cmbAppImageDistribution.SetFocus
+        Stop Event
+        Return
+      Endif
+    
     Case TAB_GROUP
       
       If CheckSys(Project.Groups) Then
@@ -509,7 +529,7 @@ Public Sub wizInstall_BeforeChange()
     Case TAB_TEST
       
       Project.ExtraAutoconfTest = txtTests.Text
-    
+      
     Case TAB_DIR
       
       Package.Dir = dchInstall.SelectedPath
@@ -1398,3 +1418,47 @@ Public Sub btnOpenFolder_Click()
   Desktop.Open(Project.Config["/Package/Dir"])
 
 End
+
+Public Sub chkAppImageUseSystem_Click()
+
+  Dim bUseSystem As Boolean
+
+  bUseSystem = chkAppImageUseSystem.Value
+
+  cmbAppImageDistribution.Enabled = Not bUseSystem
+  txtAppImageRepository.Enabled = Not bUseSystem
+    
+  If bUseSystem Then GetAppImageConfigFromSystem()
+
+End
+
+Private Sub GetAppImageConfigFromSystem()
+
+  Dim hFile As File
+  Dim sLine As String
+  Dim sDistrib As String
+  Dim iPos As Integer
+  Dim aLine As String[]
+
+  hFile = Open "/etc/apt/sources.list"
+  For Each sLine In hFile.Lines
+    aLine = Split(Trim(sLine), " ")
+    If aLine.Count < 3 Then Continue
+    If aLine[0] = "deb" Then
+      txtAppImageRepository.Text = aLine[1]
+      sDistrib = aLine[2]
+      iPos = InStr(sDistrib, "-")
+      If iPos Then sDistrib = Left(sDistrib, iPos - 1)
+      cmbAppImageDistribution.Text = sDistrib
+      Break
+    Endif
+  Next
+
+Catch
+  
+  cmbAppImageDistribution.Text = ""
+  txtAppImageRepository.Text = ""
+  Message.Warning(("Unable to get AppImageBuilder configuration from current system."))
+
+End
+

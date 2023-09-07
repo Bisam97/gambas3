@@ -91,6 +91,9 @@ Property Url As String Use $sUrl
 Public License As String
 Public CreateEachDirectory As Boolean
 Public RuntimeVersion As String
+Public AppImageUseSystem As Boolean
+Public AppImageRepository As String
+Public AppImageDistribution As String
 
 Public PublishTags As String[]
 Public PublishDependencies As String[]
@@ -3106,6 +3109,9 @@ Public Sub ReadProject(Optional bConvert As Boolean)
   SameDependencies = False
   SameFiles = False
   ExtraAutoconfTest = ""
+  AppImageUseSystem = False
+  AppImageRepository = ""
+  AppImageDistribution = ""
   Prefix = False
   PackageName = ""
   PackageVersion = 1
@@ -3447,6 +3453,15 @@ Public Sub ReadProject(Optional bConvert As Boolean)
       Case "previewstylesheet"
         PreviewStyleSheet = sVal
         
+      Case "appimageusesystem"
+        AppImageUseSystem = CInt(sVal) <> 0
+        
+      Case "appimagerepository"
+        AppImageRepository = sVal
+        
+      Case "appimagedistribution"
+        AppImageDistribution = sVal
+        
       Case Else
         UnknownOptions[sKey] = sVal
 
@@ -3635,6 +3650,10 @@ Public Sub WriteProject(Optional bComponentDoNotChange As Boolean, Optional bMak
   If SameDependencies Then Print #hFile, "SameDependencies=1"
   If SameFiles Then Print #hFile, "SameFiles=1"
   If ExtraAutoconfTest Then Print #hFile, "ExtraAutoconfTest=" & Quote(ExtraAutoconfTest)
+  
+  If AppImageUseSystem Then Print #hFile, "AppImageUseSystem=1"
+  If AppImageRepository Then Print #hFile, "AppImageRepository="; AppImageRepository
+  If AppImageDistribution Then Print #hFile, "AppImageDistribution="; AppImageDistribution
 
   For Each sSys In $aSystems
     If Menus[sSys] Then Print #hFile, "Menus="; sSys; ":"; Quote(Menus[sSys])

@@ -2804,8 +2804,6 @@ Private Sub MakeAppImagePackage(sSys As String)
   Dim sRoot As String
   Dim sAppDir As String
   Dim sAppImageBuilder As String
-  Dim hFile As File
-  Dim sLine As String
   Dim sDistrib As String
   Dim aSources As String[]
   Dim sGambasPPA As String
@@ -2819,6 +2817,7 @@ Private Sub MakeAppImagePackage(sSys As String)
   Dim sDep As String
   Dim sAppId As String
   Dim bAddWayland As Boolean
+  Dim sSource As String
   
   AddLog(("Making build directory.")) 
   
@@ -2864,28 +2863,19 @@ Private Sub MakeAppImagePackage(sSys As String)
   
   ' 7. Package sources
   
-  hFile = Open "/etc/lsb-release"
-  For Each sLine In hFile.Lines
-    If sLine Begins "DISTRIB_CODENAME=" Then
-      sDistrib = Trim(Mid$(sLine, InStr(sLine, "=") + 1))
-      Break
-    Endif
-  Next
-  
-  If Not sDistrib Then Error.Raise(("Unable to detect distribution."))
-  
   aSources = New String[]
   
-  hFile = Open "/etc/apt/sources.list"
-  For Each sLine In hFile.Lines
-    sLine = Trim(sLine)
-    If sLine Not Begins "deb " Then Continue
-    If InStr(sLine, " " & sDistrib) = 0 Then Continue
-    aSources.Add("    - sourceline: " & sLine)
+  sDistrib = LCase(Project.AppImageDistribution)
+  
+  For Each sSource In ["&1 &2 main restricted", "&1 &2-updates main restricted", "&1 &2 universe", "&1 &2-updates universe", "&1 &2 multiverse", "&1 &2-updates multiverse", "&3 &2-security main restricted", "&3 &2-security universe", "&3 &2-security multiverse", "&4 &2 main restricted universe multiverse"]
+    
+    sSource = "deb " & Subst(sSource, Project.AppImageRepository, sDistrib, "http://security.ubuntu.com/ubuntu/", "http://ddebs.ubuntu.com")
+    aSources.Add("    - sourceline: " & sSource)
+    
   Next
   
-  sGambasPPA = "    - sourceline: deb http://ppa.launchpad.net/gambas-team/gambas3/ubuntu " & sDistrib & " main"
-  If Not aSources.Exist(sGambasPPA) Then aSources.Add(sGambasPPA)
+  sGambasPPA = "    - sourceline: deb http://ppa.launchpad.net/gambas-team/gambas3/ubuntu/ " & sDistrib & " main"
+  aSources.Add(sGambasPPA)
   
   sAppImageBuilder = Replace(sAppImageBuilder, "$(sources)", aSources.Join("\n"))
   
