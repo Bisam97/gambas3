@@ -174,7 +174,7 @@ Public Sub Form_Open()
   
   txtAppImageRepository.Text = Project.AppImageRepository
   cmbAppImageDistribution.Text = Project.AppImageDistribution
-  chkAppImageUseSystem.Value = Project.AppImageUseSystem
+  txtAppImageGambasRepository.Text = Project.AppImageGambasRepository
 
 End
 
@@ -435,9 +435,9 @@ Public Sub wizInstall_BeforeChange()
       
     Case TAB_APPIMAGE
     
-      Project.AppImageUseSystem = chkAppImageUseSystem.Value
       Project.AppImageRepository = Trim(txtAppImageRepository.Text)
       Project.AppImageDistribution = Trim(cmbAppImageDistribution.Text)
+      Project.AppImageGambasRepository = Trim(txtAppImageGambasRepository.Text)
       
       If Not Project.AppImageRepository Then
         Message.Warning(("Please enter the Ubuntu repository used for generating the AppImage."))
@@ -446,12 +446,12 @@ Public Sub wizInstall_BeforeChange()
         Return
       Endif
     
-      If Not Project.AppImageDistribution Then
-        Message.Warning(("Please choose the Ubuntu distribution used for generating the AppImage."))
-        cmbAppImageDistribution.SetFocus
-        Stop Event
-        Return
-      Endif
+      ' If Not Project.AppImageDistribution Then
+      '   Message.Warning(("Please choose the Ubuntu distribution used for generating the AppImage."))
+      '   cmbAppImageDistribution.SetFocus
+      '   Stop Event
+      '   Return
+      ' Endif
     
     Case TAB_GROUP
       
@@ -582,10 +582,14 @@ Public Sub wizInstall_Change()
   Select Case wizInstall.Index
 
     Case 1
+      
       lblChangeDate.Text = Package.GetChangeDate()
       If Not txtChangeLog.Text Then txtChange.Text = ("Initial release")
       txtChange.SetFocus
-      
+    
+    Case TAB_APPIMAGE
+      btnAppImageFromSystem.Enabled = Exist("/etc/apt/sources.list")
+    
     Case TAB_GROUP
       InitGroupTree
       cmbGroup.Visible = cmbGroup.Count > 1
@@ -1419,19 +1423,6 @@ Public Sub btnOpenFolder_Click()
 
 End
 
-Public Sub chkAppImageUseSystem_Click()
-
-  Dim bUseSystem As Boolean
-
-  bUseSystem = chkAppImageUseSystem.Value
-
-  cmbAppImageDistribution.Enabled = Not bUseSystem
-  txtAppImageRepository.Enabled = Not bUseSystem
-    
-  If bUseSystem Then GetAppImageConfigFromSystem()
-
-End
-
 Private Sub GetAppImageConfigFromSystem()
 
   Dim hFile As File
@@ -1439,18 +1430,30 @@ Private Sub GetAppImageConfigFromSystem()
   Dim sDistrib As String
   Dim iPos As Integer
   Dim aLine As String[]
+  Dim I As Integer
 
   hFile = Open "/etc/apt/sources.list"
   For Each sLine In hFile.Lines
     aLine = Split(Trim(sLine), " ")
     If aLine.Count < 3 Then Continue
     If aLine[0] = "deb" Then
+      
       txtAppImageRepository.Text = aLine[1]
+      
       sDistrib = aLine[2]
       iPos = InStr(sDistrib, "-")
       If iPos Then sDistrib = Left(sDistrib, iPos - 1)
-      cmbAppImageDistribution.Text = sDistrib
+      
+      cmbAppImageDistribution.Text = ""
+      For I = 0 To cmbAppImageDistribution.Count - 1
+        If cmbAppImageDistribution[I].Text Begins (sDistrib & " (") Then
+          cmbAppImageDistribution.Index = I
+          Break
+        Endif
+      Next
+      
       Break
+      
     Endif
   Next
 
@@ -1462,3 +1465,9 @@ Catch
 
 End
 
+
+Public Sub btnAppImageFromSystem_Click()
+
+  GetAppImageConfigFromSystem()
+
+End

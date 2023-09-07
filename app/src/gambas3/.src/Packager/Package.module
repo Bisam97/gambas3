@@ -2818,6 +2818,7 @@ Private Sub MakeAppImagePackage(sSys As String)
   Dim sAppId As String
   Dim bAddWayland As Boolean
   Dim sSource As String
+  Dim iPos As Integer
   
   AddLog(("Making build directory.")) 
   
@@ -2866,6 +2867,12 @@ Private Sub MakeAppImagePackage(sSys As String)
   aSources = New String[]
   
   sDistrib = LCase(Project.AppImageDistribution)
+  If Not sDistrib Then 
+    sDistrib = "jammy"
+  Else
+    iPos = InStr(sDistrib, "(")
+    If iPos Then sDistrib = Trim(Left(sDistrib, iPos - 1))
+  Endif
   
   For Each sSource In ["&1 &2 main restricted", "&1 &2-updates main restricted", "&1 &2 universe", "&1 &2-updates universe", "&1 &2 multiverse", "&1 &2-updates multiverse", "&3 &2-security main restricted", "&3 &2-security universe", "&3 &2-security multiverse", "&4 &2 main restricted universe multiverse"]
     
@@ -2874,8 +2881,10 @@ Private Sub MakeAppImagePackage(sSys As String)
     
   Next
   
-  sGambasPPA = "    - sourceline: deb http://ppa.launchpad.net/gambas-team/gambas3/ubuntu/ " & sDistrib & " main"
-  aSources.Add(sGambasPPA)
+  sGambasPPA = Project.AppImageGambasRepository
+  If Not sGambasPPA Then sGambasPPA = "http://ppa.launchpad.net/gambas-team/gambas3/ubuntu/"
+  sSource = Subst("deb &1 &2 main", sGambasPPA, sDistrib)
+  aSources.Add("    - sourceline: " & sSource)
   
   sAppImageBuilder = Replace(sAppImageBuilder, "$(sources)", aSources.Join("\n"))
   
