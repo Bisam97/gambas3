@@ -241,6 +241,7 @@ Public Sub _Add((Key) As String, Text As String, Optional (Picture) As Picture, 
   
   $sCursor = Key
   
+  FilterItem(hItem)
   _RefreshView
   
   Return hItem
@@ -1957,6 +1958,17 @@ Public Sub UpdateSpan_Timer()
     Endif
     
   Next
+  
+End
+
+Private Sub FilterItem(hItem As _TreeView_Item)
+  
+  Dim bCancel As Boolean
+  
+  If Not Object.CanRaise(Me, "Filter") Then Return
+
+  bCancel = Raise Filter(hItem.Key)
+  hItem.Visible = Not bCancel
   
 End
 
