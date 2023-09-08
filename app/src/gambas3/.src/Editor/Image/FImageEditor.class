@@ -25,6 +25,7 @@ Private $sTool As String
 Private $sToolBefore As String
 Private $hFirstPoint As PointF
 Private $hLastPoint As PointF
+Private $hCurrentPos As PointF
 Private $hCurrentPoint As PointF
 Private $bInsideImage As Boolean
 
@@ -1001,7 +1002,7 @@ Public Sub imvImage_MouseDown()
             RefreshSelection
           Else If $iChangeAction = CHANGE_SELECT Then
             If $vChangeIndex And If $vChangeIndex[0] = $hSelect.Current Then
-              $hSelect.SelectNext(8 / imvImage.Zoom)
+              $hSelect.SelectNext(16 / imvImage.Zoom)
             Else
               $hSelect.Select($vChangeIndex[0])
             Endif
@@ -1217,7 +1218,8 @@ Private Sub FindCurrentPoint()
   Dim A As Float
   Dim D As Float
   
-  $hCurrentPoint = FindBestMagnet(GetImagePos())
+  $hCurrentPos = GetImagePos()
+  $hCurrentPoint = FindBestMagnet($hCurrentPos)
   
   If $bFrame Then
     If $bAlt Then
@@ -1487,7 +1489,7 @@ Public Sub imvImage_MouseMove()
     
     If $hSelect Then
     
-      I = $hSelect.FindShape($hCurrentPoint, 8 / imvImage.Zoom)
+      I = $hSelect.FindShape($hCurrentPos, 16 / imvImage.Zoom)
       If I >= 0 Then
         iMouse = Mouse.SizeAll
         If $vChangeIndex And If $vChangeIndex[0] = $hSelect.Current Then
@@ -1496,13 +1498,13 @@ Public Sub imvImage_MouseMove()
           $iChangeAction = CHANGE_SELECT
         Endif
         $vChangeIndex = [I, -1]
-      Else If $hChangeRect.Contains($hCurrentPoint.X, $hCurrentPoint.Y) Then 
-        If $hSelect.FindPoint($hCurrentPoint, 8 / imvImage.Zoom) Then
+      Else If $hChangeRect.Contains($hCurrentPos.X, $hCurrentPos.Y) Then 
+        If $hSelect.FindPoint($hCurrentPos, 16 / imvImage.Zoom) Then
           iMouse = Mouse.Arrow
           $iChangeAction = CHANGE_POINT
           $vChangeIndex = CImageSelection.FindIndex
         Else
-          If $hSelect.FindPoint($hCurrentPoint, 8 / imvImage.Zoom, True) Then
+          If $hSelect.FindPoint($hCurrentPos, 16 / imvImage.Zoom, True) Then
             iMouse = Mouse.Cross
             $iChangeAction = CHANGE_INSERT
             $vChangeIndex = CImageSelection.FindIndex
@@ -1513,15 +1515,15 @@ Public Sub imvImage_MouseMove()
     Endif
     
     If $iChangeAction = CHANGE_NOTHING Then
-      If Hyp(Abs($hChangeRect.X - $hCurrentPoint.X), Abs($hChangeRect.Y - $hCurrentPoint.Y)) < (16 / imvImage.Zoom) Then
+      If Hyp(Abs($hChangeRect.X - $hCurrentPos.X), Abs($hChangeRect.Y - $hCurrentPos.Y)) < 16 / imvImage.Zoom Then
         iMouse = Mouse.Cross
         $iChangeAction = CHANGE_ROTATE
         SetMagnet(Null)
-      Else If Hyp(Abs($hChangeRect.X + $hChangeRect.W - $hCurrentPoint.X), Abs($hChangeRect.Y + $hChangeRect.H - $hCurrentPoint.Y)) < (16 / imvImage.Zoom) Then
+      Else If Hyp(Abs($hChangeRect.X + $hChangeRect.W - $hCurrentPos.X), Abs($hChangeRect.Y + $hChangeRect.H - $hCurrentPos.Y)) < (16 / imvImage.Zoom) Then
         iMouse = Mouse.Cross
         $iChangeAction = CHANGE_RESIZE
         SetMagnet(Null)
-      Else If $hChangeRect.Contains($hCurrentPoint.X, $hCurrentPoint.Y) Then
+      Else If $hChangeRect.Contains($hCurrentPos.X, $hCurrentPos.Y) Then
         iMouse = Mouse.SizeAll
         $iChangeAction = CHANGE_MOVE
         SetMagnet(Null)

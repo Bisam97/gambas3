@@ -116,6 +116,8 @@ Public Sub Form_Open()
     chkVersionMin.Value = False
     spnVersionMin.Value = spnVersionMin.MaxValue
   Endif
+  txtVersionMin.Text = System.Version & "."
+  dwgVersionMin.Padding = Max(Style.BoxFrameWidth, Style.BoxFrameHeight)
   
   Project.SetEditorFont(txtDesktop)
 
@@ -424,6 +426,16 @@ Public Sub wizInstall_BeforeChange()
       wizInstall[TAB_DEP].Enabled = bEnabled
       wizInstall[TAB_FILE].Enabled = bEnabled
       
+      bEnabled = False
+      For Each sSys In Project.Systems
+        If sSys <> "appimage" Then
+          bEnabled = True
+          Break
+        Endif
+      Next
+
+      wizInstall[TAB_MIME].Enabled = bEnabled
+
       wizInstall[TAB_TEST].Enabled = Project.Systems.Exist("autotools")
       
       If Project.Type <> Project.TYPE_NORMAL
@@ -445,6 +457,8 @@ Public Sub wizInstall_BeforeChange()
         Stop Event
         Return
       Endif
+      
+      btnAppImageFromSystem.Enabled = IsCurrentSystemUbuntu()
     
       ' If Not Project.AppImageDistribution Then
       '   Message.Warning(("Please choose the Ubuntu distribution used for generating the AppImage."))
@@ -1345,22 +1359,22 @@ End
 Public Sub dwgVersionMin_Draw()
 
   Style.PaintBox(0, 0, Paint.W, Paint.H)
-  Paint.DrawText(System.Version & ".", 0, 0, spnVersionMin.X, Paint.H, Align.Right)
 
 End
 
-Public Sub dwgVersionMin_Arrange()
-
-  Dim FW As Integer = Style.BoxFrameWidth
-  Dim FH As Integer = Style.BoxFrameHeight
-
-  spnVersionMin.Move(dwgVersionMin.W - spnVersionMin.W - FW, FH, spnVersionMin.W, dwgVersionMin.H - FH * 2)
-  
-End
+' Public Sub dwgVersionMin_Arrange()
+' 
+'   Dim FW As Integer = Style.BoxFrameWidth
+'   Dim FH As Integer = Style.BoxFrameHeight
+' 
+'   spnVersionMin.Move(dwgVersionMin.W - spnVersionMin.W - FW, FH, spnVersionMin.W, dwgVersionMin.H - FH * 2)
+'   
+' End
 
 Public Sub chkVersionMin_Click()
 
   dwgVersionMin.Enabled = chkVersionMin.Value
+  txtVersionMin.Foreground = If(chkVersionMin.Value, Color.TextForeground, Color.Default)
   If chkVersionMin.Value Then
     spnVersionMin.SetFocus
   Else
@@ -1469,5 +1483,19 @@ End
 Public Sub btnAppImageFromSystem_Click()
 
   GetAppImageConfigFromSystem()
+
+End
+
+Private Sub IsCurrentSystemUbuntu() As Boolean
+
+  Dim sData As String
+  
+  If Not Exist("/etc/apt/sources.list") Then Return
+
+  Try sData = File.Load("/etc/os-release")
+  If Not Error Then Return InStr(sData, "ID=ubuntu\n")
+  
+  Try sData = File.Load("/etc/lsb_release")
+  If Not Error Then Return InStr(sData, "DISTRIB_ID=Ubuntu\n")
 
 End
