@@ -2901,7 +2901,7 @@ Private Sub MakeAppImagePackage(sSys As String)
     Else If sComp Begins "gb.gui" And If GENERIC_GUI_COMPONENT.Exist(sComp) Then
       aGenericGuiComp.Add(sComp)
     Endif
-    If GUI_COMPONENTS_USING_WAYLAND.Exist(sComp) Then bAddWayland = True    
+    If GUI_COMPONENTS_USING_WAYLAND.Exist(sComp) Then bAddWayland = True
     If IsRuntimeComponent(sComp) Then Continue
     aPackages.Add("gambas3-" & Replace(sComp, ".", "-"))
   Next
@@ -2922,6 +2922,9 @@ Private Sub MakeAppImagePackage(sSys As String)
   Next
   
   If bAddWayland Then aPackages.Insert(["libwayland-client0", "libwayland-cursor0", "libwayland-egl1"])
+  
+  ' Always add Gambas stock icons, in the case they are loaded at runtime.
+  If Not aPackages.Exist("gambas3-gb-form-stock") Then aPackages.Add("gambas3-gb-form-stock")
   
   ' 9. Extra dependencies
 
