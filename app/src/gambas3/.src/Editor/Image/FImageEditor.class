@@ -1426,10 +1426,15 @@ Public Sub imvImage_MouseMove()
                 YC = $hChangeRect.Y
               Endif
               
+              
               If $bCtrl Then
-                hSelect.Scale(($hCurrentPoint.X - XC) / ($hLastPoint.X - XC), ($hCurrentPoint.X - XC) / ($hLastPoint.X - XC), Not $bShift)
+                If $hLastPoint.X <> XC Then
+                  hSelect.Scale(($hCurrentPoint.X - XC) / ($hLastPoint.X - XC), ($hCurrentPoint.X - XC) / ($hLastPoint.X - XC), Not $bShift)
+                Endif
               Else
-                hSelect.Scale(($hCurrentPoint.X - XC) / ($hLastPoint.X - XC), ($hCurrentPoint.Y - YC) / ($hLastPoint.Y - YC), Not $bShift)
+                If $hLastPoint.X <> XC And If $hLastPoint.Y <> YC Then
+                  hSelect.Scale(($hCurrentPoint.X - XC) / ($hLastPoint.X - XC), ($hCurrentPoint.Y - YC) / ($hLastPoint.Y - YC), Not $bShift)
+                Endif
               Endif
               
             Case CHANGE_ROTATE

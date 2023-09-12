@@ -70,11 +70,12 @@ Public Sub _new()
   txtSearchProject._AddButton(btnCollapse)
   txtSearchProject._AddButton(btnExpand)
   
-  'FSearch.Load
   FOption.Load
   
   OnBackgroundChange
-  'FHelpBrowser.Load
+  
+  Project.UseInheritance = Settings["/UseInheritance", True] 
+  Project.ShowAllClasses = Settings["/ShowAllClasses", False] 
   
 End
 
@@ -106,11 +107,9 @@ Public Sub Form_Open()
   
   If Project.WelcomeDialog Then frmWelcome = New FWelcome(dwgWelcome)
   
-  Project.UseInheritance = Settings["/UseInheritance", True] 
   mnuUseInheritance.Value = Project.UseInheritance
   
   'mnuShowAllClasses.Picture = Picture["img/module/class.png", "small"]
-  Project.ShowAllClasses = Settings["/ShowAllClasses", False] 
   mnuShowAllClasses.Value = Project.ShowAllClasses
   
   btnExpand.Picture = Picture["img/32/expand.png", "small"]
