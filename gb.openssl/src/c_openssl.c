@@ -37,7 +37,6 @@
 #include <openssl/crypto.h>
 #include <openssl/rand.h>
 #include <openssl/evp.h>
-#include <openssl/err.h>
 
 #include "main.h"
 #include "c_openssl.h"
@@ -56,11 +55,11 @@ BEGIN_METHOD(OpenSSL_RandomBytes, GB_INTEGER length)
 	int res;
 
 	if (VARG(length) < 1) {
-		GB.Error("Invalid Parameter: length must be greater than 0");
+		GB.Error("Invalid argument: Length must be greater than 0");
 		return;
 	}
 	if (VARG(length) > 0x7FFFEFF7) {
-		GB.Error("Invalid Parameter: length must be less than 2,147,479,544");
+		GB.Error("Invalid argument: Length must be less than 2,147,479,544");
 		return;
 	}
 	ret = GB.TempString(NULL, VARG(length));
@@ -73,7 +72,7 @@ BEGIN_METHOD(OpenSSL_RandomBytes, GB_INTEGER length)
 		GB.Error("Random number generator not supported");
 		return;
 	} else if (res == 0) {
-		GB.Error(ERR_error_string(ERR_get_error(), NULL));
+		MAIN_error("Unable to get random number: &1");
 		return;
 	}
 
@@ -93,30 +92,30 @@ BEGIN_METHOD(OpenSSL_Pbkdf2, GB_STRING password; GB_STRING salt; GB_LONG iterati
 	const EVP_MD *emethod;
 
 	if (VARG(iterations) < 1) {
-	 GB.Error("Invalid Parameter: iterations must be greater than 0");
+	 GB.Error("Invalid argument: Iterations must be greater than 0");
 	 return;
 	}
 	lKey = VARG(keylength);
 	if (lKey < 1) {
-		GB.Error("Invalid Parameter: keylength must be greater than 0");
+		GB.Error("Invalid argument: KeyLength must be greater than 0");
 		return;
 	}
 	if (lKey > 0x7FFFEFF7) {
-		GB.Error("Invalid Parameter: keylength must be less than 2,147,479,544");
+		GB.Error("Invalid argument: KeyLength must be less than 2,147,479,544");
 		return;
 	}
 	hash = GB.TempString(NULL, lKey);
 	emethod = EVP_get_digestbyname(STRING(method));
 	if (!emethod) {
-		GB.Error("Invalid Parameter: method not a supported digest");
+		GB.Error("Invalid argument: Method not a supported digest");
 		return;
 	}
 	memset(hash, 0, lKey);
 	ret = PKCS5_PBKDF2_HMAC((const char *) STRING(password), LENGTH(password), (const unsigned char *) STRING(salt),
 				LENGTH(salt), (int) VARG(iterations), emethod, lKey, (unsigned char *) hash);
 	if (ret == 0) {
-		 GB.Error("OpenSSL Error: Pbkdf2 call failed");
-		 return;
+		MAIN_error("Pbkdf2 call failed: &1");
+		return;
 	}
 	GB.ReturnString(hash);
 #endif
@@ -136,51 +135,51 @@ BEGIN_METHOD(OpenSSL_Scrypt, GB_STRING password; GB_STRING salt; GB_LONG N; GB_L
 
 	lKey = VARG(keylength);
 	if (lKey < 1) {
-		GB.Error("Invalid Parameter: keylength must be greater than 0");
+		GB.Error("Invalid argument: KeyLength must be greater than 0");
 		return;
 	}
 	if (lKey > 0x7FFFEFF7L) {
-		GB.Error("Invalid Parameter: keylength must be less than 2,147,479,544");
+		GB.Error("Invalid argument: KeyLength must be less than 2,147,479,544");
 		return;
 	}
 	hash = GB.TempString(NULL, lKey);
 	lN = VARG(N);
 	if (lN < 2) {
-		GB.Error("Invalid Parameter: N must be greater than 1");
+		GB.Error("Invalid argument: N must be greater than 1");
 		return;
 	}
 	/* Bitwise power of 2 test */
 	if (lN == 0 || (lN & (lN - 1)) != 0) {
-		GB.Error("Invalid Parameter: N must be a power of 2");
+		GB.Error("Invalid argument: N must be a power of 2");
 		return;
 	}
 	lR = VARG(r);
 	if (lR < 1) {
-		GB.Error("Invalid Parameter: r must be greater than 0");
+		GB.Error("Invalid argument: R must be greater than 0");
 		return;
 	}
 	if (lR > 0xFFFFFFFFL) {
-		GB.Error("Invalid Parameter: r must be a 32-bit number");
+		GB.Error("Invalid argument: R must be a 32-bit number");
 		return;
 	}
 	lP = VARG(p);
 	if (lP < 1) {
-		GB.Error("Invalid Parameter: p must be greater than 0");
+		GB.Error("Invalid argument: P must be greater than 0");
 		return;
 	}
 	if (lP > 0xFFFFFFFFL) {
-		GB.Error("Invalid Parameter: p must be a 32-bit number");
+		GB.Error("Invalid argument: P must be a 32-bit number");
 		return;
 	}
 	if (EVP_PBE_scrypt(NULL, 0, NULL, 0, lN, lR, lP, 0, NULL, 0) == 0) {
-		GB.Error("Invalid Parameter: The combination of N, r, and p was rejected by OpenSSL");
+		GB.Error("Invalid argument: The combination of N, R, and P was rejected by OpenSSL");
 		return;
 	}
 	memset(hash, 0, lKey);
 	ret = EVP_PBE_scrypt((const char *) STRING(password), LENGTH(password), (const unsigned char *) STRING(salt),
 				LENGTH(salt), lN, lR, lP, 0, (unsigned char *) hash, lKey);
 	if (ret == 0) {
-		GB.Error("OpenSSL Error: Scrypt call failed");
+		MAIN_error("Scrypt call failed: &1");
 		return;
 	}
 	GB.ReturnString(hash);

@@ -35,6 +35,7 @@
 #define __MAIN_C
 
 #include <openssl/evp.h>
+#include <openssl/err.h>
 
 #include "main.h"
 #include "c_openssl.h"
@@ -62,7 +63,7 @@ GB_DESC *GB_CLASSES[] EXPORT = {
 	NULL
 };
 
-void sort_and_dedupe(GB_ARRAY list)
+void MAIN_sort_and_dedupe(GB_ARRAY list)
 {
 	GB_FUNCTION sortfn, removefn;
 	int i;
@@ -101,6 +102,11 @@ void sort_and_dedupe(GB_ARRAY list)
 			i++;
 		}
 	}
+}
+
+void MAIN_error(const char *msg)
+{
+	GB.Error(msg, ERR_error_string(ERR_get_error(), NULL));
 }
 
 int EXPORT GB_INIT()
