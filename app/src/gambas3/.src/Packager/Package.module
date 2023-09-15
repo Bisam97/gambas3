@@ -2819,9 +2819,11 @@ Private Sub MakeAppImagePackage(sSys As String)
   Dim bAddWayland As Boolean
   Dim sSource As String
   Dim iPos As Integer
+  Dim sName As String
   
   AddLog(("Making build directory.")) 
   
+  sName = Replace($sName, " ", "_")
   sRoot = User.Home &/ ".var/tmp/AppImage"
   sAppDir = sRoot &/ "AppDir"
   
@@ -2831,12 +2833,12 @@ Private Sub MakeAppImagePackage(sSys As String)
 
   ' 1. Copy the executable
   
-  Copy Project.GetExecPath() To sAppDir &/ "/usr/bin" &/ $sName
-  Chmod sAppDir &/ "/usr/bin" &/ $sName To "..x..x..x"
+  Copy Project.GetExecPath() To sAppDir &/ "/usr/bin" &/ sName
+  Chmod sAppDir &/ "/usr/bin" &/ sName To "..x..x..x"
   
   ' 2. Copy the icon
   
-  Project.StretchIcon(Project.Dir &/ Project.Icon, 256).Save(sAppDir &/ "usr/share/icons/hicolor/256x256/apps" &/ $sName & ".png")
+  Project.StretchIcon(Project.Dir &/ Project.Icon, 256).Save(sAppDir &/ "usr/share/icons/hicolor/256x256/apps" &/ sName & ".png")
 
   ' TODO: 3. Copy the used libraries
   
@@ -2853,13 +2855,13 @@ Private Sub MakeAppImagePackage(sSys As String)
   ' 6. Fill the application details
   
   sAppId = Project.AppId
-  If Not sAppId Then sAppId = "org.gambas-basic." & LCase($sName)
+  If Not sAppId Then sAppId = "org.gambas-basic." & LCase(sName)
   
   sAppImageBuilder = Replace(sAppImageBuilder, "$(appdir)", sAppDir)
   sAppImageBuilder = Replace(sAppImageBuilder, "$(id)", sAppId)
-  sAppImageBuilder = Replace(sAppImageBuilder, "$(name)", If(Project.Title, Project.Title, Project.Name))
-  sAppImageBuilder = Replace(sAppImageBuilder, "$(icon)", $sName & ".png")
-  sAppImageBuilder = Replace(sAppImageBuilder, "$(exec)", $sName)
+  sAppImageBuilder = Replace(sAppImageBuilder, "$(name)", sName)
+  sAppImageBuilder = Replace(sAppImageBuilder, "$(icon)", sName & ".png")
+  sAppImageBuilder = Replace(sAppImageBuilder, "$(exec)", sName)
   sAppImageBuilder = Replace(sAppImageBuilder, "$(version)", $sVersion)
   
   ' 7. Package sources
@@ -2922,6 +2924,7 @@ Private Sub MakeAppImagePackage(sSys As String)
   Next
   
   If bAddWayland Then aPackages.Insert(["libwayland-client0", "libwayland-cursor0", "libwayland-egl1"])
+  If aPackages.Exist("gambas3-gb-gtk3") Then aPackages.Insert(["librsvg2-2", "librsvg2-common"])
   
   ' Always add Gambas stock icons, in the case they are loaded at runtime.
   If Not aPackages.Exist("gambas3-gb-form-stock") Then aPackages.Add("gambas3-gb-form-stock")
