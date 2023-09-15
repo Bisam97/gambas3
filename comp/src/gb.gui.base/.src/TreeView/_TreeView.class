@@ -124,6 +124,8 @@ Private $bShowCheck As Boolean
 Public _MustUpdateSpan As Boolean
 Private $hUpdateSpan As Timer
 
+Private $hUpdateFilter As Timer
+
 Public Sub _new()
   
   $hView = New GridView(Me) As "GridView"
@@ -147,6 +149,7 @@ Public Sub _new()
   $hRoot = New _TreeView_Item("", "") As "Item"
   
   $hUpdateSpan = New Timer As "UpdateSpan"
+  $hUpdateFilter = New Timer As "UpdateFilter"
   
 End
 
@@ -1980,11 +1983,16 @@ End
 
 Public Sub Filter()
 
-  Dim hItem As _TreeView_Item
+  If Not Object.CanRaise(Me, "Filter") Then Return
+  $hUpdateFilter.Trigger
+  
+End
+
+Public Sub UpdateFilter_Timer()
+
+  Dim hItem As Object
   Dim bCancel As Boolean
   
-  If Not Object.CanRaise(Me, "Filter") Then Return
-
   _Begin()  
   For Each hItem In $cItem
     bCancel = Raise Filter(hItem.Key)
