@@ -38,6 +38,8 @@ Private $iNoUpdateBalance As Integer
 Private $bChangingTab As Boolean
 Private $bDoNotUpdateGrid As Boolean
 
+Private $hShowSelection As ImageSelectionBox
+
 'Static Public Value As String  '"radialgradient(0.5,0.5,1,0.5,0.5,[&hFFFFFF,&h000000,&h00FF00],[0,0.5,1])" '"lineargradient(0,0.5,1,0.5,[&hFFFFFF,&h000000,&h00FF00],[0,0.5,1])"
 
 Private Sub GetCurrent() As FImageEditor
@@ -1210,7 +1212,6 @@ Public Sub btnFlipH_Click()
 
 End
 
-
 Public Sub tabBrush_Click()
 
   If tabBrush.Text = ("Clipboard") Then
@@ -1220,13 +1221,12 @@ Public Sub tabBrush_Click()
 
 End
 
-
-
-Private Sub AddSelection(hImageSelection As CImageSelection, Optional bNoDelete As Boolean)
+Private Sub AddSelection(hImageSelection As CImageSelection, Optional bNoDelete As Boolean) As ImageSelectionBox
 
   Dim hSelBox As ImageSelectionBox
 
   hSelBox = New ImageSelectionBox(svwSelection, hImageSelection, bNoDelete) As "ImageSelection"
+  Return hSelBox
   
 End
 
@@ -1257,13 +1257,14 @@ Private Sub InitSelection()
 End
 
 Public Sub SaveSelection(hImageSelection As CImageSelection)
-  
-  AddSelection(hImageSelection)
+
+  $hShowSelection = AddSelection(hImageSelection)
   SaveAllSelections
   tabBrush.Index = 3
+  svwSelection.ScrollTo($hShowSelection)
+  $hShowSelection = Null
   
 End
-
 
 Private Sub UpdateGrid()
 

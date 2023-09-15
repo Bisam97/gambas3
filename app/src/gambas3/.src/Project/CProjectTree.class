@@ -24,6 +24,11 @@ Private $sStartup As String
 
 Private $aOtherProjects As New String[]
 
+Private $cImageCache As New Collection
+Private $cImageDate As New Collection
+Private $bMouseDown As Boolean
+Private $bHasJustExpanded As Boolean
+
 Public Sub _new(sDir As String, Optional bCurrent As Boolean)
   
   $sDir = sDir
@@ -640,6 +645,7 @@ Public Sub GetFileIcon(sPath As String, Optional iSize As Integer, hStat As Stat
   Dim hThumb As Image
   Dim bImage As Boolean
   Dim sExportName As String
+  Dim bDesktopMime As Boolean
 
   If iSize Then
     sPrefix = "icon:/" & iSize
@@ -745,18 +751,59 @@ Public Sub GetFileIcon(sPath As String, Optional iSize As Integer, hStat As Stat
           sIcon = sPrefix &/ "terminal"
           
         Case Else
-          Try hImage = DesktopMime.FromFile(sPath).GetIcon(iSize)
-          If hImage Then
-            sIcon = "//"
-          Else
-            sIcon = sPrefix &/ "file"
-          Endif
+          bDesktopMime = True
           
       End Select
 
     Endif
 
   End With
+
+  If sIcon Then
+    sKey = sIcon
+  Else
+    sKey = sPath
+  Endif
+  If iSize Then 
+    sKey &= "-" & CStr(iSize)
+  Else
+    sKey &= "-16"
+  Endif
+  
+  sKey &= "-"
+  
+  If bLink Then sKey &= "l"
+  
+  If Not bNoEmblem Then
+    'If bStartup Then sKey &= "s"
+    If bConflict Then sKey &= "c"
+    If bLocked Then sKey &= "k"
+    If bAdded Then sKey &= "a"
+    If bModified Then sKey &= "m"
+    If bExported Then sKey &= If(bExportedNamespace, "n", "x")
+    If bDoNotTranslate Then sKey &= "t"
+    If bCompressed Then sKey &= "z"
+    If bReadOnly Then sKey &= "r"
+  Endif
+  
+  If Right(sKey) = "-" Then sKey = Left(sKey, -1)
+
+  sCacheKey = Replace(sKey, "icon:/", "$/")
+  
+  If $cImageCache.Exist(sCacheKey) Then
+    If sCacheKey Begins "$" Or If $cImageDate[sCacheKey] >= hStat.LastModified Then 
+      Return $cImageCache[sCacheKey]
+    Endif
+  Endif
+  
+  If bDesktopMime Then
+    Try hImage = DesktopMime.FromFile(sPath).GetIcon(iSize)
+    If hImage Then
+      sIcon = "//"
+    Else
+      sIcon = sPrefix &/ "file"
+    Endif
+  Endif
 
   If Left$(sIcon) = "/" Then
 
@@ -818,55 +865,24 @@ Public Sub GetFileIcon(sPath As String, Optional iSize As Integer, hStat As Stat
 
   Else
 
-    sKey = File.Dir(sIcon) &/ File.BaseName(sIcon) & "-"
-    If iSize Then 
-      sKey &= CStr(iSize) & "-"
+    If sModule Then
+      hImage = Project.MakeModuleIcon(sModule, iSize, bStartup And Not bNoEmblem)
     Else
-      sKey &= "16-"
+      Try hImage = Picture[sIcon].Image
+      If Error Then hImage = Picture[sPrefix &/ "file"].Image
     Endif
-    
-    If bLink Then sKey &= "l"
-    
-    If Not bNoEmblem Then
-      'If bStartup Then sKey &= "s"
-      If bConflict Then sKey &= "c"
-      If bLocked Then sKey &= "k"
-      If bAdded Then sKey &= "a"
-      If bModified Then sKey &= "m"
-      If bExported Then sKey &= If(bExportedNamespace, "n", "x")
-      If bDoNotTranslate Then sKey &= "t"
-      If bCompressed Then sKey &= "z"
-      If bReadOnly Then sKey &= "r"
-    Endif
-    
-    If Right(sKey) = "-" Then sKey = Left(sKey, -1)
-    sKey &= ".png"
+    'If Not hPict Then hPict = Picture[sPrefix &/ "file"]
+    'If Not hPict Then hPict = Picture["img/16/unknown.png"]
+    'hPict = hPict.Copy()
 
-    'hPict = NULL
-    'IF NOT bNoStartup THEN hPict = Picture[sKey]
-
-    sCacheKey = "$" & Replace(sKey, "icon:/", "$/")
-    Try hPict = Picture[sCacheKey]
-    If Not hPict Then
-
-      If sModule Then
-        hImage = Project.MakeModuleIcon(sModule, iSize, bStartup And Not bNoEmblem)
-      Else
-        Try hImage = Picture[sIcon].Image
-        If Error Then hImage = Picture[sPrefix &/ "file"].Image
-      Endif
-      'If Not hPict Then hPict = Picture[sPrefix &/ "file"]
-      'If Not hPict Then hPict = Picture["img/16/unknown.png"]
-      'hPict = hPict.Copy()
-
-      If iSize Then hImage = hImage.Stretch(hImage.Width * iSize / hImage.Height, iSize)
-      GoSub ADD_EMBLEM
-      hPict = hImage.Picture
-      Picture[sCacheKey] = hPict
-
-    Endif
+    If iSize Then hImage = hImage.Stretch(hImage.Width * iSize / hImage.Height, iSize)
+    GoSub ADD_EMBLEM
+    hPict = hImage.Picture
 
   Endif
+
+  $cImageCache[sCacheKey] = hPict
+  $cImageDate[sCacheKey] = hStat.LastModified
 
   Return hPict
 
@@ -914,19 +930,28 @@ Public Sub TreeView_Expand()
 
 End
 
+Public Sub TreeView_MouseDown()
+  
+  If Mouse.Click > 1 Then Return
+  
+  $bMouseDown = True
+  $bHasJustCollapsed = False
+  $bHasJustExpanded = False
+  $bExpandOnMouseUp = False
+  
+End
+
 Public Sub TreeView_Collapse()
   
   Dim sKey As String = $hTree.Item.Key
   
-  $bHasJustCollapsed = True
+  If $bMouseDown Then $bHasJustCollapsed = True
   If Not sKey Then Return
   If File.Dir(sKey) = $sDir And If Not IsDir(sKey) Then $hTree[sKey].Expanded = True
   
 End
 
-Public Sub TreeView_Select()
-  
-  'RefreshMenu
+Public Sub TreeView_Click()
   
   If $hTree.Current And If $hTree.Current.Children Then 
     ' Print Mouse.X ;; Mouse.Y ' generates crashes on random places, strange...
@@ -941,16 +966,30 @@ Public Sub TreeView_MouseUp()
   
   Dim hItem As _TreeView_Item
   
+  If Mouse.Click > 1 Then Return
+  
   If $bExpandOnMouseUp And If Not $bHasJustCollapsed Then
     hItem = $hTree.Current
-    Try hItem.Expanded = True
-    Try hItem.EnsureVisible
+    If Not hItem.Expanded Then
+      Try hItem.Expanded = True
+      Try hItem.EnsureVisible
+      $bHasJustExpanded = True
+    Endif
   Endif
-  $bExpandOnMouseUp = False
-  $bHasJustCollapsed = False
+  
+  $bMouseDown = False
   
 End
 
+Public Sub TreeView_Activate()
+  
+  Dim hItem As _TreeView_Item
+  
+  If $bHasJustExpanded Then Return
+  hItem = $hTree.Current
+  If hItem.Children Then Try hItem.Expanded = False
+  
+End
     
 Public Sub FillDir(sDir As String)
 
