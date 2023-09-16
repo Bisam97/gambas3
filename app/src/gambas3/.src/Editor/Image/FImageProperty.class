@@ -68,6 +68,7 @@ Public Sub _new()
   $aGradient.Add(CReportBrush["LinearGradient(0,0.5,1,0.5,[#000000,#FFFFFF],[0,1])"])
   $aGradient.Add(CReportBrush["LinearGradient(0,0.5,1,0.5,[#000000,#FFFFFFFF],[0,1])"])
   
+  palColor.Size = Desktop.Scale * 3
   palColor.Colors = $aDefaultColor
   
   SetLineCap(Paint.LineCapButt)
@@ -1612,5 +1613,11 @@ Private Sub LoadGrid()
   txtGridSnap.Value = Project.Config["/FImageProperty/Grid/SnapResolution", 1]
   chkGridDiag.Value = Project.Config["/FImageProperty/Grid/Diagonals", 0]
   btnLockGrid.Value = Project.Config["/FImageProperty/Grid/Lock", 0]
+
+End
+
+Public Sub cchColor_Activate()
+
+  RememberColor(cchColor.Value)
 
 End
