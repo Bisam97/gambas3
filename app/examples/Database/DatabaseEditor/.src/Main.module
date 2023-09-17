@@ -1,0 +1,70 @@
+' Gambas module file
+
+Private Const TemplateDbFileName As String = "db.sqlite"
+
+' Use Main To start up this program because there is a bug in gambas that
+' causes data-bound controls (e.g.DataCombo) to misbehave if connection is
+' set to a DataSource after the controls have been already initialized.
+' This means that creating the connection in Form_Open() is too late.
+Public Sub Main()
+    Dim conn As Connection
+    
+    DeployDbFile()
+    Try conn = openConnection()    
+    PrintPersons(conn)
+    ' store the now open connection in DB.Current for the forms to get access to it
+    Db.Current = conn
+    FMain.Show
+    
+Catch 
+    Message.Error("Could not open connection to DB: " & DConv(Error.Text))
+    Quit 
+End
+
+' This project contains the (initial) sqlite database file (db.sqlite) that contains the schema 
+' and some example records. 
+' To be able to write to this file, it has to be deloyed to a location where the current user 
+' has write permissions. 
+' For 'ordinary' applications this would be somewhere in Desktop.DataDir or in a user defined location. 
+' For this tiny example I deploy to a temp dir where the db file is cleaned up automatically after
+' the process of this application terminates.
+Private Procedure DeployDbFile()
+    Dim deployFilePath As String = GetDbDeployPath() &/ GetDbDeployFileName()
+    If Not Exist(deployFilePath) Then 
+        Copy Application.Path &/ TemplateDbFileName To deployFilePath
+        Debug "Deployed sqlite database file to: ", deployFilePath
+    Endif
+End
+
+Private Function openConnection() As Connection
+    Dim result As New Connection
+    With result
+        .Type = "sqlite3"
+        .Host = GetDbDeployPath()
+        .Name = GetDbDeployFileName()
+    End With
+    result.Open
+    Return result
+End
+
+'' Returns the path of the deploy directory. The directory of this path is guaranted to already exist.
+Private Function GetDbDeployPath() As String
+    Return File.Dir(Temp$())
+End
+
+'' Returns the filename of the deployed database file
+Private Function GetDbDeployFileName() As String
+  Return Application.Name & ".sqlite"  
+End
+
+'' prints out all persons in the DB so far for debugging purposes
+Private Procedure PrintPersons(conn As Connection)
+    Dim rs As Result
+    rs = conn.Exec("SELECT * FROM person2")
+    While rs.Available 
+        Debug Subst(
+            "Person: person_id=&{1}, sex_id=&{2}, name=&{3}, sirname=&{4}, birthdate=&{5}", 
+            rs["person_id"], rs["sex_id"], rs["given_name"], rs["sir_name"], rs["birthdate"])
+        rs.MoveNext
+    Wend    
+End

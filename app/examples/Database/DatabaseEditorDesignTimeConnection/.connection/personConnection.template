@@ -1,0 +1,65 @@
+# Gambas Database Template File 3.0
+{ Table
+  Name="__gb_metadata_v2"
+  PrimaryKey=["sTableName","iType","sKey"]
+  { Field
+    Name="sTableName"
+    Type=db.String
+  }
+  { Field
+    Name="iType"
+    Type=db.Integer
+  }
+  { Field
+    Name="sKey"
+    Type=db.String
+  }
+  { Field
+    Name="sValue"
+    Type=db.String
+  }
+}
+{ Table
+  Name="person2"
+  PrimaryKey=["person_id"]
+  { Field
+    Name="person_id"
+    Type=db.Serial
+  }
+  { Field
+    Name="sex_id"
+    Type=db.Integer
+  }
+  { Field
+    Name="given_name"
+    Type=db.String
+    Length=80
+  }
+  { Field
+    Name="sir_name"
+    Type=db.String
+    Length=80
+  }
+  { Field
+    Name="birthdate"
+    Type=db.Date
+  }
+}
+{ Table
+  Name="sex"
+  PrimaryKey=["sex_id"]
+  { Field
+    Name="sex_id"
+    Type=db.Integer
+  }
+  { Field
+    Name="name"
+    Type=db.String
+    Length=80
+  }
+  { Index 
+    Name="idx_sex_sex_id"
+    Unique=True
+    Fields=["sex_id"]
+  }
+}
