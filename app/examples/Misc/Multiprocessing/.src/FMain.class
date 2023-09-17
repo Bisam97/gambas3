@@ -1,0 +1,26 @@
+' Gambas class file
+
+Private primesTask As Task
+
+Public Procedure btnStart_Click()
+    ' background process ist started with construction of Task instance
+    primesTask = New CalcPrimesTask(valMaxPrimes.Value) As "taskEvents"
+    
+    btnStart.Enabled = False
+    valResult.Value = Null
+    calcSpinner.Show
+    calcSpinner.Start
+End
+
+Public Procedure taskEvents_Kill()
+    ' the background process has terminated -> fetch the result value
+    ' Note that task.Value might raise an error if the task itself raised an error
+    valResult.Value = primesTask.Value
+    
+Finally 
+    btnStart.Enabled = True
+    calcSpinner.Stop
+    calcSpinner.Hide
+Catch 
+    Message.Error("Something went wrong during background calculation: " & Error.Text)
+End

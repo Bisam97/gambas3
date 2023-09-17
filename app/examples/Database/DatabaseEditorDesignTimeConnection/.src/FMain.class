@@ -1,0 +1,15 @@
+' Gambas class file
+
+Public Sub Form_Open()
+    Db.Debug = True ' log all database requests made by the runtime
+    Debug "Using connection: ", Db.Current.Url
+
+    ' adjust column width
+    With personDataBrowser.View
+        .Columns[0].Width = 150 ' adjust column widths 
+        .Columns[1].Width = 150
+        .Columns[2].Width = 200
+        .MoveTo(0, 0) ' activate first row so that data-bound controls get filled with data for this row
+    End With
+End
+

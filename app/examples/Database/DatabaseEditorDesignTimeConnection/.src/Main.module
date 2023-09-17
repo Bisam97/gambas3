@@ -1,0 +1,32 @@
+' Gambas module file
+
+Private Const TemplateDbFileName As String = "db.sqlite"
+
+Public Sub Main()
+    DeployDbFile()
+    FMain.Show
+End
+
+' This project contains the (initial) sqlite database file (db.sqlite) that contains the schema 
+' and some example records. 
+' To be able to write to this file, it has to be deloyed to a location where the current user 
+' has write permissions. 
+' For 'ordinary' applications this would be somewhere in Desktop.DataDir or in a user defined location. 
+' For this tiny example I deploy to /tmp where the db file is cleaned up eventually.
+Private Procedure DeployDbFile()
+    Dim deployFilePath As String = GetDbDeployPath() &/ GetDbDeployFileName()
+    If Not Exist(deployFilePath) Then 
+        Copy Application.Path &/ TemplateDbFileName To deployFilePath
+        Debug "Deployed sqlite database file to: ", deployFilePath
+    Endif
+End
+
+'' Returns the path of the deploy directory. The directory of this path is guaranted to already exist.
+Private Function GetDbDeployPath() As String
+    Return "/tmp"
+End
+
+'' Returns the filename of the deployed database file
+Private Function GetDbDeployFileName() As String
+  Return Application.Name & ".sqlite"  
+End
