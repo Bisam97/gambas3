@@ -1,8 +1,16 @@
 ' Gambas class file
 
+Static Private $sPath As String
+Static Private $bLocateChange As Boolean
+Static Private $iLine As Integer
+
 Public Sub Run()
 
+  $bLocateChange = False
+  
   Me.ShowModal()
+
+  If $bLocateChange Then Project.OpenFile($sPath, $iLine)
 
 End
 
@@ -177,8 +185,8 @@ Public Sub tabVersionControl_Click()
       
   End Select
   
-  chkHideTrans.Visible = tabVersionControl.Index = 1 And edtDiff.Visible
-  panChange.Visible = tabVersionControl.Index = 2
+  panChanges.Visible = tabVersionControl.Index = 1 And edtDiff.Visible
+  panHistory.Visible = tabVersionControl.Index = 2
 
 End
 
@@ -211,6 +219,15 @@ End
 Public Sub chkShowHistoryChanges_Click()
 
   edtHistory.FillWithHistory(Project.Dir, spnChange,, chkShowHistoryChanges.Value)
+
+End
+
+
+Public Sub btnLocateChange_Click()
+
+  If edtDiff.LocateChange(ByRef $sPath, ByRef $iLine) Then Return
+  $bLocateChange = True
+  Me.Close
 
 End
 
