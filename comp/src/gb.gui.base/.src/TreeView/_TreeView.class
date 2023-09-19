@@ -81,6 +81,15 @@ Event Scroll
 
 Event Draw(X As Integer, Y As Integer, Width As Integer, Height As Integer, Key As String, Column As Integer)
 
+'' {@since 3.19}
+''
+'' This event is raised to filter a specific item.
+''
+'' Stop the event to prevent the item from being visible.
+
+Event Filter(Key As String)
+
+
 Static Private $iNoEvent As Integer
 
 Private $hView As GridView
@@ -115,6 +124,8 @@ Private $bShowCheck As Boolean
 Public _MustUpdateSpan As Boolean
 Private $hUpdateSpan As Timer
 
+Private $hUpdateFilter As Timer
+
 Public Sub _new()
   
   $hView = New GridView(Me) As "GridView"
@@ -138,6 +149,7 @@ Public Sub _new()
   $hRoot = New _TreeView_Item("", "") As "Item"
   
   $hUpdateSpan = New Timer As "UpdateSpan"
+  $hUpdateFilter = New Timer As "UpdateFilter"
   
 End
 
@@ -232,6 +244,7 @@ Public Sub _Add((Key) As String, Text As String, Optional (Picture) As Picture, 
   
   $sCursor = Key
   
+  FilterItem(hItem)
   _RefreshView
   
   Return hItem
@@ -1129,6 +1142,7 @@ Public Sub _EnsureVisible(hItem As _TreeView_Item, Optional bChild As Boolean)
   
   Dim iRow As Integer
   
+  If Not hItem.Visible Then Return
   SetItemVisible(hItem)
   iRow = _ItemToRow(hItem)
   
@@ -1763,6 +1777,8 @@ End
 
 Private Sub UpdateRowHeight(hItem As _TreeView_Item, iStart As Integer, Optional iEnd As Integer)
   
+  If $iLock Then Return
+  
   If iEnd = 0 Then
     iEnd = iStart
   Else If iEnd < 0 Then
@@ -1948,3 +1964,60 @@ Public Sub UpdateSpan_Timer()
   
 End
 
+Private Sub FilterItem(hItem As _TreeView_Item)
+  
+  Dim bCancel As Boolean
+  
+  If Not Object.CanRaise(Me, "Filter") Then Return
+
+  bCancel = Raise Filter(hItem.Key)
+  hItem.Visible = Not bCancel
+  
+End
+
+'' @{since 3.19}
+''
+'' Filter the items according to the [../.filter] event.
+''
+'' You must call this method as soon as the filtering state changes.
+
+Public Sub Filter()
+
+  If Not Object.CanRaise(Me, "Filter") Then Return
+  $hUpdateFilter.Trigger
+  
+End
+
+Public Sub UpdateFilter_Timer()
+
+  Dim hItem As Object
+  Dim bCancel As Boolean
+  
+  _Begin()  
+  For Each hItem In $cItem
+    bCancel = Raise Filter(hItem.Key)
+    hItem.Visible = Not bCancel
+  Next
+  _End()
+  
+End
+
+'' @{since 3.19}
+''
+'' Expand all tree items recursively.
+
+Public Sub ExpandAll()
+  
+  $hRoot.ExpandAll()
+  
+End
+
+'' @{since 3.19}
+''
+'' Collapse all tree items recursively.
+
+Public Sub CollapseAll()
+  
+  $hRoot.CollapseAll()
+  
+End

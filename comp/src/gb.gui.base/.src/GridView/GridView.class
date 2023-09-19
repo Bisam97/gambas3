@@ -183,9 +183,10 @@ End
 
 Public Sub _IsRowSelected(iRow As Integer) As Boolean
   
+  If $iMode = Select.None Then Return
+  If $hRows._GetRowHeight(iRow) = 0 Then Return
+
   Select Case $iMode
-    Case Select.None
-      Return
     Case Select.Single
       Return iRow = $iRow
     Case Select.Multiple
@@ -1572,6 +1573,7 @@ Public Sub TimerEnsureVisible_Timer()
   Dim iColEV As Integer = $iColEV
   Dim F As Integer = _GetFrameWidth()
   Dim iDir As Integer
+  Dim W, H As Integer
   
   iDir = Scroll.Both
   If iRowEV < 0 Then
@@ -1587,7 +1589,10 @@ Public Sub TimerEnsureVisible_Timer()
   $iColEV = -1
 
   With $hColumns[iColEV]
-    $hView.EnsureVisible(.X, $hRows._GetRowY(iRowEV) + F, Min($hView.ClientW - $hRows.W, .Width + $hRows.Width), $hRows._GetRowHeight(iRowEV) + $hColumns.Height + F, iDir)
+    W = .Width
+    H = $hRows._GetRowHeight(iRowEV)
+    If W <= 0 Or If H <= 0 Then Return
+    $hView.EnsureVisible(.X, $hRows._GetRowY(iRowEV) + F, Min($hView.ClientW - $hRows.W, W + $hRows.Width), H + $hColumns.Height + F, iDir)
   End With
   
 Catch
@@ -1771,6 +1776,46 @@ Private Sub Header_Write(Value As Integer)
 
 End
 
+
+Private Sub MoveToRelative(DR As Integer, DC As Integer) As Boolean
+
+  Dim iRow As Integer
+  Dim iCol As Integer
+
+  iRow = $iRow + DR
+  iCol = $iCol + DC
+  
+  Do
+    
+    If iRow < 0 Or If iRow > $hRows.Max Then Return True
+    
+    If iCol < 0 Then
+      Dec iRow
+      iCol = $hColumns.Max
+      Continue
+    Else If iCol > $hColumns.Max Then
+      Inc iRow
+      iCol = 0
+      Continue
+    Endif
+    
+    With Me[iRow, iCol]
+      If .W <= 0 Or If .H <= 0 Then
+        iRow += DR
+        iCol += DC
+        Continue
+      Endif
+    End With
+    
+    Break
+    
+  Loop
+  
+  MoveTo(iRow, iCol)
+
+End
+
+
 Public Sub ScrollArea_KeyPress()
   
   Dim iRow As Integer
@@ -1811,31 +1856,35 @@ Public Sub ScrollArea_KeyPress()
   Select iCode
     
     Case Key.Up
-      If $iRow > 0 Then MoveTo($iRow - 1, $iCol)
+      'If $iRow > 0 Then MoveTo($iRow - 1, $iCol)
+      MoveToRelative(-1, 0)
       Stop Event
       
     Case Key.Down
-      If $iRow < ($hRows.Count - 1) Then MoveTo($iRow + 1, $iCol)
+      'If $iRow < ($hRows.Count - 1) Then MoveTo($iRow + 1, $iCol)
+      MoveToRelative(1, 0)
       Stop Event
       
     Case Key.Left
-      If $iRow >= 0 Then
-        If $iCol > 0 Then
-          MoveTo($iRow, $iCol - 1)
-        Else If $iRow > 0 Then
-          MoveTo($iRow - 1, $hColumns.Count - 1)
-        Endif
-      Endif
+      MoveToRelative(0, -1)
+      ' If $iRow >= 0 Then
+      '   If $iCol > 0 Then
+      '     MoveTo($iRow, $iCol - 1)
+      '   Else If $iRow > 0 Then
+      '     MoveTo($iRow - 1, $hColumns.Count - 1)
+      '   Endif
+      ' Endif
       Stop Event
     
     Case Key.Right
-      If $iRow >= 0 Then
-        If $iCol < ($hColumns.Count - 1) Then 
-          MoveTo($iRow, $iCol + 1)
-        Else If $iRow < ($hRows.Count - 1) Then
-          MoveTo($iRow + 1, 0)
-        Endif
-      Endif
+      MoveToRelative(0, 1)
+      ' If $iRow >= 0 Then
+      '   If $iCol < ($hColumns.Count - 1) Then 
+      '     MoveTo($iRow, $iCol + 1)
+      '   Else If $iRow < ($hRows.Count - 1) Then
+      '     MoveTo($iRow + 1, 0)
+      '   Endif
+      ' Endif
       Stop Event
     
     Case Key.Home

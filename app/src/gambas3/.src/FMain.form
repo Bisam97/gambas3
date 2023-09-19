@@ -487,10 +487,18 @@
       Picture = Picture["icon:/small/find"]
       Shortcut = "Ctrl+F"
     }
+    { mnuFindAll Menu
+      Text = ("Find everywhere") & "..."
+      Shortcut = "Ctrl+Shift+F"
+    }
     { mnuReplace Menu
       Text = ("Replace") & "..."
       Picture = Picture["icon:/small/replace"]
       Shortcut = "Ctrl+R"
+    }
+    { mnuReplaceAll Menu
+      Text = ("Replace everywhere") & "..."
+      Shortcut = "Ctrl+Shift+R"
     }
     { Menu10 Menu
     }
@@ -762,6 +770,18 @@
       { mnuFilterAll Menu
         Text = ("Show all")
         Picture = Picture["icon:/small/clear"]
+      }
+      { Menu55 Menu
+      }
+      { mnuUseInheritance Menu
+        Text = ("Dispose class files according to inheritance")
+        Picture = Picture["icon:/small/inheritance"]
+        Toggle = True
+      }
+      { mnuShowAllClasses Menu
+        Text = ("Display form class files")
+        Picture = Picture["img/module/class.png"]
+        Toggle = True
       }
     }
     { mnuAddVersionAll Menu
@@ -1320,11 +1340,11 @@
     Animated = True
   }
   { panGlobal Panel
-    MoveScaled(1,17,172,77)
+    MoveScaled(1,17,147,77)
     Expand = True
     Arrangement = Arrange.Horizontal
     { panProject SidePanel
-      MoveScaled(1,3,34,73)
+      MoveScaled(1,3,48,73)
       Visible = False
       ToolTip = ("Project")
       Arrangement = Arrange.Fill
@@ -1334,7 +1354,7 @@
       Separator = True
       Transparent = True
       { tabProject TabPanel
-        MoveScaled(0,1,33,70)
+        MoveScaled(0,1,47,70)
         Arrangement = Arrange.Vertical
         Border = False
         Count = 2
@@ -1383,7 +1403,7 @@
           MoveScaled(3,5,9,0)
         }
         { panSearchProject HBox
-          MoveScaled(1,6,32,5)
+          MoveScaled(1,6,45,4)
           Background = Color.TextBackground
           { btnShowDebugger ToolButton
             MoveScaled(0,0,4,4)
@@ -1396,40 +1416,38 @@
             ToolTip = ("Open startup class")
             Picture = Picture["icon:/small/home"]
           }
-          { btnUseInheritance ToolButton
-            MoveScaled(8,0,4,4)
-            ToolTip = ("Dispose class files according to inheritance")
-            Picture = Picture["icon:/small/inheritance"]
-            Toggle = True
-          }
-          { btnShowAllClasses ToolButton
-            MoveScaled(12,0,4,4)
-            ToolTip = ("Display form class files")
-            Toggle = True
-          }
           { txtSearchProject ButtonBox
-            MoveScaled(17,1,14,3)
+            MoveScaled(9,0,17,3)
             Foreground = Color.LightForeground
             Expand = True
             Picture = Picture["icon:/small/close"]
-            Placeholder = ("Project filter")
+            Placeholder = ("Enter a filter")
             Border = False
             ClearButton = True
             Filter = True
             FilterMenu = "mnuFilter"
+            FilterPicture = Picture["icon:/medium/menu"]
+          }
+          { btnExpand ToolButton
+            MoveScaled(33,0,4,4)
+            ToolTip = ("Show all items")
+          }
+          { btnCollapse ToolButton
+            MoveScaled(37,0,4,4)
+            ToolTip = ("Shrink view")
           }
         }
         { Separator4 Separator
-          MoveScaled(1,12,9,0)
+          MoveScaled(1,23,9,0)
         }
         { tvwProject TreeView
-          MoveScaled(1,17,20,45)
+          MoveScaled(1,25,20,45)
           Drop = True
           Expand = True
           Border = False
         }
         { timSearchProject #Timer
-          #MoveScaled(22,16)
+          #MoveScaled(23,25)
           Delay = 500
         }
         Index = 1
@@ -1439,24 +1457,24 @@
       }
     }
     { Panel4 VBox
-      MoveScaled(36,2,135,74)
+      MoveScaled(50,2,95,74)
       Expand = True
       { Panel5 HBox
-        MoveScaled(1,1,133,66)
+        MoveScaled(1,1,93,66)
         Expand = True
         { panCentral Panel
-          MoveScaled(0,0,94,64)
+          MoveScaled(0,0,60,64)
           Expand = True
           Arrangement = Arrange.Vertical
           { Panel2 HBox
-            MoveScaled(1,1,88,33)
+            MoveScaled(1,1,57,33)
             Expand = True
             { panWorkspace Panel
-              MoveScaled(3,5,82,25)
+              MoveScaled(3,5,52,25)
               Expand = True
               Arrangement = Arrange.Vertical
               { wrkProject Workspace
-                MoveScaled(2,1,79,22)
+                MoveScaled(2,1,49,22)
                 Background = Color.LightForeground
                 Expand = True
                 Border = False
@@ -1471,7 +1489,7 @@
               Picture = Picture["icon:/small/view-tree"]
             }
             { btnWorkspaceProperty ToolButton
-              MoveScaled(77,1,4,4)
+              MoveScaled(32,1,4,4)
               Visible = False
               ToolTip = ("Show properties sheet")
               Ignore = True
@@ -1487,7 +1505,7 @@
             }
           }
           { panDebug SidePanel
-            MoveScaled(7,41,81,13)
+            MoveScaled(4,36,54,13)
             ToolTip = ("Debug")
             Arrangement = Arrange.Fill
             Orientation = Align.Bottom
@@ -1496,22 +1514,22 @@
             Transparent = True
             Hidden = True
             { btnClosePanel ToolButton
-              MoveScaled(73,3,4,4)
+              MoveScaled(45,3,4,4)
               Ignore = True
               Picture = Picture["icon:/small/close"]
             }
           }
           { Separator1 Separator
-            MoveScaled(12,57,29,0)
+            MoveScaled(12,51,29,0)
           }
           { panButton Panel
-            MoveScaled(3,59,85,4)
+            MoveScaled(3,55,54,4)
             Visible = False
             Arrangement = Arrange.Fill
           }
         }
         { panProperty SidePanel
-          MoveScaled(97,1,32,65)
+          MoveScaled(61,0,32,65)
           Visible = False
           ToolTip = ("Properties")
           Arrangement = Arrange.Vertical
@@ -1573,14 +1591,14 @@
     }
   }
   { dwgWelcome DrawingArea
-    MoveScaled(157,6,15,10)
+    MoveScaled(132,8,15,10)
     Ignore = True
     Arrangement = Arrange.Fill
     Margin = True
     Padding = 32
   }
   { timOpen #Timer
-    #MoveScaled(143,9)
+    #MoveScaled(117,10)
   }
 }
 

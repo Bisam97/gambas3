@@ -1498,7 +1498,11 @@ gw = {
       //xhr.gw_progress = 0;
       
       xhr.gw_progress = 1;
-      gw.update(id, 'progress', 0, function() { xhr.gw_progress--; });
+      gw.update(id, 'progress', 0, 
+        function()
+        { 
+          xhr.gw_progress--; 
+        });
       
       form.append('file', file);
       form.append('name', file.name);

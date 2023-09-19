@@ -2387,7 +2387,7 @@ void MyMainWindow::resizeEvent(QResizeEvent *e)
   	//qDebug("resizeEvent %ld %ld isHidden:%s shown:%s ", THIS->w, THIS->h, isHidden() ? "1" : "0", shown ? "1" : "0");
 	//qDebug("THIS->h = %ld  THIS->container->height() = %ld  height() = %ld", THIS->h, THIS->container->height(), height());
 
-	if (THIS->opened && (e->spontaneous() || parentWidget()))
+	if (THIS->opened) // && (e->spontaneous() || parentWidget()))
 		raise_resize_event(THIS);
 }
 

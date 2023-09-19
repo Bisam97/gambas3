@@ -966,14 +966,20 @@ Public Sub btnReplaceAll_Click()
 
 End
 
-Public Sub WakeUp(bReplace As Boolean, Optional bKeepSearchIn As Boolean)
+Public Sub WakeUp(bReplace As Boolean, Optional bKeepSearchIn As Boolean, Optional bSearchEverywhere As Boolean)
   
   Dim sFind As String
 
   $bReplace = bReplace
   Me.Show
 
-  If Not bKeepSearchIn Then radCurrentFile.Value = True
+  If Not bKeepSearchIn Then
+    If bSearchEverywhere Then 
+      radEverywhere.Value = True
+    Else 
+      radCurrentFile.Value = True
+    Endif
+  Endif
   Update()
   
   If Not $hCurrent Is FForm Then 

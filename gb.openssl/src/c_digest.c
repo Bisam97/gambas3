@@ -62,7 +62,7 @@ static void get_dlist(void)
 {
 	GB.Array.New(&_dlist, GB_T_STRING, 0);
 	EVP_MD_do_all(dlist_func, NULL);
-	sort_and_dedupe(_dlist);
+	MAIN_sort_and_dedupe(_dlist);
 }
 
 /**G

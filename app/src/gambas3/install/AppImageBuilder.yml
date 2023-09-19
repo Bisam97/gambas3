@@ -1,0 +1,54 @@
+# appimage-builder recipe see https://appimage-builder.readthedocs.io for details
+version: 1
+AppDir:
+  path: $(appdir)
+  app_info:
+    id: $(id)
+    name: $(name)
+    icon: $(icon)
+    version: $(version)
+    exec: usr/bin/gbr3
+    exec_args: $APPDIR/usr/bin/$(exec) $@
+  apt:
+    arch: amd64
+    allow_unauthenticated: true
+    sources:
+$(sources)
+    include:
+    - gambas3-runtime
+    - gambas3-dev-tools
+$(packages)
+    exclude:
+    - adwaita-icon-theme
+    - adwaita-icon-theme-full
+    - humanity-icon-theme
+  files:
+    include: []
+    exclude:
+    - usr/share/man
+    - usr/share/doc/*/README.*
+    - usr/share/doc/*/changelog.*
+    - usr/share/doc/*/NEWS.*
+    - usr/share/doc/*/TODO.*
+  runtime:
+    env:
+      GB_PATH: $APPDIR/usr/bin/gbr3
+  test:
+    fedora-30:
+      image: appimagecrafters/tests-env:fedora-30
+      command: ./AppRun
+    debian-stable:
+      image: appimagecrafters/tests-env:debian-stable
+      command: ./AppRun
+    archlinux-latest:
+      image: appimagecrafters/tests-env:archlinux-latest
+      command: ./AppRun
+    centos-7:
+      image: appimagecrafters/tests-env:centos-7
+      command: ./AppRun
+    ubuntu-xenial:
+      image: appimagecrafters/tests-env:ubuntu-xenial
+      command: ./AppRun
+AppImage:
+  arch: x86_64
+  update-information: guess

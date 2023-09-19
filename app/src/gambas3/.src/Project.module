@@ -86,10 +86,14 @@ Public Maintainer As String
 Public Address As String
 Public Vendor As String
 Public VendorPrefix As String
+Public AppId As String
 Property Url As String Use $sUrl
 Public License As String
 Public CreateEachDirectory As Boolean
 Public RuntimeVersion As String
+Public AppImageRepository As String
+Public AppImageDistribution As String
+Public AppImageGambasRepository As String
 
 Public PublishTags As String[]
 Public PublishDependencies As String[]
@@ -212,7 +216,7 @@ Public HasAdded As Integer
 Private $bTesting As Boolean
 
 ' All possible packager target systems
-Private $aSystems As String[] = ["archlinux", "autotools", "debian", "fedora", "mageia", "slackware", "suse", "ubuntu"]
+Private $aSystems As String[] = ["appimage", "archlinux", "autotools", "debian", "fedora", "mageia", "slackware", "suse", "ubuntu"]
 
 ' Pretty background
 Public DEFAULT_BACKGROUND As String = "gambas"
@@ -429,8 +433,6 @@ Public Sub Main()
   ' the window drawing becomes buggy
   
   'FMain.Show
-  
-  FMain.Load
   
   If sPath Then 
     
@@ -689,7 +691,7 @@ _INIT_AGAIN:
     VersionControl.Refresh
   Endif
 
-  Tree = New CProjectTree(Project.Dir)
+  Tree = New CProjectTree(Project.Dir, True)
   
   If bConvert Then
 
@@ -906,7 +908,7 @@ _INIT_AGAIN:
 
   Application.Restart = ["gambas3", Project.Dir]
 
-  UpdateBookmarks  
+  UpdateBookmarks
   
   'SetMessage(("OK"))
   Return
@@ -1029,6 +1031,8 @@ Public Function CloseProject() As Boolean
     'FFind.Close
 
     Inc Application.Busy
+
+    FImageProperty.OnProjectClose()
 
     If Not IsFake() Then Breakpoints.Save()
 
@@ -1393,7 +1397,6 @@ Private Sub InitProjectFilter()
 
   Dim sPath As String
   Dim sFile As String
-  Dim sFilter As String
 
   $cProjectFilter = Null
   If Not ProjectFilter Then Return
@@ -1446,23 +1449,23 @@ Private Sub InitProjectFilter()
       AddPathToFilter(Project.Dir &/ sFile)
     Next
 
-  Else
-
-    sFilter = String.LCase(ProjectFilter)
-
-    $cProjectFilter = New Collection
-
-    For Each sFile In Browse(Project.Dir)
-      
-      sPath = Project.Dir &/ sFile
-
-      sFile = File.Name(sFile)
-      If sPath Begins (Project.Dir &/ ".src") Then sFile = File.BaseName(sFile)
-      If InStr(String.LCase(sFile), sFilter) = 0 Then Continue
-
-      AddPathToFilter(sPath)
-
-    Next
+  ' Else
+  ' 
+  '   sFilter = String.LCase(ProjectFilter)
+  ' 
+  '   $cProjectFilter = New Collection
+  ' 
+  '   For Each sFile In Browse(Project.Dir)
+  '     
+  '     sPath = Project.Dir &/ sFile
+  ' 
+  '     sFile = File.Name(sFile)
+  '     If sPath Begins (Project.Dir &/ ".src") Then sFile = File.BaseName(sFile)
+  '     If InStr(String.LCase(sFile), sFilter) = 0 Then Continue
+  ' 
+  '     AddPathToFilter(sPath)
+  ' 
+  '   Next
 
   Endif
 
@@ -1582,6 +1585,7 @@ Public Sub RefreshAll()
   Inc Application.Busy
   RefreshComponents(True)
   Refresh(True)
+  Tree.CollapseAll
   Dec Application.Busy
   
 End
@@ -1857,6 +1861,8 @@ Public Sub OpenFile(sPath As String, Optional iLine As Integer, Optional iColumn
   hForm = Files[sPath]
   If Not hForm Then Return
 
+  FMain.CloseProjectEditor
+
   CPosition.Disable
   
   Try ShowFile(hForm)
@@ -1873,8 +1879,6 @@ Public Sub OpenFile(sPath As String, Optional iLine As Integer, Optional iColumn
 
   CPosition.Enable
   
-  FMain.CloseProjectEditor
-
   Return hForm
   
 End
@@ -2551,7 +2555,7 @@ Public Sub InsertFile(sName As String, sDir As String, Optional sTemplate As Str
   VersionControl.AddFile(sPath)
   Inc Project.TimeStamp
 
-  Refresh
+  RefreshKey(sPath)
   'RefreshLibrary
 
   If Not bNoOpen Then OpenFile(sPath)
@@ -3104,6 +3108,9 @@ Public Sub ReadProject(Optional bConvert As Boolean)
   SameDependencies = False
   SameFiles = False
   ExtraAutoconfTest = ""
+  AppImageRepository = ""
+  AppImageDistribution = ""
+  AppImageGambasRepository = ""
   Prefix = False
   PackageName = ""
   PackageVersion = 1
@@ -3119,6 +3126,7 @@ Public Sub ReadProject(Optional bConvert As Boolean)
   Maintainer = ""
   Vendor = ""
   VendorPrefix = ""
+  AppId = ""
   Address = ""
   $sUrl = ""
   License = ""
@@ -3381,6 +3389,9 @@ Public Sub ReadProject(Optional bConvert As Boolean)
       Case "vendorprefix"
         VendorPrefix = sVal
         
+      Case "appid"
+        AppId = sVal
+        
       Case "runtimeversion"
         RuntimeVersion = UnQuote(sVal)
 
@@ -3440,6 +3451,15 @@ Public Sub ReadProject(Optional bConvert As Boolean)
         
       Case "previewstylesheet"
         PreviewStyleSheet = sVal
+        
+      Case "appimagerepository"
+        AppImageRepository = sVal
+        
+      Case "appimagedistribution"
+        AppImageDistribution = sVal
+        
+      Case "appimagegambasrepository"
+        AppImageGambasRepository = sVal
         
       Case Else
         UnknownOptions[sKey] = sVal
@@ -3609,6 +3629,7 @@ Public Sub WriteProject(Optional bComponentDoNotChange As Boolean, Optional bMak
   If Maintainer Then Print #hFile, "Maintainer="; Maintainer
   If Vendor Then Print #hFile, "Vendor="; Vendor
   If VendorPrefix Then Print #hFile, "VendorPrefix="; VendorPrefix
+  If AppId Then Print #hFile, "AppId="; AppId
   If Address Then Print #hFile, "Address="; Address
   If $sUrl And If $sUrl <> DEFAULT_URL Then Print #hFile, "Url="; $sUrl
   If License Then Print #hFile, "License="; License
@@ -3628,6 +3649,10 @@ Public Sub WriteProject(Optional bComponentDoNotChange As Boolean, Optional bMak
   If SameDependencies Then Print #hFile, "SameDependencies=1"
   If SameFiles Then Print #hFile, "SameFiles=1"
   If ExtraAutoconfTest Then Print #hFile, "ExtraAutoconfTest=" & Quote(ExtraAutoconfTest)
+  
+  If AppImageRepository Then Print #hFile, "AppImageRepository="; AppImageRepository
+  If AppImageDistribution Then Print #hFile, "AppImageDistribution="; AppImageDistribution
+  If AppImageGambasRepository Then Print #hFile, "AppImageGambasRepository="; AppImageGambasRepository
 
   For Each sSys In $aSystems
     If Menus[sSys] Then Print #hFile, "Menus="; sSys; ":"; Quote(Menus[sSys])

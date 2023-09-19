@@ -33,6 +33,9 @@ Public Sub btnOK_Click()
     Endif
   Next
   
+  Project.Config["/FImageOffsetSelection/Size"] = txtSize.Value
+  Project.Config["/FImageOffsetSelection/Mode"] = Mid$(hRadio.Name, 4)
+  
   Me.Close(True)
 
 End
@@ -40,5 +43,16 @@ End
 Public Sub btnCancel_Click()
 
   Me.Close
+
+End
+
+Public Sub Form_Open()
+
+  Dim hRadioButton As RadioButton
+
+  txtSize.Value = Project.Config["/FImageOffsetSelection/Size", 1]
+  
+  hRadioButton = Me["rad" & Project.Config["/FImageOffsetSelection/Mode", "Shrink"]]
+  hRadioButton.Value = True
 
 End

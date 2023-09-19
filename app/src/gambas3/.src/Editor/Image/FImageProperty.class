@@ -1,6 +1,6 @@
 ' Gambas class file
 
-Private $aDefaultColor As Integer[] = [Color.Black, Color.White, Color.DarkGray, Color.Gray, Color.LightGray, Color.Blue, Color.Cyan, Color.Green, Color.Yellow, Color.Orange, Color.Red, Color.Magenta]
+Private $aDefaultColor As Integer[] = [Color.Black, Color.White, Color.DarkGray, &H606060, Color.Gray, &HA0A0A0, Color.LightGray, &HE0E0E0, Color.Blue, Color.Cyan, Color.Green, Color.Yellow, Color.Orange, Color.Red, Color.Magenta]
 
 Private $aGradient As New CReportBrush[]
 
@@ -38,6 +38,8 @@ Private $iNoUpdateBalance As Integer
 Private $bChangingTab As Boolean
 Private $bDoNotUpdateGrid As Boolean
 
+Private $hShowSelection As ImageSelectionBox
+
 'Static Public Value As String  '"radialgradient(0.5,0.5,1,0.5,0.5,[&hFFFFFF,&h000000,&h00FF00],[0,0.5,1])" '"lineargradient(0,0.5,1,0.5,[&hFFFFFF,&h000000,&h00FF00],[0,0.5,1])"
 
 Private Sub GetCurrent() As FImageEditor
@@ -66,6 +68,7 @@ Public Sub _new()
   $aGradient.Add(CReportBrush["LinearGradient(0,0.5,1,0.5,[#000000,#FFFFFF],[0,1])"])
   $aGradient.Add(CReportBrush["LinearGradient(0,0.5,1,0.5,[#000000,#FFFFFFFF],[0,1])"])
   
+  palColor.Size = Desktop.Scale * 4
   palColor.Colors = $aDefaultColor
   
   SetLineCap(Paint.LineCapButt)
@@ -105,6 +108,7 @@ Public Sub Form_Open()
   
   ReadConfig
   
+  LoadGrid
   InitSelection
   
   AddClipboard(Null, "")
@@ -1062,6 +1066,12 @@ Public Sub OnProjectActivate()
   
 End
 
+Public Sub OnProjectClose()
+  
+  SaveGrid
+  
+End
+
 Public Sub btnBalanceApply_Click()
 
   Try GetCurrent().ApplyBalance
@@ -1203,7 +1213,6 @@ Public Sub btnFlipH_Click()
 
 End
 
-
 Public Sub tabBrush_Click()
 
   If tabBrush.Text = ("Clipboard") Then
@@ -1213,13 +1222,12 @@ Public Sub tabBrush_Click()
 
 End
 
-
-
-Private Sub AddSelection(hImageSelection As CImageSelection, Optional bNoDelete As Boolean)
+Private Sub AddSelection(hImageSelection As CImageSelection, Optional bNoDelete As Boolean) As ImageSelectionBox
 
   Dim hSelBox As ImageSelectionBox
 
   hSelBox = New ImageSelectionBox(svwSelection, hImageSelection, bNoDelete) As "ImageSelection"
+  Return hSelBox
   
 End
 
@@ -1250,13 +1258,14 @@ Private Sub InitSelection()
 End
 
 Public Sub SaveSelection(hImageSelection As CImageSelection)
-  
-  AddSelection(hImageSelection)
+
+  $hShowSelection = AddSelection(hImageSelection)
   SaveAllSelections
   tabBrush.Index = 3
+  svwSelection.ScrollTo($hShowSelection)
+  $hShowSelection = Null
   
 End
-
 
 Private Sub UpdateGrid()
 
@@ -1584,5 +1593,31 @@ End
 Public Sub cmbOperator_Click()
 
   UpdateOperator
+
+End
+
+Private Sub SaveGrid()
+
+  Project.Config["/FImageProperty/Grid/Resolution"] = txtGridRes.Value
+  Project.Config["/FImageProperty/Grid/Snap"] = chkGridSnap.Value
+  Project.Config["/FImageProperty/Grid/SnapResolution"] = txtGridSnap.Value
+  Project.Config["/FImageProperty/Grid/Diagonals"] = chkGridDiag.Value
+  Project.Config["/FImageProperty/Grid/Lock"] = btnLockGrid.Value
+
+End
+
+Private Sub LoadGrid()
+
+  txtGridRes.Value = Project.Config["/FImageProperty/Grid/Resolution", 4]
+  chkGridSnap.Value = Project.Config["/FImageProperty/Grid/Snap", 0]
+  txtGridSnap.Value = Project.Config["/FImageProperty/Grid/SnapResolution", 1]
+  chkGridDiag.Value = Project.Config["/FImageProperty/Grid/Diagonals", 0]
+  btnLockGrid.Value = Project.Config["/FImageProperty/Grid/Lock", 0]
+
+End
+
+Public Sub cchColor_Activate()
+
+  RememberColor(cchColor.Value)
 
 End
