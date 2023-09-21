@@ -24,16 +24,16 @@
 #ifndef __MAIN_H
 #define __MAIN_H
 
-
-
 #include "gb_common.h"
 #include "gambas.h"
 #include "gb.compress.h"
 
-
+#define MAX_DRIVER 8
 
 #ifndef __MAIN_C
 extern GB_INTERFACE GB;
 #endif
+
 COMPRESS_DRIVER* COMPRESS_GetDriver(const char *type);
+
 #endif
