@@ -253,24 +253,29 @@ Public Sub View_MouseMove()
   Dim sColor As String
   Dim Y As Integer
   Dim X As Integer
+  Dim D As Integer
   
   'Debug
   
   If $iCount = 0 Then Return
   
-  X = Mouse.ScreenX - $hView.ScreenX + $hView.ScrollX
-  If X < 0 Then Return
-  X \= $iSize
-  Y = Mouse.ScreenY - $hView.ScreenY + $hView.ScrollY
-  If Y < 0 Then Return
-  Y \= $iSize
+  D = GetPadding()
   
-  If $bVertical Then
-    If Y >= $iCount Then Return
-    I = Y + X * $iCount
+  X = Mouse.ScreenX - $hView.ScreenX + $hView.ScrollX - D
+  If X >= 0 Then X \= $iSize
+  Y = Mouse.ScreenY - $hView.ScreenY + $hView.ScrollY - D
+  If Y >= 0 Then Y \= $iSize
+  
+  If X >= 0 And If Y >= 0 Then
+    If $bVertical Then
+      If Y >= $iCount Then Return
+      I = Y + X * $iCount
+    Else
+      If X >= $iCount Then Return
+      I = X + Y * $iCount
+    Endif
   Else
-    If X >= $iCount Then Return
-    I = X + Y * $iCount
+    I = -1
   Endif
   
   If I < 0 Or If I > $aColors.Max Then I = -1
