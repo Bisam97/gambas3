@@ -7,19 +7,19 @@ Static Private $aBrowser As String[] = ["konqueror", "rekonq", "firefox", "icewe
 'Static Private $aImageEditor As String[] = ["gimp", "kolourpaint", "krita"]
 Static Private $aMessageBoxStyle As String[] = ["default", "flat"]
 Static Private $aMessageBoxStyleName As String[] = [("Default"), ("Flat")]
-Static Private $cLayoutName As Collection
 
 Private $bNoChange As Boolean
 Private $aConfig As Variant[][]
 Private $sStyle As String
 Private $hDraw As DrawingArea
 Private $hDownloadHelp As DownloadManager
-Private $aLayout As String[]
 
 Private $hLastTheme As TextHighlighterTheme
 Private $hTheme As TextHighlighterTheme
 Private $aHighlightTypes As String[]
 Private $aHighlightNames As String[]
+
+Private $bSaveCurrentLayout As Boolean
 
 Private Sub ReadConfig()
   
@@ -337,7 +337,7 @@ Public Sub btnUndo_Click()
 
 End
 
-Private Sub RefreshWindow()
+Public Sub RefreshWindow()
   
   Dim hFile As Object
   
@@ -859,6 +859,7 @@ End
 
 Public Sub Form_Open()
 
+  $bSaveCurrentLayout = False
   Me.Center
   btnClose.Raise
 
@@ -1134,8 +1135,12 @@ Public Sub ipnOption_Click()
       
     Case ("Interface")
       
-      SetCurrentLayout
-      If Not $aLayout Then RefreshLayout
+      CLayout.Init
+      If Not $bSaveCurrentLayout Then
+        CLayout.SaveCurrent
+        $bSaveCurrentLayout = True
+      Endif
+      RefreshLayout
     
   End Select
   
@@ -1363,6 +1368,7 @@ End
 
 Public Sub Form_Close()
 
+  CLayout.Exit
   Settings.Save
 
 End
@@ -1648,72 +1654,9 @@ Public Sub txtPrintFont_Click()
 
 End
 
-Private Sub GetLayoutDir() As String
-  
-  Return Desktop.DataDir &/ "gambas3/layout"
-  
-End
-
-
-Private Sub GetLayoutPath(sFile As String) As String
-  
-  If sFile Then
-    Return GetLayoutDir() &/ sFile & ".layout"
-  Else
-    Return Temp$("layout")
-  Endif
-  
-End
-
 Private Sub RefreshLayout()
 
-  Dim sFile As String
-  Dim sLang As String
-  Dim iPos As Integer
-  Dim sFullLang As String
-  Dim sName As String
-  Dim sDir As String
-
-  If Not $cLayoutName Then
-    $cLayoutName = New Collection
-    $cLayoutName["$default"] = ("Default")
-    $cLayoutName["$compact"] = ("Compact")
-  Endif
-  
-  sLang = System.Language
-  iPos = InStr(sLang, ".")
-  If iPos Then sLang = Left(sLang, iPos - 1)
-  iPos = InStr(sLang, "_")
-  If iPos Then
-    sFullLang = sLang
-    sLang = Left(sLang, iPos - 1)
-  Endif
-  
-  $aLayout = New String[]
-  
-  $aLayout.Add("")
-  $aLayout.Add("<i>" & ("Current") & "</i>")
-  
-  sDir = GetLayoutDir()
-
-  For Each sFile In Dir("layout", "*.layout").Sort(gb.Natural)
-    If Exist(sDir &/ sFile) Then Continue
-    sName = File.BaseName(sFile)
-    $aLayout.Add(sName)
-    If $cLayoutName.Exist(sName) Then sName = $cLayoutName[sName]
-    $aLayout.Add(Html(sName))
-  Next
-  
-  If IsDir(sDir) Then
-    For Each sFile In Dir(sDir, "*.layout").Sort(gb.Natural)
-      sName = File.BaseName(sFile)
-      $aLayout.Add(sName)
-      If $cLayoutName.Exist(sName) Then sName = $cLayoutName[sName]
-      $aLayout.Add(Html(sName))
-    Next
-  Endif
-  
-  gvwLayout.Rows.Count = $aLayout.Count \ 2
+  gvwLayout.Rows.Count = CLayout.All.Count + 1
   
   Object.Lock(gvwLayout)
   gvwLayout.Row = 0
@@ -1723,144 +1666,51 @@ End
 
 Public Sub gvwLayout_Data(Row As Integer, (Column) As Integer)
   
-  gvwLayout.Data.RichText = $aLayout[Row * 2 + 1]
-  
-End
-
-Private Sub SaveLayout(Optional sFile As String)
-
-  Dim sPath As String
-  Dim hSettings As Settings
-  
-  sPath = GetLayoutPath(sFile)
-  If sFile And If Exist(sPath) Then
-    If Message.Question(("Do you really want to override the existing layout?"), ("Override"), ("Cancel")) <> 1 Then Return
+  If Row = 0 Then
+    gvwLayout.Data.RichText = "<i>" & ("Current") & "</i>"
+  Else
+    gvwLayout.Data.Text = CLayout.All[Row - 1].Name
   Endif
   
-  Shell.MkDir(File.Dir(sPath))
-  hSettings = New Settings(sPath, "Gambas IDE layout")
-  
-  hSettings["Toolbar/Main"] = ToolBar.GetLayout("FMain.main")
-  hSettings["Toolbar/Editor"] = ToolBar.GetLayout("FEditor.editor")
-  hSettings["Toolbar/Text"] = ToolBar.GetLayout("FTextEditor.text")
-  hSettings["Toolbar/Connection"] = ToolBar.GetLayout("FConnectionEditor.connection")
-  hSettings["Toolbar/Form"] = ToolBar.GetLayout("FForm.form")
-  hSettings["Toolbar/Image"] = ToolBar.GetLayout("FImageEditor.image")
-  hSettings["ShowMenus"] = Settings["/ShowMenus"]
-  hSettings["Toolbox/Size"] = Settings["/Toolbox/Size"]
-  hSettings["CloseWithMiddleClick"] = Settings["/CloseWithMiddleClick"]
-  hSettings["ProjectFontSize"] = Settings["/ProjectFontSize"]
-  hSettings["TitleFontSize"] = Settings["/TitleFontSize"]
-  hSettings["DebuggerFontSize"] = Settings["/DebuggerFontSize"]
-  hSettings["Help/Zoom"] = Settings["/Help/Zoom"]
-  hSettings["Property/Help"] = Not FProperty.IsHelpHidden()
-  hSettings["/Editor/InvertTheme"] = Settings["/Editor/InvertTheme"]
-  
-  hSettings.Save
-  
 End
-
-Private Sub LoadLayout(sName As String)
-
-  Dim sPath As String
-  Dim sKey As String
-  Dim hSettings As Settings
-  Dim sSlot As String
-  Dim vVal As Variant
-  
-  Inc Application.Busy
-  
-  sPath = GetLayoutPath(sName)
-  If Not Exist(sPath) Then sPath = "./layout" &/ sName & ".layout"
-  
-  hSettings = New Settings(sPath, "Gambas IDE layout")
-
-  ' Toolbars last
-
-  For Each sSlot In hSettings.Keys
-    For Each sKey In hSettings.Keys[sSlot]
-      vVal = hSettings[sSlot &/ sKey]
-      If sSlot = "Toolbar" Then Continue
-      If sSlot = "Property" And If sKey = "Help" Then
-        FProperty.ShowHelp(vVal)
-      Else
-        Settings[sSlot &/ sKey] = vVal
-      Endif
-    Next
-  Next
-  
-  RefreshWindow
-  
-  For Each sKey In hSettings.Keys["Toolbar"]
-    vVal = hSettings[sSlot &/ sKey]
-    ToolBar.SetLayout(sKey, vVal)
-  Next
-  
-Finally
-  
-  Dec Application.Busy
-  
-Catch
-  
-  Error.Propagate()
-  
-End
-
 
 Public Sub btnSaveLayout_Click()
 
+  Dim hLayout As CLayout
   Dim sName As String
 
-  If gvwLayout.Row > 0 Then sName = $aLayout[gvwLayout.Row * 2 + 1]
+  If gvwLayout.Row <= 0 Then Return
 
-  If FLayout.Run($aLayout, sName) Then Return
-  
-  SaveLayout(FLayout.LayoutName)
-  RefreshLayout
-
-End
-
-Private Sub RemoveLayout(sFile As String)
-
-  Dim sPath As String
-
-  sPath = GetLayoutPath(sFile)
-  Try Kill sPath
+  hLayout = CLayout.All[gvwLayout.Row - 1]
+  If Not hLayout.IsDefault() Then sName = hLayout.Name
+  If FLayout.Run(sName) Then Return
+  hLayout.Save(FLayout.LayoutName)
   RefreshLayout
 
 End
 
 Public Sub btnDeleteLayout_Click()
 
+  If gvwLayout.Row <= 0 Then Return
   If Message.Warning(("Do you really want to delete that layout?"), ("Delete"), ("Cancel")) <> 1 Then Return
-  
-  RemoveLayout($aLayout[gvwLayout.Row * 2])
+  CLayout.All[gvwLayout.Row - 1].Remove()
+  RefreshLayout
 
 End
 
 Public Sub gvwLayout_Select()
 
-  Dim sName As String
+  Dim hLayout As CLayout
 
-  If gvwLayout.Row < 0 Then
+  If gvwLayout.Row <= 0 Then
     btnDeleteLayout.Enabled = False
+    If gvwLayout.Row = 0 Then CLayout.LoadCurrent()
     Return
   Endif
 
-  sName = $aLayout[gvwLayout.Row * 2]
-  If sName Then
-    btnDeleteLayout.Enabled = Exist(GetLayoutPath(sName)) 
-  Else 
-    btnDeleteLayout.Enabled = False
-  Endif 
-  
-  LoadLayout(sName)
-
-End
-
-Private Sub SetCurrentLayout()
-
-  SaveLayout()
+  hLayout = CLayout.All[gvwLayout.Row - 1]
+  btnDeleteLayout.Enabled = Not hLayout.IsDefault()
+  hLayout.Load()
 
 End
 

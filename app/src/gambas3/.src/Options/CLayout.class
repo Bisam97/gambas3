@@ -1,0 +1,186 @@
+' Gambas class file
+
+Static Public All As New CLayout[]
+
+Static Private $cLayoutName As Collection
+
+Public Name As String
+Public Path As String
+
+Static Private Sub GetLayoutPath(Optional sName As String) As String
+  
+  Dim sPath As String
+  
+  sPath = Desktop.DataDir &/ "gambas3/layout"
+  If sName Then sPath &/= sName & ".layout"
+  Return sPath
+  
+End
+
+Static Public Sub Init()
+  
+  Dim sFile As String
+  Dim hLayout As CLayout
+  Dim sDir As String
+  
+  If $cLayoutName Then Return
+  
+  $cLayoutName = New Collection
+  $cLayoutName["$default"] = ("Default")
+  $cLayoutName["$compact"] = ("Compact")
+  
+  For Each sFile In Dir("layout", "*.layout").Sort(gb.Natural)
+    hLayout = New CLayout("layout/" & sFile, $cLayoutName[File.BaseName(sFile)])
+  Next
+  
+  sDir = GetLayoutPath()
+  If IsDir(sDir) Then
+    For Each sFile In Dir(sDir, "*.layout").Sort(gb.Natural)
+      hLayout = New CLayout(sDir &/ sFile)
+    Next
+  Endif
+  
+End
+
+Static Public Sub Exit()
+  
+  All = Null
+  
+End
+
+Static Public Sub SaveAs(sPath As String)
+  
+  Dim hSettings As Settings
+  Dim bCreate As Boolean
+  Dim hLayout As CLayout
+  Dim sKey As String
+  
+  If sPath <> Temp$("layout") Then
+    If Exist(sPath) Then
+      If Message.Question(("Do you really want to override the existing layout?"), ("Override"), ("Cancel")) <> 1 Then Return
+    Else 
+      bCreate = True
+    Endif
+  Endif
+  
+  Shell.MkDir(File.Dir(sPath))
+  hSettings = New Settings(sPath, "Gambas IDE layout")
+  
+  For Each sKey In ["FMain.main", "FEditor.editor", "FTextEditor.text", "FConnectionEditor.connection", "FForm.form", "FImageEditor.image"]
+    hSettings["Toolbar" &/ sKey] = ToolBar.GetLayout(sKey)
+  Next
+  
+  hSettings["ShowMenus"] = Settings["/ShowMenus"]
+  hSettings["Toolbox/Size"] = Settings["/Toolbox/Size"]
+  hSettings["CloseWithMiddleClick"] = Settings["/CloseWithMiddleClick"]
+  hSettings["ProjectFontSize"] = Settings["/ProjectFontSize"]
+  hSettings["TitleFontSize"] = Settings["/TitleFontSize"]
+  hSettings["DebuggerFontSize"] = Settings["/DebuggerFontSize"]
+  hSettings["Help/Zoom"] = Settings["/Help/Zoom"]
+  hSettings["Property/Help"] = Not FProperty.IsHelpHidden()
+  hSettings["/Editor/InvertTheme"] = Settings["/Editor/InvertTheme"]
+  
+  hSettings.Save
+  
+  If bCreate Then hLayout = New CLayout(sPath)
+  
+End
+
+Static Public Sub SaveCurrent()
+  
+  SaveAs(Temp$("layout"))
+  
+End
+
+Static Public Sub LoadFrom(Optional sPath As String)
+  
+  Dim sKey As String
+  Dim hSettings As Settings
+  Dim sSlot As String
+  Dim vVal As Variant
+  
+  If Not Exist(sPath) Then Return
+  
+  Inc Application.Busy
+  
+  hSettings = New Settings(sPath, "Gambas IDE layout")
+  
+  ' Toolbars last
+  
+  For Each sSlot In hSettings.Keys
+    For Each sKey In hSettings.Keys[sSlot]
+      vVal = hSettings[sSlot &/ sKey]
+      If sSlot = "Toolbar" Then Continue
+      If sSlot = "Property" And If sKey = "Help" Then
+        FProperty.ShowHelp(vVal)
+      Else
+        Settings[sSlot &/ sKey] = vVal
+      Endif
+    Next
+  Next
+  
+  FOption.RefreshWindow
+  
+  For Each sKey In hSettings.Keys["Toolbar"]
+    vVal = hSettings["Toolbar" &/ sKey]
+    ToolBar.SetLayout(sKey, vVal)
+  Next
+  
+Finally
+  
+  Dec Application.Busy
+  
+Catch
+  
+  Error.Propagate()
+  
+End
+
+Static Public Sub LoadCurrent()
+  
+  LoadFrom(Temp$("layout"))
+  
+End
+
+Public Sub _new(sPath As String, Optional sName As String)
+  
+  Path = sPath
+  If File.IsRelative(sPath) Then Path = "./" &/ sPath
+  If sName Then 
+    Name = sName
+  Else 
+    Name = File.BaseName(sPath)
+  Endif
+  
+  All.Add(Me)
+  
+End
+
+Public Sub IsDefault() As Boolean
+  
+  Return File.IsRelative(Path)
+  
+End
+
+Public Sub Load()
+  
+  LoadFrom(Path)
+  
+End
+
+Public Sub Save(Optional sName As String)
+  
+  If Not sName Then
+    SaveAs(Path)
+  Else 
+    SaveAs(GetLayoutPath(sName))
+  Endif 
+  
+End
+
+Public Sub Remove()
+  
+  All.Remove(All.FindByRef(Me))
+  Try Kill Path
+  
+End
