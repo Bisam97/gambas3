@@ -984,10 +984,15 @@ End
 Public Sub TreeView_Activate()
   
   Dim hItem As _TreeView_Item
+  Dim sPath As String
   
   If $bHasJustExpanded Then Return
   hItem = $hTree.Current
-  If hItem.Children Then Try hItem.Expanded = False
+  If hItem.Children Then
+    sPath = hItem.Key
+    If Exist(sPath) And If Not IsDir(sPath) Then Return
+    Try hItem.Expanded = False
+  Endif
   
 End
     
