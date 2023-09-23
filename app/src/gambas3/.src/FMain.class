@@ -2207,54 +2207,64 @@ End
 Public Sub Form_KeyPress()
   
   Dim hEditor As FEditor
+  Dim sKey As String
   
-  If Key.Code = Key.Escape Then 
+  sKey = Key.Shortcut
+  
+  Select Case sKey
     
-    If $bInRename Then Return ' Prevent Balloon.Hide from calling WAIT, reentering the event loop, and crashing Qt.
+    Case "Escape"
     
-    ' Top-level forms get key event before now.
-    Try hEditor = Project.ActiveForm
-    If hEditor Then
-      If FCompletion.VisibleFrom(hEditor.GetEditor()) Then Return
-      If FSignature.VisibleFrom(hEditor.GetEditor()) Then Return
-    Endif
+      If $bInRename Then Return ' Prevent Balloon.Hide from calling WAIT, reentering the event loop, and crashing Qt.
+      
+      ' Top-level forms get key event before now.
+      Try hEditor = Project.ActiveForm
+      If hEditor Then
+        If FCompletion.VisibleFrom(hEditor.GetEditor()) Then Return
+        If FSignature.VisibleFrom(hEditor.GetEditor()) Then Return
+      Endif
+      
+      If FSearch.IsSearching() Then
+        FSearch.Cancel
+        Return
+      Endif
+      
+      If FDebugger.IsEditing() Then
+        Return
+      Endif
+      
+      HidePanels
+      FProperty.HideProperty
+      Try Project.ActiveForm.SetFocus
+      
+    Case "Ctrl+Shift+Alt+Meta+L"
+      
+      Desktop.Open("https://www.linkedin.com/")
     
-    If FSearch.IsSearching() Then
-      FSearch.Cancel
-      Return
-    Endif
+    Case "Ctrl+Alt+M"
+      
+      If Me.Menus.Visible Then
+        mnuHideMenu_Click
+      Else
+        btnShowMenu_Click
+      Endif
+      
+    Case "Ctrl+L"
     
-    If FDebugger.IsEditing() Then
-      Return
-    Endif
+      txtSearchProject.SetFocus
     
-    HidePanels
-    FProperty.HideProperty
-    Try Project.ActiveForm.SetFocus
+    Case "Shift+F2"
     
-  Else If Key.Code = Key["M"] And If Key.Control And If Key.Alt Then
-    If Me.Menus.Visible Then
-      mnuHideMenu_Click
-    Else
-      btnShowMenu_Click
-    Endif
-    
-  Else If Key.Code = Key["L"] And If Key.Control Then
-    
-    txtSearchProject.SetFocus
-    
-  Else If Key.Code = Key.F2 Then
-    
-    If Key.Shift Then 
       CPosition.MovePrevious
       Stop Event
-    Endif
+      
+    Case Else
     
-  Else If Shortcut.FromKey() = Action["test"].Shortcut Then
+      If sKey = Action["test"].Shortcut Then
+        If Project.Path And If Project.HasTest() Then Project.Test()
+      Endif
     
-    Project.Test()
-    
-  Endif
+  End Select
   
 End
 
