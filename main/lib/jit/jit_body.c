@@ -3781,7 +3781,7 @@ _ON_GOTO_GOSUB:
 	for (i = 0; i < index; i++)
 	{
 		if (i) JIT_print(", ");
-		JIT_print("&&__L%d", PC[i] + p + i);
+		JIT_print("&&__L%d", (signed short)PC[i] + p + i);
 	}
 	
 	JIT_print(" };\n");
