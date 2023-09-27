@@ -313,6 +313,7 @@ Public Sub Main()
   Dim sArg As String
   Dim aOpenFile As New String[]
   Dim sLang As String
+  Dim bMakeIcon As Boolean
 
   'DB.Debug = True
   
@@ -327,7 +328,7 @@ Public Sub Main()
       $bTesting = True
       Continue
     Else If sArg = "--help" Or If sArg = "-h" Then
-      Print File.Load("usage")
+      PrintUsage
       Quit
     Else If sArg = "--license" Or If sArg = "-L" Then
       Print Replace(File.Load("license"), "YEAR", CStr(Year(Now)))
@@ -347,6 +348,8 @@ Public Sub Main()
       InitVersion
       Print FSystemInfo.GetInfo().Join("\n")
       Quit
+    Else If sArg = "--update-icon" Then
+      bMakeIcon = True
     Else If Left(sArg) = "-" Then
       Error "gambas3: unknown option: " & sArg
       Quit 1
@@ -358,6 +361,20 @@ Public Sub Main()
       Endif
     Endif
   Next
+  
+  If bMakeIcon Then
+    
+    If Not sPath Or If File.IsRelative(sPath) Then
+      sPath = Application.Dir &/ sPath
+    Endif
+    
+    If MakeDirectoryIcon(sPath) Then
+      Quit 1
+    Else
+      Quit
+    Endif
+    
+  Endif
 
   Try Component.Load("gb.inotify")
   Try Component.Load("gb.media")
@@ -887,6 +904,7 @@ _INIT_AGAIN:
     If Settings["/RestoreFiles", 1] Then LoadLastOpenedFiles
   Endif
   
+  MakeDirectoryIcon
   RecentFiles = New String[]
   CPosition.Clear
 
@@ -5421,27 +5439,29 @@ Public Sub GetTranslations() As String[]
 End
 
 
-Public Sub MakeDirectoryIcon(Optional sDir As String)
+Public Sub MakeDirectoryIcon(Optional sDir As String) As Boolean
 
-  Dim sIcon As String
   Dim hDirIcon As Image
   Dim hIcon As Image
   Dim bExist As Boolean
   Dim sPath As String
+  Dim bLocalize As Boolean
 
-  If Not sDir Then sDir = Project.Dir
-  
-  If Project.Icon Then 
-    sIcon = sDir &/ Project.Icon
+  If Not sDir Then
+    sDir = Project.Dir
+    bLocalize = Project.Localize
   Else
-    sIcon = "img/logo/project.png"
+    bLocalize = InStr(File.Load(sDir &/ ".project"), "\nTranslate=1")
   Endif
+  
+  hDirIcon = Picture["icon:/256/directory"].Image
 
-  hDirIcon = Image.Load("img/logo/folder.png")
-
-  Try hIcon = StretchIcon(sIcon, 128)
-  If hIcon Then hDirIcon.PaintImage(hIcon, 64, 88)
-
+  Try hIcon = GetIcon(sDir, 96).Image
+  If hIcon Then hDirIcon.PaintImage(hIcon, 80, 104)
+  
+  hIcon = Picture["icon:/64/language"].Image
+  If bLocalize Then hDirIcon.PaintImage(hIcon, hDirIcon.W - hIcon.W, hDirIcon.H - hIcon.H)
+  
   Try Kill sDir &/ ".icon.png"
   hDirIcon.Save(sDir &/ ".icon.png")
 
@@ -5452,7 +5472,8 @@ Public Sub MakeDirectoryIcon(Optional sDir As String)
 
 Catch
 
-  Error "gambas3: warning: unable to create project directory icon"
+  Error "gambas3: warning: unable to create project directory icon: "; Error.Text
+  Return True
 
 End
 
@@ -7077,4 +7098,47 @@ Public Sub GetMessagePrefix(sPath As String) As String
   If sPath Begins Project.Dir & "/" Then sPath = Mid$(sPath, Len(Project.Dir) + 2)
   Return "<tt><b>" & Html(sPath) & "</b></tt>\n\n"
   
+End
+
+Private Sub PrintUsage()
+
+  Print
+  Print ("Gambas 3 Integrated Development Environment")
+  Print
+  Print ("Usage:")
+  Print
+  Print "$ gambas3 [<"; ("project directory"); "> [<"; ("project file"); "> ...]]"
+  Print
+  Print "  "; ("Open the IDE with the specified project, optionally opening the specified project files.")
+  Print "  "; ("If no argument is specified, open the IDE with a nice welcome dialog.")
+  Print
+  Print "$ gambas3 <"; ("any file"); ">"
+  Print
+  Print "  "; ("Open the IDE for editing the specified file if the IDE has an editor for it.")
+  Print
+  Print "$ gambas3 --cleanup <"; ("project directory"); ">"
+  Print
+  Print "  "; ("Clean the project directory up (i.e. remove temporary, generated, and backup files).")
+  Print
+  Print "$ gambas3 --system-information | -i"
+  Print
+  Print "  "; ("Print system information.")
+  Print
+  Print "$ gambas3 --update-icon <"; ("project directory"); ">"
+  Print
+  Print "  "; ("Update project directory icon.")
+  Print
+  Print "$ gambas3 --version | -V"
+  Print
+  Print "  "; ("Display Gambas version.")
+  Print
+  Print "$ gambas3 --license | -L"
+  Print
+  Print "  "; ("Display Gambas license.")
+  Print
+  Print "$ gambas3 --help"
+  Print
+  Print "  "; ("Display this help.")
+  Print
+
 End
