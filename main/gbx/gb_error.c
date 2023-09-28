@@ -128,7 +128,7 @@ static const char *const _message[78] =
 	/* 74 E_MARRAY      */ "Multidimensional array",
 	/* 75 E_UCLASS      */ ".1Unknown class '&1'",
 	/* 76 E_SPEC        */ ".2Incorrect declaration of symbol '&1' in class '&2'",
-	/* 77 E_USIZE       */ "Unknow stream size"
+	/* 77 E_USIZE       */ "Unknown stream size"
 };
 
 static void clear_info(ERROR_INFO *info)
