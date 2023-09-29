@@ -465,12 +465,18 @@ SUBR_INFO COMP_subr_info[] =
 
 	{ ".Close",            57,  0, T_VOID,         1     },
 	{ ".Flush",            57,  1, T_VOID,         1     },
-	{ ".InputFrom",        57,  2, T_VOID,         1     }, // can merge with .Close
-	{ ".OutputTo",         57,  3, T_VOID,         1     }, // can merge with .Close
-	{ ".ErrorTo",          57,  4, T_VOID,         1     }, // can merge with .Close
+	{ ".InputFrom",        57,  2, T_VOID,         1     },
+	{ ".OutputTo",         57,  3, T_VOID,         1     },
+	{ ".ErrorTo",          57,  4, T_VOID,         1     },
+	{ ".LineInput",        57,  5, T_STRING,       1     },
+	{ ".Lock",             57,  6, T_OBJECT,       1     },
+	{ ".Unlock",           57,  7, T_VOID,         1     },
+	{ ".LockWait",         57,  8, T_VOID,         2     },
 
 	{ ".Input",            58,  0, T_STRING,       0,  1 },
-	{ ".LineInput",        59,  0, T_STRING,       1     },
+
+	{ "#.LineInput",       59,  0, T_STRING,       1     },
+
 	{ ".Print",            60,  0, T_VOID,         1, 63 },
 
 	{ ".Read",             61,  0, RST_READ,       2,    },
@@ -482,9 +488,9 @@ SUBR_INFO COMP_subr_info[] =
 
 	{ "#.Flush",           63,  0, T_VOID,         1     },
 
-	{ ".Lock",             64,  0, T_OBJECT,       1     }, // can merge with .Close
-	{ ".Unlock",           64,  1, T_VOID,         1     }, // can merge with .Close
-	{ ".LockWait",         64,  2, T_VOID,         2     }, // can merge with .Close ?
+	{ "#.Lock",            64,  0, T_OBJECT,       1     },
+	{ "#.Unlock",          64,  1, T_VOID,         1     },
+	{ "#.LockWait",        64,  2, T_VOID,         2     },
 
 	{ "#.InputFrom",       65,  0, T_VOID,         1     },
 	{ "#.OutputTo",        65,  1, T_VOID,         1     },

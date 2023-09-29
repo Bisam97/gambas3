@@ -65,6 +65,14 @@ SUBR_INFO *TRANS_find_subr(int index)
 			index = SUBR_find("#.OutputTo");
 		else if (info->optype == 4)
 			index = SUBR_find("#.ErrorFrom");
+		else if (info->optype == 5)
+			index = SUBR_find("#.LineInput");
+		else if (info->optype == 6)
+			index = SUBR_find("#.Lock");
+		else if (info->optype == 7)
+			index = SUBR_find("#.Unlock");
+		else if (info->optype == 8)
+			index = SUBR_find("#.LockWait");
 	}
 
 	return &COMP_subr_info[index];

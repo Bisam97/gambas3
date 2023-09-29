@@ -2887,7 +2887,7 @@ bool JIT_translate_body(FUNCTION *func, int ind)
 		/* 76 Debug           */  &&_SUBR_CODE,
 		/* 77 Wait            */  &&_SUBR_CODE,
 		/* 78 Open            */  &&_SUBR_CODE,
-		/* 79 Close           */  &&_SUBR,
+		/* 79 Close           */  &&_SUBR_CODE,
 		/* 7A Input           */  &&_SUBR_CODE,
 		/* 7B LineInput       */  &&_SUBR,
 		/* 7C Print           */  &&_SUBR_CODE,

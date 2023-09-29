@@ -252,13 +252,58 @@ void SUBR_open(ushort code)
 }
 
 
+static void do_lock(bool wait)
+{
+	SUBR_ENTER_PARAM(wait ? 2 : 1);
+	STREAM stream;
+	CFILE *file;
+	const char *path = get_path(PARAM);
+	double next, timer;
+
+	if (FILE_is_relative(path))
+		THROW(E_BADPATH);
+
+	if (wait)
+	{
+		DATE_timer(&next, FALSE);
+		next += SUBR_get_float(&PARAM[1]);
+	}
+
+	for(;;)
+	{
+		STREAM_open(&stream, path, GB_ST_LOCK);
+
+		if (!STREAM_lock_all(&stream) && FILE_exist(path))
+			break;
+
+		STREAM_close(&stream);
+
+		if (wait)
+		{
+			DATE_timer(&timer, FALSE);
+			if (timer < next)
+			{
+				usleep(10000);
+				continue;
+			}
+		}
+
+		THROW(E_LOCK);
+	}
+
+	file = CFILE_create(&stream, GB_ST_LOCK);
+	OBJECT_put(RETURN, file);
+	SUBR_LEAVE();
+}
+
 void SUBR_close(ushort code)
 {
-	static void *jump[] = { &&__CLOSE, &&__FLUSH, &&__INP_OUT, &&__INP_OUT, &&__INP_OUT};
+	static void *jump[] = { &&__CLOSE, &&__FLUSH, &&__INP_OUT, &&__INP_OUT, &&__INP_OUT, &&__LINE_INPUT, &&__LOCK, &&__UNLOCK, &&__LOCK };
 
 	STREAM *stream;
 	CSTREAM *cstream;
 	void **where;
+	char *addr;
 
 	SUBR_ENTER_PARAM(1);
 
@@ -322,6 +367,35 @@ __INP_OUT:
 
 	SUBR_LEAVE_VOID();
 	return;
+
+__LINE_INPUT:
+
+	stream = get_stream(&SP[-1], TRUE);
+
+	addr = STREAM_line_input(stream, NULL);
+
+	SP--;
+	if (!TYPE_is_integer(SP->type))
+		RELEASE_OBJECT(SP);
+
+	SP->type = T_STRING;
+	SP->_string.addr = addr;
+	SP->_string.start = 0;
+	SP->_string.len = STRING_length(addr);
+
+	SP++;
+	return;
+
+__UNLOCK:
+
+	STREAM_close(get_stream(PARAM, FALSE));
+	SUBR_LEAVE_VOID();
+	return;
+
+__LOCK:
+
+	do_lock(code == 8);
+	return;
 }
 
 
@@ -367,23 +441,7 @@ void SUBR_print(ushort code)
 
 void SUBR_linput(void)
 {
-	STREAM *stream;
-	char *addr;
-
-	stream = get_stream(&SP[-1], TRUE);
-
-	addr = STREAM_line_input(stream, NULL);
-
-	SP--;
-	if (!TYPE_is_integer(SP->type))
-		RELEASE_OBJECT(SP);
-	
-	SP->type = T_STRING;
-	SP->_string.addr = addr;
-	SP->_string.start = 0;
-	SP->_string.len = STRING_length(addr);
-	
-	SP++;
+	SUBR_close(5);
 }
 
 
@@ -1047,57 +1105,7 @@ void SUBR_access(ushort code)
 
 void SUBR_lock(ushort code)
 {
-	code &= 0x1F;
-
-	if (code == 1)
-	{
-		SUBR_ENTER_PARAM(1);
-		STREAM_close(get_stream(PARAM, FALSE));
-		SUBR_LEAVE_VOID();
-	}
-	else
-	{
-		SUBR_ENTER_PARAM((code == 2) ? 2 : 1);
-		STREAM stream;
-		CFILE *file;
-		const char *path = get_path(PARAM);
-		double wait, timer;
-
-		if (FILE_is_relative(path))
-			THROW(E_BADPATH);
-
-		if (code == 2)
-		{
-			DATE_timer(&wait, FALSE);
-			wait += SUBR_get_float(&PARAM[1]);
-		}
-
-		for(;;)
-		{
-			STREAM_open(&stream, path, GB_ST_LOCK);
-			
-			if (!STREAM_lock_all(&stream) && FILE_exist(path))
-				break;
-			
-			STREAM_close(&stream);
-			
-			if (code == 2)
-			{
-				DATE_timer(&timer, FALSE);
-				if (timer < wait)
-				{
-					usleep(10000);
-					continue;
-				}
-			}
-
-			THROW(E_LOCK);
-		}
-
-		file = CFILE_create(&stream, GB_ST_LOCK);
-		OBJECT_put(RETURN, file);
-		SUBR_LEAVE();
-	}
+	SUBR_close((code & 0x1F) + 6);
 }
 
 
