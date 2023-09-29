@@ -236,6 +236,7 @@ void TRANS_stop(void);
 
 // gbc_trans_subr.c
 
+SUBR_INFO *TRANS_find_subr(int index);
 void TRANS_subr(int subr, int nparam);
 
 void TRANS_print(void);

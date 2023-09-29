@@ -129,7 +129,6 @@ void SUBR_int(ushort code);
 void SUBR_abs(ushort code);
 void SUBR_fix(ushort code);
 void SUBR_sgn(ushort code);
-void SUBR_pi(ushort code);
 void SUBR_math(ushort code);
 void SUBR_math2(ushort code);
 
@@ -191,6 +190,7 @@ void SUBR_str(void);
 void SUBR_val(void);
 void SUBR_format(ushort code);
 void SUBR_hex_bin(ushort code);
+void SUBR_base(ushort code);
 
 /* subr_time.c */
 
@@ -205,7 +205,7 @@ void SUBR_week(ushort code);
 /* subr_file.c */
 
 void SUBR_open(ushort code);
-void SUBR_close(void);
+void SUBR_close(ushort code);
 void SUBR_print(ushort code);
 void SUBR_linput(void);
 void SUBR_eof(ushort code);

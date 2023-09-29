@@ -721,7 +721,7 @@ GB_DESC ColorDesc[] =
   GB_CONSTANT("DarkPurple", "i", 0x800040),
   GB_CONSTANT("SoftPurple", "i", 0xFF80C0),
 
-  GB_CONSTANT("Transparent", "i", 0xFF000000),
+  GB_CONSTANT("Transparent", "i", GB_COLOR_TRANSPARENT),
 
   GB_STATIC_METHOD("RGB", "i", Color_RGB, "(Red)i(Green)i(Blue)i[(Alpha)i]"),
   GB_STATIC_METHOD("HSV", "i", Color_HSV, "(Hue)i(Saturation)i(Value)i[(Alpha)i]"),

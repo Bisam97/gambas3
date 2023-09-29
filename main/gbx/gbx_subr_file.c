@@ -49,6 +49,8 @@ static void *_default_in = NULL;
 static void *_default_out = NULL;
 static void *_default_err = NULL;
 
+static void **_default_list[3] = { &_default_in, &_default_out, &_default_err };
+
 static GB_ARRAY _result;
 static char *_pattern;
 static int _len_pattern;
@@ -250,11 +252,20 @@ void SUBR_open(ushort code)
 }
 
 
-void SUBR_close(void)
+void SUBR_close(ushort code)
 {
+	static void *jump[] = { &&__CLOSE, &&__FLUSH, &&__INP_OUT, &&__INP_OUT, &&__INP_OUT};
+
 	STREAM *stream;
+	CSTREAM *cstream;
+	void **where;
 
 	SUBR_ENTER_PARAM(1);
+
+	code &= 0x1F;
+	goto *jump[code];
+
+__CLOSE:
 
 	stream = get_stream(PARAM, FALSE);
 
@@ -280,16 +291,43 @@ void SUBR_close(void)
 		STREAM_close(stream);
 		SUBR_LEAVE_VOID();
 	}
+
+	return;
+
+__FLUSH:
+
+	STREAM_flush(get_stream(PARAM, TRUE));
+
+	SUBR_LEAVE_VOID();
+	return;
+
+__INP_OUT:
+
+	where = _default_list[code - 2];
+
+	if (VALUE_is_null(PARAM))
+	{
+		cstream = pop_stream(where);
+		if (cstream)
+			OBJECT_UNREF(cstream);
+		return;
+	}
+
+	VALUE_conv_object(PARAM, (TYPE)CLASS_Stream);
+
+	cstream = PARAM->_object.object;
+	OBJECT_REF(cstream);
+
+	push_stream(where, cstream);
+
+	SUBR_LEAVE_VOID();
+	return;
 }
 
 
 void SUBR_flush(void)
 {
-	SUBR_ENTER_PARAM(1);
-
-	STREAM_flush(get_stream(PARAM, TRUE));
-
-	SUBR_LEAVE_VOID();
+	SUBR_close(1);
 }
 
 
@@ -1065,34 +1103,7 @@ void SUBR_lock(ushort code)
 
 void SUBR_inp_out(ushort code)
 {
-	CSTREAM *stream;
-	void **where;
-
-	SUBR_ENTER_PARAM(1);
-
-	switch(code & 0x1F)
-	{
-		case 0: where = &_default_in; break;
-		case 1: where = &_default_out; break;
-		default: where = &_default_err; break;
-	}
-
-	if (VALUE_is_null(PARAM))
-	{
-		stream = pop_stream(where);
-		if (stream)
-			OBJECT_UNREF(stream);
-		return;
-	}
-
-	VALUE_conv_object(PARAM, (TYPE)CLASS_Stream);
-
-	stream = PARAM->_object.object;
-	OBJECT_REF(stream);
-
-	push_stream(where, stream);
-
-	SUBR_LEAVE_VOID();
+	SUBR_close(2 + (code & 0x1F));
 }
 
 static void free_list(void **list)

@@ -102,12 +102,6 @@ __END:
 	SP++;
 }
 
-/*
-void SUBR_conv(ushort code)
-{
-	VALUE_convert(SP - 1, code & 0x3F);
-}
-*/
 
 void SUBR_type(ushort code)
 {
@@ -293,4 +287,92 @@ void SUBR_hex_bin(ushort code)
 	NUMBER_int_to_string(PARAM->_long.value, prec, base, RETURN);
 
 	SUBR_LEAVE();
+}
+
+
+void SUBR_pi(ushort code)
+{
+	SUBR_ENTER();
+
+	if (NPARAM == 0)
+	{
+		SP->type = T_FLOAT;
+		SP->_float.value = M_PI;
+		SP++;
+	}
+	else
+	{
+		VALUE_conv_float(PARAM);
+		PARAM->_float.value = M_PI * PARAM->_float.value;
+	}
+}
+
+
+void SUBR_base(ushort code)
+{
+	int base;
+	const char *str;
+	int len;
+	int64_t result;
+
+	switch (code & 0x3F)
+	{
+		case 0: // old Pi()
+
+			SP->type = T_FLOAT;
+			SP->_float.value = M_PI;
+			SP++;
+			break;
+
+		case 1: // old Pi(n)
+
+			SP--;
+			VALUE_conv_float(SP);
+			SP->_float.value *= M_PI;
+			SP++;
+			break;
+
+		case 2: // Base$()
+
+			{
+				SUBR_ENTER_PARAM(2);
+
+				base = SUBR_get_integer(&PARAM[1]);
+				if (base < 2 || base > 36)
+					THROW_ARG();
+
+				VALUE_conv(PARAM, T_LONG);
+				NUMBER_int_to_string(PARAM->_long.value, 0, base, RETURN);
+
+				SUBR_LEAVE();
+			}
+			break;
+
+		case 3: // Dec()
+
+			{
+				SUBR_ENTER_PARAM(2);
+
+				base = SUBR_get_integer(&PARAM[1]);
+				if (base < 2 || base > 36)
+					THROW_ARG();
+
+				VALUE_get_string(PARAM, &str, &len);
+
+				switch (NUMBER_read_integer(str, len, base, &result))
+				{
+					case NB_READ_OVERFLOW: THROW_OVERFLOW();
+					case NB_READ_SYNTAX: THROW_ARG();
+					case NB_READ_LONG:
+						RETURN->type = T_LONG;
+						RETURN->_long.value = result;
+					default:
+						RETURN->type = T_INTEGER;
+						RETURN->_integer.value = (int)result;
+				}
+
+				SUBR_LEAVE();
+			}
+			break;
+	}
 }

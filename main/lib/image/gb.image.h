@@ -170,6 +170,7 @@ typedef
 
 #define COLOR_DEFAULT ((GB_COLOR)-1)
 #define GB_COLOR_DEFAULT ((GB_COLOR)-1)
+#define GB_COLOR_TRANSPARENT ((GB_COLOR)0xFF000000)
 
 #endif
 

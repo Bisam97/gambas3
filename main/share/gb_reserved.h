@@ -394,6 +394,7 @@ EXTERN int SUBR_IsMissing;
 EXTERN int SUBR_Mid;
 EXTERN int SUBR_MidS;
 EXTERN int SUBR_SizeOf;
+EXTERN int SUBR_Pi;
 
 #endif
 
@@ -403,7 +404,8 @@ void RESERVED_exit(void);
 int RESERVED_find_word(const char *word, int len);
 int RESERVED_find_subr(const char *word, int len);
 
-SUBR_INFO *SUBR_get(const char *subr_name);
+int SUBR_find(const char *subr_name);
+//SUBR_INFO *SUBR_get(const char *subr_name);
 SUBR_INFO *SUBR_get_from_opcode(ushort opcode, ushort optype);
 
 int RESERVED_get_from_opcode(ushort code);

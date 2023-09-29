@@ -126,7 +126,7 @@ const void *EXEC_subr_table[] =
 	SUBR_fix,        /* 22 56 */
 	SUBR_sgn,        /* 23 57 */
 	SUBR_math,       /* 24 58 */
-	SUBR_pi,         /* 25 59 */
+	SUBR_base,       /* 25 59 */ // replace old Pi()
 	SUBR_round,      /* 26 5A */
 	SUBR_randomize,  /* 27 5B */
 	SUBR_rnd,        /* 28 5C */
@@ -589,7 +589,7 @@ void EXEC_loop(void)
 		/* 76 Debug           */  &&_SUBR_CODE,
 		/* 77 Wait            */  &&_SUBR_CODE,
 		/* 78 Open            */  &&_SUBR_CODE,
-		/* 79 Close           */  &&_SUBR,
+		/* 79 Close           */  &&_SUBR_CODE,
 		/* 7A Input           */  &&_SUBR_CODE,
 		/* 7B LineInput       */  &&_SUBR,
 		/* 7C Print           */  &&_SUBR_CODE,
@@ -2908,7 +2908,6 @@ _SUBR_POKE:
 
 	SUBR_poke(code);
 	goto _NEXT;
-
 }
 
 
@@ -4281,11 +4280,11 @@ __PUSH_GENERIC:
 			{
 				fast = 0xC0;
 			}
-			else
+			/*else
 			{
 				*PC = C_PUSH_ARRAY_NATIVE_COLLECTION;
 				goto __PUSH_ARRAY_2;
-			}
+			}*/
 		}
 		else
 		{
@@ -4504,11 +4503,11 @@ __POP_GENERIC:
 			{
 				fast = 0xC0;
 			}
-			else
+			/*else
 			{
 				*PC = C_POP_ARRAY_NATIVE_COLLECTION;
 				goto __POP_ARRAY_2;
-			}
+			}*/
 		}
 		else
 		{

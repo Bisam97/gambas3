@@ -1022,15 +1022,6 @@ void EXEC_function_loop()
 					// - A stack frame that has an error handler.
 					// - A void stack frame created by EXEC_enter_real()
 
-					// First we leave stack frames for JIT functions
-					// on top of the stack. We have just propagated
-					// past these some lines below.
-					
-					/*ERROR_lock();
-					while (PC != NULL && EC == NULL && FP->fast)
-						EXEC_leave_drop();
-					ERROR_unlock();*/
-					
 					// We can only leave stack frames for non-JIT functions.
 					ERROR_lock();
 					while (PC != NULL && EC == NULL && !FP->fast_linked)
@@ -1061,7 +1052,7 @@ void EXEC_function_loop()
 						ERROR_unlock();
 
 						EP = NULL;
-						/* On va directement sur le END TRY */
+						// Let's go directly to the END TRY
 					}
 
 					// Now we can handle the CATCH

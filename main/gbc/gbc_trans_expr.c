@@ -381,11 +381,20 @@ __CLASS:
 
 static void trans_subr(int subr, short nparam)
 {
-	SUBR_INFO *info = &COMP_subr_info[subr];
+	SUBR_INFO *info = TRANS_find_subr(subr);
 	int type;
 
 	if (nparam < info->min_param)
-		THROW("Not enough arguments to &1()", info->name);
+	{
+		if (subr == SUBR_Pi)
+		{
+			CODE_push_float(1);
+			push_type_id(T_FLOAT);
+			nparam = 1;
+		}
+		else
+			THROW("Not enough arguments to &1()", info->name);
+	}
 	else if (nparam > info->max_param)
 		THROW("Too many arguments to &1()", info->name);
 

@@ -418,12 +418,16 @@ static void analyze_call()
 		add_operator_output(RS_LBRA, nparam_post);
 	else
 	{
-		info = &COMP_subr_info[PATTERN_index(subr_pattern)];
+		int index = PATTERN_index(subr_pattern);
+		info = &COMP_subr_info[index];
 
 		if (nparam_post < info->min_param)
-			THROW2("Not enough arguments to &1", info->name);
+		{
+			if (index != SUBR_Pi)
+				THROW2("Not enough arguments to &1()", info->name);
+		}
 		else if (nparam_post > info->max_param)
-			THROW2("Too many arguments to &1", info->name);
+			THROW2("Too many arguments to &1()", info->name);
 
 		add_subr(subr_pattern, nparam_post);
 	}
@@ -452,21 +456,6 @@ static void analyze_array()
 
 	add_operator(RS_LSQR, i + 2);
 }
-
-#if 0
-static void analyze_expr_check_first(int op_curr)
-{
-	/* On laisse le marqueur RT_FIRST que si on a affaire �l'op�ateur '.' */
-	/*
-	last = get_last_pattern();
-	if (PATTERN_is_first(last))
-	{
-		if (op_curr != RS_PT)
-			change_last_pattern(PATTERN_unset_flag(last, RT_FIRST));
-	}
-	*/
-}
-#endif
 
 static void analyze_expr(short priority, short op_main)
 {

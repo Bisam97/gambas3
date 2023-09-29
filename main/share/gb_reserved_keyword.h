@@ -335,8 +335,15 @@ SUBR_INFO COMP_subr_info[] =
 	{ "Logp",              24, 25, T_FLOAT,        1     },
 	{ "Floor",             24, 26, T_FLOAT,        1     },
 	{ "Ceil",              24, 27, T_FLOAT,        1     },
+	{ "Pi",                24, 28, T_FLOAT,        1     },
 
-	{ "Pi",                25,  0, T_FLOAT,        0,  1 },
+	{ "#Pi",               25,  0, T_FLOAT,        0,  1 },
+
+	{ "Base",              25,  2, T_STRING,       2     },
+	{ "Base$",             25,  2, T_STRING,       2     },
+	{ "Dec",               25,  3, T_INTEGER,      2     },
+	{ "FromBase",          25,  3, T_INTEGER,      2     },
+
 	{ "Round",             26,  0, T_FLOAT,        1,  2 },
 #ifndef __EVAL_RESERVED_C
 	{ ".Randomize",        27,  0, T_VOID,         0,  1 },
@@ -434,6 +441,7 @@ SUBR_INFO COMP_subr_info[] =
 	{ "Minute",            47,  5, T_INTEGER,      1     },
 	{ "Second",            47,  6, T_INTEGER,      1     },
 	{ "WeekDay",           47,  7, T_INTEGER,      1     },
+
 	{ "Week",              48,  0, T_INTEGER,      0,  3 },
 
 	{ "Date",              49,  0, T_DATE,         0,  7 },
@@ -454,36 +462,49 @@ SUBR_INFO COMP_subr_info[] =
 
 	{ ".Open",             56,  0, T_OBJECT,       2     },
 	{ ".OpenMemory",       56,  1, T_OBJECT,       2     },
+
 	{ ".Close",            57,  0, T_VOID,         1     },
+	{ ".Flush",            57,  1, T_VOID,         1     },
+	{ ".InputFrom",        57,  2, T_VOID,         1     }, // can merge with .Close
+	{ ".OutputTo",         57,  3, T_VOID,         1     }, // can merge with .Close
+	{ ".ErrorTo",          57,  4, T_VOID,         1     }, // can merge with .Close
+
 	{ ".Input",            58,  0, T_STRING,       0,  1 },
 	{ ".LineInput",        59,  0, T_STRING,       1     },
 	{ ".Print",            60,  0, T_VOID,         1, 63 },
+
 	{ ".Read",             61,  0, RST_READ,       2,    },
 	{ ".ReadBytes",        61,  1, T_STRING,       2,    },
 	{ ".Peek",             61,  2, T_STRING,       2,    },
+
 	{ ".Write",            62,  0, T_VOID,         3,    },
 	{ ".WriteBytes",       62,  1, T_VOID,         3,    },
-	{ ".Flush",            63,  0, T_VOID,         1     },
 
-	{ ".Lock",             64,  0, T_OBJECT,       1     },
-	{ ".Unlock",           64,  1, T_VOID,         1     },
-	{ ".LockWait",         64,  2, T_VOID,         2     },
+	{ "#.Flush",           63,  0, T_VOID,         1     },
 
-	{ ".InputFrom",        65,  0, T_VOID,         1     },
-	{ ".OutputTo",         65,  1, T_VOID,         1     },
-	{ ".ErrorTo",          65,  2, T_VOID,         1     },
+	{ ".Lock",             64,  0, T_OBJECT,       1     }, // can merge with .Close
+	{ ".Unlock",           64,  1, T_VOID,         1     }, // can merge with .Close
+	{ ".LockWait",         64,  2, T_VOID,         2     }, // can merge with .Close ?
+
+	{ "#.InputFrom",       65,  0, T_VOID,         1     },
+	{ "#.OutputTo",        65,  1, T_VOID,         1     },
+	{ "#.ErrorTo",         65,  2, T_VOID,         1     },
 #endif
+
 	{ "Eof",               66,  0, T_BOOLEAN,      0,  1 },
 	{ "Lof",               67,  0, T_LONG,         0,  1 },
 	{ "Seek",              68,  0, T_LONG,         1,  3 },
+
 #ifndef __EVAL_RESERVED_C
 	{ ".Kill",             69,  0, T_VOID,         1     },
 	{ ".Mkdir",            69,  1, T_VOID,         1     },
 	{ ".Rmdir",            69,  2, T_VOID,         1     },
 #endif
+
 //{ ".Mkdir",            70,  0,                 1     }, // The old Mkdir from 3.0
 	{ "Even",              70,  1, T_BOOLEAN,      1     },
 	{ "Odd",               70,  2, T_BOOLEAN,      1     },
+
 //{ ".Rmdir",            71,  0,                 1     }, // The old Rmdir from 3.0
 	{ "Rand",              71,  0, T_INTEGER,      1,  2 },
 #ifndef __EVAL_RESERVED_C
@@ -522,6 +543,7 @@ SUBR_INFO COMP_subr_info[] =
 	{ "Alloc",             84,  0, T_POINTER,      1,  2 },
 	{ "Free",              85,  0, T_VOID,         1     },
 	{ "Realloc",           86,  0, T_POINTER,      2,  3 },
+
 	{ "Str@",              87,  0, T_STRING,       1,  2 },
 	{ "String@",           87,  0, T_STRING,       1,  2 },
 
@@ -539,7 +561,7 @@ SUBR_INFO COMP_subr_info[] =
 	{ "Tr",                91,  0, T_STRING,       1     },
 	{ "Tr$",               91,  0, T_STRING,       1     },
 	
-	{ "Quote",             92,  0, T_STRING,       1     },
+	{ "Quote",             92,  0, T_STRING,       1     }, // can merge 92, 93 and 94
 	{ "Quote$",            92,  0, T_STRING,       1     },
 	{ "Shell",             92,  1, T_STRING,       1     },
 	{ "Shell$",            92,  1, T_STRING,       1     },
@@ -593,7 +615,7 @@ SUBR_INFO COMP_subr_info[] =
 	{ "Float@",            95,  7, T_FLOAT,        1     },
 	{ "Date@",             95,  8, T_DATE,         1     },
 	{ "Pointer@",          95, 11, T_POINTER,      1     },
-	
+
 	{ NULL }
 };
 

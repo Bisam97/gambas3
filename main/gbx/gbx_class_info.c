@@ -145,6 +145,11 @@ static GB_DESC NATIVE_GambasLanguage[] =
 
 	GB_METHOD("Pi", "f", NULL, "[(Factor)f]"),
 
+	GB_METHOD("Base", "s", NULL, "(Number)l(Base)i"),
+	GB_METHOD("Base$", "s", NULL, "(Number)l(Base)i"),
+	GB_METHOD("Dec", "l", NULL, "(String)s(Base)i"),
+	GB_METHOD("FromBase", "l", NULL, "(String)s(Base)i"),
+
 	GB_METHOD("Round", "f", NULL, "(Value)f[(Round)i]"),
 
 	GB_METHOD("Rnd", "f", NULL, "[(From)f(To)f]"),

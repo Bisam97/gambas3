@@ -416,7 +416,7 @@ static void add_identifier()
 		index = RESERVED_find_subr(start, len);
 		if (index >= 0)
 		{
-			if (COMP_subr_info[index].min_param == 0 || car == '(')
+			if (COMP_subr_info[index].min_param == 0 || car == '(' || index == SUBR_Pi)
 			{
 				type = RT_SUBR;
 				

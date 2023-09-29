@@ -42,6 +42,7 @@
 #define C_POP_PARAM_NOREF         0xFA00
 #define C_POP_LOCAL_FAST          0xFB00
 #define C_POP_PARAM_FAST          0xFC00
+//                                0xFD00
 #define C_JUMP_NEXT_INTEGER       0xFE00
 
 #define C_PUSH_CONST            0xE000
@@ -59,8 +60,8 @@
 #define C_POP_ARRAY_NATIVE_INTEGER      0xA200
 #define C_PUSH_ARRAY_NATIVE_FLOAT       0xA300
 #define C_POP_ARRAY_NATIVE_FLOAT        0xA400
-#define C_PUSH_ARRAY_NATIVE_COLLECTION  0xA500
-#define C_POP_ARRAY_NATIVE_COLLECTION   0xA600
+//#define C_PUSH_ARRAY_NATIVE_COLLECTION  0xA500
+//#define C_POP_ARRAY_NATIVE_COLLECTION   0xA600
 #define C_ADD_INTEGER                   0xA700
 #define C_ADD_FLOAT                     0xA800
 #define C_SUB_INTEGER                   0xA900
@@ -111,6 +112,7 @@
 #define CPM_DROP_VARGS   10
 #define CPM_RETURN       11
 #define CPM_END_VARGS    12
+#define CPM_PI           13
 
 #define C_TRY                   0x1600
 #define C_END_TRY               0x1700
@@ -183,6 +185,7 @@
 #define CODE_HEX         (CODE_FIRST_SUBR + 41)
 #define CODE_DEBUG       (CODE_FIRST_SUBR + 54)
 #define CODE_POKE        (CODE_FIRST_SUBR + 95)
+#define CODE_DEC         (CODE_FIRST_SUBR + 189)
 
 #define C_BCLR           (CODE_BCLR << 8)
 
