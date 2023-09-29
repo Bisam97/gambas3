@@ -33,6 +33,7 @@
 
 #include "gbx_type.h"
 #include "gb_common_buffer.h"
+#include "gb_overflow.h"
 #include "gbx_local.h"
 #include "gbx_math.h"
 #include "gbx_string.h"
@@ -83,6 +84,9 @@ static int read_integer(int base, bool minus, int64_t *result, bool local, bool 
 	};
 
 	uint64_t nbr;
+#if DO_NOT_CHECK_OVERFLOW
+	uint64_t nbr2;
+#endif
 	int d, n, c, nmax;
 	const char *thsep;
 	int lthsep;
@@ -136,10 +140,17 @@ static int read_integer(int base, bool minus, int64_t *result, bool local, bool 
 			}
 			else
 			{
+#if DO_NOT_CHECK_OVERFLOW
+				nbr2 = nbr * 10 + d;
+				if ((nbr2 / 10) != nbr || nbr2 > ((uint64_t)LLONG_MAX + minus))
+					return NB_READ_OVERFLOW;
+				nbr = nbr2;
+#else
 				if (__builtin_umull_overflow(nbr, 10, &nbr))
 					return NB_READ_OVERFLOW;
 				if (__builtin_uaddl_overflow(nbr, (uint64_t)d, &nbr))
 					return NB_READ_OVERFLOW;
+#endif
 			}
 
 			c = get_char();
@@ -175,10 +186,17 @@ static int read_integer(int base, bool minus, int64_t *result, bool local, bool 
 			}
 			else
 			{
+#if DO_NOT_CHECK_OVERFLOW
+				nbr2 = nbr * base + d;
+				if ((nbr2 / base) != nbr || nbr2 > ((uint64_t)LLONG_MAX + minus))
+					return NB_READ_OVERFLOW;
+				nbr = nbr2;
+#else
 				if (__builtin_umull_overflow(nbr, base, &nbr))
 					return NB_READ_OVERFLOW;
 				if (__builtin_uaddl_overflow(nbr, (uint64_t)d, &nbr))
 					return NB_READ_OVERFLOW;
+#endif
 			}
 			
 			c = get_char();
