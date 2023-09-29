@@ -5,7 +5,7 @@ bin_PROGRAMS = gbx3
 noinst_LIBRARIES = libgbx.a
 gblib_LTLIBRARIES = gb.la
 
-libgbx_a_CFLAGS = -DGAMBAS_PATH="\"$(bindir)\"" -Wno-address-of-packed-member -Wno-stringop-truncation  -fcf-protection=return $(AM_CFLAGS)
+libgbx_a_CFLAGS = -DGAMBAS_PATH="\"$(bindir)\"" -Wno-address-of-packed-member -Wno-stringop-truncation $(GB_CFLAGS_NOCTE) $(AM_CFLAGS)
 
 gbx3_LDADD = @C_LIB@ @GBX_THREAD_LIB@ libgbx.a @MATH_LIB@ @INTL_LIB@ @CONV_LIB@ @GETTEXT_LIB@ @DL_LIB@ @FFI_LIB@ @RT_LIB@ 
 gbx3_LDFLAGS = @LD_FLAGS@ @GBX_THREAD_LDFLAGS@ @INTL_LDFLAGS@ @CONV_LDFLAGS@ @GETTEXT_LDFLAGS@ @FFI_LDFLAGS@ @RT_LDFLAGS@

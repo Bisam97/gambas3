@@ -382,6 +382,16 @@ AC_DEFUN([GB_INIT],
     AC_DEFINE(HAVE_GCC_VISIBILITY, 1, [Whether gcc supports -fvisibility=hidden])
   fi
 
+  dnl ---- check for -fcf-protection=return compiler flag
+
+  have_gcc_nocte=no
+
+  GB_CFLAGS_GCC_OPTION([-fcf-protection=return],,
+    [
+      GB_CFLAGS_NOCTE=" -fcf-protection=return"
+      have_gcc_nocte=yes
+    ])
+
   dnl ---- check for -flto compiler flag
   
   GB_CFLAGS_GCC_OPTION([-flto],,
@@ -465,6 +475,7 @@ AC_DEFUN([GB_INIT],
   AC_SUBST(AM_CXXFLAGS)
   AC_SUBST(AM_CXXFLAGS_OPT)
   AC_SUBST(GB_CFLAGS_LTO)
+  AC_SUBST(GB_CFLAGS_NOCTE)
   AC_SUBST(GB_CXXFLAGS_STD_CPP11)
   AC_SUBST(GB_CXXFLAGS_STD_CPP17)
 
