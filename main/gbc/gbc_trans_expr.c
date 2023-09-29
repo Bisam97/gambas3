@@ -501,9 +501,13 @@ static void trans_operation(short op, short nparam, PATTERN previous)
 				type = RST_SAME;
 			}
 			else
-				CODE_op(info->code, info->subcode, nparam, TRUE);
+				CODE_add_sub(info->code, info->subcode, nparam, get_type_id(0, nparam));
 			break;
 			
+		case OP_PLUS:
+			CODE_add_sub(info->code, info->subcode, nparam, get_type_id(0, nparam));
+			break;
+
 		case OP_AMP:
 			if (nparam == 1)
 				CODE_op(info->code, 1, 2, TRUE);

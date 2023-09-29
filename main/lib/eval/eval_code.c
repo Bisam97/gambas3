@@ -35,6 +35,6 @@
 #include "gb_limit.h"
 #include "eval.h"
 
-#define COMP_version 0x03180000
+#define COMP_version GAMBAS_PCODE_VERSION
 
 #include "gb_code_temp.h"

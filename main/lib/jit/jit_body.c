@@ -2931,8 +2931,8 @@ bool JIT_translate_body(FUNCTION *func, int ind)
 		/* A2 ADD QUICK       */  &&_ADD_QUICK,
 		/* A3 ADD QUICK       */  &&_ADD_QUICK,
 		/* A4 ADD QUICK       */  &&_ADD_QUICK,
-		/* A5 ADD QUICK       */  &&_ADD_QUICK,
-		/* A6 ADD QUICK       */  &&_ADD_QUICK,
+		/* A5 ADD QUICK       */  &&_ADD_QUICK_INTEGER,
+		/* A6 ADD QUICK       */  &&_ADD_QUICK_FLOAT,
 		/* A7 ADD QUICK       */  &&_ADD_QUICK,
 		/* A8 ADD QUICK       */  &&_ADD_QUICK,
 		/* A9 ADD QUICK       */  &&_ADD_QUICK,
@@ -3571,7 +3571,26 @@ _ADD_QUICK:
 		goto _SUBR_SUB;
 	}
 	else
+	{
 		PC[-1] = code = 0x3000;
+		goto _SUBR_ADD;
+	}
+
+_ADD_QUICK_INTEGER:
+_ADD_QUICK_FLOAT:
+
+	index = GET_XX();
+	push(T_INTEGER, "%d", abs(index));
+	if (index < 0)
+	{
+		PC[-1] = code = 0x3100;
+		goto _SUBR_SUB;
+	}
+	else
+	{
+		PC[-1] = code = 0x3000;
+		goto _SUBR_ADD;
+	}
 
 _SUBR_ADD:
 

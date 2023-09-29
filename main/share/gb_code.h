@@ -134,6 +134,11 @@ void CODE_push_unknown_event(short symbol);
 void CODE_push_class(short class);
 
 void CODE_op(short op, short subcode, short nparam, bool fixed);
+#ifdef PROJECT_COMP
+void CODE_add_sub(short op, short subcode, short nparam, TYPE_ID type);
+#else
+void CODE_add_sub(short op, short subcode, short nparam);
+#endif
 
 void CODE_push_me(bool);
 void CODE_push_super(bool);

@@ -242,6 +242,12 @@ short PCODE_dump(FILE *out, ushort addr, PCODE *code)
 				case C_DIV_FLOAT:
 					fprintf(out, "DIV FLOAT %d", (op & 0xFF));
 					break;
+				case C_ADD_QUICK_INTEGER:
+					fprintf(out, "ADD QUICK INTEGER %d", (signed char)(op & 0xFF));
+					break;
+				case C_ADD_QUICK_FLOAT:
+					fprintf(out, "ADD QUICK FLOAT %d", (signed char)(op & 0xFF));
+					break;
 				default:
 					fprintf(out, "ADD QUICK %d", (short)value);
 			}

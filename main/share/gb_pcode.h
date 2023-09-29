@@ -60,8 +60,8 @@
 #define C_POP_ARRAY_NATIVE_INTEGER      0xA200
 #define C_PUSH_ARRAY_NATIVE_FLOAT       0xA300
 #define C_POP_ARRAY_NATIVE_FLOAT        0xA400
-//#define C_PUSH_ARRAY_NATIVE_COLLECTION  0xA500
-//#define C_POP_ARRAY_NATIVE_COLLECTION   0xA600
+#define C_ADD_QUICK_INTEGER             0xA500
+#define C_ADD_QUICK_FLOAT               0xA600
 #define C_ADD_INTEGER                   0xA700
 #define C_ADD_FLOAT                     0xA800
 #define C_SUB_INTEGER                   0xA900
