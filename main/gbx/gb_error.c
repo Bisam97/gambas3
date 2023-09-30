@@ -49,7 +49,7 @@ int ERROR_depth = 0;
 static int _lock = 0;
 static char *_print_prefix = NULL;
 
-static const char *const _message[78] =
+static const char *const _message[79] =
 {
 	/*  0 E_UNKNOWN     */ "Unknown error",
 	/*  1 E_MEMORY      */ "Out of memory",
@@ -128,7 +128,8 @@ static const char *const _message[78] =
 	/* 74 E_MARRAY      */ "Multidimensional array",
 	/* 75 E_UCLASS      */ ".1Unknown class '&1'",
 	/* 76 E_SPEC        */ ".2Incorrect declaration of symbol '&1' in class '&2'",
-	/* 77 E_USIZE       */ "Unknown stream size"
+	/* 77 E_USIZE       */ "Unknown stream size",
+	/* 78 E_JUMP        */ "Bad indirect jump"
 };
 
 static void clear_info(ERROR_INFO *info)

@@ -82,9 +82,14 @@ void CLASS_create(CLASS **result)
 static void delete_function(FUNCTION *func)
 {
 	ARRAY_delete(&func->local);
+
 	ARRAY_delete(&func->stat);
+
 	if (func->code)
 		FREE(&func->code);
+
+	if (func->indirect_goto)
+		FREE(&func->indirect_goto);
 
 	if (JOB->debug)
 		ARRAY_delete(&func->pos_line);

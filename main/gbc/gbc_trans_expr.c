@@ -282,14 +282,24 @@ static void trans_identifier(int index, bool point, PATTERN next)
 	if (!TYPE_is_null(sym->local.type) && !point)
 	{
 		if (TYPE_get_kind(sym->local.type) == TK_LABEL)
-			goto __CLASS;
+		{
+			TRANS_LABEL *info = TRANS_get_label_info(sym->local.value);
+			if (info->ctrl_id)
+				THROW("Label is not top-level");
 
-		if (TYPE_is_static(sym->local.type))
-			CODE_push_global(sym->local.value, TRUE, FALSE);
+			CODE_push_number(sym->local.value + 1);
+			push_type_id(T_INTEGER);
+		}
 		else
-			CODE_push_local_ref(sym->local.value, TYPE_must_ref(sym->local.type));
+		{
+			if (TYPE_is_static(sym->local.type))
+				CODE_push_global(sym->local.value, TRUE, FALSE);
+			else
+				CODE_push_local_ref(sym->local.value, TYPE_must_ref(sym->local.type));
+
+			push_type(sym->local.type);
+		}
 		
-		push_type(sym->local.type);
 		sym->local_used = TRUE;
 		_last_symbol_used = sym;
 		_last_symbol_global = FALSE;

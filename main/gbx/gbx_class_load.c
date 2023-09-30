@@ -593,6 +593,9 @@ static void load_and_relocate(CLASS *class, int len_data, CLASS_DESC **pstart, i
 			func->n_ctrl++;
 		}
 
+		if (flag & 8) // indirect goto
+			func->code += *func->code + 2;
+
 		func->_reserved = 0;
 	}
 

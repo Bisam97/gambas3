@@ -102,5 +102,8 @@
 /* Maximum length of the System.Language property */
 #define MAX_LANG            16
 
+/* Maximum number of labels in one function */
+#define MAX_LABEL           255
+
 #endif
 

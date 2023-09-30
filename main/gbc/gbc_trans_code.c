@@ -393,41 +393,42 @@ void TRANS_statement(void)
 
 static void translate_body()
 {
-	PATTERN *look;
+	PATTERN *look, *save;
+	int save_line;
 	bool is_proc = (TYPE_get_id(_func->type) == T_VOID);
-	bool test_newline;
-	//int line = JOB->line - 1;
 	bool just_got_select = FALSE;
 
-	for(;;)
-	{
-		test_newline = TRUE;
-		CODE_allow_break();
-
-		FUNCTION_add_all_pos_line();
-
-		look = JOB->current;
-
-		if (PATTERN_is(look[0], RS_END))
-			if (TRANS_is_end_function(is_proc, &look[1]))
-				break;
-
-		if (TRANS_newline())
-			test_newline = FALSE;
-		else if (!TRANS_local())
-			break;
-
-		if (test_newline)
-			if (!PATTERN_is_newline(*JOB->current))
-				THROW_UNEXPECTED(JOB->current);
-	}
-
+	save = JOB->current;
+	save_line = JOB->line;
 
 	TRANS_control_init();
 
 	for(;;)
 	{
-		test_newline = TRUE;
+		if (TRANS_newline())
+		{
+			look = JOB->current;
+
+			if (PATTERN_is(look[0], RS_END) && TRANS_is_end_function(is_proc, &look[1]))
+				break;
+
+			if (PATTERN_is_identifier(look[0]) && PATTERN_is(look[1], RS_COLON))
+			{
+				fprintf(stderr, "TRANS_declare_label\n");
+				TRANS_declare_label();
+			}
+
+			continue;
+		}
+
+		JOB->current++;
+	}
+
+	JOB->line = save_line;
+	JOB->current = save;
+
+	for(;;)
+	{
 		CODE_allow_break();
 
 		FUNCTION_add_all_pos_line();
@@ -594,9 +595,8 @@ static void translate_body()
 		}
 		*/
 
-		if (test_newline)
-			if (!PATTERN_is_newline(*JOB->current))
-				THROW_UNEXPECTED(JOB->current);
+		if (!PATTERN_is_newline(*JOB->current))
+			THROW_UNEXPECTED(JOB->current);
 
 	}
 

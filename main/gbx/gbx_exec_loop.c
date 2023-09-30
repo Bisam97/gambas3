@@ -1065,20 +1065,38 @@ _NEW:
 _ON_GOTO_GOSUB:
 
 	{
-		int n, m;
+		short n, m;
 
 		m = GET_XX();
 		SP--;
 		VALUE_conv_integer(SP);
 		n = SP->_integer.value;
-		if (n < 0 || n >= m)
-			PC += m + 3;
+
+		if (m == 0) // indirect GOTO / GOSUB
+		{
+			m = FP->code[-1];
+			n--;
+			//fprintf(stderr, "m = %d n = %d\n", m, n);
+			if (n < 0 || n >= m)
+				THROW(E_JUMP);
+			n = FP->code[n - m - 1];
+			if (n < 0)
+				THROW(E_JUMP);
+			//fprintf(stderr, "-> %d\n", FP->code[n - m - 1]);
+			PC[2] = n - (PC - FP->code) - 2;
+			goto _NEXT;
+		}
 		else
 		{
-			PC[m + 2] = PC[n + 1] - (m - n) - 2;
-			PC += m + 1;
+			if (n < 0 || n >= m)
+				PC += m + 3;
+			else
+			{
+				PC[m + 2] = PC[n + 1] - (m - n) - 2;
+				PC += m + 1;
+			}
+			goto _MAIN;
 		}
-		goto _MAIN;
 	}
 
 /*-----------------------------------------------*/

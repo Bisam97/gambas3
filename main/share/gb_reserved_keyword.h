@@ -564,10 +564,10 @@ SUBR_INFO COMP_subr_info[] =
 
 	{ ".Collection",       90,  0, RST_COLLECTION, 1, 63 },
 	
-	{ "Tr",                91,  0, T_STRING,       1     },
+	{ "Tr",                91,  0, T_STRING,       1     },  // can merge 91, 92, 93 and 94
 	{ "Tr$",               91,  0, T_STRING,       1     },
 	
-	{ "Quote",             92,  0, T_STRING,       1     }, // can merge 92, 93 and 94
+	{ "Quote",             92,  0, T_STRING,       1     },
 	{ "Quote$",            92,  0, T_STRING,       1     },
 	{ "Shell",             92,  1, T_STRING,       1     },
 	{ "Shell$",            92,  1, T_STRING,       1     },

@@ -114,7 +114,8 @@ enum {
 	E_MARRAY,
 	E_UCLASS,
 	E_SPEC,
-	E_USIZE
+	E_USIZE,
+	E_JUMP
 	};
 
 #ifndef __GB_ERROR_C

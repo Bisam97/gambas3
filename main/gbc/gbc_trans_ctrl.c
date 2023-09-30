@@ -64,6 +64,8 @@ static short *ctrl_parent;
 
 static ushort *_relocation = NULL;
 
+static bool _indirect_goto;
+
 typedef
 	struct {
 		ushort src;
@@ -365,6 +367,8 @@ void TRANS_control_init(void)
 
 	ARRAY_create(&ctrl_parent);
 	ARRAY_create(&_jumps);
+
+	_indirect_goto = FALSE;
 }
 
 
@@ -374,6 +378,7 @@ void TRANS_control_exit(void)
 	CLASS_SYMBOL *sym;
 	int line;
 	TRANS_LABEL *label;
+	int nlabel;
 	short id;
 	ushort *pcode;
 	JUMP *jump;
@@ -445,6 +450,23 @@ void TRANS_control_exit(void)
 		}
 
 		JOB->line = line;
+	}
+
+	// Indirect Goto or Gosub
+
+	if (label_info && _indirect_goto)
+	{
+		nlabel = ARRAY_count(label_info);
+
+		JOB->func->nlabel = nlabel;
+
+		ALLOC(&JOB->func->indirect_goto, sizeof(ushort) * nlabel);
+
+		for (i = 0; i < nlabel; i++)
+		{
+			label = &label_info[i];
+			JOB->func->indirect_goto[i] = label->ctrl_id ? -1 : label->pos;
+		}
 	}
 
 	// Optimize jumps
@@ -685,34 +707,46 @@ void TRANS_endif(void)
 }
 
 
-void TRANS_goto(void)
+static void TRANS_goto_gosub(bool gosub)
 {
+	CLASS_SYMBOL *sym;
 	int index;
 
-	check_try("GOTO");
+	check_try(gosub ? "GOSUB" : "GOTO");
 	
-	if (!PATTERN_is_identifier(*JOB->current))
-		THROW(E_SYNTAX);
+	if (PATTERN_is_identifier(*JOB->current))
+	{
+		index = PATTERN_index(*JOB->current);
 
-	index = PATTERN_index(*JOB->current);
-	JOB->current++;
+		sym = CLASS_get_symbol(JOB->class, index);
 
-	add_goto(index, RS_GOTO);
+		if (TYPE_get_kind(sym->local.type) == TK_LABEL)
+		{
+			JOB->current++;
+			add_goto(index, gosub ? RS_GOSUB : RS_GOTO);
+			return;
+		}
+	}
+
+	_indirect_goto = TRUE;
+	TRANS_expression(FALSE);
+	CODE_on(0);
+	if (gosub)
+		CODE_gosub(0);
+	else
+		CODE_jump();
+
 }
+
+void TRANS_goto(void)
+{
+	TRANS_goto_gosub(FALSE);
+}
+
 
 void TRANS_gosub(void)
 {
-	int index;
-
-	check_try("GOSUB");
-	
-	if (!PATTERN_is_identifier(*JOB->current))
-		THROW(E_SYNTAX);
-
-	index = PATTERN_index(*JOB->current);
-	JOB->current++;
-
-	add_goto(index, RS_GOSUB);
+	TRANS_goto_gosub(TRUE);
 }
 
 
@@ -1250,6 +1284,33 @@ void TRANS_catch(void)
 }
 
 
+void TRANS_declare_label(void)
+{
+	CLASS_SYMBOL *sym;
+	int sym_index;
+	int count;
+
+	if (label_info == NULL)
+		ARRAY_create(&label_info);
+
+	count = ARRAY_count(label_info);
+	if (count >= MAX_LABEL)
+		THROW("Too many labels");
+
+	ARRAY_add(&label_info);
+
+	sym_index = PATTERN_index(*JOB->current);
+	JOB->current++;
+
+	sym = CLASS_declare(JOB->class, sym_index, TK_LABEL, FALSE);
+
+	sym->local.type = TYPE_make(T_VOID, -1, TK_LABEL);
+	sym->local.value = count;
+
+	JOB->current++;
+}
+
+
 void TRANS_label(void)
 {
 	CLASS_SYMBOL *sym;
@@ -1259,19 +1320,12 @@ void TRANS_label(void)
 	sym_index = PATTERN_index(*JOB->current);
 	JOB->current++;
 
-	sym = CLASS_declare(JOB->class, sym_index, TK_LABEL, FALSE);
-
-	if (label_info == NULL)
-		ARRAY_create(&label_info);
-
-	sym->local.type = TYPE_make(T_VOID, -1, TK_LABEL);
-	sym->local.value = ARRAY_count(label_info);
-
-	label = ARRAY_add(&label_info);
+	sym = CLASS_get_symbol(JOB->class, sym_index);
+	label = &label_info[sym->local.value];
 
 	label->index = sym_index;
-	label->ctrl_id = (ctrl_level == 0) ? 0 : current_ctrl->id;
 	label->pos = CODE_get_current_pos();
+	label->ctrl_id = ctrl_level ? current_ctrl->id : 0;
 
 	#ifdef DEBUG_GOTO
 	printf("TRANS_label: %.*s ctrl_id = %d\n", sym->symbol.len, sym->symbol.name, label->ctrl_id);
@@ -1279,19 +1333,6 @@ void TRANS_label(void)
 
 	/* on saute le ':' */
 	JOB->current++;
-	
-	/*
-	// A new set of control stack slots must be used for a GOSUB subroutine
-	
-	for (i = 0; i < ARRAY_count(goto_info); i++)
-	{
-		if (goto_info[i].gosub && goto_info[i].index == sym_index)
-		{
-			ctrl_local = JOB->func->nctrl + JOB->func->nlocal;
-			return;
-		}
-	}
-	*/
 }
 
 
@@ -1376,4 +1417,9 @@ void TRANS_raise(void)
 
 	if (!TRANS_in_assignment)
 		CODE_drop();
+}
+
+TRANS_LABEL *TRANS_get_label_info(int value)
+{
+	return &label_info[value];
 }
