@@ -278,8 +278,12 @@ static void trans_identifier(int index, bool point, PATTERN next)
 	_last_symbol_used = NULL;
 	//fprintf(stderr, "_last_symbol_used = NULL\n");
 	
+
 	if (!TYPE_is_null(sym->local.type) && !point)
 	{
+		if (TYPE_get_kind(sym->local.type) == TK_LABEL)
+			goto __CLASS;
+
 		if (TYPE_is_static(sym->local.type))
 			CODE_push_global(sym->local.value, TRUE, FALSE);
 		else
@@ -294,6 +298,7 @@ static void trans_identifier(int index, bool point, PATTERN next)
 	else if (!TYPE_is_null(sym->global.type) && !point)
 	{
 		type = TYPE_get_kind(sym->global.type);
+
 		if (!TYPE_is_public(sym->global.type))
 		{
 			sym->global_used = TRUE;
