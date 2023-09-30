@@ -940,10 +940,12 @@ void CODE_add_sub(short op, short subcode, short nparam)
 					else if (type == T_FLOAT)
 						opcode = C_ADD_QUICK_FLOAT;
 				}
-				*last_code = opcode | (value & 0x00FF);
 			}
-			else
+
+			if (opcode == C_ADD_QUICK)
 				*last_code = opcode | (value & 0x0FFF);
+			else
+				*last_code = opcode | (value & 0x00FF);
 #else
 				*last_code = C_ADD_QUICK | (value & 0x0FFF);
 #endif
