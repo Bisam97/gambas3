@@ -1684,9 +1684,7 @@ Public Sub Action_Activate((Key) As String) As Boolean
     Case "refresh-project"
       Project.RefreshAll
     Case "project-property"
-      If Not FProjectProperty.Run() Then
-        Project.Refresh
-      Endif
+      FProjectProperty.Run() 'Then Project.Refresh
     Case "translate"
       Translate
     Case "compile"
@@ -1727,7 +1725,7 @@ Public Sub Action_Activate((Key) As String) As Boolean
       
     Case "info"
       If tvwProject.Key = Project.Dir Then
-        If Not FProjectProperty.Run() Then Project.Refresh
+        FProjectProperty.Run() 'Then Project.Refresh
       Else
         FFileProperty.Run(tvwProject.Key)
       Endif
