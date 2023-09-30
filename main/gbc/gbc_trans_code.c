@@ -405,23 +405,16 @@ static void translate_body()
 
 	for(;;)
 	{
-		if (TRANS_newline())
-		{
-			look = JOB->current;
+		look = JOB->current;
 
-			if (PATTERN_is(look[0], RS_END) && TRANS_is_end_function(is_proc, &look[1]))
-				break;
+		if (PATTERN_is(look[0], RS_END) && TRANS_is_end_function(is_proc, &look[1]))
+			break;
 
-			if (PATTERN_is_identifier(look[0]) && PATTERN_is(look[1], RS_COLON))
-			{
-				fprintf(stderr, "TRANS_declare_label\n");
-				TRANS_declare_label();
-			}
+		if (PATTERN_is_identifier(look[0]) && PATTERN_is(look[1], RS_COLON))
+			TRANS_declare_label();
 
-			continue;
-		}
-
-		JOB->current++;
+		while (!TRANS_newline())
+			JOB->current++;
 	}
 
 	JOB->line = save_line;
@@ -435,9 +428,8 @@ static void translate_body()
 
 		look = JOB->current;
 
-		if (PATTERN_is(look[0], RS_END))
-			if (TRANS_is_end_function(is_proc, &look[1]))
-				break;
+		if (PATTERN_is(look[0], RS_END) && TRANS_is_end_function(is_proc, &look[1]))
+			break;
 
 		if (TRANS_newline())
 			continue;
