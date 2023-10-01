@@ -488,8 +488,13 @@ static void load_and_relocate(CLASS *class, int len_data, CLASS_DESC **pstart, i
 	CLASS_EVENT *event;
 	CLASS_EXTERN *ext;
 	CLASS_VAR *var;
+
 	FUNCTION *func;
+	FUNCTION_LOAD *func_load;
 	FUNC_DEBUG *debug;
+	uchar flag;
+	short n_local, n_ctrl;
+
 	int i, j, pos;
 	int offset;
 	short n_desc, n_class_ref, n_unknown, n_array, n_struct;
@@ -497,7 +502,6 @@ static void load_and_relocate(CLASS *class, int len_data, CLASS_DESC **pstart, i
 	int size;
 	char *name;
 	int len;
-	uchar flag;
 
 	ALLOC_ZERO(&class->load, sizeof(CLASS_LOAD));
 
@@ -579,13 +583,18 @@ static void load_and_relocate(CLASS *class, int len_data, CLASS_DESC **pstart, i
 		func = &class->load->func[i];
 		func->code = (ushort *)get_section("code", &section, NULL, _s);
 
-		flag = ((FUNCTION_FLAG *)func)->flag;
+		func_load = (FUNCTION_LOAD *)func;
+		flag = func_load->flag;
+		n_local = func_load->n_local;
+		n_ctrl = func_load->n_ctrl;
 
 		func->fast = (flag & 1) != 0;
 		func->optional = (func->npmin < func->n_param);
 		func->use_is_missing = (flag & 2) != 0;
 		func->unsafe = (flag & 4) != 0;
 		func->fast_linked = FALSE;
+		func->n_local = n_local;
+		func->n_ctrl = n_ctrl;
 
 		if (func->use_is_missing)
 		{
@@ -594,7 +603,10 @@ static void load_and_relocate(CLASS *class, int len_data, CLASS_DESC **pstart, i
 		}
 
 		if (flag & 8) // indirect goto
-			func->code += *func->code + 2;
+		{
+			func->n_label = *func->code;
+			func->code += func->n_label + 1;
+		}
 
 		func->_reserved = 0;
 	}

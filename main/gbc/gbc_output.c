@@ -973,7 +973,6 @@ static void output_code()
 			write_short(func->nlabel);
 			for (j = 0; j < func->nlabel; j++)
 				write_short(func->indirect_goto[j]);
-			write_short(func->nlabel);
 		}
 
 		n = func->ncode;

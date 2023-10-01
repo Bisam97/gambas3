@@ -57,12 +57,13 @@
 #include "gb_pcode_temp.h"
 #endif
 
-#define SUBR_beep EXEC_ILLEGAL
-//#define _SUBR_POKE _NEXT
+STACK_CONTEXT EXEC_current = { 0 }; // Current virtual machine state
+VALUE *SP = NULL; // Stack pointer
 
 #define GET_XXX()   (((signed short)(code << 4)) >> 4)
 #define GET_UXX()   (code & 0xFFF)
 #define GET_7XX()   (code & 0x7FF)
+
 #define GET_XX()    ((signed char)code)
 #define GET_UX()    ((unsigned char)code)
 #define GET_3X()    (code & 0x3F)
@@ -464,6 +465,16 @@ __PUSH_END_VARGS:
 	goto _NEXT;*/
 }
 
+#if 1
+#undef PC
+#define PC pc
+#define SYNC_PC() EXEC_current.pc = pc
+#define READ_PC() pc = EXEC_current.pc
+#else
+#define SYNC_PC()
+#define READ_PC()
+#endif
+
 void EXEC_loop(void)
 {
 	static const void *jump_table[256] =
@@ -515,20 +526,20 @@ void EXEC_loop(void)
 		/* 2C <               */  &&_SUBR_COMPLT,
 		/* 2D >=              */  &&_SUBR_COMPGE,
 		/* 2E ==              */  &&_SUBR,
-		/* 2F CASE            */  &&_SUBR_CODE,
+		/* 2F CASE            */  &&_SUBR_CODE_SYNC,
 		/* 30 +               */  &&_SUBR_ADD,
 		/* 31 -               */  &&_SUBR_SUB,
 		/* 32 *               */  &&_SUBR_MUL,
 		/* 33 /               */  &&_SUBR_DIV,
-		/* 34 NEG             */  &&_SUBR_CODE,
-		/* 35 \               */  &&_SUBR_CODE,
-		/* 36 MOD             */  &&_SUBR_CODE,
-		/* 37 ^               */  &&_SUBR_CODE,
-		/* 38 AND             */  &&_SUBR_CODE,
-		/* 39 OR              */  &&_SUBR_CODE,
-		/* 3A XOR             */  &&_SUBR_CODE,
-		/* 3B NOT             */  &&_SUBR_CODE,
-		/* 3C &               */  &&_SUBR_CODE,
+		/* 34 NEG             */  &&_SUBR_CODE_SYNC,
+		/* 35 \               */  &&_SUBR_CODE_SYNC,
+		/* 36 MOD             */  &&_SUBR_CODE_SYNC,
+		/* 37 ^               */  &&_SUBR_CODE_SYNC,
+		/* 38 AND             */  &&_SUBR_CODE_SYNC,
+		/* 39 OR              */  &&_SUBR_CODE_SYNC,
+		/* 3A XOR             */  &&_SUBR_CODE_SYNC,
+		/* 3B NOT             */  &&_SUBR_CODE_SYNC,
+		/* 3C &               */  &&_SUBR_CODE_SYNC,
 		/* 3D LIKE            */  &&_SUBR_CODE,
 		/* 3E &/              */  &&_SUBR_CODE,
 		/* 3F Is              */  &&_SUBR_CODE,
@@ -552,18 +563,18 @@ void EXEC_loop(void)
 		/* 51 Comp            */  &&_SUBR_CODE,
 		/* 52 Conv            */  &&_SUBR,
 		/* 53 DConv           */  &&_SUBR_CODE,
-		/* 54 Abs             */  &&_SUBR_CODE,
-		/* 55 Int             */  &&_SUBR_CODE,
-		/* 56 Fix             */  &&_SUBR_CODE,
-		/* 57 Sgn             */  &&_SUBR_CODE,
+		/* 54 Abs             */  &&_SUBR_CODE_SYNC,
+		/* 55 Int             */  &&_SUBR_CODE_SYNC,
+		/* 56 Fix             */  &&_SUBR_CODE_SYNC,
+		/* 57 Sgn             */  &&_SUBR_CODE_SYNC,
 		/* 58 Frac...         */  &&_SUBR_CODE,
 		/* 59 Pi              */  &&_SUBR_CODE,
 		/* 5A Round           */  &&_SUBR_CODE,
 		/* 5B Randomize       */  &&_SUBR_CODE,
 		/* 5C Rnd             */  &&_SUBR_CODE,
-		/* 5D Min             */  &&_SUBR_CODE,
-		/* 5E Max             */  &&_SUBR_CODE,
-		/* 5F IIf             */  &&_SUBR_CODE,
+		/* 5D Min             */  &&_SUBR_CODE_SYNC,
+		/* 5E Max             */  &&_SUBR_CODE_SYNC,
+		/* 5F IIf             */  &&_SUBR_CODE_SYNC,
 		/* 60 Choose          */  &&_SUBR_CODE,
 		/* 61 Array           */  &&_SUBR_CODE,
 		/* 62 ATan2...        */  &&_SUBR_CODE,
@@ -767,6 +778,8 @@ void EXEC_loop(void)
 	int NO_WARNING(ind);
 	ushort code;
 	VALUE *NO_WARNING(val);
+	ushort *pc;
+	READ_PC();
 
 /*-----------------------------------------------*/
 
@@ -804,10 +817,18 @@ _MAIN:
 
 /*-----------------------------------------------*/
 
-_SUBR_CODE:
+_SUBR_CODE_SYNC:
 
 	//fprintf(stderr, "gbx3: %02X: %s\n", (code >> 8), DEBUG_get_current_position());
+	SYNC_PC();
 	(*(EXEC_FUNC_CODE)EXEC_subr_table[code >> 8])(code);
+	READ_PC();
+	goto _NEXT;
+
+_SUBR_CODE:
+
+	(*(EXEC_FUNC_CODE)EXEC_subr_table[code >> 8])(code);
+
 
 	//if (PCODE_is_void(code))
 	//  POP();
@@ -816,7 +837,7 @@ _SUBR_CODE:
 
 _NEXT:
 
-	code = *(++PC);
+	code = *++PC;
 
 #if 0
 	{
@@ -851,6 +872,7 @@ _NEXT:
 
 _SUBR:
 
+	//SYNC_PC();
 	(*(EXEC_FUNC)EXEC_subr_table[code >> 8])();
 	goto _NEXT;
 
@@ -884,6 +906,7 @@ _PUSH_PARAM_NOREF:
 
 _PUSH_ARRAY:
 
+	SYNC_PC();
 	EXEC_push_array(code);
 	goto _NEXT;
 
@@ -891,7 +914,9 @@ _PUSH_ARRAY:
 
 _PUSH_UNKNOWN:
 
+	SYNC_PC();
 	EXEC_push_unknown();
+	READ_PC();
 	goto _NEXT;
 
 /*-----------------------------------------------*/
@@ -908,6 +933,7 @@ _PUSH_EVENT:
 		Then CALL QUICK must know how to handle these functions.
 	*/
 
+	SYNC_PC();
 	_push_event(GET_UX());
 	goto _NEXT;
 
@@ -976,6 +1002,7 @@ _POP_CTRL:
 
 _POP_ARRAY:
 
+	SYNC_PC();
 	EXEC_pop_array(code);
 	goto _NEXT;
 
@@ -983,7 +1010,9 @@ _POP_ARRAY:
 
 _POP_UNKNOWN:
 
+	SYNC_PC();
 	EXEC_pop_unknown();
+	READ_PC();
 	goto _NEXT;
 
 /*-----------------------------------------------*/
@@ -1026,6 +1055,7 @@ _PUSH_CHAR:
 
 _PUSH_ME:
 
+	SYNC_PC();
 	_push_me(code);
 	goto _NEXT;
 
@@ -1033,6 +1063,7 @@ _PUSH_ME:
 
 _PUSH_MISC:
 
+	SYNC_PC();
 	if (_push_misc(code))
 		return;
 	goto _NEXT;
@@ -1057,6 +1088,7 @@ _DROP:
 
 _NEW:
 
+	SYNC_PC();
 	EXEC_new(code);
 	goto _NEXT;
 
@@ -1064,63 +1096,14 @@ _NEW:
 
 _ON_GOTO_GOSUB:
 
-	{
-		short n, m;
-
-		m = GET_XX();
-		SP--;
-		VALUE_conv_integer(SP);
-		n = SP->_integer.value;
-
-		if (m == 0) // indirect GOTO / GOSUB
-		{
-			m = FP->code[-1];
-			n--;
-			//fprintf(stderr, "m = %d n = %d\n", m, n);
-			if (n < 0 || n >= m)
-				THROW(E_JUMP);
-			n = FP->code[n - m - 1];
-			if (n < 0)
-				THROW(E_JUMP);
-			//fprintf(stderr, "-> %d\n", FP->code[n - m - 1]);
-			PC[2] = n - (PC - FP->code) - 2;
-			goto _NEXT;
-		}
-		else
-		{
-			if (n < 0 || n >= m)
-				PC += m + 3;
-			else
-			{
-				PC[m + 2] = PC[n + 1] - (m - n) - 2;
-				PC += m + 1;
-			}
-			goto _MAIN;
-		}
-	}
+	pc = EXEC_on_goto_gosub(pc);
+	goto _MAIN;
 
 /*-----------------------------------------------*/
 
 _GOSUB:
 
-	{
-		STACK_check(1 + FP->stack_usage - FP->n_local);
-
-		SP->type = T_VOID;
-		SP->_void.value[0] = (intptr_t)PC;
-		SP->_void.value[1] = (intptr_t)GP;
-
-		GP = SP;
-
-		SP++;
-
-		val = &BP[FP->n_local];
-		for (ind = 0; ind < FP->n_ctrl; ind++)
-		{
-			*SP++ = val[ind];
-			val[ind].type = T_NULL;
-		}
-	}
+	EXEC_gosub(pc);
 
 /*-----------------------------------------------*/
 
@@ -1164,9 +1147,11 @@ _JUMP_IF_FALSE_FAST:
 
 _RETURN:
 
+	SYNC_PC();
 	if (_return(GET_UX()))
 		return;
 
+	READ_PC();
 	goto _NEXT;
 
 #if 0
@@ -1245,6 +1230,7 @@ _CALL:
 			&&__CALL_SUBR
 		};
 
+		SYNC_PC();
 		ind = GET_3X();
 		val = &SP[-(ind + 1)];
 
@@ -1328,7 +1314,8 @@ _CALL:
 		else
 		{
 			EXEC_enter_check(val->_function.defined);
-			goto _MAIN;;
+			READ_PC();
+			goto _MAIN;
 		}
 
 	__EXEC_NATIVE:
@@ -1413,6 +1400,7 @@ _CALL:
 			else
 			{
 				EXEC_enter();
+				READ_PC();
 				goto _MAIN;;
 			}
 		}
@@ -1444,6 +1432,7 @@ _CALL_QUICK:
 			&&__CALL_SUBR
 		};
 
+		SYNC_PC();
 		ind = GET_3X();
 		val = &SP[-(ind + 1)];
 
@@ -1476,6 +1465,7 @@ _CALL_QUICK:
 	__EXEC_ENTER_Q:
 
 		EXEC_enter_quick();
+		READ_PC();
 		goto _MAIN;;
 
 	__CALL_NATIVE_Q:
@@ -1555,6 +1545,7 @@ _CALL_SLOW:
 			&&__CALL_SUBR
 		};
 
+		SYNC_PC();
 		ind = GET_3X();
 		val = &SP[-(ind + 1)];
 
@@ -1593,6 +1584,7 @@ _CALL_SLOW:
 		else
 		{
 			EXEC_enter();
+			READ_PC();
 			goto _MAIN;;
 		}
 
@@ -1788,6 +1780,7 @@ _ENUM_FIRST:
 
 	ind = GET_XX();
 	_pop_ctrl(ind);
+	SYNC_PC();
 	EXEC_enum_first(code, &BP[ind], &BP[ind + 1]);
 	goto _NEXT;
 
@@ -1796,6 +1789,7 @@ _ENUM_FIRST:
 _ENUM_NEXT:
 
 	ind = PC[-1] & 0xFF;
+	SYNC_PC();
 	if (EXEC_enum_next(code, &BP[ind], &BP[ind + 1]))
 		goto _JUMP;
 	else
@@ -2351,10 +2345,12 @@ _CATCH:
 	else
 	{
 		//goto __RETURN_VOID;
+		SYNC_PC();
 		if (_return(2))
 			return;
-		else
-			goto _NEXT;
+
+		READ_PC();
+		goto _NEXT;
 	}
 
 /*-----------------------------------------------*/
@@ -2364,7 +2360,10 @@ _BREAK:
 	if (!EXEC_trace && !EXEC_debug)
 		*PC = C_NOP;
 	else
+	{
+		SYNC_PC();
 		DEBUG_breakpoint(code);
+	}
 	goto _NEXT;
 
 /*-----------------------------------------------*/
@@ -2379,6 +2378,7 @@ _QUIT:
 		return;
 	}
 
+	SYNC_PC();
 	EXEC_quit(code);
 	goto _NEXT;
 
@@ -2398,11 +2398,13 @@ _BYREF:
 
 _SUBR_COMPN:
 
+	SYNC_PC();
 	_SUBR_compe(code);
 	goto _NEXT;
 
 _SUBR_COMPE:
 	
+	SYNC_PC();
 	_SUBR_compe(code);
 	goto _NEXT;
 
@@ -2916,6 +2918,7 @@ _SUBR_LEN:
 
 _SUBR_ADD:
 
+	SYNC_PC();
 	_SUBR_add(code);
 	goto _NEXT;
 
@@ -2923,6 +2926,7 @@ _SUBR_ADD:
 
 _SUBR_SUB:
 
+	SYNC_PC();
 	_SUBR_sub(code);
 	goto _NEXT;
 
@@ -2930,6 +2934,7 @@ _SUBR_SUB:
 
 _SUBR_MUL:
 
+	SYNC_PC();
 	_SUBR_mul(code);
 	goto _NEXT;
 
@@ -2937,6 +2942,7 @@ _SUBR_MUL:
 
 _SUBR_DIV:
 
+	SYNC_PC();
 	_SUBR_div(code);
 	goto _NEXT;
 
@@ -2944,10 +2950,16 @@ _SUBR_DIV:
 
 _SUBR_POKE:
 
+	SYNC_PC();
 	SUBR_poke(code);
 	goto _NEXT;
+
+/*-----------------------------------------------*/
+
 }
 
+#undef PC
+#define PC EXEC_current.pc
 
 
 #if 0

@@ -109,10 +109,15 @@ enum {
 	};
 
 
+#ifndef __GBX_EXEC_LOOP_C
+
+	extern STACK_CONTEXT EXEC_current;
+extern VALUE *SP;
+
+#endif
+
 #ifndef __GBX_EXEC_C
 
-extern STACK_CONTEXT EXEC_current;
-extern VALUE *SP;
 extern VALUE TEMP;
 extern VALUE RET;
 
@@ -440,5 +445,9 @@ void EXEC_push_array(ushort code);
 void EXEC_pop_array(ushort code);
 
 void EXEC_set_got_error(bool err);
+
+PCODE *EXEC_on_goto_gosub(PCODE *pc);
+void EXEC_gosub(PCODE *pc);
+
 
 #endif /* */

@@ -3792,6 +3792,8 @@ _CATCH:
 
 _ON_GOTO_GOSUB:
 
+	// TODO: Computed Goto / GoSub
+
 	index = GET_XX();
 
 	JIT_print("  {\n");

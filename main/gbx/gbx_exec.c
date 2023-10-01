@@ -48,8 +48,6 @@
 //#define DEBUG_STACK 1
 //#define SHOW_FUNCTION 1
 
-STACK_CONTEXT EXEC_current = { 0 }; // Current virtual machine state
-VALUE *SP = NULL; // Stack pointer
 VALUE TEMP; // Temporary storage or return value of a native function
 VALUE RET; // Return value of a gambas function
 VALUE *EXEC_super = NULL; // SUPER was used for this stack pointer
@@ -2049,3 +2047,65 @@ void EXEC_set_got_error(bool err)
 {
 	EXEC_got_error = err;
 }
+
+PCODE *EXEC_on_goto_gosub(PCODE *pc)
+{
+	short n, m;
+
+	m = (signed char)*pc;
+	SP--;
+	VALUE_conv_integer(SP);
+	n = SP->_integer.value;
+
+	if (m == 0) // indirect GOTO / GOSUB
+	{
+		m = FP->n_label;
+		n--;
+		//fprintf(stderr, "m = %d n = %d\n", m, n);
+		if (n < 0 || n >= m)
+			THROW(E_JUMP);
+		n = FP->code[n - m];
+		if (n < 0)
+			THROW(E_JUMP);
+		//fprintf(stderr, "-> %d\n", FP->code[n - m - 1]);
+		pc[2] = n - (pc - FP->code) - 3;
+		pc++;
+	}
+	else
+	{
+		if (n < 0 || n >= m)
+			pc += m + 3;
+		else
+		{
+			pc[m + 2] = pc[n + 1] - (m - n) - 2;
+			pc += m + 1;
+		}
+	}
+
+	return pc;
+}
+
+
+void EXEC_gosub(PCODE *pc)
+{
+	int i;
+	VALUE *val;
+
+	STACK_check(1 + FP->stack_usage - FP->n_local);
+
+	SP->type = T_VOID;
+	SP->_void.value[0] = (intptr_t)pc;
+	SP->_void.value[1] = (intptr_t)GP;
+
+	GP = SP;
+
+	SP++;
+
+	val = &BP[FP->n_local];
+	for (i = 0; i < FP->n_ctrl; i++)
+	{
+		*SP++ = val[i];
+		val[i].type = T_NULL;
+	}
+}
+

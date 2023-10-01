@@ -106,9 +106,9 @@ typedef
 typedef
 	struct {
 		TYPE type;
-		char n_param;
-		char npmin;
-		char vararg;
+		uchar n_param;
+		uchar npmin;
+		uchar vararg;
 		unsigned fast : 1;
 		unsigned unsafe : 1;
 		unsigned fast_linked : 1;
@@ -116,8 +116,10 @@ typedef
 		unsigned use_is_missing : 1;
 		unsigned is_static : 1;
 		unsigned _reserved : 2;
-		short n_local;
-		short n_ctrl;
+		uchar n_local;
+		uchar n_ctrl;
+		uchar n_label; // Number of label for indirect jumps
+		uchar _reserved2;
 		short stack_usage;
 		short error;
 		unsigned short *code;
@@ -135,9 +137,11 @@ typedef
 		char npmin;
 		char vararg;
 		unsigned char flag;
+		short n_local;
+		short n_ctrl;
 		}
 	PACKED
-	FUNCTION_FLAG;
+	FUNCTION_LOAD;
 
 typedef
 	struct {
