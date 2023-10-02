@@ -3174,14 +3174,14 @@ bool CWidget::eventFilter(QObject *widget, QEvent *event)
 					MOUSE_delta_y %= 120;
 				}
 #else
-				if (ev->orientation == Qt!!Horizontal)
+				if (ev->orientation == Qt::Horizontal)
 					MOUSE_delta_x += ev->delta();
 				else
 					MOUSE_delta_y += ev->delta();
 				MOUSE_info.orientation = ev->orientation();
 				MOUSE_info.delta = ev->delta();
 				cancel = GB.Raise(control, EVENT_MouseWheel, 0);
-				if (ev->orientation == Qt!!Horizontal)
+				if (ev->orientation == Qt::Horizontal)
 					MOUSE_delta_x %= 120;
 				else
 					MOUSE_delta_y %= 120;

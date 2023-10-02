@@ -95,7 +95,7 @@ Resizes a widget.
 #define MOVE_RESIZE_WIDGET(_object, _widget, _x, _y, _w, _h)
 Move & resize a widget simultaneously.
 
-#define RESIZE_CONTAINER(_object, _w, _h)
+#define RESIZE_CONTAINER(_object, _cont, _w, _h)
 Resizes the container object by resizing the widget itself.
 
 #define INIT_CHECK_CHILDREN_LIST(_widget)
@@ -250,7 +250,7 @@ void FUNCTION_NAME(void *_object) //(QFrame *cont)
 			hf = GET_WIDGET_H(cont) - hc;
 			#endif
 			
-			//fprintf(stderr, "cont: %s: %d %d %d %d (%d %d)\n", ((gControl *)_object)->name(), xc, yc, wc, hc, wf, hf);
+			//fprintf(stderr, "GET_WIDGET_CONTENTS: %s: %d %d %d %d\n", GET_OBJECT_NAME(_object), xc, yc, wc, hc);
 			
 			//if (hc > GET_WIDGET_H(cont))
 			//	qDebug("hc = %d H = %d ?", hc, GET_WIDGET_H(cont));

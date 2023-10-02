@@ -513,6 +513,13 @@ BEGIN_PROPERTY(Screen_ResolutionY)
 
 END_PROPERTY
 
+BEGIN_METHOD(Screen_Screenshot, GB_INTEGER x; GB_INTEGER y; GB_INTEGER w; GB_INTEGER h)
+
+	GB.ReturnObject(CPICTURE_grab(0, SCREEN->index, VARGOPT(x, 0), VARGOPT(y, 0), VARGOPT(w, 0), VARGOPT(h, 0)));
+
+END_METHOD
+
+
 //-------------------------------------------------------------------------
 
 GB_DESC ScreenDesc[] =
@@ -534,6 +541,8 @@ GB_DESC ScreenDesc[] =
 	GB_PROPERTY_READ("ResolutionX", "f", Screen_ResolutionX),
 	GB_PROPERTY_READ("ResolutionY", "f", Screen_ResolutionY),
 	
+	GB_METHOD("Screenshot", "Picture", Screen_Screenshot, "[(X)i(Y)i(Width)i(Height)i]"),
+
 	GB_END_DECLARE
 };
 
