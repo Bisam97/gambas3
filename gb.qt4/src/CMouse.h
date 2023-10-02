@@ -41,12 +41,12 @@ typedef
 		Qt::MouseButton button;
 		Qt::MouseButtons state;
 		Qt::KeyboardModifiers modifier;
-		int orientation;
 		int delta;
 		int screenX;
 		int screenY;
 		int dx;
 		int dy;
+		int orientation;
 		}
 	MOUSE_INFO;
 	
@@ -75,6 +75,10 @@ extern double MOUSE_timer;
 
 extern MOUSE_INFO MOUSE_info;
 extern POINTER_INFO POINTER_info;
+
+extern int MOUSE_delta_x;
+extern int MOUSE_delta_y;
+extern void *MOUSE_wheel_on_control;
 
 #else
 

@@ -44,6 +44,10 @@ double MOUSE_timer = 0;
 MOUSE_INFO MOUSE_info = { 0 };
 POINTER_INFO POINTER_info = { 0 };
 
+int MOUSE_delta_x = 0;
+int MOUSE_delta_y = 0;
+void *MOUSE_wheel_on_control = NULL;
+
 static int _dx = 0;
 static int _dy = 0;
 
@@ -366,6 +370,13 @@ BEGIN_PROPERTY(Mouse_Delta)
 
 END_PROPERTY
 
+BEGIN_PROPERTY(Mouse_FullDelta)
+
+	CHECK_VALID();
+	GB.ReturnBoolean(abs(MOUSE_info.orientation == Qt::Horizontal ? MOUSE_delta_x : MOUSE_delta_y) >= 120);
+
+END_PROPERTY
+
 BEGIN_PROPERTY(Mouse_Forward)
 
 	CHECK_VALID();
@@ -643,6 +654,7 @@ GB_DESC CMouseDesc[] =
 	GB_STATIC_PROPERTY_READ("Meta", "b", Mouse_Meta),
 	GB_STATIC_PROPERTY_READ("Normal", "b", Mouse_Normal),
 	GB_STATIC_PROPERTY_READ("Orientation", "i", Mouse_Orientation),
+	GB_STATIC_PROPERTY_READ("FullDelta", "b", Mouse_FullDelta),
 	GB_STATIC_PROPERTY_READ("Delta", "f", Mouse_Delta),
 	GB_STATIC_PROPERTY_READ("Forward", "b", Mouse_Forward),
 	GB_STATIC_PROPERTY_READ("Click", "i", Mouse_Click),

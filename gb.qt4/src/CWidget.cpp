@@ -2299,6 +2299,7 @@ void CWidget::destroy()
 	CLEAN_POINTER(CWIDGET_previous_control);
 	CLEAN_POINTER(CWIDGET_hovered);
 	CLEAN_POINTER(_old_active_control);
+	CLEAN_POINTER(MOUSE_wheel_on_control);
 #if QT5
 	CLEAN_POINTER(_last_entered);
 #endif
@@ -3147,25 +3148,43 @@ bool CWidget::eventFilter(QObject *widget, QEvent *event)
 #endif
 				MOUSE_info.state = ev->buttons();
 				MOUSE_info.modifier = ev->modifiers();
+
+				if (control != MOUSE_wheel_on_control)
+				{
+					MOUSE_wheel_on_control = control;
+					MOUSE_delta_x = MOUSE_delta_y = 0;
+				}
 				
 #ifdef QT5
 				QPoint delta = ev->angleDelta();
 				if (delta.x())
 				{
+					MOUSE_delta_x += delta.x();
 					MOUSE_info.orientation = Qt::Horizontal;
 					MOUSE_info.delta = delta.x();
 					cancel = GB.Raise(control, EVENT_MouseWheel, 0);
+					MOUSE_delta_x %= 120;
 				}
 				if (delta.y())
 				{
+					MOUSE_delta_y += delta.y();
 					MOUSE_info.orientation = Qt::Vertical;
 					MOUSE_info.delta = delta.y();
 					cancel = GB.Raise(control, EVENT_MouseWheel, 0);
+					MOUSE_delta_y %= 120;
 				}
 #else
+				if (ev->orientation == Qt!!Horizontal)
+					MOUSE_delta_x += ev->delta();
+				else
+					MOUSE_delta_y += ev->delta();
 				MOUSE_info.orientation = ev->orientation();
 				MOUSE_info.delta = ev->delta();
 				cancel = GB.Raise(control, EVENT_MouseWheel, 0);
+				if (ev->orientation == Qt!!Horizontal)
+					MOUSE_delta_x %= 120;
+				else
+					MOUSE_delta_y %= 120;
 #endif
 
 
