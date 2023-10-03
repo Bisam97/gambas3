@@ -3,9 +3,24 @@
 Export
 
 Static Property Read ActiveControl As WebControl
+Static Property Theme As String
+
+Static Private $sTheme As String
 
 Static Private Function ActiveControl_Read() As WebControl
 
   Return WebForm._GetActiveControl()
+
+End
+
+Static Private Function Theme_Read() As String
+
+  Return If($sTheme, $sTheme, "gambas")
+
+End
+
+Static Private Sub Theme_Write(Value As String)
+
+  $sTheme = Value
 
 End

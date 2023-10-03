@@ -141,6 +141,7 @@ Static Private Sub RenderIcon(sIcon As String) As Boolean
   Dim sSize As String
   Dim sType As String
   Dim sPath As String
+  Dim sRoot As String
   
   iPos = InStr(sIcon, "::")
   If iPos = 0 Then Return True
@@ -154,20 +155,19 @@ Static Private Sub RenderIcon(sIcon As String) As Boolean
   sSize = Left(sIcon, iPos - 1)
   sIcon = Mid$(sIcon, iPos + 1) & ".png"
 
-  sPath = "./gb.form.stock/"
+  sRoot = "./gb.form.stock/"
   Component.Load("gb.form.stock")
 
   If sType = "icon" Then
   
-    If sSize = "huge" And If Exist(sPath & "gambas/128/" & sIcon) Then
-      sPath &= "gambas/128/" & sIcon
-    Else
-      sPath &= "gambas/32/" & sIcon
-    Endif
+    sPath = sRoot &/ Application.Theme &/ "128/" & sIcon
+    If Not Exist(sPath) Then sPath = sRoot &/ Application.Theme &/ "32/" & sIcon
+    If Not Exist(sPath) Then Return True
   
   Else If sType = "flag" Then
   
-    sPath &= "flag/256" &/ sIcon
+    sPath = sRoot &/ "flag/256" &/ sIcon
+    If Not Exist(sPath) Then Return True
     
   Else 
     
