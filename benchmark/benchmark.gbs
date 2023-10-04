@@ -1,10 +1,10 @@
 #!/usr/bin/env gbs3
 
-Private $fCompileTime as Float
+Private $fCompileTime As Float
 
 Private Sub RunScript(sScript As String, sRun As String, bGambasOnly As Boolean) As Float
 
-  Dim aResult as String[]
+  Dim aResult As String[]
   Dim sResult As String
   Dim fTime As Float
 
@@ -39,10 +39,10 @@ Private Sub FormatResult(cResult As Collection, iCount As Integer, sLang As Stri
   Dim sFormat As String
   Dim sTest As String
 
-  If cResult[sLang] <= 0 Then Return "-"
+  If cResult[sLang] <= 0 Then Return Format("30", "0.00") & "+"
 
-  For Each sTest In ["python", "perl", "java","gambas"]
-    If cResult[sTest] < cResult[sLang] Then
+  For Each sTest In ["python", "perl", "java", "gambas"]
+    If cResult[sTest] > 0 And If cResult[sTest] < cResult[sLang] Then
       bBetter = False
       Break
     Endif
@@ -66,15 +66,17 @@ Dim iCount As Integer = 1
 Dim I As Integer
 Dim fTime As Float
 
+Shell "rm -rf " & Shell$(Application.Dir &/ " __pycache__") Wait
+
 For I = 1 To Args.Max
 
   If Args[I] = "-gambas" Then
     bGambasOnly = True
-	Else If Args[I] = "-count" Then
-		If I < Args.Max And If Args[I + 1] Not Begins "-" Then
-		  Try iCount = Max(1, CInt(Args[I + 1]))
-			inc I
-		Endif
+ Else If Args[I] = "-count" Then
+  If I < Args.Max And If Args[I + 1] Not Begins "-" Then
+    Try iCount = Max(1, CInt(Args[I + 1]))
+   Inc I
+  Endif
   Else
     sBenchmarkOnly = Args[I]
   Endif
@@ -83,37 +85,40 @@ Next
 
 For I = 1 To iCount
 
-  If iCount > 1 Then Print "-------- Run #"; I;" --------"
+  If iCount > 1 Then Print "-------- Run #"; I; " --------"
 
-	For Each sBenchmark In Dir(Application.Dir, "*.gbs").Sort()
+  For Each sBenchmark In Dir(Application.Dir, "*.gbs").Sort()
 
-		sBenchmark = File.BaseName(sBenchmark)
-		If sBenchmark = "benchmark" Then Continue
-		If sBenchmarkOnly And If sBenchmark <> sBenchmarkOnly Then Continue
+    sBenchmark = File.BaseName(sBenchmark)
+    If sBenchmark = "benchmark" Then Continue
+    If sBenchmarkOnly And If sBenchmark <> sBenchmarkOnly Then Continue
 
-		cResult = cAllResult[sBenchmark]
-		If Not cResult Then
-			cResult = New Collection
-			cResult.Default = 0.0
-			cResult!name = sBenchmark
-			cAllResult[sBenchmark] = cResult
-		Endif
-		
-		If Not bGambasOnly Then
-          cResult!python += RunScript(sBenchmark & ".py", "python", bGambasOnly)
-          cResult!perl += RunScript(sBenchmark & ".pl", "perl", bGambasOnly)
-          If sBenchmark Not Begins "string" Then
-            cResult!java += RunScript(sBenchmark & ".jvs", "java -Xint --source 11", bGambasOnly)
-          Endif
-          cResult!javajit += RunScript(sBenchmark & ".jvs", "java --source 11", bGambasOnly)
-        Endif
-		fTime = RunScript(sBenchmark & ".gbs", "gbs3 -f -U -c", bGambasOnly)
-		cResult!gambasjit += fTime
-		cResult!gambasjitwct += fTime - $fCompileTime
-		cResult!gambas += RunScript(sBenchmark & ".gbs", "gbs3 -c", bGambasOnly)
+    cResult = cAllResult[sBenchmark]
+    If Not cResult Then
+    cResult = New Collection
+    cResult.Default = 0.0
+    cResult!name = sBenchmark
+    cAllResult[sBenchmark] = cResult
+    Endif
+  
+    If Not bGambasOnly Then
+      If sBenchmark <> "string2" Then
+        cResult!python += RunScript(sBenchmark & ".py", "python", bGambasOnly)
+      Endif
+      cResult!perl += RunScript(sBenchmark & ".pl", "perl", bGambasOnly)
+      If sBenchmark Not Begins "string" Then
+        cResult!java += RunScript(sBenchmark & ".jvs", "java -Xint --source 11", bGambasOnly)
+      Endif
+      cResult!javajit += RunScript(sBenchmark & ".jvs", "java --source 11", bGambasOnly)
+    Endif
 
-	Next
-	
+    fTime = RunScript(sBenchmark & ".gbs", "gbs3 -f -U -c", bGambasOnly)
+    cResult!gambasjit += fTime
+    cResult!gambasjitwct += fTime - $fCompileTime
+    cResult!gambas += RunScript(sBenchmark & ".gbs", "gbs3 -c", bGambasOnly)
+
+  Next
+ 
 Next
 
 Print
@@ -139,7 +144,7 @@ Print
 If bGambasOnly Then
 
   For Each cResult In cAllResult
-    Print cResult!name; Space$(20 - Len(cResult!name)); ": "; Format(cResult!gambas / iCount, "0.00"); " / ";Format(cResult!gambasjit / iCount, "0.00");" (jit)"; " / ";Format(cResult!gambasjitwct / iCount, "0.00");" (jit without compilation time)"
+    Print cResult!name; Space$(20 - Len(cResult!name)); ": "; Format(cResult!gambas / iCount, "0.00"); " / "; Format(cResult!gambasjit / iCount, "0.00"); " (jit)"; " / "; Format(cResult!gambasjitwct / iCount, "0.00"); " (jit without compilation time)"
   Next
 
 Else

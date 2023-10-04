@@ -1,6 +1,5 @@
 #!/usr/bin/python
 
-import re
 import time
 import sys
 
@@ -16,7 +15,7 @@ i = 0
 while (i < imax+1000):
 	i = i + 1
 	gstr += str
-	gstr = re.sub('efgh','____',gstr)
+	gstr = gstr.replace('efgh','____')
 	lngth = len(gstr)
 	if (lngth % (1024*64) == 0):
 		print(int(time.time()-starttime),"sec\t\t",(lngth/1024),"kb")
