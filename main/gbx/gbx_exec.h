@@ -289,14 +289,11 @@ void EXEC_public_desc(CLASS *class, void *object, CLASS_DESC_METHOD *desc, int n
 
 bool EXEC_special_do(CLASS *class, int index, void *object, int nparam, bool drop);
 
-INLINE bool EXEC_special(int special, CLASS *class, void *object, int nparam, bool drop)
-{
-	int index = class->special[special];
-	if (index == NO_SYMBOL)
-		return TRUE;
-	else
-		return EXEC_special_do(class, index, object, nparam, drop);
-}
+#define EXEC_special(_special, _class, _object, _nparam, _drop) \
+({ \
+	int __index = _class->special[_special]; \
+	(__index == NO_SYMBOL) ? TRUE : EXEC_special_do(_class, __index, _object, _nparam, _drop); \
+})
 
 void EXEC_special_inheritance(int special, CLASS *class, OBJECT *object, int nparam, bool drop);
 

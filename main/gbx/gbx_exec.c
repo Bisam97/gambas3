@@ -1848,6 +1848,8 @@ void EXEC_new(ushort code)
 	char *name = NULL;
 	char *cname = NULL;
 	char *save;
+	bool new_method;
+	bool ready_method;
 
 	np = code & 0xFF;
 	event = np & CODE_NEW_EVENT;
@@ -1908,11 +1910,14 @@ void EXEC_new(ushort code)
 	}
 
 
-	if (class->new_method || class->ready_method)
+	new_method = class->new_method;
+	ready_method = class->ready_method;
+
+	if (new_method || ready_method)
 	{
 		TRY
 		{
-			if (class->new_method)
+			if (new_method)
 			{
 				save = EVENT_enter_name(name);
 				OBJECT_lock(object, TRUE);
@@ -1927,7 +1932,7 @@ void EXEC_new(ushort code)
 		}
 		CATCH
 		{
-			if (class->new_method)
+			if (new_method)
 				EVENT_leave_name(save);
 			// _free() methods should not be called, but we must
 			OBJECT_UNREF(object);
