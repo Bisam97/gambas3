@@ -416,7 +416,7 @@ static void init_local_var(CLASS *class, FUNCTION *func)
 	__FUNCTION:
 	__CLASS:
 	__NULL:
-		ERROR_panic("VALUE_default: Unknown default type");
+		ERROR_panic("init_local_var: unknown default type");
 	}
 
 	SP = value;
@@ -1605,13 +1605,9 @@ void EXEC_public(CLASS *class, void *object, const char *name, int nparam)
 }
 
 
-bool EXEC_special(int special, CLASS *class, void *object, int nparam, bool drop)
+bool EXEC_special_do(CLASS *class, int index, void *object, int nparam, bool drop)
 {
 	CLASS_DESC *desc;
-	short index = class->special[special];
-
-	if (index == NO_SYMBOL)
-		return TRUE;
 
 	desc = CLASS_get_desc(class, index);
 
@@ -1911,34 +1907,48 @@ void EXEC_new(ushort code)
 		np--;
 	}
 
-	save = EVENT_enter_name(name);
 
-	TRY
+	if (class->new_method || class->ready_method)
 	{
-		OBJECT_lock(object, TRUE);
-		EXEC_special_inheritance(SPEC_NEW, class, object, np, TRUE);
-		OBJECT_lock(object, FALSE);
-		EVENT_leave_name(save);
+		TRY
+		{
+			if (class->new_method)
+			{
+				save = EVENT_enter_name(name);
+				OBJECT_lock(object, TRUE);
+				EXEC_special_inheritance(SPEC_NEW, class, object, np, TRUE);
+				OBJECT_lock(object, FALSE);
+				EVENT_leave_name(save);
+			}
 
-		SP--; /* class */
-		EXEC_special(SPEC_READY, class, object, 0, TRUE);
+			SP--; /* class */
+			EXEC_special(SPEC_READY, class, object, 0, TRUE);
 
-		SP->_object.class = class;
-		SP->_object.object = object;
-		SP++;
+		}
+		CATCH
+		{
+			if (class->new_method)
+				EVENT_leave_name(save);
+			// _free() methods should not be called, but we must
+			OBJECT_UNREF(object);
+			//(*class->free)(class, object);
+			SP--; /* class */
+			SP->type = T_NULL;
+			SP++;
+			PROPAGATE();
+		}
+		END_TRY
 	}
-	CATCH
+	else
 	{
-		EVENT_leave_name(save);
-		// _free() methods should not be called, but we must
-		OBJECT_UNREF(object);
-		//(*class->free)(class, object);
-		SP--; /* class */
-		SP->type = T_NULL;
-		SP++;
-		PROPAGATE();
+		if (np)
+			THROW(E_TMPARAM);
+		SP--;
 	}
-	END_TRY
+
+	SP->_object.class = class;
+	SP->_object.object = object;
+	SP++;
 }
 
 

@@ -104,7 +104,7 @@ _POP_GENERIC:
 			{
 				if (defined)
 				{
-					if (!CP->not_3_18 && TYPE_is_pure_object(val->type) && !VALUE_is_super(val) && class->is_simple && !FP->fast)
+					if (!CP->less_than_3_18 && TYPE_is_pure_object(val->type) && !VALUE_is_super(val) && class->is_simple && !FP->fast)
 						*PC = C_POP_VARIABLE;
 					else
 						*PC |= 1;

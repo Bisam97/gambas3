@@ -302,7 +302,7 @@ typedef
 		unsigned is_simple : 1;           //          Class has no parent, no child, is not virtual, and has no 'check' function.
 		unsigned has_free : 1;            //          The class has a free function
 		unsigned is_test : 1;             //          The class is a test module
-		unsigned not_3_18 : 1;            //  24  36  If bytecode version is strictly older than 3.18
+		unsigned less_than_3_18 : 1;      //  24  36  If bytecode version is strictly older than 3.18
 
 		short n_desc;                     //  26  38  number of descriptions
 		short n_event;                    //  28  40  number of events
@@ -327,23 +327,24 @@ typedef
 		uint size_stat;                   //  68 116  static class size
 		uint size;                        //  72 120  dynamic class size
 		uint off_event;                   //  76 124  offset of OBJECT_EVENT structure in the object
-		#ifdef OS_64BITS
-		uint _reserved2;                  //     128
-		#endif
 
-		short special[16];                // 108 160  special functions index (_new, _free, ...)
+		unsigned new_method : 1;          //          if there is a special method to call when creating a new instance
+		unsigned ready_method : 1;        //          if there is a ready method to call
+		unsigned _reserved2 : 30;         //  80 128
 
-		TYPE array_type;                  // 112 168  datatype of the contents if this class is an array class of objects
-		struct _CLASS *array_class;       // 116 176  array of class
-		struct _CLASS *astruct_class;     // 120 184  array of struct class
+		short special[16];                // 112 160  special functions index (_new, _free, ...)
 
-		void *instance;                   // 124 192  automatically created instance
-		void **operators;                 // 128 200  arithmetic interface
-		bool (*convert)();                // 132 208  convert method
+		TYPE array_type;                  // 116 168  datatype of the contents if this class is an array class of objects
+		struct _CLASS *array_class;       // 120 176  array of class
+		struct _CLASS *astruct_class;     // 124 184  array of struct class
 
-		COMPONENT *component;             // 136 216  The component the class belongs to
+		void *instance;                   // 128 192  automatically created instance
+		void **operators;                 // 132 200  arithmetic interface
+		bool (*convert)();                // 136 208  convert method
 
-		struct _CLASS *next;              // 140 224  next class
+		COMPONENT *component;             // 140 216  The component the class belongs to
+
+		struct _CLASS *next;              // 148 224  next class
 		}
 	CLASS;
 

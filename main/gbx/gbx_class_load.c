@@ -173,7 +173,7 @@ static void check_version(CLASS *class, int loaded)
 	if (loaded < GAMBAS_PCODE_VERSION_MIN)
 		THROW_CLASS(class, "Bytecode too old. Please recompile the project.", "");
 
-	class->not_3_18 = loaded < 0x3180000;
+	class->less_than_3_18 = loaded < 0x3180000;
 }
 
 
@@ -1057,8 +1057,6 @@ static void load_without_inits(CLASS *class)
 
 	class->in_load = TRUE;
 
-	class->init_dynamic = TRUE;
-
 	load_and_relocate(class, len_data, &start, &n_desc);
 
 	// Information on static and dynamic variables
@@ -1267,6 +1265,8 @@ static void load_without_inits(CLASS *class)
 	// Special methods
 
 	CLASS_search_special(class);
+
+	//fprintf(stderr, "%s -> init_dynamic = %d / new_method = %d / ready_method = %d\n", class->name, class->init_dynamic, class->new_method, class->ready_method);
 
 	// Class is loaded...
 

@@ -111,8 +111,9 @@ enum {
 
 #ifndef __GBX_EXEC_LOOP_C
 
-	extern STACK_CONTEXT EXEC_current;
+extern STACK_CONTEXT EXEC_current;
 extern VALUE *SP;
+extern bool EXEC_bytecode_less_than_3_18;
 
 #endif
 
@@ -221,7 +222,13 @@ void EXEC_leave_keep();
 void EXEC_leave_drop();
 void EXEC_loop(void);
 void EXEC_init_bytecode_check(void);
-void EXEC_check_bytecode(void);
+void EXEC_switch_bytecode(void);
+
+#define EXEC_check_bytecode() \
+({ \
+	if (CP && CP->less_than_3_18 != EXEC_bytecode_less_than_3_18) \
+		EXEC_switch_bytecode(); \
+})
 
 #define EXEC_object_2(_val, _pclass, _pobject) \
 ({ \
@@ -280,7 +287,16 @@ void EXEC_function_loop(void);
 void EXEC_public(CLASS *class, void *object, const char *name, int nparam);
 void EXEC_public_desc(CLASS *class, void *object, CLASS_DESC_METHOD *desc, int nparam);
 
-bool EXEC_special(int special, CLASS *class, void *object, int nparam, bool drop);
+bool EXEC_special_do(CLASS *class, int index, void *object, int nparam, bool drop);
+
+INLINE bool EXEC_special(int special, CLASS *class, void *object, int nparam, bool drop)
+{
+	int index = class->special[special];
+	if (index == NO_SYMBOL)
+		return TRUE;
+	else
+		return EXEC_special_do(class, index, object, nparam, drop);
+}
 
 void EXEC_special_inheritance(int special, CLASS *class, OBJECT *object, int nparam, bool drop);
 
@@ -288,7 +304,6 @@ void EXEC_nop(void);
 
 void EXEC_push_unknown(void);
 int EXEC_push_unknown_event(bool unknown);
-//void EXEC_push_special(void);
 
 void EXEC_pop_unknown(void);
 

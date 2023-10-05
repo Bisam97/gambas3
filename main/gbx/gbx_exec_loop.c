@@ -82,10 +82,10 @@ NOINLINE static void _SUBR_div(ushort code);
 
 #define my_VALUE_class_read VALUE_class_read_inline
 
-NOINLINE static void SUBR_left(ushort code);
-NOINLINE static void SUBR_right(ushort code);
-NOINLINE static void SUBR_mid(ushort code);
-NOINLINE static void SUBR_len(void);
+NOINLINE static VALUE *SUBR_left(ushort code, VALUE *sp);
+NOINLINE static VALUE *SUBR_right(ushort code, VALUE *sp);
+NOINLINE static VALUE *SUBR_mid(ushort code, VALUE *sp);
+NOINLINE static void SUBR_len(VALUE *sp);
 
 NOINLINE static bool _return(ushort code);
 
@@ -212,7 +212,8 @@ const void *EXEC_subr_table[] =
 static const void **_sb_jump_table;
 static const void **_sb_jump_table_3_18_AXXX;
 static const void **_sb_jump_table_3_18_FXXX;
-static bool _sb_not_3_18 = FALSE;
+
+bool EXEC_bytecode_less_than_3_18 = FALSE;
 
 void EXEC_init_bytecode_check()
 {
@@ -221,22 +222,14 @@ void EXEC_init_bytecode_check()
 	EXEC_loop();
 }
 
-void EXEC_check_bytecode()
+void EXEC_switch_bytecode()
 {
 	int i;
 
-	if (!CP)
-		return;
+	EXEC_bytecode_less_than_3_18 = !EXEC_bytecode_less_than_3_18;
+	//fprintf(stderr, "switch bytecode to %s\n", EXEC_bytecode_less_than_3_18 ? "< 3.18" : "3.18");
 
-	//fprintf(stderr, "EXEC_check_bytecode: %s / %d\n", CP->name, CP->not_3_18);
-
-	if (CP->not_3_18 == _sb_not_3_18)
-		return;
-
-	_sb_not_3_18 = !_sb_not_3_18;
-	//fprintf(stderr, "switch bytecode to %s\n", _sb_not_3_18 ? "< 3.18" : "3.18");
-
-	if (_sb_not_3_18)
+	if (EXEC_bytecode_less_than_3_18)
 	{
 		for (i = 0xA1; i <= 0xAE; i++)
 			_sb_jump_table[i] = _sb_jump_table[0xA0];
@@ -1649,7 +1642,7 @@ _JUMP_FIRST:
 
 		READ_SP();
 
-		if (type == T_INTEGER && PC[-1] == (C_PUSH_QUICK + 1) && !CP->not_3_18)
+		if (type == T_INTEGER && PC[-1] == (C_PUSH_QUICK + 1) && !CP->less_than_3_18)
 		{
 			PC++;
 			*PC = C_JUMP_NEXT_INTEGER | ind;
@@ -2954,33 +2947,29 @@ _SUBR_CONV:
 
 _SUBR_LEFT:
 
-	SYNC_SP();
-	SUBR_left(code);
-	goto _NEXT;
+	sp = SUBR_left(code, sp);
+	goto _NEXT_NO_SYNC;
 
 /*-----------------------------------------------*/
 
 _SUBR_RIGHT:
 
-	SYNC_SP();
-	SUBR_right(code);
-	goto _NEXT;
+	sp = SUBR_right(code, sp);
+	goto _NEXT_NO_SYNC;
 
 /*-----------------------------------------------*/
 
 _SUBR_MID:
 
-	SYNC_SP();
-	SUBR_mid(code);
-	goto _NEXT;
+	sp = SUBR_mid(code, sp);
+	goto _NEXT_NO_SYNC;
 
 /*-----------------------------------------------*/
 
 _SUBR_LEN:
 
-	SYNC_SP();
-	SUBR_len();
-	goto _NEXT;
+	SUBR_len(sp);
+	goto _NEXT_NO_SYNC;
 
 /*-----------------------------------------------*/
 
@@ -3234,7 +3223,7 @@ __END:
 		if (P1->type == P2->type) \
 		{ \
 			*PC |= 0x10; \
-			if (!CP->not_3_18) \
+			if (!CP->less_than_3_18) \
 			{ \
 				if (type == T_INTEGER) \
 					*PC = _opcode##_INTEGER; \
@@ -3296,7 +3285,7 @@ __END:
 		if (P1->type == P2->type) \
 		{ \
 			*PC |= 0x10; \
-			if (!CP->not_3_18) \
+			if (!CP->less_than_3_18) \
 			{ \
 				if (type == T_INTEGER) \
 					*PC = _opcode##_INTEGER; \
@@ -4359,7 +4348,7 @@ __PUSH_GENERIC:
 				array = (CARRAY *)object;
 				if (array->type == GB_T_INTEGER)
 				{
-					if (!CP->not_3_18 && SP[-1].type == T_INTEGER)
+					if (!CP->less_than_3_18 && SP[-1].type == T_INTEGER)
 					{
 						*PC = C_PUSH_ARRAY_NATIVE_INTEGER;
 						goto __PUSH_ARRAY_2;
@@ -4369,7 +4358,7 @@ __PUSH_GENERIC:
 				}
 				else if (array->type == GB_T_FLOAT)
 				{
-					if (!CP->not_3_18 && SP[-1].type == T_INTEGER)
+					if (!CP->less_than_3_18 && SP[-1].type == T_INTEGER)
 					{
 						*PC = C_PUSH_ARRAY_NATIVE_FLOAT;
 						goto __PUSH_ARRAY_2;
@@ -4399,7 +4388,7 @@ __PUSH_GENERIC:
 			else if (np > 1)
 				THROW(E_TMPARAM);
 
-			if (TRUE) //CP->not_3_18)
+			if (TRUE) //CP->less_than_3_18)
 			{
 				fast = 0xC0;
 			}
@@ -4580,7 +4569,7 @@ __POP_GENERIC:
 				array = (CARRAY *)object;
 				if (array->type == GB_T_INTEGER)
 				{
-					if (!CP->not_3_18 && SP[-1].type == T_INTEGER && SP[-3].type == T_INTEGER)
+					if (!CP->less_than_3_18 && SP[-1].type == T_INTEGER && SP[-3].type == T_INTEGER)
 					{
 						*PC = C_POP_ARRAY_NATIVE_INTEGER;
 						goto __POP_ARRAY_2;
@@ -4592,7 +4581,7 @@ __POP_GENERIC:
 				}
 				else if (array->type == GB_T_FLOAT)
 				{
-					if (!CP->not_3_18 && SP[-1].type == T_INTEGER && SP[-3].type == T_FLOAT)
+					if (!CP->less_than_3_18 && SP[-1].type == T_INTEGER && SP[-3].type == T_FLOAT)
 					{
 						*PC = C_POP_ARRAY_NATIVE_FLOAT;
 						goto __POP_ARRAY_2;
@@ -4622,7 +4611,7 @@ __POP_GENERIC:
 			else if (np > 2)
 				THROW(E_TMPARAM);
 
-			if (TRUE) //CP->not_3_18)
+			if (TRUE) //CP->less_than_3_18)
 			{
 				fast = 0xC0;
 			}
@@ -4801,12 +4790,23 @@ void EXEC_quit(ushort code)
 	}
 }
 
+#define SUBR_get_param(nparam) \
+  VALUE *PARAM = (sp - nparam);
 
-NOINLINE static void SUBR_left(ushort code)
+#define SUBR_enter() \
+  int NPARAM = code & 0x3F; \
+  SUBR_get_param(NPARAM);
+
+#define SUBR_enter_param(nparam) \
+  const int NPARAM = nparam; \
+  SUBR_get_param(NPARAM);
+
+
+NOINLINE static VALUE *SUBR_left(ushort code, VALUE *sp)
 {
 	int val;
 
-	SUBR_ENTER();
+	SUBR_enter();
 
 	if (!SUBR_check_string(PARAM))
 	{
@@ -4814,6 +4814,7 @@ NOINLINE static void SUBR_left(ushort code)
 			val = 1;
 		else
 		{
+			SYNC_SP();
 			VALUE_conv_integer(&PARAM[1]);
 			val = PARAM[1]._integer.value;
 		}
@@ -4824,20 +4825,22 @@ NOINLINE static void SUBR_left(ushort code)
 		PARAM->_string.len = MinMax(val, 0, PARAM->_string.len);
 	}
 
-	SP -= NPARAM;
-	SP++;
+	sp -= NPARAM;
+	sp++;
+	return sp;
 }
 
-NOINLINE static void SUBR_mid(ushort code)
+NOINLINE static VALUE *SUBR_mid(ushort code, VALUE *sp)
 {
 	int start;
 	int len;
 	bool null;
 
-	SUBR_ENTER();
+	SUBR_enter();
 
 	null = SUBR_check_string(PARAM);
 
+	SYNC_SP();
 	VALUE_conv_integer(&PARAM[1]);
 	start = PARAM[1]._integer.value - 1;
 
@@ -4879,16 +4882,17 @@ NOINLINE static void SUBR_mid(ushort code)
 
 _SUBR_MID_FIN:
 
-	SP -= NPARAM;
-	SP++;
+	sp -= NPARAM;
+	sp++;
+	return sp;
 }
 
-NOINLINE static void SUBR_right(ushort code)
+NOINLINE static VALUE *SUBR_right(ushort code, VALUE *sp)
 {
 	int val;
 	int new_len;
 
-	SUBR_ENTER();
+	SUBR_enter();
 
 	if (!SUBR_check_string(PARAM))
 	{
@@ -4896,6 +4900,7 @@ NOINLINE static void SUBR_right(ushort code)
 			val = 1;
 		else
 		{
+			SYNC_SP();
 			VALUE_conv_integer(&PARAM[1]);
 			val = PARAM[1]._integer.value;
 		}
@@ -4909,16 +4914,17 @@ NOINLINE static void SUBR_right(ushort code)
 		PARAM->_string.len = new_len;
 	}
 
-	SP -= NPARAM;
-	SP++;
+	sp -= NPARAM;
+	sp++;
+	return sp;
 }
 
 
-NOINLINE static void SUBR_len(void)
+NOINLINE static void SUBR_len(VALUE *sp)
 {
 	int len;
 
-	SUBR_GET_PARAM(1);
+	SUBR_get_param(1);
 
 	if (SUBR_check_string(PARAM))
 		len = 0;

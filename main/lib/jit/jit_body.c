@@ -3100,7 +3100,7 @@ _PUSH_LOCAL:
 
 _PUSH_LOCAL_NOREF:
 
-	if (class->not_3_18)
+	if (class->less_than_3_18)
 		goto _PUSH_QUICK;
 	else
 		goto _PUSH_LOCAL;
@@ -3125,7 +3125,7 @@ _POP_LOCAL:
 _POP_LOCAL_NOREF:
 _POP_LOCAL_FAST:
 
-	if (class->not_3_18)
+	if (class->less_than_3_18)
 		goto _PUSH_QUICK;
 	else
 		goto _POP_LOCAL;
@@ -3143,7 +3143,7 @@ _PUSH_PARAM:
 
 _PUSH_PARAM_NOREF:
 
-	if (class->not_3_18)
+	if (class->less_than_3_18)
 		goto _PUSH_QUICK;
 	else
 		goto _PUSH_PARAM;
@@ -3161,7 +3161,7 @@ _POP_PARAM:
 _POP_PARAM_NOREF:
 _POP_PARAM_FAST:
 
-	if (class->not_3_18)
+	if (class->less_than_3_18)
 		goto _PUSH_QUICK;
 	else
 		goto _POP_PARAM;
@@ -3173,7 +3173,7 @@ _PUSH_QUICK:
 
 _PUSH_FLOAT:
 
-	if (class->not_3_18)
+	if (class->less_than_3_18)
 		goto _PUSH_QUICK;
 
 	push(T_FLOAT, "%d", GET_XX());
@@ -3454,14 +3454,14 @@ _JUMP_IF_FALSE:
 
 _JUMP_IF_TRUE_FAST:
 
-	if (class->not_3_18)
+	if (class->less_than_3_18)
 		goto _PUSH_QUICK;
 	else
 		goto _JUMP_IF_TRUE;
 
 _JUMP_IF_FALSE_FAST:
 
-	if (class->not_3_18)
+	if (class->less_than_3_18)
 		goto _PUSH_QUICK;
 	else
 		goto _JUMP_IF_FALSE;
@@ -3740,7 +3740,7 @@ _SUBR_PEEK:
 
 _SUBR_POKE:
 
-	if (class->not_3_18)
+	if (class->less_than_3_18)
 		goto _PUSH_QUICK;
 	push_subr_poke(code);
 	goto _MAIN;

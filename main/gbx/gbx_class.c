@@ -1436,6 +1436,12 @@ void CLASS_search_special(CLASS *class)
 			THROW_CLASS(class, "Validation variable must be declared first", "");
 		class->special[SPEC_INVALID] = (short)offset;
 	}
+
+	// Some flags
+
+	class->init_dynamic = class->load && class->load->func && (class->load->func[FUNC_INIT_DYNAMIC].code[0] & 0xFF00) != C_RETURN;
+	class->new_method = class->parent || class->init_dynamic || class->special[SPEC_NEW] != NO_SYMBOL;
+	class->ready_method = class->special[SPEC_READY] != NO_SYMBOL;
 }
 
 
