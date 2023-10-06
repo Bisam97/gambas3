@@ -113,6 +113,8 @@ static bool _unsafe;
 
 static void enter_function(FUNCTION *func, int index)
 {
+	int i, n;
+
 	_func = func;
 	
 	_decl_rs = FALSE;
@@ -147,6 +149,22 @@ static void enter_function(FUNCTION *func, int index)
 	JIT_print_decl("  GB_VALUE_GOSUB *gp = 0;\n");
 	JIT_print_decl("  bool error = FALSE;\n");
 	
+	if (func->n_label)
+	{
+		JIT_print_decl("  static void *ind_jump[] = { ");
+		for (i = 0; i < func->n_label; i++)
+		{
+			if (i)
+				JIT_print_decl(", ");
+			n = (signed short)func->code[i - func->n_label];
+			if (n < 0)
+				JIT_print_decl("NULL");
+			else
+				JIT_print_decl("&&__L%d", n);
+		}
+		JIT_print_decl("  };\n");
+	}
+
 	if (func->vararg)
 	{
 		JIT_print("  VALUE *fp = FP, *pp = PP, *bp = BP;\n");
@@ -3427,7 +3445,7 @@ _RETURN:
 
 _GOSUB:
 
-	JIT_print("  PUSH_GOSUB(__L%d); goto __L%d;\n", p + 1, p + (signed short)PC[0] + 1);
+	JIT_print("  PUSH_GOSUB(&&__L%d); goto __L%d;\n", p + 1, p + (signed short)PC[0] + 1);
 	JIT_print("__L%d:;\n", p + 1);
 	p++;
 	goto _MAIN;
@@ -3792,40 +3810,63 @@ _CATCH:
 
 _ON_GOTO_GOSUB:
 
-	// TODO: Computed Goto / GoSub
+	JIT_print("  {\n");
 
 	index = GET_XX();
 
-	JIT_print("  {\n");
-	JIT_print("    static void *jump[] = { ");
-	
-	for (i = 0; i < index; i++)
+	if (index == 0)
 	{
-		if (i) JIT_print(", ");
-		JIT_print("&&__L%d", (signed short)PC[i] + p + i);
+		pop(T_INTEGER, "  int n");
+
+		JIT_print("    n--;\n");
+		JIT_print("    if (n < 0 || n >= %d || !ind_jump[n])\n", _func->n_label);
+		JIT_print("      THROW_PC(E_JUMP, %d);\n", _pc);
+
+		if ((*PC & 0xFF00) == C_GOSUB)
+		{
+			JIT_print("    {\n");
+			JIT_print("      PUSH_GOSUB(ind_jump[n]);\n");
+		}
+
+		JIT_print("      goto *ind_jump[n];\n");
+
+		if ((*PC & 0xFF00) == C_GOSUB)
+			JIT_print("    }\n");
+
+		p++;
 	}
-	
-	JIT_print(" };\n");
-	
-	pop(T_INTEGER, "  int n");
-	
-	p += index + 2;
-	
-	JIT_print("    if (n >= 0 && n < %d)\n", index);
-	
-	if ((PC[index + 1] & 0xFF00) == C_GOSUB)
+	else
 	{
-		JIT_print("    {\n");
-		JIT_print("      PUSH_GOSUB(__L%d);\n", p);
+		JIT_print("    static void *jump[] = { ");
+
+		for (i = 0; i < index; i++)
+		{
+			if (i) JIT_print(", ");
+			JIT_print("&&__L%d", (signed short)PC[i] + p + i);
+		}
+
+		JIT_print(" };\n");
+
+		pop(T_INTEGER, "  int n");
+
+		p += index + 2;
+
+		JIT_print("    if (n >= 0 && n < %d)\n", index);
+
+		if ((PC[index + 1] & 0xFF00) == C_GOSUB)
+		{
+			JIT_print("    {\n");
+			JIT_print("      PUSH_GOSUB(&&__L%d);\n", p);
+		}
+
+		JIT_print("      goto *jump[n];\n");
+
+		if ((PC[index + 1] & 0xFF00) == C_GOSUB)
+			JIT_print("    }\n");
+
 	}
-	
-	JIT_print("      goto *jump[n];\n");
-	
-	if ((PC[index + 1] & 0xFF00) == C_GOSUB)
-		JIT_print("    }\n");
-	
+
 	JIT_print("  }\n");
-	
 	JIT_print("__L%d:;\n", p);
 	goto _MAIN;
 
