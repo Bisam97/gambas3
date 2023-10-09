@@ -44,6 +44,7 @@ Private $bHighlight As Boolean
 Private $bClosable As Boolean
 Private $iCurrent As Integer = -1
 Private $hPanel As DrawingArea
+Private $hSeparator As Separator
 
 Private $hTimerEnsureVisible As Timer
 Private $hTimerRepeat As Timer
@@ -81,6 +82,8 @@ Public Sub _new()
   $hLeftArrow.Ignore = True
   $hLeftArrow.Mouse = Mouse.Pointing
   $hLeftArrow.Name = Me.Name & "_LeftArrow"
+  
+  $hSeparator = New Separator(Me)
   
   $hPanel = New DrawingArea(Me) As "Panel"
   $hPanel.Expand = True
@@ -290,16 +293,25 @@ Private Sub UpdateLayout()
 
   Me._Arrangement = Arrange.None
   
+  $hSeparator.Visible = Not $bBorder And $hTabBar.Visible
+  
   Select Case $iOrientation
     Case Align.Top
-      $hTabBar.Move(X, 0, W, HT)
-      $hPanel.Move(0, HT, Me.W, Me.H - HT)
-      '$hTabBar.Next = $hPanel
+      If $hTabBar.Visible Then $hTabBar.Move(X + 2, 2, W - 4, HT - 4)
+      If $hSeparator And If $hSeparator.Visible Then
+        $hSeparator.Move(0, HT, Me.W, 1)
+        $hPanel.Move(0, HT + 1, Me.W, Me.H - HT - 1)
+      Else 
+        $hPanel.Move(0, HT, Me.W, Me.H - HT)
+      Endif
     Case Align.Bottom
-      $hTabBar.Move(X, Me.H - HT, W, HT)
-      $hPanel.Move(0, 0, Me.W, Me.H - HT)
-      'Me._Arrangement = Arrange.Vertical
-      '$hPanel.Next = $hTabBar
+      If $hTabBar.Visible Then $hTabBar.Move(X + 2, Me.H - HT + 2, W - 4, HT - 4)
+      If $hSeparator Then
+        $hSeparator.Move(0, Me.H - HT - 1, Me.W, 1)
+        $hPanel.Move(0, 0, Me.W, Me.H - HT - 1)
+      Else
+        $hPanel.Move(0, 0, Me.W, Me.H - HT)
+      Endif
   End Select
   
   $hTabBarContainer.Arrangement = Arrange.None
@@ -350,9 +362,9 @@ End
 Public Sub Arrow_Draw()
 
   If $iOrientation = Align.Top Then
-    Paint.FillRect(0, 0, Paint.W, Paint.H - 1, _GetBackground())
+    Paint.FillRect(0, 0, Paint.W, Paint.H - 1, Style.BackgroundOf(Me))
   Else
-    Paint.FillRect(0, 1, Paint.W, Paint.H - 1, _GetBackground())
+    Paint.FillRect(0, 1, Paint.W, Paint.H - 1, Style.BackgroundOf(Me))
   Endif
   Style.PaintArrow(0, 0, Paint.W, Paint.H, If(Last = $hLeftArrow, Align.Left, Align.Right), Style.StateOf(Last))
   
@@ -508,7 +520,7 @@ Private Sub UpdateCurrentContainer()
   If $iCurrent < 0 Then Return
   
   If $bBorder Then
-    If Not $hTabBar.Visible Then D = 1
+    D = 1
     If $iOrientation = Align.Top Then
       $aCont[$iCurrent].Move(1, D, $hPanel.W - 2, $hPanel.H - D - 1)
     Else
@@ -605,6 +617,8 @@ Private Sub Border_Write(bBorder As Boolean)
   For Each hButton In $aButton
     hButton.Refresh
   Next
+  
+  UpdateLayout
 
 End
 
@@ -660,51 +674,55 @@ End
 
 Public Sub TabBarContainer_Draw()
   
-  Dim hLast As _TabPanelButton
-  Dim iCol As Integer
-  Dim Y As Integer
-  Dim W As Integer
-  
-  Try hLast = $aButton[GetLastIndex()]
-  If Error Then Return
-  
-  iCol = Color.LightForeground
-  
-  Select Case $iOrientation
-    Case Align.Top
-      Y = $hTabBarContainer.H - 1
-    Case Align.Bottom
-      Y = 0
-  End Select
-  
-  If Me.RightToLeft Then
-    Paint.FillRect(0, Y, hLast.X, 1, iCol)
-  Else
-    W = $hTabBarContainer.W - (hLast.X + hLast.W)
-    If W > 0 Then Paint.FillRect(hLast.X + hLast.W, Y, W, 1, iCol)
-  Endif
+  ' Dim hLast As _TabPanelButton
+  ' Dim iCol As Integer
+  ' Dim Y As Integer
+  ' Dim W As Integer
+  ' 
+  ' Try hLast = $aButton[GetLastIndex()]
+  ' If Error Then Return
+  ' 
+  ' iCol = Color.LightForeground
+  ' 
+  ' Select Case $iOrientation
+  '   Case Align.Top
+  '     Y = $hTabBarContainer.H - 1
+  '   Case Align.Bottom
+  '     Y = 0
+  ' End Select
+  ' 
+  ' If Me.RightToLeft Then
+  '   Paint.FillRect(0, Y, hLast.X, 1, iCol)
+  ' Else
+  '   W = $hTabBarContainer.W - (hLast.X + hLast.W)
+  '   If W > 0 Then Paint.FillRect(hLast.X + hLast.W, Y, W, 1, iCol)
+  ' Endif
   
 End
 
 Public Sub Panel_Draw()
   
   If $bBorder Then
-    If $hTabBar.Visible Then
-      Draw.Foreground = Color.LightForeground
-      Select Case $iOrientation
-        Case Align.Top
-          Draw.Line(0, 0, 0, $hPanel.H - 1)
-          Draw.Line(0, $hPanel.H - 1, $hPanel.W - 1, $hPanel.H - 1)
-          Draw.Line($hPanel.W - 1, $hPanel.H - 1, $hPanel.W - 1, 0)
-        Case Align.Bottom
-          Draw.Line(0, $hPanel.H - 1, 0, 0)
-          Draw.Line(0, 0, $hPanel.W - 1, 0)
-          Draw.Line($hPanel.W - 1, 0, $hPanel.W - 1, $hPanel.H - 1)
-      End Select
-    Else 
-      Paint.DrawRect(0, 0, $hPanel.W, $hPanel.H, Color.LightForeground)
-    Endif
+    Paint.DrawRect(0, 0, $hPanel.W, $hPanel.H, Color.LightForeground)
+    Return
   Endif
+
+  '   If $hTabBar.Visible Then
+  '     Draw.Foreground = Color.LightForeground
+  '     Select Case $iOrientation
+  '       Case Align.Top
+  '         Draw.Line(0, 0, 0, $hPanel.H - 1)
+  '         Draw.Line(0, $hPanel.H - 1, $hPanel.W - 1, $hPanel.H - 1)
+  '         Draw.Line($hPanel.W - 1, $hPanel.H - 1, $hPanel.W - 1, 0)
+  '       Case Align.Bottom
+  '         Draw.Line(0, $hPanel.H - 1, 0, 0)
+  '         Draw.Line(0, 0, $hPanel.W - 1, 0)
+  '         Draw.Line($hPanel.W - 1, 0, $hPanel.W - 1, $hPanel.H - 1)
+  '     End Select
+  '   Else 
+  '     Paint.DrawRect(0, 0, $hPanel.W, $hPanel.H, Color.LightForeground)
+  '   Endif
+  ' Endif
   
 End
 
@@ -1011,12 +1029,12 @@ End
 
 Public Sub ClosePanel_Draw()
   
-  Select Case $iOrientation
-    Case Align.Top
-      Paint.FillRect(0, Paint.H - 1, Paint.W, 1, Color.LightForeground)
-    Case Align.Bottom
-      Paint.FillRect(0, 0, Paint.W, 1, Color.LightForeground)
-  End Select
+  ' Select Case $iOrientation
+  '   Case Align.Top
+  '     Paint.FillRect(0, Paint.H - 1, Paint.W, 1, Color.LightForeground)
+  '   Case Align.Bottom
+  '     Paint.FillRect(0, 0, Paint.W, 1, Color.LightForeground)
+  ' End Select
   
 End
 
