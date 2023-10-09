@@ -404,11 +404,11 @@ Static Public Sub Main()
 
     If Not Exist(sExec) Then
       If Class.IsLoaded("Debug") And If Debug.Fifo Then
-        If DEBUG_RUNNER Then PrintLog("---------------- EXEC gbx3 -g -f " & Debug.Fifo & " " & Application.Path & " -- " & Application.Handle & " " & sCookie)
-        hProcess = Exec ["gbx3", "-g", "-f", Debug.Fifo, Application.Path, "--", Application.Handle, sCookie] Wait
+        If DEBUG_RUNNER Then PrintLog("---------------- EXEC gbx3 -g -f " & Debug.Fifo & " -s " & Application.Startup.Name & " " & Application.Path & " -- " & Application.Handle & " " & sCookie)
+        hProcess = Exec ["gbx3", "-g", "-f", Debug.Fifo, "-s", Application.Startup.Name, Application.Path, "--", Application.Handle, sCookie] Wait
       Else
-        If DEBUG_RUNNER Then PrintLog("---------------- EXEC gbx3 " & Application.Path & " -- " & Application.Handle & " " & sCookie)
-        hProcess = Exec ["gbx3", Application.Path, "--", Application.Handle, sCookie] Wait
+        If DEBUG_RUNNER Then PrintLog("---------------- EXEC gbx3 " & " -s " & Application.Startup.Name & " " & Application.Path & " -- " & Application.Handle & " " & sCookie)
+        hProcess = Exec ["gbx3", "-s", Application.Startup.Name, Application.Path, "--", Application.Handle, sCookie] Wait
       Endif
     Else
       If DEBUG_RUNNER Then PrintLog("---------------- EXEC " & sExec & " " & Application.Handle & " " & sCookie)
