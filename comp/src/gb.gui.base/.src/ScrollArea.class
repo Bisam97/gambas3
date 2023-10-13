@@ -750,13 +750,16 @@ End
 
 Public Sub DrawingArea_MouseWheel()
   
+  Dim D As Integer
+  
   If Not Me.Enabled Or If Me.Design Then Return
   If Not $bUseMouse Then Return
   
+  D = Desktop.Scale * 60
   If Mouse.Orientation = Mouse.Horizontal Or If $H <= $hDrawingArea.H Then
-    Scroll($iScrollX - Mouse.Delta * $hHBar.PageStep / 2, $iScrollY)
+    Scroll($iScrollX - Mouse.Delta * D, $iScrollY)
   Else
-    Scroll($iScrollX, $iScrollY - Mouse.Delta * $hVBar.PageStep / 2)
+    Scroll($iScrollX, $iScrollY - Mouse.Delta * D)
   Endif
   
 End

@@ -13,6 +13,10 @@ Static Private $iFrameX As Integer
 Static Private $iFrameY As Integer
 Static Private $bInFrame As Boolean
 
+Static Private $hPopupCtrl As Control
+Static Private $iPopupPos As Integer
+Static Private $iPopupAlign As Integer
+
 ' Not use anymore?
 Static Public Sub _FindShortcut(sText As String) As Integer
 
@@ -413,5 +417,60 @@ End
 Static Public Sub DndFrame_Draw()
   
   Paint.DrawRect(0, 0, Paint.W, Paint.H, Color.SelectedBackground)
+  
+End
+
+Static Public Sub _ShowPopupAt(hWin As Window, Control As Control, Optional Position As Integer = Align.Bottom, Alignment As Integer = Align.Normal) As Integer
+
+  Dim hObs As Observer
+  
+  $hPopupCtrl = Control
+  $iPopupPos = Position
+  $iPopupAlign = Alignment
+  
+  hObs = New Observer(hWin) As "PopupWindow"
+  Return hWin.ShowPopup()
+  
+End
+
+Static Public Sub PopupWindow_Resize()
+
+  Dim X As Integer
+  Dim Y As Integer
+  Dim hWin As Window
+  
+  hWin = Last
+  
+  If Align.IsLeft($iPopupPos) Or If Align.IsRight($iPopupPos) Then
+    
+    If Align.IsLeft($iPopupPos) Then
+      X = $hPopupCtrl.ScreenX - hWin.W
+    Else
+      X = $hPopupCtrl.ScreenX
+    Endif
+    
+    If Align.IsTop($iPopupAlign) Then
+      Y = $hPopupCtrl.ScreenY
+    Else If Align.IsBottom($iPopupAlign) Then
+      Y = $hPopupCtrl.ScreenY + $hPopupCtrl.H - hWin.H
+    Endif
+    
+  Else
+    
+    If Align.IsTop($iPopupPos) Then
+      Y = $hPopupCtrl.ScreenY - hWin.H
+    Else 
+      Y = $hPopupCtrl.ScreenY + $hPopupCtrl.H
+    Endif
+    
+    If Align.IsLeft($iPopupAlign) Then
+      X = $hPopupCtrl.ScreenX
+    Else If Align.IsRight($iPopupAlign) Then
+      X = $hPopupCtrl.ScreenX + $hPopupCtrl.W - hWin.W
+    Endif
+    
+  Endif
+  
+  hWin.Move(X, Y)
   
 End
