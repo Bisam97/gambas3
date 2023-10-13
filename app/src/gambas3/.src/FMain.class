@@ -1252,7 +1252,7 @@ Public Sub ReadConfig()
   tabProject.TextFont = hFont
   
   H = tabProperty.TabBarSize
-  $iTabBarHeight = H  
+  $iTabBarHeight = H
   
   panSearchProject.H = H
   
@@ -2199,6 +2199,7 @@ Public Sub HidePanels()
   FSearch.Hide 'Action["find"].Value = False
   Action["console"].Value = False
   Balloon.Hide
+  CloseBranchList
   
 End
 
@@ -3179,12 +3180,14 @@ Public Sub OnVersionControlChange()
   If VersionControl.Enabled Then
     mnuVersionControl.Text = ("Version control") & " (" & VersionControl.Name & ")"
     btnVersionControl.Text = VersionControl.Name
-    VersionControl.FillBranchMenu(mnuVcBranch)
   Endif
   
   mnuVersionControlWith.Children.Clear
   VersionControl.InitControlProjectMenu(mnuVersionControlWith)
   mnuVersionControlWith.Visible = mnuVersionControlWith.Children.Count
+  
+  mnuVcAddBranch.Visible = VersionControl.CanCreateBranch
+  
   
   UpdateVersionControl
   UpdateCloseTree
@@ -3482,7 +3485,25 @@ End
 
 Public Sub lblBranchColor_MouseDown()
   
-  mnuVcBranch.Popup(lblBranchColor.ScreenX + Desktop.Scale, lblBranchColor.ScreenY + lblBranchColor.H)
+  ToggleBranchList
+  
+End
+
+Private Sub ToggleBranchList()
+
+  If panBranchList.Visible Then
+    CloseBranchList
+  Else
+    If panBranchList.Children.Count = 0 Then FBranchList.Load(panBranchList)
+    FBranchList.Init()
+    panBranchList.Show
+  Endif
+
+End
+
+Public Sub CloseBranchList()
+  
+  panBranchList.Hide
   
 End
 
@@ -3612,4 +3633,10 @@ Public Sub btnCollapse_Click()
   
   Project.Tree.CollapseAll()
   
+End
+
+Public Sub mnuVcAddBranch_Click()
+
+  VersionControl.AddBranch
+
 End

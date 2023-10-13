@@ -776,7 +776,8 @@ End
 Public Sub OnVersionControlChange()
 
   UpdateView
-  If VersionControl.Enabled Then VersionControl.FillBranchMenu(mnuVcBranch, btnVcBranch)
+  btnVcBranch.Text = VersionControl.GetCurrentBranch() & "..."
+  If VersionControl.Enabled Then btnVcAddBranch.Visible = VersionControl.CanCreateBranch
   
 End
 
@@ -1111,3 +1112,9 @@ End
 '   gvwCompilation.Rows.UnSelectAll
 ' 
 ' End
+
+Public Sub btnVcAddBranch_Click()
+
+  VersionControl.AddBranch()
+
+End

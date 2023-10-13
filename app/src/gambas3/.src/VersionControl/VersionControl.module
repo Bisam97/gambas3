@@ -862,60 +862,61 @@ Private Function HasIdentity_Read() As Boolean
 
 End
 
-Public Sub FillBranchMenu(hParent As Menu, Optional hMenuButton As MenuButton)
-  
-  Dim sCurrent As String
-  Dim aBranches As String[]
-  Dim sBranch As String
-  Dim hMenu As Menu
-  
-  aBranches = GetBranches(ByRef sCurrent)
-  
-  If Not sCurrent Then
-    If hMenuButton Then
-      hMenuButton.Hide
-    Else 
-      hParent.Hide
-    Endif
-  Else
-    If hMenuButton Then
-      hMenuButton.Show
-      hMenuButton.Text = sCurrent
-    Else
-      hParent.Show
-    Endif
-    hParent.Children.Clear
-    
-    For Each sBranch In aBranches
-      hMenu = New Menu(hParent) As "mnuVcBranchSet"
-      hMenu.Text = sBranch
-      hMenu.Tag = sBranch
-      hMenu.Radio = True
-      hMenu.Checked = sBranch = sCurrent
-    Next
-    
-    If VersionControl.CanCreateBranch Then
-      
-      hMenu = New Menu(hParent)
-      
-      hMenu = New Menu(hParent) As "mnuVcBranchCreate"
-      hMenu.Text = Subst(("Create new branch") & "...", sCurrent)
-      hMenu.Picture = Picture["icon:/small/new-tag"]
-      
-    Endif
-    
-  Endif
-  
-End
+' Public Sub FillBranchMenu(hParent As Menu, Optional hMenuButton As MenuButton)
+'   
+'   Dim sCurrent As String
+'   Dim aBranches As String[]
+'   Dim sBranch As String
+'   Dim hMenu As Menu
+'   
+'   aBranches = GetBranches(ByRef sCurrent)
+'   
+'   If Not sCurrent Then
+'     If hMenuButton Then
+'       hMenuButton.Hide
+'     Else 
+'       hParent.Hide
+'     Endif
+'   Else
+'     If hMenuButton Then
+'       hMenuButton.Show
+'       hMenuButton.Text = sCurrent
+'     Else
+'       hParent.Show
+'     Endif
+'     hParent.Children.Clear
+'     
+'     For Each sBranch In aBranches
+'       hMenu = New Menu(hParent) As "mnuVcBranchSet"
+'       hMenu.Text = sBranch
+'       hMenu.Tag = sBranch
+'       hMenu.Radio = True
+'       hMenu.Checked = sBranch = sCurrent
+'     Next
+'     
+'     If VersionControl.CanCreateBranch Then
+'       
+'       hMenu = New Menu(hParent)
+'       
+'       hMenu = New Menu(hParent) As "mnuVcBranchCreate"
+'       hMenu.Text = Subst(("Create new branch") & "...", sCurrent)
+'       hMenu.Picture = Picture["icon:/small/new-tag"]
+'       
+'     Endif
+'     
+'   Endif
+'   
+' End
+' 
+' Public Sub mnuVcBranchSet_Click()
+'   
+'   VersionControl.SetBranch(Last.Tag)
+'   
+' End
 
-Public Sub mnuVcBranchSet_Click()
+Public Sub AddBranch()
   
-  VersionControl.SetBranch(Last.Tag)
-  
-End
-
-Public Sub mnuVcBranchCreate_Click()
-  
+  If Not VersionControl.CanCreateBranch Then Return
   If FCreateBranch.Run() Then Return
   Refresh()
   
