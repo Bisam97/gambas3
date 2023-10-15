@@ -127,9 +127,9 @@ Public Sub Error(Text As String)
 
   Response.Buffered = False
   Response.Begin
-  Print "<html><head><meta http-equiv=\"content-type\" content=\"text/html; charset=utf-8\"></head><body>"
-  Print "<h1>"; "Error in CGI script"; "</h1>"
-  Print "<pre>"; Text; "</pre></body>"
+  Print "<!DOCTYPE HTML><head><meta http-equiv=\"content-type\" content=\"text/html; charset=utf-8\"></head><body>"
+  Print "<pre>"; File.Load("error.txt")
+  Print Text; "</pre></body>"
   Response.End
   Quit 
   
