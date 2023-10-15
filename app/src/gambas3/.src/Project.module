@@ -2864,6 +2864,7 @@ Public Function MakeExecutable(bDoNotIncVersion As Boolean, bSilent As Boolean, 
   Dim I As Integer
   Dim sDir As String
   Dim sOptions As String
+  Dim fTimer As Float
 
   If CheckStartupClass() Then Return True
 
@@ -2891,6 +2892,7 @@ Public Function MakeExecutable(bDoNotIncVersion As Boolean, bSilent As Boolean, 
 
   Endif
 
+  fTimer = Timer
   SetMessage(("Making executable..."))
 
   If Compile(True) Then
@@ -3002,6 +3004,7 @@ Public Function MakeExecutable(bDoNotIncVersion As Boolean, bSilent As Boolean, 
   ExecTimeStamp = TimeStamp
   
   SetMessage(("Making executable...") & " <tt>" & sExecPath & "</tt>... " & ("OK"))
+  SetMessage(" " & Subst(("(in &1 s)"), Format(Timer - fTimer, "0.##")), True)
   
   Return Not bOK
 
