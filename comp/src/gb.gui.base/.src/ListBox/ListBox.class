@@ -19,6 +19,10 @@ Property Index As Integer
 Property Read Text As String
 Property List As String[]
 Property Font As Font
+
+'' @{since 3.19}
+''
+'' Return or set if the item under the mouse cursor is highlighted.
 Property Highlight As Boolean
 
 '' Return or set if the item text must wrap and the item height expands automatically.
@@ -46,13 +50,8 @@ Private $hTimerClick As Timer
 Private $bWrap As Boolean
 Private $hResizeTimer As Timer
 Private $sFind As String
-Private $iHighlight As Integer
-Private $hObs As Observer
-Private $bHighlight As Boolean
 
 Public Sub _new()
-  
-  Dim hScrollArea As ScrollArea
   
   $hView = New GridView(Me) As "GridView"
   $hView.Columns.Count = 1
@@ -141,8 +140,6 @@ Public Sub GridView_Data(Row As Integer, (Column) As Integer)
     If $hView.Rows[Row].Selected Then
       .Background = Color.SelectedBackground
       .Foreground = Color.SelectedForeground
-    Else If $bHighlight And If Row = $iHighlight Then
-      .Background = Color.LightBackground
     Endif
     
   End With
@@ -164,50 +161,6 @@ Public Sub GridView_Activate()
   Raise Activate
   
 End
-
-Private Sub SetHighlight(Y As Integer)
-
-  Dim iRow As Integer
-  Dim hScrollArea As ScrollArea
-  
-  If $bHighlight Then
-
-    hScrollArea = $hView.Children[0]
-
-    If hScrollArea.View.Hovered Then
-      iRow = $hView.RowAt(Y)
-    Else 
-      iRow = -1
-    Endif
-    
-    If iRow <> $iHighlight Then
-      If $iHighlight >= 0 Then $hView.Rows[$iHighlight].Refresh()
-      $iHighlight = iRow
-      If $iHighlight >= 0 Then $hView.Rows[$iHighlight].Refresh()
-    Endif
-
-  Endif
-  
-End
-
-Public Sub Area_Leave()
-  
-  SetHighlight(-1)
-  
-End
-
-Public Sub GridView_MouseMove()
-  
-  SetHighlight(Mouse.Y)
-  
-End
-
-Public Sub GridView_Scroll()
-  
-  SetHighlight(Mouse.ScreenY - $hView.ScreenY)
-  
-End
-
 
 Private Sub FindItem()
 
@@ -616,19 +569,12 @@ End
 
 Private Function Highlight_Read() As Boolean
 
-  Return $bHighlight
+  Return $hView._Highlight
 
 End
 
 Private Sub Highlight_Write(Value As Boolean)
 
-  If $bHighlight = Value Then Return
-  $bHighlight = Value
-  If $bHighlight Then
-    $hObs = New Observer(ScrollArea($hView.Children[0]).View) As "Area"
-  Else 
-    $hObs.Detach()
-    $hObs = Null
-  Endif
+  $hView._Highlight = Value
 
 End

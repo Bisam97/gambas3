@@ -46,6 +46,11 @@ Property Read ScrollH, ScrollHeight As Integer
 
 Property Read Indent As Integer
 
+'' @{since 3.19}
+''
+'' Return or set if the item under the mouse cursor is highlighted.
+Property Highlight As Boolean
+
 Property Read _Items As Collection
 
 Event Click
@@ -2020,4 +2025,16 @@ Public Sub CollapseAll()
   
   $hRoot.CollapseAll()
   
+End
+
+Private Function Highlight_Read() As Boolean
+
+  Return $hView._Highlight
+
+End
+
+Private Sub Highlight_Write(Value As Boolean)
+
+  $hView._Highlight = Value
+
 End

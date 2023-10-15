@@ -29,6 +29,7 @@ Property ShowCursor As Boolean
 Property Read Current As _GridView_Cell
 Property Sorted As Boolean
 Property Padding As Integer
+Property _Highlight As Boolean
 
 Property ScrollX As Integer
 Property ScrollY As Integer
@@ -123,6 +124,9 @@ Private $bDoNotRaiseSelect As Boolean
 Private $hTimerClick As Timer
 Private $bMoveRaiseSelect As Boolean
 Private $bRightToLeft As Boolean
+Private $bHighlight As Boolean
+Private $hObs As Observer
+Private $iHighlight As Integer
 
 Public Sub _new()
   
@@ -774,7 +778,7 @@ Public Sub ScrollArea_Draw()
       Paint.Clip
       
       DrawCell(hSpan.X, hSpan.Y, hSpan.W, hSpan.H, R, C, hData, hRowBorder)
-      
+
       If hData.Border Then 
         hData.Border.Paint(RectF(hSpan.X, hSpan.Y, hSpan.W, hSpan.H))
       Endif
@@ -830,6 +834,10 @@ Public Sub ScrollArea_Draw()
     
   NEXT_ROW:
     
+    If $bHighlight And If I = $iHighlight Then
+      Paint.FillRect(0, Y, Paint.W, H, Color.SetAlpha(Color.SelectedBackground, 192))
+    Endif
+      
     Y += H
     
   Next
@@ -1123,7 +1131,7 @@ Public Sub ScrollArea_MouseMove()
   
   If Not Me.RightToLeft Then X -= $hRows.W
   
-  If Mouse.Left Or If Mouse.Right Then
+  If Mouse.Left Or If Mouse.Right Or If $bHighlight Then
     
     If Y >= $hColumns.Height Then
       For I = 1 To $aRowY.Max
@@ -1149,18 +1157,22 @@ Public Sub ScrollArea_MouseMove()
     
   Endif
   
-  If iRow >= 0 Then
+  If Mouse.Left Or If Mouse.Right Then
+    If iRow >= 0 Then
+      
+      $bInRow = True
+      
+      If iCol >= 0 Then $bInCell = True
+      
+      MoveTo(iRow, iCol)
+  
+    Endif
     
-    $bInRow = True
-    
-    If iCol >= 0 Then $bInCell = True
-    
-    MoveTo(iRow, iCol)
-
+    If $bInCell And If Mouse.Left Then StartScrollTimer
   Endif
-    
-  If $bInCell And If Mouse.Left Then StartScrollTimer
-
+  
+  SetHighlight(iRow)
+  
 End
 
 Public Sub TimerScroll_Timer()
@@ -1706,6 +1718,7 @@ End
 Public Sub ScrollArea_Scroll()
   
   Raise Scroll
+  SetHighlight(RowAt(Mouse.ScreenY - $hView.ScreenY))
   
 End
 
@@ -2566,7 +2579,7 @@ End
 
 Public Sub _RefreshRow(iRow As Integer)
   
-  $hView.RefreshRect(0, $hRows._GetRowY(iRow), $hView.ScrollW, $hRows._GetRowHeight(iRow))
+  $hView.RefreshRect(0, $hRows._GetRowY(iRow) + $hColumns.H, $hView.ScrollW, $hRows._GetRowHeight(iRow))
   
 End
 
@@ -2601,3 +2614,46 @@ Public Sub _RefreshPicture()
   
 End
 
+
+Private Sub SetHighlight(iRow As Integer)
+
+  If $bHighlight Then
+
+    If Not $hView.View.Hovered Then iRow = -1
+    
+    If iRow <> $iHighlight Then
+      If $iHighlight >= 0 Then _RefreshRow($iHighlight)
+      $iHighlight = iRow
+      If $iHighlight >= 0 Then _RefreshRow($iHighlight)
+    Endif
+
+  Endif
+  
+End
+
+Public Sub Area_Leave()
+  
+  SetHighlight(-1)
+  
+End
+
+Private Function _Highlight_Read() As Boolean
+
+  Return $bHighlight
+
+End
+
+Private Sub _Highlight_Write(Value As Boolean)
+
+  If $bHighlight = Value Then Return
+  $bHighlight = Value
+
+  If $bHighlight Then
+    $iHighlight = -1
+    $hObs = New Observer($hView.View) As "Area"
+  Else 
+    $hObs.Detach()
+    $hObs = Null
+  Endif
+
+End
