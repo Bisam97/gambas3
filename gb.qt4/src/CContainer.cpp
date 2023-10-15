@@ -904,7 +904,8 @@ void MyContainer::changeEvent(QEvent *e)
 	
 	if (e->type() == QEvent::FontChange)
 	{
-		CALL_FUNCTION(THIS_USERCONTROL, font);
+		if (!CWIDGET_check(THIS))
+			CALL_FUNCTION(THIS_USERCONTROL, font);
 	}
 	else if (e->type() == QEvent::EnabledChange)
 	{

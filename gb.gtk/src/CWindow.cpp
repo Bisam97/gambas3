@@ -424,6 +424,26 @@ BEGIN_METHOD(Window_ShowPopup, GB_INTEGER x; GB_INTEGER y)
 END_METHOD
 
 
+#if 0
+BEGIN_METHOD(Window_ShowPopupAt, GB_OBJECT control; GB_INTEGER pos; GB_INTEGER align)
+
+	static GB_FUNCTION func;
+
+	if (!GB_FUNCTION_IS_VALID(&func))
+		GB.GetFunction(&func, (void *)GB.FindClass("_Gui"), "_ShowPopupAt", NULL, NULL);
+
+	GB.Push(4,
+		GB_T_OBJECT, THIS,
+		GB_T_OBJECT, VARG(control),
+		GB_T_INTEGER, VARGOPT(pos, ALIGN_BOTTOM),
+		GB_T_INTEGER, VARGOPT(align, ALIGN_NORMAL));
+
+	GB.Call(&func, 4, FALSE);
+
+END_METHOD
+#endif
+
+
 BEGIN_METHOD_VOID(CWINDOW_show)
 
 	if (check_closed(THIS, FALSE))
@@ -917,6 +937,7 @@ GB_DESC CWindowDesc[] =
 	GB_METHOD("ShowModal", "i", CWINDOW_show_modal, NULL),
 	GB_METHOD("ShowDialog", "i", CWINDOW_show_modal, NULL),
 	GB_METHOD("ShowPopup", "i", Window_ShowPopup, "[(X)i(Y)i]"),
+	//GB_METHOD("ShowPopupAt", "i", Window_ShowPopupAt, "(Control)Control;[(Position)i(Alignment)i]"),
 	GB_METHOD("Center", NULL, CWINDOW_center, NULL),
 	GB_METHOD("Activate", NULL, Window_Activate, NULL),
 

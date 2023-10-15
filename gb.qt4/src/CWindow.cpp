@@ -301,7 +301,7 @@ static void reparent_window(CWINDOW *_object, void *parent, bool move, int x = 0
 	if (newParentWidget != WINDOW->parentWidget())
 	{
 		//qDebug("reparent_window: -> %s %p", parent ? ((CWIDGET *)parent)->name : "", parent);
-		WINDOW->doReparent(newParentWidget, p);
+		WINDOW->doReparent(newParentWidget, &p);
 	}
 	else
 		CWIDGET_move(THIS, p.x(), p.y());
@@ -818,6 +818,25 @@ BEGIN_METHOD(Window_ShowPopup, GB_INTEGER x; GB_INTEGER y)
 
 END_METHOD
 
+
+#if 0
+BEGIN_METHOD(Window_ShowPopupAt, GB_OBJECT control; GB_INTEGER pos; GB_INTEGER align)
+
+	static GB_FUNCTION func;
+
+	if (!GB_FUNCTION_IS_VALID(&func))
+		GB.GetFunction(&func, (void *)GB.FindClass("_Gui"), "_ShowPopupAt", NULL, NULL);
+
+	GB.Push(4,
+		GB_T_OBJECT, THIS,
+		GB_T_OBJECT, VARG(control),
+		GB_T_INTEGER, VARGOPT(pos, ALIGN_BOTTOM),
+		GB_T_INTEGER, VARGOPT(align, ALIGN_NORMAL));
+
+	GB.Call(&func, 4, FALSE);
+
+END_METHOD
+#endif
 
 BEGIN_PROPERTY(Window_Modal)
 
@@ -1486,6 +1505,7 @@ GB_DESC CWindowDesc[] =
 	GB_METHOD("ShowModal", "i", Window_ShowModal, NULL),
 	GB_METHOD("ShowDialog", "i", Window_ShowModal, NULL),
 	GB_METHOD("ShowPopup", "i", Window_ShowPopup, "[(X)i(Y)i]"),
+	//GB_METHOD("ShowPopupAt", "i", Window_ShowPopupAt, "(Control)Control;[(Position)i(Alignment)i]"),
 	GB_METHOD("Center", NULL, Window_Center, NULL),
 	GB_METHOD("Activate", NULL, Window_Activate, NULL),
 
@@ -1869,7 +1889,7 @@ void MyMainWindow::showActivate(QWidget *transient)
 		{
 			if (newParentWidget && parentWidget() != newParentWidget)
 			{
-				doReparent(newParentWidget, pos());
+				doReparent(newParentWidget);
 			}
 		}
 	}
@@ -1916,7 +1936,7 @@ void on_error_show_modal(MODAL_INFO *info)
 	CWIDGET_leave_popup(info->save_popup);
 }
 
-void MyMainWindow::doShowModal(bool popup, const QPoint *pos)
+void MyMainWindow::doShowModal(bool popup, const QPoint *p)
 {
 	CWIDGET *_object = CWidget::get(this);
 	CWINDOW *parent;
@@ -1949,7 +1969,10 @@ void MyMainWindow::doShowModal(bool popup, const QPoint *pos)
 			setParent(CWidget::getTopLevel((CWIDGET *)parent)->widget.widget, Qt::Popup | info.flags);
 
 		move(0, 0);
-		move(*pos);
+		move(*p);
+		THIS->x = p->x();
+		THIS->y = p->y();
+		//fprintf(stderr, "doShowModal: popup: %d %d\n", pos().x(), pos().y());
 		setFocus();
 		show();
 		raise();
@@ -2246,7 +2269,7 @@ void MyMainWindow::setBorder(bool b)
 	initProperties(PROP_BORDER);
 	if (effectiveWinId())
 		X11_window_remap(effectiveWinId());
-	doReparent(parentWidget(), pos());
+	doReparent(parentWidget());
 	
 #endif
 }
@@ -2259,7 +2282,7 @@ void MyMainWindow::setResizable(bool b)
 	_resizable = b;
 	if (!isWindow())
 		return;
-	doReparent(parentWidget(), pos());
+	doReparent(parentWidget());
 }
 
 void MyMainWindow::setUtility(bool b)
@@ -2268,8 +2291,10 @@ void MyMainWindow::setUtility(bool b)
 		return;
 
 	_utility = b;
+	if (!isWindow())
+		return;
 
-	doReparent(parentWidget(), pos());
+	doReparent(parentWidget());
 }
 
 #if 0
@@ -2619,7 +2644,7 @@ void MyMainWindow::setPersistent(bool pers)
 	setAttribute(Qt::WA_DeleteOnClose, !pers);
 }
 
-void MyMainWindow::doReparent(QWidget *parent, const QPoint &pos)
+void MyMainWindow::doReparent(QWidget *parent, const QPoint *p)
 {
 	CWINDOW *_object = (CWINDOW *)CWidget::get(this);
 	QIcon icon;
@@ -2641,7 +2666,9 @@ void MyMainWindow::doReparent(QWidget *parent, const QPoint &pos)
 
 	if (THIS->toplevel)
 	{
-		if (_utility)
+		if (THIS->popup)
+			f |= Qt::Popup;
+		else if (_utility)
 			f |= Qt::Dialog;
 		else
 			f |= Qt::Window;
@@ -2673,8 +2700,10 @@ void MyMainWindow::doReparent(QWidget *parent, const QPoint &pos)
 		//qDebug("setParent %d", f != windowFlags());
 	}
 
-	move(pos);
-	//qDebug("doReparent: (%s %p) (%d %d) -> (%d %d)", GB.GetClassName(THIS), THIS, pos.x(), pos.y(), WIDGET->x(), WIDGET->y());
+	if (p)
+		move(*p);
+	else
+		move(THIS->x, THIS->y);
 
 	if (!THIS->embedded)
 	{

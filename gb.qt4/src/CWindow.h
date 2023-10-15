@@ -236,7 +236,7 @@ public:
 	void showPopup(QPoint &pos) { doShowModal(true, &pos); }
 	void setEventLoop();
 	//bool isModal() { return testWFlags(WShowModal); }
-	void doReparent(QWidget *w, const QPoint &p);
+	void doReparent(QWidget *w, const QPoint *p = NULL);
 
 	bool hasBorder(void) const { return _border; }
 	void setBorder(bool);
