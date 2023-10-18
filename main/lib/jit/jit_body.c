@@ -2511,7 +2511,8 @@ static void push_subr_math(ushort code)
 #else
 		"__builtin_log2(%s)", 
 #endif
-		"__builtin_cbrt(%s)", "__builtin_expm1(%s)", "__builtin_log1p(%s)", "__builtin_floor(%s)", "__builtin_ceil(%s)"
+		"__builtin_cbrt(%s)", "__builtin_expm1(%s)", "__builtin_log1p(%s)", "__builtin_floor(%s)", "__builtin_ceil(%s)",
+		"(M_PI * (%s))"
 	};
 
 	char *expr;
@@ -2522,27 +2523,6 @@ static void push_subr_math(ushort code)
 	pop_stack(1);
 	
 	push(T_FLOAT, "%s(%s)", _unsafe ? "CALL_MATH_UNSAFE" : "CALL_MATH", expr);
-	
-	STR_free(expr);
-}
-
-
-static void push_subr_pi(ushort code)
-{
-	char *expr;
-	
-	if ((code & 0xFF) == 0)
-	{
-		push(T_FLOAT, "M_PI");
-		return;
-	}
-	
-	check_stack(1);
-	
-	expr = STR_copy(peek(-1, T_FLOAT));
-	pop_stack(1);
-	
-	push(T_FLOAT, "(M_PI*(%s))", expr);
 	
 	STR_free(expr);
 }
@@ -2873,7 +2853,7 @@ bool JIT_translate_body(FUNCTION *func, int ind)
 		/* 56 Fix             */  &&_SUBR_FIX,
 		/* 57 Sgn             */  &&_SUBR_SGN,
 		/* 58 Frac...         */  &&_SUBR_MATH,
-		/* 59 Pi              */  &&_SUBR_PI,
+		/* 59 Base            */  &&_SUBR_CODE,
 		/* 5A Round           */  &&_SUBR_CODE,
 		/* 5B Randomize       */  &&_SUBR_CODE,
 		/* 5C Rnd             */  &&_SUBR_CODE,
@@ -3734,11 +3714,6 @@ _SUBR_LEN:
 _SUBR_MATH:
 
 	push_subr_math(code);
-	goto _MAIN;
-	
-_SUBR_PI:
-
-	push_subr_pi(code);
 	goto _MAIN;
 	
 _SUBR_BIT:
