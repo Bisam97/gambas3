@@ -28,8 +28,10 @@
 #include "gpicture.h"
 #include "gapplication.h"
 
+#if PANGO_VERSION_CHECK(1, 44, 0)
 #include <pango/pango-types.h>
 #include <fribidi.h>
+#endif
 
 // HTML character entities
 #include "kentities.h"
@@ -1714,6 +1716,7 @@ void gt_add_layout_from_font(PangoLayout *layout, gFont *font, int dpi)
 	set_layout_from_font(layout, font, true, dpi);
 }
 
+#if PANGO_VERSION_CHECK(1, 44, 0)
 // Replacement for pango_find_base_dir
 // Based on code from pango_unichar_direction and pango_find_base_dir
 // Taken from: https://github.com/lwindolf/liferea/pull/1018
@@ -1750,6 +1753,9 @@ static PangoDirection find_base_dir(const gchar *text, gint length)
     }
 	return dir;
 }
+#else
+#define find_base_dir(_text, _len) pango_find_base_dir(_text, _len)
+#endif
 
 void gt_layout_alignment(PangoLayout *layout, const char *text, int len, float w, float h, float *tw, float *th, int align, float *offX, float *offY)
 {
