@@ -1237,21 +1237,27 @@ __FROM_BASE64:
 
 __FROM_URL:
 
-	for (i = 0; i < lstr; i++)
 	{
-		c = str[i];
-		if (c == '+')
-			c = ' ';
-		else if (c == '%')
+		bool query = FALSE;
+
+		for (i = 0; i < lstr; i++)
 		{
-			if (i >= (lstr - 2))
-				break;
+			c = str[i];
+			if (c == '%')
+			{
+				if (i >= (lstr - 2))
+					break;
 
-			c = (read_hex_digit(str[i + 1]) << 4) + read_hex_digit(str[i + 2]);
-			i += 2;
+				c = (read_hex_digit(str[i + 1]) << 4) + read_hex_digit(str[i + 2]);
+				i += 2;
+			}
+			else if (c == '?')
+				query = TRUE;
+			else if (c == '+' && query)
+				c = ' ';
+
+			STRING_make_char(c);
 		}
-
-		STRING_make_char(c);
 	}
 
 	goto __END;
