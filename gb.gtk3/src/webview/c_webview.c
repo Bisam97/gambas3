@@ -202,6 +202,47 @@ static void run_callback(void *_object, const char *error)
 	GB.Unref(POINTER(&_object));
 }
 
+#if WEBKIT_CHECK_VERSION(2, 40, 0)
+
+static void cb_javascript_finished(WebKitWebView *widget, GAsyncResult *result, void *_object)
+{
+	JSCValue *value;
+	GError *error = NULL;
+	JSCException *exception;
+	char *json;
+
+	value = webkit_web_view_evaluate_javascript_finish(widget, result, &error);
+
+	if (!value)
+	{
+		THIS->cb_result = GB.NewZeroString(error->message);
+		g_error_free(error);
+		THIS->cb_error = TRUE;
+	}
+	else
+	{
+		json = jsc_value_to_json(value, 0);
+
+		exception = jsc_context_get_exception(jsc_value_get_context (value));
+		if (exception)
+		{
+			THIS->cb_result = GB.NewZeroString(jsc_exception_get_message(exception));
+			THIS->cb_error = TRUE;
+		}
+		else
+		{
+			THIS->cb_result = GB.NewZeroString(json);
+		}
+
+		g_free(json);
+		g_object_unref(value);
+	}
+
+	THIS->cb_running = FALSE;
+}
+
+#else
+
 static void cb_javascript_finished(WebKitWebView *widget, GAsyncResult *result, void *_object)
 {
 	WebKitJavascriptResult *js_result;
@@ -211,6 +252,7 @@ static void cb_javascript_finished(WebKitWebView *widget, GAsyncResult *result, 
 	char *json;
 
 	js_result = webkit_web_view_run_javascript_finish(widget, result, &error);
+
 	if (!js_result)
 	{
 		THIS->cb_result = GB.NewZeroString(error->message);
@@ -239,6 +281,8 @@ static void cb_javascript_finished(WebKitWebView *widget, GAsyncResult *result, 
 	
 	THIS->cb_running = FALSE;
 }
+
+#endif
 
 static char *get_encoding(const char *mimetype)
 {
@@ -491,17 +535,18 @@ END_METHOD
 
 BEGIN_METHOD(WebView_ExecJavascript, GB_STRING script)
 
-	char *script;
-	
 	if (LENGTH(script) == 0)
 		return;
-	
-	script = GB.ToZeroString(ARG(script));
 	
 	if (start_callback(THIS))
 		return;
 
+#if WEBKIT_CHECK_VERSION(2, 40, 0)
+	webkit_web_view_evaluate_javascript(WIDGET, STRING(script), LENGTH(script), NULL, NULL, NULL, (GAsyncReadyCallback)cb_javascript_finished, (gpointer)THIS);
+#else
+	char *script = GB.ToZeroString(ARG(script));
 	webkit_web_view_run_javascript(WIDGET, script, NULL, (GAsyncReadyCallback)cb_javascript_finished, (gpointer)THIS);
+#endif
 	
 	run_callback(THIS, "Javascript error: &1");
 
