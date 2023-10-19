@@ -3115,6 +3115,12 @@ bool CWidget::eventFilter(QObject *widget, QEvent *event)
 
 		eat_wheel = control->flag.wheel;
 
+		if (control != MOUSE_wheel_on_control)
+		{
+			MOUSE_wheel_on_control = control;
+			MOUSE_delta_x = MOUSE_delta_y = 0;
+		}
+
 	__MOUSE_WHEEL_TRY_PROXY:
 		
 		//fprintf(stderr, "wheel on %p %s\n", control, control->name);
@@ -3149,12 +3155,6 @@ bool CWidget::eventFilter(QObject *widget, QEvent *event)
 				MOUSE_info.state = ev->buttons();
 				MOUSE_info.modifier = ev->modifiers();
 
-				if (control != MOUSE_wheel_on_control)
-				{
-					MOUSE_wheel_on_control = control;
-					MOUSE_delta_x = MOUSE_delta_y = 0;
-				}
-				
 #ifdef QT5
 				QPoint delta = ev->angleDelta();
 				if (delta.x())
