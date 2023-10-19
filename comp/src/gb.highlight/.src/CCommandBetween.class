@@ -1,0 +1,34 @@
+' Gambas class file
+
+Inherits CCommand
+
+Private $sFrom As String
+Private $sTo As String
+
+Public Sub SetArgs(aArgs As String[])
+  
+  If aArgs.Count = 2 Then
+    $sFrom = aArgs[0]
+    $sTo = aArgs[1]
+  Else 
+    Error.Raise("Syntax error")
+  Endif
+  
+End
+
+Public Sub Compile(hState As CState)
+  
+  CState.IfStartWith($sFrom, hState.GetNextLabel())
+  
+  hState.Forward(Len($sFrom))
+  
+  hState.PrintLabel(hState.GetLabel() & "_LOOP")
+  
+  CState.IfStartWith($sTo)
+    hState.Forward(Len($sTo))
+    hState.Continue()
+  CState.Print("Endif")
+
+  hState.CompileChildren(True)
+
+End

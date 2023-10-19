@@ -1,0 +1,107 @@
+' Gambas class file
+
+Export
+' Create Static
+Inherits TextHighlighter
+
+Private $sText As String
+Private $iPos As Integer
+Private $bEof As Boolean
+Private $aHighlight As Byte[]
+Private $sWordRegExp As String
+Private $hWordRegExp As RegExp
+Private $cRegExp As New Collection
+
+Private Sub Init(sText As String)
+  
+  $sText = sText
+  $iPos = 1
+  $bEof = False
+  $aHighlight = New Byte[]
+
+  If Not $hWordRegExp Then
+    $sWordRegExp = "[A-Za-z][A-Za-z0-9]*"
+    $hWordRegExp = New RegExp
+    $hWordRegExp.Compile("^" & $sWordRegExp & "(.*)")
+  Endif
+  
+End
+
+Private Sub Forward(iState As Byte, Optional N As Integer = 1)
+  
+  Dim iMax As Integer
+  
+  If $bEof Then Error.Raise("End of file")
+  
+  iMax = $aHighlight.Max
+  If $aHighlight.Count And If $aHighlight[iMax - 1] = iState And If $aHighlight[iMax] <= (255 - N) Then
+    $aHighlight[iMax] += N
+  Else
+    $aHighlight.Add(iState)
+    $aHighlight.Add(N)
+  Endif
+  
+  $iPos += N
+  $bEof = $iPos > Len($sText)
+  
+End
+
+Private Sub IgnoreSpaces() As Boolean
+  
+  Dim P As Integer
+  
+  P = $iPos
+  If Not IsSpace(Mid$($sText, P, 1)) Then Return $bEof
+  
+  Inc P
+  While IsSpace(Mid$($sText, P, 1))
+    If $bEof Then Break
+    Inc P
+  Wend
+  
+  Forward(0, P - $iPos)
+  
+End
+
+Private Sub GetWord() As String
+  
+  If $bEof Then Return
+  $hWordRegExp.Exec(Mid$($sText, $iPos))
+  If $hWordRegExp.Count < 1 Then Return
+  Return Mid$($sText, $iPos, $hWordRegExp[1].Offset)
+  
+End
+
+Private Sub Match(sPattern As String) As String
+
+  Dim hRegExp As RegExp
+  
+  If $bEof Then Return
+  
+  hRegExp = $cRegExp[sPattern]
+  If Not hRegExp Then
+    hRegExp = New RegExp
+    hRegExp.Compile("^" & sPattern & "(.*)")
+    $cRegExp[sPattern] = hRegExp
+  Endif
+  
+  hRegExp.Exec(Mid$($sText, $iPos))
+  If hRegExp.Count < 1 Then Return
+  Return Mid$($sText, $iPos, hRegExp[1].Offset)
+  
+End
+
+Public Sub Run(Text As String, State As Byte[]) As Byte[]
+
+  Init(Text)
+  If Text Then
+    Try Compile(State)
+    If Error And If Not $bEof Then
+      Error Error.Where; ": "; Error.Text
+      Error.Propagate()
+    Endif
+  Endif
+  
+  Return $aHighlight
+
+End

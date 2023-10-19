@@ -1,0 +1,353 @@
+' Gambas class file
+
+Static Private $iIndent As Integer
+Static Private $sLastCode As String
+
+Static Private $cState As New Collection
+Static Private $aStateName As New String[]
+
+Static Private $aLabel As New String[]
+Static Private $cTitle As New Collection
+
+Public Name As String
+Public Indent As Integer
+Public Parent As CState
+Public Commands As New CCommand[]
+Public Children As New CState[]
+
+Private $iCurrentCommand As Integer
+Private $iCurrentChild As Integer
+Private $sContinue As String
+
+Public Sub _new(Optional sLine As String)
+  
+  Dim iPos As Integer
+  Dim sTitle As String
+  Dim sCurrent As String
+  
+  If Not sLine Then Return
+  
+  If sLine Ends "}" Then
+    iPos = InStr(sLine, "{")
+    If iPos = 0 Then Error.Raise("Syntax error")
+    sTitle = Mid$(sLine, iPos + 1, -1)
+    sLine = Left(sLine, iPos - 1)
+  Endif
+        
+  Name = sLine
+  
+  If sTitle Then 
+    sCurrent = $cTitle[Name]
+    If Not sCurrent Then
+      $cTitle[Name] = sTitle
+    Else If sCurrent <> sTitle Then
+      Error.Raise("Ambiguous state display name")
+    Endif
+  Endif
+  
+End
+
+Public Sub AddCommand(sText As String)
+
+  Dim hCommand As CCommand
+  Dim iPos As Integer
+  Dim sCommand As String
+  
+  iPos = InStr(sText, " ")
+  If iPos = 0 Then Return
+  
+  sCommand = Left(sText, iPos - 1)
+  
+  Try hCommand = Object.New("CCommand" & UCase(Left(sCommand)) & Mid$(sCommand, 2))
+  If Error Then Error.Raise("Unknown command: " & sCommand)
+  hCommand.SetArgs(Split(Mid$(sText, iPos + 1), " ", "", True))
+  hCommand.Init()
+  Commands.Add(hCommand)
+  
+End
+
+Static Public Sub Print(Optional sCode As String)
+  
+  sCode = Trim(sCOde)
+  
+  If Not sCode Then
+    If $sLastCode Then
+      Print
+      $sLastCode = ""
+    Endif 
+    Return
+  Endif
+  
+  If sCode = "Loop" Or If sCode = "Endif" Or If sCode = "Next" Or If sCode = "End" Or If sCode Ends ":" Or If sCode = "Catch" Then 
+    Dec $iIndent
+  Endif
+  
+  'Print #File.Out, Space($iIndent * 2); sCode
+  Print Space($iIndent * 2); sCode
+  $sLastCode = sCode
+  
+  Do
+    If sCode Begins "Static " Or If sCode Begins "Private " Or If sCode Begins "Public " Then
+      sCode = Mid$(sCode, InStr(sCode, " ") + 1)
+    Else 
+      Break 
+    Endif
+  Loop 
+  
+  If sCode = "Do" Or If sCode Begins "For " Or If sCode Begins "Sub " Or If sCode Ends ":" Or If sCode = "Catch" Then
+    Inc $iIndent
+  Else If sCode Begins "If " And If sCode Ends "Then" Then
+    Inc $iIndent
+  Endif
+  
+End
+
+Static Public Sub IfStartWith(sStr As String, Optional sLabel As String)
+  
+  If sLabel Then
+    Print("If Mid$($sText, $iPos, " & CStr(Len(sStr)) & ") <> " & Quote(sStr) & " Then Goto " & sLabel)
+  Else
+    Print("If Mid$($sText, $iPos, " & CStr(Len(sStr)) & ") = " & Quote(sStr) & " Then")
+  Endif
+  
+End
+
+Static Public Sub Peek(sLen As String) As String
+  
+  Return "Mid$($sText, $iPos, " & sLen & ")"
+  
+End
+
+Static Public Sub PrintLabel(sLabel As String, Optional bNoState As Boolean) As String
+  
+  If Not bNoState Then
+    If $aLabel.Count = 256 Then Error.Raise("Highlight too complex")
+    $aLabel.Add(sLabel)
+  Endif
+
+  Print()
+  Print(sLabel & ":")
+  If Not bNoState Then Print("aState[0] = " & CStr($aLabel.Max))
+  Print()
+  
+End
+
+Public Sub Forward(Optional sLen As String)
+  
+  If sLen Then
+    Print("Forward(" & GetState() & ", " & sLen & ")")  
+  Else 
+    Print("Forward(" & GetState() & ")")
+  Endif
+  
+End
+
+Public Sub GetLabel() As String
+
+  Dim sLabel As String
+  
+  If Not Name Then 
+    sLabel = "STATE_$"
+  Else
+    If Parent Then
+      sLabel = Parent.GetLabel()
+    Else 
+      sLabel = "STATE"
+    Endif
+    If Name = "*" Then
+      sLabel &= "_$"
+    Else
+      sLabel &= "_" & UCase(Name)
+    Endif
+  Endif 
+  
+  If $iCurrentCommand > 0 Then sLabel &= "_" & CStr($iCurrentCommand)
+  
+  Return sLabel
+  
+End
+
+Public Sub GetNextLabel() As String
+  
+  Dim sLabel As String
+  Dim iSaveCurrentCommand As Integer
+  
+  If $iCurrentCommand >= Commands.Count Then
+    iSaveCurrentCommand = $iCurrentCommand
+    $iCurrentCommand = 0
+    sLabel = GetLabel() & "_$END"
+    $iCurrentCommand = iSaveCurrentCommand
+  Else If $iCurrentCommand > 0 Then
+    Inc $iCurrentCommand
+    sLabel = GetLabel()
+    Dec $iCurrentCommand
+  Else If $iCurrentChild = Children.Count Then
+    sLabel = GetLabel() & "_$END"
+  Else If $iCurrentChild Then
+    sLabel = GetLabel()
+  Endif
+  
+  Return sLabel
+  
+End
+
+
+Public Sub Continue()
+  
+  If $sContinue Then
+    Print("Goto " & $sContinue)
+  Else
+    Print("Goto " & Parent.GetLabel())
+  Endif
+  
+End
+
+Public Sub Compile(Optional sContinue As String)
+  
+  Dim hChild As CState
+  Dim I As Integer
+  'Dim sOldContinue As String
+  
+  If Commands.Count Then
+  
+    'sOldContinue = $sContinue
+    $sContinue = sContinue
+    For I = 0 To Commands.Max
+      Inc $iCurrentCommand
+      PrintLabel(GetLabel())
+      Commands[I].Compile(Me)
+    Next
+    '$sContinue = sOldContinue
+    $iCurrentCommand = 0
+    PrintLabel(GetLabel() & "_$END")
+    
+  Else
+    
+    PrintLabel(GetLabel())
+    Print()
+  
+    Print("If IgnoreSpaces() Then Goto " & GetLabel() & "_$END")
+    CompileChildren()
+    
+    PrintLabel(GetLabel() & "_$END", True)
+    Print("aState[0] = 0")
+    Print("If $bEof Then Return")
+    Print()
+    Print("Forward(0)")
+    Print("Goto " & GetLabel())
+    
+  Endif
+  
+  For Each hChild In Children
+    hChild.Parent = Null
+  Next
+  
+End
+
+Public Sub CompileChildren(Optional bElse As Boolean)
+
+  Dim hState As CState
+  Dim sLabel As String
+  
+  If Name = "*" Then
+    Print("Compile(aState)")
+    Return
+  Endif
+  
+  If bElse Then sLabel = GetLabel() & "_LOOP"
+  
+  $iCurrentChild = 0
+  For Each hState In Children
+    Inc $iCurrentChild
+    hState.Compile(sLabel)
+  Next
+  
+  If bElse Then
+    Print()
+    Forward()
+    Print("Goto " & sLabel)
+  Endif
+  
+End
+
+Private Sub GetState() As Byte
+  
+  Dim iState As Byte
+  Dim sState As String
+  
+  sState = Name
+  
+  If sState = "*" Then Return 0
+  
+  Try iState = $cState[sState]
+  If iState = 0 Then
+    $cState[sState] = $cState.Count + 1
+    $aStateName.Add(sState)
+    iState = $cState.Count
+  Endif
+  
+  Return iState
+  
+End
+
+Public Sub AddChild(hChild As CState)
+  
+  Children.Add(hChild)
+  hChild.Parent = Me
+  
+End
+
+Static Public Sub GetStateNames() As String
+
+  Dim I As Integer
+  Dim aResult As String[]
+  
+  aResult = New String[]
+  aResult.Add("\"*\"")
+  For I = 0 To $aStateName.Max
+    aResult.Add(Quote($aStateName[I]))
+  Next
+  
+  Return "[" & aResult.Join(", ") & "]"
+  
+End
+
+' Static Public Sub GetStateFromNames() As String
+' 
+'   Dim I As Integer
+'   Dim aResult As New String[]
+'   
+'   For I = 0 To $aStateName.Max
+'     aResult.Add(Quote($aStateName[I]) & ": " & CStr(I + 1))
+'   Next
+'   
+'   Return "[" & aResult.Join(", ") & "]"
+'   
+' End
+' 
+Static Public Sub GetStateTitles() As String
+
+  Dim aResult As New String[]
+  Dim sTitle As String
+  Dim I As Integer
+  Dim sState As String
+  
+  aResult.Add(Quote("*"))
+  
+  For I = 0 To $aStateName.Max
+    sState = $aStateName[I]
+    sTitle = $cTitle[sState]
+    If Not sTitle Then sTitle = String.UCaseFirst(sState)
+    aResult.Add(Quote(sTitle))
+  Next
+
+  Return "[" & aResult.Join(", ") & "]"
+  
+End
+
+
+Static Public Sub GetLabels() As String[]
+  
+  Return $aLabel
+  
+End

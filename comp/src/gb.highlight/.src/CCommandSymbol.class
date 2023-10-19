@@ -1,0 +1,76 @@
+' Gambas class file
+
+Inherits CCommand
+
+Private $aSymbols As String[]
+Private $sSymbols As String
+Private $iLenMax As Integer
+
+Public Sub SetArgs(aArgs As String[])
+  
+  Dim I As Integer
+  Dim aSort As String[]
+  
+  If aArgs.Count = 0 Then Error.Raise("Syntax error")
+  
+  $aSymbols = aArgs
+  
+  aSort = New Integer[$aSymbols.Count]
+  
+  For I = 0 To $aSymbols.Max
+    aSort[I] = Format(Len($aSymbols[I]), "0000") & $aSymbols[I]
+  Next
+  
+  $aSymbols.SortUsing(aSort)
+  
+  $iLenMax = Len($aSymbols.Last)
+  
+  For I = 0 To $aSymbols.Max
+    $aSymbols[I] = Quote($aSymbols[I])
+  Next
+  
+End
+
+Public Sub Init()
+  
+  Static N As Integer
+  
+  Inc N
+  $sSymbols = "$cSymbols" & CStr(N)
+  CState.Print("Private " & $sSymbols & " As Collection")
+  
+End
+
+Public Sub Compile(hState As CState)
+  
+  CState.Print("If Not " & $sSymbols & " Then")
+    CState.Print($sSymbols & " = New Collection")
+    CState.Print("For Each sSymbol In [" & $aSymbols.Join(", ") & "]")
+      CState.Print($sSymbols & "[sSymbol] = True")
+    CState.Print("Next")
+  CState.Print("Endif")
+
+  CState.Print("If Not IsAlnum(" & CState.Peek("1") & ") Then")
+
+    If $iLenMax > 1 Then
+      CState.Print("For I = 1 To " & CStr($iLenMax))  
+        CState.Print("sSymbol = " & CState.Peek("I"))
+        CState.Print("If sSymbol And If " & $sSymbols & ".Exist(sSymbol) Then")
+        CState.Print("Break")
+        CState.Print("Endif")
+      CState.Print("Next")
+      CState.Print("If I <= " & CStr($iLenMax) & " Then")
+        hState.Forward(If($iLenMax > 1, "I", "1"))
+        hState.Continue()
+      CState.Print("Endif")
+    Else
+      CState.Print("sSymbol = " & CState.Peek("1"))
+      CState.Print("If sSymbol And If " & $sSymbols & ".Exist(sSymbol) Then")
+        hState.Forward(If($iLenMax > 1, "I", "1"))
+        hState.Continue()
+      CState.Print("Endif")
+    Endif
+    
+  CState.Print("Endif")
+  
+End

@@ -1,0 +1,202 @@
+' Gambas module file
+
+Public Sub Main()
+
+  Dim hFile As File
+  Dim iLine As Integer
+  Dim sLine As String
+
+  Dim iIndent As Integer
+  Dim iCurrentIndent As Integer
+  
+  Dim hDefault As CState
+  Dim aState As New CState[]
+  Dim hState As CState
+  Dim hCurrent As CState
+  Dim hOutput As File
+  Dim sOutput As String
+  'Dim hRegExp As RegExp
+  Dim sHighlight As String
+  Dim sDir As String
+  Dim sProject As String
+  
+  ' hRegExp = New RegExp
+  ' hRegExp.Compile("^[A-Za-z][A-Za-z0-9]+(.*)")
+  ' hRegExp.Exec("i = -1; var toto")
+  ' Print hRegExp[0].Offset
+  ' Print hRegExp[1].Offset
+  ' Quit
+  
+  sHighlight = "javascript"
+  
+  sDir = File.Dir(Temp$()) &/ "gb.highlight." & sHighlight
+  Mkdir sDir
+  Mkdir sDir &/ ".src"
+
+  hDefault = New CState
+
+  sOutput = sDir &/ ".src/_CustomHighlighter_" & sHighlight & ".class"
+  hOutput = Open sOutput For Create
+  Output To hOutput
+
+  hFile = Open sHighlight & ".highlight" For Input
+  
+  Print File.Load("custom/CustomHighlighter.class")
+
+  iCurrentIndent = 0
+  
+  For Each sLine In hFile.Lines
+    
+    Inc iLine
+    
+    sLine = RTrim(sLine)
+    If Not sLine Then Continue
+    
+    iIndent = Len(sLine)
+    sLine = LTrim(sLine)
+    iIndent -= Len(sLine)
+    
+    If sLine Begins "#" Then Continue
+    
+    Do
+    
+      Try hCurrent = aState.Last
+      If Error Then hCurrent = Null
+      
+      If Not hCurrent Then Break
+        
+      If iIndent > hCurrent.Indent Then Break
+        
+      aState.Pop()
+      
+    Loop
+      
+    If Not hCurrent Then
+      
+      If sLine Ends ":" Then
+      
+        hState = New CState(Left(sLine, -1))
+        aState.Add(hState)
+        hDefault.AddChild(hState)
+        
+      Endif 
+      
+      Continue
+
+    Endif
+      
+    If sLine Ends ":" Then
+      
+      hState = New CState(Left(sLine, -1))
+      hState.Indent = iIndent
+      aState.Add(hState)
+      
+      hCurrent.AddChild(hState)
+
+    Else 
+      
+      hCurrent.AddCommand(sLine)
+      
+    Endif
+      
+  Next
+
+  CState.Print()
+  CState.Print("Private Sub Compile(aState as Byte[])")
+  CState.Print()
+  CState.Print("Dim sWord, sSymbol As String")
+  CState.Print("Dim I As Integer")
+  CState.Print()
+  CState.Print("Goto INITIAL_STATE")
+  CState.Print()
+  hDefault.Compile()
+  CState.Print()
+  CState.PrintLabel("INITIAL_STATE", True)
+  CState.Print()
+  CState.Print("On aState[0] Goto " & CState.GetLabels().Join(", "))
+  CState.Print()
+  CState.Print("End")
+  CState.Print()
+  CState.Print("Public Sub GetStateName(iState As Byte) As String")
+  CState.Print()
+  CState.Print("Static aName As String[] = " & CState.GetStateNames())
+  CState.Print("Try Return aName[iState]")
+  CState.Print()
+  CState.Print("End")
+  CState.Print()
+  CState.Print("Public Sub GetStateFromName(sName As String) As Integer")
+  CState.Print()
+  CState.Print("Static cName As Collection = " & CState.GetStateFromNames())
+  CState.Print("Try Return cName[sName]")
+  CState.Print()
+  CState.Print("End")
+  CState.Print()
+  
+  Output To Default
+  hOutput.Close
+  
+  Print File.Load(sOutput)
+  
+  sProject = File.Load("project.template")
+  sProject = Replace(sProject, "$(startup)", "_CustomHighlighter_" & sHighlight)
+  File.Save(sDir &/ ".project", sProject)
+  
+  Shell "cd " & Shell$(sDir) & " && gbc3 -agt && gba3" To sOutput
+
+  Component.Load(sDir &/ "gb.highlight." & sHighlight & ".gambas")
+  
+  'Test("javascript")
+  
+End 
+
+' Private Sub Test(sHighlight As String)
+' 
+'   Dim hHighlighter As _CustomHighlighter
+'   Dim sText As String
+'   Dim sLine As String
+'   Dim iLine As Integer
+'   Dim aState As New Byte[4]
+'   Dim aResult As Byte[]
+'   ' Dim L As Integer
+'   ' Dim I As Integer
+'   Dim T As Float
+' 
+'   hHighlighter = Object.New("_CustomHighlighter_" & sHighlight)
+' 
+'   hHighlighter.Highlight("", aState)
+' 
+'   sText = File.Load("selectr.js")
+' 
+'   T = Timer
+'   Print hHighlighter.Highlight(sText, aState).Count
+'   Print Timer - T
+'   
+'   T = Timer
+'   
+'   For Each sLine In Split(sText, "\n")
+'     
+'     Inc iLine
+'   
+'     'Print
+'     'Print "----["; iLine; "]";; aState[0];; sLine
+'     
+'     sLine &= "\n"
+'     aResult = hHighlighter.Highlight(sLine, aState)
+'     
+'     ' L = 0
+'     ' For I = 1 To aResult.Count Step 2
+'     '   L += aResult[I] '+ aResult[I + 1]
+'     ' Next
+'     ' 
+'     ' If L <> Len(sLine) Then Error.Raise("Problem !")
+'   
+'     'For I = 0 To aResult.Max Step 2
+'     '  Print hHighlighter.GetStateName(aResult[I]);; aResult[I + 1]
+'     'Next
+'   
+'   Next
+'   
+'   Print Timer - T
+'   
+' End
+

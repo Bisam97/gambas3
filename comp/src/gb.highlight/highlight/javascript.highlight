@@ -1,0 +1,33 @@
+documentation:
+  from /** to */
+comment:
+  from /* to */
+  from //
+string:
+  from " to "
+  from ' to '
+  escape:
+    match \\[ntrbf0'"\\]
+sstring{String}:
+  from ` to `
+  escape:
+    match \\[ntrbf0'"{\\]
+  subst{Preprocessor}:
+    between { }
+regexp{Datatype}:
+  match /.*/[a-z]*
+  escape:
+    match \\?
+number:
+  match [+-]?[0-9.]*
+  match 0x[0-9a-fA-F]*
+keyword:
+  word break case catch class const continue debugger default delete do else enum export extends finally for get if import in instanceof let new return set super switch throw try typeof var void while with yield
+function:
+  word function
+constant:
+  word false null this true undefined NaN Infinity
+operator:
+  symbol { } . >= + << ! = >>= ; == - >> ~ += >>>= ( , != * >>> && -= &= ) < === % & || *= |= [ > !== ++ | ? %= ^= -- ^ : <<= ] <= / /=
+identifier:
+  match [A-Za-z_$][A-Za-z_$0-9]*

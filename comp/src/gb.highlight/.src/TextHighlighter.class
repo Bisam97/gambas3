@@ -1,0 +1,264 @@
+' Gambas class file
+
+Export 
+Create Static
+
+Public _States As String[]
+
+Static Public Sub _get(Name As String) As TextHighlighter
+
+  Try Return Class.Load("TextHighlighter_" & Name).AutoCreate()
+  Return FromFile("./highlight" &/ Name & ".highlight")
+
+End
+
+Static Public Sub FromFile(Path As String, Optional Name As String) As TextHighlighter
+  
+  Dim hClass As Class
+  
+  If Not Name Then Name = String.LCase(File.BaseName(Path))
+  
+  If Path Not Begins "./" Then Path = ".." &/ Path
+  CreateCustomHighlighter(Name, Path)
+  hClass = Class.Load("TextHighlighter_" & Name)
+  Return hClass.AutoCreate()
+  
+Catch 
+  
+  Error.Raise("Cannot load highlighter '" & Name & "': " & Error.Text)
+  
+End
+
+Public Sub Run((Text) As String, (State) As Byte[]) As Byte[]
+  
+End
+
+Static Private Sub CreateCustomHighlighter(sHighlight As String, sPath As String)
+  
+  Dim hFile As File
+  Dim iLine As Integer
+  Dim sLine As String
+
+  Dim iIndent As Integer
+  Dim iCurrentIndent As Integer
+  
+  Dim hDefault As CState
+  Dim aState As New CState[]
+  Dim hState As CState
+  Dim hCurrent As CState
+  Dim hOutput As File
+  Dim sOutput As String
+  Dim sDir As String
+  Dim sProject As String
+  
+  sHighlight = "javascript"
+  
+  sDir = File.Dir(Temp$()) &/ "gb.highlight." & sHighlight
+  Mkdir sDir
+  Mkdir sDir &/ ".src"
+
+  hDefault = New CState
+
+  sOutput = sDir &/ ".src/TextHighlighter_" & sHighlight & ".class"
+  hOutput = Open sOutput For Create
+  Output To hOutput
+
+  hFile = Open sPath For Input
+  
+  Print File.Load("custom/CustomHighlighter.class")
+
+  iCurrentIndent = 0
+  
+  For Each sLine In hFile.Lines
+    
+    Inc iLine
+    
+    sLine = RTrim(sLine)
+    If Not sLine Then Continue
+    
+    iIndent = Len(sLine)
+    sLine = LTrim(sLine)
+    iIndent -= Len(sLine)
+    
+    If sLine Begins "#" Then Continue
+    
+    Do
+    
+      Try hCurrent = aState.Last
+      If Error Then hCurrent = Null
+      
+      If Not hCurrent Then Break
+        
+      If iIndent > hCurrent.Indent Then Break
+        
+      aState.Pop()
+      
+    Loop
+      
+    If Not hCurrent Then
+      
+      If sLine Ends ":" Then
+      
+        hState = New CState(Left(sLine, -1))
+        aState.Add(hState)
+        hDefault.AddChild(hState)
+        
+      Endif 
+      
+      Continue
+
+    Endif
+      
+    If sLine Ends ":" Then
+      
+      hState = New CState(Left(sLine, -1))
+      hState.Indent = iIndent
+      aState.Add(hState)
+      
+      hCurrent.AddChild(hState)
+
+    Else 
+      
+      hCurrent.AddCommand(sLine)
+      
+    Endif
+      
+  Next
+
+  CState.Print()
+  CState.Print("Private Sub Compile(aState as Byte[])")
+  CState.Print()
+  CState.Print("Dim sWord, sSymbol As String")
+  CState.Print("Dim I As Integer")
+  CState.Print()
+  CState.Print("Goto INITIAL_STATE")
+  CState.Print()
+  hDefault.Compile()
+  CState.Print()
+  CState.PrintLabel("INITIAL_STATE", True)
+  CState.Print()
+  CState.Print("On aState[0] Goto " & CState.GetLabels().Join(", "))
+  CState.Print()
+  CState.Print("End")
+  CState.Print()
+  CState.Print("Static Public Sub _init()")
+  CState.Print()
+  CState.Print("Me._States = " & CState.GetStateTitles())
+  CState.Print()
+  CState.Print("End")
+  CState.Print()
+  ' CState.Print("Public Sub GetStateFromName(sName As String) As Integer")
+  ' CState.Print()
+  ' CState.Print("Static cName As Collection = " & CState.GetStateFromNames())
+  ' CState.Print("Try Return cName[sName]")
+  ' CState.Print()
+  ' CState.Print("End")
+  ' CState.Print()
+  
+  Output To Default
+  hOutput.Close
+  
+  Print File.Load(sOutput)
+  
+  sProject = File.Load("custom/project.template")
+  sProject = Replace(sProject, "$(startup)", "_TextHighlighter_" & sHighlight)
+  File.Save(sDir &/ ".project", sProject)
+  
+  Shell "cd " & Shell$(sDir) & " && gbc3 -agt && gba3" To sOutput
+
+  Component.Load(sDir &/ "gb.highlight." & sHighlight & ".gambas")
+  
+End 
+
+Public Sub ToHTML(Text As String, Optional Theme As TextHighlighterTheme) As String
+
+  Dim aResult As New String[]
+  Dim sLine As String
+  Dim aHighlight As Byte[]
+  Dim Y As Integer
+  Dim I As Integer
+  Dim sHTML As String
+  Dim aText As String[]
+  Dim iState As Short
+  Dim hStyle As TextHighlighterStyle
+  'Dim bAlt As Boolean
+  Dim iLen As Integer
+  Dim P As Integer
+  Dim sLineHtml As String
+  Dim iColor As Integer
+  Dim sOldStyle As String
+  Dim sStyle As String
+  Dim aStyles As TextHighlighterStyle[]
+  Dim aState As Byte[]
+
+  If Not Theme Then Theme = New TextHighlighterTheme
+  
+  aStyles = Theme._GetStylesFor(Me)
+  
+  aState = New Byte[4]
+  
+  aText = Split(Text, "\n")
+  
+  iColor = 0
+  
+  For Y = 0 To aText.Max
+    
+    sLine = aText[Y] & "\n"
+    aHighlight = Me.Run(sLine, aState)
+    
+    'If TextHighlighter.TextAfter Then sLine = TextHighlighter.TextAfter
+
+    sLineHtml = ""
+    P = 1
+    
+    For I = 0 To aHighlight.Max Step 2
+      
+      iState = aHighlight[I]
+      iLen = aHighlight[I + 1]
+      Try hStyle = aStyles[iState]
+      If Error Then hStyle = aStyles[0]
+      'bAlt = aHighlight[I] >= 128
+      
+      sHtml = Replace(Html(String.Mid$(sLine, P, iLen)), " ", "&nbsp;")
+      P += iLen
+      
+      If hStyle.Bold Then sHtml = "<b>" & sHtml & "</b>"
+      If hStyle.Underline Then 
+        sHtml = "<u>" & sHtml & "</u>"
+      Else If hStyle.Strikeout Then
+        sHtml = "<s>" & sHtml & "</s>"
+      Endif
+      
+      sStyle = ""
+      'If bAlt Then sStyle &= "background:#" & Hex$(aStyles[GetAlternate()].Color, 6) & ";"
+      If hStyle.Color Then sStyle &= "color:#" & Hex$(hStyle.Color, 6) & ";"
+      If hStyle.Dotted Then sStyle &= "text-decoration:underline dotted;"
+      
+      If sStyle <> sOldStyle Then
+        If sOldStyle Then sLineHtml &= "</span>"
+        If sStyle Then sHtml = "<span style=\"" & sStyle & "\">" & sHtml
+        sOldStyle = sStyle
+      Endif
+      
+      sLineHtml &= sHtml
+      
+    Next
+    
+    If P < String.Len(sLine) Then sLineHtml &= Html(String.Mid$(sLine, P))
+    
+    ' If TextHighlighter.Limit Then 
+    '   If Y And If Not Trim(aResult[aResult.Max]) Then
+    '     aResult.Add("<div style=\"height:1px;background:#808080;position:relative;top:-0.5em;\"></div>")
+    '   Else
+    '     aResult.Add("<div style=\"height:1px;background:#808080;\"></div>")
+    '   Endif
+    ' Endif
+    
+    aResult.Add(sLineHtml)
+    
+  Next
+  
+  Return "<tt><span style=\"color:#000000;\">" & aResult.Join("<br>\n") & "</span></tt>"
+  
+End
+

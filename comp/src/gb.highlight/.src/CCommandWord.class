@@ -1,0 +1,46 @@
+' Gambas class file
+
+Inherits CCommand
+
+Private $aWords As String[]
+Private $sWords As String
+
+Public Sub SetArgs(aArgs As String[])
+  
+  Dim I As Integer
+  
+  If aArgs.Count = 0 Then Error.Raise("Syntax error")
+  
+  $aWords = aArgs
+  For I = 0 To $aWords.Max
+    $aWords[I] = Quote($aWords[I])
+  Next
+  
+End
+
+Public Sub Init()
+  
+  Static N As Integer
+  
+  Inc N
+  $sWords = "$cWords" & CStr(N)
+  CState.Print("Private " & $sWords & " As Collection")
+  
+End
+
+Public Sub Compile(hState As CState)
+  
+  CState.Print("If Not " & $sWords & " Then")
+    CState.Print($sWords & " = New Collection")
+    CState.Print("For Each sWord In [" & $aWords.Join(", ") & "]")
+      CState.Print($sWords & "[sWord] = True")
+    CState.Print("Next")
+  CState.Print("Endif")
+  
+  CState.Print("sWord = GetWord()")
+  CState.Print("If Not sWord Or If Not " & $sWords & ".Exist(sWord) Then Goto " & hState.GetNextLabel())
+
+  hState.Forward("Len(sWord)")
+  hState.Continue()
+  
+End

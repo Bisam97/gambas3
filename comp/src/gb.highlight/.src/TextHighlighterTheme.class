@@ -1,0 +1,228 @@
+' Gambas class file
+
+Export 
+
+Event Change
+
+Property Settings As String
+
+Private $cStyles As New Collection
+
+Static Private $cCopy As Collection = ["Class": "Datatype", "Id": "Keyword", "Element": "Function", "Property": "Symbol", "Pseudo": "Keyword", "Rule": "Preprocessor", "Important": "Number", "File": "Comment", "Header": "Documentation", "Position": "Keyword", "Markup": "Keyword", "Attribute": "Function", "Value": "String", "Entity": "Datatype", "WebMarkup": "Preprocessor", "WebComment": "Documentation", "WebArgument": "Preprocessor"]
+
+Public Sub _new()
+  
+  _Load("gambas")
+  
+End
+
+Public Sub Copy() As TextHighlighterTheme
+
+  Dim hTheme As TextHighlighterTheme
+  Dim hStyle As TextHighlighterStyle
+  
+  hTheme = New TextHighlighterTheme
+  
+  For Each hStyle In $cStyles
+    hTheme[$cStyles.Key] = hStyle
+  Next
+  
+  Return hTheme
+  
+End
+
+Public Sub _put(Style As TextHighlighterStyle, Key As String)
+
+  If Not IsAlnum(Key) Then Error.Raise("Incorrect name")
+  
+  If Not Style Then
+    $cStyles.Remove(Key)
+    Return
+  Endif
+  
+  Style = Style.Copy()
+  Style.Key = Key
+  Object.Attach(Style, Me, "Style")
+  $cStyles[Key] = Style
+  
+End
+
+Public Sub Add(Key As String, (Color) As Integer, Optional Bold As Boolean, Underline As Boolean, Dotted As Boolean) As TextHighlighterStyle
+
+  Dim hStyle As TextHighlighterStyle
+  
+  hStyle = TextHighlighterStyle(Color, Bold, Underline, Dotted)
+  _put(hStyle, Key)
+  Return Me[Key]
+  
+End
+
+Public Sub _get(Key As String) As TextHighlighterStyle
+  
+  Return $cStyles[Key]
+  
+End
+
+Public Sub Style_Change()
+  
+  Raise Change
+  
+End
+
+Public Sub Save(Path As String)
+
+  Dim hStyle As TextHighlighterStyle
+  Dim hFile As File
+  
+  hFile = Open Path For Output Create
+  
+  Print #hFile, "[Gambas Highlighting Theme 1.0]"
+  
+  For Each hStyle In $cStyles
+    Print #hFile, hStyle.Key; "="; Quote(hStyle.ToString())
+  Next
+  
+  Close #hFile
+  
+End
+
+Public Sub _Load(Path As String)
+
+  Dim aTheme As String[]
+  Dim I As Integer
+  Dim sLine As String
+  Dim iPos As Integer
+  Dim sName As String
+  Dim hStyle As TextHighlighterStyle
+  Dim cStyleSet As New Collection
+  Dim sCopy As String
+  Dim bOldTheme As Boolean
+  
+  aTheme = Split(File.Load(Path), "\n")
+  If aTheme[0] <> "[Gambas Highlighting Theme 1.0]" Then
+    If aTheme[0] = "[Theme]" Then 
+      bOldTheme = True
+    Else
+      Goto RAISE_ERROR
+    Endif
+  Endif
+  
+  For I = 1 To aTheme.Max
+    sLine = Trim(aTheme[I])
+    If Not sLine Then Continue
+    iPos = InStr(sLine, "=")
+    If iPos = 0 Then Goto RAISE_ERROR
+    sName = Trim(Left(sLine, iPos - 1))
+    If Not sName Or If Not IsAlnum(sName) Then Goto RAISE_ERROR
+    If bOldTheme Then
+      If sName = "Help" Then sName = "Documentation"
+    Endif
+    hStyle = TextHighlighterStyle.FromString(UnQuote(Trim(Mid$(sLine, iPos + 1))))
+    Me[sName] = hStyle
+    cStyleSet[sName] = True
+    
+  Next
+  
+  For Each sCopy In $cCopy
+    If Not cStyleSet.Exist($cCopy.Key) Then Me[$cCopy.Key] = Me[sCopy]
+  Next
+  
+  Return
+  
+RAISE_ERROR:
+
+  Error.Raise("Incorrect theme")
+  
+End
+
+
+Static Public Sub Load(Path As String) As TextHighlighterTheme
+
+  Dim hTheme As TextHighlighterTheme
+  
+  hTheme = New TextHighlighterTheme
+  
+  If File.IsRelative(Path) Then
+    Path = ".." &/ Path
+  Endif
+  
+  hTheme._Load(Path)
+  Return hTheme
+  
+End
+
+Public Sub ToString() As String
+  
+  Dim hStyle As TextHighlighterStyle
+  Dim aStyle As String[]
+  
+  aStyle = New String[]
+  For Each hStyle In $cStyles
+    aStyle.Add(hStyle.Key & "=" & hStyle.ToString())
+  Next
+  
+  Return aStyle.Join(";")
+  
+End
+
+
+Private Function Settings_Read() As String
+
+  Return ToString()
+  
+End
+
+Public Sub FromString(Theme As String) As String
+
+  Dim sStyle As String
+  Dim hStyle As TextHighlighterStyle
+  Dim iPos As Integer
+  Dim sName As String
+
+  For Each sStyle In Split(Theme, ";")
+    iPos = InStr(sStyle, "=")
+    If iPos = 0 Then Continue
+    sName = Left(sStyle, iPos - 1)
+    sStyle = Mid$(sStyle, iPos + 1)
+    hStyle = TextHighlighterStyle.FromString(sStyle)
+    Me[sName] = hStyle
+  Next
+  
+End
+
+
+Private Sub Settings_Write(Value As String)
+
+  FromString(Value)
+
+End
+
+Public Sub Invert()
+
+  Dim hStyle As TextHighlighterStyle
+  
+  For Each hStyle In $cStyles
+    hStyle.Color = hStyle.InvertedColor
+  Next
+  
+End
+
+Public Sub _GetStylesFor(Highlighter As TextHighlighter) As TextHighlighterStyle[]
+
+  Dim aStates As String[]
+  Dim aStyles As TextHighlighterStyle[]
+  Dim I As Integer
+  Dim hStyle As TextHighlighterStyle
+  
+  aStates = Highlighter._States
+  aStyles = New TextHighlighterStyle[aStates.Count]
+  
+  For I = 0 To aStates.Max
+    hStyle = $cStyles[aStates[I]]
+    If Not hStyle Then hStyle = New TextHighlighterStyle
+    aStyles[I] = hStyle
+  Next
+  
+  Return aStyles
+  
+End

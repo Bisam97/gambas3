@@ -1,0 +1,23 @@
+' Gambas class file
+
+Inherits CCommand
+
+Private $sPattern As String
+
+Public Sub SetArgs(aArgs As String[])
+  
+  If aArgs.Count <> 1 Then Error.Raise("Syntax error")
+  
+  $sPattern = aArgs[0]
+  
+End
+
+Public Sub Compile(hState As CState)
+  
+  CState.Print("sWord = Match(" & Quote($sPattern) & ")")
+  CState.Print("If Not sWord Then Goto " & hState.GetNextLabel())
+
+  hState.Forward("Len(sWord)")
+  hState.Continue()
+  
+End
