@@ -784,7 +784,7 @@ Public Sub UpdateProcessInfo(iProcessId As Integer, iProcessFiles As Integer, iP
       
       picProcessId.Show
       lblProcessId.Show
-      lblProcessId.Text = Subst(("Process &1"), iProcessId)
+      lblProcessId.Text = CStr(iProcessId)
       
     Endif
     
@@ -1168,5 +1168,11 @@ End
 Public Sub btnCloseTree_Click()
 
   FMain.btnCloseTree_Click
+
+End
+
+Public Sub btnOpenTempDir_Click()
+
+  Try Desktop.Open(Design.ProcessTempDir)
 
 End

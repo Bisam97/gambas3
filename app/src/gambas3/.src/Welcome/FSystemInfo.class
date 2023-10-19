@@ -151,9 +151,10 @@ Static Public Sub GetInfo() As String[]
   aText.Add("[Programs]")
   sForTrans = ("Programs")
   
-  For Each sProg In ["git", "gcc", "clang", "pngquant", "translate-shell"].Sort()
+  For Each sProg In ["git", "gcc", "clang", "tcc", "msgmerge", "pngquant", "translate-shell", "rpmbuild", "dpkg", "appimage-builder", "appimage-builder-x86_64", "appimage-builder-x86_64.AppImage"].Sort()
+    If Project.CheckProgram(sProg) Then Continue
     Try Exec [sProg, "--version"] To sTemp
-    If Error Or If Not sTemp Then Continue
+    If Error Then Continue
     If sTemp Then sTemp = Split(sTemp, "\n", "", True)[0]
     aText.Add(sProg & "=" & sTemp)
   Next
@@ -232,22 +233,24 @@ Public Sub Form_Open()
   
   Inc Application.Busy
   
+  txtInfo.Padding = Desktop.Scale
+  txtInfo.BorderRadius = txtInfo.H
+  
   aText = GetInfo()
   
   Project.SetEditorFont(gvwInfo)
   
-  gvwInfo.Rows.Count = aText.Count + 1
+  gvwInfo.Rows.Count = aText.Count
   gvwInfo.Columns.Count = 3
   
-  With gvwInfo[0, 0]
-    .Text = ("Please copy these informations in all your bug reports.")
-    .ColumnSpan = 3
-    .Font = Font["Italic,-1"]
-    '.Foreground = Color.Foreground
-  End With
-  gvwInfo.Rows[0].Height = Desktop.Scale * 6
+  ' With gvwInfo[0, 0]
+  '   .Text = ("Please copy these informations in all your bug reports.")
+  '   .ColumnSpan = 3
+  '   .Font = Font["Italic,-1"]
+  '   '.Foreground = Color.Foreground
+  ' End With
+  ' gvwInfo.Rows[0].Height = Desktop.Scale * 6
   
-  I = 1
   For Each sText In aText
     If Left(sText) = "[" Then
       With gvwInfo[I, 0]

@@ -22,6 +22,7 @@ Public Startup As String
 Public ProcessId As Integer
 Public ProcessFiles As Integer
 Public ProcessMemory As Long
+Public ProcessTempDir As String
 
 Public Enum ACTION_RUN, ACTION_RUN_WITH, ACTION_STEP, ACTION_FORWARD, ACTION_RETURN_FROM, ACTION_RUN_EXTERN
 
@@ -467,6 +468,9 @@ Public Sub Debug_Read(Data As String)
           
         Case "X"
           FDebugExpr.AddResult(Mid$(sVar, 2), aData[1])
+          
+        Case "$"
+          ProcessTempDir = UnQuote(aData[1])
           
       End Select
       
@@ -1869,6 +1873,8 @@ Private Sub MakeInitialCommands(sCmd As String)
     $aCmdStart.Add($sAddBreakpoint)
     $sAddBreakpoint = ""
   Endif
+  
+  If Not $bRemote Then $aCmdStart.Add("?$\tApplication.TempDir")
   
   $aCmdStart.Insert(FDebugger.GetWatches())
 
