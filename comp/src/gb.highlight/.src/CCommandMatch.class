@@ -2,22 +2,49 @@
 
 Inherits CCommand
 
-Private $sPattern As String
+Private $sFrom As String
+Private $sTo As String
 
 Public Sub SetArgs(aArgs As String[])
   
-  If aArgs.Count <> 1 Then Error.Raise("Syntax error")
-  
-  $sPattern = aArgs[0]
+  If aArgs.Count = 3 And If aArgs[1] = "to" Then
+    $sFrom = aArgs[0]
+    $sTo = aArgs[2]
+  Else If aArgs.Count = 1 Then
+    $sFrom = aArgs[0]
+  Else
+    Error.Raise("Syntax error")
+  Endif
   
 End
 
 Public Sub Compile(hState As CState)
   
-  CState.Print("sWord = Match(" & Quote($sPattern) & ")")
-  CState.Print("If Not sWord Then Goto " & hState.GetNextLabel())
+  If Not $sTo Then
+  
+    CState.Print("sWord = Match(" & Quote($sFrom) & ")")
+    CState.Print("If Not sWord Then Goto " & hState.GetNextLabel())
+    hState.Forward("Len(sWord)")
 
-  hState.Forward("Len(sWord)")
-  hState.Continue()
+    hState.CompileChildren()
+    hState.Continue()
+    
+  Else 
+    
+    CState.Print("sWord = Match(" & Quote($sFrom) & ")")
+    CState.Print("If Not sWord Then Goto " & hState.GetNextLabel())
+    hState.Forward("Len(sWord)")
+    
+    hState.PrintLabel(hState.GetLabel() & "_LOOP")
+    
+    CState.Print("sWord = Match(" & Quote($sTo) & ")")
+    CState.Print("If sWord Then")
+      hState.Forward("Len(sWord)")
+      hState.Continue()
+    CState.Print("Endif")
+  
+    hState.CompileChildren(True)
+    
+  Endif
   
 End

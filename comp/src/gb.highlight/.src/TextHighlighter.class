@@ -51,8 +51,6 @@ Static Private Sub CreateCustomHighlighter(sHighlight As String, sPath As String
   Dim sDir As String
   Dim sProject As String
   
-  sHighlight = "javascript"
-  
   sDir = File.Dir(Temp$()) &/ "gb.highlight." & sHighlight
   Mkdir sDir
   Mkdir sDir &/ ".src"
@@ -167,6 +165,10 @@ Static Private Sub CreateCustomHighlighter(sHighlight As String, sPath As String
   Shell "cd " & Shell$(sDir) & " && gbc3 -agt && gba3" To sOutput
 
   Component.Load(sDir &/ "gb.highlight." & sHighlight & ".gambas")
+  
+Catch 
+  
+  Error.Raise(sPath & ": " & Error.Text & " at line " & CStr(iLine))
   
 End 
 

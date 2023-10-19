@@ -33,8 +33,9 @@ Public Sub _new(Optional sLine As String)
     sTitle = Mid$(sLine, iPos + 1, -1)
     sLine = Left(sLine, iPos - 1)
   Endif
-        
-  Name = sLine
+  
+  If sLine Not Match "[A-Za-z][A-Za-z0-9.]*" Then Error.Raise("Incorrect character in state name")
+  Name = Replace(sLine, ".", "_")
   
   If sTitle Then 
     sCurrent = $cTitle[Name]

@@ -1,0 +1,24 @@
+doctype{Preprocessor}:
+  from <!DOCTYPE to >
+comment:
+  from <!-- to -->
+entity{Operator}:
+  match &[A-Za-z]+;
+  match &#[0-9]+;
+markup{Function}:
+  match <[a-zA-Z0-9]+ to >
+  attribute{Datatype}:
+    match [a-zA-Z0-9-]+
+  equal{Normal}:
+    symbol =
+  value{String}:
+    from " to "
+    from ' to '
+    string.entity{Escape}:
+      match &[A-Za-z]+;
+      match &#[0-9]+;
+  value.unquoted{String}:
+    match [^"'`=<>\s]+
+markup.close{Function}:
+  match </[A-zA-Z0-9]+\s*>
+  
