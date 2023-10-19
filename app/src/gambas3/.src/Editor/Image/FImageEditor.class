@@ -3227,10 +3227,12 @@ End
 
 Public Sub imvImage_MouseWheel()
 
-  If Mouse.Forward Then
-    btnZoomIn_Click
-  Else
-    btnZoomOut_Click
+  If Mouse.FullDelta Then
+    If Mouse.Forward Then
+      btnZoomIn_Click
+    Else
+      btnZoomOut_Click
+    Endif
   Endif
   Stop Event
 
