@@ -8,14 +8,14 @@ Property SubDomains As String[]
 'Property Opacity As Float                         inherited '' Returns or sets Tile opacity.
 Property UseWebMapService As Boolean
 Property WMSArgs As Collection                    '' Defines the Static args for the server(build the url)
-Property MaxBounds As MapBounds 
+Property MaxBounds As MapBounds
 Property CacheRefreshDelay As Integer             '' Delay before refreshing an image in the cache. (By default 30 day)
 Property WMSProjection As String                  '' Set the projection used by the WMS server.
 Property Opacity As Float
 Property Header As String[] Use $aHeader
 Private $aStack As New String[]
 Private $aClients As New HttpClient[]
-Private $iClientCount As Integer = 4
+Private $iClientCount As Integer = 10
 Private $sCachePath As String ' = User.Home &/ ".cache/gb.map"
 Private $tmrGet As New Timer As "tmrGet"
 Private $aTiles As New String[]
@@ -27,7 +27,7 @@ Private $aPreload As New String[]
 Private $bPreloadMode As Boolean
 Private $fGradStep As Float = 0.1
 Private $bIsQuadKey As Boolean
-Private $bLoading As Boolean 
+Private $bLoading As Boolean
 Private $iCli As Integer
 'Private $iTileSource As Integer
 'Property TileSource As Integer
@@ -55,7 +55,7 @@ Public Sub _new(Optional CacheName As String)
   'Dim hTable As Table
 
   'db.Debug = True
-  
+
   $prjLatLon = New Proj("epsg:4326")
 
   $sCachePath = Me._GetMap().DefaultCache
@@ -71,28 +71,19 @@ Public Sub _new(Optional CacheName As String)
   Endif
 
   $sCachePath = sTempPath
-
-  $aClients.Resize($iClientCount)
-  For i = 0 To $aClients.Max
+  
+  'Init httpClient Array
+  For i = 0 To $iClientCount - 1
     hClient = New HttpClient As "Client"
-    hClient.Async = True
-    With Me._GetMap()
-      If ._Proxy Then
-        hClient.Proxy.Auth = ._Proxy.Auth
-        hClient.Proxy.Type = ._Proxy.Type
-        hClient.Proxy.Host = ._Proxy.Host
-        hClient.Proxy.User = ._Proxy.User
-        hClient.Proxy.Password = ._Proxy.Password
-      Endif
-    End With
-    $aClients[i] = hClient
-    hClient.Timeout = 10
+    $aClients.Add(hClient)
   Next
+
 
 End
 ' svn checkout --username=gambix svn+ssh://gambas@svn.code.sf.net/p/gambas/code/gambas/trunk
-' 
+'
 '' Draws the Maptile Layer
+
 Public Sub Draw()
 
   Dim s As String
@@ -118,7 +109,7 @@ Public Sub Draw()
         If hmap._ShowWithEffect Then
           Try Paint.DrawImage(hTile.Image, hTile.X * 256 - hMap.PixelBox.X, hTile.Y * 256 - hMap.PixelBox.Y,,, Min(hTile.Opacity, Me.Opacity)) '$fOpacity))
 
-          If hTile.Opacity < Me.Opacity Then '$fOpacity Then 
+          If hTile.Opacity < Me.Opacity Then '$fOpacity Then
             hTile.Opacity += $fGradStep
             Raise Refresh
           Endif
@@ -166,7 +157,6 @@ Public Sub _Load()
   ' Dim sExec As String
   ' Dim bFirst As Boolean
 
-
   '***********************************
 
   mpFirst = Geo.PixelToMapPoint(Point(hMap.PixelBox.x, hMap.PixelBox.y), hmap.Zoom)
@@ -190,7 +180,7 @@ Public Sub _Load()
   'ptTileCenter = Geo.MapPointToTile(hMap.Center, hMap.Zoom)
   'Print "Tile Center = " & ptTileCenter.x & "   " & ptTileCenter.Y
   For Each sTileName In aTileOrder
-    ars = Split(sTileName, "/") 
+    ars = Split(sTileName, "/")
     iY = CInt(ars[1])
     iX = CInt(ars[2])
     sTileName = Subst("&1-&2-&3-&4.png", hMap.Zoom, iY, iX, $iVersion)
@@ -200,11 +190,11 @@ Public Sub _Load()
       hTile.Y = iY
       hTile.Z = hMap.Zoom
       hTile.Name = sTileName
-      If Exist($sCachePath &/ hTile.Name) Then 
+      If Exist($sCachePath &/ hTile.Name) Then
         'Print $db.Tables["tiles"]
         ' hresult = $db.Exec("Select * from tiles where name=&1", "toto")
         ' 'hresult = $DB.Find("tiles", "name=&1", hTile.Name)
-        ' 
+        '
         ' If hresult.Available And If $bCacheRefresh And If DateDiff(Now(), hresult!lastmodified, gb.Day) > $iCacheRefreshDelay Then
         '   ReLoadTile(hTile)
         ' Else
@@ -215,7 +205,7 @@ Public Sub _Load()
         ' Else
         hTile.Status = _Tile.Normal
         Try hTile.Image = Image.Load($sCachePath &/ hTile.Name)
-        If Error Then 
+        If Error Then
           'Error "Image illisible  -> " & hTile.Name
           ReLoadTile(hTile)
         Else
@@ -246,7 +236,7 @@ Public Sub _Load()
       '   hTile.TryCount = 0
       '   ReLoadTile(hTile)
       ' Endif
-    Endif 
+    Endif
 
     $aTiles.Add(sTileName)
   Next
@@ -255,8 +245,8 @@ Public Sub _Load()
   ' If hmap.Zoom > 1 Then
   '   ptFirst = Geo.MapPointToTile(mpFirst, hmap.Zoom - 1)
   '   ptLast = Geo.MapPointToTile(mpLast, hmap.Zoom - 1)
-  '   For iX = ptFirst.X To ptLast.X 
-  '     For iY = ptFirst.Y To ptLast.Y 
+  '   For iX = ptFirst.X To ptLast.X
+  '     For iY = ptFirst.Y To ptLast.Y
   '       sTileName = Subst("&1-&2-&3.png", hMap.Zoom - 1, iY, iX)
   '       If Exist($sCachePath &/ sTileName) Then Continue
   '       $aPreload.Push(sTileName)
@@ -267,8 +257,8 @@ Public Sub _Load()
   ' If hmap.Zoom < 18 Then
   '   ptFirst = Geo.MapPointToTile(mpFirst, hmap.Zoom + 1)
   '   ptLast = Geo.MapPointToTile(mpLast, hmap.Zoom + 1)
-  '   For iX = ptFirst.X To ptLast.X 
-  '     For iY = ptFirst.Y To ptLast.Y 
+  '   For iX = ptFirst.X To ptLast.X
+  '     For iY = ptFirst.Y To ptLast.Y
   '       sTileName = Subst("&1-&2-&3.png", hMap.Zoom + 1, iY, iX)
   '       If Exist($sCachePath &/ sTileName) Then Continue
   '       $aPreload.Push(sTileName)
@@ -288,14 +278,14 @@ Private Sub ReLoadTile(hTile As _Tile)
 
   'Dim hresult As Result
 
-  If hTile.TryCount > 3 Then 
+  If hTile.TryCount > 3 Then
     hTile.Status = _Tile.Error
     $tmrGet.Trigger
     Raise Refresh
     Return
   Endif
   'If the tile exist then remove it
-  If Exist($sCachePath &/ hTile.Name) Then 
+  If Exist($sCachePath &/ hTile.Name) Then
     Kill $sCachePath &/ hTile.Name
 
   Endif
@@ -336,9 +326,9 @@ Catch
 End
 
 ' Private Function GetMap() As Map
-'   
+'
 '   Return Object.Parent(Me)
-'   
+'
 ' End
 
 Public Sub tmrGet_Timer()
@@ -356,7 +346,7 @@ Public Sub tmrGet_Timer()
       sFile = $aPreload.Pop()
     Else
       $bLoading = $aStack.Count > 0
-      If $aStack.count = 0 Then 
+      If $aStack.count = 0 Then
         $bPreloadMode = True
         Return
       Endif
@@ -377,15 +367,34 @@ End
 
 Private Sub GetClient() As HttpClient
 
+  Dim hClient As HttpClient
   For i As Integer = 0 To $aClients.max
-    If $aClients[i].Status = Net.Inactive Then Return $aClients[i]
+    If $aClients[i].Status = Net.Inactive Then
+      $aClients[i].Close
+      hClient = New HttpClient As "Client"
+      hClient.Async = True
+      hClient.Timeout = 10
+      'Setup proxy
+      With Me._GetMap()
+        If ._Proxy Then
+          hClient.Proxy.Auth = ._Proxy.Auth
+          hClient.Proxy.Type = ._Proxy.Type
+          hClient.Proxy.Host = ._Proxy.Host
+          hClient.Proxy.User = ._Proxy.User
+          hClient.Proxy.Password = ._Proxy.Password
+        Endif
+      End With
+
+      $aClients[i] = hClient
+      Return hClient
+    Endif
   Next
 
 End
 
 Public Sub Client_Finished()
 
-  Dim hTile As _Tile 
+  Dim hTile As _Tile
   'Dim hresult As Result
 
   Dec $iCli
@@ -393,7 +402,7 @@ Public Sub Client_Finished()
   hTile = $colTiles[Last.Tag]
   If Not hTile Then Goto Skip
   Try hTile.Image = Image.Load($sCachePath &/ hTile.Name)
-  If Error Then 
+  If Error Then
     'Error "Image illisible  -> " & hTile.Name
     ReLoadTile(hTile)
     Return
@@ -401,7 +410,7 @@ Public Sub Client_Finished()
   'Print hTile.Name
   hTile.Status = _Tile.Normal
   'If $bHaveCache Then $aNewTiles.Add(hTile.Name)
-  ' 'The tile have been loaded and the file is created so now 
+  ' 'The tile have been loaded and the file is created so now
   ' 'we add an entry to the database
   ' hresult = $DB.Create("tiles")
   ' hresult!name = hTile.Name
@@ -457,24 +466,24 @@ Private Function GetTileUrl(hTile As _Tile) As String
 End
 
 ' Private Function GetWMSTilept(X As Integer, Y As Integer, Z As Integer) As String
-'   
+'
 '   Dim hBound As MapBounds = Geo.TileBounds(X, Y, Z)
 '   Dim hbound2 As MapBounds
 '   ' Dim hbound2 As MapBounds = Geo.TileBounds(x + 1, y - 1, z)
 '   Dim hConv, hConv2 As MapBounds
 '   Dim sTemp As String
 '   Dim s As String
-'   
+'
 '   If Not Me.MaxBounds.Collide(hbound) Then Return
-'   
+'
 '   For Each s In $cWMSArgs
-'     
-'     sTemp &= "&" & $cWMSArgs.Key & "=" & s 
-'     
+'
+'     sTemp &= "&" & $cWMSArgs.Key & "=" & s
+'
 '   Next
-'   
-'   If $cWMSArgs.Exist("bbox") Then 
-' 
+'
+'   If $cWMSArgs.Exist("bbox") Then
+'
 '     'Invertion de coordonée
 '     ' Print "de ->            ", hbound.lat2, hbound.Lon, hbound.Lat, hbound.Lon2
 '     ' hbound2 = $prjLatLon.TransformMBounds($prjWMS, hbound)
@@ -491,7 +500,7 @@ End
 '     sTemp = Replace(sTemp, "{lon}", CStr(hbound.Lon))
 '     sTemp = Replace(sTemp, "{lat2}", CStr(hbound.lat2))
 '     sTemp = Replace(sTemp, "{lon2}", CStr(hbound.lon2))
-'     
+'
 '   Else
 '     If $cWMSArgs.Exist("tilerow") Or If $cWMSArgs.Exist("TILEROW") Then
 '       If InStr(sTemp, "{q}") Then
@@ -500,32 +509,32 @@ End
 '         sTemp = Replace(sTemp, "{x}", CStr(X))
 '         sTemp = Replace(sTemp, "{y}", CStr(Y))
 '         sTemp = Replace(sTemp, "{z}", CStr(Z))
-'         
+'
 '       Endif
 '     Endif
 '   Endif
-'   
-'   'sTemp = $sPattern & 
-'   'sTemp = $sPattern & "?bbox=" & hConv.Lat & "," & hConv.Lon & "," & hConv.Lat2 & "," & hConv.Lon2 
+'
+'   'sTemp = $sPattern &
+'   'sTemp = $sPattern & "?bbox=" & hConv.Lat & "," & hConv.Lon & "," & hConv.Lat2 & "," & hConv.Lon2
 '   Print sTemp
 '   Return $sPattern & "?" & sTemp
-'   
+'
 ' End
 Private Function GetWMSTilept(X As Integer, Y As Integer, Z As Integer) As String
 
   Dim hBound As MapBounds = Geo.TileBounds(X, Y, Z)
   ' Dim hbound2 As MapBounds = Geo.TileBounds(x + 1, y - 1, z)
-'  Dim hConv, hConv2 As MapBounds
+  '  Dim hConv, hConv2 As MapBounds
   Dim sTemp As String
   Dim s As String
 
   If Not Me.MaxBounds.Collide(hbound) Then Return
 
   For Each s In $cWMSArgs
-    sTemp &= "&" & $cWMSArgs.Key & "=" & s 
+    sTemp &= "&" & $cWMSArgs.Key & "=" & s
   Next
 
-  If $cWMSArgs.Exist("bbox") Then 
+  If $cWMSArgs.Exist("bbox") Then
     'Print X, Y, Z, hbound.Lat, hbound.Lon, hbound.lat2, hbound.lon2
     'Invertion de coordonée
     'hbound = MapBounds(MapPoint(hBound.lat2, hBound.lon), MapPoint(hBound.lat, hBound.Lon2))
@@ -547,17 +556,17 @@ Private Function GetWMSTilept(X As Integer, Y As Integer, Z As Integer) As Strin
         sTemp = Replace(sTemp, "{x}", CStr(X))
         sTemp = Replace(sTemp, "{y}", CStr(Y))
         sTemp = Replace(sTemp, "{z}", CStr(Z))
-        
+
       Endif
     Endif
   Endif
 
-  'sTemp = $sPattern & 
-  'sTemp = $sPattern & "?bbox=" & hConv.Lat & "," & hConv.Lon & "," & hConv.Lat2 & "," & hConv.Lon2 
+  'sTemp = $sPattern &
+  'sTemp = $sPattern & "?bbox=" & hConv.Lat & "," & hConv.Lon & "," & hConv.Lat2 & "," & hConv.Lon2
 
   'Print X, Y, Z, hbound.Lat, hbound.Lon, hbound.lat2, hbound.lon2
   'Print X, Y, Z, Mid(sTemp, InStr(sTemp, "bbox"))
-  ' Print 
+  ' Print
   ' Print
 
   Return $sPattern & "?" & sTemp
@@ -569,7 +578,7 @@ Private Function GetTileUrlpt(X As Integer, Y As Integer, Z As Integer) As Strin
   Dim sTemp As String
 
   If $bUseWMS Then
-    sTemp = GetWMSTilept(X, Y, Z) 
+    sTemp = GetWMSTilept(X, Y, Z)
     If Map.Debug Then Debug sTemp
     Return sTemp
   Else
@@ -759,12 +768,13 @@ End
 '' Remove old files from cache.
 '' - iLastUse defines file age in days
 Public Sub ClearCache(Optional iLastUse As Integer)
-'needs some testing...
+  'needs some testing...
+
   If $sCachePath = Null Or Len($sCachePath) < 5 Then Return
   If iLastUse Then
     Exec ["find", $sCachePath, "-mtime", "+" & Str(iLastUse), "-delete"] With ["PWD", $sCachePath]
   Else
     Exec ["rm", $sCachePath &/ "*"]
   Endif
-End
 
+End
