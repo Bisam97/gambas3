@@ -7,17 +7,25 @@ string:
   from " to "
   from ' to '
   escape:
-    match \\[ntrbf0'"\\]
+    match \\[fnrtv0'"\\]
+    match \\c[A-Za-z]
+    match \\x[0-9a-fA-F]{2}
+    match \\u[0-9a-fA-F]{4}
+    match \\u{[0-9a-fA-F]+}
 sstring{String}:
   from ` to `
   escape:
-    match \\[ntrbf0'"{\\]
+    match \\[fnrtv0'"\\]
+    match \\c[A-Za-z]
+    match \\x[0-9a-fA-F]{2}
+    match \\u[0-9a-fA-F]{4}
+    match \\u{[0-9a-fA-F]+}
   subst{Preprocessor}:
     between { }
 regexp{Datatype}:
-  match /.*/[a-z]*
-  escape:
-    match \\?
+  match /.*?/[a-z]*
+  regexp.escape{Escape}:
+    match \\.
 number:
   match [+-]?[0-9.]*
   match 0x[0-9a-fA-F]*

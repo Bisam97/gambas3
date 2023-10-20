@@ -17,7 +17,7 @@
 }(this, function(plugin) {
     'use strict';
 
-    console.log(`this is a {plugin} plugin.`);
+    console.log(`this \x2B \u0640 is a {plugin} plugin.\n`);
 
     /**
      * Event Emitter
