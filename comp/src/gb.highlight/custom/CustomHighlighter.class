@@ -36,18 +36,8 @@ End
 
 Private Sub Forward(iState As Byte, Optional N As Integer = 1)
   
-  Dim iMax As Integer
-  
   If $bEof Then Error.Raise("End of file")
-  
-  iMax = $aHighlight.Max
-  If $aHighlight.Count And If $aHighlight[iMax - 1] = iState And If $aHighlight[iMax] <= (255 - N) Then
-    $aHighlight[iMax] += N
-  Else
-    $aHighlight.Add(iState)
-    $aHighlight.Add(N)
-  Endif
-  
+  TextHighlighter._Add($aHighlight, iState, N)
   $iPos += N
   $bEof = $iPos > Len($sText)
   
@@ -67,6 +57,7 @@ Private Sub IgnoreSpaces() As Boolean
   Wend
   
   Forward(0, P - $iPos)
+  Return $bEof
   
 End
 

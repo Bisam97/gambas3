@@ -35,6 +35,7 @@ Public Sub Compile(hState As CState)
   
     hState.Forward(Len($sFrom))
     hState.PrintLabel(hState.GetLabel() & "_LOOP")
+    CState.Print("If $bEof Then Return")
     CState.Print("If Include(" & CStr($iInclude) & ", " & Quote($sInclude) & ", False, " & Quote($sTo) & ", aState) Then Return")
     hState.Forward(Len($sTo))
     hState.Continue()
@@ -44,6 +45,7 @@ Public Sub Compile(hState As CState)
     hState.Forward(Len($sFrom))
     
     hState.PrintLabel(hState.GetLabel() & "_LOOP")
+    CState.Print("If $bEof Then Return")
     
     CState.IfStartWith($sTo)
       hState.Forward(Len($sTo))

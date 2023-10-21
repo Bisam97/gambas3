@@ -3,18 +3,21 @@
 Export 
 Create Static
 
+Static Public TextAfter As String
+Static Public CanRewrite As Boolean
+
 Property Read Keywords As String[]
 
 Static Public Sub _get(Name As String) As TextHighlighter
 
-  Try Return Class.Load("TextHighlighter_" & Name).AutoCreate()
+  Try Return Class.Load("_TextHighlighter_" & Name).AutoCreate()
   Return FromFile("./highlight" &/ Name & ".highlight")
 
 End
 
 Static Public Sub _Create(Name As String) As TextHighlighter
   
-  Return Object.New("TextHighlighter_" & Name)
+  Return Object.New("_TextHighlighter_" & Name)
   
 End
 
@@ -26,7 +29,7 @@ Static Public Sub FromFile(Path As String, Optional Name As String) As TextHighl
   
   If Path Not Begins "./" Then Path = ".." &/ Path
   CreateCustomHighlighter(Name, Path)
-  hClass = Class.Load("TextHighlighter_" & Name)
+  hClass = Class.Load("_TextHighlighter_" & Name)
   Return hClass.AutoCreate()
   
 Catch 
@@ -64,16 +67,17 @@ Static Private Sub CreateCustomHighlighter(sHighlight As String, sPath As String
   Dim sOutput As String
   Dim sDir As String
   Dim sProject As String
+  Dim iPos As Integer
   
   sDir = File.Dir(Temp$()) &/ "gb.highlight." & sHighlight
   Mkdir sDir
   Mkdir sDir &/ ".src"
 
-  CState.Init()
+  CState.Init(sPath)
 
   hDefault = New CState
 
-  sOutput = sDir &/ ".src/TextHighlighter_" & sHighlight & ".class"
+  sOutput = sDir &/ ".src/_TextHighlighter_" & sHighlight & ".class"
   hOutput = Open sOutput For Create
   Output To hOutput
 
@@ -95,6 +99,13 @@ Static Private Sub CreateCustomHighlighter(sHighlight As String, sPath As String
     iIndent -= Len(sLine)
     
     If sLine Begins "#" Then Continue
+    
+    If sLine Begins "$(" Then
+      sLine = Mid$(sLine, 3)
+      iPos = InStr(sLine, ")=")
+      If iPos < 2 Then Error.Raise("Syntax error")
+      CState.Define(Trim(Left(sLine, iPos - 1)), Trim(Mid$(sLine, iPos + 2)))
+    Endif
     
     Do
     
@@ -158,13 +169,9 @@ Static Private Sub CreateCustomHighlighter(sHighlight As String, sPath As String
   CState.Print("End")
   CState.Print()
   CState.Print("Private Sub Keywords_Read() As String[]")
-  If CState.Keywords.Count Then
-    CState.Print("Static aKeywords As String[] = " & CState.GetKeywords())
-    CState.Print("aKeywords.ReadOnly = True")
-    CState.Print("Return aKeywords")
-  Else 
-    CState.Print("Return New String[]")
-  Endif
+  CState.Print("Static aKeywords As String[] = " & CState.GetKeywords())
+  CState.Print("aKeywords.ReadOnly = True")
+  CState.Print("Return aKeywords")
   CState.Print("End")
   
   ' CState.Print("Public Sub GetStateFromName(sName As String) As Integer")
@@ -178,7 +185,7 @@ Static Private Sub CreateCustomHighlighter(sHighlight As String, sPath As String
   Output To Default
   hOutput.Close
   
-  'Print File.Load(sOutput)
+ Print File.Load(sOutput)
   
   sProject = File.Load("custom/project.template")
   sProject = Replace(sProject, "$(startup)", "_TextHighlighter_" & sHighlight)
@@ -308,4 +315,32 @@ End
 
 Private Function Keywords_Read() As String[]
 
+End
+
+Static Public Sub _Add(aHighlight As Byte[], iState As Byte, iCount As Integer)
+
+  Dim iMax As Integer
+  
+  iMax = aHighlight.Max
+  If aHighlight.Count And If aHighlight[iMax - 1] = iState Then 
+    If aHighlight[iMax] <= (255 - iCount) Then
+      aHighlight[iMax] += iCount
+      Return
+    Else 
+      iCount -= 255 - aHighlight[iMax]
+      aHighlight[iMax] = 255
+    Endif
+  Endif
+  
+  While iCount > 255
+    aHighlight.Add(iState)
+    aHighlight.Add(255)
+    iCount -= 255
+  Wend
+  
+  If iCount Then
+    aHighlight.Add(iState)
+    aHighlight.Add(iCount)
+  Endif
+  
 End

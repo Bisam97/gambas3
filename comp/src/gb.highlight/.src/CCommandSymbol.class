@@ -10,10 +10,21 @@ Public Sub SetArgs(aArgs As String[])
   
   Dim I As Integer
   Dim aSort As String[]
+  Dim sPath As String
   
   If aArgs.Count = 0 Then Error.Raise("Syntax error")
   
-  $aSymbols = aArgs
+  If aArgs.Count = 1 And If aArgs[0] Begins "@" And If Len(aArgs[0]) >= 2 Then
+    
+    sPath = Mid$(aArgs[0], 2)
+    If sPath Not Begins "./" And If sPath Not Begins "/" Then sPath = File.Dir(CState.Path) &/ sPath
+    $aSymbols = Split(File.Load(sPath), " \n", "", True)
+    
+  Else
+    
+    $aSymbols = aArgs
+  
+  Endif
   
   aSort = New Integer[$aSymbols.Count]
   

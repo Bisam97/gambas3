@@ -44,6 +44,7 @@ Public Sub Compile(hState As CState)
     hState.Forward("Len(sWord)")
 
     hState.PrintLabel(hState.GetLabel() & "_LOOP")
+    CState.Print("If $bEof Then Return")
     CState.Print("If Include(" & CStr($iInclude) & ", " & Quote($sInclude) & ", True, " & Quote($sTo) & ", aState) Then Return")
     hState.Forward("Len(Match(" & Quote($sTo) & "))")
     hState.Continue()
@@ -55,7 +56,8 @@ Public Sub Compile(hState As CState)
     hState.Forward("Len(sWord)")
     
     hState.PrintLabel(hState.GetLabel() & "_LOOP")
-    
+    CState.Print("If $bEof Then Return")
+
     CState.Print("sWord = Match(" & Quote($sTo) & ")")
     CState.Print("If sWord Then")
       hState.Forward("Len(sWord)")

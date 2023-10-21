@@ -23,7 +23,8 @@ Public Sub Compile(hState As CState)
   hState.Forward(Len($sFrom))
   
   hState.PrintLabel(hState.GetLabel() & "_LOOP")
-  
+  CState.Print("If $bEof Then Return")
+
   CState.IfStartWith($sTo)
     hState.Forward(Len($sTo))
     hState.Continue()

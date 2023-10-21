@@ -2,12 +2,16 @@
 
 Public Sub Main()
 
-  Dim hTextHighlighter As TextHighlighter
+  Dim hJS As TextHighlighter
+  Dim hCSS As TextHighlighter
+  Dim hHTML As TextHighlighter
 
-  hTextHighlighter = TextHighlighter.FromFile("./highlight/javascript.highlight")
+  hJS = TextHighlighter.FromFile("./highlight/javascript.highlight")
+  hCSS = TextHighlighter.FromFile("./highlight/css.highlight")
+  hHTML = TextHighlighter.FromFile("./highlight/html.highlight")
   'File.Save("~/test.html", hTextHighlighter.ToHTML(File.Load("custom/selectr.js")))
 
-  hTextHighlighter = TextHighlighter.FromFile("./highlight/html.highlight")
-  File.Save("~/test.html", hTextHighlighter.ToHTML(File.Load("custom/page.html")))
+  'File.Save("~/test.html", hCSS.ToHTML(File.Load("test/style.css")))
+  File.Save("~/test.html", hHTML.ToHTML(File.Load("test/page.html")))
 
 End

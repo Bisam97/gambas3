@@ -8,12 +8,35 @@ Private $sWords As String
 Public Sub SetArgs(aArgs As String[])
   
   Dim I As Integer
+  Dim sPath As String
   
   If aArgs.Count = 0 Then Error.Raise("Syntax error")
   
-  $aWords = New String[aArgs.Count]
+  If aArgs.Count = 1 And If aArgs[0] Begins "@" And If Len(aArgs[0]) >= 2 Then
+    
+    sPath = Mid$(aArgs[0], 2)
+    If sPath Not Begins "./" And If sPath Not Begins "/" Then sPath = File.Dir(CState.Path) &/ sPath
+    $aWords = Split(File.Load(sPath), " \n", "", True)
+    
+  Else 
+    
+    $aWords = New String[]
+    For I = 0 To $aWords.Max
+      $aWords.Add(aArgs[I])
+    Next
+
+  Endif
+  
+  If Me Is CCommandKeyword Then
+    
+    For I = 0 To $aWords.Max
+      CState.Keywords.Add($aWords[I])
+    Next
+    
+  Endif
+  
   For I = 0 To $aWords.Max
-    $aWords[I] = Quote(aArgs[I])
+    $aWords[I] = Quote($aWords[I])
   Next
   
 End

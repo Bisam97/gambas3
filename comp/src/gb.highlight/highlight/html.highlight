@@ -1,3 +1,4 @@
+$(IDENT)=[a-zA-Z0-9-]+
 doctype{Preprocessor}:
   from <!DOCTYPE to >
 comment:
@@ -7,10 +8,12 @@ entity{Operator}:
   match &#[0-9]+;
 javascript{Function}:
   match <script(\stype=["']text/javascript['"])?> to </script> include javascript
+css{Function}:
+  match <style(\stype=["']text/css['"])?> to </style> include css
 markup{Function}:
-  match <[a-zA-Z0-9]+ to >
+  match <$(IDENT) to /?>
   attribute{Datatype}:
-    match [a-zA-Z0-9-]+
+    match $(IDENT)
   equal{Normal}:
     symbol =
   value{String}:
@@ -22,4 +25,4 @@ markup{Function}:
   value.unquoted{String}:
     match [^"'`=<>\s]+
 markup.close{Function}:
-  match </[A-zA-Z0-9]+\s*>
+  match </$(IDENT)\s*>

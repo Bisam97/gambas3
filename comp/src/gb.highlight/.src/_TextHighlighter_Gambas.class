@@ -2,19 +2,29 @@
 
 Inherits TextHighlighter
 
-Public Const Name As String = "gambas"
-Public Const FullName As String = "Gambas"
-Public Const _Styles As String = "Keyword,Function,Operator,Symbol,Number,String,Breakpoint,Current,Datatype,Preprocessor,Escape,Label,Constant"
+'Public Const Name As String = "gambas"
+'Public Const FullName As String = "Gambas"
+'Public Const _Styles As String = "Keyword,Function,Operator,Symbol,Number,String,Breakpoint,Current,Datatype,Preprocessor,Escape,Label,Constant"
 
 Class Highlight
 
 Property Read Keywords As String[]
 
 Static Private $aKeywords As String[]
+Static Private $cState As New Collection
 
 Static Public Sub _init()
   
+  Dim sColor As String
+  Dim I As Integer
+  
   Component.Load("gb.eval")
+  
+  ' Follow the order of Highlight class constants
+  For Each sColor In ["", "Normal", "Selection", "", "Highlight", "", "Added", "Removed", "Error", "Comment", "Documentation", "Keyword", "Function", "Operator", "Symbol", "Number", "String", "", "Current", "Datatype", "Preprocessor", "Escape", "Label", "Constant"]
+    If sColor Then $cState[I] = TextHighlighterTheme._Register(sColor)
+    Inc I
+  Next
   
 End
 
@@ -49,41 +59,42 @@ Private Sub IsProc() As Boolean
 
 End
 
-Public Sub _Analyze((Text) As String, (State) As Byte[], Optional (MatchLimit) As Boolean, (Limit) As String, ByRef (Pos) As Integer) As Byte[]
+Public Sub _Analyze(Text As String, (State) As Byte[], Optional (MatchLimit) As Boolean, (Limit) As String, ByRef (Pos) As Integer) As Byte[]
   
+  Dim aHighlight As New Byte[]
   Dim iState As Short
   Dim iTag As Short
   Dim iPos As Integer
   Dim I As Integer
   Dim iLen As Integer
   
-  iState = TextHighlighter.State
-  iTag = TextHighlighter.Tag
+  ' Gambas syntax implies that:
+  ' - A line always starts at normal state.
+  ' - 'Text' must be a whole line of code.
   
   Highlight.Analyze(Text, TextHighlighter.CanRewrite)
-  TextHighlighter.Limit = IsProc()
-  TextHighlighter.Comment = Left(LTrim(Text)) = "'"
+  
+  'TextHighlighter.Limit = IsProc()
+  'TextHighlighter.Comment = Left(LTrim(Text)) = "'"
   
   iPos = 0
   For I = 0 To Highlight.Symbols.Max
     
     If iPos < Highlight.Positions[I] Then 
-      TextHighlighter.Add(Highlight.Normal, Highlight.Positions[I] - iPos)
+      TextHighlighter._Add(aHighlight, 0, Highlight.Positions[I] - iPos)
       iPos = Highlight.Positions[I]
     Endif
     
     iLen = String.Len(Highlight.Symbols[I])
-    TextHighlighter.Add(Highlight.Types[I], iLen)
+    TextHighlighter._Add($cState[Highlight.Types[I]], iLen)
     iPos += iLen
     
   Next
 
   If iPos < String.Len(Highlight.TextAfter) Then 
-    TextHighlighter.Add(Highlight.Normal, String.Len(Highlight.TextAfter) - iPos)
+    TextHighlighter._Add(0, String.Len(Highlight.TextAfter) - iPos)
   Endif
   
-  TextHighlighter.State = iState
-  TextHighlighter.Tag = iTag
   If TextHighlighter.CanRewrite Then TextHighlighter.TextAfter = Highlight.TextAfter
 
 End

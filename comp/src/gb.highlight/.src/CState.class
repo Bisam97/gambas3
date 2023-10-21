@@ -1,5 +1,6 @@
 ' Gambas class file
 
+Static Public Path As String
 Static Public Keywords As New String[]
 
 Static Private $iIndent As Integer
@@ -13,6 +14,8 @@ Static Private $cTitle As New Collection
 
 Static Private $aInclude As New String[]
 
+Static Private $cSubst As New Collection
+
 Public Name As String
 Public ColorIndex As Integer
 Public Indent As Integer
@@ -24,8 +27,10 @@ Private $iCurrentCommand As Integer
 Private $iCurrentChild As Integer
 Private $sContinue As String
 
-Static Public Sub Init()
+Static Public Sub Init(sPath As String)
   
+  Path = sPath
+  $cSubst.Clear
   $cState.Clear
   $aStateName.Clear
   $aLabel.Clear
@@ -34,6 +39,28 @@ Static Public Sub Init()
   Keywords.Clear
   
 End
+
+Static Public Sub Subst(sValue As String) As String
+  
+  Dim sReplace As String
+  
+  If InStr(sValue, "$(") = 0 Then Return sValue
+  
+  For Each sReplace In $cSubst
+    sValue = Replace(sValue, "$(" & $cSubst.Key & ")", sReplace)
+  Next
+  
+  Return sValue
+  
+End
+
+
+Static Public Sub Define(sVar As String, sValue As String)
+  
+  $cSubst[sVar] = Me.Subst(sValue)
+  
+End
+
 
 Public Sub _new(Optional sLine As String)
   
@@ -72,6 +99,8 @@ Public Sub AddCommand(sText As String)
   Dim hCommand As CCommand
   Dim iPos As Integer
   Dim sCommand As String
+  Dim aArg As String[]
+  Dim I As Integer
   
   iPos = InStr(sText, " ")
   If iPos = 0 Then Return
@@ -80,7 +109,13 @@ Public Sub AddCommand(sText As String)
   
   Try hCommand = Object.New("CCommand" & UCase(Left(sCommand)) & Mid$(sCommand, 2))
   If Error Then Error.Raise("Unknown command: " & sCommand)
-  hCommand.SetArgs(Split(Mid$(sText, iPos + 1), " ", "", True))
+  
+  aArg = Split(Mid$(sText, iPos + 1), " ", "", True)
+  For I = 0 To aArg.Max
+    aArg[I] = CState.Subst(aArg[I])
+  Next
+  
+  hCommand.SetArgs(aArg)
   hCommand.Init()
   Commands.Add(hCommand)
   
