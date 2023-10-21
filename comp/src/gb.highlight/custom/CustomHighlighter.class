@@ -4,13 +4,20 @@ Export
 ' Create Static
 Inherits TextHighlighter
 
+Property Read Keywords As String[]
+
+Static Private $hWordRegExp As RegExp
+Static Private $sWordRegExp As String
+Static Private $cRegExp As New Collection
+
 Private $sText As String
 Private $iPos As Integer
 Private $bEof As Boolean
+
+Private $bMatchLimit As Boolean
+Private $sTextLimit As String
+
 Private $aHighlight As Byte[]
-Private $sWordRegExp As String
-Private $hWordRegExp As RegExp
-Private $cRegExp As New Collection
 
 Private Sub Init(sText As String)
   
@@ -85,23 +92,61 @@ Private Sub Match(sPattern As String) As String
     $cRegExp[sPattern] = hRegExp
   Endif
   
+  If $iPos > Len($sText) Then Return
   hRegExp.Exec(Mid$($sText, $iPos))
   If hRegExp.Count < 1 Then Return
-  Return Mid$($sText, $iPos, hRegExp[1].Offset)
+  Return Mid$($sText, $iPos, hRegExp[hRegExp.Count].Offset)
   
 End
 
-Public Sub Run(Text As String, State As Byte[]) As Byte[]
+Private Sub Include(iHighlight As Byte, sHighlight As String, bMatch As Boolean, sLimit As String, aState As Byte[]) As Boolean
+
+  Dim iSave As Byte
+  Dim aHighlight As Byte[]
+  Dim nState As Integer
+  
+  'Stop
+  
+  nState = aState.Count
+  iSave = aState[0]
+  aState.Remove(0)
+
+  ' We enter a new imbricated state
+  If aState.Count = 0 Then
+    aState.Add(0)
+    $aHighlight.Add(iHighlight)
+    $aHighlight.Add(0)
+  Endif
+  
+  aHighlight = TextHighlighter._Create(sHighlight)._Analyze($sText, aState, bMatch, sLimit, ByRef $iPos)
+  $aHighlight.Insert(aHighlight)
+  $bEof = $iPos > Len($sText)
+  
+  aState.Add(iSave, 0)
+  
+  If $bEof Then Return True
+  
+  ' We left the imbricated state
+  $aHighlight.Add(0)
+  $aHighlight.Add(0)
+  
+End
+
+Public Sub _Analyze(Text As String, State As Byte[], Optional MatchLimit As Boolean, Limit As String, ByRef iPos As Integer) As Byte[]
 
   Init(Text)
-  If Text Then
-    Try Compile(State)
-    If Error And If Not $bEof Then
-      Error Error.Where; ": "; Error.Text
-      Error.Propagate()
-    Endif
+  If iPos Then $iPos = iPos
+  $bMatchLimit = MatchLimit
+  $sTextLimit = Limit
+  Try Compile(State)
+  If Error And If Not $bEof Then
+    Error Error.Where; ": "; Error.Text
+    Error.Propagate()
   Endif
+  
+  If $sTextLimit Then iPos = $iPos
   
   Return $aHighlight
 
 End
+

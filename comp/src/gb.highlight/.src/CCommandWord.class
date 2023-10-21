@@ -11,9 +11,9 @@ Public Sub SetArgs(aArgs As String[])
   
   If aArgs.Count = 0 Then Error.Raise("Syntax error")
   
-  $aWords = aArgs
+  $aWords = New String[aArgs.Count]
   For I = 0 To $aWords.Max
-    $aWords[I] = Quote($aWords[I])
+    $aWords[I] = Quote(aArgs[I])
   Next
   
 End
@@ -24,7 +24,7 @@ Public Sub Init()
   
   Inc N
   $sWords = "$cWords" & CStr(N)
-  CState.Print("Private " & $sWords & " As Collection")
+  CState.Print("Static Private " & $sWords & " As Collection")
   
 End
 

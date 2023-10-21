@@ -1,5 +1,7 @@
 ' Gambas class file
 
+Static Public Keywords As New String[]
+
 Static Private $iIndent As Integer
 Static Private $sLastCode As String
 
@@ -9,7 +11,10 @@ Static Private $aStateName As New String[]
 Static Private $aLabel As New String[]
 Static Private $cTitle As New Collection
 
+Static Private $aInclude As New String[]
+
 Public Name As String
+Public ColorIndex As Integer
 Public Indent As Integer
 Public Parent As CState
 Public Commands As New CCommand[]
@@ -19,32 +24,46 @@ Private $iCurrentCommand As Integer
 Private $iCurrentChild As Integer
 Private $sContinue As String
 
+Static Public Sub Init()
+  
+  $cState.Clear
+  $aStateName.Clear
+  $aLabel.Clear
+  $cTitle.Clear
+  $aInclude.Clear
+  Keywords.Clear
+  
+End
+
 Public Sub _new(Optional sLine As String)
   
   Dim iPos As Integer
-  Dim sTitle As String
-  Dim sCurrent As String
+  Dim sColor As String
   
   If Not sLine Then Return
   
   If sLine Ends "}" Then
     iPos = InStr(sLine, "{")
     If iPos = 0 Then Error.Raise("Syntax error")
-    sTitle = Mid$(sLine, iPos + 1, -1)
+    sColor = Mid$(sLine, iPos + 1, -1)
     sLine = Left(sLine, iPos - 1)
+  Else
+    sColor = String.UCaseFirst(sLine)
   Endif
   
   If sLine Not Match "[A-Za-z][A-Za-z0-9.]*" Then Error.Raise("Incorrect character in state name")
   Name = Replace(sLine, ".", "_")
   
-  If sTitle Then 
-    sCurrent = $cTitle[Name]
-    If Not sCurrent Then
-      $cTitle[Name] = sTitle
-    Else If sCurrent <> sTitle Then
-      Error.Raise("Ambiguous state display name")
-    Endif
-  Endif
+  ColorIndex = TextHighlighterTheme._Register(sColor)
+  
+  ' If sTitle Then 
+  '   sCurrent = $cTitle[Name]
+  '   If Not sCurrent Then
+  '     $cTitle[Name] = sTitle
+  '   Else If sCurrent <> sTitle Then
+  '     Error.Raise("Ambiguous state display name")
+  '   Endif
+  ' Endif
   
 End
 
@@ -69,7 +88,7 @@ End
 
 Static Public Sub Print(Optional sCode As String)
   
-  sCode = Trim(sCOde)
+  sCode = Trim(sCode)
   
   If Not sCode Then
     If $sLastCode Then
@@ -135,10 +154,10 @@ End
 
 Public Sub Forward(Optional sLen As String)
   
-  If sLen Then
-    Print("Forward(" & GetState() & ", " & sLen & ")")  
+  If sLen And If sLen <> "1" Then
+    Print("Forward(" & CStr(ColorIndex) & ", " & sLen & ")")  
   Else 
-    Print("Forward(" & GetState() & ")")
+    Print("Forward(" & CStr(ColorIndex) & ")")
   Endif
   
 End
@@ -228,6 +247,21 @@ Public Sub Compile(Optional sContinue As String)
     Print()
   
     Print("If IgnoreSpaces() Then Goto " & GetLabel() & "_$END")
+
+    Print("If $sTextLimit Then")
+      Print("If $bMatchLimit Then")
+        Print("If Match($sTextLimit) Then")
+          Print("aState.Remove(0)")
+          Print("Return")
+        Print("Endif")
+      Print("Else")
+        Print("If $sTextLimit And If Mid$($sText, $iPos) Begins $sTextLimit Then")
+          Print("aState.Remove(0)")
+          Print("Return")
+        Print("Endif")
+      Print("Endif")
+    Print("Endif")
+  
     CompileChildren()
     
     PrintLabel(GetLabel() & "_$END", True)
@@ -271,26 +305,6 @@ Public Sub CompileChildren(Optional bElse As Boolean)
   
 End
 
-Private Sub GetState() As Byte
-  
-  Dim iState As Byte
-  Dim sState As String
-  
-  sState = Name
-  
-  If sState = "*" Then Return 0
-  
-  Try iState = $cState[sState]
-  If iState = 0 Then
-    $cState[sState] = $cState.Count + 1
-    $aStateName.Add(sState)
-    iState = $cState.Count
-  Endif
-  
-  Return iState
-  
-End
-
 Public Sub AddChild(hChild As CState)
   
   Children.Add(hChild)
@@ -326,29 +340,28 @@ End
 '   
 ' End
 ' 
-Static Public Sub GetStateTitles() As String
+Static Public Sub GetLabels() As String[]
+  
+  Return $aLabel
+  
+End
 
+Static Public Sub GetKeywords() As String
+  
   Dim aResult As New String[]
-  Dim sTitle As String
   Dim I As Integer
-  Dim sState As String
   
-  aResult.Add(Quote("*"))
-  
-  For I = 0 To $aStateName.Max
-    sState = $aStateName[I]
-    sTitle = $cTitle[sState]
-    If Not sTitle Then sTitle = String.UCaseFirst(sState)
-    aResult.Add(Quote(sTitle))
+  For I = 0 To Keywords.Max
+    aResult.Add(Quote(Keywords[I]))
   Next
-
+  
   Return "[" & aResult.Join(", ") & "]"
   
 End
 
-
-Static Public Sub GetLabels() As String[]
+Static Public Sub AddInclude(sInclude As String) As Integer
   
-  Return $aLabel
+  $aInclude.Add(sInclude)
+  Return $aInclude.Count
   
 End

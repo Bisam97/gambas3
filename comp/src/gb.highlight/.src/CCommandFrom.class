@@ -4,12 +4,20 @@ Inherits CCommand
 
 Private $sFrom As String
 Private $sTo As String
+Private $sInclude As String
+Private $iInclude As Integer
 
 Public Sub SetArgs(aArgs As String[])
   
-  If aArgs.Count = 3 And If aArgs[1] = "to" Then
+  If aArgs.Count >= 3 And If aArgs[1] = "to" Then
     $sFrom = aArgs[0]
     $sTo = aArgs[2]
+    If aArgs.Count = 5 And If aArgs[3] = "include" Then
+      $sInclude = aArgs[4]
+      $iInclude = CState.AddInclude($sInclude)
+    Else If aArgs.Count <> 3 Then
+      Error.Raise("Syntax error")
+    Endif
   Else If aArgs.Count = 1 Then
     $sFrom = aArgs[0]
     $sTo = "\n"
@@ -23,15 +31,27 @@ Public Sub Compile(hState As CState)
   
   CState.IfStartWith($sFrom, hState.GetNextLabel())
   
-  hState.Forward(Len($sFrom))
+  If $sInclude Then
   
-  hState.PrintLabel(hState.GetLabel() & "_LOOP")
-  
-  CState.IfStartWith($sTo)
+    hState.Forward(Len($sFrom))
+    hState.PrintLabel(hState.GetLabel() & "_LOOP")
+    CState.Print("If Include(" & CStr($iInclude) & ", " & Quote($sInclude) & ", False, " & Quote($sTo) & ", aState) Then Return")
     hState.Forward(Len($sTo))
     hState.Continue()
-  CState.Print("Endif")
-
-  hState.CompileChildren(True)
+  
+  Else
+  
+    hState.Forward(Len($sFrom))
+    
+    hState.PrintLabel(hState.GetLabel() & "_LOOP")
+    
+    CState.IfStartWith($sTo)
+      hState.Forward(Len($sTo))
+      hState.Continue()
+    CState.Print("Endif")
+  
+    hState.CompileChildren(True)
+    
+  Endif
 
 End

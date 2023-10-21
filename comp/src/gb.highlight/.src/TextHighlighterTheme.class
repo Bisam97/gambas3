@@ -4,6 +4,8 @@ Export
 
 Event Change
 
+Static Private $cColorIndex As New Collection
+
 Property Settings As String
 
 Private $cStyles As New Collection
@@ -207,20 +209,34 @@ Public Sub Invert()
   
 End
 
-Public Sub _GetStylesFor(Highlighter As TextHighlighter) As TextHighlighterStyle[]
+Static Public Sub _Register(sColor As String) As Integer
 
-  Dim aStates As String[]
+  Dim iIndex As Integer
+  
+  If sColor = "*" Or If sColor = "Normal" Then Return 0
+  
+  Try iIndex = $cColorIndex[sColor]
+  If iIndex = 0 Then
+    iIndex = $cColorIndex.Count + 1
+    $cColorIndex[sColor] = iIndex
+    Debug sColor; " -> "; iIndex
+  Endif
+  Return iIndex
+  
+End
+
+Public Sub _GetStyles() As TextHighlighterStyle[]
+
   Dim aStyles As TextHighlighterStyle[]
-  Dim I As Integer
   Dim hStyle As TextHighlighterStyle
   
-  aStates = Highlighter._States
-  aStyles = New TextHighlighterStyle[aStates.Count]
+  aStyles = New TextHighlighterStyle[]
   
-  For I = 0 To aStates.Max
-    hStyle = $cStyles[aStates[I]]
+  aStyles.Add($cStyles["Normal"])
+  For Each $cColorIndex
+    hStyle = $cStyles[$cColorIndex.Key]
     If Not hStyle Then hStyle = New TextHighlighterStyle
-    aStyles[I] = hStyle
+    aStyles.Add(hStyle)
   Next
   
   Return aStyles

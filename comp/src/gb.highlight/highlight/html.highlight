@@ -5,6 +5,8 @@ comment:
 entity{Operator}:
   match &[A-Za-z]+;
   match &#[0-9]+;
+javascript{Function}:
+  match <script(\stype=["']text/javascript['"])?> to </script> include javascript
 markup{Function}:
   match <[a-zA-Z0-9]+ to >
   attribute{Datatype}:
@@ -21,4 +23,3 @@ markup{Function}:
     match [^"'`=<>\s]+
 markup.close{Function}:
   match </[A-zA-Z0-9]+\s*>
-  

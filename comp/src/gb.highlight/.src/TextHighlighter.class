@@ -3,13 +3,19 @@
 Export 
 Create Static
 
-Public _States As String[]
+Property Read Keywords As String[]
 
 Static Public Sub _get(Name As String) As TextHighlighter
 
   Try Return Class.Load("TextHighlighter_" & Name).AutoCreate()
   Return FromFile("./highlight" &/ Name & ".highlight")
 
+End
+
+Static Public Sub _Create(Name As String) As TextHighlighter
+  
+  Return Object.New("TextHighlighter_" & Name)
+  
 End
 
 Static Public Sub FromFile(Path As String, Optional Name As String) As TextHighlighter
@@ -29,7 +35,15 @@ Catch
   
 End
 
-Public Sub Run((Text) As String, (State) As Byte[]) As Byte[]
+Public Sub _Analyze((Text) As String, (State) As Byte[], Optional (MatchLimit) As Boolean, (Limit) As String, ByRef (Pos) As Integer) As Byte[]
+
+End
+
+Public Sub Run(Text As String, State As Byte[]) As Byte[]
+  
+  If Not Text Then Return New Byte[]
+  If State.Count = 0 Then State.Add(0)
+  Return Me._Analyze(Text, State)
   
 End
 
@@ -54,6 +68,8 @@ Static Private Sub CreateCustomHighlighter(sHighlight As String, sPath As String
   sDir = File.Dir(Temp$()) &/ "gb.highlight." & sHighlight
   Mkdir sDir
   Mkdir sDir &/ ".src"
+
+  CState.Init()
 
   hDefault = New CState
 
@@ -122,6 +138,8 @@ Static Private Sub CreateCustomHighlighter(sHighlight As String, sPath As String
     Endif
       
   Next
+  
+  iLine = 0
 
   CState.Print()
   CState.Print("Private Sub Compile(aState as Byte[])")
@@ -139,12 +157,16 @@ Static Private Sub CreateCustomHighlighter(sHighlight As String, sPath As String
   CState.Print()
   CState.Print("End")
   CState.Print()
-  CState.Print("Static Public Sub _init()")
-  CState.Print()
-  CState.Print("Me._States = " & CState.GetStateTitles())
-  CState.Print()
+  CState.Print("Private Sub Keywords_Read() As String[]")
+  If CState.Keywords.Count Then
+    CState.Print("Static aKeywords As String[] = " & CState.GetKeywords())
+    CState.Print("aKeywords.ReadOnly = True")
+    CState.Print("Return aKeywords")
+  Else 
+    CState.Print("Return New String[]")
+  Endif
   CState.Print("End")
-  CState.Print()
+  
   ' CState.Print("Public Sub GetStateFromName(sName As String) As Integer")
   ' CState.Print()
   ' CState.Print("Static cName As Collection = " & CState.GetStateFromNames())
@@ -156,19 +178,25 @@ Static Private Sub CreateCustomHighlighter(sHighlight As String, sPath As String
   Output To Default
   hOutput.Close
   
-  Print File.Load(sOutput)
+  'Print File.Load(sOutput)
   
   sProject = File.Load("custom/project.template")
   sProject = Replace(sProject, "$(startup)", "_TextHighlighter_" & sHighlight)
   File.Save(sDir &/ ".project", sProject)
   
-  Shell "cd " & Shell$(sDir) & " && gbc3 -agt && gba3" To sOutput
+  Shell "cd " & Shell$(sDir) & " && gbc3 -agt 2>&1 && gba3" To sOutput
+  sOutput = Trim(sOutput)
+  If Process.LastValue And If sOutput Then Error.Raise(sOutput)
 
   Component.Load(sDir &/ "gb.highlight." & sHighlight & ".gambas")
   
 Catch 
   
-  Error.Raise(sPath & ": " & Error.Text & " at line " & CStr(iLine))
+  If iLine Then
+    Error.Raise(Error.Text & " at line " & CStr(iLine))
+  Else 
+    Error.Propagate()
+  Endif
   
 End 
 
@@ -192,12 +220,14 @@ Public Sub ToHTML(Text As String, Optional Theme As TextHighlighterTheme) As Str
   Dim sStyle As String
   Dim aStyles As TextHighlighterStyle[]
   Dim aState As Byte[]
+  Dim iLevel As Integer
+  Dim iBg As Integer
 
   If Not Theme Then Theme = New TextHighlighterTheme
   
-  aStyles = Theme._GetStylesFor(Me)
+  aStyles = Theme._GetStyles()
   
-  aState = New Byte[4]
+  aState = New Byte[]
   
   aText = Split(Text, "\n")
   
@@ -217,9 +247,19 @@ Public Sub ToHTML(Text As String, Optional Theme As TextHighlighterTheme) As Str
       
       iState = aHighlight[I]
       iLen = aHighlight[I + 1]
+      
+      If iLen = 0 Then
+        If iState Then
+          Inc iLevel
+        Else 
+          Dec iLevel
+        Endif
+        iBg = Color.HSV(-1, 0, 255 - 16 * iLevel * iLevel)
+        Continue
+      Endif
+      
       Try hStyle = aStyles[iState]
       If Error Then hStyle = aStyles[0]
-      'bAlt = aHighlight[I] >= 128
       
       sHtml = Replace(Html(String.Mid$(sLine, P, iLen)), " ", "&nbsp;")
       P += iLen
@@ -232,8 +272,9 @@ Public Sub ToHTML(Text As String, Optional Theme As TextHighlighterTheme) As Str
       Endif
       
       sStyle = ""
+      If iLevel Then sStyle &= "background-color:" & Color.ToHTML(iBg) & ";"
       'If bAlt Then sStyle &= "background:#" & Hex$(aStyles[GetAlternate()].Color, 6) & ";"
-      If hStyle.Color Then sStyle &= "color:#" & Hex$(hStyle.Color, 6) & ";"
+      If hStyle.Color Then sStyle &= "color:" & Color.ToHTML(hStyle.Color) & ";"
       If hStyle.Dotted Then sStyle &= "text-decoration:underline dotted;"
       
       If sStyle <> sOldStyle Then
@@ -264,3 +305,7 @@ Public Sub ToHTML(Text As String, Optional Theme As TextHighlighterTheme) As Str
   
 End
 
+
+Private Function Keywords_Read() As String[]
+
+End
