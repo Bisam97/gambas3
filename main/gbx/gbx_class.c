@@ -518,9 +518,14 @@ CLASS *CLASS_find_do(const char *name, bool global)
 		fprintf(stderr, "CLASS_find: %s (%d)\n", name, global);
 #endif
 
-	class = CLASS_look(name, len);
+	class = CLASS_look_do(name, len, global);
 	if (class)
+	{
+		#if DEBUG_LOAD
+			fprintf(stderr, "--> %p\n", class);
+		#endif
 		return class;
+	}
 
 	//if (CP && CP->component && CP->component->archive)
 	if (!global && !ARCHIVE_get_current(&arch))

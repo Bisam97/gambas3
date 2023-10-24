@@ -184,6 +184,7 @@ __24:
 	return -1;
 __25:
 	if (len == 2 && word[1] == '=') return 190;
+	if (len == 2 && word[1] == '>') return 194;
 	return -1;
 __26:
 	if (len == 2 && word[1] == '/') return 151;

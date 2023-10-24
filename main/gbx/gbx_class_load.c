@@ -1047,7 +1047,7 @@ static void load_without_inits(CLASS *class)
 		CATCH
 		{
 			COMPONENT_current = save;
-			THROW_CLASS(class, ERROR_last.msg, "");
+			THROW_CLASS(class, ERROR_current->info.msg, "");
 		}
 		END_TRY
 	}
