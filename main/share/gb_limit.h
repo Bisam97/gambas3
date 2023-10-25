@@ -103,7 +103,7 @@
 #define MAX_LANG            16
 
 /* Maximum number of labels in one function */
-#define MAX_LABEL           255
+#define MAX_LABEL           1023
 
 #endif
 
