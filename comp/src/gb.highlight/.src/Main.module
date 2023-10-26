@@ -2,16 +2,9 @@
 
 Public Sub Main()
 
-  Dim hJS As TextHighlighter
-  Dim hCSS As TextHighlighter
-  Dim hHTML As TextHighlighter
-
-  hJS = TextHighlighter.FromFile("./highlight/javascript.highlight")
-  hCSS = TextHighlighter.FromFile("./highlight/css.highlight")
-  hHTML = TextHighlighter.FromFile("./highlight/html.highlight")
-  'File.Save("~/test.html", hTextHighlighter.ToHTML(File.Load("custom/selectr.js")))
-
   'File.Save("~/test.html", hCSS.ToHTML(File.Load("test/style.css")))
-  File.Save("~/test.html", hHTML.ToHTML(File.Load("test/page.html")))
+  TextHighlighter.CanRewrite = False
+  'File.Save("~/test.html", TextHighlighter["webpage"].ToHTML(File.Load("~/gambas/git/master/comp/src/gb.form.editor/test.html")))
+  File.Save("~/test.html", TextHighlighter["cplusplus"].ToHTML(File.Load("~/gambas/git/master/gb.qt5/src/CWidget.cpp")))
 
 End

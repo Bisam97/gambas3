@@ -3,20 +3,26 @@
 Export 
 Create Static
 
-Static Public TextAfter As String
 Static Public CanRewrite As Boolean
 
+Public TextAfter As String
+Public TextLengthBefore As Integer
+Public Rewrite As Boolean
+
+Property Read Name As String
 Property Read Keywords As String[]
 
 Static Public Sub _get(Name As String) As TextHighlighter
 
-  Try Return Class.Load("_TextHighlighter_" & Name).AutoCreate()
+  Name = LCase(Name)
+  Try Return Classes["_TextHighlighter_" & Name].AutoCreate()
   Return FromFile("./highlight" &/ Name & ".highlight")
 
 End
 
 Static Public Sub _Create(Name As String) As TextHighlighter
   
+  _get(Name)
   Return Object.New("_TextHighlighter_" & Name)
   
 End
@@ -34,7 +40,7 @@ Static Public Sub FromFile(Path As String, Optional Name As String) As TextHighl
   
 Catch 
   
-  Error.Raise("Cannot load highlighter '" & Name & "': " & Error.Text)
+  Error.Raise("Cannot load highlighter '" & Name & "': " & Error.Where & ": " & Error.Text)
   
 End
 
@@ -44,15 +50,17 @@ End
 
 Public Sub Run(Text As String, State As Byte[]) As Byte[]
   
-  If Not Text Then Return New Byte[]
   If State.Count = 0 Then State.Add(0)
+  If Not Text Then 
+    If CanRewrite Then Me.TextAfter = ""
+    Return New Byte[]
+  Endif
   Return Me._Analyze(Text, State)
   
 End
 
 Static Private Sub CreateCustomHighlighter(sHighlight As String, sPath As String)
   
-  Dim hFile As File
   Dim iLine As Integer
   Dim sLine As String
 
@@ -68,6 +76,9 @@ Static Private Sub CreateCustomHighlighter(sHighlight As String, sPath As String
   Dim sDir As String
   Dim sProject As String
   Dim iPos As Integer
+  Dim aLines As String[]
+  Dim aInclude As String[]
+  Dim I As Integer
   
   sDir = File.Dir(Temp$()) &/ "gb.highlight." & sHighlight
   Mkdir sDir
@@ -81,14 +92,16 @@ Static Private Sub CreateCustomHighlighter(sHighlight As String, sPath As String
   hOutput = Open sOutput For Create
   Output To hOutput
 
-  hFile = Open sPath For Input
+  aLines = Split(File.Load(sPath), "\n")
   
   Print File.Load("custom/CustomHighlighter.class")
 
   iCurrentIndent = 0
+  iLine = 0
   
-  For Each sLine In hFile.Lines
+  While iLine < aLines.Count
     
+    sLine = aLines[iLine]
     Inc iLine
     
     sLine = RTrim(sLine)
@@ -99,6 +112,17 @@ Static Private Sub CreateCustomHighlighter(sHighlight As String, sPath As String
     iIndent -= Len(sLine)
     
     If sLine Begins "#" Then Continue
+    
+    If sLine Begins "@include " Then
+      sLine = Trim(Mid$(sLine, 9))
+      If Not sLine Then Error.Raise("Syntax error")
+      aInclude = Split(File.Load(File.Dir(sPath) &/ sLine), "\n")
+      For I = 0 To aInclude.Max
+        aInclude[I] = Space$(iIndent) & aInclude[I]
+      Next
+      aLines.Insert(aInclude, iLine)
+      Continue
+    Endif
     
     If sLine Begins "$(" Then
       sLine = Mid$(sLine, 3)
@@ -148,7 +172,7 @@ Static Private Sub CreateCustomHighlighter(sHighlight As String, sPath As String
       
     Endif
       
-  Next
+  Wend
   
   iLine = 0
 
@@ -185,7 +209,7 @@ Static Private Sub CreateCustomHighlighter(sHighlight As String, sPath As String
   Output To Default
   hOutput.Close
   
- Print File.Load(sOutput)
+  'Print File.Load(sOutput)
   
   sProject = File.Load("custom/project.template")
   sProject = Replace(sProject, "$(startup)", "_TextHighlighter_" & sHighlight)
@@ -197,15 +221,25 @@ Static Private Sub CreateCustomHighlighter(sHighlight As String, sPath As String
 
   Component.Load(sDir &/ "gb.highlight." & sHighlight & ".gambas")
   
-Catch 
-  
-  If iLine Then
-    Error.Raise(Error.Text & " at line " & CStr(iLine))
-  Else 
-    Error.Propagate()
-  Endif
+' Catch
+'   
+'   If iLine Then
+'     Error.Raise(Error.Text & " at line " & CStr(iLine))
+'   Else 
+'     Error.Propagate()
+'   Endif
   
 End 
+
+Private Sub GetIncludeColor(iInclude As Integer) As Integer
+
+  Dim iHue As Integer
+
+  iHue = [60, 0, 210, 120, 30, 270][iInclude Mod 6]
+  Return Color.HSV(iHue, 32, 255)
+
+End
+
 
 Public Sub ToHTML(Text As String, Optional Theme As TextHighlighterTheme) As String
 
@@ -229,6 +263,8 @@ Public Sub ToHTML(Text As String, Optional Theme As TextHighlighterTheme) As Str
   Dim aState As Byte[]
   Dim iLevel As Integer
   Dim iBg As Integer
+  Dim aInclude As New Byte[]
+  Dim iInclude As Byte
 
   If Not Theme Then Theme = New TextHighlighterTheme
   
@@ -245,8 +281,6 @@ Public Sub ToHTML(Text As String, Optional Theme As TextHighlighterTheme) As Str
     sLine = aText[Y] & "\n"
     aHighlight = Me.Run(sLine, aState)
     
-    'If TextHighlighter.TextAfter Then sLine = TextHighlighter.TextAfter
-
     sLineHtml = ""
     P = 1
     
@@ -257,11 +291,14 @@ Public Sub ToHTML(Text As String, Optional Theme As TextHighlighterTheme) As Str
       
       If iLen = 0 Then
         If iState Then
+          aInclude.Push(iInclude)
+          iInclude = iState
           Inc iLevel
         Else 
+          iInclude = aInclude.Pop()
           Dec iLevel
         Endif
-        iBg = Color.HSV(-1, 0, 255 - 16 * iLevel * iLevel)
+        iBg = GetIncludeColor(iInclude) 'Color.HSV(-1, 0, 255 - 8 * (iLevel * (iLevel + 1)))
         Continue
       Endif
       
@@ -269,6 +306,7 @@ Public Sub ToHTML(Text As String, Optional Theme As TextHighlighterTheme) As Str
       If Error Then hStyle = aStyles[0]
       
       sHtml = Replace(Html(String.Mid$(sLine, P, iLen)), " ", "&nbsp;")
+      sHtml = Replace(sHtml, "\t", "&nbsp;&nbsp;")
       P += iLen
       
       If hStyle.Bold Then sHtml = "<b>" & sHtml & "</b>"
@@ -322,7 +360,7 @@ Static Public Sub _Add(aHighlight As Byte[], iState As Byte, iCount As Integer)
   Dim iMax As Integer
   
   iMax = aHighlight.Max
-  If aHighlight.Count And If aHighlight[iMax - 1] = iState Then 
+  If aHighlight.Count And If aHighlight[iMax - 1] = iState And If aHighlight[iMax] Then 
     If aHighlight[iMax] <= (255 - iCount) Then
       aHighlight[iMax] += iCount
       Return
@@ -343,4 +381,15 @@ Static Public Sub _Add(aHighlight As Byte[], iState As Byte, iCount As Integer)
     aHighlight.Add(iCount)
   Endif
   
+End
+
+Private Function Name_Read() As String
+
+  Dim sClass As String
+  Dim iPos As Integer
+
+  sClass = Object.Type(Me)
+  iPos = RInStr(sClass, "_")
+  Try Return LCase(Mid$(sClass, iPos + 1))
+
 End

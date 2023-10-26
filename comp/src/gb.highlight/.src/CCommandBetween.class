@@ -20,13 +20,13 @@ Public Sub Compile(hState As CState)
   
   CState.IfStartWith($sFrom, hState.GetNextLabel())
   
-  hState.Forward(Len($sFrom))
+  hState.Forward(String.Len($sFrom))
   
   hState.PrintLabel(hState.GetLabel() & "_LOOP")
   CState.Print("If $bEof Then Return")
 
   CState.IfStartWith($sTo)
-    hState.Forward(Len($sTo))
+    hState.Forward(String.Len($sTo))
     hState.Continue()
   CState.Print("Endif")
 

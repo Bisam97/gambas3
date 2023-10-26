@@ -12,7 +12,7 @@ Public Sub SetArgs(aArgs As String[])
   If aArgs.Count >= 3 And If aArgs[1] = "to" Then
     $sFrom = aArgs[0]
     $sTo = aArgs[2]
-    If aArgs.Count = 5 And If aArgs[3] = "include" Then
+    If aArgs.Count = 5 And If aArgs[3] = "with" Then
       $sInclude = aArgs[4]
       $iInclude = CState.AddInclude($sInclude)
     Else If aArgs.Count <> 3 Then
@@ -33,22 +33,26 @@ Public Sub Compile(hState As CState)
   
   If $sInclude Then
   
-    hState.Forward(Len($sFrom))
+    CState.Print("Imbricate(" & CStr($iInclude) & ")")
+    hState.Forward(String.Len($sFrom))
+    CState.Print("Imbricate(0)")
     hState.PrintLabel(hState.GetLabel() & "_LOOP")
     CState.Print("If $bEof Then Return")
     CState.Print("If Include(" & CStr($iInclude) & ", " & Quote($sInclude) & ", False, " & Quote($sTo) & ", aState) Then Return")
-    hState.Forward(Len($sTo))
+    CState.Print("Imbricate(" & CStr($iInclude) & ")")
+    hState.Forward(String.Len($sTo))
+    CState.Print("Imbricate(0)")
     hState.Continue()
   
   Else
   
-    hState.Forward(Len($sFrom))
+    hState.Forward(String.Len($sFrom))
     
     hState.PrintLabel(hState.GetLabel() & "_LOOP")
     CState.Print("If $bEof Then Return")
     
     CState.IfStartWith($sTo)
-      hState.Forward(Len($sTo))
+      hState.Forward(String.Len($sTo))
       hState.Continue()
     CState.Print("Endif")
   

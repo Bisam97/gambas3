@@ -16,6 +16,7 @@ documentation:
   from /** to */
 comment:
   from /* to */
+@include webpage.include
 atrule{Preprocessor}:
   match @$(IDENT)
 class{Datatype}:
@@ -38,10 +39,12 @@ block{Operator}:
     from /** to */
   block.comment{Comment}:
     from /* to */
+  @include webpage.include
   identifier{Normal}:
     match $(IDENT)
   property{Operator}:
     from : to ;
+    @include webpage.include
     important{Escape}:
       match !important
     identifier{Keyword}:
@@ -54,6 +57,7 @@ block{Operator}:
       from ' to '
       string.escape{Escape}:
         match $(ESCAPE)
+      @include webpage.include
     color{Constant}:
       match #[0-9A-Fa-f]{6}
       match #[0-9A-Fa-f]{3}

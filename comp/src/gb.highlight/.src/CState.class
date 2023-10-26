@@ -12,7 +12,7 @@ Static Private $aStateName As New String[]
 Static Private $aLabel As New String[]
 Static Private $cTitle As New Collection
 
-Static Private $aInclude As New String[]
+Static Private $cInclude As New Collection
 
 Static Private $cSubst As New Collection
 
@@ -35,7 +35,6 @@ Static Public Sub Init(sPath As String)
   $aStateName.Clear
   $aLabel.Clear
   $cTitle.Clear
-  $aInclude.Clear
   Keywords.Clear
   
 End
@@ -160,16 +159,16 @@ End
 Static Public Sub IfStartWith(sStr As String, Optional sLabel As String)
   
   If sLabel Then
-    Print("If Mid$($sText, $iPos, " & CStr(Len(sStr)) & ") <> " & Quote(sStr) & " Then Goto " & sLabel)
+    Print("If String.Mid$($sText, $iPos, " & CStr(String.Len(sStr)) & ") <> " & Quote(sStr) & " Then Goto " & sLabel)
   Else
-    Print("If Mid$($sText, $iPos, " & CStr(Len(sStr)) & ") = " & Quote(sStr) & " Then")
+    Print("If String.Mid$($sText, $iPos, " & CStr(String.Len(sStr)) & ") = " & Quote(sStr) & " Then")
   Endif
   
 End
 
 Static Public Sub Peek(sLen As String) As String
   
-  Return "Mid$($sText, $iPos, " & sLen & ")"
+  Return "String.Mid$($sText, $iPos, " & sLen & ")"
   
 End
 
@@ -286,12 +285,12 @@ Public Sub Compile(Optional sContinue As String)
     Print("If $sTextLimit Then")
       Print("If $bMatchLimit Then")
         Print("If Match($sTextLimit) Then")
-          Print("aState.Remove(0)")
+          'Print("aState.Remove(0)")
           Print("Return")
         Print("Endif")
       Print("Else")
         Print("If $sTextLimit And If Mid$($sText, $iPos) Begins $sTextLimit Then")
-          Print("aState.Remove(0)")
+          'Print("aState.Remove(0)")
           Print("Return")
         Print("Endif")
       Print("Endif")
@@ -395,8 +394,14 @@ Static Public Sub GetKeywords() As String
 End
 
 Static Public Sub AddInclude(sInclude As String) As Integer
+
+  Dim iInclude As Integer
   
-  $aInclude.Add(sInclude)
-  Return $aInclude.Count
+  Try iInclude = $cInclude[sInclude]
+  If Error Then
+    iInclude = $cInclude.Count + 1
+    $cInclude[sInclude] = iInclude
+  Endif
+  Return iInclude
   
 End

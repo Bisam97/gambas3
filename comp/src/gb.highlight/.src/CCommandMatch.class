@@ -12,7 +12,7 @@ Public Sub SetArgs(aArgs As String[])
   If aArgs.Count >= 3 And If aArgs[1] = "to" Then
     $sFrom = aArgs[0]
     $sTo = aArgs[2]
-    If aArgs.Count = 5 And If aArgs[3] = "include" Then
+    If aArgs.Count = 5 And If aArgs[3] = "with" Then
       $sInclude = aArgs[4]
       $iInclude = CState.AddInclude($sInclude)
     Else If aArgs.Count <> 3 Then
@@ -32,7 +32,7 @@ Public Sub Compile(hState As CState)
   
     CState.Print("sWord = Match(" & Quote($sFrom) & ")")
     CState.Print("If Not sWord Then Goto " & hState.GetNextLabel())
-    hState.Forward("Len(sWord)")
+    hState.Forward("String.Len(sWord)")
 
     hState.CompileChildren()
     hState.Continue()
@@ -41,26 +41,30 @@ Public Sub Compile(hState As CState)
   
     CState.Print("sWord = Match(" & Quote($sFrom) & ")")
     CState.Print("If Not sWord Then Goto " & hState.GetNextLabel())
-    hState.Forward("Len(sWord)")
+    CState.Print("Imbricate(" & CStr($iInclude) & ")")
+    hState.Forward("String.Len(sWord)")
+    CState.Print("Imbricate(0)")
 
     hState.PrintLabel(hState.GetLabel() & "_LOOP")
     CState.Print("If $bEof Then Return")
     CState.Print("If Include(" & CStr($iInclude) & ", " & Quote($sInclude) & ", True, " & Quote($sTo) & ", aState) Then Return")
-    hState.Forward("Len(Match(" & Quote($sTo) & "))")
+    CState.Print("Imbricate(" & CStr($iInclude) & ")")
+    hState.Forward("String.Len(Match(" & Quote($sTo) & "))")
+    CState.Print("Imbricate(0)")
     hState.Continue()
   
   Else 
     
     CState.Print("sWord = Match(" & Quote($sFrom) & ")")
     CState.Print("If Not sWord Then Goto " & hState.GetNextLabel())
-    hState.Forward("Len(sWord)")
+    hState.Forward("String.Len(sWord)")
     
     hState.PrintLabel(hState.GetLabel() & "_LOOP")
     CState.Print("If $bEof Then Return")
 
     CState.Print("sWord = Match(" & Quote($sTo) & ")")
     CState.Print("If sWord Then")
-      hState.Forward("Len(sWord)")
+      hState.Forward("String.Len(sWord)")
       hState.Continue()
     CState.Print("Endif")
   

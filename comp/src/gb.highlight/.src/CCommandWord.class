@@ -20,10 +20,7 @@ Public Sub SetArgs(aArgs As String[])
     
   Else 
     
-    $aWords = New String[]
-    For I = 0 To $aWords.Max
-      $aWords.Add(aArgs[I])
-    Next
+    $aWords = aArgs.Copy()
 
   Endif
   
@@ -63,7 +60,7 @@ Public Sub Compile(hState As CState)
   CState.Print("sWord = GetWord()")
   CState.Print("If Not sWord Or If Not " & $sWords & ".Exist(sWord) Then Goto " & hState.GetNextLabel())
 
-  hState.Forward("Len(sWord)")
+  hState.Forward("String.Len(sWord)")
   hState.Continue()
   
 End

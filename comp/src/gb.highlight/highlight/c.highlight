@@ -1,0 +1,32 @@
+documentation:
+  from /** to */
+comment:
+  from /* to */
+  #match #if\s0 to \*/
+  from //
+preprocessor:
+  match # to \n
+  preprocessor.escape{Preprocessor}:
+    match \\\n
+string:
+  from " to "
+  from ' to '
+  escape:
+    match \\[fnrtv0'"\\]
+    match \\c[A-Za-z]
+    match \\x[0-9a-fA-F]{2}
+    match \\u[0-9a-fA-F]{4}
+    match \\u{[0-9a-fA-F]+}
+number:
+  match [+-]?[0-9]*(\.[0-9]+)?([Ee][+-]?[0-9]+)?
+  match 0x[0-9a-fA-F]*
+keyword:
+  word asm auto break case const continue default do else enum extern for goto if inline register return sizeof static struct switch typedef union volatile while
+constant:
+  keyword FALSE NULL TRUE
+datatype:
+  keyword void signed unsigned char short int long float double int64_t uint64_t int32_t uint32_t int16_t uint16_t int8_t uint8_t uchar ushort uint ulong intptr_t uintptr_t wchar_t
+operator:
+  symbol { } . >= + << ! = >>= ; == - >> ~ += ( , != * && -= &= ) < % & || *= |= [ > ++ | ? %= ^= -- ^ : <<= ] <= / /=
+identifier:
+  match [A-Za-z_$][A-Za-z_$0-9]*

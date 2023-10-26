@@ -3,15 +3,17 @@ doctype{Preprocessor}:
   from <!DOCTYPE to >
 comment:
   from <!-- to -->
+@include webpage.include
 entity{Function}:
   match &[A-Za-z]+;
   match &#[0-9]+;
 javascript{Keyword}:
-  match <script.*(type=["']text/javascript['"])?.*> to </script> with javascript
+  match <script.*(type=["']text/javascript['"])?.*> to </script> with webpage_javascript
 css{Keyword}:
-  match <style.*(type=["']text/css['"])?.*> to </style> with css
+  match <style.*(type=["']text/css['"])?.*> to </style> with webpage_css
 markup{Keyword}:
   match <$(IDENT) to /?>
+  @include webpage.include
   attribute{Datatype}:
     match $(IDENT)
   equal{Normal}:
@@ -22,6 +24,7 @@ markup{Keyword}:
     string.entity{Escape}:
       match &[A-Za-z]+;
       match &#[0-9]+;
+    @include webpage.include
   value.unquoted{String}:
     match [^"'`=<>\s]+
 markup.close{Keyword}:

@@ -11,8 +11,10 @@ Static Private $sWordRegExp As String
 Static Private $cRegExp As New Collection
 
 Private $sText As String
+Private $iLen As Integer
 Private $iPos As Integer
 Private $bEof As Boolean
+Private $bTextAfter As Boolean
 
 Private $bMatchLimit As Boolean
 Private $sTextLimit As String
@@ -22,15 +24,24 @@ Private $aHighlight As Byte[]
 Private Sub Init(sText As String)
   
   $sText = sText
+  $iLen = String.Len($sText)
   $iPos = 1
   $bEof = False
   $aHighlight = New Byte[]
+  $bTextAfter = False
 
   If Not $hWordRegExp Then
-    $sWordRegExp = "[A-Za-z][A-Za-z0-9]*"
+    $sWordRegExp = "[A-Za-z_][A-Za-z0-9_]*"
     $hWordRegExp = New RegExp
     $hWordRegExp.Compile("^" & $sWordRegExp & "(.*)")
   Endif
+  
+End
+
+Private Sub Imbricate(iType As Byte)
+  
+  $aHighlight.Add(iType)
+  $aHighlight.Add(0)
   
 End
 
@@ -39,7 +50,7 @@ Private Sub Forward(iState As Byte, Optional N As Integer = 1)
   If $bEof Then Error.Raise("End of file")
   TextHighlighter._Add($aHighlight, iState, N)
   $iPos += N
-  $bEof = $iPos > Len($sText)
+  $bEof = $iPos > $iLen
   
 End
 
@@ -48,10 +59,10 @@ Private Sub IgnoreSpaces() As Boolean
   Dim P As Integer
   
   P = $iPos
-  If Not IsSpace(Mid$($sText, P, 1)) Then Return $bEof
+  If Not IsSpace(String.Mid$($sText, P, 1)) Then Return $bEof
   
   Inc P
-  While IsSpace(Mid$($sText, P, 1))
+  While IsSpace(String.Mid$($sText, P, 1))
     If $bEof Then Break
     Inc P
   Wend
@@ -64,9 +75,9 @@ End
 Private Sub GetWord() As String
   
   If $bEof Then Return
-  $hWordRegExp.Exec(Mid$($sText, $iPos))
+  $hWordRegExp.Exec(String.Mid$($sText, $iPos))
   If $hWordRegExp.Count < 1 Then Return
-  Return Mid$($sText, $iPos, $hWordRegExp[1].Offset)
+  Return Left(String.Mid$($sText, $iPos), $hWordRegExp[1].Offset)
   
 End
 
@@ -83,10 +94,14 @@ Private Sub Match(sPattern As String) As String
     $cRegExp[sPattern] = hRegExp
   Endif
   
-  If $iPos > Len($sText) Then Return
-  hRegExp.Exec(Mid$($sText, $iPos))
+  If $iPos > $iLen Then Return
+  hRegExp.Exec(String.Mid$($sText, $iPos))
   If hRegExp.Count < 1 Then Return
-  Return Mid$($sText, $iPos, hRegExp[hRegExp.Count].Offset)
+  Return Left(String.Mid$($sText, $iPos), hRegExp[hRegExp.Count].Offset)
+  
+Catch 
+  
+  Stop
   
 End
 
@@ -95,6 +110,9 @@ Private Sub Include(iHighlight As Byte, sHighlight As String, bMatch As Boolean,
   Dim iSave As Byte
   Dim aHighlight As Byte[]
   Dim nState As Integer
+  Dim hHighlight As TextHighlighter
+  Dim iLenAfter As Integer
+  Dim iPosBefore As Integer
   
   'Stop
   
@@ -109,9 +127,23 @@ Private Sub Include(iHighlight As Byte, sHighlight As String, bMatch As Boolean,
     $aHighlight.Add(0)
   Endif
   
-  aHighlight = TextHighlighter._Create(sHighlight)._Analyze($sText, aState, bMatch, sLimit, ByRef $iPos)
+  hHighlight = TextHighlighter._Create(sHighlight)
+  hHighlight.TextAfter = ""
+  iPosBefore = $iPos
+  
+  aHighlight = hHighlight._Analyze($sText, aState, bMatch, sLimit, ByRef $iPos)
+
   $aHighlight.Insert(aHighlight)
-  $bEof = $iPos > Len($sText)
+  
+  If TextHighlighter.CanRewrite Then
+    iLenAfter = String.Len(hHighlight.TextAfter)
+    $sText = String.Left($sText, iPosBefore - 1) & hHighlight.TextAfter & String.Mid$($sText, $iPos + hHighlight.TextLengthBefore - iLenAfter)
+    Me.TextAfter = $sText
+    Me.TextLengthBefore = $iLen
+    $iLen = String.Len($sText)
+  Endif
+  
+  $bEof = $iPos > $iLen
   
   aState.Add(iSave, 0)
   
@@ -120,6 +152,7 @@ Private Sub Include(iHighlight As Byte, sHighlight As String, bMatch As Boolean,
   ' We left the imbricated state
   $aHighlight.Add(0)
   $aHighlight.Add(0)
+  aState.Pop()
   
 End
 
@@ -129,6 +162,7 @@ Public Sub _Analyze(Text As String, State As Byte[], Optional MatchLimit As Bool
   If iPos Then $iPos = iPos
   $bMatchLimit = MatchLimit
   $sTextLimit = Limit
+  
   Try Compile(State)
   If Error And If Not $bEof Then
     Error Error.Where; ": "; Error.Text
@@ -136,6 +170,14 @@ Public Sub _Analyze(Text As String, State As Byte[], Optional MatchLimit As Bool
   Endif
   
   If $sTextLimit Then iPos = $iPos
+  
+  If TextHighlighter.CanRewrite Then
+    If $sTextLimit Then
+      Me.TextAfter = String.Left(Me.TextAfter, iPos)
+    Else
+      Me.TextAfter = $sText
+    Endif
+  Endif
   
   Return $aHighlight
 
