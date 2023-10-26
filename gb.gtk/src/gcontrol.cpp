@@ -2005,7 +2005,7 @@ void gControl::realizeScrolledWindow(GtkWidget *wid, bool doNotRealize)
 	gtk_widget_set_redraw_on_allocate(border, TRUE);
 	widget = wid;
 	frame = border;
-	_no_auto_grab = true;
+	//_no_auto_grab = true;
 
 	//gtk_container_add(GTK_CONTAINER(border), GTK_WIDGET(_scroll));
 	gtk_scrolled_window_set_policy(_scroll, GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
