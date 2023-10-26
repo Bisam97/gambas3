@@ -912,10 +912,11 @@ static char *input(STREAM *stream, bool line, char *escape)
 				if (c <= ' ')
 				{
 					len = buffer_pos - start - 1;
-					goto __FINISH;
+					if (len > 0)
+						goto __FINISH;
+					start++;
 				}
-				else
-					continue;
+				continue;
 
 			__TEST_MAC:
 
