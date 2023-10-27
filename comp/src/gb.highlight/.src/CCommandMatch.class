@@ -3,22 +3,10 @@
 Inherits CCommand
 
 Private $sFrom As String
-Private $sTo As String
-Private $sInclude As String
-Private $iInclude As Integer
 
 Public Sub SetArgs(aArgs As String[])
   
-  If aArgs.Count >= 3 And If aArgs[1] = "to" Then
-    $sFrom = aArgs[0]
-    $sTo = aArgs[2]
-    If aArgs.Count = 5 And If aArgs[3] = "with" Then
-      $sInclude = aArgs[4]
-      $iInclude = CState.AddInclude($sInclude)
-    Else If aArgs.Count <> 3 Then
-      Error.Raise("Syntax error")
-    Endif
-  Else If aArgs.Count = 1 Then
+  If aArgs.Count = 1 Then
     $sFrom = aArgs[0]
   Else 
     Error.Raise("Syntax error")
@@ -28,48 +16,19 @@ End
 
 Public Sub Compile(hState As CState)
   
-  If Not $sTo Then
+  If CState.IsRegExp(ByRef $sFrom) Then
   
     CState.Print("sWord = Match(" & Quote($sFrom) & ")")
     CState.Print("If Not sWord Then Goto " & hState.GetNextLabel())
     hState.Forward("String.Len(sWord)")
-
-    hState.CompileChildren()
-    hState.Continue()
     
-  Else If $sInclude Then
-  
-    CState.Print("sWord = Match(" & Quote($sFrom) & ")")
-    CState.Print("If Not sWord Then Goto " & hState.GetNextLabel())
-    CState.Print("Imbricate(" & CStr($iInclude) & ")")
-    hState.Forward("String.Len(sWord)")
-    CState.Print("Imbricate(0)")
-
-    hState.PrintLabel(hState.GetLabel() & "_LOOP")
-    CState.Print("If $bEof Then Return")
-    CState.Print("If Include(" & CStr($iInclude) & ", " & Quote($sInclude) & ", True, " & Quote($sTo) & ", aState) Then Return")
-    CState.Print("Imbricate(" & CStr($iInclude) & ")")
-    hState.Forward("String.Len(Match(" & Quote($sTo) & "))")
-    CState.Print("Imbricate(0)")
-    hState.Continue()
-  
-  Else 
+  Else
     
-    CState.Print("sWord = Match(" & Quote($sFrom) & ")")
-    CState.Print("If Not sWord Then Goto " & hState.GetNextLabel())
-    hState.Forward("String.Len(sWord)")
-    
-    hState.PrintLabel(hState.GetLabel() & "_LOOP")
-    CState.Print("If $bEof Then Return")
-
-    CState.Print("sWord = Match(" & Quote($sTo) & ")")
-    CState.Print("If sWord Then")
-      hState.Forward("String.Len(sWord)")
-      hState.Continue()
-    CState.Print("Endif")
-  
-    hState.CompileChildren(True)
+    CState.IfStartWith($sFrom, hState.GetNextLabel())
+    hState.Forward(String.Len($sFrom))
     
   Endif
+
+  hState.CompileChildren(hState.GetContinueLabel())
   
 End

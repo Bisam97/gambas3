@@ -17,45 +17,19 @@ documentation:
 comment:
   from /* to */
 atrule{Preprocessor}:
-  match @$(IDENT)
+  match /@$(IDENT)/
 class{Datatype}:
-  match \.$(IDENT)
-pseudoclass{Preprocessor}:
-  match ::?$(IDENT)
+  match /\.$(IDENT)/
+pseudoclass{Pseudo}:
+  match /::?$(IDENT)/
 id{Function}:
-  match #$(IDENT)
+  match /#$(IDENT)/
 attribute{Keyword}:
-  match $(IDENT)
+  match /$(IDENT)/
 type{Keyword}:
   from [ to ]
   string{Normal}:
     from ' to '
 operator:
   symbol > , +
-block{Operator}:
-  from { to }
-  block.documentation{Documentation}:
-    from /** to */
-  block.comment{Comment}:
-    from /* to */
-  identifier{Normal}:
-    match $(IDENT)
-  property{Operator}:
-    from : to ;
-    important{Escape}:
-      match !important
-    identifier{Keyword}:
-      match $(IDENT)
-      symbol %
-    number:
-      match $(NUMBER)
-    string:
-      from " to "
-      from ' to '
-      string.escape{Escape}:
-        match $(ESCAPE)
-    color{Constant}:
-      match #[0-9A-Fa-f]{6}
-      match #[0-9A-Fa-f]{3}
-    operator:
-      symbol ( ) ,
+@include css.block

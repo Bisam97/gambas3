@@ -18,11 +18,14 @@ Public Rewrite As Boolean
 Public Limit As Boolean
 Public Comment As Boolean
 
+<<<<<< HEAD
+
 Property Read Name As String
 Property Read Keywords As String[]
 
 Private $iPos As Integer
 Private $iLevel As Integer
+=======
 Private $aInclude As Byte[]
 Private $iInclude As Integer
 Private $iIndex As Integer
@@ -34,6 +37,7 @@ Private $sLine As String
 Private $aState As Byte[]
 Private $sToken As String
 Private $hTheme As TextHighlighterTheme
+>>>>>> TAIL
 
 Static Public Sub _init()
 
@@ -265,7 +269,7 @@ Static Private Sub CreateCustomHighlighter(sHighlight As String, sPath As String
   Output To Default
   hOutput.Close
   
-  'Print File.Load(sOutput)
+  Print File.Load(sOutput)
   
   sProject = File.Load("custom/project.template")
   sProject = Replace(sProject, "$(startup)", "_TextHighlighter_" & sHighlight)
@@ -312,7 +316,6 @@ End
 Private Sub HighlightLine(sLine As String)
 
   $sLine = sLine
-  If InStr(sLine, "<<<<") Then Stop
   $aHighlight = Me.Run(sLine & "\n", $aState)
   $aStyles = $hTheme._GetStyles()
   $iPos = 1

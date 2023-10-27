@@ -15,6 +15,7 @@ Private $iLen As Integer
 Private $iPos As Integer
 Private $bEof As Boolean
 Private $bTextAfter As Boolean
+Private $iPosStart As Integer
 
 Private $bMatchLimit As Boolean
 Private $sTextLimit As String
@@ -90,17 +91,62 @@ Private Sub Match(sPattern As String) As String
   hRegExp = $cRegExp[sPattern]
   If Not hRegExp Then
     hRegExp = New RegExp
-    hRegExp.Compile("^" & sPattern & "(.*)")
+    If sPattern Begins "^" Then 
+      hRegExp.Compile("(" & sPattern & ").*")
+    Else
+      hRegExp.Compile("^(" & sPattern & ").*")
+    Endif
     $cRegExp[sPattern] = hRegExp
   Endif
   
   If $iPos > $iLen Then Return
+  If sPattern Begins "^" Then
+    If $iPos > $iPosStart And If String.Mid$($sText, $iPos - 1, 1) <> "\n" Then Return
+  Endif
   hRegExp.Exec(String.Mid$($sText, $iPos))
   If hRegExp.Count < 1 Then Return
-  Return Left(String.Mid$($sText, $iPos), hRegExp[hRegExp.Count].Offset)
+  Return hRegExp[1].Text
   
 Catch 
   
+  Error Error.Where; ": "; Error.Text
+  Stop
+  
+End
+
+Private Sub MatchBefore(sPattern As String) As String
+
+  Dim hRegExp As RegExp
+  Dim sText As String
+  
+  If $bEof Then Return
+  
+  If $iPos > $iLen Then Return
+
+  If sPattern = "^" Then
+    If $iPos > $iPosStart And If String.Mid$($sText, $iPos - 1, 1) <> "\n" Then Return
+    Return " "
+  Endif
+  
+  hRegExp = $cRegExp[sPattern]
+  If Not hRegExp Then
+    hRegExp = New RegExp
+    hRegExp.Compile(".*(" & sPattern & ")\\s$")
+    $cRegExp[sPattern] = hRegExp
+  Endif
+  
+  ' If sPattern Begins "^" Then
+  '   If $iPos > $iPosStart And If String.Mid$($sText, $iPos - 1, 1) <> "\n" Then Return
+  ' Endif
+  sText = String.Left$($sText, $iPos - 1)
+  If Not sText Then Return
+  hRegExp.Exec(sText)
+  If hRegExp.Count < 1 Then Return
+  Return hRegExp[1].Text
+  
+Catch 
+  
+  Error Error.Where; ": "; Error.Text
   Stop
   
 End
@@ -113,8 +159,6 @@ Private Sub Include(iHighlight As Byte, sHighlight As String, bMatch As Boolean,
   Dim hHighlight As TextHighlighter
   Dim iLenAfter As Integer
   Dim iPosBefore As Integer
-  
-  'Stop
   
   nState = aState.Count
   iSave = aState[0]
@@ -137,9 +181,9 @@ Private Sub Include(iHighlight As Byte, sHighlight As String, bMatch As Boolean,
   
   If TextHighlighter.CanRewrite Then
     iLenAfter = String.Len(hHighlight.TextAfter)
-    $sText = String.Left($sText, iPosBefore - 1) & hHighlight.TextAfter & String.Mid$($sText, $iPos + hHighlight.TextLengthBefore - iLenAfter)
+    $sText = String.Left($sText, iPosBefore - 1) & hHighlight.TextAfter & String.Mid$($sText, $iPos - hHighlight.LengthAdded)
     Me.TextAfter = $sText
-    Me.TextLengthBefore = $iLen
+    Me.LengthAdded += String.Len($sText) - $iLen
     $iLen = String.Len($sText)
   Endif
   
@@ -158,8 +202,19 @@ End
 
 Public Sub _Analyze(Text As String, State As Byte[], Optional MatchLimit As Boolean, Limit As String, ByRef iPos As Integer) As Byte[]
 
+  Dim iLenBefore As Integer
+  
   Init(Text)
-  If iPos Then $iPos = iPos
+  
+  If iPos Then
+    $iPosStart = iPos
+    $iPos = iPos
+    iLenBefore = $iLen - $iPos + 1
+  Else
+    $iPosStart = 1
+    iLenBefore = $iLen
+  Endif
+  
   $bMatchLimit = MatchLimit
   $sTextLimit = Limit
   
@@ -173,7 +228,7 @@ Public Sub _Analyze(Text As String, State As Byte[], Optional MatchLimit As Bool
   
   If TextHighlighter.CanRewrite Then
     If $sTextLimit Then
-      Me.TextAfter = String.Left(Me.TextAfter, iPos)
+      Me.TextAfter = String.Mid$($sText, $iPosStart, iPos - $iPosStart)
     Else
       Me.TextAfter = $sText
     Endif

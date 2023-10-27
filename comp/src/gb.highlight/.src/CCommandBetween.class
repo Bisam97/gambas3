@@ -4,12 +4,24 @@ Inherits CCommand
 
 Private $sFrom As String
 Private $sTo As String
+Private $sInclude As String
+Private $iInclude As Integer
 
 Public Sub SetArgs(aArgs As String[])
   
-  If aArgs.Count = 2 Then
+  If aArgs.Count >= 3 And If aArgs[1] = "and" Then
     $sFrom = aArgs[0]
-    $sTo = aArgs[1]
+    If $sFrom = "here" Then $sFrom = ""
+    $sTo = aArgs[2]
+    If aArgs.Count = 5 And If aArgs[3] = "with" Then
+      $sInclude = aArgs[4]
+      $iInclude = CState.AddInclude($sInclude)
+    Else If aArgs.Count <> 3 Then
+      Error.Raise("Syntax error")
+    Endif
+  Else If aArgs.Count = 1 Then
+    $sFrom = aArgs[0]
+    $sTo = "\n"
   Else 
     Error.Raise("Syntax error")
   Endif
@@ -18,18 +30,66 @@ End
 
 Public Sub Compile(hState As CState)
   
-  CState.IfStartWith($sFrom, hState.GetNextLabel())
+  If $sInclude Then
   
-  hState.Forward(String.Len($sFrom))
+    If Not $sFrom Then
+      
+    
+    Else If CState.IsRegExp(ByRef $sFrom) Then
   
-  hState.PrintLabel(hState.GetLabel() & "_LOOP")
-  CState.Print("If $bEof Then Return")
-
-  CState.IfStartWith($sTo)
-    hState.Forward(String.Len($sTo))
+      CState.Print("sWord = MatchBefore(" & Quote($sFrom) & ")")
+      CState.Print("If Not sWord Then Goto " & hState.GetNextLabel())
+    
+    Else
+  
+      CState.IfEndWith($sFrom, hState.GetNextLabel())
+      
+    Endif
+    
+    hState.PrintLabel(hState.GetLabel() & "_LOOP")
+    
+    If CState.IsRegExp(ByRef $sTo) Then
+      
+      CState.Print("If Include(" & CStr($iInclude) & ", " & Quote($sInclude) & ", True, " & Quote($sTo) & ", aState) Then Return")
+      
+    Else
+    
+      CState.Print("If Include(" & CStr($iInclude) & ", " & Quote($sInclude) & ", False, " & Quote($sTo) & ", aState) Then Return")
+  
+    Endif
+    
     hState.Continue()
-  CState.Print("Endif")
+    
+  Else
+  
+    If Not $sFrom Then
+  
+    Else If CState.IsRegExp(ByRef $sFrom) Then
+  
+      CState.Print("sWord = MatchBefore(" & Quote($sFrom) & ")")
+      CState.Print("If Not sWord Then Goto " & hState.GetNextLabel())
+    
+    Else
+  
+      CState.IfEndWith($sFrom, hState.GetNextLabel())
+      
+    Endif
+    
+    hState.PrintLabel(hState.GetLabel() & "_LOOP")
+    
+    If CState.IsRegExp(ByRef $sTo) Then
+      CState.Print("sWord = Match(" & Quote($sTo) & ")")
+      CState.Print("If sWord Then")
+    Else
+      CState.IfStartWith($sTo)
+    Endif
 
-  hState.CompileChildren(True)
+    hState.Continue()
+    CState.Print("Endif")
+  
+    hState.CompileChildren(hState.GetLabel() & "_LOOP", True)
+    
+  Endif
 
 End
+

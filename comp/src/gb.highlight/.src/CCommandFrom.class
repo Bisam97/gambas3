@@ -11,6 +11,7 @@ Public Sub SetArgs(aArgs As String[])
   
   If aArgs.Count >= 3 And If aArgs[1] = "to" Then
     $sFrom = aArgs[0]
+    If $sFrom = "here" Then $sFrom = ""
     $sTo = aArgs[2]
     If aArgs.Count = 5 And If aArgs[3] = "with" Then
       $sInclude = aArgs[4]
@@ -29,34 +30,79 @@ End
 
 Public Sub Compile(hState As CState)
   
-  CState.IfStartWith($sFrom, hState.GetNextLabel())
-  
   If $sInclude Then
   
-    CState.Print("Imbricate(" & CStr($iInclude) & ")")
-    hState.Forward(String.Len($sFrom))
-    CState.Print("Imbricate(0)")
-    hState.PrintLabel(hState.GetLabel() & "_LOOP")
-    CState.Print("If $bEof Then Return")
-    CState.Print("If Include(" & CStr($iInclude) & ", " & Quote($sInclude) & ", False, " & Quote($sTo) & ", aState) Then Return")
-    CState.Print("Imbricate(" & CStr($iInclude) & ")")
-    hState.Forward(String.Len($sTo))
-    CState.Print("Imbricate(0)")
-    hState.Continue()
+    If Not $sFrom Then
   
+    Else If CState.IsRegExp(ByRef $sFrom) Then
+  
+      CState.Print("sWord = Match(" & Quote($sFrom) & ")")
+      CState.Print("If Not sWord Then Goto " & hState.GetNextLabel())
+      CState.Print("Imbricate(" & CStr($iInclude) & ")")
+      hState.Forward("String.Len(sWord)")
+      CState.Print("Imbricate(0)")
+    
+    Else
+  
+      CState.IfStartWith($sFrom, hState.GetNextLabel())
+      CState.Print("Imbricate(" & CStr($iInclude) & ")")
+      hState.Forward(String.Len($sFrom))
+      CState.Print("Imbricate(0)")
+      
+    Endif
+    
+    hState.PrintLabel(hState.GetLabel() & "_LOOP")
+    
+    If CState.IsRegExp(ByRef $sTo) Then
+      
+      CState.Print("If Include(" & CStr($iInclude) & ", " & Quote($sInclude) & ", True, " & Quote($sTo) & ", aState) Then Return")
+      CState.Print("Imbricate(" & CStr($iInclude) & ")")
+      hState.Forward("String.Len(Match(" & Quote($sTo) & "))")
+      CState.Print("Imbricate(0)")
+      
+    Else
+    
+      CState.Print("If Include(" & CStr($iInclude) & ", " & Quote($sInclude) & ", False, " & Quote($sTo) & ", aState) Then Return")
+      CState.Print("Imbricate(" & CStr($iInclude) & ")")
+      hState.Forward(String.Len($sTo))
+      CState.Print("Imbricate(0)")
+  
+    Endif
+    
+    hState.Continue()
+    
   Else
   
-    hState.Forward(String.Len($sFrom))
+    If Not $sFrom Then
+      
+    Else If CState.IsRegExp(ByRef $sFrom) Then
+  
+      CState.Print("sWord = Match(" & Quote($sFrom) & ")")
+      CState.Print("If Not sWord Then Goto " & hState.GetNextLabel())
+      hState.Forward("String.Len(sWord)")
+    
+    Else
+  
+      CState.IfStartWith($sFrom, hState.GetNextLabel())
+      hState.Forward(String.Len($sFrom))
+      
+    Endif
     
     hState.PrintLabel(hState.GetLabel() & "_LOOP")
-    CState.Print("If $bEof Then Return")
     
-    CState.IfStartWith($sTo)
+    If CState.IsRegExp(ByRef $sTo) Then
+      CState.Print("sWord = Match(" & Quote($sTo) & ")")
+      CState.Print("If sWord Then")
+      hState.Forward("String.Len(sWord)")
+    Else
+      CState.IfStartWith($sTo)
       hState.Forward(String.Len($sTo))
+    Endif
+
       hState.Continue()
     CState.Print("Endif")
   
-    hState.CompileChildren(True)
+    hState.CompileChildren(hState.GetLabel() & "_LOOP", True)
     
   Endif
 

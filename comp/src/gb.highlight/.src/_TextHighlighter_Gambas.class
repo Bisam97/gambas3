@@ -30,9 +30,10 @@ End
 
 Private Sub Keywords_Read() As String[]
   
-  If Not $aKeywords Then 
+  If Not $aKeywords Then
     $aKeywords = System.Keywords.Copy()
     $aKeywords.Insert(System.Subroutines)
+    $aKeywords.ReadOnly = True
   Endif
   
   Return $aKeywords
@@ -70,6 +71,7 @@ Public Sub _Analyze(Text As String, (State) As Byte[], Optional (MatchLimit) As 
   Dim sTextAfter As String
   Dim iLenText As Integer
   Dim iLenBefore As Integer
+  Dim bNewLine As Boolean
   
   ' Gambas syntax implies that:
   ' - A line always starts at normal state.
@@ -79,9 +81,15 @@ Public Sub _Analyze(Text As String, (State) As Byte[], Optional (MatchLimit) As 
   
   bRewrite = TextHighlighter.CanRewrite
   
-  Text = String.Mid$(Text, Pos)
+  If Limit Then Text = String.Mid$(Text, Pos)
+  
   iLenText = String.Len(Text)
   iLenBefore = iLenText
+  
+  If Text Ends "\n" Then
+    Text = Left(Text, -1)
+    bNewLine = True
+  Endif
   
   If Limit And If bRewrite Then
     
@@ -90,7 +98,7 @@ Public Sub _Analyze(Text As String, (State) As Byte[], Optional (MatchLimit) As 
     For I = 0 To Highlight.Symbols.Max
       sSym = Highlight.Symbols[I]
       iPos = Highlight.Positions[I]
-      If sSym Begins Limit Then 
+      If sSym Begins Limit Then
         iLenBefore = iPos
         Break
       Endif
@@ -102,15 +110,15 @@ Public Sub _Analyze(Text As String, (State) As Byte[], Optional (MatchLimit) As 
   Highlight.Analyze(Text, bRewrite)
   If bRewrite Then sTextAfter = Highlight.TextAfter
   
-  'TextHighlighter.Limit = IsProc()
-  'TextHighlighter.Comment = Left(LTrim(Text)) = "'"
+  Me.Limit = IsProc()
+  Me.Comment = Left(LTrim(Text)) = "'"
   
   iPos = 0
   For I = 0 To Highlight.Symbols.Max
     
     sSym = Highlight.Symbols[I]
     If Limit And If sSym Begins Limit Then
-      If I = 0 Then 
+      If I = 0 Then
         iPos = Highlight.Positions[0]
         If iPos Then TextHighlighter._Add(aHighlight, 0, iPos)
       Endif
@@ -118,7 +126,7 @@ Public Sub _Analyze(Text As String, (State) As Byte[], Optional (MatchLimit) As 
       ' Else 
       '   iPos = Highlight.Positions[I - 1] + String.Len(Highlight.Symbols[I - 1])
       ' Endif
-      If bRewrite Then 
+      If bRewrite Then
         sTextAfter = String.Left(sTextAfter, iPos)
         iLenText = iPos
       Else
@@ -127,7 +135,7 @@ Public Sub _Analyze(Text As String, (State) As Byte[], Optional (MatchLimit) As 
       Break
     Endif
     
-    If iPos < Highlight.Positions[I] Then 
+    If iPos < Highlight.Positions[I] Then
       TextHighlighter._Add(aHighlight, 0, Highlight.Positions[I] - iPos)
       iPos = Highlight.Positions[I]
     Endif
@@ -139,19 +147,20 @@ Public Sub _Analyze(Text As String, (State) As Byte[], Optional (MatchLimit) As 
   Next
 
   If bRewrite Then
+    If bNewLine Then sTextAfter &= "\n"
     iLen = String.Len(sTextAfter)
-  Else 
+  Else
     iLen = iLenText
   Endif
   
-  If iPos < iLen Then 
+  If iPos < iLen Then
     TextHighlighter._Add(aHighlight, 0, iLen - iPos)
     iPos = iLen
   Endif
-
+  
   If bRewrite Then
     Me.TextAfter = sTextAfter
-    Me.TextLengthBefore = iLenBefore
+    Me.LengthAdded = iLen - iLenBefore
   Endif
   
   If Limit Then Pos += iLen

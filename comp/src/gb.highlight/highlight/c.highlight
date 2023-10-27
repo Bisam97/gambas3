@@ -2,24 +2,23 @@ documentation:
   from /** to */
 comment:
   from /* to */
-  #match #if\s0 to \*/
   from //
 preprocessor:
-  match # to \n
+  from # to "\n"
   preprocessor.escape{Preprocessor}:
-    match \\\n
+    match "\\\n"
 string:
   from " to "
   from ' to '
   escape:
-    match \\[fnrtv0'"\\]
-    match \\c[A-Za-z]
-    match \\x[0-9a-fA-F]{2}
-    match \\u[0-9a-fA-F]{4}
-    match \\u{[0-9a-fA-F]+}
+    match /\\[fnrtv0'"\\]/
+    match /\\c[A-Za-z]/
+    match /\\x[0-9a-fA-F]{2}/
+    match /\\u[0-9a-fA-F]{4}/
+    match /\\u{[0-9a-fA-F]+}/
 number:
-  match [+-]?[0-9]*(\.[0-9]+)?([Ee][+-]?[0-9]+)?
-  match 0x[0-9a-fA-F]*
+  match /[+-]?[0-9]*(\.[0-9]+)?([Ee][+-]?[0-9]+)?/
+  match /0x[0-9a-fA-F]*/
 keyword:
   word asm auto break case const continue default do else enum extern for goto if inline register return sizeof static struct switch typedef union volatile while
 constant:
@@ -29,4 +28,4 @@ datatype:
 operator:
   symbol { } . >= + << ! = >>= ; == - >> ~ += ( , != * && -= &= ) < % & || *= |= [ > ++ | ? %= ^= -- ^ : <<= ] <= / /=
 identifier:
-  match [A-Za-z_$][A-Za-z_$0-9]*
+  match /[A-Za-z_$][A-Za-z_$0-9]*/

@@ -159,9 +159,19 @@ End
 Static Public Sub IfStartWith(sStr As String, Optional sLabel As String)
   
   If sLabel Then
-    Print("If String.Mid$($sText, $iPos, " & CStr(String.Len(sStr)) & ") <> " & Quote(sStr) & " Then Goto " & sLabel)
+    Print("If String.Mid$($sText, $iPos) Not Begins " & Quote(sStr) & " Then Goto " & sLabel)
   Else
-    Print("If String.Mid$($sText, $iPos, " & CStr(String.Len(sStr)) & ") = " & Quote(sStr) & " Then")
+    Print("If String.Mid$($sText, $iPos) Begins " & Quote(sStr) & " Then")
+  Endif
+  
+End
+
+Static Public Sub IfEndWith(sStr As String, Optional sLabel As String)
+  
+  If sLabel Then
+    Print("If String.Left$($sText, $iPos - 1) Not Ends " & Quote(sStr) & " Then Goto " & sLabel)
+  Else
+    Print("If String.Left$($sText, $iPos- 1) Ends " & Quote(sStr) & " Then")
   Endif
   
 End
@@ -181,20 +191,33 @@ Static Public Sub PrintLabel(sLabel As String, Optional bNoState As Boolean) As 
 
   Print()
   Print(sLabel & ":")
-  If Not bNoState Then Print("aState[0] = " & CStr($aLabel.Max))
+  If Not bNoState Then 
+    Print("aState[0] = " & CStr($aLabel.Max))
+    Print("If $bEof Then Return")
+  Endif
   Print()
   
 End
 
-Public Sub Forward(Optional sLen As String)
+Public Sub Forward(Optional sLen As String, iColorIndex As Integer = ColorIndex)
   
   If sLen And If sLen <> "1" Then
-    Print("Forward(" & CStr(ColorIndex) & ", " & sLen & ")")  
+    Print("Forward(" & CStr(iColorIndex) & ", " & sLen & ")")  
   Else 
-    Print("Forward(" & CStr(ColorIndex) & ")")
+    Print("Forward(" & CStr(iColorIndex) & ")")
   Endif
   
 End
+
+Public Sub ForwardParent(Optional sLen As String)
+
+  Dim iColorIndex As Integer
+  
+  Try iColorIndex = Parent.ColorIndex
+  Forward(sLen, iColorIndex)
+  
+End
+
 
 Public Sub GetLabel() As String
 
@@ -245,14 +268,20 @@ Public Sub GetNextLabel() As String
   
 End
 
+Public Sub GetContinueLabel() As String
+  
+  If $sContinue Then
+    Return $sContinue
+  Else
+    Return Parent.GetLabel()
+  Endif
+  
+End
+
 
 Public Sub Continue()
   
-  If $sContinue Then
-    Print("Goto " & $sContinue)
-  Else
-    Print("Goto " & Parent.GetLabel())
-  Endif
+  Print("Goto " & GetContinueLabel())
   
 End
 
@@ -313,28 +342,24 @@ Public Sub Compile(Optional sContinue As String)
   
 End
 
-Public Sub CompileChildren(Optional bElse As Boolean)
+Public Sub CompileChildren(Optional sContinue As String, Optional bForward As Boolean)
 
   Dim hState As CState
-  Dim sLabel As String
   
   If Name = "*" Then
     Print("Compile(aState)")
     Return
   Endif
   
-  If bElse Then sLabel = GetLabel() & "_LOOP"
-  
   $iCurrentChild = 0
   For Each hState In Children
     Inc $iCurrentChild
-    hState.Compile(sLabel)
+    hState.Compile(sContinue)
   Next
   
-  If bElse Then
-    Print()
-    Forward()
-    Print("Goto " & sLabel)
+  If sContinue Then
+    If bForward Then Forward()
+    Print("Goto " & sContinue)
   Endif
   
 End
@@ -403,5 +428,17 @@ Static Public Sub AddInclude(sInclude As String) As Integer
     $cInclude[sInclude] = iInclude
   Endif
   Return iInclude
+  
+End
+
+Static Public Sub IsRegExp(ByRef sPattern As String) As Boolean
+  
+  If sPattern Begins "/" And If sPattern Ends "/" And If Len(sPattern) > 2 Then
+    sPattern = Mid$(sPattern, 2, -1)
+    Return True
+  Else If sPattern Begins "\"" And If sPattern Ends "\"" Then
+    sPattern = UnQuote(sPattern)
+    Return False
+  Endif
   
 End

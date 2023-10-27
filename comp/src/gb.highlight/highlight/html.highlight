@@ -4,25 +4,25 @@ doctype{Preprocessor}:
 comment:
   from <!-- to -->
 entity{Function}:
-  match &[A-Za-z]+;
-  match &#[0-9]+;
+  match /&[A-Za-z]+;/
+  match /&#[0-9]+;/
 javascript{Keyword}:
-  match <script.*(type=["']text/javascript['"])?.*> to </script> with javascript
+  from /<script.*?(type=["']text/javascript['"])?.*?>/ to </script> with javascript
 css{Keyword}:
-  match <style.*(type=["']text/css['"])?.*> to </style> with css
+  from /<style.*?(type=["']text/css['"])?.*?>/ to </style> with css
 markup{Keyword}:
-  match <$(IDENT) to /?>
+  from /<$(IDENT)/ to //?>/
   attribute{Datatype}:
-    match $(IDENT)
+    match /$(IDENT)/
   equal{Normal}:
     symbol =
   value{String}:
     from " to "
     from ' to '
     string.entity{Escape}:
-      match &[A-Za-z]+;
-      match &#[0-9]+;
+      match /&[A-Za-z]+;/
+      match /&#[0-9]+;/
   value.unquoted{String}:
-    match [^"'`=<>\s]+
+    match /[^"'`=<>\s]+/
 markup.close{Keyword}:
-  match </$(IDENT)\s*>
+  match /</$(IDENT)\s*>/

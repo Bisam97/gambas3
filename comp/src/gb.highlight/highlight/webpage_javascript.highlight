@@ -8,30 +8,30 @@ string:
   from " to "
   from ' to '
   escape:
-    match \\[fnrtv0'"\\]
-    match \\c[A-Za-z]
-    match \\x[0-9a-fA-F]{2}
-    match \\u[0-9a-fA-F]{4}
-    match \\u{[0-9a-fA-F]+}
+    match /\\[fnrtv0'"\\]/
+    match /\\c[A-Za-z]/
+    match /\\x[0-9a-fA-F]{2}/
+    match /\\u[0-9a-fA-F]{4}/
+    match /\\u{[0-9a-fA-F]+}/
   @include webpage.include
 string.subst{String}:
   from ` to `
   escape:
-    match \\[fnrtv0'"\\]
-    match \\c[A-Za-z]
-    match \\x[0-9a-fA-F]{2}
-    match \\u[0-9a-fA-F]{4}
-    match \\u{[0-9a-fA-F]+}
+    match /\\[fnrtv0'"\\]/
+    match /\\c[A-Za-z]/
+    match /\\x[0-9a-fA-F]{2}/
+    match /\\u[0-9a-fA-F]{4}/
+    match /\\u{[0-9a-fA-F]+}/
   subst{Escape}:
-    from ${ to } with webage_javascript
+    from ${ to } with webpage_javascript
   @include webpage.include
 regexp{Datatype}:
-  match /.*?/[a-z]*
+  match //.*/[a-z]*/
   regexp.escape{Escape}:
-    match \\.
+    match /\\./
 number:
-  match [+-]?[0-9.]+
-  match 0x[0-9a-fA-F]*
+  match /[+-]?[0-9.]+/
+  match /0x[0-9a-fA-F]*/
 keyword:
   keyword @javascript.keyword
 function:
@@ -41,4 +41,4 @@ constant:
 operator:
   symbol { } . >= + << ! = >>= ; == - >> ~ += >>>= ( , != * >>> && -= &= ) < === % & || *= |= [ > !== ++ | ? %= ^= -- ^ : <<= ] <= / /=
 identifier:
-  match [A-Za-z_$][A-Za-z_$0-9]*
+  match /[A-Za-z_$][A-Za-z_$0-9]*/

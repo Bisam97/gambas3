@@ -4,23 +4,23 @@ comment:
   from /* to */
   from //
 preprocessor:
-  match # to \n
+  from # to "\n"
   preprocessor.escape{Preprocessor}:
-    match \\\n
+    match "\\\n"
 string:
   from " to "
   from ' to '
   escape:
-    match \\[fnrtv0'"\\]
-    match \\c[A-Za-z]
-    match \\x[0-9a-fA-F]{2}
-    match \\u[0-9a-fA-F]{4}
-    match \\u{[0-9a-fA-F]+}
+    match /\\[fnrtv0'"\\]/
+    match /\\c[A-Za-z]/
+    match /\\x[0-9a-fA-F]{2}/
+    match /\\u[0-9a-fA-F]{4}/
+    match /\\u{[0-9a-fA-F]+}/
 number:
-  match [+-]?[0-9]+(\.[0-9]+)?([Ee][+-]?[0-9]+)?
-  match 0x[0-9a-fA-F]+
+  match /[+-]?[0-9]+(\.[0-9]+)?([Ee][+-]?[0-9]+)?/
+  match /0x[0-9a-fA-F]+/
 casting{Datatype}:
-  match [a-z]*?_cast[<].*?[>]
+  match /[a-z]*?_cast[<].*?[>]/
 keyword:
   word alignof asm auto break case catch class const continue default delete do else enum explicit export extern for friend goto if inline mutable namespace new noexcept operator private protected public register return sizeof static struct switch template this throw try typedef typeid typename union using virtual volatile while
 constant:
@@ -28,10 +28,10 @@ constant:
 datatype:
   keyword void signed unsigned char short int long float double int64_t uint64_t int32_t uint32_t int16_t uint16_t int8_t uint8_t uchar ushort uint ulong intptr_t uintptr_t wchar_t
 operator.mul{Function}:
-  match \*\s
+  match /\*\s/
 operator:
   symbol { } . ; ( , ) [ :: ] -> ? : <=> ->* .* *
 operator.action{Function}:
   symbol = >= + << ! >>= == - >> ~ += != && -= &= < % & || *= |= > ++ | %= ^= -- ^ <<= <= / /=
 identifier:
-  match [A-Za-z_$][A-Za-z_$0-9]*
+  match /[A-Za-z_$][A-Za-z_$0-9]*/

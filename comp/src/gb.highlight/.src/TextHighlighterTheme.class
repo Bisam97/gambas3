@@ -1,9 +1,12 @@
 ' Gambas class file
 
-Export 
+Export
 
 Event Change
 
+Static Property Read Colors As String[]
+
+Static Private $bStylesModified As Boolean
 Static Private $cColorIndex As New Collection
 
 Property Settings As String
@@ -102,7 +105,7 @@ Public Sub _Load(Path As String)
   
   aTheme = Split(File.Load(Path), "\n")
   If aTheme[0] <> "[Gambas Highlighting Theme 1.0]" Then
-    If aTheme[0] = "[Theme]" Then 
+    If aTheme[0] = "[Theme]" Then
       bOldTheme = True
     Else
       Goto RAISE_ERROR
@@ -131,7 +134,7 @@ Public Sub _Load(Path As String)
   
   Return
   
-RAISE_ERROR:
+RAISE_ERROR: 
 
   Error.Raise("Incorrect theme")
   
@@ -219,7 +222,7 @@ Static Public Sub _Register(sColor As String) As Integer
   If iIndex = 0 Then
     iIndex = $cColorIndex.Count + 1
     $cColorIndex[sColor] = iIndex
-    'Debug sColor; " -> "; iIndex
+    $bStylesModified = True
   Endif
   Return iIndex
   
@@ -227,18 +230,36 @@ End
 
 Public Sub _GetStyles() As TextHighlighterStyle[]
 
-  Dim aStyles As TextHighlighterStyle[]
+  Static aStyles As TextHighlighterStyle[]
+
   Dim hStyle As TextHighlighterStyle
   
-  aStyles = New TextHighlighterStyle[]
+  If $bStylesModified Or If Not aStyles Then
   
-  aStyles.Add($cStyles["Normal"])
-  For Each $cColorIndex
-    hStyle = $cStyles[$cColorIndex.Key]
-    If Not hStyle Then hStyle = New TextHighlighterStyle
-    aStyles.Add(hStyle)
-  Next
+    aStyles = New TextHighlighterStyle[]  
+    aStyles.Add($cStyles["Normal"])
+    For Each $cColorIndex
+      hStyle = $cStyles[$cColorIndex.Key]
+      If Not hStyle Then hStyle = New TextHighlighterStyle
+      aStyles.Add(hStyle)
+    Next
+
+    $bStylesModified = False
+    
+  Endif
   
   Return aStyles
   
+End
+
+Static Private Function Colors_Read() As String[]
+
+  Dim aColor As New String[]
+
+  For Each $cColorIndex
+    aColor.Add($cColorIndex.Key)
+  Next
+
+  Return aColor
+
 End
