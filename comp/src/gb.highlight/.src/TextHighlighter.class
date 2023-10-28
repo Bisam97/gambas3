@@ -271,7 +271,7 @@ Static Private Sub CreateCustomHighlighter(sHighlight As String, sPath As String
   sProject = Replace(sProject, "$(startup)", "_TextHighlighter_" & sHighlight)
   File.Save(sDir &/ ".project", sProject)
   
-  Shell "cd " & Shell$(sDir) & " && gbc3 -agt 2>&1 && gba3" To sOutput
+  Shell "cd " & Shell$(sDir) & " && gbc3 -agt 2>&1 && gba3 2>&1" To sOutput
   sOutput = Trim(sOutput)
   If Process.LastValue And If sOutput Then Error.Raise(sOutput)
 
@@ -311,9 +311,13 @@ End
 
 Private Sub HighlightLine(sLine As String)
 
-  $sLine = sLine
-  If InStr(sLine, "<<<<") Then Stop
+  Dim bCanRewrite As Boolean
+
+  bCanRewrite = TextHighlighter.CanRewrite
+  TextHighlighter.CanRewrite = False
   $aHighlight = Me.Run(sLine & "\n", $aState)
+  $sLine = sLine
+  TextHighlighter.CanRewrite = bCanRewrite
   $aStyles = $hTheme._GetStyles()
   $iPos = 1
   $iIndex = 0

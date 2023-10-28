@@ -72,6 +72,7 @@ Public Sub _Analyze(Text As String, (State) As Byte[], Optional (MatchLimit) As 
   Dim iLenText As Integer
   Dim iLenBefore As Integer
   Dim bNewLine As Boolean
+  Dim bGotLimit As Boolean
   
   ' Gambas syntax implies that:
   ' - A line always starts at normal state.
@@ -91,26 +92,10 @@ Public Sub _Analyze(Text As String, (State) As Byte[], Optional (MatchLimit) As 
     bNewLine = True
   Endif
   
-  If Limit And If bRewrite Then
-    
-    Highlight.Analyze(Text, False)
-   
-    For I = 0 To Highlight.Symbols.Max
-      sSym = Highlight.Symbols[I]
-      iPos = Highlight.Positions[I]
-      If sSym Begins Limit Then
-        iLenBefore = iPos
-        Break
-      Endif
-      iPos += String.Len(sSym)
-    Next
-    
-  Endif
-  
-  Highlight.Analyze(Text, bRewrite)
+  Highlight.Analyze(Text, bRewrite,, Limit = "%>")
   If bRewrite Then sTextAfter = Highlight.TextAfter
   
-  Me.Limit = IsProc()
+  Me.Limit = Highlight.IsFunction
   Me.Comment = Left(LTrim(Text)) = "'"
   
   iPos = 0
@@ -118,20 +103,9 @@ Public Sub _Analyze(Text As String, (State) As Byte[], Optional (MatchLimit) As 
     
     sSym = Highlight.Symbols[I]
     If Limit And If sSym Begins Limit Then
-      If I = 0 Then
-        iPos = Highlight.Positions[0]
-        If iPos Then TextHighlighter._Add(aHighlight, 0, iPos)
-      Endif
-      '   iPos = 0
-      ' Else 
-      '   iPos = Highlight.Positions[I - 1] + String.Len(Highlight.Symbols[I - 1])
-      ' Endif
-      If bRewrite Then
-        sTextAfter = String.Left(sTextAfter, iPos)
-        iLenText = iPos
-      Else
-        iLenText = Highlight.Positions[I]
-      Endif
+      bNewLine = False
+      bGotLimit = True
+      sTextAfter = Left(sTextAfter, -2)
       Break
     Endif
     
@@ -147,7 +121,6 @@ Public Sub _Analyze(Text As String, (State) As Byte[], Optional (MatchLimit) As 
   Next
 
   If bRewrite Then
-    If bNewLine Then sTextAfter &= "\n"
     iLen = String.Len(sTextAfter)
   Else
     iLen = iLenText
@@ -159,8 +132,17 @@ Public Sub _Analyze(Text As String, (State) As Byte[], Optional (MatchLimit) As 
   Endif
   
   If bRewrite Then
+
+    Me.LengthAdded = iLen - Highlight.LengthBefore
+    If bGotLimit Then Me.LengthAdded += 2
+
+    If bNewLine Then
+      sTextAfter &= "\n"
+      Inc iLen
+    Endif
+    
     Me.TextAfter = sTextAfter
-    Me.LengthAdded = iLen - iLenBefore
+    
   Endif
   
   If Limit Then Pos += iLen
