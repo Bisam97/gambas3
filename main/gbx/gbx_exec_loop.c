@@ -2123,7 +2123,7 @@ _PUSH_ARRAY_NATIVE_INTEGER:
 		val->_integer.value = ((int *)(array->data))[ind];
 		val->type = GB_T_INTEGER;
 
-		OBJECT_UNREF_KEEP_FAST(array); // The reference is necessarily stored elsewhere
+		OBJECT_just_unref(array);
 		SP--;
 		goto _NEXT;
 	}
@@ -2149,7 +2149,7 @@ _PUSH_ARRAY_NATIVE_FLOAT:
 		val->_float.value = ((double *)(array->data))[ind];
 		val->type = GB_T_FLOAT;
 
-		OBJECT_UNREF_KEEP_FAST(array); // The reference is necessarily stored elsewhere
+		OBJECT_just_unref(array);
 		SP--;
 		goto _NEXT;
 	}
@@ -2199,7 +2199,7 @@ _POP_ARRAY_NATIVE_INTEGER:
 
 		((int *)(array->data))[ind] = val[-1]._integer.value;
 
-		OBJECT_UNREF_KEEP_FAST(array); // The reference is necessarily stored elsewhere
+		OBJECT_just_unref(array);
 		SP -= 3;
 		goto _NEXT;
 	}
@@ -2227,7 +2227,7 @@ _POP_ARRAY_NATIVE_FLOAT:
 
 		((double *)(array->data))[ind] = SP[-3]._float.value;
 
-		OBJECT_UNREF_KEEP_FAST(array); // The reference is necessarily stored elsewhere
+		OBJECT_just_unref(array);
 		SP -= 3;
 		goto _NEXT;
 	}
