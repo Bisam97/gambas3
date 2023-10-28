@@ -6,8 +6,14 @@ number:
 string:
   from " to "
   from ' to '
+  escape:
+    match /\\[fnrtv0'"\\]/
+    match /\\c[A-Za-z]/
+    match /\\x[0-9a-fA-F]{2}/
+    match /\\u[0-9a-fA-F]{4}/
+    match /\\u{[0-9a-fA-F]+}/
 keyword:
-  keyword function do else test for to in fi if elif then return exit while until done break continue select case esac
+  word function do else test for to in fi if elif then return exit while until done break continue select case esac
 operator:
   symbol { } $ # [ ] -gt -lt -ge -ne -le -eq <<< . + << = >> == - ~ += ( , != * -= &= ;; ) < % & ]; @ ! ; > | ? ^ : <= / `
 function:
