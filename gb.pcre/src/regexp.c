@@ -349,6 +349,12 @@ BEGIN_PROPERTY(RegExp_Submatch_Offset)
 END_PROPERTY
 
 
+BEGIN_PROPERTY(RegExp_Submatch_Length)
+
+	GB.ReturnInteger(THIS->ovector[2 * THIS->_submatch + 1] - THIS->ovector[2 * THIS->_submatch]);
+
+END_PROPERTY
+
 #include "regexp_common.h"
 
 //---------------------------------------------------------------------------
@@ -428,6 +434,7 @@ GB_DESC CRegexpSubmatchDesc[] =
 
 	GB_PROPERTY_READ("Offset", "i", RegExp_Submatch_Offset),
 	GB_PROPERTY_READ("Text", "s", RegExp_Submatch_Text),
+	GB_PROPERTY_READ("Length", "i", RegExp_Submatch_Length),
 
 	GB_END_DECLARE
 };
