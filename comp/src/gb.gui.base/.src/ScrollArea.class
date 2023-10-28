@@ -757,8 +757,10 @@ Public Sub DrawingArea_MouseWheel()
   
   D = Desktop.Scale * 60
   If Mouse.Orientation = Mouse.Horizontal Or If $H <= $hDrawingArea.H Then
+    D = Min(D, ($hDrawingArea.W + 1) \ 2)
     Scroll($iScrollX - Mouse.Delta * D, $iScrollY)
   Else
+    D = Min(D, ($hDrawingArea.H + 1) \ 2)
     Scroll($iScrollX, $iScrollY - Mouse.Delta * D)
   Endif
   
