@@ -11,7 +11,7 @@ Event _Fake
 Private $nRows As Integer
 Private $cHeight As Collection
 Private $aHeight As Integer[]
-Private $iHeight As Integer 
+Private $iHeight As Integer
 
 Private $cCacheRowY As New Collection
 Private $cCacheRowFromPos As New Collection
@@ -143,7 +143,7 @@ Fast Public Sub _GetRowY(iRow As Integer) As Integer
   
       For Each I In $aHeight
         If I >= iRow Then Break
-        If hView._IsRowVisible(I) Then 
+        If hView._IsRowVisible(I) Then
           Y += CInt($cHeight[I]) - 1
         Endif
       Next
@@ -207,7 +207,7 @@ Public Sub _SetRowHeight(iRow As Integer, H As Integer)
   
   ClearCache
   
-  If Not $cHeight Then 
+  If Not $cHeight Then
     $cHeight = New Collection
     $cHeight.Default = 1
     $aHeight = New Integer[]
@@ -297,7 +297,7 @@ Public Sub _FindRowFromPos(Y As Integer) As Integer
   D = 0
   F = $nRows
   While F > D
-    I = (F + D) \ 2 
+    I = (F + D) \ 2
     J = hView._ViewToReal(I)
     RY = _GetRowY(J)
     RH = _GetRowHeight(J)
@@ -429,7 +429,7 @@ Public Sub _BeforeInsert(Y1 As Integer, N As Integer, cLineLayout As Collection)
   
   'If $cHeight.Count <> $aHeight.Count Then Stop
   
-  ClearCache  
+  ClearCache
   
   'If $aHeight And If $aHeight.Count And If $aHeight[$aHeight.Max] >= GetView().Count Then Stop
   'If _GetHeight() <> _GetRowY($nRows - 1) + _GetRowHeight($nRows - 1) Then Stop

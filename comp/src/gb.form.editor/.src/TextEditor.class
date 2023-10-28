@@ -474,15 +474,15 @@ Public Sub _new()
   If Not $cShortcut Then
     $cShortcut = [
       "CTRL+A": "SelectAll",
-      "CTRL+C": "Copy",
-      "CTRL+INSERT": "Copy",
-      "CTRL+V": "Paste",
+      "CTRL+C": "Copy", 
+      "CTRL+INSERT": "Copy", 
+      "CTRL+V": "Paste", 
       "SHIFT+INSERT": "Paste",
-      "CTRL+X": "Cut",
-      "SHIFT+DELETE": "Cut",
-      "CTRL+Y": "Redo",
-      "CTRL+Z": "Undo",
-      "CTRL+G": "Goto",
+      "CTRL+X": "Cut", 
+      "SHIFT+DELETE": "Cut", 
+      "CTRL+Y": "Redo", 
+      "CTRL+Z": "Undo", 
+      "CTRL+G": "Goto", 
       "CTRL+F": "Find"]
   Endif
   
@@ -567,7 +567,7 @@ Private Sub CalcSizes()
   hParent = Me
   Do
     hParent = hParent.Parent
-    If Not hParent Is TextEditor Then 
+    If Not hParent Is TextEditor Then
       $hFontNumber = hParent.Font.Copy()
       Break
     Endif
@@ -832,11 +832,11 @@ End
 ' End
 '
 
-Fast Private Sub DrawHighlightedText(Row As Integer, sText As String, aColor As Byte[], X As Integer, Y As Integer, H As Integer, aLayout As Integer[], (iNextState) As Integer)
+Fast Private Sub DrawHighlightedText(Row As Integer, sText As String, aColor As Byte[], X As Integer, Y As Integer, H As Integer, aLayout As Integer[], iLevel As Integer)
   
   Dim I As Integer
   Dim hStyle As TextHighlighterStyle
-  Dim bAlt As Boolean
+  'Dim bAlt As Boolean
   Dim iLen As Integer
   Dim P As Integer
   Dim sStr As String
@@ -844,7 +844,7 @@ Fast Private Sub DrawHighlightedText(Row As Integer, sText As String, aColor As 
   Dim iState As Integer
   Dim XMin As Integer
   Dim XMax As Integer
-  Dim aStyle As TextHighlighterStyle[]
+  Dim aStyles As TextHighlighterStyle[]
   Dim hImage As Image
   
   Dim XX, YY, XB, LB, DB As Integer
@@ -859,14 +859,15 @@ Fast Private Sub DrawHighlightedText(Row As Integer, sText As String, aColor As 
   Dim iCol As Integer
   Dim YT As Integer
   
-  'Dim iBg As Integer
+  Dim iBg As Integer = Color.Default
   
   'Dim hTemp As Image
   
   XMin = X + $hView.ScrollX
   XMax = XMin + $hView.ClientW
   
-  aStyle = GetStyles()
+  aStyles = GetStyles()
+  GoSub CALC_LEVEL_BG
   
   'iBg = aStyle[iNextState].Background
   
@@ -889,15 +890,26 @@ Fast Private Sub DrawHighlightedText(Row As Integer, sText As String, aColor As 
       If XX > XMax Then Break
     Endif
     
-    iState = aColor[I] And 63
-    hStyle = aStyle[iState]
-    bAlt = aColor[I] >= 128
+    iState = aColor[I]
     If iRest Then
       iLen = iRest
       iRest = 0
     Else
       iLen = aColor[I + 1]
     Endif
+
+    If iLen = 0 Then
+      If iState Then
+        Inc iLevel
+      Else
+        Dec iLevel
+      Endif
+      GoSub CALC_LEVEL_BG
+      Continue
+    Endif
+    
+    Try hStyle = aStyles[iState]
+    If Error Then hStyle = aStyles[0]
     
     If bBreak Then
       PaintMultiLine(Row, P, X, YY, Paint.W - $MW, H, iLayout = 1, False)
@@ -935,8 +947,8 @@ Fast Private Sub DrawHighlightedText(Row As Integer, sText As String, aColor As 
     Endif
     
     'iBg = hStyle.Background
-    'If iBg <> Color.Default Then Paint.FillRect(XX, YY, X2 - XX, H, iBg)
-    If bAlt Then Paint.FillRect(XX, YY, X2 - XX, H, Color.SetAlpha(aStyle[Highlight.Alternate].Color, 160))
+    If iBg <> Color.Default Then Paint.FillRect(XX, YY, X2 - XX, H, iBg)
+    'If bAlt Then Paint.FillRect(XX, YY, X2 - XX, H, Color.SetAlpha(aStyle[Highlight.Alternate].Color, 160))
     
     sStr = String.Mid$(sText, P + 1, iLen)
     ' If hStyle.Bold Then
@@ -994,7 +1006,7 @@ Fast Private Sub DrawHighlightedText(Row As Integer, sText As String, aColor As 
     '   Paint.DrawImage(hTemp, X + 1, Y)
     ' Endif
     
-    If hStyle.Underline Then 
+    If hStyle.Underline Then
       Paint.FillRect(XX, YY + H - 1, X2 - XX, 1, Color.SetAlpha(hStyle.Color, 128))
     Else If hStyle.Dotted Then
       Paint.Background = Color.SetAlpha(hStyle.Color, 128)
@@ -1013,7 +1025,9 @@ Fast Private Sub DrawHighlightedText(Row As Integer, sText As String, aColor As 
     '   If Row = $YM And If $XM >= P And If $XM < (P + iLen) Then DrawMatch(SX, Y, H, $XM, $YM)
     ' Endif
     
-  NEXT_PATTERN:
+  NEXT_PATTERN: 
+
+
     
     P += iLen
     XX = X2
@@ -1030,11 +1044,13 @@ Fast Private Sub DrawHighlightedText(Row As Integer, sText As String, aColor As 
 
   If aLayout Then PaintMultiLine(Row, -1, X, YY, Paint.W - $MW, H, False, True)
   
-  'If iBg <> Color.Default Then Paint.FillRect(XX, YY, Paint.W, H, iBg)
+  If iBg <> Color.Default Then Paint.FillRect(XX, YY, Paint.W, H, iBg)
   
   Return
   
-DRAW_TEXT:
+DRAW_TEXT: 
+
+
   
   iCol = hStyle.Color
   Paint.Background = iCol
@@ -1062,7 +1078,9 @@ DRAW_TEXT:
   
   Return
   
-DRAW_TEXT_WITH_TAB:
+DRAW_TEXT_WITH_TAB: 
+
+
 
   iCol = hStyle.Color
   Paint.Background = iCol
@@ -1091,6 +1109,17 @@ DRAW_TEXT_WITH_TAB:
   ' Endif
   ' 'Paint.Background = iCol
   ' DrawText(sStr, X, XX, YY)
+  Return
+  
+CALC_LEVEL_BG: 
+
+
+
+  If iLevel Then
+    iBg = Color.SetAlpha(Color.Black, 255 - iLevel * 16)
+  Else
+    iBg = Color.Default
+  Endif
   Return
   
 End
@@ -1218,7 +1247,7 @@ Private Sub DrawLine(X As Integer, Y As Integer, Width As Integer, Height As Int
   
   H = $LH
 
-  If Row < 0 Then 
+  If Row < 0 Then
     Paint.FillRect(X, Y, Width, Height, Color.SetAlpha($hTheme["Removed"].Color, 224))
     Paint.Rectangle($MW, Y, Width - $MW, Height)
     Paint.Clip
@@ -1272,7 +1301,9 @@ Private Sub DrawLine(X As Integer, Y As Integer, Width As Integer, Height As Int
       XY = LinePos(Row, P - 1)
       Paint.FillRect(X + XY.X, Y + XY.Y, TextWidth(sText, P, $iHighlightStringLen), H, $iMatchColor)
       
-    NEXT_SEARCH:
+    NEXT_SEARCH: 
+
+
     
       P += $iHighlightStringLen
       
@@ -1326,7 +1357,7 @@ Private Sub DrawLine(X As Integer, Y As Integer, Width As Integer, Height As Int
   
   If hInfo.Colors Then
     
-    DrawHighlightedText(Row, sText, hInfo.Colors, X, Y, H, aLayout, hInfo.State)
+    DrawHighlightedText(Row, sText, hInfo.Colors, X, Y, H, aLayout, $hDoc.GetStartLevel(Row))
     
   Else
     
@@ -1447,7 +1478,9 @@ Private Sub DrawLine(X As Integer, Y As Integer, Width As Integer, Height As Int
   
   ' Diff text
 
-TOP_DIFF:
+TOP_DIFF: 
+
+
   
   If $hDoc.IsDiffRemoved(Row) Then
       
@@ -1498,7 +1531,9 @@ TOP_DIFF:
   
   Return
   
-HIGHLIGHT_RECT:
+HIGHLIGHT_RECT: 
+
+
 
   If Y1 > Y2 Or If Y1 = Y2 And X1 > X2 Then
     Swap X1, X2
@@ -1560,7 +1595,7 @@ Public Sub _PaintRow(Row As Integer, X As Integer, Y As Integer)
     $bRemoteDisplay = True
     iSaveMW = $MW
     $MW = 0
-    DrawHighlightedText(Row, sText, hInfo.Colors, X, Y, H, aLayout, hInfo.State)
+    DrawHighlightedText(Row, sText, hInfo.Colors, X, Y, H, aLayout, $hDoc.GetStartLevel(Row))
     $MW = iSaveMW
     $bRemoteDisplay = bRemoteDisplay
     
@@ -1809,7 +1844,9 @@ Fast Private Sub LinePos(Y As Integer, Optional X As Integer = -1) As Point
     hPos.X = TextWidth($hDoc.Lines[Y], 1, X)
   Endif
   
-CACHE_POS:
+CACHE_POS: 
+
+
   
   cCache = $cCachePos[Y]
   If Not cCache Then
@@ -1826,7 +1863,9 @@ CACHE_POS:
   
   'If Y = 28 Then Debug "calc";; X;; Y;; "->";; hPos;; hPos.X;; hPos.Y
   
-RETURN_POS:
+RETURN_POS: 
+
+
   
   Return hPos
   
@@ -1909,7 +1948,9 @@ Private Sub UpdateWidth(Optional Y As Integer = -1)
   
   Return
   
-UPDATE_WIDTH:
+UPDATE_WIDTH: 
+
+
   
   $iWidth = Max($hView.ClientWidth, W)
   _ResizeContents
@@ -1944,7 +1985,7 @@ Public Sub View_KeyPress()
   If bCancel Then Return
 
   Try sAction = $cShortcut[String.UCase(Shortcut.FromKey())]
-  If sAction Then 
+  If sAction Then
     Select Case sAction
       Case "Copy"
         Copy()
@@ -2627,7 +2668,7 @@ Public Sub Insert(Text As String)
   $hDoc.Begin
   
   DeleteSelection
-  If Text Then 
+  If Text Then
   
     '$X = NormalizeColumn($X, $Y)
     
@@ -2988,7 +3029,9 @@ Private Sub CheckMatch()
   
   Goto FOUND
   
-FIND_MATCH:
+FIND_MATCH: 
+
+
   
   If Odd(iMatch) Then
     sOther = Mid$(MATCH_STRING, iMatch + 1, 1)
@@ -3058,7 +3101,9 @@ FIND_MATCH:
     
   Loop
   
-FOUND:
+FOUND: 
+
+
   
   If $YM >= $YMO Then
     If $YM > $YMO Or If $XM > $XMO Then
@@ -3138,13 +3183,13 @@ Private Sub CheckIndentMark()
     Dec Y1
     If Not Trim($hDoc.Lines[Y1]) Then Continue
     IM1 = GetLineIndentMark(Y1)
-    If IM1 < IM0 Then 
+    If IM1 < IM0 Then
       bLimit1 = True
       Break
     Else If IM1 > IM0 Then
       If Not bEqual1 Then bStop = True
     Else
-      If bStop Then 
+      If bStop Then
         bLimit1 = True
         Break
       Endif
@@ -3158,13 +3203,13 @@ Private Sub CheckIndentMark()
     Inc Y2
     If Not Trim($hDoc.Lines[Y2]) Then Continue
     IM2 = GetLineIndentMark(Y2)
-    If IM2 < IM0 Then 
+    If IM2 < IM0 Then
       bLimit2 = True
       Break
     Else If IM2 > IM0 Then
       If Not bEqual2 Then bStop = True
     Else
-      If bStop Then 
+      If bStop Then
         bLimit2 = True
         Break
       Endif
@@ -3205,7 +3250,9 @@ Private Sub CheckIndentMark()
   
   'Debug "=> "; IY1 + 1;; IY2 + 1;; IP
   
-SET_RESULT:
+SET_RESULT: 
+
+
   
   If IP <> $IP Or If IY1 <> $IY1 Or If IY2 <> $IY2 Then
     If $IP Then _RefreshLine($IY1, $IY2 - $IY1 + 1)
@@ -3321,7 +3368,7 @@ End
 
 Private Sub GetTab(Optional X As Integer) As String
   
-  If $bTabIndent Then 
+  If $bTabIndent Then
     Return "\t"
   Else
     Return Space$($iTabSize - X Mod $iTabSize)
@@ -4800,14 +4847,14 @@ Private Sub SearchString(Search As String, Previous As Boolean, ByRef SearchLine
 
     If Previous Then
         iNewPos = RInStr($hDoc.Lines[iY], Search, iX, gb.IgnoreCase)
-        If Not iNewPos Or If iNewPos > iX Then 
+        If Not iNewPos Or If iNewPos > iX Then
           iY = FindPreviousString(Search, iY - 1)
           If iY = -1 Then Return -1
           iNewPos = RInStr($hDoc.Lines[iY], Search, 0, gb.IgnoreCase)
         Endif
     Else
         iNewPos = InStr($hDoc.Lines[iY], Search, If(IsMissing(Previous), iX + 1, iX + 2), gb.IgnoreCase)
-        If Not iNewPos Then 
+        If Not iNewPos Then
           iY = FindNextString(Search, iY + 1)
           If iY = -1 Then Return -1
           iNewPos = InStr($hDoc.Lines[iY], Search, 0, gb.IgnoreCase)
@@ -4818,14 +4865,14 @@ Private Sub SearchString(Search As String, Previous As Boolean, ByRef SearchLine
 
     If Previous Then
         iNewPos = String.RInStr($hDoc.Lines[iY], Search, iX, gb.IgnoreCase)
-        If Not iNewPos Or If iNewPos > iX Then 
+        If Not iNewPos Or If iNewPos > iX Then
           iY = FindPreviousString(Search, iY - 1)
           If iY = -1 Then Return -1
           iNewPos = String.RInStr($hDoc.Lines[iY], Search, 0, gb.IgnoreCase)
         Endif
     Else
         iNewPos = String.InStr($hDoc.Lines[iY], Search, If(IsMissing(Previous), iX + 1, iX + 2), gb.IgnoreCase)
-        If Not iNewPos Then 
+        If Not iNewPos Then
           iY = FindNextString(Search, iY + 1)
           If iY = -1 Then Return -1
           iNewPos = String.InStr($hDoc.Lines[iY], Search, 0, gb.IgnoreCase)
@@ -4834,7 +4881,7 @@ Private Sub SearchString(Search As String, Previous As Boolean, ByRef SearchLine
   Endif
   
   SearchLine = iY
-  Column = iNewPos 
+  Column = iNewPos
   Return iY
 
 End
@@ -5737,7 +5784,7 @@ Public Sub _UpdateLineHeight(Y As Integer)
   H = 1
   WMax = $hView.ClientW - $MW - $LH \ 2
   
-  If $cLineLayout Then 
+  If $cLineLayout Then
   
     aLayout = LayoutText($hDoc.Lines[Y], $hDoc.LineLength[Y], WMax)
     
@@ -6108,7 +6155,7 @@ Private Sub DrawBarImage3()
       sLine = RTrim(aLines[iRow])
       iLen = Min(String.Len(sLine), 100)
       
-      If sLine Then 
+      If sLine Then
         
         sLine = RTrim(aLines[iRow])
         hInfo = aLinesInfo[iRow]
@@ -6248,9 +6295,9 @@ Public Sub SideBar_MouseMove()
 
   Select Case $iSideBarClick
 
-    Case SIDEBAR_VIEW 
+    Case SIDEBAR_VIEW
       $hSideBarViewer.Hide
-      SideBarClick(Mouse.Y)    
+      SideBarClick(Mouse.Y)
 
     Case SIDEBAR_UP, SIDEBAR_DOWN
       $hSideBarViewer.Hide
@@ -6667,7 +6714,7 @@ End
 
 Private Function DisabledBreakpoints_Read() As Integer[]
 
-  Return $hDoc.DisabledBreakpoints  
+  Return $hDoc.DisabledBreakpoints
 
 End
 
@@ -6864,7 +6911,7 @@ Public Sub _Search(sText As String, Optional bMoveNext As Boolean) As Boolean
     X = $X + 1
     Y = FindNextString(sText, ByRef Y, ByRef X)
   Else
-    X = $X 
+    X = $X
     Y = FindPreviousString(sText, ByRef Y, ByRef X)
   Endif
   
@@ -6938,8 +6985,9 @@ End
 
 Private Sub GetStyles() As TextHighlighterStyle[]
   
-  If Not $aThemeStyles Then $aThemeStyles = $hTheme.Styles
-  Return $aThemeStyles
+  Return $hTheme._GetStyles()
+  ' If Not $aThemeStyles Then $aThemeStyles = $hTheme.Styles
+  ' Return $aThemeStyles
   
 End
 
@@ -7058,7 +7106,7 @@ End
 
 Public Sub mnuGoto_Click()
 
-  ShowGotoPanel  
+  ShowGotoPanel
   
 End
 

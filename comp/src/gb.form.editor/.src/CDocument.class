@@ -57,14 +57,13 @@ Private $cHighlightLater As Collection
 Private $iNoHighlight As Integer
 Private $bRewrite As Boolean
 Private $bEndOfLine As Boolean
-Private $bCustomHighlight As Boolean
 Private $iFirstInvalidHighlight As Integer
 Private $iDoNotHighlightLine As Integer
 Private $bHighlightAll As Boolean
 
 Public Sub _new()
   
-  _Mode = New TextEditorMode 
+  _Mode = New TextEditorMode
   Clear
   
 End
@@ -154,9 +153,9 @@ Public Sub Load(sPath As String, bAddNewLine As Boolean)
     Lines.Add(sLine)
   Next
   
-  If Not hFile.EndOfFile Then 
+  If Not hFile.EndOfFile Then
     Lines.Add("")
-  Else If bAddNewLine And If Trim(sLine) Then 
+  Else If bAddNewLine And If Trim(sLine) Then
     Lines.Add("")
   Endif
   
@@ -179,7 +178,9 @@ Public Sub Save(sPath As String)
   For I = 0 To Lines.Max - 1
     Print #hFile, Lines[I]
   Next
-  Print #hFile, Lines[Lines.Max];
+  Print #hFile, Lines[Lines.Max]; 
+
+
   
   Close #hFile
   
@@ -230,7 +231,7 @@ End
 
 Private Sub GetAllViews() As TextEditor[]
 
-  Return Me.Current._GetViews()  
+  Return Me.Current._GetViews()
   
 End
 
@@ -353,7 +354,7 @@ Private Sub EndBefore() As CCommandBefore
     Else
       .BreakpointAfter = $cBreakpoint.Copy()
     Endif
-    If SameCollection(.BookmarkBefore, $cBookmark) Then 
+    If SameCollection(.BookmarkBefore, $cBookmark) Then
       .BookmarkBefore = Null
     Else
       .BookmarkAfter = $cBookmark.Copy()
@@ -375,7 +376,9 @@ Private Sub InsertLine(Y As Integer)
   Lines.Add("", Y)
   LineLength.Add(0, Y)
   LinesInfo.Add(CLineInfo(), Y)
+  If Y > 0 And If LinesInfo[Y - 1] Then LinesInfo[Y].SetState(LinesInfo[Y - 1].GetState())
   LinesInfo[Y].Modified = True
+  $iFirstInvalidHighlight = Min($iFirstInvalidHighlight, Y)
   
   StartBefore()
   $cBookmark = InsertCollection($cBookmark, Y)
@@ -476,7 +479,7 @@ Public Sub Insert(sText As String, X As Integer, Y As Integer)
   XAfter = XA
   YAfter = YA
   
-  If $iNoUndo = 0 Then 
+  If $iNoUndo = 0 Then
     AddUndo(CCommand(Me, CCommand.INSERT, sText, XO, YO, XA, YA, EndBefore()))
   Endif
   
@@ -567,7 +570,7 @@ Public Sub Info(Y As Integer) As CLineInfo
   Dim hInfo As CLineInfo
 
   hInfo = LinesInfo[Y]
-  If Not hInfo Then 
+  If Not hInfo Then
     hInfo = $hDefaultInfo
   Endif
   Return hInfo
@@ -579,7 +582,7 @@ Public Sub SetInfo(Y As Integer) As CLineInfo
   Dim hInfo As CLineInfo
 
   hInfo = LinesInfo[Y]
-  If Not hInfo Then 
+  If Not hInfo Then
     hInfo = CLineInfo()
     LinesInfo[Y] = hInfo
   Endif
@@ -706,7 +709,7 @@ Public Sub Undo()
           Case CCommand.DELETE
             Me.Current.Goto(.X, .Y)
             Me.Current.Insert(.Text)
-            If .SX <> .X Or If .SY <> .Y Then 
+            If .SX <> .X Or If .SY <> .Y Then
               Me.Current.Goto(.SX, .SY)
               Me.Current.Goto(.XA, .YA, True)
             Else If .Right Then
@@ -716,7 +719,7 @@ Public Sub Undo()
         End Select
         
         hCommandBefore = .State
-        If hCommandBefore Then 
+        If hCommandBefore Then
           With hCommandBefore
             If .BreakpointBefore Then $cBreakpoint = .BreakpointBefore.Copy()
             If .BookmarkBefore Then $cBookmark = .BookmarkBefore.Copy()
@@ -733,7 +736,7 @@ Public Sub Undo()
       
     Until L = 0
     
-    If $aUndo.Count And If $aUndo.Last.Type = CCommand.LINK Then 
+    If $aUndo.Count And If $aUndo.Last.Type = CCommand.LINK Then
       $aRedo.Add($aUndo.Pop())
     Else
       Break
@@ -800,7 +803,7 @@ Public Sub Redo()
         End Select
     
         hCommandBefore = .State
-        If hCommandBefore Then 
+        If hCommandBefore Then
           With hCommandBefore
             If .BreakpointAfter Then $cBreakpoint = .BreakpointAfter.Copy()
             If .BookmarkAfter Then $cBookmark = .BookmarkAfter.Copy()
@@ -817,7 +820,7 @@ Public Sub Redo()
       
     Until L = 0
     
-    If $aRedo.Count And If $aRedo.Last.Type = CCommand.LINK Then 
+    If $aRedo.Count And If $aRedo.Last.Type = CCommand.LINK Then
       $aUndo.Add($aRedo.Pop())
     Else
       Break
@@ -863,60 +866,51 @@ End
 Public Sub HasHighlight() As Boolean
   
   If $hHighlight Then Return True
-  If Object.CanRaise(Me.Current, "Highlight") Then Return True
+  'If Object.CanRaise(Me.Current, "Highlight") Then Return True
   
 End
 
 Private Sub HighlightLine(Y As Integer) As Boolean
   
-  Dim aHighlight As Byte[]
+  Dim aState As Byte[]
   Dim PY As Integer
+  Dim sTextAfter As String
+  Dim aHighlight As Byte[]
   
   If Info(Y).Colors Then Return
 
   If Y = 0 Then
     
-    TextHighlighter.State = Highlight.Normal
-    TextHighlighter.Tag = 0
-    TextHighlighter.Alternate = False
+    aState = New Byte[]
+    aState.Add(0)
     
   Else
     
     PY = Y - 1
-    With Info(PY)
-      TextHighlighter.State = .State
-      TextHighlighter.Tag = .Tag
-      TextHighlighter.Alternate = .Alternate
-    End With
+    aState = Info(PY).GetState()
     
   Endif
   
-  TextHighlighter.Limit = False
+  'TextHighlighter.Limit = False
   
   With SetInfo(Y)
 
-    aHighlight = New Byte[]
-    .Colors = aHighlight
-    TextHighlighter._Highlight = aHighlight
-    TextHighlighter.TextAfter = ""
-    TextHighlighter.Line = Y
+    'aHighlight = New Byte[]
+    '.Colors = aHighlight
+    'TextHighlighter._Highlight = aHighlight
+    '$hHighlight.TextAfter = ""
+    'TextHighlighter.Line = Y
     
     'Debug "Before: State = "; .State;; "Tag = "; .Tag;; "Alternate = "; .Alternate;; "Limit = "; .Limit
     
     '$hHighlight.Run(Lines[Y])
     
-    If $bCustomHighlight Then
+    aHighlight = $hHighlight.Run(Lines[Y] & "\n", aState)
+    .Colors = aHighlight
+    'If Y = 0 Then TextHighlighter.Limit = True
     
-      Current_Read()._RaiseHighlight(Lines[Y])
-      
-    Else
-      
-      $hHighlight.Run(Lines[Y])
-      If Y = 0 Then TextHighlighter.Limit = True
-      
-    Endif
-    
-    If TextHighlighter.TextAfter And If Lines[Y] <> TextHighlighter.TextAfter Then
+    sTextAfter = Left($hHighlight.TextAfter, -1)
+    If sTextAfter And If Lines[Y] <> sTextAfter Then
       If Not $bRewrite Then
         $bRewrite = True
         $bEndOfLine = Me.Current.Column >= LineLength[Me.Current.Line]
@@ -925,17 +919,24 @@ Private Sub HighlightLine(Y As Integer) As Boolean
       Endif
       Me.Current.Goto(0, Y)
       Me.Current.Remove(0, Y, LineLength[Y], Y)
-      Me.Current.Insert(TextHighlighter.TextAfter)
+      Me.Current.Insert(sTextAfter)
       .Colors = aHighlight
+      
     Endif
     
-    If .Alternate <> TextHighlighter.Alternate Or If .State <> TextHighlighter.State Or If .Tag <> TextHighlighter.Tag Or If .Limit <> TextHighlighter.Limit Or If .Comment <> TextHighlighter.Comment Then
-      .Alternate = TextHighlighter.Alternate
-      .State = TextHighlighter.State
-      .Tag = TextHighlighter.Tag
-      .Limit = TextHighlighter.Limit
-      .Comment = TextHighlighter.Comment
-      'Debug "Update: State = "; .State;; "Tag = "; .Tag;; "Alternate = "; .Alternate;; "Limit = "; .Limit
+    ' If .Alternate <> TextHighlighter.Alternate Or If .State <> TextHighlighter.State Or If .Tag <> TextHighlighter.Tag Or If .Limit <> TextHighlighter.Limit Or If .Comment <> TextHighlighter.Comment Then
+    '   .Alternate = TextHighlighter.Alternate
+    '   .State = TextHighlighter.State
+    '   .Tag = TextHighlighter.Tag
+    '   .Limit = TextHighlighter.Limit
+    '   .Comment = TextHighlighter.Comment
+    '   'Debug "Update: State = "; .State;; "Tag = "; .Tag;; "Alternate = "; .Alternate;; "Limit = "; .Limit
+    '   If Y < Lines.Max Then SetInfo(Y + 1).ClearHighlight()
+    ' Endif
+    
+    If .SetState(aState) Or If .Limit <> $hHighlight.Limit Or If .Comment <> $hHighlight.Comment Then
+      .Limit = $hHighlight.Limit
+      .Comment = $hHighlight.Comment
       If Y < Lines.Max Then SetInfo(Y + 1).ClearHighlight()
     Endif
     
@@ -951,16 +952,9 @@ Private Sub StartHighlight() As Boolean
   
   $bRewrite = False
   $bEndOfLine = False
-  $bCustomHighlight = False
   $iDoNotHighlightLine = -1
 
-  If Not $hHighlight Then 
-    If Object.CanRaise(Me.Current, "Highlight") Then 
-      $bCustomHighlight = True
-    Else
-      Return
-    Endif
-  Endif
+  If Not $hHighlight Then Return
   
   $bHighlighting = True
 
@@ -1000,7 +994,7 @@ Public Sub HighlightUntil(Y As Integer)
   
   Y = Min(Y, Lines.Max)
   
-  If $iNoHighlight Then 
+  If $iNoHighlight Then
     $cHighlightLater[Y] = True
     Return
   Endif
@@ -1011,7 +1005,7 @@ Public Sub HighlightUntil(Y As Integer)
 
   iNextFirst = -1
   For L = $iFirstInvalidHighlight To Y
-    If L = $iDoNotHighlightLine And If Info(L).Modified Then 
+    If L = $iDoNotHighlightLine And If Info(L).Modified Then
       If iNextFirst < 0 Then iNextFirst = L
       Continue
     Endif
@@ -1205,7 +1199,7 @@ Private Sub EndOfLine_Write(Value As Integer)
       Return
   End Select
   
-  $iEndOfLine = Value  
+  $iEndOfLine = Value
 
 End
 
@@ -1306,7 +1300,7 @@ Public Sub Reset(Optional bSave As Boolean)
   Dim I As Integer
   
   For I = 0 To Lines.Max
-    If Info(I).Modified Then 
+    If Info(I).Modified Then
       With SetInfo(I)
         .Modified = False
         .Saved = bSave
@@ -1314,7 +1308,7 @@ Public Sub Reset(Optional bSave As Boolean)
     Endif
   Next
 
-  Refresh  
+  Refresh
   
 End
 
@@ -1330,7 +1324,7 @@ Public Sub EnableHighlight()
   Dim cHighlightLater As Collection
   
   Dec $iNoHighlight
-  If $iNoHighlight = 0 Then 
+  If $iNoHighlight = 0 Then
     cHighlightLater = $cHighlightLater
     For Each cHighlightLater
       'HighlightUntil(cHighlightLater.Key)
@@ -1626,7 +1620,7 @@ Public Sub FindPreviousDiff(Y As Integer) As Integer
     While Y > 0
       Dec Y
       If DiffRemoved[Y] Then Return Y
-      If IsDiffAdded(Y) Then 
+      If IsDiffAdded(Y) Then
         While Y > 0
           Dec Y
           If Not IsDiffAdded(Y) Then Return Y + 1
@@ -1659,7 +1653,7 @@ Public Sub FindNextDiff(Y As Integer) As Integer
     While Y < Lines.Max
       Inc Y
       If DiffRemoved[Y] Then Return Y
-      If IsDiffAdded(Y) Then 
+      If IsDiffAdded(Y) Then
         While Y < Lines.Max
           Inc Y
           If Not IsDiffAdded(Y) Then Return Y - 1
@@ -1679,3 +1673,12 @@ Private Function DiffMode_Read() As Boolean
   Return DiffRemoved
 
 End
+
+Public Sub GetStartLevel(Y As Integer) As Integer
+  
+  If Y = 0 Then Return 0
+  Return Info(Y - 1).GetLevel()
+  
+End
+
+
