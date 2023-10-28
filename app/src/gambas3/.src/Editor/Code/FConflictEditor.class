@@ -53,7 +53,6 @@ Public Sub GetEditor() As TextEditor
   
 End
 
-
 Public Sub LoadFile() As Boolean
   
   With edtEditor
@@ -100,6 +99,9 @@ Public Sub LoadFile() As Boolean
   $hBookmark = New CBookmark(Me, btnBookmark, mnuBookmark)
 
   ReadConfig
+
+  TextHighlighter.Register("highlight/conflict.highlight")
+  edtEditor.Mode = "conflict"
 
   Reload
 
@@ -1396,34 +1398,6 @@ Public Sub mnuPretty_Click()
 
   MPrettyCode.Run(Me)
 
-End
-
-Public Sub Editors_Highlight(Text As String)
-  
-  If Text Begins "<<<<<<" Then 
-    TextHighlighter.Add(Highlight.Removed, String.Len(Text))
-    TextHighlighter.State = Highlight.Removed
-  Else If Text Begins "======" Then
-    TextHighlighter.Add(Highlight.Comment, String.Len(Text))
-    TextHighlighter.State = Highlight.Normal
-    TextHighlighter.Tag = 1
-  Else If Text Begins ">>>>>>" Then
-    TextHighlighter.Add(Highlight.Added, String.Len(Text))
-    TextHighlighter.State = Highlight.Added
-    TextHighlighter.Tag = 2
-  Else
-    If TextHighlighter.Tag = 1 Then 
-      TextHighlighter.State = Highlight.Added
-      TextHighlighter.Tag = 0
-    Else If TextHighlighter.Tag = 2 Then 
-      TextHighlighter.State = Highlight.Normal
-      TextHighlighter.Tag = 0
-    Endif
-    
-    TextHighlighter.Add(TextHighlighter.State, String.Len(Text))
-    
-  Endif
-  
 End
 
 Private Sub FindPreviousConflict()

@@ -105,6 +105,20 @@ Public Sub DrawControl(hCCtrl As CControl) As Boolean
       Style.PaintPanel(0, 0, hCtrl.W, hCtrl.H, iBorder)
       CFamily.PaintContainer(Null, FW, FW, hCtrl.W - 2 * FW, hCtrl.H - 2 * FW)
       Return
+      
+    Case "splitter"
+      
+      CFamily.PaintContainer(Null, 0, 0, hCtrl.W, hCtrl.H)
+      If hCCtrl.HasProperty("Border") And If hCCtrl.GetPropertyReal("Border") Then
+        CFamily.PaintIcon(hCCtrl, Picture["img/control/splitter-border.png"])
+      Else
+        CFamily.PaintIcon(hCCtrl)
+      Endif
+    
+    Case "hsplit", "vsplit"
+      
+      CFamily.PaintContainer(Null, 0, 0, hCtrl.W, hCtrl.H)
+      CFamily.PaintIcon(hCCtrl)
     
     Case "spring"
     

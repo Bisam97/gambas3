@@ -118,7 +118,7 @@ Public Sub _new(sPath As String)
 
   $hEditor = edtEditor
   edtEditor.ShowIcon = True
-  edtEditor.ShowBraces = True 
+  edtEditor.ShowBraces = True
   edtEditor.Mode = "gambas"
   edtEditor.Highlight = "gambas"
 
@@ -217,7 +217,7 @@ Public Function Save() As Boolean
 
   $hEditor.End
   
-  If Settings["/FormatCode/FormatOnLoad"] Then 
+  If Settings["/FormatCode/FormatOnLoad"] Then
     MPrettyCode.Run(Me)
   Endif
 
@@ -1027,7 +1027,7 @@ Public Sub Editors_KeyPress()
 
     If Not Key.Shift And If LocalVariableDeclaration Then
       If CreateLocalVariable() Then
-        $hEditor.Goto(-1, $hEditor.Line) 
+        $hEditor.Goto(-1, $hEditor.Line)
         iLine = $hEditor.Line
       Endif
     Endif
@@ -1422,7 +1422,7 @@ Static Public Function ReadSymbolType(aSym As String[], iIndex As Integer, Optio
   If Not (aSym[iIndex] == "AS") Then Return
   Inc iIndex
   If aSym[iIndex] == "NEW" Then Inc iIndex
-  If aSym[iIndex] == "STRUCT" Then 
+  If aSym[iIndex] == "STRUCT" Then
     bStruct = True
     Inc iIndex
   Endif
@@ -1434,7 +1434,7 @@ Static Public Function ReadSymbolType(aSym As String[], iIndex As Integer, Optio
     If aSym[iIndex + 1] = "[" Then bArray = True
   Endif
 
-  If bArray Then 
+  If bArray Then
     If bEmbed Then
       If sType = UCase(sType) Then sType = Left(sType) & LCase(Mid$(sType, 2))
     Endif
@@ -1642,7 +1642,7 @@ Public Function GetSymbolType(sSymbol As String, Optional bPoint As Boolean, Opt
 
   ' Look for subroutines
 
-LOOK_FOR_SUBR:
+LOOK_FOR_SUBR: 
 
   If Not bPoint Then
     $hSymbol = Project.Documentation.GetClassSymbols(".")[sSymbol]
@@ -1669,7 +1669,7 @@ LOOK_FOR_SUBR:
   
   Return
   
-READ_LOCAL_SYMBOL:
+READ_LOCAL_SYMBOL: 
 
   If Not ReadLocalSymbolType(aSym, iStart, sSymbol, $hVirtualSymbol) Then Return
   
@@ -2003,7 +2003,7 @@ Public Sub CheckCompletion()
       If Not FCompletion.VisibleFrom($hEditor) Then
         sWord = $hCompletion.GetWord(sLine, $hEditor.Column)
         If String.Len(sWord) >= 3 Then
-          If GetRightString(sLine) Then 
+          If GetRightString(sLine) Then
             $hCompletion.OpenMode("I", sWord)
           Else
             $hCompletion.Open(sWord)
@@ -2041,7 +2041,7 @@ Public Sub CheckCompletion()
           Return
         Endif
         
-        If Len(sWord) >= 3 Then 
+        If Len(sWord) >= 3 Then
           $hCompletion.Mode = "A"
           CheckCompletion()
           'FCompletion.SetText(sWord)
@@ -2403,7 +2403,7 @@ Private Sub FindDefinition() As Boolean
   ' sLig = Left$(sLig, iCol - 1)
   ' If Right(sLig) = "[" Then sLig &= "]"
   'Editor.ShowWord(iLine, iCol, 3)
-  Highlight.Analyze(sLig, True, $hEditor[iLine].InitialState.State)
+  Highlight.Analyze(sLig, True) ', $hEditor[iLine].InitialState.State)
   
   aSymbols = Highlight.Symbols
   
@@ -2603,7 +2603,7 @@ Private Sub RefreshBackground()
     Return
 
     For Each hEditor In aEditor
-      If hEditor And If hEditor.HasFocus Then 
+      If hEditor And If hEditor.HasFocus Then
         bHasFocus = True
         Break
       Endif
@@ -2647,7 +2647,7 @@ Public Sub Editors_MouseUp()
 
   Dim sText As String
   
-  If Mouse.Control Then 
+  If Mouse.Control Then
     If Mouse.Left Then
       FindDefinition
     Else If Mouse.Right Then
@@ -3365,7 +3365,7 @@ Public Sub RenameControl(sOld As String, sNew As String)
           sSym = aSym[iInd - 1]
           If sSym = "." Then
             If iInd <= 1 Or If Not (aSym[iInd - 2] == "ME") Then Continue
-          Else If sSym = "!" Or If sSym == "AS" Or If sSym == "NEW" Then 
+          Else If sSym = "!" Or If sSym == "AS" Or If sSym == "NEW" Then
             Continue
           Endif
         Endif
@@ -3587,7 +3587,7 @@ Private Sub GetExpressionTypeWithEval(aSym As String[], aType As Integer[]) As S
     Else If aSym[I] = "[" Then
       
       bMakeArray = True
-      If I > 0 Then 
+      If I > 0 Then
         If aType[I - 1] = Highlight.Symbol Or If aSym[I - 1] = ")" Or If aSym[I - 1] == "ME" Or If aSym[I - 1] == "SUPER" Then bMakeArray = False
       Endif
       
@@ -3672,11 +3672,11 @@ Private Sub AddLocalVariable(sName As String, sType As String)
   
   sLine = Space$(iIndent) & "Dim " & sName & " As " & sType & "\n"
   Inc Y
-  If Trim($hEditor[iLine].Text) Then 
+  If Trim($hEditor[iLine].Text) Then
     sLine &= Space$(iIndent) & "\n"
     Inc Y
   Endif
-  If iLine = (iProc + 1) Then 
+  If iLine = (iProc + 1) Then
     sLine = "\n" & sLine
     Inc Y
   Endif
@@ -3709,7 +3709,7 @@ Private Sub AddGlobalVariable(sName As String, sType As String, bStatic As Boole
   If bStatic Then sLine = "Static "
   sLine &= "Private " & sName & " As " & sType & "\n"
   Inc Y
-  If iLast = 0 Then 
+  If iLast = 0 Then
     sLine = "\n" & sLine
     Inc Y
   Endif
@@ -3753,7 +3753,7 @@ Private Sub AddVariable(sName As String, sType As String) As Boolean
     If sClass Then
       If Project.Documentation.Classes.Exist(sClass) Then
         sType = Project.Documentation.Classes[sClass].Name
-      Else If Project.ExistClass(sClass) Then 
+      Else If Project.ExistClass(sClass) Then
         sType = File.BaseName(Project.Tree.FindPath(sClass))
       Endif
     Endif
@@ -4022,7 +4022,7 @@ Public Sub FindEventClass(sCtrl As String) As String
   
   Return
   
-CHECK_LINE:
+CHECK_LINE: 
 
   aLine = Scan(sLine, "*NEW * AS \"*\"*")
   If aLine.Count <> 4 Then Return
@@ -4070,7 +4070,7 @@ Private Sub UpdateDiffMode()
   If $bDiffMode Then
     
     Me.Save()
-    If Not Action[".diff", Me].Visible Then 
+    If Not Action[".diff", Me].Visible Then
       $bDiffMode = False
       Action[".diff", Me].Value = False
       Return
@@ -4079,7 +4079,7 @@ Private Sub UpdateDiffMode()
     
   Else
   
-    $hEditor.LeaveDiffMode()  
+    $hEditor.LeaveDiffMode()
   
   Endif
   
