@@ -1,21 +1,47 @@
+escape{Normal}:
+  match /\\./
+shebang{Preprocessor}:
+  from /^#!/
 comment:
+  from /^#/
   from /#\s/
 number:
   match /[+-]?[0-9]+(\.[0-9]+)?([Ee][+-]?[0-9]+)?/
   match /0x[0-9a-fA-F]+/
-string:
-  from " to "
+string.simple{String}:
   from ' to '
   escape:
-    match /\\[fnrtv0'"\\]/
-    match /\\c[A-Za-z]/
+    match /\\./
+string.double{String}:
+  from " to "
+  escape:
+    match /\\[$`'"\\]/
+  expansion{Datatype}:
+    match /\$[A-Za-z0-9_]+/
+  expansion.brace{Datatype}:
+    from ${ to } with sh
+  command{Datatype}:
+    from ` to ` with sh
+string.ansi{String}:
+  from $' to '
+    match /\\[abeEfnrtv\\'"?]/
+    match /\\[0-7]{3}/
     match /\\x[0-9a-fA-F]{2}/
     match /\\u[0-9a-fA-F]{4}/
-    match /\\u{[0-9a-fA-F]+}/
+    match /\\u[0-9a-fA-F]{8}/
+    match /\\c[a-zA-Z]/
+expansion{Datatype}:
+  match /\$[A-Za-z0-9_]+/
+expansion.brace{Datatype}:
+  from ${ to } with sh
+command{Datatype}:
+  from ` to ` with sh
 keyword:
-  word function do else test for to in fi if elif then return exit while until done break continue select case esac
+  keyword function do else test for to in fi if elif then return exit while until done break continue select case esac
 operator:
   symbol -gt -lt -ge -ne -le -eq
-  symbol { } $ # [ ] <<< . + << = >> == - ~ += ( , != * -= &= ;; ) < % & ]; @ ! ; > | ? ^ : <= / `
+  symbol { } $ # [ ] <<< . + << = >> == - ~ += ( , != * -= &= ;; ) < % & ]; @ ! ; > | ? ^ : <= /
 function:
  keyword echo read cd which rm cp mv rmdir cat grep awk tr sed sleep clear sudo su source eval export time date pwd set unset chown chmod exec alias unalias bg bind builtin caller command compgen complete compopt declare dirs disown enable fc fg getopts hash help history jobs kill let local logout mapfile popd printf pushd readarray readonly shift shopt suspend test times trap type typeset ulimit umask wait
+identifier:
+  match /[A-Za-z_][A-Za-z_0-9]*/
