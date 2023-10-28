@@ -397,8 +397,8 @@ static void add_operator()
 
 	source_ptr = end;
 
-	if (EVAL->analyze && op == RS_QUES)
-		op = RS_PRINT;
+	/*if (EVAL->analyze && op == RS_QUES)
+		op = RS_PRINT;*/
 
 	if (op < 0)
 		THROW("Unknown operator");

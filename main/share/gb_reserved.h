@@ -300,6 +300,8 @@ typedef
 		RS_NOT_BEGINS,
 		RS_ENDS,
 		RS_NOT_ENDS,
+		RS_MATCH,
+		RS_NOT_MATCH,
 
 		RS_PLUS_EQ,
 		RS_MINUS_EQ,
@@ -309,6 +311,9 @@ typedef
 		RS_MOD_EQ,
 		RS_AMP_EQ,
 		RS_FILE_EQ,
+		RS_FLEX_EQ,
+
+		RS_WEBPAGE_LIMIT
 		}
 	RESERVED_ID;
 

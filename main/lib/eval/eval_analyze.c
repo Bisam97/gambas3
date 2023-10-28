@@ -350,12 +350,14 @@ static void analyze(EVAL_ANALYZE *result)
 	int len, i, l;
 	bool preprocessor;
 	uint last;
+	int len_before;
 
 	_colors_len = 0;
 	EVAL_analyze_exit();
 	
 	pattern = EVAL->pattern;
 	preprocessor = FALSE;
+	len_before = 0;
 
 	if (EVAL->len <= 0)
 		return;
@@ -379,12 +381,15 @@ static void analyze(EVAL_ANALYZE *result)
 		
 		if (type == RT_SPACE)
 		{
+			len = PATTERN_index(*pattern);
+			len_before += len;
+
 			if (!EVAL->rewrite || _colors_len == 0 || PATTERN_is_end(pattern[1]) || PATTERN_is_comment(pattern[1]))
 			{
-				len = PATTERN_index(*pattern);
 				add_data(RT_SPACE, len);
 				add_result_spaces(result, len);
 			}
+
 			goto __NEXT_PATTERN;
 		}
 
@@ -392,6 +397,7 @@ static void analyze(EVAL_ANALYZE *result)
 		next_type = type;
 		
 		get_symbol(*pattern, &symbol, &len);
+		len_before += len;
 
 		space_before = space_after;
 		space_after = FALSE;
@@ -522,6 +528,16 @@ static void analyze(EVAL_ANALYZE *result)
 					//space_before = FALSE;
 					space_after = FALSE;
 				}
+				else if (*symbol == '?')
+				{
+					if (EVAL->rewrite)
+					{
+						symbol = "Print";
+						len = 5;
+						type = RT_RESERVED;
+						space_after = TRUE;
+					}
+				}
 				else if (*symbol == '-' && len == 1)
 				{
 					if (old_type == RT_OPERATOR && (PATTERN_is(get_last_pattern(pattern), RS_LBRA) || PATTERN_is(get_last_pattern(pattern),RS_LSQR)))
@@ -551,6 +567,32 @@ static void analyze(EVAL_ANALYZE *result)
 						space_before = TRUE;
 
 					space_after = TRUE;
+				}
+				else if (PATTERN_is(*pattern, RS_WEBPAGE_LIMIT))
+				{
+					if (EVAL->limit)
+					{
+						add_result(result, symbol, len);
+						add_data(RT_OPERATOR, len);
+
+						/*for(;;)
+						{
+							pattern++;
+							if (get_type(pattern) == RT_END)
+								break;
+
+							get_symbol(*pattern, &symbol, &len);
+							add_result(result, symbol, len);
+							add_data(RT_ERROR, len);
+						}*/
+
+						goto __END_PATTERN;
+					}
+					else
+					{
+						space_before = FALSE;
+						space_after = FALSE;
+					}
 				}
 				else
 				{
@@ -594,6 +636,7 @@ static void analyze(EVAL_ANALYZE *result)
 		{
 			add_result_char(result, '"');
 			len += 2;
+			len_before += 2;
 		}
 
 		if (EVAL->rewrite)
@@ -676,8 +719,13 @@ static void analyze(EVAL_ANALYZE *result)
 		pattern++;
 	}
 
+__END_PATTERN:
+
 	flush_result(result);
 	flush_colors(result);
+
+	result->len_before = len_before;
+
 
 	//fprintf(stderr, "analyze: %d %s\n", strlen(result->str), result->str);
 }
@@ -702,7 +750,7 @@ static void add_end_pattern(void)
 }
 
 
-PUBLIC void EVAL_analyze(const char *src, int len, int state, EVAL_ANALYZE *result, bool rewrite)
+PUBLIC void EVAL_analyze(const char *src, int len, int state, EVAL_ANALYZE *result, bool rewrite, bool limit)
 {
 	//int nspace = 0;
 
@@ -733,6 +781,7 @@ PUBLIC void EVAL_analyze(const char *src, int len, int state, EVAL_ANALYZE *resu
 		
 		EVAL->analyze = TRUE;
 		EVAL->rewrite = rewrite;
+		EVAL->limit = limit;
 		EVAL->comment = state == RT_COMMENT;
 		
 		//fprintf(stderr, "EVAL_analyze: [%d] %.*s\n", EVAL->comment, len, src);

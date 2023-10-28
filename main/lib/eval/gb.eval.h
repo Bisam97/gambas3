@@ -56,6 +56,7 @@ typedef
 		int len;
 		int proc;
 		int state;
+		int len_before;
 	}
 	EVAL_ANALYZE;
 

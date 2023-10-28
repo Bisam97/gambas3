@@ -26,7 +26,7 @@
 
 #include "eval.h"
 
-void EVAL_analyze(const char *src, int len, int state, EVAL_ANALYZE *result, bool rewrite);
+void EVAL_analyze(const char *src, int len, int state, EVAL_ANALYZE *result, bool rewrite, bool limit);
 void EVAL_analyze_exit(void);
 
 #endif

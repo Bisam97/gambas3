@@ -225,6 +225,7 @@ COMP_INFO COMP_res_info[] =
 	{ "&=",           RSF_ASGN,                 RS_AMP                                              },
 	{ "&/=",          RSF_ASGN,                 RS_FILE                                             },
 	{ "^=",           RSF_ASGN,                 RS_FLEX                                             },
+
 	{ "%>"                                                                                          }, // Webpage delimiter
 
 	{ NULL }

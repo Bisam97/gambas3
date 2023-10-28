@@ -34,6 +34,8 @@ static void *_analyze_symbol = 0;
 static void *_analyze_type = 0;
 static void *_analyze_pos = 0;
 static char *_analyze_text = 0;
+static bool _analyze_is_function = FALSE;
+static int _analyze_length_before = 0;
 
 static char *_purged_line = NULL;
 
@@ -154,14 +156,14 @@ static int convState(int state)
 	}
 }
 
-static void analyze(const char *src, int len_src, bool rewrite, int state)
+static void analyze(const char *src, int len_src, bool rewrite, int state, bool limit)
 {
 	GB_ARRAY garray, tarray, parray;
 	int i, n, pos, len, p, upos, ulen, l;
 	char *str;
 	EVAL_ANALYZE result;
 
-	EVAL_analyze(src, len_src, state == HIGHLIGHT_COMMENT ? RT_COMMENT : RT_END, &result, rewrite);
+	EVAL_analyze(src, len_src, state == HIGHLIGHT_COMMENT ? RT_COMMENT : RT_END, &result, rewrite, limit);
 	
 	n = 0;
 	for (i = 0; i < result.len; i++)
@@ -204,6 +206,9 @@ static void analyze(const char *src, int len_src, bool rewrite, int state)
 		upos += ulen;
 	}
 
+	_analyze_is_function = result.proc;
+	_analyze_length_before = result.len_before;
+
 	GB.Unref(&_analyze_symbol);
 	_analyze_symbol = garray;
 	GB.Ref(garray);
@@ -244,9 +249,9 @@ BEGIN_METHOD(Highlight_Purge, GB_STRING text; GB_BOOLEAN comment; GB_BOOLEAN str
 
 END_METHOD
 
-BEGIN_METHOD(Highlight_Analyze, GB_STRING text; GB_BOOLEAN rewrite; GB_INTEGER state)
+BEGIN_METHOD(Highlight_Analyze, GB_STRING text; GB_BOOLEAN rewrite; GB_INTEGER state; GB_BOOLEAN limit)
 
-	analyze(STRING(text), LENGTH(text), VARGOPT(rewrite, FALSE), VARGOPT(state, HIGHLIGHT_NORMAL));
+	analyze(STRING(text), LENGTH(text), VARGOPT(rewrite, FALSE), VARGOPT(state, HIGHLIGHT_NORMAL), VARGOPT(limit, FALSE));
 	GB.ReturnObject(_analyze_symbol);
 
 END_METHOD
@@ -274,6 +279,20 @@ BEGIN_PROPERTY(Highlight_TextAfter)
 	GB.ReturnString(_analyze_text);
 
 END_PROPERTY
+
+BEGIN_PROPERTY(Highlight_IsFunction)
+
+	GB.ReturnBoolean(_analyze_is_function);
+
+END_PROPERTY
+
+BEGIN_PROPERTY(Highlight_LengthBefore)
+
+	GB.ReturnInteger(_analyze_length_before);
+
+END_PROPERTY
+
+//---------------------------------------------------------------------------
 
 GB_DESC CHighlightDesc[] =
 {
@@ -306,11 +325,13 @@ GB_DESC CHighlightDesc[] =
 	GB_CONSTANT("Custom", "i", HIGHLIGHT_NUM_COLOR),
 	
 	GB_STATIC_METHOD("_exit", NULL, Highlight_exit, NULL),
-	GB_STATIC_METHOD("Analyze", "String[]", Highlight_Analyze, "(Code)s[(Rewrite)b(State)i]"),
+	GB_STATIC_METHOD("Analyze", "String[]", Highlight_Analyze, "(Code)s[(Rewrite)b(State)i(Limit)b]"),
 	GB_STATIC_PROPERTY_READ("Symbols", "String[]", Highlight_Symbols),
 	GB_STATIC_PROPERTY_READ("Types", "Integer[]", Highlight_Types),
 	GB_STATIC_PROPERTY_READ("Positions", "Integer[]", Highlight_Positions),
 	GB_STATIC_PROPERTY_READ("TextAfter", "s", Highlight_TextAfter),
+	GB_STATIC_PROPERTY_READ("IsFunction", "b", Highlight_IsFunction),
+	GB_STATIC_PROPERTY_READ("LengthBefore", "i", Highlight_LengthBefore),
 	GB_STATIC_METHOD("Purge", "s", Highlight_Purge, "(Code)s[(Comment)b(String)b]"),
 
 	GB_END_DECLARE

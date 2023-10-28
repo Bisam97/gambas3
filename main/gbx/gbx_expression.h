@@ -60,6 +60,7 @@ typedef
 		unsigned rewrite : 1;
 		unsigned comment : 1;
 		unsigned custom : 1;
+		unsigned limit : 1;
 		//unsigned _reserved : 12;
 		}
 	//PACKED
