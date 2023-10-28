@@ -16,7 +16,13 @@ Private $sRoot As String
 
 Private Function Host_Read() As String
 
-  Return CGI["HTTP_HOST"]
+  Dim sHost As String
+  Dim iPos As Integer
+
+  sHost = CGI["HTTP_HOST"]
+  iPos = RInStr(sHost, ":")
+  If iPos Then sHost = Left(sHost, iPos - 1)
+  Return sHost
 
 End
 
@@ -80,6 +86,13 @@ End
 
 Private Function Port_Read() As String
 
-  Return CGI["SERVER_PORT"]
+  Dim sHost As String
+  Dim iPos As Integer
+  Dim sPort As String
+
+  sHost = CGI["HTTP_HOST"]
+  iPos = RInStr(sHost, ":")
+  If iPos Then sPort = Mid$(sHost, iPos + 1)
+  Return sPort
 
 End
