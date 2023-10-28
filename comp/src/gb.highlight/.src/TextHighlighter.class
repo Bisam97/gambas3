@@ -492,7 +492,7 @@ Public Sub Paint(Text As String, X As Float, Y As Float, Optional Theme As Varia
   Dim P As Integer
   Dim iColor As Integer
   Dim iLine As Integer
-  Dim XB As Integer
+  Dim XB As Float
   Dim fCharWidth As Float
   Dim LH, BW As Integer
   Dim LB As Integer
@@ -525,8 +525,8 @@ Public Sub Paint(Text As String, X As Float, Y As Float, Optional Theme As Varia
 
       If P < Pos Then 
         'iLen -= Pos - P
+        $sToken = String.Mid$($sToken, Pos - P + 1)
         P = Pos
-        $sToken = String.Mid$($sLine, P)
       Endif
       
       If fCharWidth Then
@@ -535,6 +535,7 @@ Public Sub Paint(Text As String, X As Float, Y As Float, Optional Theme As Varia
         X = X0 + Paint.Font.TextWidth(String.Mid($sLine, Pos, P - Pos))
       Endif
       
+      X = Int(X)
       iColor = $hStyle.Color
       Paint.Background = iColor
       If $hStyle.Bold Then
