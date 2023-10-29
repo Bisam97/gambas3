@@ -468,9 +468,9 @@ static void trans_operation(short op, short nparam, PATTERN previous)
 
 		case RST_ADD:
 			type = Max(get_type_id(0, nparam), get_type_id(1, nparam));
+			ftype = TYPE_make_simple(type);
 			if (type == T_DATE)
 				type = T_FLOAT;
-			ftype = TYPE_make_simple(type);
 			break;
 
 		case RST_AND:
