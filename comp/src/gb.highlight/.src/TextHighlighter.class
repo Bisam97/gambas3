@@ -444,8 +444,6 @@ Public Sub ToHTML(Text As String, Optional Theme As TextHighlighterTheme) As Str
     
     sLineHtml = ""
 
-    If Y And If Me.Limit Then sLineHtml &= "<div style=\"height:1px; background-color:#C0C0C0; margin:0.5em 0;\"></div>"
-    
     While Not HighlightToken()
       
       sHtml = Replace(Html($sToken), " ", "&nbsp;")
@@ -460,7 +458,6 @@ Public Sub ToHTML(Text As String, Optional Theme As TextHighlighterTheme) As Str
       
       sStyle = ""
       If $iLevel Then sStyle &= "background-color:" & Color.ToHTML($iBackground) & ";"
-      'If bAlt Then sStyle &= "background:#" & Hex$(aStyles[GetAlternate()].Color, 6) & ";"
       If $hStyle.Color Then sStyle &= "color:" & Color.ToHTML($hStyle.Color) & ";"
       If $hStyle.Dotted Then sStyle &= "text-decoration:underline dotted;"
       
@@ -476,7 +473,7 @@ Public Sub ToHTML(Text As String, Optional Theme As TextHighlighterTheme) As Str
     
     sLineHtml &= Html($sToken)
     
-    ' If TextHighlighter.Limit Then 
+    ' If Me.Limit Then 
     '   If Y And If Not Trim(aResult[aResult.Max]) Then
     '     aResult.Add("<div style=\"height:1px;background:#808080;position:relative;top:-0.5em;\"></div>")
     '   Else
@@ -492,7 +489,7 @@ Public Sub ToHTML(Text As String, Optional Theme As TextHighlighterTheme) As Str
   
 End
 
-Public Sub Paint(Text As String, X As Float, Y As Float, Optional Theme As Variant, Optional Pos As Integer)
+Public Sub Paint(Text As String, X As Float, Y As Float, Optional Theme As TextHighlighterTheme, Optional Pos As Integer)
   
   Dim aText As String[]
   Dim P As Integer
@@ -519,8 +516,6 @@ Public Sub Paint(Text As String, X As Float, Y As Float, Optional Theme As Varia
   For iLine = 0 To aText.Max
     
     HighlightLine(aText[iLine])
-    'If Y = 0 Then TextHighlighter.Limit = False
-    'If Me.TextAfter Then sLine = TextHighlighter.TextAfter
 
     Do
       
@@ -569,3 +564,71 @@ Public Sub Paint(Text As String, X As Float, Y As Float, Optional Theme As Varia
   Next
   
 End
+
+Static Private Sub ColorToConsole(iColor As Integer) As String
+  
+  With Color[iColor]
+    Return .Red & ";" & .Green & ";" & .Blue
+  End With
+  
+End
+
+Public Sub ToANSI(Text As String, Optional Theme As TextHighlighterTheme) As String
+
+  Dim aResult As New String[]
+  Dim Y As Integer
+  Dim sANSI As String
+  Dim aText As String[]
+  Dim sLineANSI As String
+  Dim iColor As Integer
+  Dim iBackground As Integer
+  
+  iColor = Color.Default
+  iBackground = Color.Default
+  
+  HighlightStart(Theme)
+  
+  aText = Split(Text, "\n")
+  For Y = 0 To aText.Max
+    
+    HighlightLine(aText[Y])
+    
+    sLineANSI = ""
+
+    'If Limit And If Y And If Me.Limit Then aResult.Add(String(80, "─") & "\r\n")
+    
+    While Not HighlightToken()
+
+      sANSI = $sToken
+      
+      If $hStyle.Bold Then sANSI = "\e[1m" & sANSI & "\e[21m\e[22m" ' "\e[21m" some terminal don't regognize this
+      If $hStyle.Underline Then sANSI = "\e[4m" & sANSI & "\e[24m"
+      ' TODO: Implement strikeout
+      
+      If $iBackground <> iBackground Then 
+        iBackground = $iBackground
+        If iBackground = Color.Default Then
+          sANSI = "\e[49m" & sANSI
+        Else
+          sANSI = "\e[48;2;" & ColorToConsole(iBackground) & "m" & sANSI
+        Endif
+      Endif
+      
+      If $hStyle.Color <> iColor Then
+        iColor = $hStyle.Color
+        sANSI = "\e[38;2;" & ColorToConsole(iColor) & "m" & sANSI
+      Endif
+      
+      sLineANSI &= sANSI
+      
+    Wend
+    
+    aResult.Add(sLineANSI & "\r\n")
+    
+  Next
+  
+  aResult.Add("\e[0m")
+  Return aResult.Join("")
+  
+ End
+
