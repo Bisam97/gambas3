@@ -22,6 +22,7 @@ Public Indent As Integer
 Public Parent As CState
 Public Commands As New CCommand[]
 Public Children As New CState[]
+Public Limit As Boolean
 
 Private $iCurrentCommand As Integer
 Private $iCurrentChild As Integer
@@ -102,17 +103,19 @@ Public Sub AddCommand(sText As String)
   Dim I As Integer
   
   iPos = InStr(sText, " ")
-  If iPos = 0 Then Return
-  
-  sCommand = Left(sText, iPos - 1)
+  If iPos = 0 Then 
+    sCommand = sText
+    aArg = New String[]
+  Else
+    sCommand = Left(sText, iPos - 1)
+    aArg = Split(Mid$(sText, iPos + 1), " ", "", True)
+    For I = 0 To aArg.Max
+      aArg[I] = CState.Subst(aArg[I])
+    Next
+  Endif
   
   Try hCommand = Object.New("CCommand" & UCase(Left(sCommand)) & Mid$(sCommand, 2))
   If Error Then Error.Raise("Unknown command: " & sCommand)
-  
-  aArg = Split(Mid$(sText, iPos + 1), " ", "", True)
-  For I = 0 To aArg.Max
-    aArg[I] = CState.Subst(aArg[I])
-  Next
   
   hCommand.SetArgs(aArg)
   hCommand.Init()
@@ -205,6 +208,9 @@ Public Sub Forward(Optional sLen As String, iColorIndex As Integer = ColorIndex)
     Print("Forward(" & CStr(iColorIndex) & ", " & sLen & ")")  
   Else 
     Print("Forward(" & CStr(iColorIndex) & ")")
+  Endif
+  If Limit Then
+    Print("Me.Limit = True")
   Endif
   
 End

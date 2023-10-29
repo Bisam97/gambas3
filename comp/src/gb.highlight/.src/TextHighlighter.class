@@ -271,7 +271,11 @@ Static Private Sub CreateCustomHighlighter(sHighlight As String, sPath As String
   sProject = Replace(sProject, "$(startup)", "_TextHighlighter_" & sHighlight)
   File.Save(sDir &/ ".project", sProject)
   
-  Shell "cd " & Shell$(sDir) & " && gbc3 -agt 2>&1 && gba3 2>&1" To sOutput
+  Shell "cd " & Shell$(sDir) & " && gbc3 -agt 2>&1" To sOutput
+  sOutput = Trim(sOutput)
+  If Process.LastValue And If sOutput Then Error.Raise(sOutput)
+  
+  Shell "cd " & Shell$(sDir) & " && gba3 2>&1" To sOutput
   sOutput = Trim(sOutput)
   If Process.LastValue And If sOutput Then Error.Raise(sOutput)
 
@@ -439,6 +443,8 @@ Public Sub ToHTML(Text As String, Optional Theme As TextHighlighterTheme) As Str
     HighlightLine(aText[Y])
     
     sLineHtml = ""
+
+    If Y And If Me.Limit Then sLineHtml &= "<div style=\"height:1px; background-color:#C0C0C0; margin:0.5em 0;\"></div>"
     
     While Not HighlightToken()
       
