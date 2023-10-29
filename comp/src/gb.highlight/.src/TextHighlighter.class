@@ -271,7 +271,7 @@ Static Private Sub CreateCustomHighlighter(sHighlight As String, sPath As String
   sProject = Replace(sProject, "$(startup)", "_TextHighlighter_" & sHighlight)
   File.Save(sDir &/ ".project", sProject)
   
-  Shell "cd " & Shell$(sDir) & " && gbc3 -agt 2>&1" To sOutput
+  Shell "cd " & Shell$(sDir) & " && gbc3 -agt -j1 2>&1" To sOutput
   sOutput = Trim(sOutput)
   If Process.LastValue And If sOutput Then Error.Raise(sOutput)
   
