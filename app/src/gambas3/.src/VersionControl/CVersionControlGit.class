@@ -20,8 +20,8 @@ Private $bCanControl As Boolean
 Private $bCanInit As Boolean
 Private $bHasRemote As Boolean
 
-Private $iPadHistory As Integer
-Private $hHighlightDiff As TextHighlighter
+' Private $iPadHistory As Integer
+' Private $hHighlightDiff As TextHighlighter
 
 Private Sub Init()
 
@@ -497,47 +497,54 @@ Private Sub FormatDate(sDate As String) As String
 
 End
 
-Fast Public Sub HighlightHistory(Text As String)
+Public Sub InitHistory(hEditor As TextEditor)
   
-  Dim iState As Integer
-  Dim iLen As Integer
-
-  iState = TextHighlighter.State
-  iLen = String.Len(Text)
-
-  TextHighlighter.Limit = False
-  
-  If $iPadHistory = 0 Then
-    $iPadHistory = Max(Max(String.Len(("Date")), String.Len(("Author"))), String.Len("Commit"))
-  Endif
-  
-  TextHighlighter.Alternate = True
-  If Text Begins "commit " Then 
-    TextHighlighter.TextAfter = String.PadRight("Commit", $iPadHistory) & " : " & Mid$(Text, 8)
-    TextHighlighter.Add(Highlight.DataType, String.Len(TextHighlighter.TextAfter))
-    'TextHighlighter.Add(Highlight.DataType, String.Len(Text))
-    TextHighlighter.Limit = True
-  Else If Text Begins "Merge: " Then 
-    TextHighlighter.TextAfter = String.PadRight("Merge", $iPadHistory) & " : " & Mid$(Text, 8)
-    TextHighlighter.Add(Highlight.Number, String.Len(TextHighlighter.TextAfter))
-    'TextHighlighter.Add(Highlight.DataType, String.Len(Text))
-    TextHighlighter.Limit = True
-  Else If Text Begins "Author: " Then
-    TextHighlighter.TextAfter = String.PadRight(("Author"), $iPadHistory) & " : " & Mid$(Text, 9)
-    TextHighlighter.Add(Highlight.Function, String.Len(TextHighlighter.TextAfter))
-    'TextHighlighter.Add(Highlight.Function, String.Len(Text))
-  Else If Text Begins "Date: " Then
-    TextHighlighter.TextAfter = String.PadRight(("Date"), $iPadHistory) & " : " & FormatDate(Mid$(Text, 7))
-    TextHighlighter.Add(Highlight.Preprocessor, String.Len(TextHighlighter.TextAfter))
-    'TextHighlighter.Add(Highlight.Preprocessor, String.Len(Text))
-  Else
-    TextHighlighter.Alternate = False
-    If Not $hHighlightDiff Then $hHighlightDiff = TextHighlighter["diff"]
-    $hHighlightDiff.Run(Text)
-    'TextHighlighter.Add(Highlight.Normal, iLen)
-  Endif
+  TextHighlighter.Register("highlight/commit_git.highlight")
+  hEditor.Highlight = "commit_git"
   
 End
+
+' Fast Public Sub HighlightHistory(Text As String)
+'   
+'   Dim iState As Integer
+'   Dim iLen As Integer
+' 
+'   iState = TextHighlighter.State
+'   iLen = String.Len(Text)
+' 
+'   TextHighlighter.Limit = False
+'   
+'   If $iPadHistory = 0 Then
+'     $iPadHistory = Max(Max(String.Len(("Date")), String.Len(("Author"))), String.Len("Commit"))
+'   Endif
+'   
+'   TextHighlighter.Alternate = True
+'   If Text Begins "commit " Then 
+'     TextHighlighter.TextAfter = String.PadRight("Commit", $iPadHistory) & " : " & Mid$(Text, 8)
+'     TextHighlighter.Add(Highlight.DataType, String.Len(TextHighlighter.TextAfter))
+'     'TextHighlighter.Add(Highlight.DataType, String.Len(Text))
+'     TextHighlighter.Limit = True
+'   Else If Text Begins "Merge: " Then 
+'     TextHighlighter.TextAfter = String.PadRight("Merge", $iPadHistory) & " : " & Mid$(Text, 8)
+'     TextHighlighter.Add(Highlight.Number, String.Len(TextHighlighter.TextAfter))
+'     'TextHighlighter.Add(Highlight.DataType, String.Len(Text))
+'     TextHighlighter.Limit = True
+'   Else If Text Begins "Author: " Then
+'     TextHighlighter.TextAfter = String.PadRight(("Author"), $iPadHistory) & " : " & Mid$(Text, 9)
+'     TextHighlighter.Add(Highlight.Function, String.Len(TextHighlighter.TextAfter))
+'     'TextHighlighter.Add(Highlight.Function, String.Len(Text))
+'   Else If Text Begins "Date: " Then
+'     TextHighlighter.TextAfter = String.PadRight(("Date"), $iPadHistory) & " : " & FormatDate(Mid$(Text, 7))
+'     TextHighlighter.Add(Highlight.Preprocessor, String.Len(TextHighlighter.TextAfter))
+'     'TextHighlighter.Add(Highlight.Preprocessor, String.Len(Text))
+'   Else
+'     TextHighlighter.Alternate = False
+'     If Not $hHighlightDiff Then $hHighlightDiff = TextHighlighter["diff"]
+'     $hHighlightDiff.Run(Text)
+'     'TextHighlighter.Add(Highlight.Normal, iLen)
+'   Endif
+'   
+' End
 
 Public Sub GetRoot() As String
   

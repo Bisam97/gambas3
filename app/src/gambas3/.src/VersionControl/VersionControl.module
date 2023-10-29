@@ -199,7 +199,7 @@ Public Sub Run(aCmd As String[], Optional bIdent As Boolean, Optional bOutput As
   Insert(sCmd & "\n")
 
   Do
-    Wait
+    Wait Next
     
     If $bEnd Then Break
     
@@ -211,7 +211,7 @@ Public Sub Run(aCmd As String[], Optional bIdent As Boolean, Optional bOutput As
       Break
     Endif
     
-    Sleep 0.1
+    'Sleep 0.02
   Loop
   
   If $bCancel Then Return -1
@@ -539,9 +539,9 @@ Public Sub History(Optional sPath As String, sPath2 As String, bFull As Boolean)
 
 End
 
-Public Sub HighlightHistory(sText As String)
+Public Sub InitHistory(hEditor As TextEditor)
   
-  $hVC.HighlightHistory(sText)
+  $hVC.InitHistory(hEditor)
   
 End
 
