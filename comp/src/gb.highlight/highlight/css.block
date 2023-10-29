@@ -5,23 +5,25 @@ block{Operator}:
   block.comment{Comment}:
     from /* to */
   identifier{Normal}:
-    match \$(IDENT)\
+    match /$(IDENT)/
   property{Operator}:
     from : to ;
+    color{Constant}:
+      match /#[0-9A-Fa-f]{6}/
+      match /#[0-9A-Fa-f]{3}/
+    number:
+      match /$(NUMBER)/
+      unit{Function}:
+        match /$(IDENT)/
     important:
       match "!important"
     identifier{Keyword}:
-      match \$(IDENT)\
+      match /$(IDENT)/
       symbol %
-    number:
-      match \$(NUMBER)\
     string:
       from " to "
       from ' to '
       string.escape{Escape}:
-        match \$(ESCAPE)\
-    color{Constant}:
-      match \#[0-9A-Fa-f]{6}\
-      match \#[0-9A-Fa-f]{3}\
+        match /$(ESCAPE)/
     operator:
       symbol ( ) ,
