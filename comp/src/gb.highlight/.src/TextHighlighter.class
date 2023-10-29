@@ -274,7 +274,7 @@ Static Private Sub CreateCustomHighlighter(sHighlight As String, sPath As String
   Shell "cd " & Shell$(sDir) & " && gbc3 -agt 2>&1 && gba3 2>&1" To sOutput
   sOutput = Trim(sOutput)
   If Process.LastValue And If sOutput Then Error.Raise(sOutput)
-
+  Wait 0.1
   Component.Load(sDir &/ "gb.highlight." & sHighlight & ".gambas")
   
 Catch
