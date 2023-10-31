@@ -628,14 +628,15 @@ static void run_process(CPROCESS *process, int mode, void *cmd, CARRAY *env)
 			goto __ABORT_ERRNO;
 	}
 
-	// Adding to the running process list
-
-	add_process_to_running_list(process);
-	OBJECT_REF(process);
-
 	// Start the SIGCHLD callback
 
 	init_child();
+
+	// Adding to the running process list after, because init_child() checks the signal handlers,
+	// and may call callback_child().
+
+	add_process_to_running_list(process);
+	OBJECT_REF(process);
 
 	// Block SIGCHLD and fork
 

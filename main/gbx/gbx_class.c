@@ -262,7 +262,7 @@ CLASS *class_replace_global(CLASS *class)
 	
 	if (!CLASS_is_loaded(class))
 		return class;
-		
+
 	if (class->count == 0)
 		return class_keep_global(class);
 

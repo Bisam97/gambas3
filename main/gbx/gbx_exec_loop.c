@@ -2443,12 +2443,6 @@ _BYREF:
 /*-----------------------------------------------*/
 
 _SUBR_COMPN:
-
-	SYNC_PC();
-	SYNC_SP();
-	_SUBR_compe(code);
-	goto _NEXT;
-
 _SUBR_COMPE:
 	
 	SYNC_PC();
