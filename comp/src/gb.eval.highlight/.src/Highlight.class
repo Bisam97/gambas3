@@ -7,6 +7,14 @@ Static Property Read Styles As String[]
 Static Private $aStyles As String[]
 Static Private $aStyleNames As String[]
 
+Static Public Sub _init()
+  
+  If Component.IsLoaded("gb.highlight") Then
+    Error.Raise("'gb.eval.highlight' component is not compatible with 'gb.highlight'.")
+  Endif
+  
+End
+
 Static Private Function Styles_Read() As String[]
 
   If Not $aStyles Then

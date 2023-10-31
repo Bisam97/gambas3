@@ -46,12 +46,8 @@ Private Const TAG_CODE As Integer = 1
 ' 
 Public Sub Main()
 
-  Dim hHighlighter As TextHighlighter
-  Dim hTheme As TextHighlighterTheme
-   
-  hHighlighter = TextHighlighter["gambas"]
-  hTheme = New TextHighlighterTheme
-  'hTheme.Invert()
-  Print hHighlighter.ToANSI(File.Load("UnitTest/TestProgram"), hTheme)
+  Highlight.Analyze("Dim  I As Integer%> <div>", True,, True)
+  Print Highlight.TextAfter; "|"
+  Print Highlight.LengthBefore
   
 End
