@@ -121,13 +121,15 @@ Private $hStyle As WebControlStyle
 Private $iBackground As Integer = Color.Default
 Private $iForeground As Integer = Color.Default
 
+Private $sClass As String
+Private $sTooltip As String
+
 Private $bExpand As Boolean
 Private $bIgnore As Boolean
 Private $bDisabled As Boolean
 Private $bHidden As Boolean
 Private $bNoBorder As Boolean
-Private $sClass As String
-Private $sTooltip As String
+Private $bRendered As Boolean
 
 '' Create a new [@{class}](.).
 
@@ -190,7 +192,7 @@ Public Sub _attach((Parent) As Object, (EventName) As String)
     $bSendNeedKeyPress = True
   Endif
   
-  ' TODO: Refresh the control because Object.CanRaise() may change.
+  If $bRendered Then Refresh()
   
 End
 
@@ -1211,6 +1213,7 @@ Public Sub _Redraw()
   Me._BeforeRender()
   Me._Render()
   Me._AfterRender()
+  $bRendered = True
   '_Refresh = False
   
 End
