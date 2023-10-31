@@ -181,7 +181,7 @@ Private Sub Include(iHighlight As Byte, sHighlight As String, bMatch As Boolean,
 
   $aHighlight.Insert(aHighlight)
   
-  If TextHighlighter.CanRewrite Then
+  If Me.CanRewrite Then
     iLenAfter = String.Len(hHighlight.TextAfter)
     $sText = String.Left($sText, iPosBefore - 1) & hHighlight.TextAfter & String.Mid$($sText, $iPos - hHighlight.LengthAdded)
     Me.TextAfter = $sText
@@ -228,7 +228,7 @@ Public Sub _Analyze(Text As String, State As Byte[], Optional MatchLimit As Bool
   
   If $sTextLimit Then iPos = $iPos
   
-  If TextHighlighter.CanRewrite Then
+  If Me.CanRewrite Then
     If $sTextLimit Then
       Me.TextAfter = String.Mid$($sText, $iPosStart, iPos - $iPosStart)
     Else

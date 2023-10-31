@@ -10,7 +10,7 @@ Public Sub Main()
 
   Print TextHighlighter.List.Join()
 
-  TextHighlighter.CanRewrite = True
+  'TextHighlighter.CanRewrite = True
   'TextHighlighter["gambas"].Run("  \"CTRL+A\": \"SelectAll\",\n", aState)
   'File.Save("~/test.html", TextHighlighter["html"].ToHTML(File.Load("test/page.html")))
   'File.Save("~/test.html", TextHighlighter["c"].ToHTML(File.Load("~/gambas/main/share/gambas.h")))
@@ -22,6 +22,10 @@ Public Sub Main()
   'File.Save("~/test.html", TextHighlighter["sh"].ToHTML(File.Load("~/gambas/git/master/acinclude.m4")))
   
   'Print TextHighlighter["javascript"].ToANSI(File.Load("~/asap/omogen/master/src/kernel/guygle.cgi/javascript/selectr.js"))
-  Print TextHighlighter["css"].ToANSI(File.Load("~/asap/omogen/master/src/kernel/guygle.cgi/style/style-modern.css"))
+  With TextHighlighter["c"]
+    .CanRewrite = True
+    'Print .ToANSI(File.Load("~/asap/omogen/master/src/kernel/guygle.cgi/style/style-modern.css"))
+    Print .ToANSI(File.Load("~/gambas/git/master/main/share/gambas.h"))
+  End With
 
 End

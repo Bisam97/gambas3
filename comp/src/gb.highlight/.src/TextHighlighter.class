@@ -1,6 +1,7 @@
 ' Gambas class file
 
 Export
+
 Create Static
 
 Class Paint
@@ -8,13 +9,11 @@ Class Color
 
 Static Property Read List As String[]
 
-Static Public CanRewrite As Boolean
-
 Static Private $cRegister As New Collection
 
+Public CanRewrite As Boolean
 Public TextAfter As String
 Public LengthAdded As Integer
-Public Rewrite As Boolean
 Public Limit As Boolean
 Public Comment As Boolean
 
@@ -100,6 +99,34 @@ End
 
 Public Sub _Analyze((Text) As String, (State) As Byte[], Optional (MatchLimit) As Boolean, (Limit) As String, ByRef (Pos) As Integer) As Byte[]
 
+End
+
+Static Public Sub _Add(aHighlight As Byte[], iState As Byte, iCount As Integer)
+
+  Dim iMax As Integer
+  
+  iMax = aHighlight.Max
+  If aHighlight.Count And If aHighlight[iMax - 1] = iState And If aHighlight[iMax] Then
+    If aHighlight[iMax] <= (255 - iCount) Then
+      aHighlight[iMax] += iCount
+      Return
+    Else
+      iCount -= 255 - aHighlight[iMax]
+      aHighlight[iMax] = 255
+    Endif
+  Endif
+  
+  While iCount > 255
+    aHighlight.Add(iState)
+    aHighlight.Add(255)
+    iCount -= 255
+  Wend
+  
+  If iCount Then
+    aHighlight.Add(iState)
+    aHighlight.Add(iCount)
+  Endif
+  
 End
 
 Public Sub Run(Text As String, State As Byte[]) As Byte[]
@@ -317,11 +344,11 @@ Private Sub HighlightLine(sLine As String)
 
   Dim bCanRewrite As Boolean
 
-  bCanRewrite = TextHighlighter.CanRewrite
-  TextHighlighter.CanRewrite = False
+  bCanRewrite = Me.CanRewrite
+  Me.CanRewrite = False
   $aHighlight = Me.Run(sLine & "\n", $aState)
   $sLine = sLine
-  TextHighlighter.CanRewrite = bCanRewrite
+  Me.CanRewrite = bCanRewrite
   $aStyles = $hTheme._GetStyles()
   $iPos = 1
   $iIndex = 0
@@ -373,34 +400,6 @@ Private Function Keywords_Read() As String[]
 
 End
 
-Static Public Sub _Add(aHighlight As Byte[], iState As Byte, iCount As Integer)
-
-  Dim iMax As Integer
-  
-  iMax = aHighlight.Max
-  If aHighlight.Count And If aHighlight[iMax - 1] = iState And If aHighlight[iMax] Then
-    If aHighlight[iMax] <= (255 - iCount) Then
-      aHighlight[iMax] += iCount
-      Return
-    Else
-      iCount -= 255 - aHighlight[iMax]
-      aHighlight[iMax] = 255
-    Endif
-  Endif
-  
-  While iCount > 255
-    aHighlight.Add(iState)
-    aHighlight.Add(255)
-    iCount -= 255
-  Wend
-  
-  If iCount Then
-    aHighlight.Add(iState)
-    aHighlight.Add(iCount)
-  Endif
-  
-End
-
 Private Function Name_Read() As String
 
   Dim sClass As String
@@ -415,10 +414,13 @@ End
 Static Private Function List_Read() As String[]
   
   Dim aList As String[]
+  Dim sKey As String
 
   aList = New String[]
   For Each $cRegister
-    aList.Add($cRegister.Key)
+    sKey = $cRegister.Key
+    If sKey Begins "_" Then Continue
+    aList.Add(sKey)
   Next
   
   Return aList.Sort(gb.IgnoreCase + gb.Language)
