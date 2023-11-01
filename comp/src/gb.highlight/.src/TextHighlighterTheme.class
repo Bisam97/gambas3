@@ -14,7 +14,54 @@ Property Settings As String
 
 Private $cStyles As New Collection
 
-Static Private $cDefault As New Collection '= ["Class": "Datatype", "Identifier": "Symbol", "Element": "Function", "Property": "Symbol", "Pseudo": "Keyword", "Rule": "Preprocessor", "Important": "Number", "File": "Comment", "Header": "Documentation", "Position": "Keyword", "Markup": "Keyword", "Attribute": "Function", "Value": "String", "Entity": "Datatype", "WebMarkup": "Preprocessor", "WebComment": "Documentation", "WebArgument": "Preprocessor"]
+Static Private $cDefault As New Collection
+
+Static Private $cColorName As Collection = [
+  "Added": ("Added"),
+  "AtRule": ("At rule"),
+  "Attribute": ("Attribute"),
+  "Background": ("Background"), 
+  "Breakpoint": ("Breakpoint"), 
+  "Class": ("Class"),
+  "Comment": ("Comment"),
+  "Color": ("Color"),
+  "Command": ("Command"),
+  "Constant": ("Constant"),
+  "Current": ("Current line"), 
+  "Datatype": ("Datatype"),
+  "Diff": ("Diff"),
+  "Documentation": ("Documentation"),
+  "Entity": ("Entity"),
+  "Error": ("Error"),
+  "Escape": ("Escape"),
+  "Expansion": ("Expansion"),
+  "File": ("File"),
+  "Function": ("Function"),
+  "Keyword": ("Keyword"),
+  "Highlight": ("Highlight"),
+  "Id": ("Id"),
+  "Index": ("Index"),
+  "Important": ("Important"),
+  "Identifier": ("Identifier"),
+  "Label": ("Label"),
+  "Markup": ("Markup"),
+  "Normal": ("Normal"),
+  "Number": ("Number"),
+  "Operator": ("Operator"),
+  "Position": ("Position"),
+  "Preprocessor": ("Preprocessor"),
+  "PseudoClass": ("Pseudo-class"),
+  "RegExp": ("Regular expression"),
+  "Removed": ("Removed"),
+  "Selection": ("Selection"), 
+  "Shebang": ("Shebang"),
+  "String": ("String"),
+  "Symbol": ("Symbol"),
+  "Tag": ("Tag"),
+  "TagAttribute": ("Tag attribute"),
+  "Unit": ("Unit"),
+  "Value": ("Value")
+]
 
 Static Public Sub _init()
 
@@ -224,18 +271,18 @@ Public Sub Invert()
   
 End
 
-Static Public Sub _RegisterColor(Name As String, Optional Highlighter As String, sDefault As String) As Integer
+Static Public Sub _RegisterColor(Key As String, Optional Highlighter As String, sDefault As String) As Integer
 
   Dim iIndex As Integer
   Dim aColors As String[]
   
-  If Name = "*" Or If Name = "Normal" Then
+  If Key = "*" Or If Key = "Normal" Then
     iIndex = 0
   Else
-    Try iIndex = $cColorIndex[Name]
+    Try iIndex = $cColorIndex[Key]
     If iIndex = 0 And If Highlighter Then
       iIndex = $cColorIndex.Count + 1
-      $cColorIndex[Name] = iIndex
+      $cColorIndex[Key] = iIndex
       $bStylesModified = True
     Endif
   Endif
@@ -247,13 +294,13 @@ Static Public Sub _RegisterColor(Name As String, Optional Highlighter As String,
       $cColorsByHighlighter[Highlighter] = aColors
     Endif
     
-    If Not aColors.Exist(Name) Then
-      aColors.Add(Name)
+    If Not aColors.Exist(Key) Then
+      aColors.Add(Key)
       aColors.Sort()
     Endif
   Endif
   
-  If sDefault Then $cDefault[Name] = sDefault
+  If sDefault Then $cDefault[Key] = sDefault
   
   Return iIndex
   
@@ -297,4 +344,14 @@ Static Private Function Colors_Read() As String[]
 
   Return _GetHighlighterColors("*")
 
+End
+
+Static Public Sub _GetColorName(sKey As String) As String
+  
+  Dim sName As String
+  
+  sName = $cColorName[sKey]
+  If Not sName Then sName = sKey
+  Return sName
+  
 End
