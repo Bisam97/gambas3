@@ -8,12 +8,24 @@ Static Property Read Colors As String[]
 
 Static Private $bStylesModified As Boolean
 Static Private $cColorIndex As New Collection
+Static Private $cColorsByHighlighter As New Collection
 
 Property Settings As String
 
 Private $cStyles As New Collection
 
-Static Private $cCopy As Collection = ["Class": "Datatype", "Id": "Keyword", "Element": "Function", "Property": "Symbol", "Pseudo": "Keyword", "Rule": "Preprocessor", "Important": "Number", "File": "Comment", "Header": "Documentation", "Position": "Keyword", "Markup": "Keyword", "Attribute": "Function", "Value": "String", "Entity": "Datatype", "WebMarkup": "Preprocessor", "WebComment": "Documentation", "WebArgument": "Preprocessor"]
+Static Private $cDefault As New Collection '= ["Class": "Datatype", "Identifier": "Symbol", "Element": "Function", "Property": "Symbol", "Pseudo": "Keyword", "Rule": "Preprocessor", "Important": "Number", "File": "Comment", "Header": "Documentation", "Position": "Keyword", "Markup": "Keyword", "Attribute": "Function", "Value": "String", "Entity": "Datatype", "WebMarkup": "Preprocessor", "WebComment": "Documentation", "WebArgument": "Preprocessor"]
+
+Static Public Sub _init()
+
+  Dim sColor As String
+  
+  For Each sColor In ["Background", "Selection", "Current", "Breakpoint", "Highlight", "Normal", "Added", "Removed", "Error", "Comment", "Documentation", "Keyword", "Function", "Operator", "Symbol", "Number", "String", "Datatype", "Preprocessor", "Escape", "Constant"]
+    _RegisterColor(sColor, "*")
+  Next
+  
+End
+
 
 Public Sub _new()
   
@@ -100,8 +112,8 @@ Public Sub _Load(Path As String)
   Dim sName As String
   Dim hStyle As TextHighlighterStyle
   Dim cStyleSet As New Collection
-  Dim sCopy As String
   Dim bOldTheme As Boolean
+  Dim sDefault As String
   
   aTheme = Split(File.Load(Path), "\n")
   If aTheme[0] <> "[Gambas Highlighting Theme 1.0]" Then
@@ -128,8 +140,8 @@ Public Sub _Load(Path As String)
     
   Next
   
-  For Each sCopy In $cCopy
-    If Not cStyleSet.Exist($cCopy.Key) Then Me[$cCopy.Key] = Me[sCopy]
+  For Each sDefault In $cDefault
+    If Not cStyleSet.Exist($cDefault.Key) Then Me[$cDefault.Key] = Me[sDefault]
   Next
   
   Return
@@ -212,19 +224,48 @@ Public Sub Invert()
   
 End
 
-Static Public Sub _Register(sColor As String) As Integer
+Static Public Sub _RegisterColor(Name As String, Optional Highlighter As String, sDefault As String) As Integer
 
   Dim iIndex As Integer
+  Dim aColors As String[]
   
-  If sColor = "*" Or If sColor = "Normal" Then Return 0
-  
-  Try iIndex = $cColorIndex[sColor]
-  If iIndex = 0 Then
-    iIndex = $cColorIndex.Count + 1
-    $cColorIndex[sColor] = iIndex
-    $bStylesModified = True
+  If Name = "*" Or If Name = "Normal" Then
+    iIndex = 0
+  Else
+    Try iIndex = $cColorIndex[Name]
+    If iIndex = 0 And If Highlighter Then
+      iIndex = $cColorIndex.Count + 1
+      $cColorIndex[Name] = iIndex
+      $bStylesModified = True
+    Endif
   Endif
+  
+  If Highlighter Then
+    aColors = $cColorsByHighlighter[Highlighter]
+    If Not aColors Then
+      aColors = New String[]
+      $cColorsByHighlighter[Highlighter] = aColors
+    Endif
+    
+    If Not aColors.Exist(Name) Then
+      aColors.Add(Name)
+      aColors.Sort()
+    Endif
+  Endif
+  
+  If sDefault Then $cDefault[Name] = sDefault
+  
   Return iIndex
+  
+End
+
+Static Public Sub _GetHighlighterColors(sHighlighter As String) As String[]
+  
+  Dim aColors As String[]
+  
+  aColors = $cColorsByHighlighter[sHighlighter]
+  If Not aColors Then aColors = New String[]
+  Return aColors.Copy().Sort()
   
 End
 
@@ -254,12 +295,6 @@ End
 
 Static Private Function Colors_Read() As String[]
 
-  Dim aColor As New String[]
-
-  For Each $cColorIndex
-    aColor.Add($cColorIndex.Key)
-  Next
-
-  Return aColor
+  Return _GetHighlighterColors("*")
 
 End

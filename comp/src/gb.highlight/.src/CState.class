@@ -3,6 +3,8 @@
 Static Public Path As String
 Static Public Keywords As New String[]
 
+Static Private $sHighlighter As String
+
 Static Private $iIndent As Integer
 Static Private $sLastCode As String
 
@@ -28,8 +30,9 @@ Private $iCurrentCommand As Integer
 Private $iCurrentChild As Integer
 Private $sContinue As String
 
-Static Public Sub Init(sPath As String)
+Static Public Sub Init(sHighlighter As String, sPath As String)
   
+  $sHighlighter = sHighlighter
   Path = sPath
   $cSubst.Clear
   $cState.Clear
@@ -54,7 +57,6 @@ Static Public Sub Subst(sValue As String) As String
   
 End
 
-
 Static Public Sub Define(sVar As String, sValue As String)
   
   $cSubst[sVar] = Me.Subst(sValue)
@@ -74,14 +76,18 @@ Public Sub _new(Optional sLine As String)
     If iPos = 0 Then Error.Raise("Syntax error")
     sColor = Mid$(sLine, iPos + 1, -1)
     sLine = Left(sLine, iPos - 1)
-  Else
-    sColor = String.UCaseFirst(sLine)
+    iPos = InStr(sColor, "=")
+    If iPos Then
+      sColor = Trim(Left$(sColor, iPos - 1))
+    Endif
   Endif
+  
+  If Not sColor Then sColor = String.UCaseFirst(sLine)
   
   If sLine Not Match "[A-Za-z][A-Za-z0-9.]*" Then Error.Raise("Incorrect character in state name")
   Name = Replace(sLine, ".", "_")
   
-  ColorIndex = TextHighlighterTheme._Register(sColor)
+  ColorIndex = TextHighlighterTheme._RegisterColor(sColor)
   
   ' If sTitle Then 
   '   sCurrent = $cTitle[Name]

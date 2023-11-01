@@ -9,7 +9,8 @@ Class Color
 
 Static Property Read List As String[]
 
-Static Private $cRegister As New Collection
+Static Private $cPath As New Collection
+Static Private $cNames As New Collection
 
 Public CanRewrite As Boolean
 Public TextAfter As String
@@ -17,8 +18,10 @@ Public LengthAdded As Integer
 Public Limit As Boolean
 Public Comment As Boolean
 
+Property Read Key As String
 Property Read Name As String
 Property Read Keywords As String[]
+Property Read Colors As String[]
 
 Private $iPos As Integer
 Private $iLevel As Integer
@@ -37,10 +40,37 @@ Private $hTheme As TextHighlighterTheme
 Static Public Sub _init()
 
   Dim sFile As String
+  Dim sKey As String
+  Dim sName As String
   
   For Each sFile In Dir("highlight", "*.highlight")
-    Register("./highlight" &/ sFile)
+    sKey = File.BaseName(sFile)
+    Select Case sKey
+      Case "c"
+        sName = ("C")
+      Case "cplusplus"
+        sName = ("C++")
+      Case "css"
+        sName = ("Cascading Style Sheet")
+      Case "diff"
+        sName = ("Diff")
+      Case "html"
+        sName = ("HTML")
+      Case "javascript"
+        sName = ("Javascript")
+      Case "sh"
+        sName = ("Shell")
+      Case "sql"
+        sName = ("SQL")
+      Case "webpage"
+        sName = ("Gambas Web Page")
+      Case Else
+        sName = String.UCaseFirst(sKey)
+    End Select
+    Register(sKey, sName)
   Next
+  
+  $cNames["gambas"] = ("Gambas")
   
 End
 
@@ -51,7 +81,7 @@ Static Private Sub Load(Name As String) As Class
   Name = LCase(Name)
   Try Return Classes["_TextHighlighter_" & Name]
   
-  sPath = $cRegister[Name]
+  sPath = $cPath[Name]
   If Not sPath Then Error.Raise("Unknown highlighter: " & Name)
   
   CreateCustomHighlighter(Name, sPath)
@@ -63,37 +93,91 @@ Catch
   
 End
 
-Static Public Sub _get(Name As String) As TextHighlighter
+Static Public Sub _get(Key As String) As TextHighlighter
 
-  Return Load(Name).AutoCreate()
+  Return Load(Key).AutoCreate()
 
 End
 
-Static Public Sub _Create(Name As String) As TextHighlighter
+Static Public Sub _Create(Key As String) As TextHighlighter
   
-  Load(Name)
-  Return Object.New("_TextHighlighter_" & Name)
+  Load(Key)
+  Return Object.New("_TextHighlighter_" & Key)
   
 End
 
-Static Public Sub Register(Path As String, Optional Name As String)
+Static Public Sub Register(Key As String, Name As String, Optional Path As String)
   
   Dim sComp As String
+  Dim sLine As String
+  Dim iPos As Integer
+  Dim sColor As String
+  Dim sDefault As String
+  Dim aLines As String[]
+  Dim iLine As Integer
+  Dim aInclude As String[]
   
-  If Not Name Then Name = LCase(File.BaseName(Path))
-  If Not IsAscii(Name) Then Error.Raise("Highligher name must be ASCII")
+  If Key Not Match "[a-z_]*" Then Error.Raise("Incorrect highlighter identifier")
   
-  If File.IsRelative(Path) Then
-    If Path Not Begins "./" Then
-      sComp = Component.FindFromPath(".." &/ Path)
-      If Not sComp Then
-        Path = ".../" &/ Path
-      Else
-        Path = "./" & sComp &/ Path
-      Endif
+  If Not Path Then
+    Path = "highlight" &/ Key & ".highlight"
+  Else If File.IsRelative(Path) Then
+    sComp = Component.FindFromPath(".." &/ Path)
+    If Not sComp Then
+      Path = ".../" &/ Path
+    Else
+      Path = "./" & sComp &/ Path
     Endif
   Endif
-  $cRegister[Name] = Path
+  
+  $cPath[Key] = Path
+  $cNames[Key] = Name
+
+  aLines = Split(File.Load(Path), "\n")
+  While iLine < aLines.Count
+    
+    sLine = Trim(aLines[iLine])
+    Inc iLine
+    
+    If sLine Begins "@include " Then
+      sLine = Trim(Mid$(sLine, 9))
+      If Not sLine Then Continue
+      aInclude = Split(File.Load(File.Dir(Path) &/ sLine), "\n")
+      aLines.Insert(aInclude, iLine)
+      Continue
+    Endif
+    
+    If Not IsLetter(Left(sLine)) Then Continue
+    If sLine Not Ends ":" Then Continue
+    
+    sLine = Left(sLine, -1)
+    sColor = ""
+    sDefault = ""
+
+    If sLine Ends "}" Then
+      iPos = InStr(sLine, "{")
+      If iPos = 0 Then Continue
+      sColor = Mid$(sLine, iPos + 1, -1)
+      sLine = Left(sLine, iPos - 1)
+      iPos = InStr(sColor, "=")
+      If iPos Then
+        sDefault = Trim(Mid$(sColor, iPos + 1))
+        sColor = Trim(Left$(sColor, iPos - 1))
+      Endif
+    Endif
+  
+    If Not sColor Then sColor = String.UCaseFirst(sLine)
+    If sLine Not Match "[A-Za-z][A-Za-z0-9.]*" Then Continue
+  
+    TextHighlighterTheme._RegisterColor(sColor, Key, sDefault)
+
+  Wend
+  
+End
+
+Public Sub RegisterColor(Name As String) As Integer
+  
+  Return TextHighlighterTheme._RegisterColor(Name, Me.Key)
   
 End
 
@@ -166,7 +250,7 @@ Static Private Sub CreateCustomHighlighter(sHighlight As String, sPath As String
   Try Mkdir sDir
   Try Mkdir sDir &/ ".src"
 
-  CState.Init(sPath)
+  CState.Init(sHighlight, sPath)
 
   hDefault = New CState
 
@@ -342,13 +426,13 @@ End
 
 Private Sub HighlightLine(sLine As String)
 
-  Dim bCanRewrite As Boolean
+  'Dim bCanRewrite As Boolean
 
-  bCanRewrite = Me.CanRewrite
-  Me.CanRewrite = False
+  'bCanRewrite = Me.CanRewrite
+  'Me.CanRewrite = False
   $aHighlight = Me.Run(sLine & "\n", $aState)
   $sLine = sLine
-  Me.CanRewrite = bCanRewrite
+  'Me.CanRewrite = bCanRewrite
   $aStyles = $hTheme._GetStyles()
   $iPos = 1
   $iIndex = 0
@@ -400,25 +484,19 @@ Private Function Keywords_Read() As String[]
 
 End
 
-Private Function Name_Read() As String
-
-  Dim sClass As String
-  Dim iPos As Integer
-
-  sClass = Object.Type(Me)
-  iPos = RInStr(sClass, "_")
-  Try Return LCase(Mid$(sClass, iPos + 1))
-
-End
-
 Static Private Function List_Read() As String[]
   
   Dim aList As String[]
   Dim sKey As String
+  Dim sFile As String
 
   aList = New String[]
-  For Each $cRegister
-    sKey = $cRegister.Key
+  For Each sFile In Dir(".gambas", "_TEXTHIGHLIGHTER_*")
+    aList.Add(LCase(Mid$(sFile, InStr(sFile, "_", 2) + 1)))
+  Next
+
+  For Each $cPath
+    sKey = $cPath.Key
     If sKey Begins "_" Then Continue
     aList.Add(sKey)
   Next
@@ -634,3 +712,36 @@ Public Sub ToANSI(Text As String, Optional Theme As TextHighlighterTheme) As Str
   
  End
 
+
+Private Function Colors_Read() As String[]
+
+  Return TextHighlighterTheme._GetHighlighterColors(Me.Key)
+
+End
+
+Private Function Key_Read() As String
+
+  Dim sClass As String
+  Dim iPos As Integer
+
+  sClass = Object.Type(Me)
+  iPos = InStr(sClass, "_", 2)
+  Try Return LCase(Mid$(sClass, iPos + 1))
+
+End
+
+Private Function Name_Read() As String
+
+  Return GetName(Key_Read())
+
+End
+
+Static Public Sub GetName(Key As String) As String
+
+  Dim sName As String
+  
+  sName = $cNames[Key]
+  If Not sName Then sName = Key
+  Return sName
+  
+End

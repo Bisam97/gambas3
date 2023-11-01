@@ -1,31 +1,31 @@
 $(IDENT)=[a-zA-Z0-9-]+
-doctype{Preprocessor}:
+doctype{Doctype=Preprocessor}:
   from <!DOCTYPE to >
 comment:
   from <!-- to -->
 @include webpage.include
-entity{Function}:
+entity{Entity=Function}:
   match /&[A-Za-z]+;/
   match /&#[0-9]+;/
-javascript{Keyword}:
+javascript{Markup}:
   from /<script.*?(type=["']text/javascript['"])?.*?>/ to </script> with _webpage_javascript
-css{Keyword}:
+css{Markup}:
   from /<style.*?(type=["']text/css['"])?.*?>/ to </style> with _webpage_css
-markup{Keyword}:
+markup{Markup=Keyword}:
   from /<$(IDENT)/ to //?>/
   @include webpage.include
-  attribute{Datatype}:
+  attribute{Attribute=Datatype}:
     match /$(IDENT)/
   equal{Normal}:
     symbol =
-  value{String}:
+  value{Value=String}:
     from " to "
     from ' to '
-    string.entity{Escape}:
+    string.entity{Entity}:
       match /&[A-Za-z]+;/
       match /&#[0-9]+;/
     @include webpage.include
-  value.unquoted{String}:
+  value.unquoted{Value}:
     match /[^"'`=<>\s]+/
-markup.close{Keyword}:
+markup.close{Markup}:
   match /</$(IDENT)\s*>/

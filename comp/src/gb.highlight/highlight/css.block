@@ -8,18 +8,18 @@ block{Operator}:
     match /$(IDENT)/
   property{Operator}:
     from : to ;
-    color{Constant}:
+    color{Color=Constant}:
       match /#[0-9A-Fa-f]{6}/
       match /#[0-9A-Fa-f]{3}/
     number:
       match /$(NUMBER)/
-      unit{Function}:
+      unit{Unit=Function}:
         match /$(IDENT)/
-    important:
+        match "%"
+    important{Important=Constant}:
       match "!important"
     identifier{Normal}:
       match /$(IDENT)/
-      symbol %
     string:
       from " to "
       from ' to '
