@@ -162,34 +162,34 @@ Public Sub Form_Open()
 End
 
 
-Public Sub edtConflict_Highlight(Text As String)
-
-  Dim iState As Integer
-
-  iState = TextHighlighter.State
-
-  TextHighlighter.Limit = False
-  
-  If Text Begins "<<<<<<" Then 
-    'iPos = String.InStr(sText, " ")
-    TextHighlighter.Add(Highlight.Comment, String.Len(Text))
-    'Highlight.Add(Highlight.Keyword, String.Len(sText) - iPos)
-    TextHighlighter.State = Highlight.Number
-    TextHighlighter.Limit = True
-  Else If Text Begins "======" Then
-    TextHighlighter.Add(Highlight.Comment, String.Len(Text))
-    TextHighlighter.State = Highlight.Function
-  Else If Text Begins ">>>>>>" Then
-    TextHighlighter.Add(Highlight.Comment, String.Len(Text))
-    'iPos = String.InStr(sText, " ")
-    'Highlight.Add(Highlight.Comment, iPos)
-    'Highlight.Add(Highlight.Keyword, String.Len(sText) - iPos)
-    TextHighlighter.State = Highlight.Normal
-  Else 
-    TextHighlighter.Add(iState, String.Len(Text))
-  Endif
-
-End
+' Public Sub edtConflict_Highlight(Text As String)
+' 
+'   Dim iState As Integer
+' 
+'   iState = TextHighlighter.State
+' 
+'   TextHighlighter.Limit = False
+'   
+'   If Text Begins "<<<<<<" Then 
+'     'iPos = String.InStr(sText, " ")
+'     TextHighlighter.Add(Highlight.Comment, String.Len(Text))
+'     'Highlight.Add(Highlight.Keyword, String.Len(sText) - iPos)
+'     TextHighlighter.State = Highlight.Number
+'     TextHighlighter.Limit = True
+'   Else If Text Begins "======" Then
+'     TextHighlighter.Add(Highlight.Comment, String.Len(Text))
+'     TextHighlighter.State = Highlight.Function
+'   Else If Text Begins ">>>>>>" Then
+'     TextHighlighter.Add(Highlight.Comment, String.Len(Text))
+'     'iPos = String.InStr(sText, " ")
+'     'Highlight.Add(Highlight.Comment, iPos)
+'     'Highlight.Add(Highlight.Keyword, String.Len(sText) - iPos)
+'     TextHighlighter.State = Highlight.Normal
+'   Else 
+'     TextHighlighter.Add(iState, String.Len(Text))
+'   Endif
+' 
+' End
 
 Public Sub Form_Close()
 

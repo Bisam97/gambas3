@@ -382,6 +382,7 @@ Public Sub Main()
   If Not Settings["/ShowMenus", True] Then Env["APPMENU_DISPLAY_BOTH"] = "1"
   Env["QT_LOGGING_RULES"] = "*.debug=false"
   
+  RegisterHighlight
   UpdateTheme
   DESKTOP_FONT = Application.Font.ToString()
 
@@ -7143,5 +7144,12 @@ Private Sub PrintUsage()
   Print
   Print "  "; ("Display this help.")
   Print
+
+End
+
+Private Sub RegisterHighlight()
+
+  TextHighlighter.Register("commit_git", ("Git commit"), "./highlight/commit_git.highlight")
+  TextHighlighter.Register("conflict", ("Conflict"), "./highlight/conflict.highlight")
 
 End

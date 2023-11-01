@@ -16,7 +16,7 @@ Private $hDownloadHelp As DownloadManager
 
 Private $hLastTheme As TextHighlighterTheme
 Private $hTheme As TextHighlighterTheme
-Private $aHighlightTypes As String[]
+Private $aHighlightKeys As String[]
 Private $aHighlightNames As String[]
 
 Private $bSaveCurrentLayout As Boolean
@@ -202,14 +202,14 @@ Public Sub _new()
   
   btnAutoTrans_Click
   
-  $aHighlightTypes = TextHighlighter.List
-  $aHighlightNames = New String[$aHighlightTypes.Count]
-  For I = 0 To $aHighlightTypes.Max
-    $aHighlightNames[I] = TextHighlighter[$aHighlightTypes[I]].Name
+  $aHighlightKeys = TextHighlighter.List
+  $aHighlightNames = New String[$aHighlightKeys.Count]
+  For I = 0 To $aHighlightKeys.Max
+    $aHighlightNames[I] = TextHighlighter.GetName($aHighlightKeys[I])
   Next
   
   cmbHighlight.List = $aHighlightNames
-  cmbHighlight.Add(("All"), 0)
+  cmbHighlight.Add(("Common colors"), 0)
   cmbHighlight.Index = 0
   ReloadStyles
   
@@ -1755,36 +1755,33 @@ End
 
 Private Sub ReloadStyles()
 
-  Dim aStyles As String[]
   Dim hHBox As HBox
   Dim hColor As DrawingArea
   Dim hButton As ToolButton
-  Dim sStyle As String
   Dim aNames As String[]
   Dim I As Integer
+  Dim aColors As String[]
+  Dim sColor As String
   
   svwTheme.Children.Clear
   
-  ' If cmbHighlight.Index = 0 Then
-  '   aStyles = TextHighlighter.Styles
-  ' Else 
-  '   aStyles = TextHighlighter[$aHighlightTypes[$aHighlightNames.Find(cmbHighlight.Text)]].Styles
-  ' Endif
+  If cmbHighlight.Index = 0 Then
+    aColors = TextHighlighterTheme.Colors
+  Else 
+    aColors = TextHighlighter[$aHighlightKeys[$aHighlightNames.Find(cmbHighlight.Text)]].Colors
+  Endif
   ' 
-  ' aNames = New String[aStyles.Count]
-  ' For I = 0 To aStyles.Max
-  '   aNames[I] = Highlight.GetStyleName(aStyles[I])
-  ' Next
+  aNames = aColors.Copy()
+  For I = 0 To aNames.Max
+    aNames[I] = Tr(aNames[I])
+  Next
   
-  aStyles = TextHighlighterTheme.Colors
-  aNames = aStyles
-  
-  ' aStyles.SortUsing(aNames)
+  aColors.SortUsing(aNames)
 
-  For Each sStyle In aStyles
+  For Each sColor In aColors
   
     hHBox = New HBox(svwTheme)
-    hHBox.Tag = sStyle
+    hHBox.Tag = sColor
     hHBox.Height = 4 * Desktop.Scale
     'hHBox.Spacing = 4
     hColor = New DrawingArea(hHBox) As "dwgStyle"
