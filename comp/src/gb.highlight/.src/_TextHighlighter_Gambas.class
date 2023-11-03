@@ -103,6 +103,12 @@ Public Sub _Analyze(Text As String, (State) As Byte[], Optional (MatchLimit) As 
     
     sSym = Highlight.Symbols[I]
     If Limit And If sSym Begins Limit Then
+      If Not bRewrite Then
+        If iPos < Highlight.Positions[I] Then
+          TextHighlighter._Add(aHighlight, 0, Highlight.Positions[I] - iPos)
+          iPos = Highlight.Positions[I]
+        Endif
+      Endif
       bNewLine = False
       bGotLimit = True
       sTextAfter = Left(sTextAfter, -2)
