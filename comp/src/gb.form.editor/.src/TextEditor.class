@@ -316,7 +316,6 @@ Private $hDoc As CDocument
 Private $hRows As _TextEditor_Rows
 
 Private $hTheme As TextHighlighterTheme
-Private $aThemeStyles As TextHighlighterStyle[]
 Private $bThemeChanged As Boolean
 
 Private $iLargestLine As Integer
@@ -832,7 +831,7 @@ End
 ' End
 '
 
-Fast Private Sub DrawHighlightedText(Row As Integer, sText As String, aColor As Byte[], X As Integer, Y As Integer, H As Integer, aLayout As Integer[], iLevel As Integer)
+Fast Private Sub DrawHighlightedText(Row As Integer, sText As String, aColor As Byte[], X As Integer, Y As Integer, H As Integer, aLayout As Integer[])
   
   Dim I As Integer
   Dim hStyle As TextHighlighterStyle
@@ -867,9 +866,6 @@ Fast Private Sub DrawHighlightedText(Row As Integer, sText As String, aColor As 
   XMax = XMin + $hView.ClientW
   
   aStyles = GetStyles()
-  GoSub CALC_LEVEL_BG
-  
-  'iBg = aStyle[iNextState].Background
   
   XX = X
   YY = Y
@@ -899,12 +895,8 @@ Fast Private Sub DrawHighlightedText(Row As Integer, sText As String, aColor As 
     Endif
 
     If iLen = 0 Then
-      If iState Then
-        Inc iLevel
-      Else
-        Dec iLevel
-      Endif
-      GoSub CALC_LEVEL_BG
+      iBg = $hTheme.GetIncludeColor(iState)
+      If iBg <> Color.Default Then iBg = Color.SetAlpha(iBg, 128)
       Continue
     Endif
     
@@ -1103,15 +1095,6 @@ DRAW_TEXT_WITH_TAB:
   ' Endif
   ' 'Paint.Background = iCol
   ' DrawText(sStr, X, XX, YY)
-  Return
-  
-CALC_LEVEL_BG: 
-
-  If iLevel Then
-    iBg = Color.SetAlpha(Color.Black, 255 - iLevel * 16)
-  Else
-    iBg = Color.Default
-  Endif
   Return
   
 End
@@ -1349,7 +1332,7 @@ Private Sub DrawLine(X As Integer, Y As Integer, Width As Integer, Height As Int
   
   If hInfo.Colors Then
     
-    DrawHighlightedText(Row, sText, hInfo.Colors, X, Y, H, aLayout, $hDoc.GetStartLevel(Row))
+    DrawHighlightedText(Row, sText, hInfo.Colors, X, Y, H, aLayout)
     
   Else
     
@@ -1587,7 +1570,7 @@ Public Sub _PaintRow(Row As Integer, X As Integer, Y As Integer)
     $bRemoteDisplay = True
     iSaveMW = $MW
     $MW = 0
-    DrawHighlightedText(Row, sText, hInfo.Colors, X, Y, H, aLayout, $hDoc.GetStartLevel(Row))
+    DrawHighlightedText(Row, sText, hInfo.Colors, X, Y, H, aLayout)
     $MW = iSaveMW
     $bRemoteDisplay = bRemoteDisplay
     
@@ -6970,7 +6953,6 @@ Private Sub Theme_Write(Value As TextHighlighterTheme)
   
   Object.Attach($hTheme, Me, "Theme")
   
-  $aThemeStyles = Null
   Theme_Change
 
 End
@@ -6978,8 +6960,6 @@ End
 Private Sub GetStyles() As TextHighlighterStyle[]
   
   Return $hTheme._GetStyles()
-  ' If Not $aThemeStyles Then $aThemeStyles = $hTheme.Styles
-  ' Return $aThemeStyles
   
 End
 
