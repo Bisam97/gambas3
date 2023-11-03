@@ -65,7 +65,7 @@ Static Public Sub _init()
       Case "webpage"
         sName = ("Gambas Web Page")
       Case Else
-        sName = String.UCaseFirst(sKey)
+        sName = sKey
     End Select
     Register(sKey, sName)
   Next
@@ -431,7 +431,11 @@ Private Sub HighlightLine(sLine As String)
   'bCanRewrite = Me.CanRewrite
   'Me.CanRewrite = False
   $aHighlight = Me.Run(sLine & "\n", $aState)
-  $sLine = sLine
+  If Me.CanRewrite Then
+    $sLine = Me.TextAfter
+  Else
+    $sLine = sLine
+  Endif
   'Me.CanRewrite = bCanRewrite
   $aStyles = $hTheme._GetStyles()
   $iPos = 1
@@ -565,7 +569,7 @@ Public Sub ToHTML(Text As String, Optional Theme As TextHighlighterTheme) As Str
     
   Next
   
-  Return "<tt><span style=\"color:#000000;\">" & aResult.Join("<br>\n") & "</span></tt>"
+  Return "<span style=\"color:#000000;font-family:monospace;\">" & aResult.Join("<br>\n") & "</span>"
   
 End
 

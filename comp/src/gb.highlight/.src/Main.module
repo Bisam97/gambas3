@@ -22,11 +22,13 @@ Public Sub Main()
   'File.Save("~/test.html", TextHighlighter["sh"].ToHTML(File.Load("~/gambas/git/master/acinclude.m4")))
   
   'Print TextHighlighter["javascript"].ToANSI(File.Load("~/asap/omogen/master/src/kernel/guygle.cgi/javascript/selectr.js"))
-  With TextHighlighter["gambas"]
+  With TextHighlighter["webpage"]
     Print .Colors.Join()
     .CanRewrite = True
     'Print .ToANSI(File.Load("~/asap/omogen/master/src/kernel/guygle.cgi/style/style-modern.css"))
-    Print .ToANSI(File.Load("~/gambas/git/master/comp/src/gb.desktop/.src/Desktop.class"))
+    'Print .ToANSI(File.Load("~/gambas/git/master/comp/src/gb.desktop/.src/Desktop.class"))
+    'Print .ToANSI(File.Load("~/asap/omogen/master/src/kernel/guygle.cgi/.src/Site/Dialog.webpage"))
+    File.Save("~/test.html", .ToHTML(File.Load("~/asap/omogen/master/src/kernel/guygle.cgi/.src/Site/Dialog.webpage")))
   End With
 
 End
