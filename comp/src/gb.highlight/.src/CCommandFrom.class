@@ -38,16 +38,14 @@ Public Sub Compile(hState As CState)
   
       CState.Print("sWord = Match(" & Quote($sFrom) & ")")
       CState.Print("If Not sWord Then Goto " & hState.GetNextLabel())
-      CState.Print("Imbricate(" & CStr($iInclude) & ")")
+      CState.Print("SetIncludeHighlight(" & CStr($iInclude) & ")")
       hState.Forward("String.Len(sWord)")
-      CState.Print("Imbricate(0)")
     
     Else
   
       CState.IfStartWith($sFrom, hState.GetNextLabel())
-      CState.Print("Imbricate(" & CStr($iInclude) & ")")
+      CState.Print("SetIncludeHighlight(" & CStr($iInclude) & ")")
       hState.Forward(String.Len($sFrom))
-      CState.Print("Imbricate(0)")
       
     Endif
     
@@ -56,16 +54,16 @@ Public Sub Compile(hState As CState)
     If CState.IsRegExp(ByRef $sTo) Then
       
       CState.Print("If Include(" & CStr($iInclude) & ", " & Quote($sInclude) & ", True, " & Quote($sTo) & ", aState) Then Return")
-      CState.Print("Imbricate(" & CStr($iInclude) & ")")
+      CState.Print("SetIncludeHighlight(" & CStr($iInclude) & ")")
       hState.Forward("String.Len(Match(" & Quote($sTo) & "))")
-      CState.Print("Imbricate(0)")
+      CState.Print("SetIncludeHighlight(Me._IncludeHighlight)")
       
     Else
     
       CState.Print("If Include(" & CStr($iInclude) & ", " & Quote($sInclude) & ", False, " & Quote($sTo) & ", aState) Then Return")
-      CState.Print("Imbricate(" & CStr($iInclude) & ")")
+      CState.Print("SetIncludeHighlight(" & CStr($iInclude) & ")")
       hState.Forward(String.Len($sTo))
-      CState.Print("Imbricate(0)")
+      CState.Print("SetIncludeHighlight(Me._IncludeHighlight)")
   
     Endif
     

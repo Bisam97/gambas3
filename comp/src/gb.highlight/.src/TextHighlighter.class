@@ -17,6 +17,7 @@ Public TextAfter As String
 Public LengthAdded As Integer
 Public Limit As Boolean
 Public Comment As Boolean
+Public _IncludeHighlight As Integer
 
 Property Read Key As String
 Property Read Name As String
@@ -24,8 +25,6 @@ Property Read Keywords As String[]
 Property Read Colors As String[]
 
 Private $iPos As Integer
-Private $iLevel As Integer
-Private $aInclude As Byte[]
 Private $iInclude As Integer
 Private $iIndex As Integer
 Private $hStyle As TextHighlighterStyle
@@ -185,7 +184,7 @@ Public Sub _Analyze((Text) As String, (State) As Byte[], Optional (MatchLimit) A
 
 End
 
-Static Public Sub _Add(aHighlight As Byte[], iState As Byte, iCount As Integer)
+Public Sub _Add(aHighlight As Byte[], iState As Byte, iCount As Integer)
 
   Dim iMax As Integer
   
@@ -403,21 +402,10 @@ Catch
   
 End
 
-Private Sub GetIncludeColor(iInclude As Integer) As Integer
-
-  Dim iHue As Integer
-
-  iHue = [60, 0, 210, 120, 30, 270][iInclude Mod 6]
-  Return Color.HSV(iHue, 32, 255)
-
-End
-
 Private Sub HighlightStart(hTheme As TextHighlighterTheme)
 
   $hTheme = hTheme
   If Not $hTheme Then $hTheme = New TextHighlighterTheme
-  $iLevel = 0
-  $aInclude = New Byte[]
   $iInclude = 0
   $iBackground = Color.Default
   $aState = New Byte[]
@@ -464,15 +452,15 @@ TRY_AGAIN:
   $iIndex += 2
       
   If iLen = 0 Then
-    If iState Then
-      $aInclude.Push($iInclude)
-      $iInclude = iState
-      Inc $iLevel
-    Else
-      $iInclude = $aInclude.Pop()
-      Dec $iLevel
-    Endif
-    $iBackground = GetIncludeColor($iInclude)
+    ' If iState Then
+    '   $aInclude.Push($iInclude)
+    '   $iInclude = iState
+    '   Inc $iLevel
+    ' Else
+    '   $iInclude = $aInclude.Pop()
+    '   Dec $iLevel
+    ' Endif
+    $iBackground = $hTheme.GetIncludeColor(iState)
     Goto TRY_AGAIN
   Endif
       
@@ -541,7 +529,7 @@ Public Sub ToHTML(Text As String, Optional Theme As TextHighlighterTheme) As Str
       Endif
       
       sStyle = ""
-      If $iLevel Then sStyle &= "background-color:" & Color.ToHTML($iBackground) & ";"
+      If $iBackground <> Color.Default Then sStyle &= "background-color:" & Color.ToHTML($iBackground) & ";"
       If $hStyle.Color Then sStyle &= "color:" & Color.ToHTML($hStyle.Color) & ";"
       If $hStyle.Dotted Then sStyle &= "text-decoration:underline dotted;"
       

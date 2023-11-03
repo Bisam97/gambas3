@@ -11,8 +11,10 @@ Static Private $cColorIndex As New Collection
 Static Private $cColorsByHighlighter As New Collection
 
 Property Settings As String
+Property Read Dark As Boolean
 
 Private $cStyles As New Collection
+Private $aStyles As TextHighlighterStyle[]
 
 Static Private $cDefault As New Collection
 
@@ -322,25 +324,23 @@ End
 
 Public Sub _GetStyles() As TextHighlighterStyle[]
 
-  Static aStyles As TextHighlighterStyle[]
-
   Dim hStyle As TextHighlighterStyle
   
-  If $bStylesModified Or If Not aStyles Then
+  If $bStylesModified Or If Not $aStyles Then
   
-    aStyles = New TextHighlighterStyle[]  
-    aStyles.Add($cStyles["Normal"])
+    $aStyles = New TextHighlighterStyle[]  
+    $aStyles.Add($cStyles["Normal"])
     For Each $cColorIndex
       hStyle = $cStyles[$cColorIndex.Key]
       If Not hStyle Then hStyle = New TextHighlighterStyle
-      aStyles.Add(hStyle)
+      $aStyles.Add(hStyle)
     Next
 
     $bStylesModified = False
     
   Endif
   
-  Return aStyles
+  Return $aStyles
   
 End
 
@@ -358,4 +358,29 @@ Static Public Sub _GetColorName(sKey As String) As String
   If Not sName Then sName = sKey
   Return sName
   
+End
+
+Public Sub GetIncludeColor(Include As Integer) As Integer
+
+  Dim iHue As Integer
+  Dim iColor As Integer
+
+  If Include = 0 Then Return Color.Default
+  iHue = [60, 30, 0, 45, 15][(Include - 1) Mod 5]
+  If Me.Dark Then   
+    iColor = Color.HSV(iHue, 240, 128)
+  Else 
+    iColor = Color.HSV(iHue, 32, 255)
+  Endif
+  Return iColor
+
+End
+
+Private Function Dark_Read() As Boolean
+
+  Dim iBg As Integer
+
+  iBg = Me["Background"].Color
+  If Color[iBg].Value < 128 Then Return True
+
 End

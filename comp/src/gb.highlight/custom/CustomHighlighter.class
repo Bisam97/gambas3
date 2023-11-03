@@ -41,7 +41,7 @@ Private Sub Init(sText As String)
   
 End
 
-Private Sub Imbricate(iType As Byte)
+Private Sub SetIncludeHighlight(iType As Byte)
   
   $aHighlight.Add(iType)
   $aHighlight.Add(0)
@@ -51,7 +51,7 @@ End
 Private Sub Forward(iState As Byte, Optional N As Integer = 1)
   
   If $bEof Then Error.Raise("End of file")
-  TextHighlighter._Add($aHighlight, iState, N)
+  Me._Add($aHighlight, iState, N)
   $iPos += N
   $bEof = $iPos > $iLen
   
@@ -167,15 +167,15 @@ Private Sub Include(iHighlight As Byte, sHighlight As String, bMatch As Boolean,
   aState.Remove(0)
 
   ' We enter a new imbricated state
+  SetIncludeHighlight(iHighlight)
   If aState.Count = 0 Then
     aState.Add(0)
-    $aHighlight.Add(iHighlight)
-    $aHighlight.Add(0)
   Endif
   
   hHighlight = TextHighlighter._Create(sHighlight)
   hHighlight.TextAfter = ""
   hHighlight.CanRewrite = Me.CanRewrite
+  hHighlight._IncludeHighlight = iHighlight
   iPosBefore = $iPos
   
   aHighlight = hHighlight._Analyze($sText, aState, bMatch, sLimit, ByRef $iPos)
@@ -197,9 +197,11 @@ Private Sub Include(iHighlight As Byte, sHighlight As String, bMatch As Boolean,
   If $bEof Then Return True
   
   ' We left the imbricated state
-  $aHighlight.Add(0)
-  $aHighlight.Add(0)
+  '$aHighlight.Add(0)
+  '$aHighlight.Add(0)
   aState.Pop()
+  
+  SetIncludeHighlight(Me._IncludeHighlight)
   
 End
 
