@@ -561,6 +561,69 @@ Public Sub ToHTML(Text As String, Optional Theme As TextHighlighterTheme) As Str
   
 End
 
+Public Sub ToRichText(Text As String, Optional Theme As TextHighlighterTheme) As String
+
+  Dim aResult As New String[]
+  Dim Y As Integer
+  Dim sHTML As String
+  Dim aText As String[]
+  Dim sLineHtml As String
+  Dim sOldStyle As String
+  Dim sStyle As String
+
+  HighlightStart(Theme)
+  
+  aText = Split(Text, "\n")
+  For Y = 0 To aText.Max
+    
+    HighlightLine(aText[Y])
+    
+    sLineHtml = ""
+
+    While Not HighlightToken()
+      
+      sHtml = Replace(Html($sToken), " ", "&nbsp;")
+      sHtml = Replace(sHtml, "\t", "&nbsp;&nbsp;")
+      
+      If $hStyle.Bold Then sHtml = "<b>" & sHtml & "</b>"
+      If $hStyle.Underline Or If $hStyle.Dotted Then
+        sHtml = "<u>" & sHtml & "</u>"
+      Else If $hStyle.Strikeout Then
+        sHtml = "<s>" & sHtml & "</s>"
+      Endif
+      
+      sStyle = ""
+      'If $iBackground <> Color.Default Then sStyle &= "background-color:" & Color.ToHTML($iBackground) & ";"
+      If $hStyle.Color Then sStyle &= " color=\"" & Color.ToHTML($hStyle.Color) & "\""
+      
+      If sStyle <> sOldStyle Then
+        If sOldStyle Then sLineHtml &= "</font>"
+        If sStyle Then sHtml = "<font" & sStyle & ">" & sHtml
+        sOldStyle = sStyle
+      Endif
+      
+      sLineHtml &= sHtml
+
+    Wend
+    
+    sLineHtml &= Html($sToken)
+    
+    ' If Me.Limit Then 
+    '   If Y And If Not Trim(aResult[aResult.Max]) Then
+    '     aResult.Add("<div style=\"height:1px;background:#808080;position:relative;top:-0.5em;\"></div>")
+    '   Else
+    '     aResult.Add("<div style=\"height:1px;background:#808080;\"></div>")
+    '   Endif
+    ' Endif
+    
+    aResult.Add(sLineHtml)
+    
+  Next
+  
+  Return "<font color=\"#000000\">" & aResult.Join("<br>\n") & "</font>"
+  
+End
+
 Public Sub Paint(Text As String, X As Float, Y As Float, Optional Theme As TextHighlighterTheme, Optional Pos As Integer)
   
   Dim aText As String[]
