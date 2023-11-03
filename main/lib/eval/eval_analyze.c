@@ -397,7 +397,6 @@ static void analyze(EVAL_ANALYZE *result)
 		next_type = type;
 		
 		get_symbol(*pattern, &symbol, &len);
-		len_before += len;
 
 		space_before = space_after;
 		space_after = FALSE;
@@ -574,6 +573,7 @@ static void analyze(EVAL_ANALYZE *result)
 					{
 						add_result(result, symbol, len);
 						add_data(RT_OPERATOR, len);
+						len_before += len;
 
 						/*for(;;)
 						{
@@ -636,8 +636,9 @@ static void analyze(EVAL_ANALYZE *result)
 		{
 			add_result_char(result, '"');
 			len += 2;
-			len_before += 2;
 		}
+
+		len_before += len;
 
 		if (EVAL->rewrite)
 		{
