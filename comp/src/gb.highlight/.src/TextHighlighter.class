@@ -1,5 +1,9 @@
 ' Gambas class file
 
+''' This class is the parent class of all syntax highlighters.
+'''
+''' It allows to create a custom highlighter based on a definition file.
+
 Export
 
 Create Static
@@ -7,21 +11,34 @@ Create Static
 Class Paint
 Class Color
 
+'' Return the list of all registered syntax highlighters.
+''
+'' ### See also
+'' - [../register]
 Static Property Read List As String[]
 
 Static Private $cPath As New Collection
 Static Private $cNames As New Collection
 
+'' Return or set if the highlighter is allowed to rewrite the text to highlight.
 Public CanRewrite As Boolean
+'' Return or set the highlighted text after it has been rewritten.
 Public TextAfter As String
+'' Return or set the number of characters added (or removed) after the text has been rewritten.
 Public LengthAdded As Integer
+'' Return or set if the highlighted text is a function limit.
 Public Limit As Boolean
+'' Return or set if the highlighted text is a comment.
 Public Comment As Boolean
 Public _IncludeHighlight As Integer
 
+'' Return the highlighter internal name.
 Property Read Key As String
+'' Return the highlighter display name.
 Property Read Name As String
+'' Return the list of keywords associated with the highlighter.
 Property Read Keywords As String[]
+'' Return the list of color names used by the highlighter.
 Property Read Colors As String[]
 
 Private $iPos As Integer
@@ -92,6 +109,10 @@ Catch
   
 End
 
+'' Create and return the highlighter from its internal name.
+''
+'' - ~Key~: The highlighter internal name.
+
 Static Public Sub _get(Key As String) As TextHighlighter
 
   Return Load(Key).AutoCreate()
@@ -104,6 +125,12 @@ Static Public Sub _Create(Key As String) As TextHighlighter
   Return Object.New("_TextHighlighter_" & Key)
   
 End
+
+'' Register a custom highlighter based on a definition file.
+''
+'' - ~Key~: The highlighter internal name.
+'' - ~Name~: The highlighter display name.
+'' - ~Path~: The path of the definition file.
 
 Static Public Sub Register(Key As String, Name As String, Optional Path As String)
   
@@ -174,6 +201,12 @@ Static Public Sub Register(Key As String, Name As String, Optional Path As Strin
   
 End
 
+'' Register a color for that highlighter.
+''
+'' - ~Name~: The name of the color.
+''
+'' The function returns the color index that must be used to fill the highlight array.
+
 Public Sub RegisterColor(Name As String) As Integer
   
   Return TextHighlighterTheme._RegisterColor(Name, Me.Key)
@@ -211,6 +244,18 @@ Public Sub _Add(aHighlight As Byte[], iState As Byte, iCount As Integer)
   Endif
   
 End
+
+'' Highlight some piece of text.
+''
+'' - ~Text~: The text to highlight. It usually must be a full line of text ended with a newline character.
+'' - ~State~: The internal highlighter state.
+''
+'' Return the result of the highlighthing as an array of bytes.
+''
+'' The internal state must be initialized with a void array of bytes.
+''
+'' When the 'Run()' method returns, it will be updated to reflect the state of the highlighter after the highlighting, so
+'' that you can call the 'Run()' method again to highlight the next line of text.
 
 Public Sub Run(Text As String, State As Byte[]) As Byte[]
   
@@ -460,7 +505,7 @@ TRY_AGAIN:
     '   $iInclude = $aInclude.Pop()
     '   Dec $iLevel
     ' Endif
-    $iBackground = $hTheme.GetIncludeColor(iState)
+    $iBackground = $hTheme._GetIncludeColor(iState)
     Goto TRY_AGAIN
   Endif
       
@@ -496,6 +541,11 @@ Static Private Function List_Read() As String[]
   Return aList.Sort(gb.IgnoreCase + gb.Language)
   
 End
+
+'' Return the result of text highlighting as HTML.
+''
+'' - ~Text~: The text to highlight.
+'' - ~Theme~: The theme to use. If not specified, a default theme is used.
 
 Public Sub ToHTML(Text As String, Optional Theme As TextHighlighterTheme) As String
 
@@ -561,6 +611,14 @@ Public Sub ToHTML(Text As String, Optional Theme As TextHighlighterTheme) As Str
   
 End
 
+'' Return the result of text highlighting as rich text.
+''
+'' - ~Text~: The text to highlight.
+'' - ~Theme~: The theme to use. If not specified, a default theme is used.
+''
+'' ### See also
+'' - [/doc/richtext]
+
 Public Sub ToRichText(Text As String, Optional Theme As TextHighlighterTheme) As String
 
   Dim aResult As New String[]
@@ -620,9 +678,20 @@ Public Sub ToRichText(Text As String, Optional Theme As TextHighlighterTheme) As
     
   Next
   
-  Return "<font color=\"#000000\">" & aResult.Join("<br>\n") & "</font>"
+  If sOldStyle Then aResult.Last &= "</font>"
+  Return aResult.Join("<br>\n")
   
 End
+
+'' Paint highlighted text on the current painter.
+''
+'' - ~Text~: The text to highlight.
+'' - ~X~, ~Y~: The coordinates of the drawing start point.
+'' - ~Theme~: The theme to use. If not specified, a default theme is used.
+'' - ~Pos~: The position of the first character to draw. By default all text is drawn.
+''
+'' ### See also
+'' - [/doc/richtext]
 
 Public Sub Paint(Text As String, X As Float, Y As Float, Optional Theme As TextHighlighterTheme, Optional Pos As Integer)
   
@@ -708,6 +777,11 @@ Static Private Sub ColorToConsole(iColor As Integer) As String
   
 End
 
+'' Return the result of text highlighting as VT100 ANSI characters that can be printed on a terminal.
+''
+'' - ~Text~: The text to highlight.
+'' - ~Theme~: The theme to use. If not specified, a default theme is used.
+
 Public Sub ToANSI(Text As String, Optional Theme As TextHighlighterTheme) As String
 
   Dim aResult As New String[]
@@ -790,6 +864,10 @@ Private Function Name_Read() As String
   Return GetName(Key_Read())
 
 End
+
+'' Return the display name of an highlighter from its internal name.
+''
+'' - ~Key~: The highlighter internal name.
 
 Static Public Sub GetName(Key As String) As String
 

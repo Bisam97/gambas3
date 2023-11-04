@@ -1,16 +1,23 @@
 ' Gambas class file
 
+''' This class implements an highlighter theme.
+
 Export
 
+
+'' This event is raised when one of the theme style has been modified.
 Event Change
 
+'' Return the list of all color names implemented by all registered highlighters.
 Static Property Read Colors As String[]
 
 Static Private $bStylesModified As Boolean
 Static Private $cColorIndex As New Collection
 Static Private $cColorsByHighlighter As New Collection
 
+'' Return or set the theme contents as a settings string.
 Property Settings As String
+'' Return if the theme uses a dark background.
 Property Read Dark As Boolean
 
 Private $cStyles As New Collection
@@ -79,12 +86,15 @@ Static Public Sub _init()
   
 End
 
+'' Create a new highlighter theme initialized with the default "gambas" theme.
 
 Public Sub _new()
   
   _Load("gambas")
   
 End
+
+'' Copy a theme and returns it.
 
 Public Sub Copy() As TextHighlighterTheme
 
@@ -100,6 +110,11 @@ Public Sub Copy() As TextHighlighterTheme
   Return hTheme
   
 End
+
+'' Define the highlighter style associated with a color name.
+''
+'' - ~Key~ is the color name.
+'' - ~Style~ is the associated style.
 
 Public Sub _put(Style As TextHighlighterStyle, Key As String)
 
@@ -117,6 +132,16 @@ Public Sub _put(Style As TextHighlighterStyle, Key As String)
   
 End
 
+'' Shortcut method for creating a style and associating it with a color name.
+''
+'' - ~Key~: The color name.
+'' - ~Color~: The RGB color of the style.
+'' - ~Bold~: If the text must be drawn bold.
+'' - ~Underline~: If the text must be drawn with a solid underline.
+'' - ~Dotted~: If the text must be drawn with a dotted underline.
+''
+'' The newly created style is returned.
+
 Public Sub Add(Key As String, (Color) As Integer, Optional Bold As Boolean, Underline As Boolean, Dotted As Boolean) As TextHighlighterStyle
 
   Dim hStyle As TextHighlighterStyle
@@ -126,6 +151,10 @@ Public Sub Add(Key As String, (Color) As Integer, Optional Bold As Boolean, Unde
   Return Me[Key]
   
 End
+
+'' Return the style associated with a color name.
+''
+'' - ~Key~: The color name.
 
 Public Sub _get(Key As String) As TextHighlighterStyle
   
@@ -138,6 +167,10 @@ Public Sub Style_Change()
   Raise Change
   
 End
+
+'' Save the theme contents to a file
+''
+'' - ~Path~: The file path.
 
 Public Sub Save(Path As String)
 
@@ -205,6 +238,9 @@ RAISE_ERROR:
   
 End
 
+'' Create a theme from a file.
+''
+'' - ~Path~: The path of the file to load.
 
 Static Public Sub Load(Path As String) As TextHighlighterTheme
 
@@ -221,6 +257,8 @@ Static Public Sub Load(Path As String) As TextHighlighterTheme
   
 End
 
+'' Convert the contents of the theme to a string.
+
 Public Sub ToString() As String
   
   Dim hStyle As TextHighlighterStyle
@@ -235,14 +273,19 @@ Public Sub ToString() As String
   
 End
 
-
 Private Function Settings_Read() As String
 
   Return ToString()
   
 End
 
-Public Sub FromString(Theme As String) As String
+'' Initialize a theme from a string description.
+''
+'' - ~Theme~: The description of the theme.
+''
+'' The description should have been created by the [../tostring] method.
+
+Public Sub FromString(Theme As String)
 
   Dim sStyle As String
   Dim hStyle As TextHighlighterStyle
@@ -266,6 +309,8 @@ Private Sub Settings_Write(Value As String)
   FromString(Value)
 
 End
+
+'' Invert the color of all theme styles.
 
 Public Sub Invert()
 
@@ -360,7 +405,7 @@ Static Public Sub _GetColorName(sKey As String) As String
   
 End
 
-Public Sub GetIncludeColor(Include As Integer) As Integer
+Public Sub _GetIncludeColor(Include As Integer) As Integer
 
   Dim iHue As Integer
   Dim iColor As Integer

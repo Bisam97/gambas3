@@ -1,19 +1,41 @@
 ' Gambas class file
 
+''' This class represents the style used for drawing a specific highlighter "color name".
+
 Export
 
+'' This event is raised when the style contents has changed.
 Event Change
 
+'' Return or set the "color name" the style is associated with.
 Property Key As String Use $sKey
-Property Read Name As String
-Property Color As Integer Use $iColor
-Property Bold As Boolean Use $bBold
-Property Underline As Boolean Use $bUnderline
-Property Dotted As Boolean Use $bDotted
-Property Strikeout As Boolean Use $bStrikeout
-Property Read Background As Boolean
 
+'' Return the display name of the style.
+''
+'' This is the display name of its associated "color name".
+Property Read Name As String
+
+'' Return or set the RGB color used for drawing some text using that style.
+Property Color As Integer Use $iColor
+'' Return or set if the text drawn with that style must be bold.
+Property Bold As Boolean Use $bBold
+'' Return or set if the text drawn with that style must have a solid underline.
+Property Underline As Boolean Use $bUnderline
+'' Return or set if the text drawn with that style must have a dotted underline.
+Property Dotted As Boolean Use $bDotted
+'' Return or set if the text drawn with that style must be stroke out.
+Property Strikeout As Boolean Use $bStrikeout
+'' Return if that style is for drawing a background and not drawing text.
+Property Read Background As Boolean
+'' Return the inverted color of the [../color] property.
 Property Read InvertedColor As Integer
+
+'' Create a new highlighter style from some of its properties.
+''
+'' - ~Color~: The RGB color used for drawing some text using that style.
+'' - ~Bold~: If the text drawn with that style must be bold.
+'' - ~Underline~: If the text drawn with that style must have a dotted underline.
+'' - ~Dotted~: If the text drawn with that style must be stroke out.
 
 Static Public Sub _call((Color) As Integer, Optional Bold As Boolean, Underline As Boolean, Dotted As Boolean) As TextHighlighterStyle
 
@@ -27,6 +49,8 @@ Static Public Sub _call((Color) As Integer, Optional Bold As Boolean, Underline 
   Return hStyle
   
 End
+
+'' Return a copy of the current style.
 
 Public Sub Copy() As TextHighlighterStyle
   
@@ -95,6 +119,8 @@ Private Sub Strikeout_Write(Value As Boolean)
   
 End
 
+'' Convert the style contents to a string.
+
 Public Sub ToString() As String
   
   Dim sStr As String
@@ -108,6 +134,12 @@ Public Sub ToString() As String
   Return sStr
   
 End
+
+'' Create a style from a string description.
+''
+'' - ~Style~: The style description. It should be a string returned by the [../tostring] method.
+''
+'' Return the newly created style.
 
 Static Public Sub FromString(Style As String) As TextHighlighterStyle
 
