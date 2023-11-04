@@ -896,17 +896,17 @@ End
 
 Private Function ShowDetailed_Read() As Boolean
   
-  Return $hColumnView.Visible
+  Return View_Read() = Detailed
   
 End
 
-Private Sub ShowDetailed_Write(bDetailed As Boolean)
+Private Sub ShowColumnView(bShow As Boolean)
   
   Dim hOld As Control
   
-  If bDetailed = ShowDetailed_Read() Then Return
+  If bShow = $hColumnView.Visible Then Return
   
-  If bDetailed Then
+  If bShow Then
     
     hOld = $hIconView
     $hColumnView.Show
@@ -925,6 +925,17 @@ Private Sub ShowDetailed_Write(bDetailed As Boolean)
   $bRefreshAll = True
   RefreshView
   TakeSelection
+  
+End
+
+
+Private Sub ShowDetailed_Write(bDetailed As Boolean)
+  
+  If bDetailed Then
+    View_Write(Detailed)
+  Else 
+    View_Write(Normal)
+  Endif
   
 End
 
@@ -1661,23 +1672,57 @@ Private Sub View_Write(Value As Integer)
   
   If Value = View_Read() Then Return
   
-  ShowPreview_Write(False)
-  If Value = Detailed Then
-    ShowDetailed_Write(True)
-  Else
-    iIconSize = GetIconSize()
-    ShowDetailed_Write(False)
-    If Value = Compact Then
-      $hIconView.Orientation = Arrange.Horizontal
-    Else
+  Select Case Value
+    
+    Case Normal
+      ShowPreview_Write(False)
+      iIconSize = GetIconSize()
+      ShowColumnView(False)
       $hIconView.Orientation = Arrange.Vertical
-      If Value = Preview Then ShowPreview_Write(True)
-    Endif 
+      
+    Case Compact
+      ShowPreview_Write(False)
+      iIconSize = GetIconSize()
+      ShowColumnView(False)
+      $hIconView.Orientation = Arrange.Horizontal
+      
+    Case Detailed
+      ShowPreview_Write(False)
+      ShowColumnView(True)
+      
+    Case Preview
+      ShowPreview_Write(False)
+      iIconSize = GetIconSize()
+      ShowColumnView(False)
+      $hIconView.Orientation = Arrange.Vertical
+      ShowPreview_Write(True)
+      
+  End Select
+  
+  If Value <> Detailed Then
     UpdateIconView
     If iIconSize <> GetIconSize() Then 
       RefreshViewLater(True)
     Endif
   Endif
+
+  ' ShowPreview_Write(False)
+  ' If Value = Detailed Then
+  '   ShowColumnView(True)
+  ' Else
+  '   iIconSize = GetIconSize()
+  '   ShowColumnView(False)
+  '   If Value = Compact Then
+  '     $hIconView.Orientation = Arrange.Horizontal
+  '   Else
+  '     $hIconView.Orientation = Arrange.Vertical
+  '     If Value = Preview Then ShowPreview_Write(True)
+  '   Endif 
+  '   UpdateIconView
+  '   If iIconSize <> GetIconSize() Then 
+  '     RefreshViewLater(True)
+  '   Endif
+  ' Endif
 
 End
 
