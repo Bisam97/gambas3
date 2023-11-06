@@ -1454,8 +1454,6 @@ Private Sub DrawLine(X As Integer, Y As Integer, Width As Integer, Height As Int
   ' Diff text
 
 TOP_DIFF: 
-
-
   
   If $hDoc.IsDiffRemoved(Row) Then
       
@@ -1507,8 +1505,6 @@ TOP_DIFF:
   Return
   
 HIGHLIGHT_RECT: 
-
-
 
   If Y1 > Y2 Or If Y1 = Y2 And X1 > X2 Then
     Swap X1, X2
@@ -1603,7 +1599,6 @@ Public Sub _PaintRow(Row As Integer, X As Integer, Y As Integer)
   Endif
 
 End
-
 
 Private Sub DrawMargin(X As Integer, Y As Integer, Width As Integer, Height As Integer, Row As Integer)
   
@@ -3688,9 +3683,9 @@ Public Sub View_Draw()
   
   If HR Then
     XX += $MW - $iWidthModified
-    Paint.FillRect(XX, YR, $iWidth, 1, $iMarginColor)
-    Paint.FillRect(XX, YR + HR - 1, $iWidth, 1, $iMarginColor)
-    Paint.FillRect(XX, YR + 1, $iWidth, HR - 2, $iCurrentColor)
+    Paint.FillRect(XX, YR, $iWidth, HR, $iCurrentColor)
+    If $Y > 0 Then Paint.FillRect(XX, YR, $iWidth, 1, $iMarginColor)
+    If $Y < $hDoc.Max Then Paint.FillRect(XX, YR + HR - 1, $iWidth, 1, $iMarginColor)
   Endif
   
   $hTimerCacheLine.Stop
@@ -6754,7 +6749,7 @@ End
 
 Private Function Max_Read() As Integer
 
-  Return Count_Read() - 1
+  Return $hDoc.Max
 
 End
 
