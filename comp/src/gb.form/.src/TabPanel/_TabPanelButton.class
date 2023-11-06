@@ -86,6 +86,7 @@ Public Sub DrawingArea_Draw()
   Dim HP As Integer
   Dim WP As Float
   Dim H As Integer
+  Dim HR As Integer
   
   hTabPanel = GetParent()
   
@@ -103,7 +104,8 @@ Public Sub DrawingArea_Draw()
     If Me.Parent.HasFocus Or Me.HasFocus Then
       iBg = Color.Blend(Color.SetAlpha(Color.SelectedBackground, 128), iBg)
     Endif
-    Paint.Rectangle(0, 0, Me.W, H, Max(Me.W, H))
+    HR = H - Desktop.Scale / 2
+    Paint.Rectangle(0, (H - HR) / 2, Me.W, HR, Max(Me.W, HR))
     Paint.Background = iBg
     Paint.Fill()
     

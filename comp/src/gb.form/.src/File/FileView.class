@@ -28,6 +28,11 @@ Event Rename(OldName As String, NewName As String)
 
 Event Filter(Name As String, Info As Stat)
 
+'' @{since 3.19}
+''
+'' This event is raised when the [../view] property has changed.
+Event View
+
 Property {Dir} As String
 Property Current As String
 
@@ -1706,24 +1711,8 @@ Private Sub View_Write(Value As Integer)
     Endif
   Endif
 
-  ' ShowPreview_Write(False)
-  ' If Value = Detailed Then
-  '   ShowColumnView(True)
-  ' Else
-  '   iIconSize = GetIconSize()
-  '   ShowColumnView(False)
-  '   If Value = Compact Then
-  '     $hIconView.Orientation = Arrange.Horizontal
-  '   Else
-  '     $hIconView.Orientation = Arrange.Vertical
-  '     If Value = Preview Then ShowPreview_Write(True)
-  '   Endif 
-  '   UpdateIconView
-  '   If iIconSize <> GetIconSize() Then 
-  '     RefreshViewLater(True)
-  '   Endif
-  ' Endif
-
+  Raise View
+  
 End
 
 Private Sub UpdateIconView()
