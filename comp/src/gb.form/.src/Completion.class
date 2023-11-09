@@ -19,14 +19,26 @@ Private $hWatcher As Watcher
 Private $bExplicit As Boolean
 Private $hObsWindow As Observer
 Private $iHeight As Integer
+Private $bIsTextEditor As Boolean
+Class TextEditor
 
 Private Sub FindEditor(hCtrl As Control) As Control
+  
+  $bIsTextEditor = hCtrl Is TextEditor 
+  If $bIsTextEditor Then Return hCtrl
 
   If hCtrl Is Container Then
     For Each hCtrl In Container(hCtrl).Children
       If hCtrl Is TextBox Or If hCtrl Is TextArea Then Return hCtrl
+      If hCtrl Is TextEditor Then 
+        $bIsTextEditor = True
+        Return hCtrl
+      Endif
     Next
   Else If hCtrl Is TextBox Or If hCtrl Is TextArea Then
+    Return hCtrl
+  Else If hCtrl Is TextEditor Then
+    $bIsTextEditor = True
     Return hCtrl
   Endif
 
@@ -50,7 +62,7 @@ End
 Private Sub Attach(hCtrl As Control)
   
   hCtrl = FindEditor(hCtrl)
-  If Not hCtrl Then Error.Raise("Unable to find TextBox or TextArea")
+  If Not hCtrl Then Error.Raise("Unable to find TextBox, TextArea or TextEditor")
 
   HideList
 
@@ -158,8 +170,13 @@ Private Sub MovePopup()
   If Not $hPopup Then Return
 
   hCtrl = GetEditor()
-  hPos = hCtrl.CursorAt(Start)
-  
+
+  If $bIsTextEditor Then 
+    hPos = hCtrl.CursorAt(hCtrl.Line, hCtrl.Column)
+    hPos.Y += hCtrl.Font.H
+  Else 
+    hPos = hCtrl.CursorAt(Start)
+  Endif
   'X = hCtrl.Font.TextWidth(String.Left(hCtrl.Text, Start))
   'Y = hCtrl.ScreenY + hCtrl.H
 
@@ -178,7 +195,13 @@ Public Sub Timer_Timer()
 
   List = Null
   hEditor = GetEditor()
-  Me.Fill(String.Left(hEditor.Text, hEditor.Pos), $bExplicit)
+  If Not $bIsTextEditor Then 
+    Me.Fill(String.Left(hEditor.Text, hEditor.Pos), $bExplicit)
+  Else 
+    Me.Fill(String.Left(hEditor[hEditor.Line].Text, hEditor.Column), $bExplicit)
+  Endif
+  
+  
   aList = List
 
   $bExplicit = False
@@ -301,8 +324,13 @@ Public Sub GridView_MouseUp()
   
   hCtrl = GetEditor()
 
-  Try hCtrl.Text = String.Left(hCtrl.Text, Start) & sElt & String.Mid(hCtrl.Text, hCtrl.Pos + 1)
-  Try hCtrl.Pos = Start + String.Len(sElt)
+  If Not $bisTextEditor Then
+    Try hCtrl.Text = String.Left(hCtrl.Text, Start) & sElt & String.Mid(hCtrl.Text, hCtrl.Pos + 1)
+    Try hCtrl.Pos = Start + String.Len(sElt)
+  Else 
+    Try hCtrl[hCtrl.Line].Text = String.Left(hCtrl[hCtrl.Line].Text, Start) & sElt & String.Mid(hCtrl[hCtrl.Line].Text, hCtrl.Column + 1)
+    hCtrl.Goto(Start + String.Len(sElt), hCtrl.Line)
+  Endif
   HideList
   'hCtrl.SetFocus
   Raise Activate
