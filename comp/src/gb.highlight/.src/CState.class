@@ -18,6 +18,8 @@ Static Private $cInclude As New Collection
 
 Static Private $cSubst As New Collection
 
+Static Public Pattern As String
+
 Public Name As String
 Public ColorIndex As Integer
 Public Indent As Integer
@@ -449,14 +451,16 @@ Static Public Sub AddInclude(sInclude As String) As Integer
   
 End
 
-Static Public Sub IsRegExp(ByRef sPattern As String) As Boolean
+Static Public Sub IsRegExp(sPattern As String) As Boolean
   
   If sPattern Begins "/" And If sPattern Ends "/" And If Len(sPattern) > 2 Then
-    sPattern = Mid$(sPattern, 2, -1)
+    Pattern = Mid$(sPattern, 2, -1)
     Return True
   Else If sPattern Begins "\"" And If sPattern Ends "\"" Then
-    sPattern = UnQuote(sPattern)
+    Pattern = UnQuote(sPattern)
     Return False
+  Else 
+    Pattern = sPattern
   Endif
   
 End

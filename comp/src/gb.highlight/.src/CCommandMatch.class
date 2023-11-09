@@ -16,16 +16,16 @@ End
 
 Public Sub Compile(hState As CState)
   
-  If CState.IsRegExp(ByRef $sFrom) Then
+  If CState.IsRegExp($sFrom) Then
   
-    CState.Print("sWord = Match(" & Quote($sFrom) & ")")
+    CState.Print("sWord = Match(" & Quote(CState.Pattern) & ")")
     CState.Print("If Not sWord Then Goto " & hState.GetNextLabel())
     hState.Forward("String.Len(sWord)")
     
   Else
     
-    CState.IfStartWith($sFrom, hState.GetNextLabel())
-    hState.Forward(String.Len($sFrom))
+    CState.IfStartWith(CState.Pattern, hState.GetNextLabel())
+    hState.Forward(String.Len(CState.Pattern))
     
   Endif
 

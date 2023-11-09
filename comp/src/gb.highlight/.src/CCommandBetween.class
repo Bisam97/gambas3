@@ -34,27 +34,26 @@ Public Sub Compile(hState As CState)
   
     If Not $sFrom Then
       
-    
-    Else If CState.IsRegExp(ByRef $sFrom) Then
+    Else If CState.IsRegExp($sFrom) Then
   
-      CState.Print("sWord = MatchBefore(" & Quote($sFrom) & ")")
+      CState.Print("sWord = MatchBefore(" & Quote(CState.Pattern) & ")")
       CState.Print("If Not sWord Then Goto " & hState.GetNextLabel())
     
     Else
   
-      CState.IfEndWith($sFrom, hState.GetNextLabel())
+      CState.IfEndWith(CState.Pattern, hState.GetNextLabel())
       
     Endif
     
     hState.PrintLabel(hState.GetLabel() & "_LOOP")
     
-    If CState.IsRegExp(ByRef $sTo) Then
+    If CState.IsRegExp($sTo) Then
       
-      CState.Print("If Include(" & CStr($iInclude) & ", " & Quote($sInclude) & ", True, " & Quote($sTo) & ", aState) Then Return")
+      CState.Print("If Include(" & CStr($iInclude) & ", " & Quote($sInclude) & ", True, " & Quote(CState.Pattern) & ", aState) Then Return")
       
     Else
     
-      CState.Print("If Include(" & CStr($iInclude) & ", " & Quote($sInclude) & ", False, " & Quote($sTo) & ", aState) Then Return")
+      CState.Print("If Include(" & CStr($iInclude) & ", " & Quote($sInclude) & ", False, " & Quote(CState.Pattern) & ", aState) Then Return")
   
     Endif
     
@@ -64,24 +63,24 @@ Public Sub Compile(hState As CState)
   
     If Not $sFrom Then
   
-    Else If CState.IsRegExp(ByRef $sFrom) Then
+    Else If CState.IsRegExp($sFrom) Then
   
-      CState.Print("sWord = MatchBefore(" & Quote($sFrom) & ")")
+      CState.Print("sWord = MatchBefore(" & Quote(CState.Pattern) & ")")
       CState.Print("If Not sWord Then Goto " & hState.GetNextLabel())
     
     Else
   
-      CState.IfEndWith($sFrom, hState.GetNextLabel())
+      CState.IfEndWith(CState.Pattern, hState.GetNextLabel())
       
     Endif
     
     hState.PrintLabel(hState.GetLabel() & "_LOOP")
     
-    If CState.IsRegExp(ByRef $sTo) Then
-      CState.Print("sWord = Match(" & Quote($sTo) & ")")
+    If CState.IsRegExp($sTo) Then
+      CState.Print("sWord = Match(" & Quote(CState.Pattern) & ")")
       CState.Print("If sWord Then")
     Else
-      CState.IfStartWith($sTo)
+      CState.IfStartWith(CState.Pattern)
     Endif
 
     hState.Continue()

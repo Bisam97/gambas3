@@ -1,0 +1,13 @@
+$(IDENT)=[A-Za-z][A-Za-z0-9.]*
+class{Function}:
+  match /$(IDENT)({$(IDENT)(=$(IDENT))?})?:/
+subst{Preprocessor}:
+  from /^\$\($(IDENT)\)=/
+command.from{Keyword}:
+  from "from" to "\n"
+  command.to{Keyword}:
+    match "to"
+  @include highlight.arg
+command.match{Keyword}:
+  from "match" to "\n"
+  @include highlight.arg
