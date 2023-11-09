@@ -1,9 +1,10 @@
 ' Gambas class file
 
-Static Private $aAll As New String[]
-
 Public Path As String
 
+Property Read ReadOnly As Boolean
+
+Private $sProject As String
 Private $iTime As Long
 Private $iFuncTime As Long
 Private $aFunc As New CProfile[]
@@ -25,52 +26,77 @@ Private $iFirstLine As Integer
 
 Private Const FUNC_EVENT_LOOP As String = "@"
 
-Static Public Sub Open(sPath As String)
+Public Sub _new(sPath As String)
+
+  Dim hScrollArea As ScrollArea
   
-  Dim hProf As FProfile
-  
-  If Not Exist(sPath) Then Return
-  
-  hProf = New FProfile
-  Project.SetMessage(("Loading profiling file..."))
-  hProf.Init(sPath)
-  Project.SetMessage(("Loading profiling file...") & ("OK"))
+  Path = sPath
+  Me.Name = File.BaseName(Path)
+
+  hScrollArea = edtSource.Proxy
+  hScrollArea.NoAnimation = True
+  hScrollArea = gvwSource.Proxy
+  hScrollArea.NoAnimation = True
   
 End
 
-Public Sub Init(sPath As String)
+Public Sub IsModified() As Boolean
+  
+End
+
+Public Sub LoadFile() As Boolean
+  
+  ReadConfig
+  Return Reload()
+  
+End
+
+Public Sub ReadConfig()
+  
+  Project.SetSmallFont(gvwProfile)
+  Project.SetSmallFont(tabInfo)
+  Project.SetSmallFont(panToolbar)
+  Project.SetSmallFont(lblCurrent)
+  lblCurrent.Font.Bold = True
+  Project.SetSmallFont(gvwSource)
+  
+  edtSource.ReadConfig
+  edtSource.ShowIcon = False
+  edtSource.ShowPosition = False
+  edtSource.ShowModified = False
+  edtSource.ShowLineNumber = False
+  edtSource.ShowExpand = False
+  panSepSource.Background = edtSource.Theme["Background"].Color
+  
+  UpdateSource
+    
+End
+
+Public Sub Reload() As Boolean
   
   Dim hTask As CProfileTask
   Dim vResult As Variant[]
   Dim hCurrent As CProfile
-  Dim sTitle As String
-  Dim hEventLoop As CProfile
 
   Inc Application.Busy
+  Project.SetMessage(("Loading profiling file..."))
 
-  Path = sPath
-
-  hTask = New CProfileTask(sPath) As "ProfileTask"
+  hTask = New CProfileTask(Path) As "ProfileTask"
   hTask.Wait()
   vResult = hTask.Value
 
-  $iTime = vResult[0]
-  $iFuncTime = vResult[1]
-  $aFunc = vResult[2]
-  $cFunc = vResult[3]
-  $cLines = vResult[4]
-  $cCount = vResult[5]
+  $sProject = vResult[0]
+  $iTime = vResult[1]
+  $iFuncTime = vResult[2]
+  $aFunc = vResult[3]
+  $cFunc = vResult[4]
+  $cLines = vResult[5]
+  $cCount = vResult[6]
   
   hCurrent = $cFunc[".System.EventLoop"]
   If hCurrent Then hCurrent.SetEventLoop()
   
-  sTitle = GetName()
-  sTitle &= " (" & Subst(("&1 Mb"), (Stat(sPath).Size + 1048575) \ 1048576) & ") - " & Str(Stat(sPath).LastModified) & " - " & Subst(("Total time &1 μs"), Format($iTime, "#,##0"))
-  
-  hEventLoop = $cFunc[FUNC_EVENT_LOOP]
-  If hEventLoop Then sTitle &= " / " & Subst("&1 μs", Format($iTime - hEventLoop.Self, "#,##0"))
-  Me.Title = sTitle
-
+  'sTitle = GetName()
   gvwProfile.Rows.Count = $aFunc.Count
   
   Object.Lock(gvwProfile)
@@ -79,16 +105,16 @@ Public Sub Init(sPath As String)
   Object.Unlock(gvwProfile)
   gvwProfile_Sort
   
-  $aAll.Add(Path)
+  Project.DrawTitle(Me)
   
-  Me.Show
-
+  Project.SetMessage(("Loading profiling file...") & ("OK"))
   Dec Application.Busy
   
 Catch
   
   Dec Application.Busy
-  FMain.ShowErrorWith(Subst(("Unable to load profile file: &1"), File.Name(sPath)), "*")
+  FMain.ShowErrorWith(Subst(("Unable to load profile file: &1"), File.Name(Path)), "*")
+  Return True
   
 End
 
@@ -98,17 +124,9 @@ Public Sub ProfileTask_Read(Data As String)
   
 End
 
-Public Sub GetName() As String
+Public Sub GetTitle() As String
 
-  Dim sName As String
-  
-  sName = File.Name(Path)
-  
-  If sName Begins "." Then
-    Return Subst(("Profile #&1"), Mid$(File.BaseName(sName), 2))
-  Else
-    Return sName
-  Endif
+  Return File.BaseName(Path)
   
 End
 
@@ -267,99 +285,19 @@ End
 Public Sub Form_Close()
 
   If Left(File.Name(Path)) = "." Then Try Kill Path
-  $aAll.Remove($aAll.Find(Path))
 
   Settings.Write(Me)
-  Settings.Write(spnProfile)
-
-  FDebugButton.UpdateProfile
+  Settings.Write(splProfile)
 
 End
-
-Public Sub ReadConfig()
-  
-  Project.SetSmallFont(gvwProfile)
-  Project.SetSmallFont(tabInfo)
-  Project.SetSmallFont(panProfile)
-  Project.SetSmallFont(lblCurrent)
-  lblCurrent.Font.Bold = True
-  Project.SetSmallFont(gvwSource)
-  
-  edtSource.ReadConfig
-  edtSource.ShowIcon = False
-  edtSource.ShowPosition = False
-  edtSource.ShowModified = False
-  edtSource.ShowLineNumber = False
-  edtSource.ShowExpand = False
-  panSepSource.Background = edtSource.Theme["Background"].Color
-  
-  UpdateSource
-    
-End
-
-Static Public Sub Find(sPath As String) As FProfile
-  
-  Dim hWin As Window
-  Dim hProf As FProfile
-  
-  For Each hWin In Windows
-    If hWin Is FProfile Then
-      hProf = hWin
-      If hProf.Path = sPath Then Return hProf
-    Endif
-  Next
-  
-End
-
-Static Public Sub FindAll() As FProfile[]
-  
-  Dim hWin As Window
-  Dim aProf As New FProfile[]
-  Dim hProf As FProfile
-  
-  For Each hWin In Windows
-    If hWin Is FProfile Then
-      hProf = hWin
-      If $aAll.Exist(hProf.Path) Then aProf.Add(hProf)
-    Endif
-  Next
-  
-  Return aProf
-  
-End
-
-
-Static Public Sub ReadAllConfig()
-  
-  Dim hProf As FProfile
-  
-  For Each hProf In FindAll()
-    hProf.ReadConfig
-  Next
-  
-End
-
-Public Sub _new()
-
-  Dim hScrollArea As ScrollArea
-  
-  hScrollArea = edtSource.Proxy
-  hScrollArea.NoAnimation = True
-  hScrollArea = gvwSource.Proxy
-  hScrollArea.NoAnimation = True
-  
-End
-
 
 Public Sub Form_Open()
-
-  FDebugButton.UpdateProfile
 
   Me.MinWidth = Desktop.Scale * 100
   Me.MinHeight = Desktop.Scale * 60
 
   Settings.Read(Me)
-  Settings.Read(spnProfile)
+  Settings.Read(splProfile)
   splSource.Layout = [1, 2]
   ReadConfig
 
@@ -427,7 +365,7 @@ Public Sub Form_Open()
   
   gvwProfile.Row = 0
   
-  btnSave.Enabled = Left(File.Name(Path)) = "."
+  btnSave.Enabled = Path Begins (Project.Dir &/ ".profile/")
   
   edtSource.Highlight = "gambas"
   
@@ -744,13 +682,8 @@ End
 
 Static Public Sub CleanProfileFiles()
   
-  Dim sPath As String
+  Try Shell.RmDir(Project.Dir &/ ".profile")
   
-  For Each sPath In Dir(Project.Dir, ".*.prof")
-    If $aAll.Exist(sPath) Then Continue
-    Try Kill Project.Dir &/ sPath
-  Next
-
 End
 
 Public Sub gvwSource_Scroll()
@@ -790,5 +723,38 @@ End
 Private Sub UpdateSource()
 
   gvwSource.Width = gvwSource.Font.TextWidth("999999") * (4 + If($bAverage, 2, 0))
+
+End
+
+Private Function ReadOnly_Read() As Boolean
+
+  Return True
+
+End
+
+Public Sub Save() As Boolean
+  
+End
+
+Public Sub PaintStatus()
+
+  Dim sTitle As String
+  Dim hEventLoop As CProfile
+  Dim iTime As Long
+  Dim sProject As String
+
+  sProject = $sProject
+  If Not sProject Then sProject = "<i>" & ("Unknown") & "</i>"
+  sTitle = ("Project") & " <b>" & sProject & "</b>"
+  sTitle &= " &nbsp; " & ("Date") & " <b>" & Str(Stat(Path).LastModified) & "</b>"
+  
+  iTime = $iTime
+  hEventLoop = $cFunc[FUNC_EVENT_LOOP]
+  If hEventLoop Then iTime -= hEventLoop.Self
+  
+  sTitle &= " &nbsp; " & ("Total duration") & " <b>" & Subst(("&1 μs"), Format(iTime, "#,##0")) & "</b>"
+  
+  Paint.Font = Application.Font
+  Paint.DrawRichText(sTitle, 0, 0, Paint.W - Desktop.Scale, Paint.H, Align.Right)
 
 End

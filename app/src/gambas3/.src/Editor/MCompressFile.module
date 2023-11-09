@@ -126,6 +126,8 @@ Private Sub CompressJavascript(sText As String) As String
   Dim iPosMem As Integer
   Dim bRegExp As Boolean
   Dim sLastKeyword As String
+  Dim iParLevel As Integer
+  Dim bCalc As Boolean
   
   If Not $cKeyword Then InitJavascriptKeywords
   
@@ -309,6 +311,8 @@ Private Sub CompressJavascript(sText As String) As String
             iFunction = 1
           Else If sIdent = "var" Then
             bVar = True
+          Else If sIdent = "calc" Then
+            bCalc = True
           Endif
           sLastKeyword = sIdent
         Endif
@@ -378,8 +382,13 @@ Private Sub CompressJavascript(sText As String) As String
       Endif
     Else If sCar = "(" Then
       If iFunction > 0 Then iFunction = 3
+      If bCalc Then Inc iParLevel
     Else If sCar = ")" Then
       If iFunction Then iFunction = 0
+      If bCalc Then
+        Dec iParLevel
+        If iParLevel = 0 Then bCalc = False
+      Endif
     Endif
     
     sRes &= sCar

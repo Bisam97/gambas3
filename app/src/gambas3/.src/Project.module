@@ -165,6 +165,7 @@ Public Const KEY_PROJECT As String = "$P"
 Public Const KEY_PUBLIC As String = "$B"
 Public Const KEY_CONNECTION As String = "$D"
 Public Const KEY_EXTERN As String = "$X"
+Public Const KEY_PROFILE As String = "$F"
 
 Private Const CLASS_AUTH_CAR As String = "abcdefghijklmnopqrstuvwxyz0123456789"
 Private Const CLASS_AUTH_CAR_COMPONENT As String = "_"
@@ -1074,7 +1075,7 @@ Public Function CloseProject() As Boolean
           Try sState = hForm.GetState()
 
           aFold = Null
-          Try aFold = hForm.GetFoldedProc()
+          If Settings["/Editor/ShowExpand", True] Then Try aFold = hForm.GetFoldedProc()
 
           If sState Then sState = ":" & sState
           sPath = MakeProjectRelativePath(hForm.Path)
@@ -1303,6 +1304,8 @@ Public Sub GetSpecialDir(sKey As String) As String
       Return SourceDir
     Case KEY_CONNECTION
       Return Project.Dir &/ ".connection"
+    Case KEY_PROFILE
+      Return Project.Dir &/ ".profile"
   End Select
   
 End
@@ -1745,6 +1748,9 @@ Public Function LoadFile(sPath As String, Optional bNoMessage As Boolean) As Obj
 
         Case "module", "test", "class"
           hForm = New FEditor(sPath)
+          
+        Case "prof"
+          hForm = New FProfile(sPath)
 
         Case Else
           ' Check that it is not a binary file
@@ -2395,12 +2401,7 @@ Public Sub Save(Optional (bReset) As Boolean)
   Inc Application.Busy
 
   For Each hForm In Files
-    If hForm Is FEditor Then
-      If hForm.Save() Then Break
-    Else
-      If hForm.Save() Then Break
-    Endif
-
+    If hForm.Save() Then Break
   Next
 
   Dec Application.Busy
@@ -3953,7 +3954,7 @@ Public Sub UnloadFile(sPath As String)
 
 End
 
-Public Sub DeleteFile(sPath As String)
+Public Sub DeleteFile(sPath As String, Optional bNoBackup As Boolean)
 
   Dim sExt As String
   Dim bLink As Boolean
@@ -3976,7 +3977,7 @@ Public Sub DeleteFile(sPath As String)
 
   UnloadFile(sPath)
 
-  If Not bLink Then
+  If Not bLink And If Not bNoBackup Then
     Try Kill sPath & "~"
     Try Move sPath To sPath & "~"
   Else
@@ -4862,7 +4863,7 @@ Public Sub GetUniqueName(sDir As String, sName As String) As String
   
   sName = File.BaseName(sName)
   
-  iPos = RInStr(sName, "-")
+  iPos = RInStr(sName, ".")
   If iPos And If IsDigit(Mid$(sName, iPos + 1)) Then
     Try iInd = CInt(Mid$(sName, iPos + 1))
     If Not Error Then sName = Left$(sName, iPos - 1)
@@ -4870,7 +4871,7 @@ Public Sub GetUniqueName(sDir As String, sName As String) As String
 
   While Exist(sDest)
     Inc iInd
-    sDest = sDir &/ sName & "-" & CStr(iInd) & sExt
+    sDest = sDir &/ sName & "." & CStr(iInd) & sExt
   Wend
 
   Return File.Name(sDest)
@@ -5214,7 +5215,7 @@ Private Sub CreateGitIgnore()
   Endif
 
   sData = File.Load(sPath)
-  iPos = InStr(sData, "#---- Gambas files to ignore (v5)")
+  iPos = InStr(sData, "#---- Gambas files to ignore (v6)")
   If iPos Then Return
   
   iPos = InStr(sData, "#---- Gambas files to ignore")
@@ -7152,4 +7153,18 @@ Private Sub RegisterHighlight()
   TextHighlighter.Register("commit_git", ("Git commit"), "./highlight/commit_git.highlight")
   TextHighlighter.Register("conflict", ("Conflict"), "./highlight/conflict.highlight")
 
+End
+
+Public Sub RemoveAllProfile()
+  
+  Dim sFile As String
+  
+  If Message.Warning(("Do you really want to remove all profile files?"), ("Remove"), ("Cancel")) <> 1 Then Return
+  
+  Inc Application.Busy
+  For Each sFile In Dir(Project.Dir &/ ".profile", "*.prof")
+    DeleteFile(Project.Dir &/ ".profile" &/ sFile, True)
+  Next
+  Dec Application.Busy
+  
 End

@@ -366,6 +366,7 @@ Private Function GetCurrentDir(Optional sKey As String) As String
   If $sKey = Project.KEY_MISC Then Return Project.Dir
   If $sKey = Project.KEY_PROJECT Then Return Project.Dir &/ ".hidden"
   If $sKey = Project.KEY_PUBLIC Then Return Project.Dir &/ ".public"
+  If $sKey = Project.KEY_PROFILE Then Return Project.Dir &/ ".profile"
   If Project.SourceDir <> Project.Dir
     If $sKey = Project.KEY_SOURCE Then Return Project.SourceDir
   Endif
@@ -449,6 +450,7 @@ Public Sub mnuPopup_Show()
   mnuCompressAll.Hide
   mnuUncompressAll.Hide
   mnuImportFile.Show
+  mnuRemoveAllProfile.Hide
   
   If sRoot = Project.KEY_SOURCE Then
     
@@ -658,6 +660,10 @@ Public Sub mnuPopup_Show()
     Else If Not bIsDir And If Not bIsSpecial And If sRoot Not Begins "/" And If Not Project.HasFlag($sKey, Project.FLAG_ADDED) Then 
       mnuInfoVC.Show
     Endif
+  Endif
+  
+  If $sKey = Project.KEY_PROFILE And If IsDir(Project.Dir &/ ".profile") And If Dir(Project.Dir &/ ".profile", "*.prof").Count Then
+    mnuRemoveAllProfile.Show
   Endif
   
   UpdateRecentFile(mnuOpenRecentFile)
@@ -1827,6 +1833,9 @@ Public Sub Action_Activate((Key) As String) As Boolean
     Case "vc-repository"
       FRepository.ShowModal
       
+    Case "remove-all-profile"
+      Project.RemoveAllProfile
+      
   End Select 
   
   If Left(Key) = "_" And If Project.ActiveForm Then 
@@ -2667,7 +2676,7 @@ Private Sub OpenProfile()
   If Dialog.OpenFile() Then Return
   
   Settings["/FMain/OpenProfile"] = File.Dir(Dialog.Path)
-  FProfile.Open(Dialog.Path)
+  Project.OpenExternFile(Dialog.Path)
   
 End
 

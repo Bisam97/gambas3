@@ -15,8 +15,6 @@ Private UseHttpServer As Boolean
 Private Profiling As Boolean
 Private DebugInside As Boolean
 
-Private $iProfileIndex As Integer
-
 Public Startup As String
 
 Public ProcessId As Integer
@@ -596,9 +594,7 @@ Public Sub Process_Kill()
 
   $hProcess = Null
 
-  If Profiling Then
-    FProfile.Open($sProfilePath)
-  Endif
+  If Profiling Then Project.OpenFile($sProfilePath)
 
 End
 
@@ -1026,6 +1022,7 @@ Private Sub Start(sCmd As String)
   Dim iCurrentArg As Integer
   Dim aArguments As String[][]
   Dim sBrowser As String
+  Dim sDir As String
 
   If Project.Running Then Return
   
@@ -1147,7 +1144,7 @@ Private Sub Start(sCmd As String)
 
   Else
 
-    If Profiling Then FProfile.CleanProfileFiles
+    'If Profiling Then FProfile.CleanProfileFiles
   
     If $bRemote Then
       aExec = ["gbr" & System.Version]
@@ -1183,14 +1180,16 @@ Private Sub Start(sCmd As String)
       
       aExec.Add("-p")
       
-      Inc $iProfileIndex
-      sFile = "." & CStr($iProfileIndex) & ".prof"
-      
       If Project.ReadOnly Then
-        $sProfilePath = File.Dir(Temp$) &/ sFile
+        sDir = Application.TempDir
       Else
-        $sProfilePath = Project.Dir &/ sFile
+        sDir = Project.Dir &/ ".profile"
+        Try Mkdir sDir
       Endif
+      
+      sFile = Project.GetUniqueName(sDir, Project.Name & "-" & Format(Now, "yyyy-mm-dd-hh-nn-ss") & ".prof")
+      $sProfilePath = sDir &/ sFile
+      
       aExec.Add($sProfilePath)
       
     Endif

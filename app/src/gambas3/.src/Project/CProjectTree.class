@@ -6,6 +6,7 @@ Public Const KEY_PROJECT As String = "$P"
 Public Const KEY_PUBLIC As String = "$B"
 Public Const KEY_CONNECTION As String = "$D"
 Public Const KEY_EXTERN As String = "$X"
+Public Const KEY_PROFILE As String = "$F"
 
 Public Sources As Collection
 
@@ -101,6 +102,8 @@ Private Sub AddFile(sDir As String, sFile As String, Optional bAfter As Boolean,
     sParent = KEY_SOURCE
   Else If sDir = $sDir &/ ".connection" Then
     sParent = KEY_CONNECTION
+  Else If sDir = $sDir &/ ".profile" Then
+    sParent = KEY_PROFILE
   Else If $cExtern.Exist(sPath) Then
     sParent = KEY_EXTERN
     If Not $hTree.Exist(sParent) Then $hTree.Add(sParent, ("Files"), Picture["icon:/small/link"], $sDir)
@@ -411,12 +414,10 @@ Private Sub FillTree(Optional bDoNotRefreshCache As Boolean)
     .Add(sKey, File.Name($sDir), Project.GetIcon($sDir, iSize))
 
     .Add(KEY_PROJECT, ("Project"), Picture["icon:/small/directory"], sKey)
-    '.Add(KEY_MODULE, ("Modules"), Picture["icon:/small/directory"], sKey)
-    '.Add(KEY_CLASS, ("Classes"), Picture["icon:/small/directory"], sKey)
     .Add(KEY_SOURCE, ("Sources"), Picture["icon:/small/directory"], sKey)
-    
-    If $hInfo.Components.Exist("gb.db") Then .Add(KEY_CONNECTION, ("Connections"), Picture["icon:/small/directory"], sKey)
-    If $hInfo.Components.Exist("gb.web") Then .Add(KEY_PUBLIC, ("Public"), Picture["icon:/small/directory"], sKey)
+    If $hInfo.Components.Exist("gb.db") Then .Add(KEY_CONNECTION, ("Connections"), Picture["icon:/small/folder-remote"], sKey)
+    If $hInfo.Components.Exist("gb.web") Then .Add(KEY_PUBLIC, ("Public"), Picture["icon:/small/folder-share"], sKey)
+    .Add(KEY_PROFILE, ("Profiles"), Picture["icon:/small/folder-recent"], sKey)
     .Add(KEY_MISC, ("Data"), Picture["icon:/small/directory"], sKey)
 
     '$bGetSource = TRUE
@@ -425,7 +426,7 @@ Private Sub FillTree(Optional bDoNotRefreshCache As Boolean)
     If Exist($sDir &/ ".hidden") Then AddDir($sDir &/ ".hidden")
     If $hInfo.Components.Exist("gb.db") And If Exist($sDir &/ ".connection") Then AddDir($sDir &/ ".connection")
     If $hInfo.Components.Exist("gb.web") And If Exist($sDir &/ ".public") Then AddDir($sDir &/ ".public")
-
+    If Exist($sDir &/ ".profile") Then AddDir($sDir &/ ".profile")
     For Each sKey In $cExtern
       AddFile(File.Dir(sKey), File.Name(sKey))
     Next
@@ -749,6 +750,9 @@ Public Sub GetFileIcon(sPath As String, Optional iSize As Integer, hStat As Stat
           
         Case "console"
           sIcon = sPrefix &/ "terminal"
+          
+        Case "prof"
+          sIcon = sPrefix &/ "clock"
           
         Case Else
           bDesktopMime = True

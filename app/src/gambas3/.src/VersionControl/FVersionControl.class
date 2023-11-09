@@ -136,7 +136,7 @@ Private Sub LoadDiff()
   If edtDiff.IsVoid() Then
     Inc Application.Busy
     
-    sDiff = VersionControl.Diff()
+    sDiff = VersionControl.Diff(,, chkHideSpace.Value)
     
     If chkHideTrans.Value Then
       
@@ -233,3 +233,10 @@ Public Sub btnLocateChange_Click()
 
 End
 
+
+Public Sub chkHideSpace_Click()
+
+  edtDiff.Clear
+  LoadDiff
+
+End

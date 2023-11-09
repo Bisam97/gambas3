@@ -164,44 +164,44 @@ Public Sub timMessage_Timer()
   
 End
 
-Public Sub UpdateProfile()
-  
-  Dim aProf As FProfile[]
-  Dim hProf As FProfile
-  Dim hSeparator As Separator
-  Dim hButton As ToolButton
-  Dim W As Integer
-  
-  aProf = FProfile.FindAll()
-  
-  panProfile.Children.Clear
-   
-  If aProf.Count = 0 Then
-    panProfile.Hide
-    Return
-  Endif
-  
-  hSeparator = New Separator(panProfile)
-  hSeparator.W = 1
-  
-  ' hButton = New ToolButton(panProfile) As "btnCloseProfile"
-  ' hButton.Picture = Picture["icon:/small/close"]
-  ' hButton.AutoResize = True
-  
-  W = 1
-  For Each hProf In aProf
-    hButton = New ToolButton(panProfile) As "btnShowProfile"
-    hButton.Tag = hProf.Path
-    hButton.Text = hProf.GetName()
-    hButton.Picture = Picture["icon:/small/clock"]
-    hButton.AutoResize = True
-    W += hButton.W
-  Next
-  
-  panProfile.W = W
-  panProfile.Show
-  
-End
+' Public Sub UpdateProfile()
+'   
+'   Dim aProf As FProfile[]
+'   Dim hProf As FProfile
+'   Dim hSeparator As Separator
+'   Dim hButton As ToolButton
+'   Dim W As Integer
+'   
+'   aProf = FProfile.FindAll()
+'   
+'   panProfile.Children.Clear
+'    
+'   If aProf.Count = 0 Then
+'     panProfile.Hide
+'     Return
+'   Endif
+'   
+'   hSeparator = New Separator(panProfile)
+'   hSeparator.W = 1
+'   
+'   ' hButton = New ToolButton(panProfile) As "btnCloseProfile"
+'   ' hButton.Picture = Picture["icon:/small/close"]
+'   ' hButton.AutoResize = True
+'   
+'   W = 1
+'   For Each hProf In aProf
+'     hButton = New ToolButton(panProfile) As "btnShowProfile"
+'     hButton.Tag = hProf.Path
+'     hButton.Text = hProf.GetName()
+'     hButton.Picture = Picture["icon:/small/clock"]
+'     hButton.AutoResize = True
+'     W += hButton.W
+'   Next
+'   
+'   panProfile.W = W
+'   panProfile.Show
+'   
+' End
 
 Public Sub btnShowProfile_Click()
 

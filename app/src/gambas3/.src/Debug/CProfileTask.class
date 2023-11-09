@@ -5,6 +5,7 @@ Inherits Task
 Public Const FUNC_EVENT_LOOP As String = "@"
 
 Private $sPath As String
+Private $sProject As String
 
 Private $iTime As Long
 Private $iFuncTime As Long
@@ -28,7 +29,7 @@ Public Sub Main() As Variant
   
   LoadProfile()
   
-  Return [$iTime, $iFunctime, $aFunc, $cFunc, $cLines, $cCount]
+  Return [$sProject, $iTime, $iFunctime, $aFunc, $cFunc, $cLines, $cCount]
   
 End
 
@@ -155,7 +156,6 @@ Fast Public Sub LoadProfile()
   Dim aLastLine As New Integer[]
   Dim aLastTime As New Long[]
   Dim I, N As Integer
-  Dim bVer As Boolean
   Dim iLenFile As Long
   Dim iProgress As Integer
   Dim iLastProgress As Integer
@@ -163,6 +163,11 @@ Fast Public Sub LoadProfile()
   hFile = Open $sPath
   iLenFile = Lof(hFile)
   
+  Line Input #hFile, sLine
+  If sLine Not Begins "[1]" Then Error.Raise(("Bad profile file format"))
+  iPos = InStr(sLine, " ")
+  If iPos Then $sProject = Mid$(sLine, iPos + 1)
+    
   While Not Eof(hFile)
   
     Line Input #hFile, sLine
@@ -173,10 +178,6 @@ Fast Public Sub LoadProfile()
       iLastProgress = iProgress
     Endif
     
-    If Not bVer Then
-      If sLine <> "[1]" Then Error.Raise(("Bad profile file format"))
-      bVer = True
-    Endif
     ' The last line should be a void line, otherwise the file has been truncated. So always ignore it.
     If hFile.EndOfFile Then Break
     
