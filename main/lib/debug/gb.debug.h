@@ -106,7 +106,7 @@ typedef
 		void (*InitBreakpoints)(void *klass);
 		bool (*CheckWatches)(void);
 		struct {
-			void (*Init)(const char *path);
+			void (*Init)(const char *path, const char *project_name);
 			void (*Add)(void *cp, void *fp, void *pc);
 			void (*Exit)(void);
 			void (*Begin)(void *cp, void *fp);

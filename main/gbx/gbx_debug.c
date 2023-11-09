@@ -177,7 +177,7 @@ void DEBUG_init(void)
 	if (EXEC_profile)
 	{
 		EXEC_profile_instr = TRUE;
-		DEBUG.Profile.Init(EXEC_profile_path);
+		DEBUG.Profile.Init(EXEC_profile_path, PROJECT_name);
 	}
 }
 
