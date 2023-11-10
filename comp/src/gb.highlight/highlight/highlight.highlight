@@ -1,13 +1,47 @@
+@word /\S+/
 $(IDENT)=[A-Za-z][A-Za-z0-9.]*
+comment:
+  from #
 class{Function}:
   match /$(IDENT)({$(IDENT)(=$(IDENT))?})?:/
 subst{Preprocessor}:
   from /^\$\($(IDENT)\)=/
-command.from{Keyword}:
-  from "from" to "\n"
-  command.to{Keyword}:
-    match "to"
-  @include highlight.arg
-command.match{Keyword}:
-  from "match" to "\n"
-  @include highlight.arg
+include{Preprocessor}:
+  from "@include"
+command{Keyword}:
+  match /(from|between|match)/
+  args:
+    from here
+    keyword:
+      match /(to|and|here)/
+    with{Preprocessor}:
+      from "with"
+    arg{Normal}:
+      word " "" / // /* /**
+    space{Normal}:
+      match /(/s|[^"/])/
+    string:
+      match "\""
+      string.contents{String}:
+        between here and /\s/
+        string.subst{Preprocessor}:
+          match /\$\($(IDENT)\)/
+        escape:
+          match /\\[fnrtv0'"\\]/
+          match /\\x[0-9a-fA-F]{2}/
+    regexp{Datatype}:
+      match "/"
+      regexp.contents{Datatype}:
+        between here and /\s/
+        regexp.subst{Preprocessor}:
+          match /\$\($(IDENT)\)/
+        regexp.escape{Escape}:
+          match /\\./
+word{Keyword}:
+  match /(word|keyword|symbol)/
+  args{Normal}:
+    from here
+    include{Preprocessor}:
+      from @
+limit{Keyword}:
+  match "limit"

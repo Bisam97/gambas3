@@ -7,7 +7,6 @@ Inherits TextHighlighter
 Property Read Keywords As String[]
 
 Static Private $hWordRegExp As RegExp
-Static Private $sWordRegExp As String
 Static Private $cRegExp As New Collection
 
 Private $sText As String
@@ -34,7 +33,6 @@ Private Sub Init(sText As String)
   $bTextAfter = False
 
   If Not $hWordRegExp Then
-    $sWordRegExp = "[A-Za-z_][A-Za-z0-9_]*"
     $hWordRegExp = New RegExp
     $hWordRegExp.Compile("^" & $sWordRegExp & "(.*)")
   Endif

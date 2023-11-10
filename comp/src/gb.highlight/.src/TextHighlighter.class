@@ -288,6 +288,7 @@ Static Private Sub CreateCustomHighlighter(sHighlight As String, sPath As String
   Dim aLines As String[]
   Dim aInclude As String[]
   Dim I As Integer
+  Dim sWordRegExp As String = "[A-Za-z_][A-Za-z0-9_]*"
   
   sDir = File.Dir(Temp$()) &/ "gb.highlight." & sHighlight
   
@@ -333,6 +334,16 @@ Static Private Sub CreateCustomHighlighter(sHighlight As String, sPath As String
       Next
       aLines.Insert(aInclude, iLine)
       Continue
+    Endif
+    
+    If sLine Begins "@word " Then
+      sWordRegExp = Trim(Mid$(sLine, 7))
+      If sWordRegExp Begins "/" And If sWordRegExp Ends "/" Then
+        sWordRegExp = Mid$(sWordRegExp, 2, -1)
+      Else 
+        sWordRegExp = ""
+      Endif
+      If Not sWordRegExp Then Error.Raise("Syntax error. Bad regular expression")
     Endif
     
     If sLine Begins "$(" Then
@@ -408,6 +419,7 @@ Static Private Sub CreateCustomHighlighter(sHighlight As String, sPath As String
   CState.Print("aKeywords.ReadOnly = True")
   CState.Print("Return aKeywords")
   CState.Print("End")
+  CState.Print("Static $sWordRegExp As String = " & Quote(sWordRegExp))
   
   ' CState.Print("Public Sub GetStateFromName(sName As String) As Integer")
   ' CState.Print()

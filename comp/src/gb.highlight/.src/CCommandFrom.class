@@ -21,6 +21,7 @@ Public Sub SetArgs(aArgs As String[])
     Endif
   Else If aArgs.Count = 1 Then
     $sFrom = aArgs[0]
+    If $sFrom = "here" Then $sFrom = ""
     $sTo = "\n"
   Else 
     Error.Raise("Syntax error")
@@ -99,6 +100,15 @@ Public Sub Compile(hState As CState)
 
       hState.Continue()
     CState.Print("Endif")
+    
+    ' If $sMatch Then
+    '   If CState.IsRegExp($sMatch) Then
+    '     CState.Print("sWord = Match(" & Quote(CState.Pattern) & ")")
+    '     CState.Print("If Not sWord Then Goto " & hState.GetContinueLabel())
+    '   Else
+    '     CState.IfStartWith(CState.Pattern, hState.GetContinueLabel())
+    '   Endif
+    ' Endif
   
     hState.CompileChildren(hState.GetLabel() & "_LOOP", True)
     
