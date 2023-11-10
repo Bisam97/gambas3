@@ -24,21 +24,14 @@ Class TextEditor
 
 Private Sub FindEditor(hCtrl As Control) As Control
   
-  $bIsTextEditor = hCtrl Is TextEditor 
-  If $bIsTextEditor Then Return hCtrl
-
-  If hCtrl Is Container Then
+  If hCtrl Is TextEditor Then
+    $bIsTextEditor = True
+    Return hCtrl
+  Else If hCtrl Is Container Then
     For Each hCtrl In Container(hCtrl).Children
       If hCtrl Is TextBox Or If hCtrl Is TextArea Then Return hCtrl
-      If hCtrl Is TextEditor Then 
-        $bIsTextEditor = True
-        Return hCtrl
-      Endif
     Next
   Else If hCtrl Is TextBox Or If hCtrl Is TextArea Then
-    Return hCtrl
-  Else If hCtrl Is TextEditor Then
-    $bIsTextEditor = True
     Return hCtrl
   Endif
 
