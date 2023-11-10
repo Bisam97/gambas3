@@ -31,6 +31,16 @@ End
 
 Public Sub Compile(hState As CState)
   
+  Dim bToRegExp As Boolean
+  Dim sTo As String
+  
+  bToRegExp = CState.IsRegExp($sTo)
+  sTo = CState.Pattern
+  
+  If Not bToRegExp And If sTo Ends "\n" And If Len(sTo) >= 2 Then
+    CState.Print("If $sText Not Ends " & Quote(sTo) & " Then Goto " & hState.GetNextLabel())
+  Endif
+  
   If $sInclude Then
   
     If Not $sFrom Then

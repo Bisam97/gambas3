@@ -30,6 +30,16 @@ Public Sub SetArgs(aArgs As String[])
 End
 
 Public Sub Compile(hState As CState)
+
+  Dim bToRegExp As Boolean
+  Dim sTo As String
+  
+  bToRegExp = CState.IsRegExp($sTo)
+  sTo = CState.Pattern
+  
+  If Not bToRegExp And If sTo Ends "\n" And If Len(sTo) >= 2 Then
+    CState.Print("If $sText Not Ends " & Quote(sTo) & " Then Goto " & hState.GetNextLabel())
+  Endif
   
   If $sInclude Then
   
@@ -52,18 +62,18 @@ Public Sub Compile(hState As CState)
     
     hState.PrintLabel(hState.GetLabel() & "_LOOP")
     
-    If CState.IsRegExp($sTo) Then
+    If bToRegExp Then
       
-      CState.Print("If Include(" & CStr($iInclude) & ", " & Quote($sInclude) & ", True, " & Quote(CState.Pattern) & ", aState) Then Return")
+      CState.Print("If Include(" & CStr($iInclude) & ", " & Quote($sInclude) & ", True, " & Quote(sTo) & ", aState) Then Return")
       CState.Print("SetIncludeHighlight(" & CStr($iInclude) & ")")
-      hState.Forward("String.Len(Match(" & Quote(CState.Pattern) & "))")
+      hState.Forward("String.Len(Match(" & Quote(sTo) & "))")
       CState.Print("SetIncludeHighlight(Me._IncludeHighlight)")
       
     Else
     
-      CState.Print("If Include(" & CStr($iInclude) & ", " & Quote($sInclude) & ", False, " & Quote(CState.Pattern) & ", aState) Then Return")
+      CState.Print("If Include(" & CStr($iInclude) & ", " & Quote($sInclude) & ", False, " & Quote(sTo) & ", aState) Then Return")
       CState.Print("SetIncludeHighlight(" & CStr($iInclude) & ")")
-      hState.Forward(String.Len(CState.Pattern))
+      hState.Forward(String.Len(sTo))
       CState.Print("SetIncludeHighlight(Me._IncludeHighlight)")
   
     Endif
@@ -89,27 +99,18 @@ Public Sub Compile(hState As CState)
     
     hState.PrintLabel(hState.GetLabel() & "_LOOP")
     
-    If CState.IsRegExp($sTo) Then
-      CState.Print("sWord = Match(" & Quote(CState.Pattern) & ")")
+    If bToRegExp Then
+      CState.Print("sWord = Match(" & Quote(sTo) & ")")
       CState.Print("If sWord Then")
       hState.Forward("String.Len(sWord)")
     Else
-      CState.IfStartWith(CState.Pattern)
-      hState.Forward(String.Len(CState.Pattern))
+      CState.IfStartWith(sTo)
+      hState.Forward(String.Len(sTo))
     Endif
 
       hState.Continue()
     CState.Print("Endif")
     
-    ' If $sMatch Then
-    '   If CState.IsRegExp($sMatch) Then
-    '     CState.Print("sWord = Match(" & Quote(CState.Pattern) & ")")
-    '     CState.Print("If Not sWord Then Goto " & hState.GetContinueLabel())
-    '   Else
-    '     CState.IfStartWith(CState.Pattern, hState.GetContinueLabel())
-    '   Endif
-    ' Endif
-  
     hState.CompileChildren(hState.GetLabel() & "_LOOP", True)
     
   Endif

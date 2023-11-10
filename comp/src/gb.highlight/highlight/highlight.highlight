@@ -1,9 +1,13 @@
 @word /\S+/
-$(IDENT)=[A-Za-z][A-Za-z0-9.]*
+$(IDENT)=[A-Za-z_][A-Za-z0-9._]*
 comment:
   from #
 class{Function}:
-  match /$(IDENT)({$(IDENT)(=$(IDENT))?})?:/
+  from /$(IDENT)/ to ":\n"
+  color{Keyword}:
+    from { to }
+    color.arg{Constant}:
+      match /$(IDENT)/
 subst{Preprocessor}:
   from /^\$\($(IDENT)\)=/
 include{Preprocessor}:
@@ -15,7 +19,7 @@ command{Keyword}:
     keyword:
       match /(to|and|here)/
     with{Preprocessor}:
-      from "with"
+      match /with\s$(IDENT)/
     arg{Normal}:
       word " "" / // /* /**
     space{Normal}:
