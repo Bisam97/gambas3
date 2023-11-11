@@ -3,9 +3,11 @@
 Public Sub Main()
 
   Dim hSettings As Settings
+  Dim sPath As String
 
-  hSettings = New Settings("~/gambas/git/stable/app/src/gambas3/.settings")
-  Print hSettings["/Debug/Projects"]
+  For Each sPath In ["/home/benoit/.config/gambas3/gambas3.conf", "/home/benoit/.config/gambas3/gambas3.recent.conf", "/home/benoit/gambas/git/master/app/src/gambas3/.settings", "/home/benoit/.config/gambas3/gambas3-farm.conf"]
+    hSettings = New Settings(sPath)
+  Next
 
 End
 
