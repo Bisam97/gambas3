@@ -316,6 +316,8 @@ Public Sub tvwProject_Menu()
   
   If $sKey = Project.KEY_CONNECTION Or If Project.IsConnectionPath($sKey) Then
     mnuDatabase.Popup
+  Else If $sKey = Project.KEY_PROFILE Or If Project.IsProfilePath($sKey) Then
+    mnuProfile.Popup
   Else
     
     If Left($sKey) <> "$" And If Not Exist($sKey) Then
@@ -534,10 +536,35 @@ Public Sub mnuPopup_Show()
       mnuNewTest.Show
       
     Endif
-    
+  
+  Else If sRoot = Project.KEY_PROFILE Then
+  
+    mnuNew.Hide
+    mnuImportFile.Hide
+    mnuRenameFile.Hide
+    mnuDeleteFile.Visible = CanDelete(sCurrent)
+    mnuStartup.Hide
+    mnuRunThat.Hide
+    mnuDoNotTranslate.Hide
+    mnuCompressFile.Hide
+    mnuCut.Hide
+    mnuCopy.Hide
+    mnuPaste.Hide
+  
   Else
     
-    If sRoot = Project.KEY_EXTERN Or If sRoot Begins "/" Then
+    ' If sRoot = Project.KEY_EXTERN Or If sRoot Begins "/" Or If sRoot = Project.KEY_PROFILE Then
+    '   mnuNew.Hide
+    '   mnuImportFile.Hide
+    ' Endif
+    
+    If $sKey = Project.KEY_MISC Or If $sKey = Project.KEY_PROJECT Or If $sKey = Project.KEY_PUBLIC Then
+      bCanStoreFile = True '$sKey = Project.KEY_MISC Or $sKey = Project.KEY_PROJECT
+    Else
+      bCanStoreFile = False
+    Endif
+    
+    If Not bCanStoreFile Then
       mnuNew.Hide
       mnuImportFile.Hide
     Endif
@@ -555,14 +582,8 @@ Public Sub mnuPopup_Show()
     mnuEditFile.Visible = mnuEditFile.Visible And CanEdit(sCurrent)
     mnuEditClass.Visible = False
     
-    mnuStartup.Visible = False
-    mnuRunThat.Visible = False
-    
-    If $sKey = Project.KEY_MISC Or If $sKey = Project.KEY_PROJECT Or If $sKey = Project.KEY_PUBLIC Then
-      bCanStoreFile = True '$sKey = Project.KEY_MISC Or $sKey = Project.KEY_PROJECT
-    Else
-      bCanStoreFile = False
-    Endif
+    mnuStartup.Hide
+    mnuRunThat.Hide
     
     mnuDoNotTranslate.Hide
     
@@ -686,6 +707,22 @@ Public Sub mnuDatabase_Show()
   Endif
   
   UpdateRecentFile(mnuOpenRecentFile2)
+  
+End
+
+Public Sub mnuProfile_Show()
+  
+  Dim bVisible As Boolean
+  
+  bVisible = $sKey <> Project.KEY_PROFILE
+  
+  mnuEditProfile.Visible = bVisible
+  mnuDeleteProfile.Visible = bVisible
+  mnuInfoProfile.Show
+  
+  mnuRemoveAllProfile.Visible = Not bVisible
+  
+  UpdateRecentFile(mnuOpenRecentFile3)
   
 End
 
@@ -1518,7 +1555,7 @@ Public Sub OnProjectChange()
   ' mnuUseTerminal.Value = Design.UseTerminal
   ' mnuRedirectStderr.Value = Design.RedirectStderr
   ' mnuUseHttpServer.Value = Design.UseHttpServer
-  mnuProfile.Value = Project.Config["/Debug/Profiling"]
+  mnuEnableProfile.Value = Project.Config["/Debug/Profiling"]
   mnuDebugInside.Value = Project.Config["/Debug/DebugInside"]
   
   OnRefreshComponents
@@ -1730,7 +1767,7 @@ Public Sub Action_Activate((Key) As String) As Boolean
       Try hEditor = Project.ActiveForm
       If Not Error Then hEditor.RunUntil
       
-    Case "info"
+    Case "info", "info-profile"
       If tvwProject.Key = Project.Dir Then
         FProjectProperty.Run() 'Then Project.Refresh
       Else
@@ -1861,11 +1898,14 @@ End
 
 Private Sub RefreshMenu()
   
-  GetCurrent
+  GetCurrent()
   
   If $sKey = Project.KEY_CONNECTION Or If Project.IsConnectionPath($sKey) Then
     If tvwProject.HasFocus Then Project.SetCurrentPopup(mnuDatabase)
     mnuDatabase_Show
+  Else If $sKey = Project.KEY_PROFILE Or If Project.IsProfilePath($sKey) Then
+    If tvwProject.HasFocus Then Project.SetCurrentPopup(mnuProfile)
+    mnuProfile_Show
   Else
     If tvwProject.HasFocus Then Project.SetCurrentPopup(mnuPopup)
     mnuPopup_Show
@@ -3649,4 +3689,10 @@ Public Sub mnuVcAddBranch_Click()
 
   VersionControl.AddBranch
 
+End
+
+Public Sub mnuEditProfile_Click()
+
+  tvwProject_Activate
+  
 End
