@@ -373,7 +373,7 @@ Public Sub mnuDelete_Click()
       Try Project.DeleteFile(sPath)
     Endif
     If Error Then 
-      Select Case Message.Warning(Project.GetMessagePrefix(sPath) & "\n\n<b>" & If(IsDir(sPath), ("Cannot delete directory"), ("Cannot delete file")) & "<b>\n\n" & Error.Text, ("Ignore"), ("Cancel"))
+      Select Case Message.Warning(Project.GetMessagePrefix(sPath) & "<b>" & If(IsDir(sPath), ("Cannot delete directory"), ("Cannot delete file")) & "<b>\n\n" & Error.Text, ("Ignore"), ("Cancel"))
         Case 1
           Continue 
         Case 2

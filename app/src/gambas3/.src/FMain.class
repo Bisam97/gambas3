@@ -295,7 +295,7 @@ Public Sub mnuDeleteFile_Click()
       sName = File.Name(sPath)
     Endif
     
-    If Message.Delete(Project.GetMessagePrefix(sName) & "\n\n" & ("Do you really want to delete this file ?"), ("Delete"), ("Cancel")) <> 1 Then Return
+    If Message.Delete(Project.GetMessagePrefix(sName) & ("Do you really want to delete this file ?"), ("Delete"), ("Cancel")) <> 1 Then Return
     Project.DeleteFile(sPath)
     
   Endif
@@ -537,20 +537,6 @@ Public Sub mnuPopup_Show()
       
     Endif
   
-  Else If sRoot = Project.KEY_PROFILE Then
-  
-    mnuNew.Hide
-    mnuImportFile.Hide
-    mnuRenameFile.Hide
-    mnuDeleteFile.Visible = CanDelete(sCurrent)
-    mnuStartup.Hide
-    mnuRunThat.Hide
-    mnuDoNotTranslate.Hide
-    mnuCompressFile.Hide
-    mnuCut.Hide
-    mnuCopy.Hide
-    mnuPaste.Hide
-  
   Else
     
     ' If sRoot = Project.KEY_EXTERN Or If sRoot Begins "/" Or If sRoot = Project.KEY_PROFILE Then
@@ -587,13 +573,22 @@ Public Sub mnuPopup_Show()
     
     mnuDoNotTranslate.Hide
     
-    mnuCompressNow.Visible = MCompressFile.CanCompress(sCurrent, True)
+    If bProject Then
     
-    If MCompressFile.CanCompress(sCurrent, False) Then
-      mnuCompressFile.Show
-      mnuCompressFile.Checked = Project.ShouldCompress(sCurrent)
+      mnuCompressNow.Visible = MCompressFile.CanCompress(sCurrent, True)
+      
+      If MCompressFile.CanCompress(sCurrent, False) Then
+        mnuCompressFile.Show
+        mnuCompressFile.Checked = Project.ShouldCompress(sCurrent)
+      Else
+        mnuCompressFile.Hide
+      Endif
+      
     Else
+      
+      mnuCompressNow.Hide
       mnuCompressFile.Hide
+      
     Endif
     
     bFile = bCurrent
@@ -678,13 +673,9 @@ Public Sub mnuPopup_Show()
   If VersionControl.Enabled Then
     If $sKey = Project.Dir Then 
       mnuInfoVC.Show
-    Else If Not bIsDir And If Not bIsSpecial And If sRoot Not Begins "/" And If Not Project.HasFlag($sKey, Project.FLAG_ADDED) Then 
+    Else If bProject And If Not bIsDir And If Not bIsSpecial And If sRoot Not Begins "/" And If Not Project.HasFlag($sKey, Project.FLAG_ADDED) Then 
       mnuInfoVC.Show
     Endif
-  Endif
-  
-  If $sKey = Project.KEY_PROFILE And If IsDir(Project.Dir &/ ".profile") And If Dir(Project.Dir &/ ".profile", "*.prof").Count Then
-    mnuRemoveAllProfile.Show
   Endif
   
   UpdateRecentFile(mnuOpenRecentFile)
@@ -720,7 +711,11 @@ Public Sub mnuProfile_Show()
   mnuDeleteProfile.Visible = bVisible
   mnuInfoProfile.Show
   
-  mnuRemoveAllProfile.Visible = Not bVisible
+  If Not bVisible And If IsDir(Project.Dir &/ ".profile") And If Dir(Project.Dir &/ ".profile", "*.prof").Count Then
+    mnuRemoveAllProfile.Show
+  Else
+    mnuRemoveAllProfile.Hide
+  Endif
   
   UpdateRecentFile(mnuOpenRecentFile3)
   
@@ -2715,8 +2710,8 @@ Private Sub OpenProfile()
   Dialog.Path = Settings["/FMain/OpenProfile"]
   If Dialog.OpenFile() Then Return
   
-  Settings["/FMain/OpenProfile"] = File.Dir(Dialog.Path)
-  Project.OpenExternFile(Dialog.Path)
+  Settings["/FMain/OpenProfile"] = Dialog.Path
+  Project.OpenFile(Dialog.Path)
   
 End
 

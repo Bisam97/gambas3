@@ -289,6 +289,9 @@ Public Sub Form_Close()
   Settings.Write(Me)
   Settings.Write(splProfile)
 
+  Project.AddRecentFile(Me)
+  Project.Files[Path] = Null
+
 End
 
 Public Sub Form_Open()
@@ -709,7 +712,7 @@ Public Sub btnSave_Click()
 
   Dialog.Title = ("Save profile")
   Dialog.Filter = ["*.prof", ("Profile files")]
-  Dialog.Path = Settings["/FProfile/Path", User.Home] &/ Project.Name & File.Name(Path)
+  Dialog.Path = Settings["/FProfile/Path", User.Home] &/ File.Name(Path)
   If Dialog.SaveFile() Then Return
 
   Settings["/FProfile/Path"] = File.Dir(Dialog.Path)
