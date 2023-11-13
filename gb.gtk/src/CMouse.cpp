@@ -197,13 +197,6 @@ BEGIN_PROPERTY(Mouse_Delta)
 
 END_PROPERTY
 
-BEGIN_PROPERTY(Mouse_FullDelta)
-
-	CHECK_VALID();
-	GB.ReturnBoolean(TRUE);
-
-END_PROPERTY
-
 BEGIN_PROPERTY(Mouse_Orientation)
 
 	CHECK_VALID();
@@ -447,7 +440,6 @@ GB_DESC CMouseDesc[] =
 	GB_STATIC_PROPERTY_READ("Normal", "b", Mouse_Normal),
 	GB_STATIC_PROPERTY_READ("Orientation", "i", Mouse_Orientation),
 	GB_STATIC_PROPERTY_READ("Delta", "f", Mouse_Delta),
-	GB_STATIC_PROPERTY_READ("FullDelta", "b", Mouse_FullDelta),
 	GB_STATIC_PROPERTY_READ("Forward", "b", Mouse_Forward),
 	GB_STATIC_PROPERTY_READ("Click", "i", Mouse_Click),
 	

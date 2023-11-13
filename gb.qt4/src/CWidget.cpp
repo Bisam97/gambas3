@@ -3106,6 +3106,7 @@ bool CWidget::eventFilter(QObject *widget, QEvent *event)
 	{
 		QWheelEvent *ev = (QWheelEvent *)event;
 		bool eat_wheel;
+		int d;
 
 		//qDebug("Event on %p %s%s%s", widget,
 		//  real ? "REAL " : "", design ? "DESIGN " : "", child ? "CHILD " : "");
@@ -3157,36 +3158,48 @@ bool CWidget::eventFilter(QObject *widget, QEvent *event)
 
 #ifdef QT5
 				QPoint delta = ev->angleDelta();
+#else
+				QPoint delta;
+				if (ev->orientation() == Qt::Horizontal)
+					delta.setX(ev->delta());
+				else
+					delta.setY(ev->delta());
+#endif
+
 				if (delta.x())
 				{
-					MOUSE_delta_x += delta.x();
 					MOUSE_info.orientation = Qt::Horizontal;
-					MOUSE_info.delta = delta.x();
-					cancel = GB.Raise(control, EVENT_MouseWheel, 0);
-					MOUSE_delta_x %= 120;
+					MOUSE_delta_x += delta.x();
+					MOUSE_info.delta = d = (MOUSE_delta_x >= 120) ? 120 : ((MOUSE_delta_x <= -120) ? -120 : 0);
+
+					while (abs(MOUSE_delta_x) >= 120)
+					{
+						cancel = GB.Raise(control, EVENT_MouseWheel, 0);
+						if (cancel)
+						{
+							MOUSE_delta_x = 0;
+							break;
+						}
+						MOUSE_delta_x -= d;
+					}
 				}
 				if (delta.y())
 				{
-					MOUSE_delta_y += delta.y();
 					MOUSE_info.orientation = Qt::Vertical;
-					MOUSE_info.delta = delta.y();
-					cancel = GB.Raise(control, EVENT_MouseWheel, 0);
-					MOUSE_delta_y %= 120;
-				}
-#else
-				if (ev->orientation() == Qt::Horizontal)
-					MOUSE_delta_x += ev->delta();
-				else
-					MOUSE_delta_y += ev->delta();
-				MOUSE_info.orientation = ev->orientation();
-				MOUSE_info.delta = ev->delta();
-				cancel = GB.Raise(control, EVENT_MouseWheel, 0);
-				if (ev->orientation() == Qt::Horizontal)
-					MOUSE_delta_x %= 120;
-				else
-					MOUSE_delta_y %= 120;
-#endif
+					MOUSE_delta_y += delta.y();
+					MOUSE_info.delta = d = (MOUSE_delta_y >= 120) ? 120 : ((MOUSE_delta_y <= -120) ? -120 : 0);
 
+					while (abs(MOUSE_delta_y) >= 120)
+					{
+						cancel = GB.Raise(control, EVENT_MouseWheel, 0);
+						if (cancel)
+						{
+							MOUSE_delta_y = 0;
+							break;
+						}
+						MOUSE_delta_y -= d;
+					}
+				}
 
 				CMOUSE_clear(false);
 				
