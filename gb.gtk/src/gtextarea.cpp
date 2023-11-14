@@ -618,7 +618,8 @@ void gTextArea::setLine(int vl)
 	gtk_text_iter_set_line(iter, vl);
 	if (gtk_text_iter_get_chars_in_line(iter) <= col)
 		col = gtk_text_iter_get_chars_in_line(iter) - 1;
-	gtk_text_iter_set_line_offset(iter, col);
+	if (col >= 0)
+		gtk_text_iter_set_line_offset(iter, col);
 	gtk_text_buffer_place_cursor(_buffer, iter);
 	ensureVisible();
 }
@@ -634,7 +635,7 @@ void gTextArea::setColumn(int vl)
 
 	if (vl < 0) 
 	{
-		vl = gtk_text_iter_get_chars_in_line(iter)-1;
+		vl = gtk_text_iter_get_chars_in_line(iter) - 1;
 	}
 	else
 	{
@@ -642,7 +643,9 @@ void gTextArea::setColumn(int vl)
 			vl = gtk_text_iter_get_chars_in_line(iter) - 1;
 	}
 	
-	gtk_text_iter_set_line_offset(iter,vl);
+	if (vl >= 0)
+		gtk_text_iter_set_line_offset(iter, vl);
+
 	gtk_text_buffer_place_cursor(_buffer, iter);
 	ensureVisible();
 }
