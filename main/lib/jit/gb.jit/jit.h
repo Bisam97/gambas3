@@ -646,6 +646,16 @@ enum
   } \
   temp; })
 
+#define SUBR_ASC(_str, _pos) ({ \
+  GB_STRING temp =  (_str); \
+  int pos = (_pos) - 1; \
+  int code; \
+  if (pos < 0 || pos >= (_str).value.len) \
+    code = 0; \
+  else \
+    code = (_str).value.addr[(_str).value.start + pos]; \
+  code; })
+
 #define MATH_ADD_UNSAFE(_ctype, _expr1, _expr2) ({_ctype _a = (_expr1); _ctype _b = (_expr2); _a + _b;})
 #define MATH_SUB_UNSAFE(_ctype, _expr1, _expr2) ({_ctype _a = (_expr1); _ctype _b = (_expr2); _a - _b;})
 #define MATH_MUL_UNSAFE(_ctype, _expr1, _expr2) ({_ctype _a = (_expr1); _ctype _b = (_expr2); _a * _b;})

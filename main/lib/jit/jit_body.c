@@ -2236,6 +2236,35 @@ static void push_subr_mid(ushort code)
 }
 
 
+static void push_subr_asc(ushort code)
+{
+	uint narg = code & 0x3F;
+	TYPE type;
+	char *expr_str;
+	char *expr_pos = NULL;
+
+	check_stack(narg);
+
+	if (narg == 2)
+	{
+		expr_pos = STR_copy(peek(-1, T_INTEGER));
+		pop_stack(1);
+	}
+
+	type = get_type(-1);
+	if (type == T_VARIANT || type == T_UNKNOWN)
+		type = T_STRING;
+
+	expr_str = STR_copy(peek(-1, T_STRING));
+	pop_stack(1);
+
+	push(T_INTEGER, "SUBR_ASC(%s, %s)", expr_str, expr_pos ? expr_pos : "1");
+
+	STR_free(expr_pos);
+	STR_free(expr_str);
+}
+
+
 static void push_call(ushort code)
 {
 	char *call = NULL;
@@ -2838,7 +2867,7 @@ bool JIT_translate_body(FUNCTION *func, int ind)
 		/* 47 UCase$          */  &&_SUBR_CODE,
 		/* 48 Oct$            */  &&_SUBR_CODE,
 		/* 49 Chr$            */  &&_SUBR,
-		/* 4A Asc             */  &&_SUBR_CODE,
+		/* 4A Asc             */  &&_SUBR_ASC,
 		/* 4B InStr           */  &&_SUBR_CODE,
 		/* 4C RInStr          */  &&_SUBR_CODE,
 		/* 4D Subst$          */  &&_SUBR_CODE,
@@ -3709,6 +3738,11 @@ _SUBR_RIGHT:
 _SUBR_LEN:
 
 	push_subr_len(code);
+	goto _MAIN;
+
+_SUBR_ASC:
+
+	push_subr_asc(code);
 	goto _MAIN;
 	
 _SUBR_MATH:
