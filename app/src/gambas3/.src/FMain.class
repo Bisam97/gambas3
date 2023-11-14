@@ -707,15 +707,11 @@ Public Sub mnuProfile_Show()
   
   bVisible = $sKey <> Project.KEY_PROFILE
   
+  UpdateMenu
+  
   mnuEditProfile.Visible = bVisible
   mnuDeleteProfile.Visible = bVisible
   mnuInfoProfile.Show
-  
-  If Not bVisible And If IsDir(Project.Dir &/ ".profile") And If Dir(Project.Dir &/ ".profile", "*.prof").Count Then
-    mnuRemoveAllProfile.Show
-  Else
-    mnuRemoveAllProfile.Hide
-  Endif
   
   UpdateRecentFile(mnuOpenRecentFile3)
   
@@ -1406,6 +1402,12 @@ Public Sub UpdateMenu()
   Action["browser"].Visible = False
   If bVisible And If Project.Running And If Not Project.Config["/Debug/Browser"] Then Action["browser"].Visible = True
   
+  If Not bVisible And If IsDir(Project.Dir &/ ".profile") And If Dir(Project.Dir &/ ".profile", "*.prof").Count Then
+    Action["remove-all-profile"].Visible = True
+  Else
+    Action["remove-all-profile"].Visible = False
+  Endif
+  
   'btnShowMenu.Visible = Not Me.Menus.Visible
   'btnShowMenu.Raise
   
@@ -1788,6 +1790,7 @@ Public Sub Action_Activate((Key) As String) As Boolean
       
     Case "profile"
       Project.Config["/Debug/Profiling"] = Action["profile"].Value
+      UpdateRemote
       
     Case "debug-inside"
       Design.SetDebugInside(Action["debug-inside"].Value)
@@ -1867,6 +1870,7 @@ Public Sub Action_Activate((Key) As String) As Boolean
       
     Case "remove-all-profile"
       Project.RemoveAllProfile
+      UpdateMenu
       
   End Select 
   

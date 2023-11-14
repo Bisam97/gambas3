@@ -5211,10 +5211,13 @@ End
 
 Private Sub CreateGitIgnore()
 
+  Dim sScan As String = "#---- Gambas files to ignore ("
+  Dim sVersion As String = "v6"
   Dim sPath As String = Project.Dir &/ ".gitignore"
   Dim sData As String
   Dim iPos As Integer
   Dim iPos2 As Integer
+  Dim sVer As String
   
   If Not Exist(sPath) Then
     Try Copy "gitignore" To sPath
@@ -5222,11 +5225,12 @@ Private Sub CreateGitIgnore()
   Endif
 
   sData = File.Load(sPath)
-  iPos = InStr(sData, "#---- Gambas files to ignore (v6)")
-  If iPos Then Return
   
-  iPos = InStr(sData, "#---- Gambas files to ignore")
+  iPos = InStr(sData, sScan)
   If iPos Then
+    Try sVer = Scan(Mid$(sData, iPos + Len(sScan)), "*)*")[0]
+    If Comp(sVer, sVersion, gb.Natural) >= 0 Then Return
+
     iPos2 = InStr(sData, "#----", iPos + 5)
     If iPos2 Then
       iPos2 = InStr(sData, "\n", iPos2)
@@ -6927,7 +6931,13 @@ Public Sub GetDebuggerIcon(sSize As String) As Picture
 
   Dim W As Integer
 
-  If Not Config Or If Not Config["/Debug/Remote"] Then Return Picture["icon:/" & sSize & "/play"]
+  If Not Config Or If Not Config["/Debug/Remote"] Then
+    If Project.Config["/Debug/Profiling"] Then
+      Return Picture["icon:/" & sSize & "/clock"]
+    Else
+      Return Picture["icon:/" & sSize & "/play"]
+    Endif
+  Endif
 
   W = Stock.GetSize(sSize)
   
