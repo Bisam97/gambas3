@@ -11,18 +11,19 @@ Private $sExec As String
 Event Change((Key) As String, Value As String)
 
 Public Sub _new(Optional (Key) As String, Name As String, {Exec} As String)
-  
+
   If Key Then $sKey = Key
   If Name Then $sName = Name
   If {Exec} Then $sExec = {Exec}
-  
+
 End
 
 Public Sub Delete()
-  
+
   Dim hParent As _DesktopFile_Actions = Object.Parent(Me)
+
   hParent.Remove($sKey)
-  
+
 End
 
 Private Function Key_Read() As String
@@ -33,7 +34,7 @@ End
 
 Private Sub Key_Write(Value As String)
 
- Raise Change("Key", Value)
+  Raise Change("Key", Value)
 
 End
 
@@ -43,6 +44,9 @@ Private Function Name_Read() As String
 
 End
 
+'' Get or set the Name, this is the text for the action
+''
+'' languages can be set using underscore
 Private Sub Name_Write(Value As String)
 
   $sName = Value
@@ -60,5 +64,41 @@ Private Sub Exec_Write(Value As String)
 
   $sExec = Value
   Raise Change("Exec", Value)
+
+End
+
+Public Sub _property(...) As Boolean
+
+  If Not InStr(Param.Name, "_") Then Return False
+  Return True
+
+End
+
+Private Sub GetSet() As Collection
+
+  Return Object.Parent(GetParent())._Data
+
+End
+
+Private Sub GetParent() As _DesktopFile_Actions
+
+  Return Object.Parent(Me)
+
+End
+
+Public Sub _unknown(...) As Variant
+
+  Dim iPos As Integer = InStr(Param.Name, "_")
+
+  If iPos Then
+    Dim sName As String = Mid(Param.Name, 1, iPos - 1)
+    Dim sLang As String = Mid(Param.Name, iPos + 1)
+    If LCase(sName) <> "name" Then Error.Raise("Only Name can have languages")
+    If Not Param.Count Then
+      Return GetSet()["[Desktop Action " & $sKey & "]"]["Name[" & sLang & "]"]
+    Else
+      GetSet()["[Desktop Action " & $sKey & "]"]["Name[" & sLang & "]"] = Param[0]
+    Endif
+  Endif
 
 End
