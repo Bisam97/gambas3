@@ -1,3 +1,5 @@
+@include _number.regexp
+
 escape{Normal}:
   match /\\./
 shebang{Shebang=Preprocessor}:
@@ -6,8 +8,8 @@ comment:
   from /^#/
   from /#\s/
 number:
-  match /[+-]?[0-9]+(\.[0-9]+)?([Ee][+-]?[0-9]+)?/
-  match /0x[0-9a-fA-F]+/
+  match /$(NUMBER)/
+  match /$(NUMBER_HEXA)/
 string.simple{String}:
   from ' to '
   escape:

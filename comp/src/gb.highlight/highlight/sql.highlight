@@ -1,3 +1,5 @@
+@include _number.regexp
+
 documentation:
   from /** to */
 comment:
@@ -14,8 +16,7 @@ string:
     match /\\u[0-9a-fA-F]{4}/
     match /\\u{[0-9a-fA-F]+}/
 number:
-  match /[+-]?[0-9]*(\.[0-9]+)?([Ee][+-]?[0-9]+)?/
-  #match /0x[0-9a-fA-F]*/
+  match /$(NUMBER)/
 operator.between{Operator}:
   match /(?i:(NOT)?\sBETWEEN\s(SYMMETRIC)?)/
 operator.like{Operator}:

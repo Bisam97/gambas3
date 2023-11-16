@@ -3,6 +3,7 @@
 #string1 	\"([^\n\r\f\\"]|\\{nl}|{escape})*\"
 #string2 	\'([^\n\r\f\\']|\\{nl}|{escape})*\'
 
+@include _number.regexp
 $(UNICODE)=\\[0-9a-fA-F]{1,6}(\r\n|[ \n\r\t\f])?
 $(ESCAPE)=$(UNICODE)|\\[^\n\r\f0-9a-f]
 $(NONASCII)=[^\0-\177]
@@ -10,7 +11,7 @@ $(NMSTART)=([_a-zA-Z]|$(NONASCII)|$(ESCAPE))
 $(NMCHAR)=([_a-zA-Z0-9-]|$(NONASCII)|$(ESCAPE))
 $(NAME)=$(NMCHAR)+
 $(IDENT)=[-]?$(NMSTART)$(NMCHAR)*
-$(NUMBER)=[+-]?([0-9]+|[0-9]*\.[0-9]+)([eE][+-]?[0-9]+)?
+
 
 documentation:
   from /** to */
