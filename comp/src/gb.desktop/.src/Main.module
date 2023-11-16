@@ -12,6 +12,35 @@ Private $cTool As New Collection
 Private $aDataDir As String[]
 Private $cSearchPath As New Collection
 
+
+Public Sub Main()
+
+ ' Dim hPict As Picture
+  
+  'Desktop.SendMail(["benoit@minisini.fr"], ["bminisini@asap-info.com"], ["benoit.minisini@gambas-basic.org"], "Sujet", "Corps du mail", "~/adolf.png")
+  'hPict = Desktop.Screenshot()
+  
+  Dim hDesktopFile As DesktopFile = New DesktopFile("~/Desktop/WhatGambasWhere2.desktop")
+  Print hDesktopFile.DesktopActions.Actions.Join(" + ")
+  hDesktopFile.DesktopActions.Remove("EDIT_G")
+  hDesktopFile.DesktopActions.Add("EDIT_Gmb", "Edit in gambas", "gambas3 this")
+  Print hDesktopFile.DesktopActions.Actions.Join(" + ")
+
+  hDesktopFile.DesktopActions["GTK2"].Name = "fluffy bunnies"
+  hDesktopFile.DesktopActions["GTK2"].Key = "GTK222"
+
+For Each da As DesktopAction In hDesktopFile.DesktopActions
+  Print da.Key, da.Name;; da.Exec
+Next
+
+
+hDesktopFile.DesktopActions["QT5"].Delete
+  Print hDesktopFile.DesktopActions.Actions.Join(" + ")
+
+End
+
+
+
 Public Sub RunXdgUtil(sProg As String, aArg As String[], Optional bWait As Boolean) 
   
   Dim sCmd As String
@@ -165,16 +194,6 @@ Public Sub GetDataDir() As String[]
   Endif
   
   Return $aDataDir
-  
-End
-
-
-Public Sub Main()
-
-  Dim hPict As Picture
-  
-  'Desktop.SendMail(["benoit@minisini.fr"], ["bminisini@asap-info.com"], ["benoit.minisini@gambas-basic.org"], "Sujet", "Corps du mail", "~/adolf.png")
-  hPict = Desktop.Screenshot()
   
 End
 

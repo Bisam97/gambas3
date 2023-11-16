@@ -1,0 +1,64 @@
+' Gambas class file
+
+Property Key As String
+Property Name As String
+Property Exec As String
+
+Private $sKey As String
+Private $sName As String
+Private $sExec As String
+
+Event Change((Key) As String, Value As String)
+
+Public Sub _new(Optional (Key) As String, Name As String, {Exec} As String)
+  
+  If Key Then $sKey = Key
+  If Name Then $sName = Name
+  If {Exec} Then $sExec = {Exec}
+  
+End
+
+Public Sub Delete()
+  
+  Dim hParent As _DesktopFile_Actions = Object.Parent(Me)
+  hParent.Remove($sKey)
+  
+End
+
+Private Function Key_Read() As String
+
+  Return $sKey
+
+End
+
+Private Sub Key_Write(Value As String)
+
+ Raise Change("Key", Value)
+
+End
+
+Private Function Name_Read() As String
+
+  Return $sName
+
+End
+
+Private Sub Name_Write(Value As String)
+
+  $sName = Value
+  Raise Change("Name", Value)
+
+End
+
+Private Function Exec_Read() As String
+
+  Return $sExec
+
+End
+
+Private Sub Exec_Write(Value As String)
+
+  $sExec = Value
+  Raise Change("Exec", Value)
+
+End
