@@ -3,6 +3,8 @@
 Property Key As String
 Property Name As String
 Property Exec As String
+Property Read LocalNames As Collection
+
 
 Private $sKey As String
 Private $sName As String
@@ -67,13 +69,6 @@ Private Sub Exec_Write(Value As String)
 
 End
 
-Public Sub _property(...) As Boolean
-
-  If Not InStr(Param.Name, "_") Then Return False
-  Return True
-
-End
-
 Private Sub GetSet() As Collection
 
   Return Object.Parent(GetParent())._Data
@@ -86,19 +81,25 @@ Private Sub GetParent() As _DesktopFile_Actions
 
 End
 
-Public Sub _unknown(...) As Variant
+Private Sub ActionString() As String
+  
+  If $sKey Then Return "[Desktop Action " & $sKey & "]"
+  
+End
 
-  Dim iPos As Integer = InStr(Param.Name, "_")
+Public Sub SetLocal(Language As String, Text As String)
+  
+  GetSet()[ActionString()]["Name[" & Language & "]"] = Text
+  
+End
 
-  If iPos Then
-    Dim sName As String = Mid(Param.Name, 1, iPos - 1)
-    Dim sLang As String = Mid(Param.Name, iPos + 1)
-    If LCase(sName) <> "name" Then Error.Raise("Only Name can have languages")
-    If Not Param.Count Then
-      Return GetSet()["[Desktop Action " & $sKey & "]"]["Name[" & sLang & "]"]
-    Else
-      GetSet()["[Desktop Action " & $sKey & "]"]["Name[" & sLang & "]"] = Param[0]
-    Endif
-  Endif
+Private Function LocalNames_Read() As Collection
+
+  Dim cNames As New Collection
+  For Each sKey As String In GetSet()[ActionString()].Keys
+    If sKey Like "Name\\[*]" Then cNames.Add(GetSet()[ActionString()][sKey], Split(sKey, "[]")[1])
+  Next
+  Return cNames
 
 End
+

@@ -74,7 +74,8 @@ End
 Public Sub DesktopAction_Change(Name As String, Value As String)
   
   If Name = "Key" Then 
-    Add(Value, Last.Name, Last.Exec)
+    Dim c As Collection = GetSet()["[Desktop Action " & Last.Key & "]"]
+    GetSet().Add(c, "[Desktop Action " & Value & "]")
     Remove(Last.Key)
   Else
     GetSet()["[Desktop Action " & Last.Key & "]"][Name] = Value

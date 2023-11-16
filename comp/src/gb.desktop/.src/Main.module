@@ -12,83 +12,84 @@ Private $cTool As New Collection
 Private $aDataDir As String[]
 Private $cSearchPath As New Collection
 
-
 Public Sub Main()
 
- ' Dim hPict As Picture
-  
+  ' Dim hPict As Picture
+
   'Desktop.SendMail(["benoit@minisini.fr"], ["bminisini@asap-info.com"], ["benoit.minisini@gambas-basic.org"], "Sujet", "Corps du mail", "~/adolf.png")
   'hPict = Desktop.Screenshot()
-  
-  Dim hDesktopFile As DesktopFile = New DesktopFile("~/Desktop/WhatGambasWhere2.desktop")
-  Print hDesktopFile.DesktopActions.Actions.Join(" + ")
-  hDesktopFile.DesktopActions.Remove("EDIT_G")
+  For Each sIcon As String In ["~/gambas/git/master/app/desktop/gambas3.desktop", "~/.local/share/applications/gambas3.desktop", "/usr/share/applications/gambas3.desktop"]
+  If Exist("~/.local/share/applications/gambas3.desktop") Then Break
+  Next
+
+  Print "test " & sIcon
+  Dim hDesktopFile As DesktopFile = New DesktopFile(sIcon)
+
+  Print "Actions: "; hDesktopFile.DesktopActions.Actions.Join(" + ")
   hDesktopFile.DesktopActions.Add("EDIT_Gmb", "Edit in gambas", "gambas3 this")
-  Print hDesktopFile.DesktopActions.Actions.Join(" + ")
+  Print "Actions after add: "; hDesktopFile.DesktopActions.Actions.Join(" + ")
 
-  hDesktopFile.DesktopActions["GTK2"].Name = "fluffy bunnies"
-  hDesktopFile.DesktopActions["GTK2"].Key = "GTK222"
+  hDesktopFile.DesktopActions["QT4"].Name = "fluffy bunnies"
+  hDesktopFile.DesktopActions["QT4"].Key = "QTOld"
 
- hDesktopFile.DesktopActions["QT5"].Name_Fr = "Lé gambas"
- Print hDesktopFile.DesktopActions["QT5"].Name_Fr
+  For Each da As DesktopAction In hDesktopFile.DesktopActions
+    Print "\n"; da.Key, da.Name;; da.Exec
+    If da.LocalNames.Count Then
+      Print da.LocalNames.Count & " Languages"
+      For Each sLang As String In da.LocalNames.Keys
+        Print "LocalNames "; sLang; " = "; da.LocalNames[sLang]
+      Next
+    Endif
+  Next
 
-For Each da As DesktopAction In hDesktopFile.DesktopActions
-  Print da.Key, da.Name;; da.Exec
-Next
-
-
-
-'hDesktopFile.DesktopActions["QT5"].Delete
-  Print hDesktopFile.DesktopActions.Actions.Join(" + ")
+  Print "Actions: "; hDesktopFile.DesktopActions.Actions.Join(" + ")
 
 End
 
+Public Sub RunXdgUtil(sProg As String, aArg As String[], Optional bWait As Boolean)
 
-
-Public Sub RunXdgUtil(sProg As String, aArg As String[], Optional bWait As Boolean) 
-  
   Dim sCmd As String
   Dim sDir As String
   Dim aCmd As String[]
   Dim bAgain As Boolean
   'Dim hProcess As Process
-  
+
   sCmd = $cTool[sProg]
-  
-  If Not sCmd Then 
+
+  If Not sCmd Then
     'Shell "which " & sProg & " 2>&1" To sCmd
-    'If Process.LastValue Then 
-      sDir = Temp$("xdg-utils")
-      sDir = File.Dir(sDir) &/ File.BaseName(sDir)
-      Try Mkdir sDir
-      
-    TRY_AGAIN:
-    
-      sCmd = sDir &/ sProg
-      Copy "xdg-utils" &/ sProg To sCmd
-      Shell "chmod a+x " & Shell$(sCmd) Wait
-      
-      If Process.LastValue Then
-        If bAgain Then Error.Raise("Unable to install xdg tool: " & sProg)
-        sDir = "~/tmp/xdg-utils"
-        Try Mkdir "~/tmp"
-        bAgain = True
-        Goto TRY_AGAIN
-      Endif
-      
+    'If Process.LastValue Then
+    sDir = Temp$("xdg-utils")
+    sDir = File.Dir(sDir) &/ File.BaseName(sDir)
+    Try Mkdir sDir
+
+  TRY_AGAIN:
+
+    sCmd = sDir &/ sProg
+    Copy "xdg-utils" &/ sProg To sCmd
+    Shell "chmod a+x " & Shell$(sCmd) Wait
+
+    If Process.LastValue Then
+      If bAgain Then Error.Raise("Unable to install xdg tool: " & sProg)
+      sDir = "~/tmp/xdg-utils"
+      Try Mkdir "~/tmp"
+      bAgain = True
+      Goto TRY_AGAIN
+    Endif
+
     'Endif
     sCmd = Trim(sCmd)
     $cTool[sProg] = sCmd
   Endif
-  
+
   aCmd = [sCmd]
   aCmd.Insert(aArg)
-  
+
   If bWait Then
-  
-    Exec aCmd To Result 
-    
-    Select Case Process.LastValue  
+
+    Exec aCmd To Result
+
+    Select Case Process.LastValue
       Case 1
         Error.Raise("Syntax error")
       Case 2
@@ -99,20 +100,20 @@ Public Sub RunXdgUtil(sProg As String, aArg As String[], Optional bWait As Boole
         Error.Raise("The action has failed")
       Case 5
         Error.Raise("File access forbidden")
-    End Select 
-    
+    End Select
+
   Else
-  
+
     Exec aCmd
-    
+
   Endif
-  
+
 End
 
 Private Function SearchPathConfig(sXdgConfigHome As String, sXdgConfigDirs As String) As String
-  
+
   Dim sDir As String
-  
+
   For Each sDir In Split(sXdgConfigHome, ":")
     If Exist(sDir &/ "user-dirs.dirs") Then ' Devrait exister
       Return sDir &/ "user-dirs.dirs"
@@ -126,7 +127,7 @@ Private Function SearchPathConfig(sXdgConfigHome As String, sXdgConfigDirs As St
       Return sDir &/ "user-dirs.dirs"
     Endif
   Next
-  
+
 End
 
 Private Function SearchPathVariable(sFileConfig As String, sDirectory As String) As String
@@ -136,16 +137,16 @@ Private Function SearchPathVariable(sFileConfig As String, sDirectory As String)
   Dim aLine As String[]
   Dim sAltDirectory As String
   Dim bFullPath As Boolean
-  
+
   sAltDirectory = "XDG_" & sDirectory & "_DIR"
-  
+
   hFile = Open sFileConfig For Input
   While Not Eof(hFile)
     Line Input #hFile, sLine
     sLine = Trim(sLine)
     If Not sLine Then Continue
     If Left(sLine) = "#" Then Continue
-    If sLine Begins sAltDirectory Then 
+    If sLine Begins sAltDirectory Then
       sDirectory = sAltDirectory
       bFullPath = True
       Break
@@ -153,7 +154,7 @@ Private Function SearchPathVariable(sFileConfig As String, sDirectory As String)
     If sLine Begins sDirectory Then Break
     sLine = ""
   Wend
-  
+
   aLine = Scan(sLine, sDirectory & "=*")
   If aLine.Count Then
     sLine = aLine[0]
@@ -168,61 +169,61 @@ End
 Public Sub GetDesktopPath(Optional sType As String = "DESKTOP") As String
 
   Dim sDir, sXdgConfigHome, sXdgConfigDirs, sFileConfig As String
-  
+
   sXdgConfigHome = Application.Env["XDG_CONFIG_HOME"] ' $XDG_CONFIG_HOME définie ?
   If Not sXdgConfigHome Then sXdgConfigHome = User.Home & "/.config" ' Sinon val. par défaut
-  
+
   sXdgConfigDirs = Application.Env["XDG_CONFIG_DIRS"] ' $XDG_CONFIG_DIRS définie ?
   If Not sXdgConfigDirs Then sXdgConfigDirs = "/etc/xdg" ' Sinon val. par défaut
-  
+
   sFileConfig = SearchPathConfig(sXdgConfigHome, sXdgConfigDirs)
   If sFileConfig Then
-    sDir = SearchPathVariable(sFileConfig, UCase(sType)) 
-  Else 
+    sDir = SearchPathVariable(sFileConfig, UCase(sType))
+  Else
     sDir = System.User.Home &/ "Desktop"
   Endif
-  
+
   Return sDir
-  
+
 End
 
 Public Sub GetDataDir() As String[]
-  
+
   Dim sDir As String
-  
+
   If Not $aDataDir Then
     $aDataDir = [Desktop.DataDir] 'Split(Desktop.DataDir, ":", "", True)
     sDir = Env["XDG_DATA_DIRS"]
     If Not sDir Then sDir = "/usr/local/share:/usr/share"
     $aDataDir.Insert(Split(sDir, ":", "", True))
   Endif
-  
+
   Return $aDataDir
-  
+
 End
 
 ' Public Sub X11_PropertyNotify((Window) As Integer, Atom As Integer)
-'   
+'
 '   'Debug Window;; X11.GetAtomName(Atom)
-'   
+'
 '   If Window = X11.RootWindow And If Atom = _NET_CLIENT_LIST Then
 '   Endif
-'   
+'
 ' End
 
 Public Sub X11_ConfigureNotify((Window) As Integer, X As Integer, Y As Integer, W As Integer, H As Integer)
-  
+
   Debug Window;; X;; Y;; W;; H
-  
+
 End
 
 Public Sub GetDesktopVar(sVar As String) As String[]
 
   Dim sValue As String
-  
+
   sValue = Env[sVar]
   If sValue Then Return Split(sValue, ":")
-  
+
   If Not sValue Then
     Select Case sVar
       Case "XDG_CONFIG_HOME"
@@ -235,9 +236,8 @@ Public Sub GetDesktopVar(sVar As String) As String[]
         Return ["/usr/local/share", "/usr/share"]
     End Select
   Endif
-  
-End
 
+End
 
 Public Sub MakeSearchPath(sKey As String, aList As String[]) As String[]
 
@@ -247,38 +247,38 @@ Public Sub MakeSearchPath(sKey As String, aList As String[]) As String[]
   Dim sVar As String
   Dim aResult As New String[]
   Dim sDesktop As String
-  
+
   If $cSearchPath.Exist(sKey) Then Return $cSearchPath[sKey]
-  
+
   sDesktop = LCase(Desktop.Type)
   If sDesktop Begins "kde" Then sDesktop = "kde"
-  
+
   aDir = aList.Copy()
-  
+
   While aDir.Count
-    
+
     sDir = aDir[0]
     aDir.Remove(0)
-    
+
     If sDir Begins "$" Then
-      
+
       iPos = InStr(sDir, "/")
       If iPos = 0 Then iPos = Len(sDir) + 1
       For Each sVar In GetDesktopVar(Mid$(sDir, 2, iPos - 2))
         aDir.Add(sVar &/ Mid$(sDir, iPos + 1))
       Next
       Continue
-    
+
     Endif
-    
+
     sDir = Replace(sDir, "$desktop", sDesktop)
     If Exist(sDir) Then aResult.Add(sDir)
-    
+
   Wend
-  
+
   $cSearchPath[sKey] = aResult
   Return aResult
-  
+
 End
 
 Public Sub NotSupported()
@@ -290,4 +290,3 @@ Public Sub NotSupported()
   Endif
 
 End
-
