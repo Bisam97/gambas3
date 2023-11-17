@@ -25,23 +25,32 @@ Public Sub Main()
   Print "test " & sIcon
   Dim hDesktopFile As DesktopFile = New DesktopFile(sIcon)
 
-  Print "Actions: "; hDesktopFile.DesktopActions.Actions.Join(" + ")
+  Print "Actions: "; hDesktopFile.DesktopActions.Actions.Join(",")
   hDesktopFile.DesktopActions.Add("EDIT_Gmb", "Edit in gambas", "gambas3 this")
-  Print "Actions after add: "; hDesktopFile.DesktopActions.Actions.Join(" + ")
+  Print "Actions after add: "; hDesktopFile.DesktopActions.Actions.Join(",")
 
   hDesktopFile.DesktopActions["QT4"].Name = "fluffy bunnies"
   hDesktopFile.DesktopActions["QT4"].Key = "QTOld"
 
-  Print "test adding non existant property 'Description'"
+  Print "test adding non existant properties..."
   hDesktopFile.DesktopActions["GTK3"].Description = "This is now described"
-  Print hDesktopFile.DesktopActions["GTK3"].Description
-Print "Properties: "; hDesktopFile.DesktopActions["GTK3"].Properties.Join(";")
+  hDesktopFile.DesktopActions["GTK3"]["test"] = "This is a test"
+  Print "exists "; hDesktopFile.DesktopActions["GTK3"].Exist("test")
+  Print hDesktopFile.DesktopActions["GTK3"]["description"]
+  Print "Properties: "; hDesktopFile.DesktopActions["GTK3"].Properties.Join(";")
   For Each da As DesktopAction In hDesktopFile.DesktopActions
     Print "\n"; da.Key, da.Name;; da.Exec
   Next
-hDesktopFile.DesktopActions.Remove("EDIT_Gmb")
-  Print "Actions: "; hDesktopFile.DesktopActions.Actions.Join(" + ")
 
+  Print "Actions: "; hDesktopFile.DesktopActions.Actions.Join(",")
+
+  For Each da As DesktopAction In hDesktopFile.DesktopActions
+    Print "\n[Desktop Action " & da.Key & "]"
+    For Each sProp As String In da.Properties
+      Print sProp & "=" & da[sProp]
+    Next
+  Next
+Print "Desktop.Actions=" & hDesktopFile.Actions.Join(",")
 End
 
 Public Sub RunXdgUtil(sProg As String, aArg As String[], Optional bWait As Boolean)

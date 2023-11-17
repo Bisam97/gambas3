@@ -48,8 +48,6 @@ Private Function Name_Read() As String
 End
 
 '' Get or set the Name, this is the text for the action
-''
-'' languages can be set using underscore
 Private Sub Name_Write(Value As String)
 
   Raise Change(GetKey("Name"), Value)
@@ -108,26 +106,61 @@ Private Sub ActionString() As String
 
 End
 
-Public Sub _property(...) As Boolean
+'' Set a property value (will not use language filter)
+Public Sub _put(Value As String, PropertyName As String)
+  
+  For Each sProp As String In Properties_Read()
+    If sProp Like PropertyName Then 
+      GetSet()["[Desktop Action " & $sKey & "]"][PropertyName] = Value
+      Return
+    Endif 
+  Next
+  
+  GetSet()["[Desktop Action " & $sKey & "]"][String.UCaseFirst(PropertyName)] = Value
+  
+End
 
-  Return True
+'' Get a property value (will not use language filter)
+Public Sub _get(PropertyName As String) As String
+  
+  For Each sProp As String In Properties_Read()
+    If sProp Like PropertyName Then Return GetSet()["[Desktop Action " & $sKey & "]"][sProp]
+  Next
+  
+End
+
+'' Check if a property name exists (case insensitive, will not use language filter)
+Public Sub Exist(PropertyName As String) As Boolean
+
+  For Each sProp As String In Properties_Read()
+    If sProp Like PropertyName Then Return True
+  Next
   
 End
 
 '' Get or set ANY property by using an unknown name
 Public Sub _unknown(...) As Variant
 
-    If Not Param.Count Then
-      Return GetSet()["[Desktop Action " & $sKey & "]"][GetKey(Param.Name)]
-    Else
-      GetSet()["[Desktop Action " & $sKey & "]"][GetKey(Param.Name)] = Param[0]
-    Endif
+  Dim sProp As String = String.UCaseFirst(Param.Name)
+
+  If Not Param.Count Then
+    Return GetSet()["[Desktop Action " & $sKey & "]"][GetKey(sProp)]
+  Else
+    GetSet()["[Desktop Action " & $sKey & "]"][GetKey(sProp)] = Param[0]
+  Endif
+
+End
+
+Public Sub _property(...) As Boolean
+
+  Return True
 
 End
 
 Private Function Properties_Read() As String[]
 
   Dim aProps As New String[]
+
   For Each s As String In GetSet()[ActionString()].Keys
     aProps.Add(s)
   Next
