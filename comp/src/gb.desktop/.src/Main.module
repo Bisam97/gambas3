@@ -31,15 +31,12 @@ Public Sub Main()
 
   hDesktopFile.DesktopActions["QT4"].Name = "fluffy bunnies"
   hDesktopFile.DesktopActions["QT4"].Key = "QTOld"
+  hDesktopFile.DesktopActions["QTOld"].Description = "Described"
+
+ Print hDesktopFile.DesktopActions["QTOld"].Description
 
   For Each da As DesktopAction In hDesktopFile.DesktopActions
     Print "\n"; da.Key, da.Name;; da.Exec
-    If da.LocalNames.Count Then
-      Print da.LocalNames.Count & " Languages"
-      For Each sLang As String In da.LocalNames.Keys
-        Print "LocalNames "; sLang; " = "; da.LocalNames[sLang]
-      Next
-    Endif
   Next
 
   Print "Actions: "; hDesktopFile.DesktopActions.Actions.Join(" + ")

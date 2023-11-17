@@ -3,20 +3,14 @@
 Property Key As String
 Property Name As String
 Property Exec As String
-Property Read LocalNames As Collection
-
 
 Private $sKey As String
-Private $sName As String
-Private $sExec As String
 
 Event Change((Key) As String, Value As String)
 
-Public Sub _new(Optional (Key) As String, Name As String, {Exec} As String)
+Public Sub _new(Optional (Key) As String)
 
   If Key Then $sKey = Key
-  If Name Then $sName = Name
-  If {Exec} Then $sExec = {Exec}
 
 End
 
@@ -42,7 +36,7 @@ End
 
 Private Function Name_Read() As String
 
-  Return $sName
+  Return GetSet()[ActionString()][GetKey("Name")]
 
 End
 
@@ -51,20 +45,41 @@ End
 '' languages can be set using underscore
 Private Sub Name_Write(Value As String)
 
-  $sName = Value
-  Raise Change("Name", Value)
+  Raise Change(GetKey("Name"), Value)
+
+End
+
+Private Function GetKey(Name As String, Optional sLang As String) As String
+
+  Dim i As Integer
+  Dim hDesktopFile As DesktopFile = Object.Parent(GetParent())
+  Dim $aLang As String[] = hDesktopFile._LangArray()
+
+  If Not sLang Then
+    For i = 0 To $aLang.Max
+      If GetSet()[ActionString()].Exist(Name & "[" & $aLang[i] & "]") Then
+        sLang = "[" & $aLang[i] & "]"
+        Break
+      Endif
+    Next
+  Else
+    sLang = "[" & sLang & "]"
+    If Not GetSet()[ActionString()].Exist(Name & sLang) Then
+      sLang = ""
+    Endif
+  Endif
+  Return Name & sLang
 
 End
 
 Private Function Exec_Read() As String
 
-  Return $sExec
+  Return GetSet()[ActionString()]["Exec"]
 
 End
 
 Private Sub Exec_Write(Value As String)
 
-  $sExec = Value
   Raise Change("Exec", Value)
 
 End
@@ -82,24 +97,23 @@ Private Sub GetParent() As _DesktopFile_Actions
 End
 
 Private Sub ActionString() As String
-  
+
   If $sKey Then Return "[Desktop Action " & $sKey & "]"
-  
-End
-
-Public Sub SetLocal(Language As String, Text As String)
-  
-  GetSet()[ActionString()]["Name[" & Language & "]"] = Text
-  
-End
-
-Private Function LocalNames_Read() As Collection
-
-  Dim cNames As New Collection
-  For Each sKey As String In GetSet()[ActionString()].Keys
-    If sKey Like "Name\\[*]" Then cNames.Add(GetSet()[ActionString()][sKey], Split(sKey, "[]")[1])
-  Next
-  Return cNames
 
 End
 
+Public Sub _property(...) As Boolean
+
+  Return True
+  
+End
+
+Public Sub _unknown(...) As Variant
+
+    If Not Param.Count Then
+      Return GetSet()["[Desktop Action " & $sKey & "]"][GetKey(Param.Name)]
+    Else
+      GetSet()["[Desktop Action " & $sKey & "]"][GetKey(Param.Name)] = Param[0]
+    Endif
+
+End
