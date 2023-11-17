@@ -1,5 +1,5 @@
 @include _number.regexp
-
+@include webpage.include
 documentation:
   from /** to */
 comment:
@@ -8,6 +8,7 @@ comment:
 string:
   from " to "
   from ' to '
+  @include webpage.include
   escape:
     match /\\[fnrtv0'"\\]/
     match /\\c[A-Za-z]/
@@ -16,6 +17,7 @@ string:
     match /\\u{[0-9a-fA-F]+}/
 string.subst{String}:
   from ` to `
+  @include webpage.include
   escape:
     match /\\[fnrtv0'"\\]/
     match /\\c[A-Za-z]/

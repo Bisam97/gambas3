@@ -289,6 +289,8 @@ Static Private Sub CreateCustomHighlighter(sHighlight As String, sPath As String
   Dim aInclude As String[]
   Dim I As Integer
   Dim sWordRegExp As String = "[A-Za-z_][A-Za-z0-9_]*"
+  Dim bNext As Boolean
+  Dim cDefine As New Collection(gb.IgnoreCase)
   
   sDir = File.Dir(Temp$()) &/ "gb.highlight." & sHighlight
   
@@ -325,25 +327,65 @@ Static Private Sub CreateCustomHighlighter(sHighlight As String, sPath As String
     
     If sLine Begins "#" Then Continue
     
-    If sLine Begins "@include " Then
-      sLine = Trim(Mid$(sLine, 9))
-      If Not sLine Then Error.Raise("Syntax error")
-      aInclude = Split(File.Load(File.Dir(sPath) &/ sLine), "\n")
-      For I = 0 To aInclude.Max
-        aInclude[I] = Space$(iIndent) & aInclude[I]
-      Next
-      aLines.Insert(aInclude, iLine)
-      Continue
-    Endif
+    If sLine Begins "@" Then
     
-    If sLine Begins "@word " Then
-      sWordRegExp = Trim(Mid$(sLine, 7))
-      If sWordRegExp Begins "/" And If sWordRegExp Ends "/" Then
-        sWordRegExp = Mid$(sWordRegExp, 2, -1)
-      Else 
-        sWordRegExp = ""
+      If sLine Begins "@include " Then
+        
+        sLine = Trim(Mid$(sLine, 9))
+        If Not sLine Then Error.Raise("Syntax error")
+        aInclude = Split(File.Load(File.Dir(sPath) &/ sLine), "\n")
+        For I = 0 To aInclude.Max
+          aInclude[I] = Space$(iIndent) & aInclude[I]
+        Next
+        aLines.Insert(aInclude, iLine)
+        
+      Else If sLine Begins "@word " Then
+        
+        sWordRegExp = Trim(Mid$(sLine, 7))
+        If sWordRegExp Begins "/" And If sWordRegExp Ends "/" Then
+          sWordRegExp = Mid$(sWordRegExp, 2, -1)
+        Else 
+          sWordRegExp = ""
+        Endif
+        If Not sWordRegExp Then Error.Raise("Syntax error. Bad regular expression")
+        
+      Else If sLine Begins "@define " Then
+        
+        sLine = Trim(Mid$(sLine, 8))
+        If Not sLine Then Error.Raise("Syntax error")
+        cDefine[sLine] = True
+        
+      Else If sLine Begins "@if " Then
+        
+        sLine = Trim(Mid$(sLine, 5))
+        If Not sLine Then Error.Raise("Syntax error")
+        
+        If Not cDefine.Exist(sLine) Then
+          While iLine < aLines.Count
+            sLine = aLines[iLine]
+            Inc iLine
+            sLine = Trim(sLine)
+            If Not sLine Then Continue
+            If sLine = "@endif" Then Break
+          Wend
+        Endif
+        
+      Else If sLine = "@endif" Then
+        
+      Else
+      
+        iPos = InStr(sLine, " ")
+        If iPos Then sLine = Left(sLine, iPos - 1)
+        If sLine Then
+          Error.Raise("Syntax error. Unknown command: " & sLine)
+        Else 
+          Error.Raise("Syntax error")
+        Endif
+        
       Endif
-      If Not sWordRegExp Then Error.Raise("Syntax error. Bad regular expression")
+      
+      Continue
+      
     Endif
     
     If sLine Begins "$(" Then
@@ -382,10 +424,28 @@ Static Private Sub CreateCustomHighlighter(sHighlight As String, sPath As String
       
     If sLine Ends ":" Then
       
-      hState = New CState(Left(sLine, -1))
+      If sLine Begins "..." Then
+        bNext = True
+        sLine = Mid$(sLine, 4)
+      Else 
+        bNext = False
+      Endif
+      
+      sLine = Left(sLine, -1)
+      If Not sLine Then Error.Raise("Syntax error")
+      
+      hState = New CState(sLine)
       hState.Indent = iIndent
+      hState.Next = bNext
       aState.Add(hState)
       
+      If bNext Then
+        If hCurrent.HasNext Then
+          Error.Raise("Next state already defined")
+        Else 
+          hCurrent.HasNext = True
+        Endif
+      Endif
       hCurrent.AddChild(hState)
 
     Else
@@ -410,7 +470,9 @@ Static Private Sub CreateCustomHighlighter(sHighlight As String, sPath As String
   CState.Print()
   CState.PrintLabel("INITIAL_STATE", True)
   CState.Print()
-  CState.Print("On aState[0] Goto " & CState.GetLabels().Join(", "))
+  CState.Print("Static aLabels As Integer[] = [" & CState.GetLabels().Join(", ") & "]")
+  'CState.Print("On aState[0] Goto " & CState.GetLabels().Join(", "))
+  CState.Print("Goto aLabels[aState[0]]")
   CState.Print()
   CState.Print("End")
   CState.Print()

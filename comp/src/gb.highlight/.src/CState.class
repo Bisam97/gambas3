@@ -26,7 +26,9 @@ Public Indent As Integer
 Public Parent As CState
 Public Commands As New CCommand[]
 Public Children As New CState[]
+Public HasNext As Boolean
 Public Limit As Boolean
+Public Next As Boolean
 
 Private $iCurrentCommand As Integer
 Private $iCurrentChild As Integer
@@ -233,7 +235,7 @@ Public Sub ForwardParent(Optional sLen As String)
 End
 
 
-Public Sub GetLabel() As String
+Public Sub GetLabel(Optional bNoCurrentCommand As Boolean) As String
 
   Dim sLabel As String
   
@@ -252,7 +254,7 @@ Public Sub GetLabel() As String
     Endif
   Endif 
   
-  If $iCurrentCommand > 0 Then sLabel &= "_" & CStr($iCurrentCommand)
+  If Not bNoCurrentCommand And If $iCurrentCommand > 0 Then sLabel &= "_" & CStr($iCurrentCommand)
   
   Return sLabel
   
@@ -261,18 +263,16 @@ End
 Public Sub GetNextLabel() As String
   
   Dim sLabel As String
-  Dim iSaveCurrentCommand As Integer
   
   If $iCurrentCommand >= Commands.Count Then
-    iSaveCurrentCommand = $iCurrentCommand
-    $iCurrentCommand = 0
-    sLabel = GetLabel() & "_$END"
-    $iCurrentCommand = iSaveCurrentCommand
+    sLabel = GetLabel(True) & "_$END"
   Else If $iCurrentCommand > 0 Then
     Inc $iCurrentCommand
     sLabel = GetLabel()
     Dec $iCurrentCommand
   Else If $iCurrentChild = Children.Count Then
+    sLabel = GetLabel() & "_$END"
+  Else If $iCurrentChild = Children.Max And If Parent.HasNext Then
     sLabel = GetLabel() & "_$END"
   Else If $iCurrentChild Then
     sLabel = GetLabel()
@@ -284,7 +284,9 @@ End
 
 Public Sub GetContinueLabel() As String
   
-  If $sContinue Then
+  If {Next} Then
+    Return Parent.GetContinueLabel()
+  Else If $sContinue Then
     Return $sContinue
   Else
     Return Parent.GetLabel()
@@ -368,12 +370,21 @@ Public Sub CompileChildren(Optional sContinue As String, Optional bForward As Bo
   $iCurrentChild = 0
   For Each hState In Children
     Inc $iCurrentChild
+    If hState.Next Then Break
     hState.Compile(sContinue)
+    hState = Null
   Next
   
   If sContinue Then
     If bForward Then Forward()
     Print("Goto " & sContinue)
+  Endif
+  
+  If hState Then
+    If Not sContinue Then Print("Goto " & GetLabel(True) & "_$END")
+    If $iCurrentChild <> Children.Count Then Error.Raise("Next state must be the last child state")
+    PrintLabel(GetLabel(True) & "_NEXT", True)
+    hState.Compile()
   Endif
   
 End

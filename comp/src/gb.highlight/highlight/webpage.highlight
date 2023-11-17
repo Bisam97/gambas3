@@ -1,3 +1,4 @@
+@define webpage
 $(IDENT)=[a-zA-Z0-9-]+
 doctype{Doctype=Preprocessor}:
   from <!DOCTYPE to >
@@ -7,25 +8,18 @@ comment:
 entity{Entity=Function}:
   match /&[A-Za-z]+;/
   match /&#[0-9]+;/
-javascript{Markup}:
-  from /<script.*?(type=["']text/javascript['"])?.*?>/ to </script> with _webpage_javascript
-css{Markup}:
-  from /<style.*?(type=["']text/css['"])?.*?>/ to </style> with _webpage_css
+markup.css{Markup=Keyword}:
+  from /<style/ to //?>/
+  @include webpage.markup
+  ...contents{Markup}:
+    between here and </style> with _css_webpage
+markup.script{Markup=Keyword}:
+  from /<script/ to //?>/
+  @include webpage.markup
+  ...contents{Markup}:
+    between here and </script> with _javascript_webpage
 markup{Markup=Keyword}:
   from /<$(IDENT)/ to //?>/
-  @include webpage.include
-  attribute{Attribute=Datatype}:
-    match /$(IDENT)/
-  equal{Normal}:
-    symbol =
-  value{Value=String}:
-    from " to "
-    from ' to '
-    string.entity{Entity}:
-      match /&[A-Za-z]+;/
-      match /&#[0-9]+;/
-    @include webpage.include
-  value.unquoted{Value}:
-    match /[^"'`=<>\s]+/
+  @include webpage.markup
 markup.close{Markup}:
   match /</$(IDENT)\s*>/

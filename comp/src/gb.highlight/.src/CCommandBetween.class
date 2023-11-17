@@ -94,7 +94,11 @@ Public Sub Compile(hState As CState)
       CState.IfStartWith(CState.Pattern)
     Endif
 
-    hState.Continue()
+    If hState.HasNext Then
+      CState.Print("Goto " & hState.GetLabel(True) & "_NEXT")
+    Else
+      hState.Continue()
+    Endif
     CState.Print("Endif")
   
     hState.CompileChildren(hState.GetLabel() & "_LOOP", True)

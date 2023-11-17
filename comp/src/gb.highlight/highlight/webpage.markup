@@ -1,0 +1,14 @@
+@include webpage.include
+attribute{Attribute=Datatype}:
+  match /$(IDENT)/
+equal{Normal}:
+  symbol =
+value{Value=String}:
+  from " to "
+  from ' to '
+  string.entity{Entity}:
+    match /&[A-Za-z]+;/
+    match /&#[0-9]+;/
+  @include webpage.include
+value.unquoted{Value}:
+  match /[^"'`=<>\s]+/
