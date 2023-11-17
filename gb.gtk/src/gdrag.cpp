@@ -298,6 +298,7 @@ char *gClipboard::getText(int *len, const char *format)
 ************************************************************************/
 
 bool gDrag::_active = false;
+bool gDrag::_has_data = false;
 gPicture *gDrag::_icon = NULL;
 int gDrag::_icon_x = 0;
 int gDrag::_icon_y = 0;
@@ -346,6 +347,7 @@ void gDrag::cancel()
 	_got_data = false;
 	_local = false;
 	_active = false;
+	_has_data = false;
 
 	gApplication::setButtonGrab(NULL);
 
@@ -480,7 +482,7 @@ void gDrag::setDropData(int action, int x, int y, gControl *source, gControl *de
 	_action = action;
 	_source = source;
 	_destination = dest;
-	_active = true;
+	_has_data = true;
 }
 
 void gDrag::setDropText(char *text, int len)
@@ -779,6 +781,7 @@ gPicture *gDrag::getImage(bool fromOutside)
 void gDrag::end()
 {
 	_end = true;
+	_has_data = false;
 	_active = false;
 }
 
