@@ -4,6 +4,9 @@ Property Key As String
 Property Name As String
 Property Exec As String
 
+'' List all Keys for items in the Action including Name and Exec
+Property Read Properties As String[]
+
 Private $sKey As String
 
 Event Change((Key) As String, Value As String)
@@ -52,13 +55,12 @@ End
 Private Function GetKey(Name As String, Optional sLang As String) As String
 
   Dim i As Integer
-  Dim hDesktopFile As DesktopFile = Object.Parent(GetParent())
-  Dim $aLang As String[] = hDesktopFile._LangArray()
+  Dim _Lang As String[] = DesktopFile._Langs()
 
   If Not sLang Then
-    For i = 0 To $aLang.Max
-      If GetSet()[ActionString()].Exist(Name & "[" & $aLang[i] & "]") Then
-        sLang = "[" & $aLang[i] & "]"
+    For i = 0 To _Lang.Max
+      If GetSet()[ActionString()].Exist(Name & "[" & _Lang[i] & "]") Then
+        sLang = "[" & _Lang[i] & "]"
         Break
       Endif
     Next
@@ -115,5 +117,16 @@ Public Sub _unknown(...) As Variant
     Else
       GetSet()["[Desktop Action " & $sKey & "]"][GetKey(Param.Name)] = Param[0]
     Endif
+
+End
+
+Private Function Properties_Read() As String[]
+
+  Dim aProps As New String[]
+  For Each s As String In GetSet()[ActionString()].Keys
+    aProps.Add(s)
+  Next
+
+  Return aProps
 
 End

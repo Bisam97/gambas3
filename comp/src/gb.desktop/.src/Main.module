@@ -31,14 +31,15 @@ Public Sub Main()
 
   hDesktopFile.DesktopActions["QT4"].Name = "fluffy bunnies"
   hDesktopFile.DesktopActions["QT4"].Key = "QTOld"
-  hDesktopFile.DesktopActions["QTOld"].Description = "Described"
 
- Print hDesktopFile.DesktopActions["QTOld"].Description
-
+  Print "test adding non existant property 'Description'"
+  hDesktopFile.DesktopActions["GTK3"].Description = "This is now described"
+  Print hDesktopFile.DesktopActions["GTK3"].Description
+Print "Properties: "; hDesktopFile.DesktopActions["GTK3"].Properties.Join(";")
   For Each da As DesktopAction In hDesktopFile.DesktopActions
     Print "\n"; da.Key, da.Name;; da.Exec
   Next
-
+hDesktopFile.DesktopActions.Remove("EDIT_Gmb")
   Print "Actions: "; hDesktopFile.DesktopActions.Actions.Join(" + ")
 
 End

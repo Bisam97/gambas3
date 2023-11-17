@@ -76,6 +76,12 @@ Public Sub DesktopAction_Change(Name As String, Value As String)
     Dim c As Collection = GetSet()[GetLine(Last.Key)]
     GetSet().Add(c, GetLine(Value))
     Remove(Last.Key)
+    Dim df As DesktopFile = Object.Parent(Me)
+    Dim aActions As String[] = df.Actions
+    If aActions.Exist(Last.Key) Then 
+    aActions[aActions.Find(Last.key)] = Value
+    df.Actions = aActions
+    Endif
   Else
     GetSet()[GetLine(Last.Key)][Name] = Value
   Endif
