@@ -1,10 +1,13 @@
 ' Gambas class file
 
+'' Get or set the keyName that will be it's Action name
 Property Key As String
+'' Get or set the Name (Text) that will display in the menu.
 Property Name As String
+'' Get or set the command to run on selection
 Property Exec As String
 
-'' List all Keys for items in the Action including Name and Exec
+'' List all Property names for items in the Action including Name and Exec
 Property Read Properties As String[]
 
 Private $sKey As String
@@ -17,6 +20,7 @@ Public Sub _new(Optional (Key) As String)
 
 End
 
+'' Remove the action
 Public Sub Delete()
 
   Dim hParent As _DesktopFile_Actions = Object.Parent(Me)
@@ -110,6 +114,7 @@ Public Sub _property(...) As Boolean
   
 End
 
+'' Get or set ANY property by using an unknown name
 Public Sub _unknown(...) As Variant
 
     If Not Param.Count Then
