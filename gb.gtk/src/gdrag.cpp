@@ -336,8 +336,11 @@ void gDrag::cancel()
 	setIcon(NULL);
 	setDropText(NULL);
 	setDropImage(NULL);
-	g_free(_format);
-	_format = NULL;
+	if (_format)
+	{
+		g_free(_format);
+		_format = NULL;
+	}
 	_source = NULL;
 	_destination = NULL;
 	_dest = NULL;
@@ -466,8 +469,12 @@ gControl *gDrag::dragImage(gControl *source, gPicture *image)
 void gDrag::setDropInfo(int type, char *format)
 {
 	_type = type;
-	g_free(_format);
-	_format = g_strdup(format);
+	if (_format)
+		g_free(_format);
+	if (format)
+		_format = g_strdup(format);
+	else
+		_format = NULL;
 }
 
 
@@ -752,6 +759,10 @@ char *gDrag::getText(int *len, const char *format, bool fromOutside)
 {
 	//setDropText(NULL);
 
+#if DEBUG_ME
+	fprintf(stderr, "gDrag::getText: %s / %d\n", format, fromOutside);
+#endif
+
 	if (!format)
 		format = "text/";
 
@@ -762,6 +773,9 @@ char *gDrag::getText(int *len, const char *format, bool fromOutside)
 	}
 	else
 	{
+#if DEBUG_ME
+	fprintf(stderr, "gDrag::getText: -> %d / %s \n", _text_len, _text);
+#endif
 		*len = _text_len;
 		return _text;
 	}
