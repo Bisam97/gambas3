@@ -23,7 +23,7 @@ Property LineWidth As Integer             '' Returns or sets the Shape's items d
 Property {Image} As Image                 '' Returns or sets the Shapes's Points default Image. If set, will override the default Icon. To revert to default Icon, set this to Null
 Public LineStyle As Integer = Line.Solid  '' Returns or sets the Shape's items default Line Style
 Private $iColor As Integer
-Private $iFillColor As Integer
+Private $iFillColor As Integer = -1
 Private $iLineWidth As Integer = 2
 'Private $iLineStyle As Integer
 Private $aInView As New Integer[]
@@ -141,13 +141,16 @@ Public Sub AddPolyLine(Key As String, Points As MapPoint[], Optional {Color} As 
 End
 
 '' Adds a Polygon object to current Shape
-Public Sub AddPolygon(Key As String, Points As MapPoint[][], Optional {Color} As Integer, Optional {LineWidth} As Integer, Optional {LineStyle} As Integer) As _MapShapeItem
+Public Sub AddPolygon(Key As String, Points As MapPoint[][], Optional {ForeColor} As Integer, Optional {LineWidth} As Integer, Optional {LineStyle} As Integer) As _MapShapeItem
 
   'If $aShapeNames.Exist(Key) Then Error.Raise("Key already exist: " & Key)
 
   Dim hItem As New _MapShapeItem(Key) As "Item"
 
-  If Not IsMissing({Color}) Then hItem.Color = {Color}
+  If Not IsMissing({ForeColor}) Then 
+    hItem.Color = {ForeColor}
+    hItem.FillColor = Color.SetAlpha(ForeColor, 200)
+  Endif
   If Not IsMissing({LineWidth}) Then hItem.LineWidth = {LineWidth}
   If Not IsMissing({LineStyle}) Then hItem.LineStyle = {LineStyle}
 
@@ -205,7 +208,7 @@ Public Sub Draw()
   Dim iColor, iBack As Integer
   Dim hShape As _MapShapeItem
   Dim iAlpha As Integer
-
+  
   If $aShapes.Count = 0 Then Return
   
   For i As Integer = 0 To $aInView.Max
@@ -282,17 +285,20 @@ Public Sub Draw()
         Next
 
       Case _Polygon
-        hPoly = New Integer[]
-        For j As Integer = 0 To hShape.Points[0].Max
-          pt = Geo.MapPointToPixel(hShape.Points[0][j], hMap.zoom)
-          hPoly.Add(pt.x - hMap.PixelBox.X)
-          hPoly.Add(pt.y - hMap.PixelBox.Y)
+        For k As Integer = 0 To hShape.Points.Max
+          hPoly = New Integer[]
+          For j As Integer = 0 To hShape.Points[k].Max
+            pt = Geo.MapPointToPixel(hShape.Points[k][j], hMap.zoom)
+            hPoly.Add(pt.x - hMap.PixelBox.X)
+            hPoly.Add(pt.y - hMap.PixelBox.Y)
+          Next
+          Paint.Polygon(hPoly)
         Next
+        Paint.FillRule = Paint.FillRuleEvenOdd
         Paint.LineWidth = hShape.LineWidth
-        Paint.Brush = Paint.Color(iBack)
-        Paint.Polygon(hPoly)
+        Paint.Background = iBack
         Paint.Fill(True)
-        Paint.Brush = Paint.Color(iColor)
+        Paint.Background = iColor
         Paint.Stroke
 
       Case _Polyline
