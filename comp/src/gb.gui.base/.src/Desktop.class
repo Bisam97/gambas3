@@ -76,7 +76,9 @@ End
 
 Static Public Sub Is(Type As String) As Boolean
   
-  Return Types_Read().Exist(Type, gb.IgnoreCase)
+  GetDesktop()
+  If $aDesktopType.Exist(Type, gb.IgnoreCase) Then Return True
+  If $aDesktopType.Exist("X-" & Type, gb.IgnoreCase) Then Return True
   
 End
 
