@@ -284,46 +284,45 @@ Public Sub Editors_Change()
 End
 
 
-Private Sub InAlternate() As Boolean
-
-  Dim I As Integer
-  Dim aSym As String[]
-  Dim aNest As Integer[]
-  Dim L As Integer
-  Dim P As Integer
-  
-  $hEditor.GetHighlight($hEditor.Line, ByRef aSym,, ByRef aNest)
-  If Not aSym Then Return
-  
-  P = $hEditor.Column
-  For I = 0 To aSym.Max
-    L = String.Len(aSym[I]) 
-    If P < L Then Return aNest[I] = 1
-    P -= L
-  Next
-
-End
-
-Private Sub FindCloseAlternate() As Boolean
-  
-  Dim sLine As String
-  Dim I, J, A, B As Integer
-  
-  I = $hEditor.Line 
-  J = $hEditor.Column
-  
-  While I < $hEditor.Count
-    sLine = $hEditor[I].Text
-    A = String.InStr(sLine, "<%", J + 1)
-    B = String.InStr(sLine, "%>", J + 1)
-    If B > 0 And If A = 0 Or A > B Then Return True
-    If A > 0 Then Return False
-    Inc I
-    J = 0
-  Wend
-    
-End
-
+' Private Sub InAlternate() As Boolean
+' 
+'   Dim I As Integer
+'   Dim aSym As String[]
+'   Dim aNest As Integer[]
+'   Dim L As Integer
+'   Dim P As Integer
+'   
+'   $hEditor.GetHighlight($hEditor.Line, ByRef aSym,, ByRef aNest)
+'   If Not aSym Then Return
+'   
+'   P = $hEditor.Column
+'   For I = 0 To aSym.Max
+'     L = String.Len(aSym[I]) 
+'     If P < L Then Return aNest[I] = 1
+'     P -= L
+'   Next
+' 
+' End
+' 
+' Private Sub FindCloseAlternate() As Boolean
+'   
+'   Dim sLine As String
+'   Dim I, J, A, B As Integer
+'   
+'   I = $hEditor.Line 
+'   J = $hEditor.Column
+'   
+'   While I < $hEditor.Count
+'     sLine = $hEditor[I].Text
+'     A = String.InStr(sLine, "<%", J + 1)
+'     B = String.InStr(sLine, "%>", J + 1)
+'     If B > 0 And If A = 0 Or A > B Then Return True
+'     If A > 0 Then Return False
+'     Inc I
+'     J = 0
+'   Wend
+'     
+' End
 
 Public Sub Editors_KeyPress()
   

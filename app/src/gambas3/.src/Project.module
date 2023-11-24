@@ -4108,10 +4108,11 @@ ALREADY_EXIST:
 
 End
 
-Public Function CheckClassName(sName As String, Optional bCheckNotExist As Boolean) As String
+Public Function CheckClassName(sName As String, Optional bCheckNotExist As Boolean, Optional bAllowArray As Boolean) As String
 
   Dim iInd As Integer
   Dim sCar As String
+  Dim sArraySuffix As String
 
   If Not sName Then Goto VOID_NAME
 
@@ -4121,11 +4122,20 @@ Public Function CheckClassName(sName As String, Optional bCheckNotExist As Boole
 
   If InStr(CLASS_AUTH_FIRST_CAR, LCase(Left(sName))) = 0 Then Goto BAD_CHAR
 
+  If bAllowArray Then
+    If Len(sName) > 3 And If Right$(sName, 2) = "[]" And If CSymbolInfo.IsNativeType(Left(sName, -2)) Then
+      sName = Left(sName, -2)
+      sArraySuffix = "[]"
+    Endif
+  Endif
+
   For iInd = 2 To Len(sName)
     sCar = LCase(Mid$(sName, iInd, 1))
     If Project.Type And If InStr(CLASS_AUTH_CAR_COMPONENT, sCar) Then Continue
     If InStr(CLASS_AUTH_CAR & "_", sCar) = 0 Then Goto BAD_CHAR
   Next
+  
+  sName &= sArraySuffix
 
   If bCheckNotExist Then
     If Project.Exist(sName) Then Goto ALREADY_EXIST
@@ -4288,7 +4298,7 @@ Public Sub RenameFile(sPath As String, sNewName As String) As Boolean
     If sName = sNewName Then Return
 
     If UCase(sName) <> UCase(sNewName) Then
-      sMsg = CheckClassName(sNewName, True)
+      sMsg = CheckClassName(sNewName, True, sExt = "class")
       If sMsg Then Error.Raise(sMsg)
     Endif
 
