@@ -1,3 +1,20 @@
 ' Gambas class file
 
 Inherits TextEditorMode_HTML
+
+Public Sub OnKeyPress(hEditor As TextEditor) As Boolean
+
+  Dim X As Integer
+  
+  If Key.Text = "%" Then
+    X = hEditor.Column
+    If X >= 1 And If String.Mid$(hEditor.Current.Text, X, 1) = "<" Then 
+      hEditor.Insert("%%>")
+      hEditor.Goto(X + 1, hEditor.Line)
+      Return True
+    Endif
+  Endif
+  
+  Return Super.OnKeyPress(hEditor)
+  
+End

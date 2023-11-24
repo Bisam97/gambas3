@@ -6648,34 +6648,45 @@ End
 
 '' Return the highlighting a specific line.
 ''
-'' - ~Y~ is the line number.
-'' - The list of tokens is returned in ~Symbols~.
-'' - The highlight colors of each token is returnd in ~Types~.
+'' - ~Y~: The line number.
+'' - ~Symbols~: The list of tokens.
+'' - ~Types~: The highlight style index of each token.
+'' - ~Nested~: The nested highlighting index or '0' for the current highlighting. @{since 3.19}
 ''
-'' If no highlighting is associated with the specified line, ~Symbols~ and ~Types~ are set to 'NULL'.
+'' If no highlighting is associated with the specified line, the returned arrays are set to 'NULL'.
 
-Public Sub GetHighlight(Y As Integer, ByRef Symbols As String[], ByRef Types As Integer[])
+Public Sub GetHighlight(Y As Integer, ByRef Symbols As String[], Optional ByRef Types As Integer[], ByRef Nested As Integer[])
   
   Dim aColors As Byte[]
   Dim sLine As String
-  Dim I As Integer
   Dim P As Integer
+  Dim iState, iLen, iNested As Byte
+  Dim I As Integer
   
   $hDoc.HighlightUntil(Y)
   Try aColors = $hDoc.LinesInfo[Y].Colors
   If Not aColors Then
     Symbols = Null
     Types = Null
+    Nested = Null
     Return
   Endif
   
   Symbols = New String[]
   Types = New Integer[]
+  Nested = New Integer[]
   
   sLine = $hDoc.Lines[Y]
   P = 1
   For I = 0 To aColors.Max Step 2
+    iState = aColors[I]
+    iLen = aColors[I + 1]
+    If iLen = 0 Then
+      iNested = iState
+      Continue
+    Endif
     Types.Add(aColors[I])
+    Nested.Add(iNested)
     Symbols.Add(String.Mid$(sLine, P, aColors[I + 1]))
     P += aColors[I + 1]
   Next
