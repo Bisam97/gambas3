@@ -55,12 +55,14 @@ DECLARE_EVENT(EVENT_Insert);
 
 void CB_container_before_arrange(gContainer *sender)
 {
-	GB.Raise(sender->hFree, EVENT_BeforeArrange, 0);
+	CB_GET_OBJECT(sender);
+	GB.Raise(THIS, EVENT_BeforeArrange, 0);
 }
 
 void CB_container_arrange(gContainer *sender)
 {
-	GB.Raise(sender->hFree, EVENT_Arrange, 0);
+	CB_GET_OBJECT(sender);
+	GB.Raise(THIS, EVENT_Arrange, 0);
 }
 
 void CCONTAINER_raise_insert(CCONTAINER *_object, CWIDGET *child)

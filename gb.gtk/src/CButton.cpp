@@ -31,12 +31,12 @@ DECLARE_EVENT(EVENT_Click);
 
 void CB_button_click(gControl *sender)
 {
-	CWIDGET *ob = GetObject(sender);
+	CB_GET_OBJECT(sender);
 	
-	GB.Ref(ob);
-	GB.Raise((void *)ob, EVENT_Click, 0);
-	CACTION_raise(ob);
-	GB.Unref(POINTER(&ob));
+	GB.Ref(THIS);
+	GB.Raise(THIS, EVENT_Click, 0);
+	CACTION_raise(THIS);
+	GB.Unref(POINTER(&_object));
 }
 
 //-------------------------------------------------------------------------

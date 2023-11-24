@@ -53,7 +53,8 @@ static bool cb_change_filter(gControl *control)
 
 static void cb_change(gControl *control)
 {
-	GB.Raise(control->hFree, EVENT_Change, 0);
+	CB_GET_OBJECT(control);
+	GB.Raise(THIS, EVENT_Change, 0);
 }
 
 void CDRAWINGAREA_send_change_event(void)
@@ -78,7 +79,8 @@ static void cleanup_drawing(HANDLER_INFO *info)
 
 void CB_drawingarea_expose(gDrawingArea *sender, cairo_t *cr)
 {
-	CWIDGET *_object = GetObject(sender);
+	CB_GET_OBJECT(sender);
+
 	GB_RAISE_HANDLER handler;
 	HANDLER_INFO info;
 	int fw;
@@ -119,7 +121,8 @@ static void cleanup_drawing(intptr_t _unused)
 
 void CB_drawingarea_expose(gDrawingArea *sender, GdkRegion *region, int dx, int dy)
 {
-	CWIDGET *_object = GetObject(sender);
+	CB_GET_OBJECT(sender);
+
 	GB_RAISE_HANDLER handler;
 	cairo_t *cr;
 	int fw;
@@ -149,7 +152,7 @@ void CB_drawingarea_expose(gDrawingArea *sender, GdkRegion *region, int dx, int 
 
 void CB_drawingarea_font(gDrawingArea *sender)
 {
-	CWIDGET *_object = GetObject(sender);
+	CB_GET_OBJECT(sender);
 	GB.Raise(THIS, EVENT_Font, 0);
 }
 

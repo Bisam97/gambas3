@@ -171,32 +171,32 @@ bool CB_control_can_raise(gControl *sender, int type)
 
 bool CB_control_mouse(gControl *sender, int type)
 {
-	CWIDGET *ob = GetObject(sender);
+  CB_GET_OBJECT_RETURN(sender, false);
 	bool ret = false;
 
-	if (!ob) return false; // possible, for MouseDrag for example
+	if (!THIS) return false; // possible, for MouseDrag for example
 
 	switch(type)
 	{
 		case gEvent_MouseDrag:
-			ret = GB.Raise(ob, EVENT_MouseDrag, 0);
+			ret = GB.Raise(THIS, EVENT_MouseDrag, 0);
 			break;
 
 		case gEvent_MouseMenu:
 
 			for(;;)
 			{
-				if (GB.CanRaise(ob, EVENT_Menu))
+				if (GB.CanRaise(THIS, EVENT_Menu))
 				{
 					int old = gMenu::popupCount();
-					if (GB.Raise(ob, EVENT_Menu, 0) || old != gMenu::popupCount())
+					if (GB.Raise(THIS, EVENT_Menu, 0) || old != gMenu::popupCount())
 						return true;
 				}
 
-				if (ob->popup)
+				if (THIS->popup)
 				{
 					gMainWindow *window = sender->window();
-					gMenu *menu = gMenu::findFromName(window, ob->popup);
+					gMenu *menu = gMenu::findFromName(window, THIS->popup);
 					if (menu)
 					{
 						menu->popup();
@@ -212,14 +212,13 @@ bool CB_control_mouse(gControl *sender, int type)
 					break;
 
 				sender = sender->parent();
-				ob = GetObject(sender);
+				_object = GetObject(sender);
 			}
 
 			break;
 
 		default:
-			ret = GB.Raise(ob, to_gambas_event(type), 0);
-
+			ret = GB.Raise(THIS, to_gambas_event(type), 0);
 	}
 
 	return ret;
@@ -227,25 +226,25 @@ bool CB_control_mouse(gControl *sender, int type)
 
 bool CB_control_key(gControl *sender, int type)
 {
-	return GB.Raise(GetObject(sender), to_gambas_event(type), 0);
+	CB_GET_OBJECT_RETURN(sender, false);
+	return GB.Raise(THIS, to_gambas_event(type), 0);
 }
 
 void CB_control_enter_leave(gControl *sender, int type)
 {
-	GB.Raise(GetObject(sender), to_gambas_event(type), 0);
+	CB_GET_OBJECT(sender);
+	GB.Raise(THIS, to_gambas_event(type), 0);
 }
 
 void CB_control_focus(gControl *sender, int type)
 {
-	GB.Raise(GetObject(sender), to_gambas_event(type), 0);
+	CB_GET_OBJECT(sender);
+	GB.Raise(THIS, to_gambas_event(type), 0);
 }
 
 bool CB_control_drag(gControl *sender)
 {
-	CWIDGET *_object = GetObject(sender);
-
-	/*if (!THIS)
-		return true;*/
+	CB_GET_OBJECT_RETURN(sender, true);
 
 	if (!GB.CanRaise(THIS, EVENT_Drag))
 	{
@@ -260,15 +259,13 @@ bool CB_control_drag(gControl *sender)
 
 void CB_control_drag_leave(gControl *sender)
 {
-	CWIDGET *_object = GetObject(sender);
-
+	CB_GET_OBJECT(sender);
 	GB.Raise(THIS, EVENT_DragLeave, 0);
 }
 
 bool CB_control_drag_move(gControl *sender)
 {
-	CWIDGET *_object = GetObject(sender);
-
+	CB_GET_OBJECT_RETURN(sender, true);
 	if (!THIS)
 		return true;
 
@@ -280,8 +277,7 @@ bool CB_control_drag_move(gControl *sender)
 
 bool CB_control_drop(gControl *sender)
 {
-	CWIDGET *_object = GetObject(sender);
-
+	CB_GET_OBJECT_RETURN(sender, false);
 	if (!THIS)
 		return false;
 
@@ -294,28 +290,27 @@ bool CB_control_drop(gControl *sender)
 
 void CB_control_finish(gControl *control)
 {
-	CWIDGET *widget = (CWIDGET*)control->hFree;
-
-	if (!widget)
+	CB_GET_OBJECT(control);
+	if (!THIS)
 		return;
 
-	GB.Detach(widget);
+	GB.Detach(THIS);
 
-	GB.StoreVariant(NULL, POINTER(&widget->tag));
-	GB.StoreObject(NULL, POINTER(&widget->cursor));
+	GB.StoreVariant(NULL, POINTER(&THIS->tag));
+	GB.StoreObject(NULL, POINTER(&THIS->cursor));
 
-	CACTION_register(widget, widget->action, NULL);
-	GB.FreeString(&widget->action);
+	CACTION_register(THIS, THIS->action, NULL);
+	GB.FreeString(&THIS->action);
 
 	if (control->isTopLevel())
-		CWINDOW_check_main_window((CWINDOW*)widget);
+		CWINDOW_check_main_window((CWINDOW *)THIS);
 
-	GB.Unref(POINTER(&widget->font));
-	GB.FreeString(&widget->popup);
+	GB.Unref(POINTER(&THIS->font));
+	GB.FreeString(&THIS->popup);
 
-	widget->font = NULL;
-	widget->widget = NULL;
-	GB.Unref(POINTER(&widget));
+	THIS->font = NULL;
+	THIS->widget = NULL;
+	GB.Unref(POINTER(&_object));
 
 	control->hFree = NULL;
 }

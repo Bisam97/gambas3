@@ -35,10 +35,8 @@ DECLARE_EVENT(EVENT_Change);
 
 void CB_slider_change(gSlider *sender)
 {
-	CWIDGET *_ob = GetObject(sender);
-	
-	if (!_ob) return;
-	GB.Raise((void*)_ob, EVENT_Change, 0);
+  CB_GET_OBJECT(sender);
+	GB.Raise(THIS, EVENT_Change, 0);
 }
 
 //---------------------------------------------------------------------------

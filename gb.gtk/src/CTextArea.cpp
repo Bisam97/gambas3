@@ -39,13 +39,13 @@ DECLARE_EVENT(EVENT_Cursor);
 
 void CB_textarea_change(gTextArea *sender)
 {
-	CWIDGET *_object = GetObject((gControl*)sender);
+  CB_GET_OBJECT(sender);
 	GB.Raise(THIS, EVENT_Change, 0);
 }
 
 void CB_textarea_cursor(gTextArea *sender)
 {
-	CWIDGET *_object = GetObject((gControl*)sender);
+  CB_GET_OBJECT(sender);
 	GB.Raise(THIS, EVENT_Cursor, 0);
 }
 

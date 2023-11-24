@@ -71,25 +71,25 @@ void CWINDOW_check_main_window(CWINDOW *win)
 
 void CB_window_open(gMainWindow *sender)
 {
-	CWIDGET *_object = GetObject(sender);
+	CB_GET_OBJECT(sender);
 	GB.Raise(THIS, EVENT_Open, 0);
 }
 
 void CB_window_font(gMainWindow *sender)
 {
-	CWIDGET *_object = GetObject(sender);
+	CB_GET_OBJECT(sender);
 	GB.Raise(THIS, EVENT_Font, 0);
 }
 
 void CB_window_state(gMainWindow *sender)
 {
-	CWIDGET *_object = GetObject(sender);
+	CB_GET_OBJECT(sender);
 	GB.Raise(THIS, EVENT_State, 0);
 }
 
 void CB_window_show(gMainWindow *sender)
 {
-	CWIDGET *_object = GetObject(sender);
+	CB_GET_OBJECT(sender);
 
 	GB.Ref(THIS);
 	GB.Raise(THIS, EVENT_Show, 0);
@@ -100,7 +100,7 @@ void CB_window_show(gMainWindow *sender)
 
 void CB_window_hide(gMainWindow *sender)
 {
-	CWIDGET *_object = GetObject(sender);
+	CB_GET_OBJECT(sender);
 
 	GB.Ref(THIS);
 	GB.Raise(THIS, EVENT_Hide, 0);
@@ -111,13 +111,13 @@ void CB_window_hide(gMainWindow *sender)
 
 void CB_window_move(gMainWindow *sender)
 {
-	CWIDGET *_object = GetObject(sender);
+	CB_GET_OBJECT(sender);
 	GB.Raise(THIS, EVENT_Move, 0);
 }
 
 void CB_window_resize(gMainWindow *sender)
 {
-	CWIDGET *_object = GetObject(sender);
+	CB_GET_OBJECT(sender);
 	GB.Raise(THIS, EVENT_Resize, 0);
 }
 
@@ -168,7 +168,7 @@ bool CWINDOW_must_quit()
 
 bool CB_window_close(gMainWindow *sender)
 {
-	CWINDOW *_object = (CWINDOW*)GetObject(sender);
+	CB_GET_OBJECT_RETURN(sender, false);
 
 	if (!THIS)
 		return false;
@@ -204,6 +204,8 @@ gMainWindow *CB_window_activate(gControl *control)
 {
 	gMainWindow *active;
 	CWINDOW *active_ob;
+
+	// TODO: Take lock() into account?
 
 	/*if (!control)
 		fprintf(stderr, "CB_window_activate: NULL\n");
