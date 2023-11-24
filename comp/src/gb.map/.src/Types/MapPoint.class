@@ -233,3 +233,52 @@ Static Public Sub FromString(sMp As String) As MapPoint
   Try Return MapPoint(CFloat(a[0]), CFloat(a[1]))
   
 End
+
+Static Public Sub ArrayFromString(sValue As String) As MapPoint[]
+
+  Dim aMP As New MapPoint[]
+  Dim aLine As String[]
+  Dim s As String
+  
+  If sValue = "" Then Return
+  sValue = Replace(Trim(sValue), " ", "\n")
+
+  For Each s In Split(sValue, "\n")
+    If Not s Then Continue 
+    aLine = Split(s)
+    aMP.Add(MapPoint(aLine[0], aLine[1]))
+  Next
+
+  Return aMp
+
+End
+
+Static Public Sub ArrayToString(aMapPoint As MapPoint[]) As String
+
+  Dim sRet As String
+  Dim mp As MapPoint
+
+  For Each mp In aMapPoint
+    sRet &= mp.Lat & "," & mp.Lon & "\n"
+  Next
+
+  Return sRet
+
+End
+
+Public Sub Swap()
+
+   Swap Me.Lat, Me.Lon
+
+End
+
+Static Public Sub SwapAll(aMP As MapPoint[])
+  
+  Dim mp As MapPoint
+  
+  For Each mp In aMP
+    Swap mp.Lat, mp.Lon
+  Next
+  
+End
+

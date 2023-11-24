@@ -82,3 +82,26 @@ Private Function _strProj_Read() As String
   Return $strProj
 
 End
+
+Public Sub TransformMPArray(ProjTo As Proj, aMP As MapPoint[]) As MapPoint[]
+
+ 
+  Dim sCom, sRes As String
+  Dim aRet As MapPoint[]
+
+  If ProjTo._strProj <> LastTransformString Then
+    LastTransformString = ProjTo._strProj
+  Endif
+
+  sCom = Subst("cs2cs -f \"%f\" +init=&1 +to +init=&2<<EOF\n", Me._strProj, ProjTo._strProj)
+
+  'Convert Mappoint array into string and adapt it to the cs2cs sheme
+  sCom &= Replace(MapPoint.ArrayToString(aMP), ",", "\t") & "EOF"
+
+  Shell sCom To sRes
+
+  'Convert into the internal Mappoint string sheme and make the array
+  aRet = MapPoint.ArrayFromString(Replace(Replace(sRes, "\t", ","), " 0.000000\n", "\n"))
+
+  Return aRet
+End
