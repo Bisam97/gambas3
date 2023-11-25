@@ -3121,8 +3121,6 @@ bool CWidget::eventFilter(QObject *widget, QEvent *event)
 		{
 			if (GB.CanRaise(control, EVENT_MouseWheel))
 			{
-				fprintf(stderr, "wheel on %p %s\n", control, control->name);
-
 				// Automatic focus for wheel events
 				CWIDGET_set_focus(control);
 				
