@@ -45,6 +45,8 @@ typedef
 		void *proxy_for;
 		char *action;
 		void *container_for;
+		short wheel_x;
+		short wheel_y;
 		char mouse;
 	}
 	CWIDGET_EXT;

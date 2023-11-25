@@ -44,10 +44,6 @@ double MOUSE_timer = 0;
 MOUSE_INFO MOUSE_info = { 0 };
 POINTER_INFO POINTER_info = { 0 };
 
-int MOUSE_delta_x = 0;
-int MOUSE_delta_y = 0;
-void *MOUSE_wheel_on_control = NULL;
-
 static int _dx = 0;
 static int _dy = 0;
 

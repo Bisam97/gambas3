@@ -2299,7 +2299,6 @@ void CWidget::destroy()
 	CLEAN_POINTER(CWIDGET_previous_control);
 	CLEAN_POINTER(CWIDGET_hovered);
 	CLEAN_POINTER(_old_active_control);
-	CLEAN_POINTER(MOUSE_wheel_on_control);
 #if QT5
 	CLEAN_POINTER(_last_entered);
 #endif
@@ -3116,20 +3115,14 @@ bool CWidget::eventFilter(QObject *widget, QEvent *event)
 
 		eat_wheel = control->flag.wheel;
 
-		if (control != MOUSE_wheel_on_control)
-		{
-			MOUSE_wheel_on_control = control;
-			MOUSE_delta_x = MOUSE_delta_y = 0;
-		}
-
 	__MOUSE_WHEEL_TRY_PROXY:
 		
-		//fprintf(stderr, "wheel on %p %s\n", control, control->name);
-
 		if (design || QWIDGET(control)->isEnabled())
 		{
 			if (GB.CanRaise(control, EVENT_MouseWheel))
 			{
+				fprintf(stderr, "wheel on %p %s\n", control, control->name);
+
 				// Automatic focus for wheel events
 				CWIDGET_set_focus(control);
 				
@@ -3169,35 +3162,36 @@ bool CWidget::eventFilter(QObject *widget, QEvent *event)
 				if (delta.x())
 				{
 					MOUSE_info.orientation = Qt::Horizontal;
-					MOUSE_delta_x += delta.x();
-					MOUSE_info.delta = d = (MOUSE_delta_x >= 120) ? 120 : ((MOUSE_delta_x <= -120) ? -120 : 0);
+					ENSURE_EXT(control)->wheel_x += delta.x();
+					MOUSE_info.delta = d = (EXT(control)->wheel_x >= 120) ? 120 : ((EXT(control)->wheel_x <= -120) ? -120 : 0);
 
-					while (abs(MOUSE_delta_x) >= 120)
+					while (abs(EXT(control)->wheel_x) >= 120)
 					{
 						cancel = GB.Raise(control, EVENT_MouseWheel, 0);
 						if (cancel)
 						{
-							MOUSE_delta_x = 0;
+							EXT(control)->wheel_x = 0;
 							break;
 						}
-						MOUSE_delta_x -= d;
+						EXT(control)->wheel_x -= d;
 					}
 				}
+
 				if (delta.y())
 				{
 					MOUSE_info.orientation = Qt::Vertical;
-					MOUSE_delta_y += delta.y();
-					MOUSE_info.delta = d = (MOUSE_delta_y >= 120) ? 120 : ((MOUSE_delta_y <= -120) ? -120 : 0);
+					ENSURE_EXT(control)->wheel_y += delta.y();
+					MOUSE_info.delta = d = (EXT(control)->wheel_y >= 120) ? 120 : ((EXT(control)->wheel_y <= -120) ? -120 : 0);
 
-					while (abs(MOUSE_delta_y) >= 120)
+					while (abs(EXT(control)->wheel_y) >= 120)
 					{
 						cancel = GB.Raise(control, EVENT_MouseWheel, 0);
 						if (cancel)
 						{
-							MOUSE_delta_y = 0;
+							EXT(control)->wheel_y = 0;
 							break;
 						}
-						MOUSE_delta_y -= d;
+						EXT(control)->wheel_y -= d;
 					}
 				}
 

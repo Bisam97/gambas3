@@ -76,10 +76,6 @@ extern double MOUSE_timer;
 extern MOUSE_INFO MOUSE_info;
 extern POINTER_INFO POINTER_info;
 
-extern int MOUSE_delta_x;
-extern int MOUSE_delta_y;
-extern void *MOUSE_wheel_on_control;
-
 #else
 
 #define THIS ((CCURSOR *)_object)
