@@ -554,6 +554,8 @@ Public Sub Process_Kill()
   Dim sMsg As String
   Dim bTest As Boolean
 
+  Try Shell.RmDir(File.Dir(Application.TempDir) &/ CStr(ProcessId))
+
   If $bRemote And If DEBUG_REMOTE Then Debug
 
   bTest = $bTest
