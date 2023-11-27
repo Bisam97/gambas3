@@ -1,31 +1,34 @@
 block{Operator}:
-  from { to }
-  @include webpage.include
-  block.documentation{Documentation}:
-    from /** to */
-  block.comment{Comment}:
-    from /* to */
-  identifier{Keyword}:
-    match /$(IDENT)/
-  property{Operator}:
-    from : to ;
+  limit
+  match {
+  block.contents{Operator}:
+    from here to }
     @include webpage.include
-    color{Color=Constant}:
-      match /#[0-9A-Fa-f]{6}/
-      match /#[0-9A-Fa-f]{3}/
-    number:
-      match /$(NUMBER)/
-      unit{Unit=Function}:
-        match /$(IDENT)/
-        match "%"
-    important{Important=Constant}:
-      match "!important"
-    identifier{Normal}:
+    block.documentation{Documentation}:
+      from /** to */
+    block.comment{Comment}:
+      from /* to */
+    identifier{Keyword}:
       match /$(IDENT)/
-    string:
-      from " to "
-      from ' to '
-      string.escape{Escape}:
-        match /$(ESCAPE)/
-    operator:
-      symbol ( ) ,
+    property{Operator}:
+      from : to ;
+      @include webpage.include
+      color{Color=Constant}:
+        match /#[0-9A-Fa-f]{6}/
+        match /#[0-9A-Fa-f]{3}/
+      number:
+        match /$(NUMBER)/
+        unit{Unit=Function}:
+          match /$(IDENT)/
+          match "%"
+      important{Important=Constant}:
+        match "!important"
+      identifier{Normal}:
+        match /$(IDENT)/
+      string:
+        from " to "
+        from ' to '
+        string.escape{Escape}:
+          match /$(ESCAPE)/
+      operator:
+        symbol ( ) ,
