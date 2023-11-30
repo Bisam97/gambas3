@@ -1304,6 +1304,18 @@ Public Sub UnselectAll()
   
 End
 
+'' @{since 3.19}
+''
+'' Find the first row matching a SQL request and move to it.
+''
+'' - ~Where~: The "WHERE" part of the SQL request, with possible argument substitution inside.
+
+'' [[ warning
+'' @{since 3.16}
+''
+'' In previous versions of Gambas, the method was acting like [../findnext].
+'' ]]
+
 Public Sub Find(Where As String, ...)
   
   Dim iIndex As Integer
@@ -1312,6 +1324,12 @@ Public Sub Find(Where As String, ...)
   MoveTo(iIndex)
   
 End
+
+'' @{since 3.19}
+''
+'' Find the next row matching a SQL request from the current position, and move to it.
+''
+'' - ~Where~: The "WHERE" part of the SQL request, with possible argument substitution inside.
 
 Public Sub FindNext(Where As String, ...)
   

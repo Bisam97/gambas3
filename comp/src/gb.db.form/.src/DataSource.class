@@ -7,6 +7,13 @@ Inherits Panel
 Event Change
 Event BeforeSave(Data As Result)
 Event BeforeDelete(Keys As Variant[])
+
+'' @{since 3.19}
+''
+'' This event is raised when the value entered for a specific field is invalid.
+''
+'' If the event is stopped, the default warning message is not displayed.
+
 Event Invalid(Field As String)
 
 Property Connection As Connection
@@ -580,11 +587,28 @@ Public Function _get((Key) As String) As Variant
   
 End
 
+'' @{since 3.19}
+''
+'' Find the first row matching a SQL request from the current position.
+''
+'' - ~Where~: The "WHERE" part of the SQL request, with possible argument substitution inside.
+''
+'' Return the row index of the matching row, or '-1' if not row is found.
+
 Public Function Find(Where As String, ...) As Integer
   
   Return $hTable.Find(_GetDB().Subst(Where, ...))
   
 End
+
+'' @{since 3.19}
+''
+'' Find the next row matching a SQL request from a specific position.
+''
+'' - ~Where~: The "WHERE" part of the SQL request, with possible argument substitution inside.
+'' - ~Index~: The position where the search starts.
+''
+'' Return the row index of the matching row, or '-1' if not row is found.
 
 Public Function FindNext(Index As Integer, Where As String, ...) As Integer
   
