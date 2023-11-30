@@ -119,7 +119,7 @@ typedef
 	DEBUG_INTERFACE;
 
 #define DEBUG_OUTPUT_MAX_SIZE 65536
-#define DEBUG_FIFO_PATTERN FILE_TEMP_PREFIX "/gambas" GAMBAS_VERSION_STRING "-ide-debug-%d.%s"
+#define DEBUG_FIFO_PATTERN FILE_TEMP_PREFIX "/gambas" GAMBAS_VERSION_STRING "-ide-debug-%u.%s"
 #define DEBUG_FIFO_PATH_MAX 64
 #define DEBUG_WAIT_LINK "/tmp/gambas-%s.debug"
 #define DEBUG_WAIT_IGNORE "/tmp/gambas-%s.debug.%d"

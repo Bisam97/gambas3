@@ -979,7 +979,6 @@ void FILE_make_path_dir(const char *path)
 			(void)mkdir(file_buffer, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
 			file_buffer[i] = c;
 		}
-		c++;
 	}
 }
 

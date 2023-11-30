@@ -38,7 +38,7 @@ void ARRAY_create_with_size(void *p_data, size_t size, uint inc)
 	array->max = 0;
 	array->size = (uint)size;
 	if (size > 2 && (size & 3))
-		fprintf(stderr, "WARNING: ARRAY_create_with_size: size = %zi\n", size);
+		fprintf(stderr, "WARNING: ARRAY_create_with_size: size = %zu\n", size);
 	array->inc = inc;
 
 	*((void **)p_data) = ARRAY_TO_DATA(array);
@@ -48,11 +48,11 @@ void ARRAY_create_with_size(void *p_data, size_t size, uint inc)
 void ARRAY_delete(void *p_data)
 {
 	void **data = (void **)p_data;
-	ARRAY *alloc = DATA_TO_ARRAY(*data);
 
 	if (!*data)
 		return;
 
+	ARRAY *alloc = DATA_TO_ARRAY(*data);
 	FREE(&alloc);
 
 	*data = NULL;
@@ -184,7 +184,7 @@ void ARRAY_remove_many(void *p_data, int pos, uint count)
 	
 	apos = pos;
 
-	if (count < 0 || count > (array->count - apos))
+	if (count > (array->count - apos))
 		count = array->count - apos;
 
 	addr = ((char *)(*data)) + array->size * apos;

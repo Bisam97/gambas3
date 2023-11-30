@@ -53,7 +53,7 @@ typedef
 #define GB_STAT_OTHER       2
 
 #define FILE_TEMP_PREFIX    "/tmp/gambas.%d"
-#define FILE_TEMP_DIR       FILE_TEMP_PREFIX "/%d"
+#define FILE_TEMP_DIR       FILE_TEMP_PREFIX "/%u"
 #define FILE_TEMP_FILE      FILE_TEMP_DIR "/%d.tmp"
 #define FILE_TEMP_PATTERN   FILE_TEMP_DIR "/%s.tmp"
 

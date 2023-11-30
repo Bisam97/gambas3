@@ -82,7 +82,7 @@ bool BUFFER_need(void *p_data, size_t size)
 
 offset_t BUFFER_add(void *p_data, const void *string, int len)
 {
-	void **data = (void **)p_data;
+	char **data = (char **)p_data;
 	BUFFER *buffer = DATA_TO_BUFFER(*data);
 	size_t pos;
 
@@ -101,24 +101,24 @@ offset_t BUFFER_add(void *p_data, const void *string, int len)
 
 void BUFFER_add_char(void *p_data, char c)
 {
-	void **data = (void **)p_data;
+	char **data = (char **)p_data;
 	BUFFER *buffer = DATA_TO_BUFFER(*data);
 	size_t pos;
 
 	pos = buffer->length;
 	BUFFER_need(p_data, 1);
-	*(char *)(*data + pos) = c;
+	*(*data + pos) = c;
 }
 
 bool BUFFER_load_file(void *p_data, const char *name)
 {
-	void **data;
+	char **data;
 
 	int fd;
 	struct stat info;
 	int old_len;
 	int len, lenr;
-	void *p;
+	char *p;
 	
 	fd = open(name, O_RDONLY);
 	if (fd < 0) 
@@ -132,12 +132,12 @@ bool BUFFER_load_file(void *p_data, const char *name)
 	
 	len = info.st_size;
 	
-	data = (void **)p_data;
+	data = (char **)p_data;
 	old_len = DATA_TO_BUFFER(*data)->length;
 	
 	BUFFER_need(p_data, len);
 	
-	data = (void **)p_data;
+	data = (char **)p_data;
 
 	p = *data + old_len;
 	
