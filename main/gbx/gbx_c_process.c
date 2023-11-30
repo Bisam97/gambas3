@@ -197,8 +197,6 @@ static void callback_error(int fd, int type, CPROCESS *process)
 
 	if (process->to_string && process->with_error)
 	{
-		int n;
-
 		for(;;)
 		{
 			n = read(fd, COMMON_buffer, 256);
@@ -577,8 +575,6 @@ static void run_process(CPROCESS *process, int mode, void *cmd, CARRAY *env)
 
 		#ifdef DEBUG_ME
 		{
-			int i;
-
 			fprintf(stderr, "run_process %p: ", process);
 			for (i = 0; i < n; i++)
 				fprintf(stderr, "%s ", argv[i]);
@@ -853,13 +849,18 @@ void CPROCESS_check(void *_object)
 static bool wait_child(CPROCESS *process)
 {
 	int status;
-	int ret;
 	
 	#ifdef DEBUG_ME
+	int ret;
+
 	fprintf(stderr, "wait_child: check process %d\n", process->pid);
 	#endif
 
+	#ifdef DEBUG_ME
 	if ((ret = waitpid(process->pid, &status, WNOHANG)) == process->pid)
+	#else
+	if ((waitpid(process->pid, &status, WNOHANG)) == process->pid)
+	#endif
 	{
 		process->status = status;
 		process->wait = TRUE;

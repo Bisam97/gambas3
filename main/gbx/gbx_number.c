@@ -76,7 +76,7 @@ static uint64_t _pow_10[18] = {
 
 static int read_integer(int base, bool minus, int64_t *result, bool local, bool after)
 {
-	static unsigned char nmax_base[36] = {
+	static const unsigned char nmax_base[36] = {
 		 0, 64, 40, 32, 27, 24, 22, 21, 20, 19,
 		18, 17, 17, 16, 16, 16, 15, 15, 15, 14,
 		14, 14, 14, 13, 13, 13, 13, 13, 13, 13,
@@ -572,7 +572,7 @@ void NUMBER_int_to_string(uint64_t nbr, int prec, int base, VALUE *value)
 		return;
 	}
 	
-	neg = (nbr & (1LL << 63)) != 0;
+	neg = (nbr & (1ULL << 63)) != 0;
 	
 	if (base == 10 && neg)
 		nbr = 1 + ~nbr;

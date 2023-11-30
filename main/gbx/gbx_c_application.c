@@ -272,19 +272,19 @@ END_PROPERTY
 
 //-------------------------------------------------------------------------
 
-static void init_again(int old_pid)
+static void init_again(pid_t old_pid)
 {
 	char old[PATH_MAX];
 
 	FILE_remove_temp_file();
-	snprintf(old, sizeof(old),FILE_TEMP_DIR, getuid(), old_pid);
+	snprintf(old, sizeof(old), FILE_TEMP_DIR, (int)getuid(), (int)old_pid);
 	rename(old, FILE_make_temp(NULL, NULL));
 	FILE_chdir(PROJECT_path);
 }
 
 BEGIN_PROPERTY(Application_Daemon)
 
-	int old_pid;
+	pid_t old_pid;
 
 	if (READ_PROPERTY)
 		GB_ReturnBoolean(_daemon);
@@ -332,7 +332,7 @@ BEGIN_PROPERTY(Application_Priority)
 		else if (pr > 19)
 			pr = 19;
 
-		if (setpriority(PRIO_PROCESS, 0, VPROP(GB_INTEGER)) < 0)
+		if (setpriority(PRIO_PROCESS, 0, pr) < 0)
 			THROW_SYSTEM(errno, NULL);
 	}
 

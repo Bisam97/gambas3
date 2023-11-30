@@ -701,7 +701,7 @@ bool ARCHIVE_dir_next(char **name, int *len, int attr)
 }
 
 
-bool ARCHIVE_check_addr(char *addr)
+bool ARCHIVE_check_addr(const char *addr)
 {
 	ARCHIVE *arch;
 	ARCH *a;

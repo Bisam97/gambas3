@@ -136,7 +136,7 @@ static void watch_stream(CSTREAM *_object, int mode, bool on)
 		GB_Watch(fd, GB_WATCH_WRITE, (void *)(on ? callback_write : NULL), (intptr_t)THIS);
 }
 
-CFILE *CFILE_create(STREAM *stream, int mode)
+CFILE *CFILE_create(const STREAM *stream, int mode)
 {
 	CFILE *file = OBJECT_new(CLASS_File, NULL, NULL);
 	OBJECT_UNREF_KEEP(file);
@@ -430,7 +430,7 @@ BEGIN_PROPERTY(Stat_Device)
 		GB_ReturnNull();
 	else
 	{
-		len = sprintf(COMMON_buffer, "/%s/%d:%d", THIS_STAT->info.chrdev ? "char" : "block", major(dev), minor(dev));
+		len = sprintf(COMMON_buffer, "/%s/%u:%u", THIS_STAT->info.chrdev ? "char" : "block", major(dev), minor(dev));
 		GB_ReturnNewString(COMMON_buffer, len);
 	}
 

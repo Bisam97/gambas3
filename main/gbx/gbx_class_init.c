@@ -172,7 +172,7 @@ void CLASS_init_native(void)
 	//CLASS_Proxy->size += sizeof(OBJECT_EVENT);
 }
 
-void CLASS_update_global(CLASS *old_class, CLASS *new_class)
+void CLASS_update_global(const CLASS *old_class, CLASS *new_class)
 {
 	const CLASS_INIT *init;
 	

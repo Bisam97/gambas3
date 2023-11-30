@@ -90,7 +90,7 @@ int STRING_get_free_index(void);
 #define STRING_copy(_src) STRING_new((_src), STRING_length(_src))
 
 char *STRING_extend(char *str, int new_len);
-bool STRING_extend_will_realloc(char *str, int new_len);
+bool STRING_extend_will_realloc(const char *str, int new_len);
 
 //void STRING_extend_end(char *str);
 char *STRING_add(char *str, const char *src, int len);
@@ -182,7 +182,7 @@ void STRING_unref_real(char **ptr);
 
 #define STRING_ref(_p) \
 ({ \
-  char *ptr = _p; \
+  __typeof__(_p) ptr = _p; \
   if (ptr) \
 	{ \
     STRING_from_ptr(ptr)->ref++; \

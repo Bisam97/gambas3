@@ -180,7 +180,7 @@ static void add_thousand_sep(int *before)
 	thsep = _currency ? local_current->currency_thousand_sep : local_current->thousand_sep;
 	lthsep = _currency ? local_current->len_currency_thousand_sep : local_current->len_thousand_sep;
 	
-	if (thsep && thsep)
+	if (thsep && lthsep)
 	{
 		group = _currency ? local_current->currency_group_size : local_current->group_size;
 
@@ -897,8 +897,8 @@ static void fill_local_info(void)
 	LOCAL_local.standard_date = STRING_add_string(LOCAL_local.standard_date, LOCAL_local.long_time);
 
 	#ifdef DEBUG_DATE
-	fprintf(stderr, "date_tail_sep = %d\n", LOCAL_local.date_tail_sep);
-	fprintf(stderr, "time_tail_sep = %d\n\n", LOCAL_local.time_tail_sep);
+	fprintf(stderr, "date_tail_sep = %u\n", LOCAL_local.date_tail_sep);
+	fprintf(stderr, "time_tail_sep = %u\n\n", LOCAL_local.time_tail_sep);
 	
 	fprintf(stderr, "general_date: '%s'\n", LOCAL_local.general_date);
 	fprintf(stderr, "long_date:    '%s'\n", LOCAL_local.long_date);
@@ -1092,7 +1092,7 @@ static int int_to_string(uint64_t nbr, char **addr)
 		return 1;
 	}
 	
-	neg = (nbr & (1LL << 63)) != 0;
+	neg = (nbr & (1ULL << 63)) != 0;
 	
 	if (neg)
 		nbr = 1 + ~nbr;
@@ -1644,7 +1644,7 @@ static void add_strftime(const char *format, struct tm *tm)
 
 static void add_number(int value, int pad)
 {
-	static char temp[8] = { 0 };
+	static char temp[10] = { 0 };
 	int i, n;
 	bool minus = FALSE;
 
@@ -1655,7 +1655,7 @@ static void add_number(int value, int pad)
 	}
 
 	n = 0;
-	for (i = 7; i >= 0; i--)
+	for (i = 9; i >= 2; i--)
 	{
 		n++;
 		if (value < 10)
@@ -1702,7 +1702,7 @@ static bool add_date_time_token(DATE_SERIAL *date, char token, int count)
 			{
 				add_number(date->day, (count == 1 ? 0 : 2));
 			}
-			else if (count >= 3)
+			else
 			{
 				tm.tm_wday = date->weekday;
 				add_strftime(count == 3 ? "%a" : "%A", &tm);
@@ -1715,7 +1715,7 @@ static bool add_date_time_token(DATE_SERIAL *date, char token, int count)
 			{
 				add_number(date->month, (count == 1 ? 0 : 2));
 			}
-			else if (count >= 3)
+			else
 			{
 				tm.tm_mon = date->month - 1;
 				add_strftime(count == 3 ? "%b" : "%B", &tm);

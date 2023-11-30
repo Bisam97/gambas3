@@ -229,7 +229,7 @@ static int utf8_get_pos(const char *ref, const char *start, int len, int index)
 		_utf8_current_start = start;
 		_utf8_current_len = len;
 #ifdef DEBUG_CACHE
-		fprintf(stderr, "current -> %p / %ld\n", STRING_utf8_current, _utf8_current_start - STRING_utf8_current);
+		fprintf(stderr, "current -> %p / %d\n", STRING_utf8_current, _utf8_current_start - STRING_utf8_current);
 #endif
 		CLEAR(&_utf8);
 	}

@@ -329,13 +329,11 @@ void CLASS_clean_up(bool silent)
 
 	for (class = _classes; class; class = class->next)
 	{
+		#if DEBUG_LOAD
 		if (class->instance)
-		{
-			#if DEBUG_LOAD
 			fprintf(stderr, "Freeing instance of %p %s\n", class, class->name);
-			#endif
-			OBJECT_UNREF(class->instance);
-		}
+		#endif
+		OBJECT_UNREF(class->instance);
 	}
 
 	// Count how many classes should be freed
@@ -612,7 +610,7 @@ CLASS *CLASS_find_export(const char *name, const char *global)
 	return class;
 }
 
-bool CLASS_inherits(CLASS *class, CLASS *parent)
+bool CLASS_inherits(const CLASS *class, const CLASS *parent)
 {
 	for(;;)
 	{
@@ -756,7 +754,7 @@ char *CLASS_DESC_get_signature(CLASS_DESC *cd)
 
 // NOTE: The _free method can be called during a conversion, so we must save the EXEC structure
 
-static void error_CLASS_free(void *object, EXEC_GLOBAL *save)
+static void error_CLASS_free(void *object, const EXEC_GLOBAL *save)
 {
 	EXEC = *save;
 	((OBJECT *)object)->ref = 0;
@@ -1186,7 +1184,7 @@ void CLASS_make_description(CLASS *class, const CLASS_DESC *desc, int n_desc, in
 				cds = &class->table[ind];
 
 				#if DEBUG_DESC
-				fprintf(stderr, "%s: [%d] (%p %ld) := (%p %ld)\n", name, ind, cds->desc, cds->desc ? cds->desc->gambas.val1 : 0, &desc[j], desc[j].gambas.val1);
+				fprintf(stderr, "%s: [%d] (%p %d) := (%p %d)\n", name, ind, cds->desc, cds->desc ? cds->desc->gambas.val1 : 0, &desc[j], desc[j].gambas.val1);
 				#endif
 
 				cds->desc = (CLASS_DESC *)&desc[j];
@@ -1236,14 +1234,10 @@ void CLASS_make_description(CLASS *class, const CLASS_DESC *desc, int n_desc, in
 	}
 	
 	#if DEBUG_DESC
+	for (i = 0; i < class->n_desc; i++)
 	{
-		CLASS_DESC_SYMBOL *cds;
-
-		for (i = 0; i < class->n_desc; i++)
-		{
-			cds = &class->table[i];
-			fprintf(stderr, "%d: %.*s %p\n", i, cds->len, cds->name, cds->desc);
-		}
+		cds = &class->table[i];
+		fprintf(stderr, "%d: %.*s %p\n", i, cds->len, cds->name, cds->desc);
 	}
 	#endif
 }

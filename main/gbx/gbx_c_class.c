@@ -49,7 +49,7 @@ static void error(int code, CLASS *class, const char *name)
 	GB_Error((char *)(intptr_t)code, CLASS_get_name(class), name);
 }
 
-static bool check_null(void *object)
+static bool check_null(const void *object)
 {
 	if (!object)
 	{

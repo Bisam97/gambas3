@@ -122,7 +122,7 @@ typedef
 typedef
 	struct {
 		STREAM_COMMON common;
-		void *addr;
+		char *addr;
 		intptr_t pos;
 		}
 	STREAM_MEMORY;

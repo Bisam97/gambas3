@@ -552,7 +552,7 @@ bool DATE_from_string(const char *str, int len, VALUE *val, bool local)
 	bool has_date = FALSE;
 	bool zero, zero2;
 	bool has_timezone = FALSE;
-	int timezone = 0;
+	int tz = 0;
 
 	if (!len)
 	{
@@ -679,7 +679,7 @@ bool DATE_from_string(const char *str, int len, VALUE *val, bool local)
 
 		if (has_date)
 		{
-			has_timezone = read_timezone(&timezone);
+			has_timezone = read_timezone(&tz);
 
 			if (has_timezone)
 				COMMON_jump_space();
@@ -700,7 +700,7 @@ _OK:
 	if (date.year)
 	{
 		if (has_timezone)
-			add_timezone(val, timezone);
+			add_timezone(val, tz);
 		else if (local)
 			add_timezone(val, DATE_get_timezone());
 	}
@@ -712,7 +712,7 @@ _OK:
 }
 
 
-int DATE_comp(DATE *date1, DATE *date2)
+int DATE_comp(const DATE *date1, const DATE *date2)
 {
 	if (date1->date < date2->date)
 		return (-1);

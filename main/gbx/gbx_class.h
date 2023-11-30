@@ -491,7 +491,7 @@ CLASS *CLASS_find_do(const char *name, bool global);
 
 TABLE *CLASS_get_table(void);
 
-bool CLASS_inherits(CLASS *class, CLASS *parent);
+bool CLASS_inherits(const CLASS *class, const CLASS *parent);
 
 CLASS *CLASS_replace_global(const char *name);
 CLASS *CLASS_check_global(CLASS *class);
@@ -536,7 +536,7 @@ void CLASS_translation_must_be_reloaded(void);
 /* class_init.c */
 
 void CLASS_init_native(void);
-void CLASS_update_global(CLASS *old_class, CLASS *new_class);
+void CLASS_update_global(const CLASS *old_class, CLASS *new_class);
 
 /* class_load.c */
 

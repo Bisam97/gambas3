@@ -43,12 +43,12 @@
 static bool _descent = FALSE;
 static int _mode = 0;
 
-int compare_nothing(void *a, void *b)
+int compare_nothing(const void *a, const void *b)
 {
 	return 0;
 }
 
-int compare_integer(int *a, int *b)
+int compare_integer(const int *a, const int *b)
 {
 	int comp;
 
@@ -65,7 +65,7 @@ int compare_integer(int *a, int *b)
 	return comp;
 }
 
-int compare_short(short *a, short *b)
+int compare_short(const short *a, const short *b)
 {
 	int comp;
 
@@ -80,7 +80,7 @@ int compare_short(short *a, short *b)
 }
 
 
-int compare_byte(unsigned char *a, unsigned char *b)
+int compare_byte(const uchar *a, const uchar *b)
 {
 	int comp;
 
@@ -95,7 +95,7 @@ int compare_byte(unsigned char *a, unsigned char *b)
 }
 
 
-int compare_long(int64_t *a, int64_t *b)
+int compare_long(const int64_t *a, const int64_t *b)
 {
 	int comp;
 
@@ -110,7 +110,7 @@ int compare_long(int64_t *a, int64_t *b)
 }
 
 
-int compare_float(double *a, double *b)
+int compare_float(const double *a, const double *b)
 {
 	int comp;
 
@@ -125,7 +125,7 @@ int compare_float(double *a, double *b)
 }
 
 
-int compare_single(float *a, float *b)
+int compare_single(const float *a, const float *b)
 {
 	int comp;
 
@@ -140,7 +140,7 @@ int compare_single(float *a, float *b)
 }
 
 
-int compare_date(DATE *a, DATE *b)
+int compare_date(const DATE *a, const DATE *b)
 {
 	int comp;
 

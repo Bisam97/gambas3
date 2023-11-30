@@ -508,7 +508,7 @@ char *STRING_extend(char *str, int new_len)
 }
 
 
-bool STRING_extend_will_realloc(char *str, int new_len)
+bool STRING_extend_will_realloc(const char *str, int new_len)
 {
 	STRING *sstr;
 	int size;

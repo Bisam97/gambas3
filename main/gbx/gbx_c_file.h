@@ -78,7 +78,7 @@ extern mode_t CFILE_default_dir_auth;
 
 enum { CFILE_IN = 0, CFILE_OUT = 1, CFILE_ERR = 2 };
 
-CFILE *CFILE_create(STREAM *stream, int mode);
+CFILE *CFILE_create(const STREAM *stream, int mode);
 void CFILE_exit(void);
 void CFILE_init_watch(void);
 CFILE *CFILE_get_standard_stream(int num);

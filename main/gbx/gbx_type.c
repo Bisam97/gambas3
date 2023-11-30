@@ -44,7 +44,7 @@ const size_t TYPE_sizeof_memory_tab[16] = { 0, 1, 1, 2, 4, 8, 4, 8, 8, sizeof(vo
 
 size_t TYPE_sizeof(TYPE type)
 {
-	static size_t size[16] = { 0, 4, 4, 4, 4, 8, 8, 8, 8, sizeof(void *), sizeof(void *), sizeof(void *), sizeof(VARIANT), 0, 0, 0 };
+	static const size_t size[16] = { 0, 4, 4, 4, 4, 8, 8, 8, 8, sizeof(void *), sizeof(void *), sizeof(void *), sizeof(VARIANT), 0, 0, 0 };
 
 	if (TYPE_is_object(type))
 		return sizeof(void *);

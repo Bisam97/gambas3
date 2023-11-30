@@ -132,6 +132,8 @@ static const char *const _message[79] =
 	/* 78 E_JUMP        */ "Bad indirect jump"
 };
 
+#define N_MESSAGES (sizeof(_message) / sizeof(*_message))
+
 static void clear_info(ERROR_INFO *info)
 {
 	if (!info->code)
@@ -148,7 +150,7 @@ static void clear_info(ERROR_INFO *info)
 	info->msg = NULL;
 }
 
-static void copy_info(ERROR_INFO *src, ERROR_INFO *dst)
+static void copy_info(const ERROR_INFO *src, ERROR_INFO *dst)
 {
 	clear_info(dst);
 	*dst = *src;
@@ -361,7 +363,7 @@ void ERROR_define(const char *pattern, char *arg[])
 
 	ERROR_clear();
 
-	if ((intptr_t)pattern >= 0 && (intptr_t)pattern < 256)
+	if ((intptr_t)pattern >= 0 && (intptr_t)pattern < N_MESSAGES)
 	{
 		ERROR_current->info.code = (int)(intptr_t)pattern;
 		pattern = _message[(int)(intptr_t)pattern];

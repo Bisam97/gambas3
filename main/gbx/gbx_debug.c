@@ -46,7 +46,7 @@ DEBUG_INTERFACE DEBUG;
 DEBUG_INFO *DEBUG_info = NULL;
 int DEBUG_inside_eval = 0;
 
-static bool calc_line_from_position(CLASS *class, FUNCTION *func, PCODE *addr, ushort *line)
+static bool calc_line_from_position(CLASS *class, FUNCTION *func, const PCODE *addr, ushort *line)
 {
 	int i;
 	ushort pos = addr - JIT_get_code(func);
@@ -387,7 +387,7 @@ int DEBUG_set_value(const char *sym, int len, VALUE *value)
 
 __FOUND:
 
-		0;
+		;
 	}
 	CATCH
 	{
