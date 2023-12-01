@@ -6,7 +6,7 @@ Private $cBreakpoints As Collection
 
 Public Sub OnProjectChange()
   
-  $cBreakpoints = Project.Config["/Debug/Breakpoints"]
+  Try $cBreakpoints = Project.Config["/Debug/Breakpoints"]
   If Not $cBreakpoints Then $cBreakpoints = New Collection
   
   $iTimeStamp = Project.TimeStamp
