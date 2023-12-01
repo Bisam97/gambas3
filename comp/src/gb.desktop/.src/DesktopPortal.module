@@ -4,26 +4,32 @@ Class DBus
 Class DBusSignal
 Class DBusFile
 
-Property Read Available As Boolean
+Property Enabled As Boolean
 
+Private $bStarted As Boolean
 Private $bCheckAvailable As Boolean
 Private $iToken As Integer
 
 Private $hScreenshotSignal As DBusSignal
 Private $hScreenshot As Image
 Private $cResult As Collection
+Private $bEnabled As Boolean
+Private $bEnabledSet As Boolean
 
-Public Sub _init()
+Private Sub StartPortal()
   
+  If $bEnabledSet And If Not $bEnabled Then Return
+  If $bStarted Then Return
   Component.Load("gb.dbus")
   DBus.Session.Start("org.freedesktop.portal.Desktop")
+  $bStarted = True
   
 End
 
 Private Sub GetPortal(sInterface As String) As DBusProxy
 
   If Not $bCheckAvailable Then
-    If Not DesktopPortal.Available Then Error.Raise("Desktop portal is not available")
+    If Not DesktopPortal.Enabled Then Error.Raise("Desktop portal is not available")
     $bCheckAvailable = True
   Endif
   Return DBus["org.freedesktop.portal.Desktop"]["/org/freedesktop/portal/desktop", "org.freedesktop.portal." & sInterface]
@@ -82,6 +88,8 @@ Public Sub Screenshot() As Image
 
   Dim sToken As String
 
+  StartPortal
+  
   If Not $hScreenshotSignal Then
     
     $hScreenshotSignal = GetToken(ByRef sToken)
@@ -99,9 +107,19 @@ Public Sub Screenshot() As Image
   
 End
 
-Private Function Available_Read() As Boolean
+Private Function Enabled_Read() As Boolean
 
+  If $bEnabledSet And If Not $bEnabled Then Return False
+  If Env["GB_DESKTOP_PORTAL_ENABLED"] = "0" Then Return False
+  StartPortal
   Try Return DBus.Session.Exist("org.freedesktop.portal.Desktop")
+
+End
+
+Private Sub Enabled_Write(Value As Boolean)
+
+  $bEnabled = Value
+  $bEnabledSet = True
 
 End
 
@@ -109,6 +127,8 @@ Public Sub PickColor() As Integer
 
   Dim sToken As String
   Dim aColor As Float[]
+  
+  StartPortal
   
   GetToken(ByRef sToken)
   GetPortal("Screenshot").PickColor("", ["handle_token": sToken, "interactive": False])
@@ -127,6 +147,8 @@ Public Sub OpenURI(sUrl As String)
   
   Dim cOption As New Collection
   Dim hFile As File
+  
+  StartPortal
   
   If sUrl Begins "file://" Then sUrl = FromUri(Mid$(sUrl, 8))
   
@@ -147,6 +169,8 @@ Public Sub SendMail(aTo As String[], aCc As String[], aBcc As String[], sSubject
   Dim sAttach As String
   Dim hFile As File
   Dim cOption As New Collection
+  
+  StartPortal
   
   If aAttach And If aAttach.Count Then
     aFile = New DBusFile[]

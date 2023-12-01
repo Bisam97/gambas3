@@ -52,7 +52,7 @@ Static Public Sub SendMail({To} As String[], Optional Cc As String[], Optional B
     Try aAttach.Add(Attachments)
   Endif
   
-  If DesktopPortal.Available Then
+  If DesktopPortal.Enabled Then
     DesktopPortal.SendMail({To}, {Cc}, {Bcc}, Subject, Body, aAttach)
     Return
   Endif
@@ -94,7 +94,7 @@ Static Public Sub {Open}(Url As String, Optional {Wait} As Boolean)
 
   Url = File.RealPath(Url)
 
-  If DesktopPortal.Available Then
+  If DesktopPortal.Enabled Then
     DesktopPortal.OpenURI(Url)
   Else
     Main.RunXdgUtil("xdg-open", [Url], {Wait})
