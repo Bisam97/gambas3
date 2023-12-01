@@ -22,9 +22,13 @@ Static Public Sub Init()
   If $sCompiler Then Return
   
   sCompiler = Env["GB_JIT_CC"]
-  If Not sCompiler Then sCompiler = "gcc"
+  If Not sCompiler Then
+    $sCompiler = System.Find("clang")
+    If Not $sCompiler Then $sCompiler = System.Find("gcc")
+  Else
+    $sCompiler = System.Find(sCompiler)
+  Endif
   
-  $sCompiler = System.Find(sCompiler)
   If Not $sCompiler Then Error.Raise("Compiler not found")
 
   sFlag = Env["GB_JIT_CFLAGS"] 
