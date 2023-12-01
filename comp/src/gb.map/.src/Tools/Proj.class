@@ -96,7 +96,7 @@ Public Sub TransformMPArray(ProjTo As Proj, aMP As MapPoint[]) As MapPoint[]
   sCom = Subst("cs2cs -f \"%f\" +init=&1 +to +init=&2<<EOF\n", Me._strProj, ProjTo._strProj)
 
   'Convert Mappoint array into string and adapt it to the cs2cs sheme
-  sCom &= Replace(MapPoint.ArrayToString(aMP), ",", "\t") & "EOF"
+  sCom &= Replace(MapPoint.ArrayToString(aMP) & "\n", ",", "\t") & "EOF"
 
   Shell sCom To sRes
 
