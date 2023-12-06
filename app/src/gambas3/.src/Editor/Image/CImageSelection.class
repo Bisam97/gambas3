@@ -778,16 +778,21 @@ Public Sub VFlip()
 
 End
 
-Public Sub Rotate(fAngle As Float)
+Public Sub Rotate(fAngle As Float, Optional XC As Float, YC As Float)
 
   Dim hMatrix As New PaintMatrix
   Dim hExt As RectF = GetExtents()
   
   If Not hExt Then Return
   
-  hMatrix.Translate(hExt.X + hExt.W / 2, hExt.Y + hExt.H / 2)
+  If IsMissing(XC) Or If IsMissing(YC) Then
+    XC = hExt.X + hExt.W / 2
+    YC = hExt.Y + hExt.H / 2
+  Endif
+  
+  hMatrix.Translate(XC, YC)
   hMatrix.Rotate(fAngle)
-  hMatrix.Translate(-(hExt.X + hExt.W / 2), -(hExt.Y + hExt.H / 2))
+  hMatrix.Translate(-XC, -YC)
   Apply(hMatrix)
   
 End
