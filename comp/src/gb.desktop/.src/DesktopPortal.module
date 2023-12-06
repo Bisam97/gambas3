@@ -4,7 +4,7 @@ Class DBus
 Class DBusSignal
 Class DBusFile
 
-Property Enabled As Boolean
+Property Read Enabled As Boolean
 
 Private $bStarted As Boolean
 Private $bCheckAvailable As Boolean
@@ -109,17 +109,10 @@ End
 
 Private Function Enabled_Read() As Boolean
 
-  If $bEnabledSet And If Not $bEnabled Then Return False
+  If Not Desktop.UsePortal Then Return False
   If Env["GB_DESKTOP_PORTAL_ENABLED"] = "0" Then Return False
   StartPortal
   Try Return DBus.Session.Exist("org.freedesktop.portal.Desktop")
-
-End
-
-Private Sub Enabled_Write(Value As Boolean)
-
-  $bEnabled = Value
-  $bEnabledSet = True
 
 End
 
@@ -183,9 +176,12 @@ Public Sub SendMail(aTo As String[], aCc As String[], aBcc As String[], sSubject
   
   cOption = New Collection
   
-  If aTo Then cOption["addresses"] = aTo
-  If aCc Then cOption["cc"] = aCc
-  If aBcc Then cOption["bcc"] = aBcc
+  If Not aTo Then aTo = New String[]
+  cOption["addresses"] = aTo
+  If Not aCc Then aCc = New String[]
+  cOption["cc"] = aCc
+  If Not aBcc Then aBcc = New String[]
+  cOption["bcc"] = aBcc
   cOption["subject"] = sSubject
   cOption["body"] = sBody
   If aFile Then cOption["attachment_fds"] = aFile
