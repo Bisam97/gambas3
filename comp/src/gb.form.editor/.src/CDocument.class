@@ -68,7 +68,7 @@ Public Sub _new()
   
 End
 
-Public Sub Clear()
+Public Sub Clear(Optional Value As String)
   
   Dim hView As TextEditor
   Dim aViews As TextEditor[]
@@ -80,9 +80,17 @@ Public Sub Clear()
     Next
   Endif
   
-  Lines = New String[1]
-  LinesInfo = New CLineInfo[1]
-  LineLength = New Integer[1]
+  If Value Then
+    Lines = Split(Value, "\n")
+    LinesInfo = New CLineInfo[Lines.Count]
+    UpdateLineLength
+    LayoutLines
+  Else
+    Lines = New String[1]
+    LinesInfo = New CLineInfo[1]
+    LineLength = New Integer[1]
+  Endif
+  
   $aUndo.Clear
   $aRedo.Clear
   $iBegin = 0
@@ -91,6 +99,13 @@ Public Sub Clear()
   $cBreakpoint = New Collection
   $cBookmark = New Collection
   $iFirstInvalidHighlight = 0
+  
+  If aViews Then
+    For Each hView In aViews
+      hView._Reset()
+      hView._RaiseChange
+    Next
+  Endif
   
 End
 
@@ -113,18 +128,8 @@ End
 
 Private Sub Text_Write(Value As String)
 
-  Clear
+  Clear(Value)
 
-  If Value Then
-    Lines = Split(Value, "\n")
-    LinesInfo = New CLineInfo[Lines.Count]
-    UpdateLineLength
-    'HighlightFrom(0)
-    LayoutLines
-  Endif
-  
-  RaiseChange
-  
 End
 
 Private Sub LayoutLines()
@@ -437,15 +442,8 @@ Public Sub Insert(sText As String, X As Integer, Y As Integer)
   
   If Not sText Then Return
   
-  'Debug X;; Y;; Quote(sText);; System.Backtrace.Join(" ")
-  
   XO = X
   YO = Y
-  
-  ' While Y >= Lines.Count
-  '   InsertLine(Lines.Count)
-  '   Inc N
-  ' Wend
   
   iLen = LineLength[Y]
   If X > iLen Then SetLine(Y, Lines[Y] & Space$(X - iLen), True)

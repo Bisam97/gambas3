@@ -430,7 +430,7 @@ Private $hTimerSideBarMouse As Timer
 Private $hTimerSideBarRefresh As Timer
 Private $hRectSideBar As Rect
 Private $fBarLineHeight As Float
-Private $bShowPreview As Float
+Private $bShowPreview As Boolean
 Private $hSideBarViewer As TextEditor
 
 'Private $hTimerSideBarViewer As Timer
@@ -633,11 +633,17 @@ Private Sub Init()
   
 End
 
+Public Sub _Reset()
+  
+  Init()
+  
+End
+
 Private Sub Text_Write(Value As String)
   
   'Goto(0, 0)
   $hDoc.Text = Value
-  Init
+  Init()
   If $bShowPreview Then $hTimerSideBarRefresh.Trigger
   
 End
@@ -6284,40 +6290,6 @@ Public Sub SideBar_MouseMove()
       
   End Select
 
-  ' If Mouse.Y > $fBarLineHeight * iCount Then
-  '   If Not $bSideBarLockViewer Then $hSideBarViewer.Hide
-  ' Else
-  '   If $iMD > 0 Then
-  '     If Not $bSideBarLockViewer Then $hSideBarViewer.Hide
-  '   Else
-  '     If Not $bSideBarLockViewer Then
-  '       If $hSideBarViewer.Visible Then
-  '         X = IIf(Me.RightToLeft, $hSideBar.Left + $hSideBar.Width, $hSideBar.Left - $hView.Width / 2)
-  '         $hSideBarViewer.Move(X, Min(Max(1, Mouse.Y - ($hView.Height / 5) / 2), $hSideBar.Height - $hSideBarViewer.Height))
-  '         $hSideBarViewer.Raise
-  '         'iCurLine = Min(Max(0, Floor(((Mouse.y - $iMD)) / $fBarLineHeight)), iCount)
-  '         iCurLine = _ViewToReal(Min(Max(0, Floor((Mouse.Y - $iMD) / $fBarLineHeight)), iCount))
-  '         'If $hSideBarViewer.Line <> iCurLine Then
-  '         $hSideBarViewer.GotoCenter(0, iCurLine)
-  '         '$hSideBarViewer.Tag = iCurLine
-  '         'Endif
-  '       Endif
-  '     Endif
-  '   Endif
-  '   
-  '   $iMY = Mouse.Y
-  '   If Mouse.Left Then
-  '     $bSideBarMouseDown = True
-  '     If $iMD = 0 Then
-  '       If $hRectSideBar.Contains(Mouse.x, Mouse.y) Then
-  '         If Not $bSideBarLockViewer Then $hSideBarViewer.Hide
-  '         $iMD = Mouse.y - $hRectSideBar.Top
-  '       Endif
-  '     Endif
-  '   Endif
-  '   
-  ' Endif
-  
 End
 
 Public Sub SideBar_Enter()
@@ -6325,7 +6297,6 @@ Public Sub SideBar_Enter()
   $hSideBar.Refresh
   
 End
-
 
 Public Sub SideBar_Leave()
   
@@ -6549,13 +6520,9 @@ End
 
 Private Sub UpdatePreviewViewer()
   
-  $hSideBarViewer.Resize($hView.Width / 2, $hView.Height / 5)
+  $hSideBarViewer.Resize($hView.Width / 2, $hView.Height / 4)
   $hSideBarViewer.View = Me
   $hSideBarViewer._SyncFolding()
-  ' $hSideBarViewer.Show
-  ' '$hSideBarViewer.ShowExpand = True
-  ' $hSideBarViewer.Raise
-  ' '$hTimerSideBarViewer.Stop
   
 End
 
