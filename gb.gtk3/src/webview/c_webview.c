@@ -30,6 +30,8 @@
 
 static bool _init = FALSE;
 
+static WebKitUserStyleSheet *_style_sheet = NULL;
+
 //---------------------------------------------------------------------------
 
 static void set_link(void *_object, const char *link, int len)
@@ -373,9 +375,29 @@ PATCH_DECLARE(WEBKIT_TYPE_WEB_VIEW)
 
 static void create_widget(void *_object, void *parent)
 {
+	if (!_style_sheet)
+	{
+		_style_sheet = webkit_user_style_sheet_new (
+			"::-webkit-scrollbar { width: 1rem; height: 1rem; background-color: Canvas;}\n"
+			"::-webkit-scrollbar-thumb { background-color: ButtonFace; border: solid 0.25rem Canvas; border-radius: 2rem; opacity: 0.5;}",
+			WEBKIT_USER_CONTENT_INJECT_ALL_FRAMES,
+			WEBKIT_USER_STYLE_LEVEL_USER,
+			NULL,
+			NULL);
+	}
+
 	THIS->context = webkit_web_context_new_ephemeral();
-	THIS->widget = webkit_web_view_new_with_context(THIS->context);
-	
+
+	THIS->manager = webkit_user_content_manager_new();
+
+	webkit_user_content_manager_add_style_sheet(THIS->manager, _style_sheet);
+
+	THIS->widget = GTK_WIDGET(g_object_new(WEBKIT_TYPE_WEB_VIEW,
+		"is-ephemeral", webkit_web_context_is_ephemeral(THIS->context),
+		"web-context", THIS->context,
+		"user-content-manager", THIS->manager,
+		NULL));
+
 	GTK.CreateControl(THIS, parent, THIS->widget, CCF_HAS_INPUT_METHOD);
 	
 	PATCH_CLASS(THIS->widget, WEBKIT_TYPE_WEB_VIEW)
@@ -419,7 +441,15 @@ BEGIN_METHOD_VOID(WebView_free)
 	GB.Unref(POINTER(&THIS->icon));
 	GB.Unref(POINTER(&THIS->new_view));
 
+	g_object_unref(THIS->manager);
 	g_object_unref(THIS->context);
+
+END_METHOD
+
+BEGIN_METHOD_VOID(WebView_exit)
+
+	webkit_user_style_sheet_unref(_style_sheet);
+	_style_sheet = NULL;
 
 END_METHOD
 
@@ -681,6 +711,7 @@ GB_DESC WebViewDesc[] =
 
   GB_METHOD("_new", NULL, WebView_new, "(Parent)Container;"),
   GB_METHOD("_free", NULL, WebView_free, NULL),
+  GB_METHOD("_exit", NULL, WebView_exit, NULL),
   
   GB_PROPERTY("Url", "s", WebView_Url),
 	GB_PROPERTY("Title", "s", WebView_Title),

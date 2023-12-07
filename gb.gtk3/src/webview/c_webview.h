@@ -32,6 +32,7 @@ typedef
     GTK_CONTROL control;
 		GtkWidget *widget;
     WebKitWebContext *context;
+    WebKitUserContentManager *manager;
 		WebKitBackForwardListItem *item;
 		GTK_PICTURE icon;
 		void *new_view;
