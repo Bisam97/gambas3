@@ -2789,6 +2789,10 @@ void MyMainWindow::configure()
 
 	//qDebug("THIS->menuBar = %p  menuBar() = %p", THIS->menuBar, menuBar());
 
+	// sometimes configure() seems to be called when the window is being deleted
+	if (CWIDGET_check(THIS))
+		return;
+
 	if (menuBar && THIS->showMenuBar && !THIS->hideMenuBar)
 	{
 		int h = menuBar->sizeHint().height();
