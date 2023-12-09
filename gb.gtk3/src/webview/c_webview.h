@@ -42,6 +42,8 @@ typedef
 		unsigned error : 1;
 		unsigned accept_next : 1;
 		unsigned got_load_event : 1;
+    unsigned start_sent : 1;
+    unsigned finish_sent : 1;
 		unsigned cb_running : 1;
 		unsigned cb_error : 1;
    }

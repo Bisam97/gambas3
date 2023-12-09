@@ -66,8 +66,8 @@ static void cb_url(WebKitWebView *widget, GParamSpec *pspec, CWEBVIEW *_object)
 {
 	//fprintf(stderr, "cb_url: %s\n", webkit_web_view_get_uri(WIDGET));
 	GB.Raise(THIS, EVENT_URL, 0);
-	if (!THIS->got_load_event)
-		GB.Raise(THIS, EVENT_FINISH, 0);
+	/*if (!THIS->got_load_event)
+		GB.Raise(THIS, EVENT_FINISH, 0);*/
 }
 
 static void cb_icon(WebKitWebView *widget, GParamSpec *pspec, CWEBVIEW *_object)
@@ -75,6 +75,25 @@ static void cb_icon(WebKitWebView *widget, GParamSpec *pspec, CWEBVIEW *_object)
 	GB.Unref(POINTER(&THIS->icon));
 	THIS->icon = NULL;
 	GB.Raise(THIS, EVENT_ICON, 0);
+}
+
+static bool send_start(void *_object)
+{
+	if (THIS->start_sent)
+		return FALSE;
+
+	THIS->start_sent = TRUE;
+	return GB.Raise(THIS, EVENT_START, 0);
+}
+
+static void send_finish(void *_object)
+{
+	if (THIS->finish_sent)
+		return;
+
+	THIS->finish_sent = TRUE;
+	GB.Raise(THIS, EVENT_FINISH, 0);
+	THIS->start_sent = FALSE;
 }
 
 static void cb_load_changed(WebKitWebView *widget, WebKitLoadEvent load_event, CWEBVIEW *_object)
@@ -85,10 +104,12 @@ static void cb_load_changed(WebKitWebView *widget, WebKitLoadEvent load_event, C
 	{
 		case WEBKIT_LOAD_STARTED:
 			THIS->got_load_event = TRUE;
+			THIS->finish_sent = FALSE;
+			send_start(THIS);
 			break;
 			
 		case WEBKIT_LOAD_FINISHED:
-			GB.Raise(THIS, EVENT_FINISH, 0);
+			send_finish(THIS);
 			GB.FreeString(&THIS->link);
 			break;
 			
@@ -113,9 +134,10 @@ static void cb_progress(WebKitWebView *widget, GParamSpec *pspec, CWEBVIEW *_obj
 	//fprintf(stderr, "cb_progress: %f\n", webkit_web_view_get_estimated_load_progress(WIDGET));
 	if (!THIS->error)
 	{
+		send_start(THIS);
 		GB.Raise(THIS, EVENT_PROGRESS, 0);
 		if (webkit_web_view_get_estimated_load_progress(WIDGET) == 1.0)
-			GB.Raise(THIS, EVENT_FINISH, 0);
+			send_finish(THIS);
 	}
 }
 
@@ -160,7 +182,8 @@ static gboolean cb_decide_policy(WebKitWebView *widget, WebKitPolicyDecision *de
 		
 		THIS->error = FALSE;
 		THIS->got_load_event = FALSE;
-		if (GB.Raise(THIS, EVENT_START, 0))
+
+		if (send_start(THIS))
 		{
 			//fprintf(stderr, "cancel !\n");
 			webkit_policy_decision_ignore(decision);
