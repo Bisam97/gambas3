@@ -978,6 +978,16 @@ Public Sub imvImage_MouseDown()
       If $bPress Then
       
         If $hPaste Then
+          
+          If $iChangeAction = CHANGE_CENTER And If Mouse.Click = 2 Then
+            
+            $hChangeRotate = $hChangeRect.Center()
+            imvImage.Refresh
+            $bIgnoreDblClick = True
+            Return
+            
+          Endif
+        
           $hLastPoint = GetImagePos()
           'If $hMagnet Then $hLastPoint = $hMagnet
           '$hLastPoint = GetImagePos()
@@ -1595,7 +1605,7 @@ End
 Private Sub UpdatePasteCurrent()
 
   $hChangeRect = $hPasteCurrent.GetExtents()
-  $hChangeRotate = $hChangeRect.Center()
+  If Not $hChangeRotate Then $hChangeRotate = $hChangeRect.Center()
   $hPasteSelect = $hPasteCurrent.Copy()
   imvImage.Refresh
 
@@ -1772,7 +1782,6 @@ Public Sub imvImage_MouseUp()
       If $hPaste Then
         $hPasteCurrent = $hPasteSelect.Copy()
         $hChangeRect = $hPasteCurrent.GetExtents()
-        $hChangeRotate = $hChangeRect.Center()
         imvImage.Refresh
       Endif
       
