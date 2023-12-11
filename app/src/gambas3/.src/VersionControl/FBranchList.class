@@ -9,6 +9,8 @@ Private $aBranches As String[]
 
 Public Sub Init()
 
+  txtFilter.H = FMain.GetTabBarHeight()
+
   $sBranch = ""
   $aBranches = VersionControl.GetBranches(ByRef $sCurrent)
   
@@ -83,5 +85,11 @@ End
 Public Sub lstBranch_GotFocus()
 
   txtFilter.SetFocus
+
+End
+
+Public Sub txtFilter_Click()
+
+  lstBranch_Activate
 
 End

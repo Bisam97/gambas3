@@ -685,11 +685,22 @@ Private Function DoNotPush_Read() As Boolean
 
 End
 
+Private Sub RevertNotImportantFiles()
+
+  Dim sFile As String
+
+  For Each sFile In [".icon.png", ".gitignore"]
+    $hVC.Revert(Project.Dir &/ sFile)
+  Next
+
+End
+
 Public Sub SetBranch(sBranch As String)
 
   Dim sCurrent As String
 
-  Inc Application.Busy  
+  Inc Application.Busy
+  RevertNotImportantFiles()
   $hVC.SetBranch(sBranch)
   $sCurrentBranch = ""
   sCurrent = GetCurrentBranch()
