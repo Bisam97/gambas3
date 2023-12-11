@@ -99,7 +99,7 @@ build:debian-trixie:
        apt-get update && apt-get install -y build-essential g++ automake 
        autoconf libbz2-dev libzstd-dev default-libmysqlclient-dev unixodbc-dev libpq-dev 
        libsqlite3-dev libglib2.0-dev 
-       libgtk2.0-dev libcurl4-gnutls-dev libgtkglext1-dev libpcre3-dev 
+       libgtk2.0-dev libcurl4-gnutls-dev libpcre3-dev 
        libsdl-sound1.2-dev libsdl-mixer1.2-dev libsdl-image1.2-dev libxml2-dev 
        libxslt1-dev librsvg2-dev libpoppler-dev libpoppler-glib-dev 
        libpoppler-private-dev libpoppler-cpp-dev libasound2-dev libdirectfb-dev libxtst-dev 
@@ -113,7 +113,7 @@ build:debian-trixie:
        qtwebengine5-dev libwebkit2gtk-4.0-dev git libssl-dev
   script:
     - ./reconf-all
-    - GAMBAS_CONFIG_FAILURE=1 ./configure -C --disable-keyring --disable-sqlite2 --disable-qt4
+    - GAMBAS_CONFIG_FAILURE=1 ./configure -C --disable-keyring --disable-sqlite2 --disable-qt4 --disable-gtkopengl
     - make -j$(nproc)
     - make install
 
