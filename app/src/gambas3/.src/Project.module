@@ -59,6 +59,7 @@ Public MajorVersion As Integer
 Public MinorVersion As Integer
 Public ReleaseVersion As Integer
 Public VersionAddBranch As Boolean
+Public OldVersion As String
 Public Localize As Boolean
 Public Description As String
 Public Icon As String
@@ -1107,6 +1108,8 @@ Public Function CloseProject() As Boolean
     '$cSourceDir.Clear
 
     Files.Clear
+    
+    VersionControl.RevertNotImportantFiles()
 
     If $hLock Then
       Unlock #$hLock
@@ -2815,7 +2818,7 @@ Private Sub GetVersion(Optional bWriteProject As Boolean) As Boolean
   
   If bWriteProject Then
     sVer = FormatVersion()
-    If sVer <> sOldVer Then WriteProject
+    If sVer <> sOldVer Then WriteProjectVersion
   Endif
   
   Return
@@ -3093,6 +3096,7 @@ Public Sub ReadProject(Optional bConvert As Boolean)
   Dim aVer As String[]
   Dim aArguments As String[][]
   Dim aEnv As String[]
+  Dim sVersion As String
 
   hFic = Open Path For Input
 
@@ -3107,6 +3111,7 @@ Public Sub ReadProject(Optional bConvert As Boolean)
   MinorVersion = 0
   ReleaseVersion = 1
   VersionAddBranch = False
+  OldVersion = ""
   ControlPublic = False
   ModulePublic = False
   ShowDeprecated = False
@@ -3231,15 +3236,7 @@ Public Sub ReadProject(Optional bConvert As Boolean)
         aEnv = Split(UnQuote(sVal), "\n")
         
       Case "version"
-        iPos = InStr(sVal, " ")
-        If iPos Then
-          sVal = Left(sVal, iPos - 1)
-          VersionAddBranch = True
-        Endif
-        aVer = Split(sVal, ".")
-        Try MajorVersion = Val(aVer[0])
-        Try MinorVersion = Val(aVer[1])
-        Try ReleaseVersion = Val(aVer[2])
+        OldVersion = sVal
 
       Case "versionfile"
         VersionFile = CInt(sVal) <> 0
@@ -3507,6 +3504,20 @@ Public Sub ReadProject(Optional bConvert As Boolean)
     
   Endif
 
+  Try sVersion = File.Load(Project.Dir &/ ".version")
+  If Error Then sVersion = OldVersion
+  If Not sVersion Then sVersion = "0.0.0"
+  
+  iPos = InStr(sVersion, " ")
+  If iPos Then
+    sVersion = Left(sVersion, iPos - 1)
+    VersionAddBranch = True
+  Endif
+  aVer = Split(sVersion, ".")
+  Try MajorVersion = Val(aVer[0])
+  Try MinorVersion = Val(aVer[1])
+  Try ReleaseVersion = Val(aVer[2])
+
   VersionFile = Not GetVersion(True)
   'If JustUpdateVersion Then Return
 
@@ -3521,7 +3532,9 @@ Public Sub ReadProject(Optional bConvert As Boolean)
   RefreshComponents(True)
   UpdateLibraries(Libraries)
   'CreateConnectionDirectory
-
+  
+  Return
+  
 End
 
 Public Sub WriteProjectTranslation()
@@ -3561,8 +3574,6 @@ Public Sub WriteProject(Optional bComponentDoNotChange As Boolean, Optional bMak
   Dim sPath As String
   Dim sVal As String
   Dim hComp As CComponent
-  Dim sVer As String
-  Dim sBranch As String
 
   If Project.ReadOnly Then Return
 
@@ -3596,18 +3607,8 @@ Public Sub WriteProject(Optional bComponentDoNotChange As Boolean, Optional bMak
   If Title Then Print #hFile, "Title="; Title
   If Startup Then Print #hFile, "Startup="; Startup
   If Icon Then Print #hFile, "Icon="; Icon
-
-  GetVersion()
-  sVer = FormatVersion()
-  If VersionAddBranch Then
-    sBranch = VersionControl.GetCurrentBranch()
-    If Not sBranch Then sBranch = "?"
-    sVer &= " (" & sBranch & ")"
-  Endif
-  
-  Print #hFile, "Version="; sVer
+  If OldVersion Then Print #hFile, "Version="; OldVersion
   If VersionFile Then Print #hFile, "VersionFile=1"
-  'If VersionAddBranch Then Print #hFile, "VersionAddBranch=1"
 
   For Each hComp In Documentation.Components
     If Components.Find(hComp.Key) >= 0 Then
@@ -3715,8 +3716,7 @@ Public Sub WriteProject(Optional bComponentDoNotChange As Boolean, Optional bMak
   Try Kill sPath
   Move sPath & ".tmp" To sPath
   
-  'If JustUpdateVersion Then Return
-
+  WriteProjectVersion
   WriteProjectTranslation
   UpdateComponentFile
 
@@ -7192,5 +7192,25 @@ Public Sub RemoveAllProfile()
     DeleteFile(Project.Dir &/ ".profile" &/ sFile, True)
   Next
   Dec Application.Busy
+  
+End
+
+Private Sub WriteProjectVersion()
+  
+  Dim sPath As String
+  Dim sVer As String
+  Dim sBranch As String
+  
+  GetVersion()
+  sVer = FormatVersion()
+  If VersionAddBranch Then
+    sBranch = VersionControl.GetCurrentBranch()
+    If Not sBranch Then sBranch = "?"
+    sVer &= " (" & sBranch & ")"
+  Endif
+  
+  sPath = Project.Dir &/ ".version"
+  File.Save(sPath, sVer)
+  VersionControl.AddFile(sPath)
   
 End
