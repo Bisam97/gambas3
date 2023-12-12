@@ -95,13 +95,11 @@ static bool read_line(FILE *f, char *dir, int max)
 		max--;
 
 		c = fgetc(f);
-		if (c == EOF)
-			return TRUE;
 
-		if (c == '\n' || max == 0)
+		if (c == EOF || c == '\n' || max == 0)
 		{
 			*p = 0;
-			return FALSE;
+			return c == EOF;
 		}
 
 		*p++ = (char)c;
@@ -339,6 +337,7 @@ static void print_version()
 	char *version = NULL;
 	char *branch = NULL;
 	bool add_branch = FALSE;
+	const char *path;
 
 	fp = open_project_file();
 
@@ -363,6 +362,17 @@ static void print_version()
 	}
 
 	fclose(fp);
+
+	if (!add_branch)
+	{
+		path = FILE_cat(COMP_dir, ".version", NULL);
+		fp = fopen(path, "r");
+		if (fp)
+		{
+			read_line(fp, line, sizeof(line));
+			version = STR_copy(line);
+		}
+	}
 
 	if (version)
 	{
