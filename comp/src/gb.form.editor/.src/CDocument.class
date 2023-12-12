@@ -17,6 +17,7 @@ Property EndOfLine As Integer
 Property CloseBraces As Boolean
 Property CloseStrings As Boolean
 Property Read DiffMode As Boolean
+Property CanRewrite As Boolean Use $bCanRewrite = True
 
 Public Const ROW_NOT_FOUND As Integer = -2
 
@@ -956,7 +957,7 @@ Private Sub StartHighlight() As Boolean
   
   $bHighlighting = True
 
-  $hHighlight.CanRewrite = True '_Mode.Name
+  $hHighlight.CanRewrite = $bCanRewrite
   
   If Not $bHighlightAll And If $hHighlight.CanRewrite Then
     For Each hView In GetAllViews()
@@ -1671,5 +1672,3 @@ Private Function DiffMode_Read() As Boolean
   Return DiffRemoved
 
 End
-
-

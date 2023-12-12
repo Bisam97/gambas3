@@ -4,7 +4,7 @@ Export
 
 Inherits UserControl
 
-Public Const _Properties As String = "*,Border=True,ShowPreview,ScrollBar{Scroll.*}=Both,Highlight{None;Custom;C;CPlusPlus;CSS;Diff;Gambas;HTML;JavaScript;SQL;WebPage;Sh}=None,Mode{None;Custom;C;CPlusPlus;CSS;Diff;Gambas;HTML;JavaScript;SQL;WebPage;Sh}=None,ReadOnly,TabSize{Range:2;64}=2,TabIndent,Wrap,ShowPosition,ShowLimit,ShowCurrent,ShowLineNumber,ShowModified,ShowBraces,ShowIcon,ShowExpand,ShowCursor=True,ShowSpaces,ShowIndent,CloseBraces,CloseStrings"
+Public Const _Properties As String = "*,Border=True,ShowPreview,ScrollBar{Scroll.*}=Both,Highlight{None;Custom;C;CPlusPlus;CSS;Diff;Gambas;HTML;JavaScript;SQL;WebPage;Sh}=None,Mode{None;Custom;C;CPlusPlus;CSS;Diff;Gambas;HTML;JavaScript;SQL;WebPage;Sh}=None,Rewrite=True,ReadOnly,TabSize{Range:2;64}=2,TabIndent,Wrap,ShowPosition,ShowLimit,ShowCurrent,ShowLineNumber,ShowModified,ShowBraces,ShowIcon,ShowExpand,ShowCursor=True,ShowSpaces,ShowIndent,CloseBraces,CloseStrings"
 Public Const _DrawWith As String = "-"
 Public Const _DefaultEvent As String = "Change"
 Public Const _Similar As String = "TextArea"
@@ -293,6 +293,14 @@ Property CloseStrings As Boolean
 '' Return or set the theme used for highlighting. Replace the [../styles] property.
 
 Property Theme As TextHighlighterTheme
+
+'' @{since 3.19}
+''
+'' Return or set if the highlighter can rewrite the highlighted contents.
+''
+'' This property is TRUE by default.
+
+Property Rewrite As Boolean
 
 Private Const MATCH_STRING As String = "()[]{}"
 
@@ -6284,9 +6292,11 @@ Public Sub SideBar_MouseMove()
       iCurLine = _ViewToReal(Min(Max(0, Floor((Mouse.Y - $iMD) / $fBarLineHeight)), iCount))
       $hSideBarViewer.GotoCenter(0, iCurLine)
       X = IIf(Me.RightToLeft, $hSideBar.Left + $hSideBar.Width, $hSideBar.Left - $hView.Width / 2)
-      $hSideBarViewer.Move(X, Min(Max(1, Mouse.Y - ($hView.Height / 5) / 2), $hSideBar.Height - $hSideBarViewer.Height))
-      $hSideBarViewer.Raise
-      $hSideBarViewer.Show
+      $hSideBarViewer.Move(X, Min(Max(1, Mouse.Y - $hSideBarViewer.Height / 2), $hSideBar.Height - $hSideBarViewer.Height))
+      If Not $hSideBarViewer.Visible Then
+        $hSideBarViewer.Raise
+        $hSideBarViewer.Show
+      Endif
       
   End Select
 
@@ -7059,4 +7069,16 @@ Public Sub mnuFind_Click()
 
   ShowFindPanel
   
+End
+
+Private Function Rewrite_Read() As Boolean
+
+  Return $hDoc.CanRewrite
+
+End
+
+Private Sub Rewrite_Write(Value As Boolean)
+
+  $hDoc.CanRewrite = Value
+
 End
