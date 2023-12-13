@@ -109,7 +109,6 @@ Public Sub Form_Open()
   ReadConfig
   
   LoadGrid
-  InitSelection
   
   AddClipboard(Null, "")
   'UpdateClipboard
@@ -1215,10 +1214,16 @@ End
 
 Public Sub tabBrush_Click()
 
-  If tabBrush.Text = ("Clipboard") Then
-    RefreshClipboard
-    UpdateClipboard
-  Endif
+  Select Case tabBrush.Text
+    
+    Case ("Clipboard")
+      RefreshClipboard
+      UpdateClipboard
+      
+    Case ("Selections")
+      InitSelection
+      
+  End Select
 
 End
 
@@ -1246,6 +1251,8 @@ Private Sub InitSelection()
 
   If svwSelection.Children.Count Then Return
 
+  Inc Application.Busy
+
   AddSelection(CImageSelection.FromString(("Arrow"), "-0.5,0.5*;1,0.5* 0.8,0.3*;1,0.5*;0.8,0.7*"), True)
   AddSelection(CImageSelection.FromString(("Arrow #2"), "0,1;0,2;4,2;4,3;6,1.5*;4,0;4,1;0,1;0.5,1.5+"), True)
   AddSelection(CImageSelection.FromString(("Triangle"), "0,0*;0,1*;0.86602540378444,0.5*;0,0;0.28867513459481,0.5+;0,0.5+;0.43301270189222,0.75+;0.43301270189222,0.25+"), True)
@@ -1254,6 +1261,8 @@ Private Sub InitSelection()
   AddSelection(CImageSelection.FromString(("Hexagon"), "1,0*;0.5,0.8660254038*;-0.5,0.8660254038*;-1,0*;-0.5,-0.8660254038*;0.5,-0.8660254038*;1,0*"), True)
   
   LoadAllSelections()
+  
+  Dec Application.Busy
   
 End
 
