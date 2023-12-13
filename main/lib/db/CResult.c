@@ -676,7 +676,10 @@ BEGIN_METHOD_VOID(Result_Update)
 			if (BARRAY_is_void(THIS->changed, THIS->info.nfield))
 				break;
 			
-			q_add("INSERT INTO ");
+			if (THIS->if_not_exist && THIS->conn->db.flags.if_not_exist == DB_IGNORE_INSERT)
+				q_add("INSERT IGNORE INTO ");
+			else
+				q_add("INSERT INTO ");
 			q_add(DB_GetQuotedTable(THIS->driver, DB_CurrentDatabase, info->table, -1));
 			q_add(" ( ");
 			
@@ -721,6 +724,9 @@ BEGIN_METHOD_VOID(Result_Update)
 			}
 
 			q_add(" )");
+
+			if (THIS->if_not_exist && THIS->conn->db.flags.if_not_exist == DB_IGNORE_ON_CONFLICT)
+				q_add(" ON CONFLICT DO NOTHING");
 
 			if (THIS->returning)
 			{

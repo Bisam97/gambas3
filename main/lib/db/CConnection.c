@@ -477,7 +477,7 @@ BEGIN_METHOD(Connection_Exec, GB_STRING query; GB_VALUE param[0])
 END_METHOD
 
 
-BEGIN_METHOD(Connection_Create, GB_STRING table; GB_BOOLEAN ret)
+BEGIN_METHOD(Connection_Create, GB_STRING table; GB_BOOLEAN ret; GB_BOOLEAN if_not_exist)
 
 	CRESULT *result;
 	char *table = GB.ToZeroString(ARG(table));
@@ -499,6 +499,11 @@ BEGIN_METHOD(Connection_Create, GB_STRING table; GB_BOOLEAN ret)
 			DB_Debug("gb.db", "'RETURNING' keyword is not supported by this '%s' connection", THIS->driver->name);
 		else
 			result->returning = VARGOPT(ret, FALSE);
+
+		if (THIS->db.flags.if_not_exist == DB_IGNORE_NONE)
+			GB.Error("INSERT cannot ignore already existing rows for this '&1' connection", THIS->driver->name);
+		else
+			result->if_not_exist = VARGOPT(if_not_exist, FALSE);
 
 		GB.ReturnObject(result);
 	}
@@ -792,7 +797,7 @@ GB_DESC CConnectionDesc[] =
 
 	GB_METHOD("Limit", "Connection", Connection_Limit, "(Limit)i"),
 	GB_METHOD("Exec", "Result", Connection_Exec, "(Request)s(Arguments)."),
-	GB_METHOD("Create", "Result", Connection_Create, "(Table)s[(Return)b]"),
+	GB_METHOD("Create", "Result", Connection_Create, "(Table)s[(Return)b(IfNotExist)b]"),
 	GB_METHOD("Find", "Result", Connection_Find, "(Table)s[(Request)s(Arguments).]"),
 	GB_METHOD("Edit", "Result", Connection_Edit, "(Table)s[(Request)s(Arguments).]"),
 	GB_METHOD("Delete", NULL, Connection_Delete, "(Table)s[(Request)s(Arguments).]"),

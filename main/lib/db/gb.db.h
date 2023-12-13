@@ -46,6 +46,10 @@ typedef
 #define DB_LIMIT_AT_BEGIN     1
 #define DB_LIMIT_AT_END       2
 
+#define DB_IGNORE_NONE           0
+#define DB_IGNORE_INSERT         1
+#define DB_IGNORE_ON_CONFLICT    2
+
 typedef
 	struct {
 		void *handle;                   /* Connection handle */
@@ -68,6 +72,7 @@ typedef
 			unsigned no_collation : 1;    /* No collation support at field level */
 			unsigned no_returning : 1;    /* Database does not support RETURNING keyword */
 			unsigned system : 1;          /* system database */
+			unsigned if_not_exist : 2;    // INSERT if not exist syntax type
 			}
 			flags;
 		struct {
