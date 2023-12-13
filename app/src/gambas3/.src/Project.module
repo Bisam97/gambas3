@@ -7200,6 +7200,7 @@ Private Sub WriteProjectVersion()
   Dim sPath As String
   Dim sVer As String
   Dim sBranch As String
+  Dim bAdd As Boolean
   
   GetVersion()
   sVer = FormatVersion()
@@ -7210,7 +7211,8 @@ Private Sub WriteProjectVersion()
   Endif
   
   sPath = Project.Dir &/ ".version"
+  bAdd = Not Exist(sPath)
   File.Save(sPath, sVer)
-  VersionControl.AddFile(sPath)
+  If bAdd Then VersionControl.AddFile(sPath)
   
 End
