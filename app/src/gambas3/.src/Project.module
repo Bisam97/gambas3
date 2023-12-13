@@ -5484,8 +5484,11 @@ Public Sub MakeDirectoryIcon(Optional sDir As String) As Boolean
   Try hIcon = GetIcon(sDir, 96).Image
   If hIcon Then hDirIcon.PaintImage(hIcon, 80, 104)
   
-  hIcon = Picture["icon:/64/language"].Image
-  If bLocalize Then hDirIcon.PaintImage(hIcon, hDirIcon.W - hIcon.W, hDirIcon.H - hIcon.H)
+  If bLocalize Then
+    hIcon = Picture["icon:/64/language"].Image
+    hDirIcon.FillRect(hDirIcon.W - hIcon.W, hDirIcon.H - hIcon.H, hDirIcon.W, hDirIcon.H, Color.Transparent)
+    hDirIcon.PaintImage(hIcon, hDirIcon.W - hIcon.W, hDirIcon.H - hIcon.H)
+  Endif
   
   Try Kill sDir &/ ".icon.png"
   hDirIcon.Save(sDir &/ ".icon.png")
