@@ -819,6 +819,7 @@ static int open_database(DB_DESC *desc, DB_DATABASE *db)
 	db->flags.schema = TRUE;
 	db->flags.no_collation = db->version < 90100;
 	db->flags.no_returning = db->version < 80200; // It seems that RETURNING has been introduced in PostgreSQL 8.2
+	db->flags.if_not_exist = db->version < 90500 ? DB_IGNORE_NONE : DB_IGNORE_ON_CONFLICT;
 
 	/* encoding */
 

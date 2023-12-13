@@ -1005,6 +1005,8 @@ static int open_database(DB_DESC *desc, DB_DATABASE *db)
 	else
 		db->flags.no_returning = TRUE;
 
+	db->flags.if_not_exist = DB_IGNORE_INSERT;
+
 	set_character_set(db);
 
 	GB.HashTable.New(POINTER(&db->data), GB_COMP_BINARY);

@@ -627,6 +627,7 @@ static int open_database(DB_DESC *desc, DB_DATABASE *db)
 	db->flags.no_table_type = TRUE;
 	db->flags.no_nest = TRUE;
 	db->flags.no_returning = db->version < 33500; // RETURNING keyword has been introduced in SQLite 3.35.0
+	db->flags.if_not_exist = db->version < 32400 ? DB_IGNORE_NONE : DB_IGNORE_ON_CONFLICT;
 
 	db->db_name_char = ".";
 
