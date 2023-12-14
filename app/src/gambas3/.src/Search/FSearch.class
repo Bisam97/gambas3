@@ -1420,7 +1420,8 @@ Public Sub timFillList_Timer()
       
     Else
       
-      If Not hFile Then Try hFile = Project.LoadFile($sTaskFullPath)
+      If Not Exist($sTaskFullPath) Then Continue
+      If Not hFile Then hFile = Project.LoadFile($sTaskFullPath)
       If Not hFile Then Continue
       
       hResult = New CSearchResult
