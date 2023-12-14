@@ -1568,6 +1568,8 @@ Private Sub SaveAllSelections()
   Dim hSelBox As ImageSelectionBox
   Dim aSave As New String[]
 
+  If svwSelection.Children.Count = 0 Then Return
+
   For Each hSelBox In svwSelection.Children
     
     If hSelBox.NoDelete Then Continue
@@ -1575,25 +1577,23 @@ Private Sub SaveAllSelections()
     
   Next
   
-  Settings["/FImageProperty/Selections"] = aSave
+  File.Save(Settings.DefaultDir &/ "gambas3.shapes.json", "[" & aSave.Join(",") & "]")
 
 End
 
 Private Sub LoadAllSelections()
 
-  Dim aSave As String[]
+  Dim aSave As Collection[][]
   Dim sSave As String
   Dim hSel As CImageSelection
+  Dim I As Integer
   
-  aSave = Settings["/FImageProperty/Selections"]
+  Try aSave = JSON.FromString(File.Load(Settings.DefaultDir &/ "gambas3.shapes.json"))
   If Not aSave Then Return
-  For Each sSave In aSave
+  For I = 0 To aSave.Max
     hSel = New CImageSelection
-    Try hSel.Load(sSave)
-    If Error Then 
-      Error "gambas3: warning: unable to load saved selection: "; Error.Text
-      Continue
-    Endif
+    Try hSel.Load(aSave[I])
+    If Error Then Continue
     AddSelection(hSel)
   Next
 
