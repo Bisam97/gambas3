@@ -785,6 +785,18 @@ Public Sub GetOperator() As Integer
   
 End
 
+Public Sub GetSides() As Integer
+  
+  Return slbSides.Value
+  
+End
+
+Public Sub GetInnerRadius() As Float
+  
+  Return slbInnerRadius.Value / 100
+  
+End
+
 Public Sub ReadConfig()
   
   tabBrush.TextFont = Project.GetSmallFont()
@@ -1257,8 +1269,6 @@ Private Sub InitSelection()
   AddSelection(CImageSelection.FromString(("Arrow #2"), "0,1;0,2;4,2;4,3;6,1.5*;4,0;4,1;0,1;0.5,1.5+"), True)
   AddSelection(CImageSelection.FromString(("Triangle"), "0,0*;0,1*;0.86602540378444,0.5*;0,0;0.28867513459481,0.5+;0,0.5+;0.43301270189222,0.75+;0.43301270189222,0.25+"), True)
   AddSelection(CImageSelection.FromString(("Square triangle"), "0,0*;1,0*;0,1*;0,0;1,0+;0,1+;0.333333333333,0.333333333333+;0.5,0+;0.5,0.5+;0,0.5+"), True)
-  AddSelection(CImageSelection.FromString(("Pentagon"), "1,0*;0.3090169944,0.9510565163*;-0.8090169944,0.5877852523*;-0.8090169944,-0.5877852523*;0.3090169944,-0.9510565163*;1,0"), True)
-  AddSelection(CImageSelection.FromString(("Hexagon"), "1,0*;0.5,0.8660254038*;-0.5,0.8660254038*;-1,0*;-0.5,-0.8660254038*;0.5,-0.8660254038*;1,0*"), True)
   
   LoadAllSelections()
   
@@ -1268,6 +1278,7 @@ End
 
 Public Sub SaveSelection(hImageSelection As CImageSelection)
 
+  InitSelection
   $hShowSelection = AddSelection(hImageSelection)
   SaveAllSelections
   tabBrush.Index = 3
@@ -1432,6 +1443,8 @@ Public Sub OnToolChange(sTool As String)
   panRoundness.Visible = sTool = "rectangle"
   panTolerance.Visible = sTool = "magic"
   panOperator.Visible = sTool = "paste"
+  panSides.Visible = sTool = "polygon"
+  panInnerRadius.Visible = panSides.Visible
   
 End
 
@@ -1584,7 +1597,6 @@ End
 Private Sub LoadAllSelections()
 
   Dim aSave As Collection[][]
-  Dim sSave As String
   Dim hSel As CImageSelection
   Dim I As Integer
   

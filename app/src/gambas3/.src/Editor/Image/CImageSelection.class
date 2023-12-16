@@ -475,6 +475,51 @@ Public Sub Rectangle(X As Float, Y As Float, W As Float, H As Float, Optional R 
   
 End
 
+Public Sub Polygon(X As Float, Y As Float, W As Float, H As Float, N As Integer, Optional R As Float)
+  
+  Dim XC As Float
+  Dim YC As Float
+  Dim I As Integer
+  
+  If W = 0 Or If H = 0 Then Return
+  
+  W /= 2
+  H /= 2
+  XC = X + W
+  YC = Y + H
+  
+  If R > 0 And If R < 1 Then
+  
+    For I = 0 To N
+      X = XC + Sin(Pi(2 * I / N)) * W
+      Y = YC - Cos(Pi(2 * I / N)) * H
+      If I = 0 Then
+        MoveTo(X, Y)
+      Else
+        LineTo(X, Y)
+      Endif
+      X = XC + Sin(Pi(2 * (I + 0.5) / N)) * W * R
+      Y = YC - Cos(Pi(2 * (I + 0.5) / N)) * H * R
+      LineTo(X, Y)
+    Next
+
+  Else
+  
+    For I = 0 To N
+      X = XC + Sin(Pi(2 * I / N)) * W
+      Y = YC - Cos(Pi(2 * I / N)) * H
+      If I = 0 Then
+        MoveTo(X, Y)
+      Else
+        LineTo(X, Y)
+      Endif
+    Next
+    
+  Endif
+  
+End
+
+
 Public Sub Text(X As Float, Y As Float, sText As String, sFont As String, iAlign As Integer, bAlignBase As Boolean)
 
   Dim hImage As Image
@@ -1225,5 +1270,33 @@ Public Sub Expand(hImage As Image)
   
   Translate(-hExt.X, -hExt.Y)
   Scale(hImage.W / hExt.W, hImage.H / hExt.H, True)
+  
+End
+
+Public Sub GetBarycenter() As PointF
+  
+  Dim I As Integer
+  Dim hCenterShape As PointF
+  Dim hCenter As PointF
+  
+  If Shapes.Count = 0 Then Return New PointF
+  
+  If Current >= 0 Then Return Shapes[Current].GetBarycenter()
+  
+  For I = 0 To Shapes.Max
+    hCenterShape = Shapes[I].GetBarycenter()
+    If Not hCenterShape Then Continue
+    If Not hCenter Then
+      hCenter = hCenterShape
+    Else
+      hCenter.X += hCenterShape.X
+      hCenter.Y += hCenterShape.Y
+    Endif
+  Next
+  
+  hCenter.X /= Shapes.Count
+  hCenter.Y /= Shapes.Count
+  
+  Return hCenter
   
 End
