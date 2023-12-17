@@ -241,9 +241,11 @@ Public Sub View_MouseWheel()
   
   fZoom = $fZoom
   If Mouse.Forward Then 
-    fZoom *= Sqr(2)
+    fZoom *= Sqr(Sqr(2))
+    If fZoom > 2 Then fZoom = Int(fZoom + 1)
   Else 
-    fZoom /= Sqr(2)
+    fZoom /= Sqr(Sqr(2))
+    If fZoom > 2 Then fZoom = Int(fZoom)
   Endif
   Me.Zoom = Round(fZoom, -6)
   
