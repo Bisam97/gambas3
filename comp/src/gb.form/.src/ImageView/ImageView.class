@@ -49,7 +49,7 @@ Public Sub _new()
   
   $hView = New ScrollArea($hBorder) As "View"
   $hView.Border = False
-  $hView.Shadow = True
+  $hView.Shadow = Application.Shadows
   $hView.Focus = True
   
   Me.Proxy = $hView
@@ -232,6 +232,23 @@ Public Sub View_MouseMove()
   If Mouse.Left Then $hView.Scroll($SX - (Mouse.X - Mouse.StartX), $SY - (Mouse.Y - Mouse.StartY))
 
 End
+
+Public Sub View_MouseWheel()
+  
+  Dim fZoom As Float
+  
+  If Not $bUseMouse Then Return
+  
+  fZoom = $fZoom
+  If Mouse.Forward Then 
+    fZoom *= Sqr(2)
+  Else 
+    fZoom /= Sqr(2)
+  Endif
+  Me.Zoom = Round(fZoom, -6)
+  
+End
+
 
 Private Function Zoom_Read() As Float
 
