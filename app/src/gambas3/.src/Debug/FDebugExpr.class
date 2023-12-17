@@ -8,24 +8,34 @@ Static Private $sYWindow As String
 Static Private $sLastExpr As String
 Static Private $iChangeColor As Integer
 Static Private $iErrorColor As Integer
+Static Private $sTempImage As String
+
+Private Enum TYPE_NORMAL, TYPE_ARRAY, TYPE_COLLECTION, TYPE_IMAGE
 
 Private $sExpr As String
 Private $sKey As String
 Private $sInfo As String
 Private $sLastGood As String
+Private $iType As Integer
+
 Private $aSym As String[]
+
 Private $cVal As New Collection
 Private $cOldVal As New Collection
+
+Private $cValContents As New Collection
+Private $cOldValContents As New Collection
 
 Private $iRowStatic As Integer
 Private $iRowDynamic As Integer
 
 Private $sClass As String
 Private $sRealClass As String
-Private $bArray As Boolean
-Private $bCollection As Boolean
 Private $sCollectionKey As String
 Private $aDim As Integer[]
+Private $aKeys As String[]
+
+Private $sCurrentExpr As String
 
 Static Public Sub Add(sExpr As String, sInfo As String)
 
@@ -37,7 +47,7 @@ Static Public Sub Add(sExpr As String, sInfo As String)
     hWin = New FDebugExpr(sExpr, sInfo)
     If Object.IsValid(hWin) Then
       $cAll[sExpr] = hWin
-      hWin.Show
+      hWin.Show()
     Endif
   Else 
     hWin = $cAll[sExpr]
@@ -54,7 +64,14 @@ Static Public Sub AddResult(sWindow As String, sValue As String, Optional bAssig
   iPos = RInStr(sWindow, "#")
     
   hWin = $cAll[Left(sWindow, iPos - 1)]
-  If hWin Then hWin.SetValue(CInt(Mid(sWindow, iPos + 1)), sValue, bAssign)
+  If Not hWin Then Return
+  
+  sWindow = Mid$(sWindow, iPos + 1)
+  If Left(sWindow) = "I" Then
+    hWin.SetImage()
+  Else
+    hWin.SetValue(CInt(Mid(sWindow, 2)), Left(sWindow), sValue, bAssign)
+  Endif
   
 End
 
@@ -125,76 +142,91 @@ Public Sub gvwExpr_Data(Row As Integer, Column As Integer)
   Dim sSym As String
   Dim sVal As String
   Dim bChange As Boolean
+  Dim cVal As Collection
+  Dim cOldVal As Collection
+  Dim hGridView As GridView
 
-  If Column = 0 Then gvwExpr.Data.Foreground = Color.Gradient(Color.TextBackground, Color.TextForeground, 0.7)
-
-  sVal = $cVal[Row]
+  hGridView = Last
   
-  If $bArray Then 
+  If Column = 0 Then hGridView.Data.Foreground = Color.Gradient(Color.TextBackground, Color.TextForeground, 0.7)
+
+  If hGridView = gvwContents Then
     
-    sSym = GetIndiceFromRow(Row)
+    cVal = $cValContents
+    cOldVal = $cOldValContents
+    
+    sVal = cVal[Row]
+
+    If $iType = TYPE_ARRAY Then 
       
-    If Column = 0 Then 
-      gvwExpr.Data.Text = sSym
-      gvwExpr.Data.Alignment = Align.Right
-    Else 
-      If sVal Then 
-        gvwExpr.Data.Text = sVal
-        '$cVal.Remove(Row)
-      Else  
-        Design.Command("?X" & $sExpr & "#" & CStr(Row) & "\t" & $sExpr & "[" & sSym & "]")
+      sSym = GetIndiceFromRow(Row)
+        
+      If Column = 0 Then 
+        hGridView.Data.Text = sSym
+        hGridView.Data.Alignment = Align.Right
+      Else 
+        If sVal Then 
+          hGridView.Data.Text = sVal
+        Else  
+          Design.Command("?X" & $sExpr & "#@" & CStr(Row) & "\t" & $sExpr & "[" & sSym & "]")
+        Endif
       Endif
-    Endif
+      
+    Else If $iType = TYPE_COLLECTION Then
     
-  Else If $bCollection Then
+      sSym = Chr$(34) & $aKeys[Row] & Chr$(34)
   
-    sSym = Chr$(34) & $aSym[Row] & Chr$(34)
-
-    If Column = 0 Then 
-      gvwExpr.Data.Text = sSym
-    Else 
-      If sVal Then 
-        gvwExpr.Data.Text = sVal
-        '$cVal.Remove(Row)
-      Else  
-        Design.Command("?X" & $sExpr & "#" & CStr(Row) & "\t" & $sExpr & "[" & sSym & "]")
-        Design.Command("=" & "\t" & $sExpr & ".Key = " & Quote($sCollectionKey))
+      If Column = 0 Then 
+        hGridView.Data.Text = sSym
+      Else 
+        If sVal Then 
+          hGridView.Data.Text = sVal
+        Else  
+          Design.Command("?X" & $sExpr & "#@" & CStr(Row) & "\t" & $sExpr & "[" & sSym & "]")
+          Design.Command("=" & "\t" & $sExpr & ".Key = " & Quote($sCollectionKey))
+        Endif
       Endif
+    
     Endif
     
   Else
+    
+    cVal = $cVal
+    cOldVal = $cOldVal
+  
+    sVal = cVal[Row]
 
     sSym = $aSym[Row]
     
     If Right(sSym) = ":" Then 
-      gvwExpr.Data.Background = Color.LightForeground
+      hGridView.Data.Background = Color.LightForeground
       Return 
     Endif
     
     If Column = 0 Then
-      gvwExpr.Data.Text = sSym
+      hGridView.Data.Text = sSym
       If $iRowStatic >= 0 Then 
-        If $iRowDynamic < 0 Or If Row < $iRowDynamic Then gvwExpr.Data.Font.Bold = True
+        If $iRowDynamic < 0 Or If Row < $iRowDynamic Then hGridView.Data.Font.Bold = True
       Endif
     Else
       If sVal Then 
-        gvwExpr.Data.Text = sVal
+        hGridView.Data.Text = sVal
       Else 
         If Left($sClass) = "." Or If Not $sRealClass Then
-          Design.Command("?X" & $sExpr & "#" & CStr(Row) & "\t" & $sExpr & "." & sSym)
+          Design.Command("?X" & $sExpr & "#!" & CStr(Row) & "\t" & $sExpr & "." & sSym)
         Else 
-          Design.Command("?X" & $sExpr & "#" & CStr(Row) & "\t" & $sRealClass & "(" & $sExpr & ")." & sSym)
+          Design.Command("?X" & $sExpr & "#!" & CStr(Row) & "\t" & $sRealClass & "(" & $sExpr & ")." & sSym)
         Endif
       Endif
         
     Endif
-    
-  Endif
 
+  Endif
+  
   If Left(sVal) <> "!" Then
 
-    If $cOldVal.Exist(Row) Then
-      If sVal <> $cOldVal[Row] Then 
+    If cOldVal.Exist(Row) Then
+      If sVal <> cOldVal[Row] Then 
         bChange = True
       Endif
     Else
@@ -205,38 +237,55 @@ Public Sub gvwExpr_Data(Row As Integer, Column As Integer)
         
   If Column <> 0 Then 
     
-    gvwExpr.Data.Font = txtExpr.Font
+    hGridView.Data.Font = txtExpr.Font
 
     If Left(sVal) = "!" Then
     
-      gvwExpr.Data.Text = Mid$(sVal, 2)
-      gvwExpr.Data.Background = $iErrorColor
-      gvwExpr.Data.Font.Bold = True
+      hGridView.Data.Text = Mid$(sVal, 2)
+      hGridView.Data.Background = $iErrorColor
+      hGridView.Data.Font.Bold = True
       
     Endif
   
   Else
     
-    gvwExpr.Data.Text &= "  "
+    hGridView.Data.Text &= "  "
 
   Endif 
   
-  If bChange Then gvwExpr.Data.Background = $iChangeColor 'Color.Lighter(Color.Yellow)
+  If bChange Then hGridView.Data.Background = $iChangeColor 'Color.Lighter(Color.Yellow)
   
 Catch
 
 End
 
-Public Sub SetValue(iRow As Integer, sVal As String, Optional bAssign As Boolean)
+Public Sub SetImage()
+  
+  imvContents.Image = Image.Load($sTempImage)
+  imvContents.ZoomFit(Desktop.Scale)
+  
+End
+
+Public Sub SetValue(iRow As Integer, sType As String, sVal As String, Optional bAssign As Boolean)
   
   Dim vVal As Variant
   Dim sHex As String
+  Dim hGridView As TableView
+  Dim cVal As Collection
+
+  If sType = "@" Then
+    hGridView = gvwContents
+    cVal = $cValContents
+  Else
+    hGridView = gvwExpr
+    cVal = $cVal
+  Endif
 
   If bAssign Then
   
     If Left(sVal) = "!" Then
-      With gvwExpr[iRow, 1]
-        Balloon.Error(Mid$(sVal, 2), gvwExpr, .X + .W / 2, .Y + .H / 2)
+      With hGridView[iRow, 1]
+        Balloon.Error(Mid$(sVal, 2), hGridView, .X + .W / 2, .Y + .H / 2)
       End With
     Endif
   
@@ -262,11 +311,11 @@ Public Sub SetValue(iRow As Integer, sVal As String, Optional bAssign As Boolean
       
     Endif
     
-    $cVal[iRow] = sVal
+    cVal[iRow] = sVal
     
   Endif
   
-  gvwExpr[iRow, 1].Refresh
+  hGridView[iRow, 1].Refresh
   
 End
 
@@ -279,68 +328,59 @@ Private Sub OpenExpr(sExpr As String, Optional sRealExpr As String)
   
 End
 
-Private Sub GetCurrentExpr() As String
-
-  Dim sSym As String
+Public Sub gvwExpr_Click()
+  
   Dim sText As String
+  Dim hGridView As GridView
   
-  If gvwExpr.Row < 0 Then Return
+  $sCurrentExpr = ""
+  hGridView = Last
+  If hGridView.Row < 0 Then Return
   
-  If Not $bArray And If Not $bCollection Then
-    sSym = $aSym[gvwExpr.Row]
-    If Left(sSym) = ":" Then Return
+  If hGridView = gvwExpr Then
+    If Left($aSym[hGridView.Row]) = ":" Then Return
   Endif
 
-  sText = Trim(gvwExpr[gvwExpr.Row, 0].Text)
+  sText = Trim(hGridView[hGridView.Row, 0].Text)
   If Not sText Then Return
   
-  If $bArray Or $bCollection
-    sText = $sExpr & "[" & sText & "]"
-  Else 
+  If hGridView = gvwExpr Then
     If Left($sClass) = "." Or If Not $sRealClass Then
       sText = $sExpr & "." & sText
     Else 
       'sText = $sExpr & "." & sText
       sText = $sRealClass & "(" & $sExpr & ")." & sText
     Endif
+  Else
+    sText = $sExpr & "[" & sText & "]"
   Endif 
   
-  Return sText
-
+  $sCurrentExpr = sText
+  
 End
 
 Public Sub gvwExpr_Activate()
 
-  Dim sText As String
-  Dim sSym As String
   Dim sVal As String
+  Dim hGridView As TableView
 
-  If gvwExpr.Row >= 0 Then
+  If Not $sCurrentExpr Then Return
   
-    If Not $bArray And If Not $bCollection Then
-      sSym = $aSym[gvwExpr.Row]
-      If Left(sSym) = ":" Then Return
-    Endif
-
-    sText = GetCurrentExpr()
-    If Not sText Then Return
-
-    sVal = gvwExpr[gvwExpr.Row, 1].Text
+  hGridView = Last
+  sVal = hGridView[hGridView.Row, 1].Text
+  
+  If Left(sVal) = "(" Then
     
-    If Left(sVal) = "(" Then
-      
-      With gvwExpr[gvwExpr.Row, 1]
-        Design.SetBalloon(gvwExpr, .X + .W / 2, .Y + .H / 2)
-      End With
-      OpenExpr(sText)
-      
-    Else
+    ' With hGridView[gvwExpr.Row, 1]
+    '   Design.SetBalloon(gvwExpr, .X + .W / 2, .Y + .H / 2)
+    ' End With
+    OpenExpr($sCurrentExpr)
     
-      gvwExpr.Column = 1
-      gvwExpr.Edit
+  Else
+  
+    hGridView.Column = 1
+    hGridView.Edit
 
-    Endif
-    
   Endif
 
 End
@@ -356,7 +396,7 @@ Private Sub Init(sInfo As String, bNew As Boolean) As Boolean
   Dim nRowAsArray As Integer = -1
   Dim bShowHidden As Boolean = btnShowAll.Value
   Dim bHasHidden As Boolean
-  Dim bShowButton As Boolean
+  Dim nVal As Integer
 
   $aSym = Split(sInfo, " ", Chr$(34))
   If $aSym.Count < 3 Then
@@ -371,60 +411,59 @@ Private Sub Init(sInfo As String, bNew As Boolean) As Boolean
   $iRowStatic = -1
   $iRowDynamic = -1
   
-  If sType = "C:" Or If sType = "A:" Then bShowButton = True
-  
-  If sType = "C:" And If Not bShowHidden Then
+  If sType = "C:" Then
 
+    $iType = TYPE_COLLECTION
     $aSym.Remove(0, 3) ' Remove the class names and the data type
-
-    $bCollection = True
-    $bArray = False
+    nVal = Val(Mid$($aSym[0], 2, -1))
+    $sCollectionKey = $aSym[1]
+    $aSym.Remove(0, 2)
+    $aKeys = $aSym.Extract(0, nVal)
+   
+  Else If sType = "A:" Then
     
-    nRow = Val(Mid$($aSym[0], 2, -1))
-    
-  Else If sType = "A:" And If Not bShowHidden Then
-    
+    $iType = TYPE_ARRAY
     $aSym.Remove(0, 3) ' Remove the class names and the data type
-    
-    $bCollection = False
-    $bArray = True
     
     sSym = Mid$($aSym[0], 2, -1)
     If InStr(sSym, ",") Then
-      nRow = 1
+      nVal = 1
       $aDim = New Integer[]
       For Each sSym In Split(sSym, ",")
         iSize = CInt(sSym)
         $aDim.Add(iSize)
-        nRow *= iSize
+        nVal *= iSize
       Next
     Else
-      nRow = CInt(sSym)
+      nVal = CInt(sSym)
       $aDim = Null
     Endif
     
+  Else If $sClass = "Image" Or If $sClass = "Picture" Then
+    
+    $iType = TYPE_IMAGE
+    
   Else
-  
-    While $aSym.Count
-      If $aSym[0] = "S:" Or If $aSym[0] = "D:" Then Break
-      $aSym.Remove(0)
-    Wend
-  
-    $bCollection = False
-    $bArray = False
-  
+    
+    $iType = TYPE_NORMAL
+
   Endif
-
-  If $bArray Then 
   
-    $aSym = Null
-
-  Else If $bCollection Then  
-
-    $sCollectionKey = $aSym[1] ' Current collection key
-    $aSym.Remove(0, 2) ' Remove the count and the current key
-
-  Else 
+  While $aSym.Count
+    If $aSym[0] = "S:" Or If $aSym[0] = "D:" Then Break
+    $aSym.Remove(0)
+  Wend
+  
+  ' If $bArray Then 
+  ' 
+  '   $aSym = Null
+  ' 
+  ' Else If $bCollection Then  
+  ' 
+  '   $sCollectionKey = $aSym[1] ' Current collection key
+  '   $aSym.Remove(0, 2) ' Remove the count and the current key
+  ' 
+  ' Else 
 
     ' Sort symbols
     
@@ -485,7 +524,7 @@ Private Sub Init(sInfo As String, bNew As Boolean) As Boolean
     '   $aSym = Null
     ' Endif
     
-  Endif
+  ' Endif
   
   If Left$($sClass) = "." Or If Not $sRealClass Then
     Me.Title = $sExpr & " (" & $sClass & ")"
@@ -494,65 +533,80 @@ Private Sub Init(sInfo As String, bNew As Boolean) As Boolean
   Endif
 
   If nRow = 0 Then 
-    gvwExpr.Hide
+    tabExpr.Hide
     gvwExpr.Rows.Count = 0
     lblVoid.Show
     Return
   Endif
   
-  gvwExpr.Clear
-  gvwExpr.Show
+  tabExpr.Show
   lblVoid.Hide
 
+  gvwExpr.Clear
   With gvwExpr
   
     .Columns.Count = 2
     'If nRow > 1024 Then Stop
     .Rows.Count = nRow
   
-    If $bArray Then 
-    
-      .Columns[0].Text = ("Index")
-      '.Columns[0].Width = Max(80, .Font.Width(CStr(nRow)) + 16)
-      .Columns[1].Text = ("Value")
-  
-    Else If $bCollection Then  
-    
-      .Columns[0].Text = ("Key")
-      '.Columns[0].Width = .Font.Width("Key") + 16
-      .Columns[1].Text = ("Value")
-  
-    Else 
-  
-      .Columns[0].Text = ("Symbol")
-      '.Columns[0].Width = .Font.Width("Symbol") + 16
-      .Columns[1].Text = ("Value")
-  
-    Endif
+    .Columns[0].Text = ("Symbol")
+    '.Columns[0].Width = .Font.Width("Symbol") + 16
+    .Columns[1].Text = ("Value")
+
     .Columns[0].Width = Desktop.Scale * 10
     
   End With
 
   If $iRowDynamic >= 0 And If $iRowStatic >= 0 Then gvwExpr.Rows[$iRowDynamic].Height = 2
   
-  If Not bNew Then Try gvwExpr.Columns[0].Width = -1
+  If nVal Then
+    
+    gvwContents.Clear
+    With gvwContents
+      .Columns.Count = 2
+      .Rows.Count = nVal
+      
+      If sType = "A:" Then
+        .Columns[0].Text = ("Index")
+        .Columns[1].Text = ("Value")
+      Else If sType = "C:" Then
+        .Columns[0].Text = ("Key")
+        .Columns[1].Text = ("Value")
+      Endif
+      
+    End With
+    
+  Endif
   
-  btnShowAll.Visible = bShowButton Or bHasHidden
-
+  If Not bNew Then
+    Try gvwExpr.Columns[0].Width = -1
+    If nVal > 0 Then Try gvwContents.Columns[0].Width = -1
+  Endif
+  
+  tabExpr.ShowTabBar = $iType <> TYPE_NORMAL
+  imvContents.Visible = $iType = TYPE_IMAGE
+  gvwContents.Visible = $iType = TYPE_COLLECTION Or $iTYpe = TYPE_ARRAY
+  
 End
 
 Public Sub RefreshInfo(sInfo As String)
 
   Dim sStr As String
-
+  
   $sInfo = sInfo
   Me.Enabled = True
 
   For Each sStr In $cVal
     $cOldVal.Add(sStr, $cVal.Key)
   Next 
-
+  
+  For Each sStr In $cValContents
+    $cOldValContents.Add(sStr, $cValContents.Key)
+  Next 
+  
   $cVal.Clear
+  $cValContents.Clear
+  
   Init(sInfo, False) 
 
 End
@@ -752,9 +806,11 @@ End
 
 Public Sub UpdateConfig()
   
-  Project.SetSmallFont(gvwExpr)
+  Project.SetSmallFont(tabExpr)
+  tabExpr.TextFont = Project.GetSmallFont()
   Project.SetSmallFont(lblVoid)
   Project.SetEditorFont(txtExpr)
+  
 
 End
 
@@ -806,20 +862,29 @@ End
 Public Sub gvwExpr_Save(Row As Integer, (Column) As Integer, Value As String)
 
   Dim sSym As String
+  Dim hGridView As TableView
 
   Value = Trim(Value)
   If Value Then
 
-    If $bArray Then 
+    hGridView = Last
     
-      $cVal[Row] = Null
-      Design.Command("=X" & $sExpr & "#" & CStr(Row) & "\t" & $sExpr & "[" & GetIndiceFromRow(Row) & "] = " & Value)
+    If hGridView = gvwContents Then
       
-    Else If $bCollection Then
-    
-      sSym = Chr$(34) & $aSym[Row] & Chr$(34)
-      $cVal[Row] = Null
-      Design.Command("=X" & $sExpr & "#" & CStr(Row) & "\t" & $sExpr & "[" & sSym & "] = " & Value)
+      Select Case $iType
+        
+        Case TYPE_ARRAY
+          
+          $cValContents[Row] = Null
+          Design.Command("=X" & $sExpr & "#@" & CStr(Row) & "\t" & $sExpr & "[" & GetIndiceFromRow(Row) & "] = " & Value)
+        
+        Case TYPE_COLLECTION
+          
+          sSym = Chr$(34) & $aKeys[Row] & Chr$(34)
+          $cValContents[Row] = Null
+          Design.Command("=X" & $sExpr & "#@" & CStr(Row) & "\t" & $sExpr & "[" & sSym & "] = " & Value)
+
+      End Select
       
     Else
   
@@ -827,9 +892,9 @@ Public Sub gvwExpr_Save(Row As Integer, (Column) As Integer, Value As String)
       $cVal[Row] = Null
       
       If Left($sClass) = "." Or If Not $sRealClass Then
-        Design.Command("=X" & $sExpr & "#" & CStr(Row) & "\t" & $sExpr & "." & sSym & " = " & Value)
+        Design.Command("=X" & $sExpr & "#!" & CStr(Row) & "\t" & $sExpr & "." & sSym & " = " & Value)
       Else 
-        Design.Command("=X" & $sExpr & "#" & CStr(Row) & "\t" & $sRealClass & "(" & $sExpr & ")." & sSym & " = " & Value)
+        Design.Command("=X" & $sExpr & "#!" & CStr(Row) & "\t" & $sRealClass & "(" & $sExpr & ")." & sSym & " = " & Value)
       Endif
       
     Endif
@@ -852,9 +917,7 @@ End
 
 Public Sub gvwExpr_Menu()
 
-  If gvwExpr.Row < 0 Then Return
-  If Not GetCurrentExpr() Then Return
-  
+  If Not $sCurrentExpr Then Return
   mnuPopup.Popup
 
 End
@@ -867,22 +930,15 @@ End
 
 Public Sub mnuWatch_Click()
 
-  Dim sExpr As String
-  
-  sExpr = GetCurrentExpr()
-  If Not sExpr Then Return
-  FDebugger.AddWatch(sExpr)
+  If Not $sCurrentExpr Then Return
+  FDebugger.AddWatch($sCurrentExpr)
   
 End
 
 Public Sub mnuPrint_Click()
   
-  Dim sExpr As String
-  
-  sExpr = GetCurrentExpr()
-  If Not sExpr Then Return
-  
-  FOutput.PrintExpr(sExpr)
+  If Not $sCurrentExpr Then Return
+  FOutput.PrintExpr($sCurrentExpr)
   
 End
 
@@ -890,5 +946,16 @@ Public Sub btnHexa_Click()
 
   $cVal.Clear
   Init($sInfo, False)
+
+End
+
+Public Sub tabExpr_Click()
+
+  If $iType = TYPE_IMAGE And If tabExpr.Index = 1 Then
+    
+    If Not $sTempImage Then $sTempImage = File.SetExt(Temp$(), "png")
+    Design.Command("?X" & $sExpr & "#I" & "\t" & $sExpr & ".Save(" & Quote($sTempImage) & ")")
+    
+  Endif
 
 End

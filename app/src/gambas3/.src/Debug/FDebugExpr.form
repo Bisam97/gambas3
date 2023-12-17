@@ -1,7 +1,7 @@
 # Gambas Form File 3.0
 
 { Form Form
-  MoveScaled(0,0,16,14)
+  MoveScaled(0,0,36,6)
   Icon = Picture["icon:/small/watch"]
   Utility = True
   Arrangement = Arrange.Vertical
@@ -37,7 +37,7 @@
     { btnShowAll ToolButton
       MoveScaled(18,0,4,4)
       ToolTip = ("Show all symbols")
-      Picture = Picture["icon:/small/find"]
+      Picture = Picture["icon:/small/zoom-in"]
       Toggle = True
     }
     { btnHexa ToolButton
@@ -61,12 +61,37 @@
     Alignment = Align.TopNormal
     Text = ("No element")
   }
-  { gvwExpr TableView
-    MoveScaled(2,12,21,17)
+  { tabExpr TabPanel
+    MoveScaled(2,17,29,52)
     Expand = True
+    Arrangement = Arrange.Fill
     Border = False
-    Mode = Select.Single
-    Header = GridView.Horizontal
-    NoKeyboard = True
+    Count = 2
+    Index = 0
+    Text = ("Properties")
+    { gvwExpr TableView
+      MoveScaled(3,1,17,16)
+      Expand = True
+      Border = False
+      Mode = Select.Single
+      NoKeyboard = True
+    }
+    Index = 1
+    Text = ("Contents")
+    { gvwContents TableView gvwExpr
+      Name = "gvwContents"
+      MoveScaled(4,0,17,16)
+      Expand = True
+      Border = False
+      Mode = Select.Single
+      NoKeyboard = True
+    }
+    { imvContents ImageView
+      MoveScaled(4,21,19,19)
+      Visible = False
+      Border = False
+      Grid = True
+    }
+    Index = 0
   }
 }
