@@ -1487,17 +1487,19 @@ End
 Private Sub PasteText(sText As String)
 
   If Not sText Then Return  
-  If $hFilter.BracketedPasteActive Then sText = "\e[200~" & sText & "\e[200~"
+  If $hFilter.BracketedPasteActive Then sText = "\e[200~" & sText & "\e[201~"
   Input(sText)
   
 End
 
-
 '' Paste the clipboard contents into the terminal, as if it has been entered through the keyboard.
 
 Public Sub Paste()
+
+  Dim sText As String
   
-  PasteText(Clipboard.Paste("text/plain;charset=utf-8"))
+  Try sText = Clipboard.Paste()
+  If sText Then PasteText(sText)
   
 End
 
