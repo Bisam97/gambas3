@@ -2366,8 +2366,8 @@ static void post_focus_change(void *)
 {
 	CWIDGET *current, *control;
 	
-	//fprintf(stderr, "post_focus_change: %d %d\n", !_focus_change, _doing_focus_change);
-	
+	//fprintf(stderr, "post_focus_change: %p / %d %d\n", CWIDGET_active_control, !_focus_change, _doing_focus_change);
+
 	if (!_focus_change || _doing_focus_change)
 		return;
 	
