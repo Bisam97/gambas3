@@ -879,7 +879,7 @@ Fast Private Sub DrawHighlightedText(Row As Integer, sText As String, aColor As 
   XMin = X + $hView.ScrollX
   XMax = XMin + $hView.ClientW
   
-  aStyles = GetStyles()
+  aStyles = $hTheme.Styles
   
   XX = X
   YY = Y
@@ -4006,7 +4006,7 @@ End
 
 Private Function Styles_Read() As TextHighlighterStyle[]
   
-  Return GetStyles()
+  Return $hTheme.Styles
   
 End
 
@@ -6938,12 +6938,6 @@ Private Sub Theme_Write(Value As TextHighlighterTheme)
   
   Theme_Change
 
-End
-
-Private Sub GetStyles() As TextHighlighterStyle[]
-  
-  Return $hTheme._GetStyles()
-  
 End
 
 Public Sub View_Menu()
