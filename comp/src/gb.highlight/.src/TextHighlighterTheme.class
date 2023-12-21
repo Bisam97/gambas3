@@ -8,8 +8,11 @@ Export
 '' This event is raised when one of the theme style has been modified.
 Event Change
 
-'' Return the list of all color names implemented by all registered highlighters.
-Static Property Read Colors As String[]
+'' Return the list of the default states implemented in each registered highlighters.
+Static Property Read States As String[]
+
+'' Return the list of all registered states.
+Static Property Read AllStates As String[]
 
 Static Private $bStylesModified As Boolean
 Static Private $cColorIndex As New Collection
@@ -19,6 +22,8 @@ Static Private $cColorsByHighlighter As New Collection
 Property Settings As String
 '' Return if the theme uses a dark background.
 Property Read Dark As Boolean
+'' Return the styles associated with this theme
+Property Read Styles As TextHighlighterStyle[]
 
 Private $cStyles As New Collection
 Private $aStyles As TextHighlighterStyle[]
@@ -81,7 +86,7 @@ Static Public Sub _init()
   Endif
   
   For Each sColor In ["Background", "Selection", "Current", "Breakpoint", "Highlight", "Normal", "Added", "Removed", "Error", "Comment", "Documentation", "Keyword", "Function", "Operator", "Symbol", "Number", "String", "Datatype", "Preprocessor", "Escape", "Constant"]
-    _RegisterColor(sColor, "*")
+    _RegisterState(sColor, "*")
   Next
   
 End
@@ -322,7 +327,7 @@ Public Sub Invert()
   
 End
 
-Static Public Sub _RegisterColor(Key As String, Optional Highlighter As String, sDefault As String) As Integer
+Static Public Sub _RegisterState(Key As String, Optional Highlighter As String, sDefault As String) As Integer
 
   Dim iIndex As Integer
   Dim aColors As String[]
@@ -357,7 +362,7 @@ Static Public Sub _RegisterColor(Key As String, Optional Highlighter As String, 
   
 End
 
-Static Public Sub _GetHighlighterColors(sHighlighter As String) As String[]
+Static Public Sub _GetHighlighterStates(sHighlighter As String) As String[]
   
   Dim aColors As String[]
   
@@ -367,35 +372,13 @@ Static Public Sub _GetHighlighterColors(sHighlighter As String) As String[]
   
 End
 
-Public Sub _GetStyles() As TextHighlighterStyle[]
+Static Private Function States_Read() As String[]
 
-  Dim hStyle As TextHighlighterStyle
-  
-  If $bStylesModified Or If Not $aStyles Then
-  
-    $aStyles = New TextHighlighterStyle[]  
-    $aStyles.Add($cStyles["Normal"])
-    For Each $cColorIndex
-      hStyle = $cStyles[$cColorIndex.Key]
-      If Not hStyle Then hStyle = New TextHighlighterStyle
-      $aStyles.Add(hStyle)
-    Next
-
-    $bStylesModified = False
-    
-  Endif
-  
-  Return $aStyles
-  
-End
-
-Static Private Function Colors_Read() As String[]
-
-  Return _GetHighlighterColors("*")
+  Return _GetHighlighterStates("*")
 
 End
 
-Static Public Sub _GetColorName(sKey As String) As String
+Static Public Sub _GetStateName(sKey As String) As String
   
   Dim sName As String
   
@@ -428,4 +411,39 @@ Private Function Dark_Read() As Boolean
   iBg = Me["Background"].Color
   If Color[iBg].Value < 128 Then Return True
 
+End
+
+Private Function Styles_Read() As TextHighlighterStyle[]
+
+  Dim hStyle As TextHighlighterStyle
+  
+  If $bStylesModified Or If Not $aStyles Then
+  
+    $aStyles = New TextHighlighterStyle[]  
+    $aStyles.Add($cStyles["Normal"])
+    For Each $cColorIndex
+      hStyle = $cStyles[$cColorIndex.Key]
+      If Not hStyle Then hStyle = New TextHighlighterStyle
+      $aStyles.Add(hStyle)
+    Next
+
+    $bStylesModified = False
+    
+  Endif
+  
+  Return $aStyles
+  
+End
+
+Static Private Function AllStates_Read() As String[]
+
+  Dim aStates As New String[]
+  
+  aStates.Add("Normal")
+  For Each $cColorIndex
+    aStates.Add($cColorIndex.Key)
+  Next
+
+  Return aStates
+  
 End

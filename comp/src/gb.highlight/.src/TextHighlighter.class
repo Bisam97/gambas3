@@ -30,6 +30,7 @@ Public LengthAdded As Integer
 Public Limit As Boolean
 '' Return or set if the highlighted text is a comment.
 Public Comment As Boolean
+
 Public _IncludeHighlight As Integer
 
 '' Return the highlighter internal name.
@@ -38,8 +39,8 @@ Property Read Key As String
 Property Read Name As String
 '' Return the list of keywords associated with the highlighter.
 Property Read Keywords As String[]
-'' Return the list of color names used by the highlighter.
-Property Read Colors As String[]
+'' Return the list of state names used by the highlighter.
+Property Read States As String[]
 
 Private $iPos As Integer
 Private $iInclude As Integer
@@ -80,6 +81,8 @@ Static Public Sub _init()
         sName = ("SQL")
       Case "webpage"
         sName = ("Gambas Web Page")
+      Case "highlight"
+        sName = ("Syntax highlighting definition")
       Case Else
         sName = sKey
     End Select
@@ -195,21 +198,21 @@ Static Public Sub Register(Key As String, Name As String, Optional Path As Strin
     If Not sColor Then sColor = String.UCaseFirst(sLine)
     If sLine Not Match "[A-Za-z][A-Za-z0-9.]*" Then Continue
   
-    TextHighlighterTheme._RegisterColor(sColor, Key, sDefault)
+    TextHighlighterTheme._RegisterState(sColor, Key, sDefault)
 
   Wend
   
 End
 
-'' Register a color for that highlighter.
+'' Register a state for that highlighter.
 ''
-'' - ~Name~: The name of the color.
+'' - ~Name~: The name of the state.
 ''
-'' The function returns the color index that must be used to fill the highlight array.
+'' The function returns the state index that must be used to fill the highlight array.
 
-Public Sub RegisterColor(Name As String) As Integer
+Public Sub RegisterState(Name As String) As Integer
   
-  Return TextHighlighterTheme._RegisterColor(Name, Me.Key)
+  Return TextHighlighterTheme._RegisterState(Name, Me.Key)
   
 End
 
@@ -544,7 +547,7 @@ Private Sub HighlightLine(sLine As String)
     $sLine = sLine
   Endif
   'Me.CanRewrite = bCanRewrite
-  $aStyles = $hTheme._GetStyles()
+  $aStyles = $hTheme.Styles
   $iPos = 1
   $iIndex = 0
   
@@ -916,9 +919,9 @@ Public Sub ToANSI(Text As String, Optional Theme As TextHighlighterTheme) As Str
  End
 
 
-Private Function Colors_Read() As String[]
+Private Function States_Read() As String[]
 
-  Return TextHighlighterTheme._GetHighlighterColors(Me.Key)
+  Return TextHighlighterTheme._GetHighlighterStates(Me.Key)
 
 End
 
