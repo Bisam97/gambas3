@@ -1758,28 +1758,28 @@ Private Sub ReloadStyles()
   Dim hButton As ToolButton
   Dim aNames As String[]
   Dim I As Integer
-  Dim aColors As String[]
-  Dim sColor As String
+  Dim aStates As String[]
+  Dim sState As String
   
   svwTheme.Children.Clear
   
   If cmbHighlight.Index = 0 Then
-    aColors = TextHighlighterTheme.Colors
+    aStates = TextHighlighterTheme.States
   Else 
-    aColors = TextHighlighter[$aHighlightKeys[$aHighlightNames.Find(cmbHighlight.Text)]].Colors
+    aStates = TextHighlighter[$aHighlightKeys[$aHighlightNames.Find(cmbHighlight.Text)]].States
   Endif
   ' 
-  aNames = aColors.Copy()
+  aNames = aStates.Copy()
   For I = 0 To aNames.Max
     aNames[I] = Tr(aNames[I])
   Next
   
-  aColors.SortUsing(aNames)
+  aStates.SortUsing(aNames)
 
-  For Each sColor In aColors
+  For Each sState In aStates
   
     hHBox = New HBox(svwTheme)
-    hHBox.Tag = sColor
+    hHBox.Tag = sState
     hHBox.Height = 4 * Desktop.Scale
     'hHBox.Spacing = 4
     hColor = New DrawingArea(hHBox) As "dwgStyle"
