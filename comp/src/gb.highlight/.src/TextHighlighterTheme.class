@@ -362,6 +362,22 @@ Static Public Sub _RegisterState(Key As String, Optional Highlighter As String, 
   
 End
 
+'' Return the index of a specific state.
+''
+'' - ~Key~ is the state key.
+''
+'' If the state key is either '"Normal"' or '"*"', then '0' is returned.
+''
+'' If no state has been registered with that key, '-1' is returned.
+
+Static Public Sub GetStateIndex(Key As String) As Integer
+  
+  If Key = "*" Or If Key = "Normal" Then Return 0
+  Try Return $cColorIndex[Key]
+  Return -1
+  
+End
+
 Static Public Sub _GetHighlighterStates(sHighlighter As String) As String[]
   
   Dim aColors As String[]
