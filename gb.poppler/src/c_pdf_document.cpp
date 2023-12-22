@@ -368,14 +368,14 @@ BEGIN_METHOD(PdfPage_Render, GB_INTEGER x; GB_INTEGER y; GB_INTEGER width; GB_IN
 	
 	page = THIS->rdoc->create_page(poppler_page_get_index(THIS->current));
 	
-	switch (page->orientation())
+	/*switch (page->orientation())
 	{
 		case poppler::page::portrait: orientation = 0; break;
 		case poppler::page::landscape: orientation = 90; break;
 		case poppler::page::upside_down: orientation = 180; break;
 		case poppler::page::seascape: orientation = 270; break;
-	}
-	
+	}*/
+
 	orientation = (orientation + rotation + 720) % 360;
 	
 	switch (orientation)
