@@ -355,7 +355,7 @@ END_PROPERTY*/
 BEGIN_METHOD(PdfPage_Render, GB_INTEGER x; GB_INTEGER y; GB_INTEGER width; GB_INTEGER height; GB_INTEGER rotation; GB_FLOAT res)
 
 	poppler::page *page;
-	poppler::rectf size;
+	//poppler::rectf size;
 	poppler::rotation_enum rot;
 	poppler::image image;
 	
@@ -365,6 +365,7 @@ BEGIN_METHOD(PdfPage_Render, GB_INTEGER x; GB_INTEGER y; GB_INTEGER width; GB_IN
 	double res = VARGOPT(res, THIS->resolution);
 	int width, height;
 	int x, y, w, h;
+	double ww, hh;
 	
 	page = THIS->rdoc->create_page(poppler_page_get_index(THIS->current));
 	
@@ -386,17 +387,19 @@ BEGIN_METHOD(PdfPage_Render, GB_INTEGER x; GB_INTEGER y; GB_INTEGER width; GB_IN
 		default: rot = poppler::rotate_0;
 	}
 	
-	size = page->page_rect(poppler::media_box);
+	poppler_page_get_size(THIS->current, &ww, &hh);
+
+	//size = page->page_rect(poppler::media_box);
 	
 	if (orientation % 180)
 	{
-		width = (int)(size.height() * res / 72.0);
-		height = (int)(size.width() * res / 72.0);
+		width = (int)(hh * res / 72.0);
+		height = (int)(ww * res / 72.0);
 	}
 	else
 	{
-		width = (int)(size.width() * res / 72.0);
-		height = (int)(size.height() * res / 72.0);
+		width = (int)(ww * res / 72.0);
+		height = (int)(hh * res / 72.0);
 	}
 	
 	x = VARGOPT(x, 0);
