@@ -183,7 +183,7 @@ Public Sub DrawingArea_Draw()
     Endif
     
     Paint.AntiAlias = False
-    Paint.Rectangle(X, Y, W - 1, H - 1)
+    Paint.Rectangle(X + 1, Y + 1, W - 3, H - 3)
 
     If $bSelected Then 'Or If $bHighlight Then
       iBg = Color.Merge(Color.LightBackground, Color.TextBackground)
@@ -200,20 +200,21 @@ Public Sub DrawingArea_Draw()
     'Paint.Brush = Null
     'Paint.DrawImage($hGradient, X, Y, W, W)
     
-    
     If $hDrawingArea.HasFocus Or If $bHighlight Then
     
-      Paint.Background = Color.LightBackground
+      Paint.AntiAlias = True
+      Paint.Background = Color.SetAlpha(Color.SelectedBackground, 128)
       Paint.LineWidth = 2
+      Paint.Rectangle(X, Y, W, H)
+      Paint.Stroke
     
-    Else
+    Else 
       
       Paint.Background = Color.LightForeground
-      
-    Endif
+      Paint.Stroke
+      Paint.AntiAlias = True
     
-    Paint.Stroke
-    Paint.AntiAlias = True
+    Endif
 
     Paint.Save
     

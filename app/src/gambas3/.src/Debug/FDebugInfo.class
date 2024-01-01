@@ -97,7 +97,7 @@ Public Sub ReadConfig()
   Project.SetConsoleFont(trmTest)
   MTheme.InitControl(trmTest)
 
-  For Each hCtrl In [panSearch, panVersionControl, panTest, panDbusExplorer, panWarning]
+  For Each hCtrl In [panSearch, panVersionControl, panTest, panDbusExplorer, panWarning, tabBus]
     Project.SetSmallFont(hCtrl)
   Next
   
@@ -908,7 +908,7 @@ Public Sub btnVcBrowse_Click()
 
 End
 
-Public Sub btnDBusBus_Click()
+Public Sub tabBus_Click()
 
   FillDBusExplorer
 
@@ -930,7 +930,7 @@ End
 
 Private Sub GetDBus() As DBusConnection
   
-  If btnDbusSystem.Value Then
+  If tabBus.Index = 0 Then
     Return DBus.System
   Else
     Return DBus.Session
@@ -1116,5 +1116,11 @@ End
 Public Sub btnVcAddBranch_Click()
 
   VersionControl.AddBranch()
+
+End
+
+Public Sub tabBus_Arrange()
+
+  lstDbusExplorer.Move(tabBus.X, tabBus.Y + tabBus.TabBarSize + 1, tabBus.W, tabBus.H - tabBus.TabBarSize - 1)
 
 End
