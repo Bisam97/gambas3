@@ -13,12 +13,9 @@ Private $iToken As Integer
 Private $hScreenshotSignal As DBusSignal
 Private $hScreenshot As Image
 Private $cResult As Collection
-Private $bEnabled As Boolean
-Private $bEnabledSet As Boolean
 
 Private Sub StartPortal()
   
-  If $bEnabledSet And If Not $bEnabled Then Return
   If $bStarted Then Return
   Component.Load("gb.dbus")
   DBus.Session.Start("org.freedesktop.portal.Desktop")
