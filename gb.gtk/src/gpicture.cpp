@@ -496,7 +496,7 @@ void gPicture::fill(gColor col)
 
 // returns -> 0, OK / -1, Bad format / -2 invalid path
 
-int gPicture::save(const char *path, int quality)
+int gPicture::save(const char *path, int quality, GdkPixbufSaveFunc func)
 {
 	bool ok=false;
 	int b;
@@ -505,12 +505,26 @@ int gPicture::save(const char *path, int quality)
 	GSList *formats = gdk_pixbuf_get_formats();
 	GSList *iter=formats;
 	GdkPixbuf *image = getPixbuf();
+
 	char arg[16];
+	const char *opt_keys[] = { "quality", NULL };
+	char *opt_values[] = { NULL, NULL };
+	char **keys;
+	char **values;
 
-	for (b=strlen(path)-1;b>=0;b--)
-		if (path[b]=='.') { buf=path+b+1; break; }
-
-	if (!buf) return -1;
+	if (func)
+	{
+		buf = path;
+		if (!buf || !*buf)
+			buf = "png";
+	}
+	else
+	{
+		buf = strrchr(path, '.');
+		if (!buf)
+			return -1;
+		buf++;
+	}
 
 	while (iter && (!ok) )
 	{
@@ -539,11 +553,25 @@ int gPicture::save(const char *path, int quality)
 
 	if (quality >= 0)
 	{
+		keys = (char **)opt_keys;
+		values = opt_values;
 		sprintf(arg, "%d", quality);
-		b = gdk_pixbuf_save(image, path, type, NULL, "quality", arg, (void *)NULL);
+		values[0] = arg;
 	}
 	else
-		b = gdk_pixbuf_save(image, path, type, NULL, (void *)NULL);
+	{
+		keys = (char **)&opt_keys[1];
+		values = &opt_values[1];
+	}
+
+	if (func)
+	{
+    b = gdk_pixbuf_save_to_callbackv(image, func, NULL, type, keys, values, NULL);
+	}
+	else
+	{
+		b = gdk_pixbuf_savev(image, path, type, keys, values, NULL);
+	}
 
 
 	if (ok) {

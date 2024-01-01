@@ -25,12 +25,13 @@
 
 #include <string.h>
 
-#include <qpixmap.h>
-#include <qbitmap.h>
 #include <qnamespace.h>
-#include <qpainter.h>
-#include <qmatrix.h>
+#include <QPixmap>
+#include <QBitmap>
+#include <QPainter>
+#include <QMatrix>
 #include <QByteArray>
+#include <QBuffer>
 #include <QHash>
 
 #include "gambas.h"
@@ -288,6 +289,31 @@ BEGIN_METHOD(Picture_Save, GB_STRING path; GB_INTEGER quality)
 END_METHOD
 
 
+BEGIN_METHOD(Picture_ToString, GB_STRING format; GB_INTEGER quality)
+
+	QByteArray ba;
+	QString path = "." + TO_QSTRING(MISSING(format) ? "png" : GB.ToZeroString(ARG(format)));
+	bool ok = false;
+	const char *fmt = CIMAGE_get_format(path);
+
+	if (!fmt)
+	{
+		GB.Error("Unknown format");
+		return;
+	}
+
+	QBuffer buffer(&ba);
+	buffer.open(QIODevice::WriteOnly);
+	ok = THIS->pixmap->save(&buffer, fmt, VARGOPT(quality, -1));
+
+	if (!ok)
+		GB.Error("Unable to convert picture to a string");
+
+	GB.ReturnNewString(ba.constData(), ba.size());
+
+END_METHOD
+
+
 BEGIN_METHOD_VOID(Picture_Clear)
 
 	delete THIS->pixmap;
@@ -370,6 +396,7 @@ GB_DESC CPictureDesc[] =
 	GB_STATIC_METHOD("Load", "Picture", Picture_Load, "(Path)s"),
 	GB_STATIC_METHOD("FromString", "Picture", Picture_FromString, "(Data)s"),
 	GB_METHOD("Save", NULL, Picture_Save, "(Path)s[(Quality)i]"),
+	GB_METHOD("ToString", "s", Picture_ToString, "[(Format)s(Quality)i]"),
 	GB_METHOD("Resize", NULL, Picture_Resize, "(Width)i(Height)i"),
 
 	GB_METHOD("Clear", NULL, Picture_Clear, NULL),
