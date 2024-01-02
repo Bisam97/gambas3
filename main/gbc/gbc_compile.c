@@ -494,11 +494,11 @@ static void init_version(void)
 	if (!ver)
 		ver = getenv("GB_PCODE_VERSION");
 
-	if (strcmp(ver, "last"))
-		return;
-
 	if (ver && *ver)
 	{
+		if (strcmp(ver, "last") == 0)
+			return;
+
 		v = 0;
 		n = read_version_digits(&ver);
 		if (n <= 0 || n > GAMBAS_VERSION)
