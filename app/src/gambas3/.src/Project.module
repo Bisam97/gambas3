@@ -59,7 +59,6 @@ Public MajorVersion As Integer
 Public MinorVersion As Integer
 Public ReleaseVersion As Integer
 Public VersionAddBranch As Boolean
-Public OldVersion As String
 Public Localize As Boolean
 Public Description As String
 Public Icon As String
@@ -1109,7 +1108,10 @@ Public Function CloseProject() As Boolean
 
     Files.Clear
     
+    ' Revert not important files, and especially any version change
+    
     VersionControl.RevertNotImportantFiles()
+    SyncVersion()
 
     If $hLock Then
       Unlock #$hLock
@@ -3094,6 +3096,7 @@ Public Sub ReadProject(Optional bConvert As Boolean)
   Dim aArguments As String[][]
   Dim aEnv As String[]
   Dim sVersion As String
+  Dim sOldVersion As String
 
   hFic = Open Path For Input
 
@@ -3108,7 +3111,6 @@ Public Sub ReadProject(Optional bConvert As Boolean)
   MinorVersion = 0
   ReleaseVersion = 1
   VersionAddBranch = False
-  OldVersion = ""
   ControlPublic = False
   ModulePublic = False
   ShowDeprecated = False
@@ -3233,7 +3235,7 @@ Public Sub ReadProject(Optional bConvert As Boolean)
         aEnv = Split(UnQuote(sVal), "\n")
         
       Case "version"
-        OldVersion = sVal
+        sOldVersion = sVal
 
       Case "versionfile"
         VersionFile = CInt(sVal) <> 0
@@ -3502,7 +3504,7 @@ Public Sub ReadProject(Optional bConvert As Boolean)
   Endif
 
   Try sVersion = File.Load(Project.Dir &/ ".version")
-  If Error Then sVersion = OldVersion
+  If Error Then sVersion = sOldVersion
   If Not sVersion Then sVersion = "0.0.0"
   
   iPos = InStr(sVersion, " ")
@@ -3571,6 +3573,7 @@ Public Sub WriteProject(Optional bComponentDoNotChange As Boolean, Optional bMak
   Dim sPath As String
   Dim sVal As String
   Dim hComp As CComponent
+  Dim sVersion As String
 
   If Project.ReadOnly Then Return
 
@@ -3591,6 +3594,8 @@ Public Sub WriteProject(Optional bComponentDoNotChange As Boolean, Optional bMak
     
   'Endif
 
+  sVersion = WriteProjectVersion()
+
   ' Creates the .project file
 
   sPath = Path
@@ -3604,7 +3609,7 @@ Public Sub WriteProject(Optional bComponentDoNotChange As Boolean, Optional bMak
   If Title Then Print #hFile, "Title="; Title
   If Startup Then Print #hFile, "Startup="; Startup
   If Icon Then Print #hFile, "Icon="; Icon
-  If OldVersion Then Print #hFile, "Version="; OldVersion
+  Print #hFile, "Version="; sVersion
   If VersionFile Then Print #hFile, "VersionFile=1"
 
   For Each hComp In Documentation.Components
@@ -3713,7 +3718,6 @@ Public Sub WriteProject(Optional bComponentDoNotChange As Boolean, Optional bMak
   Try Kill sPath
   Move sPath & ".tmp" To sPath
   
-  WriteProjectVersion
   WriteProjectTranslation
   UpdateComponentFile
 
@@ -7195,7 +7199,7 @@ Public Sub RemoveAllProfile()
   
 End
 
-Private Sub WriteProjectVersion()
+Private Sub WriteProjectVersion() As String
   
   Dim sPath As String
   Dim sVer As String
@@ -7215,4 +7219,30 @@ Private Sub WriteProjectVersion()
   File.Save(sPath, sVer)
   If bAdd Then VersionControl.AddFile(sPath)
   
+  Return sVer
+  
+End
+
+Private Sub SyncVersion()
+
+  Dim sVersion As String
+  Dim aProject As String[]
+  Dim I As Integer
+
+  Try sVersion = File.Load(Project.Dir &/ ".version")
+  If Not sVersion Then Return
+  
+  aProject = Split(File.Load(Project.Dir &/ ".project"), "\n")
+  For I = 0 To aProject.Max
+    If aProject[I] Begins "Version=" Then
+      If Mid$(aProject[I], InStr(aProject[I], "=") + 1) = sVersion Then Return
+      aProject[I] = "Version=" & sVersion
+      Break
+    Endif
+  Next
+  
+  If I >= aProject.Count Then Return
+  
+  File.Save(Project.Dir &/ ".project", aProject.Join("\n"))
+
 End
