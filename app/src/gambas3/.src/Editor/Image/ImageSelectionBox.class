@@ -9,7 +9,7 @@ Property Read NoDelete As Boolean Use $bNoDelete
 
 Private $hDrawingArea As DrawingArea
 Private $hDelete As ToolButton
-Private $hAdd As ToolButton
+'Private $hAdd As ToolButton
 
 Public Sub _new(hImageSelection As CImageSelection, bNoDelete As Boolean)
   
@@ -27,10 +27,10 @@ Public Sub _new(hImageSelection As CImageSelection, bNoDelete As Boolean)
     $hDelete.Hide
   Endif
   
-  $hAdd = New ToolButton($hDrawingArea) As "AddButton"
-  $hAdd.Picture = Picture["icon:/small/add"]
-  $hAdd.MoveScaled(0, 0, 3, 3)
-  $hAdd.Hide
+  ' $hAdd = New ToolButton($hDrawingArea) As "AddButton"
+  ' $hAdd.Picture = Picture["icon:/small/add"]
+  ' $hAdd.MoveScaled(0, 0, 3, 3)
+  ' $hAdd.Hide
   
 End
 
@@ -74,8 +74,11 @@ End
 
 Public Sub DrawingArea_Enter()
   
-  If $hDelete Then $hDelete.Show
-  $hAdd.Show
+  If $hDelete Then 
+    $hDelete.Move($hDrawingArea.W - $hDelete.W, 0)
+    $hDelete.Show
+  Endif
+  '$hAdd.Show
   $hDrawingArea.Refresh
   
 End
@@ -83,7 +86,7 @@ End
 Public Sub DrawingArea_Leave()
   
   If $hDelete Then $hDelete.Hide
-  $hAdd.Hide
+  '$hAdd.Hide
   $hDrawingArea.Refresh
   
 End
@@ -94,7 +97,7 @@ Public Sub DeleteButton_Click()
   
 End
 
-Public Sub AddButton_Click()
+Public Sub DrawingArea_MouseUp()
 
   Raise Add
   

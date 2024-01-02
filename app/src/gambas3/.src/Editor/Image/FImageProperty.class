@@ -39,6 +39,9 @@ Private $bChangingTab As Boolean
 Private $bDoNotUpdateGrid As Boolean
 
 Private $hShowSelection As ImageSelectionBox
+Private $iSelectionSize As Integer
+Private $aSelectionSize As Integer[] = [6, 9, 12]
+Private $bInitSelection As Boolean
 
 'Static Public Value As String  '"radialgradient(0.5,0.5,1,0.5,0.5,[&hFFFFFF,&h000000,&h00FF00],[0,0.5,1])" '"lineargradient(0,0.5,1,0.5,[&hFFFFFF,&h000000,&h00FF00],[0,0.5,1])"
 
@@ -47,7 +50,6 @@ Private Sub GetCurrent() As FImageEditor
   Try Return Project.ActiveForm
   
 End
-
 
 Public Sub _new()
   
@@ -800,6 +802,7 @@ End
 Public Sub ReadConfig()
   
   tabBrush.TextFont = Project.GetSmallFont()
+  $iSelectionSize = Settings["/FImageEditor/SelectionSize", 0]
   
 End
 
@@ -1232,7 +1235,7 @@ Public Sub tabBrush_Click()
       RefreshClipboard
       UpdateClipboard
       
-    Case ("Selections")
+    Case ("Shapes")
       InitSelection
       
   End Select
@@ -1242,8 +1245,11 @@ End
 Private Sub AddSelection(hImageSelection As CImageSelection, Optional bNoDelete As Boolean) As ImageSelectionBox
 
   Dim hSelBox As ImageSelectionBox
+  Dim iSize As Integer
 
   hSelBox = New ImageSelectionBox(svwSelection, hImageSelection, bNoDelete) As "ImageSelection"
+  iSize = $aSelectionSize[$iSelectionSize]
+  hSelBox.ResizeScaled(iSize, iSize)
   Return hSelBox
   
 End
@@ -1261,7 +1267,7 @@ End
 
 Private Sub InitSelection()
 
-  If svwSelection.Children.Count Then Return
+  If $bInitSelection Then Return
 
   Inc Application.Busy
 
@@ -1273,6 +1279,7 @@ Private Sub InitSelection()
   LoadAllSelections()
   
   Dec Application.Busy
+  $bInitSelection = True
   
 End
 
@@ -1576,8 +1583,8 @@ Public Sub panEffect_BeforeArrange()
 
 End
 
-Private Sub SaveAllSelections()
-
+Private Sub SaveSelectionFile(sPath As String)
+  
   Dim hSelBox As ImageSelectionBox
   Dim aSave As New String[]
 
@@ -1590,17 +1597,23 @@ Private Sub SaveAllSelections()
     
   Next
   
-  File.Save(Settings.DefaultDir &/ "gambas3.shapes.json", "[" & aSave.Join(",") & "]")
+  File.Save(sPath, "[" & aSave.Join(",") & "]")
+  
+End
+
+Private Sub SaveAllSelections()
+
+  SaveSelectionFile(Settings.DefaultDir &/ "gambas3.shapes.json")
 
 End
 
-Private Sub LoadAllSelections()
-
+Private Sub LoadSelectionFile(sPath As String)
+  
   Dim aSave As Collection[][]
   Dim hSel As CImageSelection
   Dim I As Integer
   
-  Try aSave = JSON.FromString(File.Load(Settings.DefaultDir &/ "gambas3.shapes.json"))
+  Try aSave = JSON.FromString(File.Load(sPath))
   If Not aSave Then Return
   For I = 0 To aSave.Max
     hSel = New CImageSelection
@@ -1608,6 +1621,12 @@ Private Sub LoadAllSelections()
     If Error Then Continue
     AddSelection(hSel)
   Next
+  
+End
+
+Private Sub LoadAllSelections()
+
+  LoadSelectionFile(Settings.DefaultDir &/ "gambas3.shapes.json")
 
 End
 
@@ -1642,4 +1661,71 @@ Public Sub cchColor_Activate()
   RememberColor(cchColor.Value)
   palColor.Current = cchColor.Value
   
+End
+
+Private Sub UpdateSelectionSize()
+
+  Dim hSel As Control
+  Dim iSize As Integer
+
+  iSize = $aSelectionSize[$iSelectionSize]
+  
+  For Each hSel In svwSelection.Children
+    hSel.ResizeScaled(iSize, iSize)
+  Next
+  
+  Settings["/FImageEditor/SelectionSize"] = $iSelectionSize
+
+End
+
+Public Sub btnZoomIn_Click()
+
+  If $iSelectionSize = $aSelectionSize.Max Then Return
+  Inc $iSelectionSize
+  UpdateSelectionSize
+
+End
+
+Public Sub btnZoomOut_Click()
+
+  If $iSelectionSize = 0 Then Return
+  Dec $iSelectionSize
+  UpdateSelectionSize
+
+End
+
+Public Sub btnClearSelection_Click()
+
+  Dim hSel As ImageSelectionBox
+  
+  If Message.Warning(("Do you really want to remove all shapes?"), ("Remove"), ("Cancel")) <> 1 Then Return
+  
+  For Each hSel In svwSelection.Children
+    If hSel.NoDelete Then Continue
+    hSel.Delete
+  Next
+
+End
+
+Public Sub btnSaveShapes_Click()
+
+  Dialog.Title = ("Save shapes")
+  Dialog.Path = Settings["/FImageEditor/SelectionPath"]
+  Dialog.Filter = ["*.shapes.json", ("Gambas IDE Shapes files")]
+  Dialog.AutoExt = True
+  If Dialog.SaveFile() Then Return
+  Settings["/FImageEditor/SelectionPath"] = Dialog.Path
+  SaveSelectionFile(Dialog.Path)
+
+End
+
+Public Sub btnLoadShapes_Click()
+
+  Dialog.Title = ("Load shapes")
+  Dialog.Path = Settings["/FImageEditor/SelectionPath"]
+  Dialog.Filter = ["*.shapes.json", ("Gambas IDE Shapes files")]
+  If Dialog.OpenFile() Then Return
+  Settings["/FImageEditor/SelectionPath"] = Dialog.Path
+  LoadSelectionFile(Dialog.Path)
+
 End

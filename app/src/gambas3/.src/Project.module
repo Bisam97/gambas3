@@ -2163,6 +2163,7 @@ Public Function GetCompileCommand(bAll As Boolean, bNoDebug As Boolean, bMakeExe
   If ModulePublic Then sExec &= "-fpublic-module "
   If bMakeExecutable Then sExec &= "-x "
   If DefaultNamespace Then sExec &= "-n " & Shell$(DefaultNamespace) & " "
+  If ForceBytecodeVersion Then sExec &= "-b " & ForceBytecodeVersion
   sExec &= "-j" & CStr(Settings["/CompilerJobs", 1]) & " "
   'sExec = sExec & "-c " & Quote(CLASSES_FILE) & " " & Quote(Project.Dir) & " > " & OUTPUT_FILE & " 2>&1"
   If bIDE Then
@@ -2247,11 +2248,7 @@ Public Function Compile(Optional bAll As Boolean, Optional bNoDebug As Boolean, 
 
   If bAll Then fTimer = Timer
 
-  If ForceBytecodeVersion Then
-    Shell sExec With ["GB_PCODE_VERSION=" & ForceBytecodeVersion] Wait
-  Else
-    Shell sExec Wait
-  Endif
+  Shell sExec Wait
 
   If Process.LastState = Process.Crashed Or If Process.LastValue > 128 Then
     UnlockIt()
