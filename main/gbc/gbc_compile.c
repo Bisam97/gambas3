@@ -64,6 +64,7 @@ char *COMP_info_path;
 char *COMP_lib_path;
 char *COMP_classes = NULL;
 COMPILE COMP_current;
+char *COMP_bytecode = NULL;
 uint COMP_version = GAMBAS_PCODE_VERSION;
 char *COMP_default_namespace = NULL;
 bool COMP_do_not_lock = TRUE;
@@ -489,7 +490,13 @@ static void init_version(void)
 	const char *ver;
 	int n, v;
 
-	ver = getenv("GB_PCODE_VERSION");
+	ver = COMP_bytecode;
+	if (!ver)
+		ver = getenv("GB_PCODE_VERSION");
+
+	if (strcmp(ver, "last"))
+		return;
+
 	if (ver && *ver)
 	{
 		v = 0;
@@ -716,6 +723,7 @@ void COMPILE_exit(bool can_dump_count)
 	STR_free(COMP_dir);
 	STR_free(COMP_root);
 	STR_free(COMP_default_namespace);
+	STR_free(COMP_bytecode);
 }
 
 static void add_class(const char *name, int len)

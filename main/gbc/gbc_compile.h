@@ -104,6 +104,7 @@ EXTERN char *COMP_project;
 EXTERN char *COMP_project_name;
 EXTERN char *COMP_info_path;
 EXTERN FORM_FAMILY COMP_form_families[];
+EXTERN char *COMP_bytecode;
 EXTERN uint COMP_version;
 EXTERN char *COMP_default_namespace;
 EXTERN char *COMP_classes;
