@@ -2047,10 +2047,10 @@ Public Sub imvImage_Draw(hZoom As Image)
   Paint.Save
   Paint.AntiAlias = False
 
-  Paint.LineWidth = 1 / imvImage.Zoom
-
   Paint.Translate(hOffset.X, hOffset.Y)
   Paint.Scale(imvImage.Zoom, imvImage.Zoom)
+  
+  Paint.LineWidth = 1 / imvImage.Zoom - 0.0001
   
   Paint.DrawRect(0, 0, $hImage.W, $hImage.H, Color.Foreground, Paint.LineWidth)
   
