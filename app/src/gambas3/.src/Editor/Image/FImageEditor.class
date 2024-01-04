@@ -384,7 +384,12 @@ Public Function Save(Optional bForce As Boolean) As Boolean
 
   Save.Begin(Path)
 
-  $hImage.Save(Path)
+  If LCase(File.Ext(Path)) = "png" Then
+    $hImage.Save(Path, 0)
+  Else
+    $hImage.Save(Path)
+  Endif
+  
   MCompressFile.Compress(Path)
 
   'Project.RefreshKey(Path)
