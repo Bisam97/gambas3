@@ -507,10 +507,8 @@ int gPicture::save(const char *path, int quality, GdkPixbufSaveFunc func)
 	GdkPixbuf *image = getPixbuf();
 
 	char arg[16];
-	const char *opt_keys[] = { "quality", NULL };
+	char *opt_keys[] = { NULL, NULL };
 	char *opt_values[] = { NULL, NULL };
-	char **keys;
-	char **values;
 
 	if (func)
 	{
@@ -553,24 +551,31 @@ int gPicture::save(const char *path, int quality, GdkPixbufSaveFunc func)
 
 	if (quality >= 0)
 	{
-		keys = (char **)opt_keys;
-		values = opt_values;
-		sprintf(arg, "%d", quality);
-		values[0] = arg;
-	}
-	else
-	{
-		keys = (char **)&opt_keys[1];
-		values = &opt_values[1];
+		if (quality > 100)
+			quality = 100;
+
+		if (!strcmp(type, "jpeg"))
+		{
+			opt_keys[0] = (char *)"quality";
+			sprintf(arg, "%d", quality);
+			opt_values[0] = arg;
+		}
+		else if (!strcmp(type, "png"))
+		{
+			opt_keys[0] = (char *)"compression";
+			quality = ((100 - quality) * 9) / 91; // map [0,100] -> [0,9] the same way as Qt png image writer
+			sprintf(arg, "%d", quality);
+			opt_values[0] = arg;
+		}
 	}
 
 	if (func)
 	{
-    b = gdk_pixbuf_save_to_callbackv(image, func, NULL, type, keys, values, NULL);
+    b = gdk_pixbuf_save_to_callbackv(image, func, NULL, type, opt_keys, opt_values, NULL);
 	}
 	else
 	{
-		b = gdk_pixbuf_savev(image, path, type, keys, values, NULL);
+		b = gdk_pixbuf_savev(image, path, type, opt_keys, opt_values, NULL);
 	}
 
 
