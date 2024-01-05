@@ -1,7 +1,13 @@
 ' Gambas class file
 
+''' @{since 3.19}
+'''
+''' This class implements the 'h' DBus datatype that encapsulates a file descriptor.
+
 Export
 Inherits DBusVariant
+
+Public _Stream As Stream
 
 Public Const Signature As String = "h"
 
@@ -10,6 +16,7 @@ Static Public Sub _call(Stream As Stream) As DBusFile
   Dim hFile As DBusFile
   
   hFile = New DBusFile
+  hFile._Stream = Stream
   hFile.Value = Stream.Handle
   Return hFile
   
