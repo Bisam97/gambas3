@@ -165,6 +165,13 @@ Private Sub _PrintPage()
   Dim nTry As Integer
 
   If Main.Edit Then
+    
+    If Session["preview"] Then
+      Print Html(Session["preview"]);
+      Session["preview"] = ""
+      Return
+    Endif
+    
     sPath = Main.GetPagePath()  
     If Exist(sPath) Then sData = File.Load(sPath)
     ' If Not sData Then
@@ -220,8 +227,8 @@ Private Sub _PrintPage()
       
         Do
           
-          hClass = CComponent.Get(Main.Component)[Main.Class]
-          If Not hClass Or If Not hClass.Parent Then Break
+          Try hClass = CComponent.Get(Main.Component)[Main.Class]
+          If Error Or If Not hClass Or If Not hClass.Parent Then Break
   
           Main.Component = hClass.ParentComponent
           Main.Class = hClass.Parent
@@ -254,7 +261,7 @@ Private Sub _PrintPage()
             Inc nTry
             If nTry < 8 Then Goto TRY_AGAIN
           Else
-            sData = "@{syntax}\n" & sDefaultHelp
+            sData = "@{syntax}\n\n" & sDefaultHelp
           Endif
         Else If Main.Class Then
           sData = Main.GetDefaultHelp() & "\n@{symbols}\n" 

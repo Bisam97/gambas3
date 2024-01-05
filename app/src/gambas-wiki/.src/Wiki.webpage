@@ -81,7 +81,7 @@ H1 { display: none; }
         <%Else If Main.Preview Then%>
           <div class="command">
             <input type="submit" id="save" name="save" value="<%=("Save")%>">
-            <input type="button" name="cancel" value="<%=("Cancel")%>" onclick="window.history.back();">
+            <input type="submit" name="cancel-preview" value="<%=("Cancel")%>">
           </div>
         <%Else If Session.Id Then%>
           <div class="command">
@@ -114,7 +114,7 @@ H1 { display: none; }
               <%Endif%>
             <%Endif%>
             <%If Main.History = 0 Then%>
-              <%If Main.Path Then %>
+              <%If Main.Path Then%>
                 <input type="submit" name="select" value="<%=("Select")%><%_PrintSelectionCount%>" title="<%_PrintSelectionList%>">
               <%Endif%>
               <%If Main.HasSelection() Then%>
@@ -192,7 +192,7 @@ H1 { display: none; }
 
 <%If Main.Edit Then%>
   <%If Main.Image Then%>
-    <div style="margin-top:8px;"></div>
+    <div style="margin-top:1em;"></div>
     <%Print Main.GetImageHTML(Main.Path);%>
     <p> <%=("Select the image file to upload...")%></p>
     <p><input type="file" name="file"></p>

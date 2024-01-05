@@ -372,7 +372,7 @@ Private Sub LoadUser(sUser As String) As Collection
   Dim sField As String
   Dim sValue As String
 
-  sPath = User.Home &/ "guygle/data/@/.user" &/ UCase(sUser)
+  sPath = "/home/guygle/guygle/data/@/.user" &/ UCase(sUser)
   If Not Exist(sPath) Then Return
   
   cUser = New Collection
@@ -421,8 +421,6 @@ Private Sub ConvertExample()
   Next
 
 End
-
-
 
 Public Sub Main()
 
@@ -713,6 +711,7 @@ Public Sub Main()
   
     If Request.Exist("save") Then
     
+      Session["preview"] = ""
       If Request.Exist("page") Then
         MakeDir(File.Dir(GetPagePath()))
         LockPage
@@ -743,8 +742,8 @@ Public Sub Main()
     
     Else If Request.Exist("preview") Then
       
-      'If Main.UserName = "bminisini" Then Main.Log("Wiki.Render",, "/tmp/wiki.debug")
       Preview = True
+      Session["preview"] = Request["page"]
       
     Else If Request.Exist("delete") Then
       
@@ -773,10 +772,10 @@ Public Sub Main()
       Redirect
       Return
       
-    Else If Request.Exist("create") Or If Request.Exist("edit") Then
+    Else If Request.Exist("create") Or If Request.Exist("edit") Or If Request.Exist("cancel-preview") Then
       
       Edit = True
-      
+    
     Else If Request.Exist("prev") Then
       
       History = Max(0, History + 1)
