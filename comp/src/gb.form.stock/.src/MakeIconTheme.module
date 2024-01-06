@@ -72,6 +72,7 @@ Public Sub Run()
   For Each sStyle In ["gambas", "gambas-mono", "gambas-dark", "gambas-mono-dark", "gambas-thin", "gambas-thin-dark"]
 
     sRoot = "~/.local/share/icons/" & sStyle
+    Shell "rm -rf " & sRoot Wait
     bDark = sStyle Ends "-dark"
     sOrigin = sStyle
     If bDark Then sOrigin = Left(sOrigin, -5)
@@ -90,12 +91,13 @@ Public Sub Run()
       aTarget = Split(Trim(Mid(sLine, iPos + 1)), ";", "", True)
       If cMime.Exist(sIcon) Then aTarget.Insert(cMime[sIcon])
   
-      For Each sSize In ["16", "32", "48", "64", "128"]
+      For Each sSize In ["16", "24", "32", "48", "64", "128"]
         
-        If sSize = "16" Then
-          sIconPath = sOrigin &/ "32" &/ sIcon & ".png"
-          If Not Exist(sIconPath) Then sIconPath = sOrigin &/ "128" &/ sIcon & ".png"
-          hImage = Image.Load(sIconPath).Stretch(16, 16)
+        sIconPath = sOrigin &/ sSize &/ sIcon & ".png"
+        If Not Exist(sIconPath) Then
+          sIconPath = sOrigin &/ "128" &/ sIcon & ".png"
+          If Not Exist(sIconPath) Then sIconPath = sOrigin &/ "32" &/ sIcon & ".png"
+          hImage = Image.Load(sIconPath).Stretch(CInt(sSize), CInt(sSize))
           sIconPath = Temp$("image") & ".png"
           hImage.Save(sIconPath)
         ' Else If sSize = "48" Or If sSize = "64" Then
@@ -104,10 +106,8 @@ Public Sub Run()
         '   hImage = Image.Load(sIconPath).Stretch(CInt(sSize), CInt(sSize))
         '   sIconPath = Temp$("image") & ".png"
         '   hImage.Save(sIconPath)
-        Else
-          sIconPath = sOrigin &/ sSize &/ sIcon & ".png"
         Endif
-        
+      
         If Not Exist(sIconPath) Then Continue
         
         sMakeLink = ""
@@ -166,7 +166,7 @@ Public Sub Run()
     For Each sFile In Dir(sOrigin &/ "app")
       If sFile Ends "~" Then Continue
       hImage = Image.Load(sOrigin &/ "app" &/ sFile)
-      For Each sSize In ["16", "32", "128"]
+      For Each sSize In ["16", "24", "32", "64", "128"]
         sTargetPath = sRoot &/ (sSize & "x" & sSize) &/ "apps" &/ sFile
         Print sTargetPath
         hIcon = hImage.Stretch(CInt(sSize), CInt(sSize))
