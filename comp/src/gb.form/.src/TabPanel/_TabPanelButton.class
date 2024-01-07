@@ -69,7 +69,6 @@ Private Sub GetPictureSize(ByRef WP As Integer, ByRef HP As Integer)
   
 End
 
-
 Public Sub DrawingArea_Draw()
   
   Dim iFg As Integer
@@ -138,10 +137,10 @@ Public Sub DrawingArea_Draw()
     GetPictureSize(ByRef WP, ByRef HP)
     If Me.RightToLeft Then
       W -= WP + Desktop.Scale * 2.5
-      Paint.DrawPicture($hPicture, Me.W - WP - Desktop.Scale, (H - HP) / 2, WP, HP)
+      Paint.DrawPicture($hPicture, Me.W - WP - Desktop.Scale * 2, (H - HP) / 2, WP, HP)
     Else
       X += WP + Desktop.Scale * 2.5
-      W = Me.W - X
+      W -= X
       Paint.DrawPicture($hPicture, Desktop.Scale * 2, (H - HP) / 2, WP, HP)
     Endif
   Else
@@ -150,8 +149,8 @@ Public Sub DrawingArea_Draw()
   Endif
   
   If bClosable Then 
-    W -= BUTTON_SIZE
-    If Me.RightToLeft Then X += BUTTON_SIZE
+    W -= BUTTON_SIZE - Desktop.Scale * 2
+    If Me.RightToLeft Then X += BUTTON_SIZE + Desktop.Scale * 2
   Endif
   
   Paint.Background = iFg
@@ -251,20 +250,15 @@ Public Sub UpdateLayout()
     S = hFont.TextWidth($sText) + Desktop.Scale * 2.5
   Endif
 
-  ' Select Case $iOrientation
-  '   Case Align.Left, Align.Right
-  '     If $hPicture Then S += $hPicture.H '- 4
-  '     If bClosable Then S += BUTTON_SIZE
-  '     Me.H = S
-  '   Case Else
-      If $hPicture Then 
-        GetPictureSize(ByRef WP, ByRef HP)
-        S += WP '- 4
-      Endif
-      If bClosable Then S += BUTTON_SIZE
-      Me.W = S + Desktop.Scale * 2
-      
-  'End Select
+  If $hPicture Then 
+    GetPictureSize(ByRef WP, ByRef HP)
+    S += WP '- 4
+  Endif
+  If bClosable Then 
+    S += BUTTON_SIZE
+  Endif
+  Me.W = S + Desktop.Scale * 2
+  'Debug Me.Text;; Me.W;; "/";; WT;; WP;; "["; BUTTON_SIZE; "]";; bClosable
   
   GetParent().TabBar_Arrange
 
@@ -303,7 +297,7 @@ End
 Private Sub Orientation_Write(Value As Integer)
 
   $iOrientation = Value
-  UpdateLayout
+  'UpdateLayout
 
 End
 

@@ -58,7 +58,6 @@ Private $bMoveable As Boolean
 Private $hCloseAll As ToolButton
 Private $hClosePanel As DrawingArea
 Private $hObserver As Observer
-Private $iTabBarContainerH As Integer
 
 Private $hTabBarLeft As DrawingArea
 Private $hTabBarRight As DrawingArea
@@ -72,6 +71,7 @@ Public Sub _new()
   $hTabBarContainer = New DrawingArea($hTabBar) As "TabBarContainer"
   $hTabBarContainer.Name = Me.Name & "_TabBarContainer"
   $hTabBarContainer.Focus = True
+  $hTabBarContainer.Ignore = True
   
   $hRightArrow = New DrawingArea($hTabBar) As "Arrow"
   $hRightArrow.Ignore = True
@@ -115,104 +115,84 @@ Private Sub CancelEnsureCurrentVisible()
 
 End
 
-
 Public Sub EnsureCurrentVisible_Timer()
   
-  Dim X, W As Integer
-  'Dim iLeftIndex, iRightIndex As Integer
-  Dim iMax As Integer
   Dim hCurrent As _TabPanelButton
   Dim XMin As Integer
   Dim XMax As Integer
   Dim XC As Integer
+  Dim WC As Integer
+  Dim bTooSmall As Boolean
   
   $hTimerEnsureVisible = Null
   
-  If $iCurrent < 0 Or If $iCurrent > $aButton.Max Then Return
-  
+  'If $iCurrent < 0 Or If $iCurrent > $aButton.Max Then Return
   XC = $hTabBarContainer.X
+  WC = GetTabBarMaxWidth()
   hCurrent = $aButton[$iCurrent]
   
-  If Not hCurrent.Visible Then Return
+  If Not hCurrent.Visible Then 
+    $hTimerEnsureVisible = Null
+    Return 
+  Endif
   
+  'Debug $iCurrent
+  
+TRY_AGAIN:
+
   XMin = 0
-  If $hLeftArrow.Visible Then XMin += $hLeftArrow.W
+  If $hLeftArrow.Visible Then XMin += ARROW_WIDTH
   XMax = $hTabBar.W
-  If $hRightArrow.Visible Then XMax -= $hRightArrow.W
+  If $hRightArrow.Visible Then XMax -= ARROW_WIDTH
   
   If hCurrent.X + $hTabBarContainer.X <= XMin Or If (hCurrent.X + $hTabBarContainer.X + hCurrent.W) >= XMax Then 
   
-    If Me.RightToLeft Then
-      
-      XC = 0
-      
-      If $iCurrent = 0 Then
-        W = Me.W
+    If (XMax - XMin) < hCurrent.W Then 
+  
+      If Me.RightToLeft Then
+        XC = -hCurrent.X - (hCurrent.W - $hTabBar.W)
       Else
-        With hCurrent
-          
-          X = .X
-          W = $hTabBarContainer.W
-          
-          If X < ARROW_WIDTH Then
-            W += ARROW_WIDTH - X
-          Else If X >= ($hTabBar.W - .W - ARROW_WIDTH) Then
-            W -= X - ($hTabBar.W - .W - ARROW_WIDTH)
-          Endif
-          
-          'M = .X + W - $hTabBar.W + ARROW_WIDTH
-          'If $iCurrent < $aButton.Max Then M += ARROW_WIDTH
-          '$X = Max($X, - M)
-          
-        End With
+        XC = -hCurrent.X + ARROW_WIDTH
       Endif
       
-      W = Max(Me.W, W)
-      
-      '$X = Max($hTabBar.W - $hTabBarContainer.W, $X)
-      '$X = Min(ARROW_WIDTH, $X)
-      
+      bTooSmall = True
+  
     Else
       
-      If Me.W <= (hCurrent.W + ARROW_WIDTH) Then 
-    
-        XC = -hCurrent.X
-        
-      Else
-    
-        If $iCurrent = 0 Then
-          XC = 0
-        Else
-          With hCurrent
-            
-            X = $hTabBarContainer.X + .X
-            W = .W
-            
-            If X < ARROW_WIDTH Then 
-              XC = XC + ARROW_WIDTH - X
-              X = XC + .X
-            Endif
-            
-            If X >= ($hTabBar.W - W - ARROW_WIDTH) Then
-              XC = XC - (X - ($hTabBar.W - W))
-              'If $iCurrent < $aButton.Max Then 
-              XC -= ARROW_WIDTH
-            Endif
-            
-          End With
-      
-        Endif
-        
-        iMax = GetLastIndex()
-        XC = Max($hTabBar.W - ($aButton[iMax].X + $aButton[iMax].W), XC)
-        XC = Min(0, XC)
-        
+      If hCurrent.X + XC < XMin Then
+        XC = XMin - hCurrent.X
+      Else If hCurrent.X + hCurrent.W + XC > XMax Then
+        XC = XMax - hCurrent.X - hCurrent.W
       Endif
-      
+  
+    Endif 
+    
+  Endif
+
+  If Not bTooSmall Then
+    If Me.RightToLeft Then
+      If XC + WC <= XMax Then
+        XC = XMax - WC
+      Else If XC > XMin Then
+        XC = XMin
+      Endif
+    Else
+      If XC >= XMin Then
+        XC = XMin
+      Else If XC + WC < XMax Then
+        XC = XMax - WC
+      Endif
     Endif
   Endif
   
-  $hTabBarContainer.Move(XC, 0, GetTabBarMaxWidth(), $hTabBar.H)
+  'Debug XC;; WC;; XMin;; XMax
+  
+  If UpdateArrows(XC, WC) Then Goto TRY_AGAIN
+  
+  Object.Lock($hTabBar)
+  $hTabBarContainer.Move(XC, 0, WC, $hTabBar.H)
+  Object.Unlock($hTabBar)
+
   CheckMouse
   
 End
@@ -330,13 +310,42 @@ Private Sub UpdateLayout()
 End
 
 Private Sub GetTabBarMaxWidth() As Integer
+
+  Dim I As Integer
+  Dim W As Integer
   
-  With $aButton[GetLastIndex()]
-    Return .X + .W
-  End With
+  For I = 0 To $aButton.Max
+    If $aButton[I].Visible Then 
+      W += $aButton[I].W
+    Endif
+  Next
+  
+  Return W
   
 End
 
+Private Sub UpdateArrows(Optional XC As Integer, WC As Integer) As Boolean
+
+  Dim bChange As Boolean
+
+  If WC = 0 Then
+    XC = $hTabBarContainer.X
+    WC = GetTabBarMaxWidth()
+  Endif
+
+  If (XC < 0) Xor $hLeftArrow.Visible Then
+    $hLeftArrow.Visible = Not $hLeftArrow.Visible
+    bChange = True
+  Endif
+  
+  If (XC > ($hTabBar.W - WC)) Xor $hRightArrow.Visible Then
+    $hRightArrow.Visible = Not $hRightArrow.Visible
+    bChange = True
+  Endif
+  
+  Return bChange
+  
+End
 
 Public Sub TabBar_Arrange()
   
@@ -344,12 +353,10 @@ Public Sub TabBar_Arrange()
   
   $hRightArrow.Move($hTabBar.W - ARROW_WIDTH, 0, ARROW_WIDTH, $hTabBar.H)
   $hLeftArrow.Move(0, 0, ARROW_WIDTH, $hTabBar.H)
+  UpdateArrows()
   
-  $hLeftArrow.Visible = $hTabBarContainer.X < 0
-  $hRightArrow.Visible = $hTabBarContainer.X > ($hTabBar.W - GetTabBarMaxWidth())
-  
-  If $hTabBarContainer.H <> $iTabBarContainerH Then
-    $iTabBarContainerH = $hTabBarContainer.H
+  If $hTabBar.H <> $hTabBarContainer.H Then
+    $hTabBarContainer.H = $hTabBar.H
     UpdateLayout
   Endif
   
@@ -386,6 +393,7 @@ Private Sub ScrollNext()
   W = $hTabBar.W - GetTabBarMaxWidth()
   If $hTabBarContainer.X > W Then 
     $hTabBarContainer.X = Max(W, $hTabBarContainer.X - Desktop.Scale * 2)
+    UpdateArrows
     CancelEnsureCurrentVisible
   Endif
 
@@ -395,6 +403,7 @@ Private Sub ScrollPrevious()
 
   If $hTabBarContainer.X < 0 Then 
     $hTabBarContainer.X = Min(0, $hTabBarContainer.X + Desktop.Scale * 2)
+    UpdateArrows
     CancelEnsureCurrentVisible
   Endif
   
@@ -403,6 +412,7 @@ End
 Private Sub ScrollFirst()
   
   $hTabBarContainer.X = 0
+  UpdateArrows
   CancelEnsureCurrentVisible
   
 End
@@ -410,6 +420,7 @@ End
 Private Sub ScrollLast()
   
   $hTabBarContainer.X = $hTabBar.W - GetTabBarMaxWidth()
+  UpdateArrows
   CancelEnsureCurrentVisible
   
 End
@@ -418,7 +429,7 @@ Public Sub Arrow_MouseDown()
   
   If Mouse.Left Then
     
-    If Last = $hRightArrow Xor Me.RightToLeft Then
+    If Last = $hRightArrow Then 'Xor Me.RightToLeft Then
       Try ScrollNext()
       $iRepeatInc = 1
     Else
@@ -446,7 +457,7 @@ End
 
 Public Sub Arrow_DblClick()
   
-  If Last = $hRightArrow Xor Me.RightToLeft Then
+  If Last = $hRightArrow Then 'Xor Me.RightToLeft Then
     ScrollLast()
   Else
     ScrollFirst()
@@ -880,11 +891,11 @@ Public Sub _GetFirstIndex() As Integer
   
 End
 
-Private Sub GetLastIndex() As Integer
-  
-  Return GetPreviousIndex($aButton.Count)
-  
-End
+' Private Sub GetLastIndex() As Integer
+'   
+'   Return GetPreviousIndex($aButton.Count)
+'   
+' End
 
 Public Sub _MovePrevious()
   
