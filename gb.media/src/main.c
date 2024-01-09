@@ -55,9 +55,9 @@ GB_DESC *GB_CLASSES[] EXPORT =
   NULL
 };
 
-int MAIN_get_x11_handle(void *control)
+uintptr_t MAIN_get_window_handle(void *control)
 {
-	int (*get_handle)(void *) = NULL;
+	uintptr_t (*get_handle)(void *) = NULL;
 	
 	if (!get_handle)
 	{

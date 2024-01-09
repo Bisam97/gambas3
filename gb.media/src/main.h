@@ -41,6 +41,6 @@ extern GB_INTERFACE GB;
 extern IMAGE_INTERFACE IMAGE;
 #endif
 
-int MAIN_get_x11_handle(void *control);
+uintptr_t MAIN_get_window_handle(void *control);
 
 #endif /* __MAIN_H */

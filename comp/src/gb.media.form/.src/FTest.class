@@ -9,7 +9,7 @@ End
 Static Public Sub _init()
   
   Component.Load("gb.form")
-  Application.Theme = "Gambas"
+  Application.Theme = "gambas-thin"
   
 End
 
@@ -24,6 +24,15 @@ Public Sub btnOpen_Click()
   If Dialog.OpenFile() Then Return 
   MediaView1.Stop
   MediaView1.URL = Dialog.Path
+  MediaView1.Play
+
+End
+
+Public Sub btnTest_Click()
+
+  MediaView1.Stop
+  MediaView1.URL = "https://filesamples.com/samples/video/mkv/sample_960x400_ocean_with_audio.mkv"
+  'MediaView1.URL = "https://file-examples.com/wp-content/storage/2018/04/file_example_AVI_640_800kB.avi"
   MediaView1.Play
 
 End

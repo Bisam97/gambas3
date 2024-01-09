@@ -23,6 +23,7 @@
 
 #define __MAIN_C
 
+#include <gdk/gdkwayland.h>
 #include "main.h"
 
 //-------------------------------------------------------------------------
@@ -42,9 +43,9 @@ static GtkWidget *platform_create_plug(long wid)
 
 //-------------------------------------------------------------------------
 
-static long window_get_id(GdkWindow *window)
+static uintptr_t window_get_id(GdkWindow *window)
 {
-	return 0;
+	return (uintptr_t)gdk_wayland_window_get_wl_surface(window);
 }
 
 //-------------------------------------------------------------------------

@@ -260,9 +260,9 @@ void *CWIDGET_get_parent_container(void *_object)
 	return parent;
 }
 
-int CWIDGET_get_handle(void *_object)
+uintptr_t CWIDGET_get_handle(void *_object)
 {
-	return (int)WIDGET->winId();
+	return (uintptr_t)WIDGET->winId();
 }
 
 bool CWIDGET_is_visible(void *_object)

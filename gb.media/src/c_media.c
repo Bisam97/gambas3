@@ -1472,7 +1472,7 @@ END_METHOD
 BEGIN_METHOD(MediaControl_SetWindow, GB_OBJECT control; GB_INTEGER x; GB_INTEGER y; GB_INTEGER w; GB_INTEGER h)
 
 	void *control = VARG(control);
-	long wid;
+	uintptr_t wid;
 	int x, y, w, h;
 	
 	if (!GST_IS_VIDEO_OVERLAY(ELEMENT))
@@ -1486,7 +1486,7 @@ BEGIN_METHOD(MediaControl_SetWindow, GB_OBJECT control; GB_INTEGER x; GB_INTEGER
 	
 	if (control)
 	{
-		wid = MAIN_get_x11_handle(control);
+		wid = MAIN_get_window_handle(control);
 		if (wid == 0)
 			return;
 	}
@@ -1783,6 +1783,7 @@ static int cb_message(CMEDIAPIPELINE *_object)
 				
 				case GST_MESSAGE_ERROR: 
 				case GST_MESSAGE_WARNING: 
+				case GST_MESSAGE_INFO:
 				{
 					gchar *debug;
 					GError *error;

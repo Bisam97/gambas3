@@ -358,7 +358,7 @@ CWIDGET *GetContainer(CWIDGET *control)
 	return GetObject(cont);
 }
 
-int CWIDGET_get_handle(void *_object)
+uintptr_t CWIDGET_get_handle(void *_object)
 {
 	return CONTROL->handle();
 }

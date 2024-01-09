@@ -218,7 +218,7 @@ GB_COLOR CWIDGET_get_real_foreground(CWIDGET *_object);
 void *CWIDGET_get_real_font(CWIDGET *_object);
 
 void *CWIDGET_get_parent(void *_object);
-int CWIDGET_get_handle(void *_object);
+uintptr_t CWIDGET_get_handle(void *_object);
 bool CWIDGET_is_visible(void *_object);
 void CWIDGET_set_visible(CWIDGET *_object, bool v);
 

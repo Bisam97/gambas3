@@ -41,7 +41,7 @@ typedef
 		GtkWidget *(*CreatePlug)(long wid);
 		
 		struct {
-			long (*GetId)(GdkWindow *);
+			uintptr_t (*GetId)(GdkWindow *);
 		} Window;
 		
 		struct {

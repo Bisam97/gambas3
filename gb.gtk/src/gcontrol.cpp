@@ -1146,7 +1146,7 @@ gMainWindow* gControl::topLevel() const
 	return (gMainWindow *)child;
 }
 
-long gControl::handle()
+uintptr_t gControl::handle()
 {
 #ifdef GTK3
 	gtk_widget_realize(border);
