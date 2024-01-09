@@ -35,7 +35,8 @@ Private Sub MakeMediaPlayer()
   If Desktop.Platform = "wayland" Then
     $hImage = New MediaControl($hPlayer, "waylandsink")  
   Else
-    $hImage = New MediaControl($hPlayer, "ximagesink")  
+    $hImage = New MediaControl($hPlayer, "xvimagesink")  
+    $hImage["force-aspect-ratio"] = True
   Endif
   $hPlayer.Video.Output = $hImage
   
@@ -180,24 +181,6 @@ Catch
   dwgVideo.Refresh
   
 End
-
-' Public Sub dwgVideo_Arrange()
-' 
-'   Dim W, H As Integer
-' 
-'   H = Desktop.Scale * 8
-'   W = H * 2
-' 
-'   'lblTime.Move(dwgVideo.W - W, dwgVideo.H - H, W, H)
-' 
-'   If $hPause1 Then 
-'     $hPause1.Move(dwgVideo.W \ 2 - 32, dwgVideo.H \ 2 - 32, 24, 64)
-'     $hPause2.Move(dwgVideo.W \ 2 + 8, dwgVideo.H \ 2 - 32, 24, 64)
-'     $hPause1.Raise
-'     $hPause2.Raise
-'   Endif
-' 
-' End
 
 Public Sub GetShowControl() As Boolean
   
