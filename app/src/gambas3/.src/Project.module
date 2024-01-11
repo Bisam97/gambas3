@@ -2493,7 +2493,7 @@ Public Sub MakeRelativeLink(sLink As String, sPath As String) As String
     If aPath[iInd] <> aLink[iInd] Then Break
   Next
 
-  If iInd <= iMax And (aPath.Count - iInd) <= 6 Then
+  If (aPath.Count - iInd) <= 6 Then
 
     sLink = String$(aPath.Count - iInd, "../")
     While iInd < aLink.Count
@@ -6873,7 +6873,7 @@ Public Sub UpdateTheme()
 
   Dim sTheme As String
 
-  sTheme = Settings["/Theme", "gambas"]
+  sTheme = Settings["/Theme", "gambas-thin"]
   If sTheme = "*" Then sTheme = ""
   Application.Theme = sTheme
 

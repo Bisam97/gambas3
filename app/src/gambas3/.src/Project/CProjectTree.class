@@ -1240,8 +1240,10 @@ Private Sub AddLinkEmblem(hSource As Image) As Image
 
   Dim hImage As Image
   Dim iSize As Integer
+  Dim S As Float
 
   iSize = Min(hSource.H, hSource.W) \ 2
+  S = iSize * 0.15
   
   hImage = hSource.Copy()
   
@@ -1252,11 +1254,10 @@ Private Sub AddLinkEmblem(hSource As Image) As Image
   Paint.RelLineTo(-iSize, iSize)
   Paint.RelLineTo(iSize, 0)
   Paint.Background = Color.Black
-  'Paint.Background = Color.SetAlpha(Color.TextForeground, 64)
   Paint.Operator = Paint.OperatorDestOut
   Paint.Fill
   
-  iSize *= 0.85
+  iSize -= S
   
   Paint.MoveTo(hImage.W, hImage.H)
   Paint.RelLineTo(0, -iSize)
@@ -1264,6 +1265,16 @@ Private Sub AddLinkEmblem(hSource As Image) As Image
   Paint.RelLineTo(iSize, 0)
   Paint.Background = Color.SetAlpha(Color.TextForeground, 64)
   Paint.Operator = Paint.OperatorOver
+  Paint.Fill
+  
+  iSize -= S * 3
+  
+  Paint.MoveTo(hImage.W - S, hImage.H - S)
+  Paint.RelLineTo(0, -iSize)
+  Paint.RelLineTo(-iSize, iSize)
+  Paint.RelLineTo(iSize, 0)
+  Paint.Background = Color.Black
+  Paint.Operator = Paint.OperatorDestOut
   Paint.Fill
   
   Paint.End
