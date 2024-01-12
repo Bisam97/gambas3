@@ -575,6 +575,7 @@ End
 Public Sub _new()
 
   Me.Proxy = dwgVideo
+  SetBorder(True)
 
 End
 
@@ -629,7 +630,7 @@ Public Sub dwgVideo_Arrange()
   
   If Desktop.Platform = "wayland" Then
     hWindow = GetTopLevel(dwgVideo)
-    $hPlayer.SetWindow(hWindow, Me.ScreenX - hWindow.ScreenX, Me.ScreenY - hWindow.ScreenY, dwgVideo.W, dwgVideo.H)
+    $hPlayer.SetWindow(hWindow, dwgVideo.ScreenX, dwgVideo.ScreenY, dwgVideo.W, dwgVideo.H)
   Else
     $hPlayer.SetWindow(dwgVideo, 0, 0, dwgVideo.W, dwgVideo.H)
   Endif
