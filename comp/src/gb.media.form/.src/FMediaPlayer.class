@@ -19,6 +19,8 @@ Private $fStartupPos As Float
 Private $bPlaying As Boolean
 
 Private $aMessage As String[]
+Private $fPos As Float
+Private $fPosTime As Float
 
 Private Sub GetParent() As MediaView
 
@@ -32,14 +34,17 @@ Private Sub MakeMediaPlayer()
   
   $hPlayer = New MediaPlayer As "MediaPlayer"
   '$hFilter = New MediaFilter($hPlayer)
+
   If Desktop.Platform = "wayland" Then
     $hImage = New MediaControl($hPlayer, "waylandsink")  
   Else
     $hImage = New MediaControl($hPlayer, "xvimagesink")  
-    $hImage["force-aspect-ratio"] = True
+    $hImage["handle-events"] = False
   Endif
+
   $hPlayer.Video.Output = $hImage
-  
+  dwgVideo_Arrange
+
   '$hPlayer.Rate = -1
   
   ' $aVisualisation = New MediaControl[]
@@ -125,13 +130,13 @@ Public Sub btnPlay_Click()
     'timTime.Start
     dwgTime.Refresh
     sldVolume_Change
-    dwgVideo.Cached = True ' Force the drawing area to have its own window on gb.gtk(3)
-    $hImage.SetWindow(dwgVideo)
     '$hPlayer.Rate = -1
     $hPlayer.Play
     btnPlay.Picture = Picture["icon:/small/pause"]
     $bPlaying = True
     dwgVideo.Refresh
+
+    timRefresh.Start
     'HidePause
   Else
     $hPlayer.Pause
@@ -140,6 +145,7 @@ Public Sub btnPlay_Click()
     'ShowPause
     'timTime.Stop
     btnPlay.Picture = Picture["icon:/small/play"]
+    timRefresh.Stop
   Endif
   
   $aMessage = Null
@@ -172,6 +178,7 @@ Public Sub btnStop_Click()
   dwgVideo.Refresh
   dwgTime.Refresh
   btnPlay.Picture = Picture["icon:/small/play"]
+  timRefresh.Stop
   
   $aMessage = Null
 
@@ -192,7 +199,7 @@ Public Sub SetShowControl(bShow As Boolean)
   
   panControl.Visible = bShow
   dwgTime.Visible = bShow
-  panSpacer.Visible = bShow
+  'panSpacer.Visible = bShow
   
 End
 
@@ -219,32 +226,58 @@ Public Sub dwgTime_Draw()
   Dim sText As String
   Dim fPos As Float
   Dim fLength As Float
+  Dim DS As Integer
+  Dim W As Integer
+  Dim X As Integer
+  Dim WE As Float
   
   'Paint.Brush = Paint.LinearGradient(0, 0, Paint.W, 0, [Color.SetAlpha(Color.Foreground, 240), Color.Transparent], [0, 1])
   'Paint.Rectangle(0, 0, Paint.W, Paint.H)
   'Paint.Fill
   
-  If Not $hPlayer Or If $hPlayer.State = Media.Null Or If $hPlayer.State = Media.Ready Then Return
-  If dwgTime.H < 16 Then Return
+  DS = Desktop.Scale
   
-  fPos = $hPlayer.Position
+  If Not $hPlayer Or If $hPlayer.State = Media.Null Or If $hPlayer.State = Media.Ready Then Return
+  If dwgTime.H <= DS * 2 Then Return
+  
+  fPos = $fPos + Timer - $fPosTime
   fLength = $hPlayer.Duration
+  
+  W = Ceil(Paint.TextSize("00:00:00").W)
+  X = Paint.W - W
+  
+  If fLength > 0 Then
+    
+    Paint.Background = Color.SetAlpha(Color.White, 64)
+
+    sText = Format(CDate((fLength + 0.5) / 86400), "hh:nn:ss")
+    Paint.DrawText(sText, X, 0, W, dwgTime.H, Align.Left)
+    
+    WE = DS * 0.75
+    X -= DS + WE
+    Paint.Ellipse(X, (dwgTime.H - WE) / 2, WE, WE)
+    Paint.Fill
+    
+    X -= W + DS
+    
+  Endif
   
   If fPos = 0 Then
     sText = "00:00:00"
   Else
-    sText = Format(CDate((fPos + 0.5) / 86400), "hh:nn:ss") '& " / " & Format(CDate($fLength / 86400), "hh:nn:ss")
-  Endif
-  
-  
-  If fLength > 0 Then
-    sText &= " / " & Format(CDate((fLength + 0.5) / 86400), "hh:nn:ss")
+    sText = Format(CDate((fPos + 0.5) / 86400), "hh:nn:ss")
   Endif
   
   Paint.Background = Color.White
-  Paint.DrawText(sText, 0, 0, dwgTime.W, dwgTime.H, Align.Right)
-
-  If fLength > 0 Then Paint.FillRect(0, 9, dwgTime.W * Min(1, fPos / fLength), dwgTime.H - 18, Color.SetAlpha(Color.White, 128))
+  Paint.DrawText(sText, X, 0, W, dwgTime.H, Align.Left)
+  
+  If fLength > 0 Then 
+    
+    Paint.Rectangle(0, DS, dwgTime.W * Min(1, fPos / fLength), dwgTime.H - DS * 2)
+    Paint.Background = Color.SetAlpha(Color.White, 128)
+    Paint.Fill
+  
+  Endif
   
 End
 
@@ -336,9 +369,10 @@ Public Sub dwgVideo_Draw()
   Dim W As Integer
   Dim H As Integer
   
+  DS = Desktop.Scale
+  
   If $aMessage Then
     
-    DS = Desktop.Scale
     Y = DS
     Paint.Background = Color.White
     Paint.Font.Grade = 0
@@ -380,8 +414,8 @@ Public Sub dwgVideo_Draw()
     Paint.Background = Color.White
     Paint.Font.Grade = 2
     sText = Html($sName)
-    Paint.DrawRichTextShadow(sText, 0, dwgVideo.H \ 2 - Desktop.Scale * 2, dwgVideo.W, Desktop.Scale * 4, Align.Center, 3, 1)
-    Paint.DrawRichText(sText, 0, dwgVideo.H \ 2 - Desktop.Scale * 2, dwgVideo.W, Desktop.Scale * 4, Align.Center)
+    Paint.DrawRichTextShadow(sText, DS * 4, dwgVideo.H \ 2 - Desktop.Scale * 2, dwgVideo.W - DS * 8, DS * 4, Align.Center, 3, 1)
+    Paint.DrawRichText(sText, DS * 4, dwgVideo.H \ 2 - Desktop.Scale * 2, dwgVideo.W - DS * 8, DS * 4, Align.Center)
   Endif
   
 End
@@ -414,10 +448,10 @@ End
 Public Sub panBorder_BeforeArrange()
 
   If panBorder.H < Desktop.Scale * 10 Then
-    panViewer.Hide
+    panVideo.Hide
     dwgTime.Parent.Expand = True
   Else
-    panViewer.Show
+    panVideo.Show
     dwgTime.Parent.Expand = False
     dwgTime.Parent.H = Desktop.Scale * 3
   Endif
@@ -502,7 +536,8 @@ End
 
 Public Sub MediaPlayer_Position()
   
-  dwgTime.Refresh
+  $fPos = $hPlayer.Position
+  $fPosTime = Timer
   
 End
 
@@ -511,13 +546,6 @@ Public Sub MediaPlayer_Duration()
   dwgTime.Refresh
   
 End
-
-' Public Sub MediaPlayer_Event()
-'   
-'   
-'   
-' End
-
 
 Public Sub GetSpeed() As Float
   
@@ -531,18 +559,18 @@ Public Sub SetSpeed(fSpeed As Float)
   
 End
 
-Public Sub panBorder_Arrange()
-
-  timResize.Restart
-
-End
-
-Public Sub timResize_Timer()
-  
-  If $hPlayer And If $hPlayer.State <> Media.Playing Then $hPlayer.Pos = $hPlayer.Pos
-  timResize.Stop
-  
-End
+' Public Sub panBorder_Arrange()
+' 
+'   timResize.Restart
+' 
+' End
+' 
+' Public Sub timResize_Timer()
+'   
+'   If $hPlayer And If $hPlayer.State <> Media.Playing Then $hPlayer.Pos = $hPlayer.Pos
+'   timResize.Stop
+'   
+' End
 
 Public Sub _new()
 
@@ -580,3 +608,37 @@ Private Function State_Read() As Integer
   If $hPlayer Then Return $hPlayer.State
 
 End
+
+Private Sub GetTopLevel(hCtrl As Control) As Window
+
+  Dim hWindow As Window
+
+  Do
+    hWindow = hCtrl.Window
+    If hWindow.TopLevel Then Return hWindow
+    hCtrl = hWindow.Parent
+  Loop
+
+End
+
+Public Sub dwgVideo_Arrange()
+
+  Dim hWindow As Window
+  
+  If Not $hPlayer Then Return
+  
+  If Desktop.Platform = "wayland" Then
+    hWindow = GetTopLevel(dwgVideo)
+    $hPlayer.SetWindow(hWindow, Me.ScreenX - hWindow.ScreenX, Me.ScreenY - hWindow.ScreenY, dwgVideo.W, dwgVideo.H)
+  Else
+    $hPlayer.SetWindow(dwgVideo, 0, 0, dwgVideo.W, dwgVideo.H)
+  Endif
+
+End
+
+Public Sub timRefresh_Timer()
+
+  dwgTime.Refresh
+
+End
+
