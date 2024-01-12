@@ -1056,7 +1056,11 @@ void gApplication::init(int *argc, char ***argv)
 	appid = GB.ToZeroString((GB_STRING *)GB.Call(&func, 0, FALSE));
 
 	//fprintf(stderr, "appid = %s\n", appid);
+#if GLIB_CHECK_VERSION(2, 74, 0)
 	_app = gtk_application_new(NULL,  G_APPLICATION_DEFAULT_FLAGS);
+#else
+	_app = gtk_application_new(NULL,  G_APPLICATION_FLAGS_NONE);
+#endif
 	g_set_prgname(appid); // wayland window uses that as window class instead of the appid defined by the application!
 
 	g_object_set(G_OBJECT(_app), "register-session", TRUE, NULL);
