@@ -908,8 +908,6 @@ gApplication
 
 **************************************************************************/
 
-int appEvents;
-
 bool gApplication::_init = false;
 bool gApplication::_busy = false;
 char *gApplication::_title = NULL;
@@ -1049,15 +1047,26 @@ void gApplication::init(int *argc, char ***argv)
 {
 	GtkSettings *settings;
 	
-	appEvents = 0;
-
 	#ifdef GTK3
-	_app = gtk_application_new(NULL, G_APPLICATION_FLAGS_NONE);
+
+	char *appid;
+	GB_FUNCTION func;
+
+	GB.GetFunction(&func, (void *)GB.FindClass("_Gui"), "_InitApp", NULL, "s");
+	appid = GB.ToZeroString((GB_STRING *)GB.Call(&func, 0, FALSE));
+
+	//fprintf(stderr, "appid = %s\n", appid);
+	_app = gtk_application_new(NULL,  G_APPLICATION_DEFAULT_FLAGS);
+	g_set_prgname(appid); // wayland window uses that as window class instead of the appid defined by the application!
+
 	g_object_set(G_OBJECT(_app), "register-session", TRUE, NULL);
+
 	#else
+
 	session_manager_init(argc, argv);
 	g_signal_connect(gnome_master_client(), "save-yourself", G_CALLBACK(master_client_save_yourself), NULL);
 	g_signal_connect(gnome_master_client(), "die", G_CALLBACK(master_client_die), NULL);
+
 	#endif
 
 	getStyleName();
@@ -1139,7 +1148,6 @@ void gApplication::setBusy(bool b)
 	_busy = b;
 
 	forEachControl(cb_update_busy);
-	
 	gdk_display_flush(gdk_display_get_default());
 }
 

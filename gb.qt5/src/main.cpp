@@ -923,8 +923,18 @@ static void QT_Init(void)
 	QX11Info::setAppDpiY(0, 92);*/
 
 	/*fcntl(ConnectionNumber(qt_xdisplay()), F_SETFD, FD_CLOEXEC);*/
+
 	#if QT_VERSION >= QT_VERSION_CHECK(5, 7, 0)
-	qApp->setDesktopFileName(TO_QSTRING(GB.Application.Name()));
+
+	char *appid;
+	GB_FUNCTION func;
+
+	GB.GetFunction(&func, (void *)GB.FindClass("_Gui"), "_InitApp", NULL, "s");
+	appid = GB.ToZeroString((GB_STRING *)GB.Call(&func, 0, FALSE));
+
+	//fprintf(stderr, "appid = %s\n", appid);
+	qApp->setDesktopFileName(TO_QSTRING(appid));
+
 	#endif
 	
 	fix_style = false;

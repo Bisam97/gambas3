@@ -105,52 +105,43 @@ End
 '   
 ' End
 
-' Static Public Sub _InitApp() As String
-'   
-'   Dim hFile As File
-'   Dim sAppId As String
-'   Dim sName As String
-'   Dim I As Integer
-'   Dim sCar As String
-'   Dim sDir As String
-'   Dim sIconPath As String
-'   
-'   sName = Application.Name
-'   For I = 1 To Len(sName)
-'     sCar = Mid$(sName, I, 1)
-'     If Not IsAlnum(sCar) And If sCar <> "_" Then sCar = "_"
-'     sAppId &= sCar
-'   Next
-'   
-'   sAppId = "org.gambas." & sAppId
-'   
-'   sDir = "~/.local/"
-'   
-'   Try Mkdir sDir &/ "share/"
-'   Try Mkdir sDir &/ "share/applications/"
-'   
-'   $sDesktopFilePath = sDir &/ "share/applications/" & sAppId & ".desktop"
-'   
-'   hFile = Open $sDesktopFilePath For Create 
-'   
-'   Print #hFile, "[Desktop Entry]"
-'   Print #hFile, "Type=Application"
-'   Print #hFile, "Name="; Application.Title
-'   
-'   sIconPath = Application.TempDir &/ ".app.png"
-'   Print #hFile, "Icon="; sIconPath
-'   
-'   hFile.Close
-'   
-'   If Exist("../.app.png") Then
-'     Copy "../.app.png" To sIconPath
-'   Else
-'     Copy "gambas.png" To sIconPath
-'   Endif
-'   
-'   Return sAppId
-'   
-' End
+Static Public Sub _InitApp() As String
+  
+  Dim hFile As File
+  Dim sAppId As String
+  Dim sDir As String
+  Dim sIconPath As String
+  
+  sAppId = "org.gambas." & CStr(Application.Handle)
+  
+  sDir = User.Home &/ ".local"
+  
+  Try Mkdir sDir &/ "share"
+  Try Mkdir sDir &/ "share/applications"
+  Try Mkdir sDir &/ "share/applications/gambas"
+  
+  $sDesktopFilePath = sDir &/ "share/applications/gambas" &/ sAppId & ".desktop"
+  
+  hFile = Open $sDesktopFilePath For Create 
+  
+  Print #hFile, "[Desktop Entry]"
+  Print #hFile, "Type=Application"
+  Print #hFile, "Name="; Application.Name
+  
+  sIconPath = Application.TempDir &/ ".app.png"
+  Print #hFile, "Icon="; sIconPath
+  
+  hFile.Close
+  
+  If Exist("../.app.png") Then
+    Copy "../.app.png" To sIconPath
+  Else
+    Copy "gambas.png" To sIconPath
+  Endif
+  
+  Return "gambas/" & sAppId
+  
+End
 
 Static Public Sub _InitMenuBarShortcut(hWindow As Window)
 
