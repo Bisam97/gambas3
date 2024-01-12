@@ -105,6 +105,23 @@ End
 '   
 ' End
 
+Static Private Sub MakeDir(Path As String)
+
+  Dim sElt As String
+  Dim sMake As String = "/"
+
+  If Path Begins "~/" Then Path = User.Home &/ Mid$(Path, 3)
+
+  For Each sElt In Split(Path, "/")
+    sMake &/= sElt
+    If IsDir(sMake) Then Continue
+    Try Mkdir sMake
+  Next
+  
+  If Not Exist(Path) Or If Not IsDir(Path) Then Error.Raise("Cannot create directory")
+
+End
+
 Static Public Sub _InitApp() As String
   
   Dim hFile As File
@@ -121,9 +138,7 @@ Static Public Sub _InitApp() As String
   
   If Not sDir Then sDir = User.Home &/ ".local/share"
   
-  Try Mkdir sDir
-  Try Mkdir sDir &/ "applications"
-  Try Mkdir sDir &/ "applications/gambas"
+  MakeDir(sDir &/ "applications/gambas")
   
   $sDesktopFilePath = sDir &/ "applications/gambas" &/ sAppId & ".desktop"
   
