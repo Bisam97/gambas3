@@ -17,6 +17,8 @@ Static Private $hPopupCtrl As Control
 Static Private $iPopupPos As Integer
 Static Private $iPopupAlign As Integer
 
+Static Private $sDesktopFilePath As String
+
 ' Not use anymore?
 Static Public Sub _FindShortcut(sText As String) As Integer
 
@@ -89,6 +91,7 @@ End
 Static Public Sub _Quit()
 
   Drag.Icon = Null
+  Try Kill $sDesktopFilePath
   
 End
 
@@ -99,6 +102,53 @@ End
 '   iPos = FindShortcut(sText)
 '   If iPos Then sText = String.Left(sText, iPos - 1) & String.Mid(sText, iPos + 1)
 '   Return sText
+'   
+' End
+
+' Static Public Sub _InitApp() As String
+'   
+'   Dim hFile As File
+'   Dim sAppId As String
+'   Dim sName As String
+'   Dim I As Integer
+'   Dim sCar As String
+'   Dim sDir As String
+'   Dim sIconPath As String
+'   
+'   sName = Application.Name
+'   For I = 1 To Len(sName)
+'     sCar = Mid$(sName, I, 1)
+'     If Not IsAlnum(sCar) And If sCar <> "_" Then sCar = "_"
+'     sAppId &= sCar
+'   Next
+'   
+'   sAppId = "org.gambas." & sAppId
+'   
+'   sDir = "~/.local/"
+'   
+'   Try Mkdir sDir &/ "share/"
+'   Try Mkdir sDir &/ "share/applications/"
+'   
+'   $sDesktopFilePath = sDir &/ "share/applications/" & sAppId & ".desktop"
+'   
+'   hFile = Open $sDesktopFilePath For Create 
+'   
+'   Print #hFile, "[Desktop Entry]"
+'   Print #hFile, "Type=Application"
+'   Print #hFile, "Name="; Application.Title
+'   
+'   sIconPath = Application.TempDir &/ ".app.png"
+'   Print #hFile, "Icon="; sIconPath
+'   
+'   hFile.Close
+'   
+'   If Exist("../.app.png") Then
+'     Copy "../.app.png" To sIconPath
+'   Else
+'     Copy "gambas.png" To sIconPath
+'   Endif
+'   
+'   Return sAppId
 '   
 ' End
 
