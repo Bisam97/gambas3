@@ -92,18 +92,10 @@
 #include "ctrayicon.h"
 
 #include <QX11Info>
-#ifndef QT5
 #include "CEmbedder.h"
-#endif
 
 #include "desktop.h"
 #include "x11.h"
-
-#ifdef QT5
-#include <xcb/xcb.h>
-#include <xcb/xproto.h>
-#include <QAbstractNativeEventFilter>
-#endif
 
 #include "fix_style.h"
 #include "main.h"
@@ -166,24 +158,6 @@ static int _utf8_count = 0;
 static int _utf8_length = 0;
 
 static void QT_Init(void);
-
-#ifdef QT5
-
-static QtMessageHandler _previousMessageHandler;
-
-static void myMessageHandler(QtMsgType type, const QMessageLogContext &context, const QString &msg )
-{
-	//fprintf(stderr, "---- `%s'\n", QT_ToUtf8(msg));
-	
-	if (msg == "QXcbClipboard: SelectionRequest too old")
-		return;
-	
-	if (msg.startsWith("QXcbConnection: ") && msg.contains("(TranslateCoords)"))
-		return;
-
-	_previousMessageHandler(type, context, msg);
-}
-#endif
 
 //static MyApplication *myApp;
 
@@ -578,184 +552,6 @@ static void x11_set_event_filter(int (*filter)(XEvent *))
 	_x11_event_filter = filter;
 }
 
-#ifdef QT5
-
-class MyNativeEventFilter: public QAbstractNativeEventFilter
-{
-public:
-
-	static MyNativeEventFilter manager;
-
-	virtual bool nativeEventFilter(const QByteArray &eventType, void *message, long *)
-	{
-		xcb_generic_event_t *ev = static_cast<xcb_generic_event_t *>(message);
-		int type = ev->response_type & ~0x80;
-
-		switch(type)
-		{
-			case XCB_KEY_PRESS:
-			case XCB_KEY_RELEASE:
-				MAIN_x11_last_key_code = ((xcb_key_press_event_t *)ev)->detail;
-				break;
-		}
-
-		if (_x11_event_filter)
-		{
-			XEvent xev;
-
-			CLEAR(&xev);
-			xev.xany.type = type;
-			xev.xany.display = QX11Info::display();
-			xev.xany.send_event = ev->response_type & 0x80 ? 1 : 0;
-
-			switch (type)
-			{
-				//case XCB_KEY_PRESS:
-				//case XCB_KEY_RELEASE:
-				case XCB_EXPOSE:
-				{
-					xcb_expose_event_t *e = (xcb_expose_event_t *)ev;
-					xev.xexpose.window = e->window;
-					xev.xexpose.x = e->x;
-					xev.xexpose.y = e->y;
-					xev.xexpose.width = e->width;
-					xev.xexpose.height = e->height;
-					xev.xexpose.count = e->count;
-					break;
-				}
-
-				case XCB_VISIBILITY_NOTIFY:
-				{
-					xcb_visibility_notify_event_t *e = (xcb_visibility_notify_event_t *)ev;
-					xev.xvisibility.window = e->window;
-					xev.xvisibility.state = e->state;
-					break;
-				}
-
-				case XCB_DESTROY_NOTIFY:
-				{
-					xcb_destroy_notify_event_t *e = (xcb_destroy_notify_event_t *)ev;
-					xev.xdestroywindow.event = e->event;
-					xev.xdestroywindow.window = e->window;
-					break;
-				}
-
-				case XCB_MAP_NOTIFY:
-				{
-					xcb_map_notify_event_t *e = (xcb_map_notify_event_t *)ev;
-					xev.xmap.event = e->event;
-					xev.xmap.window = e->window;
-					xev.xmap.override_redirect = e->override_redirect;
-					break;
-				}
-
-				case XCB_UNMAP_NOTIFY:
-				{
-					xcb_unmap_notify_event_t *e = (xcb_unmap_notify_event_t *)ev;
-					xev.xunmap.event = e->event;
-					xev.xunmap.window = e->window;
-					xev.xunmap.from_configure = e->from_configure;
-					break;
-				}
-
-				case XCB_REPARENT_NOTIFY:
-				{
-					xcb_reparent_notify_event_t *e = (xcb_reparent_notify_event_t *)ev;
-					xev.xreparent.event = e->event;
-					xev.xreparent.window = e->window;
-					xev.xreparent.parent = e->parent;
-					xev.xreparent.x = e->x;
-					xev.xreparent.y = e->y;
-					xev.xreparent.override_redirect = e->override_redirect;
-					break;
-				}
-
-				case XCB_CONFIGURE_NOTIFY:
-				{
-					xcb_configure_notify_event_t *e = (xcb_configure_notify_event_t *)ev;
-					xev.xconfigure.event = e->event;
-					xev.xconfigure.window = e->window;
-					xev.xconfigure.x = e->x;
-					xev.xconfigure.y = e->y;
-					xev.xconfigure.width = e->width;
-					xev.xconfigure.height = e->height;
-					xev.xconfigure.border_width = e->border_width;
-					xev.xconfigure.override_redirect = e->override_redirect;
-					break;
-				}
-				
-				case XCB_PROPERTY_NOTIFY:
-				{
-					xcb_property_notify_event_t *e = (xcb_property_notify_event_t *)ev;
-					xev.xproperty.window = e->window;
-					xev.xproperty.atom = e->atom;
-					xev.xproperty.time = e->time;
-					xev.xproperty.state = e->state;
-					break;
-				}
-
-				case XCB_SELECTION_CLEAR:
-				{
-					xcb_selection_clear_event_t *e = (xcb_selection_clear_event_t *)ev;
-					xev.xselectionclear.window = e->owner;
-					xev.xselectionclear.selection = e->selection;
-					xev.xselectionclear.time = e->time;
-					break;
-				}
-
-				case XCB_SELECTION_REQUEST:
-				{
-					xcb_selection_request_event_t *e = (xcb_selection_request_event_t *)ev;
-					xev.xselectionrequest.owner = e->owner;
-					xev.xselectionrequest.requestor = e->requestor;
-					xev.xselectionrequest.selection = e->selection;
-					xev.xselectionrequest.target = e->target;
-					xev.xselectionrequest.property = e->property;
-					xev.xselectionrequest.time = e->time;
-					break;
-				}
-
-				case XCB_SELECTION_NOTIFY:
-				{
-					xcb_selection_notify_event_t *e = (xcb_selection_notify_event_t *)ev;
-					xev.xselection.requestor = e->requestor;
-					xev.xselection.selection = e->selection;
-					xev.xselection.target = e->target;
-					xev.xselection.property = e->property;
-					xev.xselection.time = e->time;
-					break;
-				}
-
-				case XCB_CLIENT_MESSAGE:
-				{
-					xcb_client_message_event_t *e = (xcb_client_message_event_t *)ev;
-					xev.xclient.window = e->window;
-					xev.xclient.message_type = e->type;
-					xev.xclient.format = e->format;
-					xev.xclient.data.l[0] = e->data.data32[0];
-					xev.xclient.data.l[1] = e->data.data32[1];
-					xev.xclient.data.l[2] = e->data.data32[2];
-					xev.xclient.data.l[3] = e->data.data32[3];
-					xev.xclient.data.l[4] = e->data.data32[4];
-					break;
-				}
-
-				default:
-					qDebug("gb.qt5: warning: unhandled xcb event: %d", type);
-					return false;
-			}
-
-			return (*_x11_event_filter)(&xev) != 0;
-		}
-
-		return false;
-	}
-};
-
-MyNativeEventFilter MyNativeEventFilter::manager;
-
-#else
-
 bool MyApplication::x11EventFilter(XEvent *e)
 {
 	// Workaround for input methods that void the key code of KeyRelease eventFilter
@@ -769,8 +565,6 @@ bool MyApplication::x11EventFilter(XEvent *e)
 
 	return false;
 }
-
-#endif
 
 //---------------------------------------------------------------------------
 
@@ -860,9 +654,7 @@ static void check_quit_now(intptr_t param)
 					GB.Call(&func, 0, FALSE);
 			}
 
-#ifndef QT5
 			qApp->syncX();
-#endif
 			qApp->exit();
 			exit_called = true;
 		}
@@ -896,15 +688,6 @@ static bool try_to_load_translation(QString &locale)
 {
 	// QLocale::system().name()
 	return _translator->load("qt_" + locale, QLibraryInfo::location(QLibraryInfo::TranslationsPath));
-/*#ifdef QT5
-	return (!_translator->load(QString("qt_") + locale, QString(getenv("QTDIR")) + "/translations")
-		  && !_translator->load(QString("qt_") + locale, QString("/usr/lib/qt5/translations"))
-		  && !_translator->load(QString("qt_") + locale, QString("/usr/share/qt5/translations")));
-#else
-	return (!_translator->load(QString("qt_") + locale, QString(getenv("QTDIR")) + "/translations")
-		  && !_translator->load(QString("qt_") + locale, QString("/usr/lib/qt4/translations"))
-		  && !_translator->load(QString("qt_") + locale, QString("/usr/share/qt4/translations")));
-#endif*/
 }
 
 static void init_lang(char *lang, bool rtl)
@@ -1153,10 +936,6 @@ static void QT_Init(void)
 
 	X11_init(QX11Info::display(), QX11Info::appRootWindow());
 
-#ifdef QT5
-	_previousMessageHandler = qInstallMessageHandler(myMessageHandler);
-#endif
-	
 	/*QX11Info::setAppDpiX(0, 92);
 	QX11Info::setAppDpiY(0, 92);*/
 
@@ -1191,9 +970,6 @@ static void QT_Init(void)
 	MAIN_update_scale(qApp->desktop()->font());
 
 	qApp->installEventFilter(&CWidget::manager);
-#ifdef QT5
-	qApp->installNativeEventFilter(&MyNativeEventFilter::manager);
-#endif
 
 	MyApplication::setEventFilter(true);
 
@@ -1375,20 +1151,14 @@ GB_DESC *GB_CLASSES[] EXPORT =
 	SliderDesc, ScrollBarDesc,
 	CWindowMenusDesc, CWindowControlsDesc, CWindowDesc, CWindowsDesc, CFormDesc,
 	CDialogDesc,
-#ifndef QT5
 	CEmbedderDesc,
-#endif
 	CWatcherDesc,
 	PrinterDesc,
 	SvgImageDesc,
 	NULL
 };
 
-#ifdef QT5
-void *GB_QT5_1[] EXPORT =
-#else
 void *GB_QT4_1[] EXPORT =
-#endif
 {
 	(void *)1,
 
@@ -1572,9 +1342,7 @@ void EXPORT GB_SIGNAL(int signal, void *param)
 		case GB_SIGNAL_DEBUG_FORWARD:
 			//while (qApp->activePopupWidget())
 			//	delete qApp->activePopupWidget();
-#ifndef QT5
 			qApp->syncX();
-#endif
 			break;
 
 		case GB_SIGNAL_DEBUG_CONTINUE:
