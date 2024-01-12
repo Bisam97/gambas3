@@ -44,6 +44,53 @@ static void *_from_element = NULL;
 
 static int cb_message(CMEDIAPIPELINE *_object);
 
+#define GST_WL_DISPLAY_HANDLE_CONTEXT_TYPE "GstWlDisplayHandleContextType"
+static GstContext *gst_wayland_display_handle_context_new (uintptr_t display)
+{
+	GstContext *context = gst_context_new (GST_WL_DISPLAY_HANDLE_CONTEXT_TYPE, TRUE);
+	gst_structure_set (gst_context_writable_structure (context), "handle", G_TYPE_POINTER, (void *)display, NULL);
+	return context;
+}
+
+static void set_wayland_context(GstElement *elt)
+{
+	static GstContext *context = NULL;
+	if (!context)
+	{
+		uintptr_t display = MAIN_get_display();
+		//fprintf(stderr, "display = %p\n", (void *)display);
+		context = gst_wayland_display_handle_context_new(display);
+		gst_context_ref(context);
+	}
+
+	gst_element_set_context(elt, context);
+}
+
+bool set_overlay(CMEDIACONTROL *control)
+{
+	GstVideoOverlay *overlay;
+
+	if (!control || !control->overlay)
+		return TRUE;
+
+	if (!GST_IS_VIDEO_OVERLAY(control->elt))
+		return TRUE;
+
+	overlay = GST_VIDEO_OVERLAY(control->elt);
+
+	//fprintf(stderr, "set overlay window '%s' -> %p\n", gst_element_get_name(overlay), (void *)control->overlay->surface);
+
+	gst_video_overlay_set_window_handle(overlay, control->overlay->surface);
+	if (control->overlay->w > 0 && control->overlay->h > 0)
+		gst_video_overlay_set_render_rectangle(overlay, control->overlay->x, control->overlay->y, control->overlay->w, control->overlay->h);
+	else
+		gst_video_overlay_set_render_rectangle(overlay, 0, 0, -1, -1);
+
+	gst_video_overlay_expose(overlay);
+
+	return FALSE;
+}
+
 void MEDIA_raise_event(void *_object, int event)
 {
 	gst_element_post_message(ELEMENT, gst_message_new_application(GST_OBJECT(ELEMENT), gst_structure_new("SendEvent", "event", G_TYPE_INT, event, NULL)));
@@ -1206,6 +1253,9 @@ BEGIN_METHOD_VOID(MediaControl_free)
 
 	//fprintf(stderr, "MediaControl_free: %p\n", THIS);
 
+	if (THIS->overlay)
+		GB.Free(POINTER(&THIS->overlay));
+
 	GB.FreeArray(POINTER(&THIS->dest));
 	GB.StoreVariant(NULL, &THIS->tag);
 	
@@ -1219,6 +1269,12 @@ BEGIN_METHOD_VOID(MediaControl_free)
 	}
 	
 END_METHOD
+
+BEGIN_PROPERTY(MediaControl_Handle)
+
+	GB.ReturnPointer(ELEMENT);
+
+END_PROPERTY
 
 BEGIN_PROPERTY(MediaControl_Tag)
 
@@ -1473,7 +1529,6 @@ BEGIN_METHOD(MediaControl_SetWindow, GB_OBJECT control; GB_INTEGER x; GB_INTEGER
 
 	void *control = VARG(control);
 	uintptr_t wid;
-	int x, y, w, h;
 	
 	if (!GST_IS_VIDEO_OVERLAY(ELEMENT))
 	{
@@ -1483,7 +1538,7 @@ BEGIN_METHOD(MediaControl_SetWindow, GB_OBJECT control; GB_INTEGER x; GB_INTEGER
 	
 	if (control && GB.CheckObject(control))
 		return;
-	
+
 	if (control)
 	{
 		wid = MAIN_get_window_handle(control);
@@ -1492,20 +1547,24 @@ BEGIN_METHOD(MediaControl_SetWindow, GB_OBJECT control; GB_INTEGER x; GB_INTEGER
 	}
 	else
 		wid = 0;
-	
-	gst_video_overlay_set_window_handle(GST_VIDEO_OVERLAY(ELEMENT), (guintptr)wid);
-	
-	if (wid && !MISSING(x) && !MISSING(y) && !MISSING(w) && !MISSING(h))
+
+	if (wid == 0)
 	{
-		x = VARG(x);
-		y = VARG(y);
-		w = VARG(w);
-		h = VARG(h);
-		
-		if (w > 0 && h > 0)
-			gst_video_overlay_set_render_rectangle(GST_VIDEO_OVERLAY(ELEMENT), x, y, w, h);
+		if (THIS->overlay)
+			GB.Free(POINTER(&THIS->overlay));
 	}
-	gst_video_overlay_expose(GST_VIDEO_OVERLAY(ELEMENT));
+	else
+	{
+		if (!THIS->overlay)
+			GB.Alloc(POINTER(&THIS->overlay), sizeof(*THIS->overlay));
+		THIS->overlay->surface = wid;
+		THIS->overlay->x = VARGOPT(x, 0);
+		THIS->overlay->y = VARGOPT(y, 0);
+		THIS->overlay->w = VARGOPT(w, 0);
+		THIS->overlay->h = VARGOPT(h, 0);
+	}
+
+	set_overlay(THIS);
 
 END_PROPERTY
 
@@ -1720,6 +1779,42 @@ DECLARE_EVENT(EVENT_Position);
 DECLARE_EVENT(EVENT_Progress);
 DECLARE_EVENT(EVENT_AboutToFinish);
 
+static GstBusSyncReply bus_sync_handler(GstBus *bus, GstMessage *message, gpointer user_data)
+{
+	GstVideoOverlay *overlay;
+	GstElement *elt;
+	CMEDIACONTROL *control;
+
+	if (gst_is_video_overlay_prepare_window_handle_message(message))
+	{
+		// GST_MESSAGE_SRC (message) will be the video sink element
+		overlay = GST_VIDEO_OVERLAY(GST_MESSAGE_SRC(message));
+		elt = GST_ELEMENT(overlay);
+
+		while (elt)
+		{
+			//fprintf(stderr, "check '%s'\n", gst_element_get_name(elt));
+			control = MEDIA_get_control_from_element(elt, FALSE);
+
+			if (!set_overlay(control))
+			{
+				gst_message_unref(message);
+				return GST_BUS_DROP;
+			}
+
+			elt = GST_ELEMENT(gst_element_get_parent(elt));
+		}
+	}
+	else if (GST_MESSAGE_TYPE(message) == GST_MESSAGE_NEED_CONTEXT)
+	{
+		elt = GST_ELEMENT(GST_MESSAGE_SRC(message));
+		if (!strcmp(get_element_type(elt), "waylandsink"))
+			set_wayland_context(elt);
+	}
+
+	return GST_BUS_PASS;
+}
+
 static int cb_message(CMEDIAPIPELINE *_object)
 {
 	GstMessage *msg;
@@ -1917,6 +2012,8 @@ void MEDIA_stop_pipeline(CMEDIACONTROL *_object)
 
 BEGIN_METHOD(MediaPipeline_new, GB_INTEGER polling)
 	
+	GstBus *bus;
+
 	if (!_from_element)
 	{
 		int polling = VARGOPT(polling, 250);
@@ -1934,6 +2031,12 @@ BEGIN_METHOD(MediaPipeline_new, GB_INTEGER polling)
 	
 	THIS_PIPELINE->rate = THIS_PIPELINE->next_rate = 1.0;
 	THIS_PIPELINE->duration = -1;
+
+	// set up sync handler for setting the overlay surface once the pipeline is started
+
+	bus = gst_pipeline_get_bus(PIPELINE);
+	gst_bus_set_sync_handler(bus, (GstBusSyncHandler)bus_sync_handler, NULL, NULL);
+	gst_object_unref(bus);
 
 END_METHOD
 
@@ -2180,6 +2283,7 @@ GB_DESC MediaControlDesc[] =
 	GB_PROPERTY_READ("Parent", "MediaContainer", MediaControl_Parent),
 	GB_PROPERTY("State", "i", MediaControl_State),
 	GB_PROPERTY("Tag", "v", MediaControl_Tag),
+	GB_PROPERTY_READ("Handle", "p", MediaControl_Handle),
 			
 	GB_METHOD("_put", NULL, MediaControl_put, "(Value)v(Property)s"),
 	GB_METHOD("_get", "v", MediaControl_get, "(Property)s"),

@@ -42,5 +42,6 @@ extern IMAGE_INTERFACE IMAGE;
 #endif
 
 uintptr_t MAIN_get_window_handle(void *control);
+uintptr_t MAIN_get_display();
 
 #endif /* __MAIN_H */

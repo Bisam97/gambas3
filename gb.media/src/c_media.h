@@ -66,9 +66,17 @@ typedef
 
 typedef
 	struct {
+		uintptr_t surface;
+		int x, y, w, h;
+	}
+	CMEDIAOVERLAY;
+
+typedef
+	struct {
 		GB_BASE ob;
 		GstElement *elt;
 		void **dest;
+		CMEDIAOVERLAY *overlay;
 		GB_VARIANT_VALUE tag;
 		unsigned state : 3;
 		unsigned error : 1;
