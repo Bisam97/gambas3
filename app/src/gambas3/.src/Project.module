@@ -906,6 +906,7 @@ _INIT_AGAIN:
   Endif
   
   MakeDirectoryIcon
+  MakeProjectIcon
   RecentFiles = New String[]
   CPosition.Clear
 
@@ -5502,6 +5503,23 @@ Public Sub MakeDirectoryIcon(Optional sDir As String) As Boolean
 Catch
 
   Error "gambas3: warning: unable to create project directory icon: "; Error.Text
+  Return True
+
+End
+
+Public Sub MakeProjectIcon() As Boolean
+
+  Dim sPath As String
+  Dim bExist As Boolean
+
+  sPath = Project.Dir &/ ".app.png"
+  bExist = Exist(sPath)
+  GetIcon(Project.Dir).Save(sPath)
+  If Not bExist Then VersionControl.AddFile(sPath)
+
+Catch
+
+  Error "gambas3: warning: unable to create project application icon: "; Error.Text
   Return True
 
 End
