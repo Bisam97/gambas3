@@ -66,7 +66,10 @@
 #include <QSet>
 #include <QScrollBar>
 #include <QLineEdit>
+
+#ifdef QT5
 #include <QWindow>
+#endif
 
 #ifndef NO_X_WINDOW
 static QMap<int, int> _x11_to_qt_keycode;
