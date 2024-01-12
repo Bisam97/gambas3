@@ -555,6 +555,8 @@ Public Sub Process_Kill()
   Dim bTest As Boolean
 
   Try Shell.RmDir(File.Dir(Application.TempDir) &/ CStr(ProcessId))
+  Try Kill User.Home &/ ".local/share/applications/gambas/org.gambas." & CStr(ProcessId) & ".desktop"
+  Try Rmdir User.Home &/ ".local/share/applications/gambas"
 
   If $bRemote And If DEBUG_REMOTE Then Debug
 
