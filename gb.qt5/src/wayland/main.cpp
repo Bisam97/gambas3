@@ -29,6 +29,7 @@
 #include <QPointer>
 #include <QWindow>
 #include <QApplication>
+#include "qplatformnativeinterface.h"
 
 static QPointer<QWidget> _mouseGrabber = 0;
 static QPointer<QWidget> _keyboardGrabber = 0;
@@ -110,6 +111,15 @@ static void desktop_screenshot(QPixmap *pixmap, int x, int y, int w, int h)
 }
 
 //-------------------------------------------------------------------------
+
+static uintptr_t window_get_id(QWidget *widget)
+{
+	widget->winId();
+	QPlatformNativeInterface *native = QGuiApplication::platformNativeInterface();
+  struct wl_surface *surface = static_cast<struct wl_surface *>(native->nativeResourceForWindow("surface", widget->windowHandle()));
+	//fprintf(stderr, "surface = %p\n", surface);
+	return (uintptr_t)surface;
+}
 
 static int window_get_virtual_desktop(QWidget *window)
 {
@@ -197,6 +207,7 @@ void *GB_QT5_WAYLAND_1[] EXPORT = {
   (void *)desktop_get_resolution_y,
   (void *)desktop_screenshot,
   
+  (void *)window_get_id,
   (void *)window_get_virtual_desktop,
   (void *)window_set_virtual_desktop,
   (void *)window_remap,
@@ -227,6 +238,13 @@ int EXPORT GB_INFO(const char *key, void **value)
 		return TRUE;
 	}
 	else*/
+	if (!strcasecmp(key, "DISPLAY"))
+	{
+		QPlatformNativeInterface *native = QGuiApplication::platformNativeInterface();
+		*value = (void *)(native->nativeResourceForWindow("display", NULL));
+		return TRUE;
+	}
+	else
 		return FALSE;
 }
 

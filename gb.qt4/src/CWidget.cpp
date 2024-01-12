@@ -262,7 +262,11 @@ void *CWIDGET_get_parent_container(void *_object)
 
 uintptr_t CWIDGET_get_handle(void *_object)
 {
+#ifdef QT5
+	return PLATFORM.Window.GetId(WIDGET);
+#else
 	return (uintptr_t)WIDGET->winId();
+#endif
 }
 
 bool CWIDGET_is_visible(void *_object)
@@ -1683,7 +1687,7 @@ END_PROPERTY
 
 BEGIN_PROPERTY(Control_Id)
 
-	GB.ReturnInteger((int)WIDGET->winId());
+	GB.ReturnLong(CWIDGET_get_handle(THIS));
 
 END_PROPERTY
 
@@ -3484,8 +3488,8 @@ GB_DESC CControlDesc[] =
 	GB_PROPERTY_READ("Parent", "Container", Control_Parent),
 	GB_PROPERTY_READ("_Parent", "Container", Control__Parent),
 	GB_PROPERTY_READ("Window", "Window", Control_Window),
-	GB_PROPERTY_READ("Id", "i", Control_Id),
-	GB_PROPERTY_READ("Handle", "i", Control_Id),
+	GB_PROPERTY_READ("Id", "l", Control_Id),
+	GB_PROPERTY_READ("Handle", "l", Control_Id),
 
 	GB_EVENT("Enter", NULL, NULL, &EVENT_Enter),
 	GB_EVENT("GotFocus", NULL, NULL, &EVENT_GotFocus),

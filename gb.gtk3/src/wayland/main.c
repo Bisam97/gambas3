@@ -113,6 +113,12 @@ int EXPORT GB_INFO(const char *key, void **value)
 		return TRUE;
 	}
 	else*/
+	if (!strcasecmp(key, "DISPLAY"))
+	{
+    *value = gdk_wayland_display_get_wl_display(gdk_display_get_default());
+		return TRUE;
+	}
+	else
 		return FALSE;
 }
 

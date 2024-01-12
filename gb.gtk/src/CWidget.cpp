@@ -828,7 +828,7 @@ END_PROPERTY
 
 BEGIN_PROPERTY(Control_Id)
 
-	GB.ReturnInteger(CONTROL->handle());
+	GB.ReturnLong(CONTROL->handle());
 
 END_PROPERTY
 
@@ -1054,8 +1054,8 @@ GB_DESC CWidgetDesc[] =
 	GB_PROPERTY_READ("Parent", "Container", Control_Parent),
 	GB_PROPERTY_READ("_Parent", "Container", Control__Parent),
 	GB_PROPERTY_READ("Window", "Window", Control_Window),
-	GB_PROPERTY_READ("Id", "i", Control_Id),
-	GB_PROPERTY_READ("Handle", "i", Control_Id),
+	GB_PROPERTY_READ("Id", "l", Control_Id),
+	GB_PROPERTY_READ("Handle", "l", Control_Id),
 
 	GB_EVENT("Enter", NULL, NULL, &EVENT_Enter),
 	GB_EVENT("GotFocus", NULL, NULL, &EVENT_GotFocus),

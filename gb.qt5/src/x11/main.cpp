@@ -303,6 +303,11 @@ static void desktop_screenshot(QPixmap *pixmap, int x, int y, int w, int h)
 
 //-------------------------------------------------------------------------
 
+static uintptr_t window_get_id(QWidget *window)
+{
+	return (uintptr_t)window->winId();
+}
+
 static int window_get_virtual_desktop(QWidget *window)
 {
 	return X11_window_get_desktop(window->winId());
@@ -390,6 +395,7 @@ void *GB_QT5_X11_1[] EXPORT = {
   (void *)desktop_get_resolution_y,
   (void *)desktop_screenshot,
   
+  (void *)window_get_id,
   (void *)window_get_virtual_desktop,
   (void *)window_set_virtual_desktop,
   (void *)window_remap,
