@@ -138,9 +138,9 @@ Static Public Sub _InitApp() As String
   
   If Not sDir Then sDir = User.Home &/ ".local/share"
   
-  MakeDir(sDir &/ "applications/gambas")
+  MakeDir(sDir &/ "applications")
   
-  $sDesktopFilePath = sDir &/ "applications/gambas" &/ sAppId & ".desktop"
+  $sDesktopFilePath = sDir &/ "applications" &/ sAppId & ".desktop"
   
   hFile = Open $sDesktopFilePath For Create 
   
@@ -159,7 +159,7 @@ Static Public Sub _InitApp() As String
     Copy "gambas.png" To sIconPath
   Endif
   
-  Return "gambas/" & sAppId
+  Return sAppId
   
 End
 
