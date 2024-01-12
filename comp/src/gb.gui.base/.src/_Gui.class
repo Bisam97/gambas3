@@ -114,13 +114,18 @@ Static Public Sub _InitApp() As String
   
   sAppId = "org.gambas." & CStr(Application.Handle)
   
-  sDir = User.Home &/ ".local"
+  For Each sDir In Split(Env["XDG_DATA_DIRS"], ":")
+    If sDir Begins (User.Home & "/") Then Break
+    sDir = ""
+  Next
   
-  Try Mkdir sDir &/ "share"
-  Try Mkdir sDir &/ "share/applications"
-  Try Mkdir sDir &/ "share/applications/gambas"
+  If Not sDir Then sDir = User.Home &/ ".local/share"
   
-  $sDesktopFilePath = sDir &/ "share/applications/gambas" &/ sAppId & ".desktop"
+  Try Mkdir sDir
+  Try Mkdir sDir &/ "applications"
+  Try Mkdir sDir &/ "applications/gambas"
+  
+  $sDesktopFilePath = sDir &/ "applications/gambas" &/ sAppId & ".desktop"
   
   hFile = Open $sDesktopFilePath For Create 
   
