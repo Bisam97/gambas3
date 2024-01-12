@@ -66,6 +66,7 @@
 #include <QSet>
 #include <QScrollBar>
 #include <QLineEdit>
+#include <QWindow>
 
 #ifndef NO_X_WINDOW
 static QMap<int, int> _x11_to_qt_keycode;
@@ -912,7 +913,18 @@ END_PROPERTY
 
 BEGIN_PROPERTY(Control_ScreenX)
 
-	GB.ReturnInteger(WIDGET->mapToGlobal(QPoint(0, 0)).x());
+	int x = WIDGET->mapToGlobal(QPoint(0, 0)).x();
+
+#ifdef QT5
+	if (MAIN_platform_is_wayland)
+	{
+		QWindow *win = WIDGET->window()->windowHandle();
+		if (win)
+			x += win->frameMargins().left();
+	}
+#endif
+
+  GB.ReturnInteger(x);
 
 END_PROPERTY
 
@@ -929,7 +941,18 @@ END_PROPERTY
 
 BEGIN_PROPERTY(Control_ScreenY)
 
-	GB.ReturnInteger(WIDGET->mapToGlobal(QPoint(0, 0)).y());
+	int y = WIDGET->mapToGlobal(QPoint(0, 0)).y();
+
+#ifdef QT5
+	if (MAIN_platform_is_wayland)
+	{
+		QWindow *win = WIDGET->window()->windowHandle();
+		if (win)
+			y += win->frameMargins().top();
+	}
+#endif
+
+  GB.ReturnInteger(y);
 
 END_PROPERTY
 
