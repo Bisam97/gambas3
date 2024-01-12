@@ -62,7 +62,7 @@ static struct option Long_options[] =
 static char **path_list;
 static int path_current;
 
-static const char *_allowed_hidden_files[] = { ".gambas", ".info", ".list", ".test", ".lang", ".action", ".connection", ".component", ".public", NULL };
+static const char *_allowed_hidden_files[] = { ".gambas", ".info", ".list", ".test", ".lang", ".action", ".connection", ".component", ".public", ".app.png", NULL };
 #define PUBLIC_DIR _allowed_hidden_files[8]
 
 static const char *remove_ext_lang[] = { "pot", "po", NULL };
