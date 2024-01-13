@@ -51,5 +51,6 @@ void *GTK_GetImage(GdkPixbuf *buf);
 
 CIMAGE *CIMAGE_create(gPicture *picture);
 gPicture *CIMAGE_get(CIMAGE *);
+void CIMAGE_set_default_window_icon();
 
 #endif

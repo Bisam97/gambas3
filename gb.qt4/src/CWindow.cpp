@@ -68,6 +68,7 @@
 #include "CMenu.h"
 #include "CKey.h"
 #include "CDraw.h"
+#include "CImage.h"
 #include "CWindow.h"
 
 #ifndef NO_X_WINDOW
@@ -392,6 +393,8 @@ void CWINDOW_move_resize(void *_object, int x, int y, int w, int h)
 
 BEGIN_METHOD(Window_new, GB_OBJECT parent)
 
+	static bool app_icon = false;
+
 	MyMainWindow *win = 0;
 	MyContainer *container;
 #ifndef NO_X_WINDOW
@@ -533,6 +536,12 @@ BEGIN_METHOD(Window_new, GB_OBJECT parent)
 	#endif
 
 	THIS->showMenuBar = true;
+
+	if (!app_icon)
+	{
+		app_icon = true;
+		CIMAGE_set_default_window_icon();
+	}
 	
 END_METHOD
 

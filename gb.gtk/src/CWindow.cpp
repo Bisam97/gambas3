@@ -30,6 +30,7 @@
 #include "CPicture.h"
 #include "CMenu.h"
 #include "CDraw.h"
+#include "CImage.h"
 #include "gapplication.h"
 
 typedef
@@ -281,6 +282,8 @@ static void show_later(CWINDOW *_object)
 
 BEGIN_METHOD(CWINDOW_new, GB_OBJECT parent)
 
+	static bool app_icon = false;
+
 	gMainWindow *win;
 	GB_CLASS CLASS_container;
 	gContainer *parent = NULL;
@@ -326,6 +329,12 @@ BEGIN_METHOD(CWINDOW_new, GB_OBJECT parent)
 	{
 		GB.Ref(THIS);
 		GB.Post((void (*)())show_later, (intptr_t)THIS);
+	}
+
+	if (!app_icon)
+	{
+		app_icon = true;
+		CIMAGE_set_default_window_icon();
 	}
 
 END_METHOD

@@ -52,5 +52,6 @@ extern GB_DESC CImageDesc[];
 const char *CIMAGE_get_format(QString path);
 CIMAGE *CIMAGE_create(QImage *image);
 QImage *CIMAGE_get(CIMAGE *);
+void CIMAGE_set_default_window_icon();
 
 #endif

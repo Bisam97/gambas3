@@ -146,6 +146,24 @@ CIMAGE *CIMAGE_create(QImage *image)
 	return img;
 }
 
+void CIMAGE_set_default_window_icon()
+{
+	CIMAGE *_object;
+	QImage img;
+
+	_object = (CIMAGE *)(GB.GetProperty((void *)GB.FindClass("Application"), "Icon")->_object.value);
+	if (!THIS)
+		return;
+
+	check_image(THIS);
+	if (QIMAGE->isNull())
+		return;
+
+	img = *QIMAGE;
+	qApp->setWindowIcon(QPixmap::fromImage(img));
+}
+
+//-------------------------------------------------------------------------
 
 BEGIN_PROPERTY(Image_Picture)
 

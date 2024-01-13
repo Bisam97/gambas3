@@ -40,6 +40,7 @@
 #include "gb.qt.platform.h"
 #include "gb.image.h"
 #include "gb.geom.h"
+#include "gb.form.gui.h"
 
 #ifndef __MAIN_CPP
 extern "C" const GB_INTERFACE *GB_PTR;

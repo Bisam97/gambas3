@@ -102,6 +102,17 @@ CIMAGE *CIMAGE_create(gPicture *image)
 	return img;
 }
 
+void CIMAGE_set_default_window_icon()
+{
+	CIMAGE *_object;
+
+	_object = (CIMAGE *)(GB.GetProperty((void *)GB.FindClass("Application"), "Icon")->_object.value);
+	if (!THIS)
+		return;
+
+	gtk_window_set_default_icon(check_image(THIS)->getPixbuf());
+}
+
 /*CIMAGE *CIMAGE_create(gPicture *picture)
 {
 	CIMAGE *pic;

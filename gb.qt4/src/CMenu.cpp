@@ -56,9 +56,6 @@ int MENU_popup_count = 0;
 
 static void clear_menu(CMENU *_object);
 
-static GB_FUNCTION _init_shortcut_func;
-static GB_FUNCTION _init_menubar_shortcut_func;
-
 #define EXT(_ob) ((CMENU_EXT *)((CWIDGET *)_ob)->ext)
 #define ENSURE_EXT(_ob) (EXT(_ob) ? EXT(_ob) : alloc_ext((CMENU *)(_ob)))
 
@@ -1040,8 +1037,6 @@ void CMenu::slotTriggered()
 
 void CMenu::slotShown(void)
 {
-	static bool init = FALSE;
-
 	GET_MENU_SENDER(menu);
 	if (!menu)
 		return;
@@ -1068,14 +1063,8 @@ void CMenu::slotShown(void)
 
 	GB.Raise(menu, EVENT_Show, 0);
 
-	if (!init)
-	{
-		GB.GetFunction(&_init_shortcut_func, (void *)GB.FindClass("_Gui"), "_DefineShortcut", NULL, NULL);
-		init = TRUE;
-	}
-
 	GB.Push(1, GB_T_OBJECT, menu);
-	GB.Call(&_init_shortcut_func, 1, FALSE);
+	CALL_GUI("_DefineShortcut", NULL, NULL, 1, FALSE);
 
 	GB.Unref(POINTER(&menu));
 }
@@ -1255,21 +1244,14 @@ void MyMenu::setVisible(bool visible)
 
 void CMENU_update_menubar(CWINDOW *window)
 {
-	static bool init = FALSE;
 	static bool norec = FALSE;
-
-	if (!init)
-	{
-		GB.GetFunction(&_init_menubar_shortcut_func, (void *)GB.FindClass("_Gui"), "_InitMenuBarShortcut", NULL, NULL);
-		init = TRUE;
-	}
 
 	if (norec)
 		return;
 
 	norec = TRUE;
 	GB.Push(1, GB_T_OBJECT, window);
-	GB.Call(&_init_menubar_shortcut_func, 1, FALSE);
+	CALL_GUI("_InitMenuBarShortcut", NULL, NULL, 1, FALSE);
 	norec = FALSE;
 }
 
