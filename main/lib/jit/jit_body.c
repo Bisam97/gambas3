@@ -168,7 +168,7 @@ static void enter_function(FUNCTION *func, int index)
 	if (func->vararg)
 	{
 		JIT_print("  VALUE *fp = FP, *pp = PP, *bp = BP;\n");
-		JIT_print("  FP = %p; PP = v; BP = sp;\n", func);
+		JIT_print("  FP = (void *)%p; PP = v; BP = sp;\n", func);
 	}
 
 	JIT_print("  VALUE *ssp = sp;\n"); // fprintf(stderr, \"bp = %%p\\n\", bp);\n");
@@ -953,9 +953,9 @@ static void push_static_variable(CLASS *class, CTYPE ctype, char *addr)
 			else
 			{
 				if (TYPE_is_pure_object(type))
-					push(type, "({ JIT.load_class(%p); GET_o(%p, CLASS(%p)); })", class, addr, (CLASS *)type);
+					push(type, "({ JIT.load_class((void *)%p); GET_o(%p, CLASS(%p)); })", class, addr, (CLASS *)type);
 				else
-					push(type, "({ JIT.load_class(%p); GET_o(%p, GB_T_OBJECT); })", class, addr);
+					push(type, "({ JIT.load_class((void *)%p); GET_o(%p, GB_T_OBJECT); })", class, addr);
 			}
 			break;
 			
@@ -963,7 +963,7 @@ static void push_static_variable(CLASS *class, CTYPE ctype, char *addr)
 			if (class == JIT_class)
 				push(type, "GET_%s(%p)", JIT_get_type(type), addr);
 			else
-				push(type, "({ JIT.load_class(%p); GET_%s(%p); })", class, JIT_get_type(type), addr);
+				push(type, "({ JIT.load_class((void *)%p); GET_%s(%p); })", class, JIT_get_type(type), addr);
 	}
 }
 
@@ -1958,7 +1958,7 @@ static bool push_subr_cat(ushort code)
 	else if (PCODE_is(code_pop, C_POP_STATIC))
 	{
 		void *addr = &JIT_class->stat[JIT_class->load->stat[index].pos];
-		JIT_print("  JIT.add_string_global(%p, as);\n", addr);
+		JIT_print("  JIT.add_string_global((char *)%p, as);\n", addr);
 	}
 	else if (PCODE_is(code_pop, C_POP_DYNAMIC))
 	{

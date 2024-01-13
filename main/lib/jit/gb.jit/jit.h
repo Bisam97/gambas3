@@ -362,7 +362,7 @@ enum
 #define GET_S(_ref, _addr, _type) GET_OBJECT(JIT.static_struct((_ref), (_type), (_addr)), _type)
 #define GET_A(_class, _ref, _addr, _type, _desc) ({ \
   SP = sp; \
-  GET_OBJECT(JIT.static_array((_class), (_ref), (void *)(_desc), (_addr)), _type); \
+  GET_OBJECT(JIT.static_array((void *)(_class), (_ref), (GB_CLASS)(_desc), (char *)(_addr)), _type); \
 })
 
 #define SET_b(_addr, _val) (GET_b(_addr) = ((_val) ? -1 : 0))
