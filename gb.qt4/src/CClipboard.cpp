@@ -183,7 +183,13 @@ static bool paste(const QMimeData *data, const char *fmt)
 		case MIME_IMAGE:
 			{
 				QImage *image = new QImage();
-				*image = qvariant_cast<QImage>(data->imageData());
+#if QT5
+				if (data->hasFormat("image/png"))
+					*image = QImage::fromData(data->data("image/png"), "PNG");
+				else
+#endif
+					*image = qvariant_cast<QImage>(data->imageData());
+
 				*image = image->convertToFormat(QImage::Format_ARGB32_Premultiplied);
 				GB.ReturnObject(CIMAGE_create(image));
 			}
