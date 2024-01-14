@@ -1,6 +1,6 @@
 ' Gambas class file
 
-Public Enum ICON_TINY, ICON_SMALL, ICON_MEDIUM, ICON_LARGE, ICON_HUGE
+Public Enum ICON_DEFAULT, ICON_TINY, ICON_SMALL, ICON_MEDIUM, ICON_LARGE, ICON_HUGE
 
 Public ToolbarKey As String
 Public $bDesign As Boolean
@@ -12,6 +12,7 @@ Static Private $hConfigureImage As Image
 Private Const SEPARATOR_SIZE As Integer = 5
 
 Private $hObserverParent As Observer
+Private $bReadOnly As Boolean
 Private $bLock As Boolean
 Private $bHidden As Boolean
 Private $bVertical As Boolean = False
@@ -21,7 +22,7 @@ Private $bConfigure As Boolean
 Private $bInside As Boolean
 Private $bPressed As Boolean
 Private $sDropAction As String
-Private $iIconSize As Integer
+Private $iIconSize As Integer = ICON_DEFAULT
 Private $iButtonWidth As Integer
 Private $nRow As Integer
 
@@ -1047,7 +1048,7 @@ Public Sub Item_Menu()
     Stop Event
   Else
     If Not Application.ActiveControl Is TextBox Then
-      FToolBarConfig.OpenMenu(Me.Parent)
+      FToolBarConfig.OpenMenu(Me.Parent, $bReadOnly)
       Stop Event
     Endif
   Endif
@@ -1312,15 +1313,22 @@ Private Sub ToolbarToStockSize(iSize As Integer) As String
       Return "large"
     Case ICON_TINY
       Return "tiny"
-    Default
+    Case ICON_SMALL
       Return "small"
+    Case Else 
+      Return "default"
   End Select
 
 End
 
 Private Sub CalcIconSize(iIconSize As Integer) As Integer
+
+  Dim sSize As String
   
-  Return Stock.GetSize(ToolbarToStockSize(iIconSize))
+  sSize = ToolbarToStockSize(iIconSize)
+  'Debug GetToolBar().Name;; sSize;; ToolBar.DefaultSize
+  If sSize = "default" Then sSize = ToolBar.DefaultSize
+  Return Stock.GetSize(sSize)
   
 End
 
@@ -1430,8 +1438,10 @@ Private Sub StockToToolbarSize(sSize As String) As Integer
       Return ICON_HUGE
     Case "tiny"
       Return ICON_TINY
-    Case Else
+    Case "small"
       Return ICON_SMALL
+    Case Else 
+      Return ICON_DEFAULT
   End Select
   
 End
@@ -1439,7 +1449,6 @@ End
 
 Public Sub GetLayout(Optional bReset As Boolean) As Variant
   
-  Dim sSize As String
   Dim aConfig As String[]
   Dim aDefaultConfig As String[]
   
@@ -1449,9 +1458,7 @@ Public Sub GetLayout(Optional bReset As Boolean) As Variant
     If aConfig.Join(",") = aDefaultConfig.Join(",") Then aConfig = Null
   Endif
   
-  sSize = Choose($iIconSize + 1, "Tiny", "", "Medium", "Large", "Huge")
-  
-  Return [sSize, aConfig]
+  Return [ToolbarToStockSize($iIconSize), aConfig]
   
 End
 
@@ -1737,7 +1744,6 @@ Public Sub SetStockIconSize(sSize As String)
   
 End
 
-
 Private Sub UpdateSize()
 
   Inc Application.Busy
@@ -1746,7 +1752,6 @@ Private Sub UpdateSize()
   Dec Application.Busy
   
 End
-
 
 Public Sub HasSeparator() As Boolean
   
@@ -1765,7 +1770,7 @@ End
 
 Public Sub Form_Menu()
 
-  FToolBarConfig.OpenMenu(Me.Parent)
+  FToolBarConfig.OpenMenu(Me.Parent, $bReadOnly)
 
 End
 
@@ -1796,4 +1801,29 @@ Public Sub Form_Font()
 
   If $bOpened Then UpdateSize
 
+End
+
+Public Sub SetReadOnly(Value As Boolean)
+  
+  $bReadOnly = Value
+  
+End
+
+Public Sub IsReadOnly() As Boolean
+  
+  Return $bReadOnly
+  
+End
+
+Static Public Sub UpdateDefaultSize()
+
+  Dim aToolbar As FToolBar[]
+  Dim hToolbar As FToolBar
+  
+  For Each aToolbar In $cRegister
+    For Each hToolbar In aToolbar
+      If hToolbar.GetIconSize() = ICON_DEFAULT Then hToolbar.LoadConfig()
+    Next
+  Next
+  
 End
