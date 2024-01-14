@@ -688,7 +688,11 @@ Private Sub ShowProperty(Optional sFocus As String)
       If hProp.ConstantList Then
         hEditor = cmbProperty
         cmbProperty.ReadOnly = False
-        InitComboWith(hProp.GetConstantList())
+        If hProp.DefaultValue Then
+          InitComboWith(hProp.GetConstantList())
+        Else
+          InitComboWith(hProp.GetConstantList(), "")
+        Endif
       Else
         bButton = True
       Endif

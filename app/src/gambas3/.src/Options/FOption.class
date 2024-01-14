@@ -48,6 +48,8 @@ Private Sub ReadConfig()
         Endif
       Case "SpinBox"
         hCtrl.Value = vVal
+      Case "Slider"
+        hCtrl.Value = vVal
       Case "ButtonBox"
         hCtrl.Text = vVal
       Case "SwitchButton"
@@ -136,6 +138,7 @@ Public Sub _new()
     [btnShadow, "/Shadows", 1], 
     [btnShowFileInTitle, "/ShowFileInTitle", 1], 
     [btnHelpCompletion, "/ShowHelpInPopup", 1], 
+    [sldToolbarDefaultSize, "/ToolbarDefaultSize", 0],
     [btnUpperCaseKeywords, "/Editor/KeywordsUseUpperCase", 0], 
     [btnControlStructCompletion, "/Editor/ControlStructCompletion", 1], 
     [btnLocalVarDecl, "/Editor/LocalVariableDeclaration", 1], 
@@ -1843,5 +1846,12 @@ Public Sub cmbLang_Click()
   If cmbLang.Index > 0 Then Try sLang = Language.Find(cmbLang.Text).Key
   Settings["/Language"] = sLang
   NeedRestart
+
+End
+
+Public Sub sldToolbarDefaultSize_Change()
+
+  Settings["/ToolbarDefaultSize"] = sldToolbarDefaultSize.Value
+  ToolBar.DefaultSize = Stock.Sizes[sldToolbarDefaultSize.Value]
 
 End

@@ -65,8 +65,10 @@
   { Separator1 Separator
     MoveScaled(8,44,21,0)
   }
-  { panTooltip HBox
+  { panTooltip ToolBar
     MoveScaled(1,45,33,4)
+    Key = "toolbox"
+    ReadOnly = True
     { lblControl Label
       MoveScaled(0,0,10,3)
       Font = Font["Bold"]
@@ -84,13 +86,36 @@
     { btnZoom ToolButton
       MoveScaled(25,0,4,4)
       ToolTip = ("Change button size")
+      Action = "tool-zoom"
       Picture = Picture["icon:/small/zoom-in"]
     }
     { btnDeprecated ToolButton
       MoveScaled(29,0,4,4)
       ToolTip = ("Show deprecated controls")
+      Action = "tool-deprecated"
       Picture = Picture["icon:/small/delete"]
       Toggle = True
     }
+  }
+}
+
+# Gambas Action File 3.0
+
+{ Actions
+  { Action tool-deprecated
+    Text = "Show deprecated controls"
+    Picture = "icon:/small/delete"
+  }
+  { Action tool-zoom
+    Text = "Change button size"
+    Picture = "icon:/small/zoom-in"
+  }
+}
+
+{ Toolbars
+  { Toolbar toolbox
+    Text = ""
+    List = "tool-zoom,tool-deprecated"
+    Default = "$lblControl,-,$lblComp,tool-zoom,tool-deprecated"
   }
 }

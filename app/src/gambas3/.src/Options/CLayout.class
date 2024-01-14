@@ -78,7 +78,8 @@ Static Public Sub SaveAs(sPath As String)
   hSettings["DebuggerFontSize"] = Settings["/DebuggerFontSize"]
   hSettings["Help/Zoom"] = Settings["/Help/Zoom"]
   hSettings["Property/Help"] = Not FProperty.IsHelpHidden()
-  hSettings["/Editor/InvertTheme"] = Settings["/Editor/InvertTheme"]
+  hSettings["Editor/InvertTheme"] = Settings["/Editor/InvertTheme"]
+  hSettings["ToolbarDefaultSize"] = Settings["ToolbarDefaultSize"]
   
   hSettings.Save
   
@@ -120,6 +121,7 @@ Static Public Sub LoadFrom(Optional sPath As String)
   Next
   
   FOption.RefreshWindow
+  ToolBar.DefaultSize = Stock.Sizes[Settings["ToolbarDefaultSize"]]
   
   For Each sKey In hSettings.Keys["Toolbar"]
     vVal = hSettings["Toolbar" &/ sKey]

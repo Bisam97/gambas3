@@ -1390,6 +1390,10 @@ Public Sub RefreshTextOption()
   
   Dim iAlign As Integer
   Dim bAlignBase As Boolean
+  Dim hCurrent As FImageEditor
+  
+  hCurrent = GetCurrent()
+  If Not hCurrent Then Return
   
   If btnTextLeft.Value Then
     iAlign = Align.Left
@@ -1409,10 +1413,9 @@ Public Sub RefreshTextOption()
     bAlignBase = True
   Endif
   
-  GetCurrent().UpdateText(txtText.Text, fchText.Value, iAlign, bAlignBase)
+  hCurrent.UpdateText(txtText.Text, fchText.Value, iAlign, bAlignBase)
   
 End
-
 
 Public Sub txtText_Change()
 
@@ -1475,39 +1478,15 @@ End
 
 Private Sub SetLineCap(iLineCap As Integer)
 
-  Dim sImage As String
-  
-  Select Case iLineCap
-    Case Paint.LineCapButt
-      sImage = "butt"
-    Case Paint.LineCapRound
-      sImage = "round"
-    Case Paint.LineCapSquare
-      sImage = "square"
-  End Select
-  
-  btnLineCap.Picture = Picture["icon:/small/cap-" & sImage]
-  
   $iLineCap = iLineCap
+  tlbAction_Configure
 
 End
 
 Private Sub SetLineJoin(iLineJoin As Integer)
 
-  Dim sImage As String
-  
-  Select Case iLineJoin
-    Case Paint.LineJoinBevel
-      sImage = "bevel"
-    Case Paint.LineJoinMiter
-      sImage = "miter"
-    Case Paint.LineJoinRound
-      sImage = "round"
-  End Select
-  
-  btnLineJoin.Picture = Picture["icon:/small/join-" & sImage]
-  
   $iLineJoin = iLineJoin
+  tlbAction_Configure
 
 End
 
@@ -1525,18 +1504,8 @@ End
 
 Private Sub SetFillRule(iFillRule As Integer)
 
-  Dim sImage As String
-  
-  Select Case iFillRule
-    Case Paint.FillRuleEvenOdd
-      sImage = "exclusive"
-    Case Paint.FillRuleWinding
-      sImage = "union"
-  End Select
-  
-  btnFillRule.Picture = Picture["icon:/small/" & sImage]
-  
   $iFillRule = iFillRule
+  tlbAction_Configure
 
 End
 
@@ -1727,5 +1696,42 @@ Public Sub btnLoadShapes_Click()
   If Dialog.OpenFile() Then Return
   Settings["/FImageEditor/SelectionPath"] = Dialog.Path
   LoadSelectionFile(Dialog.Path)
+
+End
+
+Public Sub tlbAction_Configure()
+
+  Dim sImage As String
+  
+  Select Case $iLineCap
+    Case Paint.LineCapButt
+      sImage = "butt"
+    Case Paint.LineCapRound
+      sImage = "round"
+    Case Paint.LineCapSquare
+      sImage = "square"
+  End Select
+  
+  Action["line-cap"].Picture = Picture["icon:/" & tlbAction.Size & "/cap-" & sImage]
+  
+  Select Case $iLineJoin
+    Case Paint.LineJoinBevel
+      sImage = "bevel"
+    Case Paint.LineJoinMiter
+      sImage = "miter"
+    Case Paint.LineJoinRound
+      sImage = "round"
+  End Select
+  
+  Action["line-join"].Picture = Picture["icon:/" & tlbAction.Size & "/join-" & sImage]
+  
+  Select Case $iFillRule
+    Case Paint.FillRuleEvenOdd
+      sImage = "exclusive"
+    Case Paint.FillRuleWinding
+      sImage = "union"
+  End Select
+  
+  Action["fill-rule"].Picture = Picture["icon:/" & tlbAction.Size & "/" & sImage]
 
 End

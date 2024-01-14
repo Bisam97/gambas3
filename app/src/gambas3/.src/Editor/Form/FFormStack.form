@@ -7,25 +7,31 @@
   Arrangement = Arrange.Vertical
   { panControl ToolBar
     MoveScaled(1,15,46,4)
+    Key = "form-stack"
+    ReadOnly = True
     Separator = True
     { btnTop ToolButton
       MoveScaled(0,0,4,4)
       ToolTip = ("Move top")
+      Action = "form-stack-top"
       Picture = Picture["icon:/small/top"]
     }
     { btnUp ToolButton
       MoveScaled(4,0,4,4)
       ToolTip = ("Move up")
+      Action = "form-stack-up"
       Picture = Picture["icon:/small/up"]
     }
     { btnDown ToolButton
       MoveScaled(8,0,4,4)
       ToolTip = ("Move down")
+      Action = "form-stack-down"
       Picture = Picture["icon:/small/down"]
     }
     { btnBottom ToolButton
       MoveScaled(12,0,4,4)
       ToolTip = ("Move bottom")
+      Action = "form-stack-bottom"
       Picture = Picture["icon:/small/bottom"]
     }
     { txtSearch ButtonBox
@@ -39,5 +45,34 @@
     Visible = False
     Expand = True
     Border = False
+  }
+}
+
+# Gambas Action File 3.0
+
+{ Actions
+  { Action form-stack-bottom
+    Text = "Move bottom"
+    Picture = "icon:/small/bottom"
+  }
+  { Action form-stack-down
+    Text = "Move down"
+    Picture = "icon:/small/down"
+  }
+  { Action form-stack-top
+    Text = "Move top"
+    Picture = "icon:/small/top"
+  }
+  { Action form-stack-up
+    Text = "Move up"
+    Picture = "icon:/small/up"
+  }
+}
+
+{ Toolbars
+  { Toolbar form-stack
+    Text = ""
+    List = "form-stack-top,form-stack-up,form-stack-down,form-stack-bottom"
+    Default = "form-stack-top,form-stack-up,form-stack-down,form-stack-bottom,$txtSearch"
   }
 }

@@ -9,11 +9,15 @@
     { Menu1 Menu
     }
   }
-  { panProperty HBox
+  { panProperty ToolBar
     MoveScaled(4,1,54,4)
-    Indent = True
+    Key = "form-properties"
+    ReadOnly = True
+    { Panel2 Panel
+      MoveScaled(1,0,1,4)
+    }
     { lblName TextLabel
-      MoveScaled(0,0,28,4)
+      MoveScaled(3,0,28,4)
       Expand = True
       Alignment = Align.Normal
       Wrap = False
@@ -21,12 +25,14 @@
     { btnLock ToolButton
       MoveScaled(45,0,4,4)
       ToolTip = ("Lock property")
+      Action = "form-prop-lock"
       Picture = Picture["icon:/tiny/lock"]
       Toggle = True
     }
     { btnSortProperties ToolButton
       MoveScaled(49,0,4,4)
       ToolTip = ("Sort properties")
+      Action = "form-prop-sort"
       Picture = Picture["icon:/tiny/sort-ascent"]
       Toggle = True
     }
@@ -115,5 +121,26 @@
       MoveScaled(7,7,19,10)
       Expand = True
     }
+  }
+}
+
+# Gambas Action File 3.0
+
+{ Actions
+  { Action form-prop-lock
+    Text = "Lock property"
+    Picture = "icon:/tiny/lock"
+  }
+  { Action form-prop-sort
+    Text = "Sort properties"
+    Picture = "icon:/tiny/sort-ascent"
+  }
+}
+
+{ Toolbars
+  { Toolbar form-properties
+    Text = ""
+    List = "form-prop-lock,form-prop-sort"
+    Default = "-,$lblName,form-prop-lock,form-prop-sort"
   }
 }
