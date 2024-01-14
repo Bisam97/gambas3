@@ -1302,7 +1302,7 @@ Public Sub Form_Close()
 
 End
 
-Private Sub ToolbarToStockSize(iSize As Integer) As String
+Private Sub ToolbarToStockSize(iSize As Integer, Optional bUseDefault As Boolean) As String
 
   Select Case iSize
     Case ICON_HUGE
@@ -1316,19 +1316,18 @@ Private Sub ToolbarToStockSize(iSize As Integer) As String
     Case ICON_SMALL
       Return "small"
     Case Else 
-      Return "default"
+      If bUseDefault Then
+        Return ToolBar.DefaultSize
+      Else
+        Return ""
+      Endif
   End Select
 
 End
 
 Private Sub CalcIconSize(iIconSize As Integer) As Integer
 
-  Dim sSize As String
-  
-  sSize = ToolbarToStockSize(iIconSize)
-  'Debug GetToolBar().Name;; sSize;; ToolBar.DefaultSize
-  If sSize = "default" Then sSize = ToolBar.DefaultSize
-  Return Stock.GetSize(sSize)
+  Return Stock.GetSize(ToolbarToStockSize(iIconSize, True))
   
 End
 
@@ -1487,8 +1486,8 @@ Public Sub SetLayout(vLayout As Variant, Optional bInit As Boolean)
     If Not aConfig Then Goto RAISE_CONFIGURE
   Endif
   
-  bEnabled = panToolBar.Enabled
-  panToolBar.Enabled = True
+  'bEnabled = panToolBar.Enabled
+  'panToolBar.Enabled = True
   panToolBar.Hide
   Lock()
   
@@ -1546,7 +1545,7 @@ Public Sub SetLayout(vLayout As Variant, Optional bInit As Boolean)
   '   hCtrl.Raise
   ' Next
   
-  panToolBar.Enabled = bEnabled
+  'panToolBar.Enabled = bEnabled
   panToolBar.Show
   
   Unlock()
@@ -1563,6 +1562,7 @@ Static Public Sub LoadLayout(sKey As String) As Variant
   Dim aConfig As String[]
 
   sSize = Settings["/gb.form.mdi/Toolbars/" &/ sKey &/ "Size"]
+  If Not sSize Then sSize = "*"
   aConfig = Settings["/gb.form.mdi/Toolbars/" &/ sKey &/ "Layout"]
   
   Return [sSize, aConfig]
@@ -1596,6 +1596,7 @@ Static Public Sub SaveLayout(sKey As String, vLayout As Variant, Optional hIgnor
   Endif
   
   sSize = vLayout[0]
+  If sSize = "*" Then sSize = ""
   aConfig = vLayout[1]
   
   Settings["/gb.form.mdi/Toolbars/" &/ sKey &/ "Size"] = sSize

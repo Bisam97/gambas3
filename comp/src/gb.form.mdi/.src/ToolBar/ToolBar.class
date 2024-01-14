@@ -4,7 +4,7 @@ Export
 
 Inherits UserContainer
 
-Public Const _Properties As String = "*,-Arrangement,-Padding,-Spacing,-Indent,-Invert,Key,Text,Action,ReadOnly,Orientation{ToolBar.Horizontal;Vertical},Size{Tiny;Small;Medium;Large;Huge}=Small,AutoResize=True,Separator"
+Public Const _Properties As String = "*,-Arrangement,-Padding,-Spacing,-Indent,-Invert,Key,Text,Action,ReadOnly,Orientation{ToolBar.Horizontal;Vertical},Size{Tiny;Small;Medium;Large;Huge},AutoResize=True,Separator"
 Public Const _DefaultArrangement As String = "R"
 Public Const _DefaultSize As String = "36,4"
 Public Const _Similar As String = "Panel"
@@ -22,14 +22,6 @@ Property Separator As Boolean
 Property Size As String
 Property Settings, Layout As String
 Property Read Configuring As Boolean
-
-'' @{since 3.19}
-'' 
-'' Return the actual toolbar size.
-''
-'' It is the value of [Toolbar.Size](../size) or [Toolbar.DefaultSize](../defaultsize) if the Size property is '"default"'.
-
-Property Read ActualSize As String
 
 '' @{since 3.19}
 '' 
@@ -169,7 +161,9 @@ End
 
 Private Function Size_Read() As String
 
-  Return $hForm.GetStockIconSize()
+  Dim sSize As String = $hForm.GetStockIconSize()
+  If sSize Then Return sSize
+  Return ToolBar.DefaultSize
 
 End
 
@@ -260,15 +254,5 @@ End
 Private Sub ReadOnly_Write(Value As Boolean)
 
   $hForm.SetReadOnly(Value)
-
-End
-
-Private Function ActualSize_Read() As String
-
-  Dim sSize As String
-
-  sSize = Me.Size
-  If Not sSize Or If sSize = "default" Then Return ToolBar.DefaultSize
-  Return sSize
 
 End
