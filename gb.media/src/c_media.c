@@ -1237,8 +1237,9 @@ BEGIN_METHOD(MediaControl_new, GB_OBJECT parent; GB_STRING type)
 		parent = VARGOPT(parent, NULL);
 		if (parent)
 		{
-			gst_bin_add(GST_BIN(parent->elt), ELEMENT);
+			gst_bin_add(GST_BIN(parent->control.elt), ELEMENT);
 			gst_element_sync_state_with_parent(ELEMENT);
+			GB.Ref(THIS);
 		}
 		else if (!GST_IS_PIPELINE(ELEMENT))
 			GB.CheckObject(parent);
@@ -1751,6 +1752,29 @@ static bool add_input_output(void *_object, CMEDIACONTROL *child, char *name, in
 // Just there for the documentation wiki!
 
 BEGIN_METHOD_VOID(MediaContainer_new)
+
+END_METHOD
+
+BEGIN_METHOD_VOID(MediaContainer_free)
+
+	int count = gst_child_proxy_get_children_count(GST_CHILD_PROXY(ELEMENT));
+	int i;
+	CMEDIACONTROL **children;
+	CMEDIACONTROL *control;
+
+	GB.NewArray(&children, sizeof(CMEDIACONTROL *), 0);
+
+	for (i = 0; i < count; i++)
+	{
+		control = MEDIA_get_control_from_element(gst_child_proxy_get_child_by_index(GST_CHILD_PROXY(ELEMENT), i), FALSE);
+		if (control)
+			*(CMEDIACONTROL **)GB.Add(&children) = control;
+	}
+
+	for (i = 0; i < GB.Count(children); i++)
+		GB.Unref(POINTER(&children[i]));
+
+	GB.FreeArray(&children);
 
 END_METHOD
 
@@ -2336,6 +2360,7 @@ GB_DESC MediaContainerDesc[] =
 	GB_INHERITS("MediaControl"),
 	
 	GB_METHOD("_new", NULL, MediaContainer_new, NULL),
+	GB_METHOD("_free", NULL, MediaContainer_free, NULL),
 
 	GB_METHOD("AddInput", NULL, MediaContainer_AddInput, "(Child)MediaControl;[(Name)s]"),
 	GB_METHOD("AddOutput", NULL, MediaContainer_AddOutput, "(Child)MediaControl;[(Name)s]"),

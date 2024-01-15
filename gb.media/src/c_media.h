@@ -86,11 +86,14 @@ typedef
 	CMEDIACONTROL;
 
 typedef
-	CMEDIACONTROL CMEDIACONTAINER;
+	struct {
+		CMEDIACONTROL control;
+	}
+	CMEDIACONTAINER;
 
 typedef
 	struct {
-		CMEDIACONTROL control;
+		CMEDIACONTAINER container;
 		GB_TIMER *watch;
 		int polling;
 		gint64 pos;

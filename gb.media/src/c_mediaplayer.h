@@ -44,7 +44,7 @@ extern GB_DESC MediaPlayerBalanceChannelDesc[];
 #else
 
 #define THIS ((CMEDIAPLAYER *)_object)
-#define THIS_CONTROL (&(THIS->base.control))
+#define THIS_CONTROL ((CMEDIACONTROL *)_object)
 #define ELEMENT ((GstPipeline *)(THIS_CONTROL->elt))
 #define BALANCE (GST_COLOR_BALANCE(ELEMENT))
 
