@@ -1915,6 +1915,11 @@ void MyMainWindow::showActivate(QWidget *transient)
 				newParentWidget = CWidget::getTopLevel((CWIDGET *)CWINDOW_Active)->widget.widget;
 			else if (CWINDOW_Main)
 				newParentWidget = ((CWIDGET *)CWINDOW_Main)->widget;
+
+			if (newParentWidget && parentWidget() != newParentWidget)
+			{
+				doReparent(newParentWidget);
+			}
 		}
 	}
 
