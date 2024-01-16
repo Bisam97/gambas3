@@ -34,6 +34,7 @@
 extern GB_DESC MediaTagListDesc[];
 extern GB_DESC MediaMessageDesc[];
 extern GB_DESC MediaLinkDesc[];
+extern GB_DESC MediaTypeDesc[];
 extern GB_DESC MediaControlDesc[];
 extern GB_DESC MediaFilterDesc[];
 extern GB_DESC MediaContainerChildrenDesc[];
@@ -55,7 +56,18 @@ extern GB_DESC MediaDesc[];
 #define THIS_LINK ((CMEDIALINK *)_object)
 #define LINK THIS_LINK->pad
 
+#define THIS_TYPE ((CMEDIATYPE *)_object)
+
+#define THIS_CONTAINER ((CMEDIACONTAINER *)_object)
+
 #endif
+
+typedef
+	struct {
+		GB_BASE ob;
+		GstElementFactory *factory;
+	}
+	CMEDIATYPE;
 
 typedef
 	struct {
@@ -88,6 +100,7 @@ typedef
 typedef
 	struct {
 		CMEDIACONTROL control;
+		CMEDIACONTROL **children;
 	}
 	CMEDIACONTAINER;
 
@@ -100,6 +113,7 @@ typedef
 		gint64 duration;
 		double rate;
 		double next_rate;
+		char buffering;
 		unsigned in_message : 1;
 		unsigned about_to_finish : 1;
 	}
