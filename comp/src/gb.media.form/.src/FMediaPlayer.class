@@ -1,6 +1,6 @@
 ' Gambas class file
 
-'Static Private $hLogo As Image
+Static Private $hHatch As Image
 
 Property Volume As Float
 Property Muted As Boolean
@@ -16,15 +16,30 @@ Private $iMute As Integer
 Private $sName As String
 Private $bMutedIcon As Boolean
 Private $fStartupPos As Float
+Private $bBuffering As Boolean
 Private $bPlaying As Boolean
 
 Private $aMessage As String[]
 Private $fPos As Float
 Private $fPosTime As Float
 
+Private $sVisualisation As String
+
 Private Sub GetParent() As MediaView
 
   Return Me.Parent
+
+End
+
+Private Sub UpdateVisualisation()
+
+  Dim hVisualisation As MediaControl
+  
+  If Not $hPlayer Then Return
+  
+  If $sVisualisation Then hVisualisation = New MediaControl($hPlayer, $sVisualisation)
+  
+  $hPlayer.Video.Visualisation = hVisualisation
 
 End
 
@@ -41,32 +56,13 @@ Private Sub MakeMediaPlayer()
     $hImage = New MediaControl($hPlayer, "xvimagesink")  
     $hImage["handle-events"] = False
   Endif
+  
+  UpdateVisualisation
 
   $hPlayer.Video.Output = $hImage
   dwgVideo_Arrange
 
   '$hPlayer.Rate = -1
-  
-  ' $aVisualisation = New MediaControl[]
-  ' AddVisualisation("", "")
-  ' AddVisualisation("goom", "Goom")
-  ' AddVisualisation("goom2k1", "Goom2")
-  ' AddVisualisation("libvisual_bumpscope", "Bump")
-  ' AddVisualisation("libvisual_corona", "Corona")
-  ' AddVisualisation("libvisual_infinite", "Infinite")
-  ' AddVisualisation("libvisual_jakdaw", "Jakdaw")
-  ' AddVisualisation("libvisual_jess", "Jess")
-  ' AddVisualisation("monoscope", "Mono")
-  ' AddVisualisation("libvisual_oinksie", "Oinksie")
-  ' AddVisualisation("libvisual_lv_analyzer", "Analyzer")
-  ' AddVisualisation("libvisual_lv_scope", "Scope")
-  ' AddVisualisation("spacescope", "Space")
-  ' AddVisualisation("spectrascope", "Spectra")
-  ' AddVisualisation("synaescope", "Synae")
-  ' AddVisualisation("wavescope", "Wave")
-  ' 
-  ' $iVisualisation = 0
-  ' UpdateVisualisation
   
 End
 
@@ -127,6 +123,8 @@ Public Sub btnPlay_Click()
   $aMessage = New String[]
   
   If $hPlayer.State <> Media.Playing Then 
+    
+    $bBuffering = False
     'timTime.Start
     dwgTime.Refresh
     sldVolume_Change
@@ -245,7 +243,7 @@ Public Sub dwgTime_Draw()
   fLength = $hPlayer.Duration
   
   W = Ceil(Paint.TextSize("00:00:00").W)
-  X = Paint.W - W
+  X = Paint.W - W - DS
   
   If fLength > 0 Then
     
@@ -272,9 +270,42 @@ Public Sub dwgTime_Draw()
   Paint.Background = Color.White
   Paint.DrawText(sText, X, 0, W, dwgTime.H, Align.Left)
   
-  If fLength > 0 Then 
+  If $bBuffering Then
     
-    Paint.Rectangle(0, DS, dwgTime.W * Min(1, fPos / fLength), dwgTime.H - DS * 2)
+    If Not $hHatch Then 
+      
+      W = DS * 2
+      
+      $hHatch = New Image(W * 2, W * 2, Color.Transparent)
+
+      Paint.Begin($hHatch)
+
+      Paint.Background = Color.SetAlpha(Color.White, 192)
+
+      Paint.MoveTo(W, 0)
+      Paint.LineTo(W * 2, 0)
+      Paint.LineTo(0, W * 2)
+      Paint.LineTo(0, W)
+      Paint.LineTo(W, 0)
+      
+      Paint.MoveTo(W * 2, W)
+      Paint.LineTo(W * 2, W * 2)
+      Paint.LineTo(W, W * 2)
+      Paint.LineTo(W * 2, W)
+      
+      Paint.Fill
+      
+      Paint.End
+      
+    Endif
+    
+    Paint.Brush = Paint.Image($hHatch, -DS * 2 * Frac(Timer), 0)
+    Paint.Rectangle(DS \ 2, DS \ 2, Paint.W - DS, Paint.H - DS)
+    Paint.Fill
+    
+  Else If fLength > 0 Then 
+    
+    Paint.Rectangle(DS, DS, (dwgTime.W - DS * 2) * Min(1, fPos / fLength), dwgTime.H - DS * 2)
     Paint.Background = Color.SetAlpha(Color.White, 128)
     Paint.Fill
   
@@ -542,6 +573,13 @@ Public Sub MediaPlayer_Position()
   
 End
 
+Public Sub MediaPlayer_Buffering()
+  
+  $bBuffering = $hPlayer.Progress < 1
+  dwgTime.Refresh
+  
+End
+
 Public Sub MediaPlayer_Duration()
   
   dwgTime.Refresh
@@ -635,7 +673,7 @@ Public Sub dwgVideo_Arrange()
   Else
     $hPlayer.SetWindow(dwgVideo, 0, 0, dwgVideo.W, dwgVideo.H)
   Endif
-
+  
 End
 
 Public Sub timRefresh_Timer()
@@ -644,3 +682,22 @@ Public Sub timRefresh_Timer()
 
 End
 
+Public Sub GetVisualisation() As String
+  
+  Return $sVisualisation
+  
+End
+
+Public Sub SetVisualisation(Value As String)
+  
+  Dim hMediaType As MediaType
+  
+  If Value Then
+    hMediaType = Media[Value]
+    If InStr(hMediaType.Class, "Visualization") = 0 Then Error.Raise("Not a visualisation plugin")
+  Endif 
+  
+  $sVisualisation = Value
+  UpdateVisualisation()
+  
+End
