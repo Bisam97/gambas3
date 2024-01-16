@@ -2257,12 +2257,12 @@ END_METHOD
 BEGIN_PROPERTY(Media_Types)
 
 	GB_ARRAY array;
-	GList *list;
+	GList *list, *l;
 
 	list = gst_registry_get_feature_list(gst_registry_get(), GST_TYPE_ELEMENT_FACTORY);
 	GB.Array.New(&array, GB_T_STRING, 0);
 
-	for (GList *l = list; l; l = l->next)
+	for (l = list; l; l = l->next)
   {
 		GstPluginFeature *factory = GST_PLUGIN_FEATURE(l->data);
 		*(char **)GB.Array.Add(array) = GB.NewZeroString(gst_plugin_feature_get_name(factory));
