@@ -1857,8 +1857,6 @@ static int cb_message(CMEDIAPIPELINE *_object)
 	
 	THIS_PIPELINE->in_message = TRUE;
 	
-	fprintf(stderr, "cb_message\n");
-
 	bus = gst_pipeline_get_bus(PIPELINE);
 	
 	for(;;)
