@@ -1166,6 +1166,7 @@ BEGIN_METHOD(MediaControl_new, GB_OBJECT parent; GB_STRING type)
 	MEDIA_TYPE *mtp;
 	GB_CLASS klass;
 	char *filter = NULL;
+	GstElementFactory *factory;
 	
 	//fprintf(stderr, "MediaControl_new: %p\n", THIS);
 
@@ -1224,7 +1225,16 @@ BEGIN_METHOD(MediaControl_new, GB_OBJECT parent; GB_STRING type)
 		//THIS->type = GB.NewZeroString(type);
 		
 
-		ELEMENT = gst_element_factory_make(type, NULL);
+		factory = gst_element_factory_find(type);
+		if (!factory)
+		{
+			GB.Error("Unknown control type");
+			return;
+		}
+
+		ELEMENT = gst_element_factory_create(factory, NULL);
+		gst_object_unref(factory);
+
 		if (!ELEMENT)
 		{
 			GB.Error("Unable to create media control");
@@ -1847,6 +1857,8 @@ static int cb_message(CMEDIAPIPELINE *_object)
 	
 	THIS_PIPELINE->in_message = TRUE;
 	
+	fprintf(stderr, "cb_message\n");
+
 	bus = gst_pipeline_get_bus(PIPELINE);
 	
 	for(;;)
@@ -2043,6 +2055,9 @@ static int cb_message(CMEDIAPIPELINE *_object)
 void MEDIA_stop_pipeline(CMEDIACONTROL *_object)
 {
 	int try;
+
+	if (THIS->state == GST_STATE_NULL || THIS->state == GST_STATE_READY)
+		return;
 
 	// "It is not allowed to post GST_MESSAGE_EOS when not in the PLAYING state." says the documentation
 	if ((THIS->state == GST_STATE_PLAYING) && !THIS->eos)
@@ -2292,7 +2307,7 @@ BEGIN_METHOD(Media_get, GB_STRING name)
 
 END_METHOD
 
-//-------------------------------------------------------------------------
+//---- MediaType ----------------------------------------------------------
 
 BEGIN_METHOD_VOID(MediaType_free)
 
