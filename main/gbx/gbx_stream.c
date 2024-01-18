@@ -2234,4 +2234,3 @@ void STREAM_end(STREAM *stream)
 	stream->common.redirected = TRUE;
 	STREAM_cancel(stream);
 }
-

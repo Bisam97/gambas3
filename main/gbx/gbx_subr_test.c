@@ -165,7 +165,7 @@ __ROL:
 	__ROL_INTEGER:
 		val = ((uint)val << bit) | ((uint)val >> (32 - bit));
 		goto __END_INTEGER;
-	
+
 	__ROL_LONG:
 		val = ((uint64_t)val << bit) | ((uint64_t)val >> (64 - bit));
 		goto __END_LONG;

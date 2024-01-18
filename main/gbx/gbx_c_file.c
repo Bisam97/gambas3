@@ -159,7 +159,6 @@ CFILE *CFILE_create(const STREAM *stream, int mode)
 static CFILE *create_default_stream(FILE *file, int mode)
 {
 	STREAM stream;
-	//bool tty = isatty(fileno(file));
 	
 	CLEAR(&stream);
 	stream.type = &STREAM_buffer;
@@ -201,25 +200,29 @@ void CFILE_init_watch(void)
 
 CFILE *CFILE_get_standard_stream(int num)
 {
-	if (!_std[num])
+	CFILE *p = _std[num];
+
+	if (!p)
 	{
 		switch(num)
 		{
 			case CFILE_IN:
-				_std[CFILE_IN] = create_default_stream(stdin, GB_ST_READ);
+				p = create_default_stream(stdin, GB_ST_READ);
 				break;
 				
 			case CFILE_OUT:
-				_std[CFILE_OUT] = create_default_stream(stdout, GB_ST_WRITE);
+				p = create_default_stream(stdout, GB_ST_WRITE);
 				break;
 				
 			case CFILE_ERR:
-				_std[CFILE_ERR] = create_default_stream(stderr, GB_ST_WRITE);
+				p = create_default_stream(stderr, GB_ST_WRITE);
 				break;
 		}
+
+		_std[num] = p;
 	}
 	
-	return _std[num];
+	return p;
 }
 
 //---------------------------------------------------------------------------

@@ -176,30 +176,11 @@ typedef
 		}
 	STREAM;
 
-/*enum {
-	STO_READ        = (1 << 0),
-	STO_WRITE       = (1 << 1),
-	STO_READ_WRITE  = STO_READ + STO_WRITE,
-	STO_MODE        = 0x3,
-	STO_APPEND      = (1 << 2),
-	STO_CREATE      = (1 << 3),
-	STO_ACCESS      = 0xF,
-	STO_DIRECT      = (1 << 4),
-	STO_LOCK        = (1 << 5),
-	STO_WATCH       = (1 << 6),
-	STO_PIPE        = (1 << 7),
-	STO_MEMORY      = (1 << 8),
-	STO_STRING      = (1 << 9),
-	STO_NULL        = (1 << 10)
-	};*/
-
 enum {
 	ST_EOL_UNIX = 0,
 	ST_EOL_WINDOWS = 1,
 	ST_EOL_MAC = 2
 	};
-
-//EXTERN int STREAM_eff_read;
 
 #ifndef __STREAM_IMPL_C
 
