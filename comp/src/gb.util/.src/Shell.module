@@ -25,6 +25,7 @@ Public Sub RmDir(Path As String, Optional Force As Boolean)
   Dim aDir As String[]
   
   If Len(Path) > 1 And If Right(Path) = "/" Then Path = Left(Path, -1)
+  If Not Exist(Path) Then Return
   
   If Not Force Then
     If Path = "~" Or If Path = User.Home Or If Path = "/" Then Error.Raise("Removing this directory recursively is a bad idea: " & Path)
