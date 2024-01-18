@@ -752,7 +752,8 @@ _INIT_AGAIN:
     GoSub _STOP_CONVERT
 
     FConvert.SetMessage(("Applying conversion..."))
-    Shell "rm -rf " & Shell$(sDir & "~") Wait
+    'Shell "rm -rf " & Shell$(sDir & "~") Wait
+    Shell.RmDir(sDir & "~")
     Move sDir To sDir & "~"
     Shell "mv -f " & Shell$(Project.Dir) & " " & Shell$(sDir) Wait
     If Process.LastValue Then
@@ -2915,7 +2916,8 @@ Public Function MakeExecutable(bDoNotIncVersion As Boolean, bSilent As Boolean, 
     Endif
   Endif
 
-  Exec ["rm", "-rf", Project.Dir &/ ".gambas.save"] Wait
+  'Exec ["rm", "-rf", Project.Dir &/ ".gambas.save"] Wait
+  Try Shell.RmDir(Project.Dir &/ ".gambas.save")
   'Exec ["cp", "-rf", Project.Dir &/ ".gambas", Project.Dir &/ ".gambas.save"] Wait
   Move Project.Dir &/ ".gambas" To Project.Dir &/ ".gambas.save"
   bSaveDone = True
@@ -3002,7 +3004,8 @@ Public Function MakeExecutable(bDoNotIncVersion As Boolean, bSilent As Boolean, 
 
   Endif
 
-  Exec ["rm", "-rf", Project.Dir &/ ".gambas"] Wait
+  'Exec ["rm", "-rf", Project.Dir &/ ".gambas"] Wait
+  Shell.RmDir(Project.Dir &/ ".gambas")
   Move Project.Dir &/ ".gambas.save" To Project.Dir &/ ".gambas"
   
   EnableRefresh
@@ -3018,7 +3021,8 @@ Catch
 
   FMain.ShowError(("Cannot make executable.") & "\n\n" & Error.Text & "\n" & Error.Where)
   If bSaveDone Then 
-    Exec ["rm", "-rf", Project.Dir &/ ".gambas"] Wait
+    'Exec ["rm", "-rf", Project.Dir &/ ".gambas"] Wait
+    Shell.RmDir(Project.Dir &/ ".gambas")
     Try Move Project.Dir &/ ".gambas.save" To Project.Dir &/ ".gambas"
   Endif
   EnableRefresh
@@ -6154,7 +6158,8 @@ Public Sub OpenFake() As Boolean
   If Project.Dir Then Return True
   
   sDir = File.Dir(Temp$()) &/ "fake"
-  Shell "rm -rf " & Shell(sDir) Wait
+  'Shell "rm -rf " & Shell(sDir) Wait
+  Shell.RmDir(sDir)
   If MakeDir(sDir) Then Return True
   
   Try Mkdir sDir &/ ".src"

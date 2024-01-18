@@ -1224,7 +1224,8 @@ Private Function MakeDebPackage(sSys As String)
   
   If Process.LastValue > 2 Then Error.Raise(("'dpkg-buildpackage' has failed."))
 
-  Try Shell "rm -rf " & Shell$(sPackagePath) Wait
+  'Try Shell "rm -rf " & Shell$(sPackagePath) Wait
+  Shell.RmDir(sPackagePath)
   Try Shell "rm -f " & Shell$(Path) &/ "*.dsc.asc" Wait 
 
 End
@@ -1253,7 +1254,8 @@ Private Function MakeDebSupportPackage(sSys As String, sSupport As String, aComp
   AddLog(("Making build directory.")) 
   sPackagePath = Path &/ Subst("&1-&2", sPackageName, $sVersion)
   
-  Try Shell "rm -Rf " & Shell$(sPackagePath) Wait
+  'Try Shell "rm -Rf " & Shell$(sPackagePath) Wait
+  Shell.RmDir(sPackagePath)
   Mkdir sPackagePath
   Mkdir sPackagePath &/ "debian"
 
@@ -1350,7 +1352,8 @@ Private Function MakeDebSupportPackage(sSys As String, sSupport As String, aComp
   
   If Process.LastValue > 2 Then Error.Raise(("'dpkg-buildpackage' has failed."))
 
-  Try Shell "rm -Rf " & Shell$(sPackagePath) Wait
+  'Try Shell "rm -Rf " & Shell$(sPackagePath) Wait
+  Shell.RmDir(sPackagePath)
   Try Shell "rm -f " & Shell$(Path) &/ "*.dsc.asc" Wait 
 
 End
@@ -1535,7 +1538,8 @@ Private Function MakeRpmPackage(sSys As String)
   sSrc = $sHome &/ "RPM/SOURCES"
 
   sDir = Project.Dir &/ ".icon"
-  Shell "rm -rf " & Shell$(sDir) Wait
+  'Shell "rm -rf " & Shell$(sDir) Wait
+  Shell.RmDir(sDir)
   Try Mkdir sDir
 
     ' IF Project.Icon THEN
@@ -1552,7 +1556,8 @@ Private Function MakeRpmPackage(sSys As String)
   sArch = sSrc &/ Subst("&1-&2.tar.bz2", sPackageName, $sVersion)
   Project.MakeSourcePackageTo(sArch)
 
-  Shell "rm -rf " & Shell$(sDir) Wait
+  'Shell "rm -rf " & Shell$(sDir) Wait
+  Shell.RmDir(sDir)
 
   AddLog(("Creating .spec file."))
 
@@ -2069,7 +2074,8 @@ Private Sub MakeSlackwarePackage(sSys As String)
   AddLog(("Making build directory."))
 
   sBuildDir = File.SetExt(Temp$("slackware"), "")
-  Shell "rm -rf " & Shell(sBuildDir) Wait
+  'Shell "rm -rf " & Shell(sBuildDir) Wait
+  Shell.RmDir(sBuildDir)
   Mkdir sBuildDir
 
   Select Case Project.Type
@@ -2312,7 +2318,8 @@ Private Sub MakeAutotoolsPackage((sSys) As String)
   AddLog(("Making build directory."))
 
   sBuildDir = File.SetExt(Temp$("autotools"), "")
-  Shell "rm -rf " & Shell(sBuildDir) Wait
+  'Shell "rm -rf " & Shell(sBuildDir) Wait
+  Shell.RmDir(sBuildDir)
   Mkdir sBuildDir
   
   ' 2. Copy needed files 
@@ -2372,7 +2379,7 @@ Private Sub MakeAutotoolsPackage((sSys) As String)
   AddLog(sPackage)
   
   ' Remove build dir
-  Shell "rm -rf " & Shell(sBuildDir) Wait
+  Shell.RmDir(sBuildDir)
   
 End
 
@@ -2438,7 +2445,7 @@ Private Function MakeArchPackage(sSys As String)
   AddLog(("Making build directory."))
 
   sBuildDir = File.SetExt(Temp$("archlinux"), "")
-  Shell "rm -rf " & Shell$(sBuildDir) Wait
+  Shell.RmDir(sBuildDir)
   Mkdir sBuildDir
 
   ' 2. Copy needed files 
@@ -2566,7 +2573,7 @@ Private Function MakeArchPackage(sSys As String)
   RunCommand("cp " & sPackageName & "-" & $sVersion & "-" & CStr(Project.PackageVersion) & "*.tar.* " & Shell$(Path) &/ "", sBuildDir)
 
   ' Remove build dir
-  Shell "rm -rf " & Shell(sBuildDir) Wait
+  Shell.RmDir(sBuildDir)
 
 End 
 
@@ -2596,7 +2603,7 @@ Private Function MakeArchSupportPackage((sSys) As String, sSupport As String, aC
   AddLog(("Making build directory."))
 
   sBuildDir = File.SetExt(Temp$("archlinux"), "")
-  Shell "rm -rf " & Shell$(sBuildDir) Wait
+  Shell.RmDir(sBuildDir)
   Mkdir sBuildDir
 
   ' 2. Copy needed files 
@@ -2703,7 +2710,7 @@ Private Function MakeArchSupportPackage((sSys) As String, sSupport As String, aC
   RunCommand("cp " & sPackageName & "-" & $sVersion & "-" & CStr(Project.PackageVersion) & "*.tar.* " & Shell$(Path) &/ "", sBuildDir)
 
   ' Remove build dir
-  Shell "rm -rf " & Shell(sBuildDir) Wait
+  Shell.RmDir(sBuildDir)
 
 End 
 
