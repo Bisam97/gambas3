@@ -22,6 +22,7 @@ End
 Public Sub RmDir(Path As String, Optional Force As Boolean)
 
   Dim sFile As String
+  Dim aDir As String[]
   
   If Len(Path) > 1 And If Right(Path) = "/" Then Path = Left(Path, -1)
   
@@ -29,13 +30,16 @@ Public Sub RmDir(Path As String, Optional Force As Boolean)
     If Path = "~" Or If Path = User.Home Or If Path = "/" Then Error.Raise("Removing this directory recursively is a bad idea: " & Path)
   Endif
   
-  For Each sFile In Dir(Path)
-    If IsDir(Path &/ sFile) Then
-      RmDir(Path &/ sFile)
-    Else
-      Kill Path &/ sFile
-    Endif
-  Next
+  Try aDir = Dir(Path)
+  If aDir Then
+    For Each sFile In aDir
+      If IsDir(Path &/ sFile) Then
+        RmDir(Path &/ sFile)
+      Else
+        Try Kill Path &/ sFile
+      Endif
+    Next
+  Endif
   
   Rmdir Path
   
