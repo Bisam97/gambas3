@@ -54,6 +54,7 @@ typedef
 		GB_STREAM stream;
 		int socket;
 		int status;
+		int err;
 		int timeout;
 	}
 	CSOCKET_COMMON;
@@ -91,8 +92,6 @@ int CSocket_connect_unix(void *_object, char *sPath, int lenpath);
 int CSocket_connect_socket(void *_object, char *sHost,int lenhost,int myport);
 int CSocket_peek_data(void *_object,char **buf,int MaxLen);
 //
-void CSocket_stream_internal_error(void *_object,int ncode, bool post);
-//
 int CSocket_stream_read(GB_STREAM *stream, char *buffer, int len);
 int CSocket_stream_write(GB_STREAM *stream, char *buffer, int len);
 int CSocket_stream_eof(GB_STREAM *stream);
@@ -106,6 +105,8 @@ int CSocket_stream_handle(GB_STREAM *stream);
 
 bool SOCKET_update_timeout(CSOCKET_COMMON *socket);
 void SOCKET_set_blocking(CSOCKET_COMMON *socket, bool block);
+void SOCKET_set_status(void *_object, int status);
+char *SOCKET_get_status_text(void *_object);
 
 DECLARE_METHOD(Socket_Timeout);
 

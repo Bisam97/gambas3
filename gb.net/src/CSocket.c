@@ -72,25 +72,42 @@ GB_STREAM_DESC SocketStream =
 	.handle = CSocket_stream_handle
 };
 
-#if DEBUG_ME
-static void set_status(CSOCKET *_object, int status)
+//-------------------------------------------------------------------------
+
+void SOCKET_set_status(void *_object, int status)
+{
+	SOCKET->status = status;
+	SOCKET->err = status < 0 ? errno : 0;
+}
+
+char *SOCKET_get_status_text(void *_object)
 {
 	static const char *status_name[] = { "Inactive", "Active", "Pending", "Accepting", "Receiving data", "Searching", "Connecting", "Connected" };
+
 	static const char *error_name[] = { NULL, NULL, "Cannot create socket", "Connection refused", "Cannot read", "Cannot write", "Host not found", NULL, NULL, NULL,
 		"Cannot bind socket", NULL, NULL, NULL, "Cannot listen", "Cannot bind interface", "Cannot authenticate" };
-	SOCKET->status = status;
-	
-	fprintf(stderr, "gb.net: socket %p: ", THIS);
+
+	char *buffer = NULL;
+	int status = SOCKET->status;
+	const char *status_text;
+
 	if (status >= 0 && status < 7)
-		fprintf(stderr, "%s", status_name[status]);
+		status_text = status_name[status];
 	else if (status >= -16 && status < 0)
-		fprintf(stderr, "%s", error_name[-status]);
-	
-	fprintf(stderr, " (%d)\n", status);
+		status_text = error_name[-status];
+	else
+		status_text = "Unknown status";
+
+	buffer = GB.NewZeroString(status_text);
+	if (SOCKET->err)
+	{
+		buffer = GB.AddString(buffer, ": ", 2);
+		buffer = GB.AddString(buffer, strerror(SOCKET->err), -1);
+	}
+
+	GB.FreeStringLater(buffer);
+	return buffer;
 }
-#else
-#define set_status(_object, _status) SOCKET->status = (_status)
-#endif
 
 bool SOCKET_update_timeout(CSOCKET_COMMON *socket)
 {
@@ -125,6 +142,8 @@ void SOCKET_set_blocking(CSOCKET_COMMON *socket, bool block)
 	SOCKET_update_timeout(socket);
 }
 
+//-------------------------------------------------------------------------
+
 /**********************************
 Routines to call events
 **********************************/
@@ -153,10 +172,10 @@ void CSocket_post_connected(void *_object)
 	GB.Unref(POINTER(&_object));
 }
 
-static void CSocket_close(CSOCKET *_object)
+static void close_socket(CSOCKET *_object)
 {
 	int fd;
-	
+
 	if (THIS->dns_client)
 	{
 		dns_close_all(THIS->dns_client);
@@ -167,26 +186,41 @@ static void CSocket_close(CSOCKET *_object)
 	fd = SOCKET->socket;
 	if (fd >= 0)
 	{
-		//fprintf(stderr, "CSocket_close: %p: set fd %d to -1\n", THIS, fd);
+		//fprintf(stderr, "close_socket: %p: set fd %d to -1\n", THIS, fd);
 		SOCKET->socket = -1;
-		
+
 		GB.Watch(fd , GB_WATCH_NONE, NULL, 0);
 		SOCKET->stream.desc = NULL;
 		close(fd);
-		
-		set_status(THIS, NET_INACTIVE);
+
+		SOCKET_set_status(THIS, NET_INACTIVE);
 	}
-	
+
 	if (THIS->timer)
 		GB.Unref(POINTER(&THIS->timer));
-	
+
 	if (THIS->OnClose)
 		THIS->OnClose(_object);
 }
 
+static void internal_error(void *_object, int ncode, bool err, bool post)
+{
+	/* fatal socket error handling */
+	SOCKET_set_status(THIS, ncode);
+	if (!err) SOCKET->err = 0;
+
+	close_socket(THIS);
+
+	if (post)
+	{
+		GB.Ref(THIS);
+		GB.Post(CSocket_post_error, (intptr_t)THIS);
+	}
+}
+
 static int connect_timeout(void *_object)
 {
-	CSocket_stream_internal_error(THIS, NET_CONNECTION_TIMEOUT, TRUE);
+	internal_error(THIS, NET_CONNECTION_TIMEOUT, FALSE, TRUE);
 	return TRUE;
 }
 
@@ -205,7 +239,7 @@ void CSocket_CallBackFromDns(void *_object)
 	if (!THIS->dns_client->sHostIP)
 	{
 		// Host not found
-		CSocket_stream_internal_error(THIS, NET_HOST_NOT_FOUND, TRUE);
+		internal_error(THIS, NET_HOST_NOT_FOUND, FALSE, TRUE);
 		return;
 	}
 
@@ -227,7 +261,7 @@ void CSocket_CallBackFromDns(void *_object)
 	
 	if (!myval || errno == EINPROGRESS) // this is the good answer : connect in progress
 	{
-		set_status(THIS, NET_CONNECTING);
+		SOCKET_set_status(THIS, NET_CONNECTING);
 		if (SOCKET->timeout > 0)
 			THIS->timer = GB.Every(SOCKET->timeout, (GB_TIMER_CALLBACK)connect_timeout, (intptr_t)THIS);
 		GB.Watch(SOCKET->socket, GB_WATCH_WRITE, (void *)CSocket_CallBackConnecting, (intptr_t)THIS);
@@ -238,7 +272,7 @@ void CSocket_CallBackFromDns(void *_object)
 		SOCKET->stream.desc = NULL;
 		close(SOCKET->socket);
 		SOCKET->socket = -1;
-		set_status(THIS, NET_INACTIVE);
+		SOCKET_set_status(THIS, NET_INACTIVE);
 	}
 	
 	if (THIS->dns_client)
@@ -250,7 +284,7 @@ void CSocket_CallBackFromDns(void *_object)
 	
 	if (SOCKET->status <= NET_INACTIVE)
 	{
-		CSocket_stream_internal_error(THIS, NET_CONNECTION_REFUSED, TRUE);
+		internal_error(THIS, NET_CONNECTION_REFUSED, FALSE, TRUE);
 		return;
 	}
 
@@ -284,10 +318,10 @@ void CSocket_CallBackConnecting(int t_sock,int type,intptr_t param)
 	an error trying to connect
 	****************************************************/
 	
-	set_status(THIS, CheckConnection(SOCKET->socket));
+	SOCKET_set_status(THIS, CheckConnection(SOCKET->socket));
 	if (SOCKET->status == NET_INACTIVE)
 	{
-		CSocket_stream_internal_error(THIS, NET_CONNECTION_REFUSED, TRUE);
+		internal_error(THIS, NET_CONNECTION_REFUSED, FALSE, TRUE);
 		return;
 	}
 	if (SOCKET->status != NET_CONNECTED) return;
@@ -346,7 +380,7 @@ void CSocket_CallBack(int t_sock,int type, CSOCKET *_object)
 	if (!numpoll)
 	{ /* socket error, no valid data received */
 		
-		CSocket_close(THIS);
+		close_socket(THIS);
 		GB.Ref(THIS);
 		GB.Post(CSocket_post_closed, (intptr_t)THIS);
 		return;
@@ -361,20 +395,6 @@ void CSocket_CallBack(int t_sock,int type, CSOCKET *_object)
 	//GB.Post(CSocket_post_data_available,(intptr_t)THIS);
 }
 
-
-void CSocket_stream_internal_error(void *_object, int ncode, bool post)
-{
-	CSocket_close(THIS);
-
-	/* fatal socket error handling */
-	set_status(THIS, ncode);
-	
-	if (post)
-	{
-		GB.Ref(THIS);
-		GB.Post(CSocket_post_error, (intptr_t)THIS);
-	}
-}
 
 //////////////////////////////////////////////////////////////////////////////////
 //################################################################################
@@ -405,7 +425,7 @@ int CSocket_stream_close(GB_STREAM *stream)
 	void *_object = stream->tag;
 
 	if (!THIS) return -1;
-	CSocket_close(THIS);
+	close_socket(THIS);
 
 	return 0;
 }
@@ -463,7 +483,7 @@ int CSocket_stream_read(GB_STREAM *stream, char *buffer, int len)
 	USE_MSG_NOSIGNAL(npos = recv(SOCKET->socket,(void*)buffer,len*sizeof(char),MSG_NOSIGNAL));
 	
 	if (npos < 0 && errno != EAGAIN)
-		CSocket_stream_internal_error(THIS, NET_CANNOT_READ, FALSE);
+		internal_error(THIS, NET_CANNOT_READ, TRUE, FALSE);
 	
 	return npos;
 }
@@ -477,7 +497,11 @@ int CSocket_stream_write(GB_STREAM *stream, char *buffer, int len)
 
 	USE_MSG_NOSIGNAL(npos = send(SOCKET->socket,(void*)buffer,len*sizeof(char),MSG_NOSIGNAL));
 
-	if (npos >= 0 || errno == EAGAIN) 
+	if ((npos < 0) && errno != EAGAIN)
+	{
+		internal_error(THIS, NET_CANNOT_WRITE, TRUE, FALSE);
+	}
+	else //if (npos >= 0 || errno == EAGAIN)
 	{
 		if (GB.CanRaise(THIS, EVENT_Write) && !THIS->watch_write)
 		{
@@ -486,9 +510,6 @@ int CSocket_stream_write(GB_STREAM *stream, char *buffer, int len)
 			GB.Watch(SOCKET->socket, GB_WATCH_WRITE, (void *)callback_write, (intptr_t)THIS);
 		}
 	}
-	
-	if ((npos < 0) && errno != EAGAIN)
-		CSocket_stream_internal_error(THIS, NET_CANNOT_WRITE, FALSE);
 	
 	return npos;
 }
@@ -513,7 +534,7 @@ int CSocket_connect_unix(void *_object,char *sPath, int lenpath)
 	strcpy(THIS->unix_server.sun_path,sPath);
 	if ( (SOCKET->socket=socket(AF_UNIX,SOCK_STREAM,0))==-1 )
 	{
-		set_status(THIS, NET_CANNOT_CREATE_SOCKET);
+		SOCKET_set_status(THIS, NET_CANNOT_CREATE_SOCKET);
 		GB.Ref (THIS);
 		CSocket_post_error(_object); /* Unable to create socket */
 		return 2;
@@ -526,12 +547,13 @@ int CSocket_connect_unix(void *_object,char *sPath, int lenpath)
 	
 	ret = connect(SOCKET->socket,(struct sockaddr*)&THIS->unix_server,sizeof(struct sockaddr_un));
 	
+	SOCKET_set_status(THIS, ret ? NET_CONNECTION_REFUSED : NET_CONNECTED);
+
 	// Set socket to blocking mode, after the connect() call!
 	SOCKET_set_blocking(SOCKET, TRUE);
 
 	if (ret == 0)
 	{
-		set_status(THIS, NET_CONNECTED);
 		CSOCKET_init_connected(THIS);
 
 		// $BM
@@ -548,8 +570,6 @@ int CSocket_connect_unix(void *_object,char *sPath, int lenpath)
 	// Error
 	SOCKET->stream.desc = NULL;
 	close(SOCKET->socket);
-	//GB.FreeString(&THIS->sPath);
-	set_status(THIS, NET_CONNECTION_REFUSED);
 
 	GB.Ref (THIS);
 	CSocket_post_error(_object); /* Unable to connect to remote host */
@@ -572,7 +592,7 @@ int CSocket_connect_socket(void *_object,char *sHost,int lenhost,int myport)
 
 	if ( (SOCKET->socket=socket(AF_INET,SOCK_STREAM,0))==-1 )
 	{
-		set_status(THIS, NET_CANNOT_CREATE_SOCKET);
+		SOCKET_set_status(THIS, NET_CANNOT_CREATE_SOCKET);
 		GB.Ref (THIS);
 		CSocket_post_error(_object);
 		return 2;
@@ -605,7 +625,7 @@ int CSocket_connect_socket(void *_object,char *sHost,int lenhost,int myport)
 	it will call to CSocket_CallBack_fromDns,
 	and we'll continue there connection proccess
 	********************************************/
-	set_status(THIS, NET_SEARCHING); /* looking for IP */
+	SOCKET_set_status(THIS, NET_SEARCHING); /* looking for IP */
 	dns_thread_getip(THIS->dns_client);
 	SOCKET->stream.desc=&SocketStream;
 	THIS->use_port = THIS->port;
@@ -653,6 +673,7 @@ int CSocket_peek_data(void *_object,char **buf,int MaxLen)
 
 	if (retval==-1)
 	{
+		SOCKET_set_status(THIS, NET_CANNOT_READ);
 		/* An error happened while trying to receive data : SOCKET ERROR */
 		if (*buf)
 		{
@@ -662,7 +683,6 @@ int CSocket_peek_data(void *_object,char **buf,int MaxLen)
 		GB.Watch (SOCKET->socket , GB_WATCH_NONE , (void *)CSocket_CallBack,0);
 		SOCKET->stream.desc=NULL;
 		close(SOCKET->socket);
-		set_status(THIS, NET_CANNOT_READ);
 		GB.Ref (THIS);
 		CSocket_post_error(_object);
 		return -1;
@@ -682,6 +702,12 @@ Returns current Status of the socket (connected,connecting,closed)
 BEGIN_PROPERTY(Socket_Status)
 
 	GB.ReturnInteger(SOCKET->status);
+
+END_PROPERTY
+
+BEGIN_PROPERTY(Socket_StatusText)
+
+	GB.ReturnString(SOCKET_get_status_text(SOCKET));
 
 END_PROPERTY
 
@@ -804,7 +830,7 @@ Gambas object "Destructor"
 **************************************************/
 BEGIN_METHOD_VOID(Socket_free)
 
-	CSocket_close(THIS);
+	close_socket(THIS);
 	
 	//GB.FreeString(&THIS->sPath);
 	GB.FreeString(&THIS->local_host_ip);
@@ -858,21 +884,20 @@ BEGIN_METHOD(Socket_Connect, GB_STRING HostOrPath; GB_INTEGER Port)
 	int port;
 	int err;
 
-	port = VARGOPT(Port, THIS->use_port);
-
-	if (!port)
+	if (MISSING(Port))
 	{
 		if (MISSING(HostOrPath))
-			err = CSocket_connect_unix(_object,THIS->path,GB.StringLength(THIS->path));
+			err = CSocket_connect_unix(_object, THIS->path, GB.StringLength(THIS->path));
 		else
-			err = CSocket_connect_unix(_object,STRING(HostOrPath),LENGTH(HostOrPath));
+			err = CSocket_connect_unix(_object, STRING(HostOrPath), LENGTH(HostOrPath));
 	}
 	else
 	{
+		port = VARGOPT(Port, THIS->use_port);
 		if (MISSING(HostOrPath))
-			err = CSocket_connect_socket(_object,THIS->host,GB.StringLength(THIS->host),port);
+			err = CSocket_connect_socket(_object, THIS->host, GB.StringLength(THIS->host), port);
 		else
-			err = CSocket_connect_socket(_object,STRING(HostOrPath),LENGTH(HostOrPath),port);
+			err = CSocket_connect_socket(_object, STRING(HostOrPath), LENGTH(HostOrPath), port);
 	}
 
 	switch (err)
@@ -927,6 +952,7 @@ GB_DESC CSocketDesc[] =
 	GB_METHOD("Connect",NULL, Socket_Connect,"[(HostOrPath)s(Port)i]"),
 
 	GB_PROPERTY_READ("Status", "i", Socket_Status),
+  GB_PROPERTY_READ("StatusText","s", Socket_StatusText),
 	GB_PROPERTY_READ("RemotePort", "i", Socket_RemotePort),
 	GB_PROPERTY_READ("LocalPort", "i", Socket_LocalPort),
 	GB_PROPERTY_READ("RemoteHost", "s", Socket_RemoteHost),
