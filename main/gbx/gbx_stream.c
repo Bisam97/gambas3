@@ -292,7 +292,11 @@ static void release_unread(STREAM_EXTRA *extra)
 
 void STREAM_release(STREAM *stream)
 {
+	int i;
 	STREAM_EXTRA *extra = EXTRA(stream);
+	HASH_ENUM iter = { NULL };
+	char *object;
+	int len;
 	
 	STREAM_cancel(stream);
 	release_buffer(extra);
@@ -300,8 +304,27 @@ void STREAM_release(STREAM *stream)
 	
 	if (extra)
 	{
-		ARRAY_delete(&extra->read_objects);
-		HASH_TABLE_delete(&extra->write_objects);
+		if (extra->read_objects)
+		{
+			for (i = 0; i < ARRAY_count(extra->read_objects); i++)
+				OBJECT_UNREF(extra->read_objects[i]);
+
+			ARRAY_delete(&extra->read_objects);
+		}
+
+		if (extra->write_objects)
+		{
+			for(;;)
+			{
+				if (!HASH_TABLE_next(extra->write_objects, &iter, FALSE))
+					break;
+				HASH_TABLE_get_key(extra->write_objects, iter.node, &object, &len);
+				OBJECT_UNREF(*(void **)object);
+			}
+
+			HASH_TABLE_delete(&extra->write_objects);
+		}
+
 		IFREE(extra);
 		stream->common.extra = NULL;
 	}
@@ -1187,6 +1210,7 @@ static void register_read_object(STREAM *stream, void *object)
 	
 	//fprintf(stderr, "register_read_object: %p -> %d\n", object, ARRAY_count(extra->read_objects));
 	*(void **)ARRAY_add(&extra->read_objects) = object;
+	OBJECT_REF(object);
 }
 
 static void error_STREAM_read_type(void *object)
@@ -1747,6 +1771,7 @@ void STREAM_write_type(STREAM *stream, TYPE type, VALUE *value)
 	{
 		pid = HASH_TABLE_insert(extra->write_objects, (const char *)&object, sizeof(uintptr_t));
 		*pid = HASH_TABLE_size(extra->write_objects);
+		OBJECT_REF(object);
 	}
 	
 	class = OBJECT_class(object);
