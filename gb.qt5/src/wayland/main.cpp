@@ -145,7 +145,7 @@ static void window_set_properties(QWidget *window, int which, QT_WINDOW_PROP *pr
 	
 	if (prop->stacking && !warn_stacking)
 	{
-		fprintf(stderr, "gb.qt5.wayland: warning: 'Window.Stacking' property is not supported on wayland\n");
+		fprintf(stderr, "gb.qt5.wayland: warning: stacking windows is not supported.\n");
 		warn_stacking = true;
 	}
 
@@ -187,7 +187,7 @@ static void window_activate(QWidget *win)
 
 	if (!warn)
 	{
-		fprintf(stderr, "gb.qt5.wayland: warning: activating windows is not yet supported on wayland\n");
+		fprintf(stderr, "gb.qt5.wayland: warning: activating windows is not supported.\n");
 		warn = true;
 	}
 }
