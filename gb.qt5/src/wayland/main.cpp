@@ -183,7 +183,13 @@ static void window_set_transient_for(QWidget *window, QWidget *parent)
 
 static void window_activate(QWidget *win)
 {
-	win->windowHandle()->alert(0);
+	static bool warn = false;
+
+	if (!warn)
+	{
+		fprintf(stderr, "gb.qt5.wayland: warning: activating windows is not yet supported on wayland\n");
+		warn = true;
+	}
 }
 
 //-------------------------------------------------------------------------
