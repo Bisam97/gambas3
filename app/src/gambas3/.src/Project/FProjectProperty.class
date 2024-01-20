@@ -800,6 +800,30 @@ Private Sub AddStat(sName As String, sValue As String)
   
 End
 
+Private Sub GetProjectDataSize(Optional sDir As String) As Long
+
+  Dim sFile As String
+  Dim iSize As Long
+  Dim bProjectDir As Boolean
+
+  If Not sDir Then
+    sDir = Project.Dir
+    bProjectDir = True
+  Endif
+
+  For Each sFile In Dir(sDir)
+    If sFile Begins "." Or If sFile Ends "~" Then Continue
+    If bProjectDir And If sFile Ends ".gambas" Then Continue
+    If IsDir(sFile) Then
+      iSize += GetProjectDataSize(sDir &/ sFile)
+    Else
+      iSize += Stat(sDir &/ sFile, True).Size
+    Endif
+  Next
+  
+  Return iSize
+
+End
 
 Private Sub UpdateStat()
 
@@ -828,10 +852,13 @@ Private Sub UpdateStat()
   If nFunc Then AddStat(("Average number of lines by function"), Format(nLine / nFunc, ",0.0"))
   
   Try iSize = Stat(Project.GetExecPath()).Size
-  If iSize Then AddStat(("Executable size"), Format(iSize, ",0") & " " & ("bytes"))
+  If iSize Then AddStat(("Executable size"), File.FormatSize(iSize, True))
+
+  iSize = GetProjectDataSize()
+  AddStat(("Data files size"), File.FormatSize(iSize, True))
 
   gvwStat.Columns[0].Width = -1
-  gvwStat.Columns[0].Width += 16
+  gvwStat.Columns[0].Width += Desktop.Scale * 2
   
 End
 

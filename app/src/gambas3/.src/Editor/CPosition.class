@@ -3,6 +3,7 @@
 Static Private $aPositions As New CPosition[]
 Static Private $iCurrent As Integer
 Static Private $iDisable As Integer
+Static Private $hLast As CPosition
 
 Private Const MAX_POS As Integer = 40
 
@@ -16,6 +17,7 @@ Static Public Sub Clear()
   $aPositions.Clear
   $iCurrent = -1
   $iDisable = 0
+  $hLast = Null
   UpdatePosition
   
 End
@@ -27,9 +29,18 @@ Static Private Sub UpdatePosition()
 End
 
 Static Private Sub AddPosition(hPos As CPosition)
+
+  If $iCurrent >= 1 Then
   
-  If $iCurrent >= 0 Then
-    If $aPositions[$iCurrent].IsEqual(hPos) Then Return
+    If hPos.IsEqual($aPositions[$iCurrent]) Then Return
+  
+    'If hPos.IsNear($aPositions[$iCurrent]) And If $aPositions[$iCurrent - 1].IsNear($aPositions[$iCurrent]) Then
+    If hPos.IsNear($hLast) Then
+      $aPositions[$iCurrent] = hPos
+      $hLast = hPos
+      Return
+    Endif
+    
   Endif
   
   If $iCurrent >= MAX_POS Then
@@ -40,6 +51,7 @@ Static Private Sub AddPosition(hPos As CPosition)
   Inc $iCurrent
   $aPositions.Resize($iCurrent)
   $aPositions.Add(hPos)
+  $hLast = hPos
   
 End
 
@@ -67,7 +79,6 @@ Static Private Sub MakePos(hForm As Object) As CPosition
   
 End
 
-
 Static Public Sub SaveCurrent(hForm As Object, Optional (bForce) As Boolean)
 
   Dim hEditor As TextEditor
@@ -83,13 +94,6 @@ Static Public Sub SaveCurrent(hForm As Object, Optional (bForce) As Boolean)
     hPos.Path = .Path
     Try hEditor = hForm.GetEditor()
     If hEditor Then
-      
-      hPos.Line = hEditor.LastLine
-      hPos.Column = hEditor.LastColumn
-      Try hPos.Method = hForm.GetProcAt(hPos.Line)
-      AddPosition(hPos)
-      
-      hPos = hPos.Copy()
       
       hPos.Line = hEditor.Line
       hPos.Column = hEditor.Column
@@ -148,7 +152,9 @@ End
 
 Public Sub IsNear(hPos As CPosition) As Boolean
   
-  If Abs({Line} - hPos.Line) <= 1 Then Return Path = hPos.Path 
+  If Path <> hPos.Path Then Return
+  If Method <> hPos.Method Then Return
+  Return Abs({Line} - hPos.Line) <= 1
   
 End
 
@@ -163,6 +169,8 @@ Public Sub Move()
     If {Line} >= 0 Then hForm.Goto({Line}, Column)
   Endif
   Dec $iDisable
+  
+  $hLast = Me
   
 End
 
