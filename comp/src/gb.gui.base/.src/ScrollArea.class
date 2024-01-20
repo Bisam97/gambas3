@@ -37,10 +37,11 @@ Event Draw
 Event Resize
 Event Font
 
-Static Private $hFadeN As Picture
-Static Private $hFadeS As Picture
-Static Private $hFadeW As Picture
-Static Private $hFadeE As Picture
+Static Private $iFadeSize As Integer
+Static Private $hFadeN As Image
+Static Private $hFadeS As Image
+Static Private $hFadeW As Image
+Static Private $hFadeE As Image
 Static Private $iFadeColor As Integer = -1
 
 Private $bUseMouse As Boolean = True
@@ -88,23 +89,25 @@ Private Sub LoadFades()
   Dim hImage As Image
   Dim Y As Integer
   Dim iColor As Integer
+  Dim S As Integer
   
   iColor = Color.Desaturate(If(Me.Foreground = Color.Default, Color.TextForeground, Me.Foreground))
   
   If iColor = $iFadeColor Then Return
   
-  hImage = New Image(32, 4, Color.Transparent)
-  For Y = 0 To 3
-    hImage.FillRect(0, Y, hImage.W, 1, Color.SetAlpha(iColor, 180 + Y * 24))
+  S = $iFadeSize
+  hImage = New Image(32, S, Color.Transparent)
+  For Y = 0 To S - 1
+    hImage.FillRect(0, Y, hImage.W, 1, Color.SetAlpha(iColor, 255 - (Y / S) ^ 2 * 64))
   Next
   
-  $hFadeN = hImage.Picture
+  $hFadeS = hImage.Copy()
   hImage.RotateLeft
-  $hFadeW = hImage.Picture
+  $hFadeE = hImage.Copy()
   hImage.RotateLeft
-  $hFadeS = hImage.Picture
+  $hFadeN = hImage.Copy()
   hImage.RotateLeft
-  $hFadeE = hImage.Picture
+  $hFadeW = hImage.Copy()
   
   $iFadeColor = iColor
   
@@ -116,6 +119,8 @@ Public Sub _OnBackgroundChange()
 End
 
 Public Sub _new()
+  
+  $iFadeSize = Desktop.Scale * 2
   
   Me.Arrangement = Arrange.None
   
@@ -344,6 +349,8 @@ Private Sub LayoutShadows()
   
   If Not $bNoShadow Then bShadow = $bShadow Or Application.Shadows
   
+  If $hDrawingArea.W < $iFadeSize * 2 Or If $hDrawingArea.H < $iFadeSize * 2 Then bShadow = False
+  
   If Not bShadow Then 
     
     If $hShadowN Then 
@@ -430,16 +437,24 @@ End
 
 Public Sub Shadow_Draw()
   
+  Dim hTile As Image
+  
   Select Case Last
     Case $hShadowN
-      Draw.Tile($hFadeN, 0, 0, Paint.W, Paint.H)
+      hTile = $hFadeN
     Case $hShadowS
-      Draw.Tile($hFadeS, 0, 0, Paint.W, Paint.H)
+      hTile = $hFadeS
     Case $hShadowW
-      Draw.Tile($hFadeW, 0, 0, Paint.W, Paint.H)
+      hTile = $hFadeW
     Case $hShadowE
-      Draw.Tile($hFadeE, 0, 0, Paint.W, Paint.H)
+      hTile = $hFadeE
   End Select
+  
+  If Not hTile Then Return
+  
+  Paint.Brush = Paint.Image(hTile)
+  Paint.Rectangle(0, 0, Paint.W, Paint.H)
+  Paint.Fill
   
 End
 
