@@ -1,6 +1,6 @@
 /***************************************************************************
 
-  gb.hash.h
+  crc32.h
 
   (c) Benoît Minisini <benoit.minisini@gambas-basic.org>
 
@@ -21,32 +21,14 @@
 
 ***************************************************************************/
 
-#ifndef __GB_HASH_H
-#define __GB_HASH_H
+#ifndef __CRC32_H
+#define __CRC32_H
 
-#include "gambas.h"
+#include <stdint.h>
+#include <stddef.h>
+#include <stdlib.h>
 
-enum
-{
-	HASH_MD5,
-	HASH_SHA1,
-	HASH_SHA256,
-	HASH_SHA512,
-	HASH_CRC32
-};
-
-#define HASH_INTERFACE_VERSION 1
-
-typedef
-	struct {
-		int version;
-			bool (*Begin)(int hash);
-			void (*Process)(const void *buffer, size_t len);
-			char *(*End)();
-		}
-	HASH_INTERFACE;
+void crc32_hash(void *ctx, const unsigned char *buffer, size_t len);
+uint crc32_end(void *ctx, uint *resbuf);
 
 #endif
-
-
-

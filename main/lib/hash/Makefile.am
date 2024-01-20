@@ -9,6 +9,7 @@ gb_hash_la_CFLAGS = -I$(top_srcdir)/share $(AM_CFLAGS)
 gb_hash_la_SOURCES = \
  main.h main.c \
  hash.h hash.c platform.h \
+ crc32.h crc32.c \
  c_hash.h c_hash.c
 
 
