@@ -2608,7 +2608,9 @@ bool GB_UnSerialize(const char *path, GB_VALUE *value)
 		OBJECT_REF(cfile);
 		STREAM_read_type(&cfile->ob.stream, T_VARIANT, (VALUE *)value);
 		//STREAM_close(&cfile->ob.stream);
+		BORROW((VALUE *)value);
 		OBJECT_UNREF(cfile);
+		UNBORROW((VALUE *)value);
 	}
 	END_CATCH_ERROR
 }
