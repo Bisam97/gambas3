@@ -1,6 +1,9 @@
 ' Gambas class file
 
-Private $sInfo As String
+Static Private $aText As String[]
+Static Private $aProgVersion As String[]
+Static Private $hProcess As Process
+Static Private $iRowVersion As Integer
 
 Public Sub btnClose_Click()
 
@@ -10,7 +13,7 @@ End
 
 Public Sub btnCopy_Click()
 
-  Clipboard.Copy($sInfo)
+  Clipboard.Copy($aText.Join("\n"))
 
 End
 
@@ -89,7 +92,7 @@ Static Private Sub GetDistribution() As String
 
 End
 
-Static Public Sub GetInfo() As String[]
+Static Public Sub GetInfo(Optional bBackground As Boolean) As String[]
 
   Dim aText As New String[]
   Dim sTemp As String
@@ -147,16 +150,23 @@ Static Public Sub GetInfo() As String[]
   aText.Add("WidgetTheme=" & Style.Name)
   aText.Add("Font=" & Application.Font.ToString())
 
-  aText.Add("")
   aText.Add("[Programs]")
   sForTrans = ("Programs")
   
+  $aProgVersion = New String[]
+  $iRowVersion = aText.Count
+  
   For Each sProg In ["git", "gcc", "clang", "tcc", "msgmerge", "pngquant", "translate-shell", "rpmbuild", "dpkg", "appimage-builder", "appimage-builder-x86_64", "appimage-builder-x86_64.AppImage"].Sort()
     If Project.CheckProgram(sProg) Then Continue
-    Try Exec [sProg, "--version"] To sTemp
-    If Error Then Continue
-    If sTemp Then sTemp = Split(sTemp, "\n", "", True)[0]
-    aText.Add(sProg & "=" & sTemp)
+    If bBackground Then
+      aText.Add(sProg & "=")
+      $aProgVersion.Add(sProg)
+    Else 
+      Try Exec [sProg, "--version"] To sTemp
+      If Error Then Continue
+      If sTemp Then sTemp = Split(sTemp, "\n", "", True)[0]
+      aText.Add(sProg & "=" & sTemp)
+    Endif
   Next
   
   If System.Family = "Cygwin" Then
@@ -184,7 +194,6 @@ Static Public Sub GetInfo() As String[]
   Endif
 
   cFile = New Collection
-  aText.Add("")
   aText.Add("[Libraries]")
   sForTrans = ("Libraries")
 
@@ -203,7 +212,6 @@ Static Public Sub GetInfo() As String[]
 
   aText.Insert(aLib.Sort())
 
-  aText.Add("")
   aText.Add("[Environment]")
   sForTrans = ("Environment")
   
@@ -222,11 +230,8 @@ Static Public Sub GetInfo() As String[]
 
 End
 
-
-
 Public Sub Form_Open()
 
-  Dim aText As String[]
   Dim sText As String
   Dim I As Integer
   Dim aLine As String[]
@@ -236,11 +241,11 @@ Public Sub Form_Open()
   txtInfo.Padding = Desktop.Scale
   txtInfo.BorderRadius = txtInfo.H
   
-  aText = GetInfo()
+  $aText = GetInfo(True)
   
   Project.SetEditorFont(gvwInfo)
   
-  gvwInfo.Rows.Count = aText.Count
+  gvwInfo.Rows.Count = $aText.Count
   gvwInfo.Columns.Count = 3
   
   ' With gvwInfo[0, 0]
@@ -251,7 +256,7 @@ Public Sub Form_Open()
   ' End With
   ' gvwInfo.Rows[0].Height = Desktop.Scale * 6
   
-  For Each sText In aText
+  For Each sText In $aText
     If Left(sText) = "[" Then
       With gvwInfo[I, 0]
         .Text = Tr(Mid$(sText, 2, -1))
@@ -275,9 +280,9 @@ Public Sub Form_Open()
   gvwInfo.Columns[0].Width = -1
   gvwInfo.Columns[1].Width = Desktop.Scale * 2
   
-  $sInfo = aText.Join("\n")
-
   Dec Application.Busy
+  
+  GetNextVersion()
 
 End
 
@@ -294,4 +299,43 @@ Static Private Sub MakeAnonymous(aText As String[])
 
 End
 
+Private Sub GetNextVersion()
 
+  Dim sProg As String
+  
+  If $aProgVersion.Count = 0 Then 
+    btnCopy.Enabled = True
+    Return
+  Endif
+  
+  sProg = $aProgVersion[0]
+  $aProgVersion.Remove(0)
+  
+  $hProcess = Exec [sProg, "--version"] For Read As "Process"
+
+End
+
+Public Sub Process_Read()
+  
+  Dim hProcess As Process = Last
+  Dim sData As String
+  
+  sData = Read #hProcess, Lof(hProcess)
+  Try sData = Split(sData, "\n", "", True)[0]
+  $aText[$iRowVersion] &= sData
+  gvwInfo[$iRowVersion, 2].Text = sData
+  Inc $iRowVersion
+  
+End
+
+Public Sub Process_Kill()
+  
+  GetNextVersion()
+  
+End
+
+Public Sub Form_Close()
+
+  Try $hProcess.Kill
+
+End
