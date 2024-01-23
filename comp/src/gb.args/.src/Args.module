@@ -14,7 +14,7 @@ Private $bManualHelp As Boolean
 Private Sub DoAbort(sErr As String)
   
   If $bAbort Then
-  
+    
     Error Application.Name; ": "; sErr
     Quit 1
     
@@ -23,12 +23,11 @@ Private Sub DoAbort(sErr As String)
     Error.Raise(sErr)
     
   Endif
-    
+  
 End
 
-
 Public Sub Begin(Optional Usage As String)
-
+  
   Dim I As Integer
   Dim sArg As String
   Dim sKey As String
@@ -113,41 +112,39 @@ End
 '' Get the default help message.<br>Must be used **after** Args.Begin()\
 '' Returns the message text and will Print to stdout if boolean arg PrintText is True.
 Public Sub HelpText(Optional PrintText As Boolean) As String
-
-If Not $aHelp Then
-  DoAbort(("Error: Args.Helptext() must be called after the command Args.Begin()"))
-Endif
-
+  
+  If Not $aHelp Then
+    DoAbort(("Error: Args.Helptext() must be called after the command Args.Begin()"))
+  Endif
+  
   Dim sVar As String
-    If $sUsage Then
-      sVar &= $sUsage & "\n"
-    Else
-      sVar &= Subst(("Usage: &1 <options> <arguments>"), Application.Title) & "\n"
-    Endif
-
-    sVar &= "\n" & ("Options:") & "\n"
-    sVar &= $aHelp.Join("\n")
+  If $sUsage Then
+    sVar &= $sUsage & "\n"
+  Else
+    sVar &= Subst(("Usage: &1 <options> <arguments>"), Application.Title) & "\n"
+  Endif
+  
+  sVar &= "\n" & ("Options:") & "\n"
+  sVar &= $aHelp.Join("\n")
   
   If PrintText Then Print sVar
   
   Return sVar
-
+  
 End
-
 
 Private Sub GetKey(ShortName As String, LongName As String) As String
   
   Dim sKey As String
-
+  
   If ShortName Then sKey &= "-" & ShortName
   If LongName Then sKey &= " --" & LongName
   Return Trim(sKey)
   
 End
 
-
-Private Sub AddHelp(ShortName As String, LongName As String, Description As String, Optional ArgName As String) As Boolean
-
+Private Sub AddHelp(ShortName As String, LongName As String, Description As String, Optional ArgName As String, Optional sDefault As String) As Boolean
+  
   Dim sKey As String = GetKey(ShortName, LongName)
   Dim sHelp As String
   
@@ -163,6 +160,7 @@ Private Sub AddHelp(ShortName As String, LongName As String, Description As Stri
   If LongName Then sHelp &= " --" & LongName
   If ArgName Then sHelp &= " <" & ArgName & ">"
   sHelp &= Space$(Max(4, 40 - String.Len(sHelp))) & Description
+  If sDefault Then sHelp &= " (" & Quote(sDefault) & " " & ("by default") & ")"
   
   $aHelp.Add(sHelp)
   
@@ -179,7 +177,7 @@ Public Sub Has(ShortName As String, LongName As String, Optional Description As 
   Else If ShortName = "h" Then 
     $bManualHelp = True
   Endif
-
+  
   vShort = $cArg["-" & ShortName]
   vLong = $cArg["--" & LongName]
   
@@ -198,13 +196,13 @@ Public Sub Get(ShortName As String, LongName As String, Optional Description As 
   Dim vShort, vLong As Variant
   
   If Not sKey Then Return {Default}
-  AddHelp(ShortName, LongName, Description, ArgName)
+  AddHelp(ShortName, LongName, Description, ArgName, {Default})
   
   vShort = $cArg["-" & ShortName]
   vLong = $cArg["--" & LongName]
   
   If IsNull(vShort) And If IsNull(vLong) Then Return {Default}
-
+  
   If TypeOf(vShort) = gb.Boolean Then DoAbort(Subst("argument missing for option -&1", ShortName))
   If TypeOf(vLong) = gb.Boolean Then DoAbort(Subst("argument missing for option --&1", LongName))
   
@@ -212,7 +210,7 @@ Public Sub Get(ShortName As String, LongName As String, Optional Description As 
   
   $cArg["-" & ShortName] = Null
   $cArg["--" & LongName] = Null
-
+  
   If vShort Then
     Try $aRest.Remove($aRest.Find(vShort))
     Return Args[vShort]
@@ -227,10 +225,10 @@ Public Sub Get(ShortName As String, LongName As String, Optional Description As 
 End
 
 Public Sub GetInteger(ShortName As String, LongName As String, Optional Description As String, Optional ArgName As String, Optional {Default} As Integer) As Integer
-   
+  
   Dim sVal As String = Get(ShortName, LongName, Description, ArgName)
   Dim iVal As Integer
-   
+  
   If Not sVal Then Return {Default}
   If sVal Begins "0x" And If Len(sVal) > 2 Then
     Try iVal = Val("&H" & sVal)
@@ -238,18 +236,17 @@ Public Sub GetInteger(ShortName As String, LongName As String, Optional Descript
   Endif
   If Not IsInteger(sVal) Then DoAbort(Subst("option &1 needs an integer argument"), GetKey(ShortName, LongName))
   Return CInt(sVal)
-   
+  
 End
- 
+
 Public Sub GetFloat(ShortName As String, LongName As String, Optional Description As String, Optional ArgName As String, Optional {Default} As Float) As Float
   
   Dim sVal As String = Get(ShortName, LongName, Description, ArgName)
   Dim fVal As Float
-   
+  
   If Not sVal Then Return {Default}
   Try fVal = CFloat(sVal)
   If Error Then DoAbort(Subst("option &1 needs a floating point number argument"), GetKey(ShortName, LongName))
   Return fVal
-   
+  
 End
- 
