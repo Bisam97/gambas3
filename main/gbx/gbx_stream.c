@@ -1325,7 +1325,7 @@ void STREAM_read_type(STREAM *stream, TYPE type, VALUE *value)
 			size = read_length(stream);
 
 			GB_ArrayNew((GB_ARRAY *)&array, atype, size);
-			register_read_object(stream, array);
+			//register_read_object(stream, array);
 			
 			for (i = 0; i < size; i++)
 			{
@@ -1359,7 +1359,7 @@ void STREAM_read_type(STREAM *stream, TYPE type, VALUE *value)
 			size = read_length(stream);
 
 			GB_CollectionNew(&col, buffer._byte == 'c');
-			register_read_object(stream, col);
+			//register_read_object(stream, col);
 			
 			for (i = 0; i < size; i++)
 			{
@@ -1403,7 +1403,7 @@ void STREAM_read_type(STREAM *stream, TYPE type, VALUE *value)
 			register_read_object(stream, object);
 			
 			cstream = CSTREAM_FROM_STREAM(stream);
-			
+
 			STACK_check(1);
 			PUSH_OBJECT(OBJECT_class(cstream), cstream);
 			
@@ -1754,32 +1754,30 @@ void STREAM_write_type(STREAM *stream, TYPE type, VALUE *value)
 		return;
 	}
 	
-	extra = ENSURE_EXTRA(stream);
-	if (!extra->write_objects)
-		HASH_TABLE_create(&extra->write_objects, sizeof(int), HF_NORMAL);
-	
-	pid = (int *)HASH_TABLE_lookup(extra->write_objects, (const char *)&object, sizeof(uintptr_t), FALSE);
-	if (pid)
-	{
-		buffer._byte = '@';
-		STREAM_write(stream, &buffer._byte, 1);
-		buffer._int = *pid;
-		STREAM_write(stream, &buffer._int, sizeof(int));
-		return;
-	}
-	else
-	{
-		pid = HASH_TABLE_insert(extra->write_objects, (const char *)&object, sizeof(uintptr_t));
-		*pid = HASH_TABLE_size(extra->write_objects);
-		OBJECT_REF(object);
-	}
-	
 	class = OBJECT_class(object);
 	
 	if (class->special[SPEC_WRITE] != NO_SYMBOL)
 	{
 		CSTREAM *ob;
 		
+		extra = ENSURE_EXTRA(stream);
+		if (!extra->write_objects)
+			HASH_TABLE_create(&extra->write_objects, sizeof(int), HF_NORMAL);
+
+		pid = (int *)HASH_TABLE_lookup(extra->write_objects, (const char *)&object, sizeof(uintptr_t), FALSE);
+		if (pid)
+		{
+			buffer._byte = '@';
+			STREAM_write(stream, &buffer._byte, 1);
+			buffer._int = *pid;
+			STREAM_write(stream, &buffer._int, sizeof(int));
+			return;
+		}
+
+		pid = HASH_TABLE_insert(extra->write_objects, (const char *)&object, sizeof(uintptr_t));
+		*pid = HASH_TABLE_size(extra->write_objects);
+		OBJECT_REF(object);
+
 		if (variant || type == T_OBJECT)
 		{
 			char *name = class->name;
@@ -1802,7 +1800,7 @@ void STREAM_write_type(STREAM *stream, TYPE type, VALUE *value)
 		STACK_check(1);
 		PUSH_OBJECT(OBJECT_class(ob), ob);
 		EXEC_special(SPEC_WRITE, class, object, 1, TRUE);
-		
+
 		return;
 	}
 	
