@@ -180,7 +180,8 @@ Public Sub Purge(Optional KeepComment As Boolean, KeepString As Boolean, Replace
   Dim iLen As Byte
   
   sText = hDoc.Lines[_Line]
-  aColor = GetDoc().Info(_Line).Colors
+  hDoc.HighlightUntil(_Line)
+  aColor = hDoc.Info(_Line).Colors
   If Not aColor Then Return sText
   
   iComment = TextHighlighterTheme._RegisterState("Comment")
