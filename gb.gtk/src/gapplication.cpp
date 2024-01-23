@@ -1056,13 +1056,13 @@ void gApplication::init(int *argc, char ***argv)
 	appid = GB.ToZeroString((GB_STRING *)GB.Call(&func, 0, FALSE));
 
 	//fprintf(stderr, "appid = %s\n", appid);
-#if GLIB_CHECK_VERSION(2, 74, 0)
+	#if GLIB_CHECK_VERSION(2, 74, 0)
 	_app = gtk_application_new(NULL,  G_APPLICATION_DEFAULT_FLAGS);
-#else
+	#else
 	_app = gtk_application_new(NULL,  G_APPLICATION_FLAGS_NONE);
-#endif
+	#endif
 	g_set_prgname(appid); // wayland window uses that as window class instead of the appid defined by the application!
-
+	g_application_register(G_APPLICATION(_app), NULL, NULL);
 	g_object_set(G_OBJECT(_app), "register-session", TRUE, NULL);
 
 	#else
@@ -1150,6 +1150,13 @@ void gApplication::setBusy(bool b)
 		return;
 
 	_busy = b;
+
+#ifdef GTK3
+	if (_busy)
+		g_application_mark_busy(G_APPLICATION(_app));
+	else
+		g_application_unmark_busy(G_APPLICATION(_app));
+#endif
 
 	forEachControl(cb_update_busy);
 	gdk_display_flush(gdk_display_get_default());

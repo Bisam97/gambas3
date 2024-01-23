@@ -2296,10 +2296,7 @@ void gControl::setForeground(gColor color)
 #ifdef GTK3
 	updateStyleSheet(true);
 #endif
-	//gt_widget_set_color(border, TRUE, _fg, _fg_name, &_fg_default);
 	updateColor();
-	/*if (::strcmp(name(), "dwgInfo") == 0)
-		fprintf(stderr, "setForeground: %08X\n", _fg);*/
 }
 
 #else
