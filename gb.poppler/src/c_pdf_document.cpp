@@ -437,7 +437,58 @@ END_METHOD
 
 BEGIN_PROPERTY(PdfPage_Thumbnail)
 
-  GB.ReturnNull();
+	cairo_surface_t *surf = poppler_page_get_thumbnail(THIS->current);
+	int format;
+	int x, y, w, h, ws;
+	uint *src;
+	uchar *dest;
+	GB_IMG *result;
+	bool alpha;
+
+	if (!surf || cairo_surface_get_type(surf) != CAIRO_SURFACE_TYPE_IMAGE)
+	{
+		GB.ReturnNull();
+		return;
+	}
+
+	switch (cairo_image_surface_get_format(surf))
+	{
+		case CAIRO_FORMAT_RGB24: format = GB_IMAGE_RGBX; alpha = FALSE; break;
+		case CAIRO_FORMAT_ARGB32: format = GB_IMAGE_RGBP; alpha = TRUE; break;
+		default: GB.ReturnNull(); return;
+	}
+
+  cairo_surface_flush(surf);
+
+	w = cairo_image_surface_get_width(surf);
+	h = cairo_image_surface_get_height(surf);
+	ws = cairo_image_surface_get_stride(surf) >> 2;
+	src = (uint *)cairo_image_surface_get_data(surf);
+
+	result = IMAGE.Create(w, h, format, NULL);
+
+	dest = result->data;
+
+  for (y = 0; y < h; y++)
+	{
+		uint *p = src;
+
+		for (x = 0; x < w; x++)
+		{
+			dest[0] = *p >> 16;
+			dest[1] = *p >> 8;
+			dest[2] = *p;
+			dest[3] = alpha ? ((*p >> 24) ^ 0xFF) : 0xFF;
+			dest += 4;
+			p++;
+		}
+
+		src += ws;
+	}
+
+	cairo_surface_destroy(surf);
+
+	GB.ReturnObject(result);
 
 END_PROPERTY
 
