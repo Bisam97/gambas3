@@ -75,7 +75,8 @@ typedef
 		unsigned no_read_ahead : 1;
 		unsigned null_terminated : 1;
 		unsigned check_read : 1;
-		unsigned _reserved : 2;
+		unsigned no_share : 1;
+		unsigned _reserved : 1;
 		#if __WORDSIZE == 64
 		unsigned _reserved2 : 32;
 		#endif

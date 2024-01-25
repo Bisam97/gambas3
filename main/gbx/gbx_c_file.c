@@ -956,6 +956,15 @@ BEGIN_METHOD(Stream_Watch, GB_INTEGER mode; GB_BOOLEAN on)
 
 END_METHOD
 
+BEGIN_PROPERTY(Stream_NoShare)
+
+	if (READ_PROPERTY)
+		GB_ReturnBoolean(THE_STREAM->common.no_share);
+	else
+		THE_STREAM->common.no_share = VPROP(GB_BOOLEAN);
+
+END_PROPERTY
+
 BEGIN_METHOD_VOID(StreamLines_next)
 
 	char *str;
@@ -1110,6 +1119,7 @@ GB_DESC StreamDesc[] =
 	GB_METHOD("Close", NULL, Stream_Close, NULL),
 	GB_PROPERTY_READ("EndOfFile", "b", Stream_EndOfFile),
 	GB_PROPERTY("NullTerminatedString", "b", Stream_NullTerminatedString),
+	GB_PROPERTY("NoShare", "b", Stream_NoShare),
 	GB_PROPERTY("Blocking", "b", Stream_Blocking),
 	GB_PROPERTY("Tag", "v", Stream_Tag),
 	GB_METHOD("ReadLine", "s", Stream_ReadLine, "[(Escape)s]"),
