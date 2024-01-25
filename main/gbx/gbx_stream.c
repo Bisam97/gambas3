@@ -1278,9 +1278,6 @@ void STREAM_read_type(STREAM *stream, TYPE type, VALUE *value)
 			return;
 		}
 
-		if (buffer._byte > 32)
-			fprintf(stderr, "STREAM_read_type: %c\n", buffer._byte);
-
 		if (buffer._byte == 'B' || buffer._byte == 'b' || buffer._byte == 'D' || buffer._byte == 'd' || buffer._byte == 'P' || buffer._byte == 'p')
 		{
 			buffer._byte--;
