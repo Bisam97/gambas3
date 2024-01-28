@@ -858,7 +858,7 @@ Public Sub ReadConfig()
     Project.WIKI_URL = "wiki://"
     Project.WIKI_ROOT = "wiki://"
   Else
-    Project.WIKI_URL = "http://gambaswiki.org/"
+    Project.WIKI_URL = "https://gambaswiki.org/"
     Project.WIKI_ROOT = Project.WIKI_URL &/ "wiki"
   Endif
   
@@ -885,7 +885,7 @@ Public Sub GetOfflineState() As Integer
   If Not Desktop.NetworkAvailable Then Return OFFLINE_NO_NETWORK
   
   Inc Application.Busy
-  sTimestamp = HttpClient.Download("http://gambaswiki.org/timestamp")
+  sTimestamp = HttpClient.Download("https://gambaswiki.org/timestamp")
   Dec Application.Busy
   
   sTimestamp = Trim(sTimestamp)

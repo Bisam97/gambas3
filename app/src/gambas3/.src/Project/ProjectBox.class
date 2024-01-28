@@ -47,6 +47,8 @@ Private Enum BUTTON_NONE, BUTTON_REMOVE, BUTTON_OPEN
 Private $iInside As Integer
 Private $iPressed As Integer
 
+Private $hPopup As Menu
+
 Public Sub _new()
   
   $hDrawingArea = New DrawingArea(Me) As "DrawingArea"
@@ -75,7 +77,6 @@ Public Sub _new()
   
 End
 
-  
 Private Sub SetPath(sPath As String)
   
   $sPath = sPath
@@ -88,7 +89,6 @@ Private Sub SetPath(sPath As String)
   Me.Refresh
   
 End
-
 
 ' Private Sub GetTitle() As String
 '   
@@ -130,14 +130,13 @@ Public Sub DrawingArea_MouseMove()
   Else
     iInside = BUTTON_NONE
   Endif
-
+  
   If iInside <> $iInside Then
     $iInside = iInside
     $hDrawingArea.Refresh
   Endif
   
 End
-
 
 Public Sub DrawingArea_Draw()
   
@@ -170,7 +169,7 @@ Public Sub DrawingArea_Draw()
   '     W -= P
   '   Endif
   ' Endif
-
+  
   XS = X
   YS = Y
   WS = W
@@ -184,7 +183,7 @@ Public Sub DrawingArea_Draw()
     
     Paint.AntiAlias = False
     Paint.Rectangle(X + 1, Y + 1, W - 3, H - 3)
-
+    
     If $bSelected Then 'Or If $bHighlight Then
       iBg = Color.Merge(Color.LightBackground, Color.TextBackground)
     Else If $bHighlight Then
@@ -201,21 +200,21 @@ Public Sub DrawingArea_Draw()
     'Paint.DrawImage($hGradient, X, Y, W, W)
     
     If $hDrawingArea.HasFocus Or If $bHighlight Then
-    
+      
       Paint.AntiAlias = True
       Paint.Background = Color.SetAlpha(Color.SelectedBackground, 128)
       Paint.LineWidth = 2
       Paint.Rectangle(X, Y, W, H)
       Paint.Stroke
-    
+      
     Else 
       
       Paint.Background = Color.LightForeground
       Paint.Stroke
       Paint.AntiAlias = True
-    
+      
     Endif
-
+    
     Paint.Save
     
     X += P
@@ -232,7 +231,7 @@ Public Sub DrawingArea_Draw()
     iCol = Color.Foreground 'If($bSelected, Color.SelectedForeground, Color.Foreground)
     
     X += ICON_SIZE + P
-
+    
     If Template Then
       sText = .GetTranslatedTitle()
     Else
@@ -249,7 +248,7 @@ Public Sub DrawingArea_Draw()
     Paint.Font.Bold = False
     
     If Template Then
-    
+      
       X -= ICON_SIZE + P
       
       sText = .GetTranslatedDescription()
@@ -263,7 +262,7 @@ Public Sub DrawingArea_Draw()
       Paint.DrawText(sText, X, Y + HT + P * 2, W, H)
       
     Else If bSmall Then
-    
+      
       Paint.Font.Bold = False
       
       sText = " • " & .Version
@@ -271,15 +270,15 @@ Public Sub DrawingArea_Draw()
       HT = Paint.Font.Height
       Paint.DrawText(sText, X + WT, Y, Paint.W, Paint.H, Align.TopLeft)
       WT += Paint.Font.TextWidth(sText)
-
+      
       If .Branch Then
         
         XB = X + WT + P
         YB = Y
         HB = HT
-
+        
         GoSub DRAW_BRANCH
-
+        
       Endif
       
       sText = .GetTranslatedDescription()
@@ -306,9 +305,9 @@ Public Sub DrawingArea_Draw()
         XB = X + hExt.Width + P
         YB = Y + HT 
         HB = HT 'Ceil(hExt.H) + 4
-
+        
         GoSub DRAW_BRANCH
-
+        
       Endif
       
       X -= ICON_SIZE + P
@@ -325,7 +324,7 @@ Public Sub DrawingArea_Draw()
     Endif
     
     Paint.Restore
-  
+    
   End With
   
   If ShowRemove And If $bHighlight Then
@@ -369,7 +368,7 @@ Public Sub DrawingArea_Draw()
   Return
   
 DRAW_BRANCH:
-
+  
   Paint.Font.Grade = -2
   WB = Paint.TextSize($hProjectInfo.Branch).Width + P * 2
   
@@ -381,7 +380,7 @@ DRAW_BRANCH:
   Paint.Background = Color.TextForeground
   
   Paint.Font.Grade = 0
-        
+  
   Return
   
 End
@@ -390,9 +389,9 @@ Public Sub DrawingArea_Enter()
   
   If $bCanHighlight And If Me.Enabled Then
     'If not $bHighlight Then 
-      '$hDrawingArea.Background = Color.LightBackground
-      $bHighlight = True
-      $hDrawingArea.Refresh
+    '$hDrawingArea.Background = Color.LightBackground
+    $bHighlight = True
+    $hDrawingArea.Refresh
     'Endif
   Endif
   
@@ -409,9 +408,9 @@ Public Sub DrawingArea_Leave()
 End
 
 Public Sub DrawingArea_KeyPress()
-
+  
   If Key.Code = Key.Space Then Raise Click
-
+  
 End
 
 ' Private Function Background_Read() As Integer
@@ -428,47 +427,47 @@ End
 ' End
 
 Private Function ShowPath_Read() As Boolean
-
+  
   Return $bShowPath
-
+  
 End
 
 Private Sub ShowPath_Write(Value As Boolean)
-
+  
   $bShowPath = Value
   Me.Refresh
-
+  
 End
 
 Private Function Path_Read() As String
-
+  
   Return $sPath
-
+  
 End
 
 Private Sub Path_Write(Value As String)
-
+  
   SetPath(Value)
-
+  
 End
 
 Private Function Highlight_Read() As Boolean
-
+  
   Return $bCanHighlight
-
+  
 End
 
 Private Sub Highlight_Write(Value As Boolean)
-
+  
   $bCanHighlight = Value
   $hDrawingArea.Mouse = If(Value, Mouse.Pointing, Mouse.Default)
-
+  
 End
 
 Private Function Info_Read() As CProjectInfo
-
+  
   Return $hProjectInfo
-
+  
 End
 
 Public Sub DrawingArea_MouseDown()
@@ -505,20 +504,20 @@ Public Sub DrawingArea_DblClick()
 End
 
 Private Function ShowAuthors_Read() As Boolean
-
+  
   Return $bShowAuthors
-
+  
 End
 
 Private Sub ShowAuthors_Write(Value As Boolean)
-
+  
   $bShowAuthors = Value
   $hDrawingArea.Refresh
-
+  
 End
 
 Public Sub Match(sFilter As String) As Boolean
-
+  
   If Not sFilter Then Return True
   With $hProjectInfo
     If .Name Like sFilter Then Return True
@@ -534,20 +533,77 @@ Public Sub Match(sFilter As String) As Boolean
 End
 
 Private Function Selected_Read() As Boolean
-
+  
   Return $bSelected
-
+  
 End
 
 Private Sub Selected_Write(Value As Boolean)
-
+  
   $bSelected = Value
   $hDrawingArea.Refresh
-
+  
 End
 
 Private Function Deleted_Read() As Boolean
-
+  
   Return $hProjectInfo.Deleted
+  
+End
 
+Public Sub DrawingArea_Menu()
+
+  Dim hMenu As Menu
+  
+  $hPopup = New Menu(Me.Window, True) As "Popup"
+  
+  If ShowButton Then
+    hMenu = New Menu($hPopup) As "mnuOpenAnother"
+    hMenu.Text = ("Open in another window") & "..."
+    hMenu.Picture = Picture["icon:/small/open-link"]
+  Endif
+  
+  hMenu = New Menu($hPopup) As "mnuOpenFolder"
+  hMenu.Text = ("Open project folder") & "..."
+  hMenu.Picture = Picture["icon:/small/directory"]
+  
+  If ShowRemove Then
+    hMenu = New Menu($hPopup) As "mnuRemove"
+    hMenu.Text = ("Remove")
+    hMenu.Picture = Picture["icon:/small/remove"]
+  Endif
+  
+  hMenu = New Menu($hPopup)
+  
+  hMenu = New Menu($hPopup)
+  hMenu.Text = ("Cancel")
+  hMenu.Picture = Picture["icon:/small/close"]
+  
+  $hPopup.Popup()
+  
+End
+
+Public Sub Popup_Close()
+  
+  $hPopup.Delete
+  $hPopup = Null
+  
+End
+
+Public Sub mnuOpenAnother_Click()
+  
+  Raise ButtonClick
+  
+End
+
+Public Sub mnuRemove_Click()
+  
+  Raise RemoveClick
+  
+End
+
+Public Sub mnuOpenFolder_Click()
+  
+  Desktop.Open($hProjectInfo.Path)
+  
 End
