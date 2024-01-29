@@ -442,28 +442,32 @@ Private Sub UpdateShadows()
     Me._Container = Null
     $hShadowN = New DrawingArea(Me) As "Shadow"
     $hShadowN.Ignore = True
+    $hShadowN.NoMouse = True
+    $hShadowN.Raise
     $hShadowS = New DrawingArea(Me) As "Shadow"
     $hShadowS.Ignore = True
+    $hShadowS.NoMouse = True
+    $hShadowS.Raise
     $hShadowW = New DrawingArea(Me) As "Shadow"
     $hShadowW.Ignore = True
+    $hShadowW.NoMouse = True
+    $hShadowW.Raise
     $hShadowE = New DrawingArea(Me) As "Shadow"
     $hShadowE.Ignore = True
+    $hShadowE.NoMouse = True
+    $hShadowE.Raise
     Me._Container = hSave
   Endif
   
   LoadFades()
   $hShadowN.Move($hDrawingArea.X + $iShadowW, $hDrawingArea.Y + $iShadowN, Me.ClientW - $iShadowE - $iShadowW, $hFadeN.H)
-  $hShadowN.Raise
   $hShadowS.Move($hDrawingArea.X + $iShadowW, $hDrawingArea.Y + Me.ClientH - $iShadowS - $hFadeS.H, Me.ClientW - $iShadowE - $iShadowW, $hFadeS.H)
-  $hShadowS.Raise
   $hShadowN.Visible = $iScrollY > $hVBar.MinValue
   $hShadowS.Visible = $iScrollY < $hVBar.MaxValue
   
   LoadFades()
   $hShadowW.Move($hDrawingArea.X + $iShadowW, $hDrawingArea.Y + $iShadowN, $hFadeW.W, Me.ClientH - $iShadowS - $iShadowN)
-  $hShadowW.Raise
   $hShadowE.Move($hDrawingArea.X + Me.ClientW - $iShadowE - $hFadeE.W, $hDrawingArea.Y + $iShadowN, $hFadeE.W, Me.ClientH - $iShadowS - $iShadowN)
-  $hShadowE.Raise
   If Me.RightToLeft Then
     $hShadowE.Visible = $iScrollX > $hHBar.MinValue
     $hShadowW.Visible = $iScrollX < $hHBar.MaxValue
