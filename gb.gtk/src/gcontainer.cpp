@@ -672,7 +672,7 @@ void gContainer::remove(gControl *child)
 }
 
 
-gControl *gContainer::find(int x, int y)
+gControl *gContainer::find(int x, int y, bool skip_ignore_mouse)
 {
 	int i;
 	gControl *ch;
@@ -698,6 +698,8 @@ gControl *gContainer::find(int x, int y)
 	{
 		ch = child(i);
 		//fprintf(stderr, "test: %s %d: %d %d %d %d / %d %d\n", ch->name(), ch->isVisible(), ch->x(), ch->y(), ch->width(), ch->height(), x, y);
+		if (skip_ignore_mouse && ch->isIgnoreMouse())
+			continue;
 		if (ch->isVisible() && x >= ch->left() && y >= ch->top() && x < (ch->left() + ch->width()) && y < (ch->top() + ch->height()))
 		{
 			//fprintf(stderr, "--> %s\n", ch->name());

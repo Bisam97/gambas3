@@ -250,6 +250,17 @@ BEGIN_PROPERTY(DrawingArea_Tablet)
 
 END_PROPERTY
 
+BEGIN_PROPERTY(DrawingArea_NoMouse)
+
+	if (READ_PROPERTY)
+		GB.ReturnBoolean(WIDGET->isIgnoreMouse());
+	else
+		WIDGET->setIgnoreMouse(VPROP(GB_BOOLEAN));
+
+END_PROPERTY
+
+//-------------------------------------------------------------------------
+
 GB_DESC CDrawingAreaDesc[] =
 {
 	GB_DECLARE("DrawingArea", sizeof(CDRAWINGAREA)), GB_INHERITS("Container"),
@@ -263,8 +274,8 @@ GB_DESC CDrawingAreaDesc[] =
 	GB_PROPERTY("Focus","b",DrawingArea_Focus),
 	GB_PROPERTY("Painted", "b", DrawingArea_Painted),
 	GB_PROPERTY("NoBackground", "b", DrawingArea_NoBackground),
-	
 	GB_PROPERTY("Tablet", "b", DrawingArea_Tablet),
+	GB_PROPERTY("NoMouse", "b", DrawingArea_NoMouse),
 
 	GB_METHOD("Clear", NULL, DrawingArea_Clear, NULL),
 	GB_METHOD("Refresh", NULL, DrawingArea_Refresh, "[(X)i(Y)i(Width)i(Height)i]"),

@@ -144,6 +144,9 @@ public:
 	bool isInverted() const { return _inverted; }
 
 	bool isRightToLeft() const;
+
+	void setIgnoreMouse(bool v) { _ignore_mouse = v; }
+	bool isIgnoreMouse() const { return _ignore_mouse; }
 	
 	gColor background() const { return _bg; }
 	gColor foreground() const { return _fg; }
@@ -302,6 +305,8 @@ public:
 	unsigned _direction : 2;               // Text direction
 
 	unsigned _allow_show : 1;              // Allowed to be visible (after the first resize)
+
+	unsigned _ignore_mouse : 1;            // Ignore mouse events (for drawing area only)
 	
 	
 #ifdef GTK3

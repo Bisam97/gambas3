@@ -365,6 +365,7 @@ void gControl::initAll(gContainer *parent)
 	//_hidden_temp = false;
 	_allow_show = false;
 	_direction = DIRECTION_DEFAULT;
+	_ignore_mouse = false;
 
 	frame = border = widget = NULL;
 	_scroll = NULL;

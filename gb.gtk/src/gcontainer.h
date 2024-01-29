@@ -103,7 +103,7 @@ public:
 	
 	void clear();
 	
-	virtual gControl *find(int x, int y);
+	virtual gControl *find(int x, int y, bool skip_ignore_mouse = false);
 	
 	gContainerArrangement *getArrangement() { return &arrangement; }
 	gContainerArrangement fullArrangement() { return arrangement; }

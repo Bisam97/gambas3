@@ -214,6 +214,7 @@ protected:
 	virtual void keyPressEvent(QKeyEvent *);
 	virtual void closeEvent(QCloseEvent *);
 	virtual void changeEvent(QEvent *);
+	//virtual void paintEvent(QPaintEvent *);
 
 	//bool eventFilter(QObject *, QEvent *);
 

@@ -813,6 +813,14 @@ static void QT_Init(void)
 	if (!fix_style)
 		qApp->setStyle(new FixStyle);
 
+	/*env = getenv("GB_QT_NO_SEPARATOR")
+	if (!env || atoi(env) == 0)
+	{
+		env = getenv("XDG_CURRENT_DESKTOP");
+		if (env && !::strcmp(env, "KDE"))
+			CSTYLE_toplevel_separator = TRUE;
+	}*/
+
 	MAIN_update_scale(qApp->desktop()->font());
 
 	qApp->installEventFilter(&CWidget::manager);

@@ -69,6 +69,8 @@
 #include "CKey.h"
 #include "CDraw.h"
 #include "CImage.h"
+#include "CColor.h"
+#include "CStyle.h"
 #include "CWindow.h"
 
 #ifndef NO_X_WINDOW
@@ -2799,18 +2801,32 @@ void MyMainWindow::center()
 	CWIDGET_move(THIS, r.x() + (r.width() - width()) / 2, r.y() + (r.height() - height()) / 2);
 }
 
+#if 0
+void MyMainWindow::paintEvent(QPaintEvent *e)
+{
+	if (CSTYLE_fix_breeze && isTopLevel())
+	{
+		QPainter p(this);
+		p.fillRect(0, 0, width(), 1, CCOLOR_light_foreground());
+	}
+}
+#endif
+
 void MyMainWindow::configure()
 {
 	CWINDOW *_object = (CWINDOW *)CWidget::get(this);
 	QMenuBar *menuBar = THIS->menuBar;
 	bool arrange = false;
 	QRect geom;
+	int d;
 
 	//qDebug("THIS->menuBar = %p  menuBar() = %p", THIS->menuBar, menuBar());
 
 	// sometimes configure() seems to be called when the window is being deleted
 	if (CWIDGET_check(THIS))
 		return;
+
+	d = 0; //CSTYLE_fix_breeze && isTopLevel() ? 1 : 0;
 
 	if (menuBar && THIS->showMenuBar && !THIS->hideMenuBar)
 	{
@@ -2820,14 +2836,14 @@ void MyMainWindow::configure()
 			h = menuBar->height();
 
 		menuBar->show();
-		geom = QRect(0, h, this->width(), this->height() - h);
+		geom = QRect(0, h + d, this->width(), this->height() - h - d);
 
 		if (THIS->container->geometry() != geom)
 		{
 			arrange = true;
 			THIS->container->setGeometry(geom);
 		}
-		menuBar->setGeometry(0, 0, this->width(), h);
+		menuBar->setGeometry(0, d, this->width(), h);
 	}
 	else
 	{
@@ -2837,7 +2853,7 @@ void MyMainWindow::configure()
 			menuBar->lower();
 		}
 
-		geom = QRect(0, 0, this->width(), this->height());
+		geom = QRect(0, d, this->width(), this->height() - d);
 
 		if (THIS->container->geometry() != geom)
 		{

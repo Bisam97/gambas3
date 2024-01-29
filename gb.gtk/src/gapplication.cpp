@@ -76,7 +76,7 @@ static GtkWindowGroup *get_window_group(GtkWidget *widget)
     return gtk_window_get_group(NULL);
 }
 
-static gControl *find_child(gControl *control, int rx, int ry, gControl *button_grab = NULL)
+static gControl *find_child(gControl *control, int rx, int ry, gControl *button_grab = NULL, bool skip_ignore_mouse = false)
 {
 	gContainer *cont;
 	gControl *child;
@@ -100,6 +100,9 @@ static gControl *find_child(gControl *control, int rx, int ry, gControl *button_
 
 	window = control->topLevel();
 	control = window;
+
+	if (skip_ignore_mouse && control->isIgnoreMouse())
+		return NULL;
 	
 	#ifdef GTK3
 	gtk_widget_get_allocation(window->frame, &a);
@@ -152,7 +155,7 @@ static gControl *find_child(gControl *control, int rx, int ry, gControl *button_
 		#if DEBUG_FIND_CONTROL
 		fprintf(stderr, "  find coord %d %d\n", x, y);
 		#endif
-		child = cont->find(x, y);
+		child = cont->find(x, y, skip_ignore_mouse);
 		if (!child)
 			break;
 
@@ -553,7 +556,7 @@ __FOUND_WIDGET:
 				default: type = gEvent_MouseRelease; break;
 			}
 
-			save_control = find_child(control, (int)event->button.x_root, (int)event->button.y_root, button_grab);
+			save_control = find_child(control, (int)event->button.x_root, (int)event->button.y_root, button_grab, true);
 			
 			/*if (type == gEvent_MousePress)
 				fprintf(stderr, "save_control = %p %s\n", save_control, save_control ? save_control->name() : "");*/
@@ -754,7 +757,7 @@ __FOUND_WIDGET:
 
 		case GDK_SCROLL:
 
-			save_control = control = find_child(control, (int)event->scroll.x_root, (int)event->scroll.y_root);
+			save_control = control = find_child(control, (int)event->scroll.x_root, (int)event->scroll.y_root, NULL, true);
 			if (!control)
 				goto __HANDLE_EVENT;
 
