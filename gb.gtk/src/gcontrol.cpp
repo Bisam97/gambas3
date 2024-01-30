@@ -1422,6 +1422,7 @@ void gControl::restack(bool raise)
 	GList **children;
 	GList *find;
 	gpointer *p;
+	GdkWindow *window;
 
 	if (!pr) 
 		return;
@@ -1450,10 +1451,14 @@ void gControl::restack(bool raise)
 	
 	if (gtk_widget_get_has_window(border))
 	{
-		if (raise)
-			gdk_window_raise(gtk_widget_get_window(border));
-		else
-			gdk_window_lower(gtk_widget_get_window(border));
+		window = gtk_widget_get_window(border);
+		if (window)
+		{
+			if (raise)
+				gdk_window_raise(window);
+			else
+				gdk_window_lower(window);
+		}
 	}
 	
 	g_ptr_array_remove(pr->_children, this);
@@ -1972,7 +1977,7 @@ void gControl::realize(bool draw_frame)
 	setMinimumSize();
 	resize(Max(8, _min_w), Max(8, _min_h), true);
 	
-	if (!_no_background && !gtk_widget_get_has_window(border))
+	if (!_no_background) // && !gtk_widget_get_has_window(border))
 		ON_DRAW_BEFORE(border, this, cb_background_expose, cb_background_draw);
 
 	if (draw_frame && frame)
@@ -2826,11 +2831,12 @@ void gControl::drawBackground(cairo_t *cr)
 	gColor col= background();
 	
 	if (col == COLOR_DEFAULT)
-	{
+		return;
+	/*{
 		if (!gtk_widget_get_has_window(border))
 			return;
 		col = realBackground(true);
-	}
+	}*/
 
 	gt_cairo_set_source_color(cr, col);
 	cairo_rectangle(cr, 0, 0, width(), height());

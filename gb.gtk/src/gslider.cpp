@@ -75,6 +75,7 @@ void gSlider::init()
 	//GtkAdjustment* adj = gtk_range_get_adjustment(GTK_RANGE(widget));
 
 	_use_wheel = true;
+	_no_background = true;
 
 	g_signal_connect(widget, "value-changed", G_CALLBACK(cb_change), (gpointer)this);
 	//g_signal_connect(adj, "changed", G_CALLBACK(cb_change), (gpointer)this);
@@ -226,29 +227,50 @@ void gSlider::setValue(int vl)
 }
 
 
+void gSlider::swapMinimumSize()
+{
+	int swap = _min_w;
+	_min_w = _min_h;
+	_min_h = swap;
+}
+
 void gSlider::applyOrientation(GtkOrientation orientation)
 {
 	GtkOrientation old_orientation = gtk_orientable_get_orientation(GTK_ORIENTABLE(widget));
-	int swap;
 
 	if (orientation != old_orientation)
 	{
 		gtk_orientable_set_orientation(GTK_ORIENTABLE(widget), orientation);
-		
-		swap = _min_w;
-		_min_w = _min_h;
-		_min_h = swap;
+		swapMinimumSize();
 	}
 }
 
 bool gSlider::resize(int w, int h, bool no_decide)
 {
-	if (gControl::resize(w, h, no_decide))
-		return true;
+	GtkOrientation new_orient, old_orient;
+	bool swapped = false;
 
 	if (!_orientation)
-		applyOrientation((width() < height()) ? GTK_ORIENTATION_VERTICAL : GTK_ORIENTATION_HORIZONTAL);
-	
+	{
+		old_orient = gtk_orientable_get_orientation(GTK_ORIENTABLE(widget));
+		new_orient = (w < h) ? GTK_ORIENTATION_VERTICAL : GTK_ORIENTATION_HORIZONTAL;
+		if (new_orient != old_orient)
+		{
+			swapMinimumSize();
+			swapped = true;
+		}
+	}
+
+	if (gControl::resize(w, h, no_decide))
+	{
+		if (swapped)
+			swapMinimumSize();
+		return true;
+	}
+
+	if (!_orientation && new_orient != old_orient)
+		gtk_orientable_set_orientation(GTK_ORIENTABLE(widget), new_orient);
+
 	return false;
 }
 

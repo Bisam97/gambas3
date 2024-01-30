@@ -41,6 +41,14 @@ void gPanel::create(void)
 	int bg, fg;
 	gControl *nextSibling;
 	
+#ifdef GTK3
+
+	createBorder(gtk_event_box_new());
+	widget = gtk_fixed_new();
+	box = widget;
+
+#else
+
 	if (border)
 	{
 		getGeometry(&rect);
@@ -48,17 +56,17 @@ void gPanel::create(void)
 		fg = foreground();
 		nextSibling = next();
 		parent()->remove(this);
-		
+
 		for (i = 0; i < childCount(); i++)
 		{
 			ch = child(i)->border;
 			g_object_ref(G_OBJECT(ch));
 			gtk_container_remove(GTK_CONTAINER(widget), ch);
 		}
-		
+
 		doReparent = true;
 	}
-	
+
 	if (_bg_set)
 	{
 		createBorder(gtk_event_box_new());
@@ -73,6 +81,8 @@ void gPanel::create(void)
 		widget = border;
 		box = NULL;
 	}
+
+#endif
 
 	frame = border;
 	realize(true);

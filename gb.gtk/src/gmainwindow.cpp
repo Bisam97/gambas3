@@ -1782,7 +1782,7 @@ bool gMainWindow::setMenuBarVisible(bool v)
 
 bool gMainWindow::isMenuBarVisible()
 {
-	//fprintf(stderr, "isMenuBarVisible: %d\n", !!(menuBar && !_hideMenuBar && _showMenuBar));
+	//fprintf(stderr, "isMenuBarVisible: %s %p %d %d\n", name(), menuBar, _hideMenuBar, _showMenuBar);
 	return menuBar && !_hideMenuBar && _showMenuBar; //|| (menuBar && GTK_WIDGET_MAPPED(GTK_WIDGET(menuBar)));
 }
 
