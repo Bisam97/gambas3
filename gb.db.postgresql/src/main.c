@@ -644,7 +644,11 @@ static void fill_field_info(DB_DATABASE *db, DB_FIELD *info, PGresult *res, int 
 	if (db->flags.no_collation)
 		info->collation = NULL;
 	else
-		info->collation = GB.NewZeroString(PQgetvalue(res, row, col + 5));
+	{
+		const char *coll = PQgetvalue(res, row, col + 5);
+		if (strcmp(coll, "default"))
+			info->collation = GB.NewZeroString(coll);
+	}
 }
 
 // Load datatypes
