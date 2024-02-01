@@ -1141,12 +1141,6 @@ gControl* gApplication::controlItem(GtkWidget *wid)
 	return NULL;
 }
 
-static void cb_update_busy(gControl *control)
-{
-	if (control->mustUpdateCursor())
-		control->setMouse(control->mouse());
-}
-
 void gApplication::setBusy(bool b)
 {
 	if (b == _busy)
@@ -1161,7 +1155,9 @@ void gApplication::setBusy(bool b)
 		g_application_unmark_busy(G_APPLICATION(_app));
 #endif
 
-	forEachControl(cb_update_busy);
+	if (gApplication::_enter)
+		gApplication::_enter->updateCurrentCursor();
+
 	gdk_display_flush(gdk_display_get_default());
 }
 

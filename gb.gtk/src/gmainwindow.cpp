@@ -491,7 +491,7 @@ void gMainWindow::initWindow()
 	
 	gtk_window_add_accel_group(GTK_WINDOW(topLevel()->border), accel);
 
-	have_cursor = true; //parent() == 0 && !_xembed;
+	_have_cursor = true;
 	setCanFocus(true);
 }
 

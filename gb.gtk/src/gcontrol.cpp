@@ -333,7 +333,7 @@ void gControl::initAll(gContainer *parent)
 	frame_padding = 0;
 	_bg_set = false;
 	_fg_set = false;
-	have_cursor = false;
+	_have_cursor = false;
 	use_base = false;
 	_mouse = CURSOR_DEFAULT;
 	pr = parent;
@@ -1030,14 +1030,15 @@ void gControl::setCursor(gCursor *vl)
 
 void gControl::updateCursor(GdkCursor *cursor)
 {
-	if (GDK_IS_WINDOW(gtk_widget_get_window(border)) && _inside)
-	{
-		if (cursor || isWindow())
-			gdk_window_set_cursor(gtk_widget_get_window(border), cursor);
-		
-		if (!cursor && parent())
-			parent()->updateCursor(parent()->getGdkCursor());
-	}
+	GdkWindow *win = gtk_widget_get_window(border);
+
+	if (!win)
+		return;
+
+	gdk_window_set_cursor(win, cursor);
+
+	/*if (!cursor && parent())
+		parent()->updateCursor(parent()->getGdkCursor());*/
 }
 
 GdkCursor *gControl::getGdkCursor()
@@ -1105,6 +1106,26 @@ GdkCursor *gControl::getGdkCursor()
 	return cr;
 }
 
+void gControl::updateCurrentCursor()
+{
+	GdkCursor *cursor;
+
+	if (gApplication::_enter != this)
+		return;
+
+	cursor = getGdkCursor();
+	updateCursor(cursor);
+
+	if (cursor)
+	{
+		#ifdef GTK3
+			g_object_unref(cursor);
+		#else
+			gdk_cursor_unref(cursor);
+		#endif
+	}
+}
+
 void gControl::setMouse(int m)
 {
 	if (_proxy)
@@ -1113,9 +1134,9 @@ void gControl::setMouse(int m)
 		return;
 	}
 
-	//fprintf(stderr, "setMouse: %s\n", name());
+	//fprintf(stderr, "setMouse: %s %d\n", name(), m);
 	_mouse = m;
-	updateCursor(getGdkCursor());
+	updateCurrentCursor();
 }
 
 
@@ -1591,10 +1612,6 @@ void gControl::connectParent()
 {
 	if (pr)
 		pr->insert(this, true);
-
-	// BM: Widget has been created, so we can set its cursor if application is busy
-	if (gApplication::isBusy() && mustUpdateCursor())
-		setMouse(mouse());
 }
 
 gColor gControl::getFrameColor()
@@ -2735,6 +2752,8 @@ void gControl::emitEnterEvent(bool no_leave)
 			gApplication::_leave = NULL;
 	}
 
+	updateCurrentCursor();
+
 	if (_inside)
 		return;
 	
@@ -2743,9 +2762,6 @@ void gControl::emitEnterEvent(bool no_leave)
 	#ifdef GTK3
 	onEnterEvent();
 	#endif
-
-	if (!no_leave)
-		setMouse(mouse());
 
 	#if DEBUG_ENTER_LEAVE
 	fprintf(stderr, ">>>>>>>>>> END ENTER %s\n", name());

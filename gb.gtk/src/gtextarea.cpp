@@ -475,8 +475,7 @@ gTextArea::gTextArea(gContainer *parent) : gControl(parent)
 {
 	_align_normal = false;
 	_last_pos = -1;
-	
-	have_cursor = true;
+	_have_cursor = true;
 	_undo_stack = NULL;
 	_redo_stack = NULL;
 	_not_undoable_action = 0;

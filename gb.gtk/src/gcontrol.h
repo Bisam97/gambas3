@@ -96,6 +96,7 @@ public:
 	gCursor* cursor();
 	void setCursor(gCursor *vl);
 	virtual void updateCursor(GdkCursor *cursor);
+	void updateCurrentCursor();
 	
 	gControl *next();
 	gControl *previous();
@@ -271,7 +272,7 @@ public:
 	unsigned _old_tracking : 1;            // real value when Tracking is false
 	unsigned _bg_set : 1;                  // Have a private background
 	unsigned _fg_set : 1;                  // Have a private foreground
-	unsigned have_cursor : 1;              // If gApplication::setBusy() must update the cursor
+	unsigned _have_cursor : 1;             // If gApplication::setBusy() must update the cursor
 	unsigned use_base : 1;                 // Use base and text color for foreground and background
 
 	unsigned _visible : 1;                 // A control can be hidden if its width or height is zero
@@ -305,9 +306,7 @@ public:
 	unsigned _direction : 2;               // Text direction
 
 	unsigned _allow_show : 1;              // Allowed to be visible (after the first resize)
-
 	unsigned _ignore_mouse : 1;            // Ignore mouse events (for drawing area only)
-	
 	
 #ifdef GTK3
 	unsigned _style_dirty : 1;             // If the style must be refreshed
@@ -325,7 +324,6 @@ public:
 	void realizeScrolledWindow(GtkWidget *wid, bool doNotRealize = false);
 	void registerControl();
 	void updateGeometry(bool force = false);
-	bool mustUpdateCursor() { return mouse() != -1 || have_cursor || !parent(); }
 	void updateEventMask();
 	
 	bool hasInputMethod() { return _has_input_method; }
