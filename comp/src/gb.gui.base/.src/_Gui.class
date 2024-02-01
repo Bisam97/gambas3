@@ -128,6 +128,9 @@ Static Public Sub _InitApp() As String
   Dim sAppId As String
   Dim sDir As String
   Dim sIconPath As String
+  Dim sFile As String
+  Dim aFile As String[]
+  Dim iPos As Integer
   
   sAppId = "org.gambas." & CStr(Application.Handle)
   
@@ -137,10 +140,20 @@ Static Public Sub _InitApp() As String
   Next
   
   If Not sDir Then sDir = User.Home &/ ".local/share"
+  sDir &/= "applications"
   
-  MakeDir(sDir &/ "applications")
+  MakeDir(sDir)
   
-  $sDesktopFilePath = sDir &/ "applications" &/ sAppId & ".desktop"
+  For Each sFile In Dir(sDir, "org.gambas.*")
+    aFile = Split(File.Load(sDir &/ sFile), "\n")
+    iPos = aFile.Find("Icon=*", gb.Like)
+    If iPos > 0 Then
+      If Exist(Mid$(aFile[iPos], 6)) Then Continue
+    Endif
+    Try Kill sDir &/ sFile
+  Next
+  
+  $sDesktopFilePath = sDir &/ sAppId & ".desktop"
   
   hFile = Open $sDesktopFilePath For Create 
   
