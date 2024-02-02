@@ -160,12 +160,12 @@ void CUSERCONTROL_send_change_event(void)
 static void get_client_area(gContainer *cont, int *x, int *y, int *w, int *h)
 {
 	gContainer *proxy = cont->proxyContainer();
-	
+
 	if (x) *x = proxy->clientX();
 	if (y) *y = proxy->clientY();
 	if (w) *w = proxy->clientWidth();
 	if (h) *h = proxy->clientHeight();
-	
+
 	if (x || y)
 	{
 		while (proxy && proxy != cont)

@@ -151,3 +151,13 @@ void gPanel::setBackground(gColor color)
 		create();
 }
 #endif
+
+int gPanel::containerX()
+{
+	return getFrameWidth();
+}
+
+int gPanel::containerY()
+{
+	return getFrameWidth();
+}

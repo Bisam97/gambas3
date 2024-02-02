@@ -333,7 +333,6 @@ void gControl::initAll(gContainer *parent)
 	frame_padding = 0;
 	_bg_set = false;
 	_fg_set = false;
-	_have_cursor = false;
 	use_base = false;
 	_mouse = CURSOR_DEFAULT;
 	pr = parent;

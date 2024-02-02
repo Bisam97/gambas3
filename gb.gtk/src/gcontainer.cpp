@@ -458,18 +458,29 @@ void gContainer::setInvert(bool vl)
 	}
 }
 
+static bool has_allocation(GtkWidget *widget)
+{
+	GtkAllocation a;
+	gtk_widget_get_allocation(widget, &a);
+	return !(a.x == -1 && a.y == -1 && a.width == 1 && a.height == 1); // initial values
+}
+
 int gContainer::clientX()
 {
-	gint xc, yc;
+	gint xc;
 	GtkWidget *cont = getContainer();
 	
 	if (_client_x >= 0)
 		return _client_x;
 	
-
 	if (!_scroll && gtk_widget_get_window(cont) && gtk_widget_get_window(border))
 	{
-		gtk_widget_translate_coordinates(cont, border, 0, 0, &xc, &yc);
+		xc = 0;
+		if (gtk_widget_translate_coordinates(cont, border, 0, 0, &xc, NULL))
+		{
+			if (!has_allocation(cont))
+				xc++;
+		}
 		xc += containerX();
 	}
 	else
@@ -490,7 +501,7 @@ int gContainer::containerX()
 
 int gContainer::clientY()
 {
-	gint xc, yc;
+	gint yc;
 	GtkWidget *cont = getContainer();
 	
 	if (_client_y >= 0)
@@ -498,7 +509,12 @@ int gContainer::clientY()
 	
 	if (!_scroll && gtk_widget_get_window(cont) && gtk_widget_get_window(border))
 	{
-		gtk_widget_translate_coordinates(cont, border, 0, 0, &xc, &yc);
+		yc = 0;
+		if (gtk_widget_translate_coordinates(cont, border, 0, 0, NULL, &yc))
+		{
+			if (!has_allocation(cont))
+				yc++;
+		}
 		yc += containerY();
 	}
 	else
