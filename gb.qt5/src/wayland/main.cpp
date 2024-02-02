@@ -138,16 +138,16 @@ static void window_remap(QWidget *window)
 
 static void window_set_properties(QWidget *window, int which, QT_WINDOW_PROP *prop)
 {
-	static bool warn_stacking = false;
+	//static bool warn_stacking = false;
 
 	Qt::WindowFlags flags = window->windowFlags();
 	bool visible = window->isVisible();
 	
-	if (prop->stacking && !warn_stacking)
+	/*if (prop->stacking && !warn_stacking)
 	{
 		fprintf(stderr, "gb.qt5.wayland: warning: stacking windows is not supported.\n");
 		warn_stacking = true;
-	}
+	}*/
 
 	if (prop->stacking == 1)
 		flags |= Qt::WindowStaysOnTopHint;
