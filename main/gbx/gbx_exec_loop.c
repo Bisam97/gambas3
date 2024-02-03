@@ -497,6 +497,8 @@ __PUSH_END_VARGS:
 
 #endif
 
+#define SYNC_PC_SP() {SYNC_PC();SYNC_SP();}
+
 void EXEC_loop(void)
 {
 	static const void *jump_table[256] =
@@ -849,8 +851,7 @@ _MAIN_NO_SYNC:
 _SUBR_CODE_SYNC:
 
 	//fprintf(stderr, "gbx3: %02X: %s\n", (code >> 8), DEBUG_get_current_position());
-	SYNC_PC();
-	SYNC_SP();
+	SYNC_PC_SP();
 	(*(EXEC_FUNC_CODE)EXEC_subr_table[code >> 8])(code);
 	READ_PC();
 	goto _NEXT;
@@ -941,8 +942,7 @@ _PUSH_PARAM_NOREF:
 
 _PUSH_ARRAY:
 
-	SYNC_PC();
-	SYNC_SP();
+	SYNC_PC_SP();
 	EXEC_push_array(code);
 	goto _NEXT;
 
@@ -950,8 +950,7 @@ _PUSH_ARRAY:
 
 _PUSH_UNKNOWN:
 
-	SYNC_PC();
-	SYNC_SP();
+	SYNC_PC_SP();
 	EXEC_push_unknown();
 	READ_PC();
 	goto _NEXT;
@@ -970,8 +969,7 @@ _PUSH_EVENT:
 		Then CALL QUICK must know how to handle these functions.
 	*/
 
-	SYNC_PC();
-	SYNC_SP();
+	SYNC_PC_SP();
 	_push_event(GET_UX());
 	goto _NEXT;
 
@@ -1044,8 +1042,7 @@ _POP_CTRL:
 
 _POP_ARRAY:
 
-	SYNC_PC();
-	SYNC_SP();
+	SYNC_PC_SP();
 	EXEC_pop_array(code);
 	goto _NEXT;
 
@@ -1053,8 +1050,7 @@ _POP_ARRAY:
 
 _POP_UNKNOWN:
 
-	SYNC_PC();
-	SYNC_SP();
+	SYNC_PC_SP();
 	EXEC_pop_unknown();
 	READ_PC();
 	goto _NEXT;
@@ -1100,8 +1096,7 @@ _PUSH_CHAR:
 
 _PUSH_ME:
 
-	SYNC_PC();
-	SYNC_SP();
+	SYNC_PC_SP();
 	_push_me(code);
 	goto _NEXT;
 
@@ -1109,8 +1104,7 @@ _PUSH_ME:
 
 _PUSH_MISC:
 
-	SYNC_PC();
-	SYNC_SP();
+	SYNC_PC_SP();
 	if (_push_misc(code))
 	{
 		READ_SP();
@@ -1142,8 +1136,7 @@ _DROP:
 
 _NEW:
 
-	SYNC_PC();
-	SYNC_SP();
+	SYNC_PC_SP();
 	EXEC_new(code);
 	goto _NEXT;
 
@@ -1207,8 +1200,7 @@ _JUMP_IF_FALSE_FAST:
 
 _RETURN:
 
-	SYNC_PC();
-	SYNC_SP();
+	SYNC_PC_SP();
 	if (_return(GET_UX()))
 	{
 		READ_SP();
@@ -1230,8 +1222,7 @@ _CALL:
 			&&__CALL_SUBR
 		};
 
-		SYNC_PC();
-		SYNC_SP();
+		SYNC_PC_SP();
 		ind = GET_3X();
 		val = &SP[-(ind + 1)];
 
@@ -1433,8 +1424,7 @@ _CALL_QUICK:
 			&&__CALL_SUBR
 		};
 
-		SYNC_PC();
-		SYNC_SP();
+		SYNC_PC_SP();
 		ind = GET_3X();
 		val = &SP[-(ind + 1)];
 
@@ -1547,8 +1537,7 @@ _CALL_SLOW:
 			&&__CALL_SUBR
 		};
 
-		SYNC_PC();
-		SYNC_SP();
+		SYNC_PC_SP();
 		ind = GET_3X();
 		val = &SP[-(ind + 1)];
 
@@ -1796,8 +1785,7 @@ _ENUM_FIRST:
 
 _ENUM_NEXT:
 
-	SYNC_SP();
-	SYNC_PC();
+	SYNC_PC_SP();
 	ind = PC[-1] & 0xFF;
 	if (EXEC_enum_next(code, &BP[ind], &BP[ind + 1]))
 		goto _JUMP;
@@ -1949,7 +1937,7 @@ _ADD_QUICK_INTEGER:
 	val = sp - 1;
 	if (__builtin_sadd_overflow(val->_integer.value, GET_XX(), &val->_integer.value))
 	{
-		SYNC_SP();
+		SYNC_PC_SP();
 		THROW_OVERFLOW();
 	}
 #endif
@@ -2267,7 +2255,7 @@ _ADD_INTEGER:
 #else
 	if (__builtin_sadd_overflow(sp[-1]._integer.value, sp->_integer.value, &sp[-1]._integer.value))
 	{
-		SYNC_SP();
+		SYNC_PC_SP();
 		THROW_OVERFLOW();
 	}
 #endif
@@ -2287,7 +2275,7 @@ _SUB_INTEGER:
 #else
 	if (__builtin_ssub_overflow(sp[-1]._integer.value, sp->_integer.value, &sp[-1]._integer.value))
 	{
-		SYNC_SP();
+		SYNC_PC_SP();
 		THROW_OVERFLOW();
 	}
 #endif
@@ -2307,7 +2295,7 @@ _MUL_INTEGER:
 #else
 	if (__builtin_smul_overflow(sp[-1]._integer.value, sp->_integer.value, &sp[-1]._integer.value))
 	{
-		SYNC_SP();
+		SYNC_PC_SP();
 		THROW_OVERFLOW();
 	}
 #endif
@@ -2336,7 +2324,7 @@ _DIV_FLOAT:
 	sp[-1]._float.value /= sp->_float.value;
 	if (!isfinite(sp[-1]._float.value))
 	{
-		SYNC_SP();
+		SYNC_PC_SP();
 		THROW_MATH(sp->_float.value == 0);
 	}
 	goto _NEXT_NO_SYNC;
@@ -2405,8 +2393,7 @@ _BREAK:
 	}
 	else
 	{
-		SYNC_PC();
-		SYNC_SP();
+		SYNC_PC_SP();
 		DEBUG_breakpoint(code);
 		goto _NEXT;
 	}
@@ -2423,8 +2410,7 @@ _QUIT:
 		return;
 	}
 
-	SYNC_PC();
-	SYNC_SP();
+	SYNC_PC_SP();
 	EXEC_quit(code);
 	goto _NEXT;
 
@@ -2445,8 +2431,7 @@ _BYREF:
 _SUBR_COMPN:
 _SUBR_COMPE:
 	
-	SYNC_PC();
-	SYNC_SP();
+	SYNC_PC_SP();
 	_SUBR_compe(code);
 	goto _NEXT;
 
@@ -2686,33 +2671,29 @@ _SUBR_COMP:
 
 _SUBR_COMPGT:
 
-		SYNC_SP();
-		P1 = SP - 2;
-		P2 = SP - 1;
+		P1 = sp - 2;
+		P2 = sp - 1;
 		result = 0;
 		goto _SUBR_COMPI;
 
 _SUBR_COMPLT:
 
-		SYNC_SP();
-		P1 = SP - 1;
-		P2 = SP - 2;
+		P1 = sp - 1;
+		P2 = sp - 2;
 		result = 0;
 		goto _SUBR_COMPI;
 
 _SUBR_COMPLE:
 
-		SYNC_SP();
-		P1 = SP - 2;
-		P2 = SP - 1;
+		P1 = sp - 2;
+		P2 = sp - 1;
 		result = 1;
 		goto _SUBR_COMPI;
 
 _SUBR_COMPGE:
 
-		SYNC_SP();
-		P1 = SP - 1;
-		P2 = SP - 2;
+		P1 = sp - 1;
+		P2 = sp - 2;
 		result = 1;
 		goto _SUBR_COMPI;
 
@@ -2730,6 +2711,7 @@ _SUBR_COMPI:
 
 	__SCI_LONG:
 
+		SYNC_PC_SP();
 		VALUE_conv(P1, T_LONG);
 		VALUE_conv(P2, T_LONG);
 
@@ -2740,6 +2722,7 @@ _SUBR_COMPI:
 
 	__SCI_DATE:
 
+		SYNC_PC_SP();
 		VALUE_conv(P1, T_DATE);
 		VALUE_conv(P2, T_DATE);
 
@@ -2751,6 +2734,7 @@ _SUBR_COMPI:
 	__SCI_NULL:
 	__SCI_STRING:
 
+		SYNC_PC_SP();
 		VALUE_conv_string(P1);
 		VALUE_conv_string(P2);
 
@@ -2764,6 +2748,7 @@ _SUBR_COMPI:
 
 	__SCI_SINGLE:
 
+		SYNC_PC_SP();
 		VALUE_conv(P1, T_SINGLE);
 		VALUE_conv(P2, T_SINGLE);
 
@@ -2774,6 +2759,7 @@ _SUBR_COMPI:
 
 	__SCI_FLOAT:
 
+		SYNC_PC_SP();
 		VALUE_conv_float(P1);
 		VALUE_conv_float(P2);
 
@@ -2784,6 +2770,7 @@ _SUBR_COMPI:
 
 	__SCI_POINTER:
 
+		SYNC_PC_SP();
 		VALUE_conv(P1, T_POINTER);
 		VALUE_conv(P2, T_POINTER);
 
@@ -2794,6 +2781,7 @@ _SUBR_COMPI:
 
 	__SCI_OBJECT:
 
+		SYNC_PC_SP();
 		result ^= OBJECT_comp_value(P1, P2) > 0;
 		//RELEASE_OBJECT(P1);
 		//RELEASE_OBJECT(P2);
@@ -2801,26 +2789,31 @@ _SUBR_COMPI:
 
 	__SCI_OBJECT_FLOAT:
 
+		SYNC_PC_SP();
 		result ^= EXEC_comparator(OP_OBJECT_FLOAT, CO_COMPF, P1, P2) > 0;
 		goto __SCI_END;
 
 	__SCI_FLOAT_OBJECT:
 
+		SYNC_PC_SP();
 		result ^= EXEC_comparator(OP_FLOAT_OBJECT, CO_COMPF, P1, P2) > 0;
 		goto __SCI_END;
 
 	__SCI_OBJECT_OTHER:
 
+		SYNC_PC_SP();
 		result ^= EXEC_comparator(OP_OBJECT_OTHER, CO_COMPO, P1, P2) > 0;
 		goto __SCI_END;
 
 	__SCI_OTHER_OBJECT:
 
+		SYNC_PC_SP();
 		result ^= EXEC_comparator(OP_OTHER_OBJECT, CO_COMPO, P1, P2) > 0;
 		goto __SCI_END;
 
 	__SCI_OBJECT_OBJECT:
 
+		SYNC_PC_SP();
 		result ^= EXEC_comparator(OP_OBJECT_OBJECT, CO_COMP, P1, P2) > 0;
 		goto __SCI_END;
 
@@ -2830,6 +2823,8 @@ _SUBR_COMPI:
 			bool variant = FALSE;
 			int op;
 			TYPE type;
+
+			SYNC_PC_SP();
 
 			if (TYPE_is_variant(P1->type))
 			{
@@ -2886,11 +2881,11 @@ _SUBR_COMPI:
 
 	__SCI_END:
 
-		SP -= 2;
-		SP->type = T_BOOLEAN;
-		SP->_boolean.value = -result;
-		SP++;
-		goto _NEXT;
+		sp -= 2;
+		sp->type = T_BOOLEAN;
+		sp->_boolean.value = -result;
+		sp++;
+		goto _NEXT_NO_SYNC;
 	}
 
 
@@ -2969,8 +2964,7 @@ _SUBR_LEN:
 
 _SUBR_ADD:
 
-	SYNC_SP();
-	SYNC_PC();
+	SYNC_PC_SP();
 	_SUBR_add(code);
 	goto _NEXT;
 
@@ -2978,8 +2972,7 @@ _SUBR_ADD:
 
 _SUBR_SUB:
 
-	SYNC_SP();
-	SYNC_PC();
+	SYNC_PC_SP();
 	_SUBR_sub(code);
 	goto _NEXT;
 
@@ -2987,8 +2980,7 @@ _SUBR_SUB:
 
 _SUBR_MUL:
 
-	SYNC_SP();
-	SYNC_PC();
+	SYNC_PC_SP();
 	_SUBR_mul(code);
 	goto _NEXT;
 
@@ -2996,8 +2988,7 @@ _SUBR_MUL:
 
 _SUBR_DIV:
 
-	SYNC_SP();
-	SYNC_PC();
+	SYNC_PC_SP();
 	_SUBR_div(code);
 	goto _NEXT;
 
@@ -3005,8 +2996,7 @@ _SUBR_DIV:
 
 _SUBR_POKE:
 
-	SYNC_SP();
-	SYNC_PC();
+	SYNC_PC_SP();
 	SUBR_poke(code);
 	goto _NEXT;
 
