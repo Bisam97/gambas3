@@ -920,10 +920,6 @@ void gMenu::doPopup(bool move, int x, int y, gControl *ref)
 
 #endif
 	
-	double timer;
-	GB.GetTime(&timer, TRUE);
-	fprintf(stderr, "doPopup: %g\n", timer);
-
 #if GTK_CHECK_VERSION(2, 20, 0)
 	while (_current_popup && _popup && gtk_widget_get_mapped(GTK_WIDGET(_popup)))
 #else
