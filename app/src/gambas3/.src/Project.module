@@ -2169,7 +2169,7 @@ Public Function GetCompileCommand(bAll As Boolean, bNoDebug As Boolean, bMakeExe
   If bMakeExecutable Then sExec &= "-x "
   If DefaultNamespace Then sExec &= "-n " & Shell$(DefaultNamespace) & " "
   If ForceBytecodeVersion Then sExec &= "-b " & ForceBytecodeVersion & " "
-  sExec &= "-j" & CStr(Settings["/CompilerJobs", 1]) & " "
+  sExec &= "-j" & CStr(Settings["/CompilerJobs", 0]) & " "
   'sExec = sExec & "-c " & Quote(CLASSES_FILE) & " " & Quote(Project.Dir) & " > " & OUTPUT_FILE & " 2>&1"
   If bIDE Then
     If Project.Warnings Then
