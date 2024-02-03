@@ -803,7 +803,7 @@ void CMENU_popup(CMENU *_object, const QPoint &pos)
 	}
 }
 
-BEGIN_METHOD(Menu_Popup, GB_INTEGER x; GB_INTEGER y)
+BEGIN_METHOD(Menu_Popup, GB_INTEGER x; GB_INTEGER y; GB_OBJECT ref)
 
 	QPoint pos;
 
@@ -957,7 +957,7 @@ GB_DESC CMenuDesc[] =
 
 	MENU_DESCRIPTION,
 
-	GB_METHOD("Popup", NULL, Menu_Popup, "[(X)i(Y)i]"),
+	GB_METHOD("Popup", NULL, Menu_Popup, "[(X)i(Y)i(Reference)Control;]"),
 	GB_METHOD("Close", NULL, Menu_Close, NULL),
 	GB_METHOD("Delete", NULL, Menu_Delete, NULL),
 	GB_METHOD("Show", NULL, Menu_Show, NULL),

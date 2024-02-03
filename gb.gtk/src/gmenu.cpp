@@ -60,6 +60,11 @@ static gint my_menu_shell_enter_notify(GtkWidget *widget, GdkEventCrossing *even
 	if (!menu_item)
 		goto __PREVIOUS;
 	
+	double timer;
+
+	GB.GetTime(&timer, TRUE);
+	fprintf(stderr, "my_menu_shell_enter_notify: %g\n", timer);
+
 	menu = (gMenu *)g_object_get_data(G_OBJECT(menu_item), "gambas-menu");
 	if (menu)
 		menu->ensureChildMenu();
@@ -844,7 +849,7 @@ static void position_menu(GtkMenu *menu, gint *x, gint *y, gboolean *push_in, Me
 }
 #endif
 
-void gMenu::doPopup(bool move, int x, int y)
+void gMenu::doPopup(bool move, int x, int y, gControl *ref)
 {
 	if (!_popup)
 		return;
@@ -881,7 +886,7 @@ void gMenu::doPopup(bool move, int x, int y)
 	else
 	{
 		event->button.button = 1;
-		event->button.window = gtk_widget_get_window(window()->border);
+		event->button.window = ref ? gtk_widget_get_window(ref->window()->border) : gtk_widget_get_window(window()->border);
 	}
 	
 	gdk_event_set_device(event, gMouse::getPointer());
@@ -920,6 +925,10 @@ void gMenu::doPopup(bool move, int x, int y)
 
 #endif
 	
+	double timer;
+	GB.GetTime(&timer, TRUE);
+	fprintf(stderr, "doPopup: %g\n", timer);
+
 #if GTK_CHECK_VERSION(2, 20, 0)
 	while (_current_popup && _popup && gtk_widget_get_mapped(GTK_WIDGET(_popup)))
 #else
@@ -947,9 +956,9 @@ void gMenu::doPopup(bool move, int x, int y)
 		MAIN_do_iteration(false);
 }
 
-void gMenu::popup(int x, int y)
+void gMenu::popup(int x, int y, gControl *ref)
 {
-	doPopup(true, x, y);
+	doPopup(true, x, y, ref);
 }
 
 void gMenu::popup()

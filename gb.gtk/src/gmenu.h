@@ -86,7 +86,7 @@ public:
 
 //"Methods"
 	void popup();
-	void popup(int x, int y);
+	void popup(int x, int y, gControl *ref = NULL);
 	void close();
 	void destroy();
 	static bool insidePopup() { return _in_popup > 0; }
@@ -167,7 +167,7 @@ private:
 	static int _in_popup;
 	static int _popup_count;
   
-	void doPopup(bool move, int x = 0, int y = 0);
+	void doPopup(bool move, int x = 0, int y = 0, gControl *ref = NULL);
   void update();
   void updateVisible();
 	void updateShortcut();
