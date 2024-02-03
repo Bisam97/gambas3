@@ -65,9 +65,9 @@ Private $bUpdateLayout As Boolean
 Private $bShowTabBar As Boolean = True
 
 Public Sub _new()
-
+  
   $hTabBar = New DrawingArea(Me) As "TabBar"
-
+  
   $hTabBarContainer = New DrawingArea($hTabBar) As "TabBarContainer"
   $hTabBarContainer.Name = Me.Name & "_TabBarContainer"
   $hTabBarContainer.Focus = True
@@ -91,12 +91,12 @@ Public Sub _new()
   '$hPanel.Padding = 1
   
   $hObserver = New Observer(Me) As "TabPanel"
-
+  
   Me.Count = 1
   Me.Arrangement = Arrange.None
   
   UpdateLayout
-
+  
 End
 
 Public Sub _EnsureCurrentVisible()
@@ -108,11 +108,11 @@ Public Sub _EnsureCurrentVisible()
 End
 
 Private Sub CancelEnsureCurrentVisible()
-
+  
   If Not $hTimerEnsureVisible Then Return
   $hTimerEnsureVisible.Stop
   $hTimerEnsureVisible = Null
-
+  
 End
 
 Public Sub EnsureCurrentVisible_Timer()
@@ -139,16 +139,16 @@ Public Sub EnsureCurrentVisible_Timer()
   'Debug $iCurrent
   
 TRY_AGAIN:
-
+  
   XMin = 0
   If $hLeftArrow.Visible Then XMin += ARROW_WIDTH
   XMax = $hTabBar.W
   If $hRightArrow.Visible Then XMax -= ARROW_WIDTH
   
   If hCurrent.X + $hTabBarContainer.X <= XMin Or If (hCurrent.X + $hTabBarContainer.X + hCurrent.W) >= XMax Then 
-  
+    
     If (XMax - XMin) < hCurrent.W Then 
-  
+      
       If Me.RightToLeft Then
         XC = -hCurrent.X - (hCurrent.W - $hTabBar.W)
       Else
@@ -156,7 +156,7 @@ TRY_AGAIN:
       Endif
       
       bTooSmall = True
-  
+      
     Else
       
       If hCurrent.X + XC < XMin Then
@@ -164,11 +164,11 @@ TRY_AGAIN:
       Else If hCurrent.X + hCurrent.W + XC > XMax Then
         XC = XMax - hCurrent.X - hCurrent.W
       Endif
-  
+      
     Endif 
     
   Endif
-
+  
   If Not bTooSmall Then
     If Me.RightToLeft Then
       If XC + WC <= XMax Then
@@ -192,13 +192,13 @@ TRY_AGAIN:
   Object.Lock($hTabBar)
   $hTabBarContainer.Move(XC, 0, WC, $hTabBar.H)
   Object.Unlock($hTabBar)
-
+  
   CheckMouse
   
 End
 
 Private Sub CheckMouse()
-
+  
   Dim hButton As _TabPanelButton
   
   If Not $bClosable Then Return
@@ -206,7 +206,7 @@ Private Sub CheckMouse()
   For Each hButton In $aButton
     hButton.Update
   Next
-
+  
 End
 
 Private Sub UpdateLayout()
@@ -223,7 +223,7 @@ Private Sub UpdateLayout()
   $bUpdateLayout = True
   
   $hTabBar.Visible = $bShowTabBar
-
+  
   W = Me.W
   H = TabBarSize_Read()
   If H Then
@@ -267,7 +267,7 @@ Private Sub UpdateLayout()
   X += PL
   W -= PL + PR
   W = Max(W, 0)
-
+  
   Me._Arrangement = Arrange.None
   
   $hSeparator.Visible = Not $bBorder And $hTabBar.Visible
@@ -292,7 +292,7 @@ Private Sub UpdateLayout()
   End Select
   
   $hTabBarContainer.Arrangement = Arrange.None
-
+  
   For Each hCtrl In $aButton
     If hCtrl.Visible Then
       hCtrl.Orientation = $iOrientation
@@ -306,11 +306,11 @@ Private Sub UpdateLayout()
   _EnsureCurrentVisible
   
   $bUpdateLayout = False
-
+  
 End
 
 Private Sub GetTabBarMaxWidth() As Integer
-
+  
   Dim I As Integer
   Dim W As Integer
   
@@ -325,14 +325,14 @@ Private Sub GetTabBarMaxWidth() As Integer
 End
 
 Private Sub UpdateArrows(Optional XC As Integer, WC As Integer) As Boolean
-
+  
   Dim bChange As Boolean
-
+  
   If WC = 0 Then
     XC = $hTabBarContainer.X
     WC = GetTabBarMaxWidth()
   Endif
-
+  
   If (XC < 0) Xor $hLeftArrow.Visible Then
     $hLeftArrow.Visible = Not $hLeftArrow.Visible
     bChange = True
@@ -363,20 +363,20 @@ Public Sub TabBar_Arrange()
 End
 
 Public Sub Arrow_Enter()
-
+  
   Last.Refresh
-
+  
 End
 
 Public Sub Arrow_Leave()
-
+  
   Last.Refresh
   $hTimerRepeat = Null
-
+  
 End
 
 Public Sub Arrow_Draw()
-
+  
   If $iOrientation = Align.Top Then
     Paint.FillRect(0, 0, Paint.W, Paint.H - 1, Style.BackgroundOf(Me))
   Else
@@ -387,20 +387,20 @@ Public Sub Arrow_Draw()
 End
 
 Private Sub ScrollNext()
-
+  
   Dim W As Integer
-
+  
   W = $hTabBar.W - GetTabBarMaxWidth()
   If $hTabBarContainer.X > W Then 
     $hTabBarContainer.X = Max(W, $hTabBarContainer.X - Desktop.Scale * 2)
     UpdateArrows
     CancelEnsureCurrentVisible
   Endif
-
+  
 End
 
 Private Sub ScrollPrevious()
-
+  
   If $hTabBarContainer.X < 0 Then 
     $hTabBarContainer.X = Min(0, $hTabBarContainer.X + Desktop.Scale * 2)
     UpdateArrows
@@ -493,46 +493,45 @@ End
 ' End
 
 Private Function Count_Read() As Integer
-
+  
   Return $aCont.Count
-
+  
 End
 
-
 Private Sub Count_Write(iCount As Integer)
-
+  
   Dim iInd As Integer
   Dim hTab As _TabPanelContainer
   Dim hButton As _TabPanelButton
   Dim iCurrent As Integer
   Dim bLocked As Boolean
-
+  
   If iCount < 1 Then Error.Raise("Bad argument")
   If iCount = $aCont.Count Then Return
-
+  
   iCurrent = $iCurrent
   
   bLocked = Object.IsLocked(Me)  
   If Not bLocked Then Object.Lock(Me)
   
   If iCount < $aCont.Count Then
-
+    
     For iInd = $aCont.Max To iCount Step -1
       hTab = $aCont[iInd]
       If hTab.Children.Count Then Error.Raise("TabPanel container is not empty")
     Next
-
+    
     For iInd = $aCont.Max To iCount Step -1
       $aCont[iInd]._Delete
       $aButton[iInd].Delete
       If iInd <= iCurrent Then Dec iCurrent
     Next
-
+    
     $aCont.Remove(iCount, -1)
     $aButton.Remove(iCount, -1)
     
   Else
-
+    
     For iInd = $aCont.Count To iCount - 1
       hTab = New _TabPanelContainer($hPanel) As "_TabPanelContainer"
       $aCont.Add(hTab)
@@ -541,43 +540,43 @@ Private Sub Count_Write(iCount As Integer)
       hButton.Orientation = $iOrientation
     Next
     'ME.Container = hCont
-
+    
   Endif
   
   UpdateLayout
-
+  
   $iCurrent = -1
   If iCurrent < 0 Then iCurrent = $aCont.Max
   
   If Not bLocked Then Object.Unlock(Me)
   
   Try Index_Write(iCurrent)
-
+  
 End
 
 Private Function Index_Read() As Integer
-
+  
   Return $iCurrent
-
+  
 End
 
 Private Sub Index_Write(iIndex As Integer)
-
+  
   If iIndex < 0 Or iIndex >= $aCont.Count Then Error.Raise("Bad index")
-
+  
   If iIndex = $iCurrent Then Return
-
+  
   If $iCurrent >= 0 Then $aButton[$iCurrent].Selected = False
   $iCurrent = iIndex
   If $iCurrent >= 0 Then $aButton[$iCurrent].Selected = True
-
+  
   UpdateContainer
-
+  
   Me._Container = $aCont[$iCurrent]
   _EnsureCurrentVisible
   
   Raise Click
-
+  
 End
 
 Private Sub UpdateCurrentContainer()
@@ -600,11 +599,11 @@ Private Sub UpdateCurrentContainer()
 End
 
 Private Sub UpdateContainer()
-
+  
   Dim iInd As Integer
-
+  
   For iInd = 0 To $aCont.Max
-
+    
     With $aCont[iInd]
       If iInd = $iCurrent Then
         UpdateCurrentContainer
@@ -615,65 +614,65 @@ Private Sub UpdateContainer()
         '.Move(0, - $hPanel.H)
       Endif
     End With
-
+    
   Next
-
+  
 End
 
 Private Function Text_Read() As String
-
+  
   Return $aCont[$iCurrent].Text
-
+  
 End
 
 Private Sub Text_Write(sText As String)
-
+  
   $aCont[$iCurrent].Text = sText
-
+  
 End
 
 Private Function Picture_Read() As Picture
-
+  
   Return $aCont[$iCurrent].Picture
-
+  
 End
 
 Private Sub Picture_Write(hPict As Picture)
-
+  
   $aCont[$iCurrent].Picture = hPict
-
+  
 End
 
 Public Function _get(Index As Integer) As _TabPanelContainer
-
+  
   If Index < 0 Or Index >= $aCont.Count Then Error.Raise("Bad index")
   Return $aCont[Index]
-
+  
 End
 
 Private Function Font_Read() As Font
-
+  
   Return Super.Font
-
+  
 End
 
 Private Sub Font_Write(hFont As Font)
-
+  
   Super.Font = hFont
   UpdateLayout
-
+  
 End
 
 Private Function Border_Read() As Boolean
-
+  
   Return $bBorder
-
+  
 End
 
 Private Sub Border_Write(bBorder As Boolean)
-
+  
   Dim hButton As _TabPanelButton
-
+  
   $bBorder = bBorder
   
   'Panel_Arrange
@@ -686,17 +685,17 @@ Private Sub Border_Write(bBorder As Boolean)
   Next
   
   UpdateLayout
-
+  
 End
 
 Private Function TextFont_Read() As Font
-
+  
   Return $hTabBar.Font
-
+  
 End
 
 Private Sub TextFont_Write(Value As Font)
-
+  
   $hTabBar.Font = Value
   UpdateLayout
   
@@ -709,11 +708,11 @@ End
 ' End
 
 Public Sub _GetIndex(hCont As Control) As Integer
- 
+  
   If hCont Is _TabPanelContainer Then Return $aCont.Find(hCont)
   If hCont Is _TabPanelButton Then Return $aButton.Find(hCont)
   Return -1
-
+  
 End
 
 ' Public Sub IconView_Select()
@@ -775,7 +774,7 @@ Public Sub Panel_Draw()
     Paint.DrawRect(0, 0, $hPanel.W, $hPanel.H, Color.LightForeground)
     Return
   Endif
-
+  
   '   If $hTabBar.Visible Then
   '     Draw.Foreground = Color.LightForeground
   '     Select Case $iOrientation
@@ -802,23 +801,23 @@ Public Sub Panel_Arrange()
 End
 
 Private Function Orientation_Read() As Integer
-
+  
   Return $iOrientation
-
+  
 End
 
 Private Sub Orientation_Write(Value As Integer)
-
+  
   $iOrientation = Value
   UpdateLayout
   UpdateCurrentContainer
-
+  
 End
 
 Private Function Current_Read() As _TabPanelContainer
-
+  
   Try Return $aCont[$iCurrent]
-
+  
 End
 
 Public Sub Remove(Index As Integer)
@@ -921,32 +920,30 @@ Private Sub _MoveLast()
   
 End
 
-
-
 Private Function Highlight_Read() As Boolean
-
+  
   Return $bHighlight
-
+  
 End
 
 Private Sub Highlight_Write(Value As Boolean)
-
+  
   $bHighlight = Value
   UpdateLayout
-
+  
 End
 
 Private Function Closable_Read() As Boolean
-
+  
   Return $bClosable
-
+  
 End
 
 Private Sub Closable_Write(Value As Boolean)
-
+  
   $bClosable = Value
   UpdateLayout
-
+  
 End
 
 Public Sub _Close(Index As Integer)
@@ -966,7 +963,7 @@ Public Sub TabBarContainer_KeyPress()
   If $aCont.Count = 0 Then Return
   
   Select Case Key.Code
-    
+      
     Case Key.Left, Key.PageUp
       If Me.RightToLeft Then
         Try _MoveNext
@@ -990,22 +987,22 @@ Public Sub TabBarContainer_KeyPress()
     Case Key.End
       Try _MoveLast
       Stop Event
-    
+      
   End Select
   
 End
 
 Private Function Background_Read() As Integer
-
+  
   Return Super.Background
-
+  
 End
 
 Private Sub Background_Write(Value As Integer)
-
+  
   Super.Background = Value
   $hTabBar.Refresh
-
+  
 End
 
 Public Sub _MoveTab(hSrc As _TabPanelButton, hDst As _TabPanelButton, bAfter As Boolean)
@@ -1015,7 +1012,7 @@ Public Sub _MoveTab(hSrc As _TabPanelButton, hDst As _TabPanelButton, bAfter As 
   Dim bLocked As Boolean
   
   If hSrc = hDst Then Return
-
+  
   bLocked = Object.IsLocked(Me)
   If Not bLocked Then Object.Lock(Me)
   
@@ -1040,25 +1037,25 @@ Public Sub _MoveTab(hSrc As _TabPanelButton, hDst As _TabPanelButton, bAfter As 
 End
 
 Private Function Moveable_Read() As Boolean
-
+  
   Return $bMoveable
-
+  
 End
 
 Private Sub Moveable_Write(Value As Boolean)
-
+  
   $bMoveable = Value
-
+  
 End
 
 Private Function CloseButton_Read() As Boolean
-
+  
   Return $hClosePanel
-
+  
 End
 
 Private Sub CloseButton_Write(Value As Boolean)
-
+  
   Dim hSave As Container
   
   If Value = CloseButton_Read() Then Return
@@ -1085,11 +1082,11 @@ Private Sub CloseButton_Write(Value As Boolean)
   
   TabBar_Arrange
   UpdateLayout
-
+  
 End
 
 Public Sub TabPanel_Arrange()
-
+  
   UpdateLayout
   
 End
@@ -1112,13 +1109,13 @@ Public Sub CloseAll_Click()
 End
 
 Private Function TabBarPaddingStart_Read() As Integer
-
+  
   If $hTabBarLeft Then Return $hTabBarLeft.W
-
+  
 End
 
 Private Sub TabBarPaddingStart_Write(Value As Integer)
-
+  
   Dim hSave As Container
   
   If TabBarPaddingStart_Read() = Value Then Return
@@ -1138,17 +1135,17 @@ Private Sub TabBarPaddingStart_Write(Value As Integer)
     Endif
   Endif
   UpdateLayout
-
+  
 End
 
 Private Function TabBarPaddingEnd_Read() As Integer
-
+  
   If $hTabBarRight Then Return $hTabBarRight.W
-
+  
 End
 
 Private Sub TabBarPaddingEnd_Write(Value As Integer)
-
+  
   Dim hSave As Container
   
   If TabBarPaddingEnd_Read() = Value Then Return
@@ -1168,31 +1165,31 @@ Private Sub TabBarPaddingEnd_Write(Value As Integer)
     Endif
   Endif
   UpdateLayout
-
+  
 End
 
 Private Function TabBarSize_Read() As Integer
-
+  
   If $bShowTabBar Then Return $hTabBar.Font.Height + Desktop.Scale * 2 + 1
-
+  
 End
 
 Private Function ShowTabBar_Read() As Boolean
-
+  
   Return $bShowTabBar
-
+  
 End
 
 Private Sub ShowTabBar_Write(Value As Boolean)
-
+  
   If $bShowTabBar = Value Then Return 
   $bShowTabBar = Value
   UpdateLayout
-
+  
 End
 
 Public Sub FindPanel(Text As String) As Integer
-
+  
   Dim I As Integer
   Dim hCont As _TabPanelContainer
   
