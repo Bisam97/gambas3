@@ -60,11 +60,6 @@ static gint my_menu_shell_enter_notify(GtkWidget *widget, GdkEventCrossing *even
 	if (!menu_item)
 		goto __PREVIOUS;
 	
-	double timer;
-
-	GB.GetTime(&timer, TRUE);
-	fprintf(stderr, "my_menu_shell_enter_notify: %g\n", timer);
-
 	menu = (gMenu *)g_object_get_data(G_OBJECT(menu_item), "gambas-menu");
 	if (menu)
 		menu->ensureChildMenu();
