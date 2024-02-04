@@ -149,21 +149,11 @@ End
 
 Private Sub UpdateScrollbarVisibility()
   
-  'If Me.Hovered Then
-  
-    $hHBar.Visible = $bHBarVisible
-    $hVBar.Visible = $bVBarVisible
-    $hCorner.Visible = $bHBarVisible And $bHBarVisible
-    
-  'Else
-  
-  '  $hHBar.Visible = False
-  '  $hVBar.Visible = False
-    
-  'Endif
+  $hHBar.Visible = $bHBarVisible
+  $hVBar.Visible = $bVBarVisible
+  $hCorner.Visible = $bHBarVisible And $bHBarVisible
   
 End
-
 
 Private Sub LayoutScrollbars()
   
@@ -301,6 +291,8 @@ RETRY:
     $hDrawingArea.Show
   Endif
   
+  UpdateShadows
+  
   If bHBarVisible <> $bHBarVisible Or If bVBarVisible <> $bVBarVisible Then Raise Resize
   
   If $W <> OWC Or If $H <> OHC Then Goto RETRY
@@ -332,8 +324,6 @@ RETRY:
   Endif
   
   $bNoArrange = False
-  
-  UpdateShadows
   
 End
 
@@ -415,6 +405,7 @@ End
 Private Sub UpdateShadows()
 
   Dim hSave As Container
+  Dim iArr As Integer
   
   If Not Me Is ScrollView Then 
     $hDrawingArea.Refresh
@@ -438,8 +429,13 @@ Private Sub UpdateShadows()
   Endif
   
   If Not $hShadowN Then
+    
     hSave = Me._Container
+    iArr = Me.Arrangement
+
+    Me.Arrangement = Arrange.None
     Me._Container = Null
+    
     $hShadowN = New DrawingArea(Me) As "Shadow"
     $hShadowN.Ignore = True
     $hShadowN.NoMouse = True
@@ -447,16 +443,19 @@ Private Sub UpdateShadows()
     $hShadowS = New DrawingArea(Me) As "Shadow"
     $hShadowS.Ignore = True
     $hShadowS.NoMouse = True
-    '$hShadowS.Raise
+    ' '$hShadowS.Raise
     $hShadowW = New DrawingArea(Me) As "Shadow"
     $hShadowW.Ignore = True
     $hShadowW.NoMouse = True
-    '$hShadowW.Raise
+    ' '$hShadowW.Raise
     $hShadowE = New DrawingArea(Me) As "Shadow"
     $hShadowE.Ignore = True
     $hShadowE.NoMouse = True
-    '$hShadowE.Raise
+    ' '$hShadowE.Raise
+    
     Me._Container = hSave
+    Me.Arrangement = iArr
+    
   Endif
   
   LoadFades()
@@ -465,7 +464,6 @@ Private Sub UpdateShadows()
   $hShadowN.Visible = $iScrollY > $hVBar.MinValue
   $hShadowS.Visible = $iScrollY < $hVBar.MaxValue
   
-  LoadFades()
   $hShadowW.Move($hDrawingArea.X + $iShadowW, $hDrawingArea.Y + $iShadowN, $hFadeW.W, Me.ClientH - $iShadowS - $iShadowN)
   $hShadowE.Move($hDrawingArea.X + Me.ClientW - $iShadowE - $hFadeE.W, $hDrawingArea.Y + $iShadowN, $hFadeE.W, Me.ClientH - $iShadowS - $iShadowN)
   If Me.RightToLeft Then
