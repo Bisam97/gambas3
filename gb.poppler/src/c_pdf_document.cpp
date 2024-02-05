@@ -521,7 +521,7 @@ BEGIN_PROPERTY(PdfPage_Width)
 
 	double w;
 	poppler_page_get_size(THIS->current, &w, NULL);
-	GB.ReturnFloat(w);
+	GB.ReturnFloat(w * THIS->resolution / 72.0);
 
 END_PROPERTY
 
@@ -529,7 +529,7 @@ BEGIN_PROPERTY(PdfPage_Height)
 
 	double h;
 	poppler_page_get_size(THIS->current, NULL, &h);
-	GB.ReturnFloat(h);
+	GB.ReturnFloat(h * THIS->resolution / 72.0);
 
 END_PROPERTY
 
