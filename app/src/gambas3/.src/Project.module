@@ -2059,7 +2059,7 @@ Private Sub CompileError(sMsg As String)
   If hEditor Then
     hForm.ShowErrorMessage(sMsg)
   Else
-    FMain.ShowError(sMsg)
+    FMain.ShowError("<b>" & ("Compiler error:") & "</b>\n\n<tt>" & sMsg & "</tt>")
   Endif
 
   'Catch
@@ -2272,7 +2272,7 @@ Public Function Compile(Optional bAll As Boolean, Optional bNoDebug As Boolean, 
       Inc I
       Continue
     Endif
-    If sLine Like "*: error: *" Then sError = sLine
+    If sLine <> "OK" Then sError = sLine
     aOutput.Remove(I)
   Wend
   

@@ -16,6 +16,7 @@ Property Selected As Boolean
 Property ShowAuthors As Boolean
 Property Read Info As CProjectInfo
 Property Read Deleted As Boolean
+Property Border As Boolean
 
 Public ShowRemove As Boolean
 Public Group As String ' for examples
@@ -30,6 +31,7 @@ Private $hProjectInfo As CProjectInfo
 Private $hIcon As Image
 Private $bShowPath As Boolean
 Private $bShowAuthors As Boolean
+Private $bBorder As Boolean = True
 
 Private ICON_SIZE As Integer = Desktop.Scale * 4
 
@@ -209,8 +211,10 @@ Public Sub DrawingArea_Draw()
       
     Else 
       
-      Paint.Background = Color.LightForeground
-      Paint.Stroke
+      If $bBorder Then
+        Paint.Background = Color.LightForeground
+        Paint.Stroke
+      Endif
       Paint.AntiAlias = True
       
     Endif
@@ -606,4 +610,17 @@ Public Sub mnuOpenFolder_Click()
   
   Desktop.Open($hProjectInfo.Path)
   
+End
+
+Private Function Border_Read() As Boolean
+
+  Return $bBorder
+
+End
+
+Private Sub Border_Write(Value As Boolean)
+
+  $bBorder = Value
+  $hDrawingArea.Refresh
+
 End
