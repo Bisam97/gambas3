@@ -295,13 +295,10 @@ Private Sub GetSymbolLink(sName As String, Optional sTitle As String, Optional s
 End
 
 
-Private Function AddSymbols(sTitle As String, aResult As String[], aSym As String[])
+Private Function AddSymbols(sTitle As String, sInheritTitle As String, aResult As String[], aSym As String[])
 
   Dim sName As String
   Dim bTitle As Boolean
-  Dim sInheritTitle As String
-
-  sInheritTitle = sTitle & " (" & ("inherited") & ")"
 
   For Each sName In aSym
     
@@ -328,8 +325,8 @@ Private Function AddSymbols(sTitle As String, aResult As String[], aSym As Strin
     If Not bTitle Then
       bTitle = True
       aResult.Add("")
-      aResult.Add("**" & sInheritTitle & "**")
-      aResult.Add("[[ symbols table")
+      aResult.Add("<div class=\"inherited-title\" onclick=\"toggle_inherited(this);\">" & sInheritTitle & "</div>")
+      aResult.Add("[[ symbols table inherited")
     Endif
     aResult.Add("==")
     aResult.Add(GetSymbolLink(sName))
@@ -501,12 +498,12 @@ Public Function GetSymbols() As String[]
     aResult[aResult.Max] = "]]"
   Endif
 
-  AddSymbols(("Constants"), aResult, cSymbol["C"])
-  AddSymbols(("Static properties"), aResult, cSymbol["P"])
-  AddSymbols(("Static methods"), aResult, cSymbol["M"])
-  AddSymbols(("Properties"), aResult, cSymbol["p"])
-  AddSymbols(("Methods"), aResult, cSymbol["m"])
-  AddSymbols(("Events"), aResult, cSymbol["e"])
+  AddSymbols(("Constants"), ("Inherited constants"), aResult, cSymbol["C"])
+  AddSymbols(("Static properties"), ("Inherited static properties"), aResult, cSymbol["P"])
+  AddSymbols(("Static methods"), ("Inherited static methods"), aResult, cSymbol["M"])
+  AddSymbols(("Properties"), ("Inherited properties"), aResult, cSymbol["p"])
+  AddSymbols(("Methods"), ("Inherited methods"), aResult, cSymbol["m"])
+  AddSymbols(("Events"), ("Inherited events"), aResult, cSymbol["e"])
   
   'aResult.Add("]]")
   Return aResult
