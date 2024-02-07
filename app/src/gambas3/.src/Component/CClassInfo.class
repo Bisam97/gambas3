@@ -511,15 +511,15 @@ Private Sub SubstPart(sHtml As String, sPart As String, bShow As Boolean) As Str
   
 End
 
-' Private Sub GetSymbolLink(hSymbol As CSymbolInfo, sName As String) As String
-'   
-'   If hSymbol.HasHelp() Then
-'     Return Subst("<!--&2--><a class=\"none\" href=\"&1\">&2</a>", Html(hSymbol.GetHelpURL()), Html(sName))
-'   Else 
-'     Return Subst("<!--&1-->&1", Html(sName))
-'   Endif
-'   
-' End
+Private Sub GetLocalSymbolLink(hSymbol As CSymbolInfo, sName As String) As String
+  
+  If hSymbol.HasHelp() Then
+    Return Subst("<!--&2--><a class=\"none\" href=\"&1\">&2</a>", Html(hSymbol.GetHelpURL()), Html(sName))
+  Else 
+    Return Subst("<!--&1-->&1", Html(sName))
+  Endif
+  
+End
 
 Private Sub GetSymbolLink(sName As String, Optional sTitle As String, Optional sStaticTitle As String) As String
   
@@ -602,7 +602,7 @@ Public Sub GetHelpHTML() As String
       sSymbolName = hSymbol.Name
       If Left(sSymbolName) = ":" Then sSymbolName = Mid$(sSymbolName, 2)
       
-      sComp = GetSymbolLink(hSymbol, sSymbolName)
+      sComp = GetLocalSymbolLink(hSymbol, sSymbolName)
       
       If hSymbol.NotPublic Or If hSymbol.IsHidden Then Continue
       If hSymbol.Class = sClass Then sComp = "<u>" & sComp & "</u>"
@@ -732,7 +732,7 @@ Public Sub GetHelpHTML() As String
   
   If hClassInfo.Creatable And If cClassSymbols.Exist("_new") Then 
     hSymbol = cClassSymbols["_new"]
-   sInfo &= Subst(("This class is &1."), GetSymbolLink(hSymbol, ("creatable"))) & "<br>"
+   sInfo &= Subst(("This class is &1."), GetLocalSymbolLink(hSymbol, ("creatable"))) & "<br>"
   Else If hClassInfo.Creatable And If bHasDynamicVariable Then
    sInfo &= Subst(("This class is &1."), ("creatable")) & "<br>"
   Else
@@ -745,22 +745,22 @@ Public Sub GetHelpHTML() As String
   
   hSymbol = cClassSymbols["_call"]
   If hSymbol Then
-    sInfo &= Subst(("This class can be used as a &1."), GetSymbolLink(hSymbol, ("function"))) & "<br>"
+    sInfo &= Subst(("This class can be used as a &1."), GetLocalSymbolLink(hSymbol, ("function"))) & "<br>"
   Endif
   
   If cClassSymbols.Exist("_put") Then
     If cClassSymbols.Exist("_get") Then
-      sInfo &= Subst(("This class acts like a &1 / &2 array."), GetSymbolLink(cClassSymbols["_get"], ("read")), GetSymbolLink(cClassSymbols["_put"], ("write"))) & "<br>"
+      sInfo &= Subst(("This class acts like a &1 / &2 array."), GetLocalSymbolLink(cClassSymbols["_get"], ("read")), GetLocalSymbolLink(cClassSymbols["_put"], ("write"))) & "<br>"
     Else
-      sInfo &= Subst(("This class acts like a &1 array."), GetSymbolLink(cClassSymbols["_put"], ("write-only"))) & "<br>"
+      sInfo &= Subst(("This class acts like a &1 array."), GetLocalSymbolLink(cClassSymbols["_put"], ("write-only"))) & "<br>"
     Endif
   Else If cClassSymbols.Exist("_get") Then
-    sInfo &= Subst(("This class acts like a &1 array."), GetSymbolLink(cClassSymbols["_get"], ("read-only"))) & "<br>"
+    sInfo &= Subst(("This class acts like a &1 array."), GetLocalSymbolLink(cClassSymbols["_get"], ("read-only"))) & "<br>"
   Endif
   
   hSymbol = cClassSymbols["_next"]
   If hSymbol Then
-    sInfo &= Subst(("This class is &1 with the FOR EACH keyword."), GetSymbolLink(hSymbol, ("enumerable"))) & "<br>"
+    sInfo &= Subst(("This class is &1 with the FOR EACH keyword."), GetLocalSymbolLink(hSymbol, ("enumerable"))) & "<br>"
   Endif
   
   If Not Component Or If Component = CComponent.PROJECT_NAME Then sWhere = "gambas://project/" & sClass & "?showfile"
