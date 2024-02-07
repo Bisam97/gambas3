@@ -67,8 +67,12 @@ namespace litehtml
 		flex_wrap				m_flex_wrap;
 		flex_justify_content	m_flex_justify_content;
 		flex_align_items		m_flex_align_items;
-		flex_align_self			m_flex_align_self;
+		flex_align_items		m_flex_align_self;
 		flex_align_content		m_flex_align_content;
+
+		caption_side			m_caption_side;
+
+		int 					m_order;
 
 	private:
 		void compute_font(const element* el, const std::shared_ptr<document>& doc);
@@ -117,8 +121,9 @@ namespace litehtml
 				m_flex_wrap(flex_wrap_nowrap),
 				m_flex_justify_content(flex_justify_content_flex_start),
 				m_flex_align_items(flex_align_items_stretch),
-				m_flex_align_self(flex_align_self_auto),
-				m_flex_align_content(flex_align_content_stretch)
+				m_flex_align_self(flex_align_items_auto),
+				m_flex_align_content(flex_align_content_stretch),
+				m_order(0)
 		{}
 
 		void compute(const element* el, const std::shared_ptr<document>& doc);
@@ -238,6 +243,9 @@ namespace litehtml
 		const css_length& get_border_spacing_y() const;
 		void set_border_spacing_y(const css_length& mBorderSpacingY);
 
+		caption_side get_caption_side() const;
+		void set_caption_side(caption_side side);
+
 		float get_flex_grow() const;
 		float get_flex_shrink() const;
 		const css_length& get_flex_basis() const;
@@ -245,8 +253,11 @@ namespace litehtml
 		flex_wrap get_flex_wrap() const;
 		flex_justify_content get_flex_justify_content() const;
 		flex_align_items get_flex_align_items() const;
-		flex_align_self get_flex_align_self() const;
+		flex_align_items get_flex_align_self() const;
 		flex_align_content get_flex_align_content() const;
+
+		int get_order() const;
+		void set_order(int order);
 	};
 
 	inline element_position css_properties::get_position() const
@@ -629,7 +640,7 @@ namespace litehtml
 		return m_flex_align_items;
 	}
 
-	inline flex_align_self css_properties::get_flex_align_self() const
+	inline flex_align_items css_properties::get_flex_align_self() const
 	{
 		return m_flex_align_self;
 	}
@@ -637,6 +648,25 @@ namespace litehtml
 	inline flex_align_content css_properties::get_flex_align_content() const
 	{
 		return m_flex_align_content;
+	}
+
+	inline caption_side css_properties::get_caption_side() const
+	{
+		return m_caption_side;
+	}
+	inline void css_properties::set_caption_side(caption_side side)
+	{
+		m_caption_side = side;
+	}
+
+	inline int css_properties::get_order() const
+	{
+		return m_order;
+	}
+
+	inline void css_properties::set_order(int order)
+	{
+		m_order = order;
 	}
 }
 

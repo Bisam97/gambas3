@@ -43,7 +43,9 @@ std::map<string_id, string> style::m_valid_values =
 	{ _justify_content_, flex_justify_content_strings },
 	{ _align_items_, flex_align_items_strings },
 	{ _align_content_, flex_align_content_strings },
-	{ _align_self_, flex_align_self_strings },
+	{ _align_self_, flex_align_items_strings },
+
+	{ _caption_side_, caption_side_strings },
 };
 
 void style::parse(const string& txt, const string& baseurl, document_container* container)
@@ -88,7 +90,7 @@ void style::parse_property(const string& txt, const string& baseurl, document_co
 void style::add_property(string_id name, const string& val, const string& baseurl, bool important, document_container* container)
 {
 	if (val.find("var(") != -1) return add_parsed_property(name, property_value(val, important, prop_type_var));
-	if (val == "inherit")       return add_parsed_property(name, property_value(important, prop_type_inherit));
+	if (val == "inherit" && name != _font_)       return add_parsed_property(name, property_value(important, prop_type_inherit));
 
 	int idx;
 	string url;
@@ -126,15 +128,20 @@ void style::add_property(string_id name, const string& val, const string& baseur
 	case _flex_direction_:
 	case _flex_wrap_:
 	case _justify_content_:
-	case _align_items_:
 	case _align_content_:
-	case _align_self_:
+
+	case _caption_side_:
 
 		idx = value_index(val, m_valid_values[name]);
 		if (idx >= 0)
 		{
 			add_parsed_property(name, property_value(idx, important));
 		}
+		break;
+
+	case _align_items_:
+	case _align_self_:
+		parse_align_self(name, val, important);
 		break;
 
 	// <length>
@@ -238,7 +245,7 @@ void style::add_property(string_id name, const string& val, const string& baseur
 				add_parsed_property(_border_top_width_,		width);
 				add_parsed_property(_border_bottom_width_,	width);
 			}
-			else
+			else if (web_color::is_color(token, container))
 			{
 				web_color _color = web_color::from_string(token, container);
 				property_value color(_color, important);
@@ -271,7 +278,7 @@ void style::add_property(string_id name, const string& val, const string& baseur
 				property_value width(parse_border_width(token), important);
 				add_parsed_property(_id(_s(name) + "-width"), width);
 			}
-			else
+			else if (web_color::is_color(token, container))
 			{
 				web_color color = web_color::from_string(token, container);
 				add_parsed_property(_id(_s(name) + "-color"), property_value(color, important));
@@ -334,11 +341,12 @@ void style::add_property(string_id name, const string& val, const string& baseur
 	case _border_bottom_color_:
 	case _border_left_color_:
 	case _border_right_color_:
-	{
-		web_color color = web_color::from_string(val, container);
-		add_parsed_property(name, property_value(color, important));
+		if (web_color::is_color(val, container))
+		{
+			web_color color = web_color::from_string(val, container);
+			add_parsed_property(name, property_value(color, important));
+		}
 		break;
-	}
 
 	// Parse border radius shorthand properties 
 	case _border_bottom_left_radius_:
@@ -530,6 +538,25 @@ void style::add_property(string_id name, const string& val, const string& baseur
 		length.fromString(val, flex_basis_strings, -1);
 		add_parsed_property(_flex_basis_, property_value(length, important));
 		break;
+
+	case _order_: // <integer>
+		{
+			char* end;
+			int int_val = (int) strtol(val.c_str(), &end, 10);
+			if(end[0] == '\0')
+			{
+				add_parsed_property(name, property_value(int_val, important));
+			}
+		}
+		break;
+	case _counter_increment_:
+	case _counter_reset_:
+	{	
+		string_vector tokens;
+		split_string(val, tokens, " ");
+		add_parsed_property(name, property_value(tokens, important));
+		break;
+	}
 
 	default:
 		add_parsed_property(name, property_value(val, important));
@@ -913,11 +940,22 @@ bool style::parse_one_background_size(const string& val, css_size& size)
 
 void style::parse_font(const string& val, bool important)
 {
-	add_parsed_property(_font_style_,	property_value(font_style_normal,	important));
-	add_parsed_property(_font_variant_, property_value(font_variant_normal,	important));
-	add_parsed_property(_font_weight_,	property_value(font_weight_normal,	important));
-	add_parsed_property(_font_size_,	property_value(font_size_medium,	important));
-	add_parsed_property(_line_height_,	property_value(line_height_normal,	important));
+	if (val == "inherit")
+	{
+		add_parsed_property(_font_style_, property_value(important, prop_type_inherit));
+		add_parsed_property(_font_variant_, property_value(important, prop_type_inherit));
+		add_parsed_property(_font_weight_, property_value(important, prop_type_inherit));
+		add_parsed_property(_font_size_, property_value(important, prop_type_inherit));
+		add_parsed_property(_line_height_, property_value(important, prop_type_inherit));
+		return;
+	} else
+	{
+		add_parsed_property(_font_style_, property_value(font_style_normal, important));
+		add_parsed_property(_font_variant_, property_value(font_variant_normal, important));
+		add_parsed_property(_font_weight_, property_value(font_weight_normal, important));
+		add_parsed_property(_font_size_, property_value(font_size_medium, important));
+		add_parsed_property(_line_height_, property_value(line_height_normal, important));
+	}
 
 	string_vector tokens;
 	split_string(val, tokens, " ", "", "\"");
@@ -956,14 +994,16 @@ void style::parse_font(const string& val, bool important)
 		{
 			string_vector szlh;
 			split_string(token, szlh, "/");
-
-			auto size = css_length::from_string(szlh[0], font_size_strings, -1);
-			add_parsed_property(_font_size_, property_value(size, important));
-
-			if(szlh.size() == 2)
+			if(!szlh.empty())
 			{
-				auto height = css_length::from_string(szlh[1], "normal", -1);
-				add_parsed_property(_line_height_, property_value(height, important));
+				auto size = css_length::from_string(szlh[0], font_size_strings, -1);
+				add_parsed_property(_font_size_, property_value(size, important));
+
+				if (szlh.size() == 2)
+				{
+					auto height = css_length::from_string(szlh[1], "normal", -1);
+					add_parsed_property(_line_height_, property_value(height, important));
+				}
 			}
 		} else
 		{
@@ -976,18 +1016,6 @@ void style::parse_font(const string& val, bool important)
 
 void style::parse_flex(const string& val, bool important)
 {
-	auto is_number = [](const string& val)
-	{
-		for (auto ch : val)
-		{
-			if ((ch < '0' || ch > '9') && ch != '.')
-			{
-				return false;
-			}
-		}
-		return true;
-	};
-
 	css_length _auto = css_length::predef_value(flex_basis_auto);
 
 	if (val == "initial")
@@ -1020,6 +1048,10 @@ void style::parse_flex(const string& val, bool important)
 			float grow = t_strtof(tokens[0]);
 			float shrink = t_strtof(tokens[1]);
 			auto basis = css_length::from_string(tokens[2], flex_basis_strings, -1);
+			if(!basis.is_predefined() && basis.units() == css_units_none && basis.val() == 0)
+			{
+				basis.set_value(basis.val(), css_units_px);
+			}
 			
 			add_parsed_property(_flex_grow_,	property_value(grow, important));
 			add_parsed_property(_flex_shrink_,	property_value(shrink, important));
@@ -1030,10 +1062,11 @@ void style::parse_flex(const string& val, bool important)
 			float grow = t_strtof(tokens[0]);
 			add_parsed_property(_flex_grow_, property_value(grow, important));
 			
-			if (is_number(tokens[1]))
+			if (litehtml::is_number(tokens[1]))
 			{
 				float shrink = t_strtof(tokens[1]);
 				add_parsed_property(_flex_shrink_, property_value(shrink, important));
+				add_parsed_property(_flex_basis_, property_value(css_length(0), important));
 			}
 			else
 			{
@@ -1047,18 +1080,61 @@ void style::parse_flex(const string& val, bool important)
 			{
 				float grow = t_strtof(tokens[0]);
 				add_parsed_property(_flex_grow_, property_value(grow, important));
-				
-				if (grow >= 1)
-				{
-					add_parsed_property(_flex_shrink_, property_value(1.f, important));
-					add_parsed_property(_flex_basis_,  property_value(css_length(0), important));
-				}
+				add_parsed_property(_flex_shrink_, property_value(1.f, important));
+				add_parsed_property(_flex_basis_,  property_value(css_length(0), important));
 			}
 			else
 			{
 				auto basis = css_length::from_string(tokens[0], flex_basis_strings, -1);
+				add_parsed_property(_flex_grow_, property_value(1.f, important));
+				add_parsed_property(_flex_shrink_, property_value(1.f, important));
 				add_parsed_property(_flex_basis_, property_value(basis, important));
 			}
+		}
+	}
+}
+
+void style::parse_align_self(string_id name, const string& val, bool important)
+{
+	string_vector tokens;
+	split_string(val, tokens, " ");
+	if(tokens.size() == 1)
+	{
+		int idx = value_index(val, m_valid_values[name]);
+		if (idx >= 0)
+		{
+			add_parsed_property(name, property_value(idx, important));
+		}
+	} else
+	{
+		int val1 = 0;
+		int val2 = -1;
+		for(auto &token : tokens)
+		{
+			if(token == "first")
+			{
+				val1 |= flex_align_items_first;
+			} else if(token == "last")
+			{
+				val1 |= flex_align_items_last;
+			} else if(token == "safe")
+			{
+				val1 |= flex_align_items_safe;
+			} else if(token == "unsafe")
+			{
+				val1 |= flex_align_items_unsafe;
+			} else
+			{
+				int idx = value_index(token, m_valid_values[name]);
+				if(idx >= 0)
+				{
+					val2 = idx;
+				}
+			}
+		}
+		if(val2 >= 0)
+		{
+			add_parsed_property(name, property_value(val1 | val2, important));
 		}
 	}
 }

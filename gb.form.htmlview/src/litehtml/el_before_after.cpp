@@ -109,7 +109,7 @@ void litehtml::el_before_after_base::add_text( const string& txt )
 					word.clear();
 				}
 				word += chr;
-				element::ptr el = std::make_shared<el_text>(word.c_str(), get_document());
+				element::ptr el = std::make_shared<el_space>(word.c_str(), get_document());
 				appendChild(el);
 				word.clear();
 			} else
@@ -133,7 +133,7 @@ void litehtml::el_before_after_base::add_text( const string& txt )
 
 void litehtml::el_before_after_base::add_function( const string& fnc, const string& params )
 {
-	int idx = value_index(fnc, "attr;counter;url");
+	int idx = value_index(fnc, "attr;counter;counters;url");
 	switch(idx)
 	{
 	// attr
@@ -155,9 +155,18 @@ void litehtml::el_before_after_base::add_function( const string& fnc, const stri
 		break;
 	// counter
 	case 1:
+		add_text(get_counter_value(params));
+		break;
+	// counters
+	case 2:
+		{
+			string_vector tokens;
+			split_string(params, tokens, ",");
+			add_text(get_counters_value(tokens));
+		}
 		break;
 	// url
-	case 2:
+	case 3:
 		{
 			string p_url = params;
 			trim(p_url);
@@ -196,9 +205,4 @@ litehtml::string litehtml::el_before_after_base::convert_escape( const char* txt
     u_str[0] = (wchar_t) strtol(txt, &str_end, 16);
     u_str[1] = 0;
 	return litehtml::string(litehtml_from_wchar(u_str));
-}
-
-void litehtml::el_before_after_base::apply_stylesheet( const litehtml::css& stylesheet )
-{
-
 }

@@ -26,15 +26,15 @@ libgumbo_la_SOURCES = \
 	gumbo/string_buffer.h \
 	gumbo/string_piece.c \
 	gumbo/string_piece.h \
-	gumbo/tag.c \
 	gumbo/tag_enum.h \
 	gumbo/tag_gperf.h \
 	gumbo/tag_sizes.h \
 	gumbo/tag_strings.h \
+	gumbo/tag.c \
+	gumbo/token_type.h \
+	gumbo/tokenizer_states.h \
 	gumbo/tokenizer.c \
 	gumbo/tokenizer.h \
-	gumbo/tokenizer_states.h \
-	gumbo/token_type.h \
 	gumbo/utf8.c \
 	gumbo/utf8.h \
 	gumbo/util.c \
@@ -67,7 +67,6 @@ gb_form_htmlview_la_SOURCES = \
 	litehtml/el_cdata.h \
 	litehtml/el_comment.h \
 	litehtml/el_div.h \
-	litehtml/element.h \
 	litehtml/el_font.h \
 	litehtml/el_image.h \
 	litehtml/el_link.h \
@@ -80,15 +79,26 @@ gb_form_htmlview_la_SOURCES = \
 	litehtml/el_text.h \
 	litehtml/el_title.h \
 	litehtml/el_tr.h \
-	litehtml/html.h \
+	litehtml/element.h \
+	litehtml/flex_item.h \
+	litehtml/flex_line.h \
+	litehtml/formatting_context.h \
 	litehtml/html_tag.h \
+	litehtml/html.h \
 	litehtml/iterators.h \
 	litehtml/line_box.h \
 	litehtml/master_css.h \
 	litehtml/media_query.h \
 	litehtml/num_cvt.h \
 	litehtml/os_types.h \
-	litehtml/render_item.h \
+	litehmtl/render_block_context.h \
+	litehtml/render_block.h \
+	litehtml/render_flex.h \
+	litehtml/render_image.h \
+	litehtml/render_inline_context.h \
+	litehtml/render_inline.h \
+	litehmtl/render_item.h \
+	litehtml/render_table.h \
 	litehtml/string_id.h \
 	litehtml/style.h \
 	litehtml/stylesheet.h \
@@ -114,7 +124,6 @@ gb_form_htmlview_la_SOURCES = \
 	litehtml/el_cdata.cpp \
 	litehtml/el_comment.cpp \
 	litehtml/el_div.cpp \
-	litehtml/element.cpp \
 	litehtml/el_font.cpp \
 	litehtml/el_image.cpp \
 	litehtml/el_link.cpp \
@@ -127,8 +136,12 @@ gb_form_htmlview_la_SOURCES = \
 	litehtml/el_text.cpp \
 	litehtml/el_title.cpp \
 	litehtml/el_tr.cpp \
-	litehtml/html.cpp \
+	litehtml/element.cpp \
+	litehtml/flex_item.cpp \
+	litehtml/flex_line.cpp \
+	litehtml/formatting_context.cpp \
 	litehtml/html_tag.cpp \
+	litehtml/html.cpp \
 	litehtml/iterators.cpp \
 	litehtml/line_box.cpp \
 	litehtml/media_query.cpp \
@@ -138,7 +151,6 @@ gb_form_htmlview_la_SOURCES = \
 	litehtml/render_flex.cpp \
 	litehtml/render_image.cpp \
 	litehtml/render_inline_context.cpp \
-	litehtml/render_inline.cpp \
 	litehtml/render_item.cpp \
 	litehtml/render_table.cpp \
 	litehtml/string_id.cpp \
@@ -147,8 +159,8 @@ gb_form_htmlview_la_SOURCES = \
 	litehtml/stylesheet.cpp \
 	litehtml/table.cpp \
 	litehtml/tstring_view.cpp \
-	litehtml/url.cpp \
 	litehtml/url_path.cpp \
+	litehtml/url.cpp \
 	litehtml/utf8_strings.cpp \
 	litehtml/web_color.cpp \
 	\

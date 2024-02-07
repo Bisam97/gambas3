@@ -5,6 +5,7 @@
 #include <memory>
 #include <map>
 #include <vector>
+#include <list>
 
 namespace litehtml
 {
@@ -12,7 +13,7 @@ namespace litehtml
 	class element;
 
 	typedef std::map<string, string>					string_map;
-	typedef std::vector< std::shared_ptr<element> >		elements_vector;
+	typedef std::list< std::shared_ptr<element> >		elements_list;
 	typedef std::vector<int>							int_vector;
 	typedef std::vector<string>							string_vector;
 
@@ -45,10 +46,12 @@ namespace litehtml
 		int		width;
 		int		height;
 
-		size()
+		size(int w, int h) : width(w), height(h)
 		{
-			width	= 0;
-			height	= 0;
+		}
+
+		size() : width(0), height(0)
+		{
 		}
 	};
 
@@ -180,6 +183,98 @@ namespace litehtml
 		draw_floats,
 		draw_inlines,
 		draw_positioned,
+	};
+
+	struct containing_block_context
+	{
+		enum cbc_value_type
+		{
+			cbc_value_type_absolute,	// width/height of containing block is defined as absolute value
+			cbc_value_type_percentage,	// width/height of containing block is defined as percentage
+			cbc_value_type_auto,		// width/height of containing block is defined as auto
+			cbc_value_type_none,		// min/max width/height of containing block is defined as none
+		};
+
+		enum cbc_size_mode
+		{
+			size_mode_normal = 0x00,
+			size_mode_exact_width = 0x01,
+			size_mode_exact_height = 0x02,
+			size_mode_content = 0x04,
+		};
+
+		struct typed_int
+		{
+			int 			value;
+			cbc_value_type	type;
+
+			typed_int(int val, cbc_value_type tp)
+			{
+				value = val;
+				type = tp;
+			}
+
+			operator int() const
+			{
+				return value;
+			}
+
+			typed_int& operator=(int val)
+			{
+				value = val;
+				return *this;
+			}
+
+			typed_int& operator=(const typed_int& v)
+			{
+				value = v.value;
+				type = v.type;
+				return *this;
+			}
+		};
+
+		typed_int width;						// width of the containing block
+		typed_int render_width;
+		typed_int min_width;
+		typed_int max_width;
+
+		typed_int height;						// height of the containing block
+		typed_int min_height;
+		typed_int max_height;
+
+		int context_idx;
+		uint32_t size_mode;
+
+		containing_block_context() :
+				width(0, cbc_value_type_auto),
+				render_width(0, cbc_value_type_auto),
+				min_width(0, cbc_value_type_none),
+				max_width(0, cbc_value_type_none),
+				height(0, cbc_value_type_auto),
+				min_height(0, cbc_value_type_none),
+				max_height(0, cbc_value_type_none),
+				context_idx(0),
+				size_mode(size_mode_normal)
+		{}
+
+		containing_block_context new_width(int w, uint32_t _size_mode = size_mode_normal) const
+		{
+			containing_block_context ret = *this;
+			ret.render_width = w - (ret.width - ret.render_width);
+			ret.width = w;
+			ret.size_mode = _size_mode;
+			return ret;
+		}
+
+		containing_block_context new_width_height(int w, int h, uint32_t _size_mode = size_mode_normal) const
+		{
+			containing_block_context ret = *this;
+			ret.render_width = w - (ret.width - ret.render_width);
+			ret.width = w;
+			ret.height = h;
+			ret.size_mode = _size_mode;
+			return ret;
+		}
 	};
 
 #define  style_display_strings		"none;block;inline;inline-block;inline-table;list-item;table;table-caption;table-cell;table-column;table-column-group;table-footer-group;table-header-group;table-row;table-row-group;inline-text;flex;inline-flex"
@@ -517,12 +612,12 @@ namespace litehtml
 
 	struct floated_box
 	{
-		typedef std::vector<floated_box>	vector;
-
 		position		                pos;
 		element_float	                float_side;
 		element_clear	                clear_floats;
 		std::shared_ptr<render_item>	el;
+		int								context;
+		int 							min_width;
 
 		floated_box() = default;
 		floated_box(const floated_box& val)
@@ -531,6 +626,8 @@ namespace litehtml
 			float_side = val.float_side;
 			clear_floats = val.clear_floats;
 			el = val.el;
+			context = val.context;
+			min_width = val.min_width;
 		}
 		floated_box& operator=(const floated_box& val)
 		{
@@ -538,6 +635,8 @@ namespace litehtml
 			float_side = val.float_side;
 			clear_floats = val.clear_floats;
 			el = val.el;
+			context = val.context;
+			min_width = val.min_width;
 			return *this;
 		}
 		floated_box(floated_box&& val)
@@ -546,6 +645,8 @@ namespace litehtml
 			float_side = val.float_side;
 			clear_floats = val.clear_floats;
 			el = std::move(val.el);
+			context = val.context;
+			min_width = val.min_width;
 		}
 		void operator=(floated_box&& val)
 		{
@@ -553,6 +654,8 @@ namespace litehtml
 			float_side = val.float_side;
 			clear_floats = val.clear_floats;
 			el = std::move(val.el);
+			context = val.context;
+			min_width = val.min_width;
 		}
 	};
 
@@ -608,7 +711,7 @@ namespace litehtml
 			m_is_default	= true;
 			m_val			= def_val;
 		}
-		bool is_default()
+		bool is_default() const
 		{
 			return m_is_default;
 		}
@@ -618,10 +721,70 @@ namespace litehtml
 			m_is_default	= false;
 			return m_val;
 		}
-		operator T()
+		operator T() const
 		{
 			return m_val;
 		}
+	};
+
+	class baseline
+	{
+	public:
+		enum _baseline_type
+		{
+			baseline_type_none,
+			baseline_type_top,
+			baseline_type_bottom,
+		};
+
+	public:
+		baseline() : m_value(0), m_type(baseline_type_none) {}
+		baseline(int _value, _baseline_type _type) : m_value(_value), m_type(_type) {}
+
+		int value() const				{ return m_value; 	}
+		void value(int _value) 			{ m_value = _value; }
+		_baseline_type type() const		{ return m_type; 	}
+		void type(_baseline_type _type)	{ m_type = _type; 	}
+
+		operator int() const	{ return m_value; 	}
+		baseline& operator=(int _value) { m_value = _value; return *this; }
+
+		void set(int _value, _baseline_type _type)	{ m_value = _value; m_type =_type; }
+		/**
+		 * Get baseline offset from top of element with specified height
+		 * @param height - element height
+		 * @return baseline offset
+		 */
+		int get_offset_from_top(int height) const
+		{
+			if(m_type == baseline_type_top) return m_value;
+			return height - m_value;
+		}
+		/**
+		 * Get baseline offset from bottom of element with specified height
+		 * @param height - element height
+		 * @return baseline offset
+		 */
+		int get_offset_from_bottom(int height) const
+		{
+			if(m_type == baseline_type_bottom) return m_value;
+			return height - m_value;
+		}
+		/**
+		 * Calculate baseline by top and bottom positions of element aligned by baseline == 0
+		 * @param top - top of the aligned element
+		 * @param bottom - bottom of the aligned element
+		 */
+		void calc(int top, int bottom)
+		{
+			if(m_type == baseline_type_top)
+				m_value = -top;
+			else if(m_type == baseline_type_bottom)
+				m_value = bottom;
+		}
+	private:
+		int m_value;
+		_baseline_type m_type;
 	};
 
 
@@ -763,46 +926,51 @@ namespace litehtml
 		flex_wrap_wrap_reverse
 	};
 
-#define flex_justify_content_strings		"flex-start;flex-end;center;space-between;space-around"
+#define flex_justify_content_strings		"normal;flex-start;flex-end;center;space-between;space-around;start;end;left;right;space-evenly;stretch"
 
 	enum flex_justify_content
 	{
+		flex_justify_content_normal,
 		flex_justify_content_flex_start,
 		flex_justify_content_flex_end,
 		flex_justify_content_center,
 		flex_justify_content_space_between,
-		flex_justify_content_space_around
+		flex_justify_content_space_around,
+		flex_justify_content_start,
+		flex_justify_content_end,
+		flex_justify_content_left,
+		flex_justify_content_right,
+		flex_justify_content_space_evenly,
+		flex_justify_content_stretch,
 	};
 
-#define flex_align_items_strings		"flex-start;flex-end;center;baseline;stretch"
+#define flex_align_items_strings		"normal;flex-start;flex-end;center;start;end;baseline;stretch;auto"
 
 	enum flex_align_items
 	{
+		flex_align_items_flex_normal,
 		flex_align_items_flex_start,
 		flex_align_items_flex_end,
 		flex_align_items_center,
+		flex_align_items_start,
+		flex_align_items_end,
 		flex_align_items_baseline,
-		flex_align_items_stretch
+		flex_align_items_stretch,
+		flex_align_items_auto, // used for align-self property only
+		flex_align_items_first = 0x100,
+		flex_align_items_last = 0x200,
+		flex_align_items_unsafe = 0x400,
+		flex_align_items_safe  = 0x800,
 	};
 
-#define flex_align_self_strings		"auto;flex-start;flex-end;center;baseline;stretch"
-
-	enum flex_align_self
-	{
-		flex_align_self_auto,
-		flex_align_self_flex_start,
-		flex_align_self_flex_end,
-		flex_align_self_center,
-		flex_align_self_baseline,
-		flex_align_self_stretch
-	};
-
-#define flex_align_content_strings		"flex-start;flex-end;center;space-between;space-around;stretch"
+#define flex_align_content_strings		"flex-start;start;flex-end;end;center;space-between;space-around;stretch"
 
 	enum flex_align_content
 	{
 		flex_align_content_flex_start,
+		flex_align_content_start,
 		flex_align_content_flex_end,
+		flex_align_content_end,
 		flex_align_content_center,
 		flex_align_content_space_between,
 		flex_align_content_space_around,
@@ -820,6 +988,13 @@ namespace litehtml
 		flex_basis_max_content,
 	};
 
+#define caption_side_strings		"top;bottom"
+
+	enum caption_side
+	{
+		caption_side_top,
+		caption_side_bottom
+	};
 }
 
 #endif  // LH_TYPES_H

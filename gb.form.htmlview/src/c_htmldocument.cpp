@@ -146,7 +146,7 @@ protected:
 	virtual	void set_cursor(const char* cursor) override;
 	virtual	void transform_text(litehtml::string& text, litehtml::text_transform tt) override;
 	virtual void import_css(litehtml::string& text, const litehtml::string& url, litehtml::string& baseurl) override;
-	virtual void set_clip(const litehtml::position& pos, const litehtml::border_radiuses& bdr_radius, bool valid_x, bool valid_y) override;
+	virtual void set_clip(const litehtml::position& pos, const litehtml::border_radiuses& bdr_radius) override;
 	virtual void del_clip() override;
 	virtual void get_client_rect(litehtml::position& client) const override;
 	virtual litehtml::element::ptr create_element( const char* tag_name, const litehtml::string_map& attributes, const std::shared_ptr<litehtml::document>& doc) override;
@@ -864,22 +864,16 @@ void html_document::rounded_rectangle(const litehtml::position &pos, const liteh
 	}
 }
 
-void html_document::set_clip( const litehtml::position& pos, const litehtml::border_radiuses& bdr_radius, bool valid_x, bool valid_y )
+void html_document::set_clip( const litehtml::position& pos, const litehtml::border_radiuses& bdr_radius)
 {
-	litehtml::position clip_pos = pos;
+	/*litehtml::position clip_pos = pos;
 	litehtml::position client_pos;
 	get_client_rect(client_pos);
-	if(!valid_x)
-	{
-		clip_pos.x = client_pos.x;
-		clip_pos.width = client_pos.width;
-	}
-	if(!valid_y)
-	{
-		clip_pos.y = client_pos.y;
-		clip_pos.height = client_pos.height;
-	}
-	m_clips.emplace_back(clip_pos, bdr_radius);
+	clip_pos.x = client_pos.x;
+	clip_pos.width = client_pos.width;
+	clip_pos.y = client_pos.y;
+	clip_pos.height = client_pos.height;*/
+	m_clips.emplace_back(pos, bdr_radius);
 }
 
 void html_document::del_clip()
