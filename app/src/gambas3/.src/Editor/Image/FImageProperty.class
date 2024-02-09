@@ -1449,25 +1449,24 @@ End
 
 Public Sub OnToolChange(sTool As String)
   
+  Dim hChild As Control
+  
   ShowTextOption(sTool = "text")
+  panOperator.Visible = sTool = "paste"
+  
   panRoundness.Visible = sTool = "rectangle"
   panTolerance.Visible = sTool = "magic"
-  panOperator.Visible = sTool = "paste"
   panSides.Visible = sTool = "polygon"
   panInnerRadius.Visible = panSides.Visible
   
-End
-
-Public Sub panSlider_Arrange()
-
-  Dim hChild As Control
-  Dim H As Integer
-
-  For Each hChild In panSlider.Children
-    If hChild.Visible Then H += hChild.H
+  For Each hChild In panSliderSel.Children
+    If hChild.Visible Then Break 
+    hChild = Null
   Next
-  panSlider.H = H + Desktop.Scale * 2
-
+  
+  panSliderSel.Visible = hChild
+  sepSlider.Visible = panSliderSel.Visible
+    
 End
 
 Public Sub tabBrush_CloseAll()
@@ -1733,5 +1732,24 @@ Public Sub tlbAction_Configure()
   End Select
   
   Action["fill-rule"].Picture = Picture["icon:/" & tlbAction.Size & "/" & sImage]
+
+End
+
+Public Sub panSlider_Arrange()
+  
+  Dim hParent As Container = Last
+  Dim hChild As Control
+  Dim H As Integer
+
+  For Each hChild In hParent.Children
+    If hChild.Visible Then H += hChild.H
+  Next
+  hParent.H = H + Desktop.Scale * 2
+
+End
+
+Public Sub panSliderSel_Arrange()
+
+  panSlider_Arrange
 
 End

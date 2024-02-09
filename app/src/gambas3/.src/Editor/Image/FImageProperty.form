@@ -317,7 +317,7 @@
       }
     }
     { panSlider VBox
-      MoveScaled(1,64,63,28)
+      MoveScaled(1,60,63,13)
       Margin = True
       { HPanel1 HBox
         MoveScaled(0,0,62,4)
@@ -351,41 +351,8 @@
           Step = 2
         }
       }
-      { panTolerance HBox
-        MoveScaled(0,8,62,4)
-        Spacing = True
-        { Label4 Label
-          MoveScaled(0,0,15,4)
-          Text = ("Tolerance")
-        }
-        { slbTolerance SliderBox
-          MoveScaled(18,0,38,4)
-          Expand = True
-          Picture = Picture["icon:/large/percent"]
-          MaxValue = 128
-          Step = 8
-          DefaultValue = 32
-          Value = 32
-        }
-      }
-      { panRoundness HBox
-        MoveScaled(0,12,62,4)
-        Spacing = True
-        { Label14 Label
-          MoveScaled(0,0,15,4)
-          Text = ("Roundness")
-        }
-        { slbRoundness SliderBox
-          MoveScaled(18,0,38,4)
-          Expand = True
-          Picture = Picture["icon:/large/draw-round"]
-          MaxValue = 256
-          Step = 2
-          DefaultValue = 32
-        }
-      }
       { panOperator HBox
-        MoveScaled(0,16,62,4)
+        MoveScaled(0,8,62,4)
         Spacing = True
         { Label13 Label
           MoveScaled(0,0,15,4)
@@ -403,12 +370,52 @@
           List = [("Clear destination"), ("Keep source"), ("Draw source on top of destination"), ("Replace destination by source"), ("Clear source with destination"), ("Draw source on destination only"), ("Keep destination"), ("Draw source above destination"), ("Replace source by destination"), ("Clear destination with source"), ("Draw destination on source only"), ("Keep source or destination alone"), ("Add source and destination"), ("Multiply source and destination")]
         }
       }
+    }
+    { sepSlider Separator
+      MoveScaled(15,74,26,0)
+    }
+    { panSliderSel VBox
+      MoveScaled(1,75,63,17)
+      Margin = True
+      { panTolerance HBox
+        MoveScaled(0,0,62,4)
+        Spacing = True
+        { Label4 Label
+          MoveScaled(0,0,15,4)
+          Text = ("Tolerance")
+        }
+        { slbTolerance SliderBox
+          MoveScaled(18,0,38,4)
+          Expand = True
+          Picture = Picture["icon:/large/percent"]
+          MaxValue = 128
+          Step = 8
+          DefaultValue = 32
+          Value = 32
+        }
+      }
+      { panRoundness HBox
+        MoveScaled(0,4,62,4)
+        Spacing = True
+        { Label14 Label
+          MoveScaled(0,0,15,4)
+          Text = ("Roundness")
+        }
+        { slbRoundness SliderBox
+          MoveScaled(18,0,38,4)
+          Expand = True
+          Picture = Picture["icon:/large/draw-round"]
+          MaxValue = 256
+          Step = 2
+          DefaultValue = 32
+        }
+      }
       { panSides HBox
-        MoveScaled(0,20,62,4)
+        MoveScaled(0,8,62,4)
         Spacing = True
         { Label16 Label
           MoveScaled(0,0,15,4)
-          Text = ("Sides count")
+          Text = ("Sides")
         }
         { slbSides SliderBox
           MoveScaled(18,0,38,4)
@@ -421,7 +428,7 @@
         }
       }
       { panInnerRadius HBox
-        MoveScaled(0,24,62,4)
+        MoveScaled(0,12,62,4)
         Spacing = True
         { Label17 Label
           MoveScaled(0,0,15,4)
@@ -438,8 +445,103 @@
     { Separator3 Separator
       MoveScaled(19,94,26,0)
     }
+    { panText VBox
+      MoveScaled(1,95,60,26)
+      Visible = False
+      { panTextLayout ToolBar
+        MoveScaled(1,1,58,4)
+        Key = "image-text"
+        ReadOnly = True
+        Separator = True
+        { btnTextLeft ToolButton btnTextAlign
+          Name = "btnTextLeft"
+          MoveScaled(0,0,4,4)
+          ToolTip = ("Left align")
+          Action = "text-left"
+          Picture = Picture["icon:/small/text-left"]
+          Radio = True
+          Toggle = True
+        }
+        { btnTextCenter ToolButton btnTextAlign
+          Name = "btnTextCenter"
+          MoveScaled(4,0,4,4)
+          ToolTip = ("Centered")
+          Action = "text-center"
+          Picture = Picture["icon:/small/text-center"]
+          Radio = True
+          Toggle = True
+        }
+        { btnTextRight ToolButton btnTextAlign
+          Name = "btnTextRight"
+          MoveScaled(8,0,4,4)
+          ToolTip = ("Right align")
+          Action = "text-right"
+          Picture = Picture["icon:/small/text-right"]
+          Radio = True
+          Toggle = True
+        }
+        { Separator12 Separator
+          MoveScaled(13,0,1,4)
+        }
+        { btnTextTop ToolButton btnTextAlign
+          Name = "btnTextTop"
+          MoveScaled(17,0,4,4)
+          ToolTip = ("Top align")
+          Action = "text-top"
+          Picture = Picture["icon:/small/text-top"]
+          Radio = True
+          Toggle = True
+        }
+        { btnTextMiddle ToolButton btnTextAlign
+          Name = "btnTextMiddle"
+          MoveScaled(21,0,4,4)
+          ToolTip = ("Middle align")
+          Action = "text-middle"
+          Picture = Picture["icon:/small/text-middle"]
+          Radio = True
+          Toggle = True
+          Value = True
+        }
+        { btnTextBase ToolButton btnTextAlign
+          Name = "btnTextBase"
+          MoveScaled(25,0,4,4)
+          ToolTip = ("Baseline align")
+          Action = "text-base"
+          Picture = Picture["icon:/small/text-baseline"]
+          Radio = True
+          Toggle = True
+        }
+        { btnTextBottom ToolButton btnTextAlign
+          Name = "btnTextBottom"
+          MoveScaled(29,0,4,4)
+          ToolTip = ("Bottom align")
+          Action = "text-bottom"
+          Picture = Picture["icon:/small/text-bottom"]
+          Radio = True
+          Toggle = True
+        }
+      }
+      { Panel11 VBox
+        MoveScaled(1,6,57,19)
+        Expand = True
+        Spacing = True
+        Margin = True
+        { fchText FontChooser
+          MoveScaled(0,0,55,8)
+          Border = False
+          ShowRelative = False
+        }
+        { txtText TextArea
+          MoveScaled(0,9,54,7)
+          Expand = True
+        }
+      }
+    }
+    { sepText Separator
+      MoveScaled(21,139,15,0)
+    }
     { Panel13 Panel
-      MoveScaled(1,95,64,43)
+      MoveScaled(1,125,64,43)
       Arrangement = Arrange.Vertical
       Margin = True
       { panEffect Expander
@@ -603,101 +705,6 @@
             Text = Shortcut(("Apply"), "A")
             Picture = Picture["icon:/small/apply"]
           }
-        }
-      }
-    }
-    { sepText Separator
-      MoveScaled(21,139,15,0)
-    }
-    { panText VBox
-      MoveScaled(3,140,60,26)
-      Visible = False
-      { panTextLayout ToolBar
-        MoveScaled(1,1,58,4)
-        Key = "image-text"
-        ReadOnly = True
-        Separator = True
-        { btnTextLeft ToolButton btnTextAlign
-          Name = "btnTextLeft"
-          MoveScaled(0,0,4,4)
-          ToolTip = ("Left align")
-          Action = "text-left"
-          Picture = Picture["icon:/small/text-left"]
-          Radio = True
-          Toggle = True
-        }
-        { btnTextCenter ToolButton btnTextAlign
-          Name = "btnTextCenter"
-          MoveScaled(4,0,4,4)
-          ToolTip = ("Centered")
-          Action = "text-center"
-          Picture = Picture["icon:/small/text-center"]
-          Radio = True
-          Toggle = True
-        }
-        { btnTextRight ToolButton btnTextAlign
-          Name = "btnTextRight"
-          MoveScaled(8,0,4,4)
-          ToolTip = ("Right align")
-          Action = "text-right"
-          Picture = Picture["icon:/small/text-right"]
-          Radio = True
-          Toggle = True
-        }
-        { Separator12 Separator
-          MoveScaled(13,0,1,4)
-        }
-        { btnTextTop ToolButton btnTextAlign
-          Name = "btnTextTop"
-          MoveScaled(17,0,4,4)
-          ToolTip = ("Top align")
-          Action = "text-top"
-          Picture = Picture["icon:/small/text-top"]
-          Radio = True
-          Toggle = True
-        }
-        { btnTextMiddle ToolButton btnTextAlign
-          Name = "btnTextMiddle"
-          MoveScaled(21,0,4,4)
-          ToolTip = ("Middle align")
-          Action = "text-middle"
-          Picture = Picture["icon:/small/text-middle"]
-          Radio = True
-          Toggle = True
-          Value = True
-        }
-        { btnTextBase ToolButton btnTextAlign
-          Name = "btnTextBase"
-          MoveScaled(25,0,4,4)
-          ToolTip = ("Baseline align")
-          Action = "text-base"
-          Picture = Picture["icon:/small/text-baseline"]
-          Radio = True
-          Toggle = True
-        }
-        { btnTextBottom ToolButton btnTextAlign
-          Name = "btnTextBottom"
-          MoveScaled(29,0,4,4)
-          ToolTip = ("Bottom align")
-          Action = "text-bottom"
-          Picture = Picture["icon:/small/text-bottom"]
-          Radio = True
-          Toggle = True
-        }
-      }
-      { Panel11 VBox
-        MoveScaled(1,6,57,19)
-        Expand = True
-        Spacing = True
-        Margin = True
-        { fchText FontChooser
-          MoveScaled(0,0,55,8)
-          Border = False
-          ShowRelative = False
-        }
-        { txtText TextArea
-          MoveScaled(0,9,54,7)
-          Expand = True
         }
       }
     }
