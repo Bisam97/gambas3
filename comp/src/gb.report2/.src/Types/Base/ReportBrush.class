@@ -11,7 +11,7 @@ Public _radius As Float
 Public _Image As Image
 Public _Color As Integer[] = [0, &HFFFFFF&]
 Public _Pos As Float[] = [0, 1]
-Private _ImageDir As String
+Public _ImageDir As String
 
 Public Function _PaintBrush(X1 As Integer, Y1 As Integer, X2 As Integer, Y2 As Integer) As PaintBrush
   
@@ -90,7 +90,7 @@ Static Public Sub _get(sValue As String) As ReportBrush
       'correction de l'hexon
        '= Val(Replace(ars[0], "#", "&H") & "00&")
       If ars[0] Begins "#" Then ars[0] = Mid(ars[0], 2)
-      hBrush._Color[0] = Val("&H" & IIf(Len(ars[0]) = 8, ars[0], 00 & ars[0]))
+      hBrush._Color[0] = Val("&H" & IIf(Len(ars[0]) = 8, ars[0], 0 & ars[0]))
   End Select
   Return hBrush
   
