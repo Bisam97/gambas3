@@ -35,6 +35,7 @@
 #include "gbx_string.h"
 #include "gbx_c_file.h"
 #include "gbx_math.h"
+#include "gbx_project.h"
 
 #include <sys/file.h>
 
@@ -49,12 +50,21 @@ static void *_default_in = NULL;
 static void *_default_out = NULL;
 static void *_default_err = NULL;
 
+static void **_default_list[3] = { &_default_in, &_default_out, &_default_err };
+
 static GB_ARRAY _result;
 static char *_pattern;
 static int _len_pattern;
 static int _ignore;
 
 static STREAM *_stream;
+
+static bool _use_debug = FALSE;
+
+static bool _init_log_func = FALSE;
+static GB_FUNCTION _log_func;
+static bool _use_log_func;
+static bool _inside_log = FALSE;
 
 
 static void push_stream(void **list, CSTREAM *stream)
@@ -86,29 +96,44 @@ static CSTREAM *pop_stream(void **list)
 	return stream;
 }
 
-static STREAM *get_default(intptr_t val)
+
+static STREAM *get_default(int val)
 {
 	STREAM *stream = NULL;
 
 	switch(val)
 	{
-		case 0:
+		case CFILE_IN:
 			if (_default_in)
 				stream = CSTREAM_TO_STREAM(((CSTREAM_NODE *)_default_in)->stream);
 			else
 				stream = CSTREAM_TO_STREAM(CFILE_get_standard_stream(CFILE_IN));
 			break;
-		case 1:
+		case CFILE_OUT:
 			if (_default_out)
 				stream = CSTREAM_TO_STREAM(((CSTREAM_NODE *)_default_out)->stream);
 			else
 				stream = CSTREAM_TO_STREAM(CFILE_get_standard_stream(CFILE_OUT));
 			break;
-		case 2:
+		case CFILE_ERR:
 			if (_default_err)
 				stream = CSTREAM_TO_STREAM(((CSTREAM_NODE *)_default_err)->stream);
 			else
+			{
+				if (!_init_log_func)
+				{
+					_init_log_func = TRUE;
+				  GB_GetFunction(&_log_func, PROJECT_class, "Application_Log", "ss", "");
+				}
+
+				if (!_inside_log && GB_FUNCTION_IS_VALID(&_log_func))
+				{
+					_use_log_func = TRUE;
+					return NULL;
+				}
+
 				stream = CSTREAM_TO_STREAM(CFILE_get_standard_stream(CFILE_ERR));
+			}
 			break;
 	}
 
@@ -124,8 +149,8 @@ static inline STREAM *_get_stream(VALUE *value, bool can_default)
 	
 	VARIANT_undo(value);
 	
-	if ((can_default) && TYPE_is_integer(value->type) && value->_integer.value >= 0 && value->_integer.value <= 2)
-		stream = get_default((intptr_t)(value->_integer.value));
+	if ((can_default) && TYPE_is_integer(value->type) && value->_integer.value >= 0 && value->_integer.value <= 3)
+		stream = get_default(value->_integer.value);
 	else
 	{
 		if (TYPE_is_object(value->type) && value->_object.object && OBJECT_class(value->_object.object)->is_stream)
@@ -143,27 +168,6 @@ static inline STREAM *_get_stream(VALUE *value, bool can_default)
 	return stream;
 }
 
-/*#define _get_stream(_value, _can_default) \
-	STREAM *stream; \
-	\
-	VARIANT_undo(_value); \
-	\
-	if ((_can_default) && TYPE_is_integer((_value)->type) && (_value)->_integer.value >= 0 && (_value)->_integer.value <= 2) \
-		stream = get_default((intptr_t)(_value)->_integer.value); \
-	else \
-	{ \
-		if (TYPE_is_object((_value)->type) && (_value)->_object.object && OBJECT_class((_value)->_object.object)->is_stream) \
-			stream = CSTREAM_TO_STREAM((_value)->_object.object); \
-		else \
-		{ \
-			if (VALUE_is_null(_value)) \
-				THROW(E_NULL); \
-			\
-			VALUE_conv_object((_value), (TYPE)CLASS_Stream); \
-			stream = NULL; \
-		} \
-	}*/
-
 #define get_stream(_value, _can_default) \
 ({ \
 	STREAM *_stream = _get_stream(_value, _can_default); \
@@ -178,7 +182,7 @@ static inline STREAM *_get_stream(VALUE *value, bool can_default)
 ({ \
 	STREAM *_stream = _get_stream(_value, _can_default); \
 	\
-	if (STREAM_is_closed_for_writing(_stream)) \
+	if (_stream && STREAM_is_closed_for_writing(_stream)) \
 		THROW(E_CLOSED); \
 	\
 	_stream; \
@@ -250,11 +254,65 @@ void SUBR_open(ushort code)
 }
 
 
-void SUBR_close(void)
+static void do_lock(bool wait)
 {
+	SUBR_ENTER_PARAM(wait ? 2 : 1);
+	STREAM stream;
+	CFILE *file;
+	const char *path = get_path(PARAM);
+	double next, timer;
+
+	if (FILE_is_relative(path))
+		THROW(E_BADPATH);
+
+	if (wait)
+	{
+		DATE_timer(&next, FALSE);
+		next += SUBR_get_float(&PARAM[1]);
+	}
+
+	for(;;)
+	{
+		STREAM_open(&stream, path, GB_ST_LOCK);
+
+		if (!STREAM_lock_all(&stream) && FILE_exist(path))
+			break;
+
+		STREAM_close(&stream);
+
+		if (wait)
+		{
+			DATE_timer(&timer, FALSE);
+			if (timer < next)
+			{
+				usleep(10000);
+				continue;
+			}
+		}
+
+		THROW(E_LOCK);
+	}
+
+	file = CFILE_create(&stream, GB_ST_LOCK);
+	OBJECT_put(RETURN, file);
+	SUBR_LEAVE();
+}
+
+void SUBR_close(ushort code)
+{
+	static void *jump[] = { &&__CLOSE, &&__FLUSH, &&__INP_OUT, &&__INP_OUT, &&__INP_OUT, &&__LINE_INPUT, &&__LOCK, &&__UNLOCK, &&__LOCK };
+
 	STREAM *stream;
+	CSTREAM *cstream;
+	void **where;
+	char *addr;
 
 	SUBR_ENTER_PARAM(1);
+
+	code &= 0x1F;
+	goto *jump[code];
+
+__CLOSE:
 
 	stream = get_stream(PARAM, FALSE);
 
@@ -280,16 +338,72 @@ void SUBR_close(void)
 		STREAM_close(stream);
 		SUBR_LEAVE_VOID();
 	}
+
+	return;
+
+__FLUSH:
+
+	STREAM_flush(get_stream(PARAM, TRUE));
+
+	SUBR_LEAVE_VOID();
+	return;
+
+__INP_OUT:
+
+	where = _default_list[code - 2];
+
+	if (VALUE_is_null(PARAM))
+	{
+		cstream = pop_stream(where);
+		if (cstream)
+			OBJECT_UNREF(cstream);
+		return;
+	}
+
+	VALUE_conv_object(PARAM, (TYPE)CLASS_Stream);
+
+	cstream = PARAM->_object.object;
+	OBJECT_REF(cstream);
+
+	push_stream(where, cstream);
+
+	SUBR_LEAVE_VOID();
+	return;
+
+__LINE_INPUT:
+
+	stream = get_stream(&SP[-1], TRUE);
+
+	addr = STREAM_line_input(stream, NULL);
+
+	SP--;
+	if (!TYPE_is_integer(SP->type))
+		RELEASE_OBJECT(SP);
+
+	SP->type = T_STRING;
+	SP->_string.addr = addr;
+	SP->_string.start = 0;
+	SP->_string.len = STRING_length(addr);
+
+	SP++;
+	return;
+
+__UNLOCK:
+
+	STREAM_close(get_stream(PARAM, FALSE));
+	SUBR_LEAVE_VOID();
+	return;
+
+__LOCK:
+
+	do_lock(code == 8);
+	return;
 }
 
 
 void SUBR_flush(void)
 {
-	SUBR_ENTER_PARAM(1);
-
-	STREAM_flush(get_stream(PARAM, TRUE));
-
-	SUBR_LEAVE_VOID();
+	SUBR_close(1);
 }
 
 
@@ -303,24 +417,61 @@ void SUBR_print(ushort code)
 	int i;
 	char *addr;
 	int len;
+	const char *prefix;
+	char *result;
+	bool use_log;
+	bool use_debug;
 
 	SUBR_ENTER();
 
 	if (NPARAM < 1)
 		THROW(E_NEPARAM);
 
+	_use_log_func = FALSE;
 	_stream = get_stream_for_writing(PARAM, TRUE);
+	use_log = _use_log_func;
+	use_debug = _use_debug;
 
-	//PRINT_init(print_it, FALSE);
+	if (use_debug)
+	{
+		_use_debug = FALSE;
+
+		if (!use_log)
+		{
+			prefix = DEBUG_get_current_position();
+	    STREAM_write(_stream, (void *)prefix, strlen(prefix));
+	    STREAM_write(_stream, ": ", 2);
+		}
+	}
+	else
+		prefix = NULL;
+
+	if (use_log)
+		STRING_start();
 
 	for (i = 1; i < NPARAM; i++)
 	{
 		PARAM++;
 		VALUE_to_local_string(PARAM, &addr, &len);
-		if (len == 1 && *addr == '\n')
+		if (use_log)
+			STRING_make(addr, len);
+		else if (len == 1 && *addr == '\n')
 			STREAM_write_eol(_stream);
 		else
 			STREAM_write(_stream, addr, len);
+	}
+
+	if (use_log)
+	{
+		result = STRING_end_temp();
+		if (use_debug)
+			prefix = STRING_new_temp_zero(DEBUG_get_current_position());
+		else
+			prefix = NULL;
+		GB_Push(2, T_STRING, result, STRING_length(result), T_STRING, prefix, STRING_length(prefix));
+		_inside_log = TRUE;
+		GB_Call(&_log_func, 2, FALSE);
+		_inside_log = FALSE;
 	}
 
 	SUBR_LEAVE_VOID();
@@ -329,23 +480,7 @@ void SUBR_print(ushort code)
 
 void SUBR_linput(void)
 {
-	STREAM *stream;
-	char *addr;
-
-	stream = get_stream(&SP[-1], TRUE);
-
-	addr = STREAM_line_input(stream, NULL);
-
-	SP--;
-	if (!TYPE_is_integer(SP->type))
-		RELEASE_OBJECT(SP);
-	
-	SP->type = T_STRING;
-	SP->_string.addr = addr;
-	SP->_string.start = 0;
-	SP->_string.len = STRING_length(addr);
-	
-	SP++;
+	SUBR_close(5);
 }
 
 
@@ -451,7 +586,7 @@ void SUBR_seek(ushort code)
 			VALUE_conv_integer(&PARAM[2]);
 			whence = PARAM[2]._integer.value;
 			if (whence != SEEK_SET && whence != SEEK_CUR && whence != SEEK_END)
-				THROW(E_ARG);
+				THROW_ARG();
 		}
 		else
 		{
@@ -1009,90 +1144,13 @@ void SUBR_access(ushort code)
 
 void SUBR_lock(ushort code)
 {
-	code &= 0x1F;
-
-	if (code == 1)
-	{
-		SUBR_ENTER_PARAM(1);
-		STREAM_close(get_stream(PARAM, FALSE));
-		SUBR_LEAVE_VOID();
-	}
-	else
-	{
-		SUBR_ENTER_PARAM((code == 2) ? 2 : 1);
-		STREAM stream;
-		CFILE *file;
-		const char *path = get_path(PARAM);
-		double wait, timer;
-
-		if (FILE_is_relative(path))
-			THROW(E_BADPATH);
-
-		if (code == 2)
-		{
-			DATE_timer(&wait, FALSE);
-			wait += SUBR_get_float(&PARAM[1]);
-		}
-
-		for(;;)
-		{
-			STREAM_open(&stream, path, GB_ST_LOCK);
-			
-			if (!STREAM_lock_all(&stream) && FILE_exist(path))
-				break;
-			
-			STREAM_close(&stream);
-			
-			if (code == 2)
-			{
-				DATE_timer(&timer, FALSE);
-				if (timer < wait)
-				{
-					usleep(10000);
-					continue;
-				}
-			}
-
-			THROW(E_LOCK);
-		}
-
-		file = CFILE_create(&stream, GB_ST_LOCK);
-		OBJECT_put(RETURN, file);
-		SUBR_LEAVE();
-	}
+	SUBR_close((code & 0x1F) + 6);
 }
 
 
 void SUBR_inp_out(ushort code)
 {
-	CSTREAM *stream;
-	void **where;
-
-	SUBR_ENTER_PARAM(1);
-
-	switch(code & 0x1F)
-	{
-		case 0: where = &_default_in; break;
-		case 1: where = &_default_out; break;
-		default: where = &_default_err; break;
-	}
-
-	if (VALUE_is_null(PARAM))
-	{
-		stream = pop_stream(where);
-		if (stream)
-			OBJECT_UNREF(stream);
-		return;
-	}
-
-	VALUE_conv_object(PARAM, (TYPE)CLASS_Stream);
-
-	stream = PARAM->_object.object;
-	OBJECT_REF(stream);
-
-	push_stream(where, stream);
-
-	SUBR_LEAVE_VOID();
+	SUBR_close(2 + (code & 0x1F));
 }
 
 static void free_list(void **list)
@@ -1132,12 +1190,7 @@ void SUBR_debug(ushort code)
 
 	if (NPARAM == 0)
 	{
-		STREAM *stream = get_default(2);
-		const char *s = DEBUG_get_current_position();
-		
-		STREAM_write(stream, (void *)s, strlen(s));
-		STREAM_write(stream, ": ", 2);
-		
+		_use_debug = TRUE;
 		RETURN->type = T_INTEGER;
 		RETURN->_integer.value = 2;
 	}

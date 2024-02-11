@@ -3,6 +3,7 @@
   CFtpClient.c
 
   (c) 2003-2008 Daniel Campos Fernández <dcamposf@gmail.com>
+	(c) Benoît Minisini <benoit.minisini@gambas-basic.org>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -83,18 +84,23 @@ static int ftp_write_curl(void *buffer, size_t size, size_t nmemb, void *_object
 
 static void ftp_reset(void *_object)
 {
-	GB.FreeString(&THIS->data);
+	CURL_reset(THIS);
 	GB.Unref(&THIS_FTP->commands);
 }
 
 
 static void ftp_initialize_curl_handle(void *_object)
 {
+	#if DEBUG
+	fprintf(stderr, "ftp_initialize_curl_handle: %p\n", THIS_CURL);
+	#endif
+
 	if (THIS_CURL)
 	{
 		if (CURL_check_userpwd(&THIS->user))
 		{
 			CURL_stop(_object);
+			CURL_clean(_object);
 			ftp_reset(_object);
 			THIS_CURL = curl_easy_init();
 			#if DEBUG
@@ -110,9 +116,15 @@ static void ftp_initialize_curl_handle(void *_object)
 		#endif
 	}
 
+	#ifdef DEBUG
+	fprintf(stderr, "ftp_initialize_curl_handle: --> %p\n", THIS_CURL);
+	#endif
+
 	CURL_init_options(THIS);
 
 	curl_easy_setopt(THIS_CURL, CURLOPT_FTP_USE_EPSV, (long)(THIS_FTP->no_epsv ? 0 : 1));
+	curl_easy_setopt(THIS_CURL, CURLOPT_QUOTE, NULL);
+	curl_easy_setopt(THIS_CURL, CURLOPT_NOBODY, 0);
 
 	ftp_reset(THIS_FTP);
 	THIS_STATUS = NET_CONNECTING;

@@ -246,6 +246,14 @@ static gboolean cb_configure(GtkWidget *widget, GdkEventConfigure *event, gMainW
 	data->bufW = event->width - data->_csd_w;
 	data->bufH = event->height - data->_csd_h;
 	
+	if (data->isTopLevel() && !data->_minimized && !data->_maximized && !data->_fullscreen)
+	{
+		data->_sx = data->bufX;
+		data->_sy = data->bufY;
+		data->_sw = data->bufW;
+		data->_sh = data->bufH;
+	}
+
 	#ifdef DEBUG_RESIZE
 	fprintf(stderr, "-> %d %d\n", data->bufW, data->bufH);
 	#endif
@@ -406,6 +414,7 @@ void gMainWindow::initialize()
 	_resize_last_w = _resize_last_h = -1;
 	_min_w = _min_h = _default_min_w = _default_min_h = 0;
 	_csd_w  = _csd_h = -1;
+	_sx = _sy = _sw = _sh = 0;
 	_previous = NULL;
 
 	_opened = false;
@@ -482,7 +491,6 @@ void gMainWindow::initWindow()
 	
 	gtk_window_add_accel_group(GTK_WINDOW(topLevel()->border), accel);
 
-	have_cursor = true; //parent() == 0 && !_xembed;
 	setCanFocus(true);
 }
 
@@ -1773,7 +1781,7 @@ bool gMainWindow::setMenuBarVisible(bool v)
 
 bool gMainWindow::isMenuBarVisible()
 {
-	//fprintf(stderr, "isMenuBarVisible: %d\n", !!(menuBar && !_hideMenuBar && _showMenuBar));
+	//fprintf(stderr, "isMenuBarVisible: %s %p %d %d\n", name(), menuBar, _hideMenuBar, _showMenuBar);
 	return menuBar && !_hideMenuBar && _showMenuBar; //|| (menuBar && GTK_WIDGET_MAPPED(GTK_WIDGET(menuBar)));
 }
 

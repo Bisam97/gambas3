@@ -53,7 +53,8 @@ static bool cb_change_filter(gControl *control)
 
 static void cb_change(gControl *control)
 {
-	GB.Raise(control->hFree, EVENT_Change, 0);
+	CB_GET_OBJECT(control);
+	GB.Raise(THIS, EVENT_Change, 0);
 }
 
 void CDRAWINGAREA_send_change_event(void)
@@ -78,7 +79,8 @@ static void cleanup_drawing(HANDLER_INFO *info)
 
 void CB_drawingarea_expose(gDrawingArea *sender, cairo_t *cr)
 {
-	CWIDGET *_object = GetObject(sender);
+	CB_GET_OBJECT(sender);
+
 	GB_RAISE_HANDLER handler;
 	HANDLER_INFO info;
 	int fw;
@@ -119,7 +121,8 @@ static void cleanup_drawing(intptr_t _unused)
 
 void CB_drawingarea_expose(gDrawingArea *sender, GdkRegion *region, int dx, int dy)
 {
-	CWIDGET *_object = GetObject(sender);
+	CB_GET_OBJECT(sender);
+
 	GB_RAISE_HANDLER handler;
 	cairo_t *cr;
 	int fw;
@@ -149,7 +152,7 @@ void CB_drawingarea_expose(gDrawingArea *sender, GdkRegion *region, int dx, int 
 
 void CB_drawingarea_font(gDrawingArea *sender)
 {
-	CWIDGET *_object = GetObject(sender);
+	CB_GET_OBJECT(sender);
 	GB.Raise(THIS, EVENT_Font, 0);
 }
 
@@ -247,6 +250,17 @@ BEGIN_PROPERTY(DrawingArea_Tablet)
 
 END_PROPERTY
 
+BEGIN_PROPERTY(DrawingArea_NoMouse)
+
+	if (READ_PROPERTY)
+		GB.ReturnBoolean(WIDGET->isIgnoreMouse());
+	else
+		WIDGET->setIgnoreMouse(VPROP(GB_BOOLEAN));
+
+END_PROPERTY
+
+//-------------------------------------------------------------------------
+
 GB_DESC CDrawingAreaDesc[] =
 {
 	GB_DECLARE("DrawingArea", sizeof(CDRAWINGAREA)), GB_INHERITS("Container"),
@@ -260,8 +274,8 @@ GB_DESC CDrawingAreaDesc[] =
 	GB_PROPERTY("Focus","b",DrawingArea_Focus),
 	GB_PROPERTY("Painted", "b", DrawingArea_Painted),
 	GB_PROPERTY("NoBackground", "b", DrawingArea_NoBackground),
-	
 	GB_PROPERTY("Tablet", "b", DrawingArea_Tablet),
+	GB_PROPERTY("NoMouse", "b", DrawingArea_NoMouse),
 
 	GB_METHOD("Clear", NULL, DrawingArea_Clear, NULL),
 	GB_METHOD("Refresh", NULL, DrawingArea_Refresh, "[(X)i(Y)i(Width)i(Height)i]"),

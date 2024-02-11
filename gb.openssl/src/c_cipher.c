@@ -35,7 +35,7 @@
 #define __C_CIPHER_C
 
 #include <assert.h>
-
+#include <string.h>
 #include <openssl/crypto.h>
 #include <openssl/evp.h>
 #include <openssl/rand.h>
@@ -66,7 +66,7 @@ static void get_clist(void)
 	/* XXX: There is EVP_CIPHER_do_all_sorted() but that still returns
 	 * entries twice (NOT next to each other), so we sort manually */
 	EVP_CIPHER_do_all(clist_func, NULL);
-	sort_and_dedupe(_clist);
+	MAIN_sort_and_dedupe(_clist);
 }
 
 /**G
@@ -126,8 +126,7 @@ END_METHOD
  **/
 BEGIN_METHOD(Cipher_IsSupported, GB_STRING method)
 
-	_method = EVP_get_cipherbyname(STRING(method));
-	GB.ReturnBoolean(!!_method);
+	GB.ReturnBoolean(EVP_get_cipherbyname(GB.ToZeroString(ARG(method))) != NULL);
 
 END_METHOD
 
@@ -260,7 +259,7 @@ BEGIN_METHOD(CipherMethod_Encrypt, GB_STRING plain; GB_STRING key;
 		assert(RAND_bytes(iv, sizeof(iv)));
 	} else {
 		if (LENGTH(iv) != sizeof(iv)) {
-			GB.Error("InitVector length does not match method");
+			GB.Error("Init vector length does not match method");
 			return;
 		}
 		memcpy(iv, STRING(iv), sizeof(iv));
@@ -269,7 +268,10 @@ BEGIN_METHOD(CipherMethod_Encrypt, GB_STRING plain; GB_STRING key;
 	cipher = do_cipher((uchar *) STRING(plain), LENGTH(plain), key, iv,
 			   &length, 1, &errmsg);
 	if (!cipher) {
-		GB.Error(errmsg ? errmsg : "Encryption failed");
+		if (errmsg)
+			GB.Error(errmsg);
+		else
+			MAIN_error("Encryption failed: &1");
 		return;
 	}
 
@@ -296,7 +298,10 @@ BEGIN_METHOD(CipherMethod_Decrypt, GB_OBJECT ciph)
 			  (uchar *) ciph->key, (uchar *) ciph->iv,
 			  &length, 0, &errmsg);
 	if (!plain) {
-		GB.Error(errmsg ? errmsg : "Decryption failed");
+		if (errmsg)
+			GB.Error(errmsg);
+		else
+			MAIN_error("Decryption failed: &1");
 		return;
 	}
 	GB.ReturnNewString(plain, length);
@@ -348,7 +353,10 @@ BEGIN_METHOD(CipherMethod_EncryptSalted, GB_STRING plain; GB_STRING passwd;
 	cipher = do_cipher((uchar *) STRING(plain), LENGTH(plain), key, iv,
 			   &length, 1, &errmsg);
 	if (!cipher) {
-		GB.Error(errmsg ? errmsg : "Encryption failed");
+		if (errmsg)
+			GB.Error(errmsg);
+		else
+			MAIN_error("Encryption failed: &1");
 		return;
 	}
 	res = GB.NewZeroString("Salted__");
@@ -373,12 +381,16 @@ BEGIN_METHOD(CipherMethod_DecryptSalted, GB_STRING cipher; GB_STRING passwd)
 	unsigned int clen, length;
 	char *plain, *errmsg;
 
-	if (!strstr(STRING(cipher), "Salted__")) {
+	if (LENGTH(cipher) <= 8 || strncmp(STRING(cipher), "Salted__", 8)) {
 		GB.Error("Unrecognised cipher string format");
 		return;
 	}
 	/* salt begins at STRING(cipher) + strlen("Salted__") */
-	memcpy(salt, STRING(cipher) + 8, sizeof(salt));
+
+	clen = LENGTH(cipher) - 8;
+	if (clen > sizeof(salt))
+		clen = sizeof(salt);
+	memcpy(salt, STRING(cipher) + 8, clen);
 
 // "openssl enc" >= 1.1.0 uses SHA256 by default instead of MD5
 //	EVP_BytesToKey(_method, EVP_sha256(), salt, (uchar *) STRING(passwd),
@@ -389,7 +401,10 @@ BEGIN_METHOD(CipherMethod_DecryptSalted, GB_STRING cipher; GB_STRING passwd)
 	clen = LENGTH(cipher) - (uint) (cipher - (uchar *) STRING(cipher));
 	plain = do_cipher((uchar *) cipher, clen, key, iv, &length, 0, &errmsg);
 	if (!plain) {
-		GB.Error(errmsg ? errmsg : "Decryption failed");
+		if (errmsg)
+			GB.Error(errmsg);
+		else
+			MAIN_error("Decryption failed: &1");
 		return;
 	}
 	GB.ReturnNewString(plain, length);

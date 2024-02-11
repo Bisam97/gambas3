@@ -182,6 +182,8 @@ public:
 	
 	int _csd_w;
 	int _csd_h;
+
+	int _sx, _sy, _sw, _sh;
 	
 	unsigned _mask : 1;
 	unsigned _top_only : 1;

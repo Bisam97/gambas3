@@ -136,9 +136,10 @@ void EVAL_start(EXPRESSION *expr)
 	}
 }
 
-bool EVAL_compile(EXPRESSION *expr, bool assign)
+bool EVAL_compile(EXPRESSION *expr, bool force_assign)
 {
 	bool error = FALSE;
+	bool assign;
 
 	EVAL = expr;
 
@@ -155,24 +156,32 @@ bool EVAL_compile(EXPRESSION *expr, bool assign)
 
 		EVAL->current = EVAL->pattern;
 
-		if (PATTERN_is(*EVAL->current, RS_LET))
+		for(;;)
 		{
-			EVAL->current++;
-			assign = TRUE;
+			if (PATTERN_is(*EVAL->current, RS_LET))
+			{
+				EVAL->current++;
+				assign = TRUE;
+			}
+			else
+				assign = force_assign;
+
+			if (assign)
+			{
+				if (!TRANS_affectation())
+					THROW(E_SYNTAX);
+			}
+			else
+				TRANS_expression();
+
+			if (PATTERN_is_end(*EVAL->current))
+			{
+				CODE_return(3);
+				break;
+			}
+			else
+				CODE_drop();
 		}
-
-		if (assign)
-		{
-			if (!TRANS_affectation())
-				THROW(E_SYNTAX);
-		}
-		else
-			TRANS_expression();
-
-		if (!PATTERN_is_end(*EVAL->current))
-			THROW(E_SYNTAX);
-
-		CODE_return(1);
 
 		EVAL->stack_usage = CODE_stack_usage;
 	}
@@ -213,10 +222,8 @@ void EVAL_new(EXPRESSION **expr, char *src, int len)
 {
 	GB.Alloc((void **)expr, sizeof(EXPRESSION));
 	CLEAR(*expr);
-	(*expr)->source = GB.NewString(src, len);
-	(*expr)->source = GB.AddString((*expr)->source, "\n\0", 2);
+	(*expr)->source = GB.AddString(GB.NewString(src, len), "\n\0", 2);
 	(*expr)->len = len + 2;
-	/*(*expr)->option = option;*/
 }
 
 

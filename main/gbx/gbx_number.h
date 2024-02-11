@@ -35,11 +35,15 @@ enum {
   NB_READ_FLOAT = 4,
   NB_READ_ALL = 7,
   NB_READ_HEX_BIN = 8,
-  NB_LOCAL = 16
+  NB_LOCAL = 16,
+  NB_READ_OVERFLOW = -1,
+  NB_READ_SYNTAX = -2
   };
+
 
 
 bool NUMBER_from_string(int option, const char *str, int len, VALUE *value);
 void NUMBER_int_to_string(uint64_t nbr, int prec, int base, VALUE *value);
+int NUMBER_read_integer(const char *str, int len, int base, int64_t *result);
 
 #endif /* */

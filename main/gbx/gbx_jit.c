@@ -60,9 +60,20 @@ static void find_method(GB_FUNCTION *func, const char *method, const char *sign,
 
 void JIT_init(void)
 {
-	char *var = getenv("GB_NO_JIT");
+	char *var;
+
+	var = getenv("GB_NO_JIT");
 	if (var && var[0] && !(var[0] == '0' && var[1] == 0))
+	{
 		JIT_disabled = TRUE;
+		return;
+	}
+	var = getenv("GB_JIT_ENABLED");
+	if (var && var[0] == '0' && var[1] == 0)
+	{
+		JIT_disabled = TRUE;
+		return;
+	}
 }
 
 void JIT_abort(void)

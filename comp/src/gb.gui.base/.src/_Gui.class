@@ -13,6 +13,12 @@ Static Private $iFrameX As Integer
 Static Private $iFrameY As Integer
 Static Private $bInFrame As Boolean
 
+Static Private $hPopupCtrl As Control
+Static Private $iPopupPos As Integer
+Static Private $iPopupAlign As Integer
+
+Static Private $sDesktopFilePath As String
+
 ' Not use anymore?
 Static Public Sub _FindShortcut(sText As String) As Integer
 
@@ -85,6 +91,7 @@ End
 Static Public Sub _Quit()
 
   Drag.Icon = Null
+  Try Kill $sDesktopFilePath
   
 End
 
@@ -97,6 +104,79 @@ End
 '   Return sText
 '   
 ' End
+
+Static Private Sub MakeDir(Path As String)
+
+  Dim sElt As String
+  Dim sMake As String = "/"
+
+  If Path Begins "~/" Then Path = User.Home &/ Mid$(Path, 3)
+
+  For Each sElt In Split(Path, "/")
+    sMake &/= sElt
+    If IsDir(sMake) Then Continue
+    Try Mkdir sMake
+  Next
+  
+  If Not Exist(Path) Or If Not IsDir(Path) Then Error.Raise("Cannot create directory")
+
+End
+
+Static Public Sub _InitApp() As String
+  
+  Dim hFile As File
+  Dim sAppId As String
+  Dim sDir As String
+  Dim sIconPath As String
+  Dim sFile As String
+  Dim aFile As String[]
+  Dim iPos As Integer
+  
+  sAppId = "org.gambas." & CStr(Application.Handle)
+  
+  For Each sDir In Split(Env["XDG_DATA_DIRS"], ":")
+    If sDir Begins (User.Home & "/") Then Break
+    sDir = ""
+  Next
+  
+  If Not sDir Then sDir = User.Home &/ ".local/share"
+  sDir &/= "applications"
+  
+  MakeDir(sDir)
+  
+  For Each sFile In Dir(sDir, "org.gambas.*")
+    aFile = Split(File.Load(sDir &/ sFile), "\n")
+    iPos = aFile.Find("Icon=*", gb.Like)
+    If iPos > 0 Then
+      If Exist(Mid$(aFile[iPos], 6)) Then Continue
+    Endif
+    Try Kill sDir &/ sFile
+  Next
+  
+  $sDesktopFilePath = sDir &/ sAppId & ".desktop"
+  
+  hFile = Open $sDesktopFilePath For Create 
+  
+  Print #hFile, "[Desktop Entry]"
+  Print #hFile, "Type=Application"
+  Print #hFile, "Name="; Application.Name
+  Print #hFile, "Exec=true"
+  Print #hFile, "NoDisplay=true"
+  
+  sIconPath = Application.TempDir &/ ".app.png"
+  Print #hFile, "Icon="; sIconPath
+  
+  hFile.Close
+  
+  If Exist("../.app.png") Then
+    Copy "../.app.png" To sIconPath
+  Else
+    Copy "gambas.png" To sIconPath
+  Endif
+  
+  Return sAppId
+  
+End
 
 Static Public Sub _InitMenuBarShortcut(hWindow As Window)
 
@@ -298,8 +378,6 @@ Static Public Sub DndFrame_DragMove()
   Dim Y As Integer
   Dim bStopEvent As Boolean
 
-  'Debug
-
   $bInFrame = True
   StopHideFrameTimer
   
@@ -337,6 +415,12 @@ Static Public Sub DndFrame_DragMove()
   If Not bStopEvent Then 
     While hCtrl <> $hFrameCtrl
       If hCtrl.Drop Then Break
+      hCtrl = hCtrl.Parent
+    Wend
+    ' FIXME: Replace that fix by a new 'ProxyFor' property.
+    While hCtrl.Parent.Proxy = hCtrl
+      Drag.X += hCtrl.X + hCtrl.Parent.ClientX
+      Drag.Y += hCtrl.Y + hCtrl.Parent.ClientY
       hCtrl = hCtrl.Parent
     Wend
     bStopEvent = Object.Raise(hCtrl, "DragMove")
@@ -409,5 +493,60 @@ End
 Static Public Sub DndFrame_Draw()
   
   Paint.DrawRect(0, 0, Paint.W, Paint.H, Color.SelectedBackground)
+  
+End
+
+Static Public Sub _ShowPopupAt(hWin As Window, Control As Control, Optional Position As Integer = Align.Bottom, Alignment As Integer = Align.Normal) As Integer
+
+  Dim hObs As Observer
+  
+  $hPopupCtrl = Control
+  $iPopupPos = Position
+  $iPopupAlign = Alignment
+  
+  hObs = New Observer(hWin) As "PopupWindow"
+  Return hWin.ShowPopup()
+  
+End
+
+Static Public Sub PopupWindow_Resize()
+
+  Dim X As Integer
+  Dim Y As Integer
+  Dim hWin As Window
+  
+  hWin = Last
+  
+  If Align.IsLeft($iPopupPos) Or If Align.IsRight($iPopupPos) Then
+    
+    If Align.IsLeft($iPopupPos) Then
+      X = $hPopupCtrl.ScreenX - hWin.W
+    Else
+      X = $hPopupCtrl.ScreenX
+    Endif
+    
+    If Align.IsTop($iPopupAlign) Then
+      Y = $hPopupCtrl.ScreenY
+    Else If Align.IsBottom($iPopupAlign) Then
+      Y = $hPopupCtrl.ScreenY + $hPopupCtrl.H - hWin.H
+    Endif
+    
+  Else
+    
+    If Align.IsTop($iPopupPos) Then
+      Y = $hPopupCtrl.ScreenY - hWin.H
+    Else 
+      Y = $hPopupCtrl.ScreenY + $hPopupCtrl.H
+    Endif
+    
+    If Align.IsLeft($iPopupAlign) Then
+      X = $hPopupCtrl.ScreenX
+    Else If Align.IsRight($iPopupAlign) Then
+      X = $hPopupCtrl.ScreenX + $hPopupCtrl.W - hWin.W
+    Endif
+    
+  Endif
+  
+  hWin.Move(X, Y)
   
 End

@@ -766,8 +766,6 @@ static void hook_main(int *argc, char ***argv)
 
 static void hook_quit()
 {
-	GB_FUNCTION func;
-
 	CWINDOW_close_all(true);
 	CWINDOW_delete_all(true);
 	CMOUSE_set_control(NULL);
@@ -775,8 +773,7 @@ static void hook_quit()
 	qApp->sendPostedEvents(); //processEvents(QEventLoop::ExcludeUserInputEvents | QEventLoop::DeferredDeletion, 0);
 	qApp->sendPostedEvents(0, QEvent::DeferredDelete);
 
-	if (!GB.GetFunction(&func, (void *)GB.FindClass("_Gui"), "_Quit", NULL, NULL))
-		GB.Call(&func, 0, FALSE);
+	CALL_GUI("_Quit", NULL, NULL, 0, FALSE);
 }
 
 
@@ -923,8 +920,14 @@ static void QT_Init(void)
 	QX11Info::setAppDpiY(0, 92);*/
 
 	/*fcntl(ConnectionNumber(qt_xdisplay()), F_SETFD, FD_CLOEXEC);*/
+
 	#if QT_VERSION >= QT_VERSION_CHECK(5, 7, 0)
-	qApp->setDesktopFileName(TO_QSTRING(GB.Application.Name()));
+
+	char *appid = GB.ToZeroString((GB_STRING *)CALL_GUI("_InitApp", NULL, "s", 0, FALSE));
+
+	//fprintf(stderr, "appid = %s\n", appid);
+	qApp->setDesktopFileName(TO_QSTRING(appid));
+
 	#endif
 	
 	fix_style = false;

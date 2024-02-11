@@ -816,7 +816,7 @@ Private Sub UpdateEvent()
 
   hPict = New PictureBox(panEvent)
   hPict.Resize(panEvent.H, panEvent.H)
-  hPict.Image = Image.Load("img/symbol/event.png")
+  hPict.Image = Image.Load("img/32/event.png")
   hPict.Stretch = True
   
   $hButtonClick = Null
@@ -835,7 +835,10 @@ Private Sub UpdateEvent()
     
     If sName == "Click" Then $hButtonClick = hButton
 
-    If hSymbol And If hSymbol.Kind = "m" Then hButton.Picture = Picture["icon:/small/ok"]
+    If hSymbol And If hSymbol.Kind = "m" Then 
+      'hButton.Font.Bold = True 'Picture = Picture["icon:/small/ok"]
+      hButton.Background = Color.SelectedBackground
+    Endif
 
   Next
 
@@ -1111,7 +1114,7 @@ Public Sub gvwMenu_Draw(X As Integer, Y As Integer, Width As Integer, Height As 
     X += D
     Width -= D
   
-    If .Picture Then
+    If .Picture And If .Level Then
       Try hPict = $hFamily.GetPicture(.Picture)
       If hPict Then hPict = hPict.Image.Stretch($iIconSize, $iIconSize).Picture
       If hPict Then Paint.DrawPicture(hPict, X - $iIconSize - Desktop.Scale / 2, Y + (Height - $iIconSize) / 2)

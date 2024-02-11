@@ -355,7 +355,7 @@ END_PROPERTY*/
 BEGIN_METHOD(PdfPage_Render, GB_INTEGER x; GB_INTEGER y; GB_INTEGER width; GB_INTEGER height; GB_INTEGER rotation; GB_FLOAT res)
 
 	poppler::page *page;
-	poppler::rectf size;
+	//poppler::rectf size;
 	poppler::rotation_enum rot;
 	poppler::image image;
 	
@@ -365,17 +365,18 @@ BEGIN_METHOD(PdfPage_Render, GB_INTEGER x; GB_INTEGER y; GB_INTEGER width; GB_IN
 	double res = VARGOPT(res, THIS->resolution);
 	int width, height;
 	int x, y, w, h;
+	double ww, hh;
 	
 	page = THIS->rdoc->create_page(poppler_page_get_index(THIS->current));
 	
-	switch (page->orientation())
+	/*switch (page->orientation())
 	{
 		case poppler::page::portrait: orientation = 0; break;
 		case poppler::page::landscape: orientation = 90; break;
 		case poppler::page::upside_down: orientation = 180; break;
 		case poppler::page::seascape: orientation = 270; break;
-	}
-	
+	}*/
+
 	orientation = (orientation + rotation + 720) % 360;
 	
 	switch (orientation)
@@ -386,17 +387,19 @@ BEGIN_METHOD(PdfPage_Render, GB_INTEGER x; GB_INTEGER y; GB_INTEGER width; GB_IN
 		default: rot = poppler::rotate_0;
 	}
 	
-	size = page->page_rect(poppler::media_box);
+	poppler_page_get_size(THIS->current, &ww, &hh);
+
+	//size = page->page_rect(poppler::media_box);
 	
 	if (orientation % 180)
 	{
-		width = (int)(size.height() * res / 72.0);
-		height = (int)(size.width() * res / 72.0);
+		width = (int)(hh * res / 72.0);
+		height = (int)(ww * res / 72.0);
 	}
 	else
 	{
-		width = (int)(size.width() * res / 72.0);
-		height = (int)(size.height() * res / 72.0);
+		width = (int)(ww * res / 72.0);
+		height = (int)(hh * res / 72.0);
 	}
 	
 	x = VARGOPT(x, 0);
@@ -434,7 +437,58 @@ END_METHOD
 
 BEGIN_PROPERTY(PdfPage_Thumbnail)
 
-  GB.ReturnNull();
+	cairo_surface_t *surf = poppler_page_get_thumbnail(THIS->current);
+	int format;
+	int x, y, w, h, ws;
+	uint *src;
+	uchar *dest;
+	GB_IMG *result;
+	bool alpha;
+
+	if (!surf || cairo_surface_get_type(surf) != CAIRO_SURFACE_TYPE_IMAGE)
+	{
+		GB.ReturnNull();
+		return;
+	}
+
+	switch (cairo_image_surface_get_format(surf))
+	{
+		case CAIRO_FORMAT_RGB24: format = GB_IMAGE_RGBX; alpha = FALSE; break;
+		case CAIRO_FORMAT_ARGB32: format = GB_IMAGE_RGBP; alpha = TRUE; break;
+		default: GB.ReturnNull(); return;
+	}
+
+  cairo_surface_flush(surf);
+
+	w = cairo_image_surface_get_width(surf);
+	h = cairo_image_surface_get_height(surf);
+	ws = cairo_image_surface_get_stride(surf) >> 2;
+	src = (uint *)cairo_image_surface_get_data(surf);
+
+	result = IMAGE.Create(w, h, format, NULL);
+
+	dest = result->data;
+
+  for (y = 0; y < h; y++)
+	{
+		uint *p = src;
+
+		for (x = 0; x < w; x++)
+		{
+			dest[0] = *p >> 16;
+			dest[1] = *p >> 8;
+			dest[2] = *p;
+			dest[3] = alpha ? ((*p >> 24) ^ 0xFF) : 0xFF;
+			dest += 4;
+			p++;
+		}
+
+		src += ws;
+	}
+
+	cairo_surface_destroy(surf);
+
+	GB.ReturnObject(result);
 
 END_PROPERTY
 
@@ -467,7 +521,7 @@ BEGIN_PROPERTY(PdfPage_Width)
 
 	double w;
 	poppler_page_get_size(THIS->current, &w, NULL);
-	GB.ReturnFloat(w);
+	GB.ReturnFloat(w * THIS->resolution / 72.0);
 
 END_PROPERTY
 
@@ -475,7 +529,7 @@ BEGIN_PROPERTY(PdfPage_Height)
 
 	double h;
 	poppler_page_get_size(THIS->current, NULL, &h);
-	GB.ReturnFloat(h);
+	GB.ReturnFloat(h * THIS->resolution / 72.0);
 
 END_PROPERTY
 

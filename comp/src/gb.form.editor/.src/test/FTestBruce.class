@@ -1,0 +1,26 @@
+' Gambas class file
+
+
+Public Sub Button1_Click()
+
+'  this method makes preview data not show unless you type some text in the editor.
+  TextEditor2.Clear
+  TextEditor2.Text = TextEditor1.Text
+  'TextEditor2.Insert("Gambas")
+
+End
+
+Public Sub Button2_Click()
+
+' The method below works okay
+  TextEditor2.Clear
+  TextEditor2.Insert(TextEditor1.Text)
+  'TextEditor2.Goto(0, 0)
+
+End
+
+Public Sub Form_Open()
+
+  TextEditor1.Text = File.Load("~/.bash_history")
+
+End

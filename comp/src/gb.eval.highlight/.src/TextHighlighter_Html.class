@@ -32,7 +32,7 @@ Private Enum TAG_VARIABLE, TAG_CODE_MARKUP
 Static Private $sTextAfter As String
 Static Private $sBufferAfter As String
 
-Static Private $aStateStack As Integer[]
+Static Private $aStateStack As Short[]
 
 ' TODO: call TextHighlighter_Gambas !
 
@@ -41,8 +41,8 @@ Private Sub AnalyzeCode(sText As String) As String
   Dim iInd As Integer
   Dim iPos As Integer
   Dim iLen As Integer
-  Dim iState As Integer
-  Dim iTag As Integer
+  Dim iState As Short
+  Dim iTag As Short
   
   'Print "AnalyzeCode: "; sText
   
@@ -99,13 +99,13 @@ End
 
 Private Sub RunWith(Text As String, iStyle As Integer)
 
-  Dim iState As Integer
-  Dim iTag, iTagCode, iTagMode As Integer
+  Dim iState As Short
+  Dim iTag, iTagCode, iTagMode As Short
   Dim sText As String
   Dim I, iLenText As Integer
   Dim sCar As String
   Dim iPos As Integer
-  Dim iNextState As Integer
+  Dim iNextState As Short
   Dim bLimit, bNextLimit As Boolean
   Dim sQuote As String
   Dim sMarkup As String
@@ -597,7 +597,7 @@ NEXT_CHAR:
   
 PUSH_STATE:
   
-  If Not $aStateStack Then $aStateStack = New Integer[]
+  If Not $aStateStack Then $aStateStack = New Short[]
   
   $aStateStack.Push(TextHighlighter.State)
   $aStateStack.Push(TextHighlighter.Tag)

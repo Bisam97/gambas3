@@ -47,11 +47,16 @@ static void update_event()
 
 	_info = info = &window->mouse;
 
+	info->xrel = 0;
+	info->yrel = 0;
+
 	switch (_current->type)
 	{
 		case SDL_MOUSEMOTION:
 			info->x = _current->motion.x;
 			info->y = _current->motion.y;
+			info->xrel = _current->motion.xrel;
+			info->yrel = _current->motion.yrel;
 			info->wheel_x = 0;
 			info->wheel_y = 0;
 			info->state = _current->motion.state;
@@ -134,6 +139,20 @@ BEGIN_PROPERTY(Mouse_Y)
 
 	CHECK_EVENT();
 	GB.ReturnInteger(_info->y);
+
+END_PROPERTY
+
+BEGIN_PROPERTY(Mouse_RelX)
+
+	CHECK_EVENT();
+	GB.ReturnInteger(_info->xrel);
+
+END_PROPERTY
+
+BEGIN_PROPERTY(Mouse_RelY)
+
+	CHECK_EVENT();
+	GB.ReturnInteger(_info->yrel);
 
 END_PROPERTY
 
@@ -259,6 +278,8 @@ GB_DESC MouseDesc[] =
 	GB_STATIC_PROPERTY_READ("StartY", "i", Mouse_StartY),
 	GB_STATIC_PROPERTY_READ("X", "i", Mouse_X),
 	GB_STATIC_PROPERTY_READ("Y", "i", Mouse_Y),
+	GB_STATIC_PROPERTY_READ("RelX", "i", Mouse_RelX),
+	GB_STATIC_PROPERTY_READ("RelY", "i", Mouse_RelY),
 	GB_STATIC_PROPERTY_READ("WheelX", "i", Mouse_WheelX),
 	GB_STATIC_PROPERTY_READ("WheelY", "i", Mouse_WheelY),
 

@@ -17,18 +17,20 @@ Private $hCursor As Cursor
 
 Private $bFirstTime As Boolean
 
-Private $aUndo As New Variant[]
-Private $aRedo As New Variant[]
-Private Enum BEGIN_UNDO, END_UNDO
+Private $aUndo As New Variant[][]
+Private $aRedo As New Variant[][]
+Private $iUndoLevel As Integer
 
 Private $sTool As String
 Private $sToolBefore As String
 Private $hFirstPoint As PointF
 Private $hLastPoint As PointF
+Private $hCurrentPos As PointF
 Private $hCurrentPoint As PointF
 Private $bInsideImage As Boolean
 
 Private $bDblClick As Boolean
+Private $bIgnoreDblClick As Boolean
 Private $bPress As Boolean
 Private $bShift As Boolean
 Private $bCtrl As Boolean
@@ -64,9 +66,10 @@ Private $hPasteSelect As CImageSelection
 'Private $iAngle As Integer
 
 Private $hChangeRect As RectF
+Private $hChangeRotate As PointF
 Private $iChangeAction As Integer
 Private $vChangeIndex As Variant
-Private Enum CHANGE_NOTHING, CHANGE_MOVE, CHANGE_RESIZE, CHANGE_ROTATE, CHANGE_POINT, CHANGE_INSERT, CHANGE_SELECT
+Private Enum CHANGE_NOTHING, CHANGE_MOVE, CHANGE_RESIZE, CHANGE_ROTATE, CHANGE_POINT, CHANGE_INSERT, CHANGE_SELECT, CHANGE_CENTER
 
 Private $bShowGrid As Boolean
 Private $hTextSelect As CImageSelection
@@ -75,7 +78,6 @@ Private $iLastColor As Integer
 Private $cInfo As New Collection
 Private $bInfoTop As Boolean
 
-Private $bFirstGrid As Boolean
 Private $vGrid As Variant
 
 Public Sub _new(sPath As String)
@@ -107,6 +109,7 @@ Private Sub ClearSelection()
   AddUndo($hSelect.Copy())
   $hSelect = Null
   $hChangeRect = Null
+  $hChangeRotate = Null
   $hMagnet = Null
   $hLastMagnet = Null
   $sMagnet = ""
@@ -157,6 +160,14 @@ Public Sub btnZoomOut_Click()
 
 End
 
+Private Sub DisableZoomFit()
+
+  Object.Lock(btnZoomFit)
+  btnZoomFit.Value = False
+  Object.Unlock(btnZoomFit)
+
+End
+
 Public Sub cmbZoom_Click()
 
   imvImage.Zoom = CFloat(Trim(String.Left(cmbZoom.Text, -1)))
@@ -164,6 +175,7 @@ Public Sub cmbZoom_Click()
   panBackground_Arrange
   $hCurrentPoint = FindBestMagnet(GetImagePos())
   UpdateInfo
+  DisableZoomFit
   
 End
 
@@ -228,6 +240,7 @@ End
 Public Sub btnZoomNormal_Click()
 
   cmbZoom.Index = cmbZoom.Find("1×")
+  DisableZoomFit
 
 End
 
@@ -257,10 +270,15 @@ End
 Private Sub AddUndo(hObject As Object)
   
   If Not hObject Then Return
-  If $aUndo.Count = 256 Then $aUndo.Remove(0)
   
-  $aUndo.Add(hObject)
-  $aRedo.Clear
+  If $iUndoLevel = 0 Then
+    BeginUndo
+    AddUndo(hObject)
+    EndUndo
+    Return
+  Endif
+  
+  $aUndo.Last.Add(hObject)
   
 End
 
@@ -376,7 +394,12 @@ Public Function Save(Optional bForce As Boolean) As Boolean
 
   Save.Begin(Path)
 
-  $hImage.Save(Path)
+  If LCase(File.Ext(Path)) = "png" Then
+    $hImage.Save(Path, 0)
+  Else
+    $hImage.Save(Path)
+  Endif
+  
   MCompressFile.Compress(Path)
 
   'Project.RefreshKey(Path)
@@ -517,7 +540,7 @@ Private Sub SetTool(sAction As String)
   
   'If $sTool = sAction Then Return
 
-  For Each hCtrl In [btnMove, btnDraw, btnErase, btnRectangle, btnEllipse, btnLine, btnMagic, btnPaste, btnEditSelection, btnText]
+  For Each hCtrl In [btnMove, btnDraw, btnErase, btnRectangle, btnEllipse, btnPolygon, btnLine, btnMagic, btnPaste, btnEditSelection, btnText]
     Object.Lock(hCtrl)
     hCtrl.Value = hCtrl.Tag = sAction
     Object.Unlock(hCtrl)
@@ -530,6 +553,7 @@ Private Sub SetTool(sAction As String)
   
   If $hSelect Then $hSelect.SelectAll()
   $hChangeRect = Null
+  $hChangeRotate = Null
   $iChangeAction = CHANGE_NOTHING
 
   $iMouse = Mouse.Arrow
@@ -540,7 +564,7 @@ Private Sub SetTool(sAction As String)
     Case "move"
       $iMouse = Mouse.SizeAll
     
-    Case "draw", "erase", "rectangle", "ellipse"
+    Case "draw", "erase", "rectangle", "ellipse", "polygon"
       '$iMouse = Mouse.Cross
       $iMouse = Mouse.Custom
       $hCursor = New Cursor(Picture["img/32/cross.png"], 15, 15)
@@ -571,6 +595,7 @@ Private Sub SetTool(sAction As String)
       If $sTool <> "paste" Then $sToolBefore = $sTool
       If HasSelection() Then
         $hChangeRect = $hSelect.GetExtents()
+        ResetChangeRotate()
       Endif
       
     Case "text"
@@ -607,46 +632,46 @@ End
 Private Sub Undo()
 
   Dim vUndo As Variant
-  Dim iLevel As Integer
   Dim W As Integer
   Dim H As Integer
+  Dim aUndo As Variant[]
+  Dim I As Integer
+  Dim aRedo As Variant[]
 
   If $aUndo.Count = 0 Then Return
   
   W = $hImage.W
   H = $hImage.H
   
-  Repeat
+  aUndo = $aUndo.Pop()
+  aRedo = New Variant[]
   
-    vUndo = $aUndo.Pop()
+  For I = aUndo.Max DownTo 0
     
-    If TypeOf(vUndo) = gb.Integer Then
-      $aRedo.Add(vUndo)
-      If vUndo = END_UNDO Then
-        Inc iLevel
-      Else If vUndo = BEGIN_UNDO Then
-        Dec iLevel
-      Endif
-    Else If vUndo Is Image Then
-      $aRedo.Add($hImage)
+    vUndo = aUndo[I]
+    
+    If vUndo Is Image Then
+      aRedo.Add($hImage)
       $hImage = vUndo
       imvImage.Update($hImage)
       Modify
     Else If vUndo Is CImageSelection Then
       If Not $hSelect Then
         If Not $hNullSelection Then $hNullSelection = New CImageSelection
-        $aRedo.Add($hNullSelection)
+        aRedo.Add($hNullSelection)
       Else
-        $aRedo.Add($hSelect)
+        aRedo.Add($hSelect)
       Endif
       $hSelect = vUndo
       imvImage.Refresh
     Else If vUndo Is PointF Then
-      $aRedo.Add($hLastPoint)
+      aRedo.Add($hLastPoint)
       $hLastPoint = vUndo
     Endif
     
-  Until iLevel = 0
+  Next
+  
+  $aRedo.Add(aRedo)
 
   If $hImage.W <> W Or If $hImage.H <> H Then ZoomFit
   
@@ -657,54 +682,61 @@ End
 
 Public Sub btnUndo_Click()
 
-  Undo
+  Undo()
 
 End
 
-Public Sub btnRedo_Click()
+Private Sub Redo()
 
   Dim vUndo As Variant
-  Dim iLevel As Integer
   Dim W As Integer
   Dim H As Integer
+  Dim aRedo As Variant[]
+  Dim I As Integer
+  Dim aUndo As Variant[]
 
   If $aRedo.Count = 0 Then Return
   
   W = $hImage.W
   H = $hImage.H
   
-  Repeat
-    
-    vUndo = $aRedo.Pop()
+  aRedo = $aRedo.Pop()
+  aUndo = New Variant[]
   
-    If TypeOf(vUndo) = gb.Integer Then
-      $aUndo.Add(vUndo)
-      If vUndo = BEGIN_UNDO Then
-        Inc iLevel
-      Else If vUndo = END_UNDO Then
-        Dec iLevel
-      Endif
-    Else If vUndo Is Image Then
-      $aUndo.Add($hImage)
+  For I = aRedo.Max DownTo 0
+    
+    vUndo = aRedo[I]
+  
+    If vUndo Is Image Then
+      aUndo.Add($hImage)
       $hImage = vUndo
       imvImage.Update($hImage)
       Modify
     Else If vUndo Is CImageSelection Then
-      $aUndo.Add($hSelect)
+      aUndo.Add($hSelect)
       $hSelect = vUndo
       If $hSelect = $hNullSelection Then $hSelect = Null
       imvImage.Refresh
     Else If vUndo Is PointF Then
-      $aUndo.Add($hLastPoint)
+      aUndo.Add($hLastPoint)
       $hLastPoint = vUndo
     Endif
     
-  Until iLevel = 0
+  Next
+
+  $aUndo.Add(aUndo)
 
   If $hImage.W <> W Or If $hImage.H <> H Then ZoomFit
   RefreshSelection
   UpdateInfo
   
+End
+
+
+Public Sub btnRedo_Click()
+
+  Redo()
+
 End
 
 Private Sub GetPos() As Point
@@ -881,8 +913,12 @@ Public Sub imvImage_MouseDown()
     
     Case "move"
       
-      $SX = imvImage.ScrollX
-      $SY = imvImage.ScrollY
+      If $bReadOnly Then
+        $SX = imvImage.ScrollX
+        $SY = imvImage.ScrollY
+      Else 
+        $hLastPoint = GetImagePos()
+      Endif
     
     Case "draw", "erase"
       
@@ -929,7 +965,7 @@ Public Sub imvImage_MouseDown()
         
       Endif
       
-    Case "rectangle", "ellipse"
+    Case "rectangle", "ellipse", "polygon"
 
       If $bPress Then
 
@@ -957,6 +993,15 @@ Public Sub imvImage_MouseDown()
       If $bPress Then
       
         If $hPaste Then
+          
+          If $iChangeAction = CHANGE_CENTER And If Mouse.Click = 2 Then
+            
+            ResetChangeRotate()
+            $bIgnoreDblClick = True
+            Return
+            
+          Endif
+        
           $hLastPoint = GetImagePos()
           'If $hMagnet Then $hLastPoint = $hMagnet
           '$hLastPoint = GetImagePos()
@@ -973,6 +1018,12 @@ Public Sub imvImage_MouseDown()
           $SX = imvImage.ScrollX
           $SY = imvImage.ScrollY
           
+        Else If $iChangeAction = CHANGE_CENTER And If Mouse.Click = 2 Then
+          
+          ResetChangeRotate()
+          $bIgnoreDblClick = True
+          Return
+          
         Else
         
           AddUndo($hSelect.Copy())
@@ -986,7 +1037,7 @@ Public Sub imvImage_MouseDown()
             RefreshSelection
           Else If $iChangeAction = CHANGE_SELECT Then
             If $vChangeIndex And If $vChangeIndex[0] = $hSelect.Current Then
-              $hSelect.SelectNext(8 / imvImage.Zoom)
+              $hSelect.SelectNext(16 / imvImage.Zoom)
             Else
               $hSelect.Select($vChangeIndex[0])
             Endif
@@ -1017,7 +1068,7 @@ Private Sub UpdateInfo()
         $cInfo!Y = Format($hCurrentPoint.Y, "0.0")
       Endif
       If $bPress Then
-        If $sTool = "rectangle" Or If $sTool = "ellipse" Then
+        If $sTool = "rectangle" Or If $sTool = "ellipse" Or If $sTool = "polygon" Then
           $cInfo!Width = Format($fLastSelectW, "0.0")
           $cInfo!Height = Format($fLastSelectH, "0.0")
         Endif
@@ -1109,7 +1160,7 @@ Private Sub FindBestMagnet(hCurrent As PointF) As PointF
   
   iIgnoreFrom = -1
   If $bPress Then
-    If $sTool = "rectangle" Or If $sTool = "ellipse" Or If $sTool = "line" Then
+    If $sTool = "rectangle" Or If $sTool = "ellipse" Or If $sTool = "polygon" Or If $sTool = "line" Then
       If $hSelect Then iIgnoreFrom = $hSelect.Count - 1
     Else If $sTool = "text" Then
       iIgnoreFrom = $hTextSelect.Count
@@ -1202,7 +1253,8 @@ Private Sub FindCurrentPoint()
   Dim A As Float
   Dim D As Float
   
-  $hCurrentPoint = FindBestMagnet(GetImagePos())
+  $hCurrentPos = GetImagePos()
+  $hCurrentPoint = FindBestMagnet($hCurrentPos)
   
   If $bFrame Then
     If $bAlt Then
@@ -1246,7 +1298,11 @@ Public Sub imvImage_MouseMove()
       
       Case "move"
         
-        imvImage.Scroll($SX - (Mouse.X - Mouse.StartX), $SY - (Mouse.Y - Mouse.StartY))
+        If $bReadOnly Then
+          imvImage.Scroll($SX - (Mouse.X - Mouse.StartX), $SY - (Mouse.Y - Mouse.StartY))
+        Else 
+          imvImage.Refresh
+        Endif
       
       Case "draw", "erase"
         
@@ -1282,11 +1338,13 @@ Public Sub imvImage_MouseMove()
           Endif
         Endif
         
-      Case "rectangle", "ellipse"
+      Case "rectangle", "ellipse", "polygon"
         
         If $bCtrl Then $hCurrentPoint.Y = $hLastPoint.Y + Abs($hCurrentPoint.X - $hLastPoint.X) * Sgn($hCurrentPoint.Y - $hLastPoint.Y)
         If $hLastPoint.X <> $hCurrentPoint.X Or If $hLastPoint.Y <> $hCurrentPoint.Y Then
-          $hSelect = $aUndo[$aUndo.Max].Copy()
+          
+          Try $hSelect = $aUndo[$aUndo.Max].Last.Copy()
+          If Error Then $hSelect = New CImageSelection
           
           X1 = $hCurrentPoint.X
           Y1 = $hCurrentPoint.Y
@@ -1307,27 +1365,39 @@ Public Sub imvImage_MouseMove()
             HH = 0
           Endif
           
-          If $sTool = "ellipse" Then
+          Select Case $sTool
           
-            If $bShift Then
-              $hSelect.Ellipse($hLastPoint.X - WW, $hLastPoint.Y - HH, WW * 2, HH * 2)
-              WW *= 2
-              HH *= 2
-            Else
-              $hSelect.Ellipse(Min($hLastPoint.X, $hCurrentPoint.X), Min($hLastPoint.Y, $hCurrentPoint.Y), WW, HH)
-            Endif
+            Case "ellipse" 
           
-          Else
+              If $bShift Then
+                $hSelect.Ellipse($hLastPoint.X - WW, $hLastPoint.Y - HH, WW * 2, HH * 2)
+                WW *= 2
+                HH *= 2
+              Else
+                $hSelect.Ellipse(Min($hLastPoint.X, $hCurrentPoint.X), Min($hLastPoint.Y, $hCurrentPoint.Y), WW, HH)
+              Endif
+          
+            Case "rectangle"
             
-            If $bShift Then
-              $hSelect.Rectangle(X1 - WW, Y1 - HH, WW * 2, HH * 2, FImageProperty.GetRoundness())
-              WW *= 2
-              HH *= 2
-            Else
-              $hSelect.Rectangle(X1, Y1, WW, HH, FImageProperty.GetRoundness())
-            Endif
+              If $bShift Then
+                $hSelect.Rectangle(X1 - WW, Y1 - HH, WW * 2, HH * 2, FImageProperty.GetRoundness())
+                WW *= 2
+                HH *= 2
+              Else
+                $hSelect.Rectangle(X1, Y1, WW, HH, FImageProperty.GetRoundness())
+              Endif
+              
+            Case "polygon"
+              
+              If $bShift Then
+                $hSelect.Polygon(X1 - WW, Y1 - HH, WW * 2, HH * 2, FImageProperty.GetSides(), FImageProperty.GetInnerRadius())
+                WW *= 2
+                HH *= 2
+              Else
+                $hSelect.Polygon(X1, Y1, WW, HH, FImageProperty.GetSides(), FImageProperty.GetInnerRadius())
+              Endif
             
-          Endif
+          End Select
             
           imvImage.Refresh
           $fLastSelectW = WW
@@ -1384,7 +1454,7 @@ Public Sub imvImage_MouseMove()
         Else If $iChangeAction Then
         
           If $sTool = "change" Then
-            $hSelect = $aUndo[$aUndo.Max].Copy()
+            $hSelect = $aUndo[$aUndo.Max].Last.Copy()
             hSelect = $hSelect
           Else
             $hPasteSelect = $hPasteCurrent.Copy()
@@ -1403,16 +1473,21 @@ Public Sub imvImage_MouseMove()
                 YC = $hChangeRect.Y
               Endif
               
+              
               If $bCtrl Then
-                hSelect.Scale(($hCurrentPoint.X - XC) / ($hLastPoint.X - XC), ($hCurrentPoint.X - XC) / ($hLastPoint.X - XC), Not $bShift)
+                If $hLastPoint.X <> XC Then
+                  hSelect.Scale(($hCurrentPoint.X - XC) / ($hLastPoint.X - XC), ($hCurrentPoint.X - XC) / ($hLastPoint.X - XC), Not $bShift)
+                Endif
               Else
-                hSelect.Scale(($hCurrentPoint.X - XC) / ($hLastPoint.X - XC), ($hCurrentPoint.Y - YC) / ($hLastPoint.Y - YC), Not $bShift)
+                If $hLastPoint.X <> XC And If $hLastPoint.Y <> YC Then
+                  hSelect.Scale(($hCurrentPoint.X - XC) / ($hLastPoint.X - XC), ($hCurrentPoint.Y - YC) / ($hLastPoint.Y - YC), Not $bShift)
+                Endif
               Endif
               
             Case CHANGE_ROTATE
               
-              XC = $hChangeRect.X + $hChangeRect.W / 2
-              YC = $hChangeRect.Y + $hChangeRect.H / 2
+              XC = $hChangeRotate.X
+              YC = $hChangeRotate.Y
               
               A = ($hLastPoint.X - XC) * ($hCurrentPoint.X - XC) + ($hLastPoint.Y - YC) * ($hCurrentPoint.Y - YC)
               Try A /= Hyp($hLastPoint.X - XC, $hLastPoint.Y - YC) * Hyp($hCurrentPoint.X - XC, $hCurrentPoint.Y - YC)
@@ -1420,16 +1495,27 @@ Public Sub imvImage_MouseMove()
                 
                 A = Max(-1, Min(1, A))
                 A = ACos(A)
-                If ($hCurrentPoint.X - XC) / ($hLastPoint.X - XC) > ($hCurrentPoint.Y - YC) / ($hLastPoint.Y - YC) Then A = -A
+                If $hLastPoint.X = XC Then
+                  If Sgn($hCurrentPoint.X - YC) > Sgn(($hCurrentPoint.Y - YC) / ($hLastPoint.Y - YC)) Then A = -A
+                Else If $hLastPoint.Y = YC Then
+                  If Sgn($hCurrentPoint.Y - YC) < Sgn(($hCurrentPoint.X - XC) / ($hLastPoint.X - XC)) Then A = -A
+                Else If ($hCurrentPoint.X - XC) / ($hLastPoint.X - XC) > ($hCurrentPoint.Y - YC) / ($hLastPoint.Y - YC) Then 
+                  A = -A
+                Endif
               
                 If $bAlt Then A = Rad(Int(Deg(A) / 15) * 15)
               
-                hSelect.Rotate(-A)
+                hSelect.Rotate(-A, XC, YC)
                 
               Endif
               
             Case CHANGE_MOVE
+              
               hSelect.Translate($hCurrentPoint.X - $hLastPoint.X, $hCurrentPoint.Y - $hLastPoint.Y)
+              
+            Case CHANGE_CENTER
+              
+              $hChangeRotate = $hCurrentPos.Copy()
               
           End Select
           
@@ -1460,7 +1546,7 @@ Public Sub imvImage_MouseMove()
     
     If $hSelect Then
     
-      I = $hSelect.FindShape($hCurrentPoint, 8 / imvImage.Zoom)
+      I = $hSelect.FindShape($hCurrentPos, 8 / imvImage.Zoom)
       If I >= 0 Then
         iMouse = Mouse.SizeAll
         If $vChangeIndex And If $vChangeIndex[0] = $hSelect.Current Then
@@ -1469,13 +1555,13 @@ Public Sub imvImage_MouseMove()
           $iChangeAction = CHANGE_SELECT
         Endif
         $vChangeIndex = [I, -1]
-      Else If $hChangeRect.Contains($hCurrentPoint.X, $hCurrentPoint.Y) Then 
-        If $hSelect.FindPoint($hCurrentPoint, 8 / imvImage.Zoom) Then
+      Else If $hChangeRect.Contains($hCurrentPos.X, $hCurrentPos.Y) Then 
+        If $hSelect.FindPoint($hCurrentPos, 8 / imvImage.Zoom) Then
           iMouse = Mouse.Arrow
           $iChangeAction = CHANGE_POINT
           $vChangeIndex = CImageSelection.FindIndex
         Else
-          If $hSelect.FindPoint($hCurrentPoint, 8 / imvImage.Zoom, True) Then
+          If $hSelect.FindPoint($hCurrentPos, 8 / imvImage.Zoom, True) Then
             iMouse = Mouse.Cross
             $iChangeAction = CHANGE_INSERT
             $vChangeIndex = CImageSelection.FindIndex
@@ -1486,15 +1572,19 @@ Public Sub imvImage_MouseMove()
     Endif
     
     If $iChangeAction = CHANGE_NOTHING Then
-      If Hyp(Abs($hChangeRect.X - $hCurrentPoint.X), Abs($hChangeRect.Y - $hCurrentPoint.Y)) < (16 / imvImage.Zoom) Then
+      If Hyp(Abs($hChangeRect.X - $hCurrentPos.X), Abs($hChangeRect.Y - $hCurrentPos.Y)) < 16 / imvImage.Zoom Then
         iMouse = Mouse.Cross
         $iChangeAction = CHANGE_ROTATE
         SetMagnet(Null)
-      Else If Hyp(Abs($hChangeRect.X + $hChangeRect.W - $hCurrentPoint.X), Abs($hChangeRect.Y + $hChangeRect.H - $hCurrentPoint.Y)) < (16 / imvImage.Zoom) Then
+      Else If Hyp(Abs($hChangeRect.X + $hChangeRect.W - $hCurrentPos.X), Abs($hChangeRect.Y + $hChangeRect.H - $hCurrentPos.Y)) < (16 / imvImage.Zoom) Then
         iMouse = Mouse.Cross
         $iChangeAction = CHANGE_RESIZE
         SetMagnet(Null)
-      Else If $hChangeRect.Contains($hCurrentPoint.X, $hCurrentPoint.Y) Then
+      Else If Hyp(Abs($hChangeRotate.X - $hCurrentPos.X), Abs($hChangeRotate.Y - $hCurrentPoint.Y)) < 16 / imvImage.Zoom Then
+        iMouse = Mouse.Pointing
+        $iChangeAction = CHANGE_CENTER
+        SetMagnet(Null)
+      Else If $hChangeRect.Contains($hCurrentPos.X, $hCurrentPos.Y) Then
         iMouse = Mouse.SizeAll
         $iChangeAction = CHANGE_MOVE
         SetMagnet(Null)
@@ -1540,6 +1630,7 @@ End
 Private Sub UpdatePasteCurrent()
 
   $hChangeRect = $hPasteCurrent.GetExtents()
+  If Not $hChangeRotate Then $hChangeRotate = $hChangeRect.Center()
   $hPasteSelect = $hPasteCurrent.Copy()
   imvImage.Refresh
 
@@ -1595,7 +1686,7 @@ Public Sub Form_KeyPress()
       If $sTool = "paste" Then
         $hPasteCurrent.Translate(DX, DY)
         UpdatePasteCurrent
-      Else
+      Else If $hSelect Then
         AddUndo($hSelect.Copy())
         $hSelect.Translate(DX, DY)
         RefreshSelection
@@ -1636,12 +1727,30 @@ Public Sub imvImage_MouseUp()
   If $bDblClick Then 
     $bDblClick = False
     EndUndo
+    MergeLastUndo
+    If Not $bIgnoreDblClick Then
+      ClearSelection
+    Else 
+      $bIgnoreDblClick = False
+    Endif
     Return
   Endif
   
   imvImage_MouseMove()
      
   Select Case $sTool
+    
+    Case "move"
+      
+      If Not $bReadOnly Then
+        
+        hImage = New Image($hImage.W, $hImage.H, Color.Transparent)
+        Paint.Begin(hImage)
+        Paint.DrawImage($hImage, CInt($hCurrentPoint.X - $hLastPoint.X), CInt($hCurrentPoint.Y - $hLastPoint.Y))
+        Paint.End
+        SetImage(hImage)
+
+      Endif
     
     Case "draw", "erase"
       
@@ -1672,22 +1781,21 @@ Public Sub imvImage_MouseUp()
       
       '$hSelect.CleanLastShape
       
-    Case "rectangle", "ellipse"
+    Case "rectangle", "ellipse", "polygon"
 
-      If $hLastPoint.X <> $hCurrentPoint.X Or If $hLastPoint.Y <> $hCurrentPoint.Y Then
-        imvImage.Refresh
-      Else
-        'ClearSelection
-      Endif
+      imvImage.Refresh
     
     Case "change"
 
       If $iChangeAction = CHANGE_NOTHING And If $hSelect Then $hSelect.SelectAll
-      If Not $hLastPoint Or If $hLastPoint <> $hCurrentPoint Then
+      
+      If $iChangeAction = CHANGE_CENTER Then
+      Else If Not $hLastPoint Or If $hLastPoint <> $hCurrentPoint Then
         RefreshSelection
       Else If $iChangeAction <> CHANGE_SELECT Then
         btnUndo_Click
       Endif
+      
       SetMagnet(Null)
       
     Case "paste"
@@ -1921,7 +2029,14 @@ Public Sub imvImage_Draw(hZoom As Image)
     
   Else
     
-    imvImage._Paint(hZoom, hOffset.X, hOffset.Y)
+    If $sTool = "move" And If Not $bReadOnly And If $bPress Then
+      Paint.Save
+      Paint.ClipRect = Rect(hOffset.X, hOffset.Y, Ceil($hImage.W * imvImage.Zoom), Ceil($hImage.H * imvImage.Zoom))
+      imvImage._Paint(hZoom, hOffset.X + CInt($hCurrentPoint.X - $hLastPoint.X) * imvImage.Zoom, hOffset.Y + CInt($hCurrentPoint.Y - $hLastPoint.Y) * imvImage.Zoom)
+      Paint.Restore
+    Else
+      imvImage._Paint(hZoom, hOffset.X, hOffset.Y)
+    Endif
     
   Endif
   
@@ -1942,10 +2057,10 @@ Public Sub imvImage_Draw(hZoom As Image)
   Paint.Save
   Paint.AntiAlias = False
 
-  Paint.LineWidth = 1 / imvImage.Zoom
-
   Paint.Translate(hOffset.X, hOffset.Y)
   Paint.Scale(imvImage.Zoom, imvImage.Zoom)
+  
+  Paint.LineWidth = 1 / imvImage.Zoom - 0.0001
   
   Paint.DrawRect(0, 0, $hImage.W, $hImage.H, Color.Foreground, Paint.LineWidth)
   
@@ -2177,11 +2292,19 @@ Public Sub imvImage_Draw(hZoom As Image)
       
     End With
     
+    Paint.AntiAlias = True
     
     Paint.Background = Color.SetAlpha(Color.Red, 128)
+    
     Paint.Arc($hChangeRect.X + 0.5 / imvImage.Zoom, $hChangeRect.Y + 0.5 / imvImage.Zoom, 7 / imvImage.Zoom)
+    Paint.Fill
+
     Paint.Rectangle($hChangeRect.X + $hChangeRect.W + (0.5 - 6) / imvImage.Zoom, $hChangeRect.Y + $hChangeRect.H + (0.5 - 6) / imvImage.Zoom, 12 / imvImage.Zoom, 12 / imvImage.Zoom)
     Paint.Fill
+    
+    Paint.Arc($hChangeRotate.X, $hChangeRotate.Y, 12 / imvImage.Zoom)
+    Paint.Dash = Null
+    Paint.Stroke
     
     If $iChangeAction = CHANGE_POINT Or If $iChangeAction = CHANGE_INSERT Then
       
@@ -2305,40 +2428,31 @@ End
 
 Private Sub BeginUndo()
 
-  $aUndo.Add(BEGIN_UNDO)
-  $aRedo.Clear
+  '$aUndo.Add(BEGIN_UNDO)
+  '$aRedo.Clear
+  If $iUndoLevel = 0 Then 
+    $aUndo.Add([])
+    If $aUndo.Count > 256 Then $aUndo.Remove(0)
+    $aRedo.Clear
+  Endif
+  
+  Inc $iUndoLevel
 
 End
 
 Private Sub EndUndo()
   
-  Dim vUndo As Variant = $aUndo[$aUndo.Max]
-  
-  If TypeOf(vUndo) = gb.Integer And If vUndo = BEGIN_UNDO Then
-    $aUndo.Pop()
-  Else
-    $aUndo.Add(END_UNDO)
-  Endif
-  
-  $aRedo.Clear
+  Dec $iUndoLevel
+  If $iUndoLevel = 0 And If $aUndo.Count And If $aUndo.Last.Count = 0 Then $aUndo.Pop()
   
 End
 
-Private Sub RemoveLastEndBeginUndo()
+Private Sub MergeLastUndo()
   
-  Dim vUndo As Variant
-  Dim I As Integer
-  
-  For I = $aUndo.Max DownTo 1
-    vUndo = $aUndo[I]
-    If TypeOf(vUndo) = gb.Integer And If vUndo = BEGIN_UNDO Then
-      vUndo = $aUndo[I - 1]
-      If TypeOf(vUndo) = gb.Integer And If vUndo = END_UNDO Then
-        $aUndo.Remove(I - 1, 2)
-        Return
-      Endif
-    Endif
-  Next
+  If $aUndo.Count >= 2 Then
+    $aUndo[$aUndo.Max - 1].Insert($aUndo[$aUndo.Max])
+    $aUndo.Pop()
+  Endif
   
 End
 
@@ -2539,7 +2653,11 @@ Private Sub ZoomFit()
   Next
   
   cmbZoom.Index = Min(cmbZoom.Count - 1, iIndex + 1)
-
+  
+  Object.Lock(btnZoomFit)
+  btnZoomFit.Value = True
+  Object.Unlock(btnZoomFit)
+  
 End
 
 Public Sub btnZoomFit_Click()
@@ -2553,20 +2671,24 @@ Private Sub GetSelectedImage() As Image
   Dim hImage As Image
   Dim hExt As Rect
 
-  $hSelect.Invert($hImage)
-  
   hImage = $hImage.Copy()
-  
-  Paint.Begin(hImage)
-  Paint.Brush = Paint.Color(Color.Black)
-  $hSelect.Paint(hImage, CImageSelection.ACTION_CLEAR)
-  Paint.End
-
-  $hSelect.Invert($hImage)
-
+    
   hExt = $hSelect.GetExtentsInt(True)
-  If hExt Then hImage = hImage.Copy(hExt.X, hExt.Y, hExt.Width, hExt.Height)
+  If hExt And If hExt.Width > 0 And If hExt.Height > 0 Then
+    
+    $hSelect.Invert($hImage)
+    
+    Paint.Begin(hImage)
+    Paint.Brush = Paint.Color(Color.Black)
+    $hSelect.Paint(hImage, CImageSelection.ACTION_CLEAR)
+    Paint.End
   
+    $hSelect.Invert($hImage)
+  
+    hImage = hImage.Copy(hExt.X, hExt.Y, hExt.Width, hExt.Height)
+    
+  Endif
+    
   Return hImage
 
 End
@@ -2656,6 +2778,18 @@ Public Sub Form_Activate()
 
 End
 
+Private Sub ResetChangeRotate()
+
+  If HasSelection() And If $sTool <> "paste" Then
+    $hChangeRotate = $hSelect.GetBarycenter()
+    imvImage.Refresh
+  Else If $hChangeRect
+    $hChangeRotate = $hChangeRect.Center()
+    imvImage.Refresh
+  Endif
+
+End
+
 Public Sub RefreshSelection()
   
   imvImage.Refresh
@@ -2666,6 +2800,8 @@ Public Sub RefreshSelection()
       $hChangeRect = $hSelect.GetExtents()
     Endif
   Endif
+  
+  If $hChangeRect And If Not $hChangeRotate Then ResetChangeRotate()
   
 End
 
@@ -2885,20 +3021,18 @@ End
 
 Public Sub btnGrid_Click()
 
-  Dim iSize As Integer
-
   $bShowGrid = Not $bShowGrid
   imvImage.Refresh
   FImageProperty.ShowGridOption($bShowGrid)
   
-  If $bShowGrid Then
-    If FImageProperty.IsGridLocked() Then
-    Else If Not $bFirstGrid Then 
-      iSize = Min($hImage.Width, $hImage.Height) \ 2
-      FImageProperty.SetGridResolution(iSize)
-    Endif
-    $bFirstGrid = True
-  Endif
+  ' If $bShowGrid Then
+  '   If FImageProperty.IsGridLocked() Then
+  '   Else If Not $bFirstGrid Then 
+  '     iSize = Min($hImage.Width, $hImage.Height) \ 2
+  '     FImageProperty.SetGridResolution(iSize)
+  '   Endif
+  '   $bFirstGrid = True
+  ' Endif
 
 End
 
@@ -3096,6 +3230,7 @@ Private Sub ClearPaste()
     $hPasteSelect = Null
     $hPasteCurrent = Null
     $hChangeRect = Null
+    $hChangeRotate = Null
     imvImage.Refresh
     $iChangeAction = CHANGE_NOTHING
     FImageProperty.ClearPaste
@@ -3433,8 +3568,6 @@ End
 
 Public Sub imvImage_DblClick()
 
-  RemoveLastEndBeginUndo
-  ClearSelection
   $bDblClick = True
 
 End
@@ -3464,5 +3597,41 @@ Public Sub btnExpandSelection_Click()
 
   If Not $hChangeRect Then SetTool("change")
   ApplyTransformation(TRANS_EXPAND)
+
+End
+
+
+' Public Sub btnPolygon_Click()
+' 
+'   Dim I As Integer
+'   Dim XC As Float
+'   Dim YC As Float
+'   Dim N As Integer
+'   Dim X As Float
+'   Dim Y As Float
+'   Dim R As Float
+'   
+'   If FImagePolygon.Run() Then Return
+' 
+'   CreateSelection
+'   AddUndo($hSelect.Copy())
+'   
+'   XC = $hImage.W / 2
+'   YC = $hImage.H / 2
+'   N = FImagePolygon.Sides
+'   If FImagePolygon.DrawStar Then R = FImagePolygon.Radius
+' 
+'   $hSelect.Polygon(0, 0, $hImage.W, $hImage.H, N, R)
+'   
+'   If FImagePolygon.AddCircle Then
+'     AddUndo($hSelect.Copy())
+'     $hSelect.Ellipse(0, 0, $hImage.W, $hImage.H)
+'   Endif
+' 
+' End
+
+Public Sub Form_Arrange()
+
+  If btnZoomFit.Value Then ZoomFit
 
 End

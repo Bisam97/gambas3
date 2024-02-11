@@ -285,7 +285,15 @@ AC_DEFUN([GB_INIT],
   dnl ---- Check for inotify library
 
   GB_INOTIFY()
-  
+
+  dnl ---- Check for internationalization library
+
+  GB_INTL()
+
+  dnl ---- Check for charset conversion library
+
+  GB_ICONV()
+
   dnl ---- Check for monotonic clock
   
   GB_MONOTONIC()
@@ -374,6 +382,16 @@ AC_DEFUN([GB_INIT],
     AC_DEFINE(HAVE_GCC_VISIBILITY, 1, [Whether gcc supports -fvisibility=hidden])
   fi
 
+  dnl ---- check for -fcf-protection=return compiler flag
+
+  have_gcc_nocte=no
+
+  GB_CFLAGS_GCC_OPTION([-fcf-protection=return],,
+    [
+      GB_CFLAGS_NOCTE=" -fcf-protection=return"
+      have_gcc_nocte=yes
+    ])
+
   dnl ---- check for -flto compiler flag
   
   GB_CFLAGS_GCC_OPTION([-flto],,
@@ -457,7 +475,9 @@ AC_DEFUN([GB_INIT],
   AC_SUBST(AM_CXXFLAGS)
   AC_SUBST(AM_CXXFLAGS_OPT)
   AC_SUBST(GB_CFLAGS_LTO)
+  AC_SUBST(GB_CFLAGS_NOCTE)
   AC_SUBST(GB_CXXFLAGS_STD_CPP11)
+  AC_SUBST(GB_CXXFLAGS_STD_CPP17)
 
   rm -f DISABLED DISABLED.* FAILED
 ])
@@ -712,6 +732,11 @@ AC_DEFUN([GB_SYSTEM],
       AC_DEFINE(ARCH_PPC, 1, [Target architecture is PowerPC])
       AC_DEFINE(ARCHITECTURE, "powerpc", [Architecture])
       ;;
+    e2k-*-* )
+      ARCH=E2K
+      AC_DEFINE(ARCH_E2K, 1, [Target architecture is e2k])
+      AC_DEFINE(ARCHITECTURE, "e2k", [Architecture])
+      ;;
     *)
       ARCH=UNKNOWN
       AC_DEFINE(ARCHITECTURE, "unknown", [Architecture])
@@ -798,6 +823,49 @@ AC_DEFUN([GB_INOTIFY],
 
   AC_SUBST(GB_INOTIFY_LIB)
   AC_MSG_RESULT($GB_INOTIFY_LIB)
+])
+
+
+## ---------------------------------------------------------------------------
+## GB_INTL
+## Detects if we must link to an external internationalization library
+## ---------------------------------------------------------------------------
+
+AC_DEFUN([GB_INTL],
+[
+  AC_MSG_CHECKING(for external internationalization library)
+
+  case "${host}" in
+    *-musl)
+      GB_INTL_LIB=-lintl
+      ;;
+    *)
+      GB_INTL_LIB=
+      ;;
+  esac
+
+  AC_SUBST(GB_INTL_LIB)
+  AC_MSG_RESULT($GB_INTL_LIB)
+])
+
+
+## ---------------------------------------------------------------------------
+## GB_ICONV
+## Detects if we must link to an external charset conversion library
+## ---------------------------------------------------------------------------
+
+AC_DEFUN([GB_ICONV],
+[
+  AC_MSG_CHECKING(for external charset conversion library)
+
+  case "${host}" in
+    *)
+      GB_ICONV_LIB=
+      ;;
+  esac
+
+  AC_SUBST(GB_ICONV_LIB)
+  AC_MSG_RESULT($GB_ICONV_LIB)
 ])
 
 

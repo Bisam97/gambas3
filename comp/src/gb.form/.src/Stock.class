@@ -69,7 +69,13 @@ Static Private Sub SearchDesktop()
   Dim sDesktop As String
 
   If Application.Theme Then Return
-  sDesktop = Desktop.Type
+  If Desktop.Is("KDE4") Then
+    sDesktop = "KDE4"
+  Else If Desktop.Is("KDE5") Then 
+    sDesktop = "KDE5"
+  Else
+    sDesktop = Desktop.Type
+  Endif
   If $bDebug Then Error "gb.form: desktop is " & sDesktop
   Application.Theme = LCase(sDesktop)
 
@@ -236,7 +242,7 @@ Static Private Sub SearchTheme(sDesktop As String)
 
   Select sDesktop
 
-    Case "gnome", "cinnamon", "mate"
+    Case "gnome", "cinnamon", "mate", "ubuntu"
 
       sTheme = GetThemeWithDConf(sDesktop)
       If Not sTheme And If sDesktop <> "gnome" Then sTheme = GetThemeWithDConf("gnome")
@@ -277,7 +283,7 @@ Static Private Sub SearchTheme(sDesktop As String)
 
       If Not sTheme Then
 
-        aFind = FindInConfigFile(["~/." & sDesktop & "/share/config/kdeglobals", "~/.kde/share/config/kdeglobals", "~/.config/kdeglobals"], "Theme=*", "[Icons]")
+        aFind = FindInConfigFile(["~/.config/kdeglobals", "~/." & sDesktop & "/share/config/kdeglobals", "~/.kde/share/config/kdeglobals"], "Theme=*", "[Icons]")
         If aFind Then sTheme = aFind[0]
 
       Endif
@@ -320,7 +326,7 @@ Static Private Sub SearchTheme(sDesktop As String)
 
       AddGlobalPath("gnome", "gnome")
 
-    Case "gambas", "gambas-mono"
+    Case "gambas", "gambas-mono", "gambas-thin"
 
       $aIconPath.Add("#" & sDesktop)
       AddPath("", "stock", "&1")
@@ -328,9 +334,7 @@ Static Private Sub SearchTheme(sDesktop As String)
 
     Case Else
 
-      If sDesktop <> "gambas" Then
-        GetAllThemePath("gnome", $aRoots, Application.Theme)
-      Endif
+      GetAllThemePath("gnome", $aRoots, Application.Theme)
 
   End Select
 
@@ -706,7 +710,7 @@ End
 
 Static Private Function List_Read() As String[]
 
-  Error "gb.form: warning: Stock.List is deprecated. Use Stock.Icons instead"
+  Error "gb.form: warning: 'Stock.List' is deprecated. Use 'Stock.Icons' instead"
   Return Icons_Read()
 
 End
@@ -832,6 +836,7 @@ Static Private Function Themes_Read() As String[]
 
   If Not aTheme.Exist("Gambas") Then aTheme.Add("Gambas")
   If Not aTheme.Exist("Gambas-Mono") Then aTheme.Add("Gambas-Mono")
+  If Not aTheme.Exist("Gambas-Thin") Then aTheme.Add("Gambas-Thin")
   aTheme.Sort(gb.IgnoreCase)
   Return aTheme
 

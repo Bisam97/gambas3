@@ -1,0 +1,95 @@
+' Gambas class file
+
+Static Private $sBranch As String
+
+Private Const MAX_ROW As Integer = 12
+
+Private $sCurrent As String
+Private $aBranches As String[]
+
+Public Sub Init()
+
+  txtFilter.H = FMain.GetTabBarHeight()
+
+  $sBranch = ""
+  $aBranches = VersionControl.GetBranches(ByRef $sCurrent)
+  
+  If $aBranches.Count <= MAX_ROW Then 
+    txtFilter.Hide
+    sepFilter.Hide
+  Else 
+    txtFilter.Show
+    sepFilter.Show
+  Endif
+  
+  FillBranch()
+  
+  txtFilter.SetFocus
+  
+End
+
+Private Sub FillBranch()
+
+  Dim sBranch As String
+  Dim sFilter As String
+  Dim iCurrent As Integer = -1
+  Dim H As Integer
+  
+  sFilter = Trim(txtFilter.Text)
+  lstBranch.Clear
+  
+  For Each sBranch In $aBranches
+    If sFilter And InStr(sBranch, sFilter) = 0 Then Continue
+    lstBranch.Add(sBranch)
+    If sBranch = $sCurrent Then iCurrent = lstBranch.Count - 1
+  Next
+  
+  lstBranch.Index = iCurrent
+  
+  H = Max(Min(Desktop.Scale * 3 * MAX_ROW, lstBranch.ScrollHeight), Desktop.Scale * 3)
+  If txtFilter.Visible Then H += txtFilter.H + sepFilter.H
+  Me.Parent.H = H + 2
+  
+End
+
+Public Sub txtFilter_Filter()
+
+  FillBranch()
+
+End
+
+Public Sub lstBranch_Activate()
+
+  VersionControl.SetBranch(lstBranch.Text)
+
+End
+
+Public Sub Form_KeyPress()
+
+  If Key.Code = Key.Escape Then FMain.CloseBranchList
+
+End
+
+Public Sub txtFilter_KeyPress()
+
+  If Not Key.Text Then Object.Raise(lstBranch.Children[0].Proxy, "KeyPress")
+  
+End
+
+Public Sub txtFilter_Activate()
+
+  lstBranch_Activate
+
+End
+
+Public Sub lstBranch_GotFocus()
+
+  txtFilter.SetFocus
+
+End
+
+Public Sub txtFilter_Click()
+
+  lstBranch_Activate
+
+End

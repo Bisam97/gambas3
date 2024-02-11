@@ -19,11 +19,12 @@ BODY {
 SELECT {
   min-height: 2em;
   font-size: inherit;
+  background-color: inherit;
 }
 
 INPUT,TEXTAREA {
   font: inherit;
-  background-color: white;
+  background-color: inherit;
   border: solid 1px gray;
 }
 
@@ -204,15 +205,17 @@ P:first-child,UL:first-child,OL:first-child {
 
 .gw-disabled {
   pointer-events: none;
+  filter: grayscale(50%);
+  opacity: 0.5;
 }
 
-.gw-checkbox.gw-disabled > .gw-checkbox-label {
+/*.gw-checkbox.gw-disabled > .gw-checkbox-label {
   opacity: 0.5;
 }
 
 .gw-radiobutton.gw-disabled > .gw-checkbox-label {
   opacity: 0.5;
-}
+}*/
 
 .gw-checkbox-toggle,.gw-radiobutton-toggle {
   margin: 0;
@@ -323,7 +326,6 @@ P:first-child,UL:first-child,OL:first-child {
 
 .gw-popup {
   position: absolute !important;
-  border: solid 1px #C0C0C0;
   border-radius: 0;
   box-shadow: none;
 }
@@ -413,10 +415,6 @@ P:first-child,UL:first-child,OL:first-child {
 .gw-label.gw-noborder {
   border: none;
   padding: 0;
-}
-
-.gw-label.gw-disabled {
-  opacity: 0.5;
 }
 
 #gw-modal {
@@ -522,10 +520,6 @@ P:first-child,UL:first-child,OL:first-child {
 .gw-menubar > DIV:not(.gw-disabled).gw-active {
   background-color: #2980B9;
   color: white;
-}
-
-.gw-menubar > DIV.gw-disabled {
-  opacity: 0.5;
 }
 
 .gw-menuitem {
@@ -1131,4 +1125,12 @@ TD.gw-table-check {
   left: 0;
   width: 100%;
   height: 100%;
+}
+
+TR.gw-selected > TD {
+  background-color: inherit !important;
+}
+
+TR.gw-selected > TD.gw-table-index {
+  color: white;
 }

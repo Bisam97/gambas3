@@ -1,0 +1,142 @@
+' Gambas class file
+
+Export
+
+'' How many \[Desktop Action \<Key\>\] definitions are in the file<br>
+Property Read Count As Integer
+
+'' List all \[Desktop Action <Key>\] Keys found in the file<br>
+''
+'' This is different to [/comp/gb.desktop/desktopfile/actions] (DesktopFile.Actions) that defines what actions are visible and their order.
+''
+'' This is a list of ALL the \[Desktop Action \<Key\>\] definitions as found in the file that may or may not be listed in DesktopFile.Actions.
+'' Their order is as they appear in the file and make no difference to the menu order.
+Property Read Actions As String[]
+
+Private $aActions As DesktopAction[]
+
+Event _Dummy  ' dummy event
+
+Public Function _next() As DesktopAction
+
+  Dim hAction As DesktopAction
+
+  If IsNull(Enum.Index) Then
+    GetActions()
+    If Not $aActions.Count Then Return
+    Enum.Index = 0
+  Else
+    Inc Enum.Index
+  Endif
+  If Enum.Index >= $aActions.Count Then
+    Enum.Stop
+    Return
+  Endif
+
+  hAction = $aActions[Enum.Index]
+  Return hAction
+
+End
+
+'' Get a DesktopAction by Key name.
+Public Sub _get((Key) As String) As DesktopAction
+
+  For Each hAction As DesktopAction In GetActions()
+    If hAction.Key Like Key Then Return hAction
+  Next
+
+End
+
+'' List all [Desktop Action <Name>] definitions that are in the file
+Private Sub GetActions() As DesktopAction[]
+
+  $aActions = []
+  Dim Da As DesktopAction
+
+  For Each s As String In GetSet().Keys
+    If s Like "\\[Desktop Action *]" Then
+      da = New DesktopAction(Left(Right(s, -16), -1)) As "DesktopAction"
+      $aActions.Add(da)
+    Endif
+  Next
+
+  Return $aActions
+
+End
+
+Private Sub GetSet() As Collection
+
+  Return Object.Parent(Me)._Data
+
+End
+
+Public Sub DesktopAction_Change(Name As String, Value As String)
+
+  If Name = "Key" Then
+    Dim c As Collection = GetSet()[GetLine(Last.Key)]
+    GetSet().Add(c, GetLine(Value))
+    Remove(Last.Key)
+    Dim df As DesktopFile = Object.Parent(Me)
+    Dim aActions As String[] = df.Actions
+    If aActions.Exist(Last.Key, gb.IgnoreCase) Then
+      aActions[aActions.Find(Last.key, gb.IgnoreCase)] = Value
+      df.Actions = aActions
+    Endif
+  Else
+    GetSet()[GetLine(Last.Key)][Name] = Value
+  Endif
+
+End
+
+'' Check if a Desktop Action definition exists.
+Public Sub Exist((Key) As String) As Boolean
+
+  Return Actions_Read().Exist(Key, gb.IgnoreCase)
+
+End
+
+'' Add a new [Desktop Action <Key>] definition (Does not effect DesktopFile.Actions)
+Public Sub Add((Key) As String, Name As String, {Exec} As String)
+
+  GetSet().Add(["Name": Name, "Exec": {Exec}], GetLine(Key))
+
+End
+
+'' Remove the DesktopAction by Key
+Public Sub Remove((Key) As String)
+
+  For Each sKey As String In Actions_Read()
+    If sKey Like Key Then
+      GetSet().Remove(sKey)
+      Return
+    Endif
+  Next
+
+End
+
+Private Function Count_Read() As Integer
+
+  Return GetActions().Count
+
+End
+
+Private Sub GetLine((Key) As String) As String
+
+  If Key Then Return "[Desktop Action " & Key & "]"
+
+End
+
+Private Function Actions_Read() As String[]
+
+  GetActions()
+  If Not $aActions.Count Then Return
+
+  Dim aKeys As New String[]
+
+  For Each hAction As DesktopAction In $aActions
+    aKeys.Add(hAction.Key)
+  Next
+
+  Return aKeys
+
+End

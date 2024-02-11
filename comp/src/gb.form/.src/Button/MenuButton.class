@@ -187,9 +187,13 @@ Static Private Sub HandleMenu(hCurrent As MenuButton)
   Dim hWatch As Timer
   Dim hFocus As Control
   
-  hWatch = New Timer As "WatchTimer"
-  hWatch.Delay = 100
-  hWatch.Start
+  If Not hCurrent.Arrow Then
+  
+    hWatch = New Timer As "WatchTimer"
+    hWatch.Delay = 100
+    hWatch.Start
+    
+  Endif
   
   hFocus = Application.ActiveControl
   
@@ -205,15 +209,19 @@ Static Private Sub HandleMenu(hCurrent As MenuButton)
     'hCurrent.SetFocus ' Should refresh old and new menus
     hCurrent.Refresh
     
-    hMenu.Popup(hCurrent.ScreenX, hCurrent.ScreenY + hCurrent.H)
+    ' FIXME: Wait to let the window activate, otherwise the menu pops up at the wrong place on Wayland!
+    Wait
+    hMenu.Popup(hCurrent.ScreenX, hCurrent.ScreenY + hCurrent.H, hCurrent)
 
     If $hCurrent = hCurrent Then Break
     hCurrent = $hCurrent
     
   Wend
   
-  hWatch.Stop
-  hWatch = Null
+  If hWatch Then
+    hWatch.Stop
+    hWatch = Null
+  Endif
   
   $hCurrent = Null
   $hCurrentMenu = Null
@@ -454,7 +462,9 @@ Public Sub DrawingArea_Draw()
   
   If $hPicture Then
     
-    If Me.RightToLeft Then
+    If Not $sActualText And If Not $bArrow Then
+      X = (Paint.W - $hPicture.W) / 2
+    Else If Me.RightToLeft Then
       X = Paint.W - DS - $hPicture.W
     Else
       X = DS

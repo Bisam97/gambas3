@@ -29,6 +29,7 @@ Property ShowCursor As Boolean
 Property Read Current As _GridView_Cell
 Property Sorted As Boolean
 Property Padding As Integer
+Property _Highlight As Boolean
 
 Property ScrollX As Integer
 Property ScrollY As Integer
@@ -122,6 +123,10 @@ Private $bDoNotRaiseSelect As Boolean
 
 Private $hTimerClick As Timer
 Private $bMoveRaiseSelect As Boolean
+Private $bRightToLeft As Boolean
+Private $bHighlight As Boolean
+Private $hObs As Observer
+Private $iHighlight As Integer
 
 Public Sub _new()
   
@@ -143,6 +148,8 @@ Public Sub _new()
   Me.Proxy = $hView
   
   $hTimerClick = New Timer As "GridViewClick"
+  
+  $bRightToLeft = Me.RightToLeft
   
 End
 
@@ -180,9 +187,10 @@ End
 
 Public Sub _IsRowSelected(iRow As Integer) As Boolean
   
+  If $iMode = Select.None Then Return
+  If $hRows._GetRowHeight(iRow) = 0 Then Return
+
   Select Case $iMode
-    Case Select.None
-      Return
     Case Select.Single
       Return iRow = $iRow
     Case Select.Multiple
@@ -359,7 +367,7 @@ DRAW_GRID:
   iColor = Color.Merge(Color.LightForeground, $hView.Background)
   If $bGrid Then
     If Me.RightToLeft Then
-      If iCol > 0 Then Paint.FillRect(hRect.X, hRect.Y, 1, hRect.H, iColor)
+      If iCol < $hColumns.Max Then Paint.FillRect(hRect.X, hRect.Y, 1, hRect.H, iColor)
     Else
       If iCol < $hColumns.Max Or If hRect.X + hRect.W < $hView.ClientW Then Paint.FillRect(hRect.X + hRect.W - 1, hRect.Y, 1, hRect.H, iColor)
     Endif
@@ -422,6 +430,11 @@ Public Sub ScrollArea_Draw()
   Dim iPadding As Integer
   Dim iFg As Integer
   
+  If Me.RightToLeft <> $bRightToLeft Then
+    $bRightToLeft = Me.RightToLeft
+    $hColumns._Layout
+  Endif
+  
   If $iBg <> Color.Transparent Then
     If $iBg = Color.Default Then 
       iBg = Color.TextBackground
@@ -454,9 +467,11 @@ Public Sub ScrollArea_Draw()
   Else
     XO = $hRows.Width - $hView.ScrollX + F
   Endif
-  XX = XO + $hColumns[iCol].X
+  XX = XO
+  If iCol >= 0 Then XX += $hColumns[iCol].X
   YO = $hColumns.Height - $hView.ScrollY + F
-  YY = YO + $hRows._GetRowY(iRow)
+  YY = YO
+  If iRow >= 0 Then YY += $hRows._GetRowY(iRow)
   
   If $bGrid Then
     iGrid = Color.Merge(Color.LightForeground, Color.TextBackground)
@@ -763,7 +778,7 @@ Public Sub ScrollArea_Draw()
       Paint.Clip
       
       DrawCell(hSpan.X, hSpan.Y, hSpan.W, hSpan.H, R, C, hData, hRowBorder)
-      
+
       If hData.Border Then 
         hData.Border.Paint(RectF(hSpan.X, hSpan.Y, hSpan.W, hSpan.H))
       Endif
@@ -819,6 +834,10 @@ Public Sub ScrollArea_Draw()
     
   NEXT_ROW:
     
+    If $bHighlight And If I = $iHighlight Then
+      Paint.FillRect(0, Y, Paint.W, H, Color.SetAlpha(Color.SelectedBackground, 224))
+    Endif
+      
     Y += H
     
   Next
@@ -994,7 +1013,6 @@ Private Sub StartScrollTimer()
   
 End
 
-
 Public Sub ScrollArea_MouseMove()
   
   Dim I, MX, MY, X, Y, iRow, iCol As Integer
@@ -1062,17 +1080,8 @@ Public Sub ScrollArea_MouseMove()
       If Not Me.RightToLeft Then X -= $hRows.Width
       
       If Me.RightToLeft Then
-        ' For I = $hColumns.Count - 2 DownTo 0
-        '   With $hColumns[I]
-        '     If $hColumns[I + 1].Resizable And If X >= (.X - 1) And If X <= (.X + 2) Then
-        '       iMouse = Mouse.SizeE
-        '       $iColResize = I + 1
-        '       $iDimResize = $hColumns[$iColResize].Width
-        '       Break
-        '     Endif
-        '   End With
-        ' Next
-        For I = 1 To $hColumns.Count - 1
+        
+        For I = 0 To $hColumns.Max
           With $hColumns[I]
             If $hColumns[I].Resizable And If X >= (.X - HW) And If X <= (.X + HW) Then
               iMouse = Mouse.SizeE
@@ -1082,8 +1091,10 @@ Public Sub ScrollArea_MouseMove()
             Endif
           End With
         Next
+      
       Else
-        For I = 1 To $hColumns.Count - 1
+
+        For I = 1 To $hColumns.Max
           With $hColumns[I]
             If $hColumns[I - 1].Resizable And If X >= (.X - HW) And If X <= (.X + HW) Then
               iMouse = Mouse.SizeE
@@ -1093,20 +1104,13 @@ Public Sub ScrollArea_MouseMove()
             Endif
           End With
         Next
-      Endif
-      
-      If Me.RightToLeft Then
-        If $iColResize < 0 And If $hColumns[0].Resizable And If X >= ($hColumns._GetWidth() - HW) And If X <= ($hColumns._GetWidth() + HW) Then
-          iMouse = Mouse.SizeE
-          $iColResize = 0
-          $iDimResize = $hColumns[$iColResize].Width
-        Endif
-      Else
+        
         If $iColResize < 0 And If $hColumns[$hColumns.Count - 1].Resizable And If X >= ($hColumns._GetWidth() - HW) And If X <= ($hColumns._GetWidth() + HW) Then
           iMouse = Mouse.SizeE
           $iColResize = $hColumns.Count - 1
           $iDimResize = $hColumns[$iColResize].Width
         Endif
+        
       Endif
       
     Endif
@@ -1127,7 +1131,7 @@ Public Sub ScrollArea_MouseMove()
   
   If Not Me.RightToLeft Then X -= $hRows.W
   
-  If Mouse.Left Or If Mouse.Right Then
+  If Mouse.Left Or If Mouse.Right Or If $bHighlight Then
     
     If Y >= $hColumns.Height Then
       For I = 1 To $aRowY.Max
@@ -1153,18 +1157,22 @@ Public Sub ScrollArea_MouseMove()
     
   Endif
   
-  If iRow >= 0 Then
+  If Mouse.Left Or If Mouse.Right Then
+    If iRow >= 0 Then
+      
+      $bInRow = True
+      
+      If iCol >= 0 Then $bInCell = True
+      
+      MoveTo(iRow, iCol)
+  
+    Endif
     
-    $bInRow = True
-    
-    If iCol >= 0 Then $bInCell = True
-    
-    MoveTo(iRow, iCol)
-
+    If $bInCell And If Mouse.Left Then StartScrollTimer
   Endif
-    
-  If $bInCell And If Mouse.Left Then StartScrollTimer
-
+  
+  SetHighlight(iRow)
+  
 End
 
 Public Sub TimerScroll_Timer()
@@ -1178,6 +1186,8 @@ Public Sub TimerScroll_Timer()
     $hTimerScroll.Stop
     Return
   Endif
+  
+  If $iRow < 0 Then Return
   
   X = $SX - If(Me.RightToLeft, 0, $hRows.W) + $hView.ScrollX
   Y = $SY - $hColumns.Height + $hView.ScrollY
@@ -1567,8 +1577,6 @@ Public Sub _EnsureVisible(iRow As Integer, iCol As Integer)
   $iRowEV = iRow
   $iColEV = iCol
   
-  'Debug iRow;; iCol
-  
 End
 
 Public Sub TimerEnsureVisible_Timer()
@@ -1577,6 +1585,7 @@ Public Sub TimerEnsureVisible_Timer()
   Dim iColEV As Integer = $iColEV
   Dim F As Integer = _GetFrameWidth()
   Dim iDir As Integer
+  Dim W, H As Integer
   
   iDir = Scroll.Both
   If iRowEV < 0 Then
@@ -1592,7 +1601,10 @@ Public Sub TimerEnsureVisible_Timer()
   $iColEV = -1
 
   With $hColumns[iColEV]
-    $hView.EnsureVisible(.X, $hRows._GetRowY(iRowEV) + F, Min($hView.ClientW - $hRows.W, .Width + $hRows.Width), $hRows._GetRowHeight(iRowEV) + $hColumns.Height + F, iDir)
+    W = .Width
+    H = $hRows._GetRowHeight(iRowEV)
+    If W <= 0 Or If H <= 0 Then Return
+    $hView.EnsureVisible(.X, $hRows._GetRowY(iRowEV) + F, Min($hView.ClientW - $hRows.W, W + $hRows.Width), H + $hColumns.Height + F, iDir)
   End With
   
 Catch
@@ -1706,6 +1718,7 @@ End
 Public Sub ScrollArea_Scroll()
   
   Raise Scroll
+  SetHighlight(RowAt(Mouse.ScreenY - $hView.ScreenY))
   
 End
 
@@ -1776,6 +1789,46 @@ Private Sub Header_Write(Value As Integer)
 
 End
 
+
+Private Sub MoveToRelative(DR As Integer, DC As Integer) As Boolean
+
+  Dim iRow As Integer
+  Dim iCol As Integer
+
+  iRow = $iRow + DR
+  iCol = $iCol + DC
+  
+  Do
+    
+    If iRow < 0 Or If iRow > $hRows.Max Then Return True
+    
+    If iCol < 0 Then
+      Dec iRow
+      iCol = $hColumns.Max
+      Continue
+    Else If iCol > $hColumns.Max Then
+      Inc iRow
+      iCol = 0
+      Continue
+    Endif
+    
+    With Me[iRow, iCol]
+      If .W <= 0 Or If .H <= 0 Then
+        iRow += DR
+        iCol += DC
+        Continue
+      Endif
+    End With
+    
+    Break
+    
+  Loop
+  
+  MoveTo(iRow, iCol)
+
+End
+
+
 Public Sub ScrollArea_KeyPress()
   
   Dim iRow As Integer
@@ -1816,31 +1869,35 @@ Public Sub ScrollArea_KeyPress()
   Select iCode
     
     Case Key.Up
-      If $iRow > 0 Then MoveTo($iRow - 1, $iCol)
+      'If $iRow > 0 Then MoveTo($iRow - 1, $iCol)
+      MoveToRelative(-1, 0)
       Stop Event
       
     Case Key.Down
-      If $iRow < ($hRows.Count - 1) Then MoveTo($iRow + 1, $iCol)
+      'If $iRow < ($hRows.Count - 1) Then MoveTo($iRow + 1, $iCol)
+      MoveToRelative(1, 0)
       Stop Event
       
     Case Key.Left
-      If $iRow >= 0 Then
-        If $iCol > 0 Then
-          MoveTo($iRow, $iCol - 1)
-        Else If $iRow > 0 Then
-          MoveTo($iRow - 1, $hColumns.Count - 1)
-        Endif
-      Endif
+      MoveToRelative(0, -1)
+      ' If $iRow >= 0 Then
+      '   If $iCol > 0 Then
+      '     MoveTo($iRow, $iCol - 1)
+      '   Else If $iRow > 0 Then
+      '     MoveTo($iRow - 1, $hColumns.Count - 1)
+      '   Endif
+      ' Endif
       Stop Event
     
     Case Key.Right
-      If $iRow >= 0 Then
-        If $iCol < ($hColumns.Count - 1) Then 
-          MoveTo($iRow, $iCol + 1)
-        Else If $iRow < ($hRows.Count - 1) Then
-          MoveTo($iRow + 1, 0)
-        Endif
-      Endif
+      MoveToRelative(0, 1)
+      ' If $iRow >= 0 Then
+      '   If $iCol < ($hColumns.Count - 1) Then 
+      '     MoveTo($iRow, $iCol + 1)
+      '   Else If $iRow < ($hRows.Count - 1) Then
+      '     MoveTo($iRow + 1, 0)
+      '   Endif
+      ' Endif
       Stop Event
     
     Case Key.Home
@@ -2218,8 +2275,11 @@ Public Sub _GetPreferredWidth(iCol As Integer) As Integer
   Dim fDiff As Float
   Dim bBusy As Boolean
   Dim J As Integer
+  Dim iColPadding As Integer
   
-  PW = Me.Font.TextWidth($hColumns[iCol].Text) + Max(Desktop.Scale \ 2, $iPadding) * 2 + $hColumns.Padding * 2 + If($bSorted, 16, 0) + 2
+  iColPadding = $hColumns.Padding
+  
+  PW = Me.Font.TextWidth($hColumns[iCol].Text) + Max(Desktop.Scale \ 2, $iPadding) * 2 + iColPadding * 2 + If($bSorted, 16, 0) + 2
   
   fTime = Timer
   
@@ -2242,7 +2302,7 @@ Public Sub _GetPreferredWidth(iCol As Integer) As Integer
       
       With hData
         
-        iPadding = Max($iPadding, .Padding)
+        iPadding = Max($iPadding, .Padding) + iColPadding
         W = iPadding * 2
         hFont = .Font
         If Not hFont Then hFont = Me.Font
@@ -2519,7 +2579,7 @@ End
 
 Public Sub _RefreshRow(iRow As Integer)
   
-  $hView.RefreshRect(0, $hRows._GetRowY(iRow), $hView.ScrollW, $hRows._GetRowHeight(iRow))
+  $hView.RefreshRect(0, $hRows._GetRowY(iRow) + $hColumns.H, $hView.ScrollW, $hRows._GetRowHeight(iRow))
   
 End
 
@@ -2554,3 +2614,46 @@ Public Sub _RefreshPicture()
   
 End
 
+
+Private Sub SetHighlight(iRow As Integer)
+
+  If $bHighlight Then
+
+    If Not $hView.View.Hovered Then iRow = -1
+    
+    If iRow <> $iHighlight Then
+      If $iHighlight >= 0 Then _RefreshRow($iHighlight)
+      $iHighlight = iRow
+      If $iHighlight >= 0 Then _RefreshRow($iHighlight)
+    Endif
+
+  Endif
+  
+End
+
+Public Sub Area_Leave()
+  
+  SetHighlight(-1)
+  
+End
+
+Private Function _Highlight_Read() As Boolean
+
+  Return $bHighlight
+
+End
+
+Private Sub _Highlight_Write(Value As Boolean)
+
+  If $bHighlight = Value Then Return
+  $bHighlight = Value
+
+  If $bHighlight Then
+    $iHighlight = -1
+    $hObs = New Observer($hView.View) As "Area"
+  Else 
+    $hObs.Detach()
+    $hObs = Null
+  Endif
+
+End

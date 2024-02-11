@@ -67,6 +67,10 @@
 #include <QScrollBar>
 #include <QLineEdit>
 
+#ifdef QT5
+#include <QWindow>
+#endif
+
 #ifndef NO_X_WINDOW
 static QMap<int, int> _x11_to_qt_keycode;
 #endif
@@ -260,9 +264,13 @@ void *CWIDGET_get_parent_container(void *_object)
 	return parent;
 }
 
-int CWIDGET_get_handle(void *_object)
+uintptr_t CWIDGET_get_handle(void *_object)
 {
-	return (int)WIDGET->winId();
+#ifdef QT5
+	return PLATFORM.Window.GetId(WIDGET);
+#else
+	return (uintptr_t)WIDGET->winId();
+#endif
 }
 
 bool CWIDGET_is_visible(void *_object)
@@ -908,7 +916,18 @@ END_PROPERTY
 
 BEGIN_PROPERTY(Control_ScreenX)
 
-	GB.ReturnInteger(WIDGET->mapToGlobal(QPoint(0, 0)).x());
+	int x = WIDGET->mapToGlobal(QPoint(0, 0)).x();
+
+#ifdef QT5
+	if (MAIN_platform_is_wayland)
+	{
+		QWindow *win = WIDGET->window()->windowHandle();
+		if (win)
+			x += win->frameMargins().left();
+	}
+#endif
+
+  GB.ReturnInteger(x);
 
 END_PROPERTY
 
@@ -925,7 +944,18 @@ END_PROPERTY
 
 BEGIN_PROPERTY(Control_ScreenY)
 
-	GB.ReturnInteger(WIDGET->mapToGlobal(QPoint(0, 0)).y());
+	int y = WIDGET->mapToGlobal(QPoint(0, 0)).y();
+
+#ifdef QT5
+	if (MAIN_platform_is_wayland)
+	{
+		QWindow *win = WIDGET->window()->windowHandle();
+		if (win)
+			y += win->frameMargins().top();
+	}
+#endif
+
+  GB.ReturnInteger(y);
 
 END_PROPERTY
 
@@ -1683,7 +1713,7 @@ END_PROPERTY
 
 BEGIN_PROPERTY(Control_Id)
 
-	GB.ReturnInteger((int)WIDGET->winId());
+	GB.ReturnLong(CWIDGET_get_handle(THIS));
 
 END_PROPERTY
 
@@ -2366,8 +2396,8 @@ static void post_focus_change(void *)
 {
 	CWIDGET *current, *control;
 	
-	//fprintf(stderr, "post_focus_change: %d %d\n", !_focus_change, _doing_focus_change);
-	
+	//fprintf(stderr, "post_focus_change: %p / %d %d\n", CWIDGET_active_control, !_focus_change, _doing_focus_change);
+
 	if (!_focus_change || _doing_focus_change)
 		return;
 	
@@ -2645,9 +2675,10 @@ bool CWidget::eventFilter(QObject *widget, QEvent *event)
 		
 		/*if (type == QEvent::MouseButtonPress)
 		{
-			qDebug("mouse event on [%s %s %p] (%s %p) %s%s%s", widget->metaObject()->className(), qPrintable(widget->objectName()), widget, 
+			qDebug("mouse event on [%s %s %p] (%s %p) %s%s%s", widget->metaObject()->className(), qPrintable(widget->objectName()), widget,
 						control ? GB.GetClassName(control) : "-", control, real ? "REAL " : "", design ? "DESIGN " : "", original ? "ORIGINAL ": "");
 			//getDesignDebug(widget);
+			fprintf(stderr, "MouseButtonPress: %s (%p)\n", control ? GB.GetClassName(control) : "-", control);
 		}*/
 		
 		if (!real)
@@ -2809,7 +2840,7 @@ bool CWidget::eventFilter(QObject *widget, QEvent *event)
 		
 		if (cancel)
 			goto __MOUSE_RETURN_TRUE;
-		
+
 		if (EXT(control) && EXT(control)->proxy_for)
 		{
 			control = (CWIDGET *)(EXT(control)->proxy_for);
@@ -3104,6 +3135,7 @@ bool CWidget::eventFilter(QObject *widget, QEvent *event)
 	{
 		QWheelEvent *ev = (QWheelEvent *)event;
 		bool eat_wheel;
+		int d;
 
 		//qDebug("Event on %p %s%s%s", widget,
 		//  real ? "REAL " : "", design ? "DESIGN " : "", child ? "CHILD " : "");
@@ -3115,8 +3147,6 @@ bool CWidget::eventFilter(QObject *widget, QEvent *event)
 
 	__MOUSE_WHEEL_TRY_PROXY:
 		
-		//fprintf(stderr, "wheel on %p %s\n", control, control->name);
-
 		if (design || QWIDGET(control)->isEnabled())
 		{
 			if (GB.CanRaise(control, EVENT_MouseWheel))
@@ -3146,27 +3176,52 @@ bool CWidget::eventFilter(QObject *widget, QEvent *event)
 #endif
 				MOUSE_info.state = ev->buttons();
 				MOUSE_info.modifier = ev->modifiers();
-				
+
 #ifdef QT5
 				QPoint delta = ev->angleDelta();
+#else
+				QPoint delta;
+				if (ev->orientation() == Qt::Horizontal)
+					delta.setX(ev->delta());
+				else
+					delta.setY(ev->delta());
+#endif
+
 				if (delta.x())
 				{
 					MOUSE_info.orientation = Qt::Horizontal;
-					MOUSE_info.delta = delta.x();
-					cancel = GB.Raise(control, EVENT_MouseWheel, 0);
+					ENSURE_EXT(control)->wheel_x += delta.x();
+					MOUSE_info.delta = d = (EXT(control)->wheel_x >= 120) ? 120 : ((EXT(control)->wheel_x <= -120) ? -120 : 0);
+
+					while (abs(EXT(control)->wheel_x) >= 120)
+					{
+						cancel = GB.Raise(control, EVENT_MouseWheel, 0);
+						if (cancel)
+						{
+							EXT(control)->wheel_x = 0;
+							break;
+						}
+						EXT(control)->wheel_x -= d;
+					}
 				}
+
 				if (delta.y())
 				{
 					MOUSE_info.orientation = Qt::Vertical;
-					MOUSE_info.delta = delta.y();
-					cancel = GB.Raise(control, EVENT_MouseWheel, 0);
-				}
-#else
-				MOUSE_info.orientation = ev->orientation();
-				MOUSE_info.delta = ev->delta();
-				cancel = GB.Raise(control, EVENT_MouseWheel, 0);
-#endif
+					ENSURE_EXT(control)->wheel_y += delta.y();
+					MOUSE_info.delta = d = (EXT(control)->wheel_y >= 120) ? 120 : ((EXT(control)->wheel_y <= -120) ? -120 : 0);
 
+					while (abs(EXT(control)->wheel_y) >= 120)
+					{
+						cancel = GB.Raise(control, EVENT_MouseWheel, 0);
+						if (cancel)
+						{
+							EXT(control)->wheel_y = 0;
+							break;
+						}
+						EXT(control)->wheel_y -= d;
+					}
+				}
 
 				CMOUSE_clear(false);
 				
@@ -3459,8 +3514,8 @@ GB_DESC CControlDesc[] =
 	GB_PROPERTY_READ("Parent", "Container", Control_Parent),
 	GB_PROPERTY_READ("_Parent", "Container", Control__Parent),
 	GB_PROPERTY_READ("Window", "Window", Control_Window),
-	GB_PROPERTY_READ("Id", "i", Control_Id),
-	GB_PROPERTY_READ("Handle", "i", Control_Id),
+	GB_PROPERTY_READ("Id", "l", Control_Id),
+	GB_PROPERTY_READ("Handle", "l", Control_Id),
 
 	GB_EVENT("Enter", NULL, NULL, &EVENT_Enter),
 	GB_EVENT("GotFocus", NULL, NULL, &EVENT_GotFocus),

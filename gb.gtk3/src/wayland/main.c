@@ -23,6 +23,7 @@
 
 #define __MAIN_C
 
+#include <gdk/gdkwayland.h>
 #include "main.h"
 
 //-------------------------------------------------------------------------
@@ -42,9 +43,9 @@ static GtkWidget *platform_create_plug(long wid)
 
 //-------------------------------------------------------------------------
 
-static long window_get_id(GdkWindow *window)
+static uintptr_t window_get_id(GdkWindow *window)
 {
-	return 0;
+	return (uintptr_t)gdk_wayland_window_get_wl_surface(window);
 }
 
 //-------------------------------------------------------------------------
@@ -112,6 +113,12 @@ int EXPORT GB_INFO(const char *key, void **value)
 		return TRUE;
 	}
 	else*/
+	if (!strcasecmp(key, "DISPLAY"))
+	{
+    *value = gdk_wayland_display_get_wl_display(gdk_display_get_default());
+		return TRUE;
+	}
+	else
 		return FALSE;
 }
 

@@ -101,6 +101,8 @@ static void has_forked(void)
 	STREAM_blocking(stream, TRUE);
 
 	SIGNAL_has_forked();
+
+	FLAG.has_forked = TRUE;
 	
 	task = _task_list;
 	while (task)

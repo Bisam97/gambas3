@@ -2508,6 +2508,8 @@ void GB_SystemHasForked(void)
 	EXEC_profile_instr = FALSE;
 
 	SIGNAL_has_forked();
+
+	FLAG.has_forked = TRUE;
 }
 
 bool GB_ExistClass(const char *name)
@@ -2579,35 +2581,56 @@ void GB_Wait(int delay)
 
 bool GB_Serialize(const char *path, GB_VALUE *value)
 {
-	CFILE *cfile;
+	bool ret = FALSE;
+	CFILE *cfile = NULL;
 	STREAM stream;
 
-	CATCH_ERROR
+	TRY
 	{
 		STREAM_open(&stream, path, GB_ST_CREATE);
-		cfile = CFILE_create(&stream, GB_ST_CREATE);
-		OBJECT_REF(cfile);
+		cfile = OBJECT_REF(CFILE_create(&stream, GB_ST_CREATE));
 		STREAM_write_type(&cfile->ob.stream, T_VARIANT, (VALUE *)value);
-		//STREAM_close(&cfile->ob.stream);
 		OBJECT_UNREF(cfile);
 	}
-	END_CATCH_ERROR
+	CATCH
+	{
+		ret = TRUE;
+		EXEC_set_native_error(TRUE);
+	}
+	END_TRY
+
+	if (cfile)
+		OBJECT_UNREF(cfile);
+
+	return ret;
 }
 
 bool GB_UnSerialize(const char *path, GB_VALUE *value)
 {
-	CFILE *cfile;
+	bool ret = FALSE;
+	CFILE *cfile = NULL;
 	STREAM stream;
 
-	CATCH_ERROR
+	TRY
 	{
 		STREAM_open(&stream, path, GB_ST_READ);
-		cfile = CFILE_create(&stream, GB_ST_CREATE);
-		OBJECT_REF(cfile);
+		cfile = OBJECT_REF(CFILE_create(&stream, GB_ST_CREATE));
 		STREAM_read_type(&cfile->ob.stream, T_VARIANT, (VALUE *)value);
-		//STREAM_close(&cfile->ob.stream);
+		BORROW((VALUE *)value);
 		OBJECT_UNREF(cfile);
+		UNBORROW((VALUE *)value);
 	}
-	END_CATCH_ERROR
+	CATCH
+	{
+		ret = TRUE;
+		EXEC_set_native_error(TRUE);
+	}
+	END_TRY
+
+	if (cfile)
+		OBJECT_UNREF(cfile);
+
+	return ret;
+
 }
 

@@ -63,7 +63,7 @@ End
 Public Sub RunWith(sText As String, cKeyword As Collection, cOperator As Collection, cType As Collection)
   
   Dim iState As Integer
-  Dim iTag As Integer
+  Dim iTag As Short
   Dim iLenText As Integer
   Dim iPos, iSavePos As Integer
   Dim sCar As String
@@ -102,7 +102,7 @@ Public Sub RunWith(sText As String, cKeyword As Collection, cOperator As Collect
         Else If InStr(Trim(sText), "function") = 1 Then
           
           TextHighlighter.Add(State.Keyword, 9)
-          If InStr(sText,"(") Then TextHighlighter.Add(State.Function, RInStr(sText, "(") - 10)
+          If InStr(sText, "(") Then TextHighlighter.Add(State.Function, RInStr(sText, "(") - 10)
           Break
 
         Else If sCar = "#" Then
@@ -246,8 +246,8 @@ Public Sub RunWith(sText As String, cKeyword As Collection, cOperator As Collect
           TextHighlighter.Add(State.Escape, 2)
           Inc iPos
           Else
-          TextHighlighter.Add(State.Escape, 1)
-          If sCar = "\"" Then Inc ipos
+          TextHighlighter.Add(State.Escape, 2)
+          If sCar = "\"" Or If sCar = "'" Then Inc ipos
           Endif
           'Inc iPos
           Continue

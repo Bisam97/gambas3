@@ -65,7 +65,7 @@ public:
 
 	void clear();
 	void resize(int width,int height);
-	int save(const char *path, int quality = -1);
+	int save(const char *path, int quality = -1, GdkPixbufSaveFunc func = NULL);
 	void fill(gColor col);
 	gPicture *copy(int x, int y, int w, int h);
 

@@ -34,7 +34,7 @@
 
 //#define DEBUG 1
 
-PUBLIC const char *READ_source_ptr;
+const char *READ_source_ptr;
 #define source_ptr READ_source_ptr
 
 static bool is_init = FALSE;
@@ -113,7 +113,7 @@ static bool _no_quote = FALSE;
 #define BUF_MAX 255
 static char _buffer[BUF_MAX + 1];
 
-PUBLIC char *READ_get_pattern(PATTERN *pattern)
+char *READ_get_pattern(PATTERN *pattern)
 {
 	int type = PATTERN_type(*pattern);
 	int index = PATTERN_index(*pattern);
@@ -177,7 +177,7 @@ PUBLIC char *READ_get_pattern(PATTERN *pattern)
 }
 
 #if DEBUG
-PUBLIC void READ_dump_pattern(PATTERN *pattern)
+void READ_dump_pattern(PATTERN *pattern)
 {
 	int type = PATTERN_type(*pattern);
 	int index = PATTERN_index(*pattern);
@@ -397,8 +397,8 @@ static void add_operator()
 
 	source_ptr = end;
 
-	if (EVAL->analyze && op == RS_QUES)
-		op = RS_PRINT;
+	/*if (EVAL->analyze && op == RS_QUES)
+		op = RS_PRINT;*/
 
 	if (op < 0)
 		THROW("Unknown operator");
@@ -623,7 +623,7 @@ static void add_spaces()
 }
 
 
-PUBLIC void EVAL_read(void)
+void EVAL_read(void)
 {
 	static const void *jump_char[12] =
 	{

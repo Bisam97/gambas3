@@ -87,8 +87,6 @@ Private Sub ReadProject()
         $sTitle = sVal
 
       Case "version"
-        iPos = InStr(sVal, " ")
-        If iPos Then sVal = Left(sVal, iPos - 1)
         $sVersion = sVal
         
       Case "description"
@@ -129,6 +127,11 @@ Private Sub ReadProject()
     End Select
   
   Next
+  
+  Try $sVersion = File.Load($sPath &/ ".version")
+  
+  iPos = InStr($sVersion, " ")
+  If iPos Then $sVersion = Left($sVersion, iPos - 1)
   
   $sBranch = VersionControl.GetBranchFromDir($sPath)
 

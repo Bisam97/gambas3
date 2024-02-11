@@ -98,11 +98,11 @@ Static Public Sub Load()
 
   If Not $hSettings Then
     $hSettings = New Settings("gambas3.recent")
+  Else
+    If Not IsOutOfDate(LastLoad) Then Return
+    $hSettings.Reload
   Endif
-
-  If Not IsOutOfDate(LastLoad) Then Return
   
-  $hSettings.Reload
   nRecent = $hSettings["/Recent/Count", 0]
   
   If nRecent = 0 Then

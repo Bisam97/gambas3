@@ -1,0 +1,553 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+
+<html>
+
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <link rel="stylesheet" href="/home/benoit/.local/share/gambas3/wiki/style.css">
+  <script type="text/javascript" src="/home/benoit/.local/share/gambas3/wiki/highlight.js"></script>
+  <title>Offline help</title>
+</head>
+
+<!-- comment -->
+
+<test attr="with &amp; an entity"></test>
+
+<body onload="highlight_check()">
+
+<script type="text/javascript">
+  for (i = 0; i < 10; i++)
+  {
+    console.log(`This is ${i * i}, the square of ${i}`);
+  }
+</script>
+
+<style type="text/css">.header { display: none; }.page { top: 0; }</style>
+
+<form name="form" method="post" enctype="multipart/form-data">
+
+<div class="header">
+  <div class="header-inside">
+    <div class="up">
+      <a href="wiki://"><img src="/home/benoit/.local/share/gambas3/wiki/up.png"></a>
+    </div>
+    <div class="title">
+      <a href="wiki://doc">/doc</a><a href="wiki://doc/object-model">/object-model</a>
+    </div>
+    <div class="login">
+      <br />
+    </div>
+  </div>
+</div>
+
+<style type="text/css">
+H1,H2,H3 {
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+}
+
+:focus { 
+  outline: none; 
+}
+
+::-moz-focus-inner { border: 0; }
+
+::placeholder {
+  color: #C0C0C0;
+  font-style: italic;
+  opacity: 1;
+}
+
+::-webkit-input-placeholder,::-moz-placeholder,::-ms-input-placeholder {
+  color: #C0C0C0 !important;
+  font-style: italic;
+  opacity: 1;
+}
+
+DIV.main {
+  position: absolute;
+  width: 100%;
+  top: 2rem;
+  bottom: 0;
+  border: none; /*solid 1px black;*/
+  overflow: auto;
+}
+</style>-->
+
+<div class="page">
+<h1>The Gambas Object Model</h1>
+<div class="index">
+<ul>
+  <li>
+<a href="#t1">1. Objects &amp; Classes</a>
+  <ul>
+    <li>
+<a href="#t2">1.1. Classes</a>
+<p></p></li>
+    <li>
+<a href="#t3">1.2. Properties, methods and variables</a>
+<p></p></li>
+    <li>
+<a href="#t4">1.3. References</a>
+<p></p></li>
+    <li>
+<a href="#t5">1.4. Invalid objects</a>
+<p></p></li>
+    <li>
+<a href="#t6">1.5. Special methods</a>
+<p></p></li>
+    </ul>
+<p></p></li>
+  <li>
+<a href="#t7">2. Events &amp; Observers</a>
+  <ul>
+    <li>
+<a href="#t8">2.1. Events</a>
+<p></p></li>
+    <li>
+<a href="#t9">2.2. Default parent object (or default default observer)</a>
+<p></p></li>
+    <li>
+<a href="#t10">2.3. Locking Objects</a>
+<p></p></li>
+    <li>
+<a href="#t11">2.4. Observers</a>
+<p></p></li>
+    </ul>
+<p></p></li>
+  <li>
+<a href="#t12">3. Inheritance</a>
+  <ul>
+    <li>
+<a href="#t13">3.1. What is inherited?</a>
+<p></p></li>
+    <li>
+<a href="#t14">3.2. Which class can be a parent class?</a>
+<p></p></li>
+    <li>
+<a href="#t15">3.3. Virtual dispatching</a>
+<p></p></li>
+    <li>
+<a href="#t16">3.4. Inheritance and constructor</a>
+<p></p></li>
+    <li>
+<a href="#t17">3.5. Symbol Overriding</a>
+<p></p></li>
+    </ul>
+<p></p></li>
+  <li>
+<a href="#t18">4. Components</a>
+  <ul>
+    <li>
+<a href="#t19">4.1. Default internal component</a>
+<p></p></li>
+    <li>
+<a href="#t20">4.2. Symbol tables</a>
+<p></p></li>
+    <li>
+<a href="#t21">4.3. Global symbol table</a>
+<p></p></li>
+    <li>
+<a href="#t22">4.4. Project symbol table</a>
+<p></p></li>
+    <li>
+<a href="#t23">4.5. Namespaces</a>
+<p></p></li>
+    </ul>
+<p></p></li>
+  </ul></div>
+
+<p></p>
+<h2><a id="t1"></a>1. Objects &amp; Classes</h2>
+An <strong>object</strong> in Gambas is a data structure that provides properties, variables, methods and events.
+<p></p>
+It is created or <em>instanciated</em> by using the <a href="wiki://lang/new">NEW</a> operator, a class describing the object (see 1.1), and optional arguments for the object constructor (see 1.5).
+<p></p>
+Objects are accessed "by reference", i.e. by using a pointer to it, or by using a variable whose value is the address of the object data structure in memory.
+<p></p>
+<div class="table tip">You can see the address of an object by using the <a href="wiki://lang/print">PRINT</a> instruction:
+<div class="table code gambas"><tt><span style="color:#000000;"><b>Dim</b>&nbsp;aStr&nbsp;<b>As</b>&nbsp;<b>New</b>&nbsp;<span style="color:#E67E22;"><b>String[]</b><br><br></span><span style=""><b>Print</b>&nbsp;aStr</span></tt>
+</div>
+<div class="table result"><div><pre><code>(String[] 0x80dccf8)
+</code></pre></div>
+</div>
+</div>
+<p></p>
+The object data structure is described by its <strong>class</strong>.
+<p></p>
+<h3><a id="t2"></a>1.1. Classes</h3>
+Each Gambas object has a <strong>class</strong> that describes all its public properties, methods and events.
+This class is a Gambas object too, whose class is the class named <a href="wiki://comp/gb/class">Class</a>.
+<p></p>
+A <strong>static class</strong> is a class whose all members are <strong>static</strong> (see below). In Gambas, a static class is also named a <strong>module</strong>.
+<p></p>
+A static class cannot be instantiated: it would create an object with no dynamic variable, which is useless.
+<p></p>
+<div class="table box"><strong>Example</strong>
+<p></p>
+The <a href="wiki://comp/gb.eval/system">System</a> class is a static class: all its methods are static, and you cannot create an object whose class would be <a href="wiki://comp/gb.eval/system">System</a>.
+</div>
+<p></p>
+A <strong>virtual</strong> class is an hidden pseudo-class that you cannot explicitly manipulate.
+<p></p>
+<h3><a id="t3"></a>1.2. Properties, methods and variables</h3>
+Properties and methods allow to manipulate the data structure.
+<p></p>
+A <a href="wiki://def/property">Property</a>, a <a href="wiki://def/method">Method</a> or a <a href="wiki://def/variable">Variable</a> can be <strong>static</strong>:
+<ul>
+  <li>
+A static variable will be shared by all instances of the same class.
+<p></p></li>
+  <li>
+A static property or method can only access or modify static variables.
+<p></p></li>
+  </ul>
+A method or a variable can be either <strong>public</strong> or <strong>private</strong>. A property is always public.
+<p></p>
+Private symbols can only be used from the class inside.
+Public symbols can be used everywhere, provided you have a reference pointing at the object.
+<p></p>
+<h3><a id="t4"></a>1.3. References</h3>
+There is no garbage collector in Gambas. So each object has a <strong>reference counter</strong> that is incremented each time the object is referenced by any variable, array, collection or other object, and decremented when it is released.
+<p></p>
+This reference counter is zero at object creation, and when it becomes zero again after a reference release, the object is freed.
+<p></p>
+If an object has created any other objects within itself that raise events (eg. timers, sockets, etc.), references to these other objects must be explicitly freed before the the reference to the object itself can be freed. This is because as soon an object A that raises events is created inside another object B, the object A internally references the object B as its "event observer". So B cannot be freed before the object A is freed.
+<p></p>
+<h3><a id="t5"></a>1.4. Invalid objects</h3>
+An object can become <strong>invalid</strong>. Because, for example, it is linked to an internal object not managed by Gambas that was destroyed.
+<p></p>
+Trying to use an invalid object raises an error.
+<p></p>
+<h3><a id="t6"></a>1.5. Special methods</h3>
+Special methods are methods declared in classes, whose name begins with an underscore character, and that are called by the interpreter in the following situations:
+<ul>
+  <li>
+When an object is created.
+<p></p></li>
+  <li>
+When an object is freed.
+<p></p></li>
+  <li>
+When the object class is loaded.
+<p></p></li>
+  <li>
+When the object class is unloaded.
+<p></p></li>
+  <li>
+When using an object as if it is an array.
+<p></p></li>
+  <li>
+When enumerating the object.
+<p></p></li>
+  <li>
+When using an object as if it is a function.
+<p></p></li>
+  <li>
+When an object is attached to or detached from its parent.
+<p></p></li>
+  <li>
+When trying to use an unknown object method or property.
+<p></p></li>
+  <li>
+To know if that unknown symbol is a method or a property.
+<p></p></li>
+  <li>
+When an object construction is finished, and is ready to be used.
+<p></p></li>
+  <li>
+When serializing an object to a stream.
+<p></p></li>
+  <li>
+When unserializing an object from a stream.
+<p></p></li>
+  </ul>
+See <a href="wiki://lang/special">Special Methods</a> and <a href="wiki://dev/api/cat/special" title="For component developers">Special Methods</a> for more information.
+<p></p>
+<h2><a id="t7"></a>2. Events &amp; Observers</h2>
+<h3><a id="t8"></a>2.1. Events</h3>
+Events are signals sent by an object when something happens on it.
+<p></p>
+If an object raises events, it will hold a reference on its <em>default observer</em>, or <em>parent object</em>.
+<p></p>
+This default observer is another object that implements <em>event handlers</em>. An <em><a href="wiki://def/eventhandler">event handler</a></em> is just a public method
+that is called each time the event is raised.
+<p></p>
+By default, the observer is the current object where the newly instantiated object is declared.
+<p></p>
+To raise events, an object <strong>must</strong> have an <em>event name</em>. This event name is assigned at object instantiation,
+when using the <a href="wiki://lang/new">NEW</a> instruction and the <a href="wiki://lang/as">AS</a> keyword, and is the prefix of all event handler methods.
+<p></p>
+<h4>Example</h4>
+This creates a <a href="wiki://comp/gb.qt4/button">Button</a> control that will raise events.
+<div class="table code gambas"><tt><span style="color:#000000;"><b>Dim</b>&nbsp;hButton&nbsp;<b>As</b>&nbsp;<span style="color:#E67E22;"><b>Button</b><br><br></span><span style="">hButton&nbsp;<b>=</b>&nbsp;<b>New</b>&nbsp;<span style="color:#E67E22;"><b>Button</b></span><span style=""><b>(</b><b>Me</b><b>)</b>&nbsp;<b>As</b>&nbsp;<span style="color:#7F0000;">&quot;ButtonEventName&quot;<br><br></span><span style=""><b>Public</b>&nbsp;<b>Sub</b>&nbsp;ButtonEventName_Click<b>()</b><br><br>&nbsp;&nbsp;<b>Print</b>&nbsp;<span style="color:#7F0000;">&quot;This&nbsp;is&nbsp;the&nbsp;&#x27;Click&#x27;&nbsp;event&nbsp;handler&nbsp;for&nbsp;the&nbsp;previous&nbsp;button.&quot;<br><br></span><span style=""><b>End</b></span></tt>
+</div>
+<p></p>
+If no event name is specified, then the object won't raise events.
+<p></p>
+Some events can be cancelled by the event handler, by using the <a href="wiki://lang/stopevent">STOP EVENT</a> instruction.
+The effect of this cancellation depends on the event. It usually at least stop the possible event propagation.
+<p></p>
+<h3><a id="t9"></a>2.2. Default parent object (or default default observer)</h3>
+Some objects can have a default parent object if you do not define it by specifying an event name with the <code style="white-space:nowrap;">As &quot;xxx&quot;</code> syntax.
+<p></p>
+At the moment, the only objects having a default parent object are <a href="wiki://comp/gb.qt4/form">forms</a>, which use themselves as default parent object.
+This was done to mimic the behaviour of Visual Basic&trade; and help old VB developers.
+<p></p>
+If you create a Form and specify its event name with the <code style="white-space:nowrap;">As &quot;xxx&quot;</code> syntax, that default behaviour will be overridden.
+<p></p>
+<h3><a id="t10"></a>2.3. Locking Objects</h3>
+An object can be locked so that it stops raising events, and can be unlocked so that it raises them again.
+See the <a href="wiki://comp/gb/object/lock">Object.Lock</a> and <a href="comp/gb/object/unlock">Object.Unlock</a> methods.
+<p></p>
+<div class="table warning">An object is automatically locked during the execution of its constructor: he cannot send nor receive any events.
+</div>
+<p></p>
+<h3><a id="t11"></a>2.4. Observers</h3>
+<a href="wiki://comp/gb/observer">Observers</a> are objects that allow you to intercept events raised by other objects. They "observe" them.
+<p></p>
+You can intercept events just before they have been raised, or just after.
+<p></p>
+For each intercepted event, the observer will raise an event with the same name and the same arguments.
+These events are raised in addition of the original event handled by the <em>parent object</em>.
+<p></p>
+If you use <a href="wiki://lang/stopevent">STOP EVENT</a> inside an observer event handler, the original event is cancelled.
+<p></p>
+<h4>Example</h4>
+<div class="table code gambas"><tt><span style="color:#000000;"><b>Private</b>&nbsp;$hButton&nbsp;<b>As</b>&nbsp;<span style="color:#E67E22;"><b>Button</b><br></span><span style=""><b>Private</b>&nbsp;$hObserver&nbsp;<b>As</b>&nbsp;<span style="color:#E67E22;"><b>Observer</b><br><br></span><span style=""><b>Public</b>&nbsp;<b>Sub</b>&nbsp;Form_Open<b>()</b><br><br>&nbsp;&nbsp;$hButton&nbsp;<b>=</b>&nbsp;<b>New</b>&nbsp;<span style="color:#E67E22;"><b>Button</b></span><span style=""><b>(</b><b>Me</b><b>)</b>&nbsp;<b>As</b>&nbsp;<span style="color:#7F0000;">&quot;Button&quot;<br></span><span style="">&nbsp;&nbsp;$hButton<b>.</b>Text&nbsp;<b>=</b>&nbsp;<span style="color:#7F0000;">&quot;&amp;Click&quot;<br></span><span style="">&nbsp;&nbsp;$hButton<b>.</b>Height&nbsp;<b>=</b>&nbsp;<span style="color:#E62222;">28<br></span><span style="">&nbsp;&nbsp;$hButton<b>.</b>Width&nbsp;<b>=</b>&nbsp;<span style="color:#E62222;">80<br></span><span style="">&nbsp;&nbsp;$hObserver&nbsp;<b>=</b>&nbsp;<b>New</b>&nbsp;<span style="color:#E67E22;"><b>Observer</b></span><span style=""><b>(</b>$hButton<b>)</b>&nbsp;<b>As</b>&nbsp;<span style="color:#7F0000;">&quot;Observer&quot;<br><br></span><span style=""><b>End</b><br><br><b>Public</b>&nbsp;<b>Sub</b>&nbsp;Observer_Click<b>()</b><br><br>&nbsp;&nbsp;<b>Debug</b>&nbsp;<span style="color:#7F0000;">&quot;The&nbsp;button&nbsp;has&nbsp;been&nbsp;clicked.&nbsp;I&nbsp;have&nbsp;cancelled&nbsp;the&nbsp;event!&quot;<br></span><span style="">&nbsp;&nbsp;<b>Stop</b>&nbsp;<b>Event</b><br><br><b>End</b><br>&nbsp;<br><b>Public</b>&nbsp;<b>Sub</b>&nbsp;Button_Click<b>()</b><br><br>&nbsp;&nbsp;<b>Debug</b>&nbsp;<span style="color:#7F0000;">&quot;If&nbsp;you&nbsp;see&nbsp;me&nbsp;this&nbsp;is&nbsp;a&nbsp;bug!&quot;<br><br></span><span style=""><b>End</b></span></tt>
+</div>
+<p></p>
+<h2><a id="t12"></a>3. Inheritance</h2>
+Inheritance is the way for a class to become a specialized version of another class.
+<p></p>
+<h3><a id="t13"></a>3.1. What is inherited?</h3>
+The class inherits from its parent every method, property, constant
+and event.
+<p></p>
+<div class="table warning">You must use the <a href="wiki://lang/me">ME</a> keyword to access the inherited elements from the class implementation code.
+</div>
+<p></p>
+<h3><a id="t14"></a>3.2. Which class can be a parent class?</h3>
+You can inherit any class, even a native one!
+<p></p>
+For example, you can create
+a custom MyListBox class that inherits <a href="wiki://comp/gb.qt4/listbox">ListBox</a>
+but allows to associate a tag with each list item.
+<p></p>
+Note that you cannot use <code style="white-space:nowrap;"><a href="wiki://lang/inherits">INHERITS</a></code> in a form class file, because forms already
+inherit the <a href="wiki://comp/gb.qt4/form">Form</a> class. It's the same constraint for every other types of forms, like <a href="wiki://comp/gb.report2/report">Report</a>, <a href="wiki://comp/gb.web.form/webform">WebForm</a>...
+<p></p>
+<div class="table warning">The inheritance tree depth cannot be greater than 16. This is a constant hard-coded inside the Gambas interpreter.
+</div>
+<p></p>
+<h3><a id="t15"></a>3.3. Virtual dispatching</h3>
+When calling a method or accessing a property from an object reference, Gambas always
+uses <strong>virtual dispatching</strong>.
+<p></p>
+It means that the real class of the object is always used, and
+not the type of the variable that references the object - as it was in Gambas 1.0.
+<p></p>
+<h3><a id="t16"></a>3.4. Inheritance and constructor</h3>
+Contrary to all the object language I know, each class in the inheritance
+hierarchy consumes the parameters passed to the constructor.
+<p></p>
+Let's suppose we have the following inheritance tree:
+<p></p>
+<div><pre><code>MyListBox ➞ ListBox ➞ Control
+</code></pre></div>
+<p></p>
+<ul>
+  <li>
+<a href="wiki://comp/gb.gtk/control">Control</a>._new() does not exist.
+<p></p></li>
+  <li>
+<a href="wiki://comp/gb.qt4/listbox">ListBox</a>._new() takes one parameter: the parent control.
+<p></p></li>
+  <li>
+MyListBox._new() takes one parameter: a name - It is just an example.
+<p></p></li>
+  </ul>
+So <code style="white-space:nowrap;"><a href="wiki://lang/new">NEW</a> MyListBox</code> will take two parameters.
+<p></p>
+<ul>
+  <li>
+The first will be sent to <a href="wiki://comp/gb.qt4/listbox">ListBox</a>._new().
+<p></p></li>
+  <li>
+The second to MyListBox._new().
+<p></p></li>
+  </ul>
+Be careful: the <a href="wiki://comp/gb.qt4/listbox">ListBox</a>._new() will be called first,
+so that you are sure that the <a href="wiki://comp/gb.qt4/listbox">ListBox</a> control exists
+when you are in MyListBox._new().
+<p></p>
+Then you will create a MyListBox control this way:
+<p></p>
+<div class="table code gambas"><tt><span style="color:#000000;">hMyListBox&nbsp;<b>=</b>&nbsp;<b>New</b>&nbsp;<span style="color:#E67E22;"><b>MyListBox</b></span><span style=""><b>(</b>hContainer<b>,</b>&nbsp;<span style="color:#7F0000;">&quot;Name&quot;</span><span style=""><b>)</b></span></tt>
+</div>
+<p></p>
+So the order of arguments is the following:
+<p></p>
+<ul>
+  <li>
+Mandatory arguments are consumed first, and then optional arguments if they are available.
+<p></p></li>
+  <li>
+The arguments of elder classes are specified first.
+<p></p></li>
+  </ul>
+<div class="table warning">In Gambas 2.0, the arguments order was reversed!
+</div>
+<p></p>
+For example, if you have the following inheritance:
+<p></p>
+<div><pre><code>MyForm ➞ Form ➞ Window
+</code></pre></div>
+<p></p>
+with the MyForm constructor being:
+<p></p>
+<div class="table code gambas"><tt><span style="color:#000000;"><b>Sub</b>&nbsp;_new<b>(</b>FirstArg&nbsp;<b>As</b>&nbsp;<span style="color:#E67E22;"><b>String</b></span><span style=""><b>,</b>&nbsp;SecondArg&nbsp;<b>As</b>&nbsp;<span style="color:#E67E22;"><b>Integer</b></span><span style=""><b>,</b>&nbsp;<b>Optional</b>&nbsp;ThirdArg&nbsp;<b>As</b>&nbsp;<span style="color:#E67E22;"><b>Integer</b></span><span style=""><b>)</b></span></tt>
+</div>
+<p></p>
+Note: the <a href="wiki://comp/gb.qt4/form">Form</a> constructor takes no argument, and the <a href="wiki://comp/gb.qt4/window">Window</a> constructor takes an
+optional parent argument.
+<p></p>
+The signature of the final constructor will be:
+<p></p>
+<div class="table code gambas"><tt><span style="color:#000000;"><b>New</b>&nbsp;<span style="color:#E67E22;"><b>MyForm</b></span><span style=""><b>(</b>FirstArg&nbsp;<b>As</b>&nbsp;<span style="color:#E67E22;"><b>String</b></span><span style=""><b>,</b>&nbsp;SecondArg&nbsp;<b>As</b>&nbsp;<span style="color:#E67E22;"><b>Integer</b></span><span style=""><b>,</b>&nbsp;<b>Optional</b>&nbsp;Parent&nbsp;<b>As</b>&nbsp;<span style="color:#E67E22;"><b>Control</b></span><span style=""><b>,</b>&nbsp;<b>Optional</b>&nbsp;ThirdArg&nbsp;<b>As</b>&nbsp;<span style="color:#E67E22;"><b>Integer</b></span><span style=""><b>)</b></span></tt>
+</div>
+<p></p>
+In a more general way, the order of arguments for a three level inheritance tree is:
+<p></p>
+<ul>
+  <li>
+Mandatory arguments of the grand-parent constructor.
+<p></p></li>
+  <li>
+Mandatory arguments of the parent constructor.
+<p></p></li>
+  <li>
+Mandatory arguments of the final constructor.
+<p></p></li>
+  <li>
+Optional arguments of the grand-parent constructor.
+<p></p></li>
+  <li>
+Optional arguments of the parent constructor.
+<p></p></li>
+  <li>
+Optional arguments of the final constructor.
+<p></p></li>
+  </ul>
+<h3><a id="t17"></a>3.5. Symbol Overriding</h3>
+The rules for symbol overriding are the following:
+<p></p>
+<ul>
+  <li>
+A dynamic symbol must be overridden by a dynamic symbol, a static one by a static one.
+<p></p></li>
+  <li>
+A method must be overridden by a method with exactly the same signature.
+<p></p></li>
+  <li>
+A read/write property must be overridden by a read/write property.
+<p></p></li>
+  <li>
+A read-only property must be overridden by a read-only property.
+<p></p></li>
+  <li>
+A constant can be overridden by another constant.
+<p></p></li>
+  <li>
+Variables cannot be inherited. <div class="since">Depuis la version&nbsp;3.12</div>
+<p></p></li>
+  </ul>
+Moreover, the signature of the symbol in the child class must be <em>compatible</em> with the signature of the symbol in the parent class.
+<ul>
+  <li>
+For properties and constants, it means that the child datatype must be compatible with the parent datatype.
+<p></p></li>
+  <li>
+For methods, it means that the child return datatype and arguments datatypes must be compatible with the parent return datatype and arguments datatypes.
+<p></p></li>
+  </ul>
+A child datatype is compatible with its parent datatype when either:
+<ul>
+  <li>
+They are exactly the same.
+<p></p></li>
+  <li>
+The parent datatype is <a href="wiki://lang/type/object">Object</a> and the child datatype is any class.
+<p></p></li>
+  <li>
+The parent datatype is a class, and the child datatype is another class that inherits the parent class.
+<p></p></li>
+  </ul>
+<h2><a id="t18"></a>4. Components</h2>
+Gambas component are external shared libraries written in C, C++ or in Gambas that add new functions and/or classes to the Gambas interpreter.
+<p></p>
+<a href="wiki://comp/gb/classes">Classes</a> are grouped according to the component they come from.
+<p></p>
+<h3><a id="t19"></a>4.1. Default internal component</h3>
+The interpreter includes an internal component named <a href="wiki://comp/gb">gb</a> that defines all standard classes of the language.
+<p></p>
+This component is always loaded by default, and can be considered as part of the language.
+<p></p>
+<h3><a id="t20"></a>4.2. Symbol tables</h3>
+Each component has its own private class symbol table, so that class names do not conflict.
+<p></p>
+<h3><a id="t21"></a>4.3. Global symbol table</h3>
+So that components can work together, there is a global symbol table, where all classes exported by components and all classes exported by the current project are stored.
+<p></p>
+If there is a name conflict in this global symbol table, the last loaded class overrides the
+previous loaded class with the same
+name, by using inheritance. In other words, the overriding class extends the overridden one.
+<p></p>
+This last feature can be used for:
+<ul>
+  <li>
+Extending an already declared class by adding new methods or properties to it. For example, the <code style="white-space:nowrap;"><a href="wiki://comp/gb.qt4">gb.qt4</a></code> <a href="wiki://comp/gb.qt4/application">Application</a> class reimplements the <code style="white-space:nowrap;"><a href="wiki://comp/gb/gb">gb</a></code> <a href="wiki://comp/gb/application">Application</a> class.
+<p></p></li>
+  <li>
+Overriding the methods of an already declared class. For example, the <code style="white-space:nowrap;"><a href="wiki://comp/gb.form.dialog">gb.form.dialog</a></code> component replaces most of the static methods of the <a href="wiki://comp/gb.qt4/dialog">Dialog</a> class.
+<p></p></li>
+  </ul>
+<h3><a id="t22"></a>4.4. Project symbol table</h3>
+Your project has its own private symbol, like any component, and can export any of its classes to the global symbol table
+by using the <a href="wiki://lang/export">EXPORT</a> keyword.
+<p></p>
+The project classes are loaded after all components. So your exported class can override any exported classes declared in any component.
+<p></p>
+<h3><a id="t23"></a>4.5. Namespaces</h3>
+<div class="since">Depuis la version&nbsp;3.17</div>
+<p></p>
+Namespaces allow to choose the name of a class when it is exported.
+<p></p>
+In that public name, it is now possible to insert a colon, where the part before the colon is the "namespace".
+<p></p>
+For the Gambas interpreter, namespaces are just a convention. It only deals with the full exported name of the class.
+<p></p>
+That feature allows to create a library without worrying about possible class name conflicts with other libraries.
+<p></p>
+See the documentation of <a href="wiki://lang/export">EXPORT</a> for more details.
+<p></p>
+<h3>See also</h3>
+<div class="table seealso"><ul>
+  <li>
+<a href="wiki://comp/gb/object">Object</a>
+<p></p></li>
+  <li>
+<a href="wiki://comp/gb/class">Class</a>
+<p></p></li>
+  <li>
+<a href="wiki://lang/export">EXPORT</a>
+<p></p></li>
+  </ul>
+</div>
+<p></p>
+
+</div>
+
+</form>
+</body>
+</html>

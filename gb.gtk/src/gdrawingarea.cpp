@@ -399,7 +399,7 @@ void gDrawingArea::setBackground(gColor color)
 }
 #endif
 
-long gDrawingArea::handle()
+uintptr_t gDrawingArea::handle()
 {
 	if (!_own_window)
 	{

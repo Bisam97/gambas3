@@ -67,7 +67,7 @@ Private Sub Value_Write(Value As Boolean)
   If $bChecked = Value Then Return
   $bChecked = Value
   If Me._CanRefresh() Then
-    WebForm._AddJavascript("$_(" & JS(Me.Name & ":input") & ").checked = " & JS($bChecked) & ";")
+    Me._AddRefresh("$_(" & JS(Me.Name & ":input") & ").checked = " & JS($bChecked) & ";")
   Endif
   Raise Click
 

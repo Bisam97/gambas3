@@ -424,6 +424,12 @@ void gMenu::update()
 		
 		//setColor();
 		setFont();
+
+		if (_disabled)
+		{
+			gtk_widget_set_sensitive(GTK_WIDGET(menu), FALSE);
+			updateShortcutRecursive();
+		}
 	}
 
 	//g_debug("%p: END UPDATE", this);	
@@ -663,7 +669,7 @@ bool gMenu::isFullyEnabled() const
 		if (menu->_exec)
 			return true;
 
-		if (!menu->isEnabled())
+		if (!menu->isEnabled() || !menu->isVisible())
 			return false;
 
 		if (menu->isTopLevel())
@@ -688,7 +694,7 @@ void gMenu::updateShortcut()
 		_shortcut_key = 0;
 	}
 	
-	if (isFullyEnabled() && _shortcut)
+	if (isVisible() && isFullyEnabled() && _shortcut)
 	{
 		gt_shortcut_parse(_shortcut, &_shortcut_key, &_shortcut_mods);
 		if (_shortcut_key)
@@ -704,8 +710,8 @@ void gMenu::updateShortcutRecursive()
 	gMenu *ch;
 	int i;
 	
-	if (_exec)
-		return;
+	/*if (_exec)
+		return;*/
 
 	updateShortcut();
 
@@ -729,7 +735,7 @@ void gMenu::setText(const char *text)
 	update();
 }
 
-bool gMenu::isVisible()
+bool gMenu::isVisible() const
 {
 	if (!menu) return false;
 	return _visible;	
@@ -745,6 +751,7 @@ void gMenu::updateVisible()
 	//fprintf(stderr, "gMenu::updateVisible: %s '%s' %d\n", name(), text(), vl);
 	
 	gtk_widget_set_visible(GTK_WIDGET(menu), vl);
+	updateShortcutRecursive();
 	//g_object_set(G_OBJECT(menu),"visible",vl,(void *)NULL);
 	
 	if (_toplevel && pr)
@@ -837,7 +844,7 @@ static void position_menu(GtkMenu *menu, gint *x, gint *y, gboolean *push_in, Me
 }
 #endif
 
-void gMenu::doPopup(bool move, int x, int y)
+void gMenu::doPopup(bool move, int x, int y, gControl *ref)
 {
 	if (!_popup)
 		return;
@@ -851,7 +858,8 @@ void gMenu::doPopup(bool move, int x, int y)
 	_in_popup++;
 	_popup_count++;
 	_exec = true;
-	
+	updateShortcutRecursive();
+
 #if GTK_CHECK_VERSION(3, 22, 0)
 
 	GdkWindow *win;
@@ -873,7 +881,7 @@ void gMenu::doPopup(bool move, int x, int y)
 	else
 	{
 		event->button.button = 1;
-		event->button.window = gtk_widget_get_window(window()->border);
+		event->button.window = ref ? gtk_widget_get_window(ref->window()->border) : gtk_widget_get_window(window()->border);
 	}
 	
 	gdk_event_set_device(event, gMouse::getPointer());
@@ -920,6 +928,7 @@ void gMenu::doPopup(bool move, int x, int y)
 		MAIN_do_iteration(false);
 
 	_exec = false;
+	updateShortcutRecursive();
 
 	_current_popup = save_current_popup;
 	gApplication::_popup_grab = save_grab;
@@ -938,9 +947,9 @@ void gMenu::doPopup(bool move, int x, int y)
 		MAIN_do_iteration(false);
 }
 
-void gMenu::popup(int x, int y)
+void gMenu::popup(int x, int y, gControl *ref)
 {
-	doPopup(true, x, y);
+	doPopup(true, x, y, ref);
 }
 
 void gMenu::popup()

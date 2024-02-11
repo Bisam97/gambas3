@@ -417,7 +417,7 @@ Public Sub cmbSize_Click()
 
 End
 
-Public Sub OpenMenu(hToolbar As ToolBar)
+Public Sub OpenMenu(hToolbar As ToolBar, bOnlySize As Boolean)
   
   If $hForm Then Return
   If Not hToolbar.Key Then Return
@@ -430,6 +430,7 @@ Public Sub OpenMenu(hToolbar As ToolBar)
   mnuMediumSize.Checked = False
   mnuLargeSize.Checked = False
   mnuHugeSize.Checked = False
+  mnuDefaultSize.Checked = False
 
   Select Case GetForm(hToolbar).GetIconSize()
     Case FToolBar.ICON_HUGE
@@ -440,11 +441,17 @@ Public Sub OpenMenu(hToolbar As ToolBar)
       mnuMediumSize.Checked = True
     Case FToolBar.ICON_TINY
       mnuVerySmallSize.Checked = True
-    Case Else
+    Case FToolBar.ICON_SMALL
       mnuSmallSize.Checked = True
+    Case Else
+      mnuDefaultSize.Checked = True
   End Select
   
-  mnuToolbar.Popup
+  If bOnlySize Then
+    mnuIconSize.Popup
+  Else
+    mnuToolbar.Popup
+  Endif
   
   'If Not Me.Visible Then SetCurrentToolbar(Null)
   
@@ -504,3 +511,9 @@ Public Sub timDeleteLater_Timer()
   
 End
 
+
+Public Sub mnuDefaultSize_Click()
+
+  GetForm($hPopupToolbar).SetIconSize(FToolBar.ICON_DEFAULT)
+
+End

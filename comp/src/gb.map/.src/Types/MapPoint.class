@@ -209,3 +209,76 @@ Static Public Function GetCenter(hPoints As MapPoint[]) As MapPoint
 Catch
 
 End
+
+''Get string representation in decimal of a mappoint. 
+Static Public Sub ToString(hMp As MapPoint) As String
+  
+  Return CStr(hMp.Lat) & ", " & CStr(hMp.Lon)
+  
+End
+
+
+''Get a MapPoint from a string representation in decimal.
+Static Public Sub FromString(sMp As String) As MapPoint
+
+  Dim a As String[] = Scan(sMp, "*,*")
+  
+  'if not able to get the values then return null
+  If IsNull(a) Then Return 
+  
+  'if not 2 value then return null
+  If a.Count < 2 Then Return 
+  
+  'Try to convert str to float values
+  Try Return MapPoint(CFloat(a[0]), CFloat(a[1]))
+  
+End
+
+Static Public Sub ArrayFromString(sValue As String) As MapPoint[]
+
+  Dim aMP As New MapPoint[]
+  Dim aLine As String[]
+  Dim s As String
+  
+  If sValue = "" Then Return
+  sValue = Replace(Trim(sValue), " ", "\n")
+
+  For Each s In Split(sValue, "\n")
+    If Not s Then Continue 
+    aLine = Split(s)
+    aMP.Add(MapPoint(aLine[0], aLine[1]))
+  Next
+
+  Return aMp
+
+End
+
+Static Public Sub ArrayToString(aMapPoint As MapPoint[]) As String
+
+  Dim sRet As String
+  Dim mp As MapPoint
+
+  For Each mp In aMapPoint
+    sRet &= mp.Lat & "," & mp.Lon & "\n"
+  Next
+
+  Return Left(sRet, -1)
+
+End
+
+Public Sub Swap()
+
+   Swap Me.Lat, Me.Lon
+
+End
+
+Static Public Sub SwapAll(aMP As MapPoint[])
+  
+  Dim mp As MapPoint
+  
+  For Each mp In aMP
+    Swap mp.Lat, mp.Lon
+  Next
+  
+End
+

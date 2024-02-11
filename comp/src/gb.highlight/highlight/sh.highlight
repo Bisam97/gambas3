@@ -1,0 +1,50 @@
+@include _number.regexp
+
+escape{Normal}:
+  match /\\./
+shebang{Shebang=Preprocessor}:
+  from /^#!/
+comment:
+  from /^#/
+  from /#\s/
+number:
+  match /$(NUMBER)/
+  match /$(NUMBER_HEXA)/
+string.simple{String}:
+  from ' to '
+  escape:
+    match /\\./
+string.double{String}:
+  from " to "
+  escape:
+    match /\\[$`'"\\]/
+  expansion{Expansion=Datatype}:
+    match /\$[A-Za-z0-9_]+/
+  expansion.brace{Expansion}:
+    from ${ to } with sh
+  command{Expansion}:
+    from ` to ` with sh
+string.ansi{String}:
+  from $' to '
+  escape:
+    match /\\[abeEfnrtv\\'"?]/
+    match /\\[0-7]{3}/
+    match /\\x[0-9a-fA-F]{2}/
+    match /\\u[0-9a-fA-F]{4}/
+    match /\\u[0-9a-fA-F]{8}/
+    match /\\c[a-zA-Z]/
+expansion{Expansion}:
+  match /\$[A-Za-z0-9_]+/
+expansion.brace{Expansion}:
+  from ${ to } with sh
+command{Expansion}:
+  from ` to ` with sh
+keyword:
+  keyword function do else test for to in fi if elif then return exit while until done break continue select case esac
+operator:
+  symbol -gt -lt -ge -ne -le -eq
+  symbol { } $ # [ ] <<< . + << = >> == - ~ += ( , != * -= &= ;; ) < % & ]; @ ! ; > | ? ^ : <= /
+function{Command=Function}:
+ keyword echo read cd which rm cp mv rmdir cat grep awk tr sed sleep clear sudo su source eval export time date pwd set unset chown chmod exec alias unalias bg bind builtin caller command compgen complete compopt declare dirs disown enable fc fg getopts hash help history jobs kill let local logout mapfile popd printf pushd readarray readonly shift shopt suspend test times trap type typeset ulimit umask wait
+symbol:
+  match /[A-Za-z_][A-Za-z_0-9]*/

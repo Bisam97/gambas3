@@ -106,9 +106,9 @@ typedef
 typedef
 	struct {
 		TYPE type;
-		char n_param;
-		char npmin;
-		char vararg;
+		uchar n_param;
+		uchar npmin;
+		uchar vararg;
 		unsigned fast : 1;
 		unsigned unsafe : 1;
 		unsigned fast_linked : 1;
@@ -116,8 +116,10 @@ typedef
 		unsigned use_is_missing : 1;
 		unsigned is_static : 1;
 		unsigned _reserved : 2;
-		short n_local;
-		short n_ctrl;
+		uchar n_local;
+		uchar n_ctrl;
+		uchar n_label; // Number of label for indirect jumps
+		uchar _reserved2;
 		short stack_usage;
 		short error;
 		unsigned short *code;
@@ -135,9 +137,11 @@ typedef
 		char npmin;
 		char vararg;
 		unsigned char flag;
+		short n_local;
+		short n_ctrl;
 		}
 	PACKED
-	FUNCTION_FLAG;
+	FUNCTION_LOAD;
 
 typedef
 	struct {
@@ -298,7 +302,7 @@ typedef
 		unsigned is_simple : 1;           //          Class has no parent, no child, is not virtual, and has no 'check' function.
 		unsigned has_free : 1;            //          The class has a free function
 		unsigned is_test : 1;             //          The class is a test module
-		unsigned not_3_18 : 1;            //  24  36  If bytecode version is strictly older than 3.18
+		unsigned less_than_3_18 : 1;      //  24  36  If bytecode version is strictly older than 3.18
 
 		short n_desc;                     //  26  38  number of descriptions
 		short n_event;                    //  28  40  number of events
@@ -323,23 +327,24 @@ typedef
 		uint size_stat;                   //  68 116  static class size
 		uint size;                        //  72 120  dynamic class size
 		uint off_event;                   //  76 124  offset of OBJECT_EVENT structure in the object
-		#ifdef OS_64BITS
-		uint _reserved2;                  //     128
-		#endif
 
-		short special[16];                // 108 160  special functions index (_new, _free, ...)
+		unsigned new_method : 1;          //          if there is a special method to call when creating a new instance
+		unsigned ready_method : 1;        //          if there is a ready method to call
+		unsigned _reserved2 : 30;         //  80 128
 
-		TYPE array_type;                  // 112 168  datatype of the contents if this class is an array class of objects
-		struct _CLASS *array_class;       // 116 176  array of class
-		struct _CLASS *astruct_class;     // 120 184  array of struct class
+		short special[16];                // 112 160  special functions index (_new, _free, ...)
 
-		void *instance;                   // 124 192  automatically created instance
-		void **operators;                 // 128 200  arithmetic interface
-		bool (*convert)();                // 132 208  convert method
+		TYPE array_type;                  // 116 168  datatype of the contents if this class is an array class of objects
+		struct _CLASS *array_class;       // 120 176  array of class
+		struct _CLASS *astruct_class;     // 124 184  array of struct class
 
-		COMPONENT *component;             // 136 216  The component the class belongs to
+		void *instance;                   // 128 192  automatically created instance
+		void **operators;                 // 132 200  arithmetic interface
+		bool (*convert)();                // 136 208  convert method
 
-		struct _CLASS *next;              // 140 224  next class
+		COMPONENT *component;             // 140 216  The component the class belongs to
+
+		struct _CLASS *next;              // 148 224  next class
 		}
 	CLASS;
 
@@ -486,7 +491,7 @@ CLASS *CLASS_find_do(const char *name, bool global);
 
 TABLE *CLASS_get_table(void);
 
-bool CLASS_inherits(CLASS *class, CLASS *parent);
+bool CLASS_inherits(const CLASS *class, const CLASS *parent);
 
 CLASS *CLASS_replace_global(const char *name);
 CLASS *CLASS_check_global(CLASS *class);
@@ -531,7 +536,7 @@ void CLASS_translation_must_be_reloaded(void);
 /* class_init.c */
 
 void CLASS_init_native(void);
-void CLASS_update_global(CLASS *old_class, CLASS *new_class);
+void CLASS_update_global(const CLASS *old_class, CLASS *new_class);
 
 /* class_load.c */
 

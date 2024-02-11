@@ -199,7 +199,7 @@ Public Sub Run(aCmd As String[], Optional bIdent As Boolean, Optional bOutput As
   Insert(sCmd & "\n")
 
   Do
-    Wait
+    Wait Next
     
     If $bEnd Then Break
     
@@ -211,7 +211,7 @@ Public Sub Run(aCmd As String[], Optional bIdent As Boolean, Optional bOutput As
       Break
     Endif
     
-    Sleep 0.1
+    'Sleep 0.02
   Loop
   
   If $bCancel Then Return -1
@@ -539,9 +539,9 @@ Public Sub History(Optional sPath As String, sPath2 As String, bFull As Boolean)
 
 End
 
-Public Sub HighlightHistory(sText As String)
+Public Sub InitHistory(hEditor As TextEditor)
   
-  $hVC.HighlightHistory(sText)
+  $hVC.InitHistory(hEditor)
   
 End
 
@@ -601,6 +601,7 @@ Public Sub ControlProject(sType As String)
   If Not bErr Then
     Refresh
     Project.Refresh
+    FMain.OnProjectChange
     FVersionControl.Run()
   Else
     ShowError(("The project could not be put under version control."))
@@ -684,11 +685,22 @@ Private Function DoNotPush_Read() As Boolean
 
 End
 
+Public Sub RevertNotImportantFiles()
+
+  Dim sFile As String
+
+  For Each sFile In [".icon.png", ".gitignore", ".version", ".app.png"]
+    $hVC.Revert(Project.Dir &/ sFile)
+  Next
+
+End
+
 Public Sub SetBranch(sBranch As String)
 
   Dim sCurrent As String
 
-  Inc Application.Busy  
+  Inc Application.Busy
+  RevertNotImportantFiles()
   $hVC.SetBranch(sBranch)
   $sCurrentBranch = ""
   sCurrent = GetCurrentBranch()
@@ -861,60 +873,61 @@ Private Function HasIdentity_Read() As Boolean
 
 End
 
-Public Sub FillBranchMenu(hParent As Menu, Optional hMenuButton As MenuButton)
-  
-  Dim sCurrent As String
-  Dim aBranches As String[]
-  Dim sBranch As String
-  Dim hMenu As Menu
-  
-  aBranches = GetBranches(ByRef sCurrent)
-  
-  If Not sCurrent Then
-    If hMenuButton Then
-      hMenuButton.Hide
-    Else 
-      hParent.Hide
-    Endif
-  Else
-    If hMenuButton Then
-      hMenuButton.Show
-      hMenuButton.Text = sCurrent
-    Else
-      hParent.Show
-    Endif
-    hParent.Children.Clear
-    
-    For Each sBranch In aBranches
-      hMenu = New Menu(hParent) As "mnuVcBranchSet"
-      hMenu.Text = sBranch
-      hMenu.Tag = sBranch
-      hMenu.Radio = True
-      hMenu.Checked = sBranch = sCurrent
-    Next
-    
-    If VersionControl.CanCreateBranch Then
-      
-      hMenu = New Menu(hParent)
-      
-      hMenu = New Menu(hParent) As "mnuVcBranchCreate"
-      hMenu.Text = Subst(("Create new branch") & "...", sCurrent)
-      hMenu.Picture = Picture["icon:/small/new-tag"]
-      
-    Endif
-    
-  Endif
-  
-End
+' Public Sub FillBranchMenu(hParent As Menu, Optional hMenuButton As MenuButton)
+'   
+'   Dim sCurrent As String
+'   Dim aBranches As String[]
+'   Dim sBranch As String
+'   Dim hMenu As Menu
+'   
+'   aBranches = GetBranches(ByRef sCurrent)
+'   
+'   If Not sCurrent Then
+'     If hMenuButton Then
+'       hMenuButton.Hide
+'     Else 
+'       hParent.Hide
+'     Endif
+'   Else
+'     If hMenuButton Then
+'       hMenuButton.Show
+'       hMenuButton.Text = sCurrent
+'     Else
+'       hParent.Show
+'     Endif
+'     hParent.Children.Clear
+'     
+'     For Each sBranch In aBranches
+'       hMenu = New Menu(hParent) As "mnuVcBranchSet"
+'       hMenu.Text = sBranch
+'       hMenu.Tag = sBranch
+'       hMenu.Radio = True
+'       hMenu.Checked = sBranch = sCurrent
+'     Next
+'     
+'     If VersionControl.CanCreateBranch Then
+'       
+'       hMenu = New Menu(hParent)
+'       
+'       hMenu = New Menu(hParent) As "mnuVcBranchCreate"
+'       hMenu.Text = Subst(("Create new branch") & "...", sCurrent)
+'       hMenu.Picture = Picture["icon:/small/new-tag"]
+'       
+'     Endif
+'     
+'   Endif
+'   
+' End
+' 
+' Public Sub mnuVcBranchSet_Click()
+'   
+'   VersionControl.SetBranch(Last.Tag)
+'   
+' End
 
-Public Sub mnuVcBranchSet_Click()
+Public Sub AddBranch()
   
-  VersionControl.SetBranch(Last.Tag)
-  
-End
-
-Public Sub mnuVcBranchCreate_Click()
-  
+  If Not VersionControl.CanCreateBranch Then Return
   If FCreateBranch.Run() Then Return
   Refresh()
   

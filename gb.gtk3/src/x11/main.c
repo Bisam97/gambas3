@@ -53,7 +53,7 @@ static GtkWidget *platform_create_plug(Window id)
 
 //-------------------------------------------------------------------------
 
-static long window_get_id(GdkWindow *window)
+static uintptr_t window_get_id(GdkWindow *window)
 {
 	return window ? GDK_WINDOW_XID(window) : 0;
 }

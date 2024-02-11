@@ -28,6 +28,7 @@
 #define E_IOBJECT   29
 #define E_SARRAY    65
 #define E_UTYPE     71
+#define E_JUMP      78
 
 static inline double frac(double x)
 {
@@ -361,7 +362,7 @@ enum
 #define GET_S(_ref, _addr, _type) GET_OBJECT(JIT.static_struct((_ref), (_type), (_addr)), _type)
 #define GET_A(_class, _ref, _addr, _type, _desc) ({ \
   SP = sp; \
-  GET_OBJECT(JIT.static_array((_class), (_ref), (void *)(_desc), (_addr)), _type); \
+  GET_OBJECT(JIT.static_array((void *)(_class), (_ref), (GB_CLASS)(_desc), (char *)(_addr)), _type); \
 })
 
 #define SET_b(_addr, _val) (GET_b(_addr) = ((_val) ? -1 : 0))
@@ -453,10 +454,10 @@ enum
 #define GET_NULL_d() ({ GB_DATE temp; temp.type = GB_T_DATE; temp.value.date = 0; temp.value.time = 0; temp; })
 #define GET_NULL_p() ((intptr_t)0)
 
-#define PUSH_GOSUB(_label) ({ \
+#define PUSH_GOSUB(_addr) ({ \
   GB_VALUE_GOSUB *_p = (GB_VALUE_GOSUB *)sp; \
   _p->type = GB_T_VOID; \
-  _p->addr = &&_label; \
+  _p->addr = _addr; \
   _p->gp = gp; \
   gp = _p; \
   sp++; \
@@ -645,15 +646,27 @@ enum
   } \
   temp; })
 
+#define SUBR_ASC(_str, _pos) ({ \
+  GB_STRING temp =  (_str); \
+  int pos = (_pos) - 1; \
+  int code; \
+  if (pos < 0 || pos >= (_str).value.len) \
+    code = 0; \
+  else \
+    code = (_str).value.addr[(_str).value.start + pos]; \
+  code; })
+
 #define MATH_ADD_UNSAFE(_ctype, _expr1, _expr2) ({_ctype _a = (_expr1); _ctype _b = (_expr2); _a + _b;})
 #define MATH_SUB_UNSAFE(_ctype, _expr1, _expr2) ({_ctype _a = (_expr1); _ctype _b = (_expr2); _a - _b;})
 #define MATH_MUL_UNSAFE(_ctype, _expr1, _expr2) ({_ctype _a = (_expr1); _ctype _b = (_expr2); _a * _b;})
+#define MATH_CONV_UNSAFE(_ctype, _expr) ((_ctype)(_expr))
 
 #if DO_NOT_CHECK_OVERFLOW
 
 #define MATH_ADD MATH_ADD_UNSAFE
 #define MATH_SUB MATH_SUB_UNSAFE
 #define MATH_MUL MATH_MUL_UNSAFE
+#define MATH_CONV MATH_CONV_UNSAFE
 
 #else
 

@@ -30,6 +30,7 @@
 #include "CPicture.h"
 #include "CMenu.h"
 #include "CDraw.h"
+#include "CImage.h"
 #include "gapplication.h"
 
 typedef
@@ -71,25 +72,25 @@ void CWINDOW_check_main_window(CWINDOW *win)
 
 void CB_window_open(gMainWindow *sender)
 {
-	CWIDGET *_object = GetObject(sender);
+	CB_GET_OBJECT(sender);
 	GB.Raise(THIS, EVENT_Open, 0);
 }
 
 void CB_window_font(gMainWindow *sender)
 {
-	CWIDGET *_object = GetObject(sender);
+	CB_GET_OBJECT(sender);
 	GB.Raise(THIS, EVENT_Font, 0);
 }
 
 void CB_window_state(gMainWindow *sender)
 {
-	CWIDGET *_object = GetObject(sender);
+	CB_GET_OBJECT(sender);
 	GB.Raise(THIS, EVENT_State, 0);
 }
 
 void CB_window_show(gMainWindow *sender)
 {
-	CWIDGET *_object = GetObject(sender);
+	CB_GET_OBJECT(sender);
 
 	GB.Ref(THIS);
 	GB.Raise(THIS, EVENT_Show, 0);
@@ -100,7 +101,7 @@ void CB_window_show(gMainWindow *sender)
 
 void CB_window_hide(gMainWindow *sender)
 {
-	CWIDGET *_object = GetObject(sender);
+	CB_GET_OBJECT(sender);
 
 	GB.Ref(THIS);
 	GB.Raise(THIS, EVENT_Hide, 0);
@@ -111,13 +112,13 @@ void CB_window_hide(gMainWindow *sender)
 
 void CB_window_move(gMainWindow *sender)
 {
-	CWIDGET *_object = GetObject(sender);
+	CB_GET_OBJECT(sender);
 	GB.Raise(THIS, EVENT_Move, 0);
 }
 
 void CB_window_resize(gMainWindow *sender)
 {
-	CWIDGET *_object = GetObject(sender);
+	CB_GET_OBJECT(sender);
 	GB.Raise(THIS, EVENT_Resize, 0);
 }
 
@@ -168,7 +169,7 @@ bool CWINDOW_must_quit()
 
 bool CB_window_close(gMainWindow *sender)
 {
-	CWINDOW *_object = (CWINDOW*)GetObject(sender);
+	CB_GET_OBJECT_RETURN(sender, false);
 
 	if (!THIS)
 		return false;
@@ -204,6 +205,8 @@ gMainWindow *CB_window_activate(gControl *control)
 {
 	gMainWindow *active;
 	CWINDOW *active_ob;
+
+	// TODO: Take lock() into account?
 
 	/*if (!control)
 		fprintf(stderr, "CB_window_activate: NULL\n");
@@ -279,6 +282,8 @@ static void show_later(CWINDOW *_object)
 
 BEGIN_METHOD(CWINDOW_new, GB_OBJECT parent)
 
+	static bool app_icon = false;
+
 	gMainWindow *win;
 	GB_CLASS CLASS_container;
 	gContainer *parent = NULL;
@@ -324,6 +329,12 @@ BEGIN_METHOD(CWINDOW_new, GB_OBJECT parent)
 	{
 		GB.Ref(THIS);
 		GB.Post((void (*)())show_later, (intptr_t)THIS);
+	}
+
+	if (!app_icon)
+	{
+		app_icon = true;
+		CIMAGE_set_default_window_icon();
 	}
 
 END_METHOD
@@ -422,6 +433,26 @@ BEGIN_METHOD(Window_ShowPopup, GB_INTEGER x; GB_INTEGER y)
 	GB.ReturnInteger(THIS->ret);
 
 END_METHOD
+
+
+#if 0
+BEGIN_METHOD(Window_ShowPopupAt, GB_OBJECT control; GB_INTEGER pos; GB_INTEGER align)
+
+	static GB_FUNCTION func;
+
+	if (!GB_FUNCTION_IS_VALID(&func))
+		GB.GetFunction(&func, (void *)GB.FindClass("_Gui"), "_ShowPopupAt", NULL, NULL);
+
+	GB.Push(4,
+		GB_T_OBJECT, THIS,
+		GB_T_OBJECT, VARG(control),
+		GB_T_INTEGER, VARGOPT(pos, ALIGN_BOTTOM),
+		GB_T_INTEGER, VARGOPT(align, ALIGN_NORMAL));
+
+	GB.Call(&func, 4, FALSE);
+
+END_METHOD
+#endif
 
 
 BEGIN_METHOD_VOID(CWINDOW_show)
@@ -810,6 +841,30 @@ BEGIN_PROPERTY(Window_MinHeight)
 
 END_PROPERTY
 
+BEGIN_PROPERTY(Window_Geometry)
+
+	GEOM_RECT *rect = GEOM.CreateRect();
+
+	if (WINDOW->isTopLevel())
+	{
+		rect->x = WINDOW->_sx;
+		rect->y = WINDOW->_sy;
+		rect->w = WINDOW->_sw;
+		rect->h = WINDOW->_sh;
+	}
+	else
+	{
+		rect->x = WINDOW->bufX;
+		rect->y = WINDOW->bufY;
+		rect->w = WINDOW->bufW;
+		rect->h = WINDOW->bufH;
+	}
+
+	GB.ReturnObject(rect);
+
+END_PROPERTY
+
+
 //-------------------------------------------------------------------------
 
 BEGIN_METHOD_VOID(Form_new)
@@ -893,6 +948,7 @@ GB_DESC CWindowDesc[] =
 	GB_METHOD("ShowModal", "i", CWINDOW_show_modal, NULL),
 	GB_METHOD("ShowDialog", "i", CWINDOW_show_modal, NULL),
 	GB_METHOD("ShowPopup", "i", Window_ShowPopup, "[(X)i(Y)i]"),
+	//GB_METHOD("ShowPopupAt", "i", Window_ShowPopupAt, "(Control)Control;[(Position)i(Alignment)i]"),
 	GB_METHOD("Center", NULL, CWINDOW_center, NULL),
 	GB_METHOD("Activate", NULL, Window_Activate, NULL),
 
@@ -933,6 +989,7 @@ GB_DESC CWindowDesc[] =
 	GB_PROPERTY("Picture", "Picture", CWINDOW_picture),
 
 	GB_PROPERTY_READ("Screen", "i", Window_Screen),
+	GB_PROPERTY_READ("Geometry", "Rect", Window_Geometry),
 
 	GB_PROPERTY_SELF("Menus", ".Window.Menus"),
 	GB_PROPERTY_SELF("Controls", ".Window.Controls"),

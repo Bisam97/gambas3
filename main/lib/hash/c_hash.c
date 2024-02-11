@@ -59,6 +59,12 @@ BEGIN_METHOD(Hash_Sha512, GB_STRING data)
 
 END_METHOD
 
+BEGIN_METHOD(Hash_Crc32, GB_STRING data)
+
+	do_hash(HASH_CRC32, STRING(data), LENGTH(data));
+
+END_METHOD
+
 //-------------------------------------------------------------------------
 
 GB_DESC HashDesc[] =
@@ -69,6 +75,7 @@ GB_DESC HashDesc[] =
 	GB_STATIC_METHOD("Sha1", "s", Hash_Sha1, "(Data)s"),
 	GB_STATIC_METHOD("Sha256", "s", Hash_Sha256, "(Data)s"),
 	GB_STATIC_METHOD("Sha512", "s", Hash_Sha512, "(Data)s"),
+	GB_STATIC_METHOD("Crc32", "s", Hash_Crc32, "(Data)s"),
 
 	GB_END_DECLARE
 };

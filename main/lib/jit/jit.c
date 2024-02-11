@@ -525,10 +525,14 @@ void JIT_panic(const char *fmt, ...)
 
 int JIT_get_code_size(FUNCTION *func)
 {
-	void *code = func->code;
+	ushort *code = func->code;
+
+	if (func->n_label)
+		code -= func->n_label + 1;
+
 	int size = ((int *)code)[-1] / sizeof(ushort);
 	
-	if (func->code[size - 1] == 0)
+	if (code[size - 1] == 0)
 		size--;
 
 	return size;

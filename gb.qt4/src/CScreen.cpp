@@ -248,7 +248,7 @@ BEGIN_PROPERTY(Application_Busy)
 
 		screen_busy = busy;
 		if (MAIN_debug_busy)
-			qDebug("%s: Application.Busy = %d", GB.Debug.GetCurrentPosition(), busy);
+			fprintf(stderr, QT_NAME ": %s: Application.Busy = %d\n", GB.Debug.GetCurrentPosition(), busy);
 	}
 
 END_PROPERTY
@@ -337,7 +337,7 @@ BEGIN_PROPERTY(Application_Embedder)
 	if (READ_PROPERTY)
 		GB.ReturnInteger(0);
 	else
-		GB.Deprecated("gb.qt5", "Application.Embedder", NULL);
+		GB.Deprecated(QT_NAME, "Application.Embedder", NULL);
 #else
 	if (READ_PROPERTY)
 		GB.ReturnInteger(CWINDOW_Embedder);
@@ -512,6 +512,7 @@ BEGIN_PROPERTY(Screen_ResolutionY)
 #endif
 
 END_PROPERTY
+
 
 //-------------------------------------------------------------------------
 

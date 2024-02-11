@@ -9,6 +9,11 @@ Property Resizable As Boolean
 Property Height, H As Integer
 Property Selection As Integer[]
 Property Border As Border
+
+'' @{since 3.18}
+''
+'' Return or set the vertical padding between rows.
+
 Property Padding As Integer Use $iPadding
 
 Event _Refresh
@@ -17,6 +22,7 @@ Event _Refresh
 Private $nRows As Integer
 Private $cHeight As Collection
 Private $aHeight As Integer[]
+Private $iHeight As Integer
 Private $bResizable As Boolean = True
 Private $cText As Collection
 Private $iDefaultHeight As Integer 
@@ -67,6 +73,7 @@ Private Sub Count_Write(Value As Integer)
     While $aHeight.Count
       If $aHeight[$aHeight.Max] < $nRows Then Break
       iRow = $aHeight[$aHeight.Max]
+      Try $iHeight -= $cHeight[iRow]
       $cHeight.Remove(iRow)
       $aHeight.Remove($aHeight.Max)
       If hView.Mode = Select.Multiple Then $hSel.UnSelect(iRow)
@@ -178,6 +185,7 @@ Public Sub _ResetRowHeight(iRow As Integer)
   Dim hView As GridView = GetView()
   
   If $cHeight.Exist(iRow) Then
+    $iHeight -= $cHeight[iRow]
     $cHeight.Remove(iRow)
     $aHeight.Remove($aHeight.Find(iRow))
     hView._ResizeContents()
@@ -215,7 +223,12 @@ Public Sub _SetRowHeight(iRow As Integer, H As Integer)
     OH = -1
     Try OH = $cHeight[iRow]
     If H <> OH Then
-      If OH < 0 Then AddSorted(iRow)
+      If OH < 0 Then
+        AddSorted(iRow)
+      Else
+        $iHeight -= OH
+      Endif
+      $iHeight += H
       $cHeight[iRow] = H
       hView._ResizeContents()
       hView._RaiseRowResize(iRow)
@@ -242,15 +255,17 @@ End
 
 Public Sub _GetHeight() As Integer
   
-  Dim H, DH, HR As Integer
+  Dim H, DH As Integer
   
   DH = _GetDefaultRowHeight()
   H = DH * $nRows
+  
   If $cHeight Then
     H -= DH * $cHeight.Count
-    For Each HR In $cHeight
-      H += HR
-    Next 
+    H += $iHeight
+    ' For Each HR In $cHeight
+    '   H += HR
+    ' Next 
   Endif
   
   Return H
@@ -463,6 +478,7 @@ End
 Public Sub _Clear()
   
   If $cHeight Then
+    $iHeight = 0
     $cHeight.Clear
     $aHeight.Clear
     If $cText Then $cText.Clear
@@ -577,6 +593,7 @@ End
 
 Private Sub Padding_Write(Value As Integer)
   
+  If $iPadding = Value Then Return
   $iPadding = Value
   GetView()._ResizeContents()
   

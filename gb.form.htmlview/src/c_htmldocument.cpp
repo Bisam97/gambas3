@@ -84,7 +84,6 @@ class html_document : public litehtml::document_container
 {
 private:
 	
-	litehtml::context *m_html_context;
 	litehtml::document::ptr m_html;
 	bool _valid;
 	int m_client_w;
@@ -102,11 +101,11 @@ public:
 	
 	void *_object;
 	
-	html_document(litehtml::context* html_context, void *object);
+	html_document(void *object);
 	virtual ~html_document();
 	
 	bool isValid() const { return _valid; }
-	bool load(const char *html);
+	bool load(const char *html, const char *css);
 	bool render(int w, int h);
 	void draw(int x, int y, int w, int h);
 	int getWidth() const;
@@ -118,46 +117,48 @@ public:
 	void set_color(const litehtml::web_color &color) { DRAW.Paint.SetBackground(convert_color(color)); }
 	void on_mouse(int event, int x = 0, int y = 0);
 	void on_media_change();
-	GB_IMG *get_image(const litehtml::tchar_t* src, const litehtml::tchar_t* baseurl);
-	int find_anchor(const litehtml::tstring& anchor);
+	GB_IMG *get_image(const char *src, const char *baseurl);
+	int find_anchor(const litehtml::string& anchor);
 	
 protected:
 	
-	virtual litehtml::uint_ptr create_font(const litehtml::tchar_t* faceName, int size, int weight, litehtml::font_style italic, unsigned int decoration, litehtml::font_metrics* fm) override;
+	virtual litehtml::uint_ptr create_font(const char* faceName, int size, int weight, litehtml::font_style italic, unsigned int decoration, litehtml::font_metrics* fm) override;
 	virtual void delete_font(litehtml::uint_ptr hFont) override;
-	virtual int text_width(const litehtml::tchar_t* text, litehtml::uint_ptr hFont) override;
-	virtual void draw_text(litehtml::uint_ptr hdc, const litehtml::tchar_t* text, litehtml::uint_ptr hFont, litehtml::web_color color, const litehtml::position& pos) override;
-	virtual int pt_to_px(int pt) const;
+	virtual int text_width(const char* text, litehtml::uint_ptr hFont) override;
+	virtual void draw_text(litehtml::uint_ptr hdc, const char* text, litehtml::uint_ptr hFont, litehtml::web_color color, const litehtml::position& pos) override;
+	virtual int pt_to_px(int pt) const override;
 	virtual int get_default_font_size() const override;
-	virtual const litehtml::tchar_t* get_default_font_name() const override;
+	virtual const char* get_default_font_name() const override;
 	virtual void draw_list_marker(litehtml::uint_ptr hdc, const litehtml::list_marker& marker) override;
-	virtual void load_image(const litehtml::tchar_t* src, const litehtml::tchar_t* baseurl, bool redraw_on_ready) override;
-	virtual void get_image_size(const litehtml::tchar_t* src, const litehtml::tchar_t* baseurl, litehtml::size& sz) override;
-	virtual void draw_background(litehtml::uint_ptr hdc, const litehtml::background_paint& bg) override;
+	virtual void load_image(const char* src, const char* baseurl, bool redraw_on_ready) override;
+	virtual void get_image_size(const char* src, const char* baseurl, litehtml::size& sz) override;
+	// Note: regular <img> images are also drawn with draw_background
+	// bg is guaranteed to have at least one item.
+	// backgrounds in bg are in CSS order - the last one is the farthest from the user.
+	// only the last background has valid background-color.
+	virtual void draw_background(litehtml::uint_ptr hdc, const std::vector<litehtml::background_paint>& bg) override;
 	virtual void draw_borders(litehtml::uint_ptr hdc, const litehtml::borders& borders, const litehtml::position& draw_pos, bool root) override;
 
-	virtual void set_caption(const litehtml::tchar_t* caption) override;
-	virtual void set_base_url(const litehtml::tchar_t* base_url) override;
+	virtual	void set_caption(const char* caption) override;
+	virtual	void set_base_url(const char* base_url) override;
 	virtual void link(const std::shared_ptr<litehtml::document>& doc, const litehtml::element::ptr& el) override;
-	virtual void on_anchor_click(const litehtml::tchar_t* url, const litehtml::element::ptr& el) override;
-	virtual	void set_cursor(const litehtml::tchar_t* cursor) override;
-	virtual	void transform_text(litehtml::tstring& text, litehtml::text_transform tt) override;
-	virtual void import_css(litehtml::tstring& text, const litehtml::tstring& url, litehtml::tstring& baseurl) override;
-	virtual void set_clip(const litehtml::position& pos, const litehtml::border_radiuses& bdr_radius, bool valid_x, bool valid_y) override;
+	virtual void on_anchor_click(const char* url, const litehtml::element::ptr& el) override;
+	virtual	void set_cursor(const char* cursor) override;
+	virtual	void transform_text(litehtml::string& text, litehtml::text_transform tt) override;
+	virtual void import_css(litehtml::string& text, const litehtml::string& url, litehtml::string& baseurl) override;
+	virtual void set_clip(const litehtml::position& pos, const litehtml::border_radiuses& bdr_radius) override;
 	virtual void del_clip() override;
 	virtual void get_client_rect(litehtml::position& client) const override;
-	virtual std::shared_ptr<litehtml::element> create_element(const litehtml::tchar_t *tag_name, const litehtml::string_map &attributes, const std::shared_ptr<litehtml::document> &doc) override;
-
+	virtual litehtml::element::ptr create_element( const char* tag_name, const litehtml::string_map& attributes, const std::shared_ptr<litehtml::document>& doc) override;
 	virtual void get_media_features(litehtml::media_features& media) const override;
-	virtual void get_language(litehtml::tstring& language, litehtml::tstring & culture) const override;
-	virtual litehtml::tstring	resolve_color(const litehtml::tstring& color) const override;
+	virtual void get_language(litehtml::string& language, litehtml::string& culture) const override;
+	virtual litehtml::string resolve_color(const litehtml::string& color) const override;
 };
 
 //-------------------------------------------------------------------------
 
-html_document::html_document(litehtml::context *html_context, void *object)
+html_document::html_document(void *object)
 {
-	m_html_context = html_context;
 	m_html = NULL;
 	m_client_w = 0;
 	m_client_h = 0;
@@ -211,15 +212,15 @@ int html_document::getHeight() const
 	return m_html ? m_html->height() : 0;
 }
 
-bool html_document::load(const char *html)
+bool html_document::load(const char *html, const char *css)
 {
-	m_html = litehtml::document::createFromUTF8(html, this, m_html_context);
+	m_html = litehtml::document::createFromString(html, this, css ? css : litehtml::master_css);
 	m_client_w = 0;
 	m_client_h = 0;
 	return (m_html == NULL);
 }
 
-litehtml::uint_ptr html_document::create_font(const litehtml::tchar_t* faceName, int size, int weight, litehtml::font_style italic, unsigned int decoration, litehtml::font_metrics* fm)
+litehtml::uint_ptr html_document::create_font(const char *faceName, int size, int weight, litehtml::font_style italic, unsigned int decoration, litehtml::font_metrics* fm)
 {
 	GB_FUNCTION func;
 	GB_VALUE *ret;
@@ -264,7 +265,7 @@ litehtml::uint_ptr html_document::create_font(const litehtml::tchar_t* faceName,
 	GB.SetProperty(font, "Bold", &val);
 	
 	val.type = GB_T_BOOLEAN;
-	val._boolean.value = italic == litehtml::fontStyleItalic;
+	val._boolean.value = italic == litehtml::font_style_italic;
 	GB.SetProperty(font, "Italic", &val);
 	
 	val.type = GB_T_BOOLEAN;
@@ -299,7 +300,7 @@ void html_document::delete_font(litehtml::uint_ptr hFont)
 	GB.Unref(POINTER(&hFont));
 }
 
-int html_document::text_width(const litehtml::tchar_t* text, litehtml::uint_ptr hFont)
+int html_document::text_width(const char *text, litehtml::uint_ptr hFont)
 {
 	static GB_FUNCTION _func = { 0 };
 	GB_VALUE *ret;
@@ -323,7 +324,7 @@ int html_document::text_width(const litehtml::tchar_t* text, litehtml::uint_ptr 
 	}
 }
 
-void html_document::draw_text(litehtml::uint_ptr hdc, const litehtml::tchar_t* text, litehtml::uint_ptr hFont, litehtml::web_color color, const litehtml::position& pos)
+void html_document::draw_text(litehtml::uint_ptr hdc, const char *text, litehtml::uint_ptr hFont, litehtml::web_color color, const litehtml::position& pos)
 {
 	GET_CURRENT();
 	
@@ -341,7 +342,10 @@ int html_document::pt_to_px(int pt) const
 	if (CURRENT)
 		return (int)(0.4 + pt * CURRENT->resolutionX / 72.0);
 	else
+	{
+		GB.Error(NULL);
 		return (int)(0.4 + pt * THIS->resolution / 72.0);
+	}
 }
 
 int html_document::get_default_font_size() const
@@ -349,7 +353,7 @@ int html_document::get_default_font_size() const
 	return pt_to_px(THIS->default_font_size ? THIS->default_font_size : 12);
 }
 
-const litehtml::tchar_t* html_document::get_default_font_name() const
+const char *html_document::get_default_font_name() const
 {
 	return THIS->default_font_name ? THIS->default_font_name : "sans-serif";
 }
@@ -392,7 +396,7 @@ void html_document::draw_list_marker(litehtml::uint_ptr hdc, const litehtml::lis
 	end_clip();
 }
 
-GB_IMG *html_document::get_image(const litehtml::tchar_t* src, const litehtml::tchar_t* baseurl)
+GB_IMG *html_document::get_image(const char *src, const char *baseurl)
 {
 	GB_IMG *img;
 	
@@ -402,7 +406,7 @@ GB_IMG *html_document::get_image(const litehtml::tchar_t* src, const litehtml::t
 	return (GB_IMG *)((GB_OBJECT *)GB.Call(&_func_load_image, 2, FALSE))->value;
 }
 
-void html_document::get_image_size(const litehtml::tchar_t* src, const litehtml::tchar_t* baseurl, litehtml::size& sz)
+void html_document::get_image_size(const char *src, const char *baseurl, litehtml::size& sz)
 {
 	GB_IMG *img = get_image(src, baseurl);
 	
@@ -413,82 +417,95 @@ void html_document::get_image_size(const litehtml::tchar_t* src, const litehtml:
 	}
 }
 
-void html_document::load_image(const litehtml::tchar_t* src, const litehtml::tchar_t* baseurl, bool redraw_on_ready)
+void html_document::load_image(const char *src, const char *baseurl, bool redraw_on_ready)
 {
 	get_image(src, baseurl);
 }
 
-void html_document::draw_background(litehtml::uint_ptr hdc, const litehtml::background_paint& bg)
+void html_document::draw_background(litehtml::uint_ptr hdc, const std::vector<litehtml::background_paint>& bgs)
 {
+	litehtml::background_paint bg;
+	bool first = false;
+
 	GET_CURRENT();
 	
 	begin_clip();
 
-	rounded_rectangle(bg.border_box, bg.border_radius);
-	PAINT->Clip(CURRENT, FALSE);
+	for (int i = bgs.size() - 1; i >= 0; i--)
+	{
+		bg = bgs[i];
 
-	PAINT->Rectangle(CURRENT, bg.clip_box.x, bg.clip_box.y, bg.clip_box.width, bg.clip_box.height);
-	
-	if (bg.color.alpha)
-	{
-		PAINT->Clip(CURRENT, TRUE);
-		set_color(bg.color);
-		PAINT->Fill(CURRENT, FALSE);
-	}
-	else
-		PAINT->Clip(CURRENT, FALSE);
-	
-	if (!bg.image.empty())
-	{
-		GB_IMG *image = get_image(bg.image.c_str(), bg.baseurl.c_str());
-		int x, y;
-		
-		if (image)
+		if (!first)
 		{
-			if (bg.attachment == litehtml::background_attachment_fixed)
-				DRAW.Paint.Translate(m_scroll_x, m_scroll_y);
-			
-			switch(bg.repeat)
+			first = true;
+
+			rounded_rectangle(bg.border_box, bg.border_radius);
+			PAINT->Clip(CURRENT, FALSE);
+
+			PAINT->Rectangle(CURRENT, bg.clip_box.x, bg.clip_box.y, bg.clip_box.width, bg.clip_box.height);
+
+			if (bg.color.alpha)
 			{
-				case litehtml::background_repeat_no_repeat:
-					
-					PAINT->DrawImage(CURRENT, image, bg.position_x, bg.position_y, bg.image_size.width, bg.image_size.height, 1.0, NULL);
-					break;
+				PAINT->Clip(CURRENT, TRUE);
+				set_color(bg.color);
+				PAINT->Fill(CURRENT, FALSE);
+			}
+			else
+				PAINT->Clip(CURRENT, FALSE);
+		}
 
-				case litehtml::background_repeat_repeat_x:
-						
-					x = -((bg.position_x - bg.clip_box.x + bg.image_size.width - 1) / bg.image_size.width * bg.image_size.width);
-					while (x < bg.clip_box.width)
-					{
-						PAINT->DrawImage(CURRENT, image, bg.position_x + x, bg.position_y, bg.image_size.width, bg.image_size.height, 1.0, NULL);
-						x += bg.image_size.width;
-					}
-					break;
+		if (!bg.image.empty())
+		{
+			GB_IMG *image = get_image(bg.image.c_str(), bg.baseurl.c_str());
+			int x, y;
 
-				case litehtml::background_repeat_repeat_y:
-						
-					y = -((bg.position_y - bg.clip_box.y + bg.image_size.height - 1) / bg.image_size.height * bg.image_size.height);
-					while (y < bg.clip_box.height)
-					{
-						PAINT->DrawImage(CURRENT, image, bg.position_x, bg.position_y + y, bg.image_size.width, bg.image_size.height, 1.0, NULL);
-						y += bg.image_size.height;
-					}
-					break;
+			if (image)
+			{
+				if (bg.attachment == litehtml::background_attachment_fixed)
+					DRAW.Paint.Translate(m_scroll_x, m_scroll_y);
 
-				case litehtml::background_repeat_repeat:
-						
-					x = -((bg.position_x - bg.clip_box.x + bg.image_size.width - 1) / bg.image_size.width * bg.image_size.width);
-					while (x < bg.clip_box.width)
-					{
+				switch(bg.repeat)
+				{
+					case litehtml::background_repeat_no_repeat:
+
+						PAINT->DrawImage(CURRENT, image, bg.position_x, bg.position_y, bg.image_size.width, bg.image_size.height, 1.0, NULL);
+						break;
+
+					case litehtml::background_repeat_repeat_x:
+
+						x = -((bg.position_x - bg.clip_box.x + bg.image_size.width - 1) / bg.image_size.width * bg.image_size.width);
+						while (x < bg.clip_box.width)
+						{
+							PAINT->DrawImage(CURRENT, image, bg.position_x + x, bg.position_y, bg.image_size.width, bg.image_size.height, 1.0, NULL);
+							x += bg.image_size.width;
+						}
+						break;
+
+					case litehtml::background_repeat_repeat_y:
+
 						y = -((bg.position_y - bg.clip_box.y + bg.image_size.height - 1) / bg.image_size.height * bg.image_size.height);
 						while (y < bg.clip_box.height)
 						{
-							PAINT->DrawImage(CURRENT, image, bg.position_x + x, bg.position_y + y, bg.image_size.width, bg.image_size.height, 1.0, NULL);
+							PAINT->DrawImage(CURRENT, image, bg.position_x, bg.position_y + y, bg.image_size.width, bg.image_size.height, 1.0, NULL);
 							y += bg.image_size.height;
 						}
-						x += bg.image_size.width;
-					}
-					break;
+						break;
+
+					case litehtml::background_repeat_repeat:
+
+						x = -((bg.position_x - bg.clip_box.x + bg.image_size.width - 1) / bg.image_size.width * bg.image_size.width);
+						while (x < bg.clip_box.width)
+						{
+							y = -((bg.position_y - bg.clip_box.y + bg.image_size.height - 1) / bg.image_size.height * bg.image_size.height);
+							while (y < bg.clip_box.height)
+							{
+								PAINT->DrawImage(CURRENT, image, bg.position_x + x, bg.position_y + y, bg.image_size.width, bg.image_size.height, 1.0, NULL);
+								y += bg.image_size.height;
+							}
+							x += bg.image_size.width;
+						}
+						break;
+				}
 			}
 		}
 	}
@@ -640,12 +657,12 @@ void html_document::draw_borders(litehtml::uint_ptr hdc, const litehtml::borders
 	end_clip();
 }
 
-void html_document::set_caption(const litehtml::tchar_t* caption)
+void html_document::set_caption(const char *caption)
 {
 	GB.Raise(THIS, EVENT_Title, 1, GB_T_STRING, caption, strlen(caption));
 }
 
-void html_document::set_base_url(const litehtml::tchar_t* base_url)
+void html_document::set_base_url(const char *base_url)
 {
 	GB.FreeString(&THIS->base);
 	THIS->base = GB.NewZeroString(base_url);
@@ -655,13 +672,13 @@ void html_document::link(const std::shared_ptr<litehtml::document>& doc, const l
 {
 }
 
-void html_document::on_anchor_click(const litehtml::tchar_t* url, const litehtml::element::ptr& el)
+void html_document::on_anchor_click(const char *url, const litehtml::element::ptr& el)
 {
 	GB.FreeString(&THIS->link);
 	THIS->link = GB.NewZeroString(url);
 }
 
-void html_document::set_cursor(const litehtml::tchar_t* cursor)
+void html_document::set_cursor(const char *cursor)
 {
 	if (!GB_FUNCTION_IS_VALID(&_func_set_cursor))
 		return;
@@ -669,7 +686,7 @@ void html_document::set_cursor(const litehtml::tchar_t* cursor)
 	GB.Call(&_func_set_cursor, 1, TRUE);
 }
 
-void html_document::transform_text(litehtml::tstring& text, litehtml::text_transform tt)
+void html_document::transform_text(litehtml::string& text, litehtml::text_transform tt)
 {
 	static GB_FUNCTION func_capitalize = { 0 };
 	static GB_FUNCTION func_upper = { 0 };
@@ -704,7 +721,7 @@ void html_document::transform_text(litehtml::tstring& text, litehtml::text_trans
 	text.assign(ret->_string.value.addr + ret->_string.value.start, ret->_string.value.len);
 }
 
-void html_document::import_css(litehtml::tstring& text, const litehtml::tstring& url, litehtml::tstring& baseurl)
+void html_document::import_css(litehtml::string& text, const litehtml::string& url, litehtml::string& baseurl)
 {
 	GB_VALUE *ret;
 	
@@ -847,22 +864,16 @@ void html_document::rounded_rectangle(const litehtml::position &pos, const liteh
 	}
 }
 
-void html_document::set_clip( const litehtml::position& pos, const litehtml::border_radiuses& bdr_radius, bool valid_x, bool valid_y )
+void html_document::set_clip( const litehtml::position& pos, const litehtml::border_radiuses& bdr_radius)
 {
-	litehtml::position clip_pos = pos;
+	/*litehtml::position clip_pos = pos;
 	litehtml::position client_pos;
 	get_client_rect(client_pos);
-	if(!valid_x)
-	{
-		clip_pos.x = client_pos.x;
-		clip_pos.width = client_pos.width;
-	}
-	if(!valid_y)
-	{
-		clip_pos.y = client_pos.y;
-		clip_pos.height = client_pos.height;
-	}
-	m_clips.emplace_back(clip_pos, bdr_radius);
+	clip_pos.x = client_pos.x;
+	clip_pos.width = client_pos.width;
+	clip_pos.y = client_pos.y;
+	clip_pos.height = client_pos.height;*/
+	m_clips.emplace_back(pos, bdr_radius);
 }
 
 void html_document::del_clip()
@@ -900,7 +911,7 @@ void html_document::get_client_rect(litehtml::position& client) const
 	client.height = m_client_h;
 }
 
-std::shared_ptr<litehtml::element> html_document::create_element(const litehtml::tchar_t *tag_name, const litehtml::string_map &attributes, const std::shared_ptr<litehtml::document> &doc)
+std::shared_ptr<litehtml::element> html_document::create_element(const char *tag_name, const litehtml::string_map &attributes, const std::shared_ptr<litehtml::document> &doc)
 {
 	return NULL;
 }
@@ -918,15 +929,15 @@ void html_document::get_media_features(litehtml::media_features& media) const
 	media.resolution = THIS->resolution ? THIS->resolution : 96;
 }
 
-void html_document::get_language(litehtml::tstring& language, litehtml::tstring & culture) const
+void html_document::get_language(litehtml::string& language, litehtml::string & culture) const
 {
 	language = "en";
 	culture = "";
 }
 
-litehtml::tstring	html_document::resolve_color(const litehtml::tstring& color) const
+litehtml::string	html_document::resolve_color(const litehtml::string& color) const
 {
-	return litehtml::tstring();
+	return litehtml::string();
 }
 
 void html_document::on_mouse(int event, int x, int y)
@@ -983,10 +994,10 @@ void html_document::on_media_change()
 		m_html->media_changed();
 }
 
-int html_document::find_anchor(const litehtml::tstring& anchor)
+int html_document::find_anchor(const litehtml::string& anchor)
 {
 	litehtml::element::ptr el;
-	litehtml::tstring selector;
+	litehtml::string selector;
 	
 	if(!m_html || anchor.empty())
 		return -1;
@@ -1017,9 +1028,9 @@ static void reload_document(void *_object)
 	
 	if (THIS->html && *THIS->html)
 	{	
-		THIS->doc = new html_document(THIS->context, THIS);
+		THIS->doc = new html_document(THIS);
 
-		if (THIS->doc->load(THIS->html))
+		if (THIS->doc->load(THIS->html, THIS->css))
 			GB.Error("Unable to parse HTML");
 	}
 }
@@ -1037,10 +1048,10 @@ BEGIN_METHOD_VOID(HtmlDocument_free)
 	GB.FreeString(&THIS->link);
 	GB.FreeString(&THIS->base);
 	GB.FreeString(&THIS->html);
+	GB.FreeString(&THIS->css);
 	GB.FreeString(&THIS->monospace_font_name);
 	GB.FreeString(&THIS->default_font_name);
 	delete THIS->doc;
-	delete THIS->context;
 	
 END_METHOD
 
@@ -1090,12 +1101,7 @@ END_PROPERTY
 
 BEGIN_METHOD(HtmlDocument_LoadCss, GB_STRING css)
 
-	if (THIS->context)
-		delete THIS->context;
-	
-	THIS->context = new litehtml::context;
-	THIS->context->load_master_stylesheet(GB.ToZeroString(ARG(css)));
-
+	GB.StoreString(PROP(GB_STRING), &THIS->css);
 	reload_document(THIS);
 
 END_METHOD
@@ -1174,7 +1180,7 @@ BEGIN_METHOD(HtmlDocument_FindAnchor, GB_STRING anchor)
 
 	if (THIS->doc)
 	{
-		litehtml::tstring anchor;
+		litehtml::string anchor;
 		anchor.assign(STRING(anchor), LENGTH(anchor));
 		GB.ReturnInteger(THIS->doc->find_anchor(anchor));
 	}

@@ -107,6 +107,9 @@ static void resize_container(gContainer *cont, int w, int h)
 	/*w += cont->width() - cont->containerWidth();
 	h += cont->height() - cont->containerHeight();*/
 	
+	if (cont->isWindow())
+		h += cont->height() - cont->containerHeight();
+
 	if (w >= 0 && h >= 0)
 		cont->resize(w, h);
 }
@@ -122,6 +125,7 @@ static void resize_container(gContainer *cont, int w, int h)
 #define IS_EXPAND(_object) (((gControl*)_object)->isExpand())
 #define IS_IGNORE(_object) (((gControl*)_object)->isIgnore())
 #define IS_DESIGN(_object) (((gControl*)_object)->isDesign())
+#define IS_USER(_object) (((gContainer *)_object)->isUser())
 #define IS_WIDGET_VISIBLE(_widget)  (((gControl*)_widget)->isVisible())
 
 #define CAN_ARRANGE(_object) (((gContainer *)_object)->isShown() && !((gControl *)_object)->isDestroyed())
@@ -293,6 +297,7 @@ void gContainer::initialize()
 	_no_arrangement = 0;
 	_did_arrangement = false;
 	_is_container = true;
+	_user = false;
 	_user_container = false;
 	_shown = false;
 	_arrange_later = false;
@@ -302,12 +307,10 @@ void gContainer::initialize()
 	arrangement.padding = 0;
 	arrangement.autoresize = false;
 	arrangement.locked = false;
-	arrangement.user = false;
 	arrangement.margin = false;
 	arrangement.indent = false;
 	arrangement.centered = false;
 	arrangement.invert = false;
-	arrangement.paint = false;
 }
 
 gContainer::gContainer() 
@@ -440,17 +443,9 @@ void gContainer::setAutoResize(bool vl)
 
 void gContainer::setUser()
 {
-	if (arrangement.user)
-		return;
-	
-	arrangement.user = true;
+	_user = true;
 	performArrange();
 	updateDesignChildren();
-}
-
-void gContainer::setPaint()
-{
-	arrangement.paint = true;
 	ON_DRAW_BEFORE(border, this, cb_expose, cb_draw);
 }
 
@@ -463,18 +458,29 @@ void gContainer::setInvert(bool vl)
 	}
 }
 
+static bool has_allocation(GtkWidget *widget)
+{
+	GtkAllocation a;
+	gtk_widget_get_allocation(widget, &a);
+	return !(a.x == -1 && a.y == -1 && a.width == 1 && a.height == 1); // initial values
+}
+
 int gContainer::clientX()
 {
-	gint xc, yc;
+	gint xc;
 	GtkWidget *cont = getContainer();
 	
 	if (_client_x >= 0)
 		return _client_x;
 	
-
 	if (!_scroll && gtk_widget_get_window(cont) && gtk_widget_get_window(border))
 	{
-		gtk_widget_translate_coordinates(cont, border, 0, 0, &xc, &yc);
+		xc = 0;
+		if (gtk_widget_translate_coordinates(cont, border, 0, 0, &xc, NULL))
+		{
+			if (!has_allocation(cont))
+				xc++;
+		}
 		xc += containerX();
 	}
 	else
@@ -495,7 +501,7 @@ int gContainer::containerX()
 
 int gContainer::clientY()
 {
-	gint xc, yc;
+	gint yc;
 	GtkWidget *cont = getContainer();
 	
 	if (_client_y >= 0)
@@ -503,7 +509,12 @@ int gContainer::clientY()
 	
 	if (!_scroll && gtk_widget_get_window(cont) && gtk_widget_get_window(border))
 	{
-		gtk_widget_translate_coordinates(cont, border, 0, 0, &xc, &yc);
+		yc = 0;
+		if (gtk_widget_translate_coordinates(cont, border, 0, 0, NULL, &yc))
+		{
+			if (!has_allocation(cont))
+				yc++;
+		}
 		yc += containerY();
 	}
 	else
@@ -677,7 +688,7 @@ void gContainer::remove(gControl *child)
 }
 
 
-gControl *gContainer::find(int x, int y)
+gControl *gContainer::find(int x, int y, bool skip_ignore_mouse)
 {
 	int i;
 	gControl *ch;
@@ -703,6 +714,8 @@ gControl *gContainer::find(int x, int y)
 	{
 		ch = child(i);
 		//fprintf(stderr, "test: %s %d: %d %d %d %d / %d %d\n", ch->name(), ch->isVisible(), ch->x(), ch->y(), ch->width(), ch->height(), x, y);
+		if (skip_ignore_mouse && ch->isIgnoreMouse())
+			continue;
 		if (ch->isVisible() && x >= ch->left() && y >= ch->top() && x < (ch->left() + ch->width()) && y < (ch->top() + ch->height()))
 		{
 			//fprintf(stderr, "--> %s\n", ch->name());
@@ -781,7 +794,7 @@ bool gContainer::resize(int w, int h, bool no_decide)
 	_client_w = 0;
 	_client_h = 0;
 	
-	if (arrangement.paint)
+	if (isUser())
 		CUSERCONTROL_cb_resize(this);
 
 	performArrange();
@@ -831,7 +844,7 @@ void gContainer::updateFont()
 	for (i = 0; i < childCount(); i++)
 		child(i)->updateFont();
 
-	if (arrangement.paint)
+	if (isUser())
 		CUSERCONTROL_cb_font(this);
 }
 

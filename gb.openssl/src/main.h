@@ -42,6 +42,7 @@
 extern GB_INTERFACE GB;
 #endif
 
-void sort_and_dedupe(GB_ARRAY list);
+void MAIN_sort_and_dedupe(GB_ARRAY list);
+void MAIN_error(const char *msg);
 
 #endif /* __MAIN_H */

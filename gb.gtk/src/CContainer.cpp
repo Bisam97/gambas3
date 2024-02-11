@@ -32,11 +32,11 @@
 
 #define CALL_FUNCTION(_this, _func) \
 { \
-	if ((_this) && (_this)->_func) \
+	if ((_this) && (_this)->func._func) \
 	{ \
 		GB_FUNCTION func; \
 		func.object = (_this); \
-		func.index = (_this)->_func; \
+		func.index = (_this)->func._func; \
 		GB.Call(&func, 0, TRUE); \
 	} \
 }
@@ -55,12 +55,14 @@ DECLARE_EVENT(EVENT_Insert);
 
 void CB_container_before_arrange(gContainer *sender)
 {
-	GB.Raise(sender->hFree, EVENT_BeforeArrange, 0);
+	CB_GET_OBJECT(sender);
+	GB.Raise(THIS, EVENT_BeforeArrange, 0);
 }
 
 void CB_container_arrange(gContainer *sender)
 {
-	GB.Raise(sender->hFree, EVENT_Arrange, 0);
+	CB_GET_OBJECT(sender);
+	GB.Raise(THIS, EVENT_Arrange, 0);
 }
 
 void CCONTAINER_raise_insert(CCONTAINER *_object, CWIDGET *child)
@@ -80,19 +82,22 @@ void CUSERCONTROL_cb_draw(gContainer *sender, cairo_t *cr)
 	CWIDGET *_object = GetObject(sender);
 	GB_ERROR_HANDLER handler;
 	
-	cairo_t *save = THIS_USERCONTROL->context;
-	THIS_USERCONTROL->context = cr;
-	
-	PAINT_begin(THIS);
-	
-	handler.handler = (GB_CALLBACK)cleanup_drawing;
-	GB.OnErrorBegin(&handler);
-	CALL_FUNCTION(THIS_USERCONTROL, paint_func);
-	GB.OnErrorEnd(&handler);
-	
-	PAINT_end();
-	
-	THIS_USERCONTROL->context = save;
+	if (THIS_USERCONTAINER->func.paint)
+	{
+		cairo_t *save = THIS_USERCONTROL->func.context;
+		THIS_USERCONTROL->func.context = cr;
+
+		PAINT_begin(THIS);
+
+		handler.handler = (GB_CALLBACK)cleanup_drawing;
+		GB.OnErrorBegin(&handler);
+		CALL_FUNCTION(THIS_USERCONTROL, paint);
+		GB.OnErrorEnd(&handler);
+
+		PAINT_end();
+
+		THIS_USERCONTROL->func.context = save;
+	}
 }
 
 #else
@@ -109,20 +114,23 @@ void CUSERCONTROL_cb_draw(gContainer *sender, GdkRegion *region, int dx, int dy)
 	GB_ERROR_HANDLER handler;
 	cairo_t *cr;
 	
-	PAINT_begin(THIS);
-	
-	cr = PAINT_get_current_context();
-	cairo_save(cr);
-	PAINT_clip(0, 0, sender->width(), sender->height());
-	
-	handler.handler = (GB_CALLBACK)cleanup_drawing;
-	handler.arg1 = (intptr_t)cr;
-	GB.OnErrorBegin(&handler);
-	CALL_FUNCTION(THIS_USERCONTROL, paint_func);
-	GB.OnErrorEnd(&handler);
-	
-	cairo_restore(cr);
-	PAINT_end();
+	if (THIS_USERCONTAINER->func.paint)
+	{
+		PAINT_begin(THIS);
+
+		cr = PAINT_get_current_context();
+		cairo_save(cr);
+		PAINT_clip(0, 0, sender->width(), sender->height());
+
+		handler.handler = (GB_CALLBACK)cleanup_drawing;
+		handler.arg1 = (intptr_t)cr;
+		GB.OnErrorBegin(&handler);
+		CALL_FUNCTION(THIS_USERCONTROL, paint);
+		GB.OnErrorEnd(&handler);
+
+		cairo_restore(cr);
+		PAINT_end();
+	}
 }
 
 #endif
@@ -130,18 +138,18 @@ void CUSERCONTROL_cb_draw(gContainer *sender, GdkRegion *region, int dx, int dy)
 void CUSERCONTROL_cb_font(gContainer *sender)
 {
 	CWIDGET *_object = GetObject(sender);
-	CALL_FUNCTION(THIS_USERCONTROL, font_func);
+	CALL_FUNCTION(THIS_USERCONTROL, font);
 }
 
 static bool cb_change_filter(gControl *control)
 {
-	return control->isContainer() && ((gContainer *)control)->isPaint();
+	return control->isContainer() && ((gContainer *)control)->isUser();
 }
 
 static void cb_change(gControl *control)
 {
 	CWIDGET *_object = GetObject(control);
-	CALL_FUNCTION(THIS_USERCONTROL, change_func);
+	CALL_FUNCTION(THIS_USERCONTROL, change);
 }
 
 void CUSERCONTROL_send_change_event(void)
@@ -152,12 +160,12 @@ void CUSERCONTROL_send_change_event(void)
 static void get_client_area(gContainer *cont, int *x, int *y, int *w, int *h)
 {
 	gContainer *proxy = cont->proxyContainer();
-	
+
 	if (x) *x = proxy->clientX();
 	if (y) *y = proxy->clientY();
 	if (w) *w = proxy->clientWidth();
 	if (h) *h = proxy->clientHeight();
-	
+
 	if (x || y)
 	{
 		while (proxy && proxy != cont)
@@ -172,7 +180,7 @@ static void get_client_area(gContainer *cont, int *x, int *y, int *w, int *h)
 void CUSERCONTROL_cb_resize(gContainer *sender)
 {
 	CWIDGET *_object = GetObject(sender);
-	CALL_FUNCTION(THIS_USERCONTROL, resize_func);
+	CALL_FUNCTION(THIS_USERCONTROL, resize);
 }
 
 //-------------------------------------------------------------------------
@@ -332,6 +340,12 @@ BEGIN_METHOD(Container_unknown, GB_VALUE x; GB_VALUE y)
 END_METHOD
 
 
+/*BEGIN_PROPERTY(Container_Dirty)
+
+	GB.ReturnBoolean(WIDGET->isDirty());
+
+END_PROPERTY*/
+
 //---------------------------------------------------------------------------
 
 
@@ -456,6 +470,8 @@ GB_DESC ContainerDesc[] =
 
 	GB_PROPERTY_READ("Children", "ContainerChildren", Container_Children),
 
+	//GB_PROPERTY_READ("Dirty", "b", Container_Dirty),
+
 	GB_PROPERTY_READ("ClientX", "i", Container_ClientX),
 	GB_PROPERTY_READ("ClientY", "i", Container_ClientY),
 	GB_PROPERTY_READ("ClientW", "i", Container_ClientWidth),
@@ -481,9 +497,17 @@ GB_DESC ContainerDesc[] =
 
 ****************************************************************************/
 
-BEGIN_METHOD(UserControl_new, GB_OBJECT parent)
-
+static void declare_special_event_handler(void *_object, ushort *index, const char *suffix)
+{
 	GB_FUNCTION func;
+	char name[128];
+
+	snprintf(name, sizeof(name), "%s_%s", GB.Is(THIS, CLASS_UserContainer) ? "UserContainer" : "UserControl", suffix);
+	if (!GB.GetFunction(&func, THIS, name, NULL, NULL))
+		*index = func.index;
+}
+
+BEGIN_METHOD(UserControl_new, GB_OBJECT parent)
 
 	InitControl(new gPanel(CONTAINER(VARG(parent))), (CWIDGET*)THIS);
 	
@@ -492,19 +516,12 @@ BEGIN_METHOD(UserControl_new, GB_OBJECT parent)
 	
 	if (GB.Is(THIS, CLASS_UserContainer))
 		PANEL->setUserContainer();
-	
-	if (!GB.GetFunction(&func, THIS, "UserControl_Draw", NULL, NULL))
-	{
-		PANEL->setPaint();
-		THIS_USERCONTROL->paint_func = func.index;
-		if (!GB.GetFunction(&func, THIS, "UserControl_Font", NULL, NULL))
-			THIS_USERCONTROL->font_func = func.index;
-		if (!GB.GetFunction(&func, THIS, "UserControl_Change", NULL, NULL))
-			THIS_USERCONTROL->change_func = func.index;
-		if (!GB.GetFunction(&func, THIS, "UserControl_Resize", NULL, NULL))
-			THIS_USERCONTROL->resize_func = func.index;
-	}
-	
+
+	declare_special_event_handler(THIS, &THIS_USERCONTROL->func.paint, "Draw");
+	declare_special_event_handler(THIS, &THIS_USERCONTROL->func.font, "Font");
+	declare_special_event_handler(THIS, &THIS_USERCONTROL->func.change, "Change");
+	declare_special_event_handler(THIS, &THIS_USERCONTROL->func.resize, "Resize");
+
 	GB.Error(NULL);
 
 END_METHOD
@@ -723,7 +740,7 @@ GB_DESC UserControlDesc[] =
 	USERCONTROL_DESCRIPTION,
 
 	GB_INTERFACE("Paint", &PAINT_Interface),
-	
+
 	GB_END_DECLARE
 };
 
@@ -747,6 +764,8 @@ GB_DESC UserContainerDesc[] =
 	GB_PROPERTY("Centered", "b", UserContainer_Centered),
 	
 	USERCONTAINER_DESCRIPTION,
+
+	GB_INTERFACE("Paint", &PAINT_Interface),
 
 	GB_END_DECLARE
 };

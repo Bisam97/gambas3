@@ -58,3 +58,33 @@ Public Sub _get((Application) As String) As DBusApplication
   
 End
 
+'' @{since 3.19}
+''
+'' Check if a specific application name is already used.
+''
+'' - ~Application~: The name of the application on the bus.
+
+Public Sub Exist((Application) As String) As Boolean
+  
+  Try Return Me["org.freedesktop.DBus"]["/org/freedesktop/DBus", "org.freedesktop.DBus"].NameHasOwner(Application)
+  
+End
+
+'' @{since 3.19}
+''
+'' Start a DBus application service from its name, and waits until it is available.
+''
+'' - ~Application~: The name of the application to start.
+
+Public Sub Start((Application) As String)
+  
+  Dim fTime As Float
+  
+  Me["org.freedesktop.DBus"]["/org/freedesktop/DBus", "org.freedesktop.DBus"].StartServiceByName(Application, 0)
+  fTime = Timer
+  While Not {Exist}(Application)
+    Sleep 0.05
+    If (Timer - fTime) > 1 Then Error.Raise("Cannot start service")
+  Wend
+  
+End

@@ -33,6 +33,14 @@
 #include "CImage.h"
 #include "CPicture.h"
 
+static char *_result = NULL;
+
+static gboolean save_func(const gchar *buf, gsize count, GError **error, gpointer data)
+{
+	_result = GB.AddString(_result, buf, count);
+	return TRUE;
+}
+
 CPICTURE *CPICTURE_create(gPicture *picture)
 {
 	CPICTURE *pic;
@@ -193,6 +201,23 @@ BEGIN_METHOD(Picture_Save, GB_STRING path; GB_INTEGER quality)
 END_METHOD
 
 
+BEGIN_METHOD(Picture_ToString, GB_STRING format; GB_INTEGER quality)
+
+	_result = NULL;
+
+	switch (PICTURE->save(MISSING(format) ? NULL : GB.ToZeroString(ARG(format)), VARGOPT(quality, -1), save_func))
+	{
+		case 0: break;
+		case -1: GB.Error("Unknown format"); break;
+		case -2: GB.Error("Unable to save picture"); break;
+	}
+
+	GB.FreeStringLater(_result);
+	GB.ReturnString(_result);
+
+END_METHOD
+
+
 BEGIN_METHOD_VOID(Picture_Clear)
 
 	PICTURE->clear();
@@ -261,6 +286,7 @@ GB_DESC CPictureDesc[] =
 	GB_STATIC_METHOD("Load", "Picture", Picture_Load, "(Path)s"),
 	GB_STATIC_METHOD("FromString", "Picture", Picture_FromString, "(Data)s"),
 	GB_METHOD("Save", NULL, Picture_Save, "(Path)s[(Quality)i]"),
+	GB_METHOD("ToString", "s", Picture_ToString, "[(Format)s(Quality)i]"),
 	GB_METHOD("Resize", NULL, Picture_Resize, "(Width)i(Height)i"),
 
 	GB_METHOD("Clear", NULL, Picture_Clear, NULL),

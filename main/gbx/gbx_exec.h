@@ -67,6 +67,7 @@ typedef
 		unsigned in_event_loop : 1;    // if we are in the event loop
 		unsigned check_overflow : 1;   // if we should check for overflow
 		unsigned big_endian : 1;       // if the CPU is big endian
+		unsigned has_forked : 1;       // if the process has forked
 	}
 	EXEC_FLAG;
 
@@ -108,10 +109,16 @@ enum {
 	};
 
 
-#ifndef __GBX_EXEC_C
+#ifndef __GBX_EXEC_LOOP_C
 
 extern STACK_CONTEXT EXEC_current;
 extern VALUE *SP;
+extern bool EXEC_bytecode_less_than_3_18;
+
+#endif
+
+#ifndef __GBX_EXEC_C
+
 extern VALUE TEMP;
 extern VALUE RET;
 
@@ -175,6 +182,7 @@ extern const void *EXEC_subr_table[];
 #define EXEC_main_hook_done FLAG.main_hook_done
 #define EXEC_check_overflow FLAG.check_overflow
 
+
 // Local variables base pointer
 #define BP EXEC_current.bp
 // Arguments base pointer
@@ -214,7 +222,13 @@ void EXEC_leave_keep();
 void EXEC_leave_drop();
 void EXEC_loop(void);
 void EXEC_init_bytecode_check(void);
-void EXEC_check_bytecode(void);
+void EXEC_switch_bytecode(void);
+
+#define EXEC_check_bytecode() \
+({ \
+	if (CP && CP->less_than_3_18 != EXEC_bytecode_less_than_3_18) \
+		EXEC_switch_bytecode(); \
+})
 
 #define EXEC_object_2(_val, _pclass, _pobject) \
 ({ \
@@ -234,8 +248,8 @@ void EXEC_check_bytecode(void);
 })
 
 #define EXEC_object(_val, _pclass, _pobject) \
-	((TYPE_is_pure_object((_val)->type)) ? EXEC_object_2(_val, _pclass, _pobject), TRUE : \
-	TYPE_is_variant((_val)->type) ? (*(_pclass) = EXEC_object_variant(_val, _pobject)), FALSE : \
+	((TYPE_is_pure_object((_val)->type)) ? (EXEC_object_2(_val, _pclass, _pobject), TRUE) : \
+	TYPE_is_variant((_val)->type) ? ((*(_pclass) = EXEC_object_variant(_val, _pobject)), FALSE) : \
 	EXEC_object_other(_val, _pclass, _pobject))
 
 #define EXEC_object_fast(_val, _pclass, _pobject) \
@@ -273,7 +287,13 @@ void EXEC_function_loop(void);
 void EXEC_public(CLASS *class, void *object, const char *name, int nparam);
 void EXEC_public_desc(CLASS *class, void *object, CLASS_DESC_METHOD *desc, int nparam);
 
-bool EXEC_special(int special, CLASS *class, void *object, int nparam, bool drop);
+bool EXEC_special_do(CLASS *class, int index, void *object, int nparam, bool drop);
+
+#define EXEC_special(_special, _class, _object, _nparam, _drop) \
+({ \
+	int __index = _class->special[_special]; \
+	(__index == NO_SYMBOL) ? TRUE : EXEC_special_do(_class, __index, _object, _nparam, _drop); \
+})
 
 void EXEC_special_inheritance(int special, CLASS *class, OBJECT *object, int nparam, bool drop);
 
@@ -281,7 +301,6 @@ void EXEC_nop(void);
 
 void EXEC_push_unknown(void);
 int EXEC_push_unknown_event(bool unknown);
-//void EXEC_push_special(void);
 
 void EXEC_pop_unknown(void);
 
@@ -438,5 +457,9 @@ void EXEC_push_array(ushort code);
 void EXEC_pop_array(ushort code);
 
 void EXEC_set_got_error(bool err);
+
+PCODE *EXEC_on_goto_gosub(PCODE *pc);
+void EXEC_gosub(PCODE *pc);
+
 
 #endif /* */

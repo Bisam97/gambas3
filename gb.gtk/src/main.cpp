@@ -493,6 +493,9 @@ gboolean hook_timer_function(GB_TIMER *timer)
 {
 	intptr_t old_id = timer->id;
 
+	if (!old_id)
+		return false;
+
 	GB.RaiseTimer(timer);
 
 	if (timer->id == old_id) // If the event handler has removed the timer or restarted it, do nothing, just let the current source be removed.

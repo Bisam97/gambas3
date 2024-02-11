@@ -24,6 +24,8 @@ Static Property Read RuntimeDir As String
 Static Property Read NetworkAvailable As Boolean
 Static Property Read RemoteDisplay As Boolean
 
+Static Property UsePortal As Boolean Use $bUsePortal = True
+
 Static Private $cDesktop As Collection
 Static Private $cExt As Collection
 Static Private $aImgExt As String[]
@@ -41,9 +43,22 @@ Static Private Sub LoadPlatform() As String
   
 End
 
-Static Public Sub SendMail({To} As String[], Optional Cc As String[], Optional Bcc As String[], Optional Subject As String, Optional Body As String, Optional Attachment As String)
+Static Public Sub SendMail({To} As String[], Optional Cc As String[], Optional Bcc As String[], Optional Subject As String, Optional Body As String, Optional Attachments As Variant)
 
   Dim aArg As String[]
+  Dim aAttach As String[]
+  
+  Try aAttach = Attachments
+  If Error Then 
+    aAttach = New String[]
+    Try aAttach.Add(Attachments)
+  Endif
+  
+  If DesktopPortal.Enabled Then
+    DesktopPortal.SendMail({To}, {Cc}, {Bcc}, Subject, Body, aAttach)
+    Return
+  Endif
+  
   'xdg-email [--utf8] [--cc address] [--bcc address] [--subject text] [--body text
   ' ] [--attach file] { mailto-uri | address(es) }
 
@@ -64,9 +79,9 @@ Static Public Sub SendMail({To} As String[], Optional Cc As String[], Optional B
     aArg.Add("--body")
     aArg.Add(Body)
   Endif
-  If Attachment Then
+  If aAttach And If aAttach.Count >= 1 Then
     aArg.Add("--attach")
-    aArg.Add(Attachment)
+    aArg.Add(aAttach[0])
   Endif
 
   If {To} And If To.Count Then
@@ -79,13 +94,13 @@ End
 
 Static Public Sub {Open}(Url As String, Optional {Wait} As Boolean)
 
-  If Url = "~" Then
-    Url = User.Home
-  Else If Url Begins "~/" Then
-    Url = User.Home & Mid$(Url, 2)
-  Endif
+  Url = File.RealPath(Url)
 
-  Main.RunXdgUtil("xdg-open", [Url], {Wait})
+  If DesktopPortal.Enabled Then
+    DesktopPortal.OpenURI(Url)
+  Else
+    Main.RunXdgUtil("xdg-open", [Url], {Wait})
+  Endif
 
 End
 
@@ -600,5 +615,42 @@ Static Private Function RemoteDisplay_Read() As Boolean
   Endif
   
   Return $bRemoteDisplay
+  
+End
+
+Static Public Sub Screenshot(Optional X As Integer, Y As Integer, Width As Integer, Height As Integer) As Picture
+  
+  Dim hScreenshot As Image
+  
+  If Desktop.Platform <> "x11" Then
+    hScreenshot = DesktopPortal.Screenshot()
+    If Width <= 0 Then Width = Desktop.Width - X
+    If Height <= 0 Then Height = Desktop.Height - Y
+    Return hScreenshot.Copy(X, Y, Width, Height).Picture
+  Endif
+  
+  Try Return Super.Screenshot(X, Y, Width, Height)
+  
+End
+
+Static Public Sub PickColor() As Integer
+  
+  Dim hGrab As Panel
+  
+  If Desktop.Platform = "x11" Then
+  
+    hGrab = New Panel(Application.ActiveWindow)
+    hGrab.Ignore = True
+    hGrab.Mouse = Mouse.Cross
+    hGrab.Grab
+    hGrab.Delete
+    
+    Return Super.Screenshot(Mouse.ScreenX, Mouse.ScreenY, 1, 1).Image[0, 0]
+    
+  Else 
+    
+    Return DesktopPortal.PickColor()
+    
+  Endif
   
 End

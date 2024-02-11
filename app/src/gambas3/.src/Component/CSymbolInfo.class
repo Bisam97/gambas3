@@ -69,6 +69,13 @@ Static Public Sub NameToType(sType As String) As String
   
 End
 
+Static Public Sub IsNativeType(sType As String) As Boolean
+  
+  Return $cNameType.Exist(sType) 
+  
+End
+
+
 Public Sub _new(hDoc As CDocumentation, sName As String, sKind As String)
   
   Documentation = hDoc
@@ -402,6 +409,45 @@ Public Function GetNativeSignature() As String
   
 End
 
+Public Sub GetArgumentTypes() As String[]
+
+  Dim sSign As String
+  Dim I As Integer
+  Dim sCar As String
+  Dim bPar As Boolean
+  Dim bNewArg As Boolean
+  Dim aArg As New String[]
+  
+  sSign = GetNativeSignature()
+  bNewArg = True
+  
+  For I = 1 To Len(sSign)
+    
+    sCar = Mid$(sSign, I, 1)
+    
+    If bPar Then
+      If sCar = ")" Then bPar = False
+    Else If sCar = "(" Then
+      bPar = True
+      bNewArg = True
+    Else If sCar = ";" Then
+      bNewArg = True
+    Else
+      If bNewArg Then
+        aArg.Add(sCar)
+        bNewArg = False
+      Else
+        aArg[aArg.Max] &= sCar
+      Endif
+    Endif
+    
+  Next
+  
+  Return aArg
+  
+End
+
+
 Private Sub SplitSignature(sSign As String) As String[]
   
   Dim iPos As Integer
@@ -430,7 +476,6 @@ Private Sub MergeSignature(sSign As String, sParentSign As String) As String
   Return sSign
   
 End
-
 
 Public Function GetSignature(bBalise As Boolean, Optional iShowArg As Integer = -1) As String
 
@@ -1547,3 +1592,63 @@ Public Sub ConvertToExport(cExportMap As Collection)
   Loop
   
 End
+
+Public Sub WikiGetDescription() As String
+  
+  Dim sPath As String
+  Dim aData As String[]
+  Dim iPos As Integer
+  Dim sData As String
+  Dim sDesc As String
+  Dim aDefaultHelp As String[]
+  Dim nTry As Integer
+  
+  sPath = "/comp" &/ LCase(Component &/ Class &/ Replace(Name, ":", "."))
+  
+TRY_AGAIN:
+
+  aDefaultHelp = Null
+  aData = Null
+  sPath = Wiki.GetPagePathFrom(Wiki.SolvePath(sPath))
+  If Exist(sPath) Then aData = Split(File.Load(sPath), "\n")
+  
+  If Not aData Or If aData.Count = 0 Then 
+    GoSub GET_DEFAULT_HELP
+    If aDefaultHelp.Count = 1 And If aDefaultHelp[0] Begins "-->" Then
+      sPath = Wiki.MakeAbsolute(Trim(Mid$(aDefaultHelp[0], 4)), sPath)
+      Inc nTry
+      If nTry < 8 Then Goto TRY_AGAIN
+    Endif
+    aData = ["@{help}"]
+  Endif
+  
+  While iPos < aData.Count
+    sData = aData[iPos]
+    If Trim(sData) = "@{help}" Then 
+      aData.Remove(iPos)
+      'Return "« " & Main.GetDefaultHelp(Me.Component, Me.Class, Me.Name) & " »"
+      GoSub GET_DEFAULT_HELP
+      aData.Insert(aDefaultHelp, iPos)
+      Continue
+    Endif
+    If sData Then
+      If IsLetter(Left(sData)) Then
+        sData = Replace(sData, "[../", "[./")
+        sData = Replace(sData, "[./../", "[../")
+        sDesc &= sData & "\n"
+      Endif
+    Else If sDesc Then
+      Break
+    Endif
+    Inc iPos
+  Wend
+  
+  Return sDesc
+  
+GET_DEFAULT_HELP:
+
+  If Not aDefaultHelp Then aDefaultHelp = Split(Wiki.GetDefaultHelp(Me.Component, Me.Class, Me.Name), "\n")
+  Return
+  
+End
+

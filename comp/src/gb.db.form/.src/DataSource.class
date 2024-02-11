@@ -8,6 +8,14 @@ Event Change
 Event BeforeSave(Data As Result)
 Event BeforeDelete(Keys As Variant[])
 
+'' @{since 3.19}
+''
+'' This event is raised when the value entered for a specific field is invalid.
+''
+'' If the event is stopped, the default warning message is not displayed.
+
+Event Invalid(Field As String)
+
 Property Connection As Connection
 Property Table As String
 Property Filter As String
@@ -270,8 +278,8 @@ Public Sub _OnDatabaseChange()
     'DEBUG hChild.Name
     If hChild Is DataSource Then
       If Not hChild.Connection Then hChild._OnDatabaseChange()
-    'Else If Common.IsControl(hChild) Or If hChild Is DataBrowser Or If hChild Is DataView Then
-    '  Try hChild._OnDatabaseChange()
+    Else If Common.IsControl(hChild) Or If hChild Is DataBrowser Or If hChild Is DataView Then
+      Try hChild._OnDatabaseChange()
     Endif
   Next
   
@@ -390,7 +398,7 @@ Public Sub _CreateCurrent() As Result
   Dim hSrc As DataSource
   Dim sKey As String
   
-  rData = _GetDB().Create($sTable)
+  rData = _GetDB().Create($sTable, True)
 
   hSrc = GetParent()
   If hSrc Then
@@ -412,6 +420,7 @@ Public Function Save(Optional bMessage As Boolean = True) As Boolean
   Dim iInd As Integer
   Dim aVal As Variant[]
   Dim bCancel As Boolean
+  Dim iIndex As Integer
 
   If $bSaving Then Return True
 
@@ -421,7 +430,8 @@ Public Function Save(Optional bMessage As Boolean = True) As Boolean
     If Common.IsControl(hChild) Then
       If Not hChild.Valid Then
         Dec Application.Busy
-        Message.Warning(("Invalid value."))
+        bCancel = Raise Invalid(hChild.Field)
+        If Not bCancel Then Message.Warning(("Invalid value."))
         hChild.SetFocus
         Return True
       Endif
@@ -452,16 +462,24 @@ Public Function Save(Optional bMessage As Boolean = True) As Boolean
       Endif
     Next
     
-    aVal = New Variant[aKey.Count]
-    For iInd = 0 To aKey.Max
-      aVal[iInd] = rData[aKey[iInd]]
-    Next
+    iIndex = -1
     
     bCancel = Raise BeforeSave(rData)
-    If Not bCancel Then rData.Update
-  
+    If Not bCancel Then 
+      rData.Update
+      aVal = New Variant[aKey.Count]
+      For iInd = 0 To aKey.Max
+        aVal[iInd] = rData[aKey[iInd]]
+      Next
+      iIndex = Find(Replace(Common.MakeWhere(aKey, aVal), "&", "&&"))
+    Endif 
+    
     Redraw(True)
+    
     If Not $bCheckModified Then Create(True)
+    
+    $iIndex = iIndex
+    Redraw
 
   Else
 
@@ -569,15 +587,32 @@ Public Function _get((Key) As String) As Variant
   
 End
 
+'' @{since 3.19}
+''
+'' Find the first row matching a SQL request from the current position.
+''
+'' - ~Where~: The "WHERE" part of the SQL request, with possible argument substitution inside.
+''
+'' Return the row index of the matching row, or '-1' if not row is found.
+
 Public Function Find(Where As String, ...) As Integer
   
-  Return $hTable.Find($DB.Subst(Where, ...))
+  Return $hTable.Find(_GetDB().Subst(Where, ...))
   
 End
 
+'' @{since 3.19}
+''
+'' Find the next row matching a SQL request from a specific position.
+''
+'' - ~Where~: The "WHERE" part of the SQL request, with possible argument substitution inside.
+'' - ~Index~: The position where the search starts.
+''
+'' Return the row index of the matching row, or '-1' if not row is found.
+
 Public Function FindNext(Index As Integer, Where As String, ...) As Integer
   
-  Return $hTable.Find($DB.Subst(Where, ...), Index)
+  Return $hTable.Find(_GetDB().Subst(Where, ...), Index)
   
 End
 

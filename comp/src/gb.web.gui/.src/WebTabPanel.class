@@ -19,7 +19,7 @@ Property Border As Boolean
 Private $aTab As New WebContainer[]
 Private $aText As New String[]
 
-Private $iIndex As Integer
+Private $iIndex As Integer = -1
 Private $bHideTabs As Boolean
 Private $bBorder As Boolean = True
 
@@ -125,23 +125,26 @@ Private Sub SetCurrent(iIndex As Integer)
 
   Inc Me._NoRefresh
   $iIndex = iIndex
-  Me._SetContainer($aTab[iIndex])
   For I = 0 To $aTab.Max
     bShow = (I = iIndex)
     If $aTab[I].Visible = bShow Then Continue
     $aTab[I].Visible = bShow
-    If Not bShow Then WebForm._AddJavascript("gw.setVisible(" & JS($aTab[I].Name) & "," & JS(bShow) & ");")
+    'If Not bShow Then
+    Me._AddRefresh("gw.setVisible(" & JS($aTab[I].Name) & "," & JS(bShow) & ");")
   Next
   Dec Me._NoRefresh
   
-  WebForm._AddJavascript("gw.setOuterHtml(" & JS(Me.Name & ":header") & "," & JS(GetHeaderHTML()) & ");")
-  $aTab[iIndex].Refresh
+  Me._SetContainer($aTab[iIndex])
+  Me._AddRefresh("gw.setOuterHtml(" & JS(Me.Name & ":header") & "," & JS(GetHeaderHTML()) & ");")
+  'WebForm._AddJavascript("gw.setVisible(" & JS($aTab[iIndex].Name) & ",true);")  
+  '$aTab[iIndex].Refresh
 
 End
 
 Private Sub Index_Write(Value As Integer)
 
   If Value < 0 Or If Value >= $aTab.Count Then Error.Raise("Bad argument")
+  If Value = $iIndex Then Return
   
   SetCurrent(Value)
   Raise Click

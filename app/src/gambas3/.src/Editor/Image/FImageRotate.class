@@ -21,6 +21,7 @@ End
 Public Sub btnOK_Click()
 
   Angle = slbAngle.Value
+  Project.Config["/FImageRotate/Angle"] = Angle
   Me.Close(True)
 
 End
@@ -35,5 +36,11 @@ Public Sub Form_Close()
 
   $hEditor.UpdateRotation(0)
   $hEditor = Null
+
+End
+
+Public Sub Form_Open()
+
+  slbAngle.Value = Project.Config["/FImageRotate/Angle", 0]
 
 End

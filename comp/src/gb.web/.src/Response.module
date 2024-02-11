@@ -10,6 +10,11 @@ Property Status As String
 Property EndOfLine As Integer
 Property Read Done As Boolean
 
+'' @{since 3.19}
+''
+'' Return a virtual object used for defining the default properties of the cookie sent to the client
+Property Read Cookie As _Response_Cookie
+
 'Property LastModified As Date
 'Property Read Cache As _ResponseCache
 
@@ -51,13 +56,27 @@ End
 Public Sub SetCookie(Cookie As String, Value As String, Optional Domain As String, Optional Path As String, Optional Expires As Date, Optional HttpOnly As Boolean)
   
   Dim sVal As String
+  Dim sSameSite As String
   
   sVal = Cookie & "=" & Value
-  If Domain Then sVal &= ";domain=" & Domain
-  If Expires Then sVal &= ";expires=" & CGI.FormatDate(Expires)
-  If Path Then sVal &= ";path=" & Path
-  If HttpOnly Then sVal &= ";httponly"
-  sVal &= ";SameSite=Lax"
+  
+  If IsMissing(Domain) Then Domain = _Response_Cookie.Domain
+  If Domain Then sVal &= ";Domain=" & Domain
+  
+  If IsMissing(Expires) Then Expires = _Response_Cookie.Expires
+  If Expires Then sVal &= ";Expires=" & CGI.FormatDate(Expires)
+  
+  If IsMissing(Path) Then Path = _Response_Cookie.Path
+  If Path Then sVal &= ";Path=" & Path
+  
+  If IsMissing(HttpOnly) Then HttpOnly = _Response_Cookie.HttpOnly
+  If HttpOnly Then sVal &= ";HttpOnly"
+  
+  sSameSite = _Response_Cookie.SameSite
+  If Not sSameSite Then sSameSite = "Lax"
+  sVal &= ";SameSite=" & sSameSite
+  
+  If _Response_Cookie.Secure Or If sSameSite = "None" Then sVal &= ";Secure"
   
   AddHeader("Set-Cookie", sVal)
   
@@ -113,11 +132,14 @@ End
 
 Public Sub Reset()
   
-  Try CloseTempFile
-  Try Kill Temp$("response")
   $sHeader = ""
   $sStatus = ""
   $sContentType = "text/html;charset=utf-8"
+
+  If $hFile
+    Try CloseTempFile
+    Try Kill Temp$("response")
+  Endif
   
 End
 
@@ -384,5 +406,11 @@ End
 Private Function Done_Read() As Boolean
 
   Return $bDone
+
+End
+
+Private Function Cookie_Read() As _Response_Cookie
+
+  Return _Response_Cookie
 
 End

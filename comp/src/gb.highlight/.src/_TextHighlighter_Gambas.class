@@ -1,0 +1,161 @@
+' Gambas class file
+
+Export
+Inherits TextHighlighter
+
+'Public Const FullName As String = "Gambas"
+'Public Const _Styles As String = "Keyword,Function,Operator,Symbol,Number,String,Breakpoint,Current,Datatype,Preprocessor,Escape,Label,Constant"
+
+Class Highlight
+
+Property Read Keywords As String[]
+
+Static Private $aKeywords As String[]
+Static Private $cState As New Collection
+
+Static Public Sub _init()
+  
+  Dim sColor As String
+  Dim I As Integer
+  
+  Component.Load("gb.eval")
+  
+  ' Follow the order of Highlight class constants
+  For Each sColor In ["", "Normal", "", "", "", "", "", "", "Error", "Comment", "Documentation", "Keyword", "Function", "Operator", "Symbol", "Number", "String", "", "", "Datatype", "Preprocessor", "Escape", "Label", "Constant"]
+    If sColor Then $cState[I] = Me.RegisterState(sColor)
+    Inc I
+  Next
+  
+End
+
+Private Sub Keywords_Read() As String[]
+  
+  If Not $aKeywords Then
+    $aKeywords = System.Keywords.Copy()
+    $aKeywords.Insert(System.Subroutines)
+    $aKeywords.ReadOnly = True
+  Endif
+  
+  Return $aKeywords
+  
+End
+
+' Private Sub IsProc() As Boolean
+' 
+'   Dim aSym As String[]
+'   Dim I As Integer
+'   Dim sSym As String
+' 
+'   aSym = Highlight.Symbols
+'   
+'   For I = 0 To aSym.Max
+'     sSym = aSym[I]
+'     If sSym == "PRIVATE" Or If sSym == "PUBLIC" Or If sSym == "STATIC" Or If sSym == "FAST" Then Continue
+'     If sSym == "SUB" Or If sSym == "PROCEDURE" Or If sSym == "FUNCTION" Then
+'       Return True
+'     Else
+'       Return False
+'     Endif
+'   Next
+' 
+' End
+
+Public Sub _Analyze(Text As String, (State) As Byte[], Optional (MatchLimit) As Boolean, Limit As String, ByRef Pos As Integer) As Byte[]
+  
+  Dim aHighlight As New Byte[]
+  Dim iPos As Integer
+  Dim I As Integer
+  Dim iLen As Integer
+  Dim sSym As String
+  Dim bRewrite As Boolean
+  Dim sTextAfter As String
+  Dim iLenText As Integer
+  Dim iLenBefore As Integer
+  Dim bNewLine As Boolean
+  Dim bGotLimit As Boolean
+  
+  ' Gambas syntax implies that:
+  ' - A line always starts at normal state.
+  ' - 'Text' must be a whole line of code.
+  ' - 'MatchLimit' must be False
+  ' - 'Limit' can only be '%>'
+  
+  bRewrite = Me.CanRewrite
+  
+  If Limit Then Text = String.Mid$(Text, Pos)
+  
+  iLenText = String.Len(Text)
+  iLenBefore = iLenText
+  
+  If Text Ends "\n" Then
+    Text = Left(Text, -1)
+    bNewLine = True
+  Endif
+  
+  Highlight.Analyze(Text, bRewrite,, Limit = "%>")
+  If bRewrite Then sTextAfter = Highlight.TextAfter
+  
+  Me.Limit = Highlight.IsFunction
+  Me.Comment = Left(LTrim(Text)) = "'"
+  
+  iPos = 0
+  For I = 0 To Highlight.Symbols.Max
+    
+    sSym = Highlight.Symbols[I]
+    If Limit And If sSym Begins Limit Then
+      If Not bRewrite Then
+        If iPos < Highlight.Positions[I] Then
+          Me._Add(aHighlight, 0, Highlight.Positions[I] - iPos)
+          iPos = Highlight.Positions[I]
+        Endif
+      Endif
+      bNewLine = False
+      bGotLimit = True
+      sTextAfter = Left(sTextAfter, -2)
+      Text = String.Left(Text, iPos)
+      iLenText = iPos
+      Break
+    Endif
+    
+    If iPos < Highlight.Positions[I] Then
+      Me._Add(aHighlight, 0, Highlight.Positions[I] - iPos)
+      iPos = Highlight.Positions[I]
+    Endif
+    
+    iLen = String.Len(sSym)
+    Me._Add(aHighlight, $cState[Highlight.Types[I]], iLen)
+    iPos += iLen
+    
+  Next
+
+  If bRewrite Then
+    iLen = String.Len(sTextAfter)
+  Else
+    iLen = iLenText
+  Endif
+  
+  If iPos < iLen Then
+    Me._Add(aHighlight, 0, iLen - iPos)
+    iPos = iLen
+  Endif
+  
+  If bRewrite Then
+
+    Me.LengthAdded = iLen - Highlight.LengthBefore
+    If bGotLimit Then Me.LengthAdded += 2
+
+    If bNewLine Then
+      sTextAfter &= "\n"
+      Inc iLen
+    Endif
+    
+    Me.TextAfter = sTextAfter
+    
+  Endif
+  
+  If Limit Then Pos += iLen
+  
+  Return aHighlight
+
+End
+

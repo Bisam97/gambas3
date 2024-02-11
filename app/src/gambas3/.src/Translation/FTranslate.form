@@ -7,7 +7,6 @@
   Persistent = True
   Arrangement = Arrange.Vertical
   Spacing = True
-  Margin = True
   { mnuTranslation Menu
     Visible = False
     { mnuNew Menu
@@ -63,10 +62,11 @@
     }
   }
   { tabTranslate TabPanel
-    MoveScaled(1,1,107,72)
+    MoveScaled(2,1,107,72)
     Expand = True
     Arrangement = Arrange.Vertical
-    Count = 3
+    Border = False
+    Count = 4
     Index = 0
     Text = ("Translation")
     { panTranslate VBox
@@ -318,7 +318,7 @@
       ScrollBar = Scroll.Vertical
     }
     Index = 2
-    Text = ("Import")
+    Text = ("Import file")
     { dchImport DirChooser
       MoveScaled(2,1,100,48)
       Expand = True
@@ -331,38 +331,59 @@
       MoveScaled(19,51,16,0)
     }
     { HBox4 HBox
-      MoveScaled(1,55,100,10)
+      MoveScaled(1,60,100,6)
       Spacing = True
       Margin = True
-      { Panel4 VBox
-        MoveScaled(1,1,53,8)
+      { chkReplace CheckBox
+        MoveScaled(1,1,30,4)
         AutoResize = True
-        { chkBrowse CheckBox
-          MoveScaled(0,0,33,4)
-          AutoResize = True
-          Text = ("Import all translations  recursively")
-        }
-        { chkReplace CheckBox
-          MoveScaled(0,4,33,4)
-          AutoResize = True
-          Text = ("Replace existing translations")
-        }
+        Text = ("Replace existing translations")
+      }
+      { chkBrowse CheckBox
+        MoveScaled(32,1,33,4)
+        AutoResize = True
+        Text = ("Import all translations  recursively")
       }
       { Panel5 Panel
-        MoveScaled(60,3,1,4)
+        MoveScaled(78,1,1,4)
         Expand = True
       }
-      { Panel3 VBox
-        MoveScaled(70,2,28,6)
+      { btnImport Button
+        MoveScaled(79,1,18,4)
+        ToolTip = ("Import a translation file")
         AutoResize = True
-        Invert = True
-        { btnImport Button
-          MoveScaled(3,0,18,4)
-          ToolTip = ("Import a translation file")
-          AutoResize = True
-          Text = Shortcut(("Import"), "I")
-          Picture = Picture["icon:/small/open"]
-        }
+        Text = Shortcut(("Import"), "I")
+        Picture = Picture["icon:/small/import"]
+      }
+    }
+    Index = 3
+    Text = ("Import project")
+    { pchImport ProjectChooser
+      MoveScaled(4,3,92,46)
+      Expand = True
+    }
+    { Separator11 Separator
+      MoveScaled(19,50,16,0)
+    }
+    { HBox1 HBox
+      MoveScaled(1,59,100,6)
+      Spacing = True
+      Margin = True
+      { chkReplace2 CheckBox
+        MoveScaled(1,1,30,4)
+        AutoResize = True
+        Text = ("Replace existing translations")
+      }
+      { Panel3 Panel
+        MoveScaled(51,1,1,4)
+        Expand = True
+      }
+      { btnImportProject Button
+        MoveScaled(69,1,28,4)
+        ToolTip = ("Import all translations of a project")
+        AutoResize = True
+        Text = ("Import all translations") & "..."
+        Picture = Picture["icon:/small/earth"]
       }
     }
     Index = 0

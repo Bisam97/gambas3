@@ -88,6 +88,7 @@ static gboolean button_expose(GtkWidget *wid, GdkEventExpose *e, gButton *data)
 	bool rtl;
 	int x, w, wt, wp, hp;
 	int d = gDesktop::scale() / 2;
+	gColor fg = COLOR_DEFAULT;
 	
 	rtl = gtk_widget_get_direction(wid) == GTK_TEXT_DIR_RTL;
 	
@@ -118,6 +119,34 @@ static gboolean button_expose(GtkWidget *wid, GdkEventExpose *e, gButton *data)
 	if (data->hasText())
 	{
 		gt_set_cell_renderer_text_from_font((GtkCellRendererText *)data->rendtxt, data->font());
+
+		fg = data->realForeground();
+
+		if (fg == COLOR_DEFAULT)
+		{
+			g_object_set(G_OBJECT(data->rendtxt),
+				"foreground-set", FALSE,
+				(void *)NULL);
+		}
+		else
+		{
+#ifdef GTK3
+			GdkRGBA col;
+			gt_from_color(fg, &col);
+			g_object_set(G_OBJECT(data->rendtxt),
+				"foreground-set", TRUE,
+				"foreground-rgba", &col,
+				(void *)NULL);
+#else
+			GdkColor col;
+			fill_gdk_color(&col, fg);
+			g_object_set(G_OBJECT(data->rendtxt),
+				"foreground-set", TRUE,
+				"foreground-gdk", &col,
+				(void *)NULL);
+#endif
+		}
+
 		wt = data->font()->width(data->text(), strlen(data->text())) + 4;
 	}
 	
@@ -173,13 +202,15 @@ static gboolean button_expose(GtkWidget *wid, GdkEventExpose *e, gButton *data)
 		
 			g_object_set(G_OBJECT(data->rendtxt), "sensitive", !(f & GTK_STATE_INSENSITIVE), (void *)NULL);
 			
-			if (f & GTK_STATE_SELECTED)
+			if (fg != COLOR_DEFAULT)
+				state = (GtkCellRendererState)0;
+			else if (f & GTK_STATE_SELECTED)
 				state = GTK_CELL_RENDERER_SELECTED;
 			else if (f & GTK_STATE_INSENSITIVE)
 				state = GTK_CELL_RENDERER_INSENSITIVE;
 			else
 				state = (GtkCellRendererState)0;
-			
+
 		#else
 			
 			g_object_set(G_OBJECT(data->rendtxt), "sensitive", true, (void *)NULL);
@@ -403,7 +434,7 @@ void gButton::setText(const char *st)
 		_label = gtk_bin_get_child(GTK_BIN(widget));
 		updateDirection();
 		#ifndef GTK3
-		set_gdk_fg_color(_label, foreground());
+		set_gdk_fg_color(_label, realForeground());
 		#endif
 	}
 
@@ -653,25 +684,6 @@ void gButton::setRealForeground(gColor color)
 	if (_label)
 		set_gdk_fg_color(_label, color);
 #endif
-
-	if (rendtxt)
-	{
-		if (color == COLOR_DEFAULT)
-		{
-			g_object_set(G_OBJECT(rendtxt),
-				"foreground-set", FALSE,
-				(void *)NULL);
-		}
-		else
-		{
-			GdkColor col;
-			fill_gdk_color(&col, color);
-			g_object_set(G_OBJECT(rendtxt),
-				"foreground-set", TRUE,
-				"foreground-gdk", &col,
-				(void *)NULL);
-		}
-	}
 }
 
 void gButton::setTristate(bool vl)

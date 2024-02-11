@@ -1,0 +1,475 @@
+' Gambas class file
+
+Static Public Path As String
+Static Public Keywords As New String[]
+
+Static Private $sHighlighter As String
+
+Static Private $iIndent As Integer
+Static Private $sLastCode As String
+
+Static Private $cState As New Collection
+Static Private $aStateName As New String[]
+
+Static Private $aLabel As New String[]
+Static Private $cTitle As New Collection
+
+Static Private $cInclude As New Collection
+
+Static Private $cSubst As New Collection
+
+Static Public Pattern As String
+
+Public Name As String
+Public ColorIndex As Integer
+Public Indent As Integer
+Public Parent As CState
+Public Commands As New CCommand[]
+Public Children As New CState[]
+Public HasNext As Boolean
+Public Limit As Boolean
+Public Next As Boolean
+
+Private $iCurrentCommand As Integer
+Private $iCurrentChild As Integer
+Private $sContinue As String
+
+Static Public Sub Init(sHighlighter As String, sPath As String)
+  
+  $sHighlighter = sHighlighter
+  Path = sPath
+  $cSubst.Clear
+  $cState.Clear
+  $aStateName.Clear
+  $aLabel.Clear
+  $cTitle.Clear
+  Keywords.Clear
+  
+End
+
+Static Public Sub Subst(sValue As String) As String
+  
+  Dim sReplace As String
+  
+  If InStr(sValue, "$(") = 0 Then Return sValue
+  
+  For Each sReplace In $cSubst
+    sValue = Replace(sValue, "$(" & $cSubst.Key & ")", sReplace)
+  Next
+  
+  Return sValue
+  
+End
+
+Static Public Sub Define(sVar As String, sValue As String)
+  
+  $cSubst[sVar] = Me.Subst(sValue)
+  
+End
+
+
+Public Sub _new(Optional sLine As String)
+  
+  Dim iPos As Integer
+  Dim sColor As String
+  
+  If Not sLine Then Return
+  
+  If sLine Ends "}" Then
+    iPos = InStr(sLine, "{")
+    If iPos = 0 Then Error.Raise("Syntax error")
+    sColor = Mid$(sLine, iPos + 1, -1)
+    sLine = Left(sLine, iPos - 1)
+    iPos = InStr(sColor, "=")
+    If iPos Then sColor = Trim(Left$(sColor, iPos - 1))
+  Endif
+  
+  If Not sColor Then sColor = String.UCaseFirst(sLine)
+  
+  If sLine Not Match "[A-Za-z][A-Za-z0-9.]*" Then Error.Raise("Incorrect character in state name")
+  Name = Replace(sLine, ".", "_")
+  
+  ColorIndex = TextHighlighterTheme._RegisterState(sColor)
+  
+  ' If sTitle Then 
+  '   sCurrent = $cTitle[Name]
+  '   If Not sCurrent Then
+  '     $cTitle[Name] = sTitle
+  '   Else If sCurrent <> sTitle Then
+  '     Error.Raise("Ambiguous state display name")
+  '   Endif
+  ' Endif
+  
+End
+
+Public Sub AddCommand(sText As String)
+
+  Dim hCommand As CCommand
+  Dim iPos As Integer
+  Dim sCommand As String
+  Dim aArg As String[]
+  Dim I As Integer
+  
+  iPos = InStr(sText, " ")
+  If iPos = 0 Then 
+    sCommand = sText
+    aArg = New String[]
+  Else
+    sCommand = Left(sText, iPos - 1)
+    aArg = Split(Mid$(sText, iPos + 1), " ", "", True)
+    For I = 0 To aArg.Max
+      aArg[I] = CState.Subst(aArg[I])
+    Next
+  Endif
+  
+  Try hCommand = Object.New("CCommand" & UCase(Left(sCommand)) & Mid$(sCommand, 2))
+  If Error Then Error.Raise("Unknown command: " & sCommand)
+  
+  hCommand.SetArgs(aArg)
+  hCommand.Init()
+  Commands.Add(hCommand)
+  
+End
+
+Static Public Sub Print(Optional sCode As String)
+  
+  sCode = Trim(sCode)
+  
+  If Not sCode Then
+    If $sLastCode Then
+      Print
+      $sLastCode = ""
+    Endif 
+    Return
+  Endif
+  
+  If sCode = "Loop" Or If sCode = "Endif" Or If sCode = "Next" Or If sCode = "End" Or If sCode Ends ":" Or If sCode = "Catch" Then 
+    Dec $iIndent
+  Endif
+  
+  'Print #File.Out, Space($iIndent * 2); sCode
+  Print Space($iIndent * 2); sCode
+  $sLastCode = sCode
+  
+  Do
+    If sCode Begins "Static " Or If sCode Begins "Private " Or If sCode Begins "Public " Or If sCode Begins "Fast " Then
+      sCode = Mid$(sCode, InStr(sCode, " ") + 1)
+    Else 
+      Break 
+    Endif
+  Loop 
+  
+  If sCode = "Do" Or If sCode Begins "For " Or If sCode Begins "Sub " Or If sCode Ends ":" Or If sCode = "Catch" Then
+    Inc $iIndent
+  Else If sCode Begins "If " And If sCode Ends "Then" Then
+    Inc $iIndent
+  Endif
+  
+End
+
+Static Public Sub IfStartWith(sStr As String, Optional sLabel As String)
+  
+  If sLabel Then
+    Print("If String.Mid$($sText, $iPos) Not Begins " & Quote(sStr) & " Then Goto " & sLabel)
+  Else
+    Print("If String.Mid$($sText, $iPos) Begins " & Quote(sStr) & " Then")
+  Endif
+  
+End
+
+Static Public Sub IfEndWith(sStr As String, Optional sLabel As String)
+  
+  If sLabel Then
+    Print("If String.Left$($sText, $iPos - 1) Not Ends " & Quote(sStr) & " Then Goto " & sLabel)
+  Else
+    Print("If String.Left$($sText, $iPos- 1) Ends " & Quote(sStr) & " Then")
+  Endif
+  
+End
+
+Static Public Sub Peek(sLen As String) As String
+  
+  Return "String.Mid$($sText, $iPos, " & sLen & ")"
+  
+End
+
+Static Public Sub PrintLabel(sLabel As String, Optional bNoState As Boolean) As String
+  
+  If Not bNoState Then
+    If $aLabel.Count = 256 Then Error.Raise("Highlight too complex")
+    $aLabel.Add(sLabel)
+  Endif
+
+  Print()
+  Print(sLabel & ":")
+  If Not bNoState Then 
+    Print("aState[0] = " & CStr($aLabel.Max))
+    Print("If $bEof Then Return")
+  Endif
+  Print()
+  
+End
+
+Public Sub Forward(Optional sLen As String, iColorIndex As Integer = ColorIndex)
+  
+  If sLen And If sLen <> "1" Then
+    Print("Forward(" & CStr(iColorIndex) & ", " & sLen & ")")  
+  Else 
+    Print("Forward(" & CStr(iColorIndex) & ")")
+  Endif
+  If Limit Then
+    Print("Me.Limit = True")
+  Endif
+  
+End
+
+Public Sub ForwardParent(Optional sLen As String)
+
+  Dim iColorIndex As Integer
+  
+  Try iColorIndex = Parent.ColorIndex
+  Forward(sLen, iColorIndex)
+  
+End
+
+
+Public Sub GetLabel(Optional bNoCurrentCommand As Boolean) As String
+
+  Dim sLabel As String
+  
+  If Not Name Then 
+    sLabel = "STATE_$"
+  Else
+    If Parent Then
+      sLabel = Parent.GetLabel()
+    Else 
+      sLabel = "STATE"
+    Endif
+    If Name = "*" Then
+      sLabel &= "_$"
+    Else
+      sLabel &= "_" & UCase(Name)
+    Endif
+  Endif 
+  
+  If Not bNoCurrentCommand And If $iCurrentCommand > 0 Then sLabel &= "_" & CStr($iCurrentCommand)
+  
+  Return sLabel
+  
+End
+
+Public Sub GetNextLabel() As String
+  
+  Dim sLabel As String
+  
+  If $iCurrentCommand >= Commands.Count Then
+    sLabel = GetLabel(True) & "_$END"
+  Else If $iCurrentCommand > 0 Then
+    Inc $iCurrentCommand
+    sLabel = GetLabel()
+    Dec $iCurrentCommand
+  Else If $iCurrentChild = Children.Count Then
+    sLabel = GetLabel() & "_$END"
+  Else If $iCurrentChild = Children.Max And If Parent.HasNext Then
+    sLabel = GetLabel() & "_$END"
+  Else If $iCurrentChild Then
+    sLabel = GetLabel()
+  Endif
+  
+  Return sLabel
+  
+End
+
+Public Sub GetContinueLabel() As String
+  
+  If {Next} Then
+    Return Parent.GetContinueLabel()
+  Else If $sContinue Then
+    Return $sContinue
+  Else
+    Return Parent.GetLabel()
+  Endif
+  
+End
+
+
+Public Sub Continue()
+  
+  Print("Goto " & GetContinueLabel())
+  
+End
+
+Public Sub Compile(Optional sContinue As String)
+  
+  Dim hChild As CState
+  Dim I As Integer
+  'Dim sOldContinue As String
+  
+  If Commands.Count Then
+  
+    'sOldContinue = $sContinue
+    $sContinue = sContinue
+    For I = 0 To Commands.Max
+      Inc $iCurrentCommand
+      PrintLabel(GetLabel())
+      Commands[I].Compile(Me)
+    Next
+    '$sContinue = sOldContinue
+    $iCurrentCommand = 0
+    PrintLabel(GetLabel() & "_$END")
+    
+  Else
+    
+    PrintLabel(GetLabel())
+    Print()
+  
+    Print("If IgnoreSpaces() Then Goto " & GetLabel() & "_$END")
+
+    Print("If $sTextLimit Then")
+      Print("If $bMatchLimit Then")
+        Print("If Match($sTextLimit) Then")
+          'Print("aState.Remove(0)")
+          Print("Return")
+        Print("Endif")
+      Print("Else")
+        Print("If $sTextLimit And If Mid$($sText, $iPos) Begins $sTextLimit Then")
+          'Print("aState.Remove(0)")
+          Print("Return")
+        Print("Endif")
+      Print("Endif")
+    Print("Endif")
+  
+    CompileChildren()
+    
+    PrintLabel(GetLabel() & "_$END", True)
+    Print("aState[0] = 0")
+    Print("If $bEof Then Return")
+    Print()
+    Print("Forward(0)")
+    Print("Goto " & GetLabel())
+    
+  Endif
+  
+  For Each hChild In Children
+    hChild.Parent = Null
+  Next
+  
+End
+
+Public Sub CompileChildren(Optional sContinue As String, Optional bForward As Boolean)
+
+  Dim hState As CState
+  
+  If Name = "*" Then
+    Print("Compile(aState)")
+    Return
+  Endif
+  
+  $iCurrentChild = 0
+  For Each hState In Children
+    Inc $iCurrentChild
+    If hState.Next Then Break
+    hState.Compile(sContinue)
+    hState = Null
+  Next
+  
+  If sContinue Then
+    If bForward Then Forward()
+    Print("Goto " & sContinue)
+  Endif
+  
+  If hState Then
+    If Not sContinue Then Print("Goto " & GetLabel(True) & "_$END")
+    If $iCurrentChild <> Children.Count Then Error.Raise("Next state must be the last child state")
+    PrintLabel(GetLabel(True) & "_NEXT", True)
+    hState.Compile()
+  Endif
+  
+End
+
+Public Sub AddChild(hChild As CState)
+  
+  Children.Add(hChild)
+  hChild.Parent = Me
+  
+End
+
+Static Public Sub GetStateNames() As String
+
+  Dim I As Integer
+  Dim aResult As String[]
+  
+  aResult = New String[]
+  aResult.Add("\"*\"")
+  For I = 0 To $aStateName.Max
+    aResult.Add(Quote($aStateName[I]))
+  Next
+  
+  Return "[" & aResult.Join(", ") & "]"
+  
+End
+
+' Static Public Sub GetStateFromNames() As String
+' 
+'   Dim I As Integer
+'   Dim aResult As New String[]
+'   
+'   For I = 0 To $aStateName.Max
+'     aResult.Add(Quote($aStateName[I]) & ": " & CStr(I + 1))
+'   Next
+'   
+'   Return "[" & aResult.Join(", ") & "]"
+'   
+' End
+' 
+Static Public Sub GetLabels() As String[]
+  
+  Return $aLabel
+  
+End
+
+Static Public Sub GetKeywords() As String
+  
+  Dim aResult As New String[]
+  Dim I As Integer
+  
+  For I = 0 To Keywords.Max
+    aResult.Add(Quote(Keywords[I]))
+  Next
+  
+  Return "[" & aResult.Join(", ") & "]"
+  
+End
+
+Static Public Sub GetInclude(sInclude As String) As Integer
+  
+  Try Return $cInclude[sInclude]
+  
+End
+
+Static Public Sub AddInclude(sInclude As String) As Integer
+
+  Dim iInclude As Integer
+  
+  Try iInclude = $cInclude[sInclude]
+  If Error Then
+    iInclude = $cInclude.Count + 1
+    $cInclude[sInclude] = iInclude
+  Endif
+  Return iInclude
+  
+End
+
+Static Public Sub IsRegExp(sPattern As String) As Boolean
+  
+  If sPattern Begins "/" And If sPattern Ends "/" And If Len(sPattern) > 2 Then
+    Pattern = Mid$(sPattern, 2, -1)
+    Return True
+  Else If sPattern Begins "\"" And If sPattern Ends "\"" Then
+    Pattern = UnQuote(sPattern)
+    Return False
+  Else 
+    Pattern = sPattern
+  Endif
+  
+End

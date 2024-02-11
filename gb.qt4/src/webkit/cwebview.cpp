@@ -527,7 +527,7 @@ END_METHOD
 BEGIN_METHOD(WebView_FindText, GB_STRING text; GB_BOOLEAN backward; GB_BOOLEAN case_sensitive; GB_BOOLEAN wrap)
 
 	QString text;
-	QWebPage::FindFlags flags = 0;
+	QWebPage::FindFlags flags;
 	
 	if (!MISSING(text)) 
 		text = QSTRING_ARG(text);

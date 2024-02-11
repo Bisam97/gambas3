@@ -158,6 +158,8 @@ typedef
 		const char *(*FormatToString)(int format);
 		// Return the luminance of a color
 		int (*GetLuminance)(GB_COLOR col);
+		// Invert an image, eventually preserving the color hue.
+		void (*Invert)(GB_IMG *img, bool keep_hue);
 		}
 	IMAGE_INTERFACE;
 
@@ -168,6 +170,7 @@ typedef
 
 #define COLOR_DEFAULT ((GB_COLOR)-1)
 #define GB_COLOR_DEFAULT ((GB_COLOR)-1)
+#define GB_COLOR_TRANSPARENT ((GB_COLOR)0xFF000000)
 
 #endif
 

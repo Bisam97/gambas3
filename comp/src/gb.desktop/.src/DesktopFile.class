@@ -27,6 +27,14 @@ Property WorkingDir As String
 Property Actions As String[]
 Property Read AlternativeActions As Collection
 
+'' An array of the files altenative actions.<p>
+'' This property modifies the \[Desktop Action \<Key\>\] definitions and has no effect on the [/comp/gb.desktop/desktopfile/actions](Actions) property
+Property Read DesktopActions As _DesktopFile_Actions
+Private $hDesktopActions As _DesktopFile_Actions
+
+'' A hidden pointer to the raw data that this class uses as a Collection. (use at your own risk)
+Property Read _Data As Collection
+
 Private Const IGNORE_LINE As String = "$@$_"
 
 Private $cSettings As Collection
@@ -75,6 +83,7 @@ Public Sub _new(Path As String)
 
   $sPath = Path
   $cSettings = LoadIniFile(Path)
+  $hDesktopActions = New _DesktopFile_Actions As "DeskTopFileActions"
 
 End
 
@@ -747,3 +756,23 @@ Static Public Sub _Refresh()
   $cIconCache.Clear
   
 End
+
+Static Public Function _Langs() As String[]
+  
+  Return $aLang
+  
+End
+
+
+Private Function _Data_Read() As Collection
+
+  Return $cSettings
+
+End
+
+Private Function DesktopActions_Read() As _DesktopFile_Actions
+
+  Return $hDesktopActions
+
+End
+

@@ -66,7 +66,7 @@ Public Sub Form_Open()
     tabIcon.Index = 1
   Else If $sIcon Begins "flag:/" Then
     tabIcon.Index = 2
-  Else 
+  Else If $sIcon Then 
     tabIcon.Index = 0
   Endif
   
@@ -76,17 +76,17 @@ Public Sub Form_Open()
     If iPos Then 
       SetSize(Left$(sIcon, iPos - 1))
     Else 
-      SetSize(Settings["FSelectIcon/Size", "32"])
+      SetSize("medium") 'Settings["FSelectIcon/Size", "medium"])
     Endif
     $sSelectKey = Mid$(sIcon, iPos + 1)
     hIconView = GetIconView()
   Else If $sIcon Then
-    fchIcon.SelectedPath = fchIcon.Root &/ $sIcon
+    $sSelectKey = fchIcon.Root &/ $sIcon
   Endif
 
   txtFilter.Text = ""
   chkUseSize.Value = Settings["FSelectIcon/PreviewSize", 0]
-  If Not $sSize Then SetSize(Settings["FSelectIcon/Size", "32"])
+  If Not $sSize Then SetSize("medium") 'Settings["FSelectIcon/Size", "medium"])
   
   $bNoRefreshStock = False
   RefreshStock
@@ -131,22 +131,25 @@ End
 Private Sub RefreshStock(Optional bClear As Boolean)
   
   Dim sIcon As String
+  Dim sKey As String
   Dim sFilter As String
   Dim bPreviewSize As Boolean
   Dim aIcons As String[]
-  Dim sKey As String
   Dim hPict As Picture
   Dim hIconView As IconView
+  Dim sLastIcon As String
   
   If $bNoRefreshStock Then Return
   If tabIcon.Index = 0 Then Return
   
+  hIconView = GetIconView()
+  sLastIcon = hIconView.Key
+
   If bClear Then
     icwStock.Clear
     icwFlag.Clear
   Endif
   
-  hIconView = GetIconView()
   If hIconView.Count Then Return
   
   Inc Application.Busy
@@ -160,7 +163,6 @@ Private Sub RefreshStock(Optional bClear As Boolean)
     aIcons = Stock.Flags
   Endif
   
-  sKey = hIconView.Key
   hIconView.Clear
 
   For Each sIcon In aIcons
@@ -174,9 +176,9 @@ Private Sub RefreshStock(Optional bClear As Boolean)
     hIconView.Add(sIcon, sIcon, hPict)
   Next
   
-  If hIconView.Exist(sKey) Then
-    hIconView[sKey].Selected = True
-    hIconView[sKey].EnsureVisible
+  If hIconView.Exist(sLastIcon) Then
+    hIconView[sLastIcon].Selected = True
+    hIconView[sLastIcon].EnsureVisible
   Endif
   
   Dec Application.Busy
@@ -192,7 +194,7 @@ Private Sub SetSize(sSize As String) As Boolean
   sSize = LCase(sSize)
   Try iSize = CInt(sSize)
   If Error Then 
-    If Not Stock.Sizes.Exist(sSize) Then 
+    If cmbSize.Find(sSize) < 0 Then 
       cmbSize.Text = $sSize
       Return True
     Endif
@@ -307,9 +309,14 @@ Public Sub Form_Activate()
   
   If Not $sSelectKey Then Return
   
-  hIconView = GetIconView()
-  Try hIconView[$sSelectKey].Selected = True
-  If Not Error Then hIconView[$sSelectKey].EnsureVisible
+  If $sIcon Begins "icon:/" Or If $sIcon Begins "flag:/" Then 
+    hIconView = GetIconView()
+    Try hIconView[$sSelectKey].Selected = True
+    If Not Error Then hIconView[$sSelectKey].EnsureVisible
+  Else
+    fchIcon.SelectedPath = fchIcon.Root &/ $sIcon
+  Endif
+  
   $sSelectKey = ""
 
 End

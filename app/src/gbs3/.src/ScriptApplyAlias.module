@@ -1,10 +1,11 @@
 ' Gambas module file
 
-Export 
+Export
 
 Class Regexp
 
 Public Sub _Call(Data As String, aliaslist As Collection) As String[]
+
   Dim MyReg As New Regexp
   Dim MyParams As New String[20]
 
@@ -12,128 +13,133 @@ Public Sub _Call(Data As String, aliaslist As Collection) As String[]
   Dim used As New String[]
   Dim MyParmsDummy As New String[20]   ' Appended to ensure there are enough parameters
   Dim ReadQueue As New String[]
-  
+
 DoAliasAgain:
 
   For Each s In aliaslist
     Dim akey As String = aliaslist.key
     akey = Replace(akey, "?", "\\?")            ' escape special regex characters
-    akey = Replace(akey, "$", "\\$")            ' This too 
-    
+    akey = Replace(akey, "$", "\\$")            ' This too
+
     If Not used.Exist(akey) Then
-      
+
       If InStr(aKey, "()") > 0 Then
         MyReg.compile("^" & Left(aKey, -2) & "([(].*[)])", (RegExp.MultiLine Or RegExp.Caseless))
         MyReg.Exec(data)
-          If MyReg.Count > 0 Then
-            'Print MyReg[0].text
-            Dim params As New String[] 
-            Dim BreakPos As Integer = InStr(MyReg[0].text, "(")
-            Params.Add(Left(MyReg[0].text, BreakPos - 1))                                                 ' add the alias name
-            Dim Parameters As String = Mid(MyReg[0].text, BreakPos + 1, MyReg[0].text.len - BreakPos - 1)
-            'Params.Insert(Parser(Parameters, AliasParms))
-            Params.Insert(Parser(Parameters))
-            MyParams = New String[]
-            For i As Integer = 1 To IIf(params.count - 1 > 20, 19, params.max)
-              If Params[i] = "," Then Continue
-              MyParams.Add(IIf(params[i][0] = "'", Mid(params[i], 2, params[i].len - 2), Params[i]))
-            Next
-            MyParams.Insert(MyParmsDummy)
-            data = Replace(data, MyReg[0].text, Subst(s & " ", MyParams[0], MyParams[1], MyParams[2], MyParams[3], MyParams[4], MyParams[5], MyParams[6], MyParams[7], MyParams[8], MyParams[9], MyParams[10], MyParams[11], MyParams[12], MyParams[13], MyParams[14], MyParams[15], MyParams[16], MyParams[17], MyParams[18], MyParams[19]), RegExp.Caseless)
-            used.Add(aliaslist.key)
-            Goto DoAliasAgain
-          Endif
-          
-      Else If aliaslist.key == Trim(data) Then 
-          data = s & " "
+        If MyReg.Count > 0 Then
+          'Print MyReg[0].text
+          Dim params As New String[]
+          Dim BreakPos As Integer = InStr(MyReg[0].text, "(")
+          Params.Add(Left(MyReg[0].text, BreakPos - 1))                                                 ' add the alias name
+          Dim Parameters As String = Mid(MyReg[0].text, BreakPos + 1, MyReg[0].text.len - BreakPos - 1)
+          'Params.Insert(Parser(Parameters, AliasParms))
+          Params.Insert(Parser(Parameters))
+          MyParams = New String[]
+          For i As Integer = 1 To IIf(params.count - 1 > 20, 19, params.max)
+            If Params[i] = "," Then Continue
+            MyParams.Add(IIf(params[i][0] = "'", Mid(params[i], 2, params[i].len - 2), Params[i]))
+          Next
+          MyParams.Insert(MyParmsDummy)
+          data = Replace(data, MyReg[0].text, Subst(s & " ", MyParams[0], MyParams[1], MyParams[2], MyParams[3], MyParams[4], MyParams[5], MyParams[6], MyParams[7], MyParams[8], MyParams[9], MyParams[10], MyParams[11], MyParams[12], MyParams[13], MyParams[14], MyParams[15], MyParams[16], MyParams[17], MyParams[18], MyParams[19]), RegExp.Caseless)
           used.Add(aliaslist.key)
           Goto DoAliasAgain
-          
-      Else If RegExp.Match(data, "^" & akey & "[ <>|!&\n\t]", RegExp.Caseless) Then 
-          data = RegExp.replace(data, "^" & aKey & "[ <>|!&\n\t]", s & " ", RegExp.Caseless)
-          used.Add(aliaslist.key)
-          Goto DoAliasAgain
-          
+        Endif
+
+      Else If aliaslist.key == Trim(data) Then
+        data = s & " "
+        used.Add(aliaslist.key)
+        Goto DoAliasAgain
+
+      Else If RegExp.Match(data, "^" & akey & "[ <>|!&\n\t]", RegExp.Caseless) Then
+        data = RegExp.replace(data, "^" & aKey & "[ <>|!&\n\t]", s & " ", RegExp.Caseless)
+        used.Add(aliaslist.key)
+        Goto DoAliasAgain
+
       Else If RegExp.Match(data, "[ !|><&]" & akey & "[ <>|!&\n\t]", RegExp.Caseless) Then
-          data = RegExp.replace(data, "[^!| ]" & aKey & "[ <>|!&\n\t]", s & " ", RegExp.Caseless)
-          used.Add(akey)
-          Goto DoAliasAgain
+        data = RegExp.replace(data, "[^!| ]" & aKey & "[ <>|!&\n\t]", s & " ", RegExp.Caseless)
+        used.Add(akey)
+        Goto DoAliasAgain
       Endif
     Endif
   Next
-  
+
   If InStr(data, ":") <> 0 Then
-      used = Split(data, ":", "\"\"", True, True)
-      For i = 0 To used.Max
-         ReadQueue.add(used[i], 0)
-      Next
+    used = Split(data, ":", "\"\"", True, True)
+    For i = 0 To used.Max
+      ReadQueue.add(used[i], 0)
+    Next
   Else
-     ReadQueue.Add(data, 0)
+    ReadQueue.Add(data, 0)
   Endif
-  
-    Return readQueue
-    
-  Catch
-    
-    Dim errortext As String
-    errortext = Error.where & ":" & Error.text
-    Error.Propagate()
+
+  Return readQueue
+
+Catch
+
+  Dim errortext As String
+  errortext = Error.where & ":" & Error.text
+  Error.Propagate()
+
 End
 
 Private AliasParms As String[] = ["\"['(", "\"]')"]
 
 Sub Parser(Parameter As String) As String[]
+
   Dim Result As New String[]
   Dim ParmStart As Integer = 0
   Dim ParmLen As Integer = 0
-  
+
   While ParmStart < Parameter.Len
     ParmLen = GetField(Parameter, ParmStart)
     Result.Push(Mid(Parameter, ParmStart + 1, ParmLen))
     ParmStart += ParmLen + 1
   Wend
-  
+
   Return Result
-  
+
 End
 
 Sub GetField(Source As String, Start As Integer) As Integer
-    Dim CurrentIndex As Integer = start
-    Dim BracketStart As Integer = 0
-    While CurrentIndex < Source.len And Source[CurrentIndex] <> ","
-     BracketStart = InStr(AliasParms[0], Source[CurrentIndex])
-     If BracketStart > 0 Then 
-       Inc CurrentIndex
-       CurrentIndex += skip(Source, CurrentIndex, AliasParms[1][BracketStart - 1])
-     Else 
-       Inc CurrentIndex
-     Endif
-    Wend
-    
-    Return CurrentIndex - Start
-  
+
+  Dim CurrentIndex As Integer = start
+  Dim BracketStart As Integer = 0
+
+  While CurrentIndex < Source.len And Source[CurrentIndex] <> ","
+    BracketStart = InStr(AliasParms[0], Source[CurrentIndex])
+    If BracketStart > 0 Then
+      Inc CurrentIndex
+      CurrentIndex += skip(Source, CurrentIndex, AliasParms[1][BracketStart - 1])
+    Else
+      Inc CurrentIndex
+    Endif
+  Wend
+
+  Return CurrentIndex - Start
+
 End
 
 
 Sub skip(Src As String, index As Integer, terminator As String) As Integer
-  
-    Dim TotalCars As Integer = 1   ' 0 points to opening escape
-    Dim Pos As Integer = index + 1
-    Dim BracketStart As Integer = 0
-    Dim SkipLen As Integer = 0
-    
-    While Src[pos] <> terminator And pos < Src.len
-      BracketStart = InStr(AliasParms[0], Src[Pos])
-      If BracketStart > 0 Then 
-        SkipLen = skip(Src, Pos, AliasParms[1][BracketStart - 1])
-        Pos += SkipLen + 1
-        TotalCars += SkipLen
-      Else 
-        Inc TotalCars
-        Inc Pos 
-      Endif
-    Wend
-    Return TotalCars + 1
+
+  Dim TotalCars As Integer = 1   ' 0 points to opening escape
+  Dim Pos As Integer = index + 1
+  Dim BracketStart As Integer = 0
+  Dim SkipLen As Integer = 0
+
+  While Src[pos] <> terminator And pos < Src.len
+    BracketStart = InStr(AliasParms[0], Src[Pos])
+    If BracketStart > 0 Then
+      SkipLen = skip(Src, Pos, AliasParms[1][BracketStart - 1])
+      Pos += SkipLen + 1
+      TotalCars += SkipLen
+    Else
+      Inc TotalCars
+      Inc Pos
+    Endif
+  Wend
+  Return TotalCars + 1
+
 End
 
 

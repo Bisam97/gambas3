@@ -21,7 +21,6 @@
 
 ***************************************************************************/
 
-#define MAX_DRIVER 8
 #define __MAIN_C
 
 #include <stdio.h>
@@ -52,7 +51,7 @@ static void COMPRESS_Register(COMPRESS_DRIVER *driver)
 
 }
 
-COMPRESS_DRIVER *COMPRESS_GetDriver(char *type)
+COMPRESS_DRIVER *COMPRESS_GetDriver(const char *type)
 {
   int i;
 	char *comp;
@@ -94,8 +93,8 @@ void *GB_COMPRESS_1[] EXPORT = {
 
 GB_DESC *GB_CLASSES[] EXPORT =
 {
-  CCompressDesc,
-  CUncompressDesc,
+  CompressDesc,
+  UncompressDesc,
   NULL
 };
 

@@ -68,6 +68,9 @@
 #include "CMenu.h"
 #include "CKey.h"
 #include "CDraw.h"
+#include "CImage.h"
+#include "CColor.h"
+#include "CStyle.h"
 #include "CWindow.h"
 
 #ifndef NO_X_WINDOW
@@ -262,6 +265,8 @@ static void raise_resize_event(void *_object)
 
 static void post_show_event(void *_object)
 {
+	THIS->sx = THIS->x;
+	THIS->sy = THIS->y;
 	GB.Raise(THIS, EVENT_Move, 0);
 	raise_resize_event(THIS);
 	handle_focus(THIS);
@@ -299,7 +304,7 @@ static void reparent_window(CWINDOW *_object, void *parent, bool move, int x = 0
 	if (newParentWidget != WINDOW->parentWidget())
 	{
 		//qDebug("reparent_window: -> %s %p", parent ? ((CWIDGET *)parent)->name : "", parent);
-		WINDOW->doReparent(newParentWidget, p);
+		WINDOW->doReparent(newParentWidget, &p);
 	}
 	else
 		CWIDGET_move(THIS, p.x(), p.y());
@@ -389,6 +394,8 @@ void CWINDOW_move_resize(void *_object, int x, int y, int w, int h)
 //-- Window ---------------------------------------------------------------
 
 BEGIN_METHOD(Window_new, GB_OBJECT parent)
+
+	static bool app_icon = false;
 
 	MyMainWindow *win = 0;
 	MyContainer *container;
@@ -531,6 +538,12 @@ BEGIN_METHOD(Window_new, GB_OBJECT parent)
 	#endif
 
 	THIS->showMenuBar = true;
+
+	if (!app_icon)
+	{
+		app_icon = true;
+		CIMAGE_set_default_window_icon();
+	}
 	
 END_METHOD
 
@@ -622,7 +635,7 @@ static bool do_close(CWINDOW *_object, int ret, bool destroyed = false)
 	bool closed;
 
 	#if DEBUG_WINDOW
-	qDebug("do_close: (%s %p) %d %d", GB.GetClassName(THIS), THIS, THIS->closing, THIS->closed);
+	fprintf(stderr, "do_close: (%s %p) %d %d\n", GB.GetClassName(THIS), THIS, THIS->closing, THIS->closed);
 	#endif
 
 	if (THIS->closing || THIS->closed) // || WIDGET->isHidden())
@@ -816,6 +829,25 @@ BEGIN_METHOD(Window_ShowPopup, GB_INTEGER x; GB_INTEGER y)
 
 END_METHOD
 
+
+#if 0
+BEGIN_METHOD(Window_ShowPopupAt, GB_OBJECT control; GB_INTEGER pos; GB_INTEGER align)
+
+	static GB_FUNCTION func;
+
+	if (!GB_FUNCTION_IS_VALID(&func))
+		GB.GetFunction(&func, (void *)GB.FindClass("_Gui"), "_ShowPopupAt", NULL, NULL);
+
+	GB.Push(4,
+		GB_T_OBJECT, THIS,
+		GB_T_OBJECT, VARG(control),
+		GB_T_INTEGER, VARGOPT(pos, ALIGN_BOTTOM),
+		GB_T_INTEGER, VARGOPT(align, ALIGN_NORMAL));
+
+	GB.Call(&func, 4, FALSE);
+
+END_METHOD
+#endif
 
 BEGIN_PROPERTY(Window_Modal)
 
@@ -1390,6 +1422,29 @@ BEGIN_PROPERTY(Window_MinHeight)
 
 END_PROPERTY
 
+BEGIN_PROPERTY(Window_Geometry)
+
+	GEOM_RECT *rect = GEOM.CreateRect();
+
+	if (THIS->toplevel)
+	{
+		rect->x = THIS->sx;
+		rect->y = THIS->sy;
+		rect->w = THIS->sw;
+		rect->h = THIS->sh;
+	}
+	else
+	{
+		rect->x = THIS->x;
+		rect->y = THIS->y;
+		rect->w = THIS->w;
+		rect->h = THIS->h;
+	}
+
+	GB.ReturnObject(rect);
+
+END_PROPERTY
+
 
 /***************************************************************************/
 
@@ -1461,6 +1516,7 @@ GB_DESC CWindowDesc[] =
 	GB_METHOD("ShowModal", "i", Window_ShowModal, NULL),
 	GB_METHOD("ShowDialog", "i", Window_ShowModal, NULL),
 	GB_METHOD("ShowPopup", "i", Window_ShowPopup, "[(X)i(Y)i]"),
+	//GB_METHOD("ShowPopupAt", "i", Window_ShowPopupAt, "(Control)Control;[(Position)i(Alignment)i]"),
 	GB_METHOD("Center", NULL, Window_Center, NULL),
 	GB_METHOD("Activate", NULL, Window_Activate, NULL),
 
@@ -1504,6 +1560,7 @@ GB_DESC CWindowDesc[] =
 	GB_PROPERTY("Resizable", "b", Window_Resizable),
 
 	GB_PROPERTY_READ("Screen", "i", Window_Screen),
+	GB_PROPERTY_READ("Geometry", "Rect", Window_Geometry),
 
 	GB_PROPERTY_SELF("Menus", ".Window.Menus"),
 	GB_PROPERTY_SELF("Controls", ".Window.Controls"),
@@ -1843,7 +1900,7 @@ void MyMainWindow::showActivate(QWidget *transient)
 		{
 			if (newParentWidget && parentWidget() != newParentWidget)
 			{
-				doReparent(newParentWidget, pos());
+				doReparent(newParentWidget);
 			}
 		}
 	}
@@ -1855,7 +1912,17 @@ void MyMainWindow::showActivate(QWidget *transient)
 	if (isUtility())
 	{
 		if (!newParentWidget && CWINDOW_Main && THIS != CWINDOW_Main)
-			newParentWidget = CWidget::getTopLevel((CWIDGET *)CWINDOW_Main)->widget.widget;
+		{
+			if (CWINDOW_Active)
+				newParentWidget = CWidget::getTopLevel((CWIDGET *)CWINDOW_Active)->widget.widget;
+			else if (CWINDOW_Main)
+				newParentWidget = ((CWIDGET *)CWINDOW_Main)->widget;
+
+			if (newParentWidget && parentWidget() != newParentWidget)
+			{
+				doReparent(newParentWidget);
+			}
+		}
 	}
 
 	present(newParentWidget);
@@ -1890,7 +1957,7 @@ void on_error_show_modal(MODAL_INFO *info)
 	CWIDGET_leave_popup(info->save_popup);
 }
 
-void MyMainWindow::doShowModal(bool popup, const QPoint *pos)
+void MyMainWindow::doShowModal(bool popup, const QPoint *p)
 {
 	CWIDGET *_object = CWidget::get(this);
 	CWINDOW *parent;
@@ -1913,12 +1980,20 @@ void MyMainWindow::doShowModal(bool popup, const QPoint *pos)
 
 	_enterLoop = false; // Do not call exitLoop() if we do not entered the loop yet!
 
+	parent = CWINDOW_Current;
+	if (!parent)
+		parent = CWINDOW_Active;
+
 	if (popup)
 	{
-		setWindowFlags(Qt::Popup | info.flags);
-		
+		if (parent)
+			setParent(CWidget::getTopLevel((CWIDGET *)parent)->widget.widget, Qt::Popup | info.flags);
+
 		move(0, 0);
-		move(*pos);
+		move(*p);
+		THIS->x = p->x();
+		THIS->y = p->y();
+		//fprintf(stderr, "doShowModal: popup: %d %d\n", pos().x(), pos().y());
 		setFocus();
 		show();
 		raise();
@@ -1927,10 +2002,6 @@ void MyMainWindow::doShowModal(bool popup, const QPoint *pos)
 	{
 		if (_resizable && _border)
 			setSizeGrip(true);
-
-		parent = CWINDOW_Current;
-		if (!parent)
-			parent = CWINDOW_Active;
 
 		if (parent)
 			setParent(CWidget::getTopLevel((CWIDGET *)parent)->widget.widget, Qt::Window | info.flags);
@@ -2219,7 +2290,7 @@ void MyMainWindow::setBorder(bool b)
 	initProperties(PROP_BORDER);
 	if (effectiveWinId())
 		X11_window_remap(effectiveWinId());
-	doReparent(parentWidget(), pos());
+	doReparent(parentWidget());
 	
 #endif
 }
@@ -2232,7 +2303,7 @@ void MyMainWindow::setResizable(bool b)
 	_resizable = b;
 	if (!isWindow())
 		return;
-	doReparent(parentWidget(), pos());
+	doReparent(parentWidget());
 }
 
 void MyMainWindow::setUtility(bool b)
@@ -2241,8 +2312,10 @@ void MyMainWindow::setUtility(bool b)
 		return;
 
 	_utility = b;
+	if (!isWindow())
+		return;
 
-	doReparent(parentWidget(), pos());
+	doReparent(parentWidget());
 }
 
 #if 0
@@ -2295,6 +2368,11 @@ void MyMainWindow::moveEvent(QMoveEvent *e)
 		{
 			THIS->x = x();
 			THIS->y = y();
+			if ((_state & (Qt::WindowMinimized | Qt::WindowMaximized | Qt::WindowFullScreen)) == 0)
+			{
+				THIS->sx = THIS->x;
+				THIS->sy = THIS->y;
+			}
 			//qDebug("moveEvent: x= %d y = %d", x(), y());
 		}
 	}
@@ -2335,7 +2413,14 @@ void MyMainWindow::resizeEvent(QResizeEvent *e)
 		THIS->w = THIS->container->width();
 		THIS->h = THIS->container->height();
 		if (isTopLevel())
+		{
+			if ((_state & (Qt::WindowMinimized | Qt::WindowMaximized | Qt::WindowFullScreen)) == 0)
+			{
+				THIS->sw = THIS->w;
+				THIS->sh = THIS->h;
+			}
 			CCONTAINER_arrange(THIS);
+		}
 	}
 
 #ifndef NO_X_WINDOW
@@ -2348,7 +2433,7 @@ void MyMainWindow::resizeEvent(QResizeEvent *e)
   	//qDebug("resizeEvent %ld %ld isHidden:%s shown:%s ", THIS->w, THIS->h, isHidden() ? "1" : "0", shown ? "1" : "0");
 	//qDebug("THIS->h = %ld  THIS->container->height() = %ld  height() = %ld", THIS->h, THIS->container->height(), height());
 
-	if (THIS->opened && (e->spontaneous() || parentWidget()))
+	if (THIS->opened) // && (e->spontaneous() || parentWidget()))
 		raise_resize_event(THIS);
 }
 
@@ -2580,7 +2665,7 @@ void MyMainWindow::setPersistent(bool pers)
 	setAttribute(Qt::WA_DeleteOnClose, !pers);
 }
 
-void MyMainWindow::doReparent(QWidget *parent, const QPoint &pos)
+void MyMainWindow::doReparent(QWidget *parent, const QPoint *p)
 {
 	CWINDOW *_object = (CWINDOW *)CWidget::get(this);
 	QIcon icon;
@@ -2602,7 +2687,9 @@ void MyMainWindow::doReparent(QWidget *parent, const QPoint &pos)
 
 	if (THIS->toplevel)
 	{
-		if (_utility)
+		if (THIS->popup)
+			f |= Qt::Popup;
+		else if (_utility)
 			f |= Qt::Dialog;
 		else
 			f |= Qt::Window;
@@ -2634,8 +2721,10 @@ void MyMainWindow::doReparent(QWidget *parent, const QPoint &pos)
 		//qDebug("setParent %d", f != windowFlags());
 	}
 
-	move(pos);
-	//qDebug("doReparent: (%s %p) (%d %d) -> (%d %d)", GB.GetClassName(THIS), THIS, pos.x(), pos.y(), WIDGET->x(), WIDGET->y());
+	if (p)
+		move(*p);
+	else
+		move(THIS->x, THIS->y);
 
 	if (!THIS->embedded)
 	{
@@ -2712,14 +2801,32 @@ void MyMainWindow::center()
 	CWIDGET_move(THIS, r.x() + (r.width() - width()) / 2, r.y() + (r.height() - height()) / 2);
 }
 
+#if 0
+void MyMainWindow::paintEvent(QPaintEvent *e)
+{
+	if (CSTYLE_fix_breeze && isTopLevel())
+	{
+		QPainter p(this);
+		p.fillRect(0, 0, width(), 1, CCOLOR_light_foreground());
+	}
+}
+#endif
+
 void MyMainWindow::configure()
 {
 	CWINDOW *_object = (CWINDOW *)CWidget::get(this);
 	QMenuBar *menuBar = THIS->menuBar;
 	bool arrange = false;
 	QRect geom;
+	int d;
 
 	//qDebug("THIS->menuBar = %p  menuBar() = %p", THIS->menuBar, menuBar());
+
+	// sometimes configure() seems to be called when the window is being deleted
+	if (CWIDGET_check(THIS))
+		return;
+
+	d = 0; //CSTYLE_fix_breeze && isTopLevel() ? 1 : 0;
 
 	if (menuBar && THIS->showMenuBar && !THIS->hideMenuBar)
 	{
@@ -2729,14 +2836,14 @@ void MyMainWindow::configure()
 			h = menuBar->height();
 
 		menuBar->show();
-		geom = QRect(0, h, this->width(), this->height() - h);
+		geom = QRect(0, h + d, this->width(), this->height() - h - d);
 
 		if (THIS->container->geometry() != geom)
 		{
 			arrange = true;
 			THIS->container->setGeometry(geom);
 		}
-		menuBar->setGeometry(0, 0, this->width(), h);
+		menuBar->setGeometry(0, d, this->width(), h);
 	}
 	else
 	{
@@ -2746,7 +2853,7 @@ void MyMainWindow::configure()
 			menuBar->lower();
 		}
 
-		geom = QRect(0, 0, this->width(), this->height());
+		geom = QRect(0, d, this->width(), this->height() - d);
 
 		if (THIS->container->geometry() != geom)
 		{
@@ -2818,21 +2925,21 @@ void MyMainWindow::changeEvent(QEvent *e)
 	}
 	else if (e->type() == QEvent::WindowStateChange)
 	{
+		_state = windowState();
 		GB.Raise(CWidget::get(this), EVENT_State, 0);
 	}
 }
 
 Qt::WindowStates MyMainWindow::getState() const
 {
-	return isVisible() ? windowState() : _state;
+	return _state;
 }
 
 void MyMainWindow::setState(Qt::WindowStates state)
 {
+	_state = state;
 	if (isVisible())
 		setWindowState(state);
-	else
-		_state = state;
 }
 
 void MyMainWindow::setVisible(bool visible)

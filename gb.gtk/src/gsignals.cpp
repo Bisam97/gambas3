@@ -125,13 +125,25 @@ static void cb_drag_data_get(GtkWidget *widget, GdkDragContext *context, GtkSele
 	int len;
 	gPicture *pic;
 	//g_debug("sg_drag_data_get\n");
-	
+
+	#if DEBUG_DND
+	fprintf(stderr, "cb_drag_data_get: %s\n", data->name());
+	#endif
+
 	context = gDrag::enable(context, data, time);
 	
 	text = gDrag::getText(&len, NULL, true);
 	if (text)
 	{
-		gtk_selection_data_set_text(dt, text, len);
+		#if DEBUG_DND
+		char *atom = gdk_atom_name(gtk_selection_data_get_target(dt));
+		fprintf(stderr, "target = %s\n", atom);
+		g_free(atom);
+		fprintf(stderr, "gtk_selection_data_set_text: %.*s\n", len, text);
+		#endif
+
+		if (!gtk_selection_data_set_text(dt, text, len))
+	    gtk_selection_data_set (dt, gtk_selection_data_get_target(dt), 8, (guchar *)text, len);
 		return;
 	}
 	
@@ -144,10 +156,10 @@ static void cb_drag_data_get(GtkWidget *widget, GdkDragContext *context, GtkSele
 	gDrag::disable(context);
 }
 
-static void cb_drag_end(GtkWidget *widget,GdkDragContext *ct,gControl *data)
+static void cb_drag_end(GtkWidget *widget, GdkDragContext *ct, gControl *data)
 {
 	#if DEBUG_DND
-	fprintf(stderr, "\nsg_drag_end: %s\n", data->name());
+	fprintf(stderr, "cb_drag_end: %s\n", data->name());
 	#endif
 	
 	gDrag::end();

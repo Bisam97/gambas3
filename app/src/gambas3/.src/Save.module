@@ -4,6 +4,7 @@ Public NewFile As Boolean
 
 Private $sPath As String
 Private $bRename As Boolean
+Private $sAuth As String
 
 Public Sub Begin(sPath As String, Optional bKeep As Boolean)
   
@@ -11,6 +12,7 @@ Public Sub Begin(sPath As String, Optional bKeep As Boolean)
   $sPath = sPath
   
   NewFile = Not Exist(sPath)
+  Try $sAuth = Stat(sPath).Auth
   
   Try Kill sPath & "~"
   If Not NewFile Then
@@ -28,6 +30,8 @@ End
 Public Sub End()
   
   Dim sForm As String
+
+  If $sAuth Then Chmod $sPath To $sAuth
   
   VersionControl.UpdatePath($sPath)
   Try Project.Tree.RefreshKey($sPath)

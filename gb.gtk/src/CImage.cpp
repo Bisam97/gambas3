@@ -33,6 +33,14 @@
 #include "CPicture.h"
 #include "CImage.h"
 
+static char *_result = NULL;
+
+static gboolean save_func(const gchar *buf, gsize count, GError **error, gpointer data)
+{
+	_result = GB.AddString(_result, buf, count);
+	return TRUE;
+}
+
 static void free_image(GB_IMG *img, void *image)
 {
 	((gPicture *)image)->unref();
@@ -92,6 +100,17 @@ CIMAGE *CIMAGE_create(gPicture *image)
 		take_image(img, new gPicture());
 	
 	return img;
+}
+
+void CIMAGE_set_default_window_icon()
+{
+	CIMAGE *_object;
+
+	_object = (CIMAGE *)(GB.GetProperty((void *)GB.FindClass("Application"), "Icon")->_object.value);
+	if (!THIS)
+		return;
+
+	gtk_window_set_default_icon(check_image(THIS)->getPixbuf());
 }
 
 /*CIMAGE *CIMAGE_create(gPicture *picture)
@@ -211,6 +230,25 @@ BEGIN_METHOD(Image_Save, GB_STRING path; GB_INTEGER quality)
 END_METHOD
 
 
+BEGIN_METHOD(Image_ToString, GB_STRING format; GB_INTEGER quality)
+
+	check_image(THIS);
+
+	_result = NULL;
+
+	switch (PICTURE->save(MISSING(format) ? NULL : GB.ToZeroString(ARG(format)), VARGOPT(quality, -1), save_func))
+	{
+		case 0: break;
+		case -1: GB.Error("Unknown format"); break;
+		case -2: GB.Error("Unable to save picture"); break;
+	}
+
+	GB.FreeStringLater(_result);
+	GB.ReturnString(_result);
+
+END_METHOD
+
+
 BEGIN_METHOD(Image_Stretch, GB_INTEGER width; GB_INTEGER height; GB_BOOLEAN fast)
 
 	CIMAGE *img;
@@ -274,7 +312,8 @@ GB_DESC CImageDesc[] =
 
 	GB_STATIC_METHOD("Load", "Image", Image_Load, "(Path)s"),
 	GB_STATIC_METHOD("FromString", "Image", Image_FromString, "(Data)s"),
-	GB_METHOD("Save", 0, Image_Save, "(Path)s[(Quality)i]"),
+	GB_METHOD("Save", NULL, Image_Save, "(Path)s[(Quality)i]"),
+	GB_METHOD("ToString", "s", Image_ToString, "[(Format)s(Quality)i]"),
 
 	GB_METHOD("Stretch", "Image", Image_Stretch, "(Width)i(Height)i[(Fast)b]"),
 	GB_METHOD("Rotate", "Image", Image_Rotate, "(Angle)f"),

@@ -9,6 +9,11 @@ Property Resizable As Boolean
 Property Width, W As Integer
 Property Sort As Integer
 Property Ascending As Boolean
+
+'' @{since 3.18}
+''
+'' Return or set the horizontal padding between columns.
+
 Property Padding As Integer Use $iPadding
 
 Event _Refresh
@@ -262,6 +267,7 @@ End
 
 Private Sub Padding_Write(Value As Integer)
   
+  If $iPadding = Value Then Return
   $iPadding = Value
   _Layout
   

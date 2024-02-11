@@ -49,7 +49,7 @@ int ERROR_depth = 0;
 static int _lock = 0;
 static char *_print_prefix = NULL;
 
-static const char *const _message[78] =
+static const char *const _message[79] =
 {
 	/*  0 E_UNKNOWN     */ "Unknown error",
 	/*  1 E_MEMORY      */ "Out of memory",
@@ -128,8 +128,11 @@ static const char *const _message[78] =
 	/* 74 E_MARRAY      */ "Multidimensional array",
 	/* 75 E_UCLASS      */ ".1Unknown class '&1'",
 	/* 76 E_SPEC        */ ".2Incorrect declaration of symbol '&1' in class '&2'",
-	/* 77 E_USIZE       */ "Unknow stream size"
+	/* 77 E_USIZE       */ "Unknown stream size",
+	/* 78 E_JUMP        */ "Bad indirect jump"
 };
+
+#define N_MESSAGES (sizeof(_message) / sizeof(*_message))
 
 static void clear_info(ERROR_INFO *info)
 {
@@ -147,7 +150,7 @@ static void clear_info(ERROR_INFO *info)
 	info->msg = NULL;
 }
 
-static void copy_info(ERROR_INFO *src, ERROR_INFO *dst)
+static void copy_info(const ERROR_INFO *src, ERROR_INFO *dst)
 {
 	clear_info(dst);
 	*dst = *src;
@@ -360,7 +363,7 @@ void ERROR_define(const char *pattern, char *arg[])
 
 	ERROR_clear();
 
-	if ((intptr_t)pattern >= 0 && (intptr_t)pattern < 256)
+	if ((intptr_t)pattern >= 0 && (intptr_t)pattern < N_MESSAGES)
 	{
 		ERROR_current->info.code = (int)(intptr_t)pattern;
 		pattern = _message[(int)(intptr_t)pattern];
@@ -585,6 +588,11 @@ void THROW_MATH(bool zero)
 void THROW_OVERFLOW_(void)
 {
 	THROW(E_OVERFLOW);
+}
+
+void THROW_ARG(void)
+{
+	THROW(E_ARG);
 }
 
 

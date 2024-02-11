@@ -4,7 +4,7 @@ Export
 
 Inherits UserContainer
 
-Public Const _Properties As String = "*,-Arrangement,-Padding,-Spacing,-Indent,-Invert,Key,Text,Action,Orientation{ToolBar.Horizontal;Vertical},Size{Tiny;Small;Medium;Large;Huge}=Small,AutoResize=True,Separator"
+Public Const _Properties As String = "*,-Arrangement,-Padding,-Spacing,-Indent,-Invert,Key,Text,Action,ReadOnly,Orientation{ToolBar.Horizontal;Vertical},Size{Tiny;Small;Medium;Large;Huge},AutoResize=True,Separator"
 Public Const _DefaultArrangement As String = "R"
 Public Const _DefaultSize As String = "36,4"
 Public Const _Similar As String = "Panel"
@@ -22,6 +22,22 @@ Property Separator As Boolean
 Property Size As String
 Property Settings, Layout As String
 Property Read Configuring As Boolean
+
+'' @{since 3.19}
+'' 
+'' Return or set if the toolbar can be configured.
+''
+'' By default the toolbar is configurable.
+
+Property ReadOnly As Boolean
+
+'' @{since 3.19}
+'' 
+'' Return or set the default size of all toolbars.
+
+Static Property DefaultSize As String
+
+Static Private $sDefaultSize As String = "small"
 
 Private $hForm As FToolBar
 
@@ -145,7 +161,9 @@ End
 
 Private Function Size_Read() As String
 
-  Return $hForm.GetStockIconSize()
+  Dim sSize As String = $hForm.GetStockIconSize()
+  If sSize Then Return sSize
+  Return ToolBar.DefaultSize
 
 End
 
@@ -209,5 +227,32 @@ End
 Private Function Configuring_Read() As Boolean
 
   Return $hForm.Drop
+
+End
+
+Static Private Function DefaultSize_Read() As String
+
+  Return $sDefaultSize
+
+End
+
+Static Private Sub DefaultSize_Write(Value As String)
+
+  'If Not Stock.Sizes.Exist(Value) Then Error.Raise("Bad argument")
+  If $sDefaultSize = Value Then Return
+  $sDefaultSize = Value
+  FToolBar.UpdateDefaultSize()
+
+End
+
+Private Function ReadOnly_Read() As Boolean
+
+  Return $hForm.IsReadOnly()
+
+End
+
+Private Sub ReadOnly_Write(Value As Boolean)
+
+  $hForm.SetReadOnly(Value)
 
 End

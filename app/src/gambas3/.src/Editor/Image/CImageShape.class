@@ -329,3 +329,20 @@ Public Sub ToPolygons() As Polygon[]
   Return aPoly
   
 End
+
+Public Sub GetBarycenter() As PointF
+
+  Dim I As Integer
+  Dim X As Float
+  Dim Y As Float
+  
+  If Points.Count = 1 Then Return Points[0].Copy()
+  
+  For I = 1 To Points.Max
+    X += (Points[I].X - Points[0].X)
+    Y += (Points[I].Y - Points[0].Y)
+  Next
+  
+  Return New PointF(Points[0].X + X / Points.Max, Points[0].Y + Y / Points.Max)
+  
+End

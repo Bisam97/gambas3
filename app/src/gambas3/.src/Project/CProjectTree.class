@@ -6,6 +6,7 @@ Public Const KEY_PROJECT As String = "$P"
 Public Const KEY_PUBLIC As String = "$B"
 Public Const KEY_CONNECTION As String = "$D"
 Public Const KEY_EXTERN As String = "$X"
+Public Const KEY_PROFILE As String = "$F"
 
 Public Sources As Collection
 
@@ -24,12 +25,17 @@ Private $sStartup As String
 
 Private $aOtherProjects As New String[]
 
-Public Sub _new(sDir As String)
+Private $cImageCache As New Collection
+Private $cImageDate As New Collection
+Private $bMouseDown As Boolean
+Private $bHasJustExpanded As Boolean
+
+Public Sub _new(sDir As String, Optional bCurrent As Boolean)
   
   $sDir = sDir
-  $bCurrentProject = $sDir = Project.Dir
+  $bCurrentProject = bCurrent
   
-  If $bCurrentProject Then Project.Tree = Me
+  If bCurrent Then Project.Tree = Me
   
   $sSourceDir = sDir &/ ".src"
   If Not Exist($sSourceDir) Then $sSourceDir = $sDir
@@ -96,9 +102,11 @@ Private Sub AddFile(sDir As String, sFile As String, Optional bAfter As Boolean,
     sParent = KEY_SOURCE
   Else If sDir = $sDir &/ ".connection" Then
     sParent = KEY_CONNECTION
+  Else If sDir = $sDir &/ ".profile" Then
+    sParent = KEY_PROFILE
   Else If $cExtern.Exist(sPath) Then
     sParent = KEY_EXTERN
-    If Not $hTree.Exist(sParent) Then $hTree.Add(sParent, ("Files"), Picture["icon:/small/link"], $sDir)
+    If Not $hTree.Exist(sParent) Then $hTree.Add(sParent, ("Files"), Picture["icon:/tiny/link"], $sDir)
     bExtern = True
     Try sTitle = Project.Files[sPath].GetTitle()
     If sTitle Then sFile = sTitle
@@ -293,7 +301,7 @@ Private Sub AddFile(sDir As String, sFile As String, Optional bAfter As Boolean,
         
       End With
       
-      If bSource And If Project.ShowAllClasses Then
+      If bSource And If Project.ShowAllClasses And If Not bDir Then
         If ExistForm(sFile) Then
         
           sParent = sKey
@@ -327,6 +335,7 @@ Private Procedure AddDir(Optional sDir As String)
   Dim aDir As New String[]
   Dim sFile As String
   Dim aFile As New String[]
+  Dim aSelection As String[]
 
   If sDir Then 
     aDir.Add(sDir)
@@ -335,6 +344,7 @@ Private Procedure AddDir(Optional sDir As String)
     If $sDir <> $sSourceDir Then aDir.Add($sSourceDir)
   Endif
 
+  aSelection = $hTree.Selection
   $hTree._Begin()
 
   Repeat
@@ -373,6 +383,7 @@ Private Procedure AddDir(Optional sDir As String)
   Until aDir.Count = 0
 
   $hTree._End()
+  $hTree.Selection = aSelection
 
 End
 
@@ -402,14 +413,12 @@ Private Sub FillTree(Optional bDoNotRefreshCache As Boolean)
     sKey = $sDir
     .Add(sKey, File.Name($sDir), Project.GetIcon($sDir, iSize))
 
-    .Add(KEY_PROJECT, ("Project"), Picture["icon:/small/directory"], sKey)
-    '.Add(KEY_MODULE, ("Modules"), Picture["icon:/small/directory"], sKey)
-    '.Add(KEY_CLASS, ("Classes"), Picture["icon:/small/directory"], sKey)
-    .Add(KEY_SOURCE, ("Sources"), Picture["icon:/small/directory"], sKey)
-    
-    If $hInfo.Components.Exist("gb.db") Then .Add(KEY_CONNECTION, ("Connections"), Picture["icon:/small/directory"], sKey)
-    If $hInfo.Components.Exist("gb.web") Then .Add(KEY_PUBLIC, ("Public"), Picture["icon:/small/directory"], sKey)
-    .Add(KEY_MISC, ("Data"), Picture["icon:/small/directory"], sKey)
+    .Add(KEY_PROJECT, ("Project"), Picture["icon:/tiny/directory"], sKey)
+    .Add(KEY_SOURCE, ("Sources"), Picture["icon:/tiny/directory"], sKey)
+    If $hInfo.Components.Exist("gb.db") Then .Add(KEY_CONNECTION, ("Connections"), Picture["icon:/tiny/folder-remote"], sKey)
+    If $hInfo.Components.Exist("gb.web") Then .Add(KEY_PUBLIC, ("Public"), Picture["icon:/tiny/folder-share"], sKey)
+    .Add(KEY_PROFILE, ("Profiles"), Picture["icon:/tiny/folder-recent"], sKey)
+    .Add(KEY_MISC, ("Data"), Picture["icon:/tiny/directory"], sKey)
 
     '$bGetSource = TRUE
 
@@ -417,7 +426,7 @@ Private Sub FillTree(Optional bDoNotRefreshCache As Boolean)
     If Exist($sDir &/ ".hidden") Then AddDir($sDir &/ ".hidden")
     If $hInfo.Components.Exist("gb.db") And If Exist($sDir &/ ".connection") Then AddDir($sDir &/ ".connection")
     If $hInfo.Components.Exist("gb.web") And If Exist($sDir &/ ".public") Then AddDir($sDir &/ ".public")
-
+    If Exist($sDir &/ ".profile") Then AddDir($sDir &/ ".profile")
     For Each sKey In $cExtern
       AddFile(File.Dir(sKey), File.Name(sKey))
     Next
@@ -425,13 +434,13 @@ Private Sub FillTree(Optional bDoNotRefreshCache As Boolean)
     For Each sDir In $aOtherProjects
       
       .Add(sDir, File.Name(sDir), Project.GetIcon(sDir, iSize))
-      .Add(sDir &/ ".src", ("Project"), Picture["icon:/small/directory"], sDir)
+      .Add(sDir &/ ".src", ("Project"), Picture["icon:/tiny/directory"], sDir)
       
       sDir &/= ".src"
       
       For Each sFile In RDir(sDir, "*", gb.Directory).Sort(gb.Natural + gb.IgnoreCase)
         sPath = sDir &/ sFile
-        .Add(sPath, File.Name(sFile), Picture["icon:/small/directory"], File.Dir(sPath))
+        .Add(sPath, File.Name(sFile), Picture["icon:/tiny/directory"], File.Dir(sPath))
       Next
       
       For Each sFile In RDir(sDir, "*", gb.File).Sort(gb.Natural + gb.IgnoreCase)
@@ -446,13 +455,15 @@ Private Sub FillTree(Optional bDoNotRefreshCache As Boolean)
 
   End With
 
-  With $hTree
-    .MoveFirst
-    While .Available
-      .Item.Expanded = True
-      .MoveNext
-    Wend
-  End With
+  ' With $hTree
+  '   .MoveFirst
+  '   While .Available
+  '     .Item.Expanded = True
+  '     .MoveNext
+  '   Wend
+  ' End With
+  
+  CollapseAll
 
   'If sKeyReset Then sKey = sKeyReset
 
@@ -635,14 +646,15 @@ Public Sub GetFileIcon(sPath As String, Optional iSize As Integer, hStat As Stat
   Dim hThumb As Image
   Dim bImage As Boolean
   Dim sExportName As String
+  Dim bDesktopMime As Boolean
 
   If iSize Then
     sPrefix = "icon:/" & iSize
     sLocalPrefix = "img/" & iSize
   Else
-    sPrefix = "icon:/small"
+    sPrefix = "icon:/tiny"
     sLocalPrefix = "img/16"
-    iSize = Stock.GetSize("small")
+    iSize = Stock.GetSize("tiny")
   Endif
 
   If Not hStat Then 
@@ -739,19 +751,63 @@ Public Sub GetFileIcon(sPath As String, Optional iSize As Integer, hStat As Stat
         Case "console"
           sIcon = sPrefix &/ "terminal"
           
+        Case "prof"
+          sIcon = sPrefix &/ "clock"
+          
         Case Else
-          Try hImage = DesktopMime.FromFile(sPath).GetIcon(iSize)
-          If hImage Then
-            sIcon = "//"
-          Else
-            sIcon = sPrefix &/ "file"
-          Endif
+          bDesktopMime = True
           
       End Select
 
     Endif
 
   End With
+
+  If sIcon Then
+    sKey = sIcon
+  Else
+    sKey = sPath
+  Endif
+  If iSize Then 
+    sKey &= "-" & CStr(iSize)
+  Else
+    sKey &= "-16"
+  Endif
+  
+  sKey &= "-"
+  
+  If bLink Then sKey &= "l"
+  
+  If Not bNoEmblem Then
+    'If bStartup Then sKey &= "s"
+    If bConflict Then sKey &= "c"
+    If bLocked Then sKey &= "k"
+    If bAdded Then sKey &= "a"
+    If bModified Then sKey &= "m"
+    If bExported Then sKey &= If(bExportedNamespace, "n", "x")
+    If bDoNotTranslate Then sKey &= "t"
+    If bCompressed Then sKey &= "z"
+    If bReadOnly Then sKey &= "r"
+  Endif
+  
+  If Right(sKey) = "-" Then sKey = Left(sKey, -1)
+
+  sCacheKey = Replace(sKey, "icon:/", "$/")
+  
+  If $cImageCache.Exist(sCacheKey) Then
+    If sCacheKey Begins "$" Or If $cImageDate[sCacheKey] >= hStat.LastModified Then 
+      Return $cImageCache[sCacheKey]
+    Endif
+  Endif
+  
+  If bDesktopMime Then
+    Try hImage = DesktopMime.FromFile(sPath).GetIcon(iSize)
+    If hImage Then
+      sIcon = "//"
+    Else
+      sIcon = sPrefix &/ "file"
+    Endif
+  Endif
 
   If Left$(sIcon) = "/" Then
 
@@ -813,55 +869,24 @@ Public Sub GetFileIcon(sPath As String, Optional iSize As Integer, hStat As Stat
 
   Else
 
-    sKey = File.Dir(sIcon) &/ File.BaseName(sIcon) & "-"
-    If iSize Then 
-      sKey &= CStr(iSize) & "-"
+    If sModule Then
+      hImage = Project.MakeModuleIcon(sModule, iSize, bStartup And Not bNoEmblem)
     Else
-      sKey &= "16-"
+      Try hImage = Picture[sIcon].Image
+      If Error Then hImage = Picture[sPrefix &/ "file"].Image
     Endif
-    
-    If bLink Then sKey &= "l"
-    
-    If Not bNoEmblem Then
-      'If bStartup Then sKey &= "s"
-      If bConflict Then sKey &= "c"
-      If bLocked Then sKey &= "k"
-      If bAdded Then sKey &= "a"
-      If bModified Then sKey &= "m"
-      If bExported Then sKey &= If(bExportedNamespace, "n", "x")
-      If bDoNotTranslate Then sKey &= "t"
-      If bCompressed Then sKey &= "z"
-      If bReadOnly Then sKey &= "r"
-    Endif
-    
-    If Right(sKey) = "-" Then sKey = Left(sKey, -1)
-    sKey &= ".png"
+    'If Not hPict Then hPict = Picture[sPrefix &/ "file"]
+    'If Not hPict Then hPict = Picture["img/16/unknown.png"]
+    'hPict = hPict.Copy()
 
-    'hPict = NULL
-    'IF NOT bNoStartup THEN hPict = Picture[sKey]
-
-    sCacheKey = "$" & Replace(sKey, "icon:/", "$/")
-    Try hPict = Picture[sCacheKey]
-    If Not hPict Then
-
-      If sModule Then
-        hImage = Project.MakeModuleIcon(sModule, iSize, bStartup And Not bNoEmblem)
-      Else
-        Try hImage = Picture[sIcon].Image
-        If Error Then hImage = Picture[sPrefix &/ "file"].Image
-      Endif
-      'If Not hPict Then hPict = Picture[sPrefix &/ "file"]
-      'If Not hPict Then hPict = Picture["img/16/unknown.png"]
-      'hPict = hPict.Copy()
-
-      If iSize Then hImage = hImage.Stretch(hImage.Width * iSize / hImage.Height, iSize)
-      GoSub ADD_EMBLEM
-      hPict = hImage.Picture
-      Picture[sCacheKey] = hPict
-
-    Endif
+    If iSize Then hImage = hImage.Stretch(hImage.Width * iSize / hImage.Height, iSize)
+    GoSub ADD_EMBLEM
+    hPict = hImage.Picture
 
   Endif
+
+  $cImageCache[sCacheKey] = hPict
+  $cImageDate[sCacheKey] = hStat.LastModified
 
   Return hPict
 
@@ -909,19 +934,28 @@ Public Sub TreeView_Expand()
 
 End
 
+Public Sub TreeView_MouseDown()
+  
+  If Mouse.Click > 1 Then Return
+  
+  $bMouseDown = True
+  $bHasJustCollapsed = False
+  $bHasJustExpanded = False
+  $bExpandOnMouseUp = False
+  
+End
+
 Public Sub TreeView_Collapse()
   
   Dim sKey As String = $hTree.Item.Key
   
-  $bHasJustCollapsed = True
+  If $bMouseDown Then $bHasJustCollapsed = True
   If Not sKey Then Return
   If File.Dir(sKey) = $sDir And If Not IsDir(sKey) Then $hTree[sKey].Expanded = True
   
 End
 
-Public Sub TreeView_Select()
-  
-  'RefreshMenu
+Public Sub TreeView_Click()
   
   If $hTree.Current And If $hTree.Current.Children Then 
     ' Print Mouse.X ;; Mouse.Y ' generates crashes on random places, strange...
@@ -934,14 +968,37 @@ End
 
 Public Sub TreeView_MouseUp()
   
+  Dim hItem As _TreeView_Item
+  
+  If Mouse.Click > 1 Then Return
+  
   If $bExpandOnMouseUp And If Not $bHasJustCollapsed Then
-    Try $hTree.Current.Expanded = True
+    hItem = $hTree.Current
+    If Not hItem.Expanded Then
+      Try hItem.Expanded = True
+      Try hItem.EnsureVisible
+      $bHasJustExpanded = True
+    Endif
   Endif
-  $bExpandOnMouseUp = False
-  $bHasJustCollapsed = False
+  
+  $bMouseDown = False
   
 End
 
+Public Sub TreeView_Activate()
+  
+  Dim hItem As _TreeView_Item
+  Dim sPath As String
+  
+  If $bHasJustExpanded Then Return
+  hItem = $hTree.Current
+  If hItem.Children Then
+    sPath = hItem.Key
+    If Exist(sPath) And If Not IsDir(sPath) Then Return
+    Try hItem.Expanded = False
+  Endif
+  
+End
     
 Public Sub FillDir(sDir As String)
 
@@ -956,11 +1013,12 @@ Public Sub FillDir(sDir As String)
   Inc Application.Busy  
   $hTree[sDir & "/"].Delete
   AddDir(sDir)
+  $hTree.Filter()
   Dec Application.Busy
   
 Catch
 
-  Debug Error.Where; ": "; Error.Text
+  Debug Error.Text; ": "; Error.Backtrace.Join(" ")
   Dec Application.Busy
   
 End
@@ -1148,6 +1206,8 @@ Public Sub RefreshKey(sKey As String, Optional sOld As String)
     
   Endif
   
+  $hTree.Filter()
+  
 End
 
 Public Sub AddExtern(sPath As String)
@@ -1180,8 +1240,10 @@ Private Sub AddLinkEmblem(hSource As Image) As Image
 
   Dim hImage As Image
   Dim iSize As Integer
+  Dim S As Float
 
   iSize = Min(hSource.H, hSource.W) \ 2
+  S = iSize * 0.15
   
   hImage = hSource.Copy()
   
@@ -1192,11 +1254,10 @@ Private Sub AddLinkEmblem(hSource As Image) As Image
   Paint.RelLineTo(-iSize, iSize)
   Paint.RelLineTo(iSize, 0)
   Paint.Background = Color.Black
-  'Paint.Background = Color.SetAlpha(Color.TextForeground, 64)
   Paint.Operator = Paint.OperatorDestOut
   Paint.Fill
   
-  iSize *= 0.85
+  iSize -= S
   
   Paint.MoveTo(hImage.W, hImage.H)
   Paint.RelLineTo(0, -iSize)
@@ -1204,6 +1265,16 @@ Private Sub AddLinkEmblem(hSource As Image) As Image
   Paint.RelLineTo(iSize, 0)
   Paint.Background = Color.SetAlpha(Color.TextForeground, 64)
   Paint.Operator = Paint.OperatorOver
+  Paint.Fill
+  
+  iSize -= S * 3
+  
+  Paint.MoveTo(hImage.W - S, hImage.H - S)
+  Paint.RelLineTo(0, -iSize)
+  Paint.RelLineTo(-iSize, iSize)
+  Paint.RelLineTo(iSize, 0)
+  Paint.Background = Color.Black
+  Paint.Operator = Paint.OperatorDestOut
   Paint.Fill
   
   Paint.End
@@ -1252,3 +1323,59 @@ Private Sub IsClassFromOtherProject(sPath As String) As Boolean
   Return $aOtherProjects.Exist(Left(sPath, iPos - 1))
   
 End
+
+Public Sub ExpandAll(Optional bCollapseBefore As Boolean)
+  
+  Inc Application.Busy
+  If bCollapseBefore Then $hTree.CollapseAll()
+  $hTree.ExpandAll()
+  Dec Application.Busy
+  
+End
+
+Public Sub CollapseAll()
+  
+  Dim sSave As String
+
+  Inc Application.Busy
+
+  $hTree._Begin()
+  
+  $hTree.CollapseAll()
+
+  $hTree.MoveFirst
+  
+  Do
+    
+    If Not $hTree.Available Then
+      $hTree.MoveBack
+      $hTree.MoveParent
+      If Not $hTree.Available Then Break
+      $hTree.MoveNext
+      Continue
+    Endif
+    
+    sSave = $hTree.Item.Key
+    If sSave Begins "$" Or If Not $hTree.Item.ParentKey Then
+      $hTree.Item.Expanded = sSave <> KEY_PROJECT
+    Else If IsDir(sSave) And If Dir(sSave, "*", gb.Directory).Count And If Dir(sSave, "*", gb.File).Count = 0 Then
+      $hTree.Item.Expanded = True
+    Else
+      $hTree.Item.Expanded = False
+    Endif
+    $hTree.MoveTo(sSave)
+    
+    If $hTree.Item.Expanded And If $hTree.Item.Children Then
+      $hTree.MoveChild
+    Else
+      $hTree.MoveNext
+    Endif
+  
+  Loop
+  
+  $hTree._End()
+  
+  Dec Application.Busy
+
+End
+

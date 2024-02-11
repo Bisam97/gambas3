@@ -272,19 +272,19 @@ END_PROPERTY
 
 //-------------------------------------------------------------------------
 
-static void init_again(int old_pid)
+static void init_again(pid_t old_pid)
 {
 	char old[PATH_MAX];
 
 	FILE_remove_temp_file();
-	snprintf(old, sizeof(old),FILE_TEMP_DIR, getuid(), old_pid);
+	snprintf(old, sizeof(old), FILE_TEMP_DIR, (int)getuid(), (int)old_pid);
 	rename(old, FILE_make_temp(NULL, NULL));
 	FILE_chdir(PROJECT_path);
 }
 
 BEGIN_PROPERTY(Application_Daemon)
 
-	int old_pid;
+	pid_t old_pid;
 
 	if (READ_PROPERTY)
 		GB_ReturnBoolean(_daemon);
@@ -332,7 +332,7 @@ BEGIN_PROPERTY(Application_Priority)
 		else if (pr > 19)
 			pr = 19;
 
-		if (setpriority(PRIO_PROCESS, 0, VPROP(GB_INTEGER)) < 0)
+		if (setpriority(PRIO_PROCESS, 0, pr) < 0)
 			THROW_SYSTEM(errno, NULL);
 	}
 
@@ -342,6 +342,13 @@ END_PROPERTY
 BEGIN_PROPERTY(Application_Task)
 
   GB_ReturnBoolean(EXEC_task);
+
+END_PROPERTY
+
+
+BEGIN_PROPERTY(Application_TempDir)
+
+	GB_ReturnNewZeroString(FILE_make_temp(NULL, NULL));
 
 END_PROPERTY
 
@@ -394,6 +401,7 @@ GB_DESC NATIVE_App[] =
   GB_STATIC_PROPERTY_READ("ParentHandle", "i", Application_ParentHandle),
   GB_STATIC_PROPERTY_READ("Version", "s", Application_Version),
   GB_STATIC_PROPERTY_READ("Dir", "s", Application_Dir),
+  GB_STATIC_PROPERTY_READ("TempDir", "s", Application_TempDir),
   GB_STATIC_PROPERTY("Daemon", "b", Application_Daemon),
   GB_STATIC_PROPERTY_READ("Startup", "Class", Application_Startup),
 	GB_STATIC_PROPERTY("Priority", "i", Application_Priority),

@@ -40,19 +40,19 @@ DECLARE_EVENT(EVENT_Cursor);
 
 void CB_textbox_change(gTextBox *sender)
 {
-	CWIDGET *_object = GetObject((gControl*)sender);
+  CB_GET_OBJECT(sender);
 	GB.Raise(THIS, EVENT_Change, 0);
 }
 
 void CB_textbox_activate(gTextBox *sender)
 {
-	CWIDGET *_object = GetObject((gControl*)sender);
+  CB_GET_OBJECT(sender);
 	GB.Raise(THIS, EVENT_Activate, 0);
 }
 
 void CB_textbox_cursor(gTextBox *sender)
 {
-	CWIDGET *_object = GetObject((gControl*)sender);
+  CB_GET_OBJECT(sender);
 	GB.Raise(THIS, EVENT_Cursor, 0);
 }
 

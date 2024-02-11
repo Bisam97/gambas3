@@ -60,7 +60,7 @@ void STACK_init(void)
 	
 	STACK_size = max - sizeof(VALUE) * 256; // some security
 	#if DEBUG_STACK
-		fprintf(stderr, "STACK_size = %ld\n", STACK_size);
+		fprintf(stderr, "STACK_size = %lu\n", STACK_size);
 	#endif
 	
 	STACK_base = mmap(NULL, STACK_size, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANON, -1, 0);
@@ -97,7 +97,7 @@ bool STACK_check(int need)
 	
   if (SP > old)
   {
-    fprintf(stderr, "**** STACK_check: -> %ld bytes\n", ((char *)SP - STACK_base));
+    fprintf(stderr, "**** STACK_check: -> %d bytes\n", ((char *)SP - STACK_base));
     old = SP;
   }
 	
@@ -129,7 +129,7 @@ bool STACK_has_error_handler(void)
 
 STACK_CONTEXT *STACK_get_frame(uint frame)
 {
-	if (frame >= 0 && frame < STACK_frame_count)
+	if (frame < STACK_frame_count)
 		return &STACK_frame[frame];
 	else
 		return NULL;

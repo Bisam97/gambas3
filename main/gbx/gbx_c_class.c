@@ -49,7 +49,7 @@ static void error(int code, CLASS *class, const char *name)
 	GB_Error((char *)(intptr_t)code, CLASS_get_name(class), name);
 }
 
-static bool check_null(void *object)
+static bool check_null(const void *object)
 {
 	if (!object)
 	{
@@ -98,7 +98,7 @@ END_PROPERTY
 
 BEGIN_PROPERTY(Component_Version)
 
-	if (OBJECT(COMPONENT)->user)
+	if (OBJECT(COMPONENT)->archive)
 		GB_ReturnString(ARCHIVE_get_version(OBJECT(COMPONENT)->archive));
 	else
 		GB_ReturnConstZeroString(VERSION);
@@ -881,6 +881,13 @@ BEGIN_PROPERTY(Object_Address)
 END_PROPERTY
 
 
+BEGIN_PROPERTY(Object_Data)
+
+	GB_ReturnPointer(OBJECT_get_addr(VPROP(GB_OBJECT)));
+
+END_PROPERTY
+
+
 BEGIN_METHOD(Object_CanRaise, GB_OBJECT object; GB_STRING name)
 
 	void *object = VARG(object);
@@ -1023,6 +1030,7 @@ GB_DESC NATIVE_Object[] =
 	GB_STATIC_METHOD("Address", "p", Object_Address, "(Object)o"),
 	GB_STATIC_METHOD("CanRaise", "b", Object_CanRaise, "(Object)o(Event)s"),
 	GB_STATIC_METHOD("Raise", "b", Object_Raise, "(Object)o(Event)s[(Arguments)Array;]"),
+	GB_STATIC_METHOD("Data", "p", Object_Data, "(Object)o"),
 
 	GB_END_DECLARE
 };

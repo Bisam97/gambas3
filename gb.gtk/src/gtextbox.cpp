@@ -133,7 +133,6 @@ gTextBox::gTextBox(gContainer *parent) : gControl(parent)
 	_text_area_visible = true;
 	_last_position = 0;
 
-	have_cursor = true;
 	_no_background = TRUE;
 	
 	entry = widget = gtk_entry_new();

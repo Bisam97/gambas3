@@ -475,8 +475,6 @@ gTextArea::gTextArea(gContainer *parent) : gControl(parent)
 {
 	_align_normal = false;
 	_last_pos = -1;
-	
-	have_cursor = true;
 	_undo_stack = NULL;
 	_redo_stack = NULL;
 	_not_undoable_action = 0;
@@ -490,6 +488,8 @@ gTextArea::gTextArea(gContainer *parent) : gControl(parent)
 	_no_background = true;
 	
 	textview = gtk_text_view_new();
+	_buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(textview));
+
 	realizeScrolledWindow(textview);
 
 	setColorBase();
@@ -497,7 +497,6 @@ gTextArea::gTextArea(gContainer *parent) : gControl(parent)
 	//g_signal_connect_after(G_OBJECT(textview), "motion-notify-event", G_CALLBACK(cb_motion_notify_event), (gpointer)this);
 	g_signal_connect(G_OBJECT(textview), "key-press-event", G_CALLBACK(cb_keypress), (gpointer)this);
 	
-	_buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(textview));
 	g_signal_connect_after(G_OBJECT(_buffer), "changed", G_CALLBACK(cb_changed), (gpointer)this);
 	g_signal_connect_after(G_OBJECT(_buffer), "mark-set", G_CALLBACK(cb_mark_set), (gpointer)this);
 	g_signal_connect(G_OBJECT(_buffer), "insert-text", G_CALLBACK(cb_insert_text), (gpointer)this);
@@ -617,7 +616,8 @@ void gTextArea::setLine(int vl)
 	gtk_text_iter_set_line(iter, vl);
 	if (gtk_text_iter_get_chars_in_line(iter) <= col)
 		col = gtk_text_iter_get_chars_in_line(iter) - 1;
-	gtk_text_iter_set_line_offset(iter, col);
+	if (col >= 0)
+		gtk_text_iter_set_line_offset(iter, col);
 	gtk_text_buffer_place_cursor(_buffer, iter);
 	ensureVisible();
 }
@@ -633,7 +633,7 @@ void gTextArea::setColumn(int vl)
 
 	if (vl < 0) 
 	{
-		vl = gtk_text_iter_get_chars_in_line(iter)-1;
+		vl = gtk_text_iter_get_chars_in_line(iter) - 1;
 	}
 	else
 	{
@@ -641,7 +641,9 @@ void gTextArea::setColumn(int vl)
 			vl = gtk_text_iter_get_chars_in_line(iter) - 1;
 	}
 	
-	gtk_text_iter_set_line_offset(iter,vl);
+	if (vl >= 0)
+		gtk_text_iter_set_line_offset(iter, vl);
+
 	gtk_text_buffer_place_cursor(_buffer, iter);
 	ensureVisible();
 }

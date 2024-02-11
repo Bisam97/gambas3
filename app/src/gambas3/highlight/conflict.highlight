@@ -1,0 +1,14 @@
+removed.limit{Keyword}:
+  match /^<<<<<<+/
+  removed.commit{Datatype}:
+    match /.*?\n/
+    removed.contents{Removed}:
+      between here and /^======+\n/
+between.limit{Keyword}:
+  match /^======+\n/
+  added.contents{Added}:
+    between here and /^>>>>>>+/
+added.limit{Keyword}:
+  match /^>>>>>>+/
+  added.commit{Function}:
+    match /.*?\n/

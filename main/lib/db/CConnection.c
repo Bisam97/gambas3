@@ -145,6 +145,7 @@ static void close_connection(CCONNECTION *_object)
 
 	THIS->driver->Close(&THIS->db);
 	GB.FreeString(&THIS->db.charset);
+	GB.FreeString(&THIS->db.full_version);
 
 	THIS->db.handle = NULL;
 	THIS->driver = NULL;
@@ -206,6 +207,16 @@ BEGIN_PROPERTY(Connection_Version)
 	CHECK_OPEN();
 
 	GB.ReturnInteger(THIS->db.version);
+
+END_PROPERTY
+
+
+BEGIN_PROPERTY(Connection_FullVersion)
+
+	CHECK_DB();
+	CHECK_OPEN();
+
+	GB.ReturnString(THIS->db.full_version);
 
 END_PROPERTY
 
@@ -466,7 +477,7 @@ BEGIN_METHOD(Connection_Exec, GB_STRING query; GB_VALUE param[0])
 END_METHOD
 
 
-BEGIN_METHOD(Connection_Create, GB_STRING table)
+BEGIN_METHOD(Connection_Create, GB_STRING table; GB_BOOLEAN ret; GB_BOOLEAN if_not_exist)
 
 	CRESULT *result;
 	char *table = GB.ToZeroString(ARG(table));
@@ -483,7 +494,19 @@ BEGIN_METHOD(Connection_Create, GB_STRING table)
 	result = DB_MakeResult(THIS, RESULT_CREATE, table, NULL);
 
 	if (result)
+	{
+		if (THIS->db.flags.no_returning)
+			DB_Debug("gb.db", "'RETURNING' keyword is not supported by this '%s' connection", THIS->driver->name);
+		else
+			result->returning = VARGOPT(ret, FALSE);
+
+		if (THIS->db.flags.if_not_exist == DB_IGNORE_NONE)
+			GB.Error("INSERT cannot ignore already existing rows for this '&1' connection", THIS->driver->name);
+		else
+			result->if_not_exist = VARGOPT(if_not_exist, FALSE);
+
 		GB.ReturnObject(result);
+	}
 	else
 		GB.ReturnNull();
 
@@ -759,6 +782,7 @@ GB_DESC CConnectionDesc[] =
 	//GB_PROPERTY("Timezone", "i", Connection_Timezone),
 	GB_PROPERTY_READ("Charset", "s", Connection_Charset),
 	GB_PROPERTY_READ("Version", "i", Connection_Version),
+	GB_PROPERTY_READ("FullVersion", "s", Connection_FullVersion),
 	GB_PROPERTY_READ("Opened", "b", Connection_Opened),
 	GB_PROPERTY_READ("Error", "i", Connection_Error),
 	//GB_PROPERTY_READ("Transaction", "i", Connection_Transaction),
@@ -773,7 +797,7 @@ GB_DESC CConnectionDesc[] =
 
 	GB_METHOD("Limit", "Connection", Connection_Limit, "(Limit)i"),
 	GB_METHOD("Exec", "Result", Connection_Exec, "(Request)s(Arguments)."),
-	GB_METHOD("Create", "Result", Connection_Create, "(Table)s"),
+	GB_METHOD("Create", "Result", Connection_Create, "(Table)s[(Return)b(IfNotExist)b]"),
 	GB_METHOD("Find", "Result", Connection_Find, "(Table)s[(Request)s(Arguments).]"),
 	GB_METHOD("Edit", "Result", Connection_Edit, "(Table)s[(Request)s(Arguments).]"),
 	GB_METHOD("Delete", NULL, Connection_Delete, "(Table)s[(Request)s(Arguments).]"),
@@ -817,6 +841,7 @@ GB_DESC CDBDesc[] =
 
 	GB_STATIC_PROPERTY_READ("Charset", "s", Connection_Charset),
 	GB_STATIC_PROPERTY_READ("Version", "i", Connection_Version),
+	GB_STATIC_PROPERTY_READ("FullVersion", "s", Connection_FullVersion),
 	GB_STATIC_PROPERTY_READ("Opened", "b", Connection_Opened),
 	GB_STATIC_PROPERTY_READ("Error", "i", Connection_Error),
 	//GB_STATIC_PROPERTY_READ("Transaction", "i", Connection_Transaction),
@@ -830,7 +855,7 @@ GB_DESC CDBDesc[] =
 
 	GB_STATIC_METHOD("Limit", "Connection", Connection_Limit, "(Limit)i"),
 	GB_STATIC_METHOD("Exec", "Result", Connection_Exec, "(Request)s(Arguments)."),
-	GB_STATIC_METHOD("Create", "Result", Connection_Create, "(Table)s"),
+	GB_STATIC_METHOD("Create", "Result", Connection_Create, "(Table)s[(Return)b]"),
 	GB_STATIC_METHOD("Find", "Result", Connection_Find, "(Table)s[(Request)s(Arguments).]"),
 	GB_STATIC_METHOD("Edit", "Result", Connection_Edit, "(Table)s[(Request)s(Arguments).]"),
 	GB_STATIC_METHOD("Delete", NULL, Connection_Delete, "(Table)s[(Request)s(Arguments).]"),

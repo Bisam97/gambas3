@@ -96,7 +96,7 @@ void DATE_now(VALUE *val);
 int DATE_to_string(char *buffer, VALUE *value);
 bool DATE_from_string(const char *str, int len, VALUE *val, bool local);
 int DATE_comp_value(VALUE *date1, VALUE *date2);
-int DATE_comp(DATE *date1, DATE *date2);
+int DATE_comp(const DATE *date1, const DATE *date2);
 
 double DATE_to_double(struct timeval *time, int from_start);
 bool DATE_timer(double *result, int from_start);

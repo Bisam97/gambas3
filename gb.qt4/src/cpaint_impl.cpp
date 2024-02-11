@@ -247,7 +247,7 @@ static int Begin(GB_PAINT *d)
 		d->area.height = wid->height();
 		return FALSE;
 	}
-	else if (GB.Is(device, CLASS_UserControl))
+	else if (GB.Is(device, CLASS_UserControl) || GB.Is(device, CLASS_UserContainer))
 	{
 		MyContainer *wid;
 
@@ -439,7 +439,7 @@ static void Font(GB_PAINT *d, int set, GB_FONT *font)
 	{
 		if (*font)
 			f = QFont(*((CFONT *)(*font))->font);
-		else if ((GB.Is(d->device, CLASS_DrawingArea) || GB.Is(d->device, CLASS_UserControl)))
+		else if ((GB.Is(d->device, CLASS_DrawingArea) || GB.Is(d->device, CLASS_UserControl) || GB.Is(d->device, CLASS_UserContainer)))
 			f = (((CWIDGET *)d->device)->widget)->font();
 		
 		apply_font(f);

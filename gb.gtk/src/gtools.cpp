@@ -28,6 +28,11 @@
 #include "gpicture.h"
 #include "gapplication.h"
 
+#if PANGO_VERSION_CHECK(1, 44, 0)
+#include <pango/pango-types.h>
+#include <fribidi.h>
+#endif
+
 // HTML character entities
 #include "kentities.h"
 
@@ -1711,6 +1716,47 @@ void gt_add_layout_from_font(PangoLayout *layout, gFont *font, int dpi)
 	set_layout_from_font(layout, font, true, dpi);
 }
 
+#if PANGO_VERSION_CHECK(1, 44, 0)
+// Replacement for pango_find_base_dir
+// Based on code from pango_unichar_direction and pango_find_base_dir
+// Taken from: https://github.com/lwindolf/liferea/pull/1018
+
+static PangoDirection find_base_dir(const gchar *text, gint length)
+{
+	FriBidiCharType fbd_ch_type;
+	PangoDirection dir = PANGO_DIRECTION_NEUTRAL;
+	const gchar *p;
+	gunichar ch;
+
+	G_STATIC_ASSERT (sizeof (FriBidiChar) == sizeof (gunichar));
+
+	g_return_val_if_fail (text != NULL || length == 0, PANGO_DIRECTION_NEUTRAL);
+
+	p = text;
+	while ((length < 0 || p < text + length) && *p)
+	{
+		ch = g_utf8_get_char (p);
+
+		fbd_ch_type = fribidi_get_bidi_type (ch);
+		if (!FRIBIDI_IS_STRONG (fbd_ch_type))
+			dir = PANGO_DIRECTION_NEUTRAL;
+		else
+			if (FRIBIDI_IS_RTL (fbd_ch_type))
+				dir = PANGO_DIRECTION_RTL;
+			else
+				dir = PANGO_DIRECTION_LTR;
+
+		if (dir != PANGO_DIRECTION_NEUTRAL)
+			break;
+
+		p = g_utf8_next_char (p);
+    }
+	return dir;
+}
+#else
+#define find_base_dir(_text, _len) pango_find_base_dir(_text, _len)
+#endif
+
 void gt_layout_alignment(PangoLayout *layout, const char *text, int len, float w, float h, float *tw, float *th, int align, float *offX, float *offY)
 {
 	int ptw, pth;
@@ -1723,7 +1769,7 @@ void gt_layout_alignment(PangoLayout *layout, const char *text, int len, float w
 
 	if (ALIGN_IS_NORMAL(align))
 	{
-		PangoDirection dir = pango_find_base_dir(text, len);
+		PangoDirection dir = find_base_dir(text, len);
 		
 		switch (align)
 		{

@@ -1,0 +1,69 @@
+#!/usr/bin/env gbs3
+
+Class TreeNode
+
+  Public Left As TreeNode
+  Public Right As TreeNode
+
+  Static Public Sub Create(D As Integer) As TreeNode
+
+    Return ChildTreeNodes(D)
+
+  End
+
+  Static Public Sub ChildTreeNodes(D As Integer) As TreeNode
+
+    Dim hNode As TreeNode = new TreeNode
+
+    If D > 0 Then
+
+      hNode.Left = ChildTreeNodes(D - 1)
+      hNode.Right = ChildTreeNodes(D - 1)
+
+    Endif
+
+    Return hNode
+
+  End
+
+  Public Sub Check() As Integer
+
+    If Not Left Then Return 1
+    Return Left.Check() + Right.Check() + 1
+
+  End
+
+End Class
+
+Dim iMinDepth As Integer = 4
+Dim iMaxDepth As Integer = 16
+Dim iStretchDepth As Integer = iMaxDepth + 1
+Dim iCheck As Integer
+Dim hTree As TreeNode
+Dim D, I As Integer
+Dim iIterations As Integer
+
+iCheck = TreeNode.Create(iStretchDepth).Check()
+
+Print "stretch tree of depth "; iMaxDepth + 1; "\t check: "; iCheck
+
+hTree = TreeNode.Create(iMaxDepth)
+
+For D = iMinDepth To iMaxDepth Step 2
+
+  iCheck = 0
+  iIterations = Shl(1, iMaxDepth - D + iMinDepth)
+
+  For I = 1 To iIterations
+
+    iCheck += TreeNode.Create(D).Check()
+
+  Next
+
+  Print iIterations;"\t trees of depth "; D; "\t check: ";iCheck
+
+Next
+
+Print "long lived tree of depth "; iMaxDepth; "\t check: "; hTree.Check()
+
+Error CStr(Jit.Time)

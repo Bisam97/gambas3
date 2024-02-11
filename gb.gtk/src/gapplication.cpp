@@ -76,7 +76,7 @@ static GtkWindowGroup *get_window_group(GtkWidget *widget)
     return gtk_window_get_group(NULL);
 }
 
-static gControl *find_child(gControl *control, int rx, int ry, gControl *button_grab = NULL)
+static gControl *find_child(gControl *control, int rx, int ry, gControl *button_grab = NULL, bool skip_ignore_mouse = false)
 {
 	gContainer *cont;
 	gControl *child;
@@ -100,6 +100,9 @@ static gControl *find_child(gControl *control, int rx, int ry, gControl *button_
 
 	window = control->topLevel();
 	control = window;
+
+	if (skip_ignore_mouse && control->isIgnoreMouse())
+		return NULL;
 	
 	#ifdef GTK3
 	gtk_widget_get_allocation(window->frame, &a);
@@ -152,7 +155,7 @@ static gControl *find_child(gControl *control, int rx, int ry, gControl *button_
 		#if DEBUG_FIND_CONTROL
 		fprintf(stderr, "  find coord %d %d\n", x, y);
 		#endif
-		child = cont->find(x, y);
+		child = cont->find(x, y, skip_ignore_mouse);
 		if (!child)
 			break;
 
@@ -553,7 +556,7 @@ __FOUND_WIDGET:
 				default: type = gEvent_MouseRelease; break;
 			}
 
-			save_control = find_child(control, (int)event->button.x_root, (int)event->button.y_root, button_grab);
+			save_control = find_child(control, (int)event->button.x_root, (int)event->button.y_root, button_grab, true);
 			
 			/*if (type == gEvent_MousePress)
 				fprintf(stderr, "save_control = %p %s\n", save_control, save_control ? save_control->name() : "");*/
@@ -754,7 +757,7 @@ __FOUND_WIDGET:
 
 		case GDK_SCROLL:
 
-			save_control = control = find_child(control, (int)event->scroll.x_root, (int)event->scroll.y_root);
+			save_control = control = find_child(control, (int)event->scroll.x_root, (int)event->scroll.y_root, NULL, true);
 			if (!control)
 				goto __HANDLE_EVENT;
 
@@ -908,8 +911,6 @@ gApplication
 
 **************************************************************************/
 
-int appEvents;
-
 bool gApplication::_init = false;
 bool gApplication::_busy = false;
 char *gApplication::_title = NULL;
@@ -1049,15 +1050,30 @@ void gApplication::init(int *argc, char ***argv)
 {
 	GtkSettings *settings;
 	
-	appEvents = 0;
-
 	#ifdef GTK3
-	_app = gtk_application_new(NULL, G_APPLICATION_FLAGS_NONE);
-	g_object_set(G_OBJECT(_app), "register-session", TRUE, NULL);
+
+	char *appid;
+	GB_FUNCTION func;
+
+	GB.GetFunction(&func, (void *)GB.FindClass("_Gui"), "_InitApp", NULL, "s");
+	appid = GB.ToZeroString((GB_STRING *)GB.Call(&func, 0, FALSE));
+
+	//fprintf(stderr, "appid = %s\n", appid);
+	#if GLIB_CHECK_VERSION(2, 74, 0)
+	_app = gtk_application_new(NULL,  G_APPLICATION_DEFAULT_FLAGS);
 	#else
+	_app = gtk_application_new(NULL,  G_APPLICATION_FLAGS_NONE);
+	#endif
+	g_set_prgname(appid); // wayland window uses that as window class instead of the appid defined by the application!
+	g_application_register(G_APPLICATION(_app), NULL, NULL);
+	g_object_set(G_OBJECT(_app), "register-session", TRUE, NULL);
+
+	#else
+
 	session_manager_init(argc, argv);
 	g_signal_connect(gnome_master_client(), "save-yourself", G_CALLBACK(master_client_save_yourself), NULL);
 	g_signal_connect(gnome_master_client(), "die", G_CALLBACK(master_client_die), NULL);
+
 	#endif
 
 	getStyleName();
@@ -1125,12 +1141,6 @@ gControl* gApplication::controlItem(GtkWidget *wid)
 	return NULL;
 }
 
-static void cb_update_busy(gControl *control)
-{
-	if (control->mustUpdateCursor())
-		control->setMouse(control->mouse());
-}
-
 void gApplication::setBusy(bool b)
 {
 	if (b == _busy)
@@ -1138,8 +1148,16 @@ void gApplication::setBusy(bool b)
 
 	_busy = b;
 
-	forEachControl(cb_update_busy);
-	
+#ifdef GTK3
+	if (_busy)
+		g_application_mark_busy(G_APPLICATION(_app));
+	else
+		g_application_unmark_busy(G_APPLICATION(_app));
+#endif
+
+	if (gApplication::_enter)
+		gApplication::_enter->updateCurrentCursor();
+
 	gdk_display_flush(gdk_display_get_default());
 }
 
@@ -1809,6 +1827,7 @@ bool gApplication::eventsPending()
 		
 }
 
+#ifdef GTK3
 bool gApplication::hasMiddleClickPaste()
 {
   gboolean enabled;
@@ -1820,4 +1839,10 @@ bool gApplication::hasMiddleClickPaste()
 
   return enabled;
 }
+#else
+bool gApplication::hasMiddleClickPaste()
+{
+	return TRUE;
+}
+#endif
 

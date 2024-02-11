@@ -42,7 +42,6 @@ the following fields:
 - indent: if the arrangement area must have an indentation of Desktop.Scale
 - autoresize : if the container must try to fit its contents.
 - locked : if the container is being arranged.
-- user : if the container is a UserControl or a UserContainer.
 
 #define IS_RIGHT_TO_LEFT(_object)
 If the control is right to left written
@@ -66,6 +65,9 @@ Returns if the control is in design mode.
 
 #define IS_WIDGET_VISIBLE(_widget)
 Returns if a widget is visible to the screen.
+
+#define IS_USER(_object)
+Returns if the control is a UserControl or a UserContainer
 
 #define GET_WIDGET_CONTENTS(_widget, _x, _y, _w, _h)
 Sets the _x, _y, _w & _h variables with the dimensions of the area
@@ -93,7 +95,7 @@ Resizes a widget.
 #define MOVE_RESIZE_WIDGET(_object, _widget, _x, _y, _w, _h)
 Move & resize a widget simultaneously.
 
-#define RESIZE_CONTAINER(_object, _w, _h)
+#define RESIZE_CONTAINER(_object, _cont, _w, _h)
 Resizes the container object by resizing the widget itself.
 
 #define INIT_CHECK_CHILDREN_LIST(_widget)
@@ -156,11 +158,15 @@ void FUNCTION_NAME(void *_object) //(QFrame *cont)
 	int indent;
 	bool centered;
 
+	arr = GET_ARRANGEMENT(_object);
+
 	if (!CAN_ARRANGE(_object))
+	{
+		arr->dirty = TRUE;
 		return;
+	}
 		
 	cont = (CONTAINER_TYPE)GET_CONTAINER(_object);
-	arr = GET_ARRANGEMENT(_object);
 
 	//if (!IS_WIDGET_VISIBLE(cont) && !IS_WIDGET_VISIBLE(GET_WIDGET(_object)))
 	//  return;
@@ -185,7 +191,7 @@ void FUNCTION_NAME(void *_object) //(QFrame *cont)
 		// g_debug("arrange: %s (%d %d) (%d %d)", ((gControl *)_object)->name(), ((gContainer *)_object)->width(), ((gContainer *)_object)->height(), ((gContainer *)_object)->clientWidth(), ((gContainer *)_object)->clientHeight());
 		//usleep(50000);
 
-		if (arr->user)
+		if (IS_USER(_object))
 			cont = (CONTAINER_TYPE)GET_WIDGET(_object);
 
 		// INIT_CHECK_CHILDREN_LIST() can return
@@ -244,7 +250,7 @@ void FUNCTION_NAME(void *_object) //(QFrame *cont)
 			hf = GET_WIDGET_H(cont) - hc;
 			#endif
 			
-			//fprintf(stderr, "cont: %s: %d %d %d %d (%d %d)\n", ((gControl *)_object)->name(), xc, yc, wc, hc, wf, hf);
+			//fprintf(stderr, "GET_WIDGET_CONTENTS: %s: %d %d %d %d\n", GET_OBJECT_NAME(_object), xc, yc, wc, hc);
 			
 			//if (hc > GET_WIDGET_H(cont))
 			//	qDebug("hc = %d H = %d ?", hc, GET_WIDGET_H(cont));
@@ -723,12 +729,13 @@ void FUNCTION_NAME(void *_object) //(QFrame *cont)
 
 __RETURN:
 
+	arr->dirty = false;
+
 	RAISE_ARRANGE_EVENT(_object);
 
 	arr->locked = false;
 
 	//qDebug("%p: dirty = FALSE", THIS);
-	//arr->dirty = false;
 
 	//qDebug("CCONTAINER_arrange: END %p", THIS);
 

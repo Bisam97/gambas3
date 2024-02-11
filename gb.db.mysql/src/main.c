@@ -591,25 +591,26 @@ static int do_query_cached(DB_DATABASE *db, const char *error, MYSQL_RES **pres,
 }
 
 
-/* Internal function to return database version number as a XXYYZZ integer number*/
+// Internal function to get database version
 
-static int db_version(DB_DATABASE *db)
+static void init_version(DB_DATABASE *db)
 {
-	//Check db version
-	const char *vquery = "select left(version(),6)";
-	long dbversion =0;
+	const char *query = "select version()";
+	char *version;
+	uint verMain, verMajor, verMinor;
 	MYSQL_RES *res;
-	MYSQL_ROW row;
 
-	if (!do_query(db, NULL, &res, vquery, 0))
+	if (!do_query(db, NULL, &res, query, 0))
 	{
-		unsigned int verMain, verMajor, verMinor;
-		row = mysql_fetch_row(res);
-		sscanf(row[0],"%2u.%2u.%2u", &verMain, &verMajor, &verMinor);
-		dbversion = ((verMain * 10000) + (verMajor * 100) + verMinor);
+		version = mysql_fetch_row(res)[0];
+
+		db->full_version = GB.NewZeroString(version);
+
+		sscanf(version, "%2u.%2u.%2u", &verMain, &verMajor, &verMinor);
+		db->version = ((verMain * 10000) + (verMajor * 100) + verMinor);
+
 		mysql_free_result(res);
 	}
-	return dbversion;
 }
 
 /* Search in the first column a result for a specific name */
@@ -705,7 +706,9 @@ static DB_MYSQL_OPTION _options[] = {
 	{ "LOCAL_INFILE", MYSQL_OPT_LOCAL_INFILE, GB_T_BOOLEAN},
 	{ "PROTOCOL", MYSQL_OPT_PROTOCOL, GB_T_STRING},
 	{ "READ_TIMEOUT", MYSQL_OPT_READ_TIMEOUT, GB_T_INTEGER},
+#if LIBMYSQL_VERSION_ID < 80034
 	{ "RECONNECT", MYSQL_OPT_RECONNECT, GB_T_BOOLEAN},
+#endif
 #if LIBMYSQL_VERSION_ID < 80000
 	{ "SSL_VERIFY_SERVER_CERT", MYSQL_OPT_SSL_VERIFY_SERVER_CERT, GB_T_BOOLEAN},
 #endif
@@ -915,13 +918,30 @@ static void set_character_set(DB_DATABASE *db)
 	mysql_free_result(res);
 }
 
+
+static bool is_mariadb(DB_DATABASE *db)
+{
+	int len = GB.StringLength(db->full_version);
+	int i;
+	const char *search = "mariadb";
+	const int len_search = strlen(search);
+
+	for (i = 0; i <= len - len_search; i++)
+	{
+		if (GB.StrNCaseCmp(&db->full_version[i], search, len_search) == 0)
+			return TRUE;
+	}
+
+	return FALSE;
+}
+
+
 static int open_database(DB_DESC *desc, DB_DATABASE *db)
 {
 	MYSQL *conn;
 	char *name;
 	char *host;
 	char *socket;
-	char reconnect = TRUE;
 	unsigned int timeout;
 	char *env;
 	#if HAVE_MYSQL_SSL_MODE_DISABLED
@@ -946,7 +966,10 @@ static int open_database(DB_DESC *desc, DB_DATABASE *db)
 	else
 		socket = NULL;
 	
+	#if LIBMYSQL_VERSION_ID < 80034
+	char reconnect = TRUE;
 	mysql_options(conn, MYSQL_OPT_RECONNECT, &reconnect);
+	#endif
 	
 	timeout = db->timeout;
 	mysql_options(conn, MYSQL_OPT_CONNECT_TIMEOUT, &timeout);
@@ -975,12 +998,19 @@ static int open_database(DB_DESC *desc, DB_DATABASE *db)
 	}
 
 	db->handle = conn;
-	db->version = db_version(db);
+	init_version(db);
+
+	if (is_mariadb(db))
+		db->flags.no_returning = db->version >= 100500;
+	else
+		db->flags.no_returning = TRUE;
+
+	db->flags.if_not_exist = DB_IGNORE_INSERT;
 
 	set_character_set(db);
-	
+
 	GB.HashTable.New(POINTER(&db->data), GB_COMP_BINARY);
-	/* flags: none at the moment */
+
 	return FALSE;
 }
 

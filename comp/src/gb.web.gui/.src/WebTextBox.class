@@ -34,7 +34,6 @@ Public Sub _new()
   
 End
 
-
 Private Function Text_Read() As String
 
   Return $sText
@@ -47,7 +46,9 @@ Private Sub SetText(Value As String, Optional bNoRefresh As Boolean)
   
   $sText = Value
 
-  If Not bNoRefresh And If Me._CanRefresh() Then WebForm._AddJavascript("$_(" & JS(Me.Name & ":entry") & ").value = " & JS($sText) & ";")
+  If Not bNoRefresh And If Me._CanRefresh() Then
+    Me._AddRefresh("$_(" & JS(Me.Name & ":entry") & ").value = " & JS($sText) & ";")
+  Endif
   
   Raise Change
 

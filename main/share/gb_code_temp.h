@@ -890,54 +890,6 @@ void CODE_next(bool drop)
 
 void CODE_op(short op, short subcode, short nparam, bool fixed)
 {
-	if (op == C_ADD || op == C_SUB)
-	{
-		PCODE *last_code;
-		short value, value2;
-
-		last_code = get_last_code();
-
-		if (last_code && ((*last_code & 0xF000) == C_PUSH_QUICK))
-		{
-			value = *last_code & 0xFFF;
-			if (value >= 0x800) value |= 0xF000;
-			if (op == C_SUB) value = (-value); // prevent -256 to be valid!
-
-			#ifdef DEBUG
-			printf("ADD QUICK %d\n", value);
-			#endif
-
-			if (COMP_version < 0x03180000 || (value > -256 && value < 256))
-			{
-				*last_code = C_ADD_QUICK | (value & 0x0FFF);
-
-				use_stack(1 - nparam);
-
-				// Now, look if we are PUSH QUICK then ADD QUICK
-
-				last_code = get_last_code2();
-				if (last_code && ((*last_code & 0xF000) == C_PUSH_QUICK))
-				{
-					value2 = *last_code & 0xFFF;
-					if (value2 >= 0x800) value2 |= 0xF000;
-
-					if (value2 > -256 && value2 < 256)
-					{
-						value += value2;
-
-						if (value >= -256 && value < 256)
-						{
-							*last_code = C_PUSH_QUICK | (value & 0x0FFF);
-							CODE_undo();
-						}
-					}
-				}
-
-				return;
-			}
-		}
-	}
-
 	LAST_CODE;
 
 	use_stack(1 - nparam);
@@ -950,6 +902,81 @@ void CODE_op(short op, short subcode, short nparam, bool fixed)
 		write_ZZxx(op, subcode);
 	else
 		write_ZZxx(op, nparam);
+}
+
+
+#ifdef PROJECT_COMP
+void CODE_add_sub(short op, short subcode, short nparam, TYPE_ID type)
+#else
+void CODE_add_sub(short op, short subcode, short nparam)
+#endif
+{
+	PCODE *last_code;
+	short value, value2;
+
+	last_code = get_last_code();
+
+	if (last_code && ((*last_code & 0xF000) == C_PUSH_QUICK))
+	{
+		value = *last_code & 0xFFF;
+		if (value >= 0x800) value |= 0xF000;
+		if (op == C_SUB) value = (-value); // prevent -256 to be valid!
+
+		#ifdef DEBUG
+		printf("ADD QUICK %d\n", value);
+		#endif
+
+		if (COMP_version < 0x03180000 || (value > -256 && value < 256))
+		{
+#ifdef PROJECT_COMP
+			PCODE opcode = C_ADD_QUICK;
+
+			if (COMP_version >= 0x03190000)
+			{
+				if (value >= -128 && value < 128)
+				{
+					if (type == T_INTEGER)
+						opcode = C_ADD_QUICK_INTEGER;
+					else if (type == T_FLOAT)
+						opcode = C_ADD_QUICK_FLOAT;
+				}
+			}
+
+			if (opcode == C_ADD_QUICK)
+				*last_code = opcode | (value & 0x0FFF);
+			else
+				*last_code = opcode | (value & 0x00FF);
+#else
+				*last_code = C_ADD_QUICK | (value & 0x0FFF);
+#endif
+
+			use_stack(1 - nparam);
+
+			// Now, look if we are PUSH QUICK then ADD QUICK
+
+			last_code = get_last_code2();
+			if (last_code && ((*last_code & 0xF000) == C_PUSH_QUICK))
+			{
+				value2 = *last_code & 0xFFF;
+				if (value2 >= 0x800) value2 |= 0xF000;
+
+				if (value2 > -256 && value2 < 256)
+				{
+					value += value2;
+
+					if (value >= -256 && value < 256)
+					{
+						*last_code = C_PUSH_QUICK | (value & 0x0FFF);
+						CODE_undo();
+					}
+				}
+			}
+
+			return;
+		}
+	}
+
+	CODE_op(op, subcode, nparam, TRUE);
 }
 
 

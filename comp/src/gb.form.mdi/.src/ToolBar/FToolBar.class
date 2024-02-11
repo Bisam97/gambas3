@@ -1,6 +1,6 @@
 ' Gambas class file
 
-Public Enum ICON_TINY, ICON_SMALL, ICON_MEDIUM, ICON_LARGE, ICON_HUGE
+Public Enum ICON_DEFAULT, ICON_TINY, ICON_SMALL, ICON_MEDIUM, ICON_LARGE, ICON_HUGE
 
 Public ToolbarKey As String
 Public $bDesign As Boolean
@@ -12,6 +12,7 @@ Static Private $hConfigureImage As Image
 Private Const SEPARATOR_SIZE As Integer = 5
 
 Private $hObserverParent As Observer
+Private $bReadOnly As Boolean
 Private $bLock As Boolean
 Private $bHidden As Boolean
 Private $bVertical As Boolean = False
@@ -21,7 +22,7 @@ Private $bConfigure As Boolean
 Private $bInside As Boolean
 Private $bPressed As Boolean
 Private $sDropAction As String
-Private $iIconSize As Integer
+Private $iIconSize As Integer = ICON_DEFAULT
 Private $iButtonWidth As Integer
 Private $nRow As Integer
 
@@ -390,16 +391,6 @@ Private Sub Update()
 
   Endif
   
-  If Not $bReallyVertical Then
-    sepToolbar.Move(0, Me.H - 1, Me.W, 1)
-  Else
-    sepToolbar.Move(Me.W - 1, 0, 1, Me.H)
-  Endif
-  
-  'dwgHandle.Refresh
-  
-  $bLock = False
-
   If sepToolbar.Visible Then 
     If $bReallyVertical Then
       Inc W
@@ -408,14 +399,19 @@ Private Sub Update()
     Endif
   Endif
   
-  'Debug panToolBar.X;; panToolBar.Y;; panToolBar.W;; panToolBar.H;; "/";; W;; H
-  'If panToolBar.Children.Count Then Debug "=>";; panToolBar.Children[0].X;; panToolBar.Children[0].Y;; panToolBar.Children[0].W;; panToolBar.Children[0].H
+  If Not $bReallyVertical Then
+    sepToolbar.Move(0, H - 1, W, 1)
+  Else
+    sepToolbar.Move(W - 1, 0, 1, H)
+  Endif
   
   If Not $bDesign Then 
     Me.Resize(W, H)
     Me.Parent.Resize(W, H)
   Endif
   
+  $bLock = False
+
   SetArrangement
   
 End
@@ -426,19 +422,19 @@ Public Sub TimerUpdate_Timer()
   
 End
 
-
 Public Sub Form_Resize()
   
+  If $bLock Then Return
   $hTimerUpdate.Trigger
   
 End
  
 Public Sub Container_Arrange()
   
+  If $bLock Then Return
   $hTimerUpdate.Trigger
   
 End
-
 
 Public Sub panToolbar_BeforeArrange()
 
@@ -1052,7 +1048,7 @@ Public Sub Item_Menu()
     Stop Event
   Else
     If Not Application.ActiveControl Is TextBox Then
-      FToolBarConfig.OpenMenu(Me.Parent)
+      FToolBarConfig.OpenMenu(Me.Parent, $bReadOnly)
       Stop Event
     Endif
   Endif
@@ -1306,7 +1302,7 @@ Public Sub Form_Close()
 
 End
 
-Private Sub ToolbarToStockSize(iSize As Integer) As String
+Private Sub ToolbarToStockSize(iSize As Integer, Optional bUseDefault As Boolean) As String
 
   Select Case iSize
     Case ICON_HUGE
@@ -1317,15 +1313,21 @@ Private Sub ToolbarToStockSize(iSize As Integer) As String
       Return "large"
     Case ICON_TINY
       Return "tiny"
-    Default
+    Case ICON_SMALL
       Return "small"
+    Case Else 
+      If bUseDefault Then
+        Return ToolBar.DefaultSize
+      Else
+        Return ""
+      Endif
   End Select
 
 End
 
 Private Sub CalcIconSize(iIconSize As Integer) As Integer
-  
-  Return Stock.GetSize(ToolbarToStockSize(iIconSize))
+
+  Return Stock.GetSize(ToolbarToStockSize(iIconSize, True))
   
 End
 
@@ -1435,8 +1437,10 @@ Private Sub StockToToolbarSize(sSize As String) As Integer
       Return ICON_HUGE
     Case "tiny"
       Return ICON_TINY
-    Case Else
+    Case "small"
       Return ICON_SMALL
+    Case Else 
+      Return ICON_DEFAULT
   End Select
   
 End
@@ -1444,7 +1448,6 @@ End
 
 Public Sub GetLayout(Optional bReset As Boolean) As Variant
   
-  Dim sSize As String
   Dim aConfig As String[]
   Dim aDefaultConfig As String[]
   
@@ -1454,9 +1457,7 @@ Public Sub GetLayout(Optional bReset As Boolean) As Variant
     If aConfig.Join(",") = aDefaultConfig.Join(",") Then aConfig = Null
   Endif
   
-  sSize = Choose($iIconSize + 1, "Tiny", "", "Medium", "Large", "Huge")
-  
-  Return [sSize, aConfig]
+  Return [ToolbarToStockSize($iIconSize), aConfig]
   
 End
 
@@ -1464,7 +1465,7 @@ Public Sub SetLayout(vLayout As Variant, Optional bInit As Boolean)
 
   Dim sSize As String
   Dim aConfig As String[]
-  Dim bEnabled As Boolean
+  'Dim bEnabled As Boolean
   Dim iInd As Integer
   Dim hCtrl As Control
   Dim sAction As String
@@ -1485,8 +1486,8 @@ Public Sub SetLayout(vLayout As Variant, Optional bInit As Boolean)
     If Not aConfig Then Goto RAISE_CONFIGURE
   Endif
   
-  bEnabled = panToolBar.Enabled
-  panToolBar.Enabled = True
+  'bEnabled = panToolBar.Enabled
+  'panToolBar.Enabled = True
   panToolBar.Hide
   Lock()
   
@@ -1544,7 +1545,7 @@ Public Sub SetLayout(vLayout As Variant, Optional bInit As Boolean)
   '   hCtrl.Raise
   ' Next
   
-  panToolBar.Enabled = bEnabled
+  'panToolBar.Enabled = bEnabled
   panToolBar.Show
   
   Unlock()
@@ -1561,6 +1562,7 @@ Static Public Sub LoadLayout(sKey As String) As Variant
   Dim aConfig As String[]
 
   sSize = Settings["/gb.form.mdi/Toolbars/" &/ sKey &/ "Size"]
+  If Not sSize Then sSize = "*"
   aConfig = Settings["/gb.form.mdi/Toolbars/" &/ sKey &/ "Layout"]
   
   Return [sSize, aConfig]
@@ -1594,6 +1596,7 @@ Static Public Sub SaveLayout(sKey As String, vLayout As Variant, Optional hIgnor
   Endif
   
   sSize = vLayout[0]
+  If sSize = "*" Then sSize = ""
   aConfig = vLayout[1]
   
   Settings["/gb.form.mdi/Toolbars/" &/ sKey &/ "Size"] = sSize
@@ -1742,7 +1745,6 @@ Public Sub SetStockIconSize(sSize As String)
   
 End
 
-
 Private Sub UpdateSize()
 
   Inc Application.Busy
@@ -1751,7 +1753,6 @@ Private Sub UpdateSize()
   Dec Application.Busy
   
 End
-
 
 Public Sub HasSeparator() As Boolean
   
@@ -1770,7 +1771,7 @@ End
 
 Public Sub Form_Menu()
 
-  FToolBarConfig.OpenMenu(Me.Parent)
+  FToolBarConfig.OpenMenu(Me.Parent, $bReadOnly)
 
 End
 
@@ -1801,4 +1802,29 @@ Public Sub Form_Font()
 
   If $bOpened Then UpdateSize
 
+End
+
+Public Sub SetReadOnly(Value As Boolean)
+  
+  $bReadOnly = Value
+  
+End
+
+Public Sub IsReadOnly() As Boolean
+  
+  Return $bReadOnly
+  
+End
+
+Static Public Sub UpdateDefaultSize()
+
+  Dim aToolbar As FToolBar[]
+  Dim hToolbar As FToolBar
+  
+  For Each aToolbar In $cRegister
+    For Each hToolbar In aToolbar
+      If hToolbar.GetIconSize() = ICON_DEFAULT Then hToolbar.LoadConfig()
+    Next
+  Next
+  
 End

@@ -82,9 +82,14 @@ void CLASS_create(CLASS **result)
 static void delete_function(FUNCTION *func)
 {
 	ARRAY_delete(&func->local);
+
 	ARRAY_delete(&func->stat);
+
 	if (func->code)
 		FREE(&func->code);
+
+	if (func->indirect_goto)
+		FREE(&func->indirect_goto);
 
 	if (JOB->debug)
 		ARRAY_delete(&func->pos_line);
@@ -726,7 +731,16 @@ void CLASS_init_global_declaration(CLASS *class, TRANS_DECL *decl, CLASS_SYMBOL 
 	bool is_static;
 	
 	if (!TRANS_has_init_var(decl))
+	{
+		if (decl->is_embedded)
+		{
+			if (sym->local.value)
+				sym->local_assigned = TRUE;
+			else
+				sym->global_assigned = TRUE;
+		}
 		return;
+	}
 	
 	is_static = TYPE_is_static(decl->type);
 	prev_func = CLASS_set_current_init_function(class, is_static ? FUNC_INIT_STATIC : FUNC_INIT_DYNAMIC);

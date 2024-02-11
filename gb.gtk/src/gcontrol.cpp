@@ -333,7 +333,6 @@ void gControl::initAll(gContainer *parent)
 	frame_padding = 0;
 	_bg_set = false;
 	_fg_set = false;
-	have_cursor = false;
 	use_base = false;
 	_mouse = CURSOR_DEFAULT;
 	pr = parent;
@@ -365,6 +364,7 @@ void gControl::initAll(gContainer *parent)
 	//_hidden_temp = false;
 	_allow_show = false;
 	_direction = DIRECTION_DEFAULT;
+	_ignore_mouse = false;
 
 	frame = border = widget = NULL;
 	_scroll = NULL;
@@ -1029,14 +1029,15 @@ void gControl::setCursor(gCursor *vl)
 
 void gControl::updateCursor(GdkCursor *cursor)
 {
-	if (GDK_IS_WINDOW(gtk_widget_get_window(border)) && _inside)
-	{
-		if (cursor || isWindow())
-			gdk_window_set_cursor(gtk_widget_get_window(border), cursor);
-		
-		if (!cursor && parent())
-			parent()->updateCursor(parent()->getGdkCursor());
-	}
+	GdkWindow *win = gtk_widget_get_window(border);
+
+	if (!win)
+		return;
+
+	gdk_window_set_cursor(win, cursor);
+
+	/*if (!cursor && parent())
+		parent()->updateCursor(parent()->getGdkCursor());*/
 }
 
 GdkCursor *gControl::getGdkCursor()
@@ -1104,6 +1105,26 @@ GdkCursor *gControl::getGdkCursor()
 	return cr;
 }
 
+void gControl::updateCurrentCursor()
+{
+	GdkCursor *cursor;
+
+	if (gApplication::_enter != this)
+		return;
+
+	cursor = getGdkCursor();
+	updateCursor(cursor);
+
+	if (cursor)
+	{
+		#ifdef GTK3
+			g_object_unref(cursor);
+		#else
+			gdk_cursor_unref(cursor);
+		#endif
+	}
+}
+
 void gControl::setMouse(int m)
 {
 	if (_proxy)
@@ -1112,9 +1133,9 @@ void gControl::setMouse(int m)
 		return;
 	}
 
-	//fprintf(stderr, "setMouse: %s\n", name());
+	//fprintf(stderr, "setMouse: %s %d\n", name(), m);
 	_mouse = m;
-	updateCursor(getGdkCursor());
+	updateCurrentCursor();
 }
 
 
@@ -1146,7 +1167,7 @@ gMainWindow* gControl::topLevel() const
 	return (gMainWindow *)child;
 }
 
-long gControl::handle()
+uintptr_t gControl::handle()
 {
 #ifdef GTK3
 	gtk_widget_realize(border);
@@ -1421,6 +1442,7 @@ void gControl::restack(bool raise)
 	GList **children;
 	GList *find;
 	gpointer *p;
+	GdkWindow *window;
 
 	if (!pr) 
 		return;
@@ -1449,10 +1471,14 @@ void gControl::restack(bool raise)
 	
 	if (gtk_widget_get_has_window(border))
 	{
-		if (raise)
-			gdk_window_raise(gtk_widget_get_window(border));
-		else
-			gdk_window_lower(gtk_widget_get_window(border));
+		window = gtk_widget_get_window(border);
+		if (window)
+		{
+			if (raise)
+				gdk_window_raise(window);
+			else
+				gdk_window_lower(window);
+		}
 	}
 	
 	g_ptr_array_remove(pr->_children, this);
@@ -1571,9 +1597,6 @@ void gControl::setAcceptDrops(bool vl)
 		return;
 	}
 	
-	if (vl == _accept_drops)
-		return;
-
 	_accept_drops = vl;
 	updateAcceptDrops();
 }
@@ -1588,10 +1611,6 @@ void gControl::connectParent()
 {
 	if (pr)
 		pr->insert(this, true);
-
-	// BM: Widget has been created, so we can set its cursor if application is busy
-	if (gApplication::isBusy() && mustUpdateCursor())
-		setMouse(mouse());
 }
 
 gColor gControl::getFrameColor()
@@ -1974,7 +1993,7 @@ void gControl::realize(bool draw_frame)
 	setMinimumSize();
 	resize(Max(8, _min_w), Max(8, _min_h), true);
 	
-	if (!_no_background && !gtk_widget_get_has_window(border))
+	if (!_no_background) // && !gtk_widget_get_has_window(border))
 		ON_DRAW_BEFORE(border, this, cb_background_expose, cb_background_draw);
 
 	if (draw_frame && frame)
@@ -2008,7 +2027,7 @@ void gControl::realizeScrolledWindow(GtkWidget *wid, bool doNotRealize)
 	gtk_widget_set_redraw_on_allocate(border, TRUE);
 	widget = wid;
 	frame = border;
-	_no_auto_grab = true;
+	//_no_auto_grab = true;
 
 	//gtk_container_add(GTK_CONTAINER(border), GTK_WIDGET(_scroll));
 	gtk_scrolled_window_set_policy(_scroll, GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
@@ -2299,10 +2318,7 @@ void gControl::setForeground(gColor color)
 #ifdef GTK3
 	updateStyleSheet(true);
 #endif
-	//gt_widget_set_color(border, TRUE, _fg, _fg_name, &_fg_default);
 	updateColor();
-	/*if (::strcmp(name(), "dwgInfo") == 0)
-		fprintf(stderr, "setForeground: %08X\n", _fg);*/
 }
 
 #else
@@ -2735,6 +2751,8 @@ void gControl::emitEnterEvent(bool no_leave)
 			gApplication::_leave = NULL;
 	}
 
+	updateCurrentCursor();
+
 	if (_inside)
 		return;
 	
@@ -2743,9 +2761,6 @@ void gControl::emitEnterEvent(bool no_leave)
 	#ifdef GTK3
 	onEnterEvent();
 	#endif
-
-	if (!no_leave)
-		setMouse(mouse());
 
 	#if DEBUG_ENTER_LEAVE
 	fprintf(stderr, ">>>>>>>>>> END ENTER %s\n", name());
@@ -2831,11 +2846,12 @@ void gControl::drawBackground(cairo_t *cr)
 	gColor col= background();
 	
 	if (col == COLOR_DEFAULT)
-	{
+		return;
+	/*{
 		if (!gtk_widget_get_has_window(border))
 			return;
 		col = realBackground(true);
-	}
+	}*/
 
 	gt_cairo_set_source_color(cr, col);
 	cairo_rectangle(cr, 0, 0, width(), height());

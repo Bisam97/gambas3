@@ -68,6 +68,7 @@ Private Sub Decode()
   Dim sCharset As String
   Dim sDir As String
   Dim iMaxFileLength As Long
+  Dim aFiles As String[]
   
   If $cVal Then Return
 
@@ -119,7 +120,7 @@ Private Sub Decode()
   
     sLine = ReadLine()
     
-    If sLine Begins "Content-Disposition:" Then 
+    If sLine Like "content-disposition:*" Then 
       bFile = False
       sFileName = ""
       aElt = Split(sLine, ";", Chr$(34))
@@ -145,7 +146,6 @@ Private Sub Decode()
         sFileName = Temp$()
         sDir = Request.TempDir
         If sDir Then sFileName = sDir &/ File.Name(sFileName)
-        $cFiles[sName] = sFileName
         
         iMaxFileLength = Request.MaxFileSize
         
@@ -162,6 +162,19 @@ Private Sub Decode()
         Loop
         
         Close #hFile
+        
+        Try aFiles = $cFiles[sName]
+        If Error Then
+          aFiles = New String[]
+          aFiles.Add($cFiles[sName])
+          aFiles.Add(sFileName)
+          $cFiles[sName] = aFiles
+        Else If Not aFiles Then
+          $cFiles[sName] = sFileName
+        Else
+          aFiles.Add(sFileName)
+        Endif
+        
       Else
         Do
           sLine = ReadLine()

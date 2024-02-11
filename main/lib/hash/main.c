@@ -31,6 +31,7 @@
 
 #include "gb_common.h"
 #include "hash.h"
+#include "crc32.h"
 #include "c_hash.h"
 #include "main.h"
 
@@ -45,9 +46,8 @@ static union {
 } _context;
 
 static int _algo = -1;
-static void (*_update)(void*, const void*, size_t);
+static void (*_process)(void*, const void*, size_t);
 static unsigned (*_final)(void*, void*);
-static int _hash_len;
 
 bool HASH_begin(int algo)
 {
@@ -55,30 +55,31 @@ bool HASH_begin(int algo)
 	{
 		case HASH_MD5:
 			md5_begin(&_context.md5);
-			_update = (void*)md5_hash;
+			_process = (void*)md5_hash;
 			_final = (void*)md5_end;
-			_hash_len = 16;
 			break;
 
 		case HASH_SHA1:
 			sha1_begin(&_context.sha1);
-			_update = (void*)sha1_hash;
+			_process = (void*)sha1_hash;
 			_final = (void*)sha1_end;
-			_hash_len = 20;
 			break;
 
 		case HASH_SHA256:
 			sha256_begin(&_context.sha256);
-			_update = (void*)sha256_hash;
+			_process = (void*)sha256_hash;
 			_final = (void*)sha256_end;
-			_hash_len = 32;
 			break;
 
 		case HASH_SHA512:
 			sha512_begin(&_context.sha512);
-			_update = (void*)sha512_hash;
+			_process = (void*)sha512_hash;
 			_final = (void*)sha512_end;
-			_hash_len = 64;
+			break;
+
+		case HASH_CRC32:
+			_process = (void *)crc32_hash;
+			_final = (void *)crc32_end;
 			break;
 
 		default:
@@ -94,7 +95,7 @@ void HASH_process(const void *data, size_t len)
 	if (_algo < 0)
 		return;
 
-	(*_update)(&_context, data, len);
+	(*_process)(&_context, data, len);
 }
 
 char *HASH_end(void)

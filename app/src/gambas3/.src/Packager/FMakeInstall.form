@@ -1,7 +1,7 @@
 # Gambas Form File 3.0
 
 { Form Form
-  MoveScaled(0,0,129,79)
+  MoveScaled(0,0,113,79)
   Text = ("Make installation package")
   Icon = Picture["icon:/large/package"]
   Arrangement = Arrange.Vertical
@@ -11,7 +11,7 @@
     Expand = True
     Arrangement = Arrange.Vertical
     Spacing = True
-    Count = 11
+    Count = 12
     TextFont = Font["Bold,+2"]
     ShowIndex = True
     Border = False
@@ -19,24 +19,30 @@
     ActionPicture = Picture["icon:/small/package"]
     Index = 0
     Text = ("Package information")
-    { TextLabel1 TextLabel
-      MoveScaled(1,0,64,4)
-      Font = Font["Bold"]
-      AutoResize = True
-      Text = ("Package name")
-      Alignment = Align.BottomNormal
-    }
-    { txtPackage Label
-      MoveScaled(1,5,70,4)
-      Font = Font["Bold,+2"]
-      Background = Color.TextBackground
-      Foreground = Color.TextForeground
-      Padding = 4
-      AutoResize = True
-      Border = Border.Plain
+    { Panel19 HBox
+      MoveScaled(1,0,78,4)
+      Spacing = True
+      { TextLabel1 TextLabel
+        MoveScaled(0,0,15,3)
+        Font = Font["Bold"]
+        AutoResize = True
+        Text = ("Package name")
+        Alignment = Align.Normal
+      }
+      { txtPackage Label
+        MoveScaled(16,0,54,4)
+        Font = Font["Bold,+2"]
+        Background = Color.TextBackground
+        Foreground = Color.TextForeground
+        Expand = True
+        Padding = 4
+        AutoResize = True
+        Border = Border.Plain
+        BorderRadius = 32
+      }
     }
     { Panel3 HBox
-      MoveScaled(1,10,87,8)
+      MoveScaled(1,5,87,8)
       Spacing = True
       { Panel5 VBox
         MoveScaled(0,0,53,8)
@@ -59,7 +65,7 @@
           Spacing = True
           { Label8 Label
             MoveScaled(0,0,16,4)
-            AutoResize = True
+            Expand = True
             Alignment = Align.Right
             Text = ("Package version")
           }
@@ -73,7 +79,7 @@
       }
     }
     { HBox8 HBox
-      MoveScaled(1,19,70,4)
+      MoveScaled(1,14,70,4)
       Spacing = True
       { Label3 Label
         MoveScaled(0,0,23,4)
@@ -86,7 +92,7 @@
       }
     }
     { HBox20 HBox
-      MoveScaled(1,24,70,4)
+      MoveScaled(1,19,70,4)
       Spacing = True
       { Label9 Label
         MoveScaled(0,0,23,4)
@@ -96,6 +102,19 @@
         MoveScaled(24,0,44,4)
         Expand = True
         Filter = "[A-Za-z0-9]"
+      }
+    }
+    { HBox22 HBox
+      MoveScaled(1,24,70,4)
+      Spacing = True
+      { Label11 Label
+        MoveScaled(0,0,23,4)
+        Text = ("Application identifier")
+      }
+      { txtIdentifier MaskBox
+        MoveScaled(24,0,44,4)
+        Expand = True
+        Filter = "[A-Za-z0-9.]"
       }
     }
     { TextLabel2 TextLabel
@@ -142,11 +161,11 @@
       }
     }
     { Panel1 HBox
-      MoveScaled(1,48,72,12)
+      MoveScaled(1,48,72,11)
       Expand = True
       Spacing = True
       { Panel4 VBox
-        MoveScaled(0,0,23,10)
+        MoveScaled(0,0,23,7)
         { Label6 Label
           MoveScaled(0,0,23,4)
           Font = Font["Bold"]
@@ -154,13 +173,13 @@
         }
       }
       { txtDescribe TextArea
-        MoveScaled(25,0,46,12)
+        MoveScaled(24,0,46,11)
         Expand = True
         Wrap = True
       }
     }
     { Panel2 HBox
-      MoveScaled(1,61,73,4)
+      MoveScaled(1,60,73,4)
       Spacing = True
       { Label5 Label
         MoveScaled(0,0,23,4)
@@ -217,7 +236,7 @@
         Tag = "archlinux"
         Padding = 4
         { PictureBox1 PictureBox
-          MoveScaled(0,0,8,8)
+          MoveScaled(2,1,6,6)
           Picture = Picture.Load("img/logo/archlinux.png")
           Stretch = True
           Alignment = Align.Center
@@ -240,7 +259,7 @@
         Padding = 4
         { PictureBox6 PictureBox
           MoveScaled(1,1,6,6)
-          Picture = Picture.Load("img/logo/autotools.png")
+          Picture = Picture.Load("icon:/128/terminal")
           Stretch = True
           Alignment = Align.Center
         }
@@ -321,6 +340,28 @@
           Text = "Mageia"
         }
       }
+      { HBox4 HBox panDistro
+        Name = "HBox4"
+        MoveScaled(43,20,42,9)
+        Tag = "slackware"
+        Padding = 4
+        { PictureBox9 PictureBox
+          MoveScaled(1,1,6,6)
+          Picture = Picture.Load("img/logo/slackware.png")
+          Stretch = True
+          Alignment = Align.Center
+        }
+        { Panel15 Panel
+          MoveScaled(9,1,3,6)
+        }
+        { CheckBox2 CheckBox chkDistro
+          Name = "CheckBox2"
+          MoveScaled(14,2,26,4)
+          #Translate = False
+          Expand = True
+          Text = "Slackware"
+        }
+      }
       { HBox7 HBox panDistro
         Name = "HBox7"
         MoveScaled(0,30,42,9)
@@ -343,26 +384,26 @@
           Text = "OpenSUSE"
         }
       }
-      { HBox4 HBox panDistro
-        Name = "HBox4"
+      { HBox21 HBox panDistro
+        Name = "HBox21"
         MoveScaled(43,30,42,9)
-        Tag = "slackware"
+        Tag = "appimage"
         Padding = 4
-        { PictureBox9 PictureBox
+        { PictureBox8 PictureBox
           MoveScaled(1,1,6,6)
-          Picture = Picture.Load("img/logo/slackware.png")
+          Picture = Picture.Load("img/logo/appimage.png")
           Stretch = True
           Alignment = Align.Center
         }
-        { Panel15 Panel
+        { Panel18 Panel
           MoveScaled(9,1,3,6)
         }
-        { CheckBox2 CheckBox chkDistro
-          Name = "CheckBox2"
+        { CheckBox8 CheckBox chkDistro
+          Name = "CheckBox8"
           MoveScaled(14,2,26,4)
           #Translate = False
           Expand = True
-          Text = "Slackware"
+          Text = "AppImage"
         }
       }
       { HBox9 HBox panDistro
@@ -395,7 +436,7 @@
         Padding = 4
         { PictureBox10 PictureBox
           MoveScaled(1,1,6,6)
-          Picture = Picture.Load("img/logo/self-extractible.png")
+          Picture = Picture.Load("icon:/huge/tools")
           Stretch = True
           Alignment = Align.Center
         }
@@ -411,6 +452,53 @@
       }
     }
     Index = 3
+    Text = ("AppImageBuilder configuration")
+    { HBox23 HBox
+      MoveScaled(0,1,63,4)
+      Spacing = True
+      { Label12 Label
+        MoveScaled(0,0,28,4)
+        Text = ("Ubuntu repository")
+      }
+      { txtAppImageRepository TextBox
+        MoveScaled(32,0,25,4)
+        Expand = True
+      }
+    }
+    { HBox24 HBox
+      MoveScaled(0,6,88,4)
+      Spacing = True
+      { Label13 Label
+        MoveScaled(0,0,28,4)
+        Text = ("Ubuntu distribution")
+      }
+      { cmbAppImageDistribution ComboBox
+        MoveScaled(29,0,24,4)
+        #Translate = False
+        List = ["trusty (14.04)", "xenial (16.04)", "bionic (18.04)", "focal (20.04)", "jammy (22.04)", "lunar (23.04)"]
+        Placeholder = "jammy (22.04)"
+      }
+      { btnAppImageFromSystem Button
+        MoveScaled(58,0,29,4)
+        AutoResize = True
+        Text = ("Get current system configuration")
+      }
+    }
+    { HBox26 HBox
+      MoveScaled(0,12,63,4)
+      Spacing = True
+      { Label14 Label
+        MoveScaled(0,0,28,4)
+        Text = ("Gambas repository")
+      }
+      { txtAppImageGambasRepository TextBox
+        MoveScaled(32,0,25,4)
+        #Translate = False
+        Expand = True
+        Placeholder = "http://ppa.launchpad.net/gambas-team/gambas3/ubuntu/"
+      }
+    }
+    Index = 4
     Text = ("Package group")
     { cmbGroup ComboBox
       MoveScaled(1,1,68,4)
@@ -427,7 +515,7 @@
       MoveScaled(1,47,68,4)
       ReadOnly = True
     }
-    Index = 4
+    Index = 5
     Text = ("Menu entry")
     { cmbMenu ComboBox
       MoveScaled(1,1,68,4)
@@ -453,7 +541,7 @@
       MoveScaled(1,48,68,4)
       Sorted = True
     }
-    Index = 5
+    Index = 6
     Text = ("Desktop configuration file")
     { TextLabel6 TextLabel
       MoveScaled(0,0,64,4)
@@ -489,7 +577,7 @@
       MoveScaled(0,38,81,17)
       Expand = True
     }
-    Index = 6
+    Index = 7
     Text = ("Extra dependencies")
     { HBox17 HBox
       MoveScaled(2,1,83,4)
@@ -500,10 +588,18 @@
         Text = ("Minimum Gambas version")
       }
       { dwgVersionMin DrawingArea
-        MoveScaled(36,0,14,4)
+        MoveScaled(36,0,15,4)
         Enabled = False
+        Arrangement = Arrange.Horizontal
+        { txtVersionMin TextBox
+          MoveScaled(0,0,3,4)
+          Enabled = False
+          Alignment = Align.Right
+          Border = False
+        }
         { spnVersionMin SpinBox
-          MoveScaled(4,0,10,4)
+          MoveScaled(5,0,8,4)
+          Expand = True
           Border = False
         }
       }
@@ -556,7 +652,7 @@
         }
       }
     }
-    Index = 7
+    Index = 8
     Text = ("Extra files")
     { chkFile CheckBox
       MoveScaled(0,1,55,3)
@@ -619,7 +715,7 @@
         Border = False
       }
     }
-    Index = 8
+    Index = 9
     Text = ("Extra autoconf tests")
     { TextLabel4 TextLabel
       MoveScaled(2,1,66,9)
@@ -631,7 +727,7 @@
       MoveScaled(1,15,71,34)
       Expand = True
     }
-    Index = 9
+    Index = 10
     Text = ("Destination directory")
     { dchInstall DirChooser
       MoveScaled(1,0,72,50)
@@ -641,7 +737,7 @@
       MoveScaled(1,53,69,4)
       Text = ("Create directories for each distribution")
     }
-    Index = 10
+    Index = 11
     Text = ("Create package")
     { HBox19 HBox
       MoveScaled(1,1,74,4)
@@ -676,10 +772,9 @@
         Picture = Picture["icon:/small/copy"]
       }
     }
-    { edtLog TextEditor
-      MoveScaled(7,17,49,28)
+    { trmLog TerminalView
+      MoveScaled(6,17,62,27)
       Expand = True
-      ReadOnly = True
     }
     { panError Panel
       MoveScaled(1,51,87,8)

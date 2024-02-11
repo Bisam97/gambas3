@@ -114,7 +114,8 @@ enum {
 	E_MARRAY,
 	E_UCLASS,
 	E_SPEC,
-	E_USIZE
+	E_USIZE,
+	E_JUMP
 	};
 
 #ifndef __GB_ERROR_C
@@ -171,6 +172,7 @@ void THROW_MATH(bool zero) NORETURN;
 void THROW_OVERFLOW_(void) NORETURN;
 #define THROW_OVERFLOW() ({ if (EXEC_check_overflow) THROW_OVERFLOW_(); })
 //#define THROW_OVERFLOW THROW_OVERFLOW_
+void THROW_ARG(void) NORETURN;
 
 void ERROR_fatal(const char *error, ...) NORETURN;
 void ERROR_panic(const char *error, ...) NORETURN;

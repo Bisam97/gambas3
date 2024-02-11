@@ -1,6 +1,9 @@
 ' Gambas class file
 
-Private $sInfo As String
+Static Private $aText As String[]
+Static Private $aProgVersion As String[]
+Static Private $hProcess As Process
+Static Private $iRowVersion As Integer
 
 Public Sub btnClose_Click()
 
@@ -10,7 +13,7 @@ End
 
 Public Sub btnCopy_Click()
 
-  Clipboard.Copy($sInfo)
+  Clipboard.Copy($aText.Join("\n"))
 
 End
 
@@ -89,7 +92,7 @@ Static Private Sub GetDistribution() As String
 
 End
 
-Static Public Sub GetInfo() As String[]
+Static Public Sub GetInfo(Optional bBackground As Boolean) As String[]
 
   Dim aText As New String[]
   Dim sTemp As String
@@ -111,17 +114,13 @@ Static Public Sub GetInfo() As String[]
   aText.Add("Gambas=" & Project.FullVersionWithRevision)
 
   aText.Add("OperatingSystem=" & System.Family)
+  aText.Add("Distribution=" & GetDistribution())
   
   Exec ["uname", "-r"] To sTemp
   aText.Add("Kernel=" & Trim(sTemp))
   
   aText.Add("Architecture=" & System.Architecture)
-  aText.Add("Distribution=" & GetDistribution())
-  aText.Add("Desktop=" & Desktop.Type)
-  aText.Add("Font=" & Application.Font.ToString())
-  aText.Add("Scale=" & Desktop.Scale)
-  aText.Add("Theme=" & Style.Name)
-  aText.Add("Language=" & System.Language)
+  aText.Add("Cores=" & System.Cores)
 
   If System.Family = "FreeBSD" Then
     Exec ["sysctl", "-n", "hw.physmem"] To sTemp
@@ -144,15 +143,30 @@ Static Public Sub GetInfo() As String[]
     If Not Error Then aText.Add("Memory=" & sTemp)
   Endif
   
-  aText.Add("")
+  aText.Add("Language=" & System.Language)
+  aText.Add("Desktop=" & Desktop.Type)
+  aText.Add("DesktopResolution=" & Desktop.Resolution)
+  aText.Add("DesktopScale=" & Desktop.Scale)
+  aText.Add("WidgetTheme=" & Style.Name)
+  aText.Add("Font=" & Application.Font.ToString())
+
   aText.Add("[Programs]")
   sForTrans = ("Programs")
   
-  For Each sProg In ["git", "gcc", "clang", "pngquant", "translate-shell"].Sort()
-    Try Exec [sProg, "--version"] To sTemp
-    If Error Or If Not sTemp Then Continue
-    If sTemp Then sTemp = Split(sTemp, "\n", "", True)[0]
-    aText.Add(sProg & "=" & sTemp)
+  $aProgVersion = New String[]
+  $iRowVersion = aText.Count
+  
+  For Each sProg In ["git", "gcc", "clang", "tcc", "msgmerge", "pngquant", "translate-shell", "rpmbuild", "dpkg", "appimage-builder", "appimage-builder-x86_64", "appimage-builder-x86_64.AppImage"].Sort()
+    If Project.CheckProgram(sProg) Then Continue
+    If bBackground Then
+      aText.Add(sProg & "=")
+      $aProgVersion.Add(sProg)
+    Else 
+      Try Exec [sProg, "--version"] To sTemp
+      If Error Then Continue
+      If sTemp Then sTemp = Split(sTemp, "\n", "", True)[0]
+      aText.Add(sProg & "=" & sTemp)
+    Endif
   Next
   
   If System.Family = "Cygwin" Then
@@ -171,8 +185,7 @@ Static Public Sub GetInfo() As String[]
       aSearchPath = ["/usr/lib"]
     Endif
     
-    cSearch = ["QT4": "libQtCore.so.*.*.*", "QT5": "libQt5Core.so.*.*.*", "GDK2": "libgdk-x11-2*.so.*.*.*", "GTK+2": "libgtk-x11-2*.so.*.*.*", "GDK3": "libgdk-3*.so.*.*.*", "GTK+3": "libgtk-3*.so.*.*.*", "SDL": "libSDL-1.*.so.*.*.*", "GStreamer": "libgstreamer-*.so.*.*.*", "Poppler": "libpoppler.so.*.*.*", "Curl": "libcurl.so.*.*.*", 
-    "OpenGL": "libGL.so.*.*.*", "Cairo": "libcairo.so.*.*.*", "DBus": "libdbus-[0-9].so.*.*.*", "SQLite": "libsqlite3.so.*.*.*", "RSvg": "librsvg-2.so.*.*.*"]
+    cSearch = ["QT4": "libQtCore.so.*.*.*", "QT5": "libQt5Core.so.*.*.*", "GDK2": "libgdk-x11-2*.so.*.*.*", "GTK+2": "libgtk-x11-2*.so.*.*.*", "GDK3": "libgdk-3*.so.*.*.*", "GTK+3": "libgtk-3*.so.*.*.*", "SDL": "libSDL[2-9]-*.*.so.*.*.*", "GStreamer": "libgstreamer-*.so.*.*.*", "Poppler": "libpoppler.so.*.*.*", "Curl": "libcurl.so.*.*.*", "OpenGL": "libGL.so.*.*.*", "Cairo": "libcairo.so.*.*.*", "DBus": "libdbus-[0-9].so.*.*.*", "SQLite 3": "libsqlite3.so.*.*.*", "RSvg": "librsvg-2.so.*.*.*"]
     
   Endif
 
@@ -181,7 +194,6 @@ Static Public Sub GetInfo() As String[]
   Endif
 
   cFile = New Collection
-  aText.Add("")
   aText.Add("[Libraries]")
   sForTrans = ("Libraries")
 
@@ -200,7 +212,6 @@ Static Public Sub GetInfo() As String[]
 
   aText.Insert(aLib.Sort())
 
-  aText.Add("")
   aText.Add("[Environment]")
   sForTrans = ("Environment")
   
@@ -219,34 +230,33 @@ Static Public Sub GetInfo() As String[]
 
 End
 
-
-
 Public Sub Form_Open()
 
-  Dim aText As String[]
   Dim sText As String
   Dim I As Integer
   Dim aLine As String[]
   
   Inc Application.Busy
   
-  aText = GetInfo()
+  txtInfo.Padding = Desktop.Scale
+  txtInfo.BorderRadius = txtInfo.H
+  
+  $aText = GetInfo(True)
   
   Project.SetEditorFont(gvwInfo)
   
-  gvwInfo.Rows.Count = aText.Count + 1
+  gvwInfo.Rows.Count = $aText.Count
   gvwInfo.Columns.Count = 3
   
-  With gvwInfo[0, 0]
-    .Text = ("Please copy these informations in all your bug reports.")
-    .ColumnSpan = 3
-    .Font = Font["Italic,-1"]
-    '.Foreground = Color.Foreground
-  End With
-  gvwInfo.Rows[0].Height = Desktop.Scale * 6
+  ' With gvwInfo[0, 0]
+  '   .Text = ("Please copy these informations in all your bug reports.")
+  '   .ColumnSpan = 3
+  '   .Font = Font["Italic,-1"]
+  '   '.Foreground = Color.Foreground
+  ' End With
+  ' gvwInfo.Rows[0].Height = Desktop.Scale * 6
   
-  I = 1
-  For Each sText In aText
+  For Each sText In $aText
     If Left(sText) = "[" Then
       With gvwInfo[I, 0]
         .Text = Tr(Mid$(sText, 2, -1))
@@ -270,9 +280,9 @@ Public Sub Form_Open()
   gvwInfo.Columns[0].Width = -1
   gvwInfo.Columns[1].Width = Desktop.Scale * 2
   
-  $sInfo = aText.Join("\n")
-
   Dec Application.Busy
+  
+  GetNextVersion()
 
 End
 
@@ -289,4 +299,43 @@ Static Private Sub MakeAnonymous(aText As String[])
 
 End
 
+Private Sub GetNextVersion()
 
+  Dim sProg As String
+  
+  If $aProgVersion.Count = 0 Then 
+    btnCopy.Enabled = True
+    Return
+  Endif
+  
+  sProg = $aProgVersion[0]
+  $aProgVersion.Remove(0)
+  
+  $hProcess = Exec [sProg, "--version"] For Read As "Process"
+
+End
+
+Public Sub Process_Read()
+  
+  Dim hProcess As Process = Last
+  Dim sData As String
+  
+  sData = Read #hProcess, Lof(hProcess)
+  Try sData = Split(sData, "\n", "", True)[0]
+  $aText[$iRowVersion] &= sData
+  gvwInfo[$iRowVersion, 2].Text = sData
+  Inc $iRowVersion
+  
+End
+
+Public Sub Process_Kill()
+  
+  GetNextVersion()
+  
+End
+
+Public Sub Form_Close()
+
+  Try $hProcess.Kill
+
+End

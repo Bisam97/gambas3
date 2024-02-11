@@ -209,8 +209,33 @@ Private Sub CanDelete_Write(Value As Boolean)
 
 End
 
+'' @{since 3.19}
+''
+'' Find the first row matching a SQL request and move to it.
+''
+'' - ~Where~: The "WHERE" part of the SQL request, with possible argument substitution inside.
+
 Public Sub Find(Where As String, ...)
 
   $hForm.DataView.Find(Where, ...)
   
 End
+
+'' @{since 3.19}
+''
+'' Find the next row matching a SQL request from the current position, and move to it.
+''
+'' - ~Where~: The "WHERE" part of the SQL request, with possible argument substitution inside.
+
+Public Sub FindNext(Where As String, ...)
+
+  $hForm.DataView.FindNext(Where, ...)
+  
+End
+
+Public Sub MoveTo(Index As Integer)
+  
+  $hForm.DataView.MoveTo(Index)
+  
+End
+

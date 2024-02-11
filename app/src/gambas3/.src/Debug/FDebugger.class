@@ -34,7 +34,7 @@ Public Sub _new()
   
   With cvwDebug
     .Columns.Count = 2
-    .Columns.Padding = 0
+    .Columns.Padding = Desktop.Scale
   End With
   
   ReadConfig
@@ -784,7 +784,7 @@ Public Sub UpdateProcessInfo(iProcessId As Integer, iProcessFiles As Integer, iP
       
       picProcessId.Show
       lblProcessId.Show
-      lblProcessId.Text = Subst(("Process &1"), iProcessId)
+      lblProcessId.Text = CStr(iProcessId)
       
     Endif
     
@@ -921,8 +921,16 @@ End
 
 Public Sub cvwDebug_Select()
 
-  Balloon.Hide(Last)
   UpdateWatchButtons
+  
+End 
+
+Public Sub cvwDebug_Click()
+
+  If cvwDebug.Item.Children Then
+    cvwDebug.Item.Selected = False
+    cvwDebug.Item.Expanded = Not cvwDebug.Item.Expanded
+  Endif
 
 End
 
@@ -1160,5 +1168,11 @@ End
 Public Sub btnCloseTree_Click()
 
   FMain.btnCloseTree_Click
+
+End
+
+Public Sub btnOpenTempDir_Click()
+
+  Try Desktop.Open(Design.ProcessTempDir)
 
 End

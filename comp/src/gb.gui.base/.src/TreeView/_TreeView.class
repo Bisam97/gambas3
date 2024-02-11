@@ -46,6 +46,11 @@ Property Read ScrollH, ScrollHeight As Integer
 
 Property Read Indent As Integer
 
+'' @{since 3.19}
+''
+'' Return or set if the item under the mouse cursor is highlighted.
+Property Highlight As Boolean
+
 Property Read _Items As Collection
 
 Event Click
@@ -69,7 +74,7 @@ Event BeforeSort
 
 Event Scroll
 
-'' {@since 3.16}
+'' @{since 3.16}
 ''
 '' This event allows to customize the drawing of a specific item.
 ''
@@ -80,6 +85,15 @@ Event Scroll
 '' This event is called just before drawing the item, and if the event is stopped, the default item drawing routine is ignored.
 
 Event Draw(X As Integer, Y As Integer, Width As Integer, Height As Integer, Key As String, Column As Integer)
+
+'' @{since 3.19}
+''
+'' This event is raised to filter a specific item.
+''
+'' Stop the event to prevent the item from being visible.
+
+Event Filter(Key As String)
+
 
 Static Private $iNoEvent As Integer
 
@@ -102,6 +116,7 @@ Private $bSortRoot As Boolean
 Private $hSortTimer As Timer
 Private $bNoRoot As Boolean
 Private $iLock As Integer
+Private $sLastKeyClick As String
 
 Private $hSelection As TreeViewSelection
 Private $iSaveSelection As Integer
@@ -110,7 +125,11 @@ Private $vSaveSelection As Variant
 Private $iDepthW As Integer
 Private $bShowLines As Boolean
 Private $bShowCheck As Boolean
+
+Public _MustUpdateSpan As Boolean
 Private $hUpdateSpan As Timer
+
+Private $hUpdateFilter As Timer
 
 Public Sub _new()
   
@@ -135,6 +154,7 @@ Public Sub _new()
   $hRoot = New _TreeView_Item("", "") As "Item"
   
   $hUpdateSpan = New Timer As "UpdateSpan"
+  $hUpdateFilter = New Timer As "UpdateFilter"
   
 End
 
@@ -225,12 +245,11 @@ Public Sub _Add((Key) As String, Text As String, Optional (Picture) As Picture, 
     _UpdateItemHeight(hItem, True)
   Endif
   
-  ResizeColumns
-  
   If $bSorted Then _SortParent(Parent)
   
   $sCursor = Key
   
+  FilterItem(hItem)
   _RefreshView
   
   Return hItem
@@ -305,8 +324,6 @@ Public Sub Remove((Key) As String)
   
   _UpdateCurrent(sCurrent)
   
-  ResizeColumns
-  
   If iRow >= 0 Then UpdateRowHeight(Null, iRow, -1)
   
   _RestoreSelection
@@ -364,7 +381,6 @@ Public Sub _ReparentItem(hItem As _TreeView_Item, Parent As String)
   
   If $bSorted Then _SortParent(Parent)
   
-  ResizeColumns
   _RefreshView
   
   _UpdateCurrent(sCurrent)  
@@ -530,6 +546,8 @@ Public Sub _GetItemX(hItem As _TreeView_Item) As Integer
   
   X = hItem._Depth * $iDepthW
   If Not $bNoRoot Then X += $iDepthW
+  If $bShowCheck And If $hView.Mode Then X += $iDepthW + Desktop.Scale \ 2
+  
   Return X
 
 End
@@ -561,10 +579,16 @@ Public Sub GridView_Draw(X As Integer, Y As Integer, W As Integer, H As Integer,
   Dim hParent As _TreeView_Item
   Dim bStopEvent As Boolean
   Dim iFg As Integer
+  Dim HC As Integer
+  Dim XD As Integer
+  Dim XS As Integer
+  Dim X0 As Integer
   
   If Not hItem Then Return
   
   iFg = Paint.Background
+  X0 = X
+  XS = X * 2 + W
   
   bStopEvent = Raise Draw(X, Y, W, H, hItem.Key, Column)
   If bStopEvent Then
@@ -575,195 +599,100 @@ Public Sub GridView_Draw(X As Integer, Y As Integer, W As Integer, H As Integer,
   If Column = 0 Then
   
     If Me.RightToLeft Then
-
-      W -= hItem._Depth * $iDepthW '+ $iDepthW
-      
-      If Not $bNoRoot Then
-      
-        Paint.Save
-        
-        If $bShowLines And If hItem._Depth Then
-          
-          Paint.Background = _Gui.GetForeground(Me, Color.SetAlpha(Color.LightForeground, 128))
-          
-          bHasNext = GetSibling(hItem.Key, 1)
-          
-          If hItem.Count Then
-            Paint.MoveTo(X + W + $iDepthW, Y + H / 2)
-          Else
-            Paint.MoveTo(X + W + $iDepthW / 4, Y + H / 2)
-          Endif
-          Paint.LineTo(X + W + $iDepthW + $iDepthW / 2, Y + H / 2)
-          Paint.RelMoveTo(0, -H)
-          Paint.RelLineTo(0, H)
-          If bHasNext Then Paint.RelLineTo(0, H)
-          
-          XA = X + W + $iDepthW + $iDepthW / 2
-          hParent = hItem
-          While hParent.ParentKey
-            hParent = $cItem[hParent.ParentKey]
-            XA += $iDepthW 
-            If GetSibling(hParent.Key, 1) Then
-              Paint.MoveTo(XA, Y - H / 2)
-              Paint.RelLineTo(0, H * 2)
-            Endif
-          Wend
-          
-          Paint.AntiAlias = False
-          Paint.LineWidth = 1
-          Paint.Stroke
-          Paint.AntiAlias = True
-          
-        Endif
-      
-        If hItem.Count Then
-          
-          HA = H / 2
-          If HA < Desktop.Scale Then HA = Min(H, Desktop.Scale)
-          WA = HA
-          XA = X + W + ($iDepthW + WA) / 4
-          YA = Y + CInt(H - HA) \ 2
-          
-          Paint.Background = Color.SetAlpha(_Gui.GetForeground(Me, Style.ForegroundOf($hView)), 32)
-          Paint.LineWidth = $iDepthW / 12
-          Paint.LineCap = Paint.LineCapRound
-          Paint.Arrow(XA, YA, WA, HA, If(hItem.Expanded, Align.Bottom, Align.Left))
-          Paint.Stroke
-          
-        Endif
-        
-        Paint.Restore
-        W -= $iDepthW 
-        
-      Endif
-      
-      If $bShowCheck And If $hView.Mode Then
-        
-        ' If hItem.Selected Then
-        '   XA = X + W + $iDepthW / 4
-        '   YA = Y + $iDepthW / 4
-        '   WA = $iDepthW / 2
-        '   HA = H - $iDepthW / 2
-        '   Paint.Background = Color.SetAlpha(Style.ForegroundOf($hView), 64)
-        '   Paint.LineWidth = $iDepthW / 12
-        '   Paint.LineCap = Paint.LineCapSquare
-        '   Paint.Check(XA, YA, WA, HA)
-        '   Paint.Stroke
-        ' Endif
-        ' Paint.DrawRect(X + W, Y, H, H, Color.SetAlpha(Style.ForegroundOf($hView), 64), $iDepthW / 18)
-        
-        If $hView.Mode = Select.Single Then
-          Style.PaintOption(X + W, Y, H, H, hItem.Selected)
-        Else
-          Style.PaintCheck(X + W, Y, H, H, hItem.Selected)
-        Endif
-        
-        W -= $iDepthW + Desktop.Scale \ 2
-        
-      Endif
-      
-      If hItem.Picture Then
-        'W -= hItem.Picture.W
-        Paint.DrawPicture(hItem.Picture, X + W, Y + (H - hItem.Picture.H) / 2)
-        W -= Desktop.Scale \ 2
-      Endif
-
-    Else
+      Paint.Save
+      Paint.Translate((X + W / 2), 0)
+      Paint.Scale(-1, 1)
+      Paint.Translate(-(X + W / 2), 0)
+    Endif
   
-      X += hItem._Depth * $iDepthW
+    X += hItem._Depth * $iDepthW
+    
+    If Not $bNoRoot Then
+    
+      Paint.Save
       
-      If Not $bNoRoot Then
-      
-        Paint.Save
+      If $bShowLines And If hItem._Depth Then
         
-        If $bShowLines And If hItem._Depth Then
-          
-          Paint.Background = Color.SetAlpha(_Gui.GetForeground(Me, Color.LightForeground), 128)
-          
-          bHasNext = GetSibling(hItem.Key, 1)
-          
-          If hItem.Count Then
-            Paint.MoveTo(X, Y + H / 2)
-          Else
-            Paint.MoveTo(X + $iDepthW - $iDepthW / 4, Y + H / 2)
-          Endif
-          Paint.LineTo(X - $iDepthW / 2, Y + H / 2)
-          Paint.RelMoveTo(0, -H)
-          Paint.RelLineTo(0, H)
-          If bHasNext Then Paint.RelLineTo(0, H)
-          
-          XA = X - $iDepthW / 2
-          hParent = hItem
-          While hParent.ParentKey
-            hParent = $cItem[hParent.ParentKey]
-            XA -= $iDepthW 
-            If GetSibling(hParent.Key, 1) Then
-              Paint.MoveTo(XA, Y - H / 2)
-              Paint.RelLineTo(0, H * 2)
-            Endif
-          Wend
-          
-          Paint.AntiAlias = False
-          Paint.LineWidth = 1
-          Paint.Stroke
-          Paint.AntiAlias = True
-          
-        Endif
-      
+        Paint.Background = Color.SetAlpha(_Gui.GetForeground(Me, Color.LightForeground), 128)
+        
+        bHasNext = GetSibling(hItem.Key, 1)
+        
         If hItem.Count Then
-          
-          'Paint.Background = Color.LightForeground
-          'HA = H / 2
-          'If HA < Desktop.Scale Then HA = Min(H, Desktop.Scale)
-          WA = Min(H, $iDepthW \ 2)
-          HA = WA
-          XA = X + ($iDepthW - WA) / 2
-          YA = Y + (H - HA) / 2
-          Paint.LineWidth = HA / 6
-          Paint.Background = Color.SetAlpha(iFg, 32)
-          Paint.LineCap = Paint.LineCapRound
-          Paint.Arrow(XA, YA, WA, HA, If(hItem.Expanded, Align.Bottom, Align.Right))
-          Paint.Stroke
-          
-        Endif
-        
-        Paint.Restore
-        
-        X += $iDepthW
-        
-      Endif
-      
-      If $bShowCheck And If $hView.Mode Then
-        
-        ' If hItem.Selected Then
-        '   XA = X + $iDepthW / 4
-        '   YA = Y + $iDepthW / 4
-        '   WA = H - $iDepthW / 2
-        '   HA = H - $iDepthW / 2
-        '   Paint.Background = Color.SetAlpha(Style.ForegroundOf($hView), 64)
-        '   Paint.LineWidth = $iDepthW / 12
-        '   Paint.LineCap = Paint.LineCapSquare
-        '   Paint.Check(XA, YA, WA, HA)
-        '   Paint.Stroke
-        ' Endif
-        ' Paint.DrawRect(X, Y, H, H, Color.SetAlpha(Style.ForegroundOf($hView), 64), $iDepthW / 18)
-        
-        'Paint.FillRect(X, Y, H, H, Color.Yellow)
-        If $hView.Mode = Select.Single Then
-          Style.PaintOption(X, Y, H, H, hItem.Selected)
+          Paint.MoveTo(X, Y + H / 2)
         Else
-          Style.PaintCheck(X, Y, H, H, hItem.Selected)
+          Paint.MoveTo(X + $iDepthW - $iDepthW / 4, Y + H / 2)
         Endif
+        Paint.LineTo(X - $iDepthW / 2, Y + H / 2)
+        Paint.RelMoveTo(0, -H)
+        Paint.RelLineTo(0, H)
+        If bHasNext Then Paint.RelLineTo(0, H)
         
-        X += $iDepthW + Desktop.Scale \ 2
+        XA = X - $iDepthW / 2
+        hParent = hItem
+        While hParent.ParentKey
+          hParent = $cItem[hParent.ParentKey]
+          XA -= $iDepthW 
+          If GetSibling(hParent.Key, 1) Then
+            Paint.MoveTo(XA, Y - H / 2)
+            Paint.RelLineTo(0, H * 2)
+          Endif
+        Wend
         
-      Endif
-      
-      If hItem.Picture Then
-        Paint.DrawPicture(hItem.Picture, X, Y + (H - hItem.Picture.H) / 2)
-        X += hItem.Picture.W + Desktop.Scale \ 2
+        Paint.AntiAlias = False
+        Paint.LineWidth = 1
+        Paint.Stroke
+        Paint.AntiAlias = True
+        
       Endif
     
+      If hItem.Count Then
+        
+        'Paint.Background = Color.LightForeground
+        'HA = H / 2
+        'If HA < Desktop.Scale Then HA = Min(H, Desktop.Scale)
+        WA = Min(H, $iDepthW \ 2)
+        HA = WA
+        XA = X + ($iDepthW - WA) / 2
+        YA = Y + (H - HA) / 2
+        Paint.LineWidth = HA / 6
+        Paint.Background = Color.SetAlpha(iFg, 32)
+        Paint.LineCap = Paint.LineCapRound
+        Paint.Arrow(XA, YA, WA, HA, If(hItem.Expanded, Align.Bottom, Align.Right))
+        Paint.Stroke
+        
+      Endif
+      
+      Paint.Restore
+      
+      X += $iDepthW
+      
+    Endif
+    
+    If Me.RightToLeft Then Paint.Restore
+    
+    If $bShowCheck And If $hView.Mode Then
+      
+      HC = Min(H, $iDepthW)
+      XD = X
+      If Me.RightToLeft Then XD = XS - XD - HC
+      
+      If $hView.Mode = Select.Single Then
+        Style.PaintOption(XD, Y + (H - HC) \ 2, HC, HC, hItem.Selected)
+      Else
+        Style.PaintCheck(XD, Y + (H - HC) \ 2, HC, HC, hItem.Selected)
+      Endif
+      
+      'Paint.DrawRect(XD, Y + (H - HC) \ 2, HC, HC, Color.Red)
+      
+      X += $iDepthW + Desktop.Scale \ 2
+      
+    Endif
+    
+    If hItem.Picture Then
+      XD = X
+      If Me.RightToLeft Then XD = XS - XD - hItem.Picture.W
+      Paint.DrawPicture(hItem.Picture, XD, Y + (H - hItem.Picture.H) / 2)
+      X += hItem.Picture.W + Desktop.Scale \ 2
     Endif
     
     If hItem.Foreground <> Color.Default Then
@@ -777,9 +706,18 @@ Public Sub GridView_Draw(X As Integer, Y As Integer, W As Integer, H As Integer,
     'Draw.Text(hItem.Text & " (" & hItem._Index & ") [" & hItem._Rows & "] {" & hItem._GrandChildren & "}", X, Y, W, H, $hView.Columns[Column].Alignment)
     sText = hItem.RichText
     If sText Then
-      Paint.DrawRichText(sText, X, Y, 65536, H, Align.Normal)
+      If Me.RightToLeft Then
+        XD = XS - X
+        Paint.DrawRichText(sText, XD - 65535, Y, 65535, H, Align.Normal)
+      Else
+        Paint.DrawRichText(sText, X, Y, 65535, H, Align.Normal)
+      Endif
     Else
-      Paint.DrawText(hItem.Text, X, Y, W, H, Align.Normal)
+      If Me.RightToLeft Then
+        Paint.DrawText(hItem.Text, XS - W, Y, W - X, H, Align.Normal)
+      Else 
+        Paint.DrawText(hItem.Text, X, Y, W - X, H, Align.Normal)
+      Endif
     Endif
     
   Else
@@ -842,7 +780,12 @@ Public Sub GridView_MouseDown()
 
   iRow = $hView.RowAt(Mouse.Y)
   hItem = _RowToItem(iRow)
-  If Not hItem Then Return
+  If Not hItem Then
+    $sLastKeyClick = ""
+    Return
+  Else 
+    $sLastKeyClick = hItem.Key
+  Endif
   
   If Mouse.Right And If Not $bShowCheck Then
     _SetItemSelected(hItem, True) '.Rows[iRow].Selected = True
@@ -865,12 +808,13 @@ Public Sub GridView_MouseDown()
   If Mouse.X < X + D Then
     If hItem.Count And If Not $bNoRoot And If Mouse.X >= X Then
       hItem.Expanded = Not hItem.Expanded
+      _EnsureVisible(hItem, hItem.Expanded)
     Else
       If hItem.Selectable Then $hView.Row = iRow
     Endif
     Stop Event
   Else
-    If Not hItem.Selectable Then Stop Event
+    'If Not hItem.Selectable Then Stop Event
   Endif
   
 End
@@ -1052,6 +996,8 @@ End
 
 Public Sub ResizeColumns_Timer()
 
+  Dim I As Integer
+  
   $hResizeColumnTimer = Null
   
   If $cItem.Count = 0 Then Return
@@ -1061,7 +1007,9 @@ Public Sub ResizeColumns_Timer()
     If ($hView.ScrollBar And Scroll.Horizontal) = 0 Then Return
   Endif
   
-  GridView_ColumnSize(0)
+  For I = 0 To $hView.Columns.Max
+    GridView_ColumnSize(I)
+  Next
   
 End
 
@@ -1162,7 +1110,8 @@ End
 Public Sub GridView_Click()
   
   Dim sSave As String = $sCursor
-  MoveCurrent()
+  $sCursor = $sLastKeyClick
+  'MoveCurrent()
   Raise Click
   $sCursor = sSave
   
@@ -1198,6 +1147,7 @@ Public Sub _EnsureVisible(hItem As _TreeView_Item, Optional bChild As Boolean)
   
   Dim iRow As Integer
   
+  If Not hItem.Visible Then Return
   SetItemVisible(hItem)
   iRow = _ItemToRow(hItem)
   
@@ -1512,9 +1462,8 @@ Private Sub UpdateRenameBox() As Boolean
     W = Min($hView.ClientW, $hView.Columns[0].Width) - X
   Else
     X = $hView.Columns[$iColRenaming].X - $hView.ScrollX
-    W = Min($hView.ClientW - X, $hView.Columns[$iColRenaming].Width)
     X += $hView.Padding + $hView.Columns.Padding - 2
-    W -= ($hView.Padding + $hView.Columns.Padding) * 2 - 4
+    W = Min($hView.ClientW - X, $hView.Columns[$iColRenaming].Width - ($hView.Padding + $hView.Columns.Padding) * 1 + 4)
   Endif
   
   If W < Desktop.Scale * 4 Then 
@@ -1523,31 +1472,22 @@ Private Sub UpdateRenameBox() As Boolean
   Endif
   
   $hRenameBox.Move(X, hItem.Y, W, hItem.H)
+  $hRenameBox.ResizeTextArea
 
 End
 
 Public Sub _Rename(hItem As _TreeView_Item, iCol As Integer)
   
-  Dim X As Integer
-  Dim SX As Integer
-  
   If iCol < 0 Or If iCol >= $hView.Columns.Count Then Error.Raise("Out of bounds")
   
   Cancel()
   
-  _EnsureVisible(hItem)
+  $hView._EnsureVisible(_ItemToRow(hItem), iCol)
+  '_EnsureVisible(hItem)
   Wait
   Key_Write(hItem.Key)
   
-  Do
-    X = hItem.X 
-    If iCol Then X += $hView.Columns[iCol].X
-    SX = Max(0, X - $hView.ClientW - 32)
-    If SX = $hView.ScrollX Then Break
-    $hView.ScrollX = SX
-  Loop
-  
-  $hRenameBox = New RenameBox(Me, $hView.Padding, False) As "Editor"
+  $hRenameBox = New RenameBox(Me, 0, False) As "Editor"
   $hRenameBox.Text = hItem[iCol]
   $hRenameBox.SetFocus
   
@@ -1611,6 +1551,7 @@ Public Sub _RefreshView()
   $sLastKey = ""
   $hView.Refresh
   _UpdateSpan
+  ResizeColumns
   
 End
 
@@ -1674,7 +1615,8 @@ End
 
 Public Sub GridView_Scroll()
   
-  Cancel
+  'Cancel
+  UpdateRenameBox
   Raise Scroll
   
 End
@@ -1823,14 +1765,15 @@ Public Sub GridView_ColumnSize(Column As Integer)
       If Not IsItemVisible(hItem) Then Continue
       W = Max(W, hItem._GetWidth() + _GetItemX(hItem))
     Next
+    W += $hView.Padding + $hView.Columns.Padding
   Else
     For Each hItem In $cItem
       If Not IsItemVisible(hItem) Then Continue
       W = Max(W, Me.Font.TextWidth(hItem[Column]))
     Next
+    W += $hView.Padding * 2 + $hView.Columns.Padding * 2
   Endif
   
-  W += $hView.Columns.Padding * 2
   'If Column > 0 Then W += Desktop.Scale
   $hView.Columns[Column].W = W
   UpdateRenameBox
@@ -1838,6 +1781,8 @@ Public Sub GridView_ColumnSize(Column As Integer)
 End
 
 Private Sub UpdateRowHeight(hItem As _TreeView_Item, iStart As Integer, Optional iEnd As Integer)
+  
+  If $iLock Then Return
   
   If iEnd = 0 Then
     iEnd = iStart
@@ -2000,6 +1945,7 @@ End
 
 Public Sub _UpdateSpan()
   
+  If Not _MustUpdateSpan Then Return
   $hUpdateSpan.Trigger
   
 End
@@ -2023,3 +1969,72 @@ Public Sub UpdateSpan_Timer()
   
 End
 
+Private Sub FilterItem(hItem As _TreeView_Item)
+  
+  Dim bCancel As Boolean
+  
+  If Not Object.CanRaise(Me, "Filter") Then Return
+
+  bCancel = Raise Filter(hItem.Key)
+  hItem.Visible = Not bCancel
+  
+End
+
+'' @{since 3.19}
+''
+'' Filter the items according to the [../.filter] event.
+''
+'' You must call this method as soon as the filtering state changes.
+
+Public Sub Filter()
+
+  If Not Object.CanRaise(Me, "Filter") Then Return
+  $hUpdateFilter.Trigger
+  
+End
+
+Public Sub UpdateFilter_Timer()
+
+  Dim hItem As Object
+  Dim bCancel As Boolean
+  
+  _Begin()  
+  For Each hItem In $cItem
+    bCancel = Raise Filter(hItem.Key)
+    hItem.Visible = Not bCancel
+  Next
+  _End()
+  
+End
+
+'' @{since 3.19}
+''
+'' Expand all tree items recursively.
+
+Public Sub ExpandAll()
+  
+  $hRoot.ExpandAll()
+  
+End
+
+'' @{since 3.19}
+''
+'' Collapse all tree items recursively.
+
+Public Sub CollapseAll()
+  
+  $hRoot.CollapseAll()
+  
+End
+
+Private Function Highlight_Read() As Boolean
+
+  Return $hView._Highlight
+
+End
+
+Private Sub Highlight_Write(Value As Boolean)
+
+  $hView._Highlight = Value
+
+End

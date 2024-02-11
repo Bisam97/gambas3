@@ -1289,6 +1289,14 @@ typedef
 
 #ifndef NO_GAMBAS_CASE_REPLACEMENT
 
+#ifdef ARCH_E2K // According to AltLinux Sisyphus RPM packages patchs
+
+#ifdef __cplusplus
+#include <bits/locale_facets.h>
+#endif
+
+#endif
+
 /* Replacements for case unsensitive comparisons.
    They ensure that case comparison does not use current locale,
    otherwise Turkish speakers will have problems!

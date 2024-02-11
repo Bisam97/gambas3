@@ -126,8 +126,8 @@ static void fill_buffer(CUDPSOCKET *_object)
 	
 	if (ret < 0)
 	{
+		SOCKET_set_status(SOCKET, NET_CANNOT_READ);
 		CUdpSocket_stream_close(&SOCKET->stream);
-		SOCKET->status = NET_CANNOT_READ;
 		return;
 	}
 
@@ -192,7 +192,7 @@ int CUdpSocket_stream_close(GB_STREAM *stream)
 	{
 		GB.Watch (SOCKET->socket,GB_WATCH_NONE,(void *)CUdpSocket_CallBack,(intptr_t)THIS);
 		close(SOCKET->socket);
-		SOCKET->status = NET_INACTIVE;
+		SOCKET_set_status(SOCKET, NET_INACTIVE);
 	}
 
 	GB.FreeString(&THIS->thost);
@@ -205,7 +205,7 @@ int CUdpSocket_stream_close(GB_STREAM *stream)
 	}
 	
 	THIS->tport=0;
-	SOCKET->status = NET_INACTIVE;
+	SOCKET_set_status(SOCKET, NET_INACTIVE);
 	clear_buffer(THIS);
 	return 0;
 }
@@ -281,8 +281,8 @@ int CUdpSocket_stream_write(GB_STREAM *stream, char *buffer, int len)
 
 	if (retval < 0) 
 	{
+		SOCKET_set_status(SOCKET, NET_CANNOT_WRITE);
 		CUdpSocket_stream_close(stream);
-		SOCKET->status= NET_CANNOT_WRITE;
 	}
 	
 	return retval;
@@ -401,14 +401,14 @@ static void dgram_start(CUDPSOCKET *_object)
 	
 	if (bind(SOCKET->socket, addr, size) < 0)
 	{
+		SOCKET_set_status(SOCKET, NET_CANNOT_BIND_SOCKET);
 		close(SOCKET->socket);
-		SOCKET->status = NET_CANNOT_BIND_SOCKET;
 		GB.Ref(THIS);
 		GB.Post(CUdpSocket_post_error, (intptr_t)THIS);
 		return;
 	}
 
-	SOCKET->status = NET_ACTIVE;
+	SOCKET_set_status(SOCKET, NET_ACTIVE);
 	SOCKET->stream.desc = &UdpSocketStream;
 	GB.Stream.SetSwapping(&SOCKET->stream, htons(0x1234) != 0x1234);
 	
@@ -417,7 +417,7 @@ static void dgram_start(CUDPSOCKET *_object)
 	
 CANNOT_CREATE_SOCKET:
 
-	SOCKET->status = NET_CANNOT_CREATE_SOCKET;
+	SOCKET_set_status(SOCKET, NET_CANNOT_CREATE_SOCKET);
 	GB.Ref(THIS);
 	GB.Post(CUdpSocket_post_error, (intptr_t)THIS);
 	return;
@@ -427,6 +427,12 @@ CANNOT_CREATE_SOCKET:
 BEGIN_PROPERTY(UdpSocket_Status)
 
 	GB.ReturnInteger(SOCKET->status);
+
+END_PROPERTY
+
+BEGIN_PROPERTY(UdpSocket_StatusText)
+
+	GB.ReturnString(SOCKET_get_status_text(SOCKET));
 
 END_PROPERTY
 
@@ -572,9 +578,9 @@ BEGIN_METHOD_VOID (UdpSocket_Peek)
 		USE_MSG_NOSIGNAL(retval=recvfrom(SOCKET->socket, (void*)sData, 1024 * sizeof(char), peeking, (struct sockaddr*)&THIS->addr, &host_len));
 		if (retval<0)
 		{
+			SOCKET_set_status(SOCKET, NET_CANNOT_READ);
 			GB.Free(POINTER(&sData));
 			CUdpSocket_stream_close(&SOCKET->stream);
-			SOCKET->status = NET_CANNOT_READ;
 			GB.Raise(THIS,EVENT_SocketError,0);
 			GB.ReturnVoidString();
 			return;
@@ -764,6 +770,7 @@ GB_DESC CUdpSocketDesc[] =
 	GB_METHOD("Peek", "s", UdpSocket_Peek,NULL),
 
 	GB_PROPERTY_READ("Status", "i", UdpSocket_Status),
+	GB_PROPERTY_READ("StatusText", "s", UdpSocket_StatusText),
 	GB_PROPERTY_READ("SourceHost", "s", UdpSocket_SourceHost),
 	GB_PROPERTY_READ("SourcePort", "i", UdpSocket_SourcePort),
 	GB_PROPERTY_READ("SourcePath", "s", UdpSocket_SourcePath),

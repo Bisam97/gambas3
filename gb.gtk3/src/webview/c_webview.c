@@ -30,6 +30,8 @@
 
 static bool _init = FALSE;
 
+static WebKitUserStyleSheet *_style_sheet = NULL;
+
 //---------------------------------------------------------------------------
 
 static void set_link(void *_object, const char *link, int len)
@@ -64,8 +66,8 @@ static void cb_url(WebKitWebView *widget, GParamSpec *pspec, CWEBVIEW *_object)
 {
 	//fprintf(stderr, "cb_url: %s\n", webkit_web_view_get_uri(WIDGET));
 	GB.Raise(THIS, EVENT_URL, 0);
-	if (!THIS->got_load_event)
-		GB.Raise(THIS, EVENT_FINISH, 0);
+	/*if (!THIS->got_load_event)
+		GB.Raise(THIS, EVENT_FINISH, 0);*/
 }
 
 static void cb_icon(WebKitWebView *widget, GParamSpec *pspec, CWEBVIEW *_object)
@@ -73,6 +75,25 @@ static void cb_icon(WebKitWebView *widget, GParamSpec *pspec, CWEBVIEW *_object)
 	GB.Unref(POINTER(&THIS->icon));
 	THIS->icon = NULL;
 	GB.Raise(THIS, EVENT_ICON, 0);
+}
+
+static bool send_start(void *_object)
+{
+	if (THIS->start_sent)
+		return FALSE;
+
+	THIS->start_sent = TRUE;
+	return GB.Raise(THIS, EVENT_START, 0);
+}
+
+static void send_finish(void *_object)
+{
+	if (THIS->finish_sent)
+		return;
+
+	THIS->finish_sent = TRUE;
+	GB.Raise(THIS, EVENT_FINISH, 0);
+	THIS->start_sent = FALSE;
 }
 
 static void cb_load_changed(WebKitWebView *widget, WebKitLoadEvent load_event, CWEBVIEW *_object)
@@ -83,10 +104,12 @@ static void cb_load_changed(WebKitWebView *widget, WebKitLoadEvent load_event, C
 	{
 		case WEBKIT_LOAD_STARTED:
 			THIS->got_load_event = TRUE;
+			THIS->finish_sent = FALSE;
+			send_start(THIS);
 			break;
 			
 		case WEBKIT_LOAD_FINISHED:
-			GB.Raise(THIS, EVENT_FINISH, 0);
+			send_finish(THIS);
 			GB.FreeString(&THIS->link);
 			break;
 			
@@ -111,9 +134,10 @@ static void cb_progress(WebKitWebView *widget, GParamSpec *pspec, CWEBVIEW *_obj
 	//fprintf(stderr, "cb_progress: %f\n", webkit_web_view_get_estimated_load_progress(WIDGET));
 	if (!THIS->error)
 	{
+		send_start(THIS);
 		GB.Raise(THIS, EVENT_PROGRESS, 0);
 		if (webkit_web_view_get_estimated_load_progress(WIDGET) == 1.0)
-			GB.Raise(THIS, EVENT_FINISH, 0);
+			send_finish(THIS);
 	}
 }
 
@@ -158,7 +182,8 @@ static gboolean cb_decide_policy(WebKitWebView *widget, WebKitPolicyDecision *de
 		
 		THIS->error = FALSE;
 		THIS->got_load_event = FALSE;
-		if (GB.Raise(THIS, EVENT_START, 0))
+
+		if (send_start(THIS))
 		{
 			//fprintf(stderr, "cancel !\n");
 			webkit_policy_decision_ignore(decision);
@@ -202,6 +227,47 @@ static void run_callback(void *_object, const char *error)
 	GB.Unref(POINTER(&_object));
 }
 
+#if WEBKIT_CHECK_VERSION(2, 40, 0)
+
+static void cb_javascript_finished(WebKitWebView *widget, GAsyncResult *result, void *_object)
+{
+	JSCValue *value;
+	GError *error = NULL;
+	JSCException *exception;
+	char *json;
+
+	value = webkit_web_view_evaluate_javascript_finish(widget, result, &error);
+
+	if (!value)
+	{
+		THIS->cb_result = GB.NewZeroString(error->message);
+		g_error_free(error);
+		THIS->cb_error = TRUE;
+	}
+	else
+	{
+		json = jsc_value_to_json(value, 0);
+
+		exception = jsc_context_get_exception(jsc_value_get_context (value));
+		if (exception)
+		{
+			THIS->cb_result = GB.NewZeroString(jsc_exception_get_message(exception));
+			THIS->cb_error = TRUE;
+		}
+		else
+		{
+			THIS->cb_result = GB.NewZeroString(json);
+		}
+
+		g_free(json);
+		g_object_unref(value);
+	}
+
+	THIS->cb_running = FALSE;
+}
+
+#else
+
 static void cb_javascript_finished(WebKitWebView *widget, GAsyncResult *result, void *_object)
 {
 	WebKitJavascriptResult *js_result;
@@ -211,6 +277,7 @@ static void cb_javascript_finished(WebKitWebView *widget, GAsyncResult *result, 
 	char *json;
 
 	js_result = webkit_web_view_run_javascript_finish(widget, result, &error);
+
 	if (!js_result)
 	{
 		THIS->cb_result = GB.NewZeroString(error->message);
@@ -239,6 +306,8 @@ static void cb_javascript_finished(WebKitWebView *widget, GAsyncResult *result, 
 	
 	THIS->cb_running = FALSE;
 }
+
+#endif
 
 static char *get_encoding(const char *mimetype)
 {
@@ -329,9 +398,29 @@ PATCH_DECLARE(WEBKIT_TYPE_WEB_VIEW)
 
 static void create_widget(void *_object, void *parent)
 {
+	if (!_style_sheet)
+	{
+		_style_sheet = webkit_user_style_sheet_new (
+			"::-webkit-scrollbar { width: 1rem; height: 1rem; background-color: Canvas;}\n"
+			"::-webkit-scrollbar-thumb { background-color: ButtonFace; border: solid 0.25rem Canvas; border-radius: 2rem; opacity: 0.5;}",
+			WEBKIT_USER_CONTENT_INJECT_ALL_FRAMES,
+			WEBKIT_USER_STYLE_LEVEL_USER,
+			NULL,
+			NULL);
+	}
+
 	THIS->context = webkit_web_context_new_ephemeral();
-	THIS->widget = webkit_web_view_new_with_context(THIS->context);
-	
+
+	THIS->manager = webkit_user_content_manager_new();
+
+	webkit_user_content_manager_add_style_sheet(THIS->manager, _style_sheet);
+
+	THIS->widget = GTK_WIDGET(g_object_new(WEBKIT_TYPE_WEB_VIEW,
+		"is-ephemeral", webkit_web_context_is_ephemeral(THIS->context),
+		"web-context", THIS->context,
+		"user-content-manager", THIS->manager,
+		NULL));
+
 	GTK.CreateControl(THIS, parent, THIS->widget, CCF_HAS_INPUT_METHOD);
 	
 	PATCH_CLASS(THIS->widget, WEBKIT_TYPE_WEB_VIEW)
@@ -375,7 +464,15 @@ BEGIN_METHOD_VOID(WebView_free)
 	GB.Unref(POINTER(&THIS->icon));
 	GB.Unref(POINTER(&THIS->new_view));
 
+	g_object_unref(THIS->manager);
 	g_object_unref(THIS->context);
+
+END_METHOD
+
+BEGIN_METHOD_VOID(WebView_exit)
+
+	webkit_user_style_sheet_unref(_style_sheet);
+	_style_sheet = NULL;
 
 END_METHOD
 
@@ -491,17 +588,18 @@ END_METHOD
 
 BEGIN_METHOD(WebView_ExecJavascript, GB_STRING script)
 
-	char *script;
-	
 	if (LENGTH(script) == 0)
 		return;
-	
-	script = GB.ToZeroString(ARG(script));
 	
 	if (start_callback(THIS))
 		return;
 
+#if WEBKIT_CHECK_VERSION(2, 40, 0)
+	webkit_web_view_evaluate_javascript(WIDGET, STRING(script), LENGTH(script), NULL, NULL, NULL, (GAsyncReadyCallback)cb_javascript_finished, (gpointer)THIS);
+#else
+	char *script = GB.ToZeroString(ARG(script));
 	webkit_web_view_run_javascript(WIDGET, script, NULL, (GAsyncReadyCallback)cb_javascript_finished, (gpointer)THIS);
+#endif
 	
 	run_callback(THIS, "Javascript error: &1");
 
@@ -636,6 +734,7 @@ GB_DESC WebViewDesc[] =
 
   GB_METHOD("_new", NULL, WebView_new, "(Parent)Container;"),
   GB_METHOD("_free", NULL, WebView_free, NULL),
+  GB_METHOD("_exit", NULL, WebView_exit, NULL),
   
   GB_PROPERTY("Url", "s", WebView_Url),
 	GB_PROPERTY("Title", "s", WebView_Title),

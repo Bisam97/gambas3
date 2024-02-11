@@ -28,7 +28,9 @@ Public Sub panMenu_Render()
     
     If hMenu.Text Then
     
-      Print "<div class=\"gw-menuitem\"";
+      Print "<div class=\"gw-menuitem",
+      If Not hMenu.Enabled Then Print " gw-disabled";
+      Print "\"";
       If hMenu.Enabled And If Not hMenu.HasChildren() Then Print Me._GetUpdateWaitJS("onmouseup", "#click", JS(hMenu.Name));
       Print ">";
       If hMenu.Image Then
@@ -80,7 +82,7 @@ Public Sub _UpdateProperty(sProp As String, vValue As Variant)
     WebForm._AddJavascript("$_(" & JS(vValue) & ").parentNode.addClass('gw-active');")
     hMenu = WebForm.FromName(vValue)
     sClick = PopupMenu(hMenu)
-    WebForm._AddJavascript("$_(" & JS(vValue) & ").parentNode.removeClass('gw-active');")
+    WebForm._AddJavascript("$_(" & JS(vValue) & ") && $_(" & JS(vValue) & ").parentNode.removeClass('gw-active');")
     If sClick Then Me.Close(sClick)
     
   Endif

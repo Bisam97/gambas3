@@ -4,7 +4,7 @@ Export
 
 Inherits UserControl
 
-Public Const _Properties As String = "*,Action,Text,Alignment{Align.Normal;Left;Center;Right}=Normal,Picture,ReadOnly,Placeholder,Password,Border=True,Button=True,ClearButton,Filter,FilterMenu{Menu}"
+Public Const _Properties As String = "*,Action,Text,Alignment{Align.Normal;Left;Center;Right}=Normal,Picture,ReadOnly,Placeholder,Password,Border=True,Button=True,ClearButton,Filter,FilterMenu{Menu},FilterPicture"
 Public Const _DefaultEvent As String = "Click"
 Public Const _DefaultSize As String = "24,4"
 Public Const _Similar As String = "TextBox"
@@ -31,6 +31,14 @@ Property FilterMenu As String
 Property Placeholder As String
 Property Password As Boolean
 
+'' @{since 3.19}
+''
+'' Return or set the picture displayed in the filter icon.
+''
+'' A default one is used if none is specified.
+
+Property FilterPicture As Picture
+
 'Private $hPanel As Panel
 Private $hBackground As DrawingArea
 Private $bBorder As Boolean
@@ -41,6 +49,7 @@ Private $sMenu As String
 Private $bFilter As Boolean
 Private $hFilter As PictureBox
 Private $hTimer As Timer
+Private $hFilterPicture As Picture
 'Private $hObserver As Observer
 
 Public Sub _new()
@@ -338,7 +347,11 @@ End
 
 Private Sub UpdateFilterPicture()
 
-  $hFilter.Picture = Picture[If($sMenu, "img/32/filter-menu.png", "img/32/filter.png")]
+  If $hFilterPicture Then
+    $hFilter.Picture = $hFilterPicture
+  Else
+    $hFilter.Picture = Picture[If($sMenu, "img/32/filter-menu.png", "img/32/filter.png")]
+  Endif
   $hFilter.Mouse = If($sMenu, Mouse.Pointing, Mouse.Default)
 
 End
@@ -352,7 +365,7 @@ Private Sub Filter_Write(Value As Boolean)
   If $bFilter Then
     $hFilter = New PictureBox($hBackground) As "FilterPictureBox"
     $hFilter.Stretch = True
-    $hFilter.Padding = 2
+    $hFilter.Padding = Desktop.Scale \ 3
     UpdateFilterPicture
     $hTimer = New Timer As "FilterTimer"
     $hTimer.Delay = 500
@@ -426,5 +439,18 @@ End
 Private Sub Password_Write(Value As Boolean)
 
   $hTextBox.Password = Value
+
+End
+
+Private Function FilterPicture_Read() As Picture
+
+  Return $hFilterPicture
+
+End
+
+Private Sub FilterPicture_Write(Value As Picture)
+
+  $hFilterPicture = Value
+  UpdateFilterPicture
 
 End

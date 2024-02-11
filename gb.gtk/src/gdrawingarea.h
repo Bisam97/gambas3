@@ -50,7 +50,7 @@ public:
 #endif
 	virtual void setRealBackground(gColor color);
 	virtual void updateFont();
-	virtual long handle();
+	virtual uintptr_t handle();
 
 
 //"Private"

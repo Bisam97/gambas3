@@ -146,7 +146,6 @@ void SUBR_exec(ushort code)
 	bool wait;
 	int mode;
 	CPROCESS *process;
-	bool ret;
 	bool shell;
 	char *name;
 	CARRAY *env;
@@ -164,7 +163,7 @@ void SUBR_exec(ushort code)
 	}
 
 	if (!cmd)
-		THROW(E_ARG);
+		THROW_ARG();
 
 	if (VALUE_is_null(&PARAM[1]))
 		env = NULL;
@@ -179,8 +178,6 @@ void SUBR_exec(ushort code)
 	wait = mode & PM_WAIT;
 
 	name = SUBR_get_string(&PARAM[3]);
-
-	ret = TRUE; // !PCODE_is_void(code);
 
 	if (shell)
 		mode |= PM_SHELL;
@@ -199,43 +196,32 @@ void SUBR_exec(ushort code)
 		}
 		END_ERROR
 
-		if (!ret)
-		{
-			OBJECT_UNREF(process);
-		}
-		else if (!process->to_string)
+		if (!process->to_string)
 		{
 			OBJECT_UNREF_KEEP(process);
 		}
 	}
 
-	if (ret)
+	if (process->to_string)
 	{
-		if (process->to_string)
-		{
-			char *result = process->result;
-			process->result = NULL;
-			
-			RELEASE_MANY(SP, NPARAM);
-			
-			SP->type = T_STRING;
-			SP->_string.addr = result;
-			SP->_string.start = 0;
-			SP->_string.len = STRING_length(result);
-			SP++;
+		char *result = process->result;
+		process->result = NULL;
 
-			OBJECT_UNREF(process);
-		}
-		else
-		{
-			RETURN->_object.class = CLASS_Process;
-			RETURN->_object.object = process;
-			SUBR_LEAVE();
-		}
+		RELEASE_MANY(SP, NPARAM);
+
+		SP->type = T_STRING;
+		SP->_string.addr = result;
+		SP->_string.start = 0;
+		SP->_string.len = STRING_length(result);
+		SP++;
+
+		OBJECT_UNREF(process);
 	}
 	else
 	{
-		SUBR_LEAVE_VOID();
+		RETURN->_object.class = CLASS_Process;
+		RETURN->_object.object = process;
+		SUBR_LEAVE();
 	}
 }
 

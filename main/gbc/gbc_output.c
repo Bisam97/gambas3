@@ -799,6 +799,8 @@ static void output_method(void)
 			flag += 2;
 		if (func->unsafe)
 			flag += 4;
+		if (func->indirect_goto)
+			flag += 8;
 
 		write_byte(flag);
 
@@ -964,9 +966,17 @@ static void output_code()
 	{
 		func = &_class->function[i];
 
+		begin_section("Code", sizeof(short));
+
+		if (func->indirect_goto)
+		{
+			write_short(func->nlabel);
+			for (j = 0; j < func->nlabel; j++)
+				write_short(func->indirect_goto[j]);
+		}
+
 		n = func->ncode;
 
-		begin_section("Code", sizeof(short));
 		if (_swap)
 		{
 			for (j = 0; j < n; j++)
@@ -974,6 +984,7 @@ static void output_code()
 		}
 		else
 			write_buffer(func->code, n * sizeof(short));
+
 		end_section();
 	}
 }

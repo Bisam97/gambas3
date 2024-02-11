@@ -193,7 +193,7 @@ static bool begin_draw(int *x, int *y)
 
 		_widget = wid->widget;
 	}
-	else if (GB.Is(device, CLASS_UserControl))
+	else if (GB.Is(device, CLASS_UserControl) || GB.Is(device, CLASS_UserContainer))
 	{
 		gContainer *wid;
 		GtkAllocation *a;
@@ -523,7 +523,7 @@ static void paint_background(STYLE_T *style, int state, GB_COLOR color, int x, i
 	if (color != GB_COLOR_DEFAULT)
 	{
 		char *css = NULL;
-		g_stradd(&css, "#se:not(:selected) { background-color:");
+		g_stradd(&css, ":not(:active) { background-color:");
 		gt_add_css_color(&css, color);
 		g_stradd(&css, "; background-image:none; }\n");
 		gtk_css_provider_load_from_data(GTK_CSS_PROVIDER(_css), css, -1, NULL);
@@ -1017,6 +1017,7 @@ GB_DESC StyleDesc[] =
 	GB_STATIC_METHOD("PaintHandle", NULL, Style_PaintHandle, "(X)i(Y)i(Width)i(Height)i[(Vertical)b(Flag)i]"),
 	GB_STATIC_METHOD("PaintBox", NULL, Style_PaintBox, "(X)i(Y)i(Width)i(Height)i[(Flag)i(Color)i]"),
 
+	GB_CONSTANT("Default", "i", GB_DRAW_STATE_DEFAULT),
 	GB_CONSTANT("Normal", "i", GB_DRAW_STATE_NORMAL),
 	GB_CONSTANT("Disabled", "i", GB_DRAW_STATE_DISABLED),
 	GB_CONSTANT("HasFocus", "i", GB_DRAW_STATE_FOCUS),

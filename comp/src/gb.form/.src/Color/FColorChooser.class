@@ -26,8 +26,8 @@ Private $Y As Integer
 
 Private $nStdColor As Integer
 
-Private $hZoom As Picture
-Private Const ZOOM_FACTOR As Integer = 6
+'Private $hZoom As Picture
+'Private Const ZOOM_FACTOR As Integer = 6
 
 Private $bSnap As Boolean 
 
@@ -337,27 +337,27 @@ End
 
 Public Sub panColor_Draw()
 
-  Dim X, Y As Integer
-  Dim W, H As Integer
-  
-  If $hZoom Then
-  
-    W = (panColor.W + 3) \ ZOOM_FACTOR
-    H = (panColor.H + 3) \ ZOOM_FACTOR
-
-    Draw.LineStyle = Line.None
-    Draw.Zoom($hZoom.Image, ZOOM_FACTOR, 0, 0)
-    Draw.LineStyle = Line.Solid
-    X = ((W \ 2)) * ZOOM_FACTOR
-    Y = ((H \ 2)) * ZOOM_FACTOR
-    Draw.Foreground = Color.LightForeground
-    Draw.Rect(X - 2, Y - 2, ZOOM_FACTOR + 4, ZOOM_FACTOR + 4)
-    Draw.Foreground = Color.Background
-    Draw.Rect(X - 1, Y - 1, ZOOM_FACTOR + 2, ZOOM_FACTOR + 2)
-    'Draw.Rect(X, Y, ZOOM_FACTOR, ZOOM_FACTOR)
-    Return
-  
-  Endif
+  ' Dim X, Y As Integer
+  ' Dim W, H As Integer
+  ' 
+  ' If $hZoom Then
+  ' 
+  '   W = (panColor.W + 3) \ ZOOM_FACTOR
+  '   H = (panColor.H + 3) \ ZOOM_FACTOR
+  ' 
+  '   Draw.LineStyle = Line.None
+  '   Draw.Zoom($hZoom.Image, ZOOM_FACTOR, 0, 0)
+  '   Draw.LineStyle = Line.Solid
+  '   X = ((W \ 2)) * ZOOM_FACTOR
+  '   Y = ((H \ 2)) * ZOOM_FACTOR
+  '   Draw.Foreground = Color.LightForeground
+  '   Draw.Rect(X - 2, Y - 2, ZOOM_FACTOR + 4, ZOOM_FACTOR + 4)
+  '   Draw.Foreground = Color.Background
+  '   Draw.Rect(X - 1, Y - 1, ZOOM_FACTOR + 2, ZOOM_FACTOR + 2)
+  '   'Draw.Rect(X, Y, ZOOM_FACTOR, ZOOM_FACTOR)
+  '   Return
+  ' 
+  ' Endif
   
   Main.PaintColor(0, 0, Paint.W, Paint.H, $iColor)
 
@@ -509,35 +509,50 @@ End
 
 Public Sub txtHexa_Click()
 
-  panGrab.Mouse = Mouse.Cross
-  'panGrab.Cursor = New Cursor(txtHexa.Picture, 0, txtHexa.Picture.H - 1)
-  panGrab.Show
-  panGrab_MouseMove
-  panGrab.Grab
-  $hZoom = Null
-  panColor.Refresh 'SetColor(hPict.Image[0, 0])
-  panGrab.Hide
-
-End
-
-Public Sub panGrab_MouseMove()
-
-  Dim W, H As Integer
+  Dim iColor As Integer
   
-  W = (panColor.W + 3) \ ZOOM_FACTOR
-  H = (panColor.H + 3) \ ZOOM_FACTOR
+  Component.Load("gb.desktop")
+  
+  iColor = Desktop.PickColor()
+  If iColor <> Color.Default Then 
+    SetColor(iColor)
+    RaiseActivate
+  Endif
+  
+  ' hTimer.Stop
+  ' $hZoom = Null
+  ' panColor.Refresh
 
-  $hZoom = Desktop.Screenshot(Mouse.ScreenX - W \ 2, Mouse.ScreenY - H \ 2, W, H)
-  panColor.Refresh 'SetColor(hPict.Image[0, 0])
+  ' panGrab.Mouse = Mouse.Cross
+  ' 'panGrab.Cursor = New Cursor(txtHexa.Picture, 0, txtHexa.Picture.H - 1)
+  ' panGrab.Show
+  ' panGrab_MouseMove
+  ' panGrab.Grab
+  ' $hZoom = Null
+  ' panColor.Refresh 'SetColor(hPict.Image[0, 0])
+  ' panGrab.Hide
 
 End
 
-Public Sub panGrab_MouseUp()
-
-  Dim hPict As Picture = Desktop.Screenshot(Mouse.ScreenX, Mouse.ScreenY, 1, 1)
-  SetColor(hPict.Image[0, 0])
-
-End
+' Public Sub TimerPickColor_Timer()
+'   
+'   Static bLock As Boolean
+'   Dim W, H As Integer
+'   
+'   If bLock Then Return
+'   bLock = True
+'   
+'   W = (panColor.W + 3) \ ZOOM_FACTOR
+'   H = (panColor.H + 3) \ ZOOM_FACTOR
+' 
+'   Debug Timer;; ">>> Screenshot";; Mouse.ScreenX;; Mouse.ScreenY;; W;; H
+'   $hZoom = Desktop.Screenshot(Mouse.ScreenX - W \ 2, Mouse.ScreenY - H \ 2, W, H)
+'   Debug Timer;; "<<< Screenshot"
+'   panColor.Refresh 'SetColor(hPict.Image[0, 0])
+'   
+'   bLock = False
+' 
+' End
 
 Public Sub btnSnap_Click()
 

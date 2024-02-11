@@ -97,7 +97,7 @@ Public Sub ReadConfig()
   Project.SetConsoleFont(trmTest)
   MTheme.InitControl(trmTest)
 
-  For Each hCtrl In [panSearch, panVersionControl, panTest, panDbusExplorer]
+  For Each hCtrl In [panSearch, panVersionControl, panTest, panDbusExplorer, panWarning, tabBus]
     Project.SetSmallFont(hCtrl)
   Next
   
@@ -621,7 +621,7 @@ Public Sub gvwCompilation_Font()
 End
 
 
-Public Sub gvwCompilation_Select()
+Public Sub gvwCompilation_Activate()
   
   Dim I As Integer = gvwCompilation.Row
   'Dim iCol As Integer
@@ -776,7 +776,8 @@ End
 Public Sub OnVersionControlChange()
 
   UpdateView
-  If VersionControl.Enabled Then VersionControl.FillBranchMenu(mnuVcBranch, btnVcBranch)
+  btnVcBranch.Text = VersionControl.GetCurrentBranch() & "..."
+  If VersionControl.Enabled Then btnVcAddBranch.Visible = VersionControl.CanCreateBranch
   
 End
 
@@ -907,7 +908,7 @@ Public Sub btnVcBrowse_Click()
 
 End
 
-Public Sub btnDBusBus_Click()
+Public Sub tabBus_Click()
 
   FillDBusExplorer
 
@@ -929,7 +930,7 @@ End
 
 Private Sub GetDBus() As DBusConnection
   
-  If btnDbusSystem.Value Then
+  If tabBus.Index = 0 Then
     Return DBus.System
   Else
     Return DBus.Session
@@ -1038,5 +1039,88 @@ End
 Public Sub btnDBusId_Click()
 
   FillDBusExplorer
+
+End
+
+Public Sub btnRepository_Click()
+
+  FRepository.ShowDialog
+
+End
+
+Public Sub tvwDbusExplorer_Activate()
+
+  Dim sPath As String
+  Dim sSym As String
+  Dim hEditor As TextEditor
+  
+  Try hEditor = Project.ActiveForm.GetEditor()
+  If Not hEditor Then Return
+
+  Try sPath = Last.Current.Key
+  If Not sPath Then Return 
+  
+  sSym = File.Name(sPath)
+  
+  Select Left(sSym)
+    Case "m"
+      sSym = Mid$(sSym, 3) & "()"
+    Case "p"
+      sSym = Mid$(sSym, 3)
+    Case Else
+      sSym = ""
+  End Select
+  
+  If Not sSym Then Return
+  
+  sPath = File.Dir(sPath)
+  
+  hEditor.Insert("DBus[" & Quote(lstDbusExplorer.Current.Text) & "][" & Quote(File.Dir(sPath)) & "," & Quote(File.Name(sPath)) & "]." & sSym)
+  hEditor.SetFocus
+
+End
+
+Public Sub btnDbusPasteSymbol_Click()
+
+  tvwDbusExplorer_Activate
+
+End
+
+Public Sub btnCopyWarning_Click()
+
+  Dim iRow As Integer
+  Dim aCopy As New String[]
+
+  With gvwCompilation
+    For iRow = 0 To gvwCompilation.Rows.Max
+      aCopy.Add(.[iRow, 0].Text & "." & .[iRow, 1].Text & ": " & .[iRow, 2].Text & "\n")
+    Next
+  End With
+  
+  Clipboard.Copy(aCopy.Join(""))
+  
+End
+
+' Public Sub btnSelectAllWarning_Click()
+' 
+'   gvwCompilation.Rows.SelectAll
+' 
+' End
+' 
+' Public Sub btnUnselectAllWarning_Click()
+' 
+'   gvwCompilation.Rows.UnSelectAll
+' 
+' End
+
+Public Sub btnVcAddBranch_Click()
+
+  VersionControl.AddBranch()
+
+End
+
+Public Sub tabBus_Arrange()
+
+  lstDbusExplorer.Move(tabBus.X, tabBus.Y + tabBus.TabBarSize + 1, tabBus.W, tabBus.H - tabBus.TabBarSize - 1)
 
 End

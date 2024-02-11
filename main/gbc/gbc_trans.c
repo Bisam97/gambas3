@@ -776,7 +776,8 @@ void TRANS_get_constant_value(TRANS_DECL *decl)
 	
 				value = *JOB->current++;
 				index = PATTERN_index(value);
-				
+				decl->is_integer = FALSE;
+
 				if (PATTERN_is_integer(value))
 				{
 					decl->is_integer = TRUE;
@@ -790,7 +791,11 @@ void TRANS_get_constant_value(TRANS_DECL *decl)
 					if (type == T_SINGLE && !finite((float)number.dval))
 						THROW("Out of range");
 					
-					decl->is_integer = FALSE;
+					if (COMP_version >= 0x03180000 && number.dval == (double)(int)number.dval && number.dval >= -128 && number.dval <= 127)
+					{
+						decl->is_integer = TRUE;
+						index = (int)number.dval;
+					}
 				}
 	
 				decl->value = index;

@@ -6,24 +6,44 @@
   Text = ("System information")
   Icon = Picture["icon:/large/system"]
   Arrangement = Arrange.Vertical
-  Spacing = True
-  Margin = True
+  { Panel2 Panel
+    MoveScaled(6,5,63,6)
+    Arrangement = Arrange.Fill
+    Margin = True
+    { txtInfo TextLabel
+      MoveScaled(2,1,56,4)
+      Font = Font["Italic,Bold"]
+      Background = Color.SelectedBackground
+      Foreground = Color.SelectedForeground
+      Text = ("Please copy these informations in all your bug reports.")
+      Alignment = Align.Normal
+    }
+  }
+  { Separator2 Separator
+    MoveScaled(19,13,15,0)
+  }
   { gvwInfo GridView
-    MoveScaled(5,5,49,22)
+    MoveScaled(10,27,49,22)
     Font = Font["-2"]
     Expand = True
+    Border = False
     Grid = False
     ScrollBar = Scroll.Vertical
   }
+  { Separator1 Separator
+    MoveScaled(31,58,33,0)
+  }
   { HBox1 HBox
-    MoveScaled(1,62,66,4)
+    MoveScaled(1,62,66,6)
     Spacing = True
+    Margin = True
     { Panel1 Panel
       MoveScaled(19,1,7,4)
       Expand = True
     }
     { btnCopy Button
       MoveScaled(34,0,15,4)
+      Enabled = False
       Text = Shortcut(("Copy"), "C")
       Picture = Picture["icon:/small/copy"]
     }

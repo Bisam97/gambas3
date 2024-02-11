@@ -81,7 +81,7 @@ static void NORETURN do_exit(int ret, bool immediate)
 		sleep(86400);
 	}
 	
-	if (immediate)
+	if (immediate || FLAG.has_forked)
 		_exit(ret);
 	else
 		exit(ret);
@@ -106,13 +106,14 @@ static void init(const char *file, int argc, char **argv)
 	WATCH_init();
 	MATH_init();
 	PROJECT_init(file);
-	DEBUG_init();
 
 	LOCAL_init();
+	STACK_init();
 
 	if (file)
 	{
 		PROJECT_load();
+		DEBUG_init();
 
 		if (PROJECT_run_httpd)
 			COMPONENT_exec("gb.httpd", argc, argv);
@@ -120,7 +121,8 @@ static void init(const char *file, int argc, char **argv)
 		PROJECT_load_finish();
 	}
 	else
-		STACK_init();
+		DEBUG_init();
+
 
 	if (EXEC_debug)
 	{
@@ -513,7 +515,10 @@ int main(int argc, char *argv[])
 		if (ERROR->info.code)
 		{
 			if (ERROR->info.code == E_ABORT)
+			{
+				FILE_exit();
 				do_exit(ret, TRUE);
+			}
 
 			ERROR_hook();
 

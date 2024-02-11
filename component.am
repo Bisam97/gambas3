@@ -4,7 +4,7 @@ dist_gblib_DATA = $(COMPONENT).component
 install-data-hook:
 	@$(INSTALL) -d $(DESTDIR)$(gbdatadir)/info
 	@rm -f $(DESTDIR)$(gblibdir)/$(COMPONENT).gambas;
-	@if test -d $(COMPONENT) && test -e $(COMPONENT)/.project ; then \
+	@if test -d $(COMPONENT) && test -e $(COMPONENT)/.project; then \
 		echo; \
 		echo "Compiling '$(COMPONENT)' component..."; \
 		( \
@@ -27,16 +27,18 @@ install-data-hook:
 		$(INSTALL) data/* $(DESTDIR)$(gbdatadir)/$(COMPONENT); \
 	fi
 	@rm -rf $(DESTDIR)$(gbdatadir)/control/$(COMPONENT);
-	@if test -d control; then \
+	@if test -d control -o -d $(COMPONENT)/.hidden/control; then \
 		echo "Installing '$(COMPONENT)' control icons..."; \
-		$(INSTALL) -d $(DESTDIR)$(gbdatadir)/control; \
-		$(INSTALL) -d $(DESTDIR)$(gbdatadir)/control/$(COMPONENT); \
-		$(INSTALL) control/*.png $(DESTDIR)$(gbdatadir)/control/$(COMPONENT); \
-	fi
-	@if test -d $(COMPONENT)/.hidden/control; then \
-		$(INSTALL) -d $(DESTDIR)$(gbdatadir)/control; \
-		$(INSTALL) -d $(DESTDIR)$(gbdatadir)/control/$(COMPONENT); \
-		$(INSTALL) $(COMPONENT)/.hidden/control/*.png $(DESTDIR)$(gbdatadir)/control/$(COMPONENT); \
+		if test -d control; then \
+			$(INSTALL) -d $(DESTDIR)$(gbdatadir)/control; \
+			$(INSTALL) -d $(DESTDIR)$(gbdatadir)/control/$(COMPONENT); \
+			$(INSTALL) control/*.png $(DESTDIR)$(gbdatadir)/control/$(COMPONENT); \
+		fi; \
+		if test -d $(COMPONENT)/.hidden/control; then \
+			$(INSTALL) -d $(DESTDIR)$(gbdatadir)/control; \
+			$(INSTALL) -d $(DESTDIR)$(gbdatadir)/control/$(COMPONENT); \
+			$(INSTALL) $(COMPONENT)/.hidden/control/*.png $(DESTDIR)$(gbdatadir)/control/$(COMPONENT); \
+		fi \
 	fi
 	@echo "Creating the information files for '$(COMPONENT)' component..."
 	@if test "$(EXTRACT_HELP)" = "1"; then \

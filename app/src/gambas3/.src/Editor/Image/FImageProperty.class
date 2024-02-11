@@ -1,6 +1,6 @@
 ' Gambas class file
 
-Private $aDefaultColor As Integer[] = [Color.Black, Color.White, Color.DarkGray, Color.Gray, Color.LightGray, Color.Blue, Color.Cyan, Color.Green, Color.Yellow, Color.Orange, Color.Red, Color.Magenta]
+Private $aDefaultColor As Integer[] = [Color.Black, Color.White, Color.DarkGray, &H606060, Color.Gray, &HA0A0A0, Color.LightGray, &HE0E0E0, Color.Blue, Color.Cyan, Color.Green, Color.Yellow, Color.Orange, Color.Red, Color.Magenta]
 
 Private $aGradient As New CReportBrush[]
 
@@ -38,6 +38,11 @@ Private $iNoUpdateBalance As Integer
 Private $bChangingTab As Boolean
 Private $bDoNotUpdateGrid As Boolean
 
+Private $hShowSelection As ImageSelectionBox
+Private $iSelectionSize As Integer
+Private $aSelectionSize As Integer[] = [6, 9, 12]
+Private $bInitSelection As Boolean
+
 'Static Public Value As String  '"radialgradient(0.5,0.5,1,0.5,0.5,[&hFFFFFF,&h000000,&h00FF00],[0,0.5,1])" '"lineargradient(0,0.5,1,0.5,[&hFFFFFF,&h000000,&h00FF00],[0,0.5,1])"
 
 Private Sub GetCurrent() As FImageEditor
@@ -45,7 +50,6 @@ Private Sub GetCurrent() As FImageEditor
   Try Return Project.ActiveForm
   
 End
-
 
 Public Sub _new()
   
@@ -66,6 +70,7 @@ Public Sub _new()
   $aGradient.Add(CReportBrush["LinearGradient(0,0.5,1,0.5,[#000000,#FFFFFF],[0,1])"])
   $aGradient.Add(CReportBrush["LinearGradient(0,0.5,1,0.5,[#000000,#FFFFFFFF],[0,1])"])
   
+  palColor.Size = Desktop.Scale * 4
   palColor.Colors = $aDefaultColor
   
   SetLineCap(Paint.LineCapButt)
@@ -105,7 +110,7 @@ Public Sub Form_Open()
   
   ReadConfig
   
-  InitSelection
+  LoadGrid
   
   AddClipboard(Null, "")
   'UpdateClipboard
@@ -782,9 +787,22 @@ Public Sub GetOperator() As Integer
   
 End
 
+Public Sub GetSides() As Integer
+  
+  Return slbSides.Value
+  
+End
+
+Public Sub GetInnerRadius() As Float
+  
+  Return slbInnerRadius.Value / 100
+  
+End
+
 Public Sub ReadConfig()
   
   tabBrush.TextFont = Project.GetSmallFont()
+  $iSelectionSize = Settings["/FImageEditor/SelectionSize", 0]
   
 End
 
@@ -1062,6 +1080,12 @@ Public Sub OnProjectActivate()
   
 End
 
+Public Sub OnProjectClose()
+  
+  SaveGrid
+  
+End
+
 Public Sub btnBalanceApply_Click()
 
   Try GetCurrent().ApplyBalance
@@ -1203,23 +1227,30 @@ Public Sub btnFlipH_Click()
 
 End
 
-
 Public Sub tabBrush_Click()
 
-  If tabBrush.Text = ("Clipboard") Then
-    RefreshClipboard
-    UpdateClipboard
-  Endif
+  Select Case tabBrush.Text
+    
+    Case ("Clipboard")
+      RefreshClipboard
+      UpdateClipboard
+      
+    Case ("Shapes")
+      InitSelection
+      
+  End Select
 
 End
 
-
-
-Private Sub AddSelection(hImageSelection As CImageSelection, Optional bNoDelete As Boolean)
+Private Sub AddSelection(hImageSelection As CImageSelection, Optional bNoDelete As Boolean) As ImageSelectionBox
 
   Dim hSelBox As ImageSelectionBox
+  Dim iSize As Integer
 
   hSelBox = New ImageSelectionBox(svwSelection, hImageSelection, bNoDelete) As "ImageSelection"
+  iSize = $aSelectionSize[$iSelectionSize]
+  hSelBox.ResizeScaled(iSize, iSize)
+  Return hSelBox
   
 End
 
@@ -1236,26 +1267,32 @@ End
 
 Private Sub InitSelection()
 
-  If svwSelection.Children.Count Then Return
+  If $bInitSelection Then Return
+
+  Inc Application.Busy
 
   AddSelection(CImageSelection.FromString(("Arrow"), "-0.5,0.5*;1,0.5* 0.8,0.3*;1,0.5*;0.8,0.7*"), True)
   AddSelection(CImageSelection.FromString(("Arrow #2"), "0,1;0,2;4,2;4,3;6,1.5*;4,0;4,1;0,1;0.5,1.5+"), True)
   AddSelection(CImageSelection.FromString(("Triangle"), "0,0*;0,1*;0.86602540378444,0.5*;0,0;0.28867513459481,0.5+;0,0.5+;0.43301270189222,0.75+;0.43301270189222,0.25+"), True)
   AddSelection(CImageSelection.FromString(("Square triangle"), "0,0*;1,0*;0,1*;0,0;1,0+;0,1+;0.333333333333,0.333333333333+;0.5,0+;0.5,0.5+;0,0.5+"), True)
-  AddSelection(CImageSelection.FromString(("Pentagon"), "1,0*;0.3090169944,0.9510565163*;-0.8090169944,0.5877852523*;-0.8090169944,-0.5877852523*;0.3090169944,-0.9510565163*;1,0"), True)
-  AddSelection(CImageSelection.FromString(("Hexagon"), "1,0*;0.5,0.8660254038*;-0.5,0.8660254038*;-1,0*;-0.5,-0.8660254038*;0.5,-0.8660254038*;1,0*"), True)
   
   LoadAllSelections()
+  
+  Dec Application.Busy
+  $bInitSelection = True
   
 End
 
 Public Sub SaveSelection(hImageSelection As CImageSelection)
-  
-  AddSelection(hImageSelection)
+
+  InitSelection
+  $hShowSelection = AddSelection(hImageSelection)
+  SaveAllSelections
   tabBrush.Index = 3
+  svwSelection.ScrollTo($hShowSelection)
+  $hShowSelection = Null
   
 End
-
 
 Private Sub UpdateGrid()
 
@@ -1353,6 +1390,10 @@ Public Sub RefreshTextOption()
   
   Dim iAlign As Integer
   Dim bAlignBase As Boolean
+  Dim hCurrent As FImageEditor
+  
+  hCurrent = GetCurrent()
+  If Not hCurrent Then Return
   
   If btnTextLeft.Value Then
     iAlign = Align.Left
@@ -1372,10 +1413,9 @@ Public Sub RefreshTextOption()
     bAlignBase = True
   Endif
   
-  GetCurrent().UpdateText(txtText.Text, fchText.Value, iAlign, bAlignBase)
+  hCurrent.UpdateText(txtText.Text, fchText.Value, iAlign, bAlignBase)
   
 End
-
 
 Public Sub txtText_Change()
 
@@ -1409,23 +1449,24 @@ End
 
 Public Sub OnToolChange(sTool As String)
   
+  Dim hChild As Control
+  
   ShowTextOption(sTool = "text")
-  panRoundness.Visible = sTool = "rectangle"
-  panTolerance.Visible = sTool = "magic"
   panOperator.Visible = sTool = "paste"
   
-End
-
-Public Sub panSlider_Arrange()
-
-  Dim hChild As Control
-  Dim H As Integer
-
-  For Each hChild In panSlider.Children
-    If hChild.Visible Then H += hChild.H
+  panRoundness.Visible = sTool = "rectangle"
+  panTolerance.Visible = sTool = "magic"
+  panSides.Visible = sTool = "polygon"
+  panInnerRadius.Visible = panSides.Visible
+  
+  For Each hChild In panSliderSel.Children
+    If hChild.Visible Then Break 
+    hChild = Null
   Next
-  panSlider.H = H + Desktop.Scale * 2
-
+  
+  panSliderSel.Visible = hChild
+  sepSlider.Visible = panSliderSel.Visible
+    
 End
 
 Public Sub tabBrush_CloseAll()
@@ -1436,39 +1477,15 @@ End
 
 Private Sub SetLineCap(iLineCap As Integer)
 
-  Dim sImage As String
-  
-  Select Case iLineCap
-    Case Paint.LineCapButt
-      sImage = "butt"
-    Case Paint.LineCapRound
-      sImage = "round"
-    Case Paint.LineCapSquare
-      sImage = "square"
-  End Select
-  
-  btnLineCap.Picture = Picture["icon:/small/cap-" & sImage]
-  
   $iLineCap = iLineCap
+  tlbAction_Configure
 
 End
 
 Private Sub SetLineJoin(iLineJoin As Integer)
 
-  Dim sImage As String
-  
-  Select Case iLineJoin
-    Case Paint.LineJoinBevel
-      sImage = "bevel"
-    Case Paint.LineJoinMiter
-      sImage = "miter"
-    Case Paint.LineJoinRound
-      sImage = "round"
-  End Select
-  
-  btnLineJoin.Picture = Picture["icon:/small/join-" & sImage]
-  
   $iLineJoin = iLineJoin
+  tlbAction_Configure
 
 End
 
@@ -1486,18 +1503,8 @@ End
 
 Private Sub SetFillRule(iFillRule As Integer)
 
-  Dim sImage As String
-  
-  Select Case iFillRule
-    Case Paint.FillRuleEvenOdd
-      sImage = "exclusive"
-    Case Paint.FillRuleWinding
-      sImage = "union"
-  End Select
-  
-  btnFillRule.Picture = Picture["icon:/small/" & sImage]
-  
   $iFillRule = iFillRule
+  tlbAction_Configure
 
 End
 
@@ -1544,10 +1551,12 @@ Public Sub panEffect_BeforeArrange()
 
 End
 
-Private Sub SaveAllSelections()
-
+Private Sub SaveSelectionFile(sPath As String)
+  
   Dim hSelBox As ImageSelectionBox
   Dim aSave As New String[]
+
+  If svwSelection.Children.Count = 0 Then Return
 
   For Each hSelBox In svwSelection.Children
     
@@ -1556,32 +1565,191 @@ Private Sub SaveAllSelections()
     
   Next
   
-  Settings["/FImageProperty/Selections"] = aSave
+  File.Save(sPath, "[" & aSave.Join(",") & "]")
+  
+End
 
+Private Sub SaveAllSelections()
+
+  SaveSelectionFile(Settings.DefaultDir &/ "gambas3.shapes.json")
+
+End
+
+Private Sub LoadSelectionFile(sPath As String)
+  
+  Dim aSave As Collection[][]
+  Dim hSel As CImageSelection
+  Dim I As Integer
+  
+  Try aSave = JSON.FromString(File.Load(sPath))
+  If Not aSave Then Return
+  For I = 0 To aSave.Max
+    hSel = New CImageSelection
+    Try hSel.Load(aSave[I])
+    If Error Then Continue
+    AddSelection(hSel)
+  Next
+  
 End
 
 Private Sub LoadAllSelections()
 
-  Dim aSave As String[]
-  Dim sSave As String
-  Dim hSel As CImageSelection
-  
-  aSave = Settings["/FImageProperty/Selections"]
-  If Not aSave Then Return
-  For Each sSave In aSave
-    hSel = New CImageSelection
-    Try hSel.Load(sSave)
-    If Error Then 
-      Error "gambas3: warning: unable to load saved selection: "; Error.Text
-      Continue
-    Endif
-    AddSelection(hSel)
-  Next
+  LoadSelectionFile(Settings.DefaultDir &/ "gambas3.shapes.json")
 
 End
 
 Public Sub cmbOperator_Click()
 
   UpdateOperator
+
+End
+
+Private Sub SaveGrid()
+
+  Project.Config["/FImageProperty/Grid/Resolution"] = txtGridRes.Value
+  Project.Config["/FImageProperty/Grid/Snap"] = chkGridSnap.Value
+  Project.Config["/FImageProperty/Grid/SnapResolution"] = txtGridSnap.Value
+  Project.Config["/FImageProperty/Grid/Diagonals"] = chkGridDiag.Value
+  Project.Config["/FImageProperty/Grid/Lock"] = btnLockGrid.Value
+
+End
+
+Private Sub LoadGrid()
+
+  txtGridRes.Value = Project.Config["/FImageProperty/Grid/Resolution", 4]
+  chkGridSnap.Value = Project.Config["/FImageProperty/Grid/Snap", 0]
+  txtGridSnap.Value = Project.Config["/FImageProperty/Grid/SnapResolution", 1]
+  chkGridDiag.Value = Project.Config["/FImageProperty/Grid/Diagonals", 0]
+  btnLockGrid.Value = Project.Config["/FImageProperty/Grid/Lock", 0]
+
+End
+
+Public Sub cchColor_Activate()
+
+  RememberColor(cchColor.Value)
+  palColor.Current = cchColor.Value
+  
+End
+
+Private Sub UpdateSelectionSize()
+
+  Dim hSel As Control
+  Dim iSize As Integer
+
+  iSize = $aSelectionSize[$iSelectionSize]
+  
+  For Each hSel In svwSelection.Children
+    hSel.ResizeScaled(iSize, iSize)
+  Next
+  
+  Settings["/FImageEditor/SelectionSize"] = $iSelectionSize
+
+End
+
+Public Sub btnZoomIn_Click()
+
+  If $iSelectionSize = $aSelectionSize.Max Then Return
+  Inc $iSelectionSize
+  UpdateSelectionSize
+
+End
+
+Public Sub btnZoomOut_Click()
+
+  If $iSelectionSize = 0 Then Return
+  Dec $iSelectionSize
+  UpdateSelectionSize
+
+End
+
+Public Sub btnClearSelection_Click()
+
+  Dim hSel As ImageSelectionBox
+  
+  If Message.Warning(("Do you really want to remove all shapes?"), ("Remove"), ("Cancel")) <> 1 Then Return
+  
+  For Each hSel In svwSelection.Children
+    If hSel.NoDelete Then Continue
+    hSel.Delete
+  Next
+
+End
+
+Public Sub btnSaveShapes_Click()
+
+  Dialog.Title = ("Save shapes")
+  Dialog.Path = Settings["/FImageEditor/SelectionPath"]
+  Dialog.Filter = ["*.shapes.json", ("Gambas IDE Shapes files")]
+  Dialog.AutoExt = True
+  If Dialog.SaveFile() Then Return
+  Settings["/FImageEditor/SelectionPath"] = Dialog.Path
+  SaveSelectionFile(Dialog.Path)
+
+End
+
+Public Sub btnLoadShapes_Click()
+
+  Dialog.Title = ("Load shapes")
+  Dialog.Path = Settings["/FImageEditor/SelectionPath"]
+  Dialog.Filter = ["*.shapes.json", ("Gambas IDE Shapes files")]
+  If Dialog.OpenFile() Then Return
+  Settings["/FImageEditor/SelectionPath"] = Dialog.Path
+  LoadSelectionFile(Dialog.Path)
+
+End
+
+Public Sub tlbAction_Configure()
+
+  Dim sImage As String
+  
+  Select Case $iLineCap
+    Case Paint.LineCapButt
+      sImage = "butt"
+    Case Paint.LineCapRound
+      sImage = "round"
+    Case Paint.LineCapSquare
+      sImage = "square"
+  End Select
+  
+  Action["line-cap"].Picture = Picture["icon:/" & tlbAction.Size & "/cap-" & sImage]
+  
+  Select Case $iLineJoin
+    Case Paint.LineJoinBevel
+      sImage = "bevel"
+    Case Paint.LineJoinMiter
+      sImage = "miter"
+    Case Paint.LineJoinRound
+      sImage = "round"
+  End Select
+  
+  Action["line-join"].Picture = Picture["icon:/" & tlbAction.Size & "/join-" & sImage]
+  
+  Select Case $iFillRule
+    Case Paint.FillRuleEvenOdd
+      sImage = "exclusive"
+    Case Paint.FillRuleWinding
+      sImage = "union"
+  End Select
+  
+  Action["fill-rule"].Picture = Picture["icon:/" & tlbAction.Size & "/" & sImage]
+
+End
+
+Public Sub panSlider_Arrange()
+  
+  Dim hParent As Container = Last
+  Dim hChild As Control
+  Dim H As Integer
+
+  For Each hChild In hParent.Children
+    If hChild.Visible Then H += hChild.H
+  Next
+  hParent.H = H + Desktop.Scale * 2
+
+End
+
+Public Sub panSliderSel_Arrange()
+
+  panSlider_Arrange
 
 End

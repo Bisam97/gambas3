@@ -35,6 +35,9 @@ Public Sub Form_Open()
   chkNoTest.Visible = Project.HasTest()
   chkNoTest.Value = Project.Config["/Executable/NoTestModule", False]
 
+  chkNoPublic.Visible = IsDir(Project.Dir &/ ".public")
+  chkNoPublic.Value = Project.Config["/Executable/NoPublicDirectory", False]
+
   ' If Project.CreateComponent Then 
   '   chkShortcut.Text = ("Install in the user component directory")
   ' Else
@@ -66,6 +69,7 @@ Public Sub btnOK_Click()
     .RunAfterMakingExec = Trim(txtCommand.Text)
     .Config["/Executable/DoNotIncrementVersion"] = chkIncVersion.Value = CheckBox.False
     .Config["/Executable/NoTestModule"] = CBool(chkNoTest.Value)
+    .Config["/Executable/NoPublicDirectory"] = CBool(chkNoPublic.Value)
     
     If chkSetVersion.Value Then
       .MajorVersion = txtMajor.Value 

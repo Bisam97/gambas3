@@ -1,0 +1,17 @@
+arg.subst{Preprocessor}:
+  match /\$\($(IDENT)\)
+ident{Normal}:
+  match .*?
+string:
+  from " to "
+  string.subst{Preprocessor}:
+    match /\$\($(IDENT)\)
+  escape:
+    match /\\[fnrtv0'"\\]/
+    match /\\x[0-9a-fA-F]{2}/
+regexp{RegExp=Datatype}:
+  match //\S//
+  regexp.subst{Preprocessor}:
+    match /\$\($(IDENT)\)
+  regexp.escape{Escape}:
+    match /\\./

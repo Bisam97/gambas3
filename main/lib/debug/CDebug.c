@@ -75,6 +75,8 @@ static void callback_read(int fd, int type, intptr_t param)
 {
 	int n, i, p;
 
+	//fprintf(stderr, "callback_read\n");
+
 	for(;;)
 	{
 		fcntl(_fdr, F_SETFL, fcntl(_fdr, F_GETFL) | O_NONBLOCK);
@@ -91,10 +93,15 @@ static void callback_read(int fd, int type, intptr_t param)
 		else
 			n = read(_fdr, _buffer, BUFFER_SIZE);
 
+		//fprintf(stderr, "n = %d\n", n);
+
 		if (n <= 0)
 		{
 			if (n == 0 || (errno != EINTR && errno != EAGAIN))
+			{
+				//fprintf(stderr, "stop watch\n");
 				GB.Watch(fd, GB_WATCH_NONE, (void *)callback_read, 0);
+			}
 
 			break; // try again
 		}
@@ -163,6 +170,8 @@ static void open_write_fifo()
 		GB.Error("Unable to open fifo: &1: &2", path, strerror(errno));
 		return;
 	}
+
+	//fprintf(stderr, "open_write_fifo: %d\n", _fdw);
 }
 
 BEGIN_METHOD_VOID(Debug_Begin)
@@ -206,6 +215,7 @@ BEGIN_METHOD_VOID(Debug_Start)
 	GB.Alloc(POINTER(&_buffer), BUFFER_SIZE);
 	_buffer_left = 0;
 
+	//fprintf(stderr, "watch debugger on %d\n", _fdr);
 	GB.Watch(_fdr, GB_WATCH_READ, (void *)callback_read, 0);
 
 	_started = TRUE;
@@ -253,8 +263,11 @@ END_METHOD
 
 BEGIN_METHOD(Debug_Write, GB_STRING data)
 
+	int try = 0;
 	const char *data = STRING(data);
 	int len = LENGTH(data);
+
+__TRY_AGAIN:
 
 	if (_fdw < 0)
 		open_write_fifo();
@@ -271,7 +284,16 @@ BEGIN_METHOD(Debug_Write, GB_STRING data)
 
 __ERROR:
 
-	fprintf(stderr, "gb.debug: warning: unable to send data to the debugger: %s\n", strerror(errno));
+	close(_fdw);
+	_fdw = -1;
+	try++;
+	if (try < 3)
+	{
+		usleep(1000);
+		goto __TRY_AGAIN;
+	}
+
+	GB.Error("Unable to send date to the debugger: &1", strerror(errno));
 
 END_METHOD
 

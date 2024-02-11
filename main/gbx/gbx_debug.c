@@ -46,7 +46,7 @@ DEBUG_INTERFACE DEBUG;
 DEBUG_INFO *DEBUG_info = NULL;
 int DEBUG_inside_eval = 0;
 
-static bool calc_line_from_position(CLASS *class, FUNCTION *func, PCODE *addr, ushort *line)
+static bool calc_line_from_position(CLASS *class, FUNCTION *func, const PCODE *addr, ushort *line)
 {
 	int i;
 	ushort pos = addr - JIT_get_code(func);
@@ -115,6 +115,7 @@ const char *DEBUG_get_current_position(void)
 
 void DEBUG_init(void)
 {
+	const char *project;
 	const char *dir;
 	const char *fifo_name;
 	int pid;
@@ -123,7 +124,11 @@ void DEBUG_init(void)
 	
 	if (!EXEC_debug)
 	{
-		sprintf(COMMON_buffer, DEBUG_WAIT_LINK, PROJECT_name);
+		project = PROJECT_source;
+		if (!project)
+			project = PROJECT_name;
+
+		sprintf(COMMON_buffer, DEBUG_WAIT_LINK, project);
 
 		dir = FILE_readlink(COMMON_buffer);
 		if (!dir)
@@ -131,12 +136,12 @@ void DEBUG_init(void)
 		
 		for (n = DEBUG_WAIT_IGNORE_MAX; n >= 1; n--)
 		{
-			sprintf(COMMON_buffer, DEBUG_WAIT_IGNORE, PROJECT_name, n);
+			sprintf(COMMON_buffer, DEBUG_WAIT_IGNORE, project, n);
 			if (unlink(COMMON_buffer) == 0)
 				return;
 		}
 		
-		sprintf(COMMON_buffer, DEBUG_WAIT_LINK, PROJECT_name);
+		sprintf(COMMON_buffer, DEBUG_WAIT_LINK, project);
 		
 		if (unlink(COMMON_buffer))
 			return;
@@ -172,7 +177,7 @@ void DEBUG_init(void)
 	if (EXEC_profile)
 	{
 		EXEC_profile_instr = TRUE;
-		DEBUG.Profile.Init(EXEC_profile_path);
+		DEBUG.Profile.Init(EXEC_profile_path, PROJECT_name);
 	}
 }
 
@@ -382,7 +387,7 @@ int DEBUG_set_value(const char *sym, int len, VALUE *value)
 
 __FOUND:
 
-		0;
+		;
 	}
 	CATCH
 	{

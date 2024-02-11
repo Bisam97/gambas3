@@ -141,7 +141,7 @@ char TABLE_compare_ignore_case_len(const char *s1, int len1, const char *s2, int
 	return 0;
 }
 
-static inline int search(void *symbol, ushort *sort, int n_symbol, size_t size, const char *name, int len)
+static inline int search(void *symbol, const ushort *sort, int n_symbol, size_t size, const char *name, int len)
 {
 	int pos, deb, fin;
 	SYMBOL *sym;
@@ -213,7 +213,7 @@ static inline int search(void *symbol, ushort *sort, int n_symbol, size_t size, 
 }
 
 
-static inline int search_ignore_case(void *symbol, ushort *sort, int n_symbol, size_t size, const char *name, int len)
+static inline int search_ignore_case(void *symbol, const ushort *sort, int n_symbol, size_t size, const char *name, int len)
 {
 	int pos, deb, fin;
 	SYMBOL *sym;
@@ -480,7 +480,7 @@ void TABLE_print(TABLE *table, bool sort)
 	int i;
 	SYMBOL *sym;
 
-	fprintf(stderr, "capacity %i\n", ARRAY_count(table->symbol));
+	fprintf(stderr, "capacity %u\n", ARRAY_count(table->symbol));
 
 	/*
 	for (i = 0; i < ARRAY_count(table->symbol); i++)

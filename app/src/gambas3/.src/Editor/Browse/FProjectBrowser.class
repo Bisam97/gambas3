@@ -109,7 +109,7 @@ Private Sub UpdateMenu()
   Action[".view-split"].Visible = Not (panProject.Visible And panProject2.Visible)
   
   iView = $hView.View
-  For Each hChild In panView.Children
+  For Each hChild In [btnViewNormal, btnViewCompact, btnViewPreview, btnViewDetailed]
     If hChild.Tag = iView Then
       hChild.Value = True
       Break
@@ -127,40 +127,9 @@ End
 
 Public Sub fvwProject_Activate()
 
-  If IsDir($hView.Path) Then
-    SetDir($hView.Path)
-  Else 
-    FMain.CloseProjectEditor
-    Project.Activate(Project.OpenFile($hView.Path))
-    Stop Event
-  Endif
+  mnuOpen_Click
 
 End
-
-' Public Sub btnPreview_Click()
-' 
-'   Dim iIconSize As Integer
-'   
-'   If panProject.Visible Then fvwProject.ShowPreview = btnPreview.Value
-'   If panProject2.Visible Then fvwProject2.ShowPreview = btnPreview.Value
-'   'mnuShowPreview.Checked = btnPreview.Value
-' 
-'   If btnPreview.Value Then
-'     iIconSize = $iIconSizePreview
-'   Else 
-'     iIconSize = $iIconSizeNormal
-'   Endif
-'   sldIconSize.Value = iIconSize
-' 
-' End
-' 
-' Public Sub btnDetail_Click()
-' 
-'   If panProject.Visible Then fvwProject.ShowDetailed = btnDetail.Value
-'   If panProject2.Visible Then fvwProject2.ShowDetailed = btnDetail.Value
-'   UpdateMenu
-'   
-' End
 
 Public Sub btnParent_Click()
 
@@ -179,9 +148,19 @@ Public Sub btnReload_Click()
 
 End
 
+Private Sub GetCurrentPath() As String
+
+  Dim sPath As String
+
+  sPath = $hView.Path
+  If Not sPath Then sPath = $hView.Dir
+  Return sPath
+  
+End
+
 Public Sub mnuProperty_Click()
   
-  FFileProperty.Run($hView.Path)
+  FFileProperty.Run(GetCurrentPath())
   
 End
 
@@ -394,7 +373,7 @@ Public Sub mnuDelete_Click()
       Try Project.DeleteFile(sPath)
     Endif
     If Error Then 
-      Select Case Message.Warning(Project.GetMessagePrefix(sPath) & "\n\n<b>" & If(IsDir(sPath), ("Cannot delete directory"), ("Cannot delete file")) & "<b>\n\n" & Error.Text, ("Ignore"), ("Cancel"))
+      Select Case Message.Warning(Project.GetMessagePrefix(sPath) & "<b>" & If(IsDir(sPath), ("Cannot delete directory"), ("Cannot delete file")) & "<b>\n\n" & Error.Text, ("Ignore"), ("Cancel"))
         Case 1
           Continue 
         Case 2
@@ -531,16 +510,15 @@ Public Sub mnuPopup_Show()
   Dim sPath As String
   Dim bIsDir As Boolean
 
-  sPath = $hView.Path
+  sPath = GetCurrentPath()
   bIsDir = IsDir(sPath)
   Try bLink = Stat(sPath).Type = gb.Link
-  If Error Then Return
   
-  mnuOpen.Visible = Not bIsDir
+  mnuOpen.Visible = sPath <> $hView.Dir
   mnuCut.Visible = mnuCopy.Visible
   
   mnuOpenWith.Visible = False
-  If mnuOpen.Visible Then
+  If mnuOpen.Visible And Not bIsDir Then
     sMime = MMime.GetMime(sPath)
     If sMime Then
       hProgList = DesktopFile.FromMime(sMime)
@@ -649,6 +627,12 @@ Public Sub mnuOpenWith_Show()
   
 End
 
+Public Sub mnuEditWithProg_Click()
+  
+  FMain.OpenFileWith($hView.Path, Last)
+  
+End
+
 Public Sub mnuRename_Click()
 
   $hView.Rename
@@ -744,27 +728,39 @@ Public Sub fvwProject_Drop()
 
 End
 
+Public Sub mnuOpen_Click()
+
+  Dim sPath As String
+  
+  sPath = GetCurrentPath()
+  
+  If IsDir(sPath) Then
+    SetDir(sPath)
+  Else
+    FMain.CloseProjectEditor
+    FMain.OpenFile(sPath)
+    Stop Event
+  Endif
+  
+End
+
 
 Public Sub mnuOpenWithFileManager_Click()
 
-  If Not $hView.Path Then
-    Desktop.Open($hView.Dir)
-  Else
-    Desktop.Open($hView.Path)
-  Endif
+  Desktop.Open(GetCurrentPath())
 
 End
 
 Public Sub mnuCopyPath_Click()
 
-  Dim sPath As String = Project.StripPath($hView.Path)
+  Dim sPath As String = Project.StripPath(GetCurrentPath())
   If sPath Then Clipboard.Copy(sPath)
 
 End
 
 Public Sub mnuInfoVC_Click()
 
-  FFileInfoVC.Run($hView.Path)
+  FFileInfoVC.Run(GetCurrentPath())
 
 End
 

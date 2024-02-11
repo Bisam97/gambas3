@@ -530,8 +530,10 @@ Private Sub AfterTogglePanel()
       H = $H
       If IsVertical() Then 
         W = Me.Parent.W
+        H = Max(H, $iMinSize)
       Else
         H = Me.Parent.H
+        W = Max(W, $iMinSize)
       Endif
       Me.Parent.Move($X, $Y, W, H)
       $W = 0

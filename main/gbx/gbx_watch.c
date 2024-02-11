@@ -126,7 +126,7 @@ static void add_timer(GB_TIMER *timer, const struct timeval *timeout)
 	#endif
 }
 
-static int find_timer(GB_TIMER *timer)
+static int find_timer(const GB_TIMER *timer)
 {
 	int i;
 
@@ -349,7 +349,9 @@ static WATCH_CALLBACK *watch_create_callback(int fd)
 	pos = watch_find_callback(fd);
 	if (pos < 0)
 	{
+		#if DEBUG_WATCH
 		pos = ARRAY_count(watch_callback);
+		#endif
 		wcb = ARRAY_add_void(&watch_callback);
 		wcb->fd = fd;
 	}
@@ -375,14 +377,13 @@ static void watch_delete_callback(int pos)
 	WATCH_CALLBACK *wcb;
 	int fd;
 	
+	wcb = &watch_callback[pos];
+	fd = wcb->fd,
+
 	#if DEBUG_WATCH
 	fprintf(stderr, "watch_delete_callback: %d (%d)\n", fd, _do_not_really_delete_callback);
 	#endif
 
-	//watch_index[fd] = -1;
-
-	wcb = &watch_callback[pos];
-	fd = wcb->fd,
 	wcb->fd = -1;
 	watch_fd(fd, GB_WATCH_READ, FALSE);
 	watch_fd(fd, GB_WATCH_WRITE, FALSE);
@@ -658,15 +659,15 @@ void WATCH_wait(int wait)
 	struct timeval *now;
 	struct timeval timeout;
 
-	if (wait == 0)
+	if (wait == -2)
+	{
+		do_loop(NULL);
+	}
+	else if (wait <= 0)
 	{
 		timeout.tv_sec = 0;
 		timeout.tv_usec = 0;
 		do_loop(&timeout);
-	}
-	else if (wait < 0)
-	{
-		do_loop(NULL);
 	}
 	else
 	{

@@ -1,0 +1,753 @@
+' Gambas class file
+
+Public Path As String
+
+Property Read ReadOnly As Boolean
+
+Private $sProject As String
+Private $iTime As Long
+Private $iFuncTime As Long
+Private $aFunc As New CProfile[]
+Private $cFunc As New Collection
+
+Private $hCurrent As CProfile
+
+Private $bPercent As Boolean
+Private $bAverage As Boolean
+
+Private $aHistory As New String[]
+Private $iHistory As Integer
+Private $iNoHistory As Integer
+
+Private $cLines As New Collection
+Private $cCount As New Collection
+Private $sCurrentClass As String
+Private $iFirstLine As Integer
+
+Private Const FUNC_EVENT_LOOP As String = "@"
+
+Public Sub _new(sPath As String)
+
+  Dim hScrollArea As ScrollArea
+  
+  Path = sPath
+  Me.Name = File.BaseName(Path)
+
+  hScrollArea = edtSource.Proxy
+  hScrollArea.NoAnimation = True
+  hScrollArea = gvwSource.Proxy
+  hScrollArea.NoAnimation = True
+  
+End
+
+Public Sub IsModified() As Boolean
+  
+End
+
+Public Sub LoadFile() As Boolean
+  
+  ReadConfig
+  Return Reload()
+  
+End
+
+Public Sub ReadConfig()
+  
+  Project.SetSmallFont(gvwProfile)
+  Project.SetSmallFont(tabInfo)
+  Project.SetSmallFont(panToolbar)
+  Project.SetSmallFont(lblCurrent)
+  lblCurrent.Font.Bold = True
+  Project.SetSmallFont(gvwSource)
+  
+  edtSource.ReadConfig
+  edtSource.ShowIcon = False
+  edtSource.ShowPosition = False
+  edtSource.ShowModified = False
+  edtSource.ShowLineNumber = False
+  edtSource.ShowExpand = False
+  panSepSource.Background = edtSource.Theme["Background"].Color
+  
+  UpdateSource
+    
+End
+
+Public Sub Reload() As Boolean
+  
+  Dim hTask As CProfileTask
+  Dim vResult As Variant[]
+  Dim hCurrent As CProfile
+
+  Inc Application.Busy
+  Project.SetMessage(("Loading profiling file..."))
+
+  hTask = New CProfileTask(Path) As "ProfileTask"
+  hTask.Wait()
+  vResult = hTask.Value
+
+  $sProject = vResult[0]
+  $iTime = vResult[1]
+  $iFuncTime = vResult[2]
+  $aFunc = vResult[3]
+  $cFunc = vResult[4]
+  $cLines = vResult[5]
+  $cCount = vResult[6]
+  
+  hCurrent = $cFunc[".System.EventLoop"]
+  If hCurrent Then hCurrent.SetEventLoop()
+  
+  'sTitle = GetName()
+  gvwProfile.Rows.Count = $aFunc.Count
+  
+  Object.Lock(gvwProfile)
+  gvwProfile.Columns.Sort = 2
+  gvwProfile.Columns.Ascending = True
+  Object.Unlock(gvwProfile)
+  gvwProfile_Sort
+  
+  Project.DrawTitle(Me)
+  
+  Project.SetMessage(("Loading profiling file...") & ("OK"))
+  Dec Application.Busy
+  
+Catch
+  
+  Dec Application.Busy
+  FMain.ShowErrorWith(Subst(("Unable to load profile file: &1"), File.Name(Path)), "*")
+  Return True
+  
+End
+
+Public Sub ProfileTask_Read(Data As String)
+
+  Project.SetMessage(("Loading profiling file...") & " " & Trim(Data) & "%")
+  
+End
+
+Public Sub GetTitle() As String
+
+  Return File.BaseName(Path)
+  
+End
+
+Private Sub GetClass(sFunc As String) As String
+  
+  Return Left(sFunc, InStr(sFunc, ".") - 1)
+  
+End
+
+Public Sub gvwProfile_Data(Row As Integer, Column As Integer)
+
+  Dim hProf As CProfile
+
+  With gvwProfile.Data
+
+    hProf = $aFunc[Row]
+
+    Select Case Column
+      Case 0
+        .RichText = hProf.GetTitle()
+      Case 1
+        .Text = Format(hProf.Count, ",0")
+      Case 2
+        If $bPercent Then
+          .Text = Format(hProf.Time / $iTime * 100, "0.00")
+        Else
+          .Text = Format(hProf.Time, ",0")
+        Endif
+      Case 3
+        .Text = Format(hProf.Time / hProf.Count, ",0.##")
+      Case 4
+        If $bPercent Then
+          .Text = Format(hProf.Self / $iTime * 100, "0.00")
+        Else
+          .Text = Format(hProf.Self, ",0")
+        Endif
+      Case 5
+        .Text = Format(hProf.Self / hProf.Count, ",0.##")
+    End Select
+    
+  End With
+  
+Catch
+  
+  gvwProfile.Data.Text = ""
+  gvwProfile.Data.Background = Color.ButtonBackground
+
+End
+
+Public Sub gvwProfile_Sort()
+
+  Dim sCurrent As String
+
+  Try sCurrent = $aFunc[gvwProfile.Row].Name
+
+  CProfile.Sort = gvwProfile.Columns.Sort
+  CProfile.Ascending = gvwProfile.Columns.Ascending
+  $aFunc.Sort
+  gvwProfile_Select
+  
+  'If sCurrent Then gvwProfile.Row = $aFunc.Find($cFunc[sCurrent])
+
+End
+
+Private Sub GotoFunction(sFunc As String)
+  
+  Dim hEditor As FEditor
+  Dim aWhere As String[]
+  Dim sPath As String
+  Dim iPos As Integer
+  
+  iPos = RInStr(sFunc, "[")
+  If iPos Then sFunc = Left(sFunc, iPos - 1)
+  
+  aWhere = Split(sFunc, "*.*")
+  
+  sPath = Project.FindPath(aWhere[0])
+  If Not Exist(sPath) Then Return
+  
+  Try hEditor = Project.OpenFile(sPath)
+  If IsNull(hEditor) Then Return
+  
+  hEditor.GotoFunction(hEditor.GetFunctionLine(aWhere[1]))
+  
+End
+
+Private Sub LoadCurrentSourceCode() As String
+  
+  Dim hEditor As FEditor
+  Dim aWhere As String[]
+  Dim sPath As String
+  Dim aDuration As Long[]
+  Dim iTime As Long
+  Dim I As Integer
+  
+  aWhere = Split($hCurrent.Name, "*.*")
+  If aWhere.Count = 2 Then
+    I = RInStr(aWhere[1], "[")
+    If I Then aWhere[1] = Left$(aWhere[1], I - 1)
+  Endif
+  
+  sPath = Project.FindPath(aWhere[0])
+  If Not Exist(sPath) Then Goto HIDE_SOURCE
+  
+  Try hEditor = Project.LoadFile(sPath)
+  If IsNull(hEditor) Then Goto HIDE_SOURCE
+  
+  If $hCurrent.StartLine < 0 Then
+    If aWhere[1] = aWhere[0] Then
+      $hCurrent.StartLine = 0
+      $hCurrent.Code = hEditor.GetFunctionSource()
+    Else
+      $hCurrent.StartLine = hEditor.GetFunctionLine(aWhere[1])
+      $hCurrent.Code = hEditor.GetFunctionSource(aWhere[1])
+    Endif
+  Endif
+  
+  $iFirstLine = $hCurrent.StartLine
+  edtSource.LineNumberOffset = $iFirstLine
+  edtSource.Text = $hCurrent.Code
+  
+  If $hCurrent.MaxTime = 0 Then
+    
+    aDuration = $cLines[$sCurrentClass]
+    
+    iTime = $hCurrent.FirstTime
+    For I = $iFirstLine To $iFirstLine + edtSource.Count - 1
+      Try iTime = Max(iTime, aDuration[I])
+    Next
+    $hCurrent.MaxTime = iTime
+    
+  Endif
+  
+  gvwSource.Rows.Height = edtSource.LineHeight
+  gvwSource.Rows.Count = edtSource.Count
+  gvwSource.Row = 0
+  gvwSource.Refresh
+  
+  panSourceHeader.H = gvwSource.Columns.Height - 1
+  panSource.Show
+  Return
+  
+HIDE_SOURCE:
+
+  panSource.Hide
+  
+End
+
+
+Public Sub gvwProfile_Activate()
+
+  GotoFunction($aFunc[gvwProfile.Row].Name)
+
+End
+
+Public Sub Form_Close()
+
+  If Left(File.Name(Path)) = "." Then Try Kill Path
+
+  Settings.Write(Me)
+  Settings.Write(splProfile)
+
+  Project.AddRecentFile(Me)
+  Project.Files[Path] = Null
+
+End
+
+Public Sub Form_Open()
+
+  Me.MinWidth = Desktop.Scale * 100
+  Me.MinHeight = Desktop.Scale * 60
+
+  Settings.Read(Me)
+  Settings.Read(splProfile)
+  splSource.Layout = [1, 2]
+  ReadConfig
+
+  With gvwProfile
+    .Columns.Count = 6
+    .Columns[0].Text = ("Function")
+    .Columns[0].Width = -1
+    .Columns[1].Text = ("Calls")
+    .Columns[1].Alignment = Align.Right
+    .Columns[1].Width = -1
+    .Columns[2].Text = ("Duration")
+    .Columns[2].Alignment = Align.Right
+    .Columns[2].Width = -1
+    .Columns[3].Text = ("Average")
+    .Columns[3].Alignment = Align.Right
+    .Columns[3].Width = 0
+    .Columns[4].Text = ("Self")
+    .Columns[4].Alignment = Align.Right
+    .Columns[4].Width = -1
+    .Columns[5].Text = ("Average")
+    .Columns[5].Alignment = Align.Right
+    .Columns[5].Width = 0
+  End With
+
+  With gvwCalled
+    .Columns.Count = 4
+    .Columns[0].Text = ("Function")
+    .Columns[1].Text = ("Calls")
+    .Columns[1].Alignment = Align.Right
+    .Columns[2].Text = ("Duration")
+    .Columns[2].Alignment = Align.Right
+    .Columns[3].Text = ("Average")
+    .Columns[3].Alignment = Align.Right
+    .Columns[3].Width = 0
+    '.Columns[3].Text = ("Mean (μs)")
+    '.Columns[3].Alignment = Align.Right
+  End With
+  
+  With gvwCaller
+    .Columns.Count = 2
+    .Columns[0].Text = ("Function")
+    .Columns[0].Width = -1
+    .Columns[1].Text = ("Calls")
+    .Columns[1].Alignment = Align.Right
+    '.Columns[2].Text = ("Duration")
+    '.Columns[2].Alignment = Align.Right
+    '.Columns[3].Text = ("Mean (μs)")
+    '.Columns[3].Alignment = Align.Right
+  End With
+  
+  With gvwSource
+    .Columns.Count = 3
+    .Columns.Resizable = False
+    .Columns[0].Text = ("Duration")
+    .Columns[0].Alignment = Align.Right
+    .Columns[0].Expand = True
+    .Columns[1].Text = ("Calls")
+    .Columns[1].Alignment = Align.Right
+    .Columns[1].Expand = True
+    .Columns[2].Text = ("Average")
+    .Columns[2].Alignment = Align.Right
+    .Columns[2].Width = 0
+    .Columns[2].Expand = True
+  End With
+  
+  gvwProfile.Row = 0
+  
+  btnSave.Enabled = Path Begins (Project.Dir &/ ".profile/")
+  
+  edtSource.Highlight = "gambas"
+  
+End
+
+Private Sub AddHistory(sFunc As String)
+  
+  If $iNoHistory Then Return
+  
+  $aHistory.Resize($iHistory)
+  If $aHistory.Count >= 32 Then $aHistory.Remove(0)
+  $aHistory.Add(sFunc)
+  Inc $iHistory
+  
+End
+
+
+Public Sub gvwProfile_Select()
+
+  If gvwProfile.Row < 0 Then Return
+  
+  $hCurrent = $aFunc[gvwProfile.Row]
+  AddHistory($hCurrent.Name)
+  RefreshCurrent
+
+End
+
+Private Sub RefreshCurrent()
+  
+  If $hCurrent Then
+    
+    $sCurrentClass = GetClass($hCurrent.Name)
+
+    gvwCalled.Rows.Count = $hCurrent.CalledList.Count
+    Object.Lock(gvwCalled)
+    gvwCalled.Columns.Sort = 2
+    gvwCalled.Columns.Ascending = True
+    Object.Unlock(gvwCalled)
+    gvwCalled_Sort
+    gvwCalled.Columns[0].Width = -1
+    
+    gvwCaller.Rows.Count = $hCurrent.CallerList.Count
+    Object.Lock(gvwCaller)
+    gvwCalled.Columns.Sort = 1
+    gvwCalled.Columns.Ascending = True
+    Object.Unlock(gvwCaller)
+    gvwCaller_Sort
+    gvwCaller.Columns[0].Width = -1
+    
+    LoadCurrentSourceCode
+    
+    lblCurrent.Text = $hCurrent.GetTitle()
+    Try gvwCalled.Row = 0
+    Try gvwCaller.Row = 0
+    panCurrent.Show
+    
+  Else
+    
+    panCurrent.Hide
+    lblCurrent.Text = ""
+    $sCurrentClass = ""
+    
+  Endif
+  
+End
+
+Public Sub gvwCalled_Sort()
+
+  Dim sCurrent As String
+
+  If Not $hCurrent Then Return
+  
+  Try sCurrent = $hCurrent.CalledList[gvwProfile.Row].Name
+
+  CProfile.Sort = gvwCalled.Columns.Sort
+  CProfile.Ascending = gvwCalled.Columns.Ascending
+  $hCurrent.CalledList.Sort
+  
+  If sCurrent Then gvwCalled.Row = $hCurrent.CalledList.Find($hCurrent.Called[sCurrent])
+
+End
+
+Public Sub gvwCalled_Data(Row As Integer, Column As Integer)
+
+  Dim hProf As CProfile
+  Dim iTime As Long
+  
+  If Not $hCurrent Then Return
+
+  With gvwCalled.Data
+
+    hProf = $hCurrent.CalledList[Row]
+
+    Select Case Column
+      Case 0
+        .RichText = hProf.GetTitle()
+      Case 1
+        .Text = Format(hProf.Count, ",0")
+      Case 2
+        iTime = hProf.Time '- hProf.RecTime
+        If $bPercent Then
+          .Text = Format(iTime / $iTime * 100, "0.00")
+        Else
+          .Text = Format(iTime, ",0")
+        Endif
+      Case 3
+        iTime = hProf.Time '- hProf.RecTime
+        .Text = Format(iTime / hProf.Count, ",0.##")
+    End Select
+    
+  End With
+
+Catch
+  
+  gvwCalled.Data.Text = ""
+  gvwCalled.Data.Background = Color.ButtonBackground
+
+End
+
+Public Sub gvwCalled_Activate()
+
+  If Not $hCurrent Then Return
+  gvwProfile.Row = $aFunc.Find($cFunc[$hCurrent.CalledList[gvwCalled.Row].Name])
+
+End
+
+Public Sub btnPercent_Click()
+
+  $bPercent = Not $bPercent
+  gvwProfile.Refresh
+  gvwCalled.Refresh
+  gvwCaller.Refresh
+  gvwSource.Refresh
+
+End
+
+Public Sub btnAverage_Click()
+
+  $bAverage = Not $bAverage
+  
+  gvwProfile.Columns[5].Width = If($bAverage, -1, 0)
+  gvwProfile.Columns[3].Width = If($bAverage, -1, 0)
+  gvwCalled.Columns[3].Width = If($bAverage, -1, 0)
+  gvwSource.Columns[2].Width = If($bAverage, -1, 0)
+  UpdateSource
+
+End
+
+Public Sub btnPrev_Click()
+
+  If $iHistory >= 2 Then
+    Dec $iHistory
+    Inc $iNoHistory
+    gvwProfile.Row = $aFunc.Find($cFunc[$aHistory[$iHistory - 1]])
+    Dec $iNoHistory
+  Endif
+
+End
+
+Public Sub btnNext_Click()
+
+  If $iHistory <= $aHistory.Max Then
+    Inc $iHistory
+    Inc $iNoHistory
+    gvwProfile.Row = $aFunc.Find($cFunc[$aHistory[$iHistory - 1]])
+    Dec $iNoHistory
+  Endif
+
+End
+
+Public Sub gvwCaller_Sort()
+
+  Dim sCurrent As String
+
+  If Not $hCurrent Then Return
+  
+  Try sCurrent = $hCurrent.CallerList[gvwProfile.Row].Name
+
+  CProfile.Sort = gvwCaller.Columns.Sort
+  CProfile.Ascending = gvwCaller.Columns.Ascending
+  $hCurrent.CallerList.Sort
+  
+  If sCurrent Then gvwCaller.Row = $hCurrent.CallerList.Find($hCurrent.Caller[sCurrent])
+
+End
+
+Public Sub gvwCaller_Data(Row As Integer, Column As Integer)
+
+  Dim hProf As CProfile
+  
+  If Not $hCurrent Then Return
+
+  With gvwCaller.Data
+
+    hProf = $hCurrent.CallerList[Row]
+
+    Select Case Column
+      Case 0
+        .RichText = hProf.GetTitle()
+      Case 1
+        .Text = hProf.Count
+      ' Case 2
+      '   If $bPercent Then
+      '     .Text = Format(hProf.Time / $iTime * 100, "0.00")
+      '   Else
+      '     .Text = hProf.Time
+      '   Endif
+      ' Case 3
+      '  .Text = Format(hProf.Time / hProf.Count, "0.##")
+    End Select
+    
+  End With
+
+End
+
+Public Sub gvwCaller_Activate()
+
+  If Not $hCurrent Then Return
+  gvwProfile.Row = $aFunc.Find($cFunc[$hCurrent.CallerList[gvwCaller.Row].Name])
+
+End
+
+Private Sub GetDurationColor(fPercent As Float) As Integer
+  
+  Dim iCol As Integer
+  
+  iCol = 255 - Min(1, fPercent) * 64
+  Return Color.RGB(iCol, iCol, iCol)
+  
+End
+
+
+Public Sub gvwSource_Data(Row As Integer, Column As Integer)
+  
+  Dim iTime As Long
+  Dim iCount As Integer
+  'If Not $hCurrent Then Return
+  'Debug $hCurrent.Name; "."; Row + $iFirstLine; ": "; $hCurrent.Lines[Row + $iFirstLine]
+  
+  If Row = 0 Then
+    iTime = $hCurrent.FirstTime
+  Else
+    Try iTime = $cLines[$sCurrentClass][Row + $iFirstLine]
+  Endif
+  
+        
+  With gvwSource.Data
+    
+    Try .Background = GetDurationColor(iTime / $hCurrent.MaxTime)
+    
+    Select Case Column
+      
+      Case 0
+  
+        If iTime = 0 Then 
+          Try iCount = $cCount[$sCurrentClass][Row + $iFirstLine]
+          If iCount <= 1 Then Return
+        Endif
+        
+        If $bPercent Then
+          .Text = Format(iTime / $hCurrent.Time * 100, "0.00")
+        Else
+          .Text = Format(iTime, ",0")
+        Endif
+        
+      Case 1
+        
+        If Row = 0 Then
+          iCount = $hCurrent.Count
+        Else
+          Try iCount = $cCount[$sCurrentClass][Row + $iFirstLine]
+        Endif
+        
+        If iCount < 1 Then Return
+        .Text = Format(iCount, ",0")
+        
+      Case 2
+        
+        If Row = 0 Then
+          iCount = $hCurrent.Count
+        Else
+          Try iCount = $cCount[$sCurrentClass][Row + $iFirstLine]
+        Endif
+        If iCount < 1 Then Return
+        
+        .Text = Format(iTime / iCount, ",0.##")
+        
+    End Select
+    
+  End With
+  
+Catch
+  
+  gvwSource.Data.Text = ""
+  gvwSource.Data.Background = Color.ButtonBackground
+
+End
+
+Public Sub edtSource_Scroll()
+
+  gvwSource.ScrollY = edtSource.ScrollY
+
+End
+
+Static Public Sub CleanProfileFiles()
+  
+  Try Shell.RmDir(Project.Dir &/ ".profile")
+  
+End
+
+Public Sub gvwSource_Scroll()
+
+  edtSource.ScrollY = gvwSource.ScrollY
+
+End
+
+Public Sub gvwSource_Select()
+
+  edtSource.Goto(0, gvwSource.Row)
+
+End
+
+Public Sub edtSource_Cursor()
+
+  gvwSource.Row = edtSource.Line
+  edtSource.HideSelection
+
+End
+
+Public Sub btnSave_Click()
+
+  Dialog.Title = ("Save profile")
+  Dialog.Filter = ["*.prof", ("Profile files")]
+  Dialog.Path = Settings["/FProfile/Path", User.Home] &/ File.Name(Path)
+  If Dialog.SaveFile() Then Return
+
+  Settings["/FProfile/Path"] = File.Dir(Dialog.Path)
+  Try Copy Path To Dialog.Path
+  If Error Then
+    FMain.ShowErrorWith(("Unable to save profile."))
+  Endif
+
+End
+
+Private Sub UpdateSource()
+
+  gvwSource.Width = gvwSource.Font.TextWidth("999999") * (4 + If($bAverage, 2, 0))
+
+End
+
+Private Function ReadOnly_Read() As Boolean
+
+  Return True
+
+End
+
+Public Sub Save() As Boolean
+  
+End
+
+Public Sub PaintStatus()
+
+  Dim sTitle As String
+  Dim hEventLoop As CProfile
+  Dim iTime As Long
+  Dim sProject As String
+
+  sProject = $sProject
+  If Not sProject Then sProject = "<i>" & ("Unknown") & "</i>"
+  sTitle = ("Project") & " <b>" & sProject & "</b>"
+  sTitle &= " &nbsp; " & ("Date") & " <b>" & Str(Stat(Path).LastModified) & "</b>"
+  
+  iTime = $iTime
+  hEventLoop = $cFunc[FUNC_EVENT_LOOP]
+  If hEventLoop Then iTime -= hEventLoop.Self
+  
+  sTitle &= " &nbsp; " & ("Total duration") & " <b>" & Subst(("&1 μs"), Format(iTime, "#,##0")) & "</b>"
+  
+  Paint.Font = Application.Font
+  Paint.DrawRichText(sTitle, 0, 0, Paint.W - Desktop.Scale, Paint.H, Align.Right)
+
+End

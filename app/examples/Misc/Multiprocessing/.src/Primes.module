@@ -1,0 +1,21 @@
+' Gambas module file
+
+'' Calculates all prime numbers that are smaller or equal to the given maxNum argument.
+'' Note: this is a brute-force algo. Do not use in production!
+Fast Public Function calcPrimesUpTo(maxNum As Long) As List
+    Dim res As New List
+    Dim p As Long = 1
+    
+    For n As Long = 1 To maxNum
+        For i As Long = 2 To (n - 1)
+            If n Mod i = 0 Then
+                p = 0
+                Break 
+            Else
+                p = 1
+            End If
+        Next
+        If p = 1 Then res.Append(n)
+    Next
+    Return res
+End Function

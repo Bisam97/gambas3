@@ -3,7 +3,7 @@
 Export
 Inherits UserControl
 
-Public Const _Properties As String = "*,List,Border=True,Grid,Mode{Select.*}=Single,ScrollBar{Scroll.*}=Vertical,Wrap,Sorted"
+Public Const _Properties As String = "*,List,Border=True,Grid,Mode{Select.*}=Single,ScrollBar{Scroll.*}=Vertical,Wrap,Sorted,Highlight"
 Public Const _Group As String = "View"
 Public Const _DefaultEvent As String = "Click"
 Public Const _DefaultSize As String = "16,16"
@@ -19,6 +19,11 @@ Property Index As Integer
 Property Read Text As String
 Property List As String[]
 Property Font As Font
+
+'' @{since 3.19}
+''
+'' Return or set if the item under the mouse cursor is highlighted.
+Property Highlight As Boolean
 
 '' Return or set if the item text must wrap and the item height expands automatically.
 Property Wrap As Boolean
@@ -44,6 +49,7 @@ Private $hSortTimer As Timer
 Private $hTimerClick As Timer
 Private $bWrap As Boolean
 Private $hResizeTimer As Timer
+Private $sFind As String
 
 Public Sub _new()
   
@@ -140,12 +146,44 @@ Public Sub GridView_Data(Row As Integer, (Column) As Integer)
   
 End
 
+' Public Sub GridView_Draw(X As Integer, Y As Integer, W As Integer, H As Integer, Row As Integer, Column As Integer)
+'   
+'   If String.LCase($aText[Row]) Begins $sFind Then
+'     W = Paint.TextSize(Left($aText[Row], Len($sFind))).W
+'     X += $hView.Padding
+'     Paint.FillRect(X, Y, W, H, Color.SetAlpha(Color.TextForeground, 128))
+'   Endif
+'   
+' End
+
 Public Sub GridView_Activate()
   
   Raise Activate
   
 End
 
+Private Sub FindItem()
+
+  Main.FindItem($hView, $sFind, $aText)
+
+End
+
+Public Sub GridView_KeyPress()
+  
+  If Key.Code = Key.Return Or If Key.Code = Key.Enter Then
+    Raise Activate
+  Else If Key.Code = Key.Backspace Then
+    If $sFind Then
+      $sFind = String.Left($sFind, -1)
+      FindItem
+    Endif
+  Else If Key.Text Then
+    $sFind &= String.LCase(Key.Text)
+    FindItem
+  Endif
+
+End
+  
 Private Function Count_Read() As Integer
 
   Return $aText.Count
@@ -506,7 +544,7 @@ Private Sub Wrap_Write(Value As Boolean)
 
   If $bWrap = Value Then Return
   $bWrap = Value
-  UpdateLayout
+  SortLater
 
 End
 
@@ -526,5 +564,17 @@ Private Sub Grid_Write(Value As Boolean)
 
   $hView.Grid = Value
   $hView.Rows.Padding = If(Value, Desktop.Scale, 0)
+
+End
+
+Private Function Highlight_Read() As Boolean
+
+  Return $hView._Highlight
+
+End
+
+Private Sub Highlight_Write(Value As Boolean)
+
+  $hView._Highlight = Value
 
 End

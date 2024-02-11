@@ -283,7 +283,14 @@ gw = {
           else
             gw.log('--> ' + expr);
         }
-        eval(expr);
+        try {
+          eval(expr);
+          }
+        catch(e)
+        {
+          gw.log('eval: ' + expr);
+          throw e;
+        }
         
         if (!gw.focus)
           gw.restoreFocus(save);
@@ -1306,7 +1313,7 @@ gw = {
       else
         gw.table.checkRange(id, row, row, checked);
       
-      if (event.target == elt)
+      if (event && event.target == elt)
         elt.checked = !checked;
 
       $_(id).gw_current = row;
@@ -1491,7 +1498,11 @@ gw = {
       //xhr.gw_progress = 0;
       
       xhr.gw_progress = 1;
-      gw.update(id, 'progress', 0, function() { xhr.gw_progress--; });
+      gw.update(id, 'progress', 0, 
+        function()
+        { 
+          xhr.gw_progress--; 
+        });
       
       form.append('file', file);
       form.append('name', file.name);

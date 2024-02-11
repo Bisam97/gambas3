@@ -6,7 +6,7 @@ Public Enum rText, rTokens, rTypes, rPosition
 
 Public ProgramLines As New String[]                                     ' List of all program lines
 Public ProgramSymbols As New Variant[]                                  ' List of all tokens
-Public ProgramTypes As New Variant[]                                    ' List of all 
+Public ProgramTypes As New Variant[]                                    ' List of all
 Public ProgramPositions As New Variant[]                                ' Position of token text in each line
 Public GlobalItemPosition As New Integer[]                              ' Position of each Globaly define variable
 Public sSourceFile As String = ""                                       ' The Source File
@@ -35,91 +35,97 @@ Private $oContext As Context                                                    
 Private $sEntryPoint As String = "MAIN"                                   'Defines the default type of entry point for the generated program
 
 Private $cBlockTypes As Collection = ["MODULE": ["END", "MODULE"],
-                                     "CLASS": ["END", "CLASS"],
-                                     "FORM": ["END", "FORM"],
-                                     "CONNECTION": ["END", "CONNECTION"],
-                                     "WEBFORM": ["END", "WEBFORM"],
-                                     "WEBPAGE": ["END", "WEBPAGE"]
-                                     ]
+  "CLASS": ["END", "CLASS"],
+  "FORM": ["END", "FORM"],
+  "CONNECTION": ["END", "CONNECTION"],
+  "WEBFORM": ["END", "WEBFORM"],
+  "WEBPAGE": ["END", "WEBPAGE"]
+]
 Private $sCurrentBlock As String = ""
 Static Public $sScriptFilter As New Collection
 Static Public $sScriptAlias As New Collection
 
 Public Sub _New(cContext As Context, Optional SourceFile As String = "", Sourceprogram As String = "")
+
   Dim SourceBuffer As String
   Dim TokenSource As String = SourceFile
-  
-  If SourceFile = "" Then 
+
+  If SourceFile = "" Then
     TokenSource = "STDIN"
-  Else 
+  Else
     TokenSource = SourceFile
   Endif
-  
+
   $oContext = cContext                                                             ' Access to global variables
   cIncludeStack.Push(TokenSource)                                                  ' Add this file to the stack for processing
   sDefaultFilePath = File.Dir(SourceFile)                                          ' Set the default file path to use for includes
   sSourceFile = SourceFile
-  
+
   If SourceProgram <> "" Then                                                      ' Updated to correctly process -e thru full process for -e < filename cases
-     SourceBuffer = SourceProgram
-  Else If SourceFile = "" Then 
-      SourceBuffer = GetStdio()
+    SourceBuffer = SourceProgram
+  Else If SourceFile = "" Then
+    SourceBuffer = GetStdio()
   Else
-     $oContext.$aIncFiles.Add(SourceFile)
-     $oContext.$aIncFiles.Add(Stat(SourceFile).LastModified)
-     SourceBuffer = GetFile(SourceFile)
-     Verbose("Processing Script File : " & File.Name(SourceFile))
+    $oContext.$aIncFiles.Add(SourceFile)
+    $oContext.$aIncFiles.Add(Stat(SourceFile).LastModified)
+    SourceBuffer = GetFile(SourceFile)
+    Verbose("Processing Script File : " & File.Name(SourceFile))
   Endif
-  
+
   TokenizeFile(SourceBuffer)
-  
+
 End
 
 Public Sub GetStdio() As String
 
   Dim buffer As String
   Dim SourceBuffer As String = ""
-  
+
   While Not Eof(File.in)
     buffer = Read -256
     SourceBuffer &= buffer
   Wend
-  
+
   Return SourceBuffer
-  
+
 End
 
 Private Sub GetFile(SourceFile As String) As String
-  Dim buffer As String 
-  
+
+  Dim buffer As String
+
   Try Buffer = File.Load(SourceFile)
-  
+
   If Error Then
     Error.Raise("Unable to read file : \"" & SourceFile & "\"")
   Endif
-  
+
   Return buffer
-  
+
 End
 
 Private $cKeywords As Collection = ["PRIVATE": True, "PUBLIC": True, "STATIC": True, "SUB": True, "FUNCTION": True, "PROCEDURE": True, "STRUCT": True, "ENUM": True, "CLASSREF": True,
-                                    "EXTERN": True, "CONST": True]
+  "EXTERN": True, "CONST": True]
 Private $cFuncDef As Collection = ["SUB": True, "FUNCTION": True, "PROCUDURE": True]
 Private $cAllowedInSub As Collection = ["STATIC": True]
 
 Private Sub IsFunction(Symbols As String[]) As Boolean
+
   Dim Counter As Integer = 0
+
   For Each s As String In Symbols
     If counter > 2 Then Break
-    If $cFuncDef[s] Then 
-       Return True
+    If $cFuncDef[s] Then
+      Return True
     Endif
     Inc counter
   Next
   Return False
+
 End
 
 Private Sub TokenizeFile(SourceBuffer As String)
+
   Dim SourceList As String[]
   Dim sClassName As String = ""
   Dim MainPos As Integer = 1
@@ -127,78 +133,79 @@ Private Sub TokenizeFile(SourceBuffer As String)
   Dim bDoFilter As Boolean = ($sScriptFilter.count > 0)
   Dim bDoAlias As Boolean = ($sScriptAlias.count > 0)
   Dim bDoLinePreProcess As Boolean = (ScriptSetPreProcessCallBack.HasLinePreProcess())
- 
+
   Dim bInSub As Boolean = False
+
   $cKeywords.default = False
   $cFuncDef.default = False
   $cAllowedInSub.default = False
-  
+
   If $oContext.$bPlugin Then $sEntryPoint = "_Call"
-  
+
   CurrentLineNumber.Push(0)
-  
+
   SourceList = Split(SourceBuffer, "\n", "", True)
-  
-  If ScriptSetPreProcessCallBack.HasProgramPreProcess() Then 
-      SourceList = ScriptApplyProgramCallBacks(SourceList)
+
+  If ScriptSetPreProcessCallBack.HasProgramPreProcess() Then
+    SourceList = ScriptApplyProgramCallBacks(SourceList)
   Endif
-  
+
   Dim SourceIndex As Integer = 0
 
   While True
-    
-    If SourceIndex > SourceList.max Then 
+
+    If SourceIndex > SourceList.max Then
       Break
     Endif
-    
-    If Not SourceList[SourceIndex] Then 
+
+    If Not SourceList[SourceIndex] Then
       Inc CurrentLineNumber.last
       Inc SourceIndex
       Continue
     Endif
-    
-    If bDoLinePreProcess Then 
+
+    If bDoLinePreProcess Then
       SourceList[SourceIndex] = ScriptApplyLineCallBacks(SourceList[Sourceindex])
     Endif
-    
-    If bDoAlias Then 
-       Dim sLines As String[] = ScriptApplyAlias(SourceList[SourceIndex], $sScriptAlias)
-       SourceList[SourceIndex] = sLines[0]
-       If sLines.count > 1 Then 
-         For iInsert As Integer = sLines.max DownTo 1 
-           SourceList.insert(sLines, SourceIndex + 1)
-         Next
-       Endif
+
+    If bDoAlias Then
+      Dim sLines As String[] = ScriptApplyAlias(SourceList[SourceIndex], $sScriptAlias)
+      SourceList[SourceIndex] = sLines[0]
+      If sLines.count > 1 Then
+        For iInsert As Integer = sLines.max DownTo 1
+          SourceList.insert(sLines, SourceIndex + 1)
+        Next
+      Endif
     Endif
-    
+
     sLine = SourceList[SourceIndex]
     Inc SourceIndex
-    
+
     Inc CurrentLineNumber.last
-    
-    If ScriptSetPreProcessCallBack.HasLinePreProcess() Then 
+
+    If ScriptSetPreProcessCallBack.HasLinePreProcess() Then
       sLine = ScriptApplyLineCallBacks(sLine)
     Endif
-    
-    If bDoFilter Then 
-       If ScriptKeywordFilter(sLine, $sScriptFilter, CurrentLineNumber.last, cIncludeStack.last) Then 'filter the script if needed True means error
-            CompileError(cIncludeStack.last, CurrentLineNumber.last, "Compile Terminated at :\n          " & sLine & "\n          ")
-       Endif 
-    Endif 
-    
-    If Left(sLine, 3) = "#!/" Then 
-       sLine = "' " & sLine  ' eliminate the script header
-       Goto ContinueRecord
+
+    If bDoFilter Then
+      If ScriptKeywordFilter(sLine, $sScriptFilter, CurrentLineNumber.last, cIncludeStack.last) Then 'filter the script if needed True means error
+        CompileError(cIncludeStack.last, CurrentLineNumber.last, "Compile Terminated at :\n          " & sLine & "\n          ")
+      Endif
     Endif
-    
+
+    If Left(sLine, 3) = "#!/" Then
+      sLine = "' " & sLine  ' eliminate the script header
+      Goto ContinueRecord
+    Endif
+
     Highlight.Analyze(sLine)
-    
+
     Dim aTypes As Integer[] = Highlight.Types
     Dim symbols As String[] = Highlight.symbols
-    
+
     '' Here we look for any definition which will be a seperate source type or includes other sources
     '' Building the source pool as we go
-   
+
     '' Check for The definition of main, Knowing this speeds up process of program portion of the script
     If aTypes.count >= 4 And If aTypes[0] = Highlight.Keyword Then
       MainPos = 1
@@ -206,363 +213,370 @@ Private Sub TokenizeFile(SourceBuffer As String)
         If aTypes[1] = Highlight.symbol Then MainPos = 0
         If symbols[MainPos] = "SUB" Or If symbols[MainPos] = "PROCEDURE" Or If symbols[MainPos] = "FUNCTION" Then
           If Upper(symbols[MainPos + 1]) == $sEntryPoint Then
-              If aTypes.count = 4 Then
-                Warning(Subst("&1 Was Not Declared as Public, assuming Public Sub &1", $sEntryPoint))
-                sLine = "Public " & sline 
-              Endif
-              MainDef.Add(CurrentLineNumber.last, cIncludeStack.last)
-              If MainDef.count > 1 Then 
-                Warning(Subst("Multiple &1 Definitions :", $sEntryPoint), True)
-                For Each i As Integer In MainDef       
-                  Verbose(Subst("&1 Defined : &2", $sEntryPoint, Quote(MainDef.key) & "." & i), True)
-                Next
-                CompileError(cIncludeStack.last, CurrentLineNumber.last, "Too Many " & $sEntryPoint & " Definitions")
-              Else
-                Verbose($sEntryPoint & " Defined  : " & cIncludeStack.last & "." & CurrentLineNumber.last)
-              Endif
+            If aTypes.count = 4 Then
+              Warning(Subst("&1 Was Not Declared as Public, assuming Public Sub &1", $sEntryPoint))
+              sLine = "Public " & sline
+            Endif
+            MainDef.Add(CurrentLineNumber.last, cIncludeStack.last)
+            If MainDef.count > 1 Then
+              Warning(Subst("Multiple &1 Definitions :", $sEntryPoint), True)
+              For Each i As Integer In MainDef
+                Verbose(Subst("&1 Defined : &2", $sEntryPoint, Quote(MainDef.key) & "." & i), True)
+              Next
+              CompileError(cIncludeStack.last, CurrentLineNumber.last, "Too Many " & $sEntryPoint & " Definitions")
+            Else
+              Verbose($sEntryPoint & " Defined  : " & cIncludeStack.last & "." & CurrentLineNumber.last)
+            Endif
           Endif
         Endif
       Endif
     Endif
-    
+
     '' Check for specific keywords that trigger reliance upon MAIN being defined
     If symbols.count > 0 And If aTypes[0] = Highlight.keyword Or $cBlockTypes.Exist(Upper(symbols[0])) Then
-       
-        If symbols[0] = "EXPORT" Then
-          $oContext.$bExport = True
+
+      If symbols[0] = "EXPORT" Then
+        $oContext.$bExport = True
+        sLine = "' " & sLine
+        Goto ContinueRecord
+
+      Else If Not $bInClass And If $cKeywords[symbols[0]] Then
+        If Not bInsub Then
+          If isFunction(Symbols) Then
+            bInSub = True
+          Endif
+        Else If $cAllowedInSub[symbols[0]] Then
+          aWarnings.Add("Warning : Defined In Sub : " & symbols[0] & ":" & File.name(cIncludeStack.last) & "." & CurrentLineNumber.last & " : " & sline)
+          Goto ContinueRecord
+        Endif
+
+        aWarnings.Add("Warning : Defined without " & $sEntryPoint & " : " & symbols[0] & ":" & File.name(cIncludeStack.last) & "." & CurrentLineNumber.last & " : " & sline)
+
+        bPublicOrSubDef = True
+        GlobalItemPosition.Add(ProgramLines.count)
+        Goto ContinueRecord
+
+      Else If Not $bInClass And If symbols[0] = "FAST" Then
+
+        If aTypes.count > 2 Then
+          aWarnings.Add("Warning : Defined without " & $sEntryPoint & " : " & symbols[0] & ":" & File.Name(cIncludeStack.last) & "." & CurrentLineNumber.last & " : " & sline)
+          bPublicOrSubDef = True
+          GlobalItemPosition.Add(ProgramLines.count)
+          Goto ContinueRecord
+
+        Else If $oContext.$bFast = True Then   ' already defined
+          Warning("FAST Duplicate Definition at " & File.Name(cIncludeStack.last) & "." & CurrentLineNumber.last)
           sLine = "' " & sLine
           Goto ContinueRecord
-          
-        Else If Not $bInClass And If $cKeywords[symbols[0]] Then
-            If Not bInsub Then 
-              If isFunction(Symbols) Then 
-                bInSub = True
-              Endif
-            Else If $cAllowedInSub[symbols[0]] Then
-              aWarnings.Add("Warning : Defined In Sub : " & symbols[0] & ":" & File.name(cIncludeStack.last) & "." & CurrentLineNumber.last & " : " & sline)
-              Goto ContinueRecord
-            Endif
-            
-            aWarnings.Add("Warning : Defined without " & $sEntryPoint & " : " & symbols[0] & ":" & File.name(cIncludeStack.last) & "." & CurrentLineNumber.last & " : " & sline)
 
-            bPublicOrSubDef = True
-            GlobalItemPosition.Add(ProgramLines.count)
-            Goto ContinueRecord
-             
-        Else If Not $bInClass And If symbols[0] = "FAST" Then
-          
-          If aTypes.count > 2 Then
-               aWarnings.Add("Warning : Defined without " & $sEntryPoint & " : " & symbols[0] & ":" & File.Name(cIncludeStack.last) & "." & CurrentLineNumber.last & " : " & sline)
-             bPublicOrSubDef = True
-             GlobalItemPosition.Add(ProgramLines.count)
-             Goto ContinueRecord
-             
-          Else If $oContext.$bFast = True Then   ' already defined
-               Warning("FAST Duplicate Definition at " & File.Name(cIncludeStack.last) & "." & CurrentLineNumber.last)
-               sLine = "' " & sLine
-               Goto ContinueRecord
-               
-          Else If aTypes.count = 1 Then
-             Verbose("FAST(Jit) activated for Module:" & File.name(cIncludeStack.last) & "." & CurrentLineNumber.last)
-             $oContext.$bFast = True
-             sLine = "' " & sline
-             Goto ContinueRecord
-             
-          Else If aTypes.count = 2 And If symbols[1] = "UNSAFE" Then
-            Verbose("FAST UNSAFE(Jit and nochecks) activated for Module:" & File.name(cIncludeStack.last) & "." & CurrentLineNumber.last)
-            $oContext.$bFast = True
-            $oContext.$bUnsafe = True
-            sLine = "' " & sline
-            Goto ContinueRecord
-            
-          Else
-            CompileError(cIncludeStack.last, CurrentLineNumber.last, "UnKnown Entry : " & symbols[0] & " Following 'FAST'  Definition")
-          Endif
-      
-          '' check for inclusion of Components or libraries
-        Else If symbols[0] = "USE" 
-            If symbols.count >= 2 Then
-                 ProcessUse(sLine)
-                 Continue
-            Else
-                CompileError(cIncludeStack.last, CurrentLineNumber.last, "USE statement without component or library definitions")
-            Endif 
-        
-         '' Check for the end of a SUB/FUNCTION/Procedure  definition
-        Else If Not $bInClass And If symbols[0] = "END" And symbols.count = 1 Then 
-          If Not bInSub Then 
+        Else If aTypes.count = 1 Then
+          Verbose("FAST(Jit) activated for Module:" & File.name(cIncludeStack.last) & "." & CurrentLineNumber.last)
+          $oContext.$bFast = True
+          sLine = "' " & sline
+          Goto ContinueRecord
+
+        Else If aTypes.count = 2 And If symbols[1] = "UNSAFE" Then
+          Verbose("FAST UNSAFE(Jit and nochecks) activated for Module:" & File.name(cIncludeStack.last) & "." & CurrentLineNumber.last)
+          $oContext.$bFast = True
+          $oContext.$bUnsafe = True
+          sLine = "' " & sline
+          Goto ContinueRecord
+
+        Else
+          CompileError(cIncludeStack.last, CurrentLineNumber.last, "UnKnown Entry : " & symbols[0] & " Following 'FAST'  Definition")
+        Endif
+
+        '' check for inclusion of Components or libraries
+      Else If symbols[0] = "USE"
+        If symbols.count >= 2 Then
+          ProcessUse(sLine)
+          Continue
+        Else
+          CompileError(cIncludeStack.last, CurrentLineNumber.last, "USE statement without component or library definitions")
+        Endif
+
+        '' Check for the end of a SUB/FUNCTION/Procedure  definition
+      Else If Not $bInClass And If symbols[0] = "END" And symbols.count = 1 Then
+        If Not bInSub Then
+          CompileError(cIncludeStack.last, CurrentLineNumber.last, "Syntax error : Unexpected : " & sLine)
+        Else
+          bInSub = False
+        Endif
+
+        '' Check for the end of a class definition
+      Else If symbols[0] = "END" And symbols.count = 2 Then
+
+        If aTypes[1] = Highlight.symbol Or aTypes[1] = Highlight.keyword And If symbols[1] == $sCurrentBlock Then
+          If Not $bInClass Then
             CompileError(cIncludeStack.last, CurrentLineNumber.last, "Syntax error : Unexpected : " & sLine)
-          Else 
-            bInSub = False
           Endif
-          
-          '' Check for the end of a class definition 
-        Else If symbols[0] = "END" And symbols.count = 2 Then      
-          
-          If aTypes[1] = Highlight.symbol Or aTypes[1] = Highlight.keyword And If symbols[1] == $sCurrentBlock Then
-             If Not $bInClass Then
-               CompileError(cIncludeStack.last, CurrentLineNumber.last, "Syntax error : Unexpected : " & sLine)
-             Endif
-             sClassName = BlockNames.Pop()
-             BlockType.Pop()
-             BlockDefined.Add(ProcessClass(sClassName, BlockList.Pop(), BlockLineNumbers.Pop(), Lower($sCurrentBlock)), sClassName & "." & $sCurrentBlock)
-             $bInClass = False
-             Continue
-          Endif 
+          sClassName = BlockNames.Pop()
+          BlockType.Pop()
+          BlockDefined.Add(ProcessClass(sClassName, BlockList.Pop(), BlockLineNumbers.Pop(), Lower($sCurrentBlock)), sClassName & "." & $sCurrentBlock)
+          $bInClass = False
+          Continue
         Endif
-        
-         '' Check for the definition of a block and make where it is defined
-        If $cBlockTypes.Exist(Upper(symbols[0])) Then 
-          
-             $sCurrentBlock = (Upper(symbols[0]))
-             If symbols.count < 2 Then
-               CompileError(cIncludeStack.last, CurrentLineNumber.last, Subst("&1 : Name Missing ", $sCurrentBlock))
-            Endif 
-            
-            If aTypes[1] = Highlight.symbol Or If aTypes[1] = Highlight.DataType Then
-                If $bInClass Then
-                    If symbols[0] == "class" And If $sCurrentBlock == "class" Or $sCurrentBlock == "module" Then
-                       Warning("Found class definition inside a &1, Assuming that it is a class refrence not the beginning of a new class")
-                       Goto ContinueRecord
-                    Else 
-                       CompileError(cIncludeStack.last, CurrentLineNumber.last, Subst(" &1 : Unexpected &1 definition inside &1 definition : ", $sCurrentBlock) & sLine)
-                    Endif 
-                Endif
-                Dim cdefBlock As ClassDef = BlockDefined[symbols[1] & "." & $sCurrentBlock]
-                If Not IsNull(cdefBlock) And If cdefBlock.sExtention == $sCurrentBlock Then 
-                   CompileError(cIncludeStack.last, CurrentLineNumber.last, $sCurrentBlock & " : " & symbols[1] & " Already defined")
-                Endif
-                Verbose("Begin to define Block : " & $sCurrentBlock & " : " & symbols[1])
-                BlockList.Push(ProgramSymbols.Count)
-                BlockNames.Push(symbols[1])
-                BlockLineNumbers.Push(CurrentLineNumber.last)
-                BlockType.Push($sCurrentBlock)
-                $binClass = True
-                Continue
-            Endif
-            
-        Endif
-    Endif
-    
-     ''Check for an include statement -- Include is not a keyword, perhaps it should be
-    If aTypes.count >= 2 And If aTypes[0] = Highlight.symbol And If aTypes[1] = Highlight.string And If symbols[0] == "INCLUDE" Then
-         Warning("'Include' is Replaced by '#Include' and may not be supported in future releases")
-         ProcessInclude(symbols, atypes, sDefaultFilePath)
-         Continue
-         
-     '' Check for PreProccessor  lines
-    Else If aTypes.count >= 2 And If aTypes[0] = Highlight.Preprocessor Then
-        If symbols[0] == "#SCRIPT" Then 
-           Highlight.Analyze(Right(Trim(sline), -1))
-           ScriptPreProcess(Highlight.symbols, Highlight.types, CurrentLineNumber.last, cIncludeStack.last)
-           sLine = "'" & sLine
-           Goto ContinueRecord
+      Endif
 
-           
-        Else If symbols[0] == "#INCLUDE" Then
-           ProcessInclude(symbols, atypes, sDefaultFilePath)
-           Continue
+      '' Check for the definition of a block and make where it is defined
+      If $cBlockTypes.Exist(Upper(symbols[0])) Then
+
+        $sCurrentBlock = (Upper(symbols[0]))
+        If symbols.count < 2 Then
+          CompileError(cIncludeStack.last, CurrentLineNumber.last, Subst("&1 : Name Missing ", $sCurrentBlock))
         Endif
+
+        If aTypes[1] = Highlight.symbol Or If aTypes[1] = Highlight.DataType Then
+          If $bInClass Then
+            If symbols[0] == "class" And If $sCurrentBlock == "class" Or $sCurrentBlock == "module" Then
+              Warning("Found class definition inside a &1, Assuming that it is a class refrence not the beginning of a new class")
+              Goto ContinueRecord
+            Else
+              CompileError(cIncludeStack.last, CurrentLineNumber.last, Subst(" &1 : Unexpected &1 definition inside &1 definition : ", $sCurrentBlock) & sLine)
+            Endif
+          Endif
+          Dim cdefBlock As ClassDef = BlockDefined[symbols[1] & "." & $sCurrentBlock]
+          If Not IsNull(cdefBlock) And If cdefBlock.sExtention == $sCurrentBlock Then
+            CompileError(cIncludeStack.last, CurrentLineNumber.last, $sCurrentBlock & " : " & symbols[1] & " Already defined")
+          Endif
+          Verbose("Begin to define Block : " & $sCurrentBlock & " : " & symbols[1])
+          BlockList.Push(ProgramSymbols.Count)
+          BlockNames.Push(symbols[1])
+          BlockLineNumbers.Push(CurrentLineNumber.last)
+          BlockType.Push($sCurrentBlock)
+          $binClass = True
+          Continue
+        Endif
+
+      Endif
+    Endif
+
+    ''Check for an include statement -- Include is not a keyword, perhaps it should be
+    If aTypes.count >= 2 And If aTypes[0] = Highlight.symbol And If aTypes[1] = Highlight.string And If symbols[0] == "INCLUDE" Then
+      Warning("'Include' is Replaced by '#Include' and may not be supported in future releases")
+      ProcessInclude(symbols, atypes, sDefaultFilePath)
+      Continue
+
+      '' Check for PreProccessor  lines
+    Else If aTypes.count >= 2 And If aTypes[0] = Highlight.Preprocessor Then
+      If symbols[0] == "#SCRIPT" Then
+        Highlight.Analyze(Right(Trim(sline), -1))
+        ScriptPreProcess(Highlight.symbols, Highlight.types, CurrentLineNumber.last, cIncludeStack.last)
+        sLine = "'" & sLine
+        Goto ContinueRecord
+
+
+      Else If symbols[0] == "#INCLUDE" Then
+        ProcessInclude(symbols, atypes, sDefaultFilePath)
+        Continue
+      Endif
     Else If aTypes.count = 2 And If symbols[0] == "CLASSREF" And If aTypes[1] = Highlight.symbol
       sline = Replace(sLine, "ClassRef", "Class", gb.ignorecase)
       $oContext.$sProgramHeader &= sLine & "\n"
       Continue
     Endif
-    
-ContinueRecord:
+
+  ContinueRecord:
 
     ProgramLines.Add(sLine)
     ProgramSymbols.Add(Highlight.symbols)
     ProgramTypes.Add(Highlight.types)
     ProgramPositions.Add(Highlight.Positions)
 
-   'Next
-  Wend 
-  
-  If BlockNames.count > 0 Or If $bInClass Then 
-    If $sCurrentBlock == "class" Then 
-        BlockList.Pop()
-        BlockType.Pop()
-        Warning(Subst("Class '&1' Defined in Script at Line &2, No End Class encountered, Assuming this was a class refrence not a class definition", BlockNames.Pop(), BlockLineNumbers.Pop()))
+    'Next
+  Wend
+
+  If BlockNames.count > 0 Or If $bInClass Then
+    If $sCurrentBlock == "class" Then
+      BlockList.Pop()
+      BlockType.Pop()
+      Warning(Subst("Class '&1' Defined in Script at Line &2, No End Class encountered, Assuming this was a class refrence not a class definition", BlockNames.Pop(), BlockLineNumbers.Pop()))
     Else
-        CompileError(cIncludeStack.last, CurrentLineNumber.last, "Missing 'END " & $sCurrentBlock & "' For " & $sCurrentBlock & ": " & BlockNames.Pop())
+      CompileError(cIncludeStack.last, CurrentLineNumber.last, "Missing 'END " & $sCurrentBlock & "' For " & $sCurrentBlock & ": " & BlockNames.Pop())
     Endif
   Endif
-  
-  If ScriptSetPostProcessCallBack.HasCallBacks() Then 
+
+  If ScriptSetPostProcessCallBack.HasCallBacks() Then
     ScriptApplyPostProgCallBacks(ProgramLines)
   Endif
-  
+
   CurrentLineNumber.Pop()
+
 End
 
 Public Sub ProcessClass(name As String, Start As Integer, DefLine As Integer, Optional ClassType As String = "class") As ClassDef
-   Dim cDef As ClassDef
-   
-   Verbose("Defining " & ClassType & " : " & name & " in script file : " & UnQuote(File.Name(cIncludeStack.last)) & "." & DefLine)
-   cDef = New ClassDef(name, ProgramLines.Extract(start, -1), ProgramSymbols.Extract(start, -1), ProgramTypes.Extract(start, -1), ProgramPositions.Extract(start, -1), ClassType)
-   cDef.iLineNumber = DefLine
-   cDef.sDefinedIn = cIncludeStack.last
-   Return cDef
+
+  Dim cDef As ClassDef
+
+  Verbose("Defining " & ClassType & " : " & name & " in script file : " & UnQuote(File.Name(cIncludeStack.last)) & "." & DefLine)
+  cDef = New ClassDef(name, ProgramLines.Extract(start, -1), ProgramSymbols.Extract(start, -1), ProgramTypes.Extract(start, -1), ProgramPositions.Extract(start, -1), ClassType)
+  cDef.iLineNumber = DefLine
+  cDef.sDefinedIn = cIncludeStack.last
+  Return cDef
+
 End
 
 Public Sub ProcessUse(sLine As String)
-  
+
   Warning("Use :" & File.Name(cIncludeStack.last & "." & CurrentLineNumber.last & ":" & sLine))
   UseLibComp(cIncludeStack.last, CurrentLineNumber.last, sLine)
-  
+
 End
 
 Public Sub UseList() As String
 
-Dim UseCompLibList As String = ""
+  Dim UseCompLibList As String = ""
 
-If UseLibComp.HasComponents Then
-  UseCompLibList = CComponent.ComponentEntries()
-Endif
+  If UseLibComp.HasComponents Then
+    UseCompLibList = CComponent.ComponentEntries()
+  Endif
 
-If UseLibComp.HasLibraries Then
-  UseCompLibList &= Libraries.LibraryEntries()
-Endif
-  
-Return UseCompLibList
+  If UseLibComp.HasLibraries Then
+    UseCompLibList &= Libraries.LibraryEntries()
+  Endif
+
+  Return UseCompLibList
 
 End
 
 
 Public Sub ProcessInclude(Includes As String[], atypes As Integer[], sDefaultPath As String)
+
   Dim buffer As String
   Dim sFilePath As String
   Dim Start As Integer = 1
+
   For i As Integer = Start To Includes.Max
     If Trim(Includes[i]) = "" Then Continue
     If Includes[i] = "," Then Continue
     If aTypes[i] = Highlight.comment Then Break
-    
+
     sFilePath = UnQuote(Includes[i])
-    If File.Dir(sFilePath) = "" Then 
-            sFilePath = sDefaultPath &/ sFilePath 
+    If File.Dir(sFilePath) = "" Then
+      sFilePath = sDefaultPath &/ sFilePath
     Endif
-    
+
     If cIncludedFiles[sFilePath] Then Continue                                  ' we only include things once
     Verbose("Including script file :  " & sFilePath & " From File : " & cIncludeStack[cIncludeStack.max] & "." & CurrentLineNumber.last)
-    
+
     If cIncludeStack.Find(sFilePath) > -1 Then
-       Warning(cIncludeStack.last & ":" & CurrentLineNumber.last & ":" & "Include \"" & sFilePath & "\" Possible Circular Refrence")
-       Continue
+      Warning(cIncludeStack.last & ":" & CurrentLineNumber.last & ":" & "Include \"" & sFilePath & "\" Possible Circular Refrence")
+      Continue
     Else
-       cIncludeStack.Push(sFilePath)
+      cIncludeStack.Push(sFilePath)
     Endif
-   
+
     $oContext.$aIncFiles.Add(sFilePath)
     $oContext.$aIncFiles.Add(Stat(sFilePath).LastModified)
     buffer = GetFile(sFilePath)
-    TokenizeFile(buffer)  
-    
-     cincludedFiles.Add(CurrentLineNumber.last, cIncludeStack.Pop())          ' Keep Track of what is already included
-     
+    TokenizeFile(buffer)
+
+    cincludedFiles.Add(CurrentLineNumber.last, cIncludeStack.Pop())          ' Keep Track of what is already included
+
   Next
-  
+
 End
 
 
 Public Sub Eof() As Boolean
-  
+
   If currentLine + 1 > ProgramLines.max Then
-     Return True
+    Return True
   Endif
   Return False
-  
+
 End
 
 Public Sub advance() As String[]
+
   If currentline = ProgramLines.max Then
     Return Null
   Endif
 
-   Inc CurrentLine
-   CurrentToken = -1
+  Inc CurrentLine
+  CurrentToken = -1
   Return ProgramSymbols[CurrentLine]
-  
+
 End
 
 Public Sub NextToken() As String
-  
+
   If CurrentToken + 1 > ProgramSymbols[CurrentLine].max Then
     advance()
   Else
     Inc CurrentToken
   Endif
   Return ProgramSymbols[CurrentLine][CurrentToken]
-  
+
 End
 
-Public Sub backToken() 
-  
+Public Sub backToken()
+
   If CurrentToken = 0 Then
     back()
   Else
     Dec CurrentToken
   Endif
-  
+
 End
 
 
 Public Sub back(Optional count As Integer = 1)
-  
+
   If CurrentLine - count >= 0 Then
     CurrentLine -= count
   Else
     CurrentLine = -1
   Endif
   CurrentToken = ProgramSymbols[CurrentLine].max
+
 End
 
 
 Public Sub Text(Optional index As Integer = CurrentLine) As String
-  
+
   If index >= 0 And index <= ProgramLines.max Then
     Return ProgramLines[index]
   Else
     Error.Raise("Out of bounds Program Text Line Number : " & index)
   Endif
-  
+
 End
 
 Public Sub Tokens(Optional index As Integer = CurrentLine) As String[]
-  
-   If index >= 0 And index <= ProgramLines.max Then
+
+  If index >= 0 And index <= ProgramLines.max Then
     Return ProgramSymbols[index]
   Else
     Error.Raise("Out of bounds Program Tokens Line Number : " & index)
   Endif
-  
+
 End
 
- Public Sub Types(Optional index As Integer = CurrentLine) As Integer[]
- 
+Public Sub Types(Optional index As Integer = CurrentLine) As Integer[]
+
   If index >= 0 And index <= ProgramLines.max Then
     Return ProgramTypes[index]
   Else
     Error.Raise("Out of bounds Program Types  Line Number : " & index)
   Endif
-  
+
 End
 
 Public Sub Positions(Optional index As Integer = CurrentLine) As Integer[]
- 
+
   If index >= 0 And index <= ProgramLines.max Then
     Return ProgramPositions[index]
   Else
     Error.Raise("Out of bounds Program Positions  Line Number : " & index)
   Endif
-  
+
 End
 
 Public Sub _get(index As Integer, Optional Setof As Integer = rText, SubIndex As Integer = -1) As Variant
-  
+
   Dim result As Variant[]
-  
+
   Select Case Setof
     Case rText
       Return Text(index)
@@ -573,73 +587,77 @@ Public Sub _get(index As Integer, Optional Setof As Integer = rText, SubIndex As
     Case rPosition
       Result = Positions(index)
   End Select
-  
+
   If SubIndex >= 0 Then
     If subIndex < result.Count Then
-       Return result[SubIndex]
+      Return result[SubIndex]
     Else
       Error.Raise("Out of bounds Program  Get Line Number : " & index)
     Endif
-    
+
   Endif
+
 End
 
 Public Sub _next() As String[]
-  
+
   If Enum.index = Null Then
     Enum.index = 0
   Else
     Inc Enum.index
   Endif
   If Enum.index > ProgramLines.max Then
-     Enum.Stop
+    Enum.Stop
   Else
     Return ProgramSymbols[Enum.Index]
   Endif
+
 End
 
 Public Sub IsMainDefined() As Boolean
-  
+
   If MainDef.count > 0 Then
     Return True
   Endif
   Return False
+
 End
 
 Public Sub HasBlocks() As Boolean
-  
+
   If BlockDefined.count > 0 Then
     Return True
   Endif
   Return False
+
 End
 
 
 Public Sub HasPublicOrSub() As Boolean
-  
+
   Return bPublicOrSubDef
-  
+
 End
 
 
 Public Sub getBlocks() As Collection
-  
+
   Return BlockDefined
-  
+
 End
 
 Public Sub GetProgram() As String
-  
+
   Return ProgramLines.Join("\n")
-  
+
 End
 
 Public Sub DisplayWarnings()
-  
+
   For Each sMessage As String In aWarnings
     Warning(sMessage)
   Next
-  
+
 End
 
 

@@ -10,8 +10,6 @@ Public _State As CLineInfo
 Property Read State As Byte
 '' Return the initial highlighting tag value.
 Property Read Tag As Short
-'' Return the initial highlighting alternate flag.
-Property Read Alternate As Boolean
 
 
 Private Function State_Read() As Byte
@@ -19,7 +17,7 @@ Private Function State_Read() As Byte
   If _State Then
     Return _State.State
   Else
-    Return Highlight.Normal
+    Return 0
   Endif
 
 End
@@ -27,11 +25,5 @@ End
 Private Function Tag_Read() As Short
 
   If _State Then Return _State.Tag
-
-End
-
-Private Function Alternate_Read() As Boolean
-
-  If _State Then Return _State.Alternate
 
 End

@@ -1,0 +1,243 @@
+' Gambas class file
+
+Export
+' Create Static
+Inherits TextHighlighter
+
+Property Read Keywords As String[]
+
+Static Private $hWordRegExp As RegExp
+Static Private $cRegExp As New Collection
+
+Private $sText As String
+Private $iLen As Integer
+Private $iPos As Integer
+Private $bEof As Boolean
+Private $bTextAfter As Boolean
+Private $iPosStart As Integer
+
+Private $bMatchLimit As Boolean
+Private $sTextLimit As String
+
+Private $aHighlight As Byte[]
+
+Private Sub Init(sText As String)
+  
+  Me.Limit = False
+  
+  $sText = sText
+  $iLen = String.Len($sText)
+  $iPos = 1
+  $bEof = False
+  $aHighlight = New Byte[]
+  $bTextAfter = False
+
+  If Not $hWordRegExp Then
+    $hWordRegExp = New RegExp
+    $hWordRegExp.Compile("^" & $sWordRegExp & "(.*)")
+  Endif
+  
+End
+
+Private Sub SetIncludeHighlight(iType As Byte)
+  
+  $aHighlight.Add(iType)
+  $aHighlight.Add(0)
+  
+End
+
+Private Sub Forward(iState As Byte, Optional N As Integer = 1)
+  
+  If $bEof Then Error.Raise("End of file")
+  Me._Add($aHighlight, iState, N)
+  $iPos += N
+  $bEof = $iPos > $iLen
+  
+End
+
+Private Sub IgnoreSpaces() As Boolean
+  
+  Dim P As Integer
+  
+  P = $iPos
+  If Not IsSpace(String.Mid$($sText, P, 1)) Then Return $bEof
+  
+  Inc P
+  While IsSpace(String.Mid$($sText, P, 1))
+    If $bEof Then Break
+    Inc P
+  Wend
+  
+  Forward(0, P - $iPos)
+  Return $bEof
+  
+End
+
+Private Sub GetWord() As String
+  
+  If $bEof Then Return
+  $hWordRegExp.Exec(String.Mid$($sText, $iPos))
+  If $hWordRegExp.Count < 1 Then Return
+  Return Left(String.Mid$($sText, $iPos), $hWordRegExp[1].Offset)
+  
+End
+
+Private Sub Match(sPattern As String) As String
+
+  Dim hRegExp As RegExp
+  
+  If $bEof Then Return
+  
+  hRegExp = $cRegExp[sPattern]
+  If Not hRegExp Then
+    hRegExp = New RegExp
+    If sPattern Begins "^" Then 
+      hRegExp.Compile("(" & sPattern & ").*")
+    Else
+      hRegExp.Compile("^(" & sPattern & ").*")
+    Endif
+    $cRegExp[sPattern] = hRegExp
+  Endif
+  
+  If $iPos > $iLen Then Return
+  If sPattern Begins "^" Then
+    If $iPos > $iPosStart And If String.Mid$($sText, $iPos - 1, 1) <> "\n" Then Return
+  Endif
+  hRegExp.Exec(String.Mid$($sText, $iPos))
+  If hRegExp.Count < 1 Then Return
+  Return hRegExp[1].Text
+  
+Catch 
+  
+  Error Error.Where; ": "; Error.Text
+  Stop
+  
+End
+
+Private Sub MatchBefore(sPattern As String) As String
+
+  Dim hRegExp As RegExp
+  Dim sText As String
+  
+  If $bEof Then Return
+  
+  If $iPos > $iLen Then Return
+
+  If sPattern = "^" Then
+    If $iPos > $iPosStart And If String.Mid$($sText, $iPos - 1, 1) <> "\n" Then Return
+    Return " "
+  Endif
+  
+  hRegExp = $cRegExp[sPattern]
+  If Not hRegExp Then
+    hRegExp = New RegExp
+    hRegExp.Compile(".*(" & sPattern & ")\\s$")
+    $cRegExp[sPattern] = hRegExp
+  Endif
+  
+  ' If sPattern Begins "^" Then
+  '   If $iPos > $iPosStart And If String.Mid$($sText, $iPos - 1, 1) <> "\n" Then Return
+  ' Endif
+  sText = String.Left$($sText, $iPos - 1)
+  If Not sText Then Return
+  hRegExp.Exec(sText)
+  If hRegExp.Count < 1 Then Return
+  Return hRegExp[1].Text
+  
+Catch 
+  
+  Error Error.Where; ": "; Error.Text
+  Stop
+  
+End
+
+Private Sub Include(iHighlight As Byte, sHighlight As String, bMatch As Boolean, sLimit As String, aState As Byte[]) As Boolean
+
+  Dim iSave As Byte
+  Dim aHighlight As Byte[]
+  Dim nState As Integer
+  Dim hHighlight As TextHighlighter
+  Dim iLenAfter As Integer
+  Dim iPosBefore As Integer
+  
+  nState = aState.Count
+  iSave = aState[0]
+  aState.Remove(0)
+
+  ' We enter a new imbricated state
+  SetIncludeHighlight(iHighlight)
+  If aState.Count = 0 Then
+    aState.Add(0)
+  Endif
+  
+  hHighlight = TextHighlighter._Create(sHighlight)
+  hHighlight.TextAfter = ""
+  hHighlight.CanRewrite = Me.CanRewrite
+  hHighlight._IncludeHighlight = iHighlight
+  iPosBefore = $iPos
+  
+  aHighlight = hHighlight._Analyze($sText, aState, bMatch, sLimit, ByRef $iPos)
+
+  $aHighlight.Insert(aHighlight)
+  
+  If Me.CanRewrite Then
+    iLenAfter = String.Len(hHighlight.TextAfter)
+    $sText = String.Left($sText, iPosBefore - 1) & hHighlight.TextAfter & String.Mid$($sText, $iPos - hHighlight.LengthAdded)
+    Me.TextAfter = $sText
+    Me.LengthAdded += String.Len($sText) - $iLen
+    $iLen = String.Len($sText)
+  Endif
+  
+  $bEof = $iPos > $iLen
+  
+  aState.Add(iSave, 0)
+  
+  If $bEof Then Return True
+  
+  ' We left the imbricated state
+  '$aHighlight.Add(0)
+  '$aHighlight.Add(0)
+  aState.Pop()
+  
+  SetIncludeHighlight(Me._IncludeHighlight)
+  
+End
+
+Public Sub _Analyze(Text As String, State As Byte[], Optional MatchLimit As Boolean, Limit As String, ByRef iPos As Integer) As Byte[]
+
+  Dim iLenBefore As Integer
+  
+  Init(Text)
+  
+  If iPos Then
+    $iPosStart = iPos
+    $iPos = iPos
+    iLenBefore = $iLen - $iPos + 1
+  Else
+    $iPosStart = 1
+    iLenBefore = $iLen
+  Endif
+  
+  $bMatchLimit = MatchLimit
+  $sTextLimit = Limit
+  
+  Try Compile(State)
+  If Error And If Not $bEof Then
+    Error Error.Where; ": "; Error.Text
+    Error.Propagate()
+  Endif
+  
+  If $sTextLimit Then iPos = $iPos
+  
+  If Me.CanRewrite Then
+    If $sTextLimit Then
+      Me.TextAfter = String.Mid$($sText, $iPosStart, iPos - $iPosStart)
+    Else
+      Me.TextAfter = $sText
+    Endif
+  Endif
+  
+  Return $aHighlight
+
+End
+

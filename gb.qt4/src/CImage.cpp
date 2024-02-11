@@ -25,11 +25,12 @@
 
 #include <string.h>
 
-#include <qpixmap.h>
-#include <qbitmap.h>
 #include <qnamespace.h>
-#include <qpainter.h>
-#include <qmatrix.h>
+#include <QPixmap>
+#include <QBitmap>
+#include <QPainter>
+#include <QMatrix>
+#include <QBuffer>
 
 #ifdef OS_SOLARIS
 /* Make math.h define M_PI and a few other things */
@@ -145,6 +146,25 @@ CIMAGE *CIMAGE_create(QImage *image)
 	return img;
 }
 
+void CIMAGE_set_default_window_icon()
+{
+	CIMAGE *_object;
+	QImage img;
+
+	_object = (CIMAGE *)(GB.GetProperty((void *)GB.FindClass("Application"), "Icon")->_object.value);
+	if (!THIS)
+		return;
+
+	check_image(THIS);
+	if (QIMAGE->isNull())
+		return;
+
+	img = *QIMAGE;
+	qApp->setWindowIcon(QPixmap::fromImage(img));
+}
+
+//-------------------------------------------------------------------------
+
 BEGIN_PROPERTY(Image_Picture)
 
 	CPICTURE *pict;
@@ -163,6 +183,7 @@ BEGIN_PROPERTY(Image_Picture)
 	GB.ReturnObject(pict);
 
 END_PROPERTY
+
 
 BEGIN_METHOD(Image_Load, GB_STRING path)
 
@@ -196,6 +217,7 @@ BEGIN_METHOD(Image_FromString, GB_STRING data)
 
 END_METHOD
 
+
 BEGIN_METHOD(Image_Save, GB_STRING path; GB_INTEGER quality)
 
 	QString path = TO_QSTRING(GB.FileName(STRING(path), LENGTH(path)));
@@ -213,9 +235,37 @@ BEGIN_METHOD(Image_Save, GB_STRING path; GB_INTEGER quality)
 	ok = QIMAGE->save(path, fmt, VARGOPT(quality, -1));
 
 	if (!ok)
-		GB.Error("Unable to save picture");
+		GB.Error("Unable to save image");
 
 END_METHOD
+
+
+BEGIN_METHOD(Image_ToString, GB_STRING format; GB_INTEGER quality)
+
+	QByteArray ba;
+	QString path = "." + TO_QSTRING(MISSING(format) ? "png" : GB.ToZeroString(ARG(format)));
+	bool ok = false;
+	const char *fmt = CIMAGE_get_format(path);
+
+	if (!fmt)
+	{
+		GB.Error("Unknown format");
+		return;
+	}
+
+	check_image(THIS);
+
+	QBuffer buffer(&ba);
+	buffer.open(QIODevice::WriteOnly);
+	ok = QIMAGE->save(&buffer, fmt, VARGOPT(quality, -1));
+
+	if (!ok)
+		GB.Error("Unable to convert image to a string");
+
+	GB.ReturnNewString(ba.constData(), ba.size());
+
+END_METHOD
+
 
 BEGIN_METHOD(Image_Stretch, GB_INTEGER width; GB_INTEGER height; GB_BOOLEAN fast)
 
@@ -325,6 +375,8 @@ BEGIN_METHOD(Image_PaintImage, GB_OBJECT img; GB_INTEGER x; GB_INTEGER y; GB_INT
 
 END_METHOD
 
+//-------------------------------------------------------------------------
+
 GB_DESC CImageDesc[] =
 {
 	GB_DECLARE("Image", sizeof(CIMAGE)),
@@ -332,6 +384,7 @@ GB_DESC CImageDesc[] =
 	GB_STATIC_METHOD("Load", "Image", Image_Load, "(Path)s"),
 	GB_STATIC_METHOD("FromString", "Image", Image_FromString, "(Data)s"),
 	GB_METHOD("Save", NULL, Image_Save, "(Path)s[(Quality)i]"),
+	GB_METHOD("ToString", "s", Image_ToString, "[(Format)s(Quality)i]"),
 
 	GB_METHOD("Stretch", "Image", Image_Stretch, "(Width)i(Height)i[(Fast)b]"),
 	GB_METHOD("Rotate", "Image", Image_Rotate, "(Angle)f"),

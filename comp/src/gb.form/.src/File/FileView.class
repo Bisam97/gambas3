@@ -28,6 +28,11 @@ Event Rename(OldName As String, NewName As String)
 
 Event Filter(Name As String, Info As Stat)
 
+'' @{since 3.19}
+''
+'' This event is raised when the [../view] property has changed.
+Event View
+
 Property {Dir} As String
 Property Current As String
 
@@ -137,6 +142,7 @@ Private $sLastPreview As String
 Private $bIgnorePreviewCache As Boolean
 Private $bPreviewDone As Boolean
 Private $bRefreshView As Boolean
+Private $sTaskPreviewBuffer As String
 
 Static Public Sub _init()
   
@@ -465,7 +471,8 @@ Private Sub RefreshView()
     For Each sFile In aDir
       If Not $bShowHidden And If Left(sFile) = "." Or Right(sFile) = "~" Then Continue
       'With Stat(sDir &/ sFile)
-      hInfo = hCache.GetInfo(sFile)
+      Try hInfo = hCache.GetInfo(sFile)
+      If Error Then Continue
       If bFilter Then
         bCancel = Raise Filter(sFile, hInfo)
         If bCancel Then Continue
@@ -617,6 +624,7 @@ Private Sub StartPreview(aPreview As String[])
     sDir = File.Dir(Temp$())
   ' Endif
   
+  $sTaskPreviewBuffer = ""
   $hPreview = New CTaskPreview(GetCurrentDir(), GetIconSize(), $iMaxPreviewSize, aPreview, sDir, $bIgnorePreviewCache) As "TaskPreview"
   'Debug Me.Name;; System.Backtrace.Join(" ")
 
@@ -652,12 +660,23 @@ Public Sub TaskPreview_Read(Data As String)
   Dim aLine As String[]
   Dim aRect As String[]
   Dim hRect As Rect
+  Dim iPos As Integer
+  Dim sData As String
   
   If Not $bShowPreview Then Return
   
   DS = Desktop.Scale
   
-  For Each sLine In Split(Data, "\n", "", True)
+  iPos = RInStr(Data, "\n")
+  If iPos = 0 Then
+    $sTaskPreviewBuffer &= Data
+    Return
+  Else
+    sData = $sTaskPreviewBuffer & Left(Data, iPos)
+    $sTaskPreviewBuffer = Mid$(Data, iPos + 1)
+  Endif
+  
+  For Each sLine In Split(sData, "\n", "", True)
   
     If sLine = "." Then
       $bPreviewDone = True
@@ -686,7 +705,7 @@ Public Sub TaskPreview_Read(Data As String)
               
               Paint.Begin(hImage)
               S = GetIconSize() \ 32
-              PaintImageWithOutline(hItem.Picture.Image, hRect.X + hRect.W - DS * 4 - S, hRect.Y + S, DS * 4, DS * 4)
+              PaintImageWithOutline(hItem.Picture.Image, hRect.X + hRect.W - DS * 4 - S, hRect.Y + hRect.H - DS * 4 - S, DS * 4, DS * 4)
               Paint.End
               
             Endif
@@ -746,7 +765,7 @@ End
 
 Public Sub Refresh_Timer()
   
-  If Not $bRefreshTriggered And Not $hRefresh.Enabled Then Return
+  If Not $bRefreshTriggered And If Not $hRefresh.Enabled Then Return
   RefreshView
   $hRefresh.Stop
   
@@ -827,7 +846,8 @@ End
 
 Private Sub EnsureRefresh()
 
-  Refresh_Timer
+  Try $hRefresh.Stop
+  If $bRefreshTriggered Then RefreshView
 
 End
 
@@ -881,17 +901,17 @@ End
 
 Private Function ShowDetailed_Read() As Boolean
   
-  Return $hColumnView.Visible
+  Return View_Read() = Detailed
   
 End
 
-Private Sub ShowDetailed_Write(bDetailed As Boolean)
+Private Sub ShowColumnView(bShow As Boolean)
   
   Dim hOld As Control
   
-  If bDetailed = ShowDetailed_Read() Then Return
+  If bShow = $hColumnView.Visible Then Return
   
-  If bDetailed Then
+  If bShow Then
     
     hOld = $hIconView
     $hColumnView.Show
@@ -910,6 +930,17 @@ Private Sub ShowDetailed_Write(bDetailed As Boolean)
   $bRefreshAll = True
   RefreshView
   TakeSelection
+  
+End
+
+
+Private Sub ShowDetailed_Write(bDetailed As Boolean)
+  
+  If bDetailed Then
+    View_Write(Detailed)
+  Else 
+    View_Write(Normal)
+  Endif
   
 End
 
@@ -1373,10 +1404,15 @@ Public Sub Watch_Stat()
   
 End
 
+Public Sub _attach((Parent) As Object, EventName As String)
+  
+  If Not EventName Then $hWatch = Null
+  
+End
+
 Public Sub Watcher_Hide()
 
   $bVisible = False
-  $hWatch = Null
   If $hPreview Then 
     StopPreview
     RefreshViewLater
@@ -1641,24 +1677,42 @@ Private Sub View_Write(Value As Integer)
   
   If Value = View_Read() Then Return
   
-  ShowPreview_Write(False)
-  If Value = Detailed Then
-    ShowDetailed_Write(True)
-  Else
-    iIconSize = GetIconSize()
-    ShowDetailed_Write(False)
-    If Value = Compact Then
-      $hIconView.Orientation = Arrange.Horizontal
-    Else
+  Select Case Value
+    
+    Case Normal
+      ShowPreview_Write(False)
+      iIconSize = GetIconSize()
+      ShowColumnView(False)
       $hIconView.Orientation = Arrange.Vertical
-      If Value = Preview Then ShowPreview_Write(True)
-    Endif 
+      
+    Case Compact
+      ShowPreview_Write(False)
+      iIconSize = GetIconSize()
+      ShowColumnView(False)
+      $hIconView.Orientation = Arrange.Horizontal
+      
+    Case Detailed
+      ShowPreview_Write(False)
+      ShowColumnView(True)
+      
+    Case Preview
+      ShowPreview_Write(False)
+      iIconSize = GetIconSize()
+      ShowColumnView(False)
+      $hIconView.Orientation = Arrange.Vertical
+      ShowPreview_Write(True)
+      
+  End Select
+  
+  If Value <> Detailed Then
     UpdateIconView
     If iIconSize <> GetIconSize() Then 
       RefreshViewLater(True)
     Endif
   Endif
 
+  Raise View
+  
 End
 
 Private Sub UpdateIconView()

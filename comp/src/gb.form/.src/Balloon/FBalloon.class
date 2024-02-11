@@ -74,7 +74,7 @@ Private Sub MakeBorder(Optional W As Integer, H As Integer)
   Dim X, Y, X1, Y1, X2, Y2, X3, Y3, Y4 As Integer
   Dim hWin As Window
   Dim sNew As String
-  Dim hCtrl As Control
+  'Dim hCtrl As Control
   
   $X = $hCtrl.ScreenX
   $Y = $hCtrl.ScreenY
@@ -245,20 +245,14 @@ Private Sub MakeBorder(Optional W As Integer, H As Integer)
     
   Endif 
   
-  hCtrl = Application.ActiveControl
+  'hCtrl = Application.ActiveControl
+  'hWindow = GetTopLevel(hCtrl)
   
-  Try GetTopLevel(hCtrl).Show
-  Try hCtrl.SetFocus
+  Try hWin.Show
+  Try $hCtrl.SetFocus
   
   If Not Me.Visible Then 
-    hWin = Application.ActiveWindow
     Me.Show
-    ' If hWin Then 
-    '   Debug hWin
-    '   hWin.Show
-    '   Wait
-    '   hWin.Show
-    ' Endif
   Else  
     Form_Show
     Me.Raise

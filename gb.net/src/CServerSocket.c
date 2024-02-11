@@ -61,14 +61,14 @@ static void CServerSocket_CallBack(int fd, int type, intptr_t lParam)
 	
 	if (SOCKET->status != NET_ACTIVE) return;
 
-	SOCKET->status = NET_PENDING;
+	SOCKET_set_status(SOCKET, NET_PENDING);
 	clen = sizeof(struct sockaddr_in);
 	THIS->client = accept(SOCKET->socket, (struct sockaddr*)&THIS->so_client.in, &clen);
 	
 	if (THIS->client == -1)
 	{
 		//close(THIS->client);
-		SOCKET->status = NET_ACTIVE;
+		SOCKET_set_status(SOCKET, NET_ACTIVE);
 		return;
 	}
 	
@@ -88,7 +88,7 @@ static void CServerSocket_CallBack(int fd, int type, intptr_t lParam)
 		THIS->client = -1;
 	}
 	
-	SOCKET->status = NET_ACTIVE;
+	SOCKET_set_status(SOCKET, NET_ACTIVE);
 }
 
 static void CServerSocket_CallBackUnix(int fd, int type, intptr_t lParam)
@@ -98,22 +98,22 @@ static void CServerSocket_CallBackUnix(int fd, int type, intptr_t lParam)
 	unsigned int ClientLen;
 	CSERVERSOCKET *_object = (CSERVERSOCKET*)lParam;
 	
-	if ( SOCKET->status != NET_ACTIVE) return;
+	if (SOCKET->status != NET_ACTIVE) return;
 
-	SOCKET->status = NET_PENDING;
+	SOCKET_set_status(SOCKET, NET_PENDING);
 	ClientLen=sizeof(struct sockaddr_un);
 	THIS->client=accept(SOCKET->socket,(struct sockaddr*)&THIS->so_client.un,&ClientLen);
 	if (THIS->client == -1)
 	{
 		close(THIS->client);
-		SOCKET->status = NET_ACTIVE;
+		SOCKET_set_status(SOCKET, NET_ACTIVE);
 		return;
 	}
 	if ( (!THIS->max_conn) || (THIS->num_conn < THIS->max_conn) ) okval=1;
 	if ( (!THIS->pause) && (okval) )
 		GB.Raise(THIS,EVENT_Connection,1,GB_T_STRING,NULL,0);
-	if  ( SOCKET->status == NET_PENDING) close(THIS->client);
-	SOCKET->status = NET_ACTIVE;
+	if (SOCKET->status == NET_PENDING) close(THIS->client);
+	SOCKET_set_status(SOCKET, NET_ACTIVE);
 
 }
 
@@ -157,7 +157,7 @@ static int do_srvsock_listen(CSERVERSOCKET* _object, int mymax)
 
 	if ( SOCKET->socket==-1 )
 	{
-		SOCKET->status = NET_CANNOT_CREATE_SOCKET;
+		SOCKET_set_status(SOCKET, NET_CANNOT_CREATE_SOCKET);
 		GB.Ref(THIS);
 		GB.Post(srvsock_post_error,(intptr_t)THIS);
 		return 2;
@@ -174,8 +174,8 @@ static int do_srvsock_listen(CSERVERSOCKET* _object, int mymax)
 	{
 		if (setsockopt(SOCKET->socket, SOL_SOCKET, SO_BINDTODEVICE, THIS->interface, GB.StringLength(THIS->interface)))
 		{
-			fprintf(stderr, "unable to bind socket to interface: %s\n", strerror(errno));
-			SOCKET->status = NET_CANNOT_BIND_INTERFACE;
+			SOCKET_set_status(SOCKET, NET_CANNOT_BIND_INTERFACE);
+			//fprintf(stderr, "unable to bind socket to interface: %s\n", strerror(errno));
 			return 15;
 		}
 	}
@@ -190,8 +190,8 @@ static int do_srvsock_listen(CSERVERSOCKET* _object, int mymax)
 	
 	if (retval == -1)
 	{
+		SOCKET_set_status(SOCKET, NET_CANNOT_BIND_SOCKET);
 		close(SOCKET->socket);
-		SOCKET->status = NET_CANNOT_BIND_SOCKET;
 		GB.Ref(THIS);
 		GB.Post(srvsock_post_error,(intptr_t)THIS);
 		return 10;
@@ -203,14 +203,14 @@ static int do_srvsock_listen(CSERVERSOCKET* _object, int mymax)
 	if ( listen(SOCKET->socket,mymax) == -1 )
 	{
 		close(SOCKET->socket);
-		SOCKET->status = NET_CANNOT_LISTEN;
+		SOCKET_set_status(SOCKET, NET_CANNOT_LISTEN);
 		GB.Ref(THIS);
 		GB.Post(srvsock_post_error,(intptr_t)THIS);
 		return 14;
 	}
 	THIS->num_conn = 0;
 	THIS->max_conn = mymax;
-	SOCKET->status = NET_ACTIVE;
+	SOCKET_set_status(SOCKET, NET_ACTIVE);
 
 	//CServerSocket_AssignCallBack((intptr_t)THIS,SOCKET->socket);
 	if (THIS->type == NET_TYPE_INTERNET)
@@ -288,6 +288,12 @@ void CServerSocket_OnClose(void *child)
 BEGIN_PROPERTY(ServerSocket_Status)
 
 	GB.ReturnInteger(SOCKET->status);
+
+END_PROPERTY
+
+BEGIN_PROPERTY(ServerSocket_StatusText)
+
+	GB.ReturnString(SOCKET_get_status_text(SOCKET));
 
 END_PROPERTY
 
@@ -452,7 +458,7 @@ void close_server(CSERVERSOCKET *_object)
 
 	GB.Watch (SOCKET->socket , GB_WATCH_NONE , (void *)CServerSocket_CallBack,0);
 	close(SOCKET->socket);
-	SOCKET->status = NET_INACTIVE;
+	SOCKET_set_status(SOCKET, NET_INACTIVE);
 
 	while (GB.Count(THIS->children))
 	{
@@ -516,7 +522,7 @@ BEGIN_METHOD_VOID(ServerSocket_Accept)
 	struct sockaddr_in myhost;
 	unsigned int mylen;
 
-	if ( SOCKET->status != NET_PENDING)
+	if (SOCKET->status != NET_PENDING)
 	{
 		GB.Error("No connection to accept");
 		return; 
@@ -563,7 +569,7 @@ BEGIN_METHOD_VOID(ServerSocket_Accept)
 
 	GB.Ref(socket);
 	GB.Post(CSocket_post_connected,(intptr_t)socket);
-	SOCKET->status = NET_ACCEPTING;
+	SOCKET_set_status(SOCKET, NET_ACCEPTING);
 	
 	GB.ReturnObject((void*)socket);
 
@@ -623,6 +629,7 @@ GB_DESC CServerSocketDesc[] =
   GB_PROPERTY("Port", "i", ServerSocket_Port),
   GB_PROPERTY("Interface", "s", ServerSocket_Interface),
   GB_PROPERTY_READ("Status","i", ServerSocket_Status),
+  GB_PROPERTY_READ("StatusText","s", ServerSocket_StatusText),
   GB_PROPERTY("Tag", "v", ServerSocket_Tag),
 
   GB_METHOD("_next", "Socket", ServerSocket_next, NULL),
@@ -638,7 +645,5 @@ GB_DESC CServerSocketDesc[] =
 
   GB_END_DECLARE
 };
-
-
 
 

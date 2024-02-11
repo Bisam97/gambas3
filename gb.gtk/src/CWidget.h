@@ -85,10 +85,20 @@ CWIDGET *GetContainer(CWIDGET *control);
 DECLARE_PROPERTY(CCONTROL_action);
 
 int CWIDGET_check(void *_object);
-int CWIDGET_get_handle(void *_object);
+uintptr_t CWIDGET_get_handle(void *_object);
 
 void CACTION_register(void *control, const char *old, const char *key);
 void CACTION_raise(void *control);
+
+#define CB_GET_OBJECT(_sender) \
+	if ((_sender)->locked()) \
+		return; \
+	CWIDGET *_object = GetObject(_sender);
+
+#define CB_GET_OBJECT_RETURN(_sender, _ret) \
+	if ((_sender)->locked()) \
+		return _ret; \
+	CWIDGET *_object = GetObject(_sender);
 
 #endif
 

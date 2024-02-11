@@ -159,7 +159,8 @@ Public Sub Clear()
   
 End
 
-Fast Private Sub Relayout(W As Integer)
+'Fast 
+Private Sub Relayout(W As Integer)
 
   Dim aAttr As Long[]
   Dim aLines As String[]
@@ -186,6 +187,8 @@ Fast Private Sub Relayout(W As Integer)
   For I = D To Lines.Max
     If I = $Y Then SY = aLines.Count
     hLine = Lines[I]
+    ' Print I; " = ";
+    ' hLine._Dump()
     If hLine Then
       sText &= hLine.Text
       aAttr.Insert(hLine.GetFullAttr())
@@ -251,6 +254,8 @@ Fast Private Sub Relayout(W As Integer)
   
   For I = D To Lines.Max
     Lines[I].InitAttr(aAttr)
+    ' Print I; " => ";
+    ' Lines[I]._Dump()
   Next
   
   'Debug "#3 "; Timer - fTimer
@@ -932,8 +937,8 @@ Private Sub DrawLine(hView As TerminalView, L As Integer, X As Integer, Y As Int
     
     If P > iMaxLen Then Break
     
-    hAttr._FillFrom(aAttr[I])
-    iLen = Min((Lsr(aAttr[I], 9) And 127), iMaxLen - P) + 1
+    iLen = hAttr._FillFrom(aAttr[I])
+    iLen = Min(iLen, iMaxLen - P + 1)
     
     iBg = hAttr.BackgroundRGB
     If iBg < 0 Then

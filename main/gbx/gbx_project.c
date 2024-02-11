@@ -47,6 +47,7 @@
 char *PROJECT_path = NULL;
 char *PROJECT_exec_path = NULL;
 char *PROJECT_name = NULL;
+char *PROJECT_source = NULL;
 char *PROJECT_title = NULL;
 const char *PROJECT_startup = NULL;
 char *PROJECT_version = NULL;
@@ -64,6 +65,7 @@ bool PROJECT_run_tests = FALSE;
 const char *PROJECT_override = NULL;
 
 static char *project_buffer;
+static char *environment_buffer;
 
 //static char *project_ptr;
 static int project_line;
@@ -83,6 +85,16 @@ static void project_title(char *name, int len)
 {
 	name[len] = 0;
 	PROJECT_title = name;
+}
+
+
+static void project_source(char *name, int len)
+{
+	if (name[0] == '#')
+	{
+		name[len] = 0;
+		PROJECT_source = &name[1];
+	}
 }
 
 
@@ -137,6 +149,7 @@ static void project_library_path(char *name, int len)
 	}
 }
 
+
 static void check_after_analyze()
 {
 	if (!PROJECT_name || PROJECT_name[0] == 0)
@@ -148,6 +161,7 @@ static void check_after_analyze()
 	if (!PROJECT_title || PROJECT_title[0] == 0)
 		PROJECT_title = PROJECT_name;
 }
+
 
 static bool get_line(char **addr, const char *end, char **start, int *len)
 {
@@ -166,6 +180,7 @@ static bool get_line(char **addr, const char *end, char **start, int *len)
 	return (*len > 0);
 }
 
+
 void PROJECT_analyze_startup(char *addr, int len, PROJECT_COMPONENT_CALLBACK cb)
 {
 	char *end = &addr[len];
@@ -178,7 +193,8 @@ void PROJECT_analyze_startup(char *addr, int len, PROJECT_COMPONENT_CALLBACK cb)
 			project_startup(p, l);
 		if (get_line(&addr, end, &p, &l))
 			project_title(p, l);
-		get_line(&addr, end, &p, &l); // Deprecated "Stack"
+		if (get_line(&addr, end, &p, &l))
+			project_source(p, l);
 		get_line(&addr, end, &p, &l); // Deprecated "StackTrace"
 		if (get_line(&addr, end, &p, &l))
 			project_version(p, l);
@@ -211,6 +227,21 @@ void PROJECT_analyze_startup(char *addr, int len, PROJECT_COMPONENT_CALLBACK cb)
 		}
 	}
 }
+
+
+static void init_environment(char *addr, int len)
+{
+	char *end = &addr[len];
+	char *p;
+	int l;
+
+	while (get_line(&addr, end, &p, &l))
+	{
+		p[l] = 0;
+		putenv(p);
+	}
+}
+
 
 void PROJECT_init(const char *file)
 {
@@ -360,6 +391,27 @@ void PROJECT_load()
 	}
 	END_TRY
 
+	if (EXEC_arch)
+		file = ".environment";
+	else
+		file = FILE_cat(PROJECT_path, ".environment", NULL);
+
+	if (FILE_exist(file))
+	{
+		TRY
+		{
+			STREAM_load(file, &environment_buffer, &len);
+		}
+		CATCH
+		{
+			ERROR_fatal("unable to load environment file");
+		}
+		END_TRY
+
+		init_environment(environment_buffer, len);
+	}
+
+
 	// Loads all component
 	COMPONENT_load_all();
 }
@@ -380,6 +432,8 @@ void PROJECT_exit(void)
 {
 	if (project_buffer)
 		FREE(&project_buffer);
+	if (environment_buffer)
+		FREE(&environment_buffer);
 
 	//STRING_free(&PROJECT_argname);
 	STRING_free(&PROJECT_name);

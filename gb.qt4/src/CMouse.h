@@ -41,12 +41,12 @@ typedef
 		Qt::MouseButton button;
 		Qt::MouseButtons state;
 		Qt::KeyboardModifiers modifier;
-		int orientation;
 		int delta;
 		int screenX;
 		int screenY;
 		int dx;
 		int dy;
+		int orientation;
 		}
 	MOUSE_INFO;
 	

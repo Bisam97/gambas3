@@ -183,7 +183,13 @@ static bool paste(const QMimeData *data, const char *fmt)
 		case MIME_IMAGE:
 			{
 				QImage *image = new QImage();
-				*image = qvariant_cast<QImage>(data->imageData());
+#if QT5
+				if (data->hasFormat("image/png"))
+					*image = QImage::fromData(data->data("image/png"), "PNG");
+				else
+#endif
+					*image = qvariant_cast<QImage>(data->imageData());
+
 				*image = image->convertToFormat(QImage::Format_ARGB32_Premultiplied);
 				GB.ReturnObject(CIMAGE_create(image));
 			}
@@ -401,17 +407,8 @@ GB_DESC CClipboardDesc[] =
 
 static void hide_frame(CWIDGET *control)
 {
-	static GB_FUNCTION func;
-	static bool init = FALSE;
-	
-	if (!init)
-	{
-		GB.GetFunction(&func, (void *)GB.FindClass("_Gui"), "_HideDNDFrame", NULL, NULL);
-		init = TRUE;
-	}
-	
 	GB.Push(1, GB_T_OBJECT, control);
-	GB.Call(&func, 1, FALSE);
+	CALL_GUI("_HideDNDFrame", NULL, NULL, 1, FALSE);
 }
 
 void CDRAG_hide_frame(CWIDGET *control)
@@ -421,17 +418,8 @@ void CDRAG_hide_frame(CWIDGET *control)
 
 static void show_frame(CWIDGET *control, int x, int y, int w, int h)
 {
-	static GB_FUNCTION func;
-	static bool init = FALSE;
-	
-	if (!init)
-	{
-		GB.GetFunction(&func, (void *)GB.FindClass("_Gui"), "_ShowDNDFrame", NULL, NULL);
-		init = TRUE;
-	}
-	
 	GB.Push(5, GB_T_OBJECT, control, GB_T_INTEGER, x, GB_T_INTEGER, y, GB_T_INTEGER, w, GB_T_INTEGER, h);
-	GB.Call(&func, 5, FALSE);
+	CALL_GUI("_ShowDNDFrame", NULL, NULL, 5, FALSE);
 }
 
 

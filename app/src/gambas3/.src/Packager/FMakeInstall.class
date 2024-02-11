@@ -9,14 +9,15 @@ Private $sLastCat As String
 Private $aDep As String[]
 Private $aFile As String[]
 
-Private Const TAB_GROUP As Integer = 3
-Private Const TAB_MENU As Integer = 4
-Private Const TAB_MIME As Integer = 5
-Private Const TAB_DEP As Integer = 6
-Private Const TAB_FILE As Integer = 7
-Private Const TAB_TEST As Integer = 8
-Private Const TAB_DIR As Integer = 9
-Private Const TAB_CREATE As Integer = 10
+Private Const TAB_APPIMAGE As Integer = 3
+Private Const TAB_GROUP As Integer = 4
+Private Const TAB_MENU As Integer = 5
+Private Const TAB_MIME As Integer = 6
+Private Const TAB_DEP As Integer = 7
+Private Const TAB_FILE As Integer = 8
+Private Const TAB_TEST As Integer = 9
+Private Const TAB_DIR As Integer = 10
+Private Const TAB_CREATE As Integer = 11
 
 Private Sub HasDebianTarget() As Boolean
   
@@ -73,6 +74,8 @@ Public Sub Form_Open()
   Else
     txtVendorPrefix.Text = Settings["/Packager/VendorPrefix"]
   Endif
+  
+  txtIdentifier.Placeholder = "org.gambas-basic." & LCase(Project.Name)
     
   If Project.License Then
     txtLicense.Text = Project.License
@@ -113,11 +116,10 @@ Public Sub Form_Open()
     chkVersionMin.Value = False
     spnVersionMin.Value = spnVersionMin.MaxValue
   Endif
+  txtVersionMin.Text = System.Version & "."
+  dwgVersionMin.Padding = Max(Style.BoxFrameWidth, Style.BoxFrameHeight)
   
   Project.SetEditorFont(txtDesktop)
-
-  'InitSystemControls
-  InitSystems
 
   If Project.Type <> Project.TYPE_NORMAL Then
     chkPrefix.Value = True
@@ -169,13 +171,12 @@ Public Sub Form_Open()
   lstMime.List = Project.MimeTypes
   txtDesktop.Text = Project.ExtraDesktop
 
-  edtLog.ReadConfig
-  edtLog.ShowModified = False
-  edtLog.ShowLineNumber = False
-  edtLog.ShowIcon = False
-  edtLog.ShowExpand = False
-  edtLog.ShowPosition = False
-  edtLog.Font = Font[Settings["/ConsoleFont", Project.DEFAULT_FONT]]
+  trmLog.Font = Font[Settings["/ConsoleFont", Project.DEFAULT_FONT]]
+  MTheme.InitControl(trmLog)
+  
+  txtAppImageRepository.Text = Project.AppImageRepository
+  cmbAppImageDistribution.Text = Project.AppImageDistribution
+  txtAppImageGambasRepository.Text = Project.AppImageGambasRepository
 
 End
 
@@ -230,14 +231,13 @@ Private Sub InitSystemControls()
 
   Inc Application.Busy
   
-  Package.CheckProgram
+  Package.CheckPrograms()
   
   For Each hCtrl In panSystem.Children
     
     If Not hCtrl Is Container Then Continue
     hCont = hCtrl
   
-    'hCont.H = Desktop.Scale * 6
     sMsg = Package.CheckSystem(hCont.Tag)
     If sMsg And If Not aMsg.Exist(sMsg) Then aMsg.Add(sMsg)
     
@@ -268,6 +268,8 @@ Private Sub InitSystemControls()
   Else
     txtMessage.Hide
   Endif
+  
+  InitSystems
   
   Dec Application.Busy
   
@@ -307,12 +309,11 @@ Private Function CheckSys(cCol As Collection) As Boolean
   Dim sSys As String
 
   For Each sSys In Project.Systems
-    If sSys = "autotools" Or If sSys = "self" Then Continue
+    If sSys = "autotools" Or If sSys = "self" Or If sSys = "appimage" Then Continue
     If Not cCol.Exist(sSys) Then Return True
   Next
 
 End
-
 
 Public Sub wizInstall_BeforeChange()
 
@@ -343,6 +344,7 @@ Public Sub wizInstall_BeforeChange()
       Project.VendorPrefix = Trim(txtVendorPrefix.Text)
       Project.License = Trim(txtLicense.Text)
       Project.Url = Trim(txtUrl.Text)
+      Project.AppId = Trim(txtIdentifier.Text)
       
       If Not Project.Maintainer Then
         Message.Warning(("Please enter your name."))
@@ -361,6 +363,12 @@ Public Sub wizInstall_BeforeChange()
           Stop Event
           Return
         Endif
+      Endif
+      
+      If Project.AppId And Split(Project.AppId, ".").Count < 3 Then 
+        Message.Warning(("Please enter an application identifier following the 'reversed DNS' format."))
+        txtIdentifier.SetFocus
+        Stop Event
       Endif
 
       Project.Description = txtDescribe.Text
@@ -398,7 +406,7 @@ Public Sub wizInstall_BeforeChange()
       
       bEnabled = False
       For Each sSys In Project.Systems
-        If sSys <> "autotools" And If sSys <> "self" Then
+        If sSys <> "autotools" And If sSys <> "self" And If sSys <> "appimage" Then
           bEnabled = True
           Break
         Endif
@@ -418,6 +426,16 @@ Public Sub wizInstall_BeforeChange()
       wizInstall[TAB_DEP].Enabled = bEnabled
       wizInstall[TAB_FILE].Enabled = bEnabled
       
+      bEnabled = False
+      For Each sSys In Project.Systems
+        If sSys <> "appimage" Then
+          bEnabled = True
+          Break
+        Endif
+      Next
+
+      wizInstall[TAB_MIME].Enabled = bEnabled
+
       wizInstall[TAB_TEST].Enabled = Project.Systems.Exist("autotools")
       
       If Project.Type <> Project.TYPE_NORMAL
@@ -425,6 +443,30 @@ Public Sub wizInstall_BeforeChange()
         wizInstall[TAB_MIME].Enabled = False
       Endif
       
+      wizInstall[TAB_APPIMAGE].Enabled = Project.Systems.Exist("appimage")
+      
+    Case TAB_APPIMAGE
+    
+      Project.AppImageRepository = Trim(txtAppImageRepository.Text)
+      Project.AppImageDistribution = Trim(cmbAppImageDistribution.Text)
+      Project.AppImageGambasRepository = Trim(txtAppImageGambasRepository.Text)
+      
+      If Not Project.AppImageRepository Then
+        Message.Warning(("Please enter the Ubuntu repository used for generating the AppImage."))
+        txtAppImageRepository.SetFocus
+        Stop Event
+        Return
+      Endif
+      
+      btnAppImageFromSystem.Enabled = IsCurrentSystemUbuntu()
+    
+      ' If Not Project.AppImageDistribution Then
+      '   Message.Warning(("Please choose the Ubuntu distribution used for generating the AppImage."))
+      '   cmbAppImageDistribution.SetFocus
+      '   Stop Event
+      '   Return
+      ' Endif
+    
     Case TAB_GROUP
       
       If CheckSys(Project.Groups) Then
@@ -501,7 +543,7 @@ Public Sub wizInstall_BeforeChange()
     Case TAB_TEST
       
       Project.ExtraAutoconfTest = txtTests.Text
-    
+      
     Case TAB_DIR
       
       Package.Dir = dchInstall.SelectedPath
@@ -554,10 +596,14 @@ Public Sub wizInstall_Change()
   Select Case wizInstall.Index
 
     Case 1
+      
       lblChangeDate.Text = Package.GetChangeDate()
       If Not txtChangeLog.Text Then txtChange.Text = ("Initial release")
       txtChange.SetFocus
-      
+    
+    Case TAB_APPIMAGE
+      btnAppImageFromSystem.Enabled = Exist("/etc/apt/sources.list")
+    
     Case TAB_GROUP
       InitGroupTree
       cmbGroup.Visible = cmbGroup.Count > 1
@@ -631,18 +677,15 @@ End
 
 Public Sub AddLog(sText As String, Optional bNoNewLine As Boolean)
 
-  If Not bNoNewLine Then sText &= "\n"
-  edtLog.Goto(0, edtLog.Count)
-  edtLog.ReadOnly = False
-  edtLog.Print(sText)
-  edtLog.ReadOnly = True
+  If Not bNoNewLine Then sText &= "\r\n"
+  trmLog.Print(sText)
   Wait
 
 End
 
 Public Sub ClearLog()
   
-  edtLog.Clear
+  trmLog.Clear
   Wait
   
 End
@@ -660,7 +703,7 @@ Private Sub FillComboWithSystems(hCombo As ComboBox)
     If hCombo = cmbDep Or If hCombo = cmbFile Then
       If sSys = "autotools" Then Continue
     Else If hCombo = cmbGroup Or If hCombo = cmbMenu Then
-      If sSys = "autotools" Or If sSys = "self" Then Continue
+      If sSys = "autotools" Or If sSys = "self" Or If sSys = "appimage" Then Continue
     Endif
     If hCtrl.Value Then hCombo.Add(GetSystemName(sSys))
   Next
@@ -1269,7 +1312,7 @@ End
 
 Public Sub btnCopy_Click()
 
-  Clipboard.Copy(edtLog.Text, "text/plain;charset=utf-8")
+  Clipboard.Copy(trmLog.Text, "text/plain;charset=utf-8")
 
 End
 
@@ -1316,22 +1359,22 @@ End
 Public Sub dwgVersionMin_Draw()
 
   Style.PaintBox(0, 0, Paint.W, Paint.H)
-  Paint.DrawText(System.Version & ".", 0, 0, spnVersionMin.X, Paint.H, Align.Right)
 
 End
 
-Public Sub dwgVersionMin_Arrange()
-
-  Dim FW As Integer = Style.BoxFrameWidth
-  Dim FH As Integer = Style.BoxFrameHeight
-
-  spnVersionMin.Move(dwgVersionMin.W - spnVersionMin.W - FW, FH, spnVersionMin.W, dwgVersionMin.H - FH * 2)
-  
-End
+' Public Sub dwgVersionMin_Arrange()
+' 
+'   Dim FW As Integer = Style.BoxFrameWidth
+'   Dim FH As Integer = Style.BoxFrameHeight
+' 
+'   spnVersionMin.Move(dwgVersionMin.W - spnVersionMin.W - FW, FH, spnVersionMin.W, dwgVersionMin.H - FH * 2)
+'   
+' End
 
 Public Sub chkVersionMin_Click()
 
   dwgVersionMin.Enabled = chkVersionMin.Value
+  txtVersionMin.Foreground = If(chkVersionMin.Value, Color.TextForeground, Color.Default)
   If chkVersionMin.Value Then
     spnVersionMin.SetFocus
   Else
@@ -1391,5 +1434,68 @@ End
 Public Sub btnOpenFolder_Click()
 
   Desktop.Open(Project.Config["/Package/Dir"])
+
+End
+
+Private Sub GetAppImageConfigFromSystem()
+
+  Dim hFile As File
+  Dim sLine As String
+  Dim sDistrib As String
+  Dim iPos As Integer
+  Dim aLine As String[]
+  Dim I As Integer
+
+  hFile = Open "/etc/apt/sources.list"
+  For Each sLine In hFile.Lines
+    aLine = Split(Trim(sLine), " ")
+    If aLine.Count < 3 Then Continue
+    If aLine[0] = "deb" Then
+      
+      txtAppImageRepository.Text = aLine[1]
+      
+      sDistrib = aLine[2]
+      iPos = InStr(sDistrib, "-")
+      If iPos Then sDistrib = Left(sDistrib, iPos - 1)
+      
+      cmbAppImageDistribution.Text = ""
+      For I = 0 To cmbAppImageDistribution.Count - 1
+        If cmbAppImageDistribution[I].Text Begins (sDistrib & " (") Then
+          cmbAppImageDistribution.Index = I
+          Break
+        Endif
+      Next
+      
+      Break
+      
+    Endif
+  Next
+
+Catch
+  
+  cmbAppImageDistribution.Text = ""
+  txtAppImageRepository.Text = ""
+  Message.Warning(("Unable to get AppImageBuilder configuration from current system."))
+
+End
+
+
+Public Sub btnAppImageFromSystem_Click()
+
+  GetAppImageConfigFromSystem()
+
+End
+
+Private Sub IsCurrentSystemUbuntu() As Boolean
+
+  Dim sData As String
+  
+  If Not Exist("/etc/apt/sources.list") Then Return
+
+  Try sData = File.Load("/etc/os-release")
+  If Not Error Then Return InStr(sData, "ID=ubuntu\n")
+  
+  Try sData = File.Load("/etc/lsb_release")
+  If Not Error Then Return InStr(sData, "DISTRIB_ID=Ubuntu\n")
 
 End

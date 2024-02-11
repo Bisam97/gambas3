@@ -240,7 +240,7 @@ void SUBR_week(ushort code)
 		{
 			start = SUBR_get_integer(&PARAM[1]);
 			if (start < 0 || start > 6)
-				THROW(E_ARG);
+				THROW_ARG();
 
 			if (NPARAM == 3)
 				plain = SUBR_get_boolean(&PARAM[2]);

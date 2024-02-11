@@ -56,9 +56,6 @@ int MENU_popup_count = 0;
 
 static void clear_menu(CMENU *_object);
 
-static GB_FUNCTION _init_shortcut_func;
-static GB_FUNCTION _init_menubar_shortcut_func;
-
 #define EXT(_ob) ((CMENU_EXT *)((CWIDGET *)_ob)->ext)
 #define ENSURE_EXT(_ob) (EXT(_ob) ? EXT(_ob) : alloc_ext((CMENU *)(_ob)))
 
@@ -170,14 +167,6 @@ static void unregister_menu(CMENU *_object)
 	}
 }
 
-static void set_menu_visible(void *_object, bool v)
-{
-	THIS->visible = v;
-	ACTION->setVisible(v);
-	refresh_menubar(THIS);
-	//update_accel_recursive(THIS);
-}
-
 static void delete_menu(CMENU *_object)
 {
 	if (THIS->deleted)
@@ -245,7 +234,7 @@ static bool is_fully_enabled(CMENU *_object)
 		if (THIS->exec)
 			return true;
 
-		if (THIS->disabled)
+		if (THIS->disabled || !THIS->visible)
 			return false;
 
 		if (CMENU_is_toplevel(THIS))
@@ -276,8 +265,8 @@ static void update_accel(CMENU *_object)
 
 static void update_accel_recursive(CMENU *_object)
 {
-	if (THIS->exec)
-		return;
+	/*if (THIS->exec)
+		return;*/
 
 	update_accel(THIS);
 
@@ -288,6 +277,14 @@ static void update_accel_recursive(CMENU *_object)
 		for (i = 0; i < THIS->menu->actions().count(); i++)
 			update_accel_recursive(CMenu::dict[THIS->menu->actions().at(i)]);
 	}
+}
+
+static void set_menu_visible(void *_object, bool v)
+{
+	THIS->visible = v;
+	ACTION->setVisible(v);
+	refresh_menubar(THIS);
+	update_accel_recursive(THIS);
 }
 
 static void update_check(CMENU *_object)
@@ -547,9 +544,13 @@ BEGIN_PROPERTY(Menu_Picture)
 		QIcon icon;
 
 		GB.StoreObject(PROP(GB_OBJECT), POINTER(&(THIS->picture)));
-		if (THIS->picture)
-			icon = QIcon(*THIS->picture->pixmap);
-		ACTION->setIcon(icon);
+
+		if (!CMENU_is_toplevel(THIS))
+		{
+			if (THIS->picture)
+				icon = QIcon(*THIS->picture->pixmap);
+			ACTION->setIcon(icon);
+		}
 	}
 
 END_PROPERTY
@@ -757,26 +758,21 @@ END_METHOD
 
 void CMENU_popup(CMENU *_object, const QPoint &pos)
 {
-	bool disabled;
 	void *save;
 
 	HANDLE_PROXY(_object);
 	
 	if (THIS->menu && !THIS->exec)
 	{
-		disabled = THIS->disabled;
-		if (disabled)
-		{
-			THIS->disabled = false;
-			update_accel_recursive(THIS);
-			THIS->disabled = true;
-		}
-
 		//qDebug("CMENU_popup: %p: open", THIS);
 
 		// The Click event is posted, it does not occur immediately.
 		save = CWIDGET_enter_popup();
 		THIS->exec = true;
+
+		update_accel_recursive(THIS);
+
+		//update_accel_recursive(THIS);
 		_popup_immediate = true;
 		THIS->menu->exec(pos);
 		_popup_immediate = false;
@@ -807,7 +803,7 @@ void CMENU_popup(CMENU *_object, const QPoint &pos)
 	}
 }
 
-BEGIN_METHOD(Menu_Popup, GB_INTEGER x; GB_INTEGER y)
+BEGIN_METHOD(Menu_Popup, GB_INTEGER x; GB_INTEGER y; GB_OBJECT ref)
 
 	QPoint pos;
 
@@ -961,7 +957,7 @@ GB_DESC CMenuDesc[] =
 
 	MENU_DESCRIPTION,
 
-	GB_METHOD("Popup", NULL, Menu_Popup, "[(X)i(Y)i]"),
+	GB_METHOD("Popup", NULL, Menu_Popup, "[(X)i(Y)i(Reference)Control;]"),
 	GB_METHOD("Close", NULL, Menu_Close, NULL),
 	GB_METHOD("Delete", NULL, Menu_Delete, NULL),
 	GB_METHOD("Show", NULL, Menu_Show, NULL),
@@ -1041,8 +1037,6 @@ void CMenu::slotTriggered()
 
 void CMenu::slotShown(void)
 {
-	static bool init = FALSE;
-
 	GET_MENU_SENDER(menu);
 	if (!menu)
 		return;
@@ -1069,14 +1063,8 @@ void CMenu::slotShown(void)
 
 	GB.Raise(menu, EVENT_Show, 0);
 
-	if (!init)
-	{
-		GB.GetFunction(&_init_shortcut_func, (void *)GB.FindClass("_Gui"), "_DefineShortcut", NULL, NULL);
-		init = TRUE;
-	}
-
 	GB.Push(1, GB_T_OBJECT, menu);
-	GB.Call(&_init_shortcut_func, 1, FALSE);
+	CALL_GUI("_DefineShortcut", NULL, NULL, 1, FALSE);
 
 	GB.Unref(POINTER(&menu));
 }
@@ -1256,21 +1244,14 @@ void MyMenu::setVisible(bool visible)
 
 void CMENU_update_menubar(CWINDOW *window)
 {
-	static bool init = FALSE;
 	static bool norec = FALSE;
-
-	if (!init)
-	{
-		GB.GetFunction(&_init_menubar_shortcut_func, (void *)GB.FindClass("_Gui"), "_InitMenuBarShortcut", NULL, NULL);
-		init = TRUE;
-	}
 
 	if (norec)
 		return;
 
 	norec = TRUE;
 	GB.Push(1, GB_T_OBJECT, window);
-	GB.Call(&_init_menubar_shortcut_func, 1, FALSE);
+	CALL_GUI("_InitMenuBarShortcut", NULL, NULL, 1, FALSE);
 	norec = FALSE;
 }
 

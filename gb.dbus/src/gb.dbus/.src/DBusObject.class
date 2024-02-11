@@ -615,6 +615,8 @@ Public Sub DBusObserver_Message()
     If sMethod = "Introspect" Then
       hObs.Reply("s", [_Introspect()])
       Return
+    Else If sMethod = "GetMachineId" Then
+      hObs.Reply("s", [DBus.MachineId])
     Endif
   Endif
   

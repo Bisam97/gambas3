@@ -173,7 +173,7 @@ static void check_version(CLASS *class, int loaded)
 	if (loaded < GAMBAS_PCODE_VERSION_MIN)
 		THROW_CLASS(class, "Bytecode too old. Please recompile the project.", "");
 
-	class->not_3_18 = loaded < 0x3180000;
+	class->less_than_3_18 = loaded < 0x3180000;
 }
 
 
@@ -488,8 +488,13 @@ static void load_and_relocate(CLASS *class, int len_data, CLASS_DESC **pstart, i
 	CLASS_EVENT *event;
 	CLASS_EXTERN *ext;
 	CLASS_VAR *var;
+
 	FUNCTION *func;
+	FUNCTION_LOAD *func_load;
 	FUNC_DEBUG *debug;
+	uchar flag;
+	short n_local, n_ctrl;
+
 	int i, j, pos;
 	int offset;
 	short n_desc, n_class_ref, n_unknown, n_array, n_struct;
@@ -497,7 +502,6 @@ static void load_and_relocate(CLASS *class, int len_data, CLASS_DESC **pstart, i
 	int size;
 	char *name;
 	int len;
-	uchar flag;
 
 	ALLOC_ZERO(&class->load, sizeof(CLASS_LOAD));
 
@@ -579,19 +583,32 @@ static void load_and_relocate(CLASS *class, int len_data, CLASS_DESC **pstart, i
 		func = &class->load->func[i];
 		func->code = (ushort *)get_section("code", &section, NULL, _s);
 
-		flag = ((FUNCTION_FLAG *)func)->flag;
+		func_load = (FUNCTION_LOAD *)func;
+		flag = func_load->flag;
+		n_local = func_load->n_local;
+		n_ctrl = func_load->n_ctrl;
 
 		func->fast = (flag & 1) != 0;
 		func->optional = (func->npmin < func->n_param);
 		func->use_is_missing = (flag & 2) != 0;
 		func->unsafe = (flag & 4) != 0;
 		func->fast_linked = FALSE;
+		func->n_local = n_local;
+		func->n_ctrl = n_ctrl;
 
 		if (func->use_is_missing)
 		{
 			func->stack_usage++;
 			func->n_ctrl++;
 		}
+
+		if (flag & 8) // indirect goto
+		{
+			func->n_label = *func->code;
+			func->code += func->n_label + 1;
+		}
+		else
+			func->n_label = 0;
 
 		func->_reserved = 0;
 	}
@@ -1030,7 +1047,7 @@ static void load_without_inits(CLASS *class)
 		CATCH
 		{
 			COMPONENT_current = save;
-			THROW_CLASS(class, ERROR_last.msg, "");
+			THROW_CLASS(class, ERROR_current->info.msg, "");
 		}
 		END_TRY
 	}
@@ -1041,8 +1058,6 @@ static void load_without_inits(CLASS *class)
 	#endif
 
 	class->in_load = TRUE;
-
-	class->init_dynamic = TRUE;
 
 	load_and_relocate(class, len_data, &start, &n_desc);
 
@@ -1252,6 +1267,8 @@ static void load_without_inits(CLASS *class)
 	// Special methods
 
 	CLASS_search_special(class);
+
+	//fprintf(stderr, "%s -> init_dynamic = %d / new_method = %d / ready_method = %d\n", class->name, class->init_dynamic, class->new_method, class->ready_method);
 
 	// Class is loaded...
 

@@ -322,7 +322,7 @@ Private Sub ClearRows()
 End
 
 
-Private Sub AddRow(sKey As String, sText As String, hPic As Picture)
+Private Sub AddRow(sKey As String, sText As String, hPic As Picture, Optional bBold As Boolean)
   
   Dim Y As Integer = gvwComp.Rows.Count
   
@@ -331,6 +331,7 @@ Private Sub AddRow(sKey As String, sText As String, hPic As Picture)
   With gvwComp[Y, 0]
     .Text = sText
     .Picture = hPic
+    If bBold Then .Font.Bold = True
   End With
   gvwComp.Rows[Y].H = -1
   
@@ -512,7 +513,7 @@ Private Sub FillWithSymbol(sClass As String, bStatic As Boolean, bPrivate As Boo
 
   For Each sSymbol In aSymbol
     hSymbol = cSymbol[sSymbol]
-    AddRow(CStr(MHelp.TYPE_SYMBOL) & sSymbol, sSymbol, Picture[hSymbol.GetIcon()])
+    AddRow(CStr(MHelp.TYPE_SYMBOL) & sSymbol, sSymbol, Picture[hSymbol.GetIcon()], IsUCase(hSymbol.Kind))
     $iMaxLen = Max($iMaxLen, String.Len(sSymbol))
   Next
 

@@ -49,6 +49,16 @@ Private $bRefreshTimerTriggered As Boolean
 Private $hWatcher As Watcher
 Private $bRefreshAfterRename As Boolean
 
+Static Private Sub AddDesktopIcon(sKey As String, sIcon As String)
+  
+  Dim sDir As String
+  
+  sDir = Desktop.GetDirectory(sKey)
+  If sDir Then $cDesktopDirCache[sDir] = sIcon
+  
+End
+
+
 Static Public Sub _CheckComponents()
 
   $bDesktopIsLoaded = Component.IsLoaded("gb.desktop")
@@ -57,16 +67,19 @@ Static Public Sub _CheckComponents()
   If $bDesktopIsLoaded Then
     If Not $cDesktopDirCache Then
       $cDesktopDirCache = New Collection
-      $cDesktopDirCache[Desktop.GetDirectory("DESKTOP")] = "desktop"
-      $cDesktopDirCache[Desktop.GetDirectory("DOWNLOAD")] = "folder-download"
-      $cDesktopDirCache[Desktop.GetDirectory("DOCUMENTS")] = "folder-document"
-      $cDesktopDirCache[Desktop.GetDirectory("MUSIC")] = "folder-music"
-      $cDesktopDirCache[Desktop.GetDirectory("PICTURES")] = "folder-image"
-      $cDesktopDirCache[Desktop.GetDirectory("VIDEOS")] = "folder-video"
-      $cDesktopDirCache[Desktop.GetDirectory("PUBLICSHARE")] = "folder-share"
-      $cDesktopDirCache[Desktop.GetDirectory("TEMPLATES")] = "folder-template"
+      
+      AddDesktopIcon("DESKTOP", "desktop")
+      AddDesktopIcon("DOWNLOAD", "folder-download")
+      AddDesktopIcon("DOCUMENTS", "folder-document")
+      AddDesktopIcon("MUSIC", "folder-music")
+      AddDesktopIcon("PICTURES", "folder-image")
+      AddDesktopIcon("VIDEOS", "folder-video")
+      AddDesktopIcon("PUBLICSHARE", "folder-share")
+      AddDesktopIcon("TEMPLATES", "folder-template")
+      
       $cDesktopDirCache[User.Home] = "folder-home"
       $cDesktopDirCache["/"] = "folder-root"
+      
     Endif
   Endif
   

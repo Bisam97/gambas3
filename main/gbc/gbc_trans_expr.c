@@ -278,14 +278,28 @@ static void trans_identifier(int index, bool point, PATTERN next)
 	_last_symbol_used = NULL;
 	//fprintf(stderr, "_last_symbol_used = NULL\n");
 	
+
 	if (!TYPE_is_null(sym->local.type) && !point)
 	{
-		if (TYPE_is_static(sym->local.type))
-			CODE_push_global(sym->local.value, TRUE, FALSE);
+		if (TYPE_get_kind(sym->local.type) == TK_LABEL)
+		{
+			TRANS_LABEL *info = TRANS_get_label_info(sym->local.value);
+			if (info->ctrl_id)
+				THROW("Label is not top-level");
+
+			CODE_push_number(sym->local.value + 1);
+			push_type_id(T_INTEGER);
+		}
 		else
-			CODE_push_local_ref(sym->local.value, TYPE_must_ref(sym->local.type));
+		{
+			if (TYPE_is_static(sym->local.type))
+				CODE_push_global(sym->local.value, TRUE, FALSE);
+			else
+				CODE_push_local_ref(sym->local.value, TYPE_must_ref(sym->local.type));
+
+			push_type(sym->local.type);
+		}
 		
-		push_type(sym->local.type);
 		sym->local_used = TRUE;
 		_last_symbol_used = sym;
 		_last_symbol_global = FALSE;
@@ -294,6 +308,7 @@ static void trans_identifier(int index, bool point, PATTERN next)
 	else if (!TYPE_is_null(sym->global.type) && !point)
 	{
 		type = TYPE_get_kind(sym->global.type);
+
 		if (!TYPE_is_public(sym->global.type))
 		{
 			sym->global_used = TRUE;
@@ -313,6 +328,8 @@ static void trans_identifier(int index, bool point, PATTERN next)
 				CODE_push_boolean(constant->value);
 			else if (type == T_INTEGER)
 				CODE_push_number(constant->value);
+			else if (type == T_FLOAT && constant->is_integer)
+				CODE_push_float(constant->value);
 			else
 				CODE_push_const(sym->global.value);
 			
@@ -381,11 +398,20 @@ __CLASS:
 
 static void trans_subr(int subr, short nparam)
 {
-	SUBR_INFO *info = &COMP_subr_info[subr];
+	SUBR_INFO *info = TRANS_find_subr(subr);
 	int type;
 
 	if (nparam < info->min_param)
-		THROW("Not enough arguments to &1()", info->name);
+	{
+		if (subr == SUBR_Pi)
+		{
+			CODE_push_float(1);
+			push_type_id(T_FLOAT);
+			nparam = 1;
+		}
+		else
+			THROW("Not enough arguments to &1()", info->name);
+	}
 	else if (nparam > info->max_param)
 		THROW("Too many arguments to &1()", info->name);
 
@@ -433,6 +459,98 @@ static void trans_operation(short op, short nparam, PATTERN previous)
 	int type = info->type;
 	int type1, type2;
 	TYPE ftype;
+
+	switch(type)
+	{
+		case RST_SAME:
+			ftype = get_type(0, nparam);
+			break;
+
+		case RST_ADD:
+			type = Max(get_type_id(0, nparam), get_type_id(1, nparam));
+			ftype = TYPE_make_simple(type);
+			if (type == T_DATE)
+				type = T_FLOAT;
+			break;
+
+		case RST_AND:
+			type1 = get_type_id(0, nparam);
+			type2 = get_type_id(1, nparam);
+
+			if (type1 != T_VARIANT && type2 != T_VARIANT)
+			{
+				if ((type1 > T_BOOLEAN && type1 <= T_LONG) ^ (type2 > T_BOOLEAN && type2 <= T_LONG))
+					COMPILE_print(MSG_WARNING, JOB->line, "integer and boolean mixed with `&1' operator", info->name);
+			}
+
+			type = Max(type1, type2);
+
+			if (type > T_LONG)
+			{
+				if (type != T_VARIANT)
+					type = T_BOOLEAN;
+			}
+
+			ftype = TYPE_make_simple(type);
+			break;
+
+		case RST_NOT:
+			type = get_type_id(0, nparam);
+			if (type == T_STRING || type == T_OBJECT || type == T_DATE)
+				type = T_BOOLEAN;
+			ftype = TYPE_make_simple(type);
+			break;
+
+		case RST_MOD:
+			type1 = get_type_id(0, nparam);
+			type2 = get_type_id(1, nparam);
+
+			if (type1 != T_VARIANT && type2 != T_VARIANT)
+			{
+				if (type1 <= T_BOOLEAN || type1 > T_LONG || type2 <= T_BOOLEAN || type2 > T_LONG)
+					THROW("Type mismatch");
+			}
+
+			ftype = TYPE_make_simple(Max(type1, type2));
+			break;
+
+		case RST_DIV:
+			type = Max(get_type_id(0, nparam), get_type_id(1, nparam));
+			if (type <= T_FLOAT)
+				type = T_FLOAT;
+			else
+				type = T_VARIANT;
+			ftype = TYPE_make_simple(type);
+			break;
+
+		case RST_GET:
+			ftype = TYPE_make_simple(T_VARIANT);
+			break;
+
+		case RST_BCLR:
+			ftype = get_type(0, nparam);
+			break;
+
+		/*case RST_GET:
+			ftype = get_type(0, nparam);
+			if (ftype.t.id == T_OBJECT)
+			{
+				ftype = JOB->class->class[ftype.t.value].array;
+				if (TYPE_is_null(ftype))
+					ftype = TYPE_make_simple(T_VARIANT);
+			}
+			else
+				ftype = TYPE_make_simple(T_VARIANT);
+
+			fprintf(stderr, "RST_GET: %s\n", TYPE_get_desc(ftype));
+			break;*/
+
+		default:
+			if (type > T_OBJECT)
+				ERROR_panic("Operator type analysis not implemented.");
+			ftype = TYPE_make_simple(type);
+
+	}
 
 	switch (info->value)
 	{
@@ -490,9 +608,13 @@ static void trans_operation(short op, short nparam, PATTERN previous)
 				type = RST_SAME;
 			}
 			else
-				CODE_op(info->code, info->subcode, nparam, TRUE);
+				CODE_add_sub(info->code, info->subcode, nparam, TYPE_get_id(ftype));
 			break;
 			
+		case OP_PLUS:
+			CODE_add_sub(info->code, info->subcode, nparam, TYPE_get_id(ftype));
+			break;
+
 		case OP_AMP:
 			if (nparam == 1)
 				CODE_op(info->code, 1, 2, TRUE);
@@ -502,98 +624,6 @@ static void trans_operation(short op, short nparam, PATTERN previous)
 
 		default:
 			CODE_op(info->code, info->subcode, nparam, (info->flag != RSF_OPN));
-	}
-	
-	switch(type)
-	{
-		case RST_SAME:
-			ftype = get_type(0, nparam);
-			break;
-			
-		case RST_ADD:
-			type = Max(get_type_id(0, nparam), get_type_id(1, nparam));
-			if (type == T_DATE)
-				type = T_FLOAT;
-			ftype = TYPE_make_simple(type);
-			break;
-
-		case RST_AND:
-			type1 = get_type_id(0, nparam);
-			type2 = get_type_id(1, nparam);
-			
-			if (type1 != T_VARIANT && type2 != T_VARIANT)
-			{
-				if ((type1 > T_BOOLEAN && type1 <= T_LONG) ^ (type2 > T_BOOLEAN && type2 <= T_LONG))
-					COMPILE_print(MSG_WARNING, JOB->line, "integer and boolean mixed with `&1' operator", info->name);
-			}
-				
-			type = Max(type1, type2);
-			
-			if (type > T_LONG)
-			{
-				if (type != T_VARIANT)
-					type = T_BOOLEAN;
-			}
-			
-			ftype = TYPE_make_simple(type);
-			break;
-
-		case RST_NOT:
-			type = get_type_id(0, nparam);
-			if (type == T_STRING || type == T_OBJECT || type == T_DATE)
-				type = T_BOOLEAN;
-			ftype = TYPE_make_simple(type);
-			break;
-			
-		case RST_MOD:
-			type1 = get_type_id(0, nparam);
-			type2 = get_type_id(1, nparam);
-
-			if (type1 != T_VARIANT && type2 != T_VARIANT)
-			{
-				if (type1 <= T_BOOLEAN || type1 > T_LONG || type2 <= T_BOOLEAN || type2 > T_LONG)
-					THROW("Type mismatch");
-			}
-				
-			ftype = TYPE_make_simple(Max(type1, type2));
-			break;
-			
-		case RST_DIV:
-			type = Max(get_type_id(0, nparam), get_type_id(1, nparam));
-			if (type <= T_FLOAT)
-				type = T_FLOAT;
-			else
-				type = T_VARIANT;
-			ftype = TYPE_make_simple(type);
-			break;
-
-		case RST_GET:
-			ftype = TYPE_make_simple(T_VARIANT);
-			break;
-			
-		case RST_BCLR:
-			ftype = get_type(0, nparam);
-			break;
-			
-		/*case RST_GET:
-			ftype = get_type(0, nparam);
-			if (ftype.t.id == T_OBJECT)
-			{
-				ftype = JOB->class->class[ftype.t.value].array;
-				if (TYPE_is_null(ftype))
-					ftype = TYPE_make_simple(T_VARIANT);
-			}
-			else
-				ftype = TYPE_make_simple(T_VARIANT);
-			
-			fprintf(stderr, "RST_GET: %s\n", TYPE_get_desc(ftype));
-			break;*/
-		
-		default:
-			if (type > T_OBJECT)
-				ERROR_panic("Operator type analysis not implemented.");
-			ftype = TYPE_make_simple(type);
-			
 	}
 	
 	if (nparam)

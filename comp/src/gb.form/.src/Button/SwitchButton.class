@@ -41,7 +41,7 @@ Private Sub Animated_Write((Value) As Boolean)
   Static bWarn As Boolean
   
   If bWarn Then Return
-  Error "gb.form: warning: SwitchButton.Animated is deprecated."
+  Error "gb.form: warning: 'SwitchButton.Animated' is deprecated."
   bWarn = True
 
 End
@@ -73,32 +73,36 @@ Public Sub DrawingArea_Draw()
   Dim X As Float
   Dim Y As Integer
   Dim DS As Integer
+  Dim F As Integer
+  Dim S As Integer
 
-  iCol = Color.Merge(Color.Merge(Color.TextForeground, Color.SelectedBackground, $fValue), Color.Background)
+  iCol = Color.Merge(Color.LightForeground, Color.SelectedBackground, $fValue)
   iCol = Color.SetHSV(iCol, Color[Color.SelectedBackground].Hue)
-  If iFlag And Style.Disabled Then iCol = Color.Merge(iCol, Color.Background, 0.75)
+  If iFlag And Style.Disabled Then iCol = Color.Merge(Color.Background, Color.Desaturate(iCol))
   
   DS = Desktop.Scale
   Paint.Rectangle(DS, (Paint.H - DS) / 2, Paint.W - DS * 2, DS, DS)
   Paint.Background = iCol
   Paint.Fill
   
-  X = (Paint.W - DS * 4) * $fValue + DS / 2
-  Y = (Paint.H - DS * 3) / 2
+  S = DS * 2.5
   
-  Paint.Ellipse(X, Y, DS * 3, DS * 3)
+  X = (Paint.W - S - DS) * $fValue + DS / 2
+  Y = (Paint.H - S) / 2
+  
+  Paint.Ellipse(X, Y, S, S)
   Paint.Background = iCol
   Paint.Fill()
   
-  iCol = Color.Merge(Color.ButtonBackground, Color.SelectedBackground, $fValue)
-  If iFlag And Style.Disabled Then iCol = Color.Merge(iCol, Color.Background, 0.75)
+  iCol = Color.Merge(Color.ButtonBackground, iCol)
 
-  Paint.Ellipse(X + 2, Y + 2, DS * 3 - 4, DS * 3 - 4)
+  F = Max(1, DS \ 4)
+  Paint.Ellipse(X + F, Y + F, S - F * 2, S - F * 2)
   Paint.Background = iCol
   Paint.Fill()
   
   If iFlag And Style.HasFocus Then
-    Paint.Ellipse(X - DS / 2, Y - DS / 2, DS * 4, DS * 4)
+    Paint.Ellipse(X - DS / 2, Y - DS / 2, S + DS, S + DS)
     Paint.Background = Color.SetAlpha(Color.SelectedBackground, 200)
     Paint.Fill
   Endif

@@ -67,6 +67,7 @@ static int get_callback(struct sigaction *action, void (**callback)())
 void SIGNAL_install(SIGNAL_HANDLER *handler, int signum, void (*callback)(int, siginfo_t *, void *))
 {
 	struct sigaction action;
+	sigset_t sig;
 	
 	#if DEBUG_ME
 	fprintf(stderr, "SIGNAL_install: %d %p\n", signum, callback);
@@ -81,6 +82,12 @@ void SIGNAL_install(SIGNAL_HANDLER *handler, int signum, void (*callback)(int, s
 
 	if (sigaction(signum, NULL, &handler->old_action) != 0 || sigaction(signum, &action, NULL) != 0)
 		ERROR_panic("Cannot install signal handler: %s", strerror(errno));
+
+	// Ensure that the signal is not blocked
+	sigemptyset(&sig);
+	sigaddset(&sig, signum);
+	sigprocmask(SIG_UNBLOCK, &sig, NULL);
+
 }
 
 void SIGNAL_uninstall(SIGNAL_HANDLER *handler, int signum)

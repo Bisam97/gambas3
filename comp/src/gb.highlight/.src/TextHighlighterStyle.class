@@ -1,0 +1,206 @@
+' Gambas class file
+
+''' This class represents the style used for drawing a specific highlighter state.
+
+Export
+
+'' This event is raised when the style contents has changed.
+Event Change
+
+'' Return or set the name of the state the style is associated with.
+Property Key As String Use $sKey
+
+'' Return the display name of the style.
+''
+'' This is the display name of its associated state.
+Property Read Name As String
+
+'' Return or set the RGB color used for drawing some text using that style.
+Property Color As Integer Use $iColor
+'' Return or set if the text drawn with that style must be bold.
+Property Bold As Boolean Use $bBold
+'' Return or set if the text drawn with that style must have a solid underline.
+Property Underline As Boolean Use $bUnderline
+'' Return or set if the text drawn with that style must have a dotted underline.
+Property Dotted As Boolean Use $bDotted
+'' Return or set if the text drawn with that style must be stroke out.
+Property Strikeout As Boolean Use $bStrikeout
+'' Return if that style is for drawing a background and not drawing text.
+Property Read Background As Boolean
+'' Return the inverted color of the [../color] property.
+Property Read InvertedColor As Integer
+
+'' Create a new highlighter style from some of its properties.
+''
+'' - ~Color~: The RGB color used for drawing some text using that style.
+'' - ~Bold~: If the text drawn with that style must be bold.
+'' - ~Underline~: If the text drawn with that style must have a dotted underline.
+'' - ~Dotted~: If the text drawn with that style must be stroke out.
+
+Static Public Sub _call((Color) As Integer, Optional Bold As Boolean, Underline As Boolean, Dotted As Boolean) As TextHighlighterStyle
+
+  Dim hStyle As New TextHighlighterStyle
+  
+  hStyle.Color = Color
+  hStyle.Bold = Bold
+  hStyle.Underline = Underline
+  hStyle.Dotted = Dotted
+  
+  Return hStyle
+  
+End
+
+'' Return a copy of the current style.
+
+Public Sub Copy() As TextHighlighterStyle
+  
+  Dim hStyle As New TextHighlighterStyle
+  
+  hStyle.Key = $sKey
+  hStyle.Color = $iColor
+  hStyle.Bold = $bBold
+  hStyle.Underline = $bUnderline
+  hStyle.Dotted = $bDotted
+  hStyle.Strikeout = $bStrikeout
+  
+  Return hStyle
+  
+End
+
+Private Sub Color_Write(Value As Integer)
+  
+  If $iColor = Value Then Return
+  $iColor = Value
+  Raise Change
+  
+End
+
+Private Sub Bold_Write(Value As Boolean)
+  
+  If $bBold = Value Then Return
+  $bBold = Value
+  Raise Change
+  
+End
+
+Private Sub Underline_Write(Value As Boolean)
+  
+  If $bUnderline = Value Then Return
+  $bUnderline = Value
+  If Value Then
+    $bDotted = False
+    $bStrikeout = False
+  Endif
+  Raise Change
+  
+End
+
+Private Sub Dotted_Write(Value As Boolean)
+  
+  If $bDotted = Value Then Return
+  $bDotted = Value
+  If Value Then
+    $bUnderline = False
+    $bStrikeout = False
+  Endif
+  Raise Change
+  
+End
+
+Private Sub Strikeout_Write(Value As Boolean)
+  
+  If $bStrikeout = Value Then Return
+  $bStrikeout = Value
+  If Value Then
+    $bUnderline = False
+    $bDotted = False
+  Endif
+  Raise Change
+  
+End
+
+'' Convert the style contents to a string.
+
+Public Sub ToString() As String
+  
+  Dim sStr As String
+  
+  sStr = "#" & Hex$($iColor, 6)
+  If $bBold Then sStr &= ",Bold"
+  If $bUnderline Then sStr &= ",Underline"
+  If $bDotted Then sStr &= ",Dotted"
+  If $bStrikeout Then sStr &= ",Strikeout"
+  
+  Return sStr
+  
+End
+
+'' Create a style from a string description.
+''
+'' - ~Style~: The style description. It should be a string returned by the [../tostring] method.
+''
+'' Return the newly created style.
+
+Static Public Sub FromString(Style As String) As TextHighlighterStyle
+
+  Dim hStyle As TextHighlighterStyle
+  Dim sProp As String
+  
+  hStyle = New TextHighlighterStyle
+  
+  For Each sProp In Split(Style)
+    If sProp Begins "#" Then
+      hStyle.Color = Val("&H" & Mid$(sProp, 2))
+    Else If LCase(sProp) = "bold" Then
+      hStyle.Bold = True
+    Else If LCase(sProp) = "underline" Then
+      hStyle.Underline = True
+    Else If LCase(sProp) = "dotted" Then
+      hStyle.Dotted = True
+    Else If LCase(sProp) = "strikeout" Then
+      hStyle.Strikeout = True
+    Endif
+  Next
+  
+  Return hStyle
+  
+End
+
+Private Function InvertedColor_Read() As Integer
+
+  Dim H, S, V, L As Integer
+  
+  With Color[$iColor]
+    H = .Hue
+    S = .Saturation
+    V = .Value
+    L = .Luminance
+  End With
+  
+  If $sKey = "CurrentLine" Then
+    If V > 128 Then
+      V *= 0.5
+      S = 255 - (255 - S) / 2
+    Endif
+  Else If S < 32 Or If $sKey = "Background" Then
+    V = 255 - V
+  Else If Me.Background Then
+    V *= 0.75
+  Endif
+  
+  Return Color.HSV(H, S, V)
+
+End
+
+
+Private Function Background_Read() As Boolean
+
+  Return ["Background", "Selection", "Current", "Breakpoint", "Highlight"].Exist($sKey)
+
+End
+
+Private Function Name_Read() As String
+
+  Return TextHighlighterTheme._GetStateName($sKey)
+
+End

@@ -11,12 +11,31 @@ Private $hRecent As CProjectList
 Private $hSoft As CProjectList
 Private $hExample As CProjectList
 Private $sLocate As String
+Private $bCreate As Boolean
+
+Private $hTemplate As CProjectList
+
+Private Const TAB_CREATE As Integer = 0
+Private Const TAB_OPEN As Integer = 1
+Private Const TAB_RECENT As Integer = 2
 
 Public Sub Run(Optional bAnother As Boolean) As String
 
   $bAnother = bAnother
   $sPath = ""
   $sLocate = ""
+  $bCreate = False
+  
+  If Me.ShowModal() Then Return $sPath
+
+End
+
+Public Sub Create(Optional bAnother As Boolean) As String
+
+  $bAnother = bAnother
+  $sPath = ""
+  $sLocate = ""
+  $bCreate = True
   
   If Me.ShowModal() Then Return $sPath
 
@@ -27,6 +46,7 @@ Public Sub Locate(sComp As String) As String
   $bAnother = False
   $sPath = ""
   $sLocate = sComp
+  $bCreate = False
   
   If Me.ShowModal() Then Return $sPath
   
@@ -70,12 +90,9 @@ Public Sub Form_Open()
 
   Settings.Read(Me)
   Settings.Read(pchProject)
-  ' Settings.Read(dchProject)
-  ' Settings.Read(splProject)
-  ' dchProject.ShowFile = True
-  ' 'dchProject.Value = Settings["/FOpenProject/Path"]
-  ' dchProject_Change
-
+  Settings.Read(splCreate)
+  Settings.Read(dchProject)
+  
   InAnotherWindow = False
   $hRecent.AllowOpenExtern = $bAnother
   $hExample.AllowOpenExtern = $bAnother
@@ -89,15 +106,24 @@ Public Sub Form_Open()
   pchProject.ShowAnother = $bAnother
   pchProject.ShowCancel = True
   
-  If $bAnother Then tabProject.Index = 1
+  If $bCreate Then
+    tabProject.Index = TAB_CREATE
+  Else If $bAnother Then
+    tabProject.Index = TAB_RECENT
+  Else 
+    tabProject.Index = TAB_OPEN
+  Endif
   tabProject_Click
   
   If $sLocate Then
     Me.Title = Subst(("Locate project for component: &1"), $sLocate)
     pchProject.SetButtonText(("Select"))
+    tabProject[TAB_CREATE].Visible = False
   Else 
     Me.Title = ("Select a project")
     pchProject.SetButtonText("")
+    tabProject[TAB_CREATE].Visible = True
+    btnCreateAnother.Visible = $bAnother
   Endif
   
   'Dec Application.Busy
@@ -109,10 +135,14 @@ Public Sub Form_Close()
   Settings["/FOpenProject/SortRecent"] = $iSort
   Settings.Write(Me)  
   Settings.Write(pchProject)
+  Settings.Write(splCreate)
+  Settings.Write(dchProject)
   
 End
 
 Public Sub tabProject_Click()
+
+  ProjectBox.ShowButton = $bAnother
 
   Select Case tabProject.Text
 
@@ -141,6 +171,12 @@ Public Sub tabProject_Click()
       txtFilterExample.Editor.SelectAll()
       txtFilterExample.SetFocus
       
+    Case ("New")
+      
+      ProjectBox.ShowButton = False
+      InitNewProject
+      txtProjectName.SetFocus
+      
   End Select
 
 End
@@ -152,10 +188,10 @@ Public Sub OnUpdateRecent()
   
 End
 
-Public Sub btnOpenAnother_Click()
+Public Sub btnCreateAnother_Click()
 
   InAnotherWindow = True
-  btnOpen_Click
+  btnCreateProject_Click
 
 End
 
@@ -232,3 +268,142 @@ Public Sub Form_KeyPress()
   If Key.Code = Key.Escape Then Me.Close
 
 End
+
+Private Sub InitNewProject()
+
+  If $hTemplate Then Return
+  
+  dchProject.Bookmarks = Project.GetBookmarks()
+  Settings.Read(dchProject, "dchProject")
+
+  $hTemplate = New CProjectList(svwTemplate, txtFilterType, CProjectList.TYPE_TEMPLATE, Arrange.Row) As "ProjectTemplate"
+  $hTemplate.Fill
+  Try $hTemplate.Current = svwTemplate.Children[0]
+
+End
+
+Public Sub ProjectTemplate_Click((sPath) As String, (bAnother) As Boolean)
+  
+  txtProjectName.SetFocus
+  
+End
+
+Public Sub btnCancel_Click()
+
+  Me.Close
+
+End
+
+Public Sub btnCreateProject_Click()
+
+  Dim sMsg As String
+
+  sMsg = Project.CheckProjectName(txtProjectName.Text, dchProject.SelectedPath) 
+  If sMsg
+    txtProjectName.SetFocus
+    txtProjectName.SelectAll
+    Message.Warning(sMsg)
+    Return
+  Endif  
+
+  If CreateProject() Then Return
+  
+  Me.Close(True)
+
+End
+
+Private Sub CreateProject() As Boolean
+  
+  Dim sDir As String
+  Dim sName As String
+  'Dim sPath As String 
+  'Dim bErr As Boolean
+  Dim hFile As File
+  Dim hDest As File
+  Dim sLine As String
+  Dim sTemp As String
+  'Dim sLang As String
+  Dim sTemplate As String
+  
+  'DIM hIcon AS Picture
+
+  ' If $bRepository Then 
+  ' 
+  '   sPath = Trim(txtRepository.Text)
+  '   If Right(sPath) = "/" Then sPath = Left(sPath, -1)
+  '   
+  '   sDir = dchProject.SelectedPath 
+  '   edtOutput.ReadOnly = False
+  '   bErr = VersionControl.CheckoutSVN(sPath, sDir, edtOutput)
+  '   edtOutput.ReadOnly = True
+  '   
+  '   If bErr Then Error.Raise(("Project checkout has failed."))
+  '   
+  '   sDir &/= File.Name(sPath)
+  ' 
+  ' Else
+  
+  sName = Trim(txtProjectName.Text)
+  sDir = dchProject.SelectedPath &/ sName
+  sTemplate = $hTemplate.Current.Path
+  
+  Project.CopyProject(sTemplate, sDir)
+  'Shell "rm -rf " & Shell$(sDir &/ ".lang") Wait
+  'Shell "rm -rf " & Shell$(sDir &/ ".hidden") Wait
+  Shell.RmDir(sDir &/ ".lang")
+  Shell.RmDir(sDir &/ ".hidden")
+  Try Kill sDir &/ "icon.png"
+  
+  sTemp = Temp$()
+  
+  hFile = Open sDir &/ ".project"
+  hDest = Open sTemp For Create
+  
+  For Each sLine In hFile.Lines
+    
+    If sLine Begins "# Compiled with" Then 
+      Continue
+    Else If sLine Begins "Title=" Then
+      Continue
+    Else If sLine Begins "Translate=" Then
+      Continue
+      ' If Not chkTranslate.Value Then Continue
+      ' sLang = MyLanguage.FromName(MyLanguage.ToName(System.Language))
+      ' If sLang Then Print #hDest, "Language="; sLang
+      ' sLine = "Translate=1"
+      ' Mkdir sDir &/ ".lang"
+    Else If sLine Begins "Version=" Then
+      sLine = "Version=0.0.1"
+    Else If sLine Begins "Description=" Then
+      Continue
+    Else If sLine Begins "Icon=" Then
+      Continue
+    Else If sLine Begins "TabSize=" Then
+      Continue
+    Else If sLine Begins "Language=" Then
+      Continue
+    Endif
+    
+    Print #hDest, sLine
+    
+  Next
+  
+  Close #hFile
+  Close #hDest
+  
+  Kill sDir &/ ".project"
+  Copy sTemp To sDir &/ ".project"
+  
+  Project.MakeDirectoryIcon(sDir)
+
+  $sPath = sDir
+  Return False
+
+Catch
+
+  FMain.ShowErrorWith(("Cannot create project!"))
+  Return True
+  
+End
+
+

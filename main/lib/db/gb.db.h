@@ -46,11 +46,16 @@ typedef
 #define DB_LIMIT_AT_BEGIN     1
 #define DB_LIMIT_AT_END       2
 
+#define DB_IGNORE_NONE           0
+#define DB_IGNORE_INSERT         1
+#define DB_IGNORE_ON_CONFLICT    2
+
 typedef
 	struct {
 		void *handle;                   /* Connection handle */
-		int version;                    /* Version of the database system */
-		char *charset;                  /* Charset used by the database */
+		int version;                    /* Version of the database server */
+		char *full_version;             /* Full version of the database server */
+		char *charset;                  /* Charset used by the database server */
 		void *data;                     /* Can be used by the driver for storing its own private data */
 		int error;                      /* Last SQL error code raise by a query */
 		int timeout;                    /* Connection timeout */
@@ -65,7 +70,9 @@ typedef
 			//unsigned no_case : 1;         /* table, field and index names must be converted to lower case */
 			unsigned schema : 1;          /* If table names can be prefixed by a schema name and a dot */
 			unsigned no_collation : 1;    /* No collation support at field level */
+			unsigned no_returning : 1;    /* Database does not support RETURNING keyword */
 			unsigned system : 1;          /* system database */
+			unsigned if_not_exist : 2;    // INSERT if not exist syntax type
 			}
 			flags;
 		struct {

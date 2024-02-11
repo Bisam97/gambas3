@@ -33,6 +33,7 @@
 
 #include "gbx_type.h"
 #include "gb_common_buffer.h"
+#include "gb_overflow.h"
 #include "gbx_local.h"
 #include "gbx_math.h"
 #include "gbx_string.h"
@@ -73,9 +74,19 @@ static uint64_t _pow_10[18] = {
 };
 
 
-static bool read_integer(int base, bool minus, int64_t *result, bool local)
+static int read_integer(int base, bool minus, int64_t *result, bool local, bool after)
 {
-	uint64_t nbr2, nbr;
+	static const unsigned char nmax_base[36] = {
+		 0, 64, 40, 32, 27, 24, 22, 21, 20, 19,
+		18, 17, 17, 16, 16, 16, 15, 15, 15, 14,
+		14, 14, 14, 13, 13, 13, 13, 13, 13, 13,
+		12, 12, 12, 12, 12, 12
+	};
+
+	uint64_t nbr;
+#if DO_NOT_CHECK_OVERFLOW
+	uint64_t nbr2;
+#endif
 	int d, n, c, nmax;
 	const char *thsep;
 	int lthsep;
@@ -90,13 +101,7 @@ static bool read_integer(int base, bool minus, int64_t *result, bool local)
 	n = 0;
 	nbr = 0;
 	
-	switch (base)
-	{
-		case 2: nmax = 64; break;
-		case 8: nmax = 21; break;
-		case 16: nmax = 16; break;
-		case 10: default: nmax = 19; break;
-	}
+	nmax = nmax_base[base - 1];
 
 	c = last_char();
 
@@ -135,12 +140,17 @@ static bool read_integer(int base, bool minus, int64_t *result, bool local)
 			}
 			else
 			{
+#if DO_NOT_CHECK_OVERFLOW
 				nbr2 = nbr * 10 + d;
-			
-				if ((nbr2 / base) != nbr || nbr2 > ((uint64_t)LLONG_MAX + minus))
-					return TRUE;
-			
+				if ((nbr2 / 10) != nbr || nbr2 > ((uint64_t)LLONG_MAX + minus))
+					return NB_READ_OVERFLOW;
 				nbr = nbr2;
+#else
+				if (__builtin_umull_overflow(nbr, 10, &nbr))
+					return NB_READ_OVERFLOW;
+				if (__builtin_uaddl_overflow(nbr, (uint64_t)d, &nbr))
+					return NB_READ_OVERFLOW;
+#endif
 			}
 
 			c = get_char();
@@ -151,7 +161,7 @@ static bool read_integer(int base, bool minus, int64_t *result, bool local)
 		c = last_char();
 
 		if (local && first_thsep && ndigit_thsep != 3)
-			return TRUE;
+			return NB_READ_SYNTAX;
 	}
 	else
 	{
@@ -170,43 +180,60 @@ static bool read_integer(int base, bool minus, int64_t *result, bool local)
 				break;
 
 			n++;
-			if (n > nmax)
-				return TRUE;
-			
-			nbr = nbr * base + d;
+			if (n < nmax)
+			{
+				nbr = nbr * base + d;
+			}
+			else
+			{
+#if DO_NOT_CHECK_OVERFLOW
+				nbr2 = nbr * base + d;
+				if ((nbr2 / base) != nbr || nbr2 > ((uint64_t)LLONG_MAX + minus))
+					return NB_READ_OVERFLOW;
+				nbr = nbr2;
+#else
+				if (__builtin_umull_overflow(nbr, base, &nbr))
+					return NB_READ_OVERFLOW;
+				if (__builtin_uaddl_overflow(nbr, (uint64_t)d, &nbr))
+					return NB_READ_OVERFLOW;
+#endif
+			}
 			
 			c = get_char();
 			if (c < 0)
 				break;
 		}
 
-		c = last_char();
-
-		if ((c == '&' || c == 'u' || c == 'U') && base != 10)
-			c = get_char();
-		else
+		if (after)
 		{
-			if ((base == 16 && n == 4) || (base == 2 && n == 16))
+			c = last_char();
+
+			if ((c == '&' || c == 'u' || c == 'U') && base != 10)
+				c = get_char();
+			else
 			{
-				if (nbr >= 0x8000L && nbr <= 0xFFFFL)
-					nbr |= INT64_C(0xFFFFFFFFFFFF0000);
-			}
-			else if ((base == 16 && n == 8) || (base == 2 && n == 32))
-			{
-				if (nbr >= 0x80000000L && nbr <= 0xFFFFFFFFL)
-					nbr |= INT64_C(0xFFFFFFFF00000000);
+				if ((base == 16 && n == 4) || (base == 2 && n == 16))
+				{
+					if (nbr >= 0x8000L && nbr <= 0xFFFFL)
+						nbr |= INT64_C(0xFFFFFFFFFFFF0000);
+				}
+				else if ((base == 16 && n == 8) || (base == 2 && n == 32))
+				{
+					if (nbr >= 0x80000000L && nbr <= 0xFFFFFFFFL)
+						nbr |= INT64_C(0xFFFFFFFF00000000);
+				}
 			}
 		}
 	}
 	
 	if (c > 0 && !isspace(c))
-		return TRUE;
+		return NB_READ_SYNTAX;
 	
 	if (n == 0)
-		return TRUE;
+		return NB_READ_SYNTAX;
 
-	*((int64_t *)result) = nbr;  
-	return FALSE;
+	*((int64_t *)result) = nbr;
+	return NB_READ_INTEGER;
 }
 
 
@@ -474,7 +501,7 @@ bool NUMBER_from_string(int option, const char *str, int len, VALUE *value)
 	errno = 0;
 	pos = COMMON_pos - 1;
 
-	if (!read_integer(base, minus, &val, (option & NB_LOCAL) != 0))
+	if (read_integer(base, minus, &val, (option & NB_LOCAL) != 0, TRUE) == NB_READ_INTEGER)
 	{
 		if (minus) val = (-val);
 		
@@ -545,7 +572,7 @@ void NUMBER_int_to_string(uint64_t nbr, int prec, int base, VALUE *value)
 		return;
 	}
 	
-	neg = (nbr & (1LL << 63)) != 0;
+	neg = (nbr & (1ULL << 63)) != 0;
 	
 	if (base == 10 && neg)
 		nbr = 1 + ~nbr;
@@ -599,3 +626,18 @@ void NUMBER_int_to_string(uint64_t nbr, int prec, int base, VALUE *value)
 	}
 }
 
+
+int NUMBER_read_integer(const char *str, int len, int base, int64_t *result)
+{
+	int err;
+
+	buffer_init(str, len);
+	get_char();
+
+	err = read_integer(base, FALSE, result, FALSE, FALSE);
+
+	if (err == NB_READ_INTEGER && !IS_PURE_INTEGER(*result))
+		err = NB_READ_LONG;
+
+	return err;
+}

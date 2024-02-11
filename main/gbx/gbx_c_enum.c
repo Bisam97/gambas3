@@ -131,7 +131,7 @@ BEGIN_PROPERTY(CENUM_index)
     else
     {
       #ifdef DEBUG_ME
-      fprintf(stderr, "CENUM_index: %p <%p>: -> value (%ld)\n", THIS, THIS->enum_object, ((VARIANT *)THIS->data)->type);
+      fprintf(stderr, "CENUM_index: %p <%p>: -> value (%lu)\n", THIS, THIS->enum_object, ((VARIANT *)THIS->data)->type);
       #endif  
       GB_ReturnVariant((GB_VARIANT_VALUE *)THIS->data);
      }
@@ -139,7 +139,7 @@ BEGIN_PROPERTY(CENUM_index)
   else
   {
     #ifdef DEBUG_ME
-    fprintf(stderr, "CENUM_index: %p <%p>: set: variant = %d\n", THIS, THIS->enum_object, THIS->variant);
+    fprintf(stderr, "CENUM_index: %p <%p>: set: variant = %u\n", THIS, THIS->enum_object, THIS->variant);
     #endif  
     if (!THIS->variant)
       ((VARIANT *)THIS->data)->type = T_NULL;

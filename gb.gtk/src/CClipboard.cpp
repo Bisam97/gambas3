@@ -467,7 +467,7 @@ BEGIN_PROPERTY(Drag_Data)
 
 	CHECK_VALID();  
   
-  if (!gDrag::isActive())
+  if (!gDrag::hasData())
   {
     GB.ReturnNull();
     return;
@@ -482,7 +482,7 @@ BEGIN_METHOD(Drag_Paste, GB_STRING format)
 
 	CHECK_VALID();
   
-  if (!gDrag::isActive())
+  if (!gDrag::hasData())
   {
     GB.ReturnNull();
     return;

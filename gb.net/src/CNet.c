@@ -143,7 +143,7 @@ GB_DESC CNetDesc[] =
 	GB_CONSTANT("CannotBindInterface", "i", NET_CANNOT_BIND_INTERFACE),
 	GB_CONSTANT("CannotAuthenticate", "i", NET_CANNOT_AUTHENTICATE),
 	GB_CONSTANT("ConnectionTimeout", "i", NET_CONNECTION_TIMEOUT),
-	/* SeverSocket, type */
+	/* ServerSocket, type */
 	GB_CONSTANT("Internet", "i", NET_TYPE_INTERNET),
 	GB_CONSTANT("Local", "i", NET_TYPE_LOCAL),
 	GB_CONSTANT("Unix", "i", NET_TYPE_LOCAL),

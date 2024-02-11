@@ -48,7 +48,7 @@ static int stream_open(STREAM *stream, const char *path, int mode)
 	if (stream->memory.addr == NULL)
 	{
 		stream->type = NULL;
-		THROW(E_ARG);
+		THROW_ARG();
 	}
 	
   stream->memory.pos = 0;

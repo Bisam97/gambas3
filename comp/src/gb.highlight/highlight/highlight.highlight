@@ -1,0 +1,51 @@
+@word /\S+/
+$(IDENT)=[A-Za-z_][A-Za-z0-9._]*
+comment:
+  from #
+class{Function}:
+  from /$(IDENT)/ to ":\n"
+  color{Keyword}:
+    from { to }
+    color.arg{Constant}:
+      match /$(IDENT)/
+subst{Preprocessor}:
+  from /^\$\($(IDENT)\)=/
+include{Preprocessor}:
+  from "@include"
+command{Keyword}:
+  match /(from|between|match)/
+  args{Normal}:
+    from here
+    keyword:
+      match /(to|and|here)/
+    with{Preprocessor}:
+      match /with\s$(IDENT)/
+    arg{Normal}:
+      word " "" / // /* /**
+    space{Normal}:
+      match /(/s|[^"/])/
+    string:
+      match "\""
+      string.contents{String}:
+        between here and /\s/
+        string.subst{Preprocessor}:
+          match /\$\($(IDENT)\)/
+        escape:
+          match /\\[fnrtv0'"\\]/
+          match /\\x[0-9a-fA-F]{2}/
+    regexp{Datatype}:
+      match "/"
+      regexp.contents{Datatype}:
+        between here and /\s/
+        regexp.subst{Preprocessor}:
+          match /\$\($(IDENT)\)/
+        regexp.escape{Escape}:
+          match /\\./
+word{Keyword}:
+  match /(word|keyword|symbol)/
+  args{Normal}:
+    from here
+    include{Preprocessor}:
+      from @
+limit{Keyword}:
+  match "limit"

@@ -48,8 +48,6 @@
 //#define DEBUG_STACK 1
 //#define SHOW_FUNCTION 1
 
-STACK_CONTEXT EXEC_current = { 0 }; // Current virtual machine state
-VALUE *SP = NULL; // Stack pointer
 VALUE TEMP; // Temporary storage or return value of a native function
 VALUE RET; // Return value of a gambas function
 VALUE *EXEC_super = NULL; // SUPER was used for this stack pointer
@@ -418,7 +416,7 @@ static void init_local_var(CLASS *class, FUNCTION *func)
 	__FUNCTION:
 	__CLASS:
 	__NULL:
-		ERROR_panic("VALUE_default: Unknown default type");
+		ERROR_panic("init_local_var: unknown default type");
 	}
 
 	SP = value;
@@ -1022,15 +1020,6 @@ void EXEC_function_loop()
 					// - A stack frame that has an error handler.
 					// - A void stack frame created by EXEC_enter_real()
 
-					// First we leave stack frames for JIT functions
-					// on top of the stack. We have just propagated
-					// past these some lines below.
-					
-					/*ERROR_lock();
-					while (PC != NULL && EC == NULL && FP->fast)
-						EXEC_leave_drop();
-					ERROR_unlock();*/
-					
 					// We can only leave stack frames for non-JIT functions.
 					ERROR_lock();
 					while (PC != NULL && EC == NULL && !FP->fast_linked)
@@ -1061,7 +1050,7 @@ void EXEC_function_loop()
 						ERROR_unlock();
 
 						EP = NULL;
-						/* On va directement sur le END TRY */
+						// Let's go directly to the END TRY
 					}
 
 					// Now we can handle the CATCH
@@ -1616,13 +1605,9 @@ void EXEC_public(CLASS *class, void *object, const char *name, int nparam)
 }
 
 
-bool EXEC_special(int special, CLASS *class, void *object, int nparam, bool drop)
+bool EXEC_special_do(CLASS *class, int index, void *object, int nparam, bool drop)
 {
 	CLASS_DESC *desc;
-	short index = class->special[special];
-
-	if (index == NO_SYMBOL)
-		return TRUE;
 
 	desc = CLASS_get_desc(class, index);
 
@@ -1863,6 +1848,8 @@ void EXEC_new(ushort code)
 	char *name = NULL;
 	char *cname = NULL;
 	char *save;
+	bool new_method;
+	bool ready_method;
 
 	np = code & 0xFF;
 	event = np & CODE_NEW_EVENT;
@@ -1922,34 +1909,51 @@ void EXEC_new(ushort code)
 		np--;
 	}
 
-	save = EVENT_enter_name(name);
 
-	TRY
+	new_method = class->new_method;
+	ready_method = class->ready_method;
+
+	if (new_method || ready_method)
 	{
-		OBJECT_lock(object, TRUE);
-		EXEC_special_inheritance(SPEC_NEW, class, object, np, TRUE);
-		OBJECT_lock(object, FALSE);
-		EVENT_leave_name(save);
+		TRY
+		{
+			if (new_method)
+			{
+				save = EVENT_enter_name(name);
+				OBJECT_lock(object, TRUE);
+				EXEC_special_inheritance(SPEC_NEW, class, object, np, TRUE);
+				OBJECT_lock(object, FALSE);
+				EVENT_leave_name(save);
+			}
 
-		SP--; /* class */
-		EXEC_special(SPEC_READY, class, object, 0, TRUE);
+			SP--; /* class */
+			EXEC_special(SPEC_READY, class, object, 0, TRUE);
 
-		SP->_object.class = class;
-		SP->_object.object = object;
-		SP++;
+		}
+		CATCH
+		{
+			if (new_method)
+				EVENT_leave_name(save);
+			// _free() methods should not be called, but we must
+			OBJECT_UNREF(object);
+			//(*class->free)(class, object);
+			SP--; /* class */
+			SP->type = T_NULL;
+			SP++;
+			PROPAGATE();
+		}
+		END_TRY
 	}
-	CATCH
+	else
 	{
-		EVENT_leave_name(save);
-		// _free() methods should not be called, but we must
-		OBJECT_UNREF(object);
-		//(*class->free)(class, object);
-		SP--; /* class */
-		SP->type = T_NULL;
-		SP++;
-		PROPAGATE();
+		if (np)
+			THROW(E_TMPARAM);
+		SP--;
 	}
-	END_TRY
+
+	SP->_object.class = class;
+	SP->_object.object = object;
+	SP++;
 }
 
 
@@ -2058,3 +2062,65 @@ void EXEC_set_got_error(bool err)
 {
 	EXEC_got_error = err;
 }
+
+PCODE *EXEC_on_goto_gosub(PCODE *pc)
+{
+	short n, m;
+
+	m = (signed char)*pc;
+	SP--;
+	VALUE_conv_integer(SP);
+	n = SP->_integer.value;
+
+	if (m == 0) // indirect GOTO / GOSUB
+	{
+		m = FP->n_label;
+		n--;
+		//fprintf(stderr, "m = %d n = %d\n", m, n);
+		if (n < 0 || n >= m)
+			THROW(E_JUMP);
+		n = FP->code[n - m];
+		if (n < 0)
+			THROW(E_JUMP);
+		//fprintf(stderr, "-> %d\n", FP->code[n - m - 1]);
+		pc[2] = n - (pc - FP->code) - 3;
+		pc++;
+	}
+	else
+	{
+		if (n < 0 || n >= m)
+			pc += m + 3;
+		else
+		{
+			pc[m + 2] = pc[n + 1] - (m - n) - 2;
+			pc += m + 1;
+		}
+	}
+
+	return pc;
+}
+
+
+void EXEC_gosub(PCODE *pc)
+{
+	int i;
+	VALUE *val;
+
+	STACK_check(1 + FP->stack_usage - FP->n_local);
+
+	SP->type = T_VOID;
+	SP->_void.value[0] = (intptr_t)pc;
+	SP->_void.value[1] = (intptr_t)GP;
+
+	GP = SP;
+
+	SP++;
+
+	val = &BP[FP->n_local];
+	for (i = 0; i < FP->n_ctrl; i++)
+	{
+		*SP++ = val[i];
+		val[i].type = T_NULL;
+	}
+}
+

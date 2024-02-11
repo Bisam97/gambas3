@@ -4,14 +4,12 @@ Inherits TextEditorMode
 
 Static Public Const Name As String = "gambas"
 
-Public Sub IsIdentCar(sCar As String) As Boolean
+Public Sub IsWordChar(sCar As String) As Boolean
   
-  If IsLetter(sCar) Then Return True
-  If IsDigit(sCar) Then Return True
   If sCar = "_" Or If sCar = "$" Then Return True
+  Return Super.IsWordChar(sCar)
   
 End
-
 
 Private Sub ToggleAroundCurrentWord(hEditor As TextEditor, sBraces As String)
 
@@ -24,13 +22,13 @@ Private Sub ToggleAroundCurrentWord(hEditor As TextEditor, sBraces As String)
   
   X1 = hEditor.Column
   While X1 > 0
-    If Not IsIdentCar(String.Mid$(sLine, X1, 1)) Then Break
+    If Not IsWordChar(String.Mid$(sLine, X1, 1)) Then Break
     Dec X1
   Wend
   
   X2 = hEditor.Column
   While X2 < iLen
-    If Not IsIdentCar(String.Mid$(sLine, X2 + 1, 1)) Then Break
+    If Not IsWordChar(String.Mid$(sLine, X2 + 1, 1)) Then Break
     Inc X2
   Wend
   

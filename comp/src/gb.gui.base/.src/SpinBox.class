@@ -50,8 +50,11 @@ Private $bWide As Boolean
 Private $hButtonInc As ToolButton
 Private $hButtonDec As ToolButton
 Private $iWidth As Integer
+Private $bRightToLeft As Boolean
 
 Public Sub _new()
+  
+  $bRightToLeft = Me.RightToLeft
   
   $hView = New DrawingArea(Me) As "View"
   
@@ -88,6 +91,8 @@ Private Sub GetArrowRect(iArrow As Integer, Optional bForDrawing As Boolean) As 
   Else
     hRect = Rect(Me.W - W, Me.H - H - BH, W, H)
   Endif
+  
+  If Me.RightToLeft Then hRect.X = 0
   
   If bForDrawing Then hRect = Rect(hRect.Center().X - D / 2, hRect.Center().Y - D \ 2, D, D)
   Return hRect
@@ -163,13 +168,22 @@ Public Sub View_Arrange()
   If W < 1 Or If H < 1 Then
     $hTextBox.Hide
   Else
-    $hTextBox.Move(BW, BH, W, H)
+    If Me.RightToLeft Then 
+      $hTextBox.Move(Me.W - W - BW, BH, W, H)
+    Else
+      $hTextBox.Move(BW, BH, W, H)
+    Endif
     $hTextBox.Show
   Endif
   
   If $bWide Then
-    $hButtonInc.Move(Me.W - BW - DS * 6, BH, DS * 3, Me.H - BH * 2)
-    $hButtonDec.Move(Me.W - BW - DS * 3, BH, DS * 3, Me.H - BH * 2)
+    If Me.RightToLeft Then 
+      $hButtonInc.Move(BW + DS * 3, BH, DS * 3, Me.H - BH * 2)
+      $hButtonDec.Move(BW, BH, DS * 3, Me.H - BH * 2)
+    Else
+      $hButtonInc.Move(Me.W - BW - DS * 6, BH, DS * 3, Me.H - BH * 2)
+      $hButtonDec.Move(Me.W - BW - DS * 3, BH, DS * 3, Me.H - BH * 2)
+    Endif
   Endif
   
   $bArrange = False
@@ -182,13 +196,18 @@ Public Sub View_Draw()
   Dim hRect As Rect
   Dim iCol As Integer
 
+  If Me.RightToLeft <> $bRightToLeft Then
+    $bRightToLeft = Me.RightToLeft
+    View_Arrange
+  Endif
+
   iCol = $hTextBox.Background
   If iCol = Color.Default Then
-    If $hTextBox.ReadOnly Then
-      iCol = Color.Background
-    Else
+    'If $hTextBox.ReadOnly Then
+    '  iCol = Color.Background
+    'Else
       iCol = Color.TextBackground
-    Endif
+    'Endif
   Endif
   
   If $bBorder Then  
@@ -204,12 +223,12 @@ Public Sub View_Draw()
 
   Endif
   
-  If $hTextBox.ReadOnly Then Return
+  'If $hTextBox.ReadOnly Then Return
   
   If Not $bWide Then
   
     hRect = GetArrowRect(ARROW_TOP, True)
-    If $iValue = $iMax Or If $hTextBox.ReadOnly Then
+    If $iValue = $iMax Then
       iState = Style.Disabled
     Else If $iInsideArrow = ARROW_TOP
       iState = Style.Hovered
@@ -219,7 +238,7 @@ Public Sub View_Draw()
     Style.PaintArrow(hRect.X, hRect.Y, hRect.W, hRect.H, Align.Top, iState)
   
     hRect = GetArrowRect(ARROW_BOTTOM, True)
-    If $iValue = $iMin Or If $hTextBox.ReadOnly Then
+    If $iValue = $iMin Then
       iState = Style.Disabled
     Else If $iInsideArrow = ARROW_BOTTOM
       iState = Style.Hovered
@@ -236,7 +255,7 @@ Private Sub ChangeValue(bAdd As Boolean, Optional bFocus As Boolean)
 
   Dim iValue As Integer
   
-  If $hTextBox.ReadOnly Then Return
+  'If $hTextBox.ReadOnly Then Return
   iValue = $iValue
   SetValue($iValue + $iStep * If(bAdd, 1, -1), bFocus)
   If $iValue = iValue Then Raise Limit
@@ -246,7 +265,7 @@ End
 Public Sub View_MouseWheel()
   
   If Object.CanRaise(Me, "MouseWheel") Then Return
-  If $hTextBox.ReadOnly Then Return
+  'If $hTextBox.ReadOnly Then Return
   
   CheckValue
   ChangeValue(Mouse.Delta > 0, True)
@@ -293,12 +312,19 @@ Private Sub SetValue(iValue As Integer, Optional bFocus As Boolean)
     iValue = If($bWrap, $iMin, $iMax)
   Endif
   
-  sValue = CStr(iValue)
-  nZero = Max(Len(CStr($iMin)), Len(CStr($iMax)))
+  sValue = CStr(Abs(iValue))
+  nZero = Max(Len(CStr(Abs($iMin))), Len(CStr(Abs($iMax))))
   If $bShowZero Then
     If nZero > Len(sValue) Then sValue = String$(nZero - Len(sValue), "0") & sValue
   Endif
-  If $bShowSign And If iValue > 0 Then sValue = "+" & sValue
+  
+  If iValue < 0 Or If $bShowSign Then
+    If iValue < 0 Then
+      sValue = "-" & sValue
+    Else If iValue > 0 Then
+      sValue = "+" & sValue
+    Endif
+  Endif
   
   ComputeMinWidth
   
@@ -309,7 +335,7 @@ Private Sub SetValue(iValue As Integer, Optional bFocus As Boolean)
   Endif
   $hView.Refresh
 
-  If bFocus Then
+  If bFocus And If Not $hTextBox.ReadOnly Then
     $hTextBox.SetFocus
     $hTextBox.SelectAll
   Endif
@@ -371,10 +397,10 @@ End
 Public Sub TextBox_LostFocus()
   
   'Debug
-  If Not $hTextBox.ReadOnly Then 
+  'If Not $hTextBox.ReadOnly Then 
     CheckValue
     SetValue($iValue)
-  Endif
+  'Endif
   
   $hView.Refresh
   
@@ -418,7 +444,7 @@ Public Sub View_MouseDown()
     Return
   Endif
   
-  If $hTextBox.ReadOnly Then Return
+  'If $hTextBox.ReadOnly Then Return
   
   If $iInsideArrow = ARROW_TOP Then
     $bTimerAdd = True
@@ -631,11 +657,11 @@ Private Sub UpdateTextBoxBackground()
 
   iCol = $iBg
   If iCol = Color.Default Then
-    If $hTextBox.ReadOnly Then
-      iCol = Color.Background
-    Else 
+    'If $hTextBox.ReadOnly Then
+    '  iCol = Color.Background
+    'Else 
       iCol = Color.TextBackground
-    Endif
+    'Endif
   Endif
   
   $hTextBox.Background = iCol
@@ -705,10 +731,10 @@ End
 
 Private Sub UpdateButtons()
 
-  If Not $hButtonInc Then Return
-  
-  $hButtonInc.Enabled = Not Me.ReadOnly
-  $hButtonDec.Enabled = Not Me.ReadOnly
+  ' If Not $hButtonInc Then Return
+  ' 
+  ' $hButtonInc.Enabled = Not Me.ReadOnly
+  ' $hButtonDec.Enabled = Not Me.ReadOnly
 
 End
 

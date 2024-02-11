@@ -439,12 +439,12 @@ Public Sub Form_Open()
       tabPrint.Index = 1
     Endif
     
-    Try $hPrinter.Duplex = Settings["FPreview/Duplex"]
+    Try $hPrinter.Duplex = Settings["FPreview/Duplex", Printer.Simplex]
+    cmbDuplex.Index = $hPrinter.Duplex
     Try $hPrinter.GrayScale = Settings["FPreview/GrayScale"] 
     Try $hPrinter.ReverseOrder = Settings["FPreview/ReverseOrder"] 
     Try $hPrinter.CollateCopies = Settings["FPreview/CollateCopies"] 
     Try $iFileRes = Settings["FPreview/FileResolution", 150] 
-    Try $hPrinter.Duplex = Settings["FPreview/Duplex", Printer.Simplex] = cmbDuplex.Index
   Endif
   
   SelectPrinter($hPrinter.Name)

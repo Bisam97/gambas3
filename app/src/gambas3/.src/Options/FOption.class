@@ -7,19 +7,19 @@ Static Private $aBrowser As String[] = ["konqueror", "rekonq", "firefox", "icewe
 'Static Private $aImageEditor As String[] = ["gimp", "kolourpaint", "krita"]
 Static Private $aMessageBoxStyle As String[] = ["default", "flat"]
 Static Private $aMessageBoxStyleName As String[] = [("Default"), ("Flat")]
-Static Private $cLayoutName As Collection
 
 Private $bNoChange As Boolean
 Private $aConfig As Variant[][]
 Private $sStyle As String
 Private $hDraw As DrawingArea
 Private $hDownloadHelp As DownloadManager
-Private $aLayout As String[]
 
 Private $hLastTheme As TextHighlighterTheme
 Private $hTheme As TextHighlighterTheme
-Private $aHighlightTypes As String[]
+Private $aHighlightKeys As String[]
 Private $aHighlightNames As String[]
+
+Private $bSaveCurrentLayout As Boolean
 
 Private Sub ReadConfig()
   
@@ -38,7 +38,7 @@ Private Sub ReadConfig()
         hCtrl.SelectedFont = vVal
       Case "ComboBox"
         If hCtrl.ReadOnly Then
-          If TypeOf(vVal) = gb.Boolean Then 
+          If TypeOf(vVal) = gb.Boolean Then
             hCtrl.Index = If(vVal, 1, 0)
           Else
             hCtrl.Index = vVal
@@ -48,6 +48,8 @@ Private Sub ReadConfig()
         Endif
       Case "SpinBox"
         hCtrl.Value = vVal
+      Case "Slider"
+        hCtrl.Value = vVal
       Case "ButtonBox"
         hCtrl.Text = vVal
       Case "SwitchButton"
@@ -56,7 +58,7 @@ Private Sub ReadConfig()
         hCtrl.Text = vVal
       Case "FontBox"
         hCtrl.Value = vVal
-      Default 
+      Default
         Debug "Unmanaged type: "; Object.Type(hCtrl)
     
     End Select
@@ -105,56 +107,57 @@ Public Sub _new()
   FillLanguage
   
   $aConfig = [
-    [txtEditorFont, "/Editor/Font", ""],
-    [txtConsoleFont, "/ConsoleFont", ""],
-    [txtPrintFont, "/Printing/Font", ""],
-    [txtGlobalFont, "/Font", ""],
-    [txtHelpDefaultFont, "/Help/Font", ""],
-    [txtHelpFixedFont, "/Help/FixedFont", ""],
-    [btnCloseWithMiddleClick, "/CloseWithMiddleClick", 0],
-    [txtTabSize, "/DefaultTabSize", 2],
-    [txtCompilerJobs, "/CompilerJobs", 1],
-    [btnWrapText, "/Editor/WrapTextByDefault", 1],
-    [btnTabIndent, "/Editor/TabIndentByDefault", 0],
-    [btnVersionControl, "/VersionControl/Enabled", 1],
-    [btnShowLimit, "/Editor/ProcedureLimit", 1],
-    [btnShowLineNumber, "/Editor/ShowLineNumbers", 0],
-    [btnShowChange, "/Editor/ShowChange", 1],
-    [btnShowCurrent, "/Editor/ShowCurrent", 1],
-    [btnShowSpaces, "/Editor/ShowSpaces", 1],
-    [btnShowIndent, "/Editor/ShowIndent", 1],
-    [btnShowPreview, "/Editor/ShowPreview", 0],
-    [btnFold, "/Editor/ShowExpand", 1],
-    [btnInvertTheme, "/Editor/InvertTheme", 1],
-    [btnShowDebug, "/ShowDebugPanelAutomatically", 1],
-    [btnUtility, "/UseUtilityWindows", 1],
-    [btnStartupLoad, "/RestoreFiles", 1],
-    [btnOptional, "/AlwaysDisplayOptionalMessages", 0],
-    [btnOfflineHelp, "/UseOfflineHelp", 0],
-    [btnTooltip, "/ShowTooltip", 1],
-    [btnAnimation, "/Animations", 1],
-    [btnShadow, "/Shadows", 1],
-    [btnShowFileInTitle, "/ShowFileInTitle", 1],
-    [btnHelpCompletion, "/ShowHelpInPopup", 1],
-    [btnUpperCaseKeywords, "/Editor/KeywordsUseUpperCase", 0],
-    [btnControlStructCompletion, "/Editor/ControlStructCompletion", 1],
-    [btnLocalVarDecl, "/Editor/LocalVariableDeclaration", 1],
-    [btnComment, "/Editor/AutoComment", 1],
-    [btnCloseBraces, "/Editor/CloseBraces", 1],
-    [btnCloseStrings, "/Editor/CloseStrings", 1],
-    [btnIndentDim, "/FormatCode/IndentLocal", 1],
-    [btnRemoveSpace, "/FormatCode/RemoveSpaces", 0],
-    [btnKeepVoidLine, "/FormatCode/KeepVoidLines", 0],
-    [btnFormatOnLoad, "/FormatCode/FormatOnLoad", 0],
-    [btnCodeSnippet, "/Editor/CodeSnippets", 1],
-    [txtName, "/Identity/Name", User.Name],
-    [txtMail, "/Identity/Mail", User.Name & "@" & System.Host],
-    [txtVendor, "/Packager/Vendor", ""],
-    [txtVendorPrefix, "/Packager/VendorPrefix", ""],
-    [txtLicense, "/Packager/License", "General Public License"],
-    [txtURL, "/Packager/URL", "www.endoftheinternet.com"],
-    [btnPrefix, "/Packager/UsePrefix", 0],
-    [btnCompressPng, "/CompressPng", 1],
+    [txtEditorFont, "/Editor/Font", ""], 
+    [txtConsoleFont, "/ConsoleFont", ""], 
+    [txtPrintFont, "/Printing/Font", ""], 
+    [txtGlobalFont, "/Font", ""], 
+    [txtHelpDefaultFont, "/Help/Font", ""], 
+    [txtHelpFixedFont, "/Help/FixedFont", ""], 
+    [btnCloseWithMiddleClick, "/CloseWithMiddleClick", 0], 
+    [txtTabSize, "/DefaultTabSize", 2], 
+    [txtCompilerJobs, "/CompilerJobs", 0], 
+    [btnWrapText, "/Editor/WrapTextByDefault", 1], 
+    [btnTabIndent, "/Editor/TabIndentByDefault", 0], 
+    [btnVersionControl, "/VersionControl/Enabled", 1], 
+    [btnShowLimit, "/Editor/ProcedureLimit", 1], 
+    [btnShowLineNumber, "/Editor/ShowLineNumbers", 0], 
+    [btnShowChange, "/Editor/ShowChange", 1], 
+    [btnShowCurrent, "/Editor/ShowCurrent", 1], 
+    [btnShowSpaces, "/Editor/ShowSpaces", 1], 
+    [btnShowIndent, "/Editor/ShowIndent", 1], 
+    [btnShowPreview, "/Editor/ShowPreview", 0], 
+    [btnFold, "/Editor/ShowExpand", 1], 
+    [btnInvertTheme, "/Editor/InvertTheme", 1], 
+    [btnShowDebug, "/ShowDebugPanelAutomatically", 1], 
+    [btnUtility, "/UseUtilityWindows", 1], 
+    [btnStartupLoad, "/RestoreFiles", 1], 
+    [btnOptional, "/AlwaysDisplayOptionalMessages", 0], 
+    [btnOfflineHelp, "/UseOfflineHelp", 0], 
+    [btnTooltip, "/ShowTooltip", 1], 
+    [btnAnimation, "/Animations", 1], 
+    [btnShadow, "/Shadows", 1], 
+    [btnShowFileInTitle, "/ShowFileInTitle", 1], 
+    [btnHelpCompletion, "/ShowHelpInPopup", 1], 
+    [sldToolbarDefaultSize, "/ToolbarDefaultSize", 0],
+    [btnUpperCaseKeywords, "/Editor/KeywordsUseUpperCase", 0], 
+    [btnControlStructCompletion, "/Editor/ControlStructCompletion", 1], 
+    [btnLocalVarDecl, "/Editor/LocalVariableDeclaration", 1], 
+    [btnComment, "/Editor/AutoComment", 1], 
+    [btnCloseBraces, "/Editor/CloseBraces", 1], 
+    [btnCloseStrings, "/Editor/CloseStrings", 1], 
+    [btnIndentDim, "/FormatCode/IndentLocal", 1], 
+    [btnRemoveSpace, "/FormatCode/RemoveSpaces", 0], 
+    [btnKeepVoidLine, "/FormatCode/KeepVoidLines", 0], 
+    [btnFormatOnLoad, "/FormatCode/FormatOnLoad", 0], 
+    [btnCodeSnippet, "/Editor/CodeSnippets", 1], 
+    [txtName, "/Identity/Name", User.Name], 
+    [txtMail, "/Identity/Mail", User.Name & "@" & System.Host], 
+    [txtVendor, "/Packager/Vendor", ""], 
+    [txtVendorPrefix, "/Packager/VendorPrefix", ""], 
+    [txtLicense, "/Packager/License", "General Public License"], 
+    [txtURL, "/Packager/URL", "www.endoftheinternet.com"], 
+    [btnPrefix, "/Packager/UsePrefix", 0], 
+    [btnCompressPng, "/CompressPng", 1], 
     [btnAutoTrans, "/AutomaticTranslation/Enabled", 0]]
   
   $bNoChange = True
@@ -164,9 +167,9 @@ Public Sub _new()
   cmbIconTheme.Index = Max(0, cmbIconTheme.List.Find(Settings["/Theme", MTheme.DEFAULT_THEME]))
   cmbBrowser.Index = $aBrowser.Find(Settings["/Browser"]) + 1
 
-  SetPercentSize(cmbProjectFontSize, Settings["/ProjectFontSize", 100])    
-  SetPercentSize(cmbTitleFontSize, Settings["/TitleFontSize", 80])    
-  SetPercentSize(cmbDebuggerFontSize, Settings["/DebuggerFontSize", 80])    
+  SetPercentSize(cmbProjectFontSize, Settings["/ProjectFontSize", 100])
+  SetPercentSize(cmbTitleFontSize, Settings["/TitleFontSize", 80])
+  SetPercentSize(cmbDebuggerFontSize, Settings["/DebuggerFontSize", 80])
   SetPercentSize(cmbHelpZoom, Settings["/Help/Zoom", 80])
   
   iInd = $aTheme.Find(Settings["/Editor/Theme"])
@@ -202,14 +205,14 @@ Public Sub _new()
   
   btnAutoTrans_Click
   
-  $aHighlightTypes = TextHighlighter.List
-  $aHighlightNames = New String[$aHighlightTypes.Count]
-  For I = 0 To $aHighlightTypes.Max
-    $aHighlightNames[I] = TextHighlighter[$aHighlightTypes[I]].FullName
+  $aHighlightKeys = TextHighlighter.List
+  $aHighlightNames = New String[$aHighlightKeys.Count]
+  For I = 0 To $aHighlightKeys.Max
+    $aHighlightNames[I] = TextHighlighter.GetName($aHighlightKeys[I])
   Next
   
-  cmbHighlight.List = $aHighlightNames
-  cmbHighlight.Add(("All"), 0)
+  cmbHighlight.List = $aHighlightNames.Copy().Sort(gb.Language)
+  cmbHighlight.Add(("Common colors"), 0)
   cmbHighlight.Index = 0
   ReloadStyles
   
@@ -230,7 +233,7 @@ Public Sub cmbTheme_Click()
 
   iTheme = $aThemeName.Find(cmbTheme.Text)
 
-  If iTheme < 0 Then 
+  If iTheme < 0 Then
     Settings["/Editor/Theme"] = ""
     Return
   Endif
@@ -281,7 +284,7 @@ Private Sub RefreshStyle()
   For Each hHBox In svwTheme.Children
     hHBox.H = H
     hHBox.Children[0].Refresh
-  Next  
+  Next
   
 End
 
@@ -301,19 +304,18 @@ Private Sub RefreshEditor()
   
   For Each hFile In Project.Files
     Try hFile.ReadConfig()
-  Next  
+  Next
   
   FSearch.ReadConfig
   FMain.ReadConfig
   FProperty.ReadConfig
   FFormStack.ReadConfig
   FOutput.ReadConfig
-  FProfile.ReadAllConfig
   FDebugInfo.ReadConfig
   FDebugExpr.ReadConfig
   FCompletion.ReadConfig
   FSignature.ReadConfig
-
+  
 End
 
 Private Sub RefreshConsole()
@@ -337,7 +339,7 @@ Public Sub btnUndo_Click()
 
 End
 
-Private Sub RefreshWindow()
+Public Sub RefreshWindow()
   
   Dim hFile As Object
   
@@ -501,13 +503,13 @@ Public Sub btnImport_Click()
   'Enhanced Dialog.OpenFile() is buggy 
   If Not Dialog.Path Or If IsDir(Dialog.Path) Then Return
   
-  Settings["/FOption/ThemePath"] = Dialog.Path 
+  Settings["/FOption/ThemePath"] = Dialog.Path
   
   $hTheme = TextHighlighterTheme.Load(Dialog.Path)
   cmbTheme.Index = 0
   RefreshEditor
   
-Catch 
+Catch
   
   FMain.ShowErrorWith(("Unable to load theme file."))
 
@@ -531,7 +533,7 @@ Public Sub cmbIconTheme_Click()
 
   If cmbIconTheme.Index > 0
     Settings["/Theme"] = cmbIconTheme.Text
-  Else 
+  Else
     Settings["/Theme"] = "*"
   Endif
   
@@ -544,9 +546,9 @@ End
 
 Public Sub cmbBrowser_Click()
 
-  If cmbBrowser.Index > 0 Then 
+  If cmbBrowser.Index > 0 Then
     Settings["/Browser"] = $aBrowser[cmbBrowser.Index - 1]
-  Else   
+  Else
     Settings["/Browser"] = ""
   Endif
   
@@ -642,9 +644,10 @@ Public Sub dwgStyle_Draw()
   Dim LB As Integer
   Dim XB As Integer
 
+  If Not hStyle Then Return
   sName = hStyle.Name
   If Application.DarkTheme Then bInvert = Settings["/Editor/InvertTheme", True]
-  If bInvert Then 
+  If bInvert Then
     iBg = $hTheme["Background"].Color
     If Color[iBg].Value < 128 Then bInvert = False
   Endif
@@ -652,7 +655,7 @@ Public Sub dwgStyle_Draw()
   Paint.Font = Project.GetEditorFont()
   
   If hStyle.Background Then
-    If bInvert Then 
+    If bInvert Then
       iBackground = hStyle.InvertedColor
       iForeground = $hTheme["Normal"].InvertedColor
     Else
@@ -660,7 +663,7 @@ Public Sub dwgStyle_Draw()
       iForeground = $hTheme["Normal"].Color
     Endif
   Else
-    If bInvert Then 
+    If bInvert Then
       iBackground = $hTheme["Background"].InvertedColor
       iForeground = hStyle.InvertedColor
     Else
@@ -695,7 +698,7 @@ Public Sub dwgStyle_Draw()
   Y = hDraw.H - (hDraw.H - Paint.Font.H) \ 2
   W = Paint.Font.TextWidth(sName)
 
-  If hStyle.Underline Then 
+  If hStyle.Underline Then
     Paint.FillRect(D, Y, W, 1, Color.SetAlpha(iForeground, 128))
   Else If hStyle.Dotted Then
     Paint.Background = Color.SetAlpha(iForeground, 128)
@@ -713,7 +716,7 @@ End
 Public Sub btnStyle_Click()
 
   $hDraw = Last.Parent '.Children[0]
-  $sStyle = $hDraw.Parent.Tag  
+  $sStyle = $hDraw.Parent.Tag
   mnuPopup.Popup
   
 End
@@ -727,7 +730,7 @@ Public Sub mnuPopup_Show()
     mnuDotted.Checked = .Dotted
     mnuStrikeout.Checked = .Strikeout
 
-  End With 
+  End With
   
 End
 
@@ -859,11 +862,12 @@ End
 
 Public Sub Form_Open()
 
+  $bSaveCurrentLayout = False
   Me.Center
   btnClose.Raise
+  ipnOption_Click
 
 End
-
 
 Public Sub btnClearCache_Click()
 
@@ -944,7 +948,7 @@ Private Sub GetSnippet(Optional iRow As Integer = -1) As CSampleCode
 
   Dim hSampleCode As CSampleCode
   
-  If iRow < 0 Then 
+  If iRow < 0 Then
     iRow = gvwSnippet.Row
     If iRow < 0 Then Return
     If Not gvwSnippet.Rows[iRow].Selected Then Return
@@ -965,7 +969,7 @@ Public Sub gvwSnippet_Data(Row As Integer, Column As Integer)
     '.Data.Font = Project.GetEditorFont()
     If Column = 0 Then
       .Data.Text = hSampleCode.Trigger
-      If hSampleCode.Default Then 
+      If hSampleCode.Default Then
         '.Data.Font.Italic = True
       Else
         .Data.Font.Bold = True
@@ -1091,7 +1095,7 @@ Private Sub RefreshBackground()
   
   sBackground = Settings["/Background/Image", Project.DEFAULT_BACKGROUND]
   For Each hBg In svwBackground.Children
-    If hBg.Tag = sBackground Then 
+    If hBg.Tag = sBackground Then
       hBg.Selected = True
       svwBackground.EnsureVisible(hBg.X, hBg.Y, hBg.W, hBg.H)
     Endif
@@ -1109,20 +1113,20 @@ Public Sub ipnOption_Click()
       
       panCompressPng.Enabled = System.Exist("pngquant")
       panAutoTrans.Enabled = System.Exist("trans")
-      If panAutoTrans.Enabled Then 
+      If panAutoTrans.Enabled Then
         FillAutoTransEngines
       Else
         btnAutoTrans.Value = False
       Endif
 
-    Case ("Code snippets") 
+    Case ("Code snippets")
     
       If gvwSnippet.Rows.Count = 0 Then
         RefreshSnippet
         UpdateSnippet
       Endif
       
-    Case ("Background") 
+    Case ("Background")
       
       If svwBackground.Children.Count = 0 Then
         RefreshBackground
@@ -1134,8 +1138,12 @@ Public Sub ipnOption_Click()
       
     Case ("Interface")
       
-      SetCurrentLayout
-      If Not $aLayout Then RefreshLayout
+      CLayout.Init
+      If Not $bSaveCurrentLayout Then
+        CLayout.SaveCurrent
+        $bSaveCurrentLayout = True
+      Endif
+      RefreshLayout
     
   End Select
   
@@ -1517,8 +1525,8 @@ Public Sub btnDownload_Click()
   If sMsg Then Error.Raise(sMsg)
 
   $hDownloadHelp = New DownloadManager As "DownloadHelp"
-  $hDownloadHelp.Add("http://gambaswiki.org/gambas-wiki.tar.bz2", "help")
-  $hDownloadHelp.Add("http://gambaswiki.org/timestamp", "timestamp")
+  $hDownloadHelp.Add("https://gambaswiki.org/gambas-wiki.tar.bz2", "help")
+  $hDownloadHelp.Add("https://gambaswiki.org/timestamp", "timestamp")
   btnDownload.enabled = False
   $hDownloadHelp.Start
   
@@ -1541,7 +1549,7 @@ End
 Public Sub DownloadHelp_Error((Key) As String)
   
   FMain.ShowErrorWith(Subst(("Cannot download '&1'."), $hDownloadHelp[Key].Url), $hDownloadHelp[Key].ErrorText)
-  $hDownloadHelp = Null  
+  $hDownloadHelp = Null
   UpdateDocumentationState
   
 End
@@ -1589,13 +1597,13 @@ Public Sub DownloadHelp_End()
   Shell.Move($hDownloadHelp["timestamp"].Path, sDir &/ "timestamp", True)
   'File.Save(sDir &/ "timestamp", sTimestamp)
 
-  $hDownloadHelp = Null  
+  $hDownloadHelp = Null
   UpdateDocumentationState
   MHelp.OnDocumentationUpdate
   Dec Application.Busy
   Return
   
-FAIL:
+FAIL: 
 
   Dec Application.Busy
   Message.Warning(sMsg)
@@ -1606,7 +1614,7 @@ End
 Public Sub btnCancelDownload_Click()
 
   $hDownloadHelp.Stop()
-  $hDownloadHelp = Null  
+  $hDownloadHelp = Null
   UpdateDocumentationState
   
 End
@@ -1648,72 +1656,9 @@ Public Sub txtPrintFont_Click()
 
 End
 
-Private Sub GetLayoutDir() As String
-  
-  Return Desktop.DataDir &/ "gambas3/layout"
-  
-End
-
-
-Private Sub GetLayoutPath(sFile As String) As String
-  
-  If sFile Then
-    Return GetLayoutDir() &/ sFile & ".layout"
-  Else
-    Return Temp$("layout")
-  Endif
-  
-End
-
 Private Sub RefreshLayout()
 
-  Dim sFile As String
-  Dim sLang As String
-  Dim iPos As Integer
-  Dim sFullLang As String
-  Dim sName As String
-  Dim sDir As String
-
-  If Not $cLayoutName Then
-    $cLayoutName = New Collection
-    $cLayoutName["$default"] = ("Default")
-    $cLayoutName["$compact"] = ("Compact")
-  Endif
-  
-  sLang = System.Language
-  iPos = InStr(sLang, ".")
-  If iPos Then sLang = Left(sLang, iPos - 1)
-  iPos = InStr(sLang, "_")
-  If iPos Then
-    sFullLang = sLang
-    sLang = Left(sLang, iPos - 1)
-  Endif
-  
-  $aLayout = New String[]
-  
-  $aLayout.Add("")
-  $aLayout.Add("<i>" & ("Current") & "</i>")
-  
-  sDir = GetLayoutDir()
-
-  For Each sFile In Dir("layout", "*.layout").Sort(gb.Natural)
-    If Exist(sDir &/ sFile) Then Continue
-    sName = File.BaseName(sFile)
-    $aLayout.Add(sName)
-    If $cLayoutName.Exist(sName) Then sName = $cLayoutName[sName]
-    $aLayout.Add(Html(sName))
-  Next
-  
-  If IsDir(sDir) Then
-    For Each sFile In Dir(sDir, "*.layout").Sort(gb.Natural)
-      sName = File.BaseName(sFile)
-      $aLayout.Add(sName)
-      If $cLayoutName.Exist(sName) Then sName = $cLayoutName[sName]
-      $aLayout.Add(Html(sName))
-    Next
-  Endif
-  
-  gvwLayout.Rows.Count = $aLayout.Count \ 2
+  gvwLayout.Rows.Count = CLayout.All.Count + 1
   
   Object.Lock(gvwLayout)
   gvwLayout.Row = 0
@@ -1723,144 +1668,51 @@ End
 
 Public Sub gvwLayout_Data(Row As Integer, (Column) As Integer)
   
-  gvwLayout.Data.RichText = $aLayout[Row * 2 + 1]
-  
-End
-
-Private Sub SaveLayout(Optional sFile As String)
-
-  Dim sPath As String
-  Dim hSettings As Settings
-  
-  sPath = GetLayoutPath(sFile)
-  If sFile And If Exist(sPath) Then
-    If Message.Question(("Do you really want to override the existing layout?"), ("Override"), ("Cancel")) <> 1 Then Return
+  If Row = 0 Then
+    gvwLayout.Data.RichText = "<i>" & ("Current") & "</i>"
+  Else
+    gvwLayout.Data.Text = CLayout.All[Row - 1].Name
   Endif
   
-  Shell.MkDir(File.Dir(sPath))
-  hSettings = New Settings(sPath, "Gambas IDE layout")
-  
-  hSettings["Toolbar/Main"] = ToolBar.GetLayout("FMain.main")
-  hSettings["Toolbar/Editor"] = ToolBar.GetLayout("FEditor.editor")
-  hSettings["Toolbar/Text"] = ToolBar.GetLayout("FTextEditor.text")
-  hSettings["Toolbar/Connection"] = ToolBar.GetLayout("FConnectionEditor.connection")
-  hSettings["Toolbar/Form"] = ToolBar.GetLayout("FForm.form")
-  hSettings["Toolbar/Image"] = ToolBar.GetLayout("FImageEditor.image")
-  hSettings["ShowMenus"] = Settings["/ShowMenus"]
-  hSettings["Toolbox/Size"] = Settings["/Toolbox/Size"]
-  hSettings["CloseWithMiddleClick"] = Settings["/CloseWithMiddleClick"]
-  hSettings["ProjectFontSize"] = Settings["/ProjectFontSize"]
-  hSettings["TitleFontSize"] = Settings["/TitleFontSize"]
-  hSettings["DebuggerFontSize"] = Settings["/DebuggerFontSize"]
-  hSettings["Help/Zoom"] = Settings["/Help/Zoom"]
-  hSettings["Property/Help"] = Not FProperty.IsHelpHidden()
-  hSettings["/Editor/InvertTheme"] = Settings["/Editor/InvertTheme"]
-  
-  hSettings.Save
-  
 End
-
-Private Sub LoadLayout(sName As String)
-
-  Dim sPath As String
-  Dim sKey As String
-  Dim hSettings As Settings
-  Dim sSlot As String
-  Dim vVal As Variant
-  
-  Inc Application.Busy
-  
-  sPath = GetLayoutPath(sName)
-  If Not Exist(sPath) Then sPath = "./layout" &/ sName & ".layout"
-  
-  hSettings = New Settings(sPath, "Gambas IDE layout")
-
-  ' Toolbars last
-
-  For Each sSlot In hSettings.Keys
-    For Each sKey In hSettings.Keys[sSlot]
-      vVal = hSettings[sSlot &/ sKey]
-      If sSlot = "Toolbar" Then Continue
-      If sSlot = "Property" And If sKey = "Help" Then
-        FProperty.ShowHelp(vVal)
-      Else
-        Settings[sSlot &/ sKey] = vVal
-      Endif
-    Next
-  Next
-  
-  RefreshWindow
-  
-  For Each sKey In hSettings.Keys["Toolbar"]
-    vVal = hSettings[sSlot &/ sKey]
-    ToolBar.SetLayout(sKey, vVal)
-  Next
-  
-Finally
-  
-  Dec Application.Busy
-  
-Catch
-  
-  Error.Propagate()
-  
-End
-
 
 Public Sub btnSaveLayout_Click()
 
+  Dim hLayout As CLayout
   Dim sName As String
 
-  If gvwLayout.Row > 0 Then sName = $aLayout[gvwLayout.Row * 2 + 1]
+  If gvwLayout.Row <= 0 Then Return
 
-  If FLayout.Run($aLayout, sName) Then Return
-  
-  SaveLayout(FLayout.LayoutName)
-  RefreshLayout
-
-End
-
-Private Sub RemoveLayout(sFile As String)
-
-  Dim sPath As String
-
-  sPath = GetLayoutPath(sFile)
-  Try Kill sPath
+  hLayout = CLayout.All[gvwLayout.Row - 1]
+  If Not hLayout.IsDefault() Then sName = hLayout.Name
+  If FLayout.Run(sName) Then Return
+  hLayout.Save(FLayout.LayoutName)
   RefreshLayout
 
 End
 
 Public Sub btnDeleteLayout_Click()
 
+  If gvwLayout.Row <= 0 Then Return
   If Message.Warning(("Do you really want to delete that layout?"), ("Delete"), ("Cancel")) <> 1 Then Return
-  
-  RemoveLayout($aLayout[gvwLayout.Row * 2])
+  CLayout.All[gvwLayout.Row - 1].Remove()
+  RefreshLayout
 
 End
 
 Public Sub gvwLayout_Select()
 
-  Dim sName As String
+  Dim hLayout As CLayout
 
-  If gvwLayout.Row < 0 Then
+  If gvwLayout.Row <= 0 Then
     btnDeleteLayout.Enabled = False
+    If gvwLayout.Row = 0 Then CLayout.LoadCurrent()
     Return
   Endif
 
-  sName = $aLayout[gvwLayout.Row * 2]
-  If sName Then
-    btnDeleteLayout.Enabled = Exist(GetLayoutPath(sName)) 
-  Else 
-    btnDeleteLayout.Enabled = False
-  Endif 
-  
-  LoadLayout(sName)
-
-End
-
-Private Sub SetCurrentLayout()
-
-  SaveLayout()
+  hLayout = CLayout.All[gvwLayout.Row - 1]
+  btnDeleteLayout.Enabled = Not hLayout.IsDefault()
+  hLayout.Load()
 
 End
 
@@ -1904,33 +1756,33 @@ End
 
 Private Sub ReloadStyles()
 
-  Dim aStyles As String[]
   Dim hHBox As HBox
   Dim hColor As DrawingArea
   Dim hButton As ToolButton
-  Dim sStyle As String
   Dim aNames As String[]
   Dim I As Integer
+  Dim aStates As String[]
+  Dim sState As String
   
   svwTheme.Children.Clear
   
   If cmbHighlight.Index = 0 Then
-    aStyles = TextHighlighter.Styles
+    aStates = TextHighlighterTheme.States
   Else 
-    aStyles = TextHighlighter[$aHighlightTypes[$aHighlightNames.Find(cmbHighlight.Text)]].Styles
+    aStates = TextHighlighter[$aHighlightKeys[$aHighlightNames.Find(cmbHighlight.Text)]].States
   Endif
-  
-  aNames = New String[aStyles.Count]
-  For I = 0 To aStyles.Max
-    aNames[I] = Highlight.GetStyleName(aStyles[I])
+  ' 
+  aNames = aStates.Copy()
+  For I = 0 To aNames.Max
+    aNames[I] = Tr(aNames[I])
   Next
   
-  aStyles.SortUsing(aNames)
+  aStates.SortUsing(aNames)
 
-  For Each sStyle In aStyles
+  For Each sState In aStates
   
     hHBox = New HBox(svwTheme)
-    hHBox.Tag = sStyle
+    hHBox.Tag = sState
     hHBox.Height = 4 * Desktop.Scale
     'hHBox.Spacing = 4
     hColor = New DrawingArea(hHBox) As "dwgStyle"
@@ -1994,5 +1846,12 @@ Public Sub cmbLang_Click()
   If cmbLang.Index > 0 Then Try sLang = Language.Find(cmbLang.Text).Key
   Settings["/Language"] = sLang
   NeedRestart
+
+End
+
+Public Sub sldToolbarDefaultSize_Change()
+
+  Settings["/ToolbarDefaultSize"] = sldToolbarDefaultSize.Value
+  ToolBar.DefaultSize = Stock.Sizes[sldToolbarDefaultSize.Value]
 
 End

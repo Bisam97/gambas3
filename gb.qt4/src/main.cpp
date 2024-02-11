@@ -92,18 +92,10 @@
 #include "ctrayicon.h"
 
 #include <QX11Info>
-#ifndef QT5
 #include "CEmbedder.h"
-#endif
 
 #include "desktop.h"
 #include "x11.h"
-
-#ifdef QT5
-#include <xcb/xcb.h>
-#include <xcb/xproto.h>
-#include <QAbstractNativeEventFilter>
-#endif
 
 #include "fix_style.h"
 #include "main.h"
@@ -167,179 +159,7 @@ static int _utf8_length = 0;
 
 static void QT_Init(void);
 
-#ifdef QT5
-
-static QtMessageHandler _previousMessageHandler;
-
-static void myMessageHandler(QtMsgType type, const QMessageLogContext &context, const QString &msg )
-{
-	//fprintf(stderr, "---- `%s'\n", QT_ToUtf8(msg));
-	
-	if (msg == "QXcbClipboard: SelectionRequest too old")
-		return;
-	
-	if (msg.startsWith("QXcbConnection: ") && msg.contains("(TranslateCoords)"))
-		return;
-
-	_previousMessageHandler(type, context, msg);
-}
-#endif
-
-//static MyApplication *myApp;
-
-/***************************************************************************
-
-	MyMimeSourceFactory
-
-	Create a QMimeSourceFactory to handle files stored in an archive
-
-***************************************************************************/
-
-#if 0
-class MyMimeSourceFactory: public Q3MimeSourceFactory
-{
-public:
-
-	MyMimeSourceFactory();
-
-	virtual const QMimeSource* data(const QString& abs_name) const;
-
-private:
-
-	QMap<QString, QString> extensions;
-};
-
-
-MyMimeSourceFactory::MyMimeSourceFactory()
-{
-	extensions.replace("htm", "text/html;charset=UTF-8");
-	extensions.replace("html", "text/html;charset=UTF-8");
-	extensions.replace("txt", "text/plain");
-	extensions.replace("xml", "text/xml;charset=UTF-8");
-	extensions.replace("jpg", "image/jpeg");
-	extensions.replace("png", "image/png");
-	extensions.replace("gif", "image/gif");
-}
-
-
-const QMimeSource* MyMimeSourceFactory::data(const QString& abs_name) const
-{
-	char *addr;
-	int len;
-	Q3StoredDrag* sr = 0;
-	char *path;
-
-	//qDebug("MyMimeSourceFactory::data: %s", (char *)abs_name.latin1());
-
-	path = (char *)abs_name.latin1();
-
-	if (true) //abs_name[0] != '/')
-	{
-		if (GB.LoadFile(path, 0, &addr, &len))
-			GB.Error(NULL);
-		else
-		{
-			QByteArray ba;
-			ba.setRawData((const char *)addr, len);
-
-			QFileInfo fi(abs_name);
-			QString e = fi.extension(FALSE);
-			Q3CString mimetype = "text/html"; //"application/octet-stream";
-
-			const char* imgfmt;
-
-			if ( extensions.contains(e) )
-				mimetype = extensions[e].latin1();
-			else
-			{
-				QBuffer buffer(&ba);
-
-				buffer.open(QIODevice::ReadOnly);
-				if (( imgfmt = QImageReader::imageFormat( &buffer ) ) )
-					mimetype = Q3CString("image/")+Q3CString(imgfmt).lower();
-				buffer.close();
-			}
-
-			sr = new Q3StoredDrag( mimetype );
-			sr->setEncodedData( ba );
-
-			ba.resetRawData((const char*)addr, len);
-
-			//qDebug("MimeSource: %s %s", abs_name.latin1(), (const char *)mimetype);
-
-			GB.ReleaseFile(addr, len);
-		}
-	}
-
-	return sr;
-}
-
-static MyMimeSourceFactory myMimeSourceFactory;
-#endif
-
-#if 0
-/***************************************************************************
-
-	MyAbstractEventDispatcher
-
-	Manage window deletion
-
-***************************************************************************/
-
-class MyAbstractEventDispatcher : public QAbstractEventDispatcher
-{
-public:
-	MyAbstractEventDispatcher();
-	virtual bool processEvents(QEventLoop::ProcessEventsFlags flags);
-};
-
-MyAbstractEventDispatcher::MyAbstractEventDispatcher()
-: QAbstractEventDispatcher()
-{
-}
-
-bool MyAbstractEventDispatcher::processEvents(QEventLoop::ProcessEventsFlags flags)
-{
-	bool ret;
-	CWIDGET **ptr;
-	CWIDGET *ob;
-
-	MAIN_loop_level++;
-	ret = QAbstractEventDispatcher::processEvents(flags);
-	MAIN_loop_level--;
-
-	for(;;)
-	{
-		ptr = &CWIDGET_destroy_list;
-
-		for(;;)
-		{
-			ob = *ptr;
-			if (!ob)
-				return ret;
-
-			//if (MAIN_loop_level <= ob->level && !ob->flag.notified)
-			if (!ob->flag.notified)
-			{
-				//qDebug("delete: %s %p", GB.GetClassName(ob), ob);
-				//qDebug(">> delete %p (%p) :%p:%ld", ob, ob->widget, ob->ob.klass, ob->ob.ref);
-				//*ptr = ob->next;
-				delete ob->widget;
-				break;
-				//GB.Unref(POINTER(&ob));
-				//qDebug("   delete %p (%p) :%p:%ld #2", ob, ob->widget, ob->ob.klass, ob->ob.ref);
-				//qDebug("<< delete %p (%p)", ob, ob->widget);
-			}
-			else
-			{
-				//qDebug("cannot delete: %s %p", GB.GetClassName(ob), ob);
-				ptr = &ob->next;
-			}
-		}
-	}
-	//return ret;
-}
-#endif
+//-------------------------------------------------------------------------
 
 void MAIN_process_events(void)
 {
@@ -353,7 +173,7 @@ void MAIN_init_error()
 	GB.Error("GUI is not initialized");
 }
 
-/** MyApplication **********************************************************/
+//-------------------------------------------------------------------------
 
 bool MyApplication::_tooltip_disable = false;
 int MyApplication::_event_filter = 0;
@@ -578,184 +398,6 @@ static void x11_set_event_filter(int (*filter)(XEvent *))
 	_x11_event_filter = filter;
 }
 
-#ifdef QT5
-
-class MyNativeEventFilter: public QAbstractNativeEventFilter
-{
-public:
-
-	static MyNativeEventFilter manager;
-
-	virtual bool nativeEventFilter(const QByteArray &eventType, void *message, long *)
-	{
-		xcb_generic_event_t *ev = static_cast<xcb_generic_event_t *>(message);
-		int type = ev->response_type & ~0x80;
-
-		switch(type)
-		{
-			case XCB_KEY_PRESS:
-			case XCB_KEY_RELEASE:
-				MAIN_x11_last_key_code = ((xcb_key_press_event_t *)ev)->detail;
-				break;
-		}
-
-		if (_x11_event_filter)
-		{
-			XEvent xev;
-
-			CLEAR(&xev);
-			xev.xany.type = type;
-			xev.xany.display = QX11Info::display();
-			xev.xany.send_event = ev->response_type & 0x80 ? 1 : 0;
-
-			switch (type)
-			{
-				//case XCB_KEY_PRESS:
-				//case XCB_KEY_RELEASE:
-				case XCB_EXPOSE:
-				{
-					xcb_expose_event_t *e = (xcb_expose_event_t *)ev;
-					xev.xexpose.window = e->window;
-					xev.xexpose.x = e->x;
-					xev.xexpose.y = e->y;
-					xev.xexpose.width = e->width;
-					xev.xexpose.height = e->height;
-					xev.xexpose.count = e->count;
-					break;
-				}
-
-				case XCB_VISIBILITY_NOTIFY:
-				{
-					xcb_visibility_notify_event_t *e = (xcb_visibility_notify_event_t *)ev;
-					xev.xvisibility.window = e->window;
-					xev.xvisibility.state = e->state;
-					break;
-				}
-
-				case XCB_DESTROY_NOTIFY:
-				{
-					xcb_destroy_notify_event_t *e = (xcb_destroy_notify_event_t *)ev;
-					xev.xdestroywindow.event = e->event;
-					xev.xdestroywindow.window = e->window;
-					break;
-				}
-
-				case XCB_MAP_NOTIFY:
-				{
-					xcb_map_notify_event_t *e = (xcb_map_notify_event_t *)ev;
-					xev.xmap.event = e->event;
-					xev.xmap.window = e->window;
-					xev.xmap.override_redirect = e->override_redirect;
-					break;
-				}
-
-				case XCB_UNMAP_NOTIFY:
-				{
-					xcb_unmap_notify_event_t *e = (xcb_unmap_notify_event_t *)ev;
-					xev.xunmap.event = e->event;
-					xev.xunmap.window = e->window;
-					xev.xunmap.from_configure = e->from_configure;
-					break;
-				}
-
-				case XCB_REPARENT_NOTIFY:
-				{
-					xcb_reparent_notify_event_t *e = (xcb_reparent_notify_event_t *)ev;
-					xev.xreparent.event = e->event;
-					xev.xreparent.window = e->window;
-					xev.xreparent.parent = e->parent;
-					xev.xreparent.x = e->x;
-					xev.xreparent.y = e->y;
-					xev.xreparent.override_redirect = e->override_redirect;
-					break;
-				}
-
-				case XCB_CONFIGURE_NOTIFY:
-				{
-					xcb_configure_notify_event_t *e = (xcb_configure_notify_event_t *)ev;
-					xev.xconfigure.event = e->event;
-					xev.xconfigure.window = e->window;
-					xev.xconfigure.x = e->x;
-					xev.xconfigure.y = e->y;
-					xev.xconfigure.width = e->width;
-					xev.xconfigure.height = e->height;
-					xev.xconfigure.border_width = e->border_width;
-					xev.xconfigure.override_redirect = e->override_redirect;
-					break;
-				}
-				
-				case XCB_PROPERTY_NOTIFY:
-				{
-					xcb_property_notify_event_t *e = (xcb_property_notify_event_t *)ev;
-					xev.xproperty.window = e->window;
-					xev.xproperty.atom = e->atom;
-					xev.xproperty.time = e->time;
-					xev.xproperty.state = e->state;
-					break;
-				}
-
-				case XCB_SELECTION_CLEAR:
-				{
-					xcb_selection_clear_event_t *e = (xcb_selection_clear_event_t *)ev;
-					xev.xselectionclear.window = e->owner;
-					xev.xselectionclear.selection = e->selection;
-					xev.xselectionclear.time = e->time;
-					break;
-				}
-
-				case XCB_SELECTION_REQUEST:
-				{
-					xcb_selection_request_event_t *e = (xcb_selection_request_event_t *)ev;
-					xev.xselectionrequest.owner = e->owner;
-					xev.xselectionrequest.requestor = e->requestor;
-					xev.xselectionrequest.selection = e->selection;
-					xev.xselectionrequest.target = e->target;
-					xev.xselectionrequest.property = e->property;
-					xev.xselectionrequest.time = e->time;
-					break;
-				}
-
-				case XCB_SELECTION_NOTIFY:
-				{
-					xcb_selection_notify_event_t *e = (xcb_selection_notify_event_t *)ev;
-					xev.xselection.requestor = e->requestor;
-					xev.xselection.selection = e->selection;
-					xev.xselection.target = e->target;
-					xev.xselection.property = e->property;
-					xev.xselection.time = e->time;
-					break;
-				}
-
-				case XCB_CLIENT_MESSAGE:
-				{
-					xcb_client_message_event_t *e = (xcb_client_message_event_t *)ev;
-					xev.xclient.window = e->window;
-					xev.xclient.message_type = e->type;
-					xev.xclient.format = e->format;
-					xev.xclient.data.l[0] = e->data.data32[0];
-					xev.xclient.data.l[1] = e->data.data32[1];
-					xev.xclient.data.l[2] = e->data.data32[2];
-					xev.xclient.data.l[3] = e->data.data32[3];
-					xev.xclient.data.l[4] = e->data.data32[4];
-					break;
-				}
-
-				default:
-					qDebug("gb.qt5: warning: unhandled xcb event: %d", type);
-					return false;
-			}
-
-			return (*_x11_event_filter)(&xev) != 0;
-		}
-
-		return false;
-	}
-};
-
-MyNativeEventFilter MyNativeEventFilter::manager;
-
-#else
-
 bool MyApplication::x11EventFilter(XEvent *e)
 {
 	// Workaround for input methods that void the key code of KeyRelease eventFilter
@@ -769,8 +411,6 @@ bool MyApplication::x11EventFilter(XEvent *e)
 
 	return false;
 }
-
-#endif
 
 //---------------------------------------------------------------------------
 
@@ -860,9 +500,7 @@ static void check_quit_now(intptr_t param)
 					GB.Call(&func, 0, FALSE);
 			}
 
-#ifndef QT5
 			qApp->syncX();
-#endif
 			qApp->exit();
 			exit_called = true;
 		}
@@ -896,15 +534,6 @@ static bool try_to_load_translation(QString &locale)
 {
 	// QLocale::system().name()
 	return _translator->load("qt_" + locale, QLibraryInfo::location(QLibraryInfo::TranslationsPath));
-/*#ifdef QT5
-	return (!_translator->load(QString("qt_") + locale, QString(getenv("QTDIR")) + "/translations")
-		  && !_translator->load(QString("qt_") + locale, QString("/usr/lib/qt5/translations"))
-		  && !_translator->load(QString("qt_") + locale, QString("/usr/share/qt5/translations")));
-#else
-	return (!_translator->load(QString("qt_") + locale, QString(getenv("QTDIR")) + "/translations")
-		  && !_translator->load(QString("qt_") + locale, QString("/usr/lib/qt4/translations"))
-		  && !_translator->load(QString("qt_") + locale, QString("/usr/share/qt4/translations")));
-#endif*/
 }
 
 static void init_lang(char *lang, bool rtl)
@@ -1153,10 +782,6 @@ static void QT_Init(void)
 
 	X11_init(QX11Info::display(), QX11Info::appRootWindow());
 
-#ifdef QT5
-	_previousMessageHandler = qInstallMessageHandler(myMessageHandler);
-#endif
-	
 	/*QX11Info::setAppDpiX(0, 92);
 	QX11Info::setAppDpiY(0, 92);*/
 
@@ -1188,12 +813,17 @@ static void QT_Init(void)
 	if (!fix_style)
 		qApp->setStyle(new FixStyle);
 
+	/*env = getenv("GB_QT_NO_SEPARATOR")
+	if (!env || atoi(env) == 0)
+	{
+		env = getenv("XDG_CURRENT_DESKTOP");
+		if (env && !::strcmp(env, "KDE"))
+			CSTYLE_toplevel_separator = TRUE;
+	}*/
+
 	MAIN_update_scale(qApp->desktop()->font());
 
 	qApp->installEventFilter(&CWidget::manager);
-#ifdef QT5
-	qApp->installNativeEventFilter(&MyNativeEventFilter::manager);
-#endif
 
 	MyApplication::setEventFilter(true);
 
@@ -1375,20 +1005,14 @@ GB_DESC *GB_CLASSES[] EXPORT =
 	SliderDesc, ScrollBarDesc,
 	CWindowMenusDesc, CWindowControlsDesc, CWindowDesc, CWindowsDesc, CFormDesc,
 	CDialogDesc,
-#ifndef QT5
 	CEmbedderDesc,
-#endif
 	CWatcherDesc,
 	PrinterDesc,
 	SvgImageDesc,
 	NULL
 };
 
-#ifdef QT5
-void *GB_QT5_1[] EXPORT =
-#else
 void *GB_QT4_1[] EXPORT =
-#endif
 {
 	(void *)1,
 
@@ -1572,9 +1196,7 @@ void EXPORT GB_SIGNAL(int signal, void *param)
 		case GB_SIGNAL_DEBUG_FORWARD:
 			//while (qApp->activePopupWidget())
 			//	delete qApp->activePopupWidget();
-#ifndef QT5
 			qApp->syncX();
-#endif
 			break;
 
 		case GB_SIGNAL_DEBUG_CONTINUE:

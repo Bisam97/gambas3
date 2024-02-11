@@ -43,6 +43,7 @@ public:
 	
 	static bool isActive() { return _active; }
 	static bool isEnabled() { return _enabled; }
+	static bool hasData() { return _has_data; }
 	
 	static void setIcon(gPicture *vl);
 	static gPicture *getIcon() { return _icon; }
@@ -101,6 +102,7 @@ private:
 	static gControl *drag(gControl *source, GtkTargetList *list);
 	
 	static bool _active;
+	static bool _has_data;
 	static gPicture *_icon;
 	static int _icon_x;
 	static int _icon_y;

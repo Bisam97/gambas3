@@ -54,6 +54,7 @@ static struct option Long_options[] =
 	{ "verbose", 0, NULL, 'v' },
 	{ "output", 1, NULL, 'o' },
 	{ "extract", 1, NULL, 'x' },
+	{ "ignore-public", 0, NULL, 'p'},
 	{ 0 }
 };
 #endif
@@ -61,8 +62,9 @@ static struct option Long_options[] =
 static char **path_list;
 static int path_current;
 
-static const char *allowed_hidden_files[] = { ".gambas", ".info", ".list", ".test", ".lang", ".action", ".connection", ".component", ".public", NULL };
-//static const char *remove_ext_root[] = { "module", "class", "form", "gambas", NULL };
+static const char *_allowed_hidden_files[] = { ".gambas", ".info", ".list", ".test", ".lang", ".action", ".connection", ".component", ".public", ".app.png", NULL };
+#define PUBLIC_DIR _allowed_hidden_files[8]
+
 static const char *remove_ext_lang[] = { "pot", "po", NULL };
 
 static bool _extract = FALSE;
@@ -71,6 +73,8 @@ static char *_extract_file = NULL;
 static bool _list_all = FALSE;
 
 static char *_archive;
+
+static bool _ignore_public = FALSE;
 
 static void print_version()
 {
@@ -97,9 +101,9 @@ static void get_arguments(int argc, char **argv)
 	for(;;)
 	{
 		#if HAVE_GETOPT_LONG
-			opt = getopt_long(argc, argv, "vVLhso:x:l:", Long_options, &index);
+			opt = getopt_long(argc, argv, "vVLhso:x:l:p", Long_options, &index);
 		#else
-			opt = getopt(argc, argv, "vVLhso:x:l:");
+			opt = getopt(argc, argv, "vVLhso:x:l:p");
 		#endif
 
 		if (opt < 0) break;
@@ -131,6 +135,10 @@ static void get_arguments(int argc, char **argv)
 				_archive = optarg;
 				_list_all = TRUE;
 				break;
+
+			case 'p':
+				_ignore_public = TRUE;
+				break;
 				
 			case 'L':
 				print_version();
@@ -157,6 +165,7 @@ static void get_arguments(int argc, char **argv)
 					"  -V  --version              display version\n"
 					"  -x  --extract=ARCHIVE      extract a specific file from the archive\n"
 					"  -l  --list=ARCHIVE         list archive files\n"
+					"  -p  --ignore-public        ignore '.public' directory\n"
 					#else
 					" (no long options on this system)\n\n"
 					"  -h                     display this help\n"
@@ -167,6 +176,7 @@ static void get_arguments(int argc, char **argv)
 					"  -V                     display version\n"
 					"  -x=ARCHIVE             extract a specific file from the archive\n"
 					"  -l=ARCHIVE             list archie files\n"
+					"  -p                     ignore '.public' directory\n"
 					#endif
 					"\n"
 					);
@@ -339,12 +349,15 @@ int main(int argc, char **argv)
 			len_prefix = strlen(file);
 			path_init(file);
 
-			/* .startup and .project file always first ! */
+			// '.startup', '.project' and '.environment' files are always first!
 			
 			path = FILE_cat(FILE_get_dir(ARCH_project), ".startup", NULL);
 			if (FILE_exist(path)) ARCH_add_file(path);
-			
+
 			path = FILE_cat(FILE_get_dir(ARCH_project), ".project", NULL);
+			if (FILE_exist(path)) ARCH_add_file(path);
+
+			path = FILE_cat(FILE_get_dir(ARCH_project), ".environment", NULL);
 			if (FILE_exist(path)) ARCH_add_file(path);
 
 			for(;;)
@@ -376,15 +389,24 @@ int main(int argc, char **argv)
 					file_name = dirent->d_name;
 					len = strlen(file_name);
 
+					file = FILE_cat(path, file_name, NULL);
+
 					if (*file_name == '.')
 					{
-						for (p = allowed_hidden_files; *p; p++)
+						// hidden files are allowed only on the root of the project
+						if (path_current != 1)
+							continue;
+
+						for (p = _allowed_hidden_files; *p; p++)
 						{
 							if (strcmp(file_name, *p) == 0)
 								break;
 						}
 
 						if (*p == NULL)
+							continue;
+
+						if (*p == PUBLIC_DIR && _ignore_public)
 							continue;
 					}
 
@@ -406,8 +428,6 @@ int main(int argc, char **argv)
 					if ((len > 10) && (strncmp(file_name, "callgrind.", 5) == 0))
 						continue;
 
-					file = FILE_cat(path, file_name, NULL);
-					
 					// Do not put the archive file inside itself.
 					if (!strcmp(file, ARCH_output))
 						continue;

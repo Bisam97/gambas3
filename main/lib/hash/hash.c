@@ -1,6 +1,6 @@
 /***************************************************************************
 
-  hash.h
+  hash.c
 
   (c) Benoît Minisini <benoit.minisini@gambas-basic.org>
 

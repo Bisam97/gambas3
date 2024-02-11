@@ -14,6 +14,7 @@ Private $hCont As Panel
 Private $hObs As Observer
 Private $hTimer As Timer
 Private $bLock As Boolean
+Private $hScrollTo As Control
 
 Static Public Sub _init()
   
@@ -31,10 +32,9 @@ Public Sub _OnBackgroundChange()
   
 End
 
-
 Public Sub _new()
   
-  $hObs = New Observer(Me.Proxy) As "Observer"
+  $hObs = New Observer(Me._Container) As "Observer"
   $hCont = New Panel(Me) As "Panel"
   $hCont.Move(0, 0)
   
@@ -63,7 +63,6 @@ Public Sub TimerArrange_Timer()
   AutoResizeContents
   
 End
-
 
 Public Sub AutoResizeContents_Timer()
 
@@ -125,6 +124,13 @@ Public Sub AutoResizeContents_Timer()
   
   $bLock = False
   
+  'If Me.Name = "svwSelection" Then Debug Me.ScrollW;; Me.ScrollH
+  If $hScrollTo Then
+    If Object.IsValid($hScrollTo) And If $hScrollTo.Parent = Me Then
+      If Me.EnsureVisible($hScrollTo.X, $hScrollTo.Y, $hScrollTo.W, $hScrollTo.H) Then $hScrollTo = Null
+    Endif
+  Endif
+  
 End
 
 Private Sub AutoResizeContents()
@@ -149,6 +155,19 @@ End
 
 Public Sub Observer_Arrange()
   
+  AutoResizeContents
+  
+End
+
+'' @{since 3.19}
+''
+'' Ensure that a specific child is visible.
+''
+'' This method works even if the ScrollView contents is not yet arranged.
+
+Public Sub ScrollTo(Child As Control)
+
+  $hScrollTo = Child
   AutoResizeContents
   
 End

@@ -9,6 +9,7 @@ Public GoodCompile As Boolean = False
 Public Sub _call(Parameters As String, ProjectPath As String) As String
 
   Dim mmProc As Process
+
   $sBuffer = ""
   Dim CmdChain As String[] = [$sCommand, Parameters, ProjectPath]
   Try mmProc = Exec CmdChain For Read As "CompRead"
@@ -16,10 +17,10 @@ Public Sub _call(Parameters As String, ProjectPath As String) As String
     Error.Raise("Compiler error:" & Error.text)
   Endif
   mmProc.Wait()
-  
-  If mmProc.value = 0 Then 
+
+  If mmProc.value = 0 Then
     GoodCompile = True
-  Else 
+  Else
     GoodCompile = False
   Endif
   Verbose("Compile exit code=" & mmProc.Value)
@@ -30,6 +31,7 @@ End
 Public Sub CompRead_read()
 
   Dim sLine As String
+
   Read #Last, sLine, -256
   $sBuffer &= sLine
 

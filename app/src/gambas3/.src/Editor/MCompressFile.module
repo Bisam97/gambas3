@@ -1,7 +1,7 @@
 ' Gambas module file
 
 Private Const IDENT_CAR As String = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_$"
-Private Const IDENT_CAR_CSS As String = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-.#"
+Private Const IDENT_CAR_CSS As String = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-.#*()"
 Private Const SUBST_CAR_FIRST As String = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 Private Const SUBST_CAR As String = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
@@ -400,6 +400,8 @@ Private Sub CompressCss(sText As String) As String
   Dim bOneLineComment As Boolean
   Dim sString As String
   Dim iLen As Integer
+  Dim bCalc As Boolean
+  Dim iCalcLevel As Integer
   
   iLen = Len(sText)
   sText = sText & "  "
@@ -431,6 +433,15 @@ Private Sub CompressCss(sText As String) As String
       Endif
       sRes &= sCar
       Continue
+    Else If bCalc Then
+      If sCar = "(" Then
+        Inc iCalcLevel
+      Else If sCar = ")" Then
+        Dec iCalcLevel
+        If iCalcLevel = 0 Then bCalc = False
+      Endif
+      sRes &= sCar
+      Continue
     Endif
     
     If sCar2 = "/*" Then
@@ -449,7 +460,7 @@ Private Sub CompressCss(sText As String) As String
       sRes &= "}\n"
       Continue
     Else If sCar = "c" And If Mid$(sText, iPos, 5) = "calc(" Then
-      sString = ")"
+      bCalc = True
     Else If InStr(" \t\n", sCar) Then
       
       If Len(sRes) = 0 Then Continue

@@ -610,10 +610,14 @@ static void analyze_call()
 		}
 		else
 		{
-			info = &COMP_subr_info[PATTERN_index(subr_pattern)];
+			int index = PATTERN_index(subr_pattern);
+			info = &COMP_subr_info[index];
 	
 			if (nparam_post < info->min_param)
-				THROW("Not enough arguments to &1()", info->name);
+			{
+				if (index != SUBR_Pi)
+					THROW("Not enough arguments to &1()", info->name);
+			}
 			else if (nparam_post > info->max_param)
 				THROW("Too many arguments to &1()", info->name);
 			else if (byref)

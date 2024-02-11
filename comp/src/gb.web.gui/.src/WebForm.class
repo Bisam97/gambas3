@@ -135,29 +135,46 @@ Static Public Sub PrintLog(sLog As String)
 
 End
 
-Static Private Sub RenderIcon(sPath As String) As Boolean
+Static Private Sub RenderIcon(sIcon As String) As Boolean
 
   Dim iPos As Integer
-  Dim sIcon As String
   Dim sSize As String
+  Dim sType As String
+  Dim sPath As String
+  Dim sRoot As String
   
-  iPos = InStr(sPath, ":")
+  iPos = InStr(sIcon, "::")
   If iPos = 0 Then Return True
   
-  sSize = Left(sPath, iPos - 1)
-  sIcon = Mid$(sPath, iPos + 1)
+  sType = Left(sIcon, iPos - 1)
+  sIcon = Mid$(sIcon, iPos + 2)
   
+  iPos = InStr(sIcon, ":")
+  If iPos = 0 Then Return True
+  
+  sSize = Left(sIcon, iPos - 1)
+  sIcon = Mid$(sIcon, iPos + 1) & ".png"
+
+  sRoot = "./gb.form.stock/"
   Component.Load("gb.form.stock")
+
+  If sType = "icon" Then
   
-  If sSize = "huge" Then
-    sPath = "./gb.form.stock/gambas/128/" &/ sIcon & ".png"
-    If Exist(sPath) Then 
-      Response.SendFile(sPath)
-      Return
-    Endif
+    sPath = sRoot &/ Application.Theme &/ "128/" & sIcon
+    If Not Exist(sPath) Then sPath = sRoot &/ Application.Theme &/ "32/" & sIcon
+    If Not Exist(sPath) Then Return True
+  
+  Else If sType = "flag" Then
+  
+    sPath = sRoot &/ "flag/256" &/ sIcon
+    If Not Exist(sPath) Then Return True
+    
+  Else 
+    
+    Return True
+  
   Endif
-  
-  sPath = "./gb.form.stock/gambas/32/" &/ sIcon & ".png"
+
   Response.SendFile(sPath)
   
 End
@@ -387,11 +404,11 @@ Static Public Sub Main()
 
     If Not Exist(sExec) Then
       If Class.IsLoaded("Debug") And If Debug.Fifo Then
-        If DEBUG_RUNNER Then PrintLog("---------------- EXEC gbx3 -g -f " & Debug.Fifo & " " & Application.Path & " -- " & Application.Handle & " " & sCookie)
-        hProcess = Exec ["gbx3", "-g", "-f", Debug.Fifo, Application.Path, "--", Application.Handle, sCookie] Wait
+        If DEBUG_RUNNER Then PrintLog("---------------- EXEC gbx3 -g -f " & Debug.Fifo & " -s " & Application.Startup.Name & " " & Application.Path & " -- " & Application.Handle & " " & sCookie)
+        hProcess = Exec ["gbx3", "-g", "-f", Debug.Fifo, "-s", Application.Startup.Name, Application.Path, "--", Application.Handle, sCookie] Wait
       Else
-        If DEBUG_RUNNER Then PrintLog("---------------- EXEC gbx3 " & Application.Path & " -- " & Application.Handle & " " & sCookie)
-        hProcess = Exec ["gbx3", Application.Path, "--", Application.Handle, sCookie] Wait
+        If DEBUG_RUNNER Then PrintLog("---------------- EXEC gbx3 " & " -s " & Application.Startup.Name & " " & Application.Path & " -- " & Application.Handle & " " & sCookie)
+        hProcess = Exec ["gbx3", "-s", Application.Startup.Name, Application.Path, "--", Application.Handle, sCookie] Wait
       Endif
     Else
       If DEBUG_RUNNER Then PrintLog("---------------- EXEC " & sExec & " " & Application.Handle & " " & sCookie)
@@ -731,15 +748,26 @@ End
 
 Static Private Sub PrintJavascript()
   
+  Dim sJavascript As Variant
+  
   If $aJavascriptBefore.Count Then 
     Print $aJavascriptBefore.Join("\n")
     $aJavascriptBefore.Clear
   Endif
   
+  ' Handle full refreshes
+  
   If _HasRefresh Then
     _HasRefresh = False
     _Current._RefreshReply()
   Endif
+  
+  ' Handle small refreshes done by javascript, and that were not cancelled by a full refreh
+  
+  For Each sJavascript In WebControl._RefreshJavascript
+    Print sJavascript
+  Next
+  WebControl._RefreshJavascript.Clear
   
   If $aJavascript.Count Then 
     Print $aJavascript.Join("\n")
@@ -849,6 +877,7 @@ Public Sub Render()
   Print "gw.form = "; JS(Object.Type(Me)); ";"
   Print "gw.version = "; JS(Application.Version); ";"
   Print "gw.debug = "; JS($bDebug); ";"
+  WebControl._PrintNeedKeyPress(True)
   PrintJavascript
   Print "</script>"
   
@@ -1327,7 +1356,6 @@ Public Sub ShowPopup(Control As WebControl) As Variant
   If _Window Then 
     hWindow = WebControl.FromId(_Window)
     If hWindow.Visible Then Return
-    hWindow.Show()
   Endif
   
   If Not hWindow Then hWindow = New WebWindow(_Current._GetWindowContainer())
@@ -1338,6 +1366,8 @@ Public Sub ShowPopup(Control As WebControl) As Variant
   hWindow.Modal = True
   
   _Window = hWindow.Id
+  
+  hWindow.Show()
   
   hPrevious = _CurrentPopup
   _CurrentPopup = Me

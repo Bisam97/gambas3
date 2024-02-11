@@ -192,7 +192,15 @@ static void trans_subr(int subr, short nparam)
 	//fprintf(stderr, "trans_subr: %d: %s: %d %d\n", subr, info->name, info->min_param, info->max_param);
 
 	if (nparam < info->min_param)
-		THROW2("Not enough arguments to &1()", info->name);
+	{
+		if (subr == SUBR_Pi)
+		{
+			CODE_push_float(1);
+			nparam = 1;
+		}
+		else
+			THROW2("Not enough arguments to &1()", info->name);
+	}
 	else if (nparam > info->max_param)
 		THROW2("Too many arguments to &1()", info->name);
 

@@ -1,0 +1,28 @@
+commit{Commit=Datatype}:
+  limit
+  match /^commit.*?\n/
+author{Author=Function}:
+  match /^Author:.*?\n/
+date{Date=Preprocessor}:
+  match /^Date:.*?\n/
+merge{Merge=Number}:
+  match /^Merge:.*?\n/
+
+diff{Diff=Datatype}:
+  limit
+  from /^diff/
+index{Index=Keyword}:
+  from /^index/
+file{File=Keyword}:
+  match /^(\+\+\+|---)/
+  file.path{String}:
+    match /.*?\n/
+position{Position=Function}:
+  from /^@@/ to @@
+added{Added}:
+  from /^\+/ to "\n"
+removed{Removed}:
+  from /^-/ to "\n"
+normal:
+  from /./ to "\n"
+

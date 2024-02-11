@@ -136,7 +136,7 @@ static void watch_stream(CSTREAM *_object, int mode, bool on)
 		GB_Watch(fd, GB_WATCH_WRITE, (void *)(on ? callback_write : NULL), (intptr_t)THIS);
 }
 
-CFILE *CFILE_create(STREAM *stream, int mode)
+CFILE *CFILE_create(const STREAM *stream, int mode)
 {
 	CFILE *file = OBJECT_new(CLASS_File, NULL, NULL);
 	OBJECT_UNREF_KEEP(file);
@@ -159,7 +159,6 @@ CFILE *CFILE_create(STREAM *stream, int mode)
 static CFILE *create_default_stream(FILE *file, int mode)
 {
 	STREAM stream;
-	//bool tty = isatty(fileno(file));
 	
 	CLEAR(&stream);
 	stream.type = &STREAM_buffer;
@@ -201,25 +200,29 @@ void CFILE_init_watch(void)
 
 CFILE *CFILE_get_standard_stream(int num)
 {
-	if (!_std[num])
+	CFILE *p = _std[num];
+
+	if (!p)
 	{
 		switch(num)
 		{
 			case CFILE_IN:
-				_std[CFILE_IN] = create_default_stream(stdin, GB_ST_READ);
+				p = create_default_stream(stdin, GB_ST_READ);
 				break;
 				
 			case CFILE_OUT:
-				_std[CFILE_OUT] = create_default_stream(stdout, GB_ST_WRITE);
+				p = create_default_stream(stdout, GB_ST_WRITE);
 				break;
 				
 			case CFILE_ERR:
-				_std[CFILE_ERR] = create_default_stream(stderr, GB_ST_WRITE);
+				p = create_default_stream(stderr, GB_ST_WRITE);
 				break;
 		}
+
+		_std[num] = p;
 	}
 	
-	return _std[num];
+	return p;
 }
 
 //---------------------------------------------------------------------------
@@ -430,7 +433,7 @@ BEGIN_PROPERTY(Stat_Device)
 		GB_ReturnNull();
 	else
 	{
-		len = sprintf(COMMON_buffer, "/%s/%d:%d", THIS_STAT->info.chrdev ? "char" : "block", major(dev), minor(dev));
+		len = sprintf(COMMON_buffer, "/%s/%u:%u", THIS_STAT->info.chrdev ? "char" : "block", major(dev), minor(dev));
 		GB_ReturnNewString(COMMON_buffer, len);
 	}
 
@@ -953,6 +956,15 @@ BEGIN_METHOD(Stream_Watch, GB_INTEGER mode; GB_BOOLEAN on)
 
 END_METHOD
 
+BEGIN_PROPERTY(Stream_NoShare)
+
+	if (READ_PROPERTY)
+		GB_ReturnBoolean(THE_STREAM->common.no_share);
+	else
+		THE_STREAM->common.no_share = VPROP(GB_BOOLEAN);
+
+END_PROPERTY
+
 BEGIN_METHOD_VOID(StreamLines_next)
 
 	char *str;
@@ -1107,6 +1119,7 @@ GB_DESC StreamDesc[] =
 	GB_METHOD("Close", NULL, Stream_Close, NULL),
 	GB_PROPERTY_READ("EndOfFile", "b", Stream_EndOfFile),
 	GB_PROPERTY("NullTerminatedString", "b", Stream_NullTerminatedString),
+	GB_PROPERTY("NoShare", "b", Stream_NoShare),
 	GB_PROPERTY("Blocking", "b", Stream_Blocking),
 	GB_PROPERTY("Tag", "v", Stream_Tag),
 	GB_METHOD("ReadLine", "s", Stream_ReadLine, "[(Escape)s]"),

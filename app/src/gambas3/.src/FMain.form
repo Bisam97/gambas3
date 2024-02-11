@@ -198,20 +198,17 @@
         Text = ("Synchronize repository") & "..."
         Picture = Picture["icon:/small/download"]
       }
-      { mnuVcBranch Menu
-        Action = "vc-branch"
-        Text = ("Branch")
-        Picture = Picture["icon:/small/tag"]
+      { mnuVcAddBranch Menu
+        Action = "vc-add-branch"
+        Text = ("Create new branch") & "..."
+        Picture = Picture["icon:/small/add"]
       }
-      { mnuVcBrowse Menu
-        Action = "vc-browse"
-        Text = ("Browse repository") & "..."
-        Picture = Picture["icon:/small/file-manager"]
+      { Menu53 Menu
       }
-      { mnuVcOpenTerminal Menu
-        Action = "vc-open-terminal"
-        Text = ("Open a terminal") & "..."
-        Picture = Picture["icon:/small/terminal"]
+      { Menu54 Menu
+        Action = "vc-repository"
+        Text = ("Repository") & "..."
+        Picture = Picture["icon:/medium/version-control"]
       }
     }
     { mnuVersionControlWith Menu
@@ -386,7 +383,7 @@
     }
     { Menu48 Menu
     }
-    { mnuProfile Menu
+    { mnuEnableProfile Menu
       Action = "profile"
       Text = ("Activate profiling")
       Toggle = True
@@ -395,6 +392,11 @@
       Action = "open-profile"
       Text = Shortcut(("Open profile"), "O") & "..."
       Picture = Picture["icon:/small/clock"]
+    }
+    { Menu46 Menu
+      Action = "remove-all-profile"
+      Text = ("Remove all profile files") & "..."
+      Picture = Picture["icon:/small/trash"]
     }
     { Menu9 Menu
     }
@@ -490,10 +492,18 @@
       Picture = Picture["icon:/small/find"]
       Shortcut = "Ctrl+F"
     }
+    { mnuFindAll Menu
+      Text = ("Find everywhere") & "..."
+      Shortcut = "Ctrl+Shift+F"
+    }
     { mnuReplace Menu
       Text = ("Replace") & "..."
       Picture = Picture["icon:/small/replace"]
       Shortcut = "Ctrl+R"
+    }
+    { mnuReplaceAll Menu
+      Text = ("Replace everywhere") & "..."
+      Shortcut = "Ctrl+Shift+R"
     }
     { Menu10 Menu
     }
@@ -766,6 +776,23 @@
         Text = ("Show all")
         Picture = Picture["icon:/small/clear"]
       }
+      { mnuRefreshProject Menu
+        Action = "refresh-project"
+        Text = ("Refresh project")
+        Picture = Picture["icon:/small/refresh"]
+      }
+      { Menu55 Menu
+      }
+      { mnuUseInheritance Menu
+        Text = ("Dispose class files according to inheritance")
+        Picture = Picture["icon:/small/inheritance"]
+        Toggle = True
+      }
+      { mnuShowAllClasses Menu
+        Text = ("Display form class files")
+        Picture = Picture["img/module/class.png"]
+        Toggle = True
+      }
     }
     { mnuAddVersionAll Menu
       Text = ("Add everything to repository")
@@ -797,7 +824,7 @@
       Text = ("Compress file")
       Picture = Picture["icon:/small/compress"]
     }
-    { Menu46 Menu
+    { Menu56 Menu
     }
     { mnuInfoVC Menu
       Action = "info-vc"
@@ -806,7 +833,7 @@
     }
     { mnuInformation Menu
       Action = "info"
-      Text = Shortcut(("Properties"), "P") & "..."
+      Text = ("Properties") & "..."
       Picture = Picture["icon:/small/info"]
       Shortcut = "Ctrl+Shift+I"
     }
@@ -814,7 +841,7 @@
   { mnuDatabase Menu
     Enabled = False
     { mnuNewConnection Menu
-      Text = Shortcut(("New connection"), "N") & "..."
+      Text = ("New connection") & "..."
       Picture = Picture["icon:/small/new"]
     }
     { mnuOpenRecentFile2 Menu
@@ -826,32 +853,59 @@
     { Menu17 Menu
     }
     { mnuEditConnection Menu
-      Text = Shortcut(("Open"), "O")
+      Text = ("Open")
       Picture = Picture["icon:/small/edit"]
     }
     { mnuKillConnection Menu mnuDeleteFile
       Name = "mnuKillConnection"
-      Text = Shortcut(("Remove"), "R")
+      Text = ("Remove") & "..."
       Picture = Picture["icon:/small/delete"]
-      Shortcut = "Shift+Del"
+      Shortcut = "Del"
     }
     { Menu25 Menu
     }
     { mnuAddVersionConnection Menu mnuAddVersion
       Name = "mnuAddVersionConnection"
-      Text = Shortcut(("Add to repository"), "A")
+      Text = ("Add to repository")
     }
     { mnuInfoConnection Menu
-      Text = Shortcut(("Properties"), "P") & "..."
+      Text = ("Properties") & "..."
       Picture = Picture["icon:/small/info"]
       Shortcut = "Ctrl+I"
     }
+  }
+  { mnuProfile Menu
+    Enabled = False
+    { mnuOpenRecentFile3 Menu
+      Text = ("Recent")
+      Picture = Picture["icon:/small/recent"]
+      { Menu59 Menu
+      }
+    }
     { Menu26 Menu
     }
-    { mnuRefresh3 Menu
-      Action = "refresh-project"
-      Text = Shortcut(("Refresh"), "R")
-      Picture = Picture["icon:/small/refresh"]
+    { mnuEditProfile Menu
+      Text = ("Open")
+      Picture = Picture["icon:/small/edit"]
+    }
+    { mnuDeleteProfile Menu mnuDeleteFile
+      Name = "mnuDeleteProfile"
+      Text = ("Remove") & "..."
+      Picture = Picture["icon:/small/delete"]
+      Shortcut = "Del"
+    }
+    { mnuRemoveAllProfile Menu
+      Action = "remove-all-profile"
+      Text = ("Remove all profile files") & "..."
+      Picture = Picture["icon:/small/trash"]
+    }
+    { Menu57 Menu
+    }
+    { mnuInfoProfile Menu
+      Action = "info-profile"
+      Text = ("Properties") & "..."
+      Picture = Picture["icon:/small/info"]
+      Shortcut = "Ctrl+I"
     }
   }
   { mnuMenu Menu
@@ -1323,11 +1377,11 @@
     Animated = True
   }
   { panGlobal Panel
-    MoveScaled(1,17,172,77)
+    MoveScaled(1,17,147,77)
     Expand = True
     Arrangement = Arrange.Horizontal
     { panProject SidePanel
-      MoveScaled(1,3,34,73)
+      MoveScaled(1,3,48,73)
       Visible = False
       ToolTip = ("Project")
       Arrangement = Arrange.Fill
@@ -1337,7 +1391,7 @@
       Separator = True
       Transparent = True
       { tabProject TabPanel
-        MoveScaled(0,1,33,70)
+        MoveScaled(0,1,47,70)
         Arrangement = Arrange.Vertical
         Border = False
         Count = 2
@@ -1359,21 +1413,25 @@
           }
           { btnVcChanges ToolButton
             MoveScaled(6,0,4,4)
+            Visible = False
             ToolTip = ("Modifications.") & "..."
             Picture = Picture["icon:/small/modified"]
           }
           { btnVcAddAll ToolButton
             MoveScaled(10,0,4,4)
+            Visible = False
             ToolTip = ("Add everything to repository")
             Picture = Picture["icon:/small/added"]
           }
           { btnVcCommit ToolButton
             MoveScaled(14,0,4,4)
+            Visible = False
             ToolTip = ("Commit") & "..."
             Picture = Picture["icon:/small/upload"]
           }
           { btnVcUpdate ToolButton
             MoveScaled(18,0,4,4)
+            Visible = False
             ToolTip = ("Synchronize repository") & "..."
             Picture = Picture["icon:/small/download"]
           }
@@ -1385,9 +1443,15 @@
         { sepBranchColor Separator
           MoveScaled(3,5,9,0)
         }
+        { panBranchList Panel
+          MoveScaled(2,7,44,6)
+          Visible = False
+          Arrangement = Arrange.Fill
+        }
         { panSearchProject HBox
-          MoveScaled(1,6,32,5)
+          MoveScaled(1,15,45,4)
           Background = Color.TextBackground
+          Padding = 1
           { btnShowDebugger ToolButton
             MoveScaled(0,0,4,4)
             Visible = False
@@ -1399,40 +1463,39 @@
             ToolTip = ("Open startup class")
             Picture = Picture["icon:/small/home"]
           }
-          { btnUseInheritance ToolButton
-            MoveScaled(8,0,4,4)
-            ToolTip = ("Dispose class files according to inheritance")
-            Picture = Picture["icon:/small/inheritance"]
-            Toggle = True
-          }
-          { btnShowAllClasses ToolButton
-            MoveScaled(12,0,4,4)
-            ToolTip = ("Display form class files")
-            Toggle = True
-          }
           { txtSearchProject ButtonBox
-            MoveScaled(17,1,14,3)
+            MoveScaled(9,0,17,3)
             Foreground = Color.LightForeground
             Expand = True
             Picture = Picture["icon:/small/close"]
-            Placeholder = ("Project filter")
+            Placeholder = ("Enter a filter")
             Border = False
             ClearButton = True
             Filter = True
             FilterMenu = "mnuFilter"
+            FilterPicture = Picture["icon:/medium/menu"]
+          }
+          { btnExpand ToolButton
+            MoveScaled(33,0,4,4)
+            ToolTip = ("Show all items")
+          }
+          { btnCollapse ToolButton
+            MoveScaled(37,0,4,4)
+            ToolTip = ("Shrink view")
           }
         }
         { Separator4 Separator
-          MoveScaled(1,12,9,0)
+          MoveScaled(3,20,9,0)
         }
         { tvwProject TreeView
-          MoveScaled(1,17,20,45)
+          MoveScaled(1,25,20,45)
           Drop = True
           Expand = True
           Border = False
+          Highlight = True
         }
         { timSearchProject #Timer
-          #MoveScaled(22,16)
+          #MoveScaled(23,25)
           Delay = 500
         }
         Index = 1
@@ -1442,24 +1505,24 @@
       }
     }
     { Panel4 VBox
-      MoveScaled(36,2,135,74)
+      MoveScaled(50,2,95,74)
       Expand = True
       { Panel5 HBox
-        MoveScaled(1,1,133,66)
+        MoveScaled(1,1,93,66)
         Expand = True
         { panCentral Panel
-          MoveScaled(0,0,94,64)
+          MoveScaled(0,0,60,64)
           Expand = True
           Arrangement = Arrange.Vertical
           { Panel2 HBox
-            MoveScaled(1,1,88,33)
+            MoveScaled(1,1,57,33)
             Expand = True
             { panWorkspace Panel
-              MoveScaled(3,5,82,25)
+              MoveScaled(3,5,52,25)
               Expand = True
               Arrangement = Arrange.Vertical
               { wrkProject Workspace
-                MoveScaled(2,1,79,22)
+                MoveScaled(2,1,49,22)
                 Background = Color.LightForeground
                 Expand = True
                 Border = False
@@ -1474,7 +1537,7 @@
               Picture = Picture["icon:/small/view-tree"]
             }
             { btnWorkspaceProperty ToolButton
-              MoveScaled(77,1,4,4)
+              MoveScaled(32,1,4,4)
               Visible = False
               ToolTip = ("Show properties sheet")
               Ignore = True
@@ -1490,7 +1553,7 @@
             }
           }
           { panDebug SidePanel
-            MoveScaled(7,41,81,13)
+            MoveScaled(4,36,54,13)
             ToolTip = ("Debug")
             Arrangement = Arrange.Fill
             Orientation = Align.Bottom
@@ -1499,22 +1562,22 @@
             Transparent = True
             Hidden = True
             { btnClosePanel ToolButton
-              MoveScaled(73,3,4,4)
+              MoveScaled(45,3,4,4)
               Ignore = True
               Picture = Picture["icon:/small/close"]
             }
           }
           { Separator1 Separator
-            MoveScaled(12,57,29,0)
+            MoveScaled(12,51,29,0)
           }
           { panButton Panel
-            MoveScaled(3,59,85,4)
+            MoveScaled(3,55,54,4)
             Visible = False
             Arrangement = Arrange.Fill
           }
         }
         { panProperty SidePanel
-          MoveScaled(97,1,32,65)
+          MoveScaled(61,0,32,65)
           Visible = False
           ToolTip = ("Properties")
           Arrangement = Arrange.Vertical
@@ -1576,14 +1639,17 @@
     }
   }
   { dwgWelcome DrawingArea
-    MoveScaled(157,6,15,10)
+    MoveScaled(132,8,15,10)
     Ignore = True
     Arrangement = Arrange.Fill
     Margin = True
     Padding = 32
   }
   { timOpen #Timer
-    #MoveScaled(143,9)
+    #MoveScaled(117,10)
+  }
+  { timSetFocus #Timer
+    #MoveScaled(6,10)
   }
 }
 
@@ -1794,6 +1860,11 @@
     Shortcut = "Ctrl+Shift+I"
     Picture = "icon:/small/info"
   }
+  { Action info-profile
+    Text = "Properties"
+    Shortcut = "Ctrl+I"
+    Picture = "icon:/small/info"
+  }
   { Action info-vc
     Text = "Version control"
     Shortcut = ""
@@ -1928,7 +1999,7 @@
     Shortcut = ""
   }
   { Action refresh-project
-    Text = "Refresh"
+    Text = "Refresh project"
     Shortcut = ""
     Picture = "icon:/small/refresh"
   }
@@ -1936,6 +2007,11 @@
     Text = "Reload project"
     Shortcut = ""
     Picture = "icon:/small/revert"
+  }
+  { Action remove-all-profile
+    Text = "Remove all profile files"
+    Shortcut = ""
+    Picture = "icon:/small/trash"
   }
   { Action rename
     Text = "Rename"
@@ -2040,25 +2116,20 @@
     Shortcut = ""
     Picture = "icon:/small/added"
   }
-  { Action vc-branch
-    Text = "Branch"
+  { Action vc-add-branch
+    Text = "Create new branch"
     Shortcut = ""
-    Picture = "icon:/small/tag"
-  }
-  { Action vc-browse
-    Text = "Browse repository"
-    Shortcut = ""
-    Picture = "icon:/small/file-manager"
+    Picture = "icon:/small/add"
   }
   { Action vc-commit
     Text = "Commit"
     Shortcut = ""
     Picture = "icon:/small/upload"
   }
-  { Action vc-open-terminal
-    Text = "Open a terminal"
+  { Action vc-repository
+    Text = "Repository"
     Shortcut = ""
-    Picture = "icon:/small/terminal"
+    Picture = "icon:/medium/version-control"
   }
   { Action vc-revert
     Text = "Revert all changes"

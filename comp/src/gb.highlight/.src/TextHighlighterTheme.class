@@ -1,0 +1,465 @@
+' Gambas class file
+
+''' This class implements an highlighter theme.
+
+Export
+
+
+'' This event is raised when one of the theme style has been modified.
+Event Change
+
+'' Return the list of the default states implemented in each registered highlighters.
+Static Property Read States As String[]
+
+'' Return the list of all registered states.
+Static Property Read AllStates As String[]
+
+Static Private $bStylesModified As Boolean
+Static Private $cColorIndex As New Collection
+Static Private $cColorsByHighlighter As New Collection
+
+'' Return or set the theme contents as a settings string.
+Property Settings As String
+'' Return if the theme uses a dark background.
+Property Read Dark As Boolean
+'' Return the styles associated with this theme
+Property Read Styles As TextHighlighterStyle[]
+
+Private $cStyles As New Collection
+Private $aStyles As TextHighlighterStyle[]
+
+Static Private $cDefault As New Collection
+
+Static Private $cColorName As Collection = [
+  "Added": ("Added"),
+  "AtRule": ("At rule"),
+  "Attribute": ("Attribute"),
+  "Background": ("Background"), 
+  "Breakpoint": ("Breakpoint"), 
+  "Class": ("Class"),
+  "Comment": ("Comment"),
+  "Color": ("Color"),
+  "Command": ("Command"),
+  "Constant": ("Constant"),
+  "Current": ("Current line"), 
+  "Datatype": ("Datatype"),
+  "Diff": ("Diff"),
+  "Documentation": ("Documentation"),
+  "Entity": ("Entity"),
+  "Error": ("Error"),
+  "Escape": ("Escape"),
+  "Expansion": ("Expansion"),
+  "File": ("File"),
+  "Function": ("Function"),
+  "Keyword": ("Keyword"),
+  "Highlight": ("Highlight"),
+  "Id": ("Id"),
+  "Index": ("Index"),
+  "Important": ("Important"),
+  "Identifier": ("Identifier"),
+  "Label": ("Label"),
+  "Markup": ("Markup"),
+  "Normal": ("Normal"),
+  "Number": ("Number"),
+  "Operator": ("Operator"),
+  "Position": ("Position"),
+  "Preprocessor": ("Preprocessor"),
+  "PseudoClass": ("Pseudo-class"),
+  "RegExp": ("Regular expression"),
+  "Removed": ("Removed"),
+  "Selection": ("Selection"), 
+  "Shebang": ("Shebang"),
+  "String": ("String"),
+  "Symbol": ("Symbol"),
+  "Tag": ("Tag"),
+  "TagAttribute": ("Tag attribute"),
+  "Unit": ("Unit"),
+  "Value": ("Value")
+]
+
+Static Public Sub _init()
+
+  Dim sColor As String
+  
+  If Component.IsLoaded("gb.eval.highlight") Then
+    Error.Raise("'gb.highlight' component is not compatible with 'gb.eval.highlight'.")
+  Endif
+  
+  For Each sColor In ["Background", "Selection", "Current", "Breakpoint", "Highlight", "Normal", "Added", "Removed", "Error", "Comment", "Documentation", "Keyword", "Function", "Operator", "Symbol", "Number", "String", "Datatype", "Preprocessor", "Escape", "Constant"]
+    _RegisterState(sColor, "*")
+  Next
+  
+End
+
+'' Create a new highlighter theme initialized with the default "gambas" theme.
+
+Public Sub _new()
+  
+  _Load("gambas")
+  
+End
+
+'' Copy a theme and returns it.
+
+Public Sub Copy() As TextHighlighterTheme
+
+  Dim hTheme As TextHighlighterTheme
+  Dim hStyle As TextHighlighterStyle
+  
+  hTheme = New TextHighlighterTheme
+  
+  For Each hStyle In $cStyles
+    hTheme[$cStyles.Key] = hStyle
+  Next
+  
+  Return hTheme
+  
+End
+
+'' Define the highlighter style associated with a color name.
+''
+'' - ~Key~ is the color name.
+'' - ~Style~ is the associated style.
+
+Public Sub _put(Style As TextHighlighterStyle, Key As String)
+
+  If Not IsAlnum(Key) Then Error.Raise("Incorrect name")
+  
+  If Not Style Then
+    $cStyles.Remove(Key)
+    Return
+  Endif
+  
+  Style = Style.Copy()
+  Style.Key = Key
+  Object.Attach(Style, Me, "Style")
+  $cStyles[Key] = Style
+  
+End
+
+'' Shortcut method for creating a style and associating it with a color name.
+''
+'' - ~Key~: The color name.
+'' - ~Color~: The RGB color of the style.
+'' - ~Bold~: If the text must be drawn bold.
+'' - ~Underline~: If the text must be drawn with a solid underline.
+'' - ~Dotted~: If the text must be drawn with a dotted underline.
+''
+'' The newly created style is returned.
+
+Public Sub Add(Key As String, (Color) As Integer, Optional Bold As Boolean, Underline As Boolean, Dotted As Boolean) As TextHighlighterStyle
+
+  Dim hStyle As TextHighlighterStyle
+  
+  hStyle = TextHighlighterStyle(Color, Bold, Underline, Dotted)
+  _put(hStyle, Key)
+  Return Me[Key]
+  
+End
+
+'' Return the style associated with a color name.
+''
+'' - ~Key~: The color name.
+
+Public Sub _get(Key As String) As TextHighlighterStyle
+  
+  Return $cStyles[Key]
+  
+End
+
+Public Sub Style_Change()
+  
+  Raise Change
+  
+End
+
+'' Save the theme contents to a file
+''
+'' - ~Path~: The file path.
+
+Public Sub Save(Path As String)
+
+  Dim hStyle As TextHighlighterStyle
+  Dim hFile As File
+  
+  hFile = Open Path For Output Create
+  
+  Print #hFile, "[Gambas Highlighting Theme 1.0]"
+  
+  For Each hStyle In $cStyles
+    Print #hFile, hStyle.Key; "="; Quote(hStyle.ToString())
+  Next
+  
+  Close #hFile
+  
+End
+
+Public Sub _Load(Path As String)
+
+  Dim aTheme As String[]
+  Dim I As Integer
+  Dim sLine As String
+  Dim iPos As Integer
+  Dim sName As String
+  Dim hStyle As TextHighlighterStyle
+  Dim cStyleSet As New Collection
+  Dim bOldTheme As Boolean
+  Dim sDefault As String
+  
+  aTheme = Split(File.Load(Path), "\n")
+  If aTheme[0] <> "[Gambas Highlighting Theme 1.0]" Then
+    If aTheme[0] = "[Theme]" Then
+      bOldTheme = True
+    Else
+      Goto RAISE_ERROR
+    Endif
+  Endif
+  
+  For I = 1 To aTheme.Max
+    sLine = Trim(aTheme[I])
+    If Not sLine Then Continue
+    iPos = InStr(sLine, "=")
+    If iPos = 0 Then Goto RAISE_ERROR
+    sName = Trim(Left(sLine, iPos - 1))
+    If Not sName Or If Not IsAlnum(sName) Then Goto RAISE_ERROR
+    If bOldTheme Then
+      If sName = "Help" Then sName = "Documentation"
+    Endif
+    hStyle = TextHighlighterStyle.FromString(UnQuote(Trim(Mid$(sLine, iPos + 1))))
+    Me[sName] = hStyle
+    cStyleSet[sName] = True
+    
+  Next
+  
+  For Each sDefault In $cDefault
+    If Not cStyleSet.Exist($cDefault.Key) Then Me[$cDefault.Key] = Me[sDefault]
+  Next
+  
+  Return
+  
+RAISE_ERROR: 
+
+  Error.Raise("Incorrect theme")
+  
+End
+
+'' Create a theme from a file.
+''
+'' - ~Path~: The path of the file to load.
+
+Static Public Sub Load(Path As String) As TextHighlighterTheme
+
+  Dim hTheme As TextHighlighterTheme
+  
+  hTheme = New TextHighlighterTheme
+  
+  If File.IsRelative(Path) Then
+    Path = ".." &/ Path
+  Endif
+  
+  hTheme._Load(Path)
+  Return hTheme
+  
+End
+
+'' Convert the contents of the theme to a string.
+
+Public Sub ToString() As String
+  
+  Dim hStyle As TextHighlighterStyle
+  Dim aStyle As String[]
+  
+  aStyle = New String[]
+  For Each hStyle In $cStyles
+    aStyle.Add(hStyle.Key & "=" & hStyle.ToString())
+  Next
+  
+  Return aStyle.Join(";")
+  
+End
+
+Private Function Settings_Read() As String
+
+  Return ToString()
+  
+End
+
+'' Initialize a theme from a string description.
+''
+'' - ~Theme~: The description of the theme.
+''
+'' The description should have been created by the [../tostring] method.
+
+Public Sub FromString(Theme As String)
+
+  Dim sStyle As String
+  Dim hStyle As TextHighlighterStyle
+  Dim iPos As Integer
+  Dim sName As String
+
+  For Each sStyle In Split(Theme, ";")
+    iPos = InStr(sStyle, "=")
+    If iPos = 0 Then Continue
+    sName = Left(sStyle, iPos - 1)
+    sStyle = Mid$(sStyle, iPos + 1)
+    hStyle = TextHighlighterStyle.FromString(sStyle)
+    Me[sName] = hStyle
+  Next
+  
+End
+
+
+Private Sub Settings_Write(Value As String)
+
+  FromString(Value)
+
+End
+
+'' Invert the color of all theme styles.
+
+Public Sub Invert()
+
+  Dim hStyle As TextHighlighterStyle
+  
+  For Each hStyle In $cStyles
+    hStyle.Color = hStyle.InvertedColor
+  Next
+  
+End
+
+Static Public Sub _RegisterState(Key As String, Optional Highlighter As String, sDefault As String) As Integer
+
+  Dim iIndex As Integer
+  Dim aColors As String[]
+  
+  If Key = "*" Or If Key = "Normal" Then
+    iIndex = 0
+  Else
+    Try iIndex = $cColorIndex[Key]
+    If iIndex = 0 And If Highlighter Then
+      iIndex = $cColorIndex.Count + 1
+      $cColorIndex[Key] = iIndex
+      $bStylesModified = True
+    Endif
+  Endif
+  
+  If Highlighter Then
+    aColors = $cColorsByHighlighter[Highlighter]
+    If Not aColors Then
+      aColors = New String[]
+      $cColorsByHighlighter[Highlighter] = aColors
+    Endif
+    
+    If Not aColors.Exist(Key) Then
+      aColors.Add(Key)
+      aColors.Sort()
+    Endif
+  Endif
+  
+  If sDefault Then $cDefault[Key] = sDefault
+  
+  Return iIndex
+  
+End
+
+'' Return the index of a specific state.
+''
+'' - ~Key~ is the state key.
+''
+'' If the state key is either '"Normal"' or '"*"', then '0' is returned.
+''
+'' If no state has been registered with that key, '-1' is returned.
+
+Static Public Sub GetStateIndex(Key As String) As Integer
+  
+  If Key = "*" Or If Key = "Normal" Then Return 0
+  Try Return $cColorIndex[Key]
+  Return -1
+  
+End
+
+Static Public Sub _GetHighlighterStates(sHighlighter As String) As String[]
+  
+  Dim aColors As String[]
+  
+  aColors = $cColorsByHighlighter[sHighlighter]
+  If Not aColors Then aColors = New String[]
+  Return aColors.Copy().Sort()
+  
+End
+
+Static Private Function States_Read() As String[]
+
+  Return _GetHighlighterStates("*")
+
+End
+
+Static Public Sub _GetStateName(sKey As String) As String
+  
+  Dim sName As String
+  
+  sName = $cColorName[sKey]
+  If Not sName Then sName = sKey
+  Return sName
+  
+End
+
+Public Sub _GetIncludeColor(Include As Integer) As Integer
+
+  Dim iHue As Integer
+  Dim iColor As Integer
+
+  If Include = 0 Then Return Color.Default
+  iHue = [60, 30, 0, 45, 15][(Include - 1) Mod 5]
+  If Me.Dark Then   
+    iColor = Color.HSV(iHue, 240, 128)
+  Else 
+    iColor = Color.HSV(iHue, 32, 255)
+  Endif
+  Return iColor
+
+End
+
+Private Function Dark_Read() As Boolean
+
+  Dim iBg As Integer
+
+  iBg = Me["Background"].Color
+  If Color[iBg].Value < 128 Then Return True
+
+End
+
+Private Function Styles_Read() As TextHighlighterStyle[]
+
+  Dim hStyle As TextHighlighterStyle
+  
+  If $bStylesModified Or If Not $aStyles Then
+  
+    $aStyles = New TextHighlighterStyle[]  
+    $aStyles.Add($cStyles["Normal"])
+    For Each $cColorIndex
+      hStyle = $cStyles[$cColorIndex.Key]
+      If Not hStyle Then hStyle = New TextHighlighterStyle
+      $aStyles.Add(hStyle)
+    Next
+
+    $bStylesModified = False
+    
+  Endif
+  
+  Return $aStyles
+  
+End
+
+Static Private Function AllStates_Read() As String[]
+
+  Dim aStates As New String[]
+  
+  aStates.Add("Normal")
+  For Each $cColorIndex
+    aStates.Add($cColorIndex.Key)
+  Next
+
+  Return aStates
+  
+End

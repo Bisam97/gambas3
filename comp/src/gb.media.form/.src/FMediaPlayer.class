@@ -1,9 +1,10 @@
 ' Gambas class file
 
-'Static Private $hLogo As Image
+Static Private $hHatch As Image
 
 Property Volume As Float
 Property Muted As Boolean
+Property Read State As Integer
 
 Private $hPlayer As MediaPlayer
 Private $hImage As MediaControl
@@ -15,11 +16,30 @@ Private $iMute As Integer
 Private $sName As String
 Private $bMutedIcon As Boolean
 Private $fStartupPos As Float
+Private $bBuffering As Boolean
 Private $bPlaying As Boolean
+
+Private $aMessage As String[]
+Private $fPos As Float
+Private $fPosTime As Float
+
+Private $sVisualisation As String
 
 Private Sub GetParent() As MediaView
 
   Return Me.Parent
+
+End
+
+Private Sub UpdateVisualisation()
+
+  Dim hVisualisation As MediaControl
+  
+  If Not $hPlayer Then Return
+  
+  If $sVisualisation Then hVisualisation = New MediaControl($hPlayer, $sVisualisation)
+  
+  $hPlayer.Video.Visualisation = hVisualisation
 
 End
 
@@ -29,31 +49,20 @@ Private Sub MakeMediaPlayer()
   
   $hPlayer = New MediaPlayer As "MediaPlayer"
   '$hFilter = New MediaFilter($hPlayer)
-  $hImage = New MediaControl($hPlayer, "ximagesink")  
+
+  If Desktop.Platform = "wayland" Then
+    $hImage = New MediaControl($hPlayer, "waylandsink")  
+  Else
+    $hImage = New MediaControl($hPlayer, "xvimagesink")  
+    $hImage["handle-events"] = False
+  Endif
+  
+  UpdateVisualisation
+
   $hPlayer.Video.Output = $hImage
-  
+  dwgVideo_Arrange
+
   '$hPlayer.Rate = -1
-  
-  ' $aVisualisation = New MediaControl[]
-  ' AddVisualisation("", "")
-  ' AddVisualisation("goom", "Goom")
-  ' AddVisualisation("goom2k1", "Goom2")
-  ' AddVisualisation("libvisual_bumpscope", "Bump")
-  ' AddVisualisation("libvisual_corona", "Corona")
-  ' AddVisualisation("libvisual_infinite", "Infinite")
-  ' AddVisualisation("libvisual_jakdaw", "Jakdaw")
-  ' AddVisualisation("libvisual_jess", "Jess")
-  ' AddVisualisation("monoscope", "Mono")
-  ' AddVisualisation("libvisual_oinksie", "Oinksie")
-  ' AddVisualisation("libvisual_lv_analyzer", "Analyzer")
-  ' AddVisualisation("libvisual_lv_scope", "Scope")
-  ' AddVisualisation("spacescope", "Space")
-  ' AddVisualisation("spectrascope", "Spectra")
-  ' AddVisualisation("synaescope", "Synae")
-  ' AddVisualisation("wavescope", "Wave")
-  ' 
-  ' $iVisualisation = 0
-  ' UpdateVisualisation
   
 End
 
@@ -107,19 +116,25 @@ End
 
 Public Sub btnPlay_Click()
 
+  Dim sErr As String
+  
   If Not $hPlayer Then Return
   
+  $aMessage = New String[]
+  
   If $hPlayer.State <> Media.Playing Then 
+    
+    $bBuffering = False
     'timTime.Start
     dwgTime.Refresh
     sldVolume_Change
-    dwgVideo.Cached = True ' Force the drawing area to have its own window on gb.gtk(3)
-    $hImage.SetWindow(dwgVideo)
     '$hPlayer.Rate = -1
     $hPlayer.Play
     btnPlay.Picture = Picture["icon:/small/pause"]
     $bPlaying = True
     dwgVideo.Refresh
+
+    timRefresh.Start
     'HidePause
   Else
     $hPlayer.Pause
@@ -128,8 +143,21 @@ Public Sub btnPlay_Click()
     'ShowPause
     'timTime.Stop
     btnPlay.Picture = Picture["icon:/small/play"]
+    timRefresh.Stop
   Endif
   
+  $aMessage = Null
+  
+Catch 
+  
+  dwgVideo.Cached = False
+  sErr = Error.Text
+  If $hPlayer.State = Media.Playing Then
+    $aMessage.Add(("*Unable to pause the media."))
+  Else
+    $aMessage.Add(("*Unable to play the media."))
+  Endif
+  dwgVideo.Refresh
   
 End
 
@@ -137,6 +165,10 @@ Public Sub btnStop_Click()
 
   If Not $hPlayer Then Return
   If $hPlayer.State <> Media.Playing And If $hPlayer.State <> Media.Paused Then Return
+  
+  $aMessage = New String[]
+  
+  $hPlayer.Pause
   $hPlayer.Stop
   'timTime.Stop
   $bPlaying = False
@@ -145,26 +177,16 @@ Public Sub btnStop_Click()
   dwgVideo.Refresh
   dwgTime.Refresh
   btnPlay.Picture = Picture["icon:/small/play"]
+  timRefresh.Stop
+  
+  $aMessage = Null
 
+Catch 
+  
+  $aMessage.Add(("*Unable to stop the media."))
+  dwgVideo.Refresh
+  
 End
-
-' Public Sub dwgVideo_Arrange()
-' 
-'   Dim W, H As Integer
-' 
-'   H = Desktop.Scale * 8
-'   W = H * 2
-' 
-'   'lblTime.Move(dwgVideo.W - W, dwgVideo.H - H, W, H)
-' 
-'   If $hPause1 Then 
-'     $hPause1.Move(dwgVideo.W \ 2 - 32, dwgVideo.H \ 2 - 32, 24, 64)
-'     $hPause2.Move(dwgVideo.W \ 2 + 8, dwgVideo.H \ 2 - 32, 24, 64)
-'     $hPause1.Raise
-'     $hPause2.Raise
-'   Endif
-' 
-' End
 
 Public Sub GetShowControl() As Boolean
   
@@ -176,7 +198,7 @@ Public Sub SetShowControl(bShow As Boolean)
   
   panControl.Visible = bShow
   dwgTime.Visible = bShow
-  panSpacer.Visible = bShow
+  'panSpacer.Visible = bShow
   
 End
 
@@ -203,34 +225,91 @@ Public Sub dwgTime_Draw()
   Dim sText As String
   Dim fPos As Float
   Dim fLength As Float
+  Dim DS As Integer
+  Dim W As Integer
+  Dim X As Integer
+  Dim WE As Float
   
   'Paint.Brush = Paint.LinearGradient(0, 0, Paint.W, 0, [Color.SetAlpha(Color.Foreground, 240), Color.Transparent], [0, 1])
   'Paint.Rectangle(0, 0, Paint.W, Paint.H)
   'Paint.Fill
   
-  If Not $hPlayer Or If $hPlayer.State = Media.Null Or If $hPlayer.State = Media.Ready Then Return
-  If dwgTime.H < 16 Then Return
+  DS = Desktop.Scale
   
-  fPos = $hPlayer.Position
+  If Not $hPlayer Or If $hPlayer.State = Media.Null Or If $hPlayer.State = Media.Ready Then Return
+  If dwgTime.H <= DS * 2 Then Return
+  
+  fPos = $fPos + Timer - $fPosTime
   fLength = $hPlayer.Duration
+  
+  W = Ceil(Paint.TextSize("00:00:00").W)
+  X = Paint.W - W - DS
+  
+  If fLength > 0 Then
+    
+    Paint.Background = Color.SetAlpha(Color.White, 64)
+
+    sText = Format(CDate((fLength + 0.5) / 86400), "hh:nn:ss")
+    Paint.DrawText(sText, X, 0, W, dwgTime.H, Align.Left)
+    
+    WE = DS * 0.75
+    X -= DS + WE
+    Paint.Ellipse(X, (dwgTime.H - WE) / 2, WE, WE)
+    Paint.Fill
+    
+    X -= W + DS
+    
+  Endif
   
   If fPos = 0 Then
     sText = "00:00:00"
   Else
-    sText = Format(CDate((fPos + 0.5) / 86400), "hh:nn:ss") '& " / " & Format(CDate($fLength / 86400), "hh:nn:ss")
-  Endif
-  
-  
-  If fLength > 0 Then
-    sText &= " / " & Format(CDate((fLength + 0.5) / 86400), "hh:nn:ss")
-  Else
-    sText &= " / 00:00:00"
+    sText = Format(CDate((fPos + 0.5) / 86400), "hh:nn:ss")
   Endif
   
   Paint.Background = Color.White
-  Paint.DrawText(sText, 0, 0, dwgTime.W, dwgTime.H, Align.Right)
+  Paint.DrawText(sText, X, 0, W, dwgTime.H, Align.Left)
+  
+  If $bBuffering Then
+    
+    If Not $hHatch Then 
+      
+      W = DS * 2
+      
+      $hHatch = New Image(W * 2, W * 2, Color.Transparent)
 
-  If fLength > 0 Then Paint.FillRect(0, 9, dwgTime.W * Min(1, fPos / fLength), dwgTime.H - 18, Color.SetAlpha(Color.White, 128))
+      Paint.Begin($hHatch)
+
+      Paint.Background = Color.SetAlpha(Color.White, 192)
+
+      Paint.MoveTo(W, 0)
+      Paint.LineTo(W * 2, 0)
+      Paint.LineTo(0, W * 2)
+      Paint.LineTo(0, W)
+      Paint.LineTo(W, 0)
+      
+      Paint.MoveTo(W * 2, W)
+      Paint.LineTo(W * 2, W * 2)
+      Paint.LineTo(W, W * 2)
+      Paint.LineTo(W * 2, W)
+      
+      Paint.Fill
+      
+      Paint.End
+      
+    Endif
+    
+    Paint.Brush = Paint.Image($hHatch, -DS * 2 * Frac(Timer), 0)
+    Paint.Rectangle(DS \ 2, DS \ 2, Paint.W - DS, Paint.H - DS)
+    Paint.Fill
+    
+  Else If fLength > 0 Then 
+    
+    Paint.Rectangle(DS, DS, (dwgTime.W - DS * 2) * Min(1, fPos / fLength), dwgTime.H - DS * 2)
+    Paint.Background = Color.SetAlpha(Color.White, 128)
+    Paint.Fill
+  
+  Endif
   
 End
 
@@ -295,8 +374,6 @@ Public Sub btnVolume_Click()
 
 End
 
-
-
 ' Public Sub GetShowVideo() As Boolean
 '   
 '   Return Not $bNoVideo
@@ -315,17 +392,64 @@ End
 Public Sub dwgVideo_Draw()
 
   Dim sText As String
+  Dim sMsg As String
+  Dim sPrefix As String
+  Dim sIcon As String
+  Dim hPict As Picture
+  Dim X, Y As Integer
+  Dim DS As Integer
+  Dim W As Integer
+  Dim H As Integer
   
-  If Not $hPlayer Then Return
-  If Not $bPlaying Then
+  DS = Desktop.Scale
+  
+  If $aMessage Then
+    
+    Y = DS
+    Paint.Background = Color.White
+    Paint.Font.Grade = 0
+    
+    For Each sMsg In $aMessage
+      
+      sPrefix = Left(sMsg)
+      sMsg = Html(Mid$(sMsg, 2))
+      
+      Select Case sPrefix
+        Case "!"
+          sIcon = "warning"
+        Case "*"
+          sIcon = "error"
+        Case Else 
+          sIcon = "info"
+      End Select
+      
+      hPict = Picture["icon:/medium/" & sIcon]
+      
+      X = DS
+      Paint.DrawPicture(hPict, X, Y)
+      X += hPict.W + DS
+      W = Paint.W - X - DS
+      H = Ceil(Paint.RichTextSize(sMsg, W).H)
+      
+      If (Y + H) >= (Paint.H - DS) Then Break
+      
+      Paint.DrawRichText(sMsg, X, Y, W, H)
+      
+      Y += Max(H, hPict.H) + DS
+      
+    Next
+    
+  Endif
+
+  If $hPlayer And If Not $bPlaying Then
     'Paint.DrawPicture(Picture["icon:/64/audio"], dwgVideo.W \ 2 - 32, dwgVideo.H \ 2 - 32)
     Paint.Background = Color.White
     Paint.Font.Grade = 2
     sText = Html($sName)
-    Paint.DrawRichTextShadow(sText, 0, dwgVideo.H \ 2 - Desktop.Scale * 2, dwgVideo.W, Desktop.Scale * 4, Align.Center, 3, 1)
-    Paint.DrawRichText(sText, 0, dwgVideo.H \ 2 - Desktop.Scale * 2, dwgVideo.W, Desktop.Scale * 4, Align.Center)
+    Paint.DrawRichTextShadow(sText, DS * 4, dwgVideo.H \ 2 - Desktop.Scale * 2, dwgVideo.W - DS * 8, DS * 4, Align.Center, 3, 1)
+    Paint.DrawRichText(sText, DS * 4, dwgVideo.H \ 2 - Desktop.Scale * 2, dwgVideo.W - DS * 8, DS * 4, Align.Center)
   Endif
-
+  
 End
 
 Public Sub Form_Close()
@@ -356,10 +480,10 @@ End
 Public Sub panBorder_BeforeArrange()
 
   If panBorder.H < Desktop.Scale * 10 Then
-    panViewer.Hide
+    panVideo.Hide
     dwgTime.Parent.Expand = True
   Else
-    panViewer.Show
+    panVideo.Show
     dwgTime.Parent.Expand = False
     dwgTime.Parent.H = Desktop.Scale * 3
   Endif
@@ -415,6 +539,26 @@ Public Sub MediaPlayer_End()
   
 End
 
+Public Sub MediaPlayer_Message((Source) As MediaControl, Type As Integer, (Message) As String)
+  
+  Dim sPrefix As String
+  
+  If Not $aMessage Then Return
+  
+  Select Case Type
+    Case Media.Info
+      sPrefix = "."
+    Case Media.Warning
+      sPrefix = "!"
+    Case Media.Error
+      sPrefix = "*"
+  End Select
+  
+  $aMessage.Add(sPrefix & Message)
+  dwgVideo.Refresh
+  
+End
+
 Public Sub MediaPlayer_AboutToFinish()
   
   'Debug $hPlayer.Position;; $hPlayer.Duration
@@ -423,6 +567,20 @@ Public Sub MediaPlayer_AboutToFinish()
 End
 
 Public Sub MediaPlayer_Position()
+  
+  $fPos = $hPlayer.Position
+  $fPosTime = Timer
+  
+End
+
+Public Sub MediaPlayer_Buffering()
+  
+  $bBuffering = $hPlayer.Progress < 1
+  dwgTime.Refresh
+  
+End
+
+Public Sub MediaPlayer_Duration()
   
   dwgTime.Refresh
   
@@ -440,22 +598,23 @@ Public Sub SetSpeed(fSpeed As Float)
   
 End
 
-Public Sub panBorder_Arrange()
-
-  timResize.Restart
-
-End
-
-Public Sub timResize_Timer()
-  
-  If $hPlayer And If $hPlayer.State <> Media.Playing Then $hPlayer.Pos = $hPlayer.Pos
-  timResize.Stop
-  
-End
+' Public Sub panBorder_Arrange()
+' 
+'   timResize.Restart
+' 
+' End
+' 
+' Public Sub timResize_Timer()
+'   
+'   If $hPlayer And If $hPlayer.State <> Media.Playing Then $hPlayer.Pos = $hPlayer.Pos
+'   timResize.Stop
+'   
+' End
 
 Public Sub _new()
 
   Me.Proxy = dwgVideo
+  SetBorder(True)
 
 End
 
@@ -482,4 +641,63 @@ Private Sub Muted_Write(Value As Boolean)
   If sldVolume.Enabled = Value Then Return
   btnVolume_Click
 
+End
+
+Private Function State_Read() As Integer
+
+  If $hPlayer Then Return $hPlayer.State
+
+End
+
+Private Sub GetTopLevel(hCtrl As Control) As Window
+
+  Dim hWindow As Window
+
+  Do
+    hWindow = hCtrl.Window
+    If hWindow.TopLevel Then Return hWindow
+    hCtrl = hWindow.Parent
+  Loop
+
+End
+
+Public Sub dwgVideo_Arrange()
+
+  Dim hWindow As Window
+  
+  If Not $hPlayer Then Return
+  
+  If Desktop.Platform = "wayland" Then
+    hWindow = GetTopLevel(dwgVideo)
+    $hPlayer.SetWindow(hWindow, dwgVideo.ScreenX, dwgVideo.ScreenY, dwgVideo.W, dwgVideo.H)
+  Else
+    $hPlayer.SetWindow(dwgVideo, 0, 0, dwgVideo.W, dwgVideo.H)
+  Endif
+  
+End
+
+Public Sub timRefresh_Timer()
+
+  dwgTime.Refresh
+
+End
+
+Public Sub GetVisualisation() As String
+  
+  Return $sVisualisation
+  
+End
+
+Public Sub SetVisualisation(Value As String)
+  
+  Dim hMediaType As MediaType
+  
+  If Value Then
+    hMediaType = Media[Value]
+    If InStr(hMediaType.Class, "Visualization") = 0 Then Error.Raise("Not a visualisation plugin")
+  Endif 
+  
+  $sVisualisation = Value
+  UpdateVisualisation()
+  
 End

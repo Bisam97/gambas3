@@ -1,0 +1,109 @@
+' Gambas class file
+
+Inherits CCommand
+
+Private $sFrom As String
+Private $sTo As String
+Private $sInclude As String
+Private $iInclude As Integer
+
+Public Sub SetArgs(aArgs As String[])
+  
+  If aArgs.Count >= 3 And If aArgs[1] = "and" Then
+    $sFrom = aArgs[0]
+    If $sFrom = "here" Then $sFrom = ""
+    $sTo = aArgs[2]
+    If aArgs.Count = 5 And If aArgs[3] = "with" Then
+      $sInclude = aArgs[4]
+      $iInclude = CState.AddInclude($sInclude)
+    Else If aArgs.Count <> 3 Then
+      Error.Raise("Syntax error")
+    Endif
+  Else If aArgs.Count = 1 Then
+    $sFrom = aArgs[0]
+    If $sFrom = "here" Then $sFrom = ""
+    $sTo = "\n"
+  Else 
+    Error.Raise("Syntax error")
+  Endif
+  
+End
+
+Public Sub Compile(hState As CState)
+  
+  Dim bToRegExp As Boolean
+  Dim sTo As String
+  
+  bToRegExp = CState.IsRegExp($sTo)
+  sTo = CState.Pattern
+  
+  If Not bToRegExp And If sTo Ends "\n" And If Len(sTo) >= 2 Then
+    CState.Print("If $sText Not Ends " & Quote(sTo) & " Then Goto " & hState.GetNextLabel())
+  Endif
+  
+  If $sInclude Then
+  
+    If Not $sFrom Then
+      
+    Else If CState.IsRegExp($sFrom) Then
+  
+      CState.Print("sWord = MatchBefore(" & Quote(CState.Pattern) & ")")
+      CState.Print("If Not sWord Then Goto " & hState.GetNextLabel())
+    
+    Else
+  
+      CState.IfEndWith(CState.Pattern, hState.GetNextLabel())
+      
+    Endif
+    
+    hState.PrintLabel(hState.GetLabel() & "_LOOP")
+    
+    If CState.IsRegExp($sTo) Then
+      
+      CState.Print("If Include(" & CStr($iInclude) & ", " & Quote($sInclude) & ", True, " & Quote(CState.Pattern) & ", aState) Then Return")
+      
+    Else
+    
+      CState.Print("If Include(" & CStr($iInclude) & ", " & Quote($sInclude) & ", False, " & Quote(CState.Pattern) & ", aState) Then Return")
+  
+    Endif
+    
+    hState.Continue()
+    
+  Else
+  
+    If Not $sFrom Then
+  
+    Else If CState.IsRegExp($sFrom) Then
+  
+      CState.Print("sWord = MatchBefore(" & Quote(CState.Pattern) & ")")
+      CState.Print("If Not sWord Then Goto " & hState.GetNextLabel())
+    
+    Else
+  
+      CState.IfEndWith(CState.Pattern, hState.GetNextLabel())
+      
+    Endif
+    
+    hState.PrintLabel(hState.GetLabel() & "_LOOP")
+    
+    If CState.IsRegExp($sTo) Then
+      CState.Print("sWord = Match(" & Quote(CState.Pattern) & ")")
+      CState.Print("If sWord Then")
+    Else
+      CState.IfStartWith(CState.Pattern)
+    Endif
+
+    If hState.HasNext Then
+      CState.Print("Goto " & hState.GetLabel(True) & "_NEXT")
+    Else
+      hState.Continue()
+    Endif
+    CState.Print("Endif")
+  
+    hState.CompileChildren(hState.GetLabel() & "_LOOP", True)
+    
+  Endif
+
+End
+

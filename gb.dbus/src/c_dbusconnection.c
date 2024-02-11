@@ -84,7 +84,7 @@ BEGIN_METHOD(DBusConnection_Introspect, GB_STRING application; GB_STRING object)
 		return;
 	}
 	
-	GB.ReturnNewZeroString(DBUS_introspect(THIS->connection, application, object));
+	GB.ReturnString(DBUS_introspect(THIS->connection, application, object));
 
 END_METHOD
 

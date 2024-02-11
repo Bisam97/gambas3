@@ -370,12 +370,15 @@ BEGIN_METHOD_VOID(MenuChildren_Clear)
 END_PROPERTY
 
 
-BEGIN_METHOD(Menu_Popup, GB_INTEGER x; GB_INTEGER y)
+BEGIN_METHOD(Menu_Popup, GB_INTEGER x; GB_INTEGER y; GB_OBJECT ref)
 
 	HANDLE_PROXY(_object);
 
 	if (!MISSING(x) && !MISSING(y))
-		MENU->popup(VARG(x), VARG(y));
+	{
+		CWIDGET *ref = (CWIDGET *)VARGOPT(ref, NULL);
+		MENU->popup(VARG(x), VARG(y), ref ? ref->widget : NULL);
+	}
 	else
 		MENU->popup();
 
@@ -548,7 +551,8 @@ GB_DESC CMenuDesc[] =
 
 	MENU_DESCRIPTION,
 
-	GB_METHOD("Popup", 0, Menu_Popup, "[(X)i(Y)i]"),
+	GB_METHOD("Popup", NULL, Menu_Popup, "[(X)i(Y)i(Reference)Control;]"),
+	//GB_METHOD("PopupAt", NULL, Menu_PopupAt, "(Control)Control;[(Position)i(Alignment)i]")
 	GB_METHOD("Close", NULL, Menu_Close, NULL),
 	GB_METHOD("Delete", 0, Menu_Delete, 0),
 	GB_METHOD("Show", 0, Menu_Show, 0),

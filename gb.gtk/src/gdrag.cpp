@@ -298,6 +298,7 @@ char *gClipboard::getText(int *len, const char *format)
 ************************************************************************/
 
 bool gDrag::_active = false;
+bool gDrag::_has_data = false;
 gPicture *gDrag::_icon = NULL;
 int gDrag::_icon_x = 0;
 int gDrag::_icon_y = 0;
@@ -335,8 +336,11 @@ void gDrag::cancel()
 	setIcon(NULL);
 	setDropText(NULL);
 	setDropImage(NULL);
-	g_free(_format);
-	_format = NULL;
+	if (_format)
+	{
+		g_free(_format);
+		_format = NULL;
+	}
 	_source = NULL;
 	_destination = NULL;
 	_dest = NULL;
@@ -346,6 +350,7 @@ void gDrag::cancel()
 	_got_data = false;
 	_local = false;
 	_active = false;
+	_has_data = false;
 
 	gApplication::setButtonGrab(NULL);
 
@@ -464,8 +469,12 @@ gControl *gDrag::dragImage(gControl *source, gPicture *image)
 void gDrag::setDropInfo(int type, char *format)
 {
 	_type = type;
-	g_free(_format);
-	_format = g_strdup(format);
+	if (_format)
+		g_free(_format);
+	if (format)
+		_format = g_strdup(format);
+	else
+		_format = NULL;
 }
 
 
@@ -480,7 +489,7 @@ void gDrag::setDropData(int action, int x, int y, gControl *source, gControl *de
 	_action = action;
 	_source = source;
 	_destination = dest;
-	_active = true;
+	_has_data = true;
 }
 
 void gDrag::setDropText(char *text, int len)
@@ -750,6 +759,10 @@ char *gDrag::getText(int *len, const char *format, bool fromOutside)
 {
 	//setDropText(NULL);
 
+#if DEBUG_ME
+	fprintf(stderr, "gDrag::getText: %s / %d\n", format, fromOutside);
+#endif
+
 	if (!format)
 		format = "text/";
 
@@ -760,6 +773,9 @@ char *gDrag::getText(int *len, const char *format, bool fromOutside)
 	}
 	else
 	{
+#if DEBUG_ME
+	fprintf(stderr, "gDrag::getText: -> %d / %s \n", _text_len, _text);
+#endif
 		*len = _text_len;
 		return _text;
 	}
@@ -779,6 +795,7 @@ gPicture *gDrag::getImage(bool fromOutside)
 void gDrag::end()
 {
 	_end = true;
+	_has_data = false;
 	_active = false;
 }
 

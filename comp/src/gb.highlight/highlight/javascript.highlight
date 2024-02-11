@@ -1,0 +1,46 @@
+@include _number.regexp
+@include webpage.include
+documentation:
+  from /** to */
+comment:
+  from /* to */
+  from //
+string:
+  from " to "
+  from ' to '
+  @include webpage.include
+  escape:
+    match /\\[fnrtv0'"\\]/
+    match /\\c[A-Za-z]/
+    match /\\x[0-9a-fA-F]{2}/
+    match /\\u[0-9a-fA-F]{4}/
+    match /\\u{[0-9a-fA-F]+}/
+string.subst{String}:
+  from ` to `
+  @include webpage.include
+  escape:
+    match /\\[fnrtv0'"\\]/
+    match /\\c[A-Za-z]/
+    match /\\x[0-9a-fA-F]{2}/
+    match /\\u[0-9a-fA-F]{4}/
+    match /\\u{[0-9a-fA-F]+}/
+  subst{Escape}:
+    from ${ to } with javascript
+regexp{RegExp=Datatype}:
+  match //.*?(/[a-z]*)?/
+  regexp.escape{Escape}:
+    match /\\./
+number:
+  match /$(NUMBER)/
+  match /$(NUMBER_HEXA)/
+keyword:
+  keyword @javascript.keyword
+function:
+  limit
+  keyword function
+constant:
+  keyword false null this true undefined NaN Infinity
+operator:
+  symbol { } . >= + << ! = >>= ; == - >> ~ += >>>= ( , != * >>> && -= &= ) < === % & || *= |= [ > !== ++ | ? %= ^= -- ^ : <<= ] <= / /=
+symbol:
+  match /[A-Za-z_$][A-Za-z_$0-9]*/

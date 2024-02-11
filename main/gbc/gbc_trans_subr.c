@@ -44,6 +44,40 @@ typedef
 		}
 	TRANS_SUBR_INFO;
 
+SUBR_INFO *TRANS_find_subr(int index)
+{
+	SUBR_INFO *info = &COMP_subr_info[index];
+
+	if (COMP_version >= 0x03190000)
+		return info;
+
+	if (info->opcode == 24 && info->optype == 28)
+		index = SUBR_find("#Pi");
+	else if (info->opcode == 25)
+		THROW("The '&1()' subroutine only exists since version 3.19", info->name);
+	else if (info->opcode == 57)
+	{
+		if (info->optype == 1)
+			index = SUBR_find("#.Flush");
+		else if (info->optype == 2)
+			index = SUBR_find("#.InputFrom");
+		else if (info->optype == 3)
+			index = SUBR_find("#.OutputTo");
+		else if (info->optype == 4)
+			index = SUBR_find("#.ErrorFrom");
+		else if (info->optype == 5)
+			index = SUBR_find("#.LineInput");
+		else if (info->optype == 6)
+			index = SUBR_find("#.Lock");
+		else if (info->optype == 7)
+			index = SUBR_find("#.Unlock");
+		else if (info->optype == 8)
+			index = SUBR_find("#.LockWait");
+	}
+
+	return &COMP_subr_info[index];
+}
+
 
 void TRANS_subr(int subr, int nparam)
 {
@@ -64,7 +98,7 @@ void TRANS_subr(int subr, int nparam)
 
 	if (tsi->info == NULL)
 	{
-		tsi->info = SUBR_get(tsi->name);
+		tsi->info = TRANS_find_subr(SUBR_find(tsi->name));
 		if (!tsi->info)
 			ERROR_panic("Unknown intern subroutine: %s", tsi->name);
 	}

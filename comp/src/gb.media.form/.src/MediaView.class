@@ -19,8 +19,22 @@ Property Read Duration As Float '' Return the duration of the media in seconds
 Property Position As Float '' Return or set the current position inside the media in seconds.
 Property Speed As Float '' Return or set the playing speed of the media.
 
+'' @{since 3.19}
+''
+'' Return the state of the media player
+
+Property Read State As Integer
+
 Property Volume As Float '' Return or set the volume of the audio track, between 0 and 1.
 Property Muted As Boolean '' Return or set if the audio is muted.
+
+'' @{since 3.19}
+'' 
+'' Return or set the name of the audio visualisation plugin
+''
+'' If the property is void (the default), no audio Visualisation plugin is used.
+
+Property Visualisation As String
 
 Private $hView As FMediaPlayer
 Private $sUrl As String
@@ -178,5 +192,23 @@ End
 Private Sub Muted_Write(Value As Boolean)
 
   $hView.Muted = Value
+
+End
+
+Private Function State_Read() As Integer
+
+  Return $hView.State
+
+End
+
+Private Function Visualisation_Read() As String
+
+  Return $hView.GetVisualisation()
+
+End
+
+Private Sub Visualisation_Write(Value As String)
+
+  $hView.SetVisualisation(Value)
 
 End

@@ -41,6 +41,7 @@ Public ReadOnly As Boolean
 
 Public Title As String
 Public Startup As String
+Public StartupEnvironment As String[]
 Public (Components) As String[]
 Public Libraries As String[]
 Public ExtraReferences As String[]
@@ -85,10 +86,14 @@ Public Maintainer As String
 Public Address As String
 Public Vendor As String
 Public VendorPrefix As String
+Public AppId As String
 Property Url As String Use $sUrl
 Public License As String
 Public CreateEachDirectory As Boolean
 Public RuntimeVersion As String
+Public AppImageRepository As String
+Public AppImageDistribution As String
+Public AppImageGambasRepository As String
 
 Public PublishTags As String[]
 Public PublishDependencies As String[]
@@ -130,8 +135,8 @@ Public DEFAULT_FONT As String
 Public DESKTOP_FONT As String
 
 Public Const DEFAULT_URL As String = "http://www.endoftheinternet.com/"
-Public WIKI_URL As String = "http://gambaswiki.org"
-Public WIKI_ROOT As String = "http://gambaswiki.org/wiki"
+Public WIKI_URL As String = "https://gambaswiki.org"
+Public WIKI_ROOT As String = "https://gambaswiki.org/wiki"
 
 Public Const FILTER_ADDED As String = " A"
 Public Const FILTER_EXPORTED As String = " X"
@@ -160,6 +165,7 @@ Public Const KEY_PROJECT As String = "$P"
 Public Const KEY_PUBLIC As String = "$B"
 Public Const KEY_CONNECTION As String = "$D"
 Public Const KEY_EXTERN As String = "$X"
+Public Const KEY_PROFILE As String = "$F"
 
 Private Const CLASS_AUTH_CAR As String = "abcdefghijklmnopqrstuvwxyz0123456789"
 Private Const CLASS_AUTH_CAR_COMPONENT As String = "_"
@@ -211,7 +217,7 @@ Public HasAdded As Integer
 Private $bTesting As Boolean
 
 ' All possible packager target systems
-Private $aSystems As String[] = ["archlinux", "autotools", "debian", "fedora", "mageia", "slackware", "suse", "ubuntu"]
+Private $aSystems As String[] = ["appimage", "archlinux", "autotools", "debian", "fedora", "mageia", "slackware", "suse", "ubuntu"]
 
 ' Pretty background
 Public DEFAULT_BACKGROUND As String = "gambas"
@@ -308,6 +314,7 @@ Public Sub Main()
   Dim sArg As String
   Dim aOpenFile As New String[]
   Dim sLang As String
+  Dim bMakeIcon As Boolean
 
   'DB.Debug = True
   
@@ -322,7 +329,7 @@ Public Sub Main()
       $bTesting = True
       Continue
     Else If sArg = "--help" Or If sArg = "-h" Then
-      Print File.Load("usage")
+      PrintUsage
       Quit
     Else If sArg = "--license" Or If sArg = "-L" Then
       Print Replace(File.Load("license"), "YEAR", CStr(Year(Now)))
@@ -342,9 +349,11 @@ Public Sub Main()
       InitVersion
       Print FSystemInfo.GetInfo().Join("\n")
       Quit
+    Else If sArg = "--update-icon" Then
+      bMakeIcon = True
     Else If Left(sArg) = "-" Then
       Error "gambas3: unknown option: " & sArg
-      Quit
+      Quit 1
     Else
       If Not sPath Then
         sPath = Args[iInd]
@@ -353,6 +362,20 @@ Public Sub Main()
       Endif
     Endif
   Next
+  
+  If bMakeIcon Then
+    
+    If Not sPath Or If File.IsRelative(sPath) Then
+      sPath = Application.Dir &/ sPath
+    Endif
+    
+    If MakeDirectoryIcon(sPath) Then
+      Quit 1
+    Else
+      Quit
+    Endif
+    
+  Endif
 
   Try Component.Load("gb.inotify")
   Try Component.Load("gb.media")
@@ -360,6 +383,7 @@ Public Sub Main()
   If Not Settings["/ShowMenus", True] Then Env["APPMENU_DISPLAY_BOTH"] = "1"
   Env["QT_LOGGING_RULES"] = "*.debug=false"
   
+  RegisterHighlight
   UpdateTheme
   DESKTOP_FONT = Application.Font.ToString()
 
@@ -373,6 +397,7 @@ Public Sub Main()
   Application.ShowTooltips = Settings["/ShowTooltip", True]
   Application.Animations = Settings["/Animations", True]
   Application.Shadows = Settings["/Shadows", True]
+  ToolBar.DefaultSize = Stock.Sizes[Settings["/ToolbarDefaultSize", 0]]
   UpdateMessageBoxStyle()
 
   Documentation = New CDocumentation
@@ -428,8 +453,6 @@ Public Sub Main()
   ' the window drawing becomes buggy
   
   'FMain.Show
-  
-  FMain.Load
   
   If sPath Then 
     
@@ -688,7 +711,7 @@ _INIT_AGAIN:
     VersionControl.Refresh
   Endif
 
-  Tree = New CProjectTree(Project.Dir)
+  Tree = New CProjectTree(Project.Dir, True)
   
   If bConvert Then
 
@@ -729,7 +752,8 @@ _INIT_AGAIN:
     GoSub _STOP_CONVERT
 
     FConvert.SetMessage(("Applying conversion..."))
-    Shell "rm -rf " & Shell$(sDir & "~") Wait
+    'Shell "rm -rf " & Shell$(sDir & "~") Wait
+    Shell.RmDir(sDir & "~")
     Move sDir To sDir & "~"
     Shell "mv -f " & Shell$(Project.Dir) & " " & Shell$(sDir) Wait
     If Process.LastValue Then
@@ -801,6 +825,8 @@ _INIT_AGAIN:
     
   Endif
   
+  If Project.Components.Exist("gb.web.gui") Then Project.Config["/Debug/UseHttpServer"] = True
+  
   Dec $iNoRefresh
 
   Inc Project.TimeStamp
@@ -828,7 +854,6 @@ _INIT_AGAIN:
     FSearch.OnProjectChange
     If Class.IsLoaded("FHelpBrowser") Then FHelpBrowser.OnProjectChange
     If Class.IsLoaded("FProjectBrowser") Then FProjectBrowser.OnProjectChange
-    FProfile.OnProjectChange
     'FOpenProject.OnUpdateRecent
     
   Endif
@@ -875,12 +900,17 @@ _INIT_AGAIN:
     
   Endif
 
-  If Not IsFake() And If Settings["/RestoreFiles", 1] Then LoadLastOpenedFiles
+  GoSub _STOP_CONVERT
+
+  If Not IsFake() Then
+    If Not IsDir(Project.Dir &/ ".gambas") Or If Dir(Project.Dir &/ ".gambas").Count = 0 Then Compile(True)
+    If Settings["/RestoreFiles", 1] Then LoadLastOpenedFiles
+  Endif
   
+  MakeDirectoryIcon
+  MakeProjectIcon
   RecentFiles = New String[]
   CPosition.Clear
-
-  GoSub _STOP_CONVERT
 
   If ReadOnly Then 
     FMain.ShowWarning(("This project is read-only."))
@@ -900,7 +930,7 @@ _INIT_AGAIN:
 
   Application.Restart = ["gambas3", Project.Dir]
 
-  UpdateBookmarks  
+  UpdateBookmarks
   
   'SetMessage(("OK"))
   Return
@@ -1024,6 +1054,8 @@ Public Function CloseProject() As Boolean
 
     Inc Application.Busy
 
+    FImageProperty.OnProjectClose()
+
     If Not IsFake() Then Breakpoints.Save()
 
     If Settings["/RestoreFiles", 1] Then
@@ -1045,7 +1077,7 @@ Public Function CloseProject() As Boolean
           Try sState = hForm.GetState()
 
           aFold = Null
-          Try aFold = hForm.GetFoldedProc()
+          If Settings["/Editor/ShowExpand", True] Then Try aFold = hForm.GetFoldedProc()
 
           If sState Then sState = ":" & sState
           sPath = MakeProjectRelativePath(hForm.Path)
@@ -1078,6 +1110,11 @@ Public Function CloseProject() As Boolean
     '$cSourceDir.Clear
 
     Files.Clear
+    
+    ' Revert not important files, and especially any version change
+    
+    VersionControl.RevertNotImportantFiles()
+    SyncVersion()
 
     If $hLock Then
       Unlock #$hLock
@@ -1121,6 +1158,7 @@ End
 
 Public Sub Exit()
 
+  CLayout.Exit
   CSoftware.Exit
   CSampleCode.Exit
   CLibraryInfo.Exit
@@ -1274,6 +1312,8 @@ Public Sub GetSpecialDir(sKey As String) As String
       Return SourceDir
     Case KEY_CONNECTION
       Return Project.Dir &/ ".connection"
+    Case KEY_PROFILE
+      Return Project.Dir &/ ".profile"
   End Select
   
 End
@@ -1387,7 +1427,6 @@ Private Sub InitProjectFilter()
 
   Dim sPath As String
   Dim sFile As String
-  Dim sFilter As String
 
   $cProjectFilter = Null
   If Not ProjectFilter Then Return
@@ -1440,23 +1479,23 @@ Private Sub InitProjectFilter()
       AddPathToFilter(Project.Dir &/ sFile)
     Next
 
-  Else
-
-    sFilter = String.LCase(ProjectFilter)
-
-    $cProjectFilter = New Collection
-
-    For Each sFile In Browse(Project.Dir)
-      
-      sPath = Project.Dir &/ sFile
-
-      sFile = File.Name(sFile)
-      If sPath Begins (Project.Dir &/ ".src") Then sFile = File.BaseName(sFile)
-      If InStr(String.LCase(sFile), sFilter) = 0 Then Continue
-
-      AddPathToFilter(sPath)
-
-    Next
+  ' Else
+  ' 
+  '   sFilter = String.LCase(ProjectFilter)
+  ' 
+  '   $cProjectFilter = New Collection
+  ' 
+  '   For Each sFile In Browse(Project.Dir)
+  '     
+  '     sPath = Project.Dir &/ sFile
+  ' 
+  '     sFile = File.Name(sFile)
+  '     If sPath Begins (Project.Dir &/ ".src") Then sFile = File.BaseName(sFile)
+  '     If InStr(String.LCase(sFile), sFilter) = 0 Then Continue
+  ' 
+  '     AddPathToFilter(sPath)
+  ' 
+  '   Next
 
   Endif
 
@@ -1576,6 +1615,7 @@ Public Sub RefreshAll()
   Inc Application.Busy
   RefreshComponents(True)
   Refresh(True)
+  Tree.CollapseAll
   Dec Application.Busy
   
 End
@@ -1716,6 +1756,9 @@ Public Function LoadFile(sPath As String, Optional bNoMessage As Boolean) As Obj
 
         Case "module", "test", "class"
           hForm = New FEditor(sPath)
+          
+        Case "prof"
+          hForm = New FProfile(sPath)
 
         Case Else
           ' Check that it is not a binary file
@@ -1851,6 +1894,8 @@ Public Sub OpenFile(sPath As String, Optional iLine As Integer, Optional iColumn
   hForm = Files[sPath]
   If Not hForm Then Return
 
+  FMain.CloseProjectEditor
+
   CPosition.Disable
   
   Try ShowFile(hForm)
@@ -1867,8 +1912,6 @@ Public Sub OpenFile(sPath As String, Optional iLine As Integer, Optional iColumn
 
   CPosition.Enable
   
-  FMain.CloseProjectEditor
-
   Return hForm
   
 End
@@ -2000,14 +2043,14 @@ Private Sub CompileError(sMsg As String)
     Try hEditor = hForm.GetEditor()
 
     If iLine >= 100000 Then
-      SetMessage(File.BaseName(sFile) & ": " & sErr & " " & ("in form definition"))
+      SetMessage(File.BaseName(sFile) & ": " & Html(sErr) & " " & ("in form definition"))
       sMsg = FormatError(sErr, ("in form definition"))
     Else If iLine >= 1 Then
       If hEditor Then iLine = Min(iLine, hEditor.Count)
-      SetMessage(File.BaseName(sFile) & "." & CStr(iLine) & ": " & sErr)
+      SetMessage(File.BaseName(sFile) & "." & CStr(iLine) & ": " & Html(sErr))
       sMsg = FormatError(sErr, File.Name(sFile) & ":" & CStr(iLine))
     Else
-      SetMessage(File.BaseName(sFile) & ": " & sErr)
+      SetMessage(File.BaseName(sFile) & ": " & Html(sErr))
       sMsg = FormatError(sErr, File.Name(sFile))
     Endif
 
@@ -2016,7 +2059,7 @@ Private Sub CompileError(sMsg As String)
   If hEditor Then
     hForm.ShowErrorMessage(sMsg)
   Else
-    FMain.ShowError(sMsg)
+    FMain.ShowError("<b>" & ("Compiler error:") & "</b>\n\n<tt>" & sMsg & "</tt>")
   Endif
 
   'Catch
@@ -2125,7 +2168,8 @@ Public Function GetCompileCommand(bAll As Boolean, bNoDebug As Boolean, bMakeExe
   If ModulePublic Then sExec &= "-fpublic-module "
   If bMakeExecutable Then sExec &= "-x "
   If DefaultNamespace Then sExec &= "-n " & Shell$(DefaultNamespace) & " "
-  sExec &= "-j" & CStr(Settings["/CompilerJobs", 1]) & " "
+  If ForceBytecodeVersion Then sExec &= "-b " & ForceBytecodeVersion & " "
+  sExec &= "-j" & CStr(Settings["/CompilerJobs", 0]) & " "
   'sExec = sExec & "-c " & Quote(CLASSES_FILE) & " " & Quote(Project.Dir) & " > " & OUTPUT_FILE & " 2>&1"
   If bIDE Then
     If Project.Warnings Then
@@ -2209,11 +2253,7 @@ Public Function Compile(Optional bAll As Boolean, Optional bNoDebug As Boolean, 
 
   If bAll Then fTimer = Timer
 
-  If ForceBytecodeVersion Then
-    Shell sExec With ["GB_PCODE_VERSION=" & ForceBytecodeVersion] Wait
-  Else
-    Shell sExec Wait
-  Endif
+  Shell sExec Wait
 
   If Process.LastState = Process.Crashed Or If Process.LastValue > 128 Then
     UnlockIt()
@@ -2232,7 +2272,7 @@ Public Function Compile(Optional bAll As Boolean, Optional bNoDebug As Boolean, 
       Inc I
       Continue
     Endif
-    If sLine Like "*: error: *" Then sError = sLine
+    If sLine <> "OK" Then sError = sLine
     aOutput.Remove(I)
   Wend
   
@@ -2366,12 +2406,7 @@ Public Sub Save(Optional (bReset) As Boolean)
   Inc Application.Busy
 
   For Each hForm In Files
-    If hForm Is FEditor Then
-      If hForm.Save() Then Break
-    Else
-      If hForm.Save() Then Break
-    Endif
-
+    If hForm.Save() Then Break
   Next
 
   Dec Application.Busy
@@ -2461,7 +2496,7 @@ Public Sub MakeRelativeLink(sLink As String, sPath As String) As String
     If aPath[iInd] <> aLink[iInd] Then Break
   Next
 
-  If iInd <= iMax And (aPath.Count - iInd) <= 6 Then
+  If (aPath.Count - iInd) <= 6 Then
 
     sLink = String$(aPath.Count - iInd, "../")
     While iInd < aLink.Count
@@ -2545,7 +2580,7 @@ Public Sub InsertFile(sName As String, sDir As String, Optional sTemplate As Str
   VersionControl.AddFile(sPath)
   Inc Project.TimeStamp
 
-  Refresh
+  RefreshKey(sPath)
   'RefreshLibrary
 
   If Not bNoOpen Then OpenFile(sPath)
@@ -2785,7 +2820,7 @@ Private Sub GetVersion(Optional bWriteProject As Boolean) As Boolean
   
   If bWriteProject Then
     sVer = FormatVersion()
-    If sVer <> sOldVer Then WriteProject
+    If sVer <> sOldVer Then WriteProjectVersion
   Endif
   
   Return
@@ -2835,6 +2870,8 @@ Public Function MakeExecutable(bDoNotIncVersion As Boolean, bSilent As Boolean, 
   Dim sPath As String
   Dim I As Integer
   Dim sDir As String
+  Dim sOptions As String
+  Dim fTimer As Float
 
   If CheckStartupClass() Then Return True
 
@@ -2862,6 +2899,7 @@ Public Function MakeExecutable(bDoNotIncVersion As Boolean, bSilent As Boolean, 
 
   Endif
 
+  fTimer = Timer
   SetMessage(("Making executable..."))
 
   If Compile(True) Then
@@ -2878,7 +2916,8 @@ Public Function MakeExecutable(bDoNotIncVersion As Boolean, bSilent As Boolean, 
     Endif
   Endif
 
-  Exec ["rm", "-rf", Project.Dir &/ ".gambas.save"] Wait
+  'Exec ["rm", "-rf", Project.Dir &/ ".gambas.save"] Wait
+  Try Shell.RmDir(Project.Dir &/ ".gambas.save")
   'Exec ["cp", "-rf", Project.Dir &/ ".gambas", Project.Dir &/ ".gambas.save"] Wait
   Move Project.Dir &/ ".gambas" To Project.Dir &/ ".gambas.save"
   bSaveDone = True
@@ -2911,8 +2950,11 @@ Public Function MakeExecutable(bDoNotIncVersion As Boolean, bSilent As Boolean, 
       Next
       
     Endif
+    
+    sOptions = ""
+    If Config["/Executable/NoPublicDirectory", False] Then sOptions &= " -p"
 
-    sExec = System.Path &/ "bin/gba" & System.Version & " -o " & Shell$(sExecPath) & " " & Shell$(Project.Dir) & " > " & OUTPUT_FILE & " 2>&1"
+    sExec = System.Path &/ "bin/gba" & System.Version & sOptions & " -o " & Shell$(sExecPath) & " " & Shell$(Project.Dir) & " > " & OUTPUT_FILE & " 2>&1"
     Shell sExec Wait
     
     If CompressFiles And If CompressedFiles.Count Then
@@ -2962,14 +3004,16 @@ Public Function MakeExecutable(bDoNotIncVersion As Boolean, bSilent As Boolean, 
 
   Endif
 
-  Exec ["rm", "-rf", Project.Dir &/ ".gambas"] Wait
+  'Exec ["rm", "-rf", Project.Dir &/ ".gambas"] Wait
+  Shell.RmDir(Project.Dir &/ ".gambas")
   Move Project.Dir &/ ".gambas.save" To Project.Dir &/ ".gambas"
   
   EnableRefresh
   
   ExecTimeStamp = TimeStamp
   
-  SetMessage(("Making executable...") & ("OK"))
+  SetMessage(("Making executable...") & " <tt>" & sExecPath & "</tt>... " & ("OK"))
+  SetMessage(" " & Subst(("(in &1 s)"), Format(Timer - fTimer, "0.##")), True)
   
   Return Not bOK
 
@@ -2977,7 +3021,8 @@ Catch
 
   FMain.ShowError(("Cannot make executable.") & "\n\n" & Error.Text & "\n" & Error.Where)
   If bSaveDone Then 
-    Exec ["rm", "-rf", Project.Dir &/ ".gambas"] Wait
+    'Exec ["rm", "-rf", Project.Dir &/ ".gambas"] Wait
+    Shell.RmDir(Project.Dir &/ ".gambas")
     Try Move Project.Dir &/ ".gambas.save" To Project.Dir &/ ".gambas"
   Endif
   EnableRefresh
@@ -3056,9 +3101,12 @@ Public Sub ReadProject(Optional bConvert As Boolean)
   Dim aVer As String[]
   Dim aArguments As String[][]
   Dim aEnv As String[]
+  Dim sVersion As String
+  Dim sOldVersion As String
 
   hFic = Open Path For Input
 
+  StartupEnvironment = New String[]
   Components = New String[]
   Libraries = New String[]
   ExtraReferences = New String[]
@@ -3093,6 +3141,9 @@ Public Sub ReadProject(Optional bConvert As Boolean)
   SameDependencies = False
   SameFiles = False
   ExtraAutoconfTest = ""
+  AppImageRepository = ""
+  AppImageDistribution = ""
+  AppImageGambasRepository = ""
   Prefix = False
   PackageName = ""
   PackageVersion = 1
@@ -3108,6 +3159,7 @@ Public Sub ReadProject(Optional bConvert As Boolean)
   Maintainer = ""
   Vendor = ""
   VendorPrefix = ""
+  AppId = ""
   Address = ""
   $sUrl = ""
   License = ""
@@ -3120,6 +3172,7 @@ Public Sub ReadProject(Optional bConvert As Boolean)
   DoNotTranslate = New String[]
   CompressedFiles = New String[]
   PreviewStyleSheet = ""
+  
   UnknownOptions = New Collection
 
   For Each sLig In hFic.Lines
@@ -3152,6 +3205,9 @@ Public Sub ReadProject(Optional bConvert As Boolean)
           If Not Components.Exist(sVal) Then Components.Add(sVal)
         Endif
 
+      Case "startupenvironment"
+        StartupEnvironment.Add(sVal)
+
       Case "library"
         If bConvert Then
           For Each sVal In MConvert.ConvertComponent(sVal)
@@ -3183,17 +3239,9 @@ Public Sub ReadProject(Optional bConvert As Boolean)
         
       Case "environment"
         aEnv = Split(UnQuote(sVal), "\n")
-
+        
       Case "version"
-        iPos = InStr(sVal, " ")
-        If iPos Then
-          sVal = Left(sVal, iPos - 1)
-          VersionAddBranch = True
-        Endif
-        aVer = Split(sVal, ".")
-        Try MajorVersion = Val(aVer[0])
-        Try MinorVersion = Val(aVer[1])
-        Try ReleaseVersion = Val(aVer[2])
+        sOldVersion = sVal
 
       Case "versionfile"
         VersionFile = CInt(sVal) <> 0
@@ -3366,6 +3414,9 @@ Public Sub ReadProject(Optional bConvert As Boolean)
       Case "vendorprefix"
         VendorPrefix = sVal
         
+      Case "appid"
+        AppId = sVal
+        
       Case "runtimeversion"
         RuntimeVersion = UnQuote(sVal)
 
@@ -3426,6 +3477,15 @@ Public Sub ReadProject(Optional bConvert As Boolean)
       Case "previewstylesheet"
         PreviewStyleSheet = sVal
         
+      Case "appimagerepository"
+        AppImageRepository = sVal
+        
+      Case "appimagedistribution"
+        AppImageDistribution = sVal
+        
+      Case "appimagegambasrepository"
+        AppImageGambasRepository = sVal
+        
       Case Else
         UnknownOptions[sKey] = sVal
 
@@ -3449,6 +3509,20 @@ Public Sub ReadProject(Optional bConvert As Boolean)
     
   Endif
 
+  Try sVersion = File.Load(Project.Dir &/ ".version")
+  If Error Then sVersion = sOldVersion
+  If Not sVersion Then sVersion = "0.0.0"
+  
+  iPos = InStr(sVersion, " ")
+  If iPos Then
+    sVersion = Left(sVersion, iPos - 1)
+    VersionAddBranch = True
+  Endif
+  aVer = Split(sVersion, ".")
+  Try MajorVersion = Val(aVer[0])
+  Try MinorVersion = Val(aVer[1])
+  Try ReleaseVersion = Val(aVer[2])
+
   VersionFile = Not GetVersion(True)
   'If JustUpdateVersion Then Return
 
@@ -3463,7 +3537,9 @@ Public Sub ReadProject(Optional bConvert As Boolean)
   RefreshComponents(True)
   UpdateLibraries(Libraries)
   'CreateConnectionDirectory
-
+  
+  Return
+  
 End
 
 Public Sub WriteProjectTranslation()
@@ -3503,8 +3579,7 @@ Public Sub WriteProject(Optional bComponentDoNotChange As Boolean, Optional bMak
   Dim sPath As String
   Dim sVal As String
   Dim hComp As CComponent
-  Dim sVer As String
-  Dim sBranch As String
+  Dim sVersion As String
 
   If Project.ReadOnly Then Return
 
@@ -3525,6 +3600,8 @@ Public Sub WriteProject(Optional bComponentDoNotChange As Boolean, Optional bMak
     
   'Endif
 
+  sVersion = WriteProjectVersion()
+
   ' Creates the .project file
 
   sPath = Path
@@ -3538,23 +3615,17 @@ Public Sub WriteProject(Optional bComponentDoNotChange As Boolean, Optional bMak
   If Title Then Print #hFile, "Title="; Title
   If Startup Then Print #hFile, "Startup="; Startup
   If Icon Then Print #hFile, "Icon="; Icon
-
-  GetVersion()
-  sVer = FormatVersion()
-  If VersionAddBranch Then
-    sBranch = VersionControl.GetCurrentBranch()
-    If Not sBranch Then sBranch = "?"
-    sVer &= " (" & sBranch & ")"
-  Endif
-  
-  Print #hFile, "Version="; sVer
+  Print #hFile, "Version="; sVersion
   If VersionFile Then Print #hFile, "VersionFile=1"
-  'If VersionAddBranch Then Print #hFile, "VersionAddBranch=1"
 
   For Each hComp In Documentation.Components
     If Components.Find(hComp.Key) >= 0 Then
       Print #hFile, "Component="; hComp.Key
     Endif
+  Next
+  
+  For Each sVal In StartupEnvironment
+    Print #hFile, "StartupEnvironment="; sVal
   Next
 
   If LibraryPath Then Print #hFile, "LibraryPath="; LibraryPath
@@ -3590,6 +3661,7 @@ Public Sub WriteProject(Optional bComponentDoNotChange As Boolean, Optional bMak
   If Maintainer Then Print #hFile, "Maintainer="; Maintainer
   If Vendor Then Print #hFile, "Vendor="; Vendor
   If VendorPrefix Then Print #hFile, "VendorPrefix="; VendorPrefix
+  If AppId Then Print #hFile, "AppId="; AppId
   If Address Then Print #hFile, "Address="; Address
   If $sUrl And If $sUrl <> DEFAULT_URL Then Print #hFile, "Url="; $sUrl
   If License Then Print #hFile, "License="; License
@@ -3609,6 +3681,10 @@ Public Sub WriteProject(Optional bComponentDoNotChange As Boolean, Optional bMak
   If SameDependencies Then Print #hFile, "SameDependencies=1"
   If SameFiles Then Print #hFile, "SameFiles=1"
   If ExtraAutoconfTest Then Print #hFile, "ExtraAutoconfTest=" & Quote(ExtraAutoconfTest)
+  
+  If AppImageRepository Then Print #hFile, "AppImageRepository="; AppImageRepository
+  If AppImageDistribution Then Print #hFile, "AppImageDistribution="; AppImageDistribution
+  If AppImageGambasRepository Then Print #hFile, "AppImageGambasRepository="; AppImageGambasRepository
 
   For Each sSys In $aSystems
     If Menus[sSys] Then Print #hFile, "Menus="; sSys; ":"; Quote(Menus[sSys])
@@ -3648,8 +3724,6 @@ Public Sub WriteProject(Optional bComponentDoNotChange As Boolean, Optional bMak
   Try Kill sPath
   Move sPath & ".tmp" To sPath
   
-  'If JustUpdateVersion Then Return
-
   WriteProjectTranslation
   UpdateComponentFile
 
@@ -3887,7 +3961,7 @@ Public Sub UnloadFile(sPath As String)
 
 End
 
-Public Sub DeleteFile(sPath As String)
+Public Sub DeleteFile(sPath As String, Optional bNoBackup As Boolean)
 
   Dim sExt As String
   Dim bLink As Boolean
@@ -3910,7 +3984,7 @@ Public Sub DeleteFile(sPath As String)
 
   UnloadFile(sPath)
 
-  If Not bLink Then
+  If Not bLink And If Not bNoBackup Then
     Try Kill sPath & "~"
     Try Move sPath To sPath & "~"
   Else
@@ -4041,10 +4115,11 @@ ALREADY_EXIST:
 
 End
 
-Public Function CheckClassName(sName As String, Optional bCheckNotExist As Boolean) As String
+Public Function CheckClassName(sName As String, Optional bCheckNotExist As Boolean, Optional bAllowArray As Boolean) As String
 
   Dim iInd As Integer
   Dim sCar As String
+  Dim sArraySuffix As String
 
   If Not sName Then Goto VOID_NAME
 
@@ -4054,11 +4129,20 @@ Public Function CheckClassName(sName As String, Optional bCheckNotExist As Boole
 
   If InStr(CLASS_AUTH_FIRST_CAR, LCase(Left(sName))) = 0 Then Goto BAD_CHAR
 
+  If bAllowArray Then
+    If Len(sName) > 3 And If Right$(sName, 2) = "[]" And If CSymbolInfo.IsNativeType(Left(sName, -2)) Then
+      sName = Left(sName, -2)
+      sArraySuffix = "[]"
+    Endif
+  Endif
+
   For iInd = 2 To Len(sName)
     sCar = LCase(Mid$(sName, iInd, 1))
     If Project.Type And If InStr(CLASS_AUTH_CAR_COMPONENT, sCar) Then Continue
     If InStr(CLASS_AUTH_CAR & "_", sCar) = 0 Then Goto BAD_CHAR
   Next
+  
+  sName &= sArraySuffix
 
   If bCheckNotExist Then
     If Project.Exist(sName) Then Goto ALREADY_EXIST
@@ -4221,7 +4305,7 @@ Public Sub RenameFile(sPath As String, sNewName As String) As Boolean
     If sName = sNewName Then Return
 
     If UCase(sName) <> UCase(sNewName) Then
-      sMsg = CheckClassName(sNewName, True)
+      sMsg = CheckClassName(sNewName, True, sExt = "class")
       If sMsg Then Error.Raise(sMsg)
     Endif
 
@@ -4724,6 +4808,12 @@ Public Sub IsConnectionPath(sPath As String) As Boolean
 
 End
 
+Public Sub IsProfilePath(sPath As String) As Boolean
+
+  Return sPath Begins Project.Dir &/ ".profile/"
+
+End
+
 Public Sub IsHiddenPath(sPath As String) As Boolean
 
   Return sPath Begins Project.Dir &/ ".hidden" &/ "/"
@@ -4796,7 +4886,7 @@ Public Sub GetUniqueName(sDir As String, sName As String) As String
   
   sName = File.BaseName(sName)
   
-  iPos = RInStr(sName, "-")
+  iPos = RInStr(sName, ".")
   If iPos And If IsDigit(Mid$(sName, iPos + 1)) Then
     Try iInd = CInt(Mid$(sName, iPos + 1))
     If Not Error Then sName = Left$(sName, iPos - 1)
@@ -4804,7 +4894,7 @@ Public Sub GetUniqueName(sDir As String, sName As String) As String
 
   While Exist(sDest)
     Inc iInd
-    sDest = sDir &/ sName & "-" & CStr(iInd) & sExt
+    sDest = sDir &/ sName & "." & CStr(iInd) & sExt
   Wend
 
   Return File.Name(sDest)
@@ -5137,10 +5227,13 @@ End
 
 Private Sub CreateGitIgnore()
 
+  Dim sScan As String = "#---- Gambas files to ignore ("
+  Dim sVersion As String = "v6"
   Dim sPath As String = Project.Dir &/ ".gitignore"
   Dim sData As String
   Dim iPos As Integer
   Dim iPos2 As Integer
+  Dim sVer As String
   
   If Not Exist(sPath) Then
     Try Copy "gitignore" To sPath
@@ -5148,11 +5241,12 @@ Private Sub CreateGitIgnore()
   Endif
 
   sData = File.Load(sPath)
-  iPos = InStr(sData, "#---- Gambas files to ignore (v5)")
-  If iPos Then Return
   
-  iPos = InStr(sData, "#---- Gambas files to ignore")
+  iPos = InStr(sData, sScan)
   If iPos Then
+    Try sVer = Scan(Mid$(sData, iPos + Len(sScan)), "*)*")[0]
+    If Comp(sVer, sVersion, gb.Natural) >= 0 Then Return
+
     iPos2 = InStr(sData, "#----", iPos + 5)
     If iPos2 Then
       iPos2 = InStr(sData, "\n", iPos2)
@@ -5377,27 +5471,32 @@ Public Sub GetTranslations() As String[]
 End
 
 
-Public Sub MakeDirectoryIcon(Optional sDir As String)
+Public Sub MakeDirectoryIcon(Optional sDir As String) As Boolean
 
-  Dim sIcon As String
   Dim hDirIcon As Image
   Dim hIcon As Image
   Dim bExist As Boolean
   Dim sPath As String
+  Dim bLocalize As Boolean
 
-  If Not sDir Then sDir = Project.Dir
-  
-  If Project.Icon Then 
-    sIcon = sDir &/ Project.Icon
+  If Not sDir Then
+    sDir = Project.Dir
+    bLocalize = Project.Localize
   Else
-    sIcon = "img/logo/project.png"
+    bLocalize = InStr(File.Load(sDir &/ ".project"), "\nTranslate=1")
   Endif
+  
+  hDirIcon = Picture["icon:/256/directory"].Image
 
-  hDirIcon = Image.Load("img/logo/folder.png")
-
-  Try hIcon = StretchIcon(sIcon, 128)
-  If hIcon Then hDirIcon.PaintImage(hIcon, 64, 88)
-
+  Try hIcon = GetIcon(sDir, 96).Image
+  If hIcon Then hDirIcon.PaintImage(hIcon, 80, 104)
+  
+  If bLocalize Then
+    hIcon = Picture["icon:/64/language"].Image
+    hDirIcon.FillRect(hDirIcon.W - hIcon.W, hDirIcon.H - hIcon.H, hDirIcon.W, hDirIcon.H, Color.Transparent)
+    hDirIcon.PaintImage(hIcon, hDirIcon.W - hIcon.W, hDirIcon.H - hIcon.H)
+  Endif
+  
   Try Kill sDir &/ ".icon.png"
   hDirIcon.Save(sDir &/ ".icon.png")
 
@@ -5408,7 +5507,25 @@ Public Sub MakeDirectoryIcon(Optional sDir As String)
 
 Catch
 
-  Error "gambas3: warning: unable to create project directory icon"
+  Error "gambas3: warning: unable to create project directory icon: "; Error.Text
+  Return True
+
+End
+
+Public Sub MakeProjectIcon() As Boolean
+
+  Dim sPath As String
+  Dim bExist As Boolean
+
+  sPath = Project.Dir &/ ".app.png"
+  bExist = Exist(sPath)
+  GetIcon(Project.Dir).Save(sPath)
+  If Not bExist Then VersionControl.AddFile(sPath)
+
+Catch
+
+  Error "gambas3: warning: unable to create project application icon: "; Error.Text
+  Return True
 
 End
 
@@ -5830,7 +5947,8 @@ Public Sub SendMail()
   sTemp = File.SetName(sTemp, GetDefaultArchiveBaseName()) & ".tar.gz"
   Try Kill sTemp
   MakeSourcePackageTo(sTemp)
-  Desktop.SendMail(Null,,, If(Project.Title, Project.Title, Project.Name),, sTemp)
+  Try Desktop.SendMail(Null,,, If(Project.Title, Project.Title, Project.Name),, sTemp)
+  If Error Then FMain.ShowErrorWith(("Unable to send project by mail."))
 
 End
 
@@ -6040,7 +6158,8 @@ Public Sub OpenFake() As Boolean
   If Project.Dir Then Return True
   
   sDir = File.Dir(Temp$()) &/ "fake"
-  Shell "rm -rf " & Shell(sDir) Wait
+  'Shell "rm -rf " & Shell(sDir) Wait
+  Shell.RmDir(sDir)
   If MakeDir(sDir) Then Return True
   
   Try Mkdir sDir &/ ".src"
@@ -6778,7 +6897,7 @@ Public Sub UpdateTheme()
 
   Dim sTheme As String
 
-  sTheme = Settings["/Theme", "gambas"]
+  sTheme = Settings["/Theme", "gambas-thin"]
   If sTheme = "*" Then sTheme = ""
   Application.Theme = sTheme
 
@@ -6849,7 +6968,13 @@ Public Sub GetDebuggerIcon(sSize As String) As Picture
 
   Dim W As Integer
 
-  If Not Config Or If Not Config["/Debug/Remote"] Then Return Picture["icon:/" & sSize & "/play"]
+  If Not Config Or If Not Config["/Debug/Remote"] Then
+    If Project.Config["/Debug/Profiling"] Then
+      Return Picture["icon:/" & sSize & "/clock"]
+    Else
+      Return Picture["icon:/" & sSize & "/play"]
+    Endif
+  Endif
 
   W = Stock.GetSize(sSize)
   
@@ -7022,7 +7147,7 @@ Public Sub ClearOtherProjects()
   For Each hForm In Files
     Try hEditor = hForm
     If Error Then Continue
-    If hEditor.Component Then hForm.Close
+    If hEditor.Component Then UnloadFile(hForm.Path)
   Next
   
 End
@@ -7030,6 +7155,118 @@ End
 Public Sub GetMessagePrefix(sPath As String) As String
   
   If sPath Begins Project.Dir & "/" Then sPath = Mid$(sPath, Len(Project.Dir) + 2)
-  Return "<tt><b>" & Html(sPath) & "</b></tt>\n\n"
+  Return "<b>" & Html(sPath) & "</b>\n\n"
   
+End
+
+Private Sub PrintUsage()
+
+  Print
+  Print ("Gambas 3 Integrated Development Environment")
+  Print
+  Print ("Usage:")
+  Print
+  Print "$ gambas3 [<"; ("project directory"); "> [<"; ("project file"); "> ...]]"
+  Print
+  Print "  "; ("Open the IDE with the specified project, optionally opening the specified project files.")
+  Print "  "; ("If no argument is specified, open the IDE with a nice welcome dialog.")
+  Print
+  Print "$ gambas3 <"; ("any file"); ">"
+  Print
+  Print "  "; ("Open the IDE for editing the specified file if the IDE has an editor for it.")
+  Print
+  Print "$ gambas3 --cleanup <"; ("project directory"); ">"
+  Print
+  Print "  "; ("Clean the project directory up (i.e. remove temporary, generated, and backup files).")
+  Print
+  Print "$ gambas3 --system-information | -i"
+  Print
+  Print "  "; ("Print system information.")
+  Print
+  Print "$ gambas3 --update-icon <"; ("project directory"); ">"
+  Print
+  Print "  "; ("Update project directory icon.")
+  Print
+  Print "$ gambas3 --version | -V"
+  Print
+  Print "  "; ("Display Gambas version.")
+  Print
+  Print "$ gambas3 --license | -L"
+  Print
+  Print "  "; ("Display Gambas license.")
+  Print
+  Print "$ gambas3 --help"
+  Print
+  Print "  "; ("Display this help.")
+  Print
+
+End
+
+Private Sub RegisterHighlight()
+
+  TextHighlighter.Register("commit_git", ("Git commit"), "./highlight/commit_git.highlight")
+  TextHighlighter.Register("conflict", ("Conflict"), "./highlight/conflict.highlight")
+
+End
+
+Public Sub RemoveAllProfile()
+  
+  Dim sFile As String
+  
+  If Message.Warning(("Do you really want to remove all profile files?"), ("Remove"), ("Cancel")) <> 1 Then Return
+  
+  Inc Application.Busy
+  For Each sFile In Dir(Project.Dir &/ ".profile", "*.prof")
+    DeleteFile(Project.Dir &/ ".profile" &/ sFile, True)
+  Next
+  Dec Application.Busy
+  
+End
+
+Private Sub WriteProjectVersion() As String
+  
+  Dim sPath As String
+  Dim sVer As String
+  Dim sBranch As String
+  Dim bAdd As Boolean
+  
+  GetVersion()
+  sVer = FormatVersion()
+  If VersionAddBranch Then
+    sBranch = VersionControl.GetCurrentBranch()
+    If Not sBranch Then sBranch = "?"
+    sVer &= " (" & sBranch & ")"
+  Endif
+  
+  sPath = Project.Dir &/ ".version"
+  bAdd = Not Exist(sPath)
+  File.Save(sPath, sVer)
+  If bAdd Then VersionControl.AddFile(sPath)
+  
+  Return sVer
+  
+End
+
+Private Sub SyncVersion()
+
+  Dim sVersion As String
+  Dim aProject As String[]
+  Dim I As Integer
+
+  Try sVersion = File.Load(Project.Dir &/ ".version")
+  If Not sVersion Then Return
+  
+  aProject = Split(File.Load(Project.Dir &/ ".project"), "\n")
+  For I = 0 To aProject.Max
+    If aProject[I] Begins "Version=" Then
+      If Mid$(aProject[I], InStr(aProject[I], "=") + 1) = sVersion Then Return
+      aProject[I] = "Version=" & sVersion
+      Break
+    Endif
+  Next
+  
+  If I >= aProject.Count Then Return
+  
+  File.Save(Project.Dir &/ ".project", aProject.Join("\n"))
+
 End

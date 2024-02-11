@@ -39,7 +39,7 @@ static void raise_click(CTABSTRIP *_object)
 
 void CB_tabstrip_click(gTabStrip *sender)
 {
-	CWIDGET *_object = GetObject(sender);
+  CB_GET_OBJECT(sender);
 	
 	if (GB.IsRaiseLocked(_object))
 		return;
@@ -50,7 +50,7 @@ void CB_tabstrip_click(gTabStrip *sender)
 
 void CB_tabstrip_close(gTabStrip *sender, int index)
 {
-	CWIDGET *_object = GetObject(sender);
+  CB_GET_OBJECT(sender);
 	GB.Raise(THIS, EVENT_Close, 1, GB_T_INTEGER, index);
 }
 

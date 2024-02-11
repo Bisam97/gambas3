@@ -124,13 +124,13 @@ Public Sub dwgStatus_Draw()
     DS = Desktop.Scale
     Paint.Font.Grade = -1
     'Paint.Font.Bold = True
-    W = Paint.TextSize($sMessage).W + DS * 3
-    X = dwgStatus.W - W - DS \ 2
+    W = Paint.RichTextSize($sMessage).W + DS * 3
+    X = Max(0, dwgStatus.W - W - DS \ 2)
     Paint.Rectangle(X, DS \ 2, W, dwgStatus.H - DS, DS * 2)
     Paint.Background = Color.SelectedBackground
     Paint.Fill
     Paint.Background = Color.SelectedForeground
-    Paint.DrawText($sMessage, X, DS \ 2, W, dwgStatus.H - DS, Align.Center)
+    Paint.DrawRichText($sMessage, X, DS \ 2, W, dwgStatus.H - DS, Align.Center)
   Else
     FMain.PaintStatus()
   Endif
@@ -164,55 +164,44 @@ Public Sub timMessage_Timer()
   
 End
 
-Public Sub UpdateProfile()
-  
-  Dim aProf As FProfile[]
-  Dim hProf As FProfile
-  Dim hSeparator As Separator
-  Dim hButton As ToolButton
-  Dim W As Integer
-  
-  aProf = FProfile.FindAll()
-  
-  panProfile.Children.Clear
-   
-  If aProf.Count = 0 Then
-    panProfile.Hide
-    Return
-  Endif
-  
-  hSeparator = New Separator(panProfile)
-  hSeparator.W = 1
-  
-  ' hButton = New ToolButton(panProfile) As "btnCloseProfile"
-  ' hButton.Picture = Picture["icon:/small/close"]
-  ' hButton.AutoResize = True
-  
-  W = 1
-  For Each hProf In aProf
-    hButton = New ToolButton(panProfile) As "btnShowProfile"
-    hButton.Tag = hProf.Path
-    hButton.Text = hProf.GetName()
-    hButton.Picture = Picture["icon:/small/clock"]
-    hButton.AutoResize = True
-    W += hButton.W
-  Next
-  
-  panProfile.W = W
-  panProfile.Show
-  
-End
-
-Public Sub btnShowProfile_Click()
-
-  Dim hProf As FProfile
-  
-  hProf = FProfile.Find(Last.Tag)
-  If hProf Then
-    hProf.Minimized = Not hProf.Minimized
-  Endif
-  
-End
+' Public Sub UpdateProfile()
+'   
+'   Dim aProf As FProfile[]
+'   Dim hProf As FProfile
+'   Dim hSeparator As Separator
+'   Dim hButton As ToolButton
+'   Dim W As Integer
+'   
+'   aProf = FProfile.FindAll()
+'   
+'   panProfile.Children.Clear
+'    
+'   If aProf.Count = 0 Then
+'     panProfile.Hide
+'     Return
+'   Endif
+'   
+'   hSeparator = New Separator(panProfile)
+'   hSeparator.W = 1
+'   
+'   ' hButton = New ToolButton(panProfile) As "btnCloseProfile"
+'   ' hButton.Picture = Picture["icon:/small/close"]
+'   ' hButton.AutoResize = True
+'   
+'   W = 1
+'   For Each hProf In aProf
+'     hButton = New ToolButton(panProfile) As "btnShowProfile"
+'     hButton.Tag = hProf.Path
+'     hButton.Text = hProf.GetName()
+'     hButton.Picture = Picture["icon:/small/clock"]
+'     hButton.AutoResize = True
+'     W += hButton.W
+'   Next
+'   
+'   panProfile.W = W
+'   panProfile.Show
+'   
+' End
 
 Public Sub OnVersionControlChange()
 

@@ -72,6 +72,7 @@ typedef
 		int default_minh;
 		int last_resize_w;
 		int last_resize_h;
+		int sx, sy, sw, sh;
 		
 		unsigned toplevel : 1;
 		unsigned persistent : 1;
@@ -213,6 +214,7 @@ protected:
 	virtual void keyPressEvent(QKeyEvent *);
 	virtual void closeEvent(QCloseEvent *);
 	virtual void changeEvent(QEvent *);
+	//virtual void paintEvent(QPaintEvent *);
 
 	//bool eventFilter(QObject *, QEvent *);
 
@@ -235,7 +237,7 @@ public:
 	void showPopup(QPoint &pos) { doShowModal(true, &pos); }
 	void setEventLoop();
 	//bool isModal() { return testWFlags(WShowModal); }
-	void doReparent(QWidget *w, const QPoint &p);
+	void doReparent(QWidget *w, const QPoint *p = NULL);
 
 	bool hasBorder(void) const { return _border; }
 	void setBorder(bool);

@@ -99,6 +99,7 @@ static int _fdw;
 static FILE *_out;
 static FILE *_in = NULL;
 static bool _fifo;
+static bool _debug = FALSE;
 
 #define EXEC_current (*(STACK_CONTEXT *)GB_DEBUG.GetExec())
 
@@ -230,6 +231,7 @@ static bool calc_position_from_line(CLASS *class, ushort line, FUNCTION **functi
 
 DEBUG_INFO *DEBUG_init(GB_DEBUG_INTERFACE *debug, bool fifo, const char *fifo_name)
 {
+	char *env;
 	char path[DEBUG_FIFO_PATH_MAX];
 
 	DEBUG_interface = debug;
@@ -253,6 +255,7 @@ DEBUG_INFO *DEBUG_init(GB_DEBUG_INTERFACE *debug, bool fifo, const char *fifo_na
 			}
 		}
 		
+		//fprintf(stderr, "gb.debug: open input fifo: %d\n", _fdw);
 		_out = fdopen(_fdw, "w");
 
 		if (!_out)
@@ -274,6 +277,10 @@ DEBUG_INFO *DEBUG_init(GB_DEBUG_INTERFACE *debug, bool fifo, const char *fifo_na
 	signal(SIGPIPE, SIG_IGN);
 
 	setlinebuf(_out);
+
+	env = getenv("GB_DEBUG_DEBUG");
+	if (env && env[0] == '1' && env[1] == 0)
+		_debug = TRUE;
 
 	return &DEBUG_info;
 }
@@ -1321,6 +1328,8 @@ static void open_read_fifo()
 
 	if (_fifo)
 	{
+		//fprintf(stderr, "open_read_fifo\n");
+
 		snprintf(path, sizeof(path), "%sout", DEBUG_fifo);
 		
 		for(;;)
@@ -1336,6 +1345,7 @@ static void open_read_fifo()
 			usleep(20000);
 		}
 		
+		//fprintf(stderr, "gb.debug: open read fifo: %d\n", _fdr);
 		_in = fdopen(_fdr, "r");
 
 		if (!_in)
@@ -1351,6 +1361,7 @@ static void open_read_fifo()
 		_in = stdin;
 	}
 }
+
 
 void DEBUG_main(bool error)
 {
@@ -1386,7 +1397,7 @@ void DEBUG_main(bool error)
 	int len;
 	DEBUG_COMMAND *tc = NULL;
 	int save_errno = errno;
-	/*static int cpt = 0;*/
+	int try = 0;
 
 	GB.FreeString(&_error);
 	if (error)
@@ -1401,6 +1412,7 @@ void DEBUG_main(bool error)
 	if (_fifo)
 	{
 		fprintf(_out, first ? "!!\n" : "!\n");
+		fflush(_out);
 		first = FALSE;
 	}
 
@@ -1426,6 +1438,8 @@ void DEBUG_main(bool error)
 
 		GB.FreeString(&cmd);
 
+	__TRY_AGAIN:
+
 		for(;;)
 		{
 			*cmdbuf = 0;
@@ -1441,11 +1455,25 @@ void DEBUG_main(bool error)
 
 		len = GB.StringLength(cmd);
 		
-		// A null string command means an I/O error
+		// A null string command means an I/O error or an end-of-file
+		// We try to reopen the fifo.
 		if (len == 0)
 		{
-			fprintf(stderr, "gb.debug: warning: debugger I/O error: %s\n", strerror(errno));
-			exit(1);
+			if (errno)
+				fprintf(stderr, "gb.debug: warning: unable to read debugger input: %s\n", strerror(errno));
+			else
+			{
+				if (_debug)
+					fprintf(stderr, "gb.debug: input has been closed, reopen it.\n");
+				usleep(1000);
+			}
+
+			fclose(_in);
+			open_read_fifo();
+			try++;
+			if (try < 3)
+				goto __TRY_AGAIN;
+			_exit(1);
 		}
 		
 		if (len > 0 && cmd[len - 1] == '\n')
@@ -1460,7 +1488,7 @@ void DEBUG_main(bool error)
 
 		if (len == 0)
 		{
-			if (last_command == TC_NONE)
+			if (last_command == TC_NONE || _fifo)
 				continue;
 
 			for (tc = Command; tc->pattern; tc++)

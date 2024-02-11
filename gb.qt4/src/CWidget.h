@@ -45,6 +45,8 @@ typedef
 		void *proxy_for;
 		char *action;
 		void *container_for;
+		short wheel_x;
+		short wheel_y;
 		char mouse;
 	}
 	CWIDGET_EXT;
@@ -88,6 +90,7 @@ typedef
 			unsigned orientation : 1;          // for scrollbars & similar widgets
 			unsigned inverted : 1;             // if layout has been inverted
 			unsigned direction : 2;            // text direction
+			unsigned user : 1;                 // UserControl or UserContainer
 			} flag;
 		char *name;
 		void *font;
@@ -102,18 +105,16 @@ typedef
 		CWIDGET widget;
 		QWidget *container;
 		unsigned mode : 4;
-		unsigned user : 1;
 		unsigned locked : 1;
+		unsigned dirty : 1;
 		unsigned margin : 1;
 		unsigned spacing : 1;
 		unsigned padding : 8;
 		unsigned indent : 1;
 		unsigned centered : 1;
-		unsigned dirty : 1;
 		unsigned autoresize : 1;
 		unsigned invert : 1;
-		unsigned paint : 1;
-		unsigned _reserved: 10;
+		unsigned _reserved: 12;
 		}
 	CCONTAINER_ARRANGEMENT;
 
@@ -217,7 +218,7 @@ GB_COLOR CWIDGET_get_real_foreground(CWIDGET *_object);
 void *CWIDGET_get_real_font(CWIDGET *_object);
 
 void *CWIDGET_get_parent(void *_object);
-int CWIDGET_get_handle(void *_object);
+uintptr_t CWIDGET_get_handle(void *_object);
 bool CWIDGET_is_visible(void *_object);
 void CWIDGET_set_visible(CWIDGET *_object, bool v);
 

@@ -1,0 +1,170 @@
+' Gambas class file
+
+'' Get or set the keyName that will be it's Action name
+Property Key As String
+'' Get or set the Name (Text) that will display in the menu.
+Property Name As String
+'' Get or set the command to run on selection
+Property Exec As String
+
+'' List all Property names for items in the Action including Name and Exec
+Property Read Properties As String[]
+
+Private $sKey As String
+
+Event Change((Key) As String, Value As String)
+
+Public Sub _new(Optional (Key) As String)
+
+  If Key Then $sKey = Key
+
+End
+
+'' Remove the action
+Public Sub Delete()
+
+  Dim hParent As _DesktopFile_Actions = Object.Parent(Me)
+
+  hParent.Remove($sKey)
+
+End
+
+Private Function Key_Read() As String
+
+  Return $sKey
+
+End
+
+Private Sub Key_Write(Value As String)
+
+  Raise Change("Key", Value)
+
+End
+
+Private Function Name_Read() As String
+
+  Return GetSet()[ActionString()][GetKey("Name")]
+
+End
+
+'' Get or set the Name, this is the text for the action
+Private Sub Name_Write(Value As String)
+
+  Raise Change(GetKey("Name"), Value)
+
+End
+
+Private Function GetKey(Name As String, Optional sLang As String) As String
+
+  Dim i As Integer
+  Dim _Lang As String[] = DesktopFile._Langs()
+
+  If Not sLang Then
+    For i = 0 To _Lang.Max
+      If GetSet()[ActionString()].Exist(Name & "[" & _Lang[i] & "]") Then
+        sLang = "[" & _Lang[i] & "]"
+        Break
+      Endif
+    Next
+  Else
+    sLang = "[" & sLang & "]"
+    If Not GetSet()[ActionString()].Exist(Name & sLang) Then
+      sLang = ""
+    Endif
+  Endif
+  Return Name & sLang
+
+End
+
+Private Function Exec_Read() As String
+
+  Return GetSet()[ActionString()]["Exec"]
+
+End
+
+Private Sub Exec_Write(Value As String)
+
+  Raise Change("Exec", Value)
+
+End
+
+Private Sub GetSet() As Collection
+
+  Return Object.Parent(GetParent())._Data
+
+End
+
+Private Sub GetParent() As _DesktopFile_Actions
+
+  Return Object.Parent(Me)
+
+End
+
+Private Sub ActionString() As String
+
+  If $sKey Then Return "[Desktop Action " & $sKey & "]"
+
+End
+
+'' Set a property value (will not use language filter)
+Public Sub _put(Value As String, PropertyName As String)
+  
+  For Each sProp As String In Properties_Read()
+    If sProp Like PropertyName Then 
+      GetSet()["[Desktop Action " & $sKey & "]"][PropertyName] = Value
+      Return
+    Endif 
+  Next
+  
+  GetSet()["[Desktop Action " & $sKey & "]"][String.UCaseFirst(PropertyName)] = Value
+  
+End
+
+'' Get a property value (will not use language filter)
+Public Sub _get(PropertyName As String) As String
+  
+  For Each sProp As String In Properties_Read()
+    If sProp Like PropertyName Then Return GetSet()["[Desktop Action " & $sKey & "]"][sProp]
+  Next
+  
+End
+
+'' Check if a property name exists (case insensitive, will not use language filter)
+Public Sub Exist(PropertyName As String) As Boolean
+
+  For Each sProp As String In Properties_Read()
+    If sProp Like PropertyName Then Return True
+  Next
+  
+End
+
+'' Get or set ANY property by using an unknown name
+Public Sub _unknown(...) As Variant
+
+  Dim sProp As String = String.UCaseFirst(Param.Name)
+
+  If Not Param.Count Then
+    Return GetSet()["[Desktop Action " & $sKey & "]"][GetKey(sProp)]
+  Else
+    GetSet()["[Desktop Action " & $sKey & "]"][GetKey(sProp)] = Param[0]
+  Endif
+
+End
+
+Public Sub _property(...) As Boolean
+
+  Return True
+
+End
+
+Private Function Properties_Read() As String[]
+
+  Dim aProps As New String[]
+
+  For Each s As String In GetSet()[ActionString()].Keys
+    aProps.Add(s)
+  Next
+
+  Return aProps
+
+End

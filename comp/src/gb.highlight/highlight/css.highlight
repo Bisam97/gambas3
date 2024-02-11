@@ -1,0 +1,32 @@
+@include _number.regexp
+$(UNICODE)=\\[0-9a-fA-F]{1,6}(\r\n|[ \n\r\t\f])?
+$(ESCAPE)=$(UNICODE)|\\[^\n\r\f0-9a-f]
+$(NONASCII)=[^\0-\177]
+$(NMSTART)=([_a-zA-Z]|$(NONASCII)|$(ESCAPE))
+$(NMCHAR)=([_a-zA-Z0-9-]|$(NONASCII)|$(ESCAPE))
+$(NAME)=$(NMCHAR)+
+$(IDENT)=[-]?$(NMSTART)$(NMCHAR)*
+
+@include webpage.include 
+
+documentation:
+  from /** to */
+comment:
+  from /* to */
+atrule{AtRule=Preprocessor}:
+  match /@$(IDENT)/
+class{Class=Datatype}:
+  match /\.$(IDENT)/
+pseudoclass{PseudoClass=Keyword}:
+  match /::?$(IDENT)/
+id{Id=Function}:
+  match /#$(IDENT)/
+tag{Tag=Keyword}:
+  match /$(IDENT)/
+type{TagAttribute=Keyword}:
+  from [ to ]
+  string{TagAttribute}:
+    from ' to '
+operator:
+  symbol > , +
+@include css.block

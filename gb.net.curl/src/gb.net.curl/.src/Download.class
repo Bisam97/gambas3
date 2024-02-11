@@ -26,10 +26,13 @@ Public _Path As String
 Public Sub _GetClient() As Curl
   
   Dim hClient As Curl
+  Dim hHttpClient As HttpClient
   
   Select Case _Type
     Case Http
-      hClient = New HttpClient
+      hHttpClient = New HttpClient
+      hHttpClient.Redirect = True
+      hClient = hHttpClient
     Case Ftp
       hClient = New FtpClient
   End Select

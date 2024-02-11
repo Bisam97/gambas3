@@ -98,6 +98,8 @@ Static Public _NextName As String
 
 Static Public _Shortcuts As New Collection
 
+Static Public _RefreshJavascript As New Collection
+
 Static Private $hCellParent As WebControl
 Static Private $sCellId As String
 
@@ -119,13 +121,15 @@ Private $hStyle As WebControlStyle
 Private $iBackground As Integer = Color.Default
 Private $iForeground As Integer = Color.Default
 
+Private $sClass As String
+Private $sTooltip As String
+
 Private $bExpand As Boolean
 Private $bIgnore As Boolean
 Private $bDisabled As Boolean
 Private $bHidden As Boolean
 Private $bNoBorder As Boolean
-Private $sClass As String
-Private $sTooltip As String
+Private $bRendered As Boolean
 
 '' Create a new [@{class}](.).
 
@@ -178,6 +182,7 @@ Public Sub _attach((Parent) As Object, (EventName) As String)
   If Not $sName Then Return
   bOldKeyPress = $cNeedKeyPress.Exist($sName)
   bKeyPress = Object.CanRaise(Me, "KeyPress")
+  
   If bKeyPress <> bOldKeyPress Then
     If bKeyPress Then
       $cNeedKeyPress[$sName] = True
@@ -187,13 +192,13 @@ Public Sub _attach((Parent) As Object, (EventName) As String)
     $bSendNeedKeyPress = True
   Endif
   
-  ' TODO: Refresh the control because Object.CanRaise() may change.
+  If $bRendered Then Refresh()
   
 End
 
-Static Public Sub _PrintNeedKeyPress()
+Static Public Sub _PrintNeedKeyPress(Optional bForce As Boolean)
   
-  If Not $bSendNeedKeyPress Then Return
+  If Not $bSendNeedKeyPress And If Not bForce Then Return
   
   $bSendNeedKeyPress = False
   Print "gw.needKeyPress = "; JSON.ToString($cNeedKeyPress); ";"
@@ -590,10 +595,10 @@ Public Sub _CanRefreshDyn() As Boolean
     Return
   Endif
   
-  If IsHidden() Then 
-    'WebForm.PrintLog("_CanRefresh " & Me.Name & " --> no (IsHidden)")
-    Return
-  Endif
+  ' If IsHidden() Then 
+  '   'WebForm.PrintLog("_CanRefresh " & Me.Name & " --> no (IsHidden)")
+  '   Return
+  ' Endif
 
   If Not Form_Read()._Loaded Then
     'WebForm.PrintLog("_CanRefresh " & Me.Name & " --> no (Form not loaded)")
@@ -632,7 +637,7 @@ End
 
 Public Sub Refresh()
 
-  If Not _CanRefresh() Then
+  If $bHidden Or If Not _CanRefresh() Then
     'WebForm.PrintLog("Cannot refresh " & Me.Name & ": " & WebForm._InMessage & " / " & _NoRefresh & " / " & IsHidden() & " / " & _Refresh)
     Return  
   Else
@@ -641,6 +646,7 @@ Public Sub Refresh()
   
   _Refresh = True
   WebForm._HasRefresh = True
+  _RefreshJavascript.Remove($iId)
   
   Me._CancelChildrenRefresh()
   
@@ -650,6 +656,7 @@ Public Sub _CancelRefresh()
   
   'WebForm.PrintLog("Cancel refresh: " & Me.Name)
   _Refresh = False
+  _RefreshJavascript.Remove($iId)
   Me._CancelChildrenRefresh()
   
 End
@@ -678,8 +685,6 @@ Public Sub _RefreshReply() As Boolean
   
   sResult = Close #hFile
   Output To Default
-  
-  'WebForm._AddRefresh("$_(" & JS(Me.Name) & ").outerHTML = " & JS(sResult) & ";")
   
   If _Naked Then
     Print "gw.setInnerHtml("; JS(Me.Name); ","; JS(sResult); ");"
@@ -789,7 +794,7 @@ Private Sub Visible_Write(Value As Boolean)
   $bHidden = Not Value
   
   If bCanRefresh Then 
-    WebForm._AddJavascript("gw.setVisible(" & JS(Me.Name) & "," & JS(Not $bHidden) & ");")
+    Me._AddRefresh("gw.setVisible(" & JS(Me.Name) & "," & JS(Not $bHidden) & ");")
     If Me.Parent Then 
       Me.Parent.Refresh
     Else If Me Is WebContainer Then 
@@ -1014,7 +1019,9 @@ End
 Static Public Sub _GetLink(sLink As String) As String
   
   If sLink Begins "http://" Or If sLink Begins "https://" Then
-    Return sLink 'Application.Protocol &/ Mid$(sLink, InStr(sLink, ":"))
+    Return sLink
+  Else If sLink Begins "icon:/" Or If sLink Begins "flag:/" Then
+    Return "/" &/ Application.Root &/ "icon:" & Replace(sLink, "/", ":")
   Else
     Return "/" &/ Application.Root &/ sLink
   Endif
@@ -1023,17 +1030,7 @@ End
 
 Static Public Sub _GetImageLink(sImage As String) As String
 
-  ' If Left(sImage) = "/" Then
-  '   Return Application.Root &/ "img:" & Me.Name & "?z=" & Base64(Format(Now, "hhnnssuuu"))
-  ' Else
-  '   Return Application.Root &/ sImage
-  ' Endif
-  
-  If sImage Begins "icon:/" Then
-    Return "/" &/ Application.Root &/ "icon:" & Replace(Mid$(sImage, 7), "/", ":")
-  Else 
-    Return _GetLink(sImage)
-  Endif
+  Return _GetLink(sImage)
   
 End
 
@@ -1216,6 +1213,7 @@ Public Sub _Redraw()
   Me._BeforeRender()
   Me._Render()
   Me._AfterRender()
+  $bRendered = True
   '_Refresh = False
   
 End
@@ -1299,5 +1297,11 @@ Public Sub _RaiseMouseEvent(sEvent As String, cEvent As Variant)
   
   Mouse._Define(sEvent, cEvent)
   Object.Raise(Me, sEvent)
+  
+End
+
+Public Sub _AddRefresh(sJavascript As String)
+  
+  _RefreshJavascript[$iId] &= sJavascript
   
 End

@@ -1,8 +1,16 @@
 ' Gambas class file
 
+Static Private $sPath As String
+Static Private $bLocateChange As Boolean
+Static Private $iLine As Integer
+
 Public Sub Run()
 
+  $bLocateChange = False
+  
   Me.ShowModal()
+
+  If $bLocateChange Then Project.OpenFile($sPath, $iLine)
 
 End
 
@@ -81,10 +89,11 @@ Public Sub Form_Open()
   
   edtJournal.ReadConfig
   edtDiff.ReadConfig
+  
+  VersionControl.InitHistory(edtHistory)
   edtHistory.ReadConfig
   edtHistory.ShowModified = False
   edtHistory.Wrap = False
-  Project.SetEditorFont(trmShell)
 
   edtJournal.Text = RTrim(Project.Config["/FCommit/LastCommit"]) & "\n\n" & VersionControl.GetDefaultJournal()
   edtJournal.Goto(0, 0)
@@ -102,8 +111,6 @@ Public Sub Form_Open()
     btnPush.Hide
   Endif
   
-  gvwVcInfo.Rows.Count = 0
-  
   'chkDoNotPush.Visible = VersionControl.DoNotPush And VersionControl.HasRemote()
   
   DS = Desktop.Scale
@@ -115,7 +122,6 @@ Public Sub Form_Close()
   
   Project.Config["/FCommit/LastCommit"] = RTrim(GetChanges())
   
-  Try trmShell.Kill
   edtHistory.StopFillWithHistory
   
 End
@@ -130,7 +136,7 @@ Private Sub LoadDiff()
   If edtDiff.IsVoid() Then
     Inc Application.Busy
     
-    sDiff = VersionControl.Diff()
+    sDiff = VersionControl.Diff(,, chkHideSpace.Value)
     
     If chkHideTrans.Value Then
       
@@ -179,15 +185,11 @@ Public Sub tabVersionControl_Click()
     Case 2
       If edtHistory.IsVoid() Then edtHistory.FillWithHistory(Project.Dir, spnChange)
       
-    Case 3
-      UpdateInfo
-      Try trmShell.Exec(["bash"], ["PWD=" & Project.Dir])
-      trmShell.SetFocus
-      
   End Select
   
-  chkHideTrans.Visible = tabVersionControl.Index = 1 And edtDiff.Visible
-  panChange.Visible = tabVersionControl.Index = 2
+  panChanges.Visible = tabVersionControl.Index = 1 And edtDiff.Visible
+  panHistory.Visible = tabVersionControl.Index = 2
+  panSpace.Visible = Not (panChanges.Visible Or panHistory.Visible)
 
 End
 
@@ -223,78 +225,19 @@ Public Sub chkShowHistoryChanges_Click()
 
 End
 
-Private Sub UpdateInfo()
 
-  Dim cInfo As Collection
-  Dim sValue As String
-  Dim iRow As Integer
-  Dim I As Integer
-  
-  If Not VersionControl.Enabled Then Return
-  If gvwVcInfo.Rows.Count Then Return
-  
-  Inc Application.Busy
-  
-  If VersionControl.HasIdentity Then
-    panIdentity.Show
-    sepIdentity.Show
-    VersionControl.GetIdentity(ByRef txtVcName.Text, ByRef txtVcMail.Text)
-  Else 
-    panIdentity.Hide
-    sepIdentity.Hide
-  Endif
-    
-  cInfo = VersionControl.Info()
+Public Sub btnLocateChange_Click()
 
-  gvwVcInfo.Columns.Count = 2
-  gvwVcInfo.Rows.Count = cInfo.Count
-  
-  For Each sValue In cInfo
-    gvwVcInfo[iRow, 0].Text = cInfo.Key
-    gvwVcInfo[iRow, 0].Alignment = Align.TopNormal
-    'gvwVcInfo[iRow, 0].Foreground = Color.Merge(Color.TextBackground, Color.TextForeground, 0.7)
-    gvwVcInfo[iRow, 1].Text = sValue
-    Inc iRow
-  Next
-  
-  gvwVcInfo.Columns[0].W = -1
-  gvwVcInfo.Columns[0].W += Desktop.Scale * 2
-  
-  For I = 0 To gvwVcInfo.Rows.Count - 1
-    gvwVcInfo.Rows[I].H = -1
-  Next
+  If edtDiff.LocateChange(ByRef $sPath, ByRef $iLine) Then Return
+  $bLocateChange = True
+  Me.Close
 
-Finally
-  
-  Dec Application.Busy
-  
 End
 
-Public Sub btnUpdateIdentity_Click()
 
-  Dim sVcName As String
-  Dim sVcMail As String
+Public Sub chkHideSpace_Click()
 
-  sVcName = Trim(txtVcName.Text)
-  If sVcName Begins "-" Then Goto INVALID_VC_NAME
-  
-  sVcMail = Trim(txtVcMail.Text)
-  If sVcMail Begins "-" Then Goto INVALID_VC_MAIL
-  If Not String.IsEmail(sVcMail) Then Goto INVALID_VC_MAIL
-  
-  VersionControl.SetIdentity(sVcName, sVcMail)
-  Return
-
-INVALID_VC_NAME:
-
-  Message.Warning(("Invalid user name."))
-  txtVcName.SetFocus
-  Return
-
-INVALID_VC_MAIL:
-
-  Message.Warning(("Invalid e-mail address."))
-  txtVcMail.SetFocus
-  Return
+  edtDiff.Clear
+  LoadDiff
 
 End

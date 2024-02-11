@@ -15,13 +15,12 @@ Private UseHttpServer As Boolean
 Private Profiling As Boolean
 Private DebugInside As Boolean
 
-Private $iProfileIndex As Integer
-
 Public Startup As String
 
 Public ProcessId As Integer
 Public ProcessFiles As Integer
 Public ProcessMemory As Long
+Public ProcessTempDir As String
 
 Public Enum ACTION_RUN, ACTION_RUN_WITH, ACTION_STEP, ACTION_FORWARD, ACTION_RETURN_FROM, ACTION_RUN_EXTERN
 
@@ -314,6 +313,9 @@ Public Sub Debug_Read(Data As String)
   Dim iPos As Integer
   Dim sComp As String
   Dim bLineChanged As Boolean
+  Dim iPid As Integer
+
+  'Debug ">>> "; Quote(Data)
 
   $sBuffer &= Data
   iPos = InStr($sBuffer, "\n") 
@@ -353,17 +355,18 @@ Public Sub Debug_Read(Data As String)
       '   [3] Local variables
       '   [4] Current object
     
-      If ProcessId = 0 Then
-        Try ProcessId = CInt(Scan(aData[0], "?[[]*]")[0])
-        If ProcessId Then
-          ProcessFiles = -1
-          ProcessMemory = -1
+      Try iPid = CInt(Scan(aData[0], "?[[]*]")[0])
+      If iPid And If iPid <> ProcessId Then
+        ProcessId = iPid
+        ProcessFiles = -1
+        ProcessMemory = -1
+        If Not $hTimerWatch Then
           $hTimerWatch = New Timer As "TimerWatch"
           $hTimerWatch.Delay = 1000
-          $hTimerWatch.Start
-          TimerWatch_Timer
-          FDebugger.UpdateProcessInfo(ProcessId, ProcessFiles, ProcessMemory)
         Endif
+        $hTimerWatch.Start
+        TimerWatch_Timer
+        FDebugger.UpdateProcessInfo(ProcessId, ProcessFiles, ProcessMemory)
       Endif
     
       aPos = Split(Trim(aData[2]), " ")
@@ -464,6 +467,9 @@ Public Sub Debug_Read(Data As String)
         Case "X"
           FDebugExpr.AddResult(Mid$(sVar, 2), aData[1])
           
+        Case "$"
+          ProcessTempDir = UnQuote(aData[1])
+          
       End Select
       
     Case "!"
@@ -548,6 +554,10 @@ Public Sub Process_Kill()
   Dim sMsg As String
   Dim bTest As Boolean
 
+  Try Shell.RmDir(File.Dir(Application.TempDir) &/ CStr(ProcessId))
+  Try Kill User.Home &/ ".local/share/applications/gambas/org.gambas." & CStr(ProcessId) & ".desktop"
+  Try Rmdir User.Home &/ ".local/share/applications/gambas"
+
   If $bRemote And If DEBUG_REMOTE Then Debug
 
   bTest = $bTest
@@ -588,9 +598,7 @@ Public Sub Process_Kill()
 
   $hProcess = Null
 
-  If Profiling Then
-    FProfile.Open($sProfilePath)
-  Endif
+  If Profiling Then Project.OpenFile($sProfilePath)
 
 End
 
@@ -638,8 +646,8 @@ Private Sub AfterStop()
     $hBrowser = Null
   Endif
 
-  For Each hForm In Project.Workspace.Windows
-    Try hForm.OnProjectDebug 
+  For Each hForm In Project.Files
+    Try hForm.OnProjectDebug()
   Next
 
   FMain.OnProjectDebug
@@ -688,6 +696,8 @@ Public Sub Stop()
     If $bGnomeTerminal Then Pause()
     Try $hProcess.Kill
     $hProcess.Wait(1)
+  Else If $bExtern Then
+    If ProcessId > 0 Then Try Signal.Send(ProcessId, Signal.SIGKILL)
   Endif
   AfterStop
 
@@ -1016,6 +1026,7 @@ Private Sub Start(sCmd As String)
   Dim iCurrentArg As Integer
   Dim aArguments As String[][]
   Dim sBrowser As String
+  Dim sDir As String
 
   If Project.Running Then Return
   
@@ -1099,8 +1110,8 @@ Private Sub Start(sCmd As String)
   $bStart = True
   Project.Running = True
 
-  For Each hForm In Project.Workspace.Windows
-    Try hForm.OnProjectDebug
+  For Each hForm In Project.Files
+    Try hForm.OnProjectDebug()
   Next
   FOutput.OnProjectDebug
   FMain.OnProjectDebug
@@ -1137,7 +1148,7 @@ Private Sub Start(sCmd As String)
 
   Else
 
-    If Profiling Then FProfile.CleanProfileFiles
+    'If Profiling Then FProfile.CleanProfileFiles
   
     If $bRemote Then
       aExec = ["gbr" & System.Version]
@@ -1173,14 +1184,16 @@ Private Sub Start(sCmd As String)
       
       aExec.Add("-p")
       
-      Inc $iProfileIndex
-      sFile = "." & CStr($iProfileIndex) & ".prof"
-      
       If Project.ReadOnly Then
-        $sProfilePath = File.Dir(Temp$) &/ sFile
+        sDir = Application.TempDir
       Else
-        $sProfilePath = Project.Dir &/ sFile
+        sDir = Project.Dir &/ ".profile"
+        Try Mkdir sDir
       Endif
+      
+      sFile = Project.GetUniqueName(sDir, Project.Name & "-" & Format(Now, "yyyy-mm-dd-hh-nn-ss") & ".prof")
+      $sProfilePath = sDir &/ sFile
+      
       aExec.Add($sProfilePath)
       
     Endif
@@ -1864,6 +1877,8 @@ Private Sub MakeInitialCommands(sCmd As String)
     $sAddBreakpoint = ""
   Endif
   
+  If Not $bRemote Then $aCmdStart.Add("?$\tApplication.TempDir")
+  
   $aCmdStart.Insert(FDebugger.GetWatches())
 
   'If Project.BreakOnError Then $aCmdStart.Add("o+")
@@ -1916,7 +1931,6 @@ End
 Private Sub FindEditor(sComp As String, sClass As String, bLocate As Boolean) As FEditor
   
   Dim sPath As String
-  Dim hForm As FEditor
   
   If sComp = "$" Or If Not sComp Then
     
@@ -1947,10 +1961,7 @@ Private Sub FindEditor(sComp As String, sClass As String, bLocate As Boolean) As
     
   Endif
   
-  If sPath Then 
-    hForm = Project.LoadFile(sPath)
-    Return hForm
-  Endif
+  If sPath Then Return Project.LoadFile(sPath)
   
 End
 

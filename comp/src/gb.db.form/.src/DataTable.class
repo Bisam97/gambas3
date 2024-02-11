@@ -167,27 +167,20 @@ End
 Public Sub Find(sWhere As String, Optional iFrom As Integer) As Integer
 
   Dim sReq As String
-  Dim aSort As String[]
-  Dim I As Integer
   Dim sSelect As String
   Dim rFind As Result
   
-  aSort = GetSortKeys().Copy()
-  For I = 0 To aSort.Max
-    aSort[I] = $DB.Quote(aSort[I])
-  Next
+  sSelect = "ROW_NUMBER() OVER (" & $DB.SQL.OrderBy(GetSortKeys())() & ") AS __index"
+  sReq = $DB.SQL.Select(["*", sSelect]).From($sTable).Where($sFilter)()
   
-  sSelect = "ROW_NUMBER() OVER (ORDER BY " & aSort.Join() & ") AS __index"
-  sReq = $DB.SQL.Select([sSelect, "*"]).From($sTable).Where($sFilter)()
-  
-  sReq = "SELECT * FROM (" & sReq & ") WHERE " & sWhere
+  sReq = "SELECT * FROM (" & sReq & ") AS __pg_sucks WHERE " & sWhere
   If iFrom > 0 Then sReq &= " AND __index >= " & CStr(iFrom + 1)
 
   rFind = $DB.Limit(1).Exec(sReq)
   If rFind.Count = 0 Then
     Return -1
   Else
-    Return rFind[0] - 1
+    Return rFind["__index"] - 1
   Endif
   
 End

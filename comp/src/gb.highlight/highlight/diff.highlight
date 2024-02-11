@@ -1,0 +1,17 @@
+diff{Diff=Function}:
+  limit
+  from /^diff/
+index{Index=Keyword}:
+  from /^index/
+file{File=Keyword}:
+  match /^(\+\+\+|---)/
+  file.path{String}:
+    match /.*?\n/
+position{Position=Datatype}:
+  from /^@@/ to @@
+added{Added}:
+  from /^\+/
+removed{Removed}:
+  from /^-/
+normal:
+  from /./

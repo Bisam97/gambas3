@@ -699,15 +699,14 @@ Public Sub GetPicture(sPict As String) As Picture
 
 End
 
-Static Public Sub PaintIcon(hCtrl As CControl)
+Static Public Sub PaintIcon(hCtrl As CControl, Optional hPict As Picture)
 
   Dim DS As Integer
-  Dim hPict As Picture
   Dim W As Float
   
   Paint.Background = Color.TextForeground
   DS = Desktop.Scale
-  hPict = Picture[".control" &/ LCase(hCtrl.Kind)]
+  If Not hPict Then hPict = Picture[".control" &/ LCase(hCtrl.Kind)]
   If hPict Then
     W = DS * 4 * hPict.Width / hPict.Height
     Paint.DrawPicture(hPict, DS, DS, W, DS * 4)

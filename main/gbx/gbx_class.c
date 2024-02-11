@@ -262,7 +262,7 @@ CLASS *class_replace_global(CLASS *class)
 	
 	if (!CLASS_is_loaded(class))
 		return class;
-		
+
 	if (class->count == 0)
 		return class_keep_global(class);
 
@@ -329,13 +329,11 @@ void CLASS_clean_up(bool silent)
 
 	for (class = _classes; class; class = class->next)
 	{
+		#if DEBUG_LOAD
 		if (class->instance)
-		{
-			#if DEBUG_LOAD
 			fprintf(stderr, "Freeing instance of %p %s\n", class, class->name);
-			#endif
-			OBJECT_UNREF(class->instance);
-		}
+		#endif
+		OBJECT_UNREF(class->instance);
 	}
 
 	// Count how many classes should be freed
@@ -518,9 +516,14 @@ CLASS *CLASS_find_do(const char *name, bool global)
 		fprintf(stderr, "CLASS_find: %s (%d)\n", name, global);
 #endif
 
-	class = CLASS_look(name, len);
+	class = CLASS_look_do(name, len, global);
 	if (class)
+	{
+		#if DEBUG_LOAD
+			fprintf(stderr, "--> %p\n", class);
+		#endif
 		return class;
+	}
 
 	//if (CP && CP->component && CP->component->archive)
 	if (!global && !ARCHIVE_get_current(&arch))
@@ -607,7 +610,7 @@ CLASS *CLASS_find_export(const char *name, const char *global)
 	return class;
 }
 
-bool CLASS_inherits(CLASS *class, CLASS *parent)
+bool CLASS_inherits(const CLASS *class, const CLASS *parent)
 {
 	for(;;)
 	{
@@ -751,7 +754,7 @@ char *CLASS_DESC_get_signature(CLASS_DESC *cd)
 
 // NOTE: The _free method can be called during a conversion, so we must save the EXEC structure
 
-static void error_CLASS_free(void *object, EXEC_GLOBAL *save)
+static void error_CLASS_free(void *object, const EXEC_GLOBAL *save)
 {
 	EXEC = *save;
 	((OBJECT *)object)->ref = 0;
@@ -1181,7 +1184,7 @@ void CLASS_make_description(CLASS *class, const CLASS_DESC *desc, int n_desc, in
 				cds = &class->table[ind];
 
 				#if DEBUG_DESC
-				fprintf(stderr, "%s: [%d] (%p %ld) := (%p %ld)\n", name, ind, cds->desc, cds->desc ? cds->desc->gambas.val1 : 0, &desc[j], desc[j].gambas.val1);
+				fprintf(stderr, "%s: [%d] (%p %d) := (%p %d)\n", name, ind, cds->desc, cds->desc ? cds->desc->gambas.val1 : 0, &desc[j], desc[j].gambas.val1);
 				#endif
 
 				cds->desc = (CLASS_DESC *)&desc[j];
@@ -1231,14 +1234,10 @@ void CLASS_make_description(CLASS *class, const CLASS_DESC *desc, int n_desc, in
 	}
 	
 	#if DEBUG_DESC
+	for (i = 0; i < class->n_desc; i++)
 	{
-		CLASS_DESC_SYMBOL *cds;
-
-		for (i = 0; i < class->n_desc; i++)
-		{
-			cds = &class->table[i];
-			fprintf(stderr, "%d: %.*s %p\n", i, cds->len, cds->name, cds->desc);
-		}
+		cds = &class->table[i];
+		fprintf(stderr, "%d: %.*s %p\n", i, cds->len, cds->name, cds->desc);
 	}
 	#endif
 }
@@ -1436,6 +1435,12 @@ void CLASS_search_special(CLASS *class)
 			THROW_CLASS(class, "Validation variable must be declared first", "");
 		class->special[SPEC_INVALID] = (short)offset;
 	}
+
+	// Some flags
+
+	class->init_dynamic = class->load && class->load->func && (class->load->func[FUNC_INIT_DYNAMIC].code[0] & 0xFF00) != C_RETURN;
+	class->new_method = class->parent || class->init_dynamic || class->special[SPEC_NEW] != NO_SYMBOL;
+	class->ready_method = class->special[SPEC_READY] != NO_SYMBOL;
 }
 
 

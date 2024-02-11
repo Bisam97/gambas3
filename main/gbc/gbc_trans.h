@@ -234,8 +234,12 @@ void TRANS_end_with(void);
 void TRANS_raise(void);
 void TRANS_stop(void);
 
+void TRANS_declare_label(void);
+TRANS_LABEL *TRANS_get_label_info(int value);
+
 // gbc_trans_subr.c
 
+SUBR_INFO *TRANS_find_subr(int index);
 void TRANS_subr(int subr, int nparam);
 
 void TRANS_print(void);

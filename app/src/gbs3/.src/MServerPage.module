@@ -6,30 +6,32 @@ Private $iLenPrint As Integer
 
 Private Sub PrintHTML(sStr As String)
 
-  If Len(sStr) Then 
+  If Len(sStr) Then
     $iLenPrint += Len(sStr)
     If $iLenPrint > 32000 Then $bLastPrint = False
-    If Not $bLastPrint Then 
+    If Not $bLastPrint Then
       $iLenPrint = Len(sStr)
       Print #$hOut, "PRINT ";
-    Else 
+    Else
       Print #$hOut, " ";
     Endif
     Print #$hOut, Quote(sStr);
     $bLastPrint = True
   Endif
-  
+
 End
 
 Private Sub PrintSemiColon()
-  
+
   If $bLastPrint Then Print #$hOut, ";"
   $bLastPrint = False
-  
+
 End
 
 Public Sub ReadFile(sPath As String) As String
+
   Dim sSourceFile As String = ""
+
   If ScriptMain.$oContext.$bScriptSourceStdIn Then
     While Not Eof(File.in)
       Try sSourceFile &= Read -254
@@ -39,6 +41,7 @@ Public Sub ReadFile(sPath As String) As String
     sSourceFile = File.Load(sPath)
   Endif
   Return sSourcefile
+
 End
 
 
@@ -49,76 +52,76 @@ Public Sub Make(sPath As String) As String
   Dim iPos2 As Integer
   Dim sCar As String
   Dim sWait As String
-    
+
   sData = ReadFile(sPath)
-  
+
   sPath = Temp$("gs")
-  $hOut = Open sPath For Create 
-  
+  $hOut = Open sPath For Create
+
   Print #$hOut, "USE \"gb.web\""
-  
+
   Print #$hOut, "PUBLIC SUB Main()\n"
     "  Response.Buffered = TRUE\n"
     "  Response.Begin\n"
     "  _PrintPage()\n"
     "  Response.End\n"
     "END"
-  
+
   Print #$hOut, "\nPRIVATE SUB _PrintPage()"
-  
-  If sData Like "#!/*" Then 
+
+  If sData Like "#!/*" Then
     iPos = InStr(sData, "\n")
     If iPos = 0 Then iPos = Len(sData)
   Endif
-  
+
   Do
-    
+
     iPos2 = InStr(sData, "<%", iPos + 1)
-    If iPos2 = 0 Then 
+    If iPos2 = 0 Then
       PrintHTML(Mid$(sData, iPos + 1))
-      Break 
+      Break
     Else
       PrintHTML(Mid$(sData, iPos + 1, iPos2 - iPos - 1))
       iPos = iPos2
     Endif
 
-     ' Search for closing "%>" by jumping Gambas syntax
-      Do
-        Inc iPos2
-        If iPos2 > Len(sData) Then Break
-        sCar = Mid$(sData, iPos2, 1)
-        If sWait Then 
-          If sCar = "\\" Then 
-            Inc iPos2
-          Else If sCar = sWait Then 
-            sWait = ""
-          Endif
-        Else If sCar = Chr$(34) Then 
-          sWait = Chr$(34)
-        Else If Mid$(sData, iPos2, 2) = "%>" Then 
-          Break
+    ' Search for closing "%>" by jumping Gambas syntax
+    Do
+      Inc iPos2
+      If iPos2 > Len(sData) Then Break
+      sCar = Mid$(sData, iPos2, 1)
+      If sWait Then
+        If sCar = "\\" Then
+          Inc iPos2
+        Else If sCar = sWait Then
+          sWait = ""
         Endif
-      Loop
-
-      PrintSemiColon
-      
-      If Mid$(sData, iPos, 3) = "<%=" Then 
-        If (iPos2 - iPos - 3) > 0 Then
-          Print #$hOut, "PRINT HTML(Str("; Trim(Mid$(sData, iPos + 3, iPos2 - iPos - 3)); "));"
-        Endif
-      Else 
-        Print #$hOut, Trim(Mid$(sData, iPos + 2, iPos2 - iPos - 2))
+      Else If sCar = Chr$(34) Then
+        sWait = Chr$(34)
+      Else If Mid$(sData, iPos2, 2) = "%>" Then
+        Break
       Endif
+    Loop
 
-      iPos = iPos2 + 1
-    
+    PrintSemiColon
+
+    If Mid$(sData, iPos, 3) = "<%=" Then
+      If (iPos2 - iPos - 3) > 0 Then
+        Print #$hOut, "PRINT HTML(Str("; Trim(Mid$(sData, iPos + 3, iPos2 - iPos - 3)); "));"
+      Endif
+    Else
+      Print #$hOut, Trim(Mid$(sData, iPos + 2, iPos2 - iPos - 2))
+    Endif
+
+    iPos = iPos2 + 1
+
   Loop
-  
+
   PrintSemiColon
   Print #$hOut, "END"
-  
+
   Close #$hOut
   Return sPath
-  
+
 End
 

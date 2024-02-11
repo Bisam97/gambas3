@@ -61,7 +61,7 @@ static uint64_t get_time(void)
 	return t;
 }
 
-void PROFILE_init(const char *path)
+void PROFILE_init(const char *path, const char *project_name)
 {
 	char *env;
 	size_t max;
@@ -85,7 +85,7 @@ void PROFILE_init(const char *path)
 		abort();
 	}
 	
-	fprintf(_file, "[1]\n");
+	fprintf(_file, "[1] %s\n", project_name);
 	
 	//_ticks_per_sec = sysconf(_SC_CLK_TCK);
 	//fprintf(stderr, "_ticks_per_sec = %ld\n", _ticks_per_sec);

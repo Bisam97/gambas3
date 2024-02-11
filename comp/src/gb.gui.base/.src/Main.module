@@ -31,7 +31,7 @@
 '   
 ' End
 
-Public Sub Main()
+Public Sub Main1()
 
   Dim aHtml As String[]
   Dim nCar As Integer
@@ -46,6 +46,18 @@ Public Sub Main()
   Next
   
 End
+
+Public Sub Main()
+
+  Dim hImage As Image
+
+  hImage = New Image(32, 32)
+  Paint.Begin(hImage)
+  Print Paint.ResolutionX;; Paint.ResolutionY
+  Paint.End
+
+End
+
 
 Public Sub GetFileSize(iSize As Long, Optional nDigit As Integer = 1) As String
 
@@ -210,47 +222,47 @@ ADD_RESULT:
   
 End
 
-Public Sub URLQuote(Path As String) As String
-  
-  Dim iInd As Integer
-  Dim sRes As String
-  Dim sCar As String
-  
-  For iInd = 1 To Len(Path)
-    sCar = Mid$(Path, iInd, 1)
-    If sCar = " " Then 
-      sCar = "+"
-    Else If IsLetter(sCar) Or If IsDigit(sCar) Or If InStr("-._~,$!/", sCar) Then 
-    Else 
-      sCar = "%" & Hex$(Asc(sCar), 2)
-    Endif
-    sRes &= sCar
-  Next
-
-  Return sRes
-  
-End
-
-Public Sub URLUnquote(Path As String, Optional DoNotDecodePlus As Boolean) As String
-  
-  Dim iInd As Integer
-  Dim sRes As String
-  Dim sCar As String
-  
-  For iInd = 1 To Len(Path)
-    sCar = Mid$(Path, iInd, 1)
-    If sCar = "%" Then 
-      sCar = Chr$(Val("&H" & Mid$(Path, iInd + 1, 2)))
-      iInd += 2
-    Else If sCar = "+" And If Not DoNotDecodePlus Then 
-      sCar = " "
-    Endif
-    sRes &= sCar
-  Next
-
-  Return sRes  
-  
-End
+' Public Sub URLQuote(Path As String) As String
+'   
+'   Dim iInd As Integer
+'   Dim sRes As String
+'   Dim sCar As String
+'   
+'   For iInd = 1 To Len(Path)
+'     sCar = Mid$(Path, iInd, 1)
+'     If sCar = " " Then 
+'       sCar = "+"
+'     Else If IsLetter(sCar) Or If IsDigit(sCar) Or If InStr("-._~,$!/", sCar) Then 
+'     Else 
+'       sCar = "%" & Hex$(Asc(sCar), 2)
+'     Endif
+'     sRes &= sCar
+'   Next
+' 
+'   Return sRes
+'   
+' End
+' 
+' Public Sub URLUnquote(Path As String, Optional DoNotDecodePlus As Boolean) As String
+'   
+'   Dim iInd As Integer
+'   Dim sRes As String
+'   Dim sCar As String
+'   
+'   For iInd = 1 To Len(Path)
+'     sCar = Mid$(Path, iInd, 1)
+'     If sCar = "%" Then 
+'       sCar = Chr$(Val("&H" & Mid$(Path, iInd + 1, 2)))
+'       iInd += 2
+'     Else If sCar = "+" And If Not DoNotDecodePlus Then 
+'       sCar = " "
+'     Endif
+'     sRes &= sCar
+'   Next
+' 
+'   Return sRes  
+'   
+' End
 
 Public Sub PathToUrlList(aPath As String[]) As String
 
@@ -258,7 +270,7 @@ Public Sub PathToUrlList(aPath As String[]) As String
   
   aPath = aPath.Copy()
   For I = 0 To aPath.Max
-    If aPath[I] Begins "/" Then aPath[I] = "file://" & URLQuote(aPath[I])
+    If aPath[I] Begins "/" Then aPath[I] = "file://" & Url(aPath[I])
   Next
   Return aPath.Join(gb.CrLf)
   
@@ -272,12 +284,33 @@ Public Sub UrlListToPath(sData As String) As String[]
   aPaths = New String[]
   For Each sUri In Split(Replace(sData, "\n", ""), "\r", "", True)
     If sUri Begins "file://" Then
-      aPaths.Add(Main.URLUnquote(Mid$(sUri, 8)))
+      aPaths.Add(FromUrl(Mid$(sUri, 8)))
     Else 
       aPaths.Add(sUri)
     Endif
   Next
   
   Return aPaths
+  
+End
+
+Public Sub FindItem(hView As GridView, sFind As String, aText As String[])
+  
+  Dim I As Integer
+
+  If Not sFind Then 
+    hView.Row = -1
+    Return
+  Endif
+  
+  sFind = String.LCase(sFind)
+
+  For I = 0 To aText.Max
+    If String.LCase(aText[I]) Begins sFind Then
+      hView.Rows[I].EnsureVisible
+      hView.Row = I
+      Break
+    Endif
+  Next
   
 End

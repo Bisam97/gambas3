@@ -99,7 +99,7 @@ Public Sub Request_Finished()
     ResultFile = $hForm.TargetFile
     If $hForm.Headers Then
       For Each sHeader In $hForm.Headers
-        If sHeader Begins "Content-Disposition:" Then
+        If LCase(sHeader) Begins "content-disposition:" Then
           iPos = InStr(sHeader, "filename=")
           If iPos Then
             sName = File.SetName(ResultFile, UnQuote(Mid$(sHeader, iPos + 9)))

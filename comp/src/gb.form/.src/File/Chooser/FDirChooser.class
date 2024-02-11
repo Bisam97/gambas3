@@ -317,16 +317,16 @@ End
 
 Private Sub SetBookmark(hBookmark As CBookmark)
   
-  'If Not hBookmark Then Return
+  If $hCurrentBookmark = hBookmark Then Return
+  
+  $hCurrentBookmark = hBookmark
+  
+  UpdateBookmarkButton
   
   If hBookmark Then
     SetRoot(hBookmark.Path)
     dvwChoose.Picture = Picture[hBookmark.Icon]
   Endif
-  
-  $hCurrentBookmark = hBookmark
-  
-  UpdateBookmarkButton
   
 End
 
@@ -690,11 +690,11 @@ Public Sub SetRoot(Optional sRoot As String)
 
   If sRoot = dvwChoose.Root Then Return
 
-  Try dvwChoose.Root = sRoot
-
   hBookmark = $hBookmarkList.FindBest(sRoot)
   SetBookmark(hBookmark)
   
+  Try dvwChoose.Root = sRoot
+
 End
 
 Public Sub GetRoot() As String
@@ -1836,4 +1836,14 @@ Public Sub SetView(iView As Integer)
   
   fvwChoose.View = iView
   
+End
+
+Public Sub fvwChoose_View()
+
+  Dim hButton As ToolButton
+
+  For Each hButton In [btnViewCompact, btnViewDetailed, btnViewNormal, btnViewPreview]
+    hButton.Value = hButton.Tag = fvwChoose.View 
+  Next
+
 End

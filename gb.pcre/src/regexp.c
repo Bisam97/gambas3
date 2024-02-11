@@ -349,106 +349,13 @@ BEGIN_PROPERTY(RegExp_Submatch_Offset)
 END_PROPERTY
 
 
-static CREGEXP *_subst_regexp = NULL;
+BEGIN_PROPERTY(RegExp_Submatch_Length)
 
-static void subst_get_submatch(int index, const char **p, int *lp)
-{
-	if (index <= 0 || index >= _subst_regexp->count)
-	{
-		*p = NULL;
-		*lp = 0;
-	}
-	else
-	{
-		index *= 2;
-		*p = &_subst_regexp->subject[_subst_regexp->ovector[index]];
-		*lp = _subst_regexp->ovector[index + 1] - _subst_regexp->ovector[index];
-	}
-}
+	GB.ReturnInteger(THIS->ovector[2 * THIS->_submatch + 1] - THIS->ovector[2 * THIS->_submatch]);
 
-BEGIN_METHOD(RegExp_Replace, GB_STRING subject; GB_STRING pattern; GB_STRING replace; GB_INTEGER coptions; GB_INTEGER eoptions)
+END_PROPERTY
 
-	CREGEXP r;
-	char *replace;
-	char *result = NULL;
-	char *subject;
-	int offset;
-
-	CLEAR(&r);
-	r.ovecsize = OVECSIZE_INC;
-	GB.Alloc(POINTER(&r.ovector), sizeof(int) * r.ovecsize);
-	r.copts = VARGOPT(coptions, 0);
-	if (r.copts & PCRE_GREEDY)
-		r.copts &= ~PCRE_GREEDY;
-	else
-		r.copts |= PCRE_UNGREEDY;
-	r.pattern = GB.NewString(STRING(pattern), LENGTH(pattern));
-
-	compile(&r);
-
-	if (r.code)
-	{
-		r.eopts = VARGOPT(eoptions, 0);
-		subject = GB.NewString(STRING(subject), LENGTH(subject));
-
-		offset = 0;
-
-		while (offset < LENGTH(subject))
-		{
-			r.subject = &subject[offset];
-			#if DEBUG_REPLACE
-			fprintf(stderr, "\nsubject: (%d) %s\n", offset, r.subject);
-			#endif
-			exec(&r, GB.StringLength(subject) - offset);
-
-			if (r.ovector[0] < 0)
-				break;
-
-			_subst_regexp = &r;
-
-			if (r.ovector[0] > 0)
-			{
-			#if DEBUG_REPLACE
-				fprintf(stderr, "add: (%d) %.*s\n", r.ovector[0], r.ovector[0], r.subject);
-			#endif
-				result = GB.AddString(result, r.subject, r.ovector[0]);
-			#if DEBUG_REPLACE
-				fprintf(stderr, "result = %s\n", result);
-			#endif
-			}
-
-			replace = GB.SubstString(STRING(replace), LENGTH(replace), (GB_SUBST_CALLBACK)subst_get_submatch);
-			#if DEBUG_REPLACE
-			fprintf(stderr, "replace = %s\n", replace);
-			#endif
-			result = GB.AddString(result, replace, GB.StringLength(replace));
-			#if DEBUG_REPLACE
-			fprintf(stderr, "result = %s\n", result);
-			#endif
-
-			offset += r.ovector[1];
-
-			if (*r.pattern == '^')
-				break;
-		}
-
-		if (offset < LENGTH(subject))
-			result = GB.AddString(result, &subject[offset], LENGTH(subject) - offset);
-
-		_subst_regexp = NULL;
-
-		GB.FreeStringLater(result);
-		#if DEBUG_REPLACE
-		fprintf(stderr, "result = %s\n", result);
-		#endif
-		r.subject = subject;
-	}
-
-	RegExp_free(&r, NULL);
-
-	GB.ReturnString(result);
-
-END_METHOD
+#include "regexp_common.h"
 
 //---------------------------------------------------------------------------
 
@@ -464,6 +371,7 @@ GB_DESC CRegexpDesc[] =
 
 	GB_STATIC_METHOD("Match", "b", RegExp_Match, "(Subject)s(Pattern)s[(CompileOptions)i(ExecOptions)i]"),
 	GB_STATIC_METHOD("Replace", "s", RegExp_Replace, "(Subject)s(Pattern)s(Replace)s[(CompileOptions)i(ExecOptions)i]"),
+	GB_STATIC_METHOD("FindAll", "String[]", RegExp_FindAll, "(Subject)s(Pattern)s[(CompileOptions)i(ExecOptions)i]"),
 
 	GB_CONSTANT("Caseless", "i", PCRE_CASELESS),
 	GB_CONSTANT("MultiLine", "i", PCRE_MULTILINE),
@@ -526,6 +434,7 @@ GB_DESC CRegexpSubmatchDesc[] =
 
 	GB_PROPERTY_READ("Offset", "i", RegExp_Submatch_Offset),
 	GB_PROPERTY_READ("Text", "s", RegExp_Submatch_Text),
+	GB_PROPERTY_READ("Length", "i", RegExp_Submatch_Length),
 
 	GB_END_DECLARE
 };

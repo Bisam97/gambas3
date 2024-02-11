@@ -122,33 +122,37 @@ Public Function _call() As String
   Dim sField As String
   Dim bDesc As Boolean
   
-  If Not $sTable Then Error.Raise("No table specified")
+  'If Not $sTable Then Error.Raise("No table specified")
 
-  sReq = $sType
+  If $sType Then
 
-  If $aField Then
-    
-    sReq &= " "
-    
-    For I = 0 To $aField.Max
-      If I Then sReq &= ","
-      aScan = Scan($aField[I], "* AS *")
-      If aScan.Count = 2 And If InStr(aScan[1], " ") = 0 Then
-        sReq &= $aField[I]
-      Else If $aField[I] = "*" Then
-        sReq &= "*"
-      Else
-        sReq &= $hConn.Quote($aField[I])
-      Endif
-    Next
-    
-  Else If $sType = "SELECT" Then
-    
-    sReq &= " *"
+    sReq = $sType
+  
+    If $aField Then
+      
+      sReq &= " "
+      
+      For I = 0 To $aField.Max
+        If I Then sReq &= ","
+        aScan = Scan($aField[I], "* AS *")
+        If aScan.Count = 2 And If InStr(aScan[1], " ") = 0 Then
+          sReq &= $aField[I]
+        Else If $aField[I] = "*" Then
+          sReq &= "*"
+        Else
+          sReq &= $hConn.Quote($aField[I])
+        Endif
+      Next
+      
+    Else If $sType = "SELECT" Then
+      
+      sReq &= " *"
+      
+    Endif
     
   Endif
-    
-  sReq &= " FROM " & $hConn.Quote($sTable, True)
+      
+  If $sTable Then sReq &= " FROM " & $hConn.Quote($sTable, True)
     
   If $sWhere Then sReq &= " WHERE" & $sWhere
     
@@ -171,6 +175,6 @@ Public Function _call() As String
     
   Endif
   
-  Return sReq
+  Return Trim(sReq)
     
 End

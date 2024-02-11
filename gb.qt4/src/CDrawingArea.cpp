@@ -536,11 +536,7 @@ void MyDrawingArea::changeEvent(QEvent *e)
 	}
 }
 
-/***************************************************************************
-
-	DrawingArea
-
-***************************************************************************/
+//-------------------------------------------------------------------------
 
 BEGIN_METHOD(DrawingArea_new, GB_OBJECT parent)
 
@@ -704,6 +700,16 @@ BEGIN_PROPERTY(DrawingArea_Tablet)
 
 END_PROPERTY
 
+BEGIN_PROPERTY(DrawingArea_NoMouse)
+
+	if (READ_PROPERTY)
+		GB.ReturnBoolean(WIDGET->testAttribute(Qt::WA_TransparentForMouseEvents));
+	else
+		WIDGET->setAttribute(Qt::WA_TransparentForMouseEvents, VPROP(GB_BOOLEAN));
+
+END_PROPERTY
+
+//-------------------------------------------------------------------------
 
 GB_DESC CDrawingAreaDesc[] =
 {
@@ -723,6 +729,7 @@ GB_DESC CDrawingAreaDesc[] =
 	GB_PROPERTY("Enabled", "b", DrawingArea_Enabled),
 	GB_PROPERTY("Painted", "b", DrawingArea_Painted),
 	GB_PROPERTY("Tablet", "b", DrawingArea_Tablet),
+	GB_PROPERTY("NoMouse", "b", DrawingArea_NoMouse),
 
 	GB_METHOD("Clear", NULL, DrawingArea_Clear, NULL),
 	GB_METHOD("Refresh", NULL, DrawingArea_Refresh, "[(X)i(Y)i(Width)i(Height)i]"),

@@ -72,7 +72,7 @@ void SUBR_bit(ushort code)
   bit = SUBR_get_integer(&PARAM[1]);
 
   if ((bit < 0) || (bit >= n))
-    THROW(E_ARG);
+    THROW_ARG();
 
   RETURN->type = type;
 
@@ -165,7 +165,7 @@ __ROL:
 	__ROL_INTEGER:
 		val = ((uint)val << bit) | ((uint)val >> (32 - bit));
 		goto __END_INTEGER;
-	
+
 	__ROL_LONG:
 		val = ((uint64_t)val << bit) | ((uint64_t)val >> (64 - bit));
 		goto __END_LONG;

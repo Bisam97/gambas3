@@ -95,6 +95,7 @@ static struct option _long_options[] =
 	
 	{ "jobs", 1, NULL, 'j' },
 	{ "root", 1, NULL, 'r' },
+	{ "bytecode-version", 1, NULL, 'b' },
 	{ "default-namespace", 1, NULL, 'n' },
 	{ "form", 1, NULL, 'F' },
 
@@ -149,9 +150,9 @@ static void get_arguments(int argc, char **argv)
 	for(;;)
 	{
 		#if HAVE_GETOPT_LONG
-			opt = getopt_long(argc, argv, "gxvaVhj:Lwtser:f:n:F:", _long_options, &index);
+			opt = getopt_long(argc, argv, "gxvaVhj:Lwtser:f:n:F:b:", _long_options, &index);
 		#else
-			opt = getopt(argc, argv, "gxvaVhj:Lwtser:f:n:F:");
+			opt = getopt(argc, argv, "gxvaVhj:Lwtser:f:n:F:b:");
 		#endif
 		if (opt < 0) break;
 
@@ -204,6 +205,14 @@ static void get_arguments(int argc, char **argv)
 				COMP_root = STR_copy(optarg);
 				break;
 
+			case 'b':
+				if (COMP_bytecode)
+					ERROR_fail("option '-b' already specified.");
+				if (strcmp(optarg, "3.8") && strcmp(optarg, "3.15") && strcmp(optarg, "3.18") && strcmp(optarg, "3.19") && strcmp(optarg,"last"))
+					ERROR_fail("option '-b' takes one of the following values: '3.8', '3.15', '3.18', '3.19' or 'last'.");
+				COMP_bytecode = STR_copy(optarg);
+				break;
+
 			case 'e':
 				
 				ERROR_translate = TRUE;
@@ -228,6 +237,7 @@ static void get_arguments(int argc, char **argv)
 					#if HAVE_GETOPT_LONG
 					"\n\n"
 					"  -a --all                              compile all files\n"
+					"  -b --bytecode-version                 force a specific bytecode version\n"
 					"  -e --translate-errors                 display translatable error messages\n"
 					"  -F --form <form file>                 convert a form file into code and print it\n"
 					"  -g --debug                            add debugging information\n"
@@ -249,6 +259,7 @@ static void get_arguments(int argc, char **argv)
 					#else
 					" (no long options on this system)\n\n"
 					"  -a                   compile all files\n"
+					"  -b                   force a specific bytecode version\n"
 					"  -e                   display translatable error messages\n"
 					"  -F <form file>       convert a form file into code and print it\n"
 					"  -g                   add debugging information\n"

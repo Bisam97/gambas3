@@ -2,7 +2,6 @@
 
 'Static Private $bShowUsed As Boolean
 Static Private $bShowLibraries As Boolean
-Static Private $bShowArguments As Boolean
 
 Private $sIcon As String
 
@@ -15,7 +14,6 @@ Private $aLibraries As String[]
 
 Private Const COMPONENT_PROPERTIES_TAB As Integer = 1
 Private Const LIBRARY_TAB As Integer = 3
-Private Const ARGUMENT_TAB As Integer = 5
 Private Const VERSION_CONTROL_TAB As Integer = 6
 Private Const STAT_TAB As Integer = 7
 
@@ -35,13 +33,6 @@ End
 Static Public Function ShowLibraries() As Boolean
 
   $bShowLibraries = True
-  Return Not FProjectProperty.ShowModal()
-
-End
-
-Static Public Function ShowArguments() As Boolean
-
-  $bShowArguments = True
   Return Not FProjectProperty.ShowModal()
 
 End
@@ -130,8 +121,13 @@ Public Sub Form_Open()
     $aComponents = .Components.Copy()
     
     lstReferences.List = .ExtraReferences
+    
+    choEnv.Environment = .StartupEnvironment
 
   End With
+  
+  mnuInsertEnv.Proxy = FDebugConfig.GetEnvironmentMenu(choEnv)
+  choEnv.Menu = "mnuInsertEnv"
   
   choComponent.Checkable = True
   choComponent.CheckedComponents = Project.Components
@@ -158,9 +154,6 @@ Public Sub Form_Activate()
   If $bShowLibraries Then 
     $bShowLibraries = False
     ipnProject.Index = LIBRARY_TAB
-  Else If $bShowArguments Then
-    $bShowArguments = False
-    ipnProject.Index = ARGUMENT_TAB
   Endif
   
 End
@@ -245,6 +238,8 @@ Private Function DoApply() As Boolean
     .ExtraReferences = lstReferences.List
     
     If VersionControl.Enabled Then .VersionAddBranch = btnVersionAddBranch.Value
+    
+    .StartupEnvironment = choEnv.Environment
       
   End With
 
@@ -262,6 +257,7 @@ Private Function DoApply() As Boolean
   If bRefreshEditor Then Project.RefreshEditor
   Project.OnRefreshComponents
   
+  Project.RefreshAll()
   'Project.SetMessage(("OK"))
 
   Return
@@ -285,7 +281,7 @@ End
 Private Sub SaveComponents()
 
   Project.Components = choComponent.CheckedComponents
-  Project.RefreshComponents
+  'Project.RefreshComponents ' done later
 
 End
 
@@ -781,7 +777,7 @@ Public Sub ipnProject_Click()
       'panHttpServer.Enabled = choComponent.IsChecked("gb.web") 'Project.Components.Exist("gb.web")
     Case ("Statistics") 
       UpdateStat
-    Case ("Information") 
+    Case ("Properties") 
       UpdateInfo
   End Select
 
@@ -804,6 +800,30 @@ Private Sub AddStat(sName As String, sValue As String)
   
 End
 
+Private Sub GetProjectDataSize(Optional sDir As String) As Long
+
+  Dim sFile As String
+  Dim iSize As Long
+  Dim bProjectDir As Boolean
+
+  If Not sDir Then
+    sDir = Project.Dir
+    bProjectDir = True
+  Endif
+
+  For Each sFile In Dir(sDir)
+    If sFile Begins "." Or If sFile Ends "~" Then Continue
+    If bProjectDir And If sFile Ends ".gambas" Then Continue
+    If IsDir(sFile) Then
+      iSize += GetProjectDataSize(sDir &/ sFile)
+    Else
+      iSize += Stat(sDir &/ sFile, True).Size
+    Endif
+  Next
+  
+  Return iSize
+
+End
 
 Private Sub UpdateStat()
 
@@ -832,10 +852,13 @@ Private Sub UpdateStat()
   If nFunc Then AddStat(("Average number of lines by function"), Format(nLine / nFunc, ",0.0"))
   
   Try iSize = Stat(Project.GetExecPath()).Size
-  If iSize Then AddStat(("Executable size"), Format(iSize, ",0") & " " & ("bytes"))
+  If iSize Then AddStat(("Executable size"), File.FormatSize(iSize, True))
+
+  iSize = GetProjectDataSize()
+  AddStat(("Data files size"), File.FormatSize(iSize, True))
 
   gvwStat.Columns[0].Width = -1
-  gvwStat.Columns[0].Width += 16
+  gvwStat.Columns[0].Width += Desktop.Scale * 2
   
 End
 
@@ -1239,3 +1262,12 @@ Public Sub cmbDefaultLanguage_Click()
   picDefaultLanguage.Picture = Picture["flag:/small/" & Language[sLang].Country]
 
 End
+
+Public Sub mnuInsertEnv_Click()
+  
+  Dim sNewEnv As String = Last.Tag
+  If Not sNewEnv Then Return
+  choEnv.Insert(Split(sNewEnv))
+  
+End
+

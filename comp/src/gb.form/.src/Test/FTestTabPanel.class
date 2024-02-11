@@ -23,7 +23,7 @@ Public Sub Form_Open()
   TabPanel2.Count = 6
   For I = 0 To TabPanel2.Count - 1
     TabPanel2.Index = I
-    TabPanel2.Text = "Tab " & (I + 1) & " " & String$(CInt(Rnd(1, 10)), "-")
+    TabPanel2.Text = "Tab " & (I + 1) & " (" & String$(CInt(Rnd(1, 10)), "-") & ")"
     TabPanel2.Picture = Picture["icon:/32/bookmark"]
     hLabel = New Label(TabPanel2)
     hLabel.Move(8, 8, 8, 8)
@@ -31,10 +31,10 @@ Public Sub Form_Open()
     hLabel.Expand = True
     hLabel.Text = " " & CStr(I + 1) & " "
     hLabel.Font.Grade = 6
-    hLabel.Border = Border.Plain
+    'hLabel.Border = Border.Plain
   Next
   
-  TabPanel2[1].Closable = True
+  'TabPanel2[1].Closable = True
   
 End
 
@@ -90,3 +90,4 @@ Public Sub Button4_Click()
   TabPanel2.ShowTabBar = Not TabPanel2.ShowTabBar
 
 End
+

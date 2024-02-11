@@ -38,6 +38,9 @@ public:
 	virtual void setBackground(gColor color = COLOR_DEFAULT);
 #endif
 
+	virtual int containerX();
+	virtual int containerY();
+
 private:
 
 	void create();

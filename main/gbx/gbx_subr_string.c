@@ -89,12 +89,12 @@ void SUBR_cat(ushort code)
 						pp->_string.addr = str;
 						pp->_string.len += len2;
 					}
-					else if (PCODE_is(PC[1], C_POP_STATIC))
+					else if (PCODE_is_xxx(PC[1], C_POP_STATIC))
 					{
 						CLASS_VAR *var = &CP->load->stat[PC[1] & 0x7FF];
 						*(char **)((char *)CP->stat + var->pos) = str;
 					}
-					else if (PCODE_is(PC[1], C_POP_DYNAMIC))
+					else if (PCODE_is_xxx(PC[1], C_POP_DYNAMIC))
 					{
 						CLASS_VAR *var = &CP->load->dyn[PC[1] & 0x7FF];
 						*(char **)(OP + var->pos) = str;
@@ -269,7 +269,7 @@ void SUBR_space(void)
 	len = PARAM->_integer.value;
 
 	if (len < 0)
-		THROW(E_ARG);
+		THROW_ARG();
 
 	if (len == 0)
 	{
@@ -306,7 +306,7 @@ void SUBR_string(void)
 
 	ld = PARAM->_integer.value * ls;
 	if (ld < 0)
-		THROW(E_ARG);
+		THROW_ARG();
 
 	if (ld == 0)
 	{
@@ -421,7 +421,7 @@ void SUBR_chr(void)
 
 	car = PARAM->_integer.value;
 	if (car < 0 || car > 255)
-		THROW(E_ARG);
+		THROW_ARG();
 
 	STRING_char_value(PARAM, car);
 }
@@ -1237,21 +1237,27 @@ __FROM_BASE64:
 
 __FROM_URL:
 
-	for (i = 0; i < lstr; i++)
 	{
-		c = str[i];
-		if (c == '+')
-			c = ' ';
-		else if (c == '%')
+		bool query = FALSE;
+
+		for (i = 0; i < lstr; i++)
 		{
-			if (i >= (lstr - 2))
-				break;
+			c = str[i];
+			if (c == '%')
+			{
+				if (i >= (lstr - 2))
+					break;
 
-			c = (read_hex_digit(str[i + 1]) << 4) + read_hex_digit(str[i + 2]);
-			i += 2;
+				c = (read_hex_digit(str[i + 1]) << 4) + read_hex_digit(str[i + 2]);
+				i += 2;
+			}
+			else if (c == '?')
+				query = TRUE;
+			else if (c == '+' && query)
+				c = ' ';
+
+			STRING_make_char(c);
 		}
-
-		STRING_make_char(c);
 	}
 
 	goto __END;

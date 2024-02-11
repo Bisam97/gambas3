@@ -66,6 +66,7 @@ typedef
 			} Desktop;
 		
 		struct {
+			uintptr_t (*GetId)(QWidget *window);
 			int (*GetVirtualDesktop)(QWidget *window);
 			void (*SetVirtualDesktop)(QWidget *window, bool visible, int desktop);
 			void (*Remap)(QWidget *window);

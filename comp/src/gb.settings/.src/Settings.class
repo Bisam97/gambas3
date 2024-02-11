@@ -26,16 +26,20 @@ Private $bModify As Boolean
 Private $bModifyAll As Boolean
 Private $cModify As Collection
 
+' Static Public Sub _init()
+'   
+'   Component.Load("gb.hash")
+'   
+' End
+' 
 Private Sub Load()
   
-  Dim hFile As File
   Dim iLine As Integer
   Dim sLine As String
   Dim sSlot As String
   Dim iPos As Integer
   Dim hCol As Collection
-
-  'Debug $sPath
+  Dim sData As String
 
   $cSlot = New Collection
   $cModify = New Collection
@@ -46,12 +50,16 @@ Private Sub Load()
 
   '$dDateLoad = Stat($sPath).LastModified
 
-  hFile = Open $sPath
+  sData = File.Load($sPath)
+  'sHash = Hash.Sha512(sData)
+  'If sHash = $sHash Then Return
+  '$sHash = sHash
 
-  While Not Eof(hFile)
+  'Debug $sPath;; System.Backtrace.Join(" ")
+
+  For Each sLine In Split(sData, "\n")
 
     Inc iLine
-    Line Input #hFile, sLine
     sLine = Trim(sLine)
     If Not sLine Then Continue
     If InStr("#;'", Left$(sLine)) Then Continue
@@ -73,9 +81,7 @@ Private Sub Load()
 
     $cSlot[sSlot][Trim(Left$(sLine, iPos - 1))] = FromString(Trim(Mid$(sLine, iPos + 1)))
 
-  Wend
-
-  Close #hFile
+  Next
 
 Catch
 
@@ -665,6 +671,7 @@ Static Private Sub ReadValue(Optional bNotStrict As Boolean) As Variant
   Dim vNumber As Variant
   Dim bFloat As Boolean
   Dim sNumber As String
+  Dim iPos2 As Integer
   
   'sCar = ReadToken()
   GoSub READ_TOKEN
@@ -733,24 +740,48 @@ READ_STRING:
   sString = ""
   
   Do
-    GoSub GET_CHAR
-    If Not sCar Then Error.Raise("Non terminated string")
-    If sCar = Chr$(34) Then Return
-    If sCar = "\\" Then
-      GoSub GET_CHAR
-      If Not sCar Then Error.Raise("Non terminated string")
-      iPos = InStr("bfrtn", sCar)
+    
+    iPos = InStr($sStr, Chr$(34), $iPos)
+    If iPos = 0 Then Error.Raise("Non terminated string")
+    
+    iPos2 = InStr($sStr, "\\", $iPos)
+    If iPos2 And If iPos2 < iPos Then
+      sString &= Mid$($sStr, $iPos, iPos2 - $iPos)
+      iPos = InStr("bfrtn", Mid$($sStr, iPos2 + 1, 1))
       If iPos Then
-        sCar = Mid$("\b\f\r\t\n", iPos, 1)
-      ' Else If sCar = "u" Then
-      '   Try sCar = String.Chr$(Val("&H" & Mid$($sStr, $iPos, 4)))
-      '   If Not Error Then $iPos += 4
-      Else
-        ' Keep character
+        sString &= Mid$("\b\f\r\t\n", iPos, 1)
+      Else 
+        sString &= Mid$($sStr, iPos2 + 1, 1)
       Endif
+      $iPos = iPos2 + 2
+      Continue
     Endif
-    sString &= sCar
+    
+    sString &= Mid$($sStr, $iPos, iPos - $iPos)
+    $iPos = iPos + 1
+    Return
+    
   Loop
+  
+  ' Do
+  '   GoSub GET_CHAR
+  '   If Not sCar Then Error.Raise("Non terminated string")
+  '   If sCar = Chr$(34) Then Return
+  '   If sCar = "\\" Then
+  '     GoSub GET_CHAR
+  '     If Not sCar Then Error.Raise("Non terminated string")
+  '     iPos = InStr("bfrtn", sCar)
+  '     If iPos Then
+  '       sCar = Mid$("\b\f\r\t\n", iPos, 1)
+  '     ' Else If sCar = "u" Then
+  '     '   Try sCar = String.Chr$(Val("&H" & Mid$($sStr, $iPos, 4)))
+  '     '   If Not Error Then $iPos += 4
+  '     Else
+  '       ' Keep character
+  '     Endif
+  '   Endif
+  '   sString &= sCar
+  ' Loop
   
 READ_OBJECT:
 

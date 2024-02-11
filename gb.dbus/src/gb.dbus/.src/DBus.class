@@ -12,6 +12,11 @@ Static Public _ApplicationCache As New Collection
 Static Property Read Null As Object
 Static Property Unique As Boolean
 
+'' @{since 3.19}
+''
+'' Return the DBus machine identifier
+Static Property Read MachineId As String
+
 Static Private $sAppName As String
 Static Private $bUnique As Boolean
 
@@ -176,3 +181,12 @@ Static Private Function Session_Read() As DBusConnection
 
 End
 
+Static Private Function MachineId_Read() As String
+
+  Dim sId As String
+
+  Try sId = File.Load("/var/lib/dbus/machine-id")
+  If Not sId Then Try sId = File.Load("/etc/machine-id")
+  Return sId
+
+End

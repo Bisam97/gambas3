@@ -40,6 +40,7 @@ GB_DESC *GB_CLASSES[] EXPORT =
 	MediaTagListDesc,
 	MediaMessageDesc,
 	MediaLinkDesc,
+	MediaTypeDesc,
 	MediaControlDesc,
 	MediaFilterDesc,
 	MediaContainerChildrenDesc,
@@ -55,10 +56,10 @@ GB_DESC *GB_CLASSES[] EXPORT =
   NULL
 };
 
-int MAIN_get_x11_handle(void *control)
+uintptr_t MAIN_get_window_handle(void *control)
 {
-	int (*get_handle)(void *) = NULL;
-	
+	uintptr_t (*get_handle)(void *) = NULL;
+
 	if (!get_handle)
 	{
 		GB.Component.GetInfo("GET_HANDLE", (void **)&get_handle);
@@ -68,8 +69,20 @@ int MAIN_get_x11_handle(void *control)
 			return 0;
 		}
 	}
-	
+
 	return (*get_handle)(control);
+}
+
+uintptr_t MAIN_get_display()
+{
+	uintptr_t display = 0;
+
+	GB.Component.GetInfo("DISPLAY", (void **)&display);
+
+	if (!display)
+		GB.Error("Unable to get display");
+
+	return display;
 }
 
 int EXPORT GB_INIT()

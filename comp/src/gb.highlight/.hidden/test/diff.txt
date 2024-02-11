@@ -1,0 +1,1898 @@
+diff --git a/app/examples/Control/LCDLabel/.src/FMain.class b/app/examples/Control/LCDLabel/.src/FMain.class
+index 8c664577b..ba2811df5 100644
+--- a/app/examples/Control/LCDLabel/.src/FMain.class
++++ b/app/examples/Control/LCDLabel/.src/FMain.class
+@@ -2,6 +2,8 @@
+ 
+ Private $fTime As Float
+ Private $fAlarm As Float
++Private $hBlink As Timer
++Private $iBlink As Integer
+ 
+ Public Sub btnStart_Click()
+ 
+@@ -34,6 +36,10 @@ Public Sub timClock_Timer()
+     $fAlarm += Minute(dAlarm) * 60 + Second(dAlarm)
+     fDiff = $fAlarm - Timer
+     Music.Play
++    $iBlink = 0
++    $hBlink = New Timer As "Blink"
++    $hBlink.Delay = 250
++    $hBlink.Start
+   Endif
+   lblAlarm.Text = Format(Int(fDiff / 60), "00") & ":" & Format(Int(fDiff - Int(fDiff / 60) * 60), "00") & ":" & Format(Int(Frac(fDiff) * 100), "00")
+ 
+@@ -52,3 +58,16 @@ Public Sub Form_Open()
+   Music.Load("alarm.ogg")
+ 
+ End
++
++Public Sub Blink_Timer()
++  
++  Inc $iBlink
++  If $iBlink > 8 Then
++    $hBlink.Stop
++    $hBlink = Null
++    Return
++  Endif
++  
++  lblAlarm.Background = If(Odd($iBlink), Color.White, Color.Black)
++  
++End
+diff --git a/app/examples/Control/LCDLabel/.src/FMain.form b/app/examples/Control/LCDLabel/.src/FMain.form
+index 41e7a8d38..d90db4527 100644
+--- a/app/examples/Control/LCDLabel/.src/FMain.form
++++ b/app/examples/Control/LCDLabel/.src/FMain.form
+@@ -19,15 +19,15 @@
+   }
+   { lblAlarm LCDLabel
+     MoveScaled(9,8,34,14)
+-    Background = &H000000&
+-    Foreground = &H00FF00&
++    Background = &H000000
++    Foreground = &H00FF00
+     Expand = True
+     Text = ("00:00:00")
+     Alignment = Align.Center
+-    HighlightColor = &HFFFF00&
++    HighlightColor = &HFFFF00
+   }
+   { timClock #Timer
+     #MoveScaled(25,9)
+-    Delay = 50
++    Delay = 33
+   }
+ }
+diff --git a/app/examples/Multimedia/MediaPlayer/.src/FMain.class b/app/examples/Multimedia/MediaPlayer/.src/FMain.class
+index 581ca1523..92f836ebb 100644
+--- a/app/examples/Multimedia/MediaPlayer/.src/FMain.class
++++ b/app/examples/Multimedia/MediaPlayer/.src/FMain.class
+@@ -238,7 +238,7 @@ Private Sub Action(sAction As String)
+         CAnimation.Start(FTags, "Opacity", 0, 250, Me)
+         'CAnimation.Start(Me, "TagsX", - FTags.W, 250)
+       Else
+-        FTags.X = - FTags.W
++        FTags.X = -FTags.W
+         FTags.Show
+         CAnimation.Start(FTags, "Opacity", 70, 250)
+         'CAnimation.Start(Me, "TagsX", 0, 250)
+diff --git a/app/src/gambas-wiki/.public/style.css b/app/src/gambas-wiki/.public/style.css
+index f23c8ede1..2ae5cf39d 100644
+--- a/app/src/gambas-wiki/.public/style.css
++++ b/app/src/gambas-wiki/.public/style.css
+@@ -99,7 +99,7 @@ H1,H2,H3,H4,H5,H6 {
+ H1,H2 {
+   letter-spacing: 1px;
+   /*padding: 0.2em 0;*/
+-  /*border-bottom: solid 1px #D8D8D8;*/
++  /*border-bottom: solid 1px #C0C0C0;*/
+   /*font-weight: normal;*/
+ }
+ 
+@@ -122,7 +122,7 @@ HR {
+   padding: 0px;
+   height: 1px;
+   border: none;
+-  border-top: solid #D8D8D8 1px;
++  border-top: solid #C0C0C0 1px;
+ }
+ 
+ PRE HR {
+@@ -153,8 +153,14 @@ TABLE.table > TBODY > TR > TH, TABLE.error > TBODY > TR > TH {
+   text-align: left;
+ }
+ 
++DIV.desc {
++  border: solid #C0C0C0 1px;
++  padding: 0.5em;
++  margin-top: 0.75em;
++}
++
+ TABLE.desc {
+-  border: solid #D8D8D8 2px;
++  border: solid #C0C0C0 1px;
+   border-collapse: collapse;
+   padding: 0px;
+   margin-top: 0.75em;
+@@ -164,13 +170,13 @@ TABLE.desc {
+ 
+ TABLE.desc > TBODY > TR > TD {
+   border: none;
+-  padding: 6px 12px;
++  padding: 0.25em 0.5em;
+ }
+ 
+ TABLE.desc > TBODY > TR > TH {
+   text-align: left;
+   border: none;
+-  padding: 6px 12px;
++  padding: 0.25em 0.5em;
+ }
+ 
+ .view-frame {
+@@ -534,7 +540,7 @@ DIV.table {
+   
+ DIV.box {
+   display: inline-block;
+-  border: solid #D8D8D8 1px;
++  border: solid #C0C0C0 1px;
+   padding: 0.5em;
+ }
+ 
+@@ -650,7 +656,7 @@ DIV.index > UL {
+ 
+ DIV.syntax {
+   display: inline-block;
+-  border: solid #D8D8D8 1px;
++  border: solid #C0C0C0 1px;
+   background-color: #F8F8F8;
+   padding: 0.5em;
+   font-family: monospace;
+@@ -708,16 +714,21 @@ TABLE.no-border > TBODY > TR > TH {
+   color: black;
+ }
+ 
+-TABLE.symbols > TBODY > TR > TH {
+-  text-align: left;
+-  vertical-align: top;
+-  padding-right: 16px;
+-  padding-top: 16px;
++TABLE.symbols {
++  width: 100%;
++  border: solid #C0C0C0 1px;
++  border-collapse: collapse;
++  border-spacing: 0;
++  margin-top: 0.25em;
++  empty-cells: show;
++}
++
++TABLE.symbols > TBODY > TR > TD:first-child {
++  width: 20em;
+ }
+ 
+ TABLE.symbols > TBODY > TR > TD {
+-  vertical-align: top;
+-  padding-right: 16px;
++  padding: 0.25em 0.5em;
+ }
+ 
+ TABLE.full {
+@@ -912,7 +923,7 @@ DIV.date > Y {
+ }
+ 
+ DIV.result {
+-  border: solid 1px #D8D8D8;
++  border: solid 1px #C0C0C0;
+   border-top: none;
+   background-color: #F8F8F8;
+   margin-top: 0 !important;
+@@ -924,7 +935,7 @@ DIV.result PRE {
+ }
+ 
+ DIV.code {
+-  border: solid 1px #D8D8D8;
++  border: solid 1px #C0C0C0;
+   margin-top: 0.75em;
+   line-height: initial;
+ }
+@@ -971,7 +982,7 @@ VIDEO.screenshot {
+ }
+ 
+ DIV.playground {
+-  border: solid 1px #D8D8D8;
++  border: solid 1px #C0C0C0;
+   border-top: none;
+   background-color: #F8F8F8;
+   margin-top: 0 !important;
+diff --git a/app/src/gambas-wiki/.src/CClassInfo.class b/app/src/gambas-wiki/.src/CClassInfo.class
+index 9d6e2a047..64d03cc8e 100644
+--- a/app/src/gambas-wiki/.src/CClassInfo.class
++++ b/app/src/gambas-wiki/.src/CClassInfo.class
+@@ -18,6 +18,8 @@ Public Container As Boolean
+ Public MultiContainer As Boolean
+ Public Help As String
+ 
++Private $sLastDesc As String
++
+ Public Sub _new(sName As String, sComponent As String, sParent As String)
+ 
+   Dim hSym As CSymbolInfo
+@@ -239,20 +241,19 @@ End
+ Private Sub GetSymbolLink(sName As String, Optional sTitle As String, Optional sStaticTitle As String) As String
+   
+   Dim hSym As CSymbolInfo
+-  Dim sDesc As String
+   Dim bInherit As Boolean
+   Dim sRes As String
+   Dim sLink As String
+ 
+   hSym = Symbols[sName]
+   sName = Replace(sName, ":", ".")
+-  sDesc = hSym.GetDescription()
++  $sLastDesc = hSym.GetDescription()
+   
+-  If sDesc Then sRes &= "<div class=\"tooltip-activator\">"
+-
+-  If sDesc Then 
+-    sRes &= "<div class=\"tooltip\"><div class=\"tooltip-contents\">" & sDesc & "</div></div>"
+-  Endif
++  ' If sDesc Then sRes &= "<div class=\"tooltip-activator\">"
++  ' 
++  ' If sDesc Then 
++  '   sRes &= "<div class=\"tooltip\"><div class=\"tooltip-contents\">" & sDesc & "</div></div>"
++  ' Endif
+   
+   If sName = "_new" Then
+     sLink = "/comp" &/ LCase(Component &/ Name &/ sName)
+@@ -280,26 +281,32 @@ Private Sub GetSymbolLink(sName As String, Optional sTitle As String, Optional s
+   sRes &= sLink
+   
+   If Not sTitle Then sRes &= "&nbsp;&nbsp;"
+-  If sDesc Then sRes &= "</div>"
++  'If sDesc Then sRes &= "</div>"
+   
+   Return sRes
+   
+ End
+ 
+ 
+-Private Function GetSymbolType(aSym As String[]) As String
++Private Function AddSymbols(sTitle As String, aResult As String[], aSym As String[])
+ 
+-  Dim sRes As String
+   Dim sName As String
+ 
+   If aSym.Count = 0 Then Return
+ 
++  aResult.Add("")
++  aResult.Add("**" & sTitle & "**")
++  aResult.Add("[[ symbols table")
++
+   For Each sName In aSym
+-    sRes &= GetSymbolLink(sName) & "\n"
++    aResult.Add("==")
++    aResult.Add(GetSymbolLink(sName))
++    aResult.Add("--")
++    aResult.Add($sLastDesc)
+   Next
+ 
+-  Return sRes
+-
++  aResult.Add("]]")
++  
+ End
+ 
+ 
+@@ -311,7 +318,6 @@ Public Function GetSymbols() As String[]
+   Dim hSym As CSymbolInfo
+   Dim bDynamic As Boolean
+   Dim bStatic As Boolean
+-  Dim sBreak As String
+   Dim sPrefix As String = ""
+   Dim aArray As String[]
+   Dim bHasSymbols As Boolean
+@@ -371,12 +377,14 @@ Public Function GetSymbols() As String[]
+ 
+   Endif
+ 
+-  'aResult.Add("### Symbols")
++  'aResult.Add("### " & ("S"))
++  'aResult.Add("[[ desc")
++  'aResult.Add("==")
++  
++  'aResult.Add("[[ symbols")
++  
+   aResult.Add("[[ desc")
+-  aResult.Add("==")
+   
+-  sBreak = "\\\n"
+-
+   If Parent Then
+     
+     If Parent = Name Then
+@@ -392,119 +400,82 @@ Public Function GetSymbols() As String[]
+       aResult.Add(Subst(("in &1"), "[/comp" &/ ParentComponent & "]"))
+     Endif
+     
+-    aResult[aResult.Max] &= ".\\"
++    aResult[aResult.Max] &= "."
++    aResult.Add("")
+     
+   Endif
+   
+   If IsVirtual() Then
+-    aResult.Add(("This class is virtual.") & "\\")
++    aResult.Add(("This class is virtual."))
+   Else If AutoCreatable Then
+-    aResult.Add(("This class can be used like an object by creating a hidden instance on demand.") & "\\")
++    aResult.Add(("This class can be used like an object by creating a hidden instance on demand."))
+   Endif
++  aResult.Add("")
+ 
+   sCreatable = ""
+   
+   If Creatable And If Not IsVirtual() And If bDynamic Then
+     If Symbols.Exist("_new") Then
+       'GetSymbolLink($hClass.Symbols["_new"], $hClass, ("creatable"))) & sBreak
+-      sCreatable = Subst(("This class is &1."), GetSymbolLink("_new", ("creatable"))) & "\\"
++      sCreatable = Subst(("This class is &1."), GetSymbolLink("_new", ("creatable")))
+     Else 
+-      sCreatable = Subst(("This class is &1."), ("creatable")) & "\\"
++      sCreatable = Subst(("This class is &1."), ("creatable"))
+     Endif
+   Endif
+   
+   If Not sCreatable Then
+     If Not bDynamic Then
+-      sCreatable = ("This class is static.") & "\\"
++      sCreatable = ("This class is static.")
+     Else
+-      sCreatable = ("This class is not creatable.") & "\\"
++      sCreatable = ("This class is not creatable.")
+     Endif
+   Endif
+   
+   aResult.Add(sCreatable)
++  aResult.Add("")
+ 
+   If Symbols.Exist("_call") Then
+-    aResult.Add(Subst(("This class can be used as a &1."), GetSymbolLink("_call", ("function"), ("static function"))) & "\\")
++    aResult.Add(Subst(("This class can be used as a &1."), GetSymbolLink("_call", ("function"), ("static function"))))
++    aResult.Add("")
+   Endif
+ 
+   hSym = Symbols["_get"]
+   If hSym Then
+     If hSym.IsStatic() Then
+       If Symbols.Exist("_put") Then
+-        aResult.Add(Subst(("This class acts like a &1 / &2 static array."), GetSymbolLink("_get", ("read")), GetSymbolLink("_put", ("write"))) & "\\")
++        aResult.Add(Subst(("This class acts like a &1 / &2 static array."), GetSymbolLink("_get", ("read")), GetSymbolLink("_put", ("write"))))
+       Else
+-        aResult.Add(Subst(("This class acts like a &1 static array."), GetSymbolLink("_get", ("read-only"))) & "\\")
++        aResult.Add(Subst(("This class acts like a &1 static array."), GetSymbolLink("_get", ("read-only"))))
+       Endif
+     Else
+       If Symbols.Exist("_put") Then
+-        aResult.Add(Subst(("This class acts like a &1 / &2 array."), GetSymbolLink("_get", ("read")), GetSymbolLink("_put", ("write"))) & "\\")
++        aResult.Add(Subst(("This class acts like a &1 / &2 array."), GetSymbolLink("_get", ("read")), GetSymbolLink("_put", ("write"))))
+       Else
+-        aResult.Add(Subst(("This class acts like a &1 array."), GetSymbolLink("_get", ("read-only"))) & "\\")
++        aResult.Add(Subst(("This class acts like a &1 array."), GetSymbolLink("_get", ("read-only"))))
+       Endif
+     Endif
++    aResult.Add("")
+   Endif
+ 
+   If Symbols.Exist("_next") Then
+-    aResult.Add(Subst(("This class is &1 with the &2 keyword."), GetSymbolLink("_next", ("enumerable"), ("statically enumerable")), "[/lang/foreach]") & "\\")
++    aResult.Add(Subst(("This class is &1 with the &2 keyword."), GetSymbolLink("_next", ("enumerable"), ("statically enumerable")), "[/lang/foreach]"))
++    aResult.Add("")
+   Endif
+ 
+-  'If aResult[aResult.Max] <> "==" And If bHasSymbols Then aResult.Add("==")
+-  'If bHasSymbols Then aResult.Add("\\")
+-
+-  If bStatic Then
+-
+-    aResult.Add("[[ symbols")
+-    If cSymbol["P"].Count Then aResult.Insert([Replace(("Static properties"), " ", "&nbsp;"), "--"])
+-    If cSymbol["M"].Count Then aResult.Insert([Replace(("Static methods"), " ", "&nbsp;"), "--"])
+-    'IF cSymbol["E"].Count THEN sRes = sRes & "<td align=left><b>" & ("Events") & "</b></td>" & sSpace & "\n"
+-    If cSymbol["C"].Count Then aResult.Insert([("Constants"), "--"])
+-    aResult[aResult.Max] = "=="
+-    
+-    If cSymbol["P"].Count Then 
+-      aResult.Add(GetSymbolType(cSymbol["P"]))
+-      aResult.Add("--")
+-    Endif
+-    
+-    If cSymbol["M"].Count Then         
+-      aResult.Add(GetSymbolType(cSymbol["M"]))
+-      aResult.Add("--")
+-    Endif
+-    
+-    If cSymbol["C"].Count Then 
+-      aResult.Add(GetSymbolType(cSymbol["C"]))
+-      aResult.Add("--")
+-    Endif
++  If aResult[aResult.Max] Begins "[[" Then
++    aResult.Pop()
++  Else
+     aResult[aResult.Max] = "]]"
+-
+   Endif
+ 
+-  If bDynamic Then
+-
+-    aResult.Add("[[ symbols")
+-    If cSymbol["p"].Count Then aResult.Insert([("Properties"), "--"])
+-    If cSymbol["m"].Count Then aResult.Insert([("Methods"), "--"])
+-    If cSymbol["e"].Count Then aResult.Insert([("Events"), "--"])
+-    aResult[aResult.Max] = "=="
+-    
+-    If cSymbol["p"].Count Then 
+-      aResult.Add(GetSymbolType(cSymbol["p"]))
+-      aResult.Add("--")
+-    Endif
+-    
+-    If cSymbol["m"].Count Then         
+-      aResult.Add(GetSymbolType(cSymbol["m"]))
+-      aResult.Add("--")
+-    Endif
+-    
+-    If cSymbol["e"].Count Then 
+-      aResult.Add(GetSymbolType(cSymbol["e"]))
+-      aResult.Add("--")
+-    Endif
+-    aResult[aResult.Max] = "]]"
+-
+-  Endif
++  AddSymbols(("Constants"), aResult, cSymbol["C"])
++  AddSymbols(("Static properties"), aResult, cSymbol["P"])
++  AddSymbols(("Static methods"), aResult, cSymbol["M"])
++  AddSymbols(("Properties"), aResult, cSymbol["p"])
++  AddSymbols(("Methods"), aResult, cSymbol["m"])
++  AddSymbols(("Events"), aResult, cSymbol["e"])
+   
+-  aResult.Add("]]")
++  'aResult.Add("]]")
+   Return aResult
+ 
+ Catch
+diff --git a/app/src/gambas-wiki/.src/CComponent.class b/app/src/gambas-wiki/.src/CComponent.class
+index 185f33b1c..57c50efe2 100644
+--- a/app/src/gambas-wiki/.src/CComponent.class
++++ b/app/src/gambas-wiki/.src/CComponent.class
+@@ -868,7 +868,7 @@ Public Function GetClasses(Optional aMore As String[]) As String[]
+   Dim sClass As String
+   Dim aClass As New String[]
+ 
+-  aResult.Add("[[ desc")
++  aResult.Add("[[")
+   aResult.Add(("Class"))
+   aResult.Add("--")
+   aResult.Add(("Description"))
+diff --git a/app/src/gambas3-selftest/.test b/app/src/gambas3-selftest/.test
+index 4e4f00f5b..ad483da8d 100644
+--- a/app/src/gambas3-selftest/.test
++++ b/app/src/gambas3-selftest/.test
+@@ -1,6 +1,6 @@
+ [TestSuites]
+ Count=4
+-TestWith=0
++TestWith=2
+ Default="GambasSelftests.IntegerOverflows;IntegerOverflowsUnsafe"
+ 
+ [TestSuites/1]
+diff --git a/app/src/gambas3/.src/Dialog/FFileProperty.form b/app/src/gambas3/.src/Dialog/FFileProperty.form
+index f52ff3510..3bc493028 100644
+--- a/app/src/gambas3/.src/Dialog/FFileProperty.form
++++ b/app/src/gambas3/.src/Dialog/FFileProperty.form
+@@ -1,10 +1,8 @@
+ # Gambas Form File 3.0
+ 
+ { Form Form
+-  MoveScaled(0,0,62,59)
++  MoveScaled(0,0,50,59)
+   Arrangement = Arrange.Vertical
+-  Spacing = True
+-  Margin = True
+   { panStat Panel
+     MoveScaled(43,5,29,24)
+     Visible = False
+@@ -20,10 +18,15 @@
+   { fprInfo FileProperties
+     MoveScaled(2,2,38,38)
+     Expand = True
++    Border = False
++  }
++  { Separator1 Separator
++    MoveScaled(13,43,15,0)
+   }
+   { HBox1 HBox
+-    MoveScaled(1,43,40,4)
++    MoveScaled(1,46,40,6)
+     Centered = True
++    Margin = True
+     { btnClose Button
+       MoveScaled(12,0,16,4)
+       Text = ("Close")
+diff --git a/app/src/gambas3/.src/Family/CFamily.class b/app/src/gambas3/.src/Family/CFamily.class
+index 12c755dd7..4f71ecfb9 100644
+--- a/app/src/gambas3/.src/Family/CFamily.class
++++ b/app/src/gambas3/.src/Family/CFamily.class
+@@ -699,15 +699,14 @@ Public Sub GetPicture(sPict As String) As Picture
+ 
+ End
+ 
+-Static Public Sub PaintIcon(hCtrl As CControl)
++Static Public Sub PaintIcon(hCtrl As CControl, Optional hPict As Picture)
+ 
+   Dim DS As Integer
+-  Dim hPict As Picture
+   Dim W As Float
+   
+   Paint.Background = Color.TextForeground
+   DS = Desktop.Scale
+-  hPict = Picture[".control" &/ LCase(hCtrl.Kind)]
++  If Not hPict Then hPict = Picture[".control" &/ LCase(hCtrl.Kind)]
+   If hPict Then
+     W = DS * 4 * hPict.Width / hPict.Height
+     Paint.DrawPicture(hPict, DS, DS, W, DS * 4)
+diff --git a/app/src/gambas3/.src/Family/Form/CFamilyForm.class b/app/src/gambas3/.src/Family/Form/CFamilyForm.class
+index 951e95b0a..b92fb9df0 100644
+--- a/app/src/gambas3/.src/Family/Form/CFamilyForm.class
++++ b/app/src/gambas3/.src/Family/Form/CFamilyForm.class
+@@ -105,6 +105,20 @@ Public Sub DrawControl(hCCtrl As CControl) As Boolean
+       Style.PaintPanel(0, 0, hCtrl.W, hCtrl.H, iBorder)
+       CFamily.PaintContainer(Null, FW, FW, hCtrl.W - 2 * FW, hCtrl.H - 2 * FW)
+       Return
++      
++    Case "splitter"
++      
++      CFamily.PaintContainer(Null, 0, 0, hCtrl.W, hCtrl.H)
++      If hCCtrl.HasProperty("Border") And If hCCtrl.GetPropertyReal("Border") Then
++        CFamily.PaintIcon(hCCtrl, Picture["img/control/splitter-border.png"])
++      Else
++        CFamily.PaintIcon(hCCtrl)
++      Endif
++    
++    Case "hsplit", "vsplit"
++      
++      CFamily.PaintContainer(Null, 0, 0, hCtrl.W, hCtrl.H)
++      CFamily.PaintIcon(hCCtrl)
+     
+     Case "spring"
+     
+diff --git a/app/src/gambas3/img/control/splitter-border.png b/app/src/gambas3/img/control/splitter-border.png
+index d13436a42..f8006edc3 100644
+Binary files a/app/src/gambas3/img/control/splitter-border.png and b/app/src/gambas3/img/control/splitter-border.png differ
+diff --git a/comp/src/gb.args/.component b/comp/src/gb.args/.component
+index 44ec2ce27..85328f2db 100644
+--- a/comp/src/gb.args/.component
++++ b/comp/src/gb.args/.component
+@@ -1,4 +1,4 @@
+ [Component]
+ Key=gb.args
+-Version=3.17.90
++Version=3.18.90
+ Authors=Benoît Minisini
+diff --git a/comp/src/gb.args/.project b/comp/src/gb.args/.project
+index 69d9401bb..72695d19b 100644
+--- a/comp/src/gb.args/.project
++++ b/comp/src/gb.args/.project
+@@ -1,7 +1,7 @@
+ # Gambas Project File 3.0
+ Title=gb.args
+ Startup=MMain
+-Version=3.17.90
++Version=3.18.90
+ VersionFile=1
+ Authors="Benoît Minisini"
+ TabSize=2
+diff --git a/comp/src/gb.args/.src/MMain.module b/comp/src/gb.args/.src/MMain.module
+index 5beff3b76..f13e14445 100644
+--- a/comp/src/gb.args/.src/MMain.module
++++ b/comp/src/gb.args/.src/MMain.module
+@@ -4,7 +4,7 @@ Public Sub Main()
+ 
+   Dim iStack As Integer
+ 
+-  Args.Abort = False
++  'Args.Abort = False
+ 
+   Args.Begin() '"Usage: gbx3 <options> <project>\n       gbx3 -e <expression>")
+   
+diff --git a/comp/src/gb.chart/.component b/comp/src/gb.chart/.component
+index 1709688fd..0ec56c2d3 100644
+--- a/comp/src/gb.chart/.component
++++ b/comp/src/gb.chart/.component
+@@ -1,6 +1,6 @@
+ [Component]
+ Key=gb.chart
+-Version=3.17.90
++Version=3.18.90
+ State=2
+ Authors=Fabien Bodard
+ Needs=Form
+diff --git a/comp/src/gb.chart/.project b/comp/src/gb.chart/.project
+index 938422449..25eccd2f9 100644
+--- a/comp/src/gb.chart/.project
++++ b/comp/src/gb.chart/.project
+@@ -1,7 +1,7 @@
+ # Gambas Project File 3.0
+ Title=gb.chart
+ Startup=FTest
+-Version=3.17.90
++Version=3.18.90
+ VersionFile=1
+ Component=gb.image
+ Component=gb.gui
+diff --git a/comp/src/gb.desktop/.src/Main.module b/comp/src/gb.desktop/.src/Main.module
+index 9104067d8..4089d96e8 100644
+--- a/comp/src/gb.desktop/.src/Main.module
++++ b/comp/src/gb.desktop/.src/Main.module
+@@ -187,11 +187,11 @@ End
+ '   
+ ' End
+ 
+-Public Sub X11_ConfigureNotify((Window) As Integer, X As Integer, Y As Integer, W As Integer, H As Integer)
+-  
+-  Debug Window;; X;; Y;; W;; H
+-  
+-End
++' Public Sub X11_ConfigureNotify((Window) As Integer, X As Integer, Y As Integer, W As Integer, H As Integer)
++'   
++'   Debug Window;; X;; Y;; W;; H
++'   
++' End
+ 
+ Public Sub GetDesktopVar(sVar As String) As String[]
+ 
+diff --git a/comp/src/gb.eval.highlight/.lang/fr.po b/comp/src/gb.eval.highlight/.lang/fr.po
+index cd7f410e6..69e8f26b3 100644
+--- a/comp/src/gb.eval.highlight/.lang/fr.po
++++ b/comp/src/gb.eval.highlight/.lang/fr.po
+@@ -2,7 +2,7 @@
+ msgid ""
+ msgstr ""
+ "Project-Id-Version: gb.eval.highlight 3.16.90\n"
+-"POT-Creation-Date: 2021-11-05 16:03 UTC\n"
++"POT-Creation-Date: 2023-09-23 11:38 UTC\n"
+ "PO-Revision-Date: 2021-11-05 11:54 UTC\n"
+ "Last-Translator: Benoît Minisini <g4mba5@gmail.com>\n"
+ "Language: fr\n"
+diff --git a/comp/src/gb.form.dialog/.src/Main.module b/comp/src/gb.form.dialog/.src/Main.module
+index 282a39c61..332436835 100644
+--- a/comp/src/gb.form.dialog/.src/Main.module
++++ b/comp/src/gb.form.dialog/.src/Main.module
+@@ -2,10 +2,12 @@
+ 
+ Public Sub Main()
+ 
+-  Dialog.FilterIndex = 1
+-  Dialog.Filter = ["*.jpg;*.jpeg;*.gif;*.png", "Images", "*.pdf", "Pdf files"]
+-  Dialog.OpenFile()
+-  Print Dialog.FilterIndex
++  ' Dialog.FilterIndex = 1
++  ' Dialog.Filter = ["*.jpg;*.jpeg;*.gif;*.png", "Images", "*.pdf", "Pdf files"]
++  ' Dialog.SaveFile()
++  ' Print Dialog.FilterIndex
++  
++  Dialog.AskPassword
+ 
+ End
+ 
+diff --git a/comp/src/gb.form.editor/.project b/comp/src/gb.form.editor/.project
+index 2760a11fd..a9ab361bd 100644
+--- a/comp/src/gb.form.editor/.project
++++ b/comp/src/gb.form.editor/.project
+@@ -7,9 +7,9 @@ VersionFile=1
+ Component=gb.image
+ Component=gb.gui
+ Component=gb.form
+-Component=gb.eval
+-Component=gb.eval.highlight
+ Component=gb.util
++Component=gb.pcre
++Component=gb.highlight
+ TabSize=2
+ Translate=1
+ Language=en_US
+diff --git a/comp/src/gb.form.editor/.src/CDocument.class b/comp/src/gb.form.editor/.src/CDocument.class
+index 8ba273ffe..302c05ab7 100644
+--- a/comp/src/gb.form.editor/.src/CDocument.class
++++ b/comp/src/gb.form.editor/.src/CDocument.class
+@@ -375,7 +375,9 @@ Private Sub InsertLine(Y As Integer)
+   Lines.Add("", Y)
+   LineLength.Add(0, Y)
+   LinesInfo.Add(CLineInfo(), Y)
++  If Y Then LinesInfo[Y].SetState(LinesInfo[Y - 1].GetState())
+   LinesInfo[Y].Modified = True
++  $iFirstInvalidHighlight = Min($iFirstInvalidHighlight, Y)
+   
+   StartBefore()
+   $cBookmark = InsertCollection($cBookmark, Y)
+@@ -869,37 +871,34 @@ End
+ 
+ Private Sub HighlightLine(Y As Integer) As Boolean
+   
+-  Dim aHighlight As Byte[]
++  Dim aState As Byte[]
+   Dim PY As Integer
++  Dim sTextAfter As String
++  Dim aHighlight As Byte[]
+   
+   If Info(Y).Colors Then Return
+ 
+   If Y = 0 Then
+     
+-    TextHighlighter.State = Highlight.Normal
+-    TextHighlighter.Tag = 0
+-    TextHighlighter.Alternate = False
++    aState = New Byte[]
++    aState.Add(0)
+     
+   Else
+     
+     PY = Y - 1
+-    With Info(PY)
+-      TextHighlighter.State = .State
+-      TextHighlighter.Tag = .Tag
+-      TextHighlighter.Alternate = .Alternate
+-    End With
++    aState = Info(PY).GetState()
+     
+   Endif
+   
+-  TextHighlighter.Limit = False
++  'TextHighlighter.Limit = False
+   
+   With SetInfo(Y)
+ 
+-    aHighlight = New Byte[]
+-    .Colors = aHighlight
+-    TextHighlighter._Highlight = aHighlight
+-    TextHighlighter.TextAfter = ""
+-    TextHighlighter.Line = Y
++    'aHighlight = New Byte[]
++    '.Colors = aHighlight
++    'TextHighlighter._Highlight = aHighlight
++    '$hHighlight.TextAfter = ""
++    'TextHighlighter.Line = Y
+     
+     'Debug "Before: State = "; .State;; "Tag = "; .Tag;; "Alternate = "; .Alternate;; "Limit = "; .Limit
+     
+@@ -907,16 +906,18 @@ Private Sub HighlightLine(Y As Integer) As Boolean
+     
+     If $bCustomHighlight Then
+     
+-      Current_Read()._RaiseHighlight(Lines[Y])
++      'Current_Read()._RaiseHighlight(Lines[Y])
+       
+     Else
+       
+-      $hHighlight.Run(Lines[Y])
+-      If Y = 0 Then TextHighlighter.Limit = True
++      aHighlight = $hHighlight.Run(Lines[Y], aState)
++      .Colors = aHighlight
++      'If Y = 0 Then TextHighlighter.Limit = True
+       
+     Endif
+     
+-    If TextHighlighter.TextAfter And If Lines[Y] <> TextHighlighter.TextAfter Then
++    sTextAfter = $hHighlight.TextAfter
++    If sTextAfter And If Lines[Y] <> sTextAfter Then
+       If Not $bRewrite Then
+         $bRewrite = True
+         $bEndOfLine = Me.Current.Column >= LineLength[Me.Current.Line]
+@@ -925,17 +926,22 @@ Private Sub HighlightLine(Y As Integer) As Boolean
+       Endif
+       Me.Current.Goto(0, Y)
+       Me.Current.Remove(0, Y, LineLength[Y], Y)
+-      Me.Current.Insert(TextHighlighter.TextAfter)
++      Me.Current.Insert(sTextAfter)
+       .Colors = aHighlight
++      
+     Endif
+     
+-    If .Alternate <> TextHighlighter.Alternate Or If .State <> TextHighlighter.State Or If .Tag <> TextHighlighter.Tag Or If .Limit <> TextHighlighter.Limit Or If .Comment <> TextHighlighter.Comment Then
+-      .Alternate = TextHighlighter.Alternate
+-      .State = TextHighlighter.State
+-      .Tag = TextHighlighter.Tag
+-      .Limit = TextHighlighter.Limit
+-      .Comment = TextHighlighter.Comment
+-      'Debug "Update: State = "; .State;; "Tag = "; .Tag;; "Alternate = "; .Alternate;; "Limit = "; .Limit
++    ' If .Alternate <> TextHighlighter.Alternate Or If .State <> TextHighlighter.State Or If .Tag <> TextHighlighter.Tag Or If .Limit <> TextHighlighter.Limit Or If .Comment <> TextHighlighter.Comment Then
++    '   .Alternate = TextHighlighter.Alternate
++    '   .State = TextHighlighter.State
++    '   .Tag = TextHighlighter.Tag
++    '   .Limit = TextHighlighter.Limit
++    '   .Comment = TextHighlighter.Comment
++    '   'Debug "Update: State = "; .State;; "Tag = "; .Tag;; "Alternate = "; .Alternate;; "Limit = "; .Limit
++    '   If Y < Lines.Max Then SetInfo(Y + 1).ClearHighlight()
++    ' Endif
++    
++    If .SetState(aState) Then
+       If Y < Lines.Max Then SetInfo(Y + 1).ClearHighlight()
+     Endif
+     
+@@ -1679,3 +1685,12 @@ Private Function DiffMode_Read() As Boolean
+   Return DiffRemoved
+ 
+ End
++
++Public Sub GetStartLevel(Y As Integer) As Integer
++  
++  If Y = 0 Then Return 0
++  Return Info(Y - 1).GetLevel()
++  
++End
++
++
+diff --git a/comp/src/gb.form.editor/.src/CLineInfo.class b/comp/src/gb.form.editor/.src/CLineInfo.class
+index dc8d821c7..928ca2a86 100644
+--- a/comp/src/gb.form.editor/.src/CLineInfo.class
++++ b/comp/src/gb.form.editor/.src/CLineInfo.class
+@@ -2,18 +2,16 @@
+ 
+ Property Modified As Boolean
+ Property Saved As Boolean
+-Property Alternate As Boolean
+ Property Limit As Boolean
+ Property Comment As Boolean
+ 
+-Private Enum FLAG_MODIFIED, FLAG_SAVED, FLAG_ALTERNATE, FLAG_LIMIT, FLAG_COMMENT
++Private Enum FLAG_MODIFIED, FLAG_SAVED, FLAG_LIMIT, FLAG_COMMENT
+ 
+ Public Colors As Byte[]
+-Public Tag As Short
+-Public State As Short '= Highlight.Normal
+ 
+ Private $iFlag As Byte
+-
++Private $nState As Byte
++Private $aState[4] As Byte
+ 
+ Static Public Sub _call() As CLineInfo
+ 
+@@ -58,18 +56,6 @@ Private Sub Saved_Write(Value As Boolean)
+ 
+ End
+ 
+-Private Function Alternate_Read() As Boolean
+-
+-  Return BTst($iFlag, FLAG_ALTERNATE)
+-
+-End
+-
+-Private Sub Alternate_Write(Value As Boolean)
+-
+-  SetFlag(FLAG_ALTERNATE, Value)
+-
+-End
+-
+ Public Sub ClearHighlight()
+   
+   Colors = Null
+@@ -99,3 +85,41 @@ Private Sub Comment_Write(Value As Boolean)
+   SetFlag(FLAG_COMMENT, Value)
+ 
+ End
++
++Public Sub GetLevel() As Integer
++  
++  Return CInt($nState) - 1
++  
++End
++
++Public Function GetState() As Byte[]
++
++  Dim I As Integer
++  
++  Dim aState As New Byte[$nState]
++  
++  If $nState Then
++    For I = 0 To $nState - 1
++      aState[I] = $aState[I]
++    Next
++  Endif
++  
++  Return aState
++
++End
++
++Public Sub SetState(Value As Byte[]) As Boolean
++
++  Dim I As Integer
++  Dim bChange As Boolean
++
++  If $nState <> Value.Count Then bChange = True
++  $nState = Value.Count
++  For I = 0 To $nState - 1
++    If $aState[I] = Value[I] Then Continue
++    $aState[I] = Value[I]
++    bChange = True
++  Next
++  Return bChange
++
++End
+diff --git a/comp/src/gb.form.editor/.src/TextEditor.class b/comp/src/gb.form.editor/.src/TextEditor.class
+index f7ea4cc47..26fbc4434 100644
+--- a/comp/src/gb.form.editor/.src/TextEditor.class
++++ b/comp/src/gb.form.editor/.src/TextEditor.class
+@@ -832,11 +832,11 @@ End
+ ' End
+ '
+ 
+-Fast Private Sub DrawHighlightedText(Row As Integer, sText As String, aColor As Byte[], X As Integer, Y As Integer, H As Integer, aLayout As Integer[], (iNextState) As Integer)
++Fast Private Sub DrawHighlightedText(Row As Integer, sText As String, aColor As Byte[], X As Integer, Y As Integer, H As Integer, aLayout As Integer[], iLevel As Integer)
+   
+   Dim I As Integer
+   Dim hStyle As TextHighlighterStyle
+-  Dim bAlt As Boolean
++  'Dim bAlt As Boolean
+   Dim iLen As Integer
+   Dim P As Integer
+   Dim sStr As String
+@@ -844,7 +844,7 @@ Fast Private Sub DrawHighlightedText(Row As Integer, sText As String, aColor As
+   Dim iState As Integer
+   Dim XMin As Integer
+   Dim XMax As Integer
+-  Dim aStyle As TextHighlighterStyle[]
++  Dim aStyles As TextHighlighterStyle[]
+   Dim hImage As Image
+   
+   Dim XX, YY, XB, LB, DB As Integer
+@@ -859,14 +859,15 @@ Fast Private Sub DrawHighlightedText(Row As Integer, sText As String, aColor As
+   Dim iCol As Integer
+   Dim YT As Integer
+   
+-  'Dim iBg As Integer
++  Dim iBg As Integer = Color.Default
+   
+   'Dim hTemp As Image
+   
+   XMin = X + $hView.ScrollX
+   XMax = XMin + $hView.ClientW
+   
+-  aStyle = GetStyles()
++  aStyles = GetStyles()
++  GoSub CALC_LEVEL_BG
+   
+   'iBg = aStyle[iNextState].Background
+   
+@@ -889,15 +890,26 @@ Fast Private Sub DrawHighlightedText(Row As Integer, sText As String, aColor As
+       If XX > XMax Then Break
+     Endif
+     
+-    iState = aColor[I] And 63
+-    hStyle = aStyle[iState]
+-    bAlt = aColor[I] >= 128
++    iState = aColor[I]
+     If iRest Then
+       iLen = iRest
+       iRest = 0
+     Else
+       iLen = aColor[I + 1]
+     Endif
++
++    If iLen = 0 Then
++      If iState Then
++        Inc iLevel
++      Else 
++        Dec iLevel
++      Endif
++      GoSub CALC_LEVEL_BG
++      Continue
++    Endif
++    
++    Try hStyle = aStyles[iState]
++    If Error Then hStyle = aStyles[0]
+     
+     If bBreak Then
+       PaintMultiLine(Row, P, X, YY, Paint.W - $MW, H, iLayout = 1, False)
+@@ -935,8 +947,8 @@ Fast Private Sub DrawHighlightedText(Row As Integer, sText As String, aColor As
+     Endif
+     
+     'iBg = hStyle.Background
+-    'If iBg <> Color.Default Then Paint.FillRect(XX, YY, X2 - XX, H, iBg)
+-    If bAlt Then Paint.FillRect(XX, YY, X2 - XX, H, Color.SetAlpha(aStyle[Highlight.Alternate].Color, 160))
++    If iBg <> Color.Default Then Paint.FillRect(XX, YY, X2 - XX, H, iBg)
++    'If bAlt Then Paint.FillRect(XX, YY, X2 - XX, H, Color.SetAlpha(aStyle[Highlight.Alternate].Color, 160))
+     
+     sStr = String.Mid$(sText, P + 1, iLen)
+     ' If hStyle.Bold Then
+@@ -1030,7 +1042,7 @@ Fast Private Sub DrawHighlightedText(Row As Integer, sText As String, aColor As
+ 
+   If aLayout Then PaintMultiLine(Row, -1, X, YY, Paint.W - $MW, H, False, True)
+   
+-  'If iBg <> Color.Default Then Paint.FillRect(XX, YY, Paint.W, H, iBg)
++  If iBg <> Color.Default Then Paint.FillRect(XX, YY, Paint.W, H, iBg)
+   
+   Return
+   
+@@ -1093,6 +1105,15 @@ DRAW_TEXT_WITH_TAB:
+   ' DrawText(sStr, X, XX, YY)
+   Return
+   
++CALC_LEVEL_BG:
++
++  If iLevel Then
++    iBg = Color.SetAlpha(Color.Black, 255 - iLevel * 16)
++  Else
++    iBg = Color.Default
++  Endif
++  Return
++  
+ End
+ 
+ Private Sub GetTabSizeAround(Row As Integer) As Integer
+@@ -1326,7 +1347,7 @@ Private Sub DrawLine(X As Integer, Y As Integer, Width As Integer, Height As Int
+   
+   If hInfo.Colors Then
+     
+-    DrawHighlightedText(Row, sText, hInfo.Colors, X, Y, H, aLayout, hInfo.State)
++    DrawHighlightedText(Row, sText, hInfo.Colors, X, Y, H, aLayout, $hDoc.GetStartLevel(Row))
+     
+   Else
+     
+@@ -1560,7 +1581,7 @@ Public Sub _PaintRow(Row As Integer, X As Integer, Y As Integer)
+     $bRemoteDisplay = True
+     iSaveMW = $MW
+     $MW = 0
+-    DrawHighlightedText(Row, sText, hInfo.Colors, X, Y, H, aLayout, hInfo.State)
++    DrawHighlightedText(Row, sText, hInfo.Colors, X, Y, H, aLayout, $hDoc.GetStartLevel(Row))
+     $MW = iSaveMW
+     $bRemoteDisplay = bRemoteDisplay
+     
+@@ -6938,8 +6959,9 @@ End
+ 
+ Private Sub GetStyles() As TextHighlighterStyle[]
+   
+-  If Not $aThemeStyles Then $aThemeStyles = $hTheme.Styles
+-  Return $aThemeStyles
++  Return $hTheme._GetStyles()
++  ' If Not $aThemeStyles Then $aThemeStyles = $hTheme.Styles
++  ' Return $aThemeStyles
+   
+ End
+ 
+diff --git a/comp/src/gb.form.editor/.src/_TextEditor_Line.class b/comp/src/gb.form.editor/.src/_TextEditor_Line.class
+index adf05bc93..0e86f4307 100644
+--- a/comp/src/gb.form.editor/.src/_TextEditor_Line.class
++++ b/comp/src/gb.form.editor/.src/_TextEditor_Line.class
+@@ -147,11 +147,12 @@ End
+ 
+ Private Function InitialState_Read() As _TextEditor_State
+ 
+-  Dim hState As _TextEditor_State
+-
+-  hState = New _TextEditor_State
+-  If _Line > 0 Then hState._State = GetDoc().Info(_Line - 1)
+-  Return hState
++  '' TODO: deprecated
++  ' Dim hState As _TextEditor_State
++  ' 
++  ' hState = New _TextEditor_State
++  ' If _Line > 0 Then hState._State = GetDoc().Info(_Line - 1)
++  ' Return hState
+ 
+ End
+ 
+@@ -173,29 +174,39 @@ Public Sub Purge(Optional KeepComment As Boolean, KeepString As Boolean, Replace
+   Dim sText As String
+   Dim X As Integer
+   Dim bReplace As Boolean
++  Dim iComment As Integer
++  Dim iHelp As Integer
++  Dim iString As Integer
++  Dim iLen As Byte
+   
+   sText = hDoc.Lines[_Line]
+   aColor = GetDoc().Info(_Line).Colors
+   If Not aColor Then Return sText
+   
++  iComment = TextHighlighterTheme._Register("Comment")
++  iHelp = TextHighlighterTheme._Register("Documentation")
++  iString = TextHighlighterTheme._Register("String")
++  
+   X = 1
+   For I = 0 To aColor.Max Step 2
+     iState = aColor[I]
++    iLen = aColor[I + 1]
++    If iLen = 0 Then Continue
+     bReplace = False
+     If Not KeepComment Then
+-      If iState = Highlight.Comment Or If iState = Highlight.Help Then
++      If iState = iComment Or If iState = iHelp Then
+         bReplace = True
+       Endif
+     Endif
+-    If Not KeepString And If iState = Highlight.String Then
++    If Not KeepString And If iState = iString Then
+       bReplace = True
+     Endif
+     If bReplace Then
+-      sPurge &= String$(aColor[I + 1], Replace)
++      sPurge &= String$(iLen, Replace)
+     Else
+-      sPurge &= String.Mid$(sText, X, aColor[I + 1])
++      sPurge &= String.Mid$(sText, X, iLen)
+     Endif
+-    X += aColor[I + 1]
++    X += iLen
+   Next
+   
+   Return sPurge
+diff --git a/comp/src/gb.form.editor/.src/_TextEditor_State.class b/comp/src/gb.form.editor/.src/_TextEditor_State.class
+index 58f0d4d4b..ef9a2fffe 100644
+--- a/comp/src/gb.form.editor/.src/_TextEditor_State.class
++++ b/comp/src/gb.form.editor/.src/_TextEditor_State.class
+@@ -19,7 +19,7 @@ Private Function State_Read() As Byte
+   If _State Then
+     Return _State.State
+   Else
+-    Return Highlight.Normal
++    Return 0
+   Endif
+ 
+ End
+diff --git a/comp/src/gb.form.editor/.src/test/FTestEditor.class b/comp/src/gb.form.editor/.src/test/FTestEditor.class
+index 470bffbfc..994ed6e08 100644
+--- a/comp/src/gb.form.editor/.src/test/FTestEditor.class
++++ b/comp/src/gb.form.editor/.src/test/FTestEditor.class
+@@ -15,12 +15,14 @@ Private Sub Reload()
+   'TextEditor1.Load("~/gambas/3.0/test/test-git/CHANGELOG", True)
+   'Dim I As Integer
+   
+-  TextEditor1.Load("~/gambas/git/master/app/src/gambas3/.src/Project.module", True)
++  TextEditor1.Highlight = "c"
++  'TextEditor1.Load("test.html")
++  'TextEditor1.Load("~/gambas/git/master/app/src/gambas3/.src/Project.module", True)
+   'TextEditor1.Load("~/gambas/issues/2427/20211224-165548234-theme.css")
+   'TextEditor1.Load("~/asap/omogen/omogen/src/kernel/guygle.cgi/javascript/form.js")
+   'TextEditor1.Load("~/asap/omogen/omogen/src/kernel/guygle.cgi/style/style.css")
+   'TextEditor1.Load("~/asap/omogen/omogen/src/kernel/guygle.cgi/.src/Site/Dialog.webpage")
+-  'TextEditor1.Load("~/asap/omogen/omogen/src/kernel/guygle.exec/about.html")
++  'TextEditor1.Load("~/asap/omogen/master/src/kernel/guygle.exec/about.html")
+   'TextEditor1.Mode = "css"
+   'TextEditor1.Text = File.Load("~/asap/omogen/omogen/src/kernel/guygle.cgi/style/style.css")
+   'TextEditor1.Load("~/asap/omogen/git/master/gambas/omogen-sanef-fox/.public/scheduler.js")
+@@ -28,7 +30,7 @@ Private Sub Reload()
+   
+   'TextEditor1.Load("~/Fichier texte")
+   'TextEditor1.Mode = "C"
+-  'TextEditor1.Load("~/gambas/git/master/main/lib/jit/gb.jit/gambas.h")
++  TextEditor1.Load("~/gambas/git/master/main/lib/jit/gb.jit/gambas.h")
+   'TextEditor1.Styles[Highlight.Custom].Background = Color.SetAlpha(Color.Red, 224)
+   'TextEditor1.Styles[Highlight.Custom + 1].Background = Color.SetAlpha(Color.Green, 224)
+   
+@@ -235,7 +237,7 @@ End
+ 
+ Public Sub Button7_Click()
+ 
+-  TextEditor1.Styles[Highlight.Background].Color = Color.SoftBlue
++  'TextEditor1.Styles[Highlight.Background].Color = Color.SoftBlue
+ 
+ End
+ 
+diff --git a/comp/src/gb.form.editor/.src/test/FTestEditor.form b/comp/src/gb.form.editor/.src/test/FTestEditor.form
+index afee06ef6..0e5b06bcd 100644
+--- a/comp/src/gb.form.editor/.src/test/FTestEditor.form
++++ b/comp/src/gb.form.editor/.src/test/FTestEditor.form
+@@ -48,16 +48,16 @@
+       List = [("None"), ("Gambas"), ("Css")]
+     }
+   }
+-  { Panel1 VSplit
++  { Panel1 Splitter
+     MoveScaled(8,11,76,52)
+     Expand = True
++    Arrangement = Arrange.Vertical
+     { TextEditor1 TextEditor
+       MoveScaled(14,5,47,33)
+-      Font = Font["Liberation Mono,10"]
++      Font = Font["Gambas,12"]
+       Background = Color.TextBackground
+       Border = False
+-      Highlight = "Gambas"
+-      Mode = "Gambas"
++      Mode = "HTML"
+       Wrap = True
+       ShowPosition = True
+       ShowLimit = True
+diff --git a/comp/src/gb.form.editor/test.html b/comp/src/gb.form.editor/test.html
+index df374c3f7..538195508 100644
+--- a/comp/src/gb.form.editor/test.html
++++ b/comp/src/gb.form.editor/test.html
+@@ -1,5 +1,10 @@
+ <<Page>>
+ 
++<%Dim I As Integer   
++For I = 1 To 10
++  Print I
++Next
++    %>
+ <%If Not Request.Exist("show")%>
+ <style type="text/css" media="print">
+ body {
+@@ -9,7 +14,7 @@ body {
+ }
+ 
+ @page {
+-  <%_PageLayout%>
++  <%_PageLayout  %>
+ }
+ 
+ TR.light:hover {
+@@ -69,6 +74,10 @@ body {
+ }
+ </style>
+ 
++<script>
++  console.Log("Hello world!")
++</script>
++
+ <button id="print" class="button button-small" style="position:absolute;left:8px;top:8px;" onclick="window.print();">
+ <%Print Main.Icon("print", 16)%>
+ Imprimer...
+diff --git a/comp/src/gb.form.stock/gambas-thin/128/csv.png b/comp/src/gb.form.stock/gambas-thin/128/csv.png
+index 635383229..b04a605fb 100644
+Binary files a/comp/src/gb.form.stock/gambas-thin/128/csv.png and b/comp/src/gb.form.stock/gambas-thin/128/csv.png differ
+diff --git a/comp/src/gb.form.terminal/.src/TerminalView/TerminalView.class b/comp/src/gb.form.terminal/.src/TerminalView/TerminalView.class
+index c01e39223..b68ed7c2f 100644
+--- a/comp/src/gb.form.terminal/.src/TerminalView/TerminalView.class
++++ b/comp/src/gb.form.terminal/.src/TerminalView/TerminalView.class
+@@ -1017,10 +1017,12 @@ Public Sub View_MouseWheel()
+       
+     Else
+       
+-      If Mouse.Forward Then
+-        $hScroll.Value -= 3
+-      Else
+-        $hScroll.Value += 3
++      If Mouse.FullDelta Then
++        If Mouse.Forward Then
++          $hScroll.Value -= 3
++        Else
++          $hScroll.Value += 3
++        Endif
+       Endif
+       
+     Endif
+diff --git a/comp/src/gb.form.terminal/.src/TerminalView/test/FTestTerminalView.form b/comp/src/gb.form.terminal/.src/TerminalView/test/FTestTerminalView.form
+index b46bacd00..e7f5812f8 100644
+--- a/comp/src/gb.form.terminal/.src/TerminalView/test/FTestTerminalView.form
++++ b/comp/src/gb.form.terminal/.src/TerminalView/test/FTestTerminalView.form
+@@ -8,7 +8,7 @@
+   Margin = True
+   { TerminalView1 TerminalView
+     MoveScaled(4,3,63,35)
+-    Font = Font["Cascadia Code,12"]
++    Font = Font["Gambas,12"]
+     Expand = True
+     Limit = 0
+     Blink = True
+diff --git a/comp/src/gb.gui.base/.src/GridView/GridView.class b/comp/src/gb.gui.base/.src/GridView/GridView.class
+index 01fec16dc..b6dc48138 100644
+--- a/comp/src/gb.gui.base/.src/GridView/GridView.class
++++ b/comp/src/gb.gui.base/.src/GridView/GridView.class
+@@ -835,7 +835,7 @@ Public Sub ScrollArea_Draw()
+   NEXT_ROW:
+     
+     If $bHighlight And If I = $iHighlight Then
+-      Paint.FillRect(0, Y, Paint.W, H, Color.SetAlpha(Color.SelectedBackground, 192))
++      Paint.FillRect(0, Y, Paint.W, H, Color.SetAlpha(Color.SelectedBackground, 224))
+     Endif
+       
+     Y += H
+diff --git a/comp/src/gb.gui.base/.src/Split/Splitter.class b/comp/src/gb.gui.base/.src/Split/Splitter.class
+index 68d145b52..08b7e708a 100644
+--- a/comp/src/gb.gui.base/.src/Split/Splitter.class
++++ b/comp/src/gb.gui.base/.src/Split/Splitter.class
+@@ -33,6 +33,7 @@ Private $bVertical As Boolean
+ Private $bBorder As Boolean = True
+ Private $iMinSize As Integer = Desktop.Scale * 4
+ Private $aLayout As Integer[]
++Private $bMouseDown As Boolean
+ 
+ Public Sub _new()
+   
+@@ -347,6 +348,7 @@ Public Sub Resize_MouseDown()
+   If Me.Design Then Return
+   
+   $aLayout = Layout_Read()
++  $bMouseDown = True
+   
+   ' If $bVertical Then
+   '   $XMin = aChildren[I].ScreenY
+@@ -378,6 +380,7 @@ Public Sub Resize_MouseMove()
+   Dim iChild As Integer
+   
+   If Me.Design Then Return
++  'If Not $bMouseDown Then Return
+   If Not Mouse.Left Then Return
+   
+   Inc $iNoArrange
+@@ -476,6 +479,7 @@ End
+ 
+ Public Sub Resize_MouseUp()
+   
++  $bMouseDown = False
+   If Me.Design Then Return
+   $cWeight.Clear
+   Layout_Write(Layout_Read())
+diff --git a/comp/src/gb.highlight/.src/CCommandBetween.class b/comp/src/gb.highlight/.src/CCommandBetween.class
+index 5955e21bb..bdb677fd8 100644
+--- a/comp/src/gb.highlight/.src/CCommandBetween.class
++++ b/comp/src/gb.highlight/.src/CCommandBetween.class
+@@ -4,12 +4,23 @@ Inherits CCommand
+ 
+ Private $sFrom As String
+ Private $sTo As String
++Private $sInclude As String
++Private $iInclude As Integer
+ 
+ Public Sub SetArgs(aArgs As String[])
+   
+-  If aArgs.Count = 2 Then
++  If aArgs.Count >= 3 And If aArgs[1] = "and" Then
+     $sFrom = aArgs[0]
+-    $sTo = aArgs[1]
++    $sTo = aArgs[2]
++    If aArgs.Count = 5 And If aArgs[3] = "with" Then
++      $sInclude = aArgs[4]
++      $iInclude = CState.AddInclude($sInclude)
++    Else If aArgs.Count <> 3 Then
++      Error.Raise("Syntax error")
++    Endif
++  Else If aArgs.Count = 1 Then
++    $sFrom = aArgs[0]
++    $sTo = "\n"
+   Else 
+     Error.Raise("Syntax error")
+   Endif
+@@ -20,16 +31,29 @@ Public Sub Compile(hState As CState)
+   
+   CState.IfStartWith($sFrom, hState.GetNextLabel())
+   
+-  hState.Forward(String.Len($sFrom))
++  If $sInclude Then
+   
+-  hState.PrintLabel(hState.GetLabel() & "_LOOP")
+-  CState.Print("If $bEof Then Return")
+-
+-  CState.IfStartWith($sTo)
+-    hState.Forward(String.Len($sTo))
++    hState.ForwardParent(String.Len($sFrom))
++    hState.PrintLabel(hState.GetLabel() & "_LOOP")
++    CState.Print("If $bEof Then Return")
++    CState.Print("If Include(" & CStr($iInclude) & ", " & Quote($sInclude) & ", False, " & Quote($sTo) & ", aState) Then Return")
++    hState.ForwardParent(String.Len($sTo))
+     hState.Continue()
+-  CState.Print("Endif")
+-
+-  hState.CompileChildren(True)
++  
++  Else
++  
++    hState.ForwardParent(String.Len($sFrom))
++    
++    hState.PrintLabel(hState.GetLabel() & "_LOOP")
++    CState.Print("If $bEof Then Return")
++    
++    CState.IfStartWith($sTo)
++      hState.ForwardParent(String.Len($sTo))
++      hState.Continue()
++    CState.Print("Endif")
++  
++    hState.CompileChildren(True)
++    
++  Endif
+ 
+ End
+diff --git a/comp/src/gb.highlight/.src/CState.class b/comp/src/gb.highlight/.src/CState.class
+index 95727937e..8cce6e753 100644
+--- a/comp/src/gb.highlight/.src/CState.class
++++ b/comp/src/gb.highlight/.src/CState.class
+@@ -186,16 +186,26 @@ Static Public Sub PrintLabel(sLabel As String, Optional bNoState As Boolean) As
+   
+ End
+ 
+-Public Sub Forward(Optional sLen As String)
++Public Sub Forward(Optional sLen As String, iColorIndex As Integer = ColorIndex)
+   
+   If sLen And If sLen <> "1" Then
+-    Print("Forward(" & CStr(ColorIndex) & ", " & sLen & ")")  
++    Print("Forward(" & CStr(iColorIndex) & ", " & sLen & ")")  
+   Else 
+-    Print("Forward(" & CStr(ColorIndex) & ")")
++    Print("Forward(" & CStr(iColorIndex) & ")")
+   Endif
+   
+ End
+ 
++Public Sub ForwardParent(Optional sLen As String)
++
++  Dim iColorIndex As Integer
++  
++  Try iColorIndex = Parent.ColorIndex
++  Forward(sLen, iColorIndex)
++  
++End
++
++
+ Public Sub GetLabel() As String
+ 
+   Dim sLabel As String
+diff --git a/comp/src/gb.highlight/.src/_TextHighlighter_Gambas.class b/comp/src/gb.highlight/.src/_TextHighlighter_Gambas.class
+index f8e096844..deeffba53 100644
+--- a/comp/src/gb.highlight/.src/_TextHighlighter_Gambas.class
++++ b/comp/src/gb.highlight/.src/_TextHighlighter_Gambas.class
+@@ -33,6 +33,7 @@ Private Sub Keywords_Read() As String[]
+   If Not $aKeywords Then 
+     $aKeywords = System.Keywords.Copy()
+     $aKeywords.Insert(System.Subroutines)
++    $aKeywords.ReadOnly = True
+   Endif
+   
+   Return $aKeywords
+diff --git a/comp/src/gb.highlight/highlight/diff.highlight b/comp/src/gb.highlight/highlight/diff.highlight
+index e69de29bb..bb3697eab 100644
+--- a/comp/src/gb.highlight/highlight/diff.highlight
++++ b/comp/src/gb.highlight/highlight/diff.highlight
+@@ -0,0 +1,15 @@
++diff:
++  from diff
++index:
++  from index
++file:
++  symbol +++ ---
++  file.path:
++    match .*\n
++position(Function):
++  from @@ to @@
++added:
++  match ^- to \n
++removed:
++  match ^+ to \n
++  
+\ No newline at end of file
+diff --git a/comp/src/gb.logging/.component b/comp/src/gb.logging/.component
+index 7c9f51cf9..cd086d498 100644
+--- a/comp/src/gb.logging/.component
++++ b/comp/src/gb.logging/.component
+@@ -1,4 +1,4 @@
+ [Component]
+ Key=gb.logging
+-Version=3.16.90
++Version=3.18.90
+ Authors=sebikul <sebikul@gmail.com>
+diff --git a/comp/src/gb.logging/.project b/comp/src/gb.logging/.project
+index 650d1d396..765ef6607 100644
+--- a/comp/src/gb.logging/.project
++++ b/comp/src/gb.logging/.project
+@@ -1,7 +1,7 @@
+ # Gambas Project File 3.0
+ Title=gb.logging
+ Startup=MTest
+-Version=3.16.90
++Version=3.18.90
+ VersionFile=1
+ Description="This component implements a flexible logging system for Gambas applications."
+ Authors="sebikul <sebikul@gmail.com>"
+diff --git a/comp/src/gb.map/.project b/comp/src/gb.map/.project
+index 8c9d32baa..59951c341 100644
+--- a/comp/src/gb.map/.project
++++ b/comp/src/gb.map/.project
+@@ -1,6 +1,6 @@
+ # Gambas Project File 3.0
+ Title=gb.map
+-Startup=Form7
++Startup=Form4
+ Icon=.hidden/control/mapview.png
+ Version=3.18.90
+ VersionFile=1
+diff --git a/comp/src/gb.map/.src/MapView.class b/comp/src/gb.map/.src/MapView.class
+index 8efb63af1..736ec453c 100644
+--- a/comp/src/gb.map/.src/MapView.class
++++ b/comp/src/gb.map/.src/MapView.class
+@@ -135,6 +135,7 @@ Public Sub View_MouseWheel()
+   Dim iMidViewX, iMidViewY As Integer
+   Dim hLayer As _MapLayer
+ 
++  If Not Mouse.FullDelta Then Return
+   If $bLock Then Return
+ 
+   Draw.Begin($hZoomBuffer)
+diff --git a/comp/src/gb.map/.src/Tests/Form4.class b/comp/src/gb.map/.src/Tests/Form4.class
+index 5e1f3613b..874e4f8d0 100644
+--- a/comp/src/gb.map/.src/Tests/Form4.class
++++ b/comp/src/gb.map/.src/Tests/Form4.class
+@@ -73,3 +73,9 @@ Public Sub DrawingArea1_Draw()
+   'Draw.Image(himage, 0, 0)
+ 
+ End
++
++Public Sub Form_Close()
++
++  hMap = Null
++
++End
+diff --git a/comp/src/gb.term.form/.src/TermWindows.class b/comp/src/gb.term.form/.src/TermWindows.class
+index a60f1f1e2..50fc1700a 100644
+--- a/comp/src/gb.term.form/.src/TermWindows.class
++++ b/comp/src/gb.term.form/.src/TermWindows.class
+@@ -238,6 +238,7 @@ Static Public Sub File_Read()
+         If i > -1 Then
+           sss = Mid(s, ipos + 2, i - (ipos + 1))
+           ai = Split(Left(sss, -1), ";")
++          ai.Resize(3)
+           iPos = i + 1
+           'Mouse._setstate(x,y,Left, middle, right,delta)
+           ai[2] -= 1
+diff --git a/comp/src/gb.util.web/.src/MMain.module b/comp/src/gb.util.web/.src/MMain.module
+index 188160bbb..8eae157c9 100644
+--- a/comp/src/gb.util.web/.src/MMain.module
++++ b/comp/src/gb.util.web/.src/MMain.module
+@@ -27,6 +27,6 @@ End
+ 
+ Public Sub Main()
+ 
+-  Print JSON.FromString("")
++  Print URL.Unquote("%7B%22ppa%22%3A%22PPA.VI.2022.SLS%22%2C%22prestation%22%3A%22PR.VI.2022.EVE.16%22%2C%22%C3%A9tat%22%3A%22\nTermin%C3%A9e%22%2C%22description%22%3A%22test%208%2066199%22%2C%22d%C3%A9but%20de%20planification%22%3A%2221%2F03%2F2022%22%2C%22fin%20de%20planification%22%3A%2221%2F03%2F2022%22%2C%22%23pl-d%C3%A9tail%22%3At\nrue%2C%22pl-d%C3%A9tail%22%3A%5B%7B%22pl-date%22%3A%2221%2F03%2F2022%22%7D%2C%7B%22pl-date%22%3A%2222%2F03%2F2022%22%7D%5D%7D")
+ 
+ End
+diff --git a/comp/src/gb.util.web/.src/XML.class b/comp/src/gb.util.web/.src/XML.class
+index b22223d21..0908f69cc 100644
+--- a/comp/src/gb.util.web/.src/XML.class
++++ b/comp/src/gb.util.web/.src/XML.class
+@@ -1,3 +1,180 @@
+ ' Gambas class file
+ 
+-Export
++'Export
++
++Static Public Sub FromString(Text As String) As Collection
++  
++  Dim P As Integer
++  Dim sCar As String
++  Dim cResult As New XMLMarkup
++  Dim sText As String
++  Dim cCurrent As XmlMarkup = cResult
++  Dim P2 As Integer
++  Dim aStack As New XMLMarkup[]
++  Dim aMarkup As New String[]
++  Dim cMarkup As XMLMarkup
++  Dim sMarkup As String
++  Dim PM As Integer
++  
++  If Text Begins "<?xml " Then P = InStr(Text, ">")
++  
++NEXT_CHAR:
++  
++  GoSub READ_CHAR
++  
++  If sCar = "<" Then 
++    GoSub ADD_TEXT
++    GoSub READ_MARKUP
++  Else If sCar = "&" Then
++    GoSub READ_ENTITY
++  Else
++    sText &= sCar
++  Endif 
++  
++  Goto NEXT_CHAR
++  
++READ_ENTITY:
++
++  P2 = InStr(Text, ";", P + 1)
++  If P2 = 0 Then Error.Raise("Malformed entity")
++  
++  Select Case Mid$(Text, P + 1, P2 - P)
++    Case "lt"
++      sText &= "<"
++    Case "gt"
++      sText &= ">"
++    Case "amp"
++      sText &= "&"
++    Case "apos"
++      sText &= "'"
++    Case "quote"
++      sText &= "\""
++    Case Else
++      Error.Raise("Malformed entity")
++  End Select
++  
++ADD_TEXT:
++  
++  If sText Then 
++    cCurrent.Add(sText, "#" & CStr(cCurrent.Count))
++    sText = ""
++  Endif
++  Return
++  
++READ_MARKUP:
++
++  PM = P + 1
++  If Mid$(Text, PM, 1) = "!" Then
++    If Mid$(Text, PM, 3) = "!--" Then
++      P += 3
++      Goto READ_COMMENT
++    Else If Mid$(Text, PM, 8) = "![CDATA[" Then
++      P += 8
++      Goto READ_CDATA
++    Endif 
++  Endif
++  
++  Do
++  
++    GoSub READ_CHAR
++    If sCar = "\"" Or If sCar = "'" Then
++      GoSub READ_STRING
++    Else If sCar = ">" Then
++      
++      sMarkup = Mid$(Text, PM, P - PM)
++      
++      If sMarkup = "CRS" Then Stop
++      
++      If sMarkup Begins "/" Then
++      
++        sMarkup = Mid$(sMarkup, 2)
++        If aStack.Count Then
++          If aMarkup.Last = sMarkup Then
++            cCurrent = aStack.Pop()
++            aMarkup.Pop()
++            Return
++          Endif
++        Endif
++        Error.Raise("Unexpected closing markup: </" & sMarkup & ">")
++      
++      Else
++      
++        cMarkup = New XmlMarkup
++        cMarkup._Markup = sMarkup
++  
++        If sMarkup Ends "/" Then
++          
++          P2 = InStr(sMarkup, " ")
++          If P2 Then
++            sMarkup = Left(sMarkup, P2 - 1)
++          Else 
++            sMarkup = Left(sMarkup, -1)
++          Endif
++          
++          cCurrent.Add(cMarkup, sMarkup)
++          
++        Else
++          
++          P2 = InStr(sMarkup, " ")
++          If P2 Then sMarkup = Left(sMarkup, P2 - 1)
++          
++          cCurrent.Add(cMarkup, sMarkup)
++          
++          aStack.Push(cCurrent)
++          aMarkup.Push(sMarkup)
++          cCurrent = cMarkup
++          
++        Endif
++        
++      Endif
++      
++      Return
++      
++    Endif
++    
++  Loop
++  
++READ_COMMENT:
++
++  P2 = InStr(Text, "-->", P + 1)
++  If P2 = 0 Then Error.Raise("Unterminated comment")
++  P = P2 + 2
++  Return
++  
++READ_CDATA:
++
++  P2 = InStr(Text, "]]>", P + 1)
++  If P2 = 0 Then Error.Raise("Unterminated CDATA")
++  sText &= Mid$(Text, P + 1, P2 - P - 1)
++  P = P2 + 2
++  Return
++  
++READ_STRING:
++
++  P2 = InStr(Text, sCar, P + 1)
++  If P2 = 0 Then Error.Raise("Unterminated string")
++  P = P2
++  Return
++  
++READ_CHAR:
++
++  Inc P
++  sCar = Mid$(Text, P, 1)
++  If Not sCar Then 
++    GoSub ADD_TEXT
++    Return cResult
++  Endif
++  Return
++  
++End
++
++Static Public Sub Main()
++
++  Dim cXml As Collection
++
++  cXml = FromString(File.Load("~/WMSServer.xml"))
++  
++  Print cXml.Count
++
++End
++
+diff --git a/comp/src/gb.util.web/.src/XMLMarkup.class b/comp/src/gb.util.web/.src/XMLMarkup.class
+index f5baf4d70..1b6706c5f 100644
+--- a/comp/src/gb.util.web/.src/XMLMarkup.class
++++ b/comp/src/gb.util.web/.src/XMLMarkup.class
+@@ -1 +1,64 @@
+ ' Gambas class file
++
++Inherits Collection
++
++Property Read Attributes As Collection
++
++Public _Markup As String
++
++Static Private $cAttr As Collection
++
++Private Function Attributes_Read() As Collection
++
++  Dim P As Integer
++  Dim P2 As Integer
++  Dim sAttr As String
++  Dim sValue As String
++  Dim sCar As String
++  
++  If $cAttr Then Return $cAttr
++  
++  $cAttr = New Collection
++  
++  Do
++  
++    GoSub IGNORE_SPACES
++    
++    P2 = InStr(_Markup, "=", P + 1)
++    If P2 = 0 Then Return $cAttr
++  
++    sAttr = Trim(Mid$(_Markup, P, P2 - 1))
++    If Not sAttr Then Error.Raise("Syntax error")
++    
++    P = P2
++    GoSub READ_CHAR
++    If sCar <> "'" And If sCar <> "\"" Then Error.Raise("Syntax error")
++    
++    GoSub READ_STRING
++    sValue = Mid$(_Markup, P + 1, P2 - P - 1)
++    If sValue Then $cAttr[sAttr] = sValue
++  
++  Loop 
++  
++IGNORE_SPACES:
++
++  Do
++    GoSub READ_CHAR
++    If Not IsSpace(sCar) Then Return
++  Loop
++
++READ_STRING:
++
++  P2 = InStr(_Markup, sCar, P + 1)
++  If P2 = 0 Then Error.Raise("Unterminated string")
++  P = P2
++  Return
++  
++READ_CHAR:
++
++  Inc P
++  sCar = Mid$(_Markup, P, 1)
++  If Not sCar Then Return $cAttr
++  Return
++  
++End
+diff --git a/comp/src/gb.web/.src/Application.module b/comp/src/gb.web/.src/Application.module
+index b00ae61f6..d308e65e1 100644
+--- a/comp/src/gb.web/.src/Application.module
++++ b/comp/src/gb.web/.src/Application.module
+@@ -80,6 +80,6 @@ End
+ 
+ Private Function Port_Read() As String
+ 
+-  Return CGI["SERVER_PORT"]
++  'Return CGI["SERVER_PORT"]
+ 
+ End
+diff --git a/gb.form.htmlview/src/gb.form.htmlview/.src/FTest.class b/gb.form.htmlview/src/gb.form.htmlview/.src/FTest.class
+index 36a5e2b70..b33cd55c2 100644
+--- a/gb.form.htmlview/src/gb.form.htmlview/.src/FTest.class
++++ b/gb.form.htmlview/src/gb.form.htmlview/.src/FTest.class
+@@ -7,7 +7,7 @@ Public Sub Form_Open()
+   Application.Animations = True
+   HtmlView1.LoadCss(File.Load("~/gambas/git/master/app/src/gambas3/help/wiki/style-offline-htmlview.css"))
+   'HtmlView1.Html = File.Load(".hidden/test/test2.html")
+-  HtmlView1.Url = "~/.local/share/gambas3/wiki/data/en/page.html"
++  HtmlView1.Url = "~/.local/share/gambas3/wiki/data/en/doc/object-model/page.html"
+   Print HtmlView1.Html
+   'HtmlView1.Load("test3.html")
+ 
+diff --git a/gb.xml/src/rpc/gb.xml.rpc/.src/RpcServer.class b/gb.xml/src/rpc/gb.xml.rpc/.src/RpcServer.class
+index e31fdc9ee..0a77c6fc3 100644
+--- a/gb.xml/src/rpc/gb.xml.rpc/.src/RpcServer.class
++++ b/gb.xml/src/rpc/gb.xml.rpc/.src/RpcServer.class
+@@ -56,7 +56,7 @@ Public Sub Unregister(methodName As String)
+ 
+   Dim Bucle As Integer
+ 
+-  If CurrIndex <> - 1 Then
++  If CurrIndex <> -1 Then
+     Error.Raise("Unable to Unregister a function in a RemoteCall event")
+     Return
+   End If
+@@ -156,7 +156,7 @@ Public Sub SetReply(Data As Variant)
+ 
+   Dim Xml As New XmlWriter
+ 
+-  If CurrIndex = - 1 Then
++  If CurrIndex = -1 Then
+     Error.Raise("No remote function available")
+     Return
+   End If
+@@ -193,7 +193,7 @@ Public Sub miniSrv_ProcessData(Data As String)
+   Try Xml.Read()
+   If Not tools.Find(Xml, "params") Then
+     miniSrv.SetReply(tools.FaultReply(4, "params field not found"))
+-    CurrIndex = - 1
++    CurrIndex = -1
+     Return
+   End If
+ 
+@@ -206,19 +206,19 @@ Public Sub miniSrv_ProcessData(Data As String)
+     hP = Tools.GetParam(Xml)
+     If hP = Null Then
+       miniSrv.SetReply(tools.FaultReply(5, "malformed parameters"))
+-      CurrIndex = - 1
++      CurrIndex = -1
+       Return
+     End If
+ 
+     hPar.Add(hP.Data)
+     If Methods[CurrIndex].Count < hPar.Count Then
+       miniSrv.SetReply(tools.FaultReply(6, "too many parameters"))
+-      CurrIndex = - 1
++      CurrIndex = -1
+       Return
+     End If
+     If hP.Type <> Methods[CurrIndex][Counter] Then
+       miniSrv.SetReply(tools.FaultReply(7, "wrong parameter type"))
+-      CurrIndex = - 1
++      CurrIndex = -1
+       Return
+     End If
+ 
+@@ -238,7 +238,7 @@ Public Sub miniSrv_ProcessData(Data As String)
+     Raise RemoteCall(Methods[CurrIndex].MethodName, hPar)
+   End If
+ 
+-  CurrIndex = - 1
++  CurrIndex = -1
+ End
+ 
+ 
+@@ -290,7 +290,7 @@ Public Sub _New()
+ 
+   Dim Rpc As RpcFunction
+ 
+-  CurrIndex = - 1
++  CurrIndex = -1
+   Methods = New Object[]
+ 
+   Rpc = New RpcFunction("system.listMethods", Null, XmlRpc.xArray)

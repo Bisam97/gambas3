@@ -326,10 +326,14 @@ Private Function Scheme_Read() As String
 
   If Not $bSchemeInit Then
 
-    If CGI["REQUEST_SCHEME"] = "https" Or If CGI["X_FORWARDED_PROTO"] = "https" Then
+    If CGI["HTTP_X_CGI"] = "https" Or If CGI["REQUEST_SCHEME"] = "https" Or If CGI["X_CGI"] = "https" Or If CGI["X_FORWARDED_PROTO"] = "https" Then 
       $sScheme = "https"
+    Else If CGI["HTTP_CF_VISITOR"] Then
+      If InStr(CGI["HTTP_CF_VISITOR"], "\"scheme\":\"https\"") Then
+        $sScheme = "https"
+      Endif
     Endif
-    
+
     $bSchemeInit = True
     
   Endif

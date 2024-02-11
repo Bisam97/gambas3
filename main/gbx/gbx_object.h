@@ -179,6 +179,7 @@ char *OBJECT_where_am_i(const char *file, int line, const char *func);
 #define OBJECT_REF_CHECK(_ob) { OBJECT_ref_where = OBJECT_where_am_i(__FILE__, __LINE__, __func__); OBJECT_ref_check(_ob); }
 #define OBJECT_UNREF(_ob) { OBJECT_ref_where = OBJECT_where_am_i(__FILE__, __LINE__, __func__); OBJECT_unref(_ob); }
 #define OBJECT_UNREF_KEEP(_ob) { OBJECT_ref_where = OBJECT_where_am_i(__FILE__, __LINE__, __func__); OBJECT_unref_keep(_ob); }
+#define OBJECT_UNREF_KEEP_FAST OBJECT_UNREF_KEEP
 
 #else /* DEBUG_REF */
 
@@ -219,15 +220,20 @@ char *OBJECT_where_am_i(const char *file, int line, const char *func);
 
 #define OBJECT_unref_keep(_object) \
 { \
-	if (_object) \
-		--((OBJECT *)(_object))->ref; \
+	--((OBJECT *)(_object))->ref; \
+}
+
+#define OBJECT_unref_keep_check(_object) \
+{ \
+	if (_object) --((OBJECT *)(_object))->ref; \
 }
 
 
 #define OBJECT_REF_CHECK(_ob) OBJECT_ref_check(_ob)
 #define OBJECT_REF(_ob) OBJECT_ref(_ob)
 #define OBJECT_UNREF(_ob) OBJECT_unref(_ob)
-#define OBJECT_UNREF_KEEP(_ob) OBJECT_unref_keep(_ob)
+#define OBJECT_UNREF_KEEP(_ob) OBJECT_unref_keep_check(_ob)
+#define OBJECT_UNREF_KEEP_FAST(_ob) OBJECT_unref_keep(_ob)
 
 #endif /* DEBUG_REF */
 

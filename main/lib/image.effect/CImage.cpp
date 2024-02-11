@@ -159,7 +159,12 @@ END_METHOD
 
 BEGIN_METHOD(CIMAGE_invert, GB_INTEGER channel)
 
-	Effect::invert(THIS, VARGOPT(channel, Effect::All));
+	int channel = VARGOPT(channel, Effect::All);
+
+	if (channel == -1) // Compatibilty with Image.Invert() in 'gb.image'.
+		IMAGE.Invert((GB_IMG *)THIS, true);
+	else
+		Effect::invert(THIS, channel);
 
 END_METHOD
 

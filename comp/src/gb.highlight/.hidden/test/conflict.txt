@@ -1,0 +1,563 @@
+' Gambas class file
+
+Export
+Create Static
+
+Class Paint
+Class Color
+
+Static Property Read List As String[]
+
+Static Public CanRewrite As Boolean
+
+Static Private $cRegister As New Collection
+
+Public TextAfter As String
+Public LengthAdded As Integer
+Public Rewrite As Boolean
+Public Limit As Boolean
+Public Comment As Boolean
+
+<<<<<< HEAD
+
+Property Read Name As String
+Property Read Keywords As String[]
+
+Private $iPos As Integer
+Private $iLevel As Integer
+=======
+Private $aInclude As Byte[]
+Private $iInclude As Integer
+Private $iIndex As Integer
+Private $hStyle As TextHighlighterStyle
+Private $iBackground As Integer
+Private $aHighlight As Byte[]
+Private $aStyles As TextHighlighterStyle[]
+Private $sLine As String
+Private $aState As Byte[]
+Private $sToken As String
+Private $hTheme As TextHighlighterTheme
+>>>>>> TAIL
+
+Static Public Sub _init()
+
+  Dim sFile As String
+  
+  For Each sFile In Dir("highlight", "*.highlight")
+    Register("./highlight" &/ sFile)
+  Next
+  
+End
+
+Static Private Sub Load(Name As String) As Class
+  
+  Dim sPath As String
+  
+  Name = LCase(Name)
+  Try Return Classes["_TextHighlighter_" & Name]
+  
+  sPath = $cRegister[Name]
+  If Not sPath Then Error.Raise("Unknown highlighter: " & Name)
+  
+  CreateCustomHighlighter(Name, sPath)
+  Return Class.Load("_TextHighlighter_" & Name)
+  
+Catch
+  
+  Error.Raise("Cannot load highlighter '" & Name & "': " & Error.Where & ": " & Error.Text)
+  
+End
+
+Static Public Sub _get(Name As String) As TextHighlighter
+
+  Return Load(Name).AutoCreate()
+
+End
+
+Static Public Sub _Create(Name As String) As TextHighlighter
+  
+  Load(Name)
+  Return Object.New("_TextHighlighter_" & Name)
+  
+End
+
+Static Public Sub Register(Path As String, Optional Name As String)
+  
+  Dim sComp As String
+  
+  If Not Name Then Name = LCase(File.BaseName(Path))
+  If Not IsAscii(Name) Then Error.Raise("Highligher name must be ASCII")
+  
+  If File.IsRelative(Path) Then
+    If Path Not Begins "./" Then
+      sComp = Component.FindFromPath(".." &/ Path)
+      If Not sComp Then
+        Path = ".../" &/ Path
+      Else
+        Path = "./" & sComp &/ Path
+      Endif
+    Endif
+  Endif
+  $cRegister[Name] = Path
+  
+End
+
+Public Sub _Analyze((Text) As String, (State) As Byte[], Optional (MatchLimit) As Boolean, (Limit) As String, ByRef (Pos) As Integer) As Byte[]
+
+End
+
+Public Sub Run(Text As String, State As Byte[]) As Byte[]
+  
+  If State.Count = 0 Then State.Add(0)
+  If Not Text Then
+    If CanRewrite Then Me.TextAfter = ""
+    Return New Byte[]
+  Endif
+  Return Me._Analyze(Text, State)
+  
+End
+
+Static Private Sub CreateCustomHighlighter(sHighlight As String, sPath As String)
+  
+  Dim iLine As Integer
+  Dim sLine As String
+
+  Dim iIndent As Integer
+  Dim iCurrentIndent As Integer
+  
+  Dim hDefault As CState
+  Dim aState As New CState[]
+  Dim hState As CState
+  Dim hCurrent As CState
+  Dim hOutput As File
+  Dim sOutput As String
+  Dim sDir As String
+  Dim sProject As String
+  Dim iPos As Integer
+  Dim aLines As String[]
+  Dim aInclude As String[]
+  Dim I As Integer
+  
+  sDir = File.Dir(Temp$()) &/ "gb.highlight." & sHighlight
+  
+  Try Mkdir sDir
+  Try Mkdir sDir &/ ".src"
+
+  CState.Init(sPath)
+
+  hDefault = New CState
+
+  sOutput = sDir &/ ".src/_TextHighlighter_" & sHighlight & ".class"
+  hOutput = Open sOutput For Create
+  Output To hOutput
+
+  Try aLines = Split(File.Load(sPath), "\n")
+  If Error Then Error.Raise(sPath & ": " & Error.Text)
+  
+  Print File.Load("custom/CustomHighlighter.class")
+
+  iCurrentIndent = 0
+  iLine = 0
+  
+  While iLine < aLines.Count
+    
+    sLine = aLines[iLine]
+    Inc iLine
+    
+    sLine = RTrim(sLine)
+    If Not sLine Then Continue
+    
+    iIndent = Len(sLine)
+    sLine = LTrim(sLine)
+    iIndent -= Len(sLine)
+    
+    If sLine Begins "#" Then Continue
+    
+    If sLine Begins "@include " Then
+      sLine = Trim(Mid$(sLine, 9))
+      If Not sLine Then Error.Raise("Syntax error")
+      aInclude = Split(File.Load(File.Dir(sPath) &/ sLine), "\n")
+      For I = 0 To aInclude.Max
+        aInclude[I] = Space$(iIndent) & aInclude[I]
+      Next
+      aLines.Insert(aInclude, iLine)
+      Continue
+    Endif
+    
+    If sLine Begins "$(" Then
+      sLine = Mid$(sLine, 3)
+      iPos = InStr(sLine, ")=")
+      If iPos < 2 Then Error.Raise("Syntax error")
+      CState.Define(Trim(Left(sLine, iPos - 1)), Trim(Mid$(sLine, iPos + 2)))
+    Endif
+    
+    Do
+    
+      Try hCurrent = aState.Last
+      If Error Then hCurrent = Null
+      
+      If Not hCurrent Then Break
+        
+      If iIndent > hCurrent.Indent Then Break
+        
+      aState.Pop()
+      
+    Loop
+      
+    If Not hCurrent Then
+      
+      If sLine Ends ":" Then
+      
+        hState = New CState(Left(sLine, -1))
+        aState.Add(hState)
+        hDefault.AddChild(hState)
+        
+      Endif
+      
+      Continue
+
+    Endif
+      
+    If sLine Ends ":" Then
+      
+      hState = New CState(Left(sLine, -1))
+      hState.Indent = iIndent
+      aState.Add(hState)
+      
+      hCurrent.AddChild(hState)
+
+    Else
+      
+      hCurrent.AddCommand(sLine)
+      
+    Endif
+      
+  Wend
+  
+  iLine = 0
+
+  CState.Print()
+  CState.Print("Private Sub Compile(aState as Byte[])")
+  CState.Print()
+  CState.Print("Dim sWord, sSymbol As String")
+  CState.Print("Dim I As Integer")
+  CState.Print()
+  CState.Print("Goto INITIAL_STATE")
+  CState.Print()
+  hDefault.Compile()
+  CState.Print()
+  CState.PrintLabel("INITIAL_STATE", True)
+  CState.Print()
+  CState.Print("On aState[0] Goto " & CState.GetLabels().Join(", "))
+  CState.Print()
+  CState.Print("End")
+  CState.Print()
+  CState.Print("Private Sub Keywords_Read() As String[]")
+  CState.Print("Static aKeywords As String[] = " & CState.GetKeywords())
+  CState.Print("aKeywords.ReadOnly = True")
+  CState.Print("Return aKeywords")
+  CState.Print("End")
+  
+  ' CState.Print("Public Sub GetStateFromName(sName As String) As Integer")
+  ' CState.Print()
+  ' CState.Print("Static cName As Collection = " & CState.GetStateFromNames())
+  ' CState.Print("Try Return cName[sName]")
+  ' CState.Print()
+  ' CState.Print("End")
+  ' CState.Print()
+  
+  Output To Default
+  hOutput.Close
+  
+  Print File.Load(sOutput)
+  
+  sProject = File.Load("custom/project.template")
+  sProject = Replace(sProject, "$(startup)", "_TextHighlighter_" & sHighlight)
+  File.Save(sDir &/ ".project", sProject)
+  
+  Shell "cd " & Shell$(sDir) & " && gbc3 -agt 2>&1 && gba3" To sOutput
+  sOutput = Trim(sOutput)
+  If Process.LastValue And If sOutput Then Error.Raise(sOutput)
+
+  Component.Load(sDir &/ "gb.highlight." & sHighlight & ".gambas")
+  
+Catch
+  
+  Output To Default
+  If iLine Then
+    Error.Raise(Error.Text & " at line " & CStr(iLine))
+  Else 
+    Error.Propagate()
+  Endif
+  
+End
+
+Private Sub GetIncludeColor(iInclude As Integer) As Integer
+
+  Dim iHue As Integer
+
+  iHue = [60, 0, 210, 120, 30, 270][iInclude Mod 6]
+  Return Color.HSV(iHue, 32, 255)
+
+End
+
+Private Sub HighlightStart(hTheme As TextHighlighterTheme)
+
+  $hTheme = hTheme
+  If Not $hTheme Then $hTheme = New TextHighlighterTheme
+  $iLevel = 0
+  $aInclude = New Byte[]
+  $iInclude = 0
+  $iBackground = Color.Default
+  $aState = New Byte[]
+
+End
+
+Private Sub HighlightLine(sLine As String)
+
+  $sLine = sLine
+  $aHighlight = Me.Run(sLine & "\n", $aState)
+  $aStyles = $hTheme._GetStyles()
+  $iPos = 1
+  $iIndex = 0
+  
+End
+
+Private Sub HighlightToken() As Boolean
+
+  Dim iState As Integer
+  Dim iLen As Integer
+  
+TRY_AGAIN:
+  
+  If $iIndex >= $aHighlight.Count Then 
+    If $iPos < String.Len($sLine) Then 
+      $sToken = String.Mid$($sLine, $iPos)
+    Else
+      $sToken = ""
+    Endif
+    Return True
+  Endif
+  
+  iState = $aHighlight[$iIndex]
+  iLen = $aHighlight[$iIndex + 1]
+  $iIndex += 2
+      
+  If iLen = 0 Then
+    If iState Then
+      $aInclude.Push($iInclude)
+      $iInclude = iState
+      Inc $iLevel
+    Else
+      $iInclude = $aInclude.Pop()
+      Dec $iLevel
+    Endif
+    $iBackground = GetIncludeColor($iInclude)
+    Goto TRY_AGAIN
+  Endif
+      
+  Try $hStyle = $aStyles[iState]
+  If Error Then $hStyle = $aStyles[0]
+  
+  $sToken = String.Mid$($sLine, $iPos, iLen)
+  $iPos += iLen
+  
+End
+
+Private Function Keywords_Read() As String[]
+
+End
+
+Static Public Sub _Add(aHighlight As Byte[], iState As Byte, iCount As Integer)
+
+  Dim iMax As Integer
+  
+  iMax = aHighlight.Max
+  If aHighlight.Count And If aHighlight[iMax - 1] = iState And If aHighlight[iMax] Then
+    If aHighlight[iMax] <= (255 - iCount) Then
+      aHighlight[iMax] += iCount
+      Return
+    Else
+      iCount -= 255 - aHighlight[iMax]
+      aHighlight[iMax] = 255
+    Endif
+  Endif
+  
+  While iCount > 255
+    aHighlight.Add(iState)
+    aHighlight.Add(255)
+    iCount -= 255
+  Wend
+  
+  If iCount Then
+    aHighlight.Add(iState)
+    aHighlight.Add(iCount)
+  Endif
+  
+End
+
+Private Function Name_Read() As String
+
+  Dim sClass As String
+  Dim iPos As Integer
+
+  sClass = Object.Type(Me)
+  iPos = RInStr(sClass, "_")
+  Try Return LCase(Mid$(sClass, iPos + 1))
+
+End
+
+Static Private Function List_Read() As String[]
+  
+  Dim aList As String[]
+
+  aList = New String[]
+  For Each $cRegister
+    aList.Add($cRegister.Key)
+  Next
+  
+  Return aList.Sort(gb.IgnoreCase + gb.Language)
+  
+End
+
+Public Sub ToHTML(Text As String, Optional Theme As TextHighlighterTheme) As String
+
+  Dim aResult As New String[]
+  Dim Y As Integer
+  Dim sHTML As String
+  Dim aText As String[]
+  Dim sLineHtml As String
+  Dim sOldStyle As String
+  Dim sStyle As String
+
+  HighlightStart(Theme)
+  
+  aText = Split(Text, "\n")
+  For Y = 0 To aText.Max
+    
+    HighlightLine(aText[Y])
+    
+    sLineHtml = ""
+    
+    While Not HighlightToken()
+      
+      sHtml = Replace(Html($sToken), " ", "&nbsp;")
+      sHtml = Replace(sHtml, "\t", "&nbsp;&nbsp;")
+      
+      If $hStyle.Bold Then sHtml = "<b>" & sHtml & "</b>"
+      If $hStyle.Underline Then
+        sHtml = "<u>" & sHtml & "</u>"
+      Else If $hStyle.Strikeout Then
+        sHtml = "<s>" & sHtml & "</s>"
+      Endif
+      
+      sStyle = ""
+      If $iLevel Then sStyle &= "background-color:" & Color.ToHTML($iBackground) & ";"
+      'If bAlt Then sStyle &= "background:#" & Hex$(aStyles[GetAlternate()].Color, 6) & ";"
+      If $hStyle.Color Then sStyle &= "color:" & Color.ToHTML($hStyle.Color) & ";"
+      If $hStyle.Dotted Then sStyle &= "text-decoration:underline dotted;"
+      
+      If sStyle <> sOldStyle Then
+        If sOldStyle Then sLineHtml &= "</span>"
+        If sStyle Then sHtml = "<span style=\"" & sStyle & "\">" & sHtml
+        sOldStyle = sStyle
+      Endif
+      
+      sLineHtml &= sHtml
+
+    Wend
+    
+    sLineHtml &= Html($sToken)
+    
+    ' If TextHighlighter.Limit Then 
+    '   If Y And If Not Trim(aResult[aResult.Max]) Then
+    '     aResult.Add("<div style=\"height:1px;background:#808080;position:relative;top:-0.5em;\"></div>")
+    '   Else
+    '     aResult.Add("<div style=\"height:1px;background:#808080;\"></div>")
+    '   Endif
+    ' Endif
+    
+    aResult.Add(sLineHtml)
+    
+  Next
+  
+  Return "<tt><span style=\"color:#000000;\">" & aResult.Join("<br>\n") & "</span></tt>"
+  
+End
+
+Public Sub Paint(Text As String, X As Float, Y As Float, Optional Theme As Variant, Optional Pos As Integer)
+  
+  Dim aText As String[]
+  Dim P As Integer
+  Dim iColor As Integer
+  Dim iLine As Integer
+  Dim XB As Integer
+  Dim fCharWidth As Float
+  Dim LH, BW As Integer
+  Dim LB As Integer
+  Dim X0 As Float
+  
+  HighlightStart(Theme)
+  
+  Pos = Max(Pos, 1)
+  
+  fCharWidth = Paint._EstimateFontCharWidth(Paint.Font, True)
+  LH = Paint.Font.Height + 1
+  BW = 1 + LH \ 6
+  
+  Y += Paint.Font.Ascent
+  X0 = X
+  
+  aText = Split(Text, "\n")
+  For iLine = 0 To aText.Max
+    
+    HighlightLine(aText[iLine])
+    'If Y = 0 Then TextHighlighter.Limit = False
+    'If Me.TextAfter Then sLine = TextHighlighter.TextAfter
+
+    Do
+      
+      P = $iPos
+      If HighlightToken() Then Break
+      
+      If $iPos < Pos Then Continue
+
+      If P < Pos Then 
+        'iLen -= Pos - P
+        P = Pos
+        $sToken = String.Mid$($sLine, P)
+      Endif
+      
+      If fCharWidth Then
+        X = X0 + fCharWidth * (P - Pos)
+      Else
+        X = X0 + Paint.Font.TextWidth(String.Mid($sLine, Pos, P - Pos))
+      Endif
+      
+      iColor = $hStyle.Color
+      Paint.Background = iColor
+      If $hStyle.Bold Then
+        LB = BW
+        XB = X
+        While LB >= 2
+          Paint.DrawText($sToken, XB, Y)
+          Inc XB
+          LB -= 2
+        Wend
+        If LB Then
+          Paint.Background = Color.SetAlpha(iColor, 128)
+          Paint.DrawText($sToken, XB, Y) 
+        Endif
+      Else
+        Paint.DrawText($sToken, X, Y)
+      Endif
+      
+    Loop
+    
+    If $sToken Then Paint.DrawText($sToken, X, Y)
+    
+    Y += LH
+    
+  Next
+  
+End

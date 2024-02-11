@@ -69,6 +69,7 @@ End
 Public Sub Refresh()
   
   If Not Me._CanRefresh() Then Return  
+  Paint.Begin(Me)
   WebForm._AddJavascript("$_c.clearRect(0,0," & CStr(_Width) & "," & CStr(_Height) & ");")
   Raise Draw
   Paint.End

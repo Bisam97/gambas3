@@ -101,7 +101,7 @@ Private Sub ScrollX_Write(Value As Integer)
   If $iScrollX = Value Then Return
   $iScrollX = Value
 
-  If Me._CanRefresh() Then WebForm._AddJavascript("gw.scrollview.scroll(" & JS(Me.Name) & "," & JS($iScrollX) & "," & JS($iScrollY) & "); // _ScrollX")
+  If Me._CanRefresh() Then Me._AddRefresh("gw.scrollview.scroll(" & JS(Me.Name) & "," & JS($iScrollX) & "," & JS($iScrollY) & "); // _ScrollX")
 
 End
 
@@ -116,7 +116,7 @@ Private Sub ScrollY_Write(Value As Integer)
   If $iScrollY = Value Then Return
   $iScrollY = Value
 
-  If Me._CanRefresh() Then WebForm._AddJavascript("gw.scrollview.scroll(" & JS(Me.Name) & "," & JS($iScrollX) & "," & JS($iScrollY) & "); // _ScrollY")
+  If Me._CanRefresh() Then Me._AddRefresh("gw.scrollview.scroll(" & JS(Me.Name) & "," & JS($iScrollX) & "," & JS($iScrollY) & "); // _ScrollY")
 
 End
 
@@ -126,7 +126,7 @@ Public Sub Scroll(X As Integer, Y As Integer)
   $iScrollX = X
   $iScrollY = Y
   
-  If Me._CanRefresh() Then WebForm._AddJavascript("gw.scrollview.scroll(" & JS(Me.Name) & "," & JS($iScrollX) & "," & JS($iScrollY) & ");")
+  If Me._CanRefresh() Then Me._AddRefresh("gw.scrollview.scroll(" & JS(Me.Name) & "," & JS($iScrollX) & "," & JS($iScrollY) & ");")
   
 End
 

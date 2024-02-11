@@ -334,7 +334,7 @@ Public Sub ScripterMain(aArgs As String[]) As Integer
 
   Catch
 
-    $sLastCompileError = "-2:" & Error.Text & ":" & Error.where
+    $sLastCompileError = "127:" & Error.Text & ":" & Error.where
     Error $sLastCompileError        ' added for debugging
 
     If UseLibComp.HasComponents Then  '' added because get circular ref from ccomponent otherwise on exit
@@ -342,9 +342,9 @@ Public Sub ScripterMain(aArgs As String[]) As Integer
     Endif
 
     If $oContext.$bTestMode Or If $bRunAsPlugin Then
-      Return -2
+      Return 127
     Else
-      Quit -2
+      Quit 127
     Endif
 
   End With

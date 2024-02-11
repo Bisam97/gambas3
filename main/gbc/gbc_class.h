@@ -112,11 +112,14 @@ typedef
 		short _reserved2;
 		
 		ushort *code;                  // Compile bytecode
+		ushort *indirect_goto;         // If this function uses indirect Goto or Gosub
 		
 		short *pos_line;               // Bytecode position of each code line
 		
 		ushort ncode;                  // Number of instructions
 		ushort ncode_max;              // Size of the bytecode allocation
+
+		ushort nlabel;                 // Number of labels for indirect goto
 
 		ushort last_code;              // Last compiled bytecode position
 		ushort last_code2;             // Last last compiled bytecode position

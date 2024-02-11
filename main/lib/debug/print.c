@@ -78,9 +78,10 @@ static void print_string(const char *s, int len, bool limited)
 			else
 				fprintf(_where, "\\x%02X", c);
 		}
-		else if (c == '\"')
+		else if (c == '\"' || c == '\\')
 		{
-			fprintf(_where, "\\\"");
+			fputc('\\', _where);
+			fputc(c, _where);
 		}
 		else
 		{

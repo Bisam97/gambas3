@@ -96,7 +96,7 @@ bool ARCHIVE_dir_next(char **name, int *len, int attr);
 bool ARCHIVE_find_from_path(ARCHIVE **parch, const char **ppath);
 bool ARCHIVE_get_current(ARCHIVE **parch);
 
-bool ARCHIVE_check_addr(char *addr);
+bool ARCHIVE_check_addr(const char *addr);
 
 void ARCHIVE_browse(ARCHIVE *arch, void (*found)(const char *path, int64_t size));
 

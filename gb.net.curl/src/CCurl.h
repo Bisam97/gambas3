@@ -106,6 +106,8 @@ void CURL_raise_read(void *_object);
 
 void CURL_start_post(void *_object);
 void CURL_stop(void *_object);
+void CURL_clean(void *_object);
+void CURL_reset(void *_object);
 
 void CURL_manage_error(void *_object, int error);
 

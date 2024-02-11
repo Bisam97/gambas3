@@ -229,7 +229,7 @@ static int utf8_get_pos(const char *ref, const char *start, int len, int index)
 		_utf8_current_start = start;
 		_utf8_current_len = len;
 #ifdef DEBUG_CACHE
-		fprintf(stderr, "current -> %p / %ld\n", STRING_utf8_current, _utf8_current_start - STRING_utf8_current);
+		fprintf(stderr, "current -> %p / %d\n", STRING_utf8_current, _utf8_current_start - STRING_utf8_current);
 #endif
 		CLEAR(&_utf8);
 	}
@@ -415,7 +415,7 @@ static void String_Mid(ushort code, VALUE *sp)
 	start = PARAM[1]._integer.value - 1;
 
 	if (start < 0)
-		THROW(E_ARG);
+		THROW_ARG();
 
 	if (null)
 		return;
@@ -906,7 +906,7 @@ void BoxedString_get(ushort code)
 	start = PARAM[1]._integer.value;
 
 	if (start < 0)
-		THROW(E_ARG);
+		THROW_ARG();
 
 	if (null)
 		goto _SUBR_MID_FIN;

@@ -264,7 +264,7 @@ void gDialog::setTitle(char *vl)
 	if (_title)
 	{
 		g_free(_title);
-		_title=NULL;
+		_title = NULL;
 	}
 	
 	if (vl && *vl)
@@ -450,7 +450,7 @@ bool gDialog::selectFont()
 	type1 = pango_font_family_get_type();
 	type2 = pango_font_face_get_type();
 	
-	dialog = (GtkFontChooserDialog *)gtk_font_chooser_dialog_new(_title, NULL);
+	dialog = (GtkFontChooserDialog *)gtk_font_chooser_dialog_new(_title ? _title : GB.Translate("Select font"), NULL);
 
 	if (_font)
 		gtk_font_chooser_set_font_desc(GTK_FONT_CHOOSER(dialog), _font->desc());
@@ -485,11 +485,7 @@ bool gDialog::selectFont()
 	char *buf;
 	gFont *font;
 		
-	if (_title)
-		msg=(GtkFontSelectionDialog*)gtk_font_selection_dialog_new (_title);
-	else
-		msg=(GtkFontSelectionDialog*)gtk_font_selection_dialog_new ("Select Font");
-
+	msg = (GtkFontSelectionDialog*)gtk_font_selection_dialog_new(_title ? _title : GB.Translate("Select font"));
 
 	if (_font)
 	{
@@ -533,7 +529,7 @@ bool gDialog::selectColor()
 
 	gt_color_to_frgba(_color, &color.red, &color.green, &color.blue, &color.alpha);
 
-	dialog = (GtkColorChooserDialog *)gtk_color_chooser_dialog_new(_title, NULL);
+	dialog = (GtkColorChooserDialog *)gtk_color_chooser_dialog_new(_title ? _title : GB.Translate("Select color"), NULL);
 
 	gtk_color_chooser_set_rgba(GTK_COLOR_CHOOSER(dialog), &color);
 
@@ -561,10 +557,7 @@ bool gDialog::selectColor()
 	
 	fill_gdk_color(&gcol, _color);
 	
-	if (_title)
-		msg=(GtkColorSelectionDialog*)gtk_color_selection_dialog_new (_title);
-	else
-		msg=(GtkColorSelectionDialog*)gtk_color_selection_dialog_new(GB.Translate("Select Color"));
+	msg = (GtkColorSelectionDialog*)gtk_color_selection_dialog_new(_title ? _title : GB.Translate("Select Color"));
     
 	gtk_color_selection_set_current_color(GTK_COLOR_SELECTION(gtk_color_selection_dialog_get_color_selection(msg)), &gcol);
 	

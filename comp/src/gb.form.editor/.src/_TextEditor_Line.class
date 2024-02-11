@@ -147,11 +147,12 @@ End
 
 Private Function InitialState_Read() As _TextEditor_State
 
-  Dim hState As _TextEditor_State
-
-  hState = New _TextEditor_State
-  If _Line > 0 Then hState._State = GetDoc().Info(_Line - 1)
-  Return hState
+  '' TODO: deprecated
+  ' Dim hState As _TextEditor_State
+  ' 
+  ' hState = New _TextEditor_State
+  ' If _Line > 0 Then hState._State = GetDoc().Info(_Line - 1)
+  ' Return hState
 
 End
 
@@ -173,29 +174,40 @@ Public Sub Purge(Optional KeepComment As Boolean, KeepString As Boolean, Replace
   Dim sText As String
   Dim X As Integer
   Dim bReplace As Boolean
+  Dim iComment As Integer
+  Dim iHelp As Integer
+  Dim iString As Integer
+  Dim iLen As Byte
   
   sText = hDoc.Lines[_Line]
-  aColor = GetDoc().Info(_Line).Colors
+  hDoc.HighlightUntil(_Line)
+  aColor = hDoc.Info(_Line).Colors
   If Not aColor Then Return sText
+  
+  iComment = TextHighlighterTheme._RegisterState("Comment")
+  iHelp = TextHighlighterTheme._RegisterState("Documentation")
+  iString = TextHighlighterTheme._RegisterState("String")
   
   X = 1
   For I = 0 To aColor.Max Step 2
     iState = aColor[I]
+    iLen = aColor[I + 1]
+    If iLen = 0 Then Continue
     bReplace = False
     If Not KeepComment Then
-      If iState = Highlight.Comment Or If iState = Highlight.Help Then
+      If iState = iComment Or If iState = iHelp Then
         bReplace = True
       Endif
     Endif
-    If Not KeepString And If iState = Highlight.String Then
+    If Not KeepString And If iState = iString Then
       bReplace = True
     Endif
     If bReplace Then
-      sPurge &= String$(aColor[I + 1], Replace)
+      sPurge &= String$(iLen, Replace)
     Else
-      sPurge &= String.Mid$(sText, X, aColor[I + 1])
+      sPurge &= String.Mid$(sText, X, iLen)
     Endif
-    X += aColor[I + 1]
+    X += iLen
   Next
   
   Return sPurge

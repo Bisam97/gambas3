@@ -59,18 +59,18 @@ Public Sub GetFixedWidth() As Integer
 End
 
 Public Sub Form_Open()
-
+  
   Dim W As Integer
   Dim sFont As String
   Dim hCtrl As CCoolButton
   Dim bHasTear As Boolean
-
+  
   'Settings.Read(Me)
   'Me.Center
   
   sFont = "Bold"
   W = panButton.ClientW
-
+  
   btnNew = New CCoolButton(panButton, W, HEIGHT_BUTTON, ("New project..."), "icon:/large/new", sFont) As "btnNew"
   btnOpen = New CCoolButton(panButton, W, HEIGHT_BUTTON, ("Open project") & "...", "icon:/large/open", sFont) As "btnOpen"
   btnRecent = New CCoolButton(panButton, W, HEIGHT_BUTTON, ("Recent projects"), "icon:/large/open-recent", sFont) As "btnList"
@@ -84,14 +84,14 @@ Public Sub Form_Open()
   btnRecent.Tag = LIST_RECENT
   btnExample.Tag = LIST_EXAMPLE
   btnSoft.Tag = LIST_SOFTWARE
-
+  
   For Each hCtrl In [btnNew, btnOpen, btnRecent, btnExample, btnSoft, btnFarm, btnOpenExtern, btnAbout, btnQuit]
     hCtrl.Foreground = Color.Foreground
     'hCtrl.Highlight = &H61A7C3&
   Next
-
+  
   ' Fill recent list
-
+  
   $iSort = Settings["/FWelcome/SortRecent", CRecentProject.SORT_BY_DATE]
   UpdateMenuSort
   $hRecent.SetSort($iSort)
@@ -110,7 +110,7 @@ Public Sub Form_Open()
 End
 
 Private Sub PlaySound() As Boolean
-
+  
   Dim dNow As Date
   Dim iYear As Integer
   Dim dEaster As Date
@@ -131,7 +131,7 @@ Private Sub PlaySound() As Boolean
   Else
     Return
   Endif
-
+  
   Component.Load("gb.media")
   $hPlayer = New MediaPlayer As "MediaPlayer"
   sTemp = Temp$()
@@ -139,7 +139,7 @@ Private Sub PlaySound() As Boolean
   $hPlayer.URL = Media.URL(sTemp)
   $hPlayer.ProgressiveDownload = True
   $hPlayer.Play(True)
-
+  
   Return bHasTear
   
 End
@@ -150,7 +150,6 @@ End
 '   Me.Close
 ' 
 ' End
-
 
 ' PUBLIC SUB timMessage_Timer()
 ' 
@@ -168,18 +167,16 @@ End
 ' 
 ' END
 
-
 Public Sub btnNew_Click()
-
-  $sPath = FCreateProject.Run()
+  
+  $sPath = FOpenProject.Create()
   txtFilter.SetFocus
   If $sPath Then Project.Open($sPath)
-
+  
 End
 
-
 Public Sub btnOpen_Click()
-
+  
   $sPath = FOpenProject.Run()
   txtFilter.SetFocus
   If $sPath Then 
@@ -187,45 +184,45 @@ Public Sub btnOpen_Click()
   Else
     $hRecent.Fill
   Endif
-
+  
 End
 
 Public Sub btnOpenExtern_Click()
-
+  
   If FMain.OpenExternFile() Then FMain.Close
-
+  
 End
 
 Public Sub btnList_Click()
-
+  
   Toggle(Last.Tag)
-
+  
 End
 
 Public Sub btnQuit_Click()
-
+  
   $sPath = ""
   FMain.Close()
-
+  
 End
 
 Private Sub Toggle(iState As Integer)
-
+  
   Dim hCtrl As CCoolButton
   
   If $iRecent = iState Then Return
   
   $iRecent = iState
-
+  
   lstRecent.Hide
   txtFilter.Hide
   lstExample.Hide
   txtFilterExample.Hide
   lstSoft.Hide
   txtFilterSoft.Hide
-
+  
   Select Case $iRecent
-    
+      
     Case LIST_NONE
       panList.Hide
       
@@ -243,7 +240,7 @@ Private Sub Toggle(iState As Integer)
       txtFilterExample.Show
       panList.Show
       txtFilterExample.SetFocus
-    
+      
     Case LIST_SOFTWARE
       $hSoft.Fill
       panList.Raise
@@ -251,7 +248,7 @@ Private Sub Toggle(iState As Integer)
       txtFilterSoft.Show
       panList.Show
       txtFilterSoft.SetFocus
-    
+      
   End Select
   
   For Each hCtrl In [btnRecent, btnExample, btnSoft]
@@ -259,10 +256,12 @@ Private Sub Toggle(iState As Integer)
     'hCtrl.Foreground = If($iRecent = hCtrl.Tag, Color.TextForeground, Color.White)
   Next
   
+  btnSort.Visible = $iRecent = LIST_RECENT
+  
 End
 
 Public Sub Form_KeyPress()
-
+  
   If Key.Code = Key.Escape Then
     btnQuit_Click
   Else If Key.Alt Then
@@ -274,15 +273,14 @@ Public Sub Form_KeyPress()
       Stop Event
     Endif
   Endif
-
+  
 End
 
-
 Public Sub Form_Hide()
-
+  
   Settings["/FWelcome/SortRecent"] = $iSort
   Settings["/FWelcome/Filter"] = txtFilter.Text
-
+  
 End
 
 ' PUBLIC SUB dwgRound_Draw()
@@ -338,9 +336,9 @@ End
 ' End
 
 Public Sub lblWebSite_MouseDown()
-
+  
   Last.Foreground = Color.LightBackground
-
+  
 End
 
 Public Sub lblWebSite_MouseUp()
@@ -354,22 +352,15 @@ Public Sub lblWebSite_MouseUp()
 End
 
 Public Sub lblWebSite_Enter()
-
+  
   Last.Foreground = Color.LightBackground
-
+  
 End
 
 Public Sub lblWebSite_Leave()
-
+  
   Last.Foreground = Color.Default
-
-End
-
-
-Public Sub lstRecent_Menu()
-
-  mnuSort.Popup
-   
+  
 End
 
 Private Sub UpdateMenuSort()
@@ -385,7 +376,6 @@ Private Sub UpdateMenuSort()
   
 End
 
-
 Public Sub mnuSort_Click()
   
   $iSort = Last.Tag
@@ -395,10 +385,10 @@ Public Sub mnuSort_Click()
 End
 
 Public Sub ProjectItem_Click(Path As String, (Another) As Boolean)
-
+  
   $sPath = Path
   Project.Open($sPath)
-
+  
 End
 
 Public Sub ProjectItem_Refresh()
@@ -418,7 +408,6 @@ Public Sub ProjectItem_Fill()
   
 End
 
-
 Public Sub btnAbout_Click()
   
   FAbout.Run
@@ -436,19 +425,19 @@ Public Sub btnFarm_Click()
 End
 
 Public Sub panList_Arrange()
-
+  
   Dim iArr As Integer
-
+  
   iArr = If(panList.W >= (Desktop.Scale * (CProjectList.PROJECT_BOX_SCALE_WIDTH * 2 + 3) + Style.ScrollbarSize + Style.ScrollbarSpacing), Arrange.Row, Arrange.Vertical)
   'Debug iArr;; panList.W;; Desktop.Scale * 64
   $hRecent.SetArrangement(iArr)
   $hExample.SetArrangement(iArr)
   $hSoft.SetArrangement(iArr)
-
+  
 End
 
 Public Sub Form_Activate()
-
+  
   If $iRecent = LIST_EXAMPLE Then
     txtFilterExample.SetFocus
   Else

@@ -53,7 +53,7 @@ typedef
 #define THIS ((CTASK *)_object)
 
 #define RETURN_DIR_PATTERN FILE_TEMP_DIR "/task"
-#define RETURN_FILE_PATTERN FILE_TEMP_DIR "/task/%d"
+#define RETURN_FILE_PATTERN FILE_TEMP_DIR "/task/%u"
 
 #define MAX_TASK 256
 

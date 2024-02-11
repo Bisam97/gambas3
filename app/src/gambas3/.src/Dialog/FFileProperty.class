@@ -49,6 +49,12 @@ Public Sub fprInfo_Data()
       Return
     Endif
     
+  Else If File.Ext(sPath) = "prof" Then
+    
+    Try fprInfo.Data.Icon = Project.GetFileIcon(sPath, 64)
+    fprInfo.Data.Type = ("Gambas profile file")
+    Return
+    
   Endif
   
   Stop Event

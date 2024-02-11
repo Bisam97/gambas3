@@ -29,6 +29,7 @@ Public Container As Boolean
 Public (Form) As Boolean
 Public MultiContainer As Boolean
 Public DefaultText As String
+Private $sLastDesc As String
 
 Public Sub _new(hDoc As CDocumentation, sName As String, sComp As String, Optional sParent As String)
 
@@ -165,6 +166,9 @@ Public Sub InitControl()
     If hSym Then DefaultText = hSym.Value
   Endif
 
+  Try DrawWith = Symbols["_DrawWith"].Value
+  If Family <> "Form" And If MultiContainer And If Not DrawWith Then DrawWith = "TabStrip"
+
   hSym = Symbols["_Similar"]
   If hSym Then Similars = Split(hSym.Value, ",")
 
@@ -250,8 +254,10 @@ Public Sub InitControl()
           Continue
         Endif
       Endif
-
-      If Family <> "Form" Then 
+      
+      If hSym.Component = CComponent.PROJECT_NAME And If Not DrawWith Then
+        bDoNotApply = True
+      Else If Family <> "Form" Then 
         If MultiContainer Then
           bDoNotApply = Not CPropertyInfo.ALLOWED_MULTI_CONTAINER_PROP.Exist(sProp)
         Else
@@ -332,8 +338,6 @@ Public Sub InitControl()
   CPropertyInfo.CreatingSpecialProperty = False
   
   'IF Name = "Timer" THEN
-  Try DrawWith = Symbols["_DrawWith"].Value
-  If Family <> "Form" And If MultiContainer And If Not DrawWith Then DrawWith = "TabStrip"
   'IF DrawWith THEN ?Me. <= CRASH!
   '  PRINT ME.Name;; "->";; DrawWith
   'ENDIF
@@ -507,13 +511,60 @@ Private Sub SubstPart(sHtml As String, sPart As String, bShow As Boolean) As Str
   
 End
 
-Private Sub GetSymbolLink(hSymbol As CSymbolInfo, sName As String) As String
+Private Sub GetLocalSymbolLink(hSymbol As CSymbolInfo, sName As String) As String
   
   If hSymbol.HasHelp() Then
     Return Subst("<!--&2--><a class=\"none\" href=\"&1\">&2</a>", Html(hSymbol.GetHelpURL()), Html(sName))
   Else 
     Return Subst("<!--&1-->&1", Html(sName))
   Endif
+  
+End
+
+Private Sub GetSymbolLink(sName As String, Optional sTitle As String, Optional sStaticTitle As String) As String
+  
+  Dim hSym As CSymbolInfo
+  Dim bInherit As Boolean
+  Dim sRes As String
+  Dim sLink As String
+
+  hSym = Symbols[sName]
+
+  If Not sTitle Then
+    sTitle = sName
+    If sTitle Begins ":" Then sTitle = Mid$(sTitle, 2)
+    sStaticTitle = sTitle
+  Endif
+
+  sName = Replace(sName, ":", ".")
+  $sLastDesc = hSym.WikiGetDescription()
+  
+  If sName = "_new" Then
+    sLink = "/comp" &/ LCase(Component &/ Name &/ sName)
+  Else
+    sLink = "/comp" &/ LCase(hSym.Component &/ hSym.Class &/ sName)
+  Endif
+
+  If hSym.Class <> Name Or If hSym.Component <> Component Then
+  Else If hSym.Class <> Wiki.Class Or If hSym.Component <> Wiki.Component Then
+    bInherit = True
+  Else
+    bInherit = True
+    sLink = "./" & LCase(sName)
+  Endif
+  
+  If sStaticTitle And If hSym.IsStatic Then sTitle = sStaticTitle
+  sLink = "[" & sTitle & "](" & sLink & ")"
+  
+  'If bInherit Then sLink = "<span class=\"inherit\">~" & sLink & "~</span>"
+  If bInherit Then sLink = "~" & sLink & "~"
+  
+  sRes &= sLink
+  
+  If Not sTitle Then sRes &= "&nbsp;&nbsp;"
+  'If sDesc Then sRes &= "</div>"
+  
+  Return sRes
   
 End
 
@@ -551,7 +602,7 @@ Public Sub GetHelpHTML() As String
       sSymbolName = hSymbol.Name
       If Left(sSymbolName) = ":" Then sSymbolName = Mid$(sSymbolName, 2)
       
-      sComp = GetSymbolLink(hSymbol, sSymbolName)
+      sComp = GetLocalSymbolLink(hSymbol, sSymbolName)
       
       If hSymbol.NotPublic Or If hSymbol.IsHidden Then Continue
       If hSymbol.Class = sClass Then sComp = "<u>" & sComp & "</u>"
@@ -681,7 +732,7 @@ Public Sub GetHelpHTML() As String
   
   If hClassInfo.Creatable And If cClassSymbols.Exist("_new") Then 
     hSymbol = cClassSymbols["_new"]
-   sInfo &= Subst(("This class is &1."), GetSymbolLink(hSymbol, ("creatable"))) & "<br>"
+   sInfo &= Subst(("This class is &1."), GetLocalSymbolLink(hSymbol, ("creatable"))) & "<br>"
   Else If hClassInfo.Creatable And If bHasDynamicVariable Then
    sInfo &= Subst(("This class is &1."), ("creatable")) & "<br>"
   Else
@@ -694,22 +745,22 @@ Public Sub GetHelpHTML() As String
   
   hSymbol = cClassSymbols["_call"]
   If hSymbol Then
-    sInfo &= Subst(("This class can be used as a &1."), GetSymbolLink(hSymbol, ("function"))) & "<br>"
+    sInfo &= Subst(("This class can be used as a &1."), GetLocalSymbolLink(hSymbol, ("function"))) & "<br>"
   Endif
   
   If cClassSymbols.Exist("_put") Then
     If cClassSymbols.Exist("_get") Then
-      sInfo &= Subst(("This class acts like a &1 / &2 array."), GetSymbolLink(cClassSymbols["_get"], ("read")), GetSymbolLink(cClassSymbols["_put"], ("write"))) & "<br>"
+      sInfo &= Subst(("This class acts like a &1 / &2 array."), GetLocalSymbolLink(cClassSymbols["_get"], ("read")), GetLocalSymbolLink(cClassSymbols["_put"], ("write"))) & "<br>"
     Else
-      sInfo &= Subst(("This class acts like a &1 array."), GetSymbolLink(cClassSymbols["_put"], ("write-only"))) & "<br>"
+      sInfo &= Subst(("This class acts like a &1 array."), GetLocalSymbolLink(cClassSymbols["_put"], ("write-only"))) & "<br>"
     Endif
   Else If cClassSymbols.Exist("_get") Then
-    sInfo &= Subst(("This class acts like a &1 array."), GetSymbolLink(cClassSymbols["_get"], ("read-only"))) & "<br>"
+    sInfo &= Subst(("This class acts like a &1 array."), GetLocalSymbolLink(cClassSymbols["_get"], ("read-only"))) & "<br>"
   Endif
   
   hSymbol = cClassSymbols["_next"]
   If hSymbol Then
-    sInfo &= Subst(("This class is &1 with the FOR EACH keyword."), GetSymbolLink(hSymbol, ("enumerable"))) & "<br>"
+    sInfo &= Subst(("This class is &1 with the FOR EACH keyword."), GetLocalSymbolLink(hSymbol, ("enumerable"))) & "<br>"
   Endif
   
   If Not Component Or If Component = CComponent.PROJECT_NAME Then sWhere = "gambas://project/" & sClass & "?showfile"
@@ -736,33 +787,294 @@ Public Sub IsDeprecated() As Boolean
 End
 
 
-Private Function GetSymbolType(aSym As String[]) As String
+' Private Function GetSymbolType(aSym As String[]) As String
+' 
+'   Dim sRes As String
+'   Dim hSym As CSymbolInfo
+'   Dim sName As String
+'   Dim sTitle As String
+' 
+'   If aSym.Count = 0 Then Return
+' 
+'   For Each sName In aSym
+'     hSym = Symbols[sName]
+'     sName = Replace(sName, ":", ".")
+'     sTitle = sName
+'     If hSym.IsEvent Then sTitle = Mid$(sTitle, 2)
+'     If hSym.Class <> Name Or If hSym.Component <> Component Then
+'       sRes &= "[" & sTitle & "](/comp" &/ LCase(hSym.Component &/ hSym.Class &/ sName) & ")&nbsp;&nbsp;\n"
+'     Else If hSym.Class <> Wiki.Class Or If hSym.Component <> Wiki.Component Then
+'       sRes &= "<span class=\"inherit\">~[" & sTitle & "](/comp" &/ LCase(hSym.Component &/ hSym.Class &/ sName) & ")~</span>&nbsp;&nbsp;\n"
+'     Else
+'       sRes &= "<span class=\"inherit\">~[" & sTitle & "](./" & LCase(sName) & ")~</span>&nbsp;&nbsp;\n"
+'     Endif
+'   Next
+' 
+'   Return sRes
+' 
+' End
 
-  Dim sRes As String
-  Dim hSym As CSymbolInfo
-  Dim sName As String
-  Dim sTitle As String
 
-  If aSym.Count = 0 Then Return
+' Private Function OldWikiGetSymbols() As String[]
+' 
+'   Dim aResult As New String[]
+'   Dim sSymbol As String
+'   Dim cSymbol As New Collection
+'   Dim hSym As CSymbolInfo
+'   Dim bDynamic As Boolean
+'   Dim bStatic As Boolean
+'   Dim sBreak As String
+'   Dim sPrefix As String = ""
+'   Dim aArray As String[]
+'   Dim bHasSymbols As Boolean
+'   Dim bHasDynamicVariable As Boolean
+'   Dim sCreatable As String
+' 
+'   If Symbols.Count Then
+' 
+'     For Each sSymbol In ["P", "C", "M", "p", "e", "m"]
+'       cSymbol[sSymbol] = New String[]
+'       cSymbol[">" & sSymbol] = New String[]
+'     Next
+' 
+'     For Each hSym In Symbols
+'       If hSym.IsHidden Then Continue
+'       If Right$(hSym.Name) = "$" Then Continue
+' 
+'       bHasSymbols = True
+' 
+'       Select Case hSym.Kind
+'         Case "r", "p", "v"
+'           cSymbol[sPrefix & "p"].Add(hSym.Name)
+'           If hSym.Kind = "v" Then bHasDynamicVariable = True
+'         Case "R", "P", "V"
+'           cSymbol[sPrefix & "P"].Add(hSym.Name)
+'         Case "C"
+'           cSymbol[sPrefix & "C"].Add(hSym.Name)
+'         Case ":", "e", "E"
+'           hSym.Kind = "e"
+'           cSymbol[sPrefix & "e"].Add(hSym.Name)
+'         Case "m"
+'           cSymbol[sPrefix & "m"].Add(hSym.Name)
+'         Case "M"
+'           cSymbol[sPrefix & "M"].Add(hSym.Name)
+'         Default
+'           Print hSym.Kind; " ?"
+'       End Select
+'       'IF InStr("rpm", hSym.Kind) THEN bDynamic = TRUE
+'       If hSym.IsStatic Then
+'         'If bParent Then
+'         '  bParentStatic = True
+'         'Else
+'           bStatic = True
+'         'Endif
+'       Else
+'         'If bParent Then
+'         '  bParentDynamic = True
+'         'Else
+'           bDynamic = True
+'         'Endif
+'       Endif
+'     Next
+' 
+'     For Each aArray In cSymbol
+'       aArray.Sort
+'     Next
+' 
+'   Endif
+' 
+'   'aResult.Add("### Symbols")
+'   aResult.Add("[[ desc")
+'   aResult.Add("==")
+'   
+'   sBreak = "\\\n"
+' 
+'   If Parent Then
+'     
+'     If Parent = Name Then
+'       aResult.Add(("This class reimplements"))
+'     Else
+'       aResult.Add(("This class inherits"))
+'     Endif
+' 
+'     'sRes = sRes & " " & GetLink("/comp" &/ $hClass.ParentComponent &/ $hClass.Parent,,, "arrow")
+'     aResult.Add("[/comp" &/ ParentComponent &/ LCase(Parent) & "]")
+' 
+'     If ParentComponent <> Component Then
+'       aResult.Add(Subst(("in &1"), "[/comp" &/ ParentComponent & "]"))
+'     Endif
+'     
+'     aResult[aResult.Max] &= ".\\"
+'     
+'   Endif
+'   
+'   If IsVirtual() Then
+'     aResult.Add(("This class is virtual.") & "\\")
+'   Else If AutoCreatable Then
+'     aResult.Add(("This class can be used like an object by creating a hidden instance on demand.") & "\\")
+'   Endif
+' 
+'   sCreatable = ""
+'   
+'   If Creatable And If Not IsVirtual() Then
+'     If Symbols.Exist("_new") Then
+'       'GetSymbolLink($hClass.Symbols["_new"], $hClass, ("creatable"))) & sBreak
+'       sCreatable = Subst(("This class is &1."), GetSymbolLink("_new", ("creatable"))) & "\\"
+'     Else 
+'       sCreatable = Subst(("This class is &1."), ("creatable")) & "\\"
+'     Endif
+'   Endif
+'   
+'   If Not sCreatable Then
+'     If Not bDynamic Then
+'       sCreatable = ("This class is static.") & "\\"
+'     Else
+'       sCreatable = ("This class is not creatable.") & "\\"
+'     Endif
+'   Endif
+'   
+'   aResult.Add(sCreatable)
+' 
+'   If Symbols.Exist("_call") Then
+'     aResult.Add(Subst(("This class can be used as a &1."), GetSymbolLink("_call", ("function"), ("static function"))) & "\\")
+'   Endif
+' 
+'   hSym = Symbols["_get"]
+'   If hSym Then
+'     If hSym.IsStatic Then
+'       If Symbols.Exist("_put") Then
+'         aResult.Add(Subst(("This class acts like a &1 / &2 static array."), GetSymbolLink("_get", ("read")), GetSymbolLink("_put", ("write"))) & "\\")
+'       Else
+'         aResult.Add(Subst(("This class acts like a &1 static array."), GetSymbolLink("_get", ("read-only"))) & "\\")
+'       Endif
+'     Else
+'       If Symbols.Exist("_put") Then
+'         aResult.Add(Subst(("This class acts like a &1 / &2 array."), GetSymbolLink("_get", ("read")), GetSymbolLink("_put", ("write"))) & "\\")
+'       Else
+'         aResult.Add(Subst(("This class acts like a &1 array."), GetSymbolLink("_get", ("read-only"))) & "\\")
+'       Endif
+'     Endif
+'   Endif
+' 
+'   If Symbols.Exist("_next") Then
+'     aResult.Add(Subst(("This class is &1 with the &2 keyword."), GetSymbolLink("_next", ("enumerable"), ("statically enumerable")), "[/lang/foreach]") & "\\")
+'   Endif
+' 
+'   'If aResult[aResult.Max] <> "==" And If bHasSymbols Then aResult.Add("==")
+'   'If bHasSymbols Then aResult.Add("\\")
+' 
+'   If bStatic Then
+' 
+'     aResult.Add("[[ symbols")
+'     If cSymbol["P"].Count Then aResult.Insert([Replace(("Static properties"), " ", "&nbsp;"), "--"])
+'     If cSymbol["M"].Count Then aResult.Insert([Replace(("Static methods"), " ", "&nbsp;"), "--"])
+'     'IF cSymbol["E"].Count THEN sRes = sRes & "<td align=left><b>" & ("Events") & "</b></td>" & sSpace & "\n"
+'     If cSymbol["C"].Count Then aResult.Insert([("Constants"), "--"])
+'     aResult[aResult.Max] = "=="
+'     
+'     If cSymbol["P"].Count Then 
+'       aResult.Add(GetSymbolType(cSymbol["P"]))
+'       aResult.Add("--")
+'     Endif
+'     
+'     If cSymbol["M"].Count Then         
+'       aResult.Add(GetSymbolType(cSymbol["M"]))
+'       aResult.Add("--")
+'     Endif
+'     
+'     If cSymbol["C"].Count Then 
+'       aResult.Add(GetSymbolType(cSymbol["C"]))
+'       aResult.Add("--")
+'     Endif
+'     aResult[aResult.Max] = "]]"
+' 
+'   Endif
+' 
+'   If bDynamic Then
+' 
+'     aResult.Add("[[ symbols")
+'     If cSymbol["p"].Count Then aResult.Insert([("Properties"), "--"])
+'     If cSymbol["m"].Count Then aResult.Insert([("Methods"), "--"])
+'     If cSymbol["e"].Count Then aResult.Insert([("Events"), "--"])
+'     aResult[aResult.Max] = "=="
+'     
+'     If cSymbol["p"].Count Then 
+'       aResult.Add(GetSymbolType(cSymbol["p"]))
+'       aResult.Add("--")
+'     Endif
+'     
+'     If cSymbol["m"].Count Then         
+'       aResult.Add(GetSymbolType(cSymbol["m"]))
+'       aResult.Add("--")
+'     Endif
+'     
+'     If cSymbol["e"].Count Then 
+'       aResult.Add(GetSymbolType(cSymbol["e"]))
+'       aResult.Add("--")
+'     Endif
+'     aResult[aResult.Max] = "]]"
+' 
+'   Endif
+'   
+'   aResult.Add("]]")
+'   Return aResult
+' 
+' Catch
+' 
+'   Return ["`" & Error.Where & ": " & Error.Text & "`"]
+' 
+' End
 
-  For Each sName In aSym
-    hSym = Symbols[sName]
-    sName = Replace(sName, ":", ".")
-    sTitle = sName
-    If hSym.IsEvent Then sTitle = Mid$(sTitle, 2)
-    If hSym.Class <> Name Or If hSym.Component <> Component Then
-      sRes &= "[" & sTitle & "](/comp" &/ LCase(hSym.Component &/ hSym.Class &/ sName) & ")&nbsp;&nbsp;\n"
-    Else If hSym.Class <> Wiki.Class Or If hSym.Component <> Wiki.Component Then
-      sRes &= "<span class=\"inherit\">~[" & sTitle & "](/comp" &/ LCase(hSym.Component &/ hSym.Class &/ sName) & ")~</span>&nbsp;&nbsp;\n"
-    Else
-      sRes &= "<span class=\"inherit\">~[" & sTitle & "](./" & LCase(sName) & ")~</span>&nbsp;&nbsp;\n"
-    Endif
-  Next
+Private Sub IsSymbolInherited(sName As String) As Boolean
 
-  Return sRes
-
+  Dim hSym As CSymbolInfo = Symbols[sName]
+  If hSym.Class <> Name Or If hSym.Component <> Component Then Return True
+  
 End
 
+Private Function AddSymbols(sTitle As String, sInheritTitle As String, aResult As String[], aSym As String[])
+
+  Dim sName As String
+  Dim bTitle As Boolean
+
+  For Each sName In aSym
+    
+    If IsSymbolInherited(sName) Then Continue
+    If Not bTitle Then
+      bTitle = True
+      aResult.Add("")
+      aResult.Add("**" & sTitle & "**")
+      aResult.Add("[[ symbols table")
+    Endif
+    aResult.Add("==")
+    aResult.Add(GetSymbolLink(sName))
+    aResult.Add("--")
+    aResult.Add($sLastDesc)
+    
+  Next
+
+  If bTitle Then aResult.Add("]]")
+
+  bTitle = False
+  For Each sName In aSym
+    
+    If Not IsSymbolInherited(sName) Then Continue
+    If Not bTitle Then
+      bTitle = True
+      aResult.Add("")
+      aResult.Add("<div class=\"inherited-title\">" & sInheritTitle & "</div>")
+      aResult.Add("[[ symbols table inherited")
+    Endif
+    aResult.Add("==")
+    aResult.Add(GetSymbolLink(sName))
+    aResult.Add("--")
+    aResult.Add($sLastDesc)
+    
+  Next
+
+  If bTitle Then aResult.Add("]]")
+
+End
 
 Public Function WikiGetSymbols() As String[]
 
@@ -772,7 +1084,6 @@ Public Function WikiGetSymbols() As String[]
   Dim hSym As CSymbolInfo
   Dim bDynamic As Boolean
   Dim bStatic As Boolean
-  Dim sBreak As String
   Dim sPrefix As String = ""
   Dim aArray As String[]
   Dim bHasSymbols As Boolean
@@ -832,12 +1143,14 @@ Public Function WikiGetSymbols() As String[]
 
   Endif
 
-  'aResult.Add("### Symbols")
-  aResult.Add("[[ desc")
-  aResult.Add("==")
+  'aResult.Add("### " & ("S"))
+  'aResult.Add("[[ desc")
+  'aResult.Add("==")
   
-  sBreak = "\\\n"
-
+  'aResult.Add("[[ symbols")
+  
+  aResult.Add("[[ desc")
+  
   If Parent Then
     
     If Parent = Name Then
@@ -853,119 +1166,82 @@ Public Function WikiGetSymbols() As String[]
       aResult.Add(Subst(("in &1"), "[/comp" &/ ParentComponent & "]"))
     Endif
     
-    aResult[aResult.Max] &= ".\\"
+    aResult[aResult.Max] &= "."
+    aResult.Add("")
     
   Endif
   
   If IsVirtual() Then
-    aResult.Add(("This class is virtual.") & "\\")
+    aResult.Add(("This class is virtual."))
   Else If AutoCreatable Then
-    aResult.Add(("This class can be used like an object by creating a hidden instance on demand.") & "\\")
+    aResult.Add(("This class can be used like an object by creating a hidden instance on demand."))
   Endif
+  aResult.Add("")
 
   sCreatable = ""
   
-  If Creatable And If Not IsVirtual() Then
+  If Creatable And If Not IsVirtual() And If bDynamic Then
     If Symbols.Exist("_new") Then
       'GetSymbolLink($hClass.Symbols["_new"], $hClass, ("creatable"))) & sBreak
-      sCreatable = Subst(("This class is &1."), Wiki.GetSymbolLink(Me, "_new", ("creatable"))) & "\\"
+      sCreatable = Subst(("This class is &1."), GetSymbolLink("_new", ("creatable")))
     Else 
-      sCreatable = Subst(("This class is &1."), ("creatable")) & "\\"
+      sCreatable = Subst(("This class is &1."), ("creatable"))
     Endif
   Endif
   
   If Not sCreatable Then
     If Not bDynamic Then
-      sCreatable = ("This class is static.") & "\\"
+      sCreatable = ("This class is static.")
     Else
-      sCreatable = ("This class is not creatable.") & "\\"
+      sCreatable = ("This class is not creatable.")
     Endif
   Endif
   
   aResult.Add(sCreatable)
+  aResult.Add("")
 
   If Symbols.Exist("_call") Then
-    aResult.Add(Subst(("This class can be used as a &1."), Wiki.GetSymbolLink(Me, "_call", ("function"), ("static function"))) & "\\")
+    aResult.Add(Subst(("This class can be used as a &1."), GetSymbolLink("_call", ("function"), ("static function"))))
+    aResult.Add("")
   Endif
 
   hSym = Symbols["_get"]
   If hSym Then
     If hSym.IsStatic Then
       If Symbols.Exist("_put") Then
-        aResult.Add(Subst(("This class acts like a &1 / &2 static array."), Wiki.GetSymbolLink(Me, "_get", ("read")), Wiki.GetSymbolLink(Me, "_put", ("write"))) & "\\")
+        aResult.Add(Subst(("This class acts like a &1 / &2 static array."), GetSymbolLink("_get", ("read")), GetSymbolLink("_put", ("write"))))
       Else
-        aResult.Add(Subst(("This class acts like a &1 static array."), Wiki.GetSymbolLink(Me, "_get", ("read-only"))) & "\\")
+        aResult.Add(Subst(("This class acts like a &1 static array."), GetSymbolLink("_get", ("read-only"))))
       Endif
     Else
       If Symbols.Exist("_put") Then
-        aResult.Add(Subst(("This class acts like a &1 / &2 array."), Wiki.GetSymbolLink(Me, "_get", ("read")), Wiki.GetSymbolLink(Me, "_put", ("write"))) & "\\")
+        aResult.Add(Subst(("This class acts like a &1 / &2 array."), GetSymbolLink("_get", ("read")), GetSymbolLink("_put", ("write"))))
       Else
-        aResult.Add(Subst(("This class acts like a &1 array."), Wiki.GetSymbolLink(Me, "_get", ("read-only"))) & "\\")
+        aResult.Add(Subst(("This class acts like a &1 array."), GetSymbolLink("_get", ("read-only"))))
       Endif
     Endif
+    aResult.Add("")
   Endif
 
   If Symbols.Exist("_next") Then
-    aResult.Add(Subst(("This class is &1 with the &2 keyword."), Wiki.GetSymbolLink(Me, "_next", ("enumerable"), ("statically enumerable")), "[/lang/foreach]") & "\\")
+    aResult.Add(Subst(("This class is &1 with the &2 keyword."), GetSymbolLink("_next", ("enumerable"), ("statically enumerable")), "[/lang/foreach]"))
+    aResult.Add("")
   Endif
 
-  'If aResult[aResult.Max] <> "==" And If bHasSymbols Then aResult.Add("==")
-  'If bHasSymbols Then aResult.Add("\\")
-
-  If bStatic Then
-
-    aResult.Add("[[ symbols")
-    If cSymbol["P"].Count Then aResult.Insert([Replace(("Static properties"), " ", "&nbsp;"), "--"])
-    If cSymbol["M"].Count Then aResult.Insert([Replace(("Static methods"), " ", "&nbsp;"), "--"])
-    'IF cSymbol["E"].Count THEN sRes = sRes & "<td align=left><b>" & ("Events") & "</b></td>" & sSpace & "\n"
-    If cSymbol["C"].Count Then aResult.Insert([("Constants"), "--"])
-    aResult[aResult.Max] = "=="
-    
-    If cSymbol["P"].Count Then 
-      aResult.Add(GetSymbolType(cSymbol["P"]))
-      aResult.Add("--")
-    Endif
-    
-    If cSymbol["M"].Count Then         
-      aResult.Add(GetSymbolType(cSymbol["M"]))
-      aResult.Add("--")
-    Endif
-    
-    If cSymbol["C"].Count Then 
-      aResult.Add(GetSymbolType(cSymbol["C"]))
-      aResult.Add("--")
-    Endif
+  If aResult[aResult.Max] Begins "[[" Then
+    aResult.Pop()
+  Else
     aResult[aResult.Max] = "]]"
-
   Endif
 
-  If bDynamic Then
-
-    aResult.Add("[[ symbols")
-    If cSymbol["p"].Count Then aResult.Insert([("Properties"), "--"])
-    If cSymbol["m"].Count Then aResult.Insert([("Methods"), "--"])
-    If cSymbol["e"].Count Then aResult.Insert([("Events"), "--"])
-    aResult[aResult.Max] = "=="
-    
-    If cSymbol["p"].Count Then 
-      aResult.Add(GetSymbolType(cSymbol["p"]))
-      aResult.Add("--")
-    Endif
-    
-    If cSymbol["m"].Count Then         
-      aResult.Add(GetSymbolType(cSymbol["m"]))
-      aResult.Add("--")
-    Endif
-    
-    If cSymbol["e"].Count Then 
-      aResult.Add(GetSymbolType(cSymbol["e"]))
-      aResult.Add("--")
-    Endif
-    aResult[aResult.Max] = "]]"
-
-  Endif
+  AddSymbols(("Constants"), ("Inherited constants"), aResult, cSymbol["C"])
+  AddSymbols(("Static properties"), ("Inherited static properties"), aResult, cSymbol["P"])
+  AddSymbols(("Static methods"), ("Inherited static methods"), aResult, cSymbol["M"])
+  AddSymbols(("Properties"), ("Inherited properties"), aResult, cSymbol["p"])
+  AddSymbols(("Methods"), ("Inherited methods"), aResult, cSymbol["m"])
+  AddSymbols(("Events"), ("Inherited events"), aResult, cSymbol["e"])
   
-  aResult.Add("]]")
+  'aResult.Add("]]")
   Return aResult
 
 Catch
@@ -973,6 +1249,7 @@ Catch
   Return ["`" & Error.Where & ": " & Error.Text & "`"]
 
 End
+
 
 
 Public Sub AddSymbol(hSym As CSymbolInfo)

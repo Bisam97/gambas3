@@ -1,0 +1,28 @@
+$(IDENT)=[a-zA-Z0-9-:]+
+doctype{Doctype=Preprocessor}:
+  from <!DOCTYPE to >
+comment:
+  from <!-- to -->
+entity{Entity=Function}:
+  match /&[A-Za-z]+;/
+  match /&#[0-9]+;/
+javascript{Markup}:
+  from /<script.*?(type=["']text/javascript['"])?.*?>/ to </script> with javascript
+css{Markup}:
+  from /<style.*?(type=["']text/css['"])?.*?>/ to </style> with css
+markup{Markup=Keyword}:
+  from /<$(IDENT)/ to //?>/
+  attribute{Attribute=Datatype}:
+    match /$(IDENT)/
+  equal{Normal}:
+    symbol =
+  value{Value=String}:
+    from " to "
+    from ' to '
+    string.entity{Entity}:
+      match /&[A-Za-z]+;/
+      match /&#[0-9]+;/
+  value.unquoted{Value}:
+    match /[^"'`=<>\s]+/
+markup.close{Markup}:
+  match /</$(IDENT)\s*>/
