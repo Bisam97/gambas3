@@ -5,27 +5,15 @@ Private $aList As String[]
 Private $sFind As String
 Private $hCombo As ComboBox
 
-Public Sub Open(aList As String[], iIndex As Integer, hCtrl As ComboBox) As Integer
-  
-  Dim iRow As Integer
+Public Sub UpdateComboSize()
+
+  Dim W, H As Integer
   Dim WM As Integer
-  Dim X, Y, W, H As Integer
-  Dim hScreen As Screen
-  
-  hScreen = Screens[hCtrl.Window.Screen]
-  
-  $aList = aList
   
   Me.Arrangement = Arrange.None
   
-  gvwPopup.Rows.Count = aList.Count
-  gvwPopup.Columns.Count = 1
-  'gvwPopup.Columns[0].Expand = True
-  gvwPopup.Columns[0].W = -1
-  
-  W = hCtrl.W - Style.FrameWidth * 2
-  X = hCtrl.ScreenX + Style.FrameWidth
-  
+  gvwPopup.Rows.Count = $aList.Count
+  W = $hCombo.W - Style.FrameWidth * 2
   WM = gvwPopup.Columns[0].W + 2
   If $aList.Count > MAX_ITEMS Then WM += Style.ScrollbarSize
   
@@ -34,9 +22,32 @@ Public Sub Open(aList As String[], iIndex As Integer, hCtrl As ComboBox) As Inte
   
   Me.Arrangement = Arrange.Fill
   
-  W = Min(W, hScreen.AvailableWidth)
+  W = Min(W, Screens[$hCombo.Window.Screen].AvailableWidth)
   
   Me.Resize(W, H)
+  
+  gvwPopup.Refresh
+  
+End
+
+Public Sub Open(aList As String[], iIndex As Integer, hCtrl As ComboBox) As Integer
+  
+  Dim iRow As Integer
+  Dim X, Y, W, H As Integer
+  Dim hScreen As Screen
+  
+  hScreen = Screens[hCtrl.Window.Screen]
+  
+  $aList = aList
+  
+  gvwPopup.Columns.Count = 1
+  'gvwPopup.Columns[0].Expand = True
+  gvwPopup.Columns[0].W = -1
+  
+  $hCombo = hCtrl
+  UpdateComboSize()
+  
+  X = hCtrl.ScreenX + Style.FrameWidth
   
   If hCtrl.ScreenY + hCtrl.H + H > hScreen.AvailableHeight Then 
     Y = hCtrl.ScreenY - H
@@ -44,12 +55,14 @@ Public Sub Open(aList As String[], iIndex As Integer, hCtrl As ComboBox) As Inte
     Y = hCtrl.ScreenY + hCtrl.H
   Endif
   
+  W = Me.W
+  H = Me.H
+  
   If X + W > hScreen.AvailableX + hScreen.AvailableWidth Then X = hScreen.AvailableX + hScreen.AvailableWidth - W
   If X < hScreen.AvailableX Then X = hScreen.AvailableX
   
   Try gvwPopup.Row = iIndex
   
-  $hCombo = hCtrl
   iRow = Me.ShowPopup(X, Y) - 1
   $hCombo = Null
   
@@ -61,7 +74,8 @@ End
 
 Public Sub gvwPopup_Data(Row As Integer, (Column) As Integer)
 
-  gvwPopup.Data.Text = $aList[Row]
+  Try gvwPopup.Data.Text = $aList[Row]
+  If gvwPopup.Rows.Count <> $aList.Count Then UpdateComboSize
 
 End
 
