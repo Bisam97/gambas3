@@ -1311,7 +1311,7 @@ Public Sub ScrollArea_MouseDown()
   
   If $bInCell Then
     
-  Else If Mouse.X < $hRows.Width And If Mouse.Y > $hColumns.H Then
+  Else If Mouse.X < $hRows.Width And If Mouse.Y > $hColumns.H Then ' FIXME: and for RTL layout?
     I = $hRows._FindRowFromPos(Mouse.Y - $hColumns.Height + $hView.ScrollY)
     If I >= 0 Then 
       Raise RowClick(I)
@@ -1795,6 +1795,8 @@ Private Sub MoveToRelative(DR As Integer, DC As Integer) As Boolean
   Dim iRow As Integer
   Dim iCol As Integer
 
+  If DC = 0 And If Not Me[$iRow, $iCol].Visible Then MoveToRelative(0, 1)
+  
   iRow = $iRow + DR
   iCol = $iCol + DC
   
@@ -1812,13 +1814,11 @@ Private Sub MoveToRelative(DR As Integer, DC As Integer) As Boolean
       Continue
     Endif
     
-    With Me[iRow, iCol]
-      If .W <= 0 Or If .H <= 0 Then
-        iRow += DR
-        iCol += DC
-        Continue
-      Endif
-    End With
+    If Not Me[iRow, iCol].Visible Then
+      iRow += DR
+      iCol += DC
+      Continue
+    Endif
     
     Break
     

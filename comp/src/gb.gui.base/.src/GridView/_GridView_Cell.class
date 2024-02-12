@@ -16,6 +16,7 @@ Property Padding As Integer
 Property RowSpan As Integer
 Property ColumnSpan As Integer
 Property Border As Border
+Property Read Visible As Boolean
 
 '' @{since 3.16}
 ''
@@ -268,5 +269,11 @@ End
 Private Sub Tag_Write(Value As Variant)
 
   GetData(True).Tag = Value
+
+End
+
+Private Function Visible_Read() As Boolean
+
+  If Width_Read() > 0 And If Height_Read() > 0 Then Return True
 
 End
