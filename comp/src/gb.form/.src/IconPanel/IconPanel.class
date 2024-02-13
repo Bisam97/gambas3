@@ -16,6 +16,7 @@ Property Text As String
 Property Picture As Picture
 Property TextFont As Font
 Property Border As Boolean
+Property Background As Integer
 
 Private $hView As GridView
 Private $aCont As New _IconPanelContainer[]
@@ -36,15 +37,14 @@ Public Sub _new()
   $hBorder.Arrangement = Arrange.Horizontal
 
   $hView = New GridView($hBorder) As "View"
-  '$hView.Orientation = Arrange.Horizontal
-  '$hView.IconLines = 2
   $hView.Width = Desktop.Scale * MIN_WIDTH_PANEL
   $hView.Mouse = Mouse.Pointing
   $hView.Columns.Count = 1
   $hView.Mode = Select.Single
   $hView.Grid = False
   $hView.Border = False
-  '$hView.ScrollBar = Scroll.None
+  $hView._DoNotDrawSelection = True
+  $hView.Background = Color.Background
   
   $hSep = New Separator($hBorder)
   $hSep.W = 1
@@ -79,10 +79,13 @@ Public Sub _UpdateIconViewWidth()
   Dim hPict As Picture
   Dim hCont As _IconPanelContainer
   Dim sRichText As String
+  Dim DS As Integer
   
   $iIconSize = ((($hView.Font.Height * 3) \ 2 + 7) \ 8) * 8
 
-  W = Desktop.Scale * MIN_WIDTH_PANEL
+  DS = Desktop.Scale
+  W = DS * MIN_WIDTH_PANEL
+  $hView.Padding = DS \ 2
   
   For iInd = 0 To $aCont.Max
     
@@ -90,13 +93,14 @@ Public Sub _UpdateIconViewWidth()
     
     sRichText = hCont.RichText
     If sRichText Then
-      WC = $hView.Font.RichTextWidth(sRichText) + Desktop.Scale * 4
+      WC = $hView.Font.RichTextWidth(sRichText)
     Else
-      WC = $hView.Font.TextWidth(hCont.Text) + Desktop.Scale * 4
+      WC = $hView.Font.TextWidth(hCont.Text)
     Endif
+    WC += DS * 4 + $hView.Padding * 2
     hPict = hCont.Picture
 
-    If hPict Then WC += $iIconSize * Max(1, hPict.Width / hPict.Height) + Desktop.Scale
+    If hPict Then WC += $iIconSize * Max(1, hPict.Width / hPict.Height) + DS
     W = Max(W, WC)
     
     H = Max(H, $hView.Font.TextHeight(hCont.Text))
@@ -104,7 +108,7 @@ Public Sub _UpdateIconViewWidth()
     
   Next
   
-  $hView.Rows.H = H + Desktop.Scale * 2
+  $hView.Rows.H = H + DS * 2
   
   If $hView.ScrollH > ($hView.ClientH + Style.FrameWidth * 2) Then W += Style.ScrollbarSize + Style.ScrollbarSpacing
   
@@ -243,7 +247,7 @@ End
 
 Public Sub View_Font()
 
-  _UpdateIconViewWidth
+  _UpdateIconViewWidth()
 
 End
 
@@ -255,7 +259,8 @@ End
 
 Private Sub Border_Write(bBorder As Boolean)
 
-  $hView.Border = If(bBorder, Border.Plain, Border.None)
+  '$hView.Border = If(bBorder, Border.Plain, Border.None)
+  $hPanel.Border = If(bBorder, Border.Plain, Border.None)
   $hSep.Visible = Not bBorder
   $hBorder.Spacing = bBorder
 
@@ -372,23 +377,40 @@ End
 Public Sub View_Draw(X As Integer, Y As Integer, Width As Integer, Height As Integer, Row As Integer, (Column) As Integer)
 
   Dim hCont As _IconPanelContainer
-  Dim sRichText As String
+  Dim DS As Integer
+  Dim sText As String
   
   hCont = $aCont[Row]
   
-  X += Desktop.Scale
-  Width -= Desktop.Scale * 2
+  DS = Desktop.Scale
+  
+  If $iCurrent = Row Then
+    Paint.Save
+    Paint.Rectangle(X, Y, Width, Height, Height)
+    If $hView.HasFocus Then
+      Paint.Background = Color.SetAlpha(Color.SelectedBackground, 128)
+    Else
+      Paint.Background = Color.SetAlpha(Color.LightForeground, 128)
+    Endif
+    Paint.Fill
+    Paint.Restore
+  Endif
+  
+  X += DS * 2
+  Width -= DS * 4
   
   If hCont.Picture Then 
     Paint.DrawPicture(hCont.Picture, X, Y + (Height - $iIconSize) \ 2, $iIconSize, $iIconSize)
-    X += $iIconSize + Desktop.Scale
-    Width -= $iIconSize + Desktop.Scale
+    X += $iIconSize + DS
+    Width -= $iIconSize + DS
   Endif
   
-  sRichText = hCont.RichText
-  If sRichText Then
-    Paint.DrawRichText(sRichText, X, Y, Width, Height, Align.Normal)
+  sText = hCont.RichText
+  If sText Then
+    sText = Paint.TrimRichText(sText, Width)
+    Paint.DrawRichText(sText, X, Y, Width, Height, Align.Normal)
   Else
+    sText = Paint.TrimText(hCont.Text, Width)
     Paint.DrawText(hCont.Text, X, Y, Width, Height, Align.Normal)
   Endif
   
@@ -405,4 +427,21 @@ Public Sub FindPanel(Text As String) As Integer
   Next
   Return -1
   
+End
+
+Private Function Background_Read() As Integer
+
+  Return Super.Background
+
+End
+
+Private Sub Background_Write(Value As Integer)
+
+  Super.Background = Value
+  If Value = Color.Default Then
+    $hView.Background = Color.Background
+  Else
+    $hView.Background = Value
+  Endif
+
 End
