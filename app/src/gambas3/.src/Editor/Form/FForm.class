@@ -964,7 +964,7 @@ Public Sub Control_MouseDown()
   '  PRINT "X ="; X; " Y ="; Y
   'ENDIF
 
-  If Mouse.Left Or If Mouse.Right Then
+  If Mouse.Left Then
     
     If $sTool = "" Then
   
@@ -990,10 +990,7 @@ Public Sub Control_MouseDown()
           
         Else
   
-          If Not $hCurrent.Selected Then
-            UnselectAll
-          Endif
-  
+          If Not $hCurrent.Selected Then UnselectAll
           SelectCurrent(True)
   
         Endif
@@ -1014,23 +1011,18 @@ Public Sub Control_MouseDown()
       X = $iContX
       Y = $iContY
   
-      ' IF NOT $hCurrent.IsContainer() THEN
-      '   X = X + $hCurrent.Control.X + $hCurrent.Control.Parent.ClientX
-      '   Y = Y + $hCurrent.Control.Y + $hCurrent.Control.Parent.ClientY
-      '   $hCurrent = $hCurrent.Parent
-      '   IF $hCurrent.Kind = "ScrollView" THEN
-      '     X = X - $hCurrent.Control.ScrollX
-      '     Y = Y - $hCurrent.Control.ScrollY
-      '   ENDIF
-      ' ENDIF
-  
-      'Debug
       $iMode = MODE_CREATE
   
       $X = X
       $Y = Y
   
-      '$hCurrent = CreateControl(, $sTool, $hCurrent)
+    Endif
+    
+  Else
+    
+    If $hCurrent Then
+      If Not $hCurrent.Selected Then UnselectAll()
+      SelectCurrent(True)
     Endif
     
   Endif
