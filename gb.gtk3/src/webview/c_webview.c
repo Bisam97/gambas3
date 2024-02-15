@@ -469,7 +469,28 @@ BEGIN_METHOD_VOID(WebView_free)
 
 END_METHOD
 
+static void remove_file(const char *path)
+{
+	if (unlink(path))
+		rmdir(path);
+}
+
 BEGIN_METHOD_VOID(WebView_exit)
+
+	// Remove the hsts cache directory always created, whereas every widget and context are ephemeral!
+
+	WebKitWebContext *context = webkit_web_context_new();
+	gchar *dir;
+
+	g_object_get(webkit_web_context_get_website_data_manager(context), "hsts-cache-directory", &dir, NULL);
+
+	if (dir)
+	{
+		GB.BrowseDirectory(dir, NULL, remove_file);
+		rmdir(dir);
+	}
+
+	g_object_unref(context);
 
 	webkit_user_style_sheet_unref(_style_sheet);
 	_style_sheet = NULL;
@@ -734,7 +755,7 @@ GB_DESC WebViewDesc[] =
 
   GB_METHOD("_new", NULL, WebView_new, "(Parent)Container;"),
   GB_METHOD("_free", NULL, WebView_free, NULL),
-  GB_METHOD("_exit", NULL, WebView_exit, NULL),
+  GB_STATIC_METHOD("_exit", NULL, WebView_exit, NULL),
   
   GB_PROPERTY("Url", "s", WebView_Url),
 	GB_PROPERTY("Title", "s", WebView_Title),
