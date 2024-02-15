@@ -648,6 +648,8 @@ static void fill_field_info(DB_DATABASE *db, DB_FIELD *info, PGresult *res, int 
 		const char *coll = PQgetvalue(res, row, col + 5);
 		if (strcmp(coll, "default"))
 			info->collation = GB.NewZeroString(coll);
+		else
+			info->collation = NULL;
 	}
 }
 
