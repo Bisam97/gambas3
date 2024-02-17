@@ -131,7 +131,7 @@ bool REGEXP_match(const char *pattern, int len_pattern, const char *string, int 
 			{
 				for(;;)
 				{
-					if (cp == '-' && len_pattern > 1 && cb && cb != '-')
+					if (cp == '-' && len_pattern > 1 && *pattern != ']' && cb && cb != '-')
 					{
 						_next_pattern();
 						if (cb <= cs && cs <= cp)
