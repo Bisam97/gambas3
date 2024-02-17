@@ -79,6 +79,7 @@ End
 Public Sub GetInfo(sFile As String) As Stat
   
   Dim hInfo As Stat
+  Dim hInfoLink As Stat
   
   If CheckValid() Then Return
   
@@ -86,8 +87,18 @@ Public Sub GetInfo(sFile As String) As Stat
   hInfo = $cStat[sFile]
   If Not hInfo Then
     
-    'Debug sFile
+    $cIsDir[sFile] = False
     hInfo = Stat($sDir &/ sFile)
+    If hInfo.Type = gb.Link Then
+      Try hInfoLink = Stat($sDir &/ sFile, True)
+      If hInfoLink And If hInfoLink.Type = gb.Directory Then 
+        'hInfo = hInfoLink
+        $cIsDir[sFile] = True
+      Endif
+    Else If hInfo.Type = gb.Directory Then
+      $cIsDir[sFile] = True
+    Endif
+    
     $cStat[sFile] = hInfo
     
   Endif
@@ -101,13 +112,7 @@ Public Sub IsDir(sFile As String) As Boolean
   If CheckValid() Then Return
   
   If sFile = "" Then sFile = "/"
-
-  If Not $cIsDir.Exist(sFile) Then
-    
-    $cIsDir[sFile] = GetInfo(sFile).Type = gb.Directory
-    
-  Endif
-  
+  GetInfo(sFile)
   Return $cIsDir[sFile]
   
 End
