@@ -207,8 +207,17 @@ End
 
 Private Sub UpdatePopup()
 
-  If $hPopup Then $hPopup.UpdateComboSize()
+  If $hPopup Then $hPopup.UpdateComboSize($aList)
 
+End
+
+Private Sub SetIndex(iIndex As Integer)
+  
+  ' Error
+  ' Error System.Backtrace.Join(" ")
+  ' Debug Me.Name;; $iIndex; " -> "; iIndex
+  $iIndex = iIndex
+  
 End
 
 Private Sub Sort(Optional bForce As Boolean)
@@ -221,7 +230,9 @@ Private Sub Sort(Optional bForce As Boolean)
   If $bReadOnly Then sText = Text_Read()
   $aList.Sort(gb.Natural + gb.IgnoreCase)
   $bDirty = False
-  If $bReadOnly And If sText Then $iIndex = FindItem(sText)
+  If $bReadOnly And If sText Then
+    SetIndex(FindItem(sText))
+  Endif
   UpdatePopup()
   
 End
@@ -238,7 +249,7 @@ Private Sub ResetIndex()
   Me.Refresh
   If $bReadOnly And If $aList.Count And If $iIndex < 0 Then
     Sort()
-    $iIndex = 0
+    SetIndex(0)
     'Raise Click
   Endif
   
@@ -247,13 +258,15 @@ End
 Private Sub List_Write(Value As String[])
   
   $aList.Clear
-  $iIndex = -1
   $bDirty = False
   If Value Then
     $aList = Value.Copy()
     Sort(True)
-    ResetIndex
   Endif
+
+  SetIndex(-1)
+  ResetIndex
+
   UpdatePopup()
   
 End
@@ -283,7 +296,7 @@ Public Sub TextBox_LostFocus()
   
   iIndex = FindItem($hTextBox.Text)
   If iIndex <> $iIndex Then 
-    $iIndex = iIndex
+    SetIndex(iIndex)
     Raise Click
   Endif
   Me.Refresh
@@ -405,11 +418,11 @@ Private Sub Index_Write(Value As Integer)
   Sort()
   If $bReadOnly Then
     If $iIndex <> Value Then
-      $iIndex = Value
+      SetIndex(Value)
       Me.Refresh
     Endif
   Else 
-    $iIndex = Value
+    SetIndex(Value)
     Try sText = $aList[$iIndex]
     $hTextBox.Text = sText
   Endif
@@ -421,7 +434,7 @@ End
 Public Sub Clear()
   
   $aList.Clear
-  $iIndex = -1
+  SetIndex(-1)
   $bDirty = False
   If Not $bReadOnly Then $hTextBox.Clear
   Me.Refresh
@@ -447,7 +460,7 @@ Public Sub Remove(Index As Integer)
   If Index < 0 Or If Index >= $aList.Count Then Error.Raise("Bad argument")
   $aList.Remove(Index)
   If $iIndex = Index Then 
-    $iIndex = -1
+    SetIndex(-1)
     Me.Refresh
   Else If $iIndex > Index Then
     Dec $iIndex
@@ -479,7 +492,7 @@ Private Sub Text_Write(Value As String)
   
   iIndex = FindItem(Value)
   If iIndex <> $iIndex Then
-    $iIndex = iIndex
+    SetIndex(iIndex)
     If iIndex >= 0 Then Raise Click
   Endif
   
