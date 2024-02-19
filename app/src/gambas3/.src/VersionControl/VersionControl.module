@@ -75,6 +75,8 @@ End
 
 Public Sub Refresh()
 
+  If Not Project.Dir Then Return
+
   $hVC = CVersionControl
   $bEnabled = False
   
@@ -689,9 +691,13 @@ Public Sub RevertNotImportantFiles()
 
   Dim sFile As String
 
-  For Each sFile In [".icon.png", ".gitignore", ".version", ".app.png"]
-    $hVC.Revert(Project.Dir &/ sFile)
-  Next
+  If Settings["/VersionControl/RevertNotImportantFiles", 1] Then
+
+    For Each sFile In [".icon.png", ".gitignore", ".version", ".app.png"]
+      $hVC.Revert(Project.Dir &/ sFile)
+    Next
+    
+  Endif
 
 End
 
