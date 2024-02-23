@@ -329,7 +329,12 @@ static void trans_identifier(int index, bool point, PATTERN next)
 			else if (type == T_INTEGER)
 				CODE_push_number(constant->value);
 			else if (type == T_FLOAT && constant->is_integer)
-				CODE_push_float(constant->value);
+			{
+				if (COMP_version >= 0x03180000 && constant->value >= -128 && constant->value <= 127)
+					CODE_push_float(constant->value);
+				else
+					CODE_push_number(constant->value);
+			}
 			else
 				CODE_push_const(sym->global.value);
 			

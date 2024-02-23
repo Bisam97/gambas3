@@ -791,7 +791,7 @@ void TRANS_get_constant_value(TRANS_DECL *decl)
 					if (type == T_SINGLE && !finite((float)number.dval))
 						THROW("Out of range");
 					
-					if (COMP_version >= 0x03180000 && number.dval == (double)(int)number.dval && number.dval >= -128 && number.dval <= 127)
+					if (number.dval == (double)(int)number.dval && number.dval >= -8388608 && number.dval <= 8388607)
 					{
 						decl->is_integer = TRUE;
 						index = (int)number.dval;
