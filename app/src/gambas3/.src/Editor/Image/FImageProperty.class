@@ -1386,14 +1386,26 @@ Public Sub ShowGridOption(bShow As Boolean)
 
 End
 
-Public Sub RefreshTextOption()
+Public Sub RefreshTextOption(Optional hLast As Control)
   
   Dim iAlign As Integer
   Dim bAlignBase As Boolean
   Dim hCurrent As FImageEditor
+  Dim aCtrl As ToolButton[]
+  Dim hCtrl As ToolButton
   
   hCurrent = GetCurrent()
   If Not hCurrent Then Return
+  
+  If hLast Then
+  
+    aCtrl = [btnTextLeft, btnTextCenter, btnTextRight]
+    GoSub HANDLE_RADIO
+    
+    aCtrl = [btnTextTop, btnTextMiddle, btnTextBottom, btnTextBase]
+    GoSub HANDLE_RADIO
+    
+  Endif
   
   If btnTextLeft.Value Then
     iAlign = Align.Left
@@ -1414,6 +1426,20 @@ Public Sub RefreshTextOption()
   Endif
   
   hCurrent.UpdateText(txtText.Text, fchText.Value, iAlign, bAlignBase)
+  Return 
+  
+HANDLE_RADIO:
+
+  If Not aCtrl.Exist(hLast) Then Return
+  
+  For Each hCtrl In aCtrl
+    If hCtrl <> hLast Then
+      Object.Lock(hCtrl)
+      hCtrl.Value = False
+      Object.Unlock(hCtrl)
+    Endif
+  Next
+  Return
   
 End
 
@@ -1431,7 +1457,7 @@ End
 
 Public Sub btnTextAlign_Click()
 
-  RefreshTextOption
+  RefreshTextOption(Last)
 
 End
 
