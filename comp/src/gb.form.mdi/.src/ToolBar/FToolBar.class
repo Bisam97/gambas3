@@ -1451,7 +1451,7 @@ Public Sub GetLayout(Optional bReset As Boolean) As Variant
   Dim aConfig As String[]
   Dim aDefaultConfig As String[]
   
-  If Not bReset Then
+  If Not bReset And If Not $bReadOnly Then
     aConfig = GetCurrentConfig() 
     aDefaultConfig = GetDefaultConfig()
     If aConfig.Join(",") = aDefaultConfig.Join(",") Then aConfig = Null
@@ -1473,7 +1473,7 @@ Public Sub SetLayout(vLayout As Variant, Optional bInit As Boolean)
   MAction.InitAction
 
   sSize = vLayout[0]
-  aConfig = vLayout[1]
+  If Not $bReadOnly Then aConfig = vLayout[1]
   
   $iIconSize = StockToToolbarSize(sSize)
   $iButtonWidth = 12 + Max(Me.Font.Height * 0.8, GetRealIconSize())
