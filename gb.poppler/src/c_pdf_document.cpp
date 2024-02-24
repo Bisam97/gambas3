@@ -362,7 +362,7 @@ BEGIN_METHOD(PdfPage_Render, GB_INTEGER x; GB_INTEGER y; GB_INTEGER width; GB_IN
 	const char *data = NULL;
 	int rotation = VARGOPT(rotation, THIS->rotation);
 	int orientation = 0;
-	double res = VARGOPT(res, THIS->resolution);
+	double res = VARGOPT(res, -1);
 	int width, height;
 	int x, y, w, h;
 	double ww, hh;
@@ -388,6 +388,14 @@ BEGIN_METHOD(PdfPage_Render, GB_INTEGER x; GB_INTEGER y; GB_INTEGER width; GB_IN
 	}
 	
 	poppler_page_get_size(THIS->current, &ww, &hh);
+
+	if (res < 0)
+	{
+		if (MISSING(width) || MISSING(height))
+			res = THIS->resolution;
+		else
+			res = 72.0 * Max(VARG(width) / ww, VARG(height)/ hh);
+	}
 
 	//size = page->page_rect(poppler::media_box);
 	
