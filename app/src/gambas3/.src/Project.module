@@ -179,6 +179,7 @@ Private OUTPUT_FILE As String
 
 Public Browser As String
 Public ImageEditors As String[] = ["Gimp", "KIconEdit", "KolourPaint", "Krita"]
+
 Private IMAGE_EXT As String[] = ["jpg", "jpeg", "gif", "bmp", "xpm", "png", "tif", "tiff"]
 
 Private $aOldRefreshComponents As New String[]
@@ -4798,7 +4799,7 @@ End
 
 Public Function IsImagePath(sPath As String) As Boolean
 
-  Return IMAGE_EXT.Exist(File.Ext(sPath))
+  Return IMAGE_EXT.Exist(File.Ext(sPath), gb.IgnoreCase)
 
 End
 

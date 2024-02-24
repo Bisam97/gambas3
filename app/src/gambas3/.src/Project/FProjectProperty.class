@@ -47,6 +47,8 @@ Public Sub _new()
   
   splLibraries.MinSize = Desktop.Scale * 10
   
+  gvwStat.Padding = Desktop.Scale
+  
 End
 
 Public Sub Form_Close()
@@ -96,26 +98,10 @@ Public Sub Form_Open()
     cmbType.Index = .Type
     cmbDefaultLanguage.Text = MyLanguage.ToName(System.Language)
     Try cmbDefaultLanguage.Text = MyLanguage.ToName(Project.DefaultLanguage)
-    ' Select Case .Type
-    '   Case .TYPE_NORMAL
-    '     radTypeNormal.Value = True
-    '   Case .TYPE_LIBRARY
-    '     radTypeLibrary.Value = True
-    '   Case .TYPE_COMPONENT
-    '     radTypeComponent.Value = True
-    ' End Select
     $sIcon = .Icon
     UpdateIcon
     txtTabSize.Value = .TabSize
-    'cmbStackSize.Index = 0
-    'If .Stack Then cmbStackSize.Text = .Stack & " K"
-    'cmbStackTrace.Index = If(.StackTrace, 0, 1)
     chkGetVersionFromFile.Value = .VersionFile
-    'chkVersion.Value = NOT IsNull(.VersionProgram)
-    'cmbTerminal.Index = If(.UseTerminal, 0, 1)
-    'cmbRedirect.Index = If(.RedirectStderr, 0, 1)
-    'cmbProfile.Index = If(.Profiling, 0, 1)
-    'cmbHttpServer.Index = If(.UseHttpServer, 0, 1)
     txtLibraryPath.Text = .LibraryPath
     $aLibraries = .Libraries.Copy()
     $aComponents = .Components.Copy()
@@ -191,10 +177,6 @@ Private Function DoApply() As Boolean
     .Description = Trim(txtDesc.Text)
     .Authors = Trim(txtAuthor.Text)
     .Icon = $sIcon
-    '.Profiling = cmbProfile.Index = 0
-    '.UseTerminal = cmbTerminal.Index = 0
-    '.RedirectStderr = cmbRedirect.Index = 0
-    '.UseHttpServer = cmbHttpServer.Index = 0
     
     If .ControlPublic <> btnControlPublic.Value Or If .ModulePublic <> btnModulePublic.Value Then
       .ControlPublic = btnControlPublic.Value
@@ -800,29 +782,44 @@ Private Sub AddStat(sName As String, sValue As String)
   
 End
 
-Private Sub GetProjectDataSize(Optional sDir As String) As Long
+Private Sub GetProjectDataSize(cResult As Collection, Optional sDir As String)
 
   Dim sFile As String
   Dim iSize As Long
   Dim bProjectDir As Boolean
+  Dim sPath As String
+  Dim sType As String
 
   If Not sDir Then
     sDir = Project.Dir
     bProjectDir = True
   Endif
 
-  For Each sFile In Dir(sDir)
+  For Each sFile In Dir(sDir).Sort()
     If sFile Begins "." Or If sFile Ends "~" Then Continue
     If bProjectDir And If sFile Ends ".gambas" Then Continue
-    If IsDir(sFile) Then
-      iSize += GetProjectDataSize(sDir &/ sFile)
+    sPath = sDir &/ sFile
+    If IsDir(sPath) Then
+      GetProjectDataSize(cResult, sPath)
     Else
-      iSize += Stat(sDir &/ sFile, True).Size
+      iSize = Stat(sPath, True).Size
+      sType = DesktopMime.FromFile(sPath).Type
+      If sType Begins "image/" Then
+        cResult["image-size"] += iSize
+        Inc cResult["image-count"]
+      Else If sType Begins "audio/" Then
+        cResult["audio-size"] += iSize
+        Inc cResult["audio-count"]
+      Else If sType Begins "video/" Then
+        cResult["video-size"] += iSize
+        Inc cResult["video-count"]
+      Else
+        cResult["data-size"] += iSize
+        Inc cResult["data-count"]
+      Endif
     Endif
   Next
   
-  Return iSize
-
 End
 
 Private Sub UpdateStat()
@@ -831,6 +828,11 @@ Private Sub UpdateStat()
   Dim iSize As Long
   Dim nFunc As Integer
   Dim nLine As Integer
+  Dim cResult As Collection
+  Dim sType As String
+  Dim cTypeName As Collection
+  
+  Inc Application.Busy
   
   gvwStat.Columns.Count = 2
   gvwStat.Rows.Count = 0
@@ -854,11 +856,23 @@ Private Sub UpdateStat()
   Try iSize = Stat(Project.GetExecPath()).Size
   If iSize Then AddStat(("Executable size"), File.FormatSize(iSize, True))
 
-  iSize = GetProjectDataSize()
-  AddStat(("Data files size"), File.FormatSize(iSize, True))
-
+  cResult = New Collection
+  cResult.Default = CLong(0)
+  GetProjectDataSize(cResult)
+  
+  cTypeName = ["data": ("data files"), "image": ("image files"), "audio": ("audio files"), "video": ("video files")]
+  
+  For Each sType In ["data", "image", "audio", "video"]
+    If cResult[sType & "-count"] Then
+      AddStat(String.UCaseFirst(Subst(("&1 count"), cTypeName[sType])), Format(cResult[sType & "-count"], ",0"))
+      AddStat(String.UCaseFirst(Subst(("&1 size"), cTypeName[sType])), File.FormatSize(cResult[sType & "-size"], True))
+    Endif
+  Next
+  
   gvwStat.Columns[0].Width = -1
   gvwStat.Columns[0].Width += Desktop.Scale * 2
+  
+  Dec Application.Busy
   
 End
 
@@ -1142,73 +1156,6 @@ Public Sub gvwLibrary_Select()
   btnMoveUpLib.Enabled = btnRemoveLib.Enabled
   
 End
-
-' Public Sub btnNewArgument_Click()
-' 
-'   Dim aArg As String[]
-'   
-'   tbvArgument.Save
-' 
-'   aArg = New String[]
-'   $aArg.Add(aArg)
-' 
-'   tbvArgument.Rows.Count = $aArg.Count
-' 
-'   tbvArgument.Row = $aArg.Max
-'   tbvArgument.Edit
-' 
-' End
-' 
-' Public Sub tbvArgument_Click()
-' 
-'   btnMoveDownArg.Enabled = tbvArgument.Row >= 0 And tbvArgument.Row < $aArg.Max
-'   btnMoveUpArg.Enabled = tbvArgument.Row > 0
-'   tbvArgument.EditWith(txtArgument)
-'   $hComp = New FileCompletion(txtArgument)
-' 
-' End
-' 
-' Public Sub tbvArgument_Save(Row As Integer, (Column) As Integer, Value As String)
-' 
-'   $aArg[Row] = ArgumentFromString(Value)
-'   tbvArgument.Rows[Row].Height = -1
-'   
-' End
-' 
-' Public Sub tbvArgument_Hide()
-' 
-'   btnMoveDownArg.Enabled = False
-'   btnMoveUpArg.Enabled = False
-' 
-' End
-' 
-' Public Sub btnMoveUpArg_Click()
-' 
-'   tbvArgument.Save
-'   Swap $aArg[tbvArgument.Row], $aArg[tbvArgument.Row - 1]
-'   tbvArgument.Refresh
-'   UpdateArguments
-'   Dec tbvArgument.Row
-'   tbvArgument_Click
-' 
-' End
-' 
-' Public Sub btnMoveDownArg_Click()
-' 
-'   tbvArgument.Save
-'   Swap $aArg[tbvArgument.Row], $aArg[tbvArgument.Row + 1]
-'   tbvArgument.Refresh
-'   UpdateArguments
-'   Inc tbvArgument.Row
-'   tbvArgument_Click
-' 
-' End
-' 
-' Public Sub tbvArgument_Insert()
-' 
-'   btnNewArgument_Click
-' 
-' End
 
 Public Sub btnShowDeprecated_Click()
 
