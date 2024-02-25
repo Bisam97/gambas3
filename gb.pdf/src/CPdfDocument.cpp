@@ -102,6 +102,22 @@ END_PROPERTY
 
 ****************************************************************************/
 
+#if POPPLER_VERSION_24_02_0
+static void return_unicode_string(const std::vector<Unicode> &unicode)
+{
+	GooString gstr;
+	char buf[8]; /* 8 is enough for mapping an unicode char to a string */
+	int n;
+
+	const UnicodeMap *uMap = globalParams->getUtf8Map();
+	for (const auto &c : unicode) {
+		n = uMap->mapUnicode(c, buf, sizeof(buf));
+		gstr.append(buf, n);
+	}
+
+	GB.ReturnNewZeroString(gstr.getCString());
+}
+#else
 static void return_unicode_string(const Unicode *unicode, int len)
 {
 	GooString gstr;
@@ -128,6 +144,7 @@ static void return_unicode_string(const Unicode *unicode, int len)
 
 	GB.ReturnNewZeroString(gstr.getCString());
 }
+#endif
 
 
 static void aux_return_string_info(void *_object, const char *key)
@@ -776,7 +793,11 @@ END_PROPERTY
 BEGIN_PROPERTY(PDFINDEX_title)
 
 	OutlineItem *item = CPDF_index_get(THIS->currindex);
+#if POPPLER_VERSION_24_02_0
+	return_unicode_string(item->getTitle());
+#else
 	return_unicode_string(item->getTitle(), item->getTitleLength());
+#endif
 
 END_PROPERTY
 
