@@ -326,6 +326,110 @@ CATCH ' 仅当错误发生时执行
   PRINT "Cannot print file "; FileName
 END</pre>
 
+[OPTIONAL]
+
+<h3>Optional</h3>
+
+<p>函数和过程具有的参数在<b>Gambas</b>中是可选的。</p>
+
+<p>可选参数只需标记<b><tt>Optional</tt></b>
+关键字在参数名称的前面。</p>
+
+<p>可选参数也可以具有显式默认值。</p>
+
+<pre>Private Sub MyFunction(Param AS String, Optional Optim AS String = "Default")
+  ...
+  Print "Required: "; param; ", Optional: "; optim
+  ...
+End</pre>
+
+
+[ARRAY]
+
+<h3>For Each</h3>
+
+<p>在 <b>Gambas</b> 中你可以轻松地循环遍历数组，集合，或许多其他带有
+ <b><tt>For Each</tt></b> 指令的可枚举类。</p>
+
+<p>例如:</p>
+
+<pre>Dim Xml As New XmlDocument
+Dim Node As XmlNode
+Dim I As Integer
+
+' Open XML file
+Xml.Open("pokus.xml")
+' Children is indexed via [i], since it's an array
+For I = 0 To Xml.Root.Children.Count - 1
+  'Attributes are looped via For Each, since it's a collection
+  For Each Node In Xml.Root.Children[i].Attributes
+    Print Node.Name;; Node.Value
+  Next
+Next</pre>
+
+
+[ICON]
+
+<h3>默认图标</h3>
+
+<p>你可以使用内置图标为应用程序提供更好的GUI, 这些可用图标
+有几种预定义的尺寸 (<tt>"small"</tt>, <tt>"medium"</tt>, <tt>"large"</tt>,...)
+或绝对大小 (from 16x16 to 256x256).</p>
+
+<p>例如:</p>
+
+<pre>Image1.Picture = Picture["icon:/32/warning"]
+Image2.Picture = Picture["icon:/small/error"]
+</pre>
+
+<p><b>Warning:</b> the <tt>gb.form</tt> component is required.</p>
+
+
+[SETTINGS]
+
+<h3>设置Settings</h3>
+
+<p>如果你需要存储程序的配置（如窗体的几何尺寸），
+那么你是个幸运儿。它的实现非常简单优雅用 <b>Gambas</b>. :-)</p>
+
+<p>保存窗体的位置:</p>
+<pre>Settings.Write(TheForm)</pre>
+
+<p>再回到原来位置:</p>
+<pre>Settings.Read(TheForm)</pre>
+
+保存任意的设置:
+<pre>Settings["Slot/Key"] = Value</pre>
+
+读取任意的配置:
+<pre>Value = Settings["Slot/Key", DefaultValue]</pre>
+
+这些配置存储在 <tt>~/.config/gambas3/&lt;MyApplication&gt;.conf</tt> 文件,
+其中 <tt>&lt;MyApplication&gt;</tt> 是你的项目的名字。
+
+<p><b>Warning:</b> The <tt>gb.settings</tt> component is required.</p>
+
+
+[EDITOR]
+
+<p>以下是一些编辑提示...</p>
+
+<h3>两种类型的注释</h3>
+
+<tt>' 普通注释</tt><br>
+<b><tt>'' 粗体注释</tt></b>
+
+<p>粗体注释用于代码的文档编制。</p>
+
+<h3>如何使用代码片段</h3>
+
+<p>让我们输入 <tt>main</tt> 然后按下 <b>TAB</b> 键. 一段静态的公用 <tt>Main</tt>
+开始函数就自动插入到你的代码中。</p>
+
+<p>让我们输入 <tt>ds</tt> 然后按下 <b>TAB</b> 键. 一段局部字符串变量声明即
+自动插入，你可以接着立即键入变量名。</p>
+
+<p>代码片段是完全可以从IDE的“工具”菜单的“首选项”对话框中进行配置的。</p>
 
 [END]
 
