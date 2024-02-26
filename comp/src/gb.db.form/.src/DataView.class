@@ -804,7 +804,11 @@ End
 
 Public Sub MoveNext()
   
-  If $bCreate Then Return
+  If $bCreate Then
+    MoveFirst()
+    Return
+  Endif
+  
   If $hCtrl.Row >= $hCtrl.Rows.Max Then Return
   If $hCtrl.Row < 0 Then Return
   Inc $hCtrl.Row
@@ -815,7 +819,7 @@ End
 Public Sub MovePrevious()
   
   If $bCreate Then
-    MoveLast
+    MoveFirst()
     Return
   Endif
   If $hCtrl.Row <= 0 Then Return
@@ -1337,5 +1341,11 @@ Public Sub FindNext(Where As String, ...)
   
   iIndex = GetSource().FindNext(Index_Read() + 1, Where, ...)
   MoveTo(iIndex)
+  
+End
+
+Public Sub _SyncPos(hSrc As DataSource)
+  
+  MoveTo(hSrc.Index)
   
 End

@@ -257,6 +257,7 @@ Private Sub Redraw(Optional bUpdate As Boolean)
     If Common.IsControl(hChild) Or If hChild Is DataSource Then
       hChild.Update
     Else If hChild Is DataBrowser Or If hChild Is DataView Then
+      hChild._SyncPos(Me)
       If bUpdate Then 
         hChild.Update
       Endif
