@@ -58,9 +58,8 @@ Static Private Sub AddDesktopIcon(sKey As String, sIcon As String)
   
 End
 
-
 Static Public Sub _CheckComponents()
-
+  
   $bDesktopIsLoaded = Component.IsLoaded("gb.desktop")
   $bWatchIsLoaded = Component.IsLoaded("gb.inotify")
   
@@ -86,9 +85,9 @@ Static Public Sub _CheckComponents()
 End
 
 Public Sub _new()
-
+  
   _CheckComponents
-
+  
   If $bWatchIsLoaded Then $hWatcher = New Watcher(Me) As "Watcher"
   
   $hTreeView = New TreeView(Me) As "TreeView"
@@ -98,43 +97,43 @@ Public Sub _new()
   If Not $hRootPict Then $hRootPict = Picture["icon:/small/directory"] 'open
   ClearView
   $hRefreshTimer = New Timer As "Refresh"
-
+  
 End
 
 Private Function GetRoot() As String
-
+  
   If Trim($sRoot) Then Return $sRoot
   Return User.Home
-
+  
 End
 
 Private Sub UpdateHideRoot()
-
+  
   Dim hGridView As GridView
   
   hGridView = $hTreeView.Children[0]
   hGridView.Rows[0].H = If($bHideRoot, 0, -1)
-
+  
 End
 
 Private Sub AddWatch(sDir As String)
-
+  
   If Not $cWatch Then Return
   $cWatch[sDir] = New Watch(sDir) As "Watch"
-
+  
 End
 
 Private Sub RemoveWatch(sDir As String)
-
+  
   If Not $cWatch Then Return
   $cWatch.Remove(sDir)
-
+  
 End
 
 Private Sub ClearView()
-
+  
   Dim sRoot As String = GetRoot()
-
+  
   $bNoEvent = True
   $hTreeView.Clear
   
@@ -145,29 +144,28 @@ Private Sub ClearView()
   AddDir(File.Dir(sRoot), File.Name(sRoot), True)
   '$hTreeView.Add(sRoot, sRoot, $hRootPict)
   '$hTreeView.Add(sRoot & "/", "",, sRoot)
-
+  
   'IF NOT $hRootPict THEN Picture_Write(Picture["icon:/small/directory"]) 'open
-
+  
   If $hTreeView.Count Then
     $hTreeView.MoveFirst
     $hTreeView.Item.Expanded = True
     TreeView_Expand
   Endif
   $bNoEvent = False
-
+  
   UpdateHideRoot
   
 End
 
-
 Private Function Root_Read() As String
-
+  
   Return $sRoot
-
+  
 End
 
 Private Sub Root_Write(sRoot As String)
-
+  
   sRoot = Trim(sRoot)
   While Right(sRoot) = "/" And Len(sRoot) > 1
     sRoot = Left(sRoot, -1)
@@ -179,7 +177,7 @@ Private Sub Root_Write(sRoot As String)
   $sRoot = sRoot
   RefreshView
   Raise Click
-
+  
 End
 
 Private Sub AddDir(sDir As String, sFile As String, Optional bIgnoreHidden As Boolean)
@@ -216,7 +214,7 @@ Private Sub AddDir(sDir As String, sFile As String, Optional bIgnoreHidden As Bo
     
     'hStat = Stat(sDir &/ sFile)
     hStat = DirCache[sDir].GetInfo(sFile)
-
+    
     bRichText = False
     
     sText = sFile
@@ -228,25 +226,25 @@ Private Sub AddDir(sDir As String, sFile As String, Optional bIgnoreHidden As Bo
       sText = "<font color=\"#" & Hex$(FileView._GetHiddenColor(), 6) & "\">" & sText & "</font>"
       bRichText = True
     Endif
-
+    
     If bRichText Then .RichText = sText
     
   End With
   
   $hTreeView.Add((sDir &/ sFile) & "/", "",, sDir &/ sFile).Expanded = False
-
+  
 End
 
 Public Sub TreeView_Expand()
-
+  
   Dim sFile As String
   Dim sDir As String
   Dim sDelete As String
   Dim hCache As DirCache
   Dim aDir As String[]
-
+  
   If Not $hTreeView.Item Then Stop
-
+  
   $hTreeView.Item.Selected = True
   
   sDir = $hTreeView.Item.Key
@@ -258,15 +256,15 @@ Public Sub TreeView_Expand()
   Else
     $hTreeView.Item.Picture = GetIcon($hTreeView.Item.key) 'open
   Endif
-
+  
   If $hTreeView.MoveChild() Then Return
   If $hTreeView.Item.Text Then Return
   sDelete = $hTreeView.Item.Key
   
   Inc Application.Busy
-
+  
   $hTreeView[sDelete].Delete
-
+  
   hCache = DirCache[sDir]
   hCache.Lock
   Try aDir = hCache.GetFiles().Sort(gb.Natural + gb.IgnoreCase)
@@ -277,39 +275,39 @@ Public Sub TreeView_Expand()
     Next
   Endif
   hCache.Unlock
-
+  
   If $hTreeView[sDir].Children = 0 Then
     $hTreeView[sDir].Picture = GetIcon(sDir)
   Else
     '$hTreeView[sDir].Expanded = TRUE
   Endif
-
+  
 Finally
-
+  
   Dec Application.Busy
-
+  
 Catch
-
+  
   Debug Error.Where; ": "; Error.Text 
   
 End
 
 Public Sub TreeView_Collapse()
-
+  
   '$hTreeView.Item.Selected = TRUE
   'IF $hTreeView.Item.Key = GetRoot() THEN RETURN
- ' $hTreeView.Item.Picture = GetIcon(
-
+  ' $hTreeView.Item.Picture = GetIcon(
+  
   $bNoExpand = True
   Last.Item.Selected = True
   $bNoExpand = False
   
   If $bWatchIsLoaded Then RemoveWatch(Last.Item.Key)
-
+  
 End
 
 Public Sub TreeView_Select()
-
+  
   If Not $bNoExpand And If Not $bInRename Then
     If $hTreeView.Current And If Not $hTreeView.Current.Expanded Then 
       $hTimerExpand.Trigger
@@ -318,7 +316,7 @@ Public Sub TreeView_Select()
   If $bNoEvent Then Return 
   Raise {Select}
   Raise Click
-
+  
 End
 
 Public Sub TimerExpand_Timer()
@@ -336,11 +334,10 @@ End
 '   
 ' End
 
-
 Public Sub TreeView_Activate()
-
+  
   Raise Activate
-
+  
 End
 
 ' Public Sub TreeView_Click()
@@ -350,45 +347,42 @@ End
 ' 
 ' End
 
-
 Public Sub TreeView_Menu()
-
+  
   Raise Menu
-
+  
 End
 
-
 Private Function Current_Read() As String
-
+  
   Try Return $hTreeView.Current.Key
   If Error Then Return GetRoot()
-
+  
 End
 
 Private Sub MoveToLastChild()
-
+  
   $hTreeView.MoveChild
   Repeat
   Until $hTreeView.MoveNext()
   $hTreeView.MoveBack
   $hTreeView.Item.EnsureVisible
-
+  
 Catch
-
+  
 End
 
-
 Private Sub Current_Write(sDir As String)
-
+  
   Dim sElt As String
   Dim sSubDir As String
-
+  
   sDir = Trim(sDir)
   'IF Right(sDir) = "/" THEN sDir = Left(sDir, - 1)
   If sDir = Current_Read() Then Return
-
+  
   'ClearView
-
+  
   $bNoEvent = True
   sSubDir = "/"
   For Each sElt In Split(File.Dir(sDir), "/", "", True)
@@ -396,34 +390,32 @@ Private Sub Current_Write(sDir As String)
     Try $hTreeView[sSubDir].Expanded = True
   Next
   $bNoEvent = False
-
+  
+  Try $hTreeView[sDir].CollapseAll()
   Try $hTreeView[sDir].Selected = True
   If Not Error Then
     $hTreeView.MoveTo(sDir)
     $hTreeView.Item.Expanded = True
     MoveToLastChild
-    'TRY $hTreeView.MoveNext
-    'TRY $hTreeView.Item.EnsureVisible
   Endif
   Try $hTreeView.Current.EnsureVisible
   Raise Click
   
   'RAISE Refresh
-
+  
 End
 
-
 Private Sub RefreshView()
-
+  
   Dim sDir As String
   Dim SX As Integer
   Dim SY As Integer
-
+  
   If $bInRename Then
     $bRefreshAfterRename = True
     Return
   Endif
-
+  
   SX = $hTreeView.ScrollX
   SY = $hTreeView.ScrollY
   
@@ -434,7 +426,7 @@ Private Sub RefreshView()
   $hTreeView.Scroll(SX, SY)
   
   $bRefreshTimerTriggered = False
-
+  
 End
 
 Private Sub RefreshViewLater()
@@ -454,56 +446,53 @@ Public Sub Refresh_Timer()
   
 End
 
-
-
 Private Function ShowHidden_Read() As Boolean
-
+  
   Return $bShowHidden
-
+  
 End
 
 Private Sub ShowHidden_Write(bShowHidden As Boolean)
-
+  
   If bShowHidden <> $bShowHidden Then
     $bShowHidden = bShowHidden
     RefreshView
   Endif
-
+  
 End
 
 Private Function Picture_Read() As Picture
-
+  
   Dim hPict As Picture
-
+  
   hPict = $hTreeView[GetRoot()].Picture
   If hPict <> Picture["icon:/small/directory"] Then Return hPict 'open
-
+  
 End
 
 Private Sub Picture_Write(hPict As Picture)
-
+  
   If hPict Then
     $hRootPict = hPict
   Else
     $hRootPict = Picture["icon:/small/directory"] 'open
   Endif
-
+  
   $hTreeView[GetRoot()].Picture = $hRootPict
   UpdateHideRoot
-
+  
 End
 
-
 Private Sub Border_Write(bBorder As Boolean)
-
+  
   $hTreeView.Border = bBorder
-
+  
 End
 
 Private Function Border_Read() As Boolean
-
+  
   Return $hTreeView.Border
-
+  
 End
 
 Static Public Sub _GetIcon(sPath As String, iSize As Integer) As Picture
@@ -512,7 +501,7 @@ Static Public Sub _GetIcon(sPath As String, iSize As Integer) As Picture
   Dim sIcon As String
   
   If Exist(sPath &/ ".directory") Then
-  
+    
     Try hDesktopFile = New DesktopFile(sPath &/ ".directory")
     If Not Error Then
       Try Return hDesktopFile.GetIcon(iSize).Picture
@@ -528,7 +517,7 @@ Static Public Sub _GetIcon(sPath As String, iSize As Integer) As Picture
 End
 
 Private Function GetIcon(sPath As String) As Picture
-
+  
   Dim hPict As Picture
   
   If sPath = GetRoot() Then Return $hRootPict
@@ -541,26 +530,25 @@ Private Function GetIcon(sPath As String) As Picture
   Endif
   
   If Not hPict Then hPict = Picture["icon:/small/directory"]
-
+  
   If Not Access(sPath, gb.Write) Then hPict = Main.AddEmblem(hPict, "lock")
   Return hPict
   
 End
 
-
 Private Function Icon_Read() As Picture
-
+  
   Return $hPict
-
+  
 End
 
 Private Sub Icon_Write(Value As Picture)
-
+  
   If Value.Height <> 16 Then 
     Value = Value.Image.Stretch(Value.Width * 16 / Value.Height, 16).Picture
   Endif
   $hPict = Value
-
+  
 End
 
 Public Sub TreeView_Rename()
@@ -621,14 +609,13 @@ Public Sub TreeView_Cancel()
   
   Try Rmdir $hTreeView.Item.Key
   $hTreeView.Item.Delete
-
+  
   $hTreeView[sParent].Selected = True
-
+  
   $bDeleteOnCancel = False
   If $bRefreshAfterRename Then RefreshViewLater
   
 End
-
 
 Public Sub NewFolder()
   
@@ -654,7 +641,7 @@ Public Sub NewFolder()
   $hTreeView[sPath].Rename
   
 Catch
- 
+  
   Message.Error(("Cannot create directory.") & "\n\n" & Error.Text)
   
 End
@@ -670,7 +657,6 @@ Public Sub Rename()
   Endif
   
 End
-
 
 Private Sub FindAfter(hView As TreeView, sText As String, Optional sParent As String) As String
   
@@ -691,7 +677,7 @@ Private Sub FindAfter(hView As TreeView, sText As String, Optional sParent As St
       .MoveNext
     Wend
   End With
-
+  
   Return sAfter
   
 End
@@ -703,44 +689,44 @@ Public Sub Reload()
 End
 
 Private Function Renaming_Read() As Boolean
-
+  
   Return $hTreeView.Renaming
-
+  
 End
 
 Private Function Settings_Read() As Variant[]
-
+  
   Return [1, CVariant(ShowHidden_Read())]
-
+  
   'Return IIf(ShowDetailed_Read(), "1", "0") & "," & IIf(ShowHidden_Read(), "1", "0") & "," & $hColumnView.Settings
-
+  
 End
 
 Private Sub Settings_Write(Value As Variant[])
-
+  
   ShowHidden_Write(Value[1])
-
+  
 Catch
-
+  
   Debug Error.Where; ": "; Error.Text
-
+  
 End
 
 Private Function HideRoot_Read() As Boolean
-
+  
   Return $bHideRoot
-
+  
 End
 
 Private Sub HideRoot_Write(Value As Boolean)
-
+  
   $bHideRoot = Value
   UpdateHideRoot
-
+  
 End
 
 Public Sub Watch_Create()
-
+  
   'Debug Last.Path;; Watch.Name
   DirCache[Last.Path].Invalidate
   RefreshViewLater

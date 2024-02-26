@@ -516,7 +516,7 @@ Private Sub RefreshView()
             GoSub ADD_PREVIEW
           Else
             $hColumnView[sKey].Editable = Access(sDir, gb.Write)
-            $hColumnView[sKey].Picture = hPict
+            If $bRefreshAll Then $hColumnView[sKey].Picture = hPict
             GoSub ADD_PREVIEW
           Endif
           
@@ -532,7 +532,7 @@ Private Sub RefreshView()
             GoSub ADD_PREVIEW
           Else
             $hIconView[sKey].Editable = Access(sDir, gb.Write)
-            $hIconView[sKey].Picture = hPict
+            If $bRefreshAll Then $hIconView[sKey].Picture = hPict
             GoSub ADD_PREVIEW
           Endif
           If sRichText Then $hIconView[sKey].RichText = sRichText
@@ -1296,7 +1296,7 @@ Private Sub ShowPreview_Write(Value As Boolean)
   If $bShowPreview = Value Then Return
   $bShowPreview = Value
   StopPreview
-  RefreshViewLater
+  RefreshViewLater(True)
   
 End
 
