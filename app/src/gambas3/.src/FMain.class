@@ -31,6 +31,8 @@ Private $bFirstShowDebug As Boolean
 
 Private $bWorkspaceVisible As Boolean
 Private $sProjectFilter As String
+Private $aWorkspaceLayout As String[]
+Private $sWorkspaceActive As String
 
 Public Sub _new()
   
@@ -1589,11 +1591,13 @@ End
 Public Sub OnProjectDebug()
   
   If Project.Running Then
+    SaveWorkspaceLayout()
     tabProject.Index = 1
     btnShowDebugger.Show
   Else
     btnShowDebugger.Hide
     tabProject.Index = 0
+    RestoreWorkspaceLayout()
   Endif
   
   UpdateMenu
@@ -3700,5 +3704,50 @@ End
 Public Sub mnuEditProfile_Click()
 
   tvwProject_Activate
+  
+End
+
+Private Sub SaveWorkspaceLayout()
+
+  Dim hForm As Object
+  Dim sPath As String
+  
+  $aWorkspaceLayout = New String[]
+  $sWorkspaceActive = ""
+  
+  For Each hForm In wrkProject.Windows
+    If hForm.Closed Then Continue
+    sPath = hForm.Path
+    If Project.ActiveForm = hForm Then $sWorkspaceActive = sPath
+    $aWorkspaceLayout.Add(sPath)
+  Next
+  
+End
+
+Private Sub RestoreWorkspaceLayout()
+  
+  Dim aCurrent As New String[]
+  Dim hForm As Object
+  Dim sPath As String
+  
+  wrkProject.Lock()
+  
+  For Each hForm In wrkProject.Windows
+    sPath = hForm.Path
+    If Not $aWorkspaceLayout.Exist(sPath) Then
+      hForm.Close()
+    Else
+      aCurrent.Add(sPath)
+    Endif
+  Next
+  
+  For Each sPath In $aWorkspaceLayout
+    If Not aCurrent.Exist(sPath) Then Try hForm = Project.OpenFile(sPath)
+  Next
+  
+  wrkProject.Unlock()
+  
+  hForm = Project.Files[$sWorkspaceActive]
+  wrkProject.ActiveWindow = hForm
   
 End
