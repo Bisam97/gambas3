@@ -15,9 +15,8 @@ Public Sub _new()
   
 End
 
-
 Public Sub Form_Open()
-
+  
   ReadConfig
   sldIconSize_Change
   fvwProject.SetFocus
@@ -27,7 +26,7 @@ Public Sub Form_Open()
   
   $bProjectHasChanged = True
   Reload
-
+  
 End
 
 Private Sub SetDir(sDir As String)
@@ -37,9 +36,8 @@ Private Sub SetDir(sDir As String)
   
 End
 
-
 Private Sub Reload()
-
+  
   If $bProjectHasChanged Then 
     mnuViewSingle_Click
     dbrProject.Root = Project.Dir
@@ -47,7 +45,7 @@ Private Sub Reload()
     SetDir(Project.Dir)
     $bProjectHasChanged = False
   Endif
-
+  
 End
 
 Public Sub OnProjectChange()
@@ -65,40 +63,40 @@ Public Sub ReadConfig()
 End
 
 Public Sub btnClose_Click()
-
+  
   FMain.CloseProjectEditor
-
+  
 End
 
 Public Sub btnZoomOut_Click()
-
+  
   Dec sldIconSize.Value
-
+  
 End
 
 Public Sub btnZoomIn_Click()
-
+  
   Inc sldIconSize.Value
-
+  
 End
 
 Public Sub sldIconSize_Change()
-
+  
   fvwProject.IconSize = $aIconSize[sldIconSize.Value]
   fvwProject2.IconSize = fvwProject.IconSize
   sldIconSize.Tooltip = fvwProject.IconSize
-
+  
 End
 
 Private Sub UpdateMenu()
-
+  
   Dim iSel As Integer
   Dim hChild As ToolButton
   Dim iView As Integer
-
+  
   If Not $hView Then Return
   iSel = $hView.Selection.Count
-
+  
   Action[".up", Me].Enabled = Len($hView.Dir) > Len(Project.Dir)
   Action[".icon-size,.zoom-in,.zoom-out", Me].Visible = Not $hView.ShowDetailed
   'Action[".cut,.copy,.delete,.clone", Me].Visible = fvwProject.Selected
@@ -115,43 +113,43 @@ Private Sub UpdateMenu()
       Break
     Endif
   Next
-
+  
 End
 
 Public Sub tlbProject_Configure()
-
+  
   UpdateMenu
   UpdateWorkspaceButtons($iIndent)
-
+  
 End
 
 Public Sub fvwProject_Activate()
-
+  
   mnuOpen_Click
-
+  
 End
 
 Public Sub btnParent_Click()
-
+  
   Dim sName As String
-
+  
   sName = File.Name($hView.Dir)
   SetDir(File.Dir($hView.Dir))
   Try $hView.Current = sName
-
+  
 End
 
 Public Sub btnReload_Click()
-
+  
   If panProject.Visible Then fvwProject.Reload(Mouse.Shift)
   If panProject2.Visible Then fvwProject2.Reload(Mouse.Shift)
-
+  
 End
 
 Private Sub GetCurrentPath() As String
-
+  
   Dim sPath As String
-
+  
   sPath = $hView.Path
   If Not sPath Then sPath = $hView.Dir
   Return sPath
@@ -298,7 +296,7 @@ Private Sub Paste(aPaths As String[], Optional sSubDir As String, Optional bClon
 End
 
 Public Sub mnuPaste_Click()
-
+  
   Dim aPaths As String[]
   
   Try aPaths = Clipboard.Paste("text/uri-list")
@@ -309,10 +307,10 @@ Public Sub mnuPaste_Click()
 End
 
 Private Sub AddFiles(aDirs As String[], aFiles As String[], aSel As String[], Optional sDir As String)
-
+  
   Dim sFile As String
   Dim sPath As String
-
+  
   For Each sFile In aSel.Sort(gb.Language + gb.Natural)
     If sFile Ends "~" Then Continue
     sPath = sDir &/ sFile
@@ -323,7 +321,7 @@ Private Sub AddFiles(aDirs As String[], aFiles As String[], aSel As String[], Op
       aFiles.Add(sPath)
     Endif
   Next
-
+  
 End
 
 Public Sub mnuDelete_Click()
@@ -380,7 +378,7 @@ Public Sub mnuDelete_Click()
           Break
       End Select
     Endif
-
+    
     Inc I
     NP = (100 * I) \ N
     If NP <> P Then 
@@ -391,20 +389,20 @@ Public Sub mnuDelete_Click()
   Next
   
   Dec Application.Busy
-
+  
 End
 
 Public Sub fvwProject_Select()
-
+  
   UpdateMenu
   Project.UpdateStatus(True)
-
+  
 End
 
 Public Sub Form_Close()
-
+  
   Settings.Write($hView)
-
+  
 End
 
 Public Sub PaintStatus()
@@ -423,7 +421,7 @@ Public Sub PaintStatus()
   aSel = $hView.Selection
   
   If aSel.Count = 0 Then
-  
+    
     If $hView.FileCount = 0 Then 
       sText = ("No files")
     Else If $hView.FileCount = 1 Then
@@ -435,7 +433,7 @@ Public Sub PaintStatus()
     sText &= "   "
     
     If $hView.DirCount = 0 Then 
-        sText &= ("No directories")
+      sText &= ("No directories")
     Else If $hView.DirCount = 1 Then
       sText &= ("One directory")
     Else
@@ -483,9 +481,9 @@ Public Sub PaintStatus()
 End
 
 Private Sub GetBrowser() As DirBrowser
-
+  
   Return $hView.Parent.Children[0]
-
+  
 End
 
 Public Sub fvwProject_Refresh()
@@ -496,10 +494,10 @@ Public Sub fvwProject_Refresh()
 End
 
 Public Sub fvwProject_Menu()
-
+  
   SetCurrentView(Last)
   mnuPopup.Popup
-
+  
 End
 
 Public Sub mnuPopup_Show()
@@ -509,7 +507,7 @@ Public Sub mnuPopup_Show()
   Dim bLink As Boolean
   Dim sPath As String
   Dim bIsDir As Boolean
-
+  
   sPath = GetCurrentPath()
   bIsDir = IsDir(sPath)
   Try bLink = Stat(sPath).Type = gb.Link
@@ -545,9 +543,9 @@ Public Sub mnuPopup_Show()
       Endif
     Endif
   Endif
-    
+  
   mnuInfoVC.Visible = VersionControl.Enabled
-   
+  
 End
 
 Public Sub mnuNewFile_Click()
@@ -562,15 +560,14 @@ Public Sub mnuImport_Click()
   
 End
 
-
 Public Sub mnuSelectAll_Click()
-
+  
   $hView.SelectAll()
-
+  
 End
 
 Private Sub UpdateBackground()
-
+  
   If panProject.Visible Then
     panProject.Background = If($hView = fvwProject, Color.TextBackground, Color.Background)
     fvwProject.Background = panProject.Background
@@ -579,24 +576,24 @@ Private Sub UpdateBackground()
     panProject2.Background = If($hView = fvwProject2, Color.TextBackground, Color.Background)
     fvwProject2.Background = panProject2.Background
   Endif
-
+  
 End
 
 Private Sub SetCurrentView(hView As FileView)
-
+  
   $hView = hView
   $hView.SetFocus
   Project.SetCurrentPopup(mnuPopup)
   fvwProject_Refresh
   UpdateMenu
   UpdateBackground
-
+  
 End
 
 Public Sub fvwProject_GotFocus()
-
+  
   SetCurrentView(Last)
-
+  
 End
 
 Public Sub UpdateWorkspaceButtons(W As Integer)
@@ -610,19 +607,19 @@ Public Sub UpdateWorkspaceButtons(W As Integer)
 End
 
 Public Sub mnuCopy_Click()
-
+  
   CopyCut(False)
-
+  
 End
 
 Public Sub mnuCut_Click()
-
+  
   CopyCut(True)
-
+  
 End
 
 Public Sub mnuOpenWith_Show()
-
+  
   FMain.CreateRunWithMenu(mnuOpenWith)
   
 End
@@ -634,46 +631,46 @@ Public Sub mnuEditWithProg_Click()
 End
 
 Public Sub mnuRename_Click()
-
+  
   $hView.Rename
-
+  
 End
 
 Public Sub fvwProject_Rename(OldName As String, NewName As String)
-
+  
   If Project.RenameFile($hView.Dir &/ OldName, NewName) Then Stop Event
-
+  
 End
 
 Public Sub mnuClone_Click()
-
+  
   Dim aPaths As String[] = $hView.Paths
   
   Paste(aPaths, False, True)
-
+  
 End
 
 Private Sub GetOtherView() As FileView
-
+  
   If $hView = fvwProject Then
     Return fvwProject2
   Else 
     Return fvwProject
   Endif
-
+  
 End
 
 Public Sub mnuViewSingle_Click()
-
+  
   If Not (panProject.Visible And panProject2.Visible) Then Return
   
   $hView.Parent.Hide
   SetCurrentView(GetOtherView())
-
+  
 End
 
 Public Sub mnuViewSplit_Click()
-
+  
   If panProject.Visible And panProject2.Visible Then Return
   
   With GetOtherView()
@@ -694,25 +691,25 @@ Public Sub mnuViewSplit_Click()
 End
 
 Public Sub mnuNewDirectory_Click()
-
+  
   FCreateFile.Run($hView.Path, $hView.Dir, FCreateFile.DIRECTORY)
-
+  
 End
 
 Public Sub fvwProject_Drop()
-
+  
   Dim sDir As String
   Dim hView As FileView
   
   hView = Last
-
+  
   If Drag.Item Then
     sDir = Mid$(Drag.Item, 2)
     If hView = $hView And If $hView.Selection.Exist(sDir) Then Return
   Else
     If hView = $hView Then Return
   Endif
-
+  
   SetCurrentView(hView)
   
   Select Case Drag.Action
@@ -725,11 +722,11 @@ Public Sub fvwProject_Drop()
   End Select
   
   Paste(Drag.Paste("text/uri-list"), sDir)
-
+  
 End
 
 Public Sub mnuOpen_Click()
-
+  
   Dim sPath As String
   
   sPath = GetCurrentPath()
@@ -744,24 +741,24 @@ Public Sub mnuOpen_Click()
   
 End
 
-
 Public Sub mnuOpenWithFileManager_Click()
-
+  
   Desktop.Open(GetCurrentPath())
-
+  
 End
 
 Public Sub mnuCopyPath_Click()
-
+  
   Dim sPath As String = Project.StripPath(GetCurrentPath())
-  If sPath Then Clipboard.Copy(sPath)
 
+  If sPath Then Clipboard.Copy(sPath)
+  
 End
 
 Public Sub mnuInfoVC_Click()
-
+  
   FFileInfoVC.Run(GetCurrentPath())
-
+  
 End
 
 Public Sub fvwProject_Filter(Name As String, (Info) As Stat)
@@ -773,21 +770,22 @@ Public Sub fvwProject_Filter(Name As String, (Info) As Stat)
 End
 
 Public Sub dbrProject_Click(Dir As String)
-
+  
   Dim hView As FileView = Last.Next.Next
+
   SetCurrentView(hView)
   SetDir(Dir)
-
+  
 End
 
 Public Sub Form_Activate()
-
+  
   Project.SetCurrentPopup(mnuPopup)
-
+  
 End
 
 Public Sub btnView_Click()
-
+  
   Dim iView As Integer
   
   iView = Last.Tag
