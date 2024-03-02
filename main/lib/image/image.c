@@ -1019,10 +1019,10 @@ void IMAGE_make_transparent(GB_IMG *img, GB_COLOR col)
 		color_to_alpha(&rgb_src, &rgb_color);
 	
 		color = RGBA(
-			(unsigned char)(255.0 * rgb_src.r + 0.5),
-			(unsigned char)(255.0 * rgb_src.g + 0.5),
-			(unsigned char)(255.0 * rgb_src.b + 0.5),
-			(unsigned char)(255.0 * rgb_src.a + 0.5)
+			(unsigned char)(255.0 * rgb_src.r + 0.499),
+			(unsigned char)(255.0 * rgb_src.g + 0.499),
+			(unsigned char)(255.0 * rgb_src.b + 0.499),
+			(unsigned char)(255.0 * rgb_src.a + 0.499)
 			);
 	
 		*p = BGRA_to_format(color, format);
