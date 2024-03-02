@@ -172,7 +172,7 @@ static char *hostname_map(char *hostname);
 static char **make_envp(httpd_conn * hc);
 static char **make_argp(httpd_conn * hc);
 static void cgi_interpose_input(httpd_conn * hc, int wfd);
-static void post_post_garbage_hack(httpd_conn * hc);
+static int post_post_garbage_hack(httpd_conn * hc);
 static void cgi_interpose_output(httpd_conn * hc, int rfd);
 static void cgi_child(httpd_conn * hc);
 static int cgi(httpd_conn * hc);
@@ -3191,7 +3191,7 @@ static void cgi_interpose_input(httpd_conn * hc, int wfd)
 ** unacceptably expensive.  The eventual fix will come when interposing
 ** gets integrated into the main loop as a tasklet instead of a process.
 */
-static void post_post_garbage_hack(httpd_conn * hc)
+static int post_post_garbage_hack(httpd_conn * hc)
 {
 	char buf[2];
 
@@ -3201,7 +3201,7 @@ static void post_post_garbage_hack(httpd_conn * hc)
 	if (sub_process)
 		httpd_set_ndelay(hc->conn_fd);
 	/* And read up to 2 bytes. */
-	(void) read(hc->conn_fd, buf, sizeof(buf));
+	return read(hc->conn_fd, buf, sizeof(buf));
 }
 
 
