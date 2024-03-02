@@ -52,8 +52,14 @@ extern GB_STREAM_DESC CurlStream;
 #define THIS_URL        THIS->url
 #define THIS_FILE       THIS->file
 
+#if LIBCURL_VERSION_NUM < 0x073200
+typedef double progress_size_t;
+#else
+typedef curl_off_t progress_size_t;
+#endif
+
 typedef
-	void (*CURL_FIX_PROGRESS_CB)(void *, double *, double *, double *, double *);
+	void (*CURL_FIX_PROGRESS_CB)(void *, progress_size_t *, progress_size_t *, progress_size_t *, progress_size_t *);
 
 typedef  
 	struct {

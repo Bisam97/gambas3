@@ -265,7 +265,7 @@ void CURL_init_options(void *_object)
 
 #define CHECK_PROGRESS_VAL(_var) if (THIS->_var != (int64_t)_var) { THIS->_var = (int64_t)_var; raise = TRUE; }
 
-static int curl_progress(void *_object, double dltotal, double dlnow, double ultotal, double ulnow)
+static int curl_progress(void *_object, progress_size_t dltotal, progress_size_t dlnow, progress_size_t ultotal, progress_size_t ulnow)
 {
 	bool raise = FALSE;
 	
@@ -404,10 +404,20 @@ void CURL_set_progress(void *_object, bool progress, CURL_FIX_PROGRESS_CB cb)
 	#endif
 	
 	curl_easy_setopt(THIS_CURL, CURLOPT_NOPROGRESS, progress ? 0 : 1);
+
 	if (progress)
 	{
+		#if LIBCURL_VERSION_NUM < 0x073200
+
 		curl_easy_setopt(THIS_CURL, CURLOPT_PROGRESSFUNCTION , curl_progress);
 		curl_easy_setopt(THIS_CURL, CURLOPT_PROGRESSDATA , _object);
+
+		#else
+
+		curl_easy_setopt(THIS_CURL, CURLOPT_XFERINFOFUNCTION , curl_progress);
+		curl_easy_setopt(THIS_CURL, CURLOPT_XFERINFODATA , _object);
+
+		#endif
 	}
 
 	THIS->progresscb = cb;

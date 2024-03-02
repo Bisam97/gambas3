@@ -264,7 +264,7 @@ static bool check_request(void *_object, char *contentType, char *data, int len)
 	return FALSE;
 }
 
-static void http_fix_progress_cb(void *_object, double *dltotal, double *dlnow, double *ultotal, double *ulnow)
+static void http_fix_progress_cb(void *_object, progress_size_t *dltotal, progress_size_t *dlnow, progress_size_t *ultotal, progress_size_t *ulnow)
 {
 	*ultotal = THIS_HTTP->len_data;
 	*ulnow = THIS_HTTP->len_sent;
