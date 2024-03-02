@@ -53,14 +53,11 @@
 
 #ifdef PROJECT_EXEC
 
-//FILE_STAT FILE_stat_info = { 0 };
-
 static DIR *file_dir = NULL;
 static char *file_pattern = NULL;
 static char *file_path = NULL;
 static bool file_dir_arch = FALSE;
 static int file_attr;
-static char *file_rdir_path = NULL;
 static bool _temp_used = FALSE;
 
 #endif
@@ -96,6 +93,8 @@ typedef
 	}
 	FILE_MODE_DECODE;
 
+//static int _count = 0;
+
 static void push_path(void **list, const char *path)
 {
 	FILE_PATH *slot;
@@ -106,7 +105,8 @@ static void push_path(void **list, const char *path)
 	slot->next = *list;
 	*list = slot;
 
-	//printf("push_path: %s\n", path);
+	/*_count++;
+	fprintf(stderr, "[%d] push_path: %s\n", _count, path);*/
 }
 
 
@@ -123,7 +123,8 @@ static char *pop_path(void **list)
 	*list = ((FILE_PATH *)*list)->next;
 	FREE(&slot);
 
-	//printf("pop_path: %s\n", path);
+	/*_count--;
+	fprintf(stderr, "[%d] pop_path: %s\n", _count, path);*/
 	return path;
 }
 
@@ -217,7 +218,6 @@ void FILE_exit(void)
 {
 	STRING_free(&_home);
 	FILE_remove_temp_file();
-	STRING_free(&file_rdir_path);
 	dir_exit();
 }
 
@@ -495,7 +495,7 @@ bool FILE_exist_real(const char *path)
 	return (stat(path, &buf) == 0);
 }
 
-void FILE_stat(const char *path, FILE_STAT *info, bool follow)
+bool FILE_stat(const char *path, FILE_STAT *info, bool follow)
 {
 	struct stat buf;
 	int ret;
@@ -504,15 +504,13 @@ void FILE_stat(const char *path, FILE_STAT *info, bool follow)
 
 	if (FILE_is_relative(path))
 	{
-		/*if (!EXEC_arch)
+		if (ARCHIVE_stat(NULL, path, info))
 		{
-			chdir(PROJECT_path);
-			if (lstat(path, &buf) == 0)
-				goto _OK;
-		}*/
-
-		ARCHIVE_stat(NULL, path, info);
-		return;
+			errno = ENOENT;
+			return TRUE;
+		}
+		else
+			return FALSE;
 	}
 
 	if (follow)
@@ -521,7 +519,7 @@ void FILE_stat(const char *path, FILE_STAT *info, bool follow)
 		ret = lstat(path, &buf);
 
 	if (ret)
-		THROW_SYSTEM(errno, path);
+		return TRUE;
 
 //_OK:
 
@@ -549,6 +547,8 @@ void FILE_stat(const char *path, FILE_STAT *info, bool follow)
 	info->device = buf.st_dev;
 	info->blkdev = S_ISBLK(buf.st_mode);
 	info->chrdev = S_ISCHR(buf.st_mode);
+
+	return FALSE;
 }
 
 char *FILE_mode_to_string(mode_t mode)
@@ -685,6 +685,7 @@ void FILE_chgrp(const char *path, const char *group)
 
 void FILE_dir_first(const char *path, const char *pattern, int attr)
 {
+	//fprintf(stderr, "FILE_dir_first: %s\n", path);
 	dir_exit();
 
 	if (!path || *path == 0)
@@ -738,6 +739,8 @@ bool FILE_dir_next(char **path, int *len)
 		#endif
 	#endif
 
+	//fprintf(stderr, "FILE_dir_next: %p %d %d\n", file_dir, file_dir_arch, file_attr);
+
 	if (file_dir_arch)
 	{
 		ret = ARCHIVE_dir_next(path, len, file_attr);
@@ -767,11 +770,13 @@ bool FILE_dir_next(char **path, int *len)
 		entry = readdir(file_dir);
 		if (entry == NULL)
 		{
+			//fprintf(stderr, "readdir: NULL\n");
 			dir_exit();
 			return TRUE;
 		}
 
 		name = entry->d_name;
+		//fprintf(stderr, "readdir: %s\n", name);
 
 		if (name[0] == '.' && (name[1] == 0 || (name[1] == '.' && name[2] == 0)))
 			continue;
@@ -821,6 +826,8 @@ bool FILE_dir_next(char **path, int *len)
 
 void FILE_recursive_dir(const char *dir, void (*found)(const char *), void (*afterfound)(const char *), int attr, bool follow)
 {
+	char *file_rdir_path;
+	int file_rdir_len;
 	void *list = NULL;
 	void *dir_list = NULL;
 	char *file;
@@ -831,7 +838,6 @@ void FILE_recursive_dir(const char *dir, void (*found)(const char *), void (*aft
 	#else
 	FILE_STAT info;
 	#endif
-	char *temp;
 	bool is_dir;
 	#if OPT_NLINK
 	int nsubdir = -1;
@@ -842,8 +848,10 @@ void FILE_recursive_dir(const char *dir, void (*found)(const char *), void (*aft
 	else if (!FILE_is_dir(dir))
 		return;
 
-	STRING_free(&file_rdir_path);
 	file_rdir_path = STRING_new_zero(dir);
+	file_rdir_len = STRING_length(file_rdir_path);
+	if (file_rdir_path[file_rdir_len - 1] == '/')
+		file_rdir_len--;
 
 	FILE_dir_first(dir, NULL, attr != GB_STAT_DIRECTORY ? 0 : GB_STAT_DIRECTORY);
 
@@ -860,10 +868,18 @@ void FILE_recursive_dir(const char *dir, void (*found)(const char *), void (*aft
 	}
 	#endif
 
+
 	while (!FILE_dir_next(&file, &len))
 	{
-		temp = STRING_new_temp(file, len);
-		path = (char *)FILE_cat(file_rdir_path, temp, NULL);
+		//fprintf(stderr, "FILE_dir_next: %.*s\n", len, file);
+
+		if ((file_rdir_len + len + 1) > PATH_MAX)
+			THROW(E_TOOLONG);
+		memcpy(file_buffer, file_rdir_path, file_rdir_len);
+		file_buffer[file_rdir_len] = '/';
+		memcpy(&file_buffer[file_rdir_len + 1], file, len);
+		file_buffer[file_rdir_len + len + 1] = 0;
+		path = file_buffer;
 
 		#if OPT_NLINK
 		if (nsubdir || follow)
@@ -876,8 +892,10 @@ void FILE_recursive_dir(const char *dir, void (*found)(const char *), void (*aft
 				is_dir = FILE_is_dir(path);
 			else
 			{
-				FILE_stat(path, &info, FALSE);
-				is_dir = info.type == GB_STAT_DIRECTORY;
+				if (FILE_stat(path, &info, FALSE))
+					is_dir = FALSE;
+				else
+					is_dir = info.type == GB_STAT_DIRECTORY;
 			}
 			#endif
 
@@ -891,6 +909,8 @@ void FILE_recursive_dir(const char *dir, void (*found)(const char *), void (*aft
 
 		push_path(&list, path);
 	}
+
+	STRING_free(&file_rdir_path);
 
 	while (dir_list)
 	{
@@ -1132,7 +1152,7 @@ bool FILE_copy(const char *src, const char *dst)
 	int save_errno;
 	struct stat info;
 
-	fprintf(stderr, "FILE_copy: %s -> %s\n", src, dst);
+	//fprintf(stderr, "FILE_copy: %s -> %s\n", src, dst);
 
 	if (stat(src, &info))
 		return TRUE;
@@ -1140,14 +1160,14 @@ bool FILE_copy(const char *src, const char *dst)
 	src_fd = open(src, O_RDONLY);
 	if (src_fd < 0)
 	{
-		fprintf(stderr, "open src failed\n");
+		//fprintf(stderr, "open src failed\n");
 		return TRUE;
 	}
 
 	dst_fd = creat(dst, info.st_mode);
 	if (dst_fd < 0)
 	{
-		fprintf(stderr, "open dst failed\n");
+		//fprintf(stderr, "open dst failed\n");
 		save_errno = errno;
 		close(src_fd);
 		errno = save_errno;

@@ -537,21 +537,26 @@ bool ARCHIVE_is_dir(ARCHIVE *arch, const char *path)
 }
 
 
-void ARCHIVE_stat(ARCHIVE *arch, const char *path, FILE_STAT *info)
+bool ARCHIVE_stat(ARCHIVE *arch, const char *path, FILE_STAT *info)
 {
 	ARCHIVE_FIND find = { 0 };
 	struct stat buf;
+	int ret;
 
 	//if (get_current(&arch))
 	//  THROW_SYSTEM(ENOENT, path);
 
 	if (ARCHIVE_get(arch, &path, &find))
-		THROW_SYSTEM(ENOENT, path);
+		return TRUE;
+		//THROW_SYSTEM(ENOENT, path);
 
 	if (find.arch)
-		fstat(find.arch->arch->fd, &buf);
+		ret = fstat(find.arch->arch->fd, &buf);
 	else
-		stat(PROJECT_path, &buf);
+		ret = stat(PROJECT_path, &buf);
+
+	if (ret)
+		return TRUE;
 
 	info->type = find.pos < 0 ? GB_STAT_DIRECTORY : GB_STAT_FILE;
 	info->mode = 0400;
@@ -563,6 +568,8 @@ void ARCHIVE_stat(ARCHIVE *arch, const char *path, FILE_STAT *info)
 	info->hidden = (*FILE_get_name(path) == '.');
 	info->uid = (int)buf.st_uid;
 	info->gid = (int)buf.st_gid;
+
+	return FALSE;
 }
 
 

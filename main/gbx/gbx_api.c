@@ -210,7 +210,7 @@ const void *const GAMBAS_Api[] =
 	(void *)GB_CopyFile,
 	(void *)GB_BrowseProject,
 	(void *)GB_BrowseDirectory,
-	(void *)GB_StatFile,
+	(void *)FILE_stat,
 
 	(void *)GB_Store,
 	(void *)GB_StoreString,
@@ -2393,15 +2393,6 @@ int GB_FindFile(const char *dir, int recursive, int follow, void (*found)(const 
 }
 #endif
 
-bool GB_StatFile(const char *path, GB_FILE_STAT *info, bool follow)
-{
-	CATCH_ERROR
-	{
-		FILE_stat(path, (FILE_STAT *)info, follow);
-	}
-	END_CATCH_ERROR
-}
-
 char *GB_RealFileName(const char *name, int len)
 {
 	char *path = STRING_conv_file_name(name, len);
@@ -2437,9 +2428,14 @@ static GB_BROWSE_PROJECT_CALLBACK _browse_project_func;
 static void project_file_found(const char *path)
 {
 	FILE_STAT info;
+	size_t size;
 
-	FILE_stat(path, &info, FALSE);
-	(*_browse_project_func)(path, info.size);
+	if (FILE_stat(path, &info, FALSE))
+		size = 0;
+	else
+		size = info.size;
+
+	(*_browse_project_func)(path, size);
 }
 
 void GB_BrowseProject(GB_BROWSE_PROJECT_CALLBACK func)

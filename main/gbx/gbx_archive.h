@@ -87,7 +87,7 @@ bool ARCHIVE_get(ARCHIVE *arch, const char **ppath, ARCHIVE_FIND *find);
 void ARCHIVE_read(ARCHIVE *arch, int pos, void *buffer, int len);
 
 bool ARCHIVE_exist(ARCHIVE *arch, const char *path);
-void ARCHIVE_stat(ARCHIVE *arch, const char *path, FILE_STAT *info);
+bool ARCHIVE_stat(ARCHIVE *arch, const char *path, FILE_STAT *info);
 bool ARCHIVE_is_dir(ARCHIVE *arch, const char *path);
 
 void ARCHIVE_dir_first(ARCHIVE *arch, const char *path, const char *pattern, int attr);

@@ -747,7 +747,8 @@ void SUBR_stat(ushort code)
 	if (NPARAM == 2)
 		follow = SUBR_get_boolean(&PARAM[1]);
 	
-	FILE_stat(path, &info, follow);
+	if (FILE_stat(path, &info, follow))
+		THROW_SYSTEM(errno, path);
 
 	cstat = OBJECT_new(CLASS_Stat, NULL, NULL);
 	OBJECT_UNREF_KEEP(cstat);

@@ -99,7 +99,7 @@ bool FILE_exist_follow(const char *path, bool follow);
 #define FILE_exist(_path) FILE_exist_follow(_path, FALSE)
 bool FILE_exist_real(const char *path);
 
-void FILE_stat(const char *path, FILE_STAT *info, bool follow);
+bool FILE_stat(const char *path, FILE_STAT *info, bool follow);
 void FILE_dir_first(const char *path, const char *pattern, int attr);
 bool FILE_dir_next(char **path, int *len);
 
