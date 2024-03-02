@@ -1059,11 +1059,7 @@ BEGIN_PROPERTY (PDFPAGELINKS_count)
 	if (!THIS->links) { GB.ReturnInteger(0); return; }
 
 #if POPPLER_VERSION_22_06_0
-	int numlinks = 0;
-	for (AnnotLink *link : THIS->links->getLinks()) {
-		numlinks++;
-	}
-	GB.ReturnInteger(numlinks);
+	GB.ReturnInteger(THIS->links->getLinks().size());
 #else
 	GB.ReturnInteger(THIS->links->getNumLinks());
 #endif
