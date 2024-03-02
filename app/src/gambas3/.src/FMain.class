@@ -3747,7 +3747,9 @@ Private Sub RestoreWorkspaceLayout()
   
   wrkProject.Unlock()
   
-  hForm = Project.Files[$sWorkspaceActive]
-  wrkProject.ActiveWindow = hForm
+  If $sWorkspaceActive Then
+    hForm = Project.Files[$sWorkspaceActive]
+    wrkProject.ActiveWindow = hForm
+  Endif
   
 End
