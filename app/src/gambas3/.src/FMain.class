@@ -32,7 +32,7 @@ Private $bFirstShowDebug As Boolean
 Private $bWorkspaceVisible As Boolean
 Private $sProjectFilter As String
 Private $aWorkspaceLayout As String[]
-Private $sWorkspaceActive As String
+'Private $sWorkspaceActive As String
 
 Public Sub _new()
   
@@ -3713,12 +3713,12 @@ Private Sub SaveWorkspaceLayout()
   Dim sPath As String
   
   $aWorkspaceLayout = New String[]
-  $sWorkspaceActive = ""
+  '$sWorkspaceActive = ""
   
   For Each hForm In wrkProject.Windows
     If hForm.Closed Then Continue
     sPath = hForm.Path
-    If Project.ActiveForm = hForm Then $sWorkspaceActive = sPath
+    'If Project.ActiveForm = hForm Then $sWorkspaceActive = sPath
     $aWorkspaceLayout.Add(sPath)
   Next
   
@@ -3747,9 +3747,9 @@ Private Sub RestoreWorkspaceLayout()
   
   wrkProject.Unlock()
   
-  If $sWorkspaceActive Then
-    hForm = Project.Files[$sWorkspaceActive]
-    wrkProject.ActiveWindow = hForm
-  Endif
+  ' If $sWorkspaceActive Then
+  '   hForm = Project.Files[$sWorkspaceActive]
+  '   wrkProject.ActiveWindow = hForm
+  ' Endif
   
 End
