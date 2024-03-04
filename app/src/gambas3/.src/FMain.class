@@ -3713,12 +3713,10 @@ Private Sub SaveWorkspaceLayout()
   Dim sPath As String
   
   $aWorkspaceLayout = New String[]
-  '$sWorkspaceActive = ""
   
   For Each hForm In wrkProject.Windows
     If hForm.Closed Then Continue
     sPath = hForm.Path
-    'If Project.ActiveForm = hForm Then $sWorkspaceActive = sPath
     $aWorkspaceLayout.Add(sPath)
   Next
   
@@ -3729,13 +3727,16 @@ Private Sub RestoreWorkspaceLayout()
   Dim aCurrent As New String[]
   Dim hForm As Object
   Dim sPath As String
+  Dim hActive As Object
   
   wrkProject.Lock()
+  
+  hActive = Project.ActiveForm
   
   For Each hForm In wrkProject.Windows
     sPath = hForm.Path
     If Not $aWorkspaceLayout.Exist(sPath) Then
-      hForm.Close()
+      If hForm <> hActive Then hForm.Close()
     Else
       aCurrent.Add(sPath)
     Endif
@@ -3747,9 +3748,6 @@ Private Sub RestoreWorkspaceLayout()
   
   wrkProject.Unlock()
   
-  ' If $sWorkspaceActive Then
-  '   hForm = Project.Files[$sWorkspaceActive]
-  '   wrkProject.ActiveWindow = hForm
-  ' Endif
+  If hActive Then hActive.SetFocus()
   
 End
