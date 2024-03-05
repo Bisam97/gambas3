@@ -492,8 +492,11 @@ BEGIN_METHOD_VOID(WebView_exit)
 
 	g_object_unref(context);
 
-	webkit_user_style_sheet_unref(_style_sheet);
-	_style_sheet = NULL;
+	if (_style_sheet)
+	{
+		webkit_user_style_sheet_unref(_style_sheet);
+		_style_sheet = NULL;
+	}
 
 END_METHOD
 
