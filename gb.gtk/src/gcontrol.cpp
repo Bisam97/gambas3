@@ -2617,6 +2617,7 @@ void gControl::setTracking(bool v)
 bool gControl::grab()
 {
 	gControl *old_control_grab;
+	gControl *old_active;
 	bool save_tracking;
 
 	if (_grab)
@@ -2632,9 +2633,13 @@ bool gControl::grab()
 	old_control_grab = gApplication::_control_grab;
 	gApplication::_control_grab = this;
 
+	old_active = gApplication::activeControl();
+	gApplication::setActiveControl(this, true);
+
 	gApplication::enterLoop(this);
 
 	gApplication::_control_grab = old_control_grab;
+	gApplication::setActiveControl(old_active, true);
 
 	gt_ungrab();
 

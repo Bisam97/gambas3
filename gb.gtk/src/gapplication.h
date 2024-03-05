@@ -49,6 +49,7 @@ public:
 
 	static gControl* activeControl() { return _active_control; }
 	static gControl* previousControl() { return _previous_control; }
+	static gControl *grabControl() { return _control_grab; }
 	static void setActiveControl(gControl *control, bool on);
 	static void finishFocus();
 

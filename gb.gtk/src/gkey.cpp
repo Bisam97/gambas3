@@ -527,10 +527,13 @@ gboolean gcb_key_event(GtkWidget *widget, GdkEvent *event, gControl *control)
 	fprintf(stderr, "gcb_key_event: %s for %p %s / active = %p %s\n", event->type == GDK_KEY_PRESS ? "GDK_KEY_PRESS" : "GDK_KEY_RELEASE", control, control->name(), gApplication::activeControl(), gApplication::activeControl() ? gApplication::activeControl()->name() : "-");
 #endif
 
-	/*if (!control->_grab && gApplication::activeControl())
-		control = gApplication::activeControl();*/
-	if (!control || control != gApplication::activeControl())
-		return false;
+	if (gApplication::grabControl())
+		control = gApplication::grabControl();
+	else
+	{
+		if (!control || control != gApplication::activeControl())
+			return false;
+	}
 	
 #if DEBUG_IM
 	fprintf(stderr, "handle it\n");
@@ -608,7 +611,12 @@ gboolean gcb_key_event(GtkWidget *widget, GdkEvent *event, gControl *control)
 	}
 
 	if (control->_grab)
+	{
+		#if DEBUG_IM
+		fprintf(stderr, "gcb_key_event: grab\n");
+		#endif
 		return true;
+	}
 
 	return false;
 }
