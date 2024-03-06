@@ -65,7 +65,6 @@ Static Public Sub Exit()
   
 End
 
-
 Static Public Sub Get(sFarm As String, iId As Integer) As CSoftware
   
   Dim hSoft As CSoftware
@@ -80,7 +79,6 @@ Static Public Sub Get(sFarm As String, iId As Integer) As CSoftware
   Return hSoft
   
 End
-
 
 Public Sub _new(iId As Integer, sFarm As String) ', sLogin As String, sPassword As String)
   
@@ -109,8 +107,6 @@ Public Sub Abort()
   Try $hRequestIcon.Abort
   
 End
-
-
 
 Public Sub Request_Finished()
   
@@ -148,14 +144,14 @@ Public Sub Request_Finished()
   Endif
   Tags = Split(cResult["Tags"]).Sort()
   Try Size = CLong(cResult["Size"])
-
+  
   State = State Or STATE_INFO
   Raise Change
-
+  
 End
 
 Public Sub IconRequest_Finished()
-
+  
   Dim hReq As FarmRequest = Last
   
   If hReq.HasFailed() Then
@@ -169,7 +165,7 @@ Public Sub IconRequest_Finished()
   Try Icon = Image.Load(hReq.ResultFile).Stretch(-1, CSoftware.IconSize)
   State = State Or STATE_ICON
   Raise Change
-
+  
 End
 
 Public Sub IsFinished() As Boolean
@@ -184,29 +180,33 @@ Public Sub GetInstalledDir() As String
   
 End
 
-
 Public Sub GetInstallVersion() As String
-
+  
   Dim sPath As String
   Dim sLine As String
-
+  
   If Not IsFinished() Then Return
   If $iInstallVersionAge >= InstallAge Then Return $sInstallVersion
-
+  
   $sInstallVersion = ""
-  sPath = GetInstalledDir() &/ ".project"
-  If Exist(sPath) Then 
-    For Each sLine In Split(File.Load(sPath), "\n")
-      If sLine Begins "Version=" Then
-        $sInstallVersion = Trim(Mid$(sLine, 9))
-        Break
-      Endif
-    Next
+  sPath = GetInstalledDir() &/ ".version"
+  If Exist(sPath) Then
+    $sInstallVersion = Trim(File.Load(sPath))
+  Else
+    sPath = GetInstalledDir() &/ ".project"
+    If Exist(sPath) Then 
+      For Each sLine In Split(File.Load(sPath), "\n")
+        If sLine Begins "Version=" Then
+          $sInstallVersion = Trim(Mid$(sLine, 9))
+          Break
+        Endif
+      Next
+    Endif
   Endif
   
   $iInstallVersionAge = InstallAge
   Return $sInstallVersion
-
+  
 End
 
 ' 
@@ -247,9 +247,9 @@ End
 ' End
 
 Public Sub GetTitle() As String
-
+  
   Return Name & " " & Version
-
+  
 End
 
 Public Sub IsInstalled() As Boolean
@@ -259,7 +259,7 @@ Public Sub IsInstalled() As Boolean
 End
 
 Public Sub IsReallyInstalled() As Boolean
-
+  
   Dim sVersion As String
   
   sVersion = GetInstallVersion()
@@ -269,7 +269,7 @@ Public Sub IsReallyInstalled() As Boolean
 End
 
 Public Sub CanUpgrade() As Boolean
-
+  
   Dim sVersion As String
   
   sVersion = GetInstallVersion()
@@ -279,7 +279,7 @@ Public Sub CanUpgrade() As Boolean
 End
 
 Public Sub Install(Optional bJustDownload As Boolean) As String
-
+  
   Dim hReq As FarmRequest
   Dim sDir As String
   Dim sPath As String
@@ -301,7 +301,7 @@ Public Sub Install(Optional bJustDownload As Boolean) As String
   ' Create directories
   
   sDir = Desktop.DataDir &/ "gambas3"
-
+  
   sSrcDir = sDir &/ "src" &/ LCase(Vendor)
   Project.MakeDir(sSrcDir)
   sExecDir = Desktop.DataDir &/ "gambas3/bin" &/ LCase(Vendor)
@@ -365,13 +365,13 @@ Public Sub Install(Optional bJustDownload As Boolean) As String
   Endif
   
   ' TODO: Check the libraries
-    
+  
   If bJustDownload Then
     
     GoSub INSTALL_SOURCE
     
   Else
-  
+    
     ' Compile the project
     ' TODO: Use translatable error messages?
     
@@ -388,7 +388,7 @@ Public Sub Install(Optional bJustDownload As Boolean) As String
     If Process.LastValue Then
       Error.Raise(("Unable to compile the project.") & "\n\n" & sResult)
     Endif
-  
+    
     ' Make executable
     
     sExec = System.Path &/ "bin/gba" & System.Version & " -o " & Shell$(sDir &/ sName & ".gambas") & " " & Shell$(sDir) & " 2>&1"
@@ -407,7 +407,7 @@ Public Sub Install(Optional bJustDownload As Boolean) As String
     ' Make a desktop file unless the project is a library or a component
     
     If hProjectInfo.Type = Project.TYPE_NORMAL Then
-    
+      
       aExistCat = Split(File.Load("install/categories"), "\n", "", True)
       aCat = New String[]
       For Each sTag In Tags
@@ -415,7 +415,7 @@ Public Sub Install(Optional bJustDownload As Boolean) As String
           aCat.Add(sTag)
         Endif
       Next
-    
+      
       Try Kill Desktop.DataDir &/ "applications" &/ "gambas-" & LCase(Vendor) & "-" & sName & ".desktop"
       If hProjectInfo.CreateMenu Then
         hDesktopFile = New DesktopFile(Desktop.DataDir &/ "applications" &/ "gambas-" & LCase(Vendor) & "-" & sName & ".desktop")
@@ -432,7 +432,7 @@ Public Sub Install(Optional bJustDownload As Boolean) As String
         Try Mkdir File.SetName(sExecDir, ".extensions")
         Link ".." &/ File.Name(sExecDir) &/ sName & ".gambas" To File.SetName(sExecDir, ".extensions") &/ sName
       Endif
-
+      
     Else If hProjectInfo.Type = Project.TYPE_LIBRARY Then
       
       sErr = Project.InstallLibrary(sExecDir &/ sName & ".gambas", Vendor, $sVersion)
@@ -441,7 +441,7 @@ Public Sub Install(Optional bJustDownload As Boolean) As String
     Endif
     
   Endif
-
+  
   If LCase(Vendor) <> "example" And If Tags.Exist("example", gb.IgnoreCase) Then
     Try Mkdir File.SetName(sSrcDir, "example")
     Try Kill File.SetName(sSrcDir, "example") &/ sName
@@ -453,12 +453,12 @@ Public Sub Install(Optional bJustDownload As Boolean) As String
   Return
   
 INSTALL_SOURCE:
-
+  
   ' Make a backup of the possible old version
-
+  
   Exec ["rm", "-rf", sSrcDir &/ sName & "~"] Wait
   Try Move sSrcDir &/ sName To sSrcDir &/ sName & "~"
-
+  
   ' Move the source directory to its final location
   
   Exec ["mv", sDir, sSrcDir &/ sName] Wait
@@ -517,9 +517,8 @@ Catch
   
 End
 
-
 Public Sub Uninstall() As String
-
+  
   Dim sDir As String
   Dim sErr As String
   
@@ -557,21 +556,19 @@ Public Sub ScreenshotRequest_Finished()
   
 End
 
-
 Public Sub MustReload()
-
+  
   $cCache[$sFarm][Id] = Null
   $hRequest.Abort
   $hRequestIcon.Abort
   $hRequestScreenshot.Abort
-
+  
 End
-
 
 Public Sub ToggleVote() As String
   
   Dim hReq As FarmRequest
- 
+  
   hReq = New FarmRequest($sFarm)
   hReq.VoteForSoftware(Id, If(YourVote = 1, 0, 1))
   If hReq.WaitFor(,, True) Then
@@ -587,15 +584,15 @@ Catch
 End
 
 Private Function Farm_Read() As String
-
+  
   Return $sFarm
-
+  
 End
 
 Public Sub Delete() As String
   
   Dim hReq As FarmRequest
- 
+  
   hReq = New FarmRequest($sFarm)
   hReq.DeleteSoftware(Id)
   If hReq.WaitFor(,, True) Then
@@ -610,14 +607,14 @@ Catch
 End
 
 Public Sub PaintName(X As Float, Y As Float, Width As Float) As Integer
-
+  
   Dim iCol As Integer
   Dim sText As String
   Dim XO As Float
   Dim W As Integer
   Dim H As Integer
   Dim iGrade As Integer
-
+  
   If Not Name Then Return
   
   iGrade = Paint.Font.Grade
@@ -626,10 +623,10 @@ Public Sub PaintName(X As Float, Y As Float, Width As Float) As Integer
   Paint.Save
   
   iCol = Color.TextForeground
-    
+  
   Paint.Background = iCol
   XO = X
-
+  
   sText = Version
   Paint.Font.Grade = iGrade
   W = Paint.Font.TextWidth(sText)
@@ -643,7 +640,7 @@ Public Sub PaintName(X As Float, Y As Float, Width As Float) As Integer
   sText = Version
   Paint.Font.Grade = iGrade
   Paint.DrawText(sText, X + W + Desktop.Scale, Y, W, H, Align.TopLeft)
-
+  
   X = XO
   Y += H + Desktop.Scale \ 4
   
@@ -660,13 +657,13 @@ Public Sub PaintName(X As Float, Y As Float, Width As Float) As Integer
 End
 
 Static Private Function IconSize_Read() As Integer
-
+  
   Return Desktop.Scale * 6
-
+  
 End
 
 Public Sub GetUploadAge() As String
-
+  
   Dim iDiff As Integer
   
   iDiff = DateDiff(UploadDate, Now, gb.Day)
