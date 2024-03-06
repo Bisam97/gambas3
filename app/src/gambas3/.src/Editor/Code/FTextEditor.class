@@ -881,11 +881,7 @@ Private Sub RefreshLineInfo(Optional bForce As Boolean) As Boolean
 
   Dim bNewLine As Boolean
 
-  If bForce Then
-    $iLastLine = -1
-  Endif
-
-  If $hEditor.Line <> $iLastLine Then
+  If $hEditor.Line <> $iLastLine Or If bForce Then
 
     $iLastLine = $hEditor.Line
 
@@ -1749,6 +1745,8 @@ End
 
 Private Sub RefreshPreview(Optional bReload As Boolean)
 
+  Static bLock As Boolean
+
   Dim sHtml As String
   Dim bError As Boolean
   Dim aHtml As String[]
@@ -1756,8 +1754,11 @@ Private Sub RefreshPreview(Optional bReload As Boolean)
   Dim bBody As Boolean
   Dim iPos As Integer
   
+  If bLock Then Return
   If Not HasPreview() Then Return
   
+  bLock = True
+
   If bReload Then
     
     $bPreviewReady = False
@@ -1826,6 +1827,8 @@ Private Sub RefreshPreview(Optional bReload As Boolean)
     If $bPreviewReady Then $hPreview.ExecJavascript("goto_line(" & CStr($hEditor.Line) & ");")
     
   Endif
+  
+  bLock = False
 
 End
 
