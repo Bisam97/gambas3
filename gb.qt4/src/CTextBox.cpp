@@ -114,7 +114,7 @@ END_PROPERTY
 BEGIN_PROPERTY(TextBox_Alignment)
 
 	if (READ_PROPERTY)
-		GB.ReturnInteger(CCONST_alignment(TEXTBOX->alignment() + Qt::AlignVCenter, ALIGN_NORMAL, false));
+		GB.ReturnInteger(CCONST_alignment(TEXTBOX->alignment() | Qt::AlignVCenter, ALIGN_NORMAL, false));
 	else
 		TEXTBOX->setAlignment((Qt::Alignment)CCONST_alignment(VPROP(GB_INTEGER), ALIGN_NORMAL, true) & Qt::AlignHorizontal_Mask);
 
@@ -204,7 +204,11 @@ BEGIN_METHOD(TextBox_CursorAt, GB_INTEGER pos)
 	}
 	
 	// Hack to call cursorRect()
+#ifdef QT5
+	rect = textbox->inputMethodQuery(Qt::ImCursorRectangle).toRect();
+#else
 	rect = textbox->inputMethodQuery(Qt::ImMicroFocus).toRect();
+#endif
 	
 	if (save >= 0)
 		textbox->setCursorPosition(save);

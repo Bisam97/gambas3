@@ -53,6 +53,7 @@
 #include <QPaintDevice>
 #include <QLibraryInfo>
 #include <QThreadPool>
+#include <QScreen>
 
 #include "gb.image.h"
 #include "gb.form.font.h"
@@ -615,7 +616,7 @@ void MAIN_check_quit(void)
 
 void MAIN_update_scale(const QFont &font)
 {
-	MAIN_scale = GET_DESKTOP_SCALE(font.pointSize(), PLATFORM.Desktop.GetResolutionY());
+	MAIN_scale = GET_DESKTOP_SCALE(font.pointSize(), QGuiApplication::primaryScreen()->logicalDotsPerInch());
 }
 
 static void QT_InitEventLoop(void)

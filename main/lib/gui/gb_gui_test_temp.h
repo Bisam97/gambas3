@@ -75,6 +75,8 @@ static int GUI_should_use()
 					return USE_GB_QT4;
 				else if (strcmp(env, "5") == 0)
 					return USE_GB_QT5;
+				else if (strcmp(env, "6") == 0)
+					return USE_GB_QT6;
 			}
 		}
 	}

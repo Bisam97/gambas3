@@ -56,7 +56,7 @@ static void set_cache(bool on)
 static QWebEngineSettings *get_settings(void *_object)
 {
 	if (GB.Is(_object, GB.FindClass("WebSettings")))
-		return QWebEngineSettings::defaultSettings();
+		return QWebEngineProfile::defaultProfile()->settings();
 	else
 		return WEBVIEW->page()->profile()->settings();
 }

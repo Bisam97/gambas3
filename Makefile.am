@@ -21,6 +21,7 @@ SUBDIRS = \
  @crypt_dir@ \
  @qt4_dir@ \
  @qt5_dir@ \
+ @qt6_dir@ \
  @gtk_dir@ \
  @gtk3_dir@ \
  @opengl_dir@ \

@@ -29,6 +29,7 @@
 #include <QPointer>
 #include <QApplication>
 #include <QScreen>
+#include <QX11Info>
 
 #include <xcb/xcb.h>
 #include <xcb/xproto.h>
@@ -286,16 +287,6 @@ static int get_last_key_code(void)
 
 //-------------------------------------------------------------------------
 
-static int desktop_get_resolution_x(void)
-{
-	return QX11Info::appDpiX();
-}
-
-static int desktop_get_resolution_y(void)
-{
-	return QX11Info::appDpiY();
-}
-
 static void desktop_screenshot(QPixmap *pixmap, int x, int y, int w, int h)
 {
 	*pixmap = qApp->primaryScreen()->grabWindow(QX11Info::appRootWindow(), x, y, w, h);
@@ -391,8 +382,6 @@ void *GB_QT5_X11_1[] EXPORT = {
   (void *)unrelease_grab,
   (void *)get_last_key_code,
   
-  (void *)desktop_get_resolution_x,
-  (void *)desktop_get_resolution_y,
   (void *)desktop_screenshot,
   
   (void *)window_get_id,

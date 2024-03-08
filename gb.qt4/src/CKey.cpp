@@ -57,7 +57,9 @@ BEGIN_METHOD(CKEY_get, GB_STRING key)
   char *str = GB.ToZeroString(ARG(key));
   QKeySequence ks(str);
 
-#if QT_VERSION <= 0x030005
+#if QT6
+  GB.ReturnInteger(ks[0].key());
+#elif QT_VERSION <= 0x030005
   GB.ReturnInteger(ks);
 #else
   GB.ReturnInteger(ks[0] & ~Qt::UNICODE_ACCEL);

@@ -73,7 +73,7 @@ GB_DESC *GB_CLASSES[] EXPORT =
 
 int EXPORT GB_INIT(void)
 {
-	GB.GetInterface("gb.qt5", QT_INTERFACE_VERSION, &QT);
+	GB.GetInterface(QT_NAME, QT_INTERFACE_VERSION, &QT);
 	CLASS_WebView = GB.FindClass("WebView");
 	return 0;
 }
@@ -90,7 +90,11 @@ void MAIN_return_qvariant(const QVariant &result)
 	GB_DATE_SERIAL ds;
 	QDateTime qdate;
 
+#if QT6
+	switch (result.typeId())
+#else
 	switch (result.type())
+#endif
 	{
 		case QVariant::Bool:
 			GB.ReturnBoolean(result.toBool());
@@ -131,7 +135,11 @@ void MAIN_return_qvariant(const QVariant &result)
 		// TODO: Handle these three datatypes
 		case QVariant::Hash:
 		case QVariant::List:
+		#if QT6
+		case QVariant::RegularExpression:
+		#else
 		case QVariant::RegExp:
+		#endif
 		default:
 			GB.ReturnNull();
 			break;

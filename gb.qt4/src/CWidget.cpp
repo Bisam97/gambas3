@@ -891,7 +891,6 @@ void *CWIDGET_get_previous_focus(void *_object)
 	}
 }
 
-
 //---------------------------------------------------------------------------
 
 BEGIN_METHOD_VOID(Control_new)
@@ -2484,6 +2483,12 @@ static bool raise_key_event_to_parent_window(CWIDGET *control, int event)
 	return false;
 }
 
+#if QT6
+#define globalX globalPosition().x
+#define globalY globalPosition().y
+#define globalPosF globalPosition
+#endif
+
 bool CWidget::eventFilter(QObject *widget, QEvent *event)
 {
 	CWIDGET *control;
@@ -2938,6 +2943,15 @@ bool CWidget::eventFilter(QObject *widget, QEvent *event)
 			POINTER_info.xtilt = tevent->xTilt();
 			POINTER_info.ytilt = tevent->yTilt();
 			
+#ifdef QT6
+			switch(tevent->pointerType())
+			{
+				case QPointingDevice::PointerType::Pen: POINTER_info.type = POINTER_PEN; break;
+				case QPointingDevice::PointerType::Eraser: POINTER_info.type = POINTER_ERASER; break;
+				case QPointingDevice::PointerType::Cursor: POINTER_info.type = POINTER_CURSOR; break;
+				default: POINTER_info.type = POINTER_MOUSE;
+			}
+#else
 			switch(tevent->pointerType())
 			{
 				case QTabletEvent::Pen: POINTER_info.type = POINTER_PEN; break;
@@ -2945,6 +2959,7 @@ bool CWidget::eventFilter(QObject *widget, QEvent *event)
 				case QTabletEvent::Cursor: POINTER_info.type = POINTER_CURSOR; break;
 				default: POINTER_info.type = POINTER_MOUSE;
 			}
+#endif
 
 			//cancel = GB.Raise(control, event_id, 0);
 

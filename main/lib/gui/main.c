@@ -25,13 +25,14 @@
 
 #include "main.h"
 
-enum { USE_NOTHING, USE_GB_QT4, USE_GB_QT5, USE_GB_GTK, USE_GB_GTK3 };
+enum { USE_NOTHING, USE_GB_QT4, USE_GB_QT5, USE_GB_QT6, USE_GB_GTK, USE_GB_GTK3, USE_COUNT = USE_GB_GTK3 };
 
-static char use_list[4][3] = {
-	{ USE_GB_QT5, USE_GB_GTK, USE_GB_GTK3 },
-	{ USE_GB_QT4, USE_GB_GTK3, USE_GB_GTK },
-	{ USE_GB_GTK3, USE_GB_QT4, USE_GB_QT5 },
-	{ USE_GB_GTK, USE_GB_QT5, USE_GB_QT4 },
+static char use_list[USE_COUNT][USE_COUNT - 1] = {
+	{ USE_GB_QT6, USE_GB_QT5, USE_GB_GTK, USE_GB_GTK3 },
+	{ USE_GB_QT6, USE_GB_QT4, USE_GB_GTK3, USE_GB_GTK },
+	{ USE_GB_QT5, USE_GB_QT4, USE_GB_GTK3, USE_GB_GTK },
+	{ USE_GB_GTK3, USE_GB_QT6, USE_GB_QT5, USE_GB_QT4 },
+	{ USE_GB_GTK, USE_GB_QT6, USE_GB_QT5, USE_GB_QT4 },
 };
 
 GB_INTERFACE GB EXPORT;
@@ -43,7 +44,7 @@ GB_DESC *GB_CLASSES[] EXPORT =
   NULL
 };
 
-char *GB_INCLUDE EXPORT = "gb.qt4|gb.qt5|gb.gtk|gb.gtk3";
+char *GB_INCLUDE EXPORT = "gb.qt4|gb.qt5|gb.qt6|gb.gtk|gb.gtk3";
 
 static bool _debug = FALSE;
 
@@ -54,6 +55,7 @@ const char *get_name(int use)
 	{
 		case USE_GB_QT4: return "gb.qt4";
 		case USE_GB_QT5: return "gb.qt5";
+		case USE_GB_QT6: return "gb.qt6";
 		case USE_GB_GTK3: return "gb.gtk3";
 		default: return "gb.gtk";
 	}
@@ -78,6 +80,8 @@ int EXPORT GB_INIT(void)
 			use = USE_GB_QT4;
 		else if (strcmp(env, "gb.qt5") == 0)
 			use = USE_GB_QT5;
+		else if (strcmp(env, "gb.qt6") == 0)
+			use = USE_GB_QT6;
 		else if (strcmp(env, "gb.gtk") == 0)
 			use = USE_GB_GTK;
 		else if (strcmp(env, "gb.gtk3") == 0)
@@ -103,7 +107,7 @@ int EXPORT GB_INIT(void)
 	{
 		strcpy(not_found, fail);
 		use_other = USE_NOTHING;
-		for (i = 0; i <= 2; i++)
+		for (i = 0; i < USE_COUNT - 1; i++)
 		{
 			if (_debug)
 				fprintf(stderr, "gb.gui: checking %s...\n", get_name(use_list[use - 1][i]));

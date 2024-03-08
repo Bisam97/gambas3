@@ -29,7 +29,6 @@
 #include <QPixmap>
 #include <QBitmap>
 #include <QPainter>
-#include <QMatrix>
 #include <QByteArray>
 #include <QBuffer>
 #include <QHash>
@@ -43,15 +42,16 @@
 #include "CImage.h"
 #include "CPicture.h"
 
-#ifdef QT5
+#if QT6
+#include <QScreen>
+#elif QT5
 #include <QScreen>
 #include <QDesktopWidget>
 #else
+#include <QMatrix>
 #include <QX11Info>
 #include <X11/Xlib.h>
 #endif
-
-
 
 static CPICTURE *create()
 {
@@ -133,7 +133,7 @@ CPICTURE *CPICTURE_grab(QWidget *wid, int screen, int x, int y, int w, int h)
 	else
 	{
 #ifdef QT5
-		*pict->pixmap = QGuiApplication::screens().at(QApplication::desktop()->screenNumber(wid))->grabWindow(wid->winId());
+		*pict->pixmap = wid->screen()->grabWindow(wid->winId());
 #else
 		*pict->pixmap = QPixmap::grabWindow(wid->winId());
 #endif

@@ -37,27 +37,27 @@
 
 static int _alignment[] =
 {
-	ALIGN_NORMAL, Qt::AlignVCenter + Qt::AlignLeft,
-	ALIGN_LEFT, Qt::AlignVCenter + Qt::AlignLeft + Qt::AlignAbsolute,
-	ALIGN_RIGHT, Qt::AlignVCenter + Qt::AlignRight + Qt::AlignAbsolute,
-	ALIGN_CENTER, Qt::AlignVCenter + Qt::AlignHCenter,
-	ALIGN_TOP_NORMAL, Qt::AlignTop + Qt::AlignLeft,
-	ALIGN_TOP_LEFT, Qt::AlignTop + Qt::AlignLeft + Qt::AlignAbsolute,
-	ALIGN_TOP_RIGHT, Qt::AlignTop + Qt::AlignRight + Qt::AlignAbsolute,
-	ALIGN_TOP, Qt::AlignTop + Qt::AlignHCenter,
-	ALIGN_BOTTOM_NORMAL, Qt::AlignBottom + Qt::AlignLeft,
-	ALIGN_BOTTOM_LEFT, Qt::AlignBottom + Qt::AlignLeft + Qt::AlignAbsolute,
-	ALIGN_BOTTOM_RIGHT, Qt::AlignBottom + Qt::AlignRight + Qt::AlignAbsolute,
-	ALIGN_BOTTOM, Qt::AlignBottom + Qt::AlignHCenter,
-	ALIGN_JUSTIFY, Qt::AlignVCenter + Qt::AlignJustify,
+	ALIGN_NORMAL, Qt::AlignVCenter | Qt::AlignLeft,
+	ALIGN_LEFT, Qt::AlignVCenter | Qt::AlignLeft | Qt::AlignAbsolute,
+	ALIGN_RIGHT, Qt::AlignVCenter | Qt::AlignRight | Qt::AlignAbsolute,
+	ALIGN_CENTER, Qt::AlignVCenter | Qt::AlignHCenter,
+	ALIGN_TOP_NORMAL, Qt::AlignTop | Qt::AlignLeft,
+	ALIGN_TOP_LEFT, Qt::AlignTop | Qt::AlignLeft | Qt::AlignAbsolute,
+	ALIGN_TOP_RIGHT, Qt::AlignTop | Qt::AlignRight | Qt::AlignAbsolute,
+	ALIGN_TOP, Qt::AlignTop | Qt::AlignHCenter,
+	ALIGN_BOTTOM_NORMAL, Qt::AlignBottom | Qt::AlignLeft,
+	ALIGN_BOTTOM_LEFT, Qt::AlignBottom | Qt::AlignLeft | Qt::AlignAbsolute,
+	ALIGN_BOTTOM_RIGHT, Qt::AlignBottom | Qt::AlignRight | Qt::AlignAbsolute,
+	ALIGN_BOTTOM, Qt::AlignBottom | Qt::AlignHCenter,
+	ALIGN_JUSTIFY, Qt::AlignVCenter | Qt::AlignJustify,
 	CONST_MAGIC
 };
 
 static int _horizontal_alignment[] =
 {
 	ALIGN_NORMAL, Qt::AlignLeft,
-	ALIGN_LEFT, Qt::AlignLeft + Qt::AlignAbsolute,
-	ALIGN_RIGHT, Qt::AlignRight + Qt::AlignAbsolute,
+	ALIGN_LEFT, Qt::AlignLeft | Qt::AlignAbsolute,
+	ALIGN_RIGHT, Qt::AlignRight | Qt::AlignAbsolute,
 	ALIGN_CENTER, Qt::AlignHCenter,
 	ALIGN_JUSTIFY, Qt::AlignJustify,
 	CONST_MAGIC

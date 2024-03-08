@@ -709,7 +709,7 @@ static void _draw_border(QPainter *p, int frame, QWidget *w, QStyleOptionFrame &
 void CCONTAINER_draw_border(QPainter *p, char frame, QWidget *wid)
 {
 	QStyleOptionFrame opt;
-	opt.init(wid);
+	opt.initFrom(wid);
 	opt.rect = QRect(0, 0, wid->width(), wid->height());
 	_draw_border(p, frame, wid, opt);
 }

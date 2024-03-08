@@ -1094,7 +1094,7 @@ MyWebPage::MyWebPage(QWebEngineProfile *profile, QObject *parent) : QWebEnginePa
 
 bool MyWebPage::acceptNavigationRequest(const QUrl &url, QWebEnginePage::NavigationType type, bool isMainFrame)
 {
-	QWidget *wid = view();
+	QWidget *wid = qobject_cast<QWidget *>(parent());
 	void *_object;
 	
 	if (!wid)
@@ -1139,7 +1139,7 @@ void WebViewSignalManager::urlChanged()
 
 void WebViewSignalManager::linkHovered(const QString &link)
 {
-	void *_object = QT.GetObject(((QWebEnginePage*)sender())->view());
+	void *_object = QT.GetObject(qobject_cast<QWidget *>((QWebEnginePage*)sender()->parent()));
 	
 	if (THIS)
 	{

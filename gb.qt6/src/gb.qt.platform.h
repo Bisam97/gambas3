@@ -1,0 +1,1 @@
+../../gb.qt5/src/gb.qt.platform.h

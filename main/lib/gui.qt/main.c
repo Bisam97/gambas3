@@ -25,9 +25,15 @@
 
 #include "main.h"
 
-enum { USE_NOTHING, USE_GB_QT4, USE_GB_QT5 };
+enum { USE_NOTHING, USE_GB_QT4, USE_GB_QT5, USE_GB_QT6, USE_COUNT = USE_GB_QT6 };
 
-const GB_INTERFACE *GB_PTR EXPORT;
+static char use_list[USE_COUNT][USE_COUNT - 1] = {
+	{ USE_GB_QT6, USE_GB_QT5 },
+	{ USE_GB_QT6, USE_GB_QT4 },
+	{ USE_GB_QT5, USE_GB_QT4 }
+};
+
+GB_INTERFACE GB EXPORT;
 
 // Prevents gbi3 from complaining
 
@@ -36,7 +42,7 @@ GB_DESC *GB_CLASSES[] EXPORT =
   NULL
 };
 
-char *GB_INCLUDE EXPORT = "gb.qt4|gb.qt5";
+char *GB_INCLUDE EXPORT = "gb.qt4|gb.qt5|gb.qt6";
 
 static bool _debug = FALSE;
 
@@ -46,7 +52,8 @@ const char *get_name(int use)
 	switch (use)
 	{
 		case USE_GB_QT4: return "gb.qt4";
-		default: return "gb.qt5";
+		case USE_GB_QT5: return "gb.qt5";
+		default: return "gb.qt6";
 	}
 }
 
@@ -58,58 +65,66 @@ int EXPORT GB_INIT(void)
 	int use_other = USE_NOTHING;
 	char *env;
 	const char *comp;
+	int i;
 	const char *fail;
 	char not_found[32];
 
 	env = getenv("GB_GUI");
-	if (env && *env)
+	if (env)
 	{
 		if (strcmp(env, "gb.qt4") == 0)
 			use = USE_GB_QT4;
 		else if (strcmp(env, "gb.qt5") == 0)
 			use = USE_GB_QT5;
-		else
-			fprintf(stderr, "gb.gui.qt: warning: '%s' component not supported\n", env);
+		else if (strcmp(env, "gb.qt6") == 0)
+			use = USE_GB_QT6;
 	}
-	
+
 	env = getenv("GB_GUI_DEBUG");
-	if (env && strcmp(env, "0")) 
+	if (env && strcmp(env, "0"))
 		_debug = TRUE;
-	
+
 	if (use == USE_NOTHING)
 	{
 		use = GUI_should_use();
 		if (use == USE_NOTHING)
-			use = USE_GB_QT5;
+			use = USE_GB_QT6;
 	}
 
 	if (_debug)
-		fprintf(stderr, "gb.gui: checking %s...\n", get_name(use));
-	
+		fprintf(stderr, "gb.gui.qt: checking %s...\n", get_name(use));
+
 	fail = GUI_can_use(use);
 	if (fail)
 	{
 		strcpy(not_found, fail);
+		use_other = USE_NOTHING;
+		for (i = 0; i < USE_COUNT - 1; i++)
+		{
+			if (_debug)
+				fprintf(stderr, "gb.gui.qt: checking %s...\n", get_name(use_list[use - 1][i]));
 
-		if (use == USE_GB_QT4)
-			use_other = USE_GB_QT5;
-		else
-			use_other = USE_GB_QT4;
-		
-		if (!GUI_can_use(use_other))
+			if (!GUI_can_use(use_list[use - 1][i]))
+			{
+				use_other = use_list[use - 1][i];
+				break;
+			}
+		}
+
+		if (use_other)
 		{
 			fprintf(stderr, "gb.gui.qt: warning: '%s' component not found, using '%s' instead\n", not_found, get_name(use_other));
 			use = use_other;
 		}
 		else
 		{
-			fprintf(stderr, "gb.gui.qt: error: '%s' component not found, unable to find any QT replacement component\n", not_found);
+			fprintf(stderr, "gb.gui.qt: error: '%s' component not found, unable to find any GUI replacement component\n", not_found);
 			exit(1);
 		}
 	}
-	
+
 	comp = get_name(use);
-	
+
 	if (GB.Component.Load(comp))
 	{
 		fprintf(stderr, "gb.gui.qt: error: cannot load component '%s'\n", comp);
@@ -121,7 +136,7 @@ int EXPORT GB_INIT(void)
 			fprintf(stderr, "gb.gui.qt: loading '%s'\n", comp);
 	}
 
-	setenv("GB_GUI", comp, TRUE);
+  setenv("GB_GUI", comp, TRUE);
 
   return 0;
 }
@@ -129,4 +144,5 @@ int EXPORT GB_INIT(void)
 void EXPORT GB_EXIT()
 {
 }
+
 

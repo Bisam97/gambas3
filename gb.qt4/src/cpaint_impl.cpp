@@ -1363,8 +1363,7 @@ static void TransformDelete(GB_TRANSFORM *matrix)
 static void TransformInit(GB_TRANSFORM matrix, float xx, float yx, float xy, float yy, float x0, float y0)
 {
 	QTransform *t = (QTransform *)matrix;
-	QMatrix m((qreal)xx, (qreal)yx, (qreal)xy, (qreal)yy, (qreal)x0, (qreal)y0);
-	QTransform t2(m);
+	QTransform t2((qreal)xx, (qreal)yx, (qreal)xy, (qreal)yy, (qreal)x0, (qreal)y0);
 	*t = t2;
 }
 
@@ -1538,7 +1537,11 @@ MyPaintEngine::~MyPaintEngine() {}
 
 void MyPaintEngine::patchFeatures()
 {
+#if QT6
+	if (type() == Pdf)
+#else
 	if (type() == PostScript || type() == Pdf)
+#endif
 	{
 		QPaintEngine::PaintEngineFeatures f = QPaintEngine::AllFeatures;
 		f &= (QPaintEngine::PorterDuff | QPaintEngine::PerspectiveTransform

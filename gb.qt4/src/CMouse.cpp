@@ -313,7 +313,7 @@ END_PROPERTY
 BEGIN_PROPERTY(Mouse_Middle)
 
 	CHECK_VALID();
-	GB.ReturnBoolean((MOUSE_info.state | MOUSE_info.button) & Qt::MidButton);
+	GB.ReturnBoolean((MOUSE_info.state | MOUSE_info.button) & Qt::MiddleButton);
 
 END_PROPERTY
 

@@ -32,7 +32,7 @@ GB_DESC *GB_CLASSES[] EXPORT =
   NULL
 };
 
-char *GB_INCLUDE EXPORT = "gb.qt4.ext|gb.qt5.ext";
+char *GB_INCLUDE EXPORT = "gb.qt6.ext|gb.qt4.ext|gb.qt5.ext";
 
 int EXPORT GB_INIT(void)
 {
@@ -46,6 +46,8 @@ int EXPORT GB_INIT(void)
 			comp = "gb.qt4.ext";
 		else if (strcmp(env, "gb.qt5") == 0)
 			comp = "gb.qt5.ext";
+		else if (strcmp(env, "gb.qt6") == 0)
+			comp = "gb.qt6.ext";
 	}
 	
 	if (!comp)

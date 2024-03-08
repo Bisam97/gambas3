@@ -47,7 +47,11 @@
 
 #define QT_INTERFACE_VERSION 1
 
-#if QT_VERSION >= 0x050000
+#if QT_VERSION >= 0x060000
+#define QT6 1
+#define QT5 1
+#define QT_NAME "gb.qt6"
+#elif QT_VERSION >= 0x050000
 #define QT5 1
 #define QT_NAME "gb.qt5"
 #else

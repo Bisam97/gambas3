@@ -43,7 +43,6 @@
 #include <QEvent>
 #include <QLayout>
 #include <QEventLoop>
-#include <QDesktopWidget>
 #include <QAction>
 #include <QTimer>
 
@@ -59,6 +58,10 @@
 
 #ifdef QT5
 #include <QWindow>
+#endif
+
+#ifndef QT6
+#include <QDesktopWidget>
 #endif
 
 #include "gambas.h"
@@ -369,7 +372,7 @@ void CWINDOW_move_resize(void *_object, int x, int y, int w, int h)
 	{
 		bool resizable = false;
 	
-		if (WINDOW->isTopLevel() && !WINDOW->isResizable())
+		if (WINDOW->isWindow() && !WINDOW->isResizable())
 		{
 			resizable = true;
 			WINDOW->setResizable(true);
@@ -389,6 +392,11 @@ void CWINDOW_move_resize(void *_object, int x, int y, int w, int h)
 		
 		WINDOW->configure();
 	}
+}
+
+static int get_screen_number(QWidget *widget)
+{
+	return QApplication::screens().indexOf(widget->screen());
 }
 
 //-- Window ---------------------------------------------------------------
@@ -1352,7 +1360,7 @@ END_PROPERTY
 
 BEGIN_PROPERTY(Window_Screen)
 
-	GB.ReturnInteger(QApplication::desktop()->screenNumber(WIDGET));
+	GB.ReturnInteger(get_screen_number(WIDGET));
 
 END_PROPERTY
 
@@ -1807,7 +1815,7 @@ void MyMainWindow::present(QWidget *parent)
 	qDebug("present: %p %s: parent = %p %s", THIS, _object->name, _parent, _parent ? _parent->name : "");*/
 
 	if (parent)
-		_screen = QApplication::desktop()->screenNumber(parent);
+		_screen = get_screen_number(parent);
 	else
 		_screen = -1;
 
@@ -2412,7 +2420,7 @@ void MyMainWindow::resizeEvent(QResizeEvent *e)
 	{
 		THIS->w = THIS->container->width();
 		THIS->h = THIS->container->height();
-		if (isTopLevel())
+		if (isWindow())
 		{
 			if ((_state & (Qt::WindowMinimized | Qt::WindowMaximized | Qt::WindowFullScreen)) == 0)
 			{
@@ -2771,9 +2779,9 @@ int MyMainWindow::currentScreen() const
 		return _screen;
 
 	if (CWINDOW_Active)
-		return QApplication::desktop()->screenNumber(CWINDOW_Active->widget.widget);
+		return get_screen_number(CWINDOW_Active->widget.widget);
 	else if (CWINDOW_Main)
-		return QApplication::desktop()->screenNumber(CWINDOW_Main->widget.widget);
+		return get_screen_number(CWINDOW_Main->widget.widget);
 	else
 #ifndef QT5
 		return QApplication::desktop()->primaryScreen();
@@ -2804,7 +2812,7 @@ void MyMainWindow::center()
 #if 0
 void MyMainWindow::paintEvent(QPaintEvent *e)
 {
-	if (CSTYLE_fix_breeze && isTopLevel())
+	if (CSTYLE_fix_breeze && isWindow())
 	{
 		QPainter p(this);
 		p.fillRect(0, 0, width(), 1, CCOLOR_light_foreground());
@@ -2826,7 +2834,7 @@ void MyMainWindow::configure()
 	if (CWIDGET_check(THIS))
 		return;
 
-	d = 0; //CSTYLE_fix_breeze && isTopLevel() ? 1 : 0;
+	d = 0; //CSTYLE_fix_breeze && isWindow() ? 1 : 0;
 
 	if (menuBar && THIS->showMenuBar && !THIS->hideMenuBar)
 	{

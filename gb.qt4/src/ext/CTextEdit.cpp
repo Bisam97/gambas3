@@ -30,7 +30,7 @@
 #include <QTextBlock>
 #include <QScrollBar>
 #include <QAbstractTextDocumentLayout>
- 
+
 #include "gambas.h"
 #include "main.h"
 #include "../CConst.h"
@@ -121,7 +121,7 @@ static int get_length(void *_object)
 	{
 		QTextBlock block = WIDGET->document()->begin();
 		int len = 0;
-		
+
 		while (block.isValid())
 		{
 			len += block.length();
@@ -130,7 +130,7 @@ static int get_length(void *_object)
 
 		THIS->length = len - 1;
 	}
-	
+
 	return THIS->length;
 }
 
@@ -162,12 +162,12 @@ static void to_pos(QTextEdit *wid, int par, int car, int *pos)
 static void from_pos(void *_object, int pos, int *par, int *car)
 {
 	QTextCursor cursor = WIDGET->textCursor();
-	
+
 	if (pos >= get_length(THIS))
 		cursor.movePosition(QTextCursor::End);
 	else
 		cursor.setPosition(pos);
-	
+
   *par = cursor.blockNumber();
 	*car = cursor.position() - cursor.block().position();
 }
@@ -176,7 +176,7 @@ static void from_pos(void *_object, int pos, int *par, int *car)
 static void get_selection(QTextEdit *wid, int *start, int *length)
 {
 	QTextCursor cursor = wid->textCursor();
-	
+
 	*start = cursor.selectionStart();
 	*length = cursor.selectionEnd() - *start;
 }
@@ -194,8 +194,8 @@ MyTextEdit::~MyTextEdit()
 {
 }
 
-void MyTextEdit::emitLinkClicked(const QString &s) 
-{ 
+void MyTextEdit::emitLinkClicked(const QString &s)
+{
   //d->textOrSourceChanged = FALSE;
   emit linkClicked( s );
   //if ( !d->textOrSourceChanged )
@@ -218,10 +218,14 @@ END_PROPERTY
 
 BEGIN_PROPERTY(CTEXTAREA_rich_text)
 
-  if (READ_PROPERTY)
-    RETURN_NEW_STRING(WIDGET->document()->toHtml("utf-8"));
-  else
-    WIDGET->document()->setHtml(QSTRING_PROP());
+	if (READ_PROPERTY)
+#if QT6
+		RETURN_NEW_STRING(WIDGET->document()->toHtml());
+#else
+		RETURN_NEW_STRING(WIDGET->document()->toHtml("utf-8"));
+#endif
+	else
+		WIDGET->document()->setHtml(QSTRING_PROP());
 
 END_PROPERTY
 
@@ -252,21 +256,21 @@ END_PROPERTY
 BEGIN_PROPERTY(CTEXTAREA_column)
 
  	QTextCursor cursor = WIDGET->textCursor();
-	
+
   if (READ_PROPERTY)
     //GB.ReturnInteger(WIDGET->textCursor().columnNumber());
 		GB.ReturnInteger(get_column(THIS));
   else
   {
     int col = VPROP(GB_INTEGER);
-		
+
 		if (col <= 0)
 			cursor.movePosition(QTextCursor::QTextCursor::StartOfBlock);
 		else if (col >= cursor.block().length())
 			cursor.movePosition(QTextCursor::QTextCursor::EndOfBlock);
 		else
 			cursor.setPosition(cursor.block().position() + col);
-		
+
   	WIDGET->setTextCursor(cursor);
   }
 
@@ -275,14 +279,14 @@ END_PROPERTY
 BEGIN_PROPERTY(CTEXTAREA_line)
 
  	QTextCursor cursor = WIDGET->textCursor();
-	
+
   if (READ_PROPERTY)
 		GB.ReturnInteger(cursor.blockNumber());
   else
   {
 		int col = get_column(THIS);
     int line = VPROP(GB_INTEGER);
-		
+
 		if (line < 0)
 			cursor.movePosition(QTextCursor::Start);
 		else if (line >= WIDGET->document()->blockCount())
@@ -298,7 +302,7 @@ BEGIN_PROPERTY(CTEXTAREA_line)
 					cursor.setPosition(cursor.block().position() + col);
 			}
 		}
-		
+
   	WIDGET->setTextCursor(cursor);
   }
 
@@ -314,12 +318,12 @@ BEGIN_PROPERTY(CTEXTAREA_pos)
   {
 		int pos = VPROP(GB_INTEGER);
   	QTextCursor cursor = WIDGET->textCursor();
-  	
+
 		if (pos >= get_length(THIS))
 			cursor.movePosition(QTextCursor::End);
 		else
 			cursor.setPosition(pos);
-		
+
   	WIDGET->setTextCursor(cursor);
   }
 
@@ -379,7 +383,7 @@ END_PROPERTY
 BEGIN_METHOD_VOID(CTEXTAREA_sel_clear)
 
 	QTextCursor cursor = WIDGET->textCursor();
-  cursor.clearSelection();	
+  cursor.clearSelection();
 	WIDGET->setTextCursor(cursor);
 
 END_METHOD
@@ -397,10 +401,10 @@ BEGIN_METHOD(CTEXTAREA_sel_select, GB_INTEGER start; GB_INTEGER length)
 	else if (!MISSING(start) && !MISSING(length))
 	{
 		QTextCursor cursor = WIDGET->textCursor();
-		
+
 		cursor.setPosition(VARG(start));
 		cursor.setPosition(VARG(start) + VARG(length), QTextCursor::KeepAnchor);
-		
+
 		WIDGET->setTextCursor(cursor);
 	}
 
@@ -510,12 +514,12 @@ BEGIN_METHOD(CTEXTEDIT_new, GB_OBJECT parent)
   QObject::connect(wid, SIGNAL(cursorPositionChanged()), &CTextArea::manager, SLOT(cursor()));
 
   wid->setLineWrapMode(QTextEdit::NoWrap);
-	
+
   QT.InitWidget(wid, _object, true);
 	QT.SetWheelFlag(_object);
-	
+
 	THIS->length = -1;
-	
+
 END_METHOD
 
 BEGIN_PROPERTY(CTEXTEDIT_scroll_x)
@@ -559,7 +563,7 @@ END_PROPERTY
 BEGIN_PROPERTY(CTEXTEDIT_format_alignment)
 
   if (READ_PROPERTY)
-    GB.ReturnInteger(QT.Alignment(WIDGET->alignment() + Qt::AlignVCenter, ALIGN_NORMAL, false));
+    GB.ReturnInteger(QT.Alignment(WIDGET->alignment() | Qt::AlignVCenter, ALIGN_NORMAL, false));
   else
     WIDGET->setAlignment((Qt::Alignment)(QT.Alignment(VPROP(GB_INTEGER), ALIGN_NORMAL, true) & Qt::AlignHorizontal_Mask));
 
@@ -619,7 +623,7 @@ GB_DESC CTextEditFormatDesc[] =
   GB_PROPERTY("Font", "Font", CTEXTEDIT_format_font),
   GB_PROPERTY("Color", "i", CTEXTEDIT_format_color),
   GB_PROPERTY("Background", "i", CTEXTEDIT_format_background),
-    
+
   GB_END_DECLARE
 };
 
@@ -647,7 +651,7 @@ GB_DESC CTextEditDesc[] =
   //GB_CONSTANT("SuperScript", "i", QTextEdit::AlignSuperScript),
 
   GB_PROPERTY("ReadOnly", "b", CTEXTAREA_read_only),
-  
+
   GB_METHOD("Clear", NULL, CTEXTAREA_clear, NULL),
 
   GB_PROPERTY("Text", "s", CTEXTAREA_text),
@@ -671,25 +675,25 @@ GB_DESC CTextEditDesc[] =
   GB_METHOD("SelectAll", NULL, CTEXTAREA_sel_all, NULL),
   GB_METHOD("Unselect", NULL, CTEXTAREA_sel_clear, NULL),
 	GB_PROPERTY_READ("Selected", "b", CTEXTAREA_selected),
-	
+
   GB_METHOD("Copy", NULL, CTEXTAREA_copy, NULL),
   GB_METHOD("Cut", NULL, CTEXTAREA_cut, NULL),
   GB_METHOD("Paste", NULL, CTEXTAREA_paste, NULL),
   GB_METHOD("Undo", NULL, CTEXTAREA_undo, NULL),
-  GB_METHOD("Redo", NULL, CTEXTAREA_redo, NULL),  
-  
+  GB_METHOD("Redo", NULL, CTEXTAREA_redo, NULL),
+
   GB_PROPERTY("Border", "b", CTEXTAREA_border),
   GB_PROPERTY("ScrollBar", "i", CTEXTAREA_scrollbar),
   GB_PROPERTY("Wrap", "b", CTEXTAREA_wrap),
 
   GB_PROPERTY("ScrollX", "i", CTEXTEDIT_scroll_x),
   GB_PROPERTY("ScrollY", "i", CTEXTEDIT_scroll_y),
-  
+
   GB_PROPERTY_READ("TextWidth", "i", CTEXTEDIT_text_width),
   GB_PROPERTY_READ("TextHeight", "i", CTEXTEDIT_text_height),
 
   GB_PROPERTY_SELF("Format", ".TextEdit.Format"),
-  
+
   GB_EVENT("Change", NULL, NULL, &EVENT_Change),
   GB_EVENT("Cursor", NULL, NULL, &EVENT_Cursor),
   //GB_EVENT("Link", NULL, "(Path)s", &EVENT_Link),

@@ -60,8 +60,6 @@ typedef
 		int (*GetLastKeyCode)(void);
 		
 		struct {
-			int (*GetResolutionX)(void);
-			int (*GetResolutionY)(void);
 			void (*Screenshot)(QPixmap *pixmap, int x, int y, int w, int h);
 			} Desktop;
 		

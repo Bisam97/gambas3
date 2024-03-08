@@ -25,7 +25,6 @@
 
 #include <QScreen>
 #include <QApplication>
-#include <QDesktopWidget>
 #include <QToolTip>
 #include <QSessionManager>
 #include <QSystemTrayIcon>
@@ -44,12 +43,13 @@
 #include "CScreen.h"
 
 #ifndef QT5
+#include <QDesktopWidget>
 #include <QX11Info>
 #include "x11.h"
 #endif
 
 #ifdef QT5
-	#define DESKTOP_INFO() (QGuiApplication::screens().front()->availableGeometry())
+	#define DESKTOP_INFO() (QGuiApplication::primaryScreen()->availableGeometry())
 	#define SCREEN_INFO(_id) (QGuiApplication::screens().at(_id)->geometry())
 	#define SCREEN_AVAILABLE_SIZE(_id) (QGuiApplication::screens().at(_id)->availableGeometry())
 	#define NUM_SCREENS() (QGuiApplication::screens().count())
@@ -140,7 +140,7 @@ END_PROPERTY
 BEGIN_PROPERTY(Desktop_Resolution)
 
 #ifdef QT5
-	GB.ReturnInteger(PLATFORM.Desktop.GetResolutionY());
+	GB.ReturnInteger(QGuiApplication::primaryScreen()->logicalDotsPerInch());
 #else
 	#ifdef NO_X_WINDOW
 		GB.ReturnInteger(72);
@@ -496,7 +496,7 @@ END_PROPERTY
 BEGIN_PROPERTY(Screen_ResolutionX)
 
 #ifdef QT5
-	GB.ReturnFloat(QGuiApplication::screens().at(SCREEN->index)->physicalDotsPerInchX());
+	GB.ReturnFloat(QGuiApplication::screens().at(SCREEN->index)->logicalDotsPerInchX());
 #else
 	GB.ReturnFloat(QX11Info::appDpiX());
 #endif
@@ -506,7 +506,7 @@ END_PROPERTY
 BEGIN_PROPERTY(Screen_ResolutionY)
 
 #ifdef QT5
-	GB.ReturnFloat(QGuiApplication::screens().at(SCREEN->index)->physicalDotsPerInchY());
+	GB.ReturnFloat(QGuiApplication::screens().at(SCREEN->index)->logicalDotsPerInchY());
 #else
 	GB.ReturnFloat(QX11Info::appDpiY());
 #endif

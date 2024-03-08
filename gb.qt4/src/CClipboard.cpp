@@ -39,12 +39,13 @@
 #include <QTextEdit>
 #include <QSpinBox>
 #include <QWidget>
-#include <QTextCodec>
 
 #include "gb.form.const.h"
 #include "CWidget.h"
 #include "CImage.h"
 #include "CClipboard.h"
+
+#include "main.h"
 
 CDRAG_INFO CDRAG_info = { 0 };
 bool CDRAG_dragging = false;
@@ -64,7 +65,11 @@ static int get_type(const QMimeData *src)
 {
 	if (src->hasImage())
 		return MIME_IMAGE;
+#if QT6
+	else if (src->formats().indexOf(QRegularExpression("text/.*")) >= 0)
+#else
 	else if (src->formats().indexOf(QRegExp("text/.*")) >= 0)
+#endif
 		return MIME_TEXT;
 	else
 		return MIME_UNKNOWN;
@@ -539,7 +544,11 @@ _BAD_FORMAT:
 
 static void update_action(QDropEvent *e)
 {
+#if QT6
+	Qt::KeyboardModifiers mod = e->modifiers() & (Qt::ShiftModifier | Qt::ControlModifier | Qt::AltModifier | Qt::MetaModifier);
+#else
 	Qt::KeyboardModifiers mod = e->keyboardModifiers() & (Qt::ShiftModifier | Qt::ControlModifier | Qt::AltModifier | Qt::MetaModifier);
+#endif
 	
 	if (mod == Qt::ControlModifier)
 	{
@@ -624,7 +633,11 @@ bool CDRAG_drag_move(QWidget *w, CWIDGET *control, QDropEvent *e)
 	CDRAG_clear(true);
 	CDRAG_info.event = e;
 
+#if QT6
+	p = e->position().toPoint();
+#else
 	p = e->pos();
+#endif
 	p = w->mapTo(QWIDGET(control), p);
 	CDRAG_info.x = p.x();
 	CDRAG_info.y = p.y();
@@ -663,7 +676,11 @@ bool CDRAG_drag_drop(QWidget *w, CWIDGET *control, QDropEvent *e)
 	//fprintf(stderr, "%d: ref destination %p\n", __LINE__, CDRAG_destination);
 	GB.Ref(CDRAG_destination);
 
+#if QT6
+	p = e->position().toPoint();
+#else
 	p = e->pos();
+#endif
 	p = w->mapTo(QWIDGET(control), p);
 	CDRAG_info.x = p.x();
 	CDRAG_info.y = p.y();

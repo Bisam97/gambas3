@@ -29,7 +29,6 @@
 #include <QPixmap>
 #include <QBitmap>
 #include <QPainter>
-#include <QMatrix>
 #include <QBuffer>
 
 #ifdef OS_SOLARIS
