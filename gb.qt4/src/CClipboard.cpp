@@ -40,6 +40,10 @@
 #include <QSpinBox>
 #include <QWidget>
 
+#ifndef QT5
+#include <QTextCodec>
+#endif
+
 #include "gb.form.const.h"
 #include "CWidget.h"
 #include "CImage.h"
