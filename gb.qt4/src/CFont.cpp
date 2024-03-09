@@ -468,7 +468,7 @@ static void get_text_size(CFONT *_object, QString s, int *w, int *h)
 
 		for (i = 0; i < (int)sl.count(); i++)
 		{
-#if QT5
+#if QT_VERSION >= QT_VERSION_CHECK(5,11,0)
 			wt = fm.horizontalAdvance(sl[i]);
 #else
 			wt = fm.width(sl[i]);
