@@ -132,7 +132,7 @@ CPICTURE *CPICTURE_grab(QWidget *wid, int screen, int x, int y, int w, int h)
 	}
 	else
 	{
-#ifdef QT5
+#if QT_VERSION >= QT_VERSION_CHECK(5,14,0)
 		*pict->pixmap = wid->screen()->grabWindow(wid->winId());
 #else
 		*pict->pixmap = QPixmap::grabWindow(wid->winId());
