@@ -40,16 +40,16 @@
 #include <QSpinBox>
 #include <QWidget>
 
-#ifndef QT5
-#include <QTextCodec>
-#endif
-
 #include "gb.form.const.h"
 #include "CWidget.h"
 #include "CImage.h"
 #include "CClipboard.h"
 
 #include "main.h"
+
+#ifndef QT5
+#include <QTextCodec>
+#endif
 
 CDRAG_INFO CDRAG_info = { 0 };
 bool CDRAG_dragging = false;
