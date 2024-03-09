@@ -396,7 +396,11 @@ void CWINDOW_move_resize(void *_object, int x, int y, int w, int h)
 
 static int get_screen_number(QWidget *widget)
 {
+#if QT5
 	return QApplication::screens().indexOf(widget->screen());
+#else
+	return QApplication::desktop()->screenNumber(widget);
+#endif
 }
 
 //-- Window ---------------------------------------------------------------
