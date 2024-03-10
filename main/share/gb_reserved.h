@@ -364,7 +364,7 @@ enum
 typedef
 	struct {
 		const char *name;
-		short flag;
+		ushort flag;
 		uchar value;
 		uchar read_switch;
 		uchar priority;

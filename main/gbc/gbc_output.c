@@ -399,7 +399,7 @@ static void output_class(void)
 
 static void output_desc(void)
 {
-	int i, n, nn = 0;
+	int i, n;
 	CLASS_SYMBOL *csym;
 	TYPE type;
 	short out_type;
@@ -417,7 +417,6 @@ static void output_desc(void)
 
 		if (TYPE_is_public(type))
 		{
-			nn++;
 			/* name */
 			write_int(get_string(csym->symbol.name, csym->symbol.len));
 			/* datatype */
