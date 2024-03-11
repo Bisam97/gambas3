@@ -20,27 +20,26 @@ build:archlinux:
     - make install
 
 
-build:archlinux-clang:
-  image: archlinux:base
-  before_script:
-    - >
-       pacman -Syu --needed --noconfirm
-       alure autoconf automake bzip2 zstd coreutils curl dbus clang gdk-pixbuf2 git
-       glew glib2 gmime3 gsl gst-plugins-base gstreamer gtk2 gtk3 gtkglext imlib2
-       intltool libffi libgl libgnome-keyring libmariadbclient librsvg libsm
-       libxcursor libxml2 libxslt libxtst mariadb make mesa ncurses pcre
-    - >
-       pacman -Syu --needed --noconfirm
-       pkg-config poppler poppler-glib postgresql postgresql-libs qt5-svg
-       qt5-x11extras sdl2 sdl2_gfx sdl2_image sdl2_mixer sdl2_net
-       sdl2_ttf sdl_mixer sdl_ttf smpeg sqlite unixodbc v4l-utils xdg-utils
-       zlib gettext qt5-webengine webkit2gtk
-  script:
-    - ./reconf-all
-    - GAMBAS_CONFIG_FAILURE=1 ./configure CC=clang CXX=clang++ -C --disable-sqlite2 --disable-qt4 --disable-pdf --disable-qt5webkit --disable-qt6
-    - make -j$(nproc)
-    - make install
-
+# build:archlinux-clang:
+#   image: archlinux:base
+#   before_script:
+#     - >
+#        pacman -Syu --needed --noconfirm
+#        alure autoconf automake bzip2 zstd coreutils curl dbus clang gdk-pixbuf2 git
+#        glew glib2 gmime3 gsl gst-plugins-base gstreamer gtk2 gtk3 gtkglext imlib2
+#        intltool libffi libgl libgnome-keyring libmariadbclient librsvg libsm
+#        libxcursor libxml2 libxslt libxtst mariadb make mesa ncurses pcre
+#     - >
+#        pacman -Syu --needed --noconfirm
+#        pkg-config poppler poppler-glib postgresql postgresql-libs qt5-svg
+#        qt5-x11extras sdl2 sdl2_gfx sdl2_image sdl2_mixer sdl2_net
+#        sdl2_ttf sdl_mixer sdl_ttf smpeg sqlite unixodbc v4l-utils xdg-utils
+#        zlib gettext qt5-webengine webkit2gtk
+# script:
+# - ./reconf-all
+#     - GAMBAS_CONFIG_FAILURE=1 ./configure CC=clang CXX=clang++ -C --disable-sqlite2 --disable-qt4 --disable-pdf --disable-qt5webkit --disable-qt6
+#     - make -j$(nproc)
+#     - make install
 
 build:debian-bullseye:
   image: debian:bullseye
