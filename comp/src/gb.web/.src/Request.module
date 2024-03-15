@@ -10,13 +10,47 @@ Property Query As String
 Property Read Files As Collection
 Property Delimiter As String
 Property Read InternetExplorer As Integer
+
+'' Return the referer of the request.
 Property Read Referer As String
+
+'' Return the user agent of the request.
 Property Read UserAgent As String
+
+'' Return the preferred language of the request.
+''
+'' The 'AcceptLanguage' header of the request is analyzed, and a language description suitable
+'' to the [System.Language](/comp/gb/system/language) property is returned.
 Property Read Language As String
+
+'' Return or set the temporary directory used to store the files uploaded by the request.
+''
+'' By default, uploaded files are stored in the '/tmp' directory. Changing it is useful if '/tmp' is not big enough.
 Property TempDir As String
+
+'' Return or set the maximum size of an uploaded file.
+''
+'' By default, files bigger than 128 MB are now allowed.
+''
+'' [[ warning
+'' Do check your HTTP server that usually has its own limit too.
+'' ]]
 Property MaxFileSize As Long
+
+'' Return the content type of the request.
 Property Read ContentType As String
+
+'' Return the content lenth of the request.
 Property Read ContentLength As Integer
+
+'' Return or set the scheme of the request.
+''
+'' It is normally 'http' or 'https'.
+''
+'' [[ warning
+'' The value of this property is guessed by analyzing a few well-known request headers sent by the HTTP server to the CGI script.
+'' If it fails for you, please fill an issue on the Gambas bugtracker.
+'' ]]
 Property Scheme As String
 
 Property Read Get As _Request_Get
@@ -53,6 +87,8 @@ Public Sub _init()
   Try $iIE = Val(aScan[1])
   
 End
+
+'' Reset the request decoding
 
 Public Sub Reset()
   

@@ -13,7 +13,22 @@ Private $bUnique As Boolean
 Private $sCookiePath As String
 Private $bInit As Boolean
 
+'' Return or set the session type.
+''
+'' The supported types are:
+''
+'' [[
+'' ==
+'' 'file'
+'' -
+'' The session is serialized in a binary file.
+'' ==
+'' 'sqlite'
+'' --
+'' The session is stored in a SQLite3 file. The [/comp/gb.db.sqlite3] component is automatically loaded if needed.
+'' ]]
 Property Type As String
+
 Property Id As String
 Property Timeout As Float
 Property Prefix As String
@@ -21,7 +36,11 @@ Property Unique As Boolean
 Property Modified As Boolean
 Property CookiePath As String
 Property Read Keys As String[]
+
+'' Return the session file size.
 Property Read Size As Long
+
+'' Return the session file path.
 Property Read Path As String
 
 Private Sub CreateSession()
@@ -106,14 +125,16 @@ Public Sub Abandon()
   
   Dim sCookiePath As String
   
-  CheckAllowLog
-  Main.Log("Abandon")
+  Init
+  
+  Main.Log("Abandon: " & $sId)
   
   If $hManager Then
     sCookiePath = $hManager["_"]
   Else
     sCookiePath = GetCookiePath()
   Endif
+  
   Response.RemoveCookie("GBSESSIONID", "", "", sCookiePath)
   
   If Not $sId Then Return

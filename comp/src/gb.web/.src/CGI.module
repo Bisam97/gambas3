@@ -2,6 +2,9 @@
 
 Export 
 
+'' Return a collection of all environment variables sent to the CGI script.
+''
+'' The possible changes done with the [array accessor](../put) are taken into account.
 Property Read All As Collection
 
 Private $cCache As New Collection
@@ -44,6 +47,8 @@ Public Sub _put(Value As String, Key As String)
   $cKey[Key] = True
 
 End
+
+'' Reset the CGI environment variables decoding, all possible changes to them, and call the [Request.Reset](../../request/reset) method.
 
 Public Sub Reset()
   
@@ -99,6 +104,10 @@ Public Sub _init()
   CGI["SCRIPT_NAME"] = sRoot
   
 End
+
+'' Send a dump of the CGI environment variables as request response.
+''
+'' This dump is an HTML table.
 
 Public Sub Dump()
   

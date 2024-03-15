@@ -8,6 +8,8 @@ Property Buffered As Boolean
 Property ContentType As String
 Property Status As String
 Property EndOfLine As Integer
+
+'' Return if the response has been sent, i.e. if the [../end] method has been called.
 Property Read Done As Boolean
 
 '' @{since 3.19}
@@ -130,6 +132,10 @@ Private Sub CloseTempFile()
   
 End
 
+'' Reset the response contents.
+''
+'' Use the [../cancel] method instead.
+
 Public Sub Reset()
   
   $sHeader = ""
@@ -143,6 +149,9 @@ Public Sub Reset()
   
 End
 
+'' Try to cancel the response.
+''
+'' This method will fail if the response is not buffered and has been partially sent.
 
 Public Sub Cancel()
   
@@ -159,7 +168,6 @@ Public Sub Cancel()
   Endif
   
 End
-
 
 Private Sub ShouldCompress() As Boolean
   
