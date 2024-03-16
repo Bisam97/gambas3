@@ -152,11 +152,11 @@ Private Sub ReadFields()
   $aField = Split(sLine, $sSeparator, $sEscape)
   
   For iInd = 0 To $aField.Max
-    
+
+    sField = Trim($aField[iInd])
+
     If Not $bKeepNames Then
     
-      sField = Trim($aField[iInd])
-      
       sField = Replace(sField, String.Chr(160), " ")
       sField = Replace(sField, "\n", " ")
       sField = Replace(sField, "\t", " ")
