@@ -188,7 +188,7 @@ extern "C" {
 
 const GB_INTERFACE *GB_PTR EXPORT;
 
-void *GB_QT5_WAYLAND_1[] EXPORT = {
+void *GB_QT6_WAYLAND_1[] EXPORT = {
 
   (void *)QT_PLATFORM_INTERFACE_VERSION,
   
