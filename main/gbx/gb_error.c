@@ -631,7 +631,7 @@ void ERROR_panic(const char *error, ...)
 		ERROR_print(FALSE);
 		_print_prefix = NULL;
 	}
-	fprintf(stderr, "** \n** Please send a bug report to the gambas bugtracker [1] or to the gambas mailing-list [2].\n** [1] http://gambaswiki.org/bugtracker\n** [2] https://lists.gambas-basic.org/listinfo/user\n** \n\n");
+	fprintf(stderr, "** \n** Please send a bug report to the gambas bugtracker [1] or to the gambas mailing-list [2].\n** [1] https://gambaswiki.org/bugtracker\n** [2] https://lists.gambas-basic.org/#user\n** \n\n");
 	_exit(1);
 }
 
