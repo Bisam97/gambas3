@@ -374,13 +374,16 @@ Public Sub DrawingArea_Draw()
 DRAW_BRANCH:
   
   Paint.Font.Grade = -2
-  WB = Paint.TextSize($hProjectInfo.Branch).Width + P * 2
+  
+  sText = Paint.TrimText($hProjectInfo.Branch, Paint.W - XB - P * 2)
+  
+  WB = Paint.TextSize(sText).Width + P * 2
   
   Paint.Rectangle(XB, YB, WB, HB, P * 2)
   Paint.Background = VersionControl.GetBranchColor($hProjectInfo.Branch)
   Paint.Fill
   Paint.Background = Color.TextBackground
-  Paint.DrawText($hProjectInfo.Branch, XB, YB, WB, HB, Align.Center)
+  Paint.DrawText(sText, XB, YB, WB, HB, Align.Center)
   Paint.Background = Color.TextForeground
   
   Paint.Font.Grade = 0

@@ -55,8 +55,8 @@ End
 
 Static Private Sub GetDistribution() As String
 
-  Dim cDist As Collection = ["lsb-release": "/etc/lsb-release", "vector": "/etc/vector-version", "slackware": "/etc/slackware-version", "debian": "/etc/debian_version",
-    "redhat": "/etc/redhat-release", "arch": "/etc/arch-release", "SuSE": "/etc/os-release", "gentoo": "/etc/gentoo-release", "conectiva": "/etc/conectiva-release", 
+  Dim cDist As Collection = ["os-release": "/etc/os-release", "lsb-release": "/etc/lsb-release", "vector": "/etc/vector-version", "slackware": "/etc/slackware-version", "debian": "/etc/debian_version",
+    "redhat": "/etc/redhat-release", "arch": "/etc/arch-release", "gentoo": "/etc/gentoo-release", "conectiva": "/etc/conectiva-release", 
     "mandriva": "/etc/mandriva-release", "pardus": "/etc/pardus-release", "kanotix": "/etc/kanotix-release"]
   Dim sPath As String
   Dim sDistro As String
@@ -73,6 +73,9 @@ Static Private Sub GetDistribution() As String
       sDistro = cData["DISTRIB_DESCRIPTION"]
       If sDistro Then Return sDistro
       Return cData["DISTRIB_ID"] & " " & cData["DISTRIB_RELEASE"]
+    Else If sDistro = "os-release" Then
+      cData = ReadLsbRelease(sPath)
+      Return cData["NAME"] & " " & cData["VERSION"]
     Else
       Return sDistro & " " & Trim(File.Load(sPath))
     Endif
@@ -320,18 +323,29 @@ Public Sub Process_Read()
   
   Dim hProcess As Process = Last
   Dim sData As String
+  Dim iPos As Integer
+  Dim sBuffer As String
   
   sData = Read #hProcess, Lof(hProcess)
-  Try sData = Split(sData, "\n", "", True)[0]
-  $aText[$iRowVersion] &= sData
-  gvwInfo[$iRowVersion, 2].Text = sData
-  Inc $iRowVersion
+  
+  If gvwInfo[$iRowVersion, 2].Text Then Return
+  
+  sBuffer = hProcess.Tag & sData
+  iPos = InStr(sBuffer, "\n")
+  If iPos = 0 Then 
+    hProcess.Tag = sBuffer
+    Return
+  Endif
+  
+  $aText[$iRowVersion] &= Left(sBuffer, iPos - 1)
+  gvwInfo[$iRowVersion, 2].Text = Left(sBuffer, iPos - 1)
   
 End
 
 Public Sub Process_Kill()
   
   GetNextVersion()
+  Inc $iRowVersion
   
 End
 
