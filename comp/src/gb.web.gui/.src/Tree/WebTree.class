@@ -692,6 +692,19 @@ Public Sub _RaiseExpand(sKey As String, bExpand As Boolean)
   
 End
 
+Private Sub _RaiseSelect(Optional sKey As String)
+  
+  Dim sCursor As String
+  
+  sCursor = $sCursor
+  $sCursor = sKey
+  
+  Raise Select
+  
+  $sCursor = sCursor
+  
+End
+
 Private Sub SetCursor(sKey As String) As Boolean
   
   If Not sKey Then $sSaveCursor = $sCursor
@@ -858,7 +871,7 @@ Public Sub SelectAll()
 
   If $iMode <> Select.Multiple Then Return
   If $hSelection.SelectAll() Then Return
-  Raise Select
+  _RaiseSelect()
   Me.Refresh
   
 End
@@ -869,11 +882,11 @@ Public Sub UnselectAll()
   
   If $iMode = Select.Multiple Then
     If $hSelection.UnSelectAll() Then Return
-    Raise Select
+    _RaiseSelect()
   Else If $iMode = Select.Single Then
     If Not $sKey Then Return
     $sKey = ""
-    Raise Select
+    _RaiseSelect()
   Endif
   Me.Refresh
   
@@ -947,18 +960,19 @@ Public Sub _SetSelected(sKey As String, bSelected As Boolean, Optional bNoRefres
     If bSelected Then
       $sKey = sKey
       If Not bNoRefresh Then Me.Refresh
-      Raise Select
+      _RaiseSelect(sKey)
     Else
       If $sKey = sKey Then
         $sKey = ""
         If Not bNoRefresh Then Me.Refresh
+        _RaiseSelect(sKey)
       Endif
     Endif
     Return
   Endif
   
   $hSelection.SelectItem(sKey, bSelected)
-  Raise Select
+  _RaiseSelect(sKey)
   
 End
 
