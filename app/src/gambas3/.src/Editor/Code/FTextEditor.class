@@ -25,8 +25,6 @@ Public Age As Integer
 
 Property Read ReadOnly As Boolean
 
-Static Private $aExt As String[] = ["htm", "html", "xml", "kml", "svg", "css", "webpage", "js", "c", "h", "cpp", "gbs", "rss", "md"]
-
 Private $hEditor As TextEditor
 Private $bNoHighlight As Boolean
 Private $bModule As Boolean
@@ -115,34 +113,32 @@ Public Sub LoadFile() As Boolean
   
     sExt = LCase(File.Ext(Path))
     
-    If $aExt.Exist(sExt) Then
-  
-      Select Case sExt
-        Case "css"
-          $bShowPretty = True
-        Case "webpage"
-          $bWebPage = True
-        Case "js"
-          $bShowPretty = True
-        Case "c"
-          $bShowPretty = True
-        Case "cpp", "h"
-          $bShowPretty = True
-        Case "gbs"
-          $bShowPretty = True
-        Case "md"
-          $iShowPreview = PREVIEW_MARKDOWN
-        Case "html", "htm"
-          $iShowPreview = PREVIEW_HTML
-      End Select
+    Select Case sExt
+      Case "css"
+        $bShowPretty = True
+      Case "webpage"
+        $bWebPage = True
+      Case "js"
+        $bShowPretty = True
+      Case "c"
+        $bShowPretty = True
+      Case "cpp", "h"
+        $bShowPretty = True
+      Case "gbs"
+        $bShowPretty = True
+      Case "md"
+        $iShowPreview = PREVIEW_MARKDOWN
+      Case "html", "htm"
+        $iShowPreview = PREVIEW_HTML
+    End Select
+    
+    $bShowComment = True
+    '$bShowPretty = True
+    $bNoHighlight = False
+    
+    edtEditor.Mode = TextEditor.GetModeFromPath(Path)
       
-      edtEditor.Mode = TextEditor.GetModeFromPath(Path)
-      
-      $bShowComment = True
-      '$bShowPretty = True
-      $bNoHighlight = False
-      
-    Else If sExt = "console" Then
+    If sExt = "console" Then
       
       If File.Dir(Path) = File.Dir(Temp$()) Then $bConsole = True
       
