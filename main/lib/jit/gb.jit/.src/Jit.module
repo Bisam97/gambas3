@@ -9,6 +9,19 @@ Property Debug As Boolean
 Public _Time As Float
 
 Private $bDebug As Integer
+Private $sDir As String
+
+Public Sub _exit()
+
+  Dim sFile As String
+  
+  For Each sFile In Dir($sDir)
+    Try Kill $sDir &/ sFile
+  Next
+  Try Rmdir $sDir
+  Try Rmdir File.Dir($sDir)
+  
+End
 
 Private Sub GetArchiveName(sArch As String) As String
   
@@ -27,7 +40,6 @@ End
 Public Sub _Compile(sArch As String) As Boolean
 
   Dim sFile As String
-  Dim sDir As String
   Dim sName As String
   Dim sPath As String
   Dim hFile As File
@@ -35,6 +47,7 @@ Public Sub _Compile(sArch As String) As Boolean
   Dim sPathSO As String
   Dim fTime As Float
   Dim hComp As CCompilation
+  Dim sDir As String
   
   fTime = Timer
   
@@ -44,10 +57,21 @@ Public Sub _Compile(sArch As String) As Boolean
   
   sName = GetArchiveName(sArch)
   
-  sDir = File.Dir(Temp$()) &/ "jit"
-  Try Mkdir sDir
+  $sDir = Env["XDG_RUNTIME_DIR"]
+  If Not $sDir Then
+    Error "gb.jit: warning: $XDG_RUNTIME_DIR is not defined, use '/tmp' instead."
+    $sDir = Application.TempDir
+  Else
+    $sDir &/= "gambas"
+    Try Mkdir $sDir
+    $sDir &/= Application.Id
+    Try Mkdir $sDir
+  Endif
   
-  sPath = sDir &/ "jit.h"
+  $sDir &/= "jit"
+  Try Mkdir $sDir
+  
+  sPath = $sDir &/ "jit.h"
   
   If Not Exist(sPath) Then
     
@@ -75,7 +99,7 @@ Public Sub _Compile(sArch As String) As Boolean
     
     If $bDebug Then
       Try Kill "/tmp/jit.h"
-      Copy sDir &/ "jit.h" To "/tmp/jit.h"
+      Copy $sDir &/ "jit.h" To "/tmp/jit.h"
     Endif
     
     ' 'Shell $sCompiler & " -fPIC " & Shell(sPath) To sResult
@@ -95,7 +119,7 @@ Public Sub _Compile(sArch As String) As Boolean
     
   Endif
   
-  sPath = sDir &/ sName & ".c"
+  sPath = $sDir &/ sName & ".c"
 
   If $bDebug Then Error "gb.jit: generating "; sPath
   
