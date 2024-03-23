@@ -77,6 +77,7 @@ Public Sub Form_Open()
 
   Dim sPath As String
   Dim sKey As String
+  Dim sHighlightWith As String
 
   sPath = $sPath
 
@@ -93,7 +94,8 @@ Public Sub Form_Open()
     For Each sKey In Configuration.Highlighters
       cmbHighlighter.Add(TextHighlighter[sKey].Name)
     Next
-    cmbHighlighter.Index = Configuration.Highlighters.Find(Project.Config["/Folder" &/ Project.MakeRelativePath(sPath) &/ "HighlightWith"]) + 1
+    Try sHighlightWith = Project.FolderProperties[Project.MakeRelativePath(sPath)]["HighlightWith"]
+    cmbHighlighter.Index = Configuration.Highlighters.Find(sHighlightWith) + 1
   Endif
   
   ' If (sPath &/ "/") = (Project.SourceDir &/ "/") Then    
@@ -112,13 +114,17 @@ End
 
 Public Sub cmbHighlighter_Click()
 
-  Dim sKey As String
+  Dim sPath As String
 
-  sKey = "/Folder" &/ Project.MakeRelativePath(fprInfo.Path) &/ "HighlightWith"
+  sPath = Project.MakeRelativePath(fprInfo.Path)
+
+  If Not Project.FolderProperties.Exist(sPath) Then Project.FolderProperties[sPath] = New Collection
   If cmbHighlighter.Index = 0 Then
-    Project.Config[sKey] = ""
+    Project.FolderProperties[sPath]["HighlightWith"] = ""
+    If Project.FolderProperties[sPath].Count = 0 Then Project.FolderProperties.Remove(sPath)
   Else 
-    Project.Config[sKey] = Configuration.Highlighters[cmbHighlighter.Index - 1]
+    Project.FolderProperties[sPath]["HighlightWith"] = Configuration.Highlighters[cmbHighlighter.Index - 1]
   Endif
+  Project.WriteProject
 
 End

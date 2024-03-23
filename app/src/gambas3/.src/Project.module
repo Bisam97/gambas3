@@ -114,6 +114,7 @@ Public DoNotTranslate As String[]
 Public CompressFiles As Boolean
 Public CompressedFiles As String[]
 Public PreviewStyleSheet As String
+Public FolderProperties As Collection
 Public UnknownOptions As Collection
 
 Public Running As Boolean
@@ -3175,6 +3176,7 @@ Public Sub ReadProject(Optional bConvert As Boolean)
   DoNotTranslate = New String[]
   CompressedFiles = New String[]
   PreviewStyleSheet = ""
+  FolderProperties = New Collection
   
   UnknownOptions = New Collection
 
@@ -3488,7 +3490,10 @@ Public Sub ReadProject(Optional bConvert As Boolean)
         
       Case "appimagegambasrepository"
         AppImageGambasRepository = sVal
-        
+      
+      Case "folderproperties"
+        Try FolderProperties = JSON.FromString(sVal)
+      
       Case Else
         UnknownOptions[sKey] = sVal
 
@@ -3717,6 +3722,8 @@ Public Sub WriteProject(Optional bComponentDoNotChange As Boolean, Optional bMak
       Print #hFile, "Reference="; sVal
     Next
   Endif
+  
+  If FolderProperties And If FolderProperties.Count Then Print #hFile, "FolderProperties="; JSON.ToString(FolderProperties)
   
   For Each sVal In UnknownOptions
     Print #hFile, UnknownOptions.Key; "="; sVal
