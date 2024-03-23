@@ -3,6 +3,7 @@
 Public Const KEY_SOURCE As String = "$S"
 Public Const KEY_MISC As String = "$O"
 Public Const KEY_PROJECT As String = "$P"
+Public Const KEY_CONFIG As String = "$C"
 Public Const KEY_PUBLIC As String = "$B"
 Public Const KEY_CONNECTION As String = "$D"
 Public Const KEY_EXTERN As String = "$X"
@@ -96,6 +97,8 @@ Private Sub AddFile(sDir As String, sFile As String, Optional bAfter As Boolean,
     sParent = KEY_MISC
   Else If sDir = $sDir &/ ".hidden" Then 
     sParent = KEY_PROJECT
+  Else If sDir = $sDir &/ ".conf" Then 
+    sParent = KEY_CONFIG
   Else If sDir = $sDir &/ ".public" Then 
     sParent = KEY_PUBLIC
   Else If sDir = $sSourceDir Then 
@@ -413,17 +416,27 @@ Private Sub FillTree(Optional bDoNotRefreshCache As Boolean)
     sKey = $sDir
     .Add(sKey, File.Name($sDir), Project.GetIcon($sDir, iSize))
 
-    .Add(KEY_PROJECT, ("Project"), Picture["icon:/tiny/directory"], sKey)
+    .Add(KEY_PROJECT, ("Project"), Picture["icon:/tiny/folder-template"], sKey)
+    .Add(KEY_CONFIG, ("Configuration"), Picture["icon:/tiny/folder-template"], sKey)
     .Add(KEY_SOURCE, ("Sources"), Picture["icon:/tiny/directory"], sKey)
     If $hInfo.Components.Exist("gb.db") Then .Add(KEY_CONNECTION, ("Connections"), Picture["icon:/tiny/folder-remote"], sKey)
     If $hInfo.Components.Exist("gb.web") Then .Add(KEY_PUBLIC, ("Public"), Picture["icon:/tiny/folder-share"], sKey)
     .Add(KEY_PROFILE, ("Profiles"), Picture["icon:/tiny/folder-recent"], sKey)
     .Add(KEY_MISC, ("Data"), Picture["icon:/tiny/directory"], sKey)
+    
+    .MoveFirst()
+    .MoveChild()
+    While .Available
+      .Item.Font = .Font
+      .Item.Font.Bold = True
+      .MoveNext()
+    Wend
 
     '$bGetSource = TRUE
 
     AddDir()
     If Exist($sDir &/ ".hidden") Then AddDir($sDir &/ ".hidden")
+    If Exist($sDir &/ ".conf") Then AddDir($sDir &/ ".conf")
     If $hInfo.Components.Exist("gb.db") And If Exist($sDir &/ ".connection") Then AddDir($sDir &/ ".connection")
     If $hInfo.Components.Exist("gb.web") And If Exist($sDir &/ ".public") Then AddDir($sDir &/ ".public")
     If Exist($sDir &/ ".profile") Then AddDir($sDir &/ ".profile")
@@ -455,34 +468,7 @@ Private Sub FillTree(Optional bDoNotRefreshCache As Boolean)
 
   End With
 
-  ' With $hTree
-  '   .MoveFirst
-  '   While .Available
-  '     .Item.Expanded = True
-  '     .MoveNext
-  '   Wend
-  ' End With
-  
   CollapseAll
-
-  'If sKeyReset Then sKey = sKeyReset
-
-  'SelectKey(sKey)
-
-  'DefineStartup(Startup, True)
-
-  ' For Each sFamily In CFamily.List
-  '   If Not HasModule(sFamily) Then 
-  '     For Each hFile In Files
-  '       sPath = Files.Key
-  '       If Not IsSourcePath(sPath) Then Continue
-  '       If Exist(File.SetExt(sPath, sFamily)) Then
-  '         Files.Remove(sPath)
-  '         hFile.Delete
-  '       Endif
-  '     Next
-  '   Endif
-  ' Next
 
 End
 
@@ -1357,7 +1343,7 @@ Public Sub CollapseAll()
     
     sSave = $hTree.Item.Key
     If sSave Begins "$" Or If Not $hTree.Item.ParentKey Then
-      $hTree.Item.Expanded = sSave <> KEY_PROJECT
+      $hTree.Item.Expanded = sSave <> KEY_PROJECT And sSave <> KEY_CONFIG
     Else If IsDir(sSave) And If Dir(sSave, "*", gb.Directory).Count And If Dir(sSave, "*", gb.File).Count = 0 Then
       $hTree.Item.Expanded = True
     Else

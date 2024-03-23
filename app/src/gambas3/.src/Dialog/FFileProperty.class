@@ -76,6 +76,7 @@ End
 Public Sub Form_Open()
 
   Dim sPath As String
+  Dim sKey As String
 
   sPath = $sPath
 
@@ -85,6 +86,15 @@ Public Sub Form_Open()
   fprInfo.Path = sPath
  
   Me.Title = Subst(("'&1' properties"), File.Name(sPath))
+
+  If IsDir(sPath) And If Project.IsProjectPath(sPath) Then
+    fprInfo.Add(panDirectory, ("Properties"))
+    cmbHighlighter.Add(("None"))
+    For Each sKey In Configuration.Highlighters
+      cmbHighlighter.Add(TextHighlighter[sKey].Name)
+    Next
+    cmbHighlighter.Index = Configuration.Highlighters.Find(Project.Config["/Folder" &/ Project.MakeRelativePath(sPath) &/ "HighlightWith"]) + 1
+  Endif
   
   ' If (sPath &/ "/") = (Project.SourceDir &/ "/") Then    
   '   fprInfo.Add(panStat, ("Statistics"))
@@ -100,3 +110,15 @@ Public Sub btnClose_Click()
 
 End
 
+Public Sub cmbHighlighter_Click()
+
+  Dim sKey As String
+
+  sKey = "/Folder" &/ Project.MakeRelativePath(fprInfo.Path) &/ "HighlightWith"
+  If cmbHighlighter.Index = 0 Then
+    Project.Config[sKey] = ""
+  Else 
+    Project.Config[sKey] = Configuration.Highlighters[cmbHighlighter.Index - 1]
+  Endif
+
+End

@@ -369,6 +369,7 @@ Private Function GetCurrentDir(Optional sKey As String) As String
   If Project.IsLocked($sKey) Then Return
   If $sKey = Project.KEY_MISC Then Return Project.Dir
   If $sKey = Project.KEY_PROJECT Then Return Project.Dir &/ ".hidden"
+  If $sKey = Project.KEY_CONFIG Then Return Project.Dir &/ ".conf"
   If $sKey = Project.KEY_PUBLIC Then Return Project.Dir &/ ".public"
   If $sKey = Project.KEY_PROFILE Then Return Project.Dir &/ ".profile"
   If Project.SourceDir <> Project.Dir
@@ -546,7 +547,7 @@ Public Sub mnuPopup_Show()
     '   mnuImportFile.Hide
     ' Endif
     
-    If sRoot = Project.KEY_MISC Or If sRoot = Project.KEY_PROJECT Or If sRoot = Project.KEY_PUBLIC Then
+    If sRoot = Project.KEY_MISC Or If sRoot = Project.KEY_PROJECT Or If sRoot = Project.KEY_CONFIG Or If sRoot = Project.KEY_PUBLIC Then
       bCanStoreFile = True '$sKey = Project.KEY_MISC Or $sKey = Project.KEY_PROJECT
     Else
       bCanStoreFile = False
@@ -1981,7 +1982,7 @@ Private Sub IsDataKey(sKey As String) As Boolean
     sKey = tvwProject.Item.Key
   Loop 
   
-  Return sPrevious = Project.KEY_MISC Or sPrevious = Project.KEY_PROJECT Or sPrevious = Project.KEY_PUBLIC
+  If sPrevious = Project.KEY_MISC Or If sPrevious = Project.KEY_PROJECT Or If sPrevious = Project.KEY_CONFIG Or If sPrevious = Project.KEY_PUBLIC Then Return True
   
 End
 

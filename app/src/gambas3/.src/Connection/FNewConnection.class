@@ -58,8 +58,7 @@ Private Sub FillConfig(hConfig As Object)
   
   sPath = txtPath.Text
   If Project.InsideDirectory(sPath, Project.Dir) Then
-    sPath = Mid$(sPath, Len(Project.Dir) + 1)
-    If sPath Begins "/" Then sPath = Mid$(sPath, 2)
+    sPath = Project.MakeRelativePath(sPath)
   Else If Project.InsideDirectory(sPath, User.Home) Then
     sPath = "~" &/ Mid$(sPath, Len(User.Home) + 1)
   Endif

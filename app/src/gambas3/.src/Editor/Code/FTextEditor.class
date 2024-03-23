@@ -96,6 +96,9 @@ End
 Public Sub LoadFile() As Boolean
   
   Dim sExt As String
+  Dim sMode As String
+  Dim sDir As String
+  Dim sHighlightWith As String
   
   With edtEditor
     .Clear
@@ -136,7 +139,27 @@ Public Sub LoadFile() As Boolean
     '$bShowPretty = True
     $bNoHighlight = False
     
-    edtEditor.Mode = TextEditor.GetModeFromPath(Path)
+    sMode = TextEditor.GetModeFromPath(Path)
+    
+    If sMode Then
+      
+      edtEditor.Mode = sMode
+      
+    Else
+      
+      edtEditor.Mode = ""
+      
+      sDir = File.Dir(Path)
+      Do
+        If Not Project.IsProjectPath(sDir) Then Break
+        sHighlightWith = Project.Config["/Folder" &/ Project.MakeRelativePath(sDir) &/ "HighlightWith"]
+        If sHighlightWith Then Break
+        sDir = File.Dir(sDir)
+      Loop
+      
+      If sHighlightWith Then edtEditor.Highlight = sHighlightWith
+      
+    Endif
       
     If sExt = "console" Then
       

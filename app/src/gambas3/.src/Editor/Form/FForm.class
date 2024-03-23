@@ -3473,10 +3473,10 @@ Public Sub Control_Drop()
 
     If Last.Tag <> Me.Name Then
       If hParent.HasProperty("Picture") Then
-        hParent.SetProperty("Picture", Mid$(sPath, Len(Project.Dir) + 2))
+        hParent.SetProperty("Picture", Project.MakeRelativePath(sPath))
         Return
       Else If hParent.HasProperty("Image") Then
-        hParent.SetProperty("Image", Mid$(sPath, Len(Project.Dir) + 2))
+        hParent.SetProperty("Image", Project.MakeRelativePath(sPath))
         Return
       Endif
     Endif
@@ -3498,7 +3498,7 @@ Public Sub Control_Drop()
     hCtrl = CreateControl($hFamily.DropImageClass, hParent,, True)
     ' TODO: Use $hFamily.ConvertCoord()
     hCtrl.MoveAndResize(Max(0, X - hImage.Width / 2), Max(0, Y - hImage.Height / 2), hImage.Width, hImage.Height)
-    hCtrl.SetProperty($hFamily.DropImageProperty, Mid$(sPath, Len(Project.Dir) + 2))
+    hCtrl.SetProperty($hFamily.DropImageProperty, Project.MakeRelativePath(sPath))
     $hUndo.End
 
     $hCurrent = hCtrl
@@ -3562,7 +3562,7 @@ Public Sub panTitle_Drop()
   Try hImage = Image.Load(sPath)
   If Not hImage Then Return
 
-  hCtrl.SetProperty("Icon", Mid$(sPath, Len(Project.Dir) + 2))
+  hCtrl.SetProperty("Icon", Project.MakeRelativePath(sPath))
 
 End
 

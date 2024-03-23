@@ -84,8 +84,7 @@ Private Sub LoadFile(sPath As String)
   fprInfo.Path = sPath
   $sLoadedPath = sPath
   
-  sPath = Mid$(sPath, Len(Project.Dir) + 1)
-  If Left(sPath) = "/" Then sPath = Mid$(sPath, 2)
+  sPath = Project.MakeRelativePath(sPath)
   lblPath.Text = sPath
   panConflict_Arrange
   '

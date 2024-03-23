@@ -162,6 +162,7 @@ Private Const IMAGE_DIR As String = "img/16"
 Public Const KEY_SOURCE As String = "$S"
 Public Const KEY_MISC As String = "$O"
 Public Const KEY_PROJECT As String = "$P"
+Public Const KEY_CONFIG As String = "$C"
 Public Const KEY_PUBLIC As String = "$B"
 Public Const KEY_CONNECTION As String = "$D"
 Public Const KEY_EXTERN As String = "$X"
@@ -821,6 +822,7 @@ _INIT_AGAIN:
   If Not ReadOnly Then
     
     If Not Exist(Project.Dir &/ ".hidden") Then InsertDirectory(Project.Dir &/ ".hidden")
+    If Not Exist(Project.Dir &/ ".conf") Then InsertDirectory(Project.Dir &/ ".conf")
     
     CreateGitIgnore
     
@@ -851,6 +853,7 @@ _INIT_AGAIN:
       FDebugger.OnProjectChange
     Endif
     
+    Configuration.OnProjectChange
     FMain.OnProjectChange
     FSearch.OnProjectChange
     If Class.IsLoaded("FHelpBrowser") Then FHelpBrowser.OnProjectChange
@@ -1055,6 +1058,7 @@ Public Function CloseProject() As Boolean
 
     Inc Application.Busy
 
+    Configuration.OnProjectClose()
     FImageProperty.OnProjectClose()
 
     If Not IsFake() Then Breakpoints.Save()
@@ -1081,7 +1085,7 @@ Public Function CloseProject() As Boolean
           If Settings["/Editor/ShowExpand", True] Then Try aFold = hForm.GetFoldedProc()
 
           If sState Then sState = ":" & sState
-          sPath = MakeProjectRelativePath(hForm.Path)
+          sPath = MakeRelativePath(hForm.Path)
           Config["/OpenFile/File[" & CStr(nOpen) & "]"] = sPath & sState
 
           If aFold And If aFold.Count Then Config["/OpenFile/Fold[" & CStr(nOpen) & "]"] = aFold
@@ -1307,6 +1311,8 @@ Public Sub GetSpecialDir(sKey As String) As String
       Return Project.Dir
     Case KEY_PROJECT
       Return Project.Dir &/ ".hidden"
+    Case KEY_CONFIG
+      Return Project.Dir &/ ".conf"
     Case KEY_PUBLIC
       Return Project.Dir &/ ".public"
     Case KEY_SOURCE
@@ -2890,11 +2896,7 @@ Public Function MakeExecutable(bDoNotIncVersion As Boolean, bSilent As Boolean, 
     Endif
 
     sExecPath = File.SetExt(sExecPath, "gambas")
-    If sExecPath Begins (Project.Dir & "/") Then
-      Config["/Executable/Path"] = Mid$(sExecPath, Len(Project.Dir) + 2)
-    Else
-      Config["/Executable/Path"] = sExecPath
-    Endif
+    Config["/Executable/Path"] = Project.MakeRelativePath(sExecPath)
     
     Config.Save
 
@@ -4977,9 +4979,9 @@ Public Sub LinkFile(sSrc As String, sDst As String)
   sDest = File.Dir(sDst) &/ GetUniqueName(File.Dir(sDst), File.Name(sDst))
   If sSrc Begins Project.Dir &/ "/" Then
 
-    aDst = Split(File.Dir(Mid$(sDest, Len(Project.Dir) + 2)), "/")
+    aDst = Split(File.Dir(MakeRelativePath(sDest)), "/")
 
-    sSrc = Mid$(sSrc, Len(Project.Dir) + 2)
+    sSrc = MakeRelativePath(sSrc)
     aSrc = Split(File.Dir(sSrc), "/")
 
     While aDst.Count > 0 And aSrc.Count > 0
@@ -6487,10 +6489,11 @@ Public Sub OpenTerminal(sDir As String)
   
 End
 
-Private Sub MakeProjectRelativePath(sPath As String) As String
+Public Sub MakeRelativePath(sPath As String, Optional sDir As String) As String
   
-  If sPath Begins Project.Dir Then 
-    sPath = Mid$(sPath, Len(Project.Dir) + 1)
+  If Not sDir Then sDir = Project.Dir
+  If sPath Begins sDir Then 
+    sPath = Mid$(sPath, Len(sDir) + 1)
     If sPath Begins "/" Then sPath = Mid$(sPath, 2)
   Endif
   
@@ -6506,13 +6509,13 @@ Public Sub ShouldTranslate(sPath As String, Optional bRecursive As Boolean) As B
   
   If Not sPath Then Return
   
-  sRelPath = MakeProjectRelativePath(sPath)
+  sRelPath = MakeRelativePath(sPath)
   If DoNotTranslate.Exist(sRelPath) Then Return
   
   If File.Ext(sPath) = "class" Then
     sFormPath = FindForm(File.BaseName(sPath))
     If sFormPath Then
-      sRelPath = MakeProjectRelativePath(sFormPath)
+      sRelPath = MakeRelativePath(sFormPath)
       If DoNotTranslate.Exist(sRelPath) Then Return
     Endif
   Endif
@@ -6530,7 +6533,7 @@ Public Sub SetShouldTranslate(sPath As String, bTrans As Boolean)
   
   Dim iPos As Integer
   
-  sPath = MakeProjectRelativePath(sPath)
+  sPath = MakeRelativePath(sPath)
   iPos = DoNotTranslate.Find(sPath)
   If bTrans And iPos >= 0 Then
     DoNotTranslate.Remove(iPos)
@@ -6546,7 +6549,7 @@ End
 Public Sub ShouldCompress(sPath As String) As Boolean
   
   If Not sPath Then Return
-  sPath = MakeProjectRelativePath(sPath)
+  sPath = MakeRelativePath(sPath)
   Return CompressedFiles.Exist(sPath)
   
 End
@@ -6555,7 +6558,7 @@ Public Sub SetShouldCompress(sPath As String, bCompress As Boolean)
   
   Dim iPos As Integer
   
-  sPath = MakeProjectRelativePath(sPath)
+  sPath = MakeRelativePath(sPath)
   iPos = CompressedFiles.Find(sPath)
   If Not bCompress And iPos >= 0 Then
     CompressedFiles.Remove(iPos)
@@ -6651,7 +6654,7 @@ Private Sub ApplyRename(sOld As String, sNew As String, sPath As String) As Stri
   Endif
   
   If bRelative Then
-    sPath = MakeProjectRelativePath(sPath)
+    sPath = MakeRelativePath(sPath)
   Endif
   
   Return sPath
@@ -7155,8 +7158,7 @@ End
 
 Public Sub GetMessagePrefix(sPath As String) As String
   
-  If sPath Begins Project.Dir & "/" Then sPath = Mid$(sPath, Len(Project.Dir) + 2)
-  Return "<b>" & Html(sPath) & "</b>\n\n"
+  Return "<b>" & Html(MakeRelativePath(sPath)) & "</b>\n\n"
   
 End
 

@@ -1,0 +1,36 @@
+' Gambas module file
+
+Property Read Highlighters As String[] Use $aHighlighter
+
+Public Sub OnProjectChange()
+
+  Dim sDir As String
+  
+  sDir = Project.Dir &/ ".conf"
+  Analyze(sDir)
+  
+End
+
+Private Sub Analyze(sDir As String)
+
+  Dim sFile As String
+  Dim sKey As String
+  
+  $aHighlighter = New String[]
+  
+  For Each sFile In RDir(sDir)
+    If File.Ext(sFile) = "highlight" Then
+      sKey = File.BaseName(sFile)
+      TextHighlighter.Register(sKey,, sDir &/ sFile)
+      $aHighlighter.Add(sKey)
+    Endif
+  Next
+  
+  $aHighlighter.ReadOnly = True
+  
+End
+
+Public Sub OnProjectClose()
+  
+End
+

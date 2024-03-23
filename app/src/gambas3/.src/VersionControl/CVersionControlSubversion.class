@@ -17,7 +17,7 @@ Private $sRoot As String
 Private Sub SvnPath$(sPath As String) As String
 
   If InStr(sPath, "@") Then sPath &= "@"
-  If sPath Begins Project.Dir Then sPath = $sRealDir &/ Mid$(sPath, Len(Project.Dir) + 1)
+  If sPath Begins Project.Dir Then sPath = $sRealDir &/ Project.MakeRelativePath(sPath)
   Return sPath
 
 End
@@ -355,8 +355,8 @@ Public Sub UpdatePath(sPath As String, Optional sPath2 As String)
   Dim sCmd As String
 
   ' svn status is automatically recursive!
-  sCmd = "cd " & Shell$($sRealDir) & "; svn status --no-ignore " & Shell(Mid$(sPath, Len(Project.Dir) + 2))
-  If sPath2 Then sCmd &= " " & Shell(Mid$(sPath2, Len(Project.Dir) + 2))
+  sCmd = "cd " & Shell$($sRealDir) & "; svn status --no-ignore " & Shell(Project.MakeRelativePath(sPath))
+  If sPath2 Then sCmd &= " " & Shell(Project.MakeRelativePath(sPath2))
 
   sStatus = VersionControl.Shell(sCmd, True)
   UpdatePathFromStatus(sStatus)

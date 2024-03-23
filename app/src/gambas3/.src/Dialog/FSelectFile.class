@@ -1,0 +1,45 @@
+' Gambas class file
+
+Private $sPath As String
+Private $aFilter As String[]
+
+Public Sub Run(sPath As String, Optional aFilter As String[]) As String
+
+  $sPath = sPath
+  $aFilter = aFilter
+  
+  If Me.ShowModal() Then Return $sPath
+
+End
+
+Public Sub Form_Open()
+
+  Settings.Read(Me)
+  Settings.Read(fchProject)
+
+  fchProject.Root = Project.Dir &/ ".hidden"
+  fchProject.Filter = $aFilter
+  If $sPath Then fchProject.Value = $sPath
+  
+End
+
+Public Sub Form_Close()
+  
+  Settings.Write(fchProject)
+  Settings.Write(Me)
+  
+End
+
+Public Sub fchProject_Cancel()
+
+  Me.Close
+
+End
+
+Public Sub fchProject_Activate()
+
+  $sPath = fchProject.Value
+  If Not $sPath Then Return
+  Me.Close(True)
+
+End

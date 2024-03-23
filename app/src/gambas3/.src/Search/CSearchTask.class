@@ -68,8 +68,7 @@ Public Sub Main()
     
     sPath = sDir &/ sFile
   
-    sFile = Mid$(sPath, Len(Project.Dir) + 1)
-    If Left(sFile) = "/" Then sFile = Mid$(sFile, 2)
+    sFile = Project.MakeRelativePath(sPath)
     
     If Left(sFile) = "." And If sFile Not Begins ".public/" Then
       If Where = DATA_FILES Then Continue
@@ -91,7 +90,7 @@ Public Sub Main()
     
     ' TODO: If bReplace And If Not Access(sPath) Then Continue
     
-    Print "/" &/ Mid$(sPath, Len(Project.Dir) + 1)
+    Print "/" &/ Project.MakeRelativePath(sPath)
     
     ' If sFile Begins ".src/" Then
     '   FDebugInfo.SetSearchListInfo(sName)
