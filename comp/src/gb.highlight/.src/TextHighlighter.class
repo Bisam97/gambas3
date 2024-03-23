@@ -223,7 +223,7 @@ Public Sub RegisterState(Name As String) As Integer
   
 End
 
-Public Sub _Analyze((Text) As String, (State) As Byte[], Optional (MatchLimit) As Boolean, (Limit) As String, ByRef (Pos) As Integer) As Byte[]
+Public Sub _Analyze((Text) As String, (CompileState) As Short[], Optional (MatchLimit) As Boolean, (Limit) As String, ByRef (Pos) As Integer) As Byte[]
 
 End
 
@@ -267,7 +267,7 @@ End
 '' When the 'Run()' method returns, it will be updated to reflect the state of the highlighter after the highlighting, so
 '' that you can call the 'Run()' method again to highlight the next line of text.
 
-Public Sub Run(Text As String, State As Byte[]) As Byte[]
+Public Sub Run(Text As String, State As Short[]) As Byte[]
   
   If State.Count = 0 Then State.Add(0)
   If Not Text Then
@@ -469,7 +469,7 @@ Static Private Sub CreateCustomHighlighter(sHighlight As String, sPath As String
   iLine = 0
 
   CState.Print()
-  CState.Print("Private Sub Compile(aState As Byte[])")
+  CState.Print("Private Sub Compile(aState As Short[])")
   CState.Print()
   CState.Print("Dim sWord, sSymbol As String")
   CState.Print("Dim I As Integer")

@@ -151,7 +151,7 @@ Catch
   
 End
 
-Private Sub Include(iHighlight As Byte, sHighlight As String, bMatch As Boolean, sLimit As String, aState As Byte[]) As Boolean
+Private Sub Include(iHighlight As Byte, sHighlight As String, bMatch As Boolean, sLimit As String, aCompileState As Short[]) As Boolean
 
   Dim iSave As Byte
   Dim aHighlight As Byte[]
@@ -160,14 +160,14 @@ Private Sub Include(iHighlight As Byte, sHighlight As String, bMatch As Boolean,
   Dim iLenAfter As Integer
   Dim iPosBefore As Integer
   
-  nState = aState.Count
-  iSave = aState[0]
-  aState.Remove(0)
+  nState = aCompileState.Count
+  iSave = aCompileState[0]
+  aCompileState.Remove(0)
 
   ' We enter a new imbricated state
   SetIncludeHighlight(iHighlight)
-  If aState.Count = 0 Then
-    aState.Add(0)
+  If aCompileState.Count = 0 Then
+    aCompileState.Add(0)
   Endif
   
   hHighlight = TextHighlighter._Create(sHighlight)
@@ -176,7 +176,7 @@ Private Sub Include(iHighlight As Byte, sHighlight As String, bMatch As Boolean,
   hHighlight._IncludeHighlight = iHighlight
   iPosBefore = $iPos
   
-  aHighlight = hHighlight._Analyze($sText, aState, bMatch, sLimit, ByRef $iPos)
+  aHighlight = hHighlight._Analyze($sText, aCompileState, bMatch, sLimit, ByRef $iPos)
 
   $aHighlight.Insert(aHighlight)
   
@@ -190,20 +190,18 @@ Private Sub Include(iHighlight As Byte, sHighlight As String, bMatch As Boolean,
   
   $bEof = $iPos > $iLen
   
-  aState.Add(iSave, 0)
+  aCompileState.Add(iSave, 0)
   
   If $bEof Then Return True
   
   ' We left the imbricated state
-  '$aHighlight.Add(0)
-  '$aHighlight.Add(0)
-  aState.Pop()
+  aCompileState.Pop()
   
   SetIncludeHighlight(Me._IncludeHighlight)
   
 End
 
-Public Sub _Analyze(Text As String, State As Byte[], Optional MatchLimit As Boolean, Limit As String, ByRef iPos As Integer) As Byte[]
+Public Sub _Analyze(Text As String, CompileState As Short[], Optional MatchLimit As Boolean, Limit As String, ByRef iPos As Integer) As Byte[]
 
   Dim iLenBefore As Integer
   
@@ -221,7 +219,7 @@ Public Sub _Analyze(Text As String, State As Byte[], Optional MatchLimit As Bool
   $bMatchLimit = MatchLimit
   $sTextLimit = Limit
   
-  Try Compile(State)
+  Try Compile(CompileState)
   If Error And If Not $bEof Then
     Error Error.Where; ": "; Error.Text
     Error.Propagate()
