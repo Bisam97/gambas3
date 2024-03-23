@@ -120,7 +120,7 @@ static STREAM *get_default(int val)
 				stream = CSTREAM_TO_STREAM(((CSTREAM_NODE *)_default_err)->stream);
 			else
 			{
-				if (!_init_log_func)
+				if (!_init_log_func && PROJECT_class)
 				{
 					_init_log_func = TRUE;
 				  GB_GetFunction(&_log_func, PROJECT_class, "Application_Log", "ss", "");
