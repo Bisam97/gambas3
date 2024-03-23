@@ -3190,10 +3190,10 @@ Public Sub ReadProject(Optional bConvert As Boolean)
     iPos = InStr(sLig, "=")
     If iPos = 0 Then Continue
 
-    sKey = Lower$(Trim(Left$(sLig, iPos - 1)))
+    sKey = Trim(Left$(sLig, iPos - 1))
     sVal = Trim(Mid$(sLig, iPos + 1))
 
-    Select sKey
+    Select LCase(sKey)
 
       Case "title"
         Title = sVal
