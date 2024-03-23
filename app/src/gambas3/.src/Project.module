@@ -4826,7 +4826,15 @@ End
 
 Public Sub IsHiddenPath(sPath As String) As Boolean
 
+  If sPath = Project.Dir &/ ".hidden" Then Return True
   Return sPath Begins Project.Dir &/ ".hidden" &/ "/"
+
+End
+
+Public Sub IsPublicPath(sPath As String) As Boolean
+
+  If sPath = Project.Dir &/ ".public" Then Return True
+  Return sPath Begins Project.Dir &/ ".public" &/ "/"
 
 End
 

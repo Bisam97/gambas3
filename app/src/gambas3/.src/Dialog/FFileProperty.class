@@ -78,6 +78,7 @@ Public Sub Form_Open()
   Dim sPath As String
   Dim sKey As String
   Dim sHighlightWith As String
+  Dim bShow As Boolean
 
   sPath = $sPath
 
@@ -88,14 +89,24 @@ Public Sub Form_Open()
  
   Me.Title = Subst(("'&1' properties"), File.Name(sPath))
 
-  If Project.IsProjectPath(sPath) Or If Project.IsHiddenPath(sPath) Then
-    fprInfo.Add(panDirectory, ("Properties"))
-    cmbHighlighter.Add(("None"))
-    For Each sKey In Configuration.Highlighters
-      cmbHighlighter.Add(TextHighlighter[sKey].Name)
-    Next
-    sHighlightWith = Configuration[sPath, "HighlightWith"]
-    cmbHighlighter.Index = Configuration.Highlighters.Find(sHighlightWith) + 1
+  If Project.IsProjectPath(sPath) Then
+    
+    If Project.IsHiddenPath(sPath) Or If Project.IsPublicPath(sPath) Or If Not Project.IsSourcePath(sPath, True) Then
+    
+      cmbHighlighter.Add(("None"))
+      For Each sKey In Configuration.Highlighters
+        cmbHighlighter.Add(TextHighlighter[sKey].Name)
+      Next
+      sHighlightWith = Configuration[sPath, "HighlightWith"]
+      cmbHighlighter.Index = Configuration.Highlighters.Find(sHighlightWith) + 1
+      
+      panHighlightWith.Show
+      bShow = True
+      
+    Endif
+    
+    If bShow Then fprInfo.Add(panDirectory, ("Properties"))
+    
   Endif
   
   ' If (sPath &/ "/") = (Project.SourceDir &/ "/") Then    
@@ -122,5 +133,6 @@ Public Sub cmbHighlighter_Click()
     Configuration[sPath, "HighlightWith"] = Configuration.Highlighters[cmbHighlighter.Index - 1]
   Endif
   Project.WriteProject
+  Project.RefreshKey(sPath)
 
 End

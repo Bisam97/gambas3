@@ -56,3 +56,9 @@ Public Sub _get(sPath As String, sProperty As String) As Variant
   
 End
 
+Public Sub HasProperty(sPath As String, sProperty As String) As Boolean
+  
+  sPath = Project.MakeRelativePath(sPath)  
+  Try Return Project.FileProperties[sPath].Exist(sProperty)
+  
+End
