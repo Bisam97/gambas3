@@ -135,7 +135,7 @@ End
 '' - ~Name~: The highlighter display name.
 '' - ~Path~: The path of the definition file.
 
-Static Public Sub Register(Key As String, Name As String, Optional Path As String)
+Static Public Sub Register(Key As String, Optional Name As String, Optional Path As String)
   
   Dim sComp As String
   Dim sLine As String
@@ -160,7 +160,6 @@ Static Public Sub Register(Key As String, Name As String, Optional Path As Strin
   Endif
   
   $cPath[Key] = Path
-  $cNames[Key] = Name
 
   aLines = Split(File.Load(Path), "\n")
   While iLine < aLines.Count
@@ -173,6 +172,11 @@ Static Public Sub Register(Key As String, Name As String, Optional Path As Strin
       If Not sLine Then Continue
       aInclude = Split(File.Load(File.Dir(Path) &/ sLine), "\n")
       aLines.Insert(aInclude, iLine)
+      Continue
+    Endif
+    
+    If sLine Begins "@name " Then
+      Name = UnQuote(Trim(Mid$(sLine, 7)))
       Continue
     Endif
     
@@ -201,6 +205,9 @@ Static Public Sub Register(Key As String, Name As String, Optional Path As Strin
     TextHighlighterTheme._RegisterState(sColor, Key, sDefault)
 
   Wend
+  
+  If Not Name Then Name = Key
+  $cNames[Key] = Name
   
 End
 
@@ -373,7 +380,7 @@ Static Private Sub CreateCustomHighlighter(sHighlight As String, sPath As String
           Wend
         Endif
         
-      Else If sLine = "@endif" Then
+      Else If sLine = "@endif" Or If sLine Begins "@name " Then
         
       Else
       
