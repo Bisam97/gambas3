@@ -10,6 +10,7 @@ Public _Time As Float
 
 Private $bDebug As Integer
 Private $sDir As String
+Private $bWarning As Boolean
 
 Public Sub _exit()
 
@@ -59,7 +60,10 @@ Public Sub _Compile(sArch As String) As Boolean
   
   $sDir = Env["XDG_RUNTIME_DIR"]
   If Not $sDir Then
-    Error "gb.jit: warning: $XDG_RUNTIME_DIR is not defined, use '/tmp' instead."
+    If Not $bWarning Then
+      $bWarning = True
+      Error "gb.jit: warning: XDG_RUNTIME_DIR is not set, use '/tmp' instead."
+    Endif
     $sDir = Application.TempDir
   Else
     $sDir &/= "gambas"
