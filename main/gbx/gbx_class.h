@@ -118,8 +118,7 @@ typedef
 		unsigned _reserved : 2;
 		uchar n_local;
 		uchar n_ctrl;
-		uchar n_label; // Number of label for indirect jumps
-		uchar _reserved2;
+		short n_label; // Number of label for indirect jumps
 		short stack_usage;
 		short error;
 		unsigned short *code;
