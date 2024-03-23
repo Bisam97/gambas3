@@ -149,11 +149,11 @@ Public Sub LoadFile() As Boolean
       
       edtEditor.Mode = ""
       
-      sDir = File.Dir(Path)
+      sDir = Path
       Do
-        If Not Project.IsProjectPath(sDir) Then Break
-        Try sHighlightWith = Project.FolderProperties[Project.MakeRelativePath(sDir)]["HighlightWith"]
+        sHighlightWith = Configuration[sDir, "HighlightWith"]
         If sHighlightWith Then Break
+        If sDir = Project.Dir Then Break
         sDir = File.Dir(sDir)
       Loop
       

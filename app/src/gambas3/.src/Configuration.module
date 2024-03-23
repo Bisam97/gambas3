@@ -34,3 +34,25 @@ Public Sub OnProjectClose()
   
 End
 
+Public Sub _put(vValue As Variant, sPath As String, sProperty As String)
+
+  Dim cProp As Collection
+  
+  sPath = Project.MakeRelativePath(sPath)  
+  cProp = Project.FileProperties[sPath]
+  If Not cProp Then
+    cProp = New Collection
+    Project.FileProperties[sPath] = cProp
+  Endif
+  cProp[sProperty] = vValue
+  If cProp.Count = 0 Then Project.FileProperties[sPath] = Null
+  
+End
+
+Public Sub _get(sPath As String, sProperty As String) As Variant
+
+  sPath = Project.MakeRelativePath(sPath)  
+  Try Return Project.FileProperties[sPath][sProperty]
+  
+End
+

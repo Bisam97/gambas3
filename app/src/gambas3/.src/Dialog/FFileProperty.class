@@ -88,13 +88,13 @@ Public Sub Form_Open()
  
   Me.Title = Subst(("'&1' properties"), File.Name(sPath))
 
-  If IsDir(sPath) And If Project.IsProjectPath(sPath) Then
+  If Project.IsProjectPath(sPath) Or If Project.IsHiddenPath(sPath) Then
     fprInfo.Add(panDirectory, ("Properties"))
     cmbHighlighter.Add(("None"))
     For Each sKey In Configuration.Highlighters
       cmbHighlighter.Add(TextHighlighter[sKey].Name)
     Next
-    Try sHighlightWith = Project.FolderProperties[Project.MakeRelativePath(sPath)]["HighlightWith"]
+    sHighlightWith = Configuration[sPath, "HighlightWith"]
     cmbHighlighter.Index = Configuration.Highlighters.Find(sHighlightWith) + 1
   Endif
   
@@ -114,16 +114,12 @@ End
 
 Public Sub cmbHighlighter_Click()
 
-  Dim sPath As String
+  Dim sPath As String = fprInfo.Path
 
-  sPath = Project.MakeRelativePath(fprInfo.Path)
-
-  If Not Project.FolderProperties.Exist(sPath) Then Project.FolderProperties[sPath] = New Collection
   If cmbHighlighter.Index = 0 Then
-    Project.FolderProperties[sPath]["HighlightWith"] = ""
-    If Project.FolderProperties[sPath].Count = 0 Then Project.FolderProperties.Remove(sPath)
+    Configuration[sPath, "HighlightWith"] = Null
   Else 
-    Project.FolderProperties[sPath]["HighlightWith"] = Configuration.Highlighters[cmbHighlighter.Index - 1]
+    Configuration[sPath, "HighlightWith"] = Configuration.Highlighters[cmbHighlighter.Index - 1]
   Endif
   Project.WriteProject
 
