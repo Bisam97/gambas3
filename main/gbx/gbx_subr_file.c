@@ -859,6 +859,9 @@ static void found_file(const char *path)
 	else
 		str = STRING_new(path, len);
 
+	if (!_result)
+		GB_ArrayNew(&_result, T_STRING, 0);
+
 	*((char **)GB_ArrayAdd(_result)) = str;
 }
 
@@ -885,7 +888,7 @@ void SUBR_rdir(ushort code)
 	else
 		_pattern = NULL;
 
-	GB_ArrayNew(&_result, T_STRING, 0);
+	_result = NULL;
 
 	if (!path || *path == 0)
 		path = ".";

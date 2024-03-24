@@ -848,12 +848,12 @@ void FILE_recursive_dir(const char *dir, void (*found)(const char *), void (*aft
 	else if (!FILE_is_dir(dir))
 		return;
 
+	FILE_dir_first(dir, NULL, attr != GB_STAT_DIRECTORY ? 0 : GB_STAT_DIRECTORY);
+
 	file_rdir_path = STRING_new_zero(dir);
 	file_rdir_len = STRING_length(file_rdir_path);
 	if (file_rdir_path[file_rdir_len - 1] == '/')
 		file_rdir_len--;
-
-	FILE_dir_first(dir, NULL, attr != GB_STAT_DIRECTORY ? 0 : GB_STAT_DIRECTORY);
 
 	#if OPT_NLINK
 	if (file_dir && !FILE_is_relative(dir))
