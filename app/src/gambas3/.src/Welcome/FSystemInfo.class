@@ -110,6 +110,7 @@ Static Public Sub GetInfo(Optional bBackground As Boolean) As String[]
   Dim aEnv As String[]
   Dim sProg As String
   Dim sForTrans As String
+  Dim aDir As String[]
   
   aText.Add("[System]")
   sForTrans = ("System")
@@ -186,15 +187,17 @@ Static Public Sub GetInfo(Optional bBackground As Boolean) As String[]
     If sVar Then 
       aSearchPath = Split(sVar, ":")
     Else
-      aSearchPath = ["/usr/lib"]
+      aSearchPath = New String[]
+      If SizeOf(gb.Pointer) = SizeOf(gb.Long) Then
+        If Stat("/lib64", False).Type = gb.Directory Then aSearchPath.Add("/lib64")
+        aSearchPath.Add("/usr/lib64")
+      Endif
+      If Stat("/lib", False).Type = gb.Directory Then aSearchPath.Add("/lib")
+      aSearchPath.Add("/usr/lib")
     Endif
     
     cSearch = ["QT4": "libQtCore.so.*.*.*", "QT5": "libQt5Core.so.*.*.*", "GDK2": "libgdk-x11-2*.so.*.*.*", "GTK+2": "libgtk-x11-2*.so.*.*.*", "GDK3": "libgdk-3*.so.*.*.*", "GTK+3": "libgtk-3*.so.*.*.*", "SDL": "libSDL[2-9]-*.*.so.*.*.*", "GStreamer": "libgstreamer-*.so.*.*.*", "Poppler": "libpoppler.so.*.*.*", "Curl": "libcurl.so.*.*.*", "OpenGL": "libGL.so.*.*.*", "Cairo": "libcairo.so.*.*.*", "DBus": "libdbus-[0-9].so.*.*.*", "SQLite 3": "libsqlite3.so.*.*.*", "RSvg": "librsvg-2.so.*.*.*"]
     
-  Endif
-
-  If Stat("/lib", False).Type = gb.Directory Then 'Some systems link /lib to /usr/lib
-    aSearchPath.Add("/lib", 0)
   Endif
 
   cFile = New Collection
@@ -202,7 +205,9 @@ Static Public Sub GetInfo(Optional bBackground As Boolean) As String[]
   sForTrans = ("Libraries")
 
   For Each sDir In aSearchPath
-    For Each sFile In RDir(sDir, "", gb.File, False)
+    Try aDir = RDir(sDir, "", gb.File, False)
+    If Error Then Continue
+    For Each sFile In aDir
       sFile = File.Name(sFile)
       For Each sPattern In cSearch
         If sFile Like sPattern And If Not cFile.Exist(sFile) Then
