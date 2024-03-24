@@ -93,12 +93,40 @@ Public Sub GetEditor() As TextEditor
   
 End
 
-Public Sub LoadFile() As Boolean
-  
-  Dim sExt As String
+Public Sub UpdateHighlighting()
+
   Dim sMode As String
   Dim sDir As String
   Dim sHighlightWith As String
+
+  sMode = TextEditor.GetModeFromPath(Path)
+  
+  If sMode Then
+    
+    edtEditor.Mode = sMode
+    
+  Else
+    
+    edtEditor.Mode = ""
+    
+    sDir = Path
+    Do
+      sHighlightWith = Configuration[sDir, "HighlightWith"]
+      If sHighlightWith Then Break
+      If sDir = Project.Dir Then Break
+      sDir = File.Dir(sDir)
+    Loop
+    
+    If sHighlightWith Then edtEditor.Highlight = sHighlightWith
+    
+  Endif
+    
+End
+
+
+Public Sub LoadFile() As Boolean
+  
+  Dim sExt As String
   
   With edtEditor
     .Clear
@@ -139,28 +167,8 @@ Public Sub LoadFile() As Boolean
     '$bShowPretty = True
     $bNoHighlight = False
     
-    sMode = TextEditor.GetModeFromPath(Path)
+    UpdateHighlighting()
     
-    If sMode Then
-      
-      edtEditor.Mode = sMode
-      
-    Else
-      
-      edtEditor.Mode = ""
-      
-      sDir = Path
-      Do
-        sHighlightWith = Configuration[sDir, "HighlightWith"]
-        If sHighlightWith Then Break
-        If sDir = Project.Dir Then Break
-        sDir = File.Dir(sDir)
-      Loop
-      
-      If sHighlightWith Then edtEditor.Highlight = sHighlightWith
-      
-    Endif
-      
     If sExt = "console" Then
       
       If File.Dir(Path) = File.Dir(Temp$()) Then $bConsole = True
@@ -725,7 +733,7 @@ Public Sub Reload()
   UpdateDiffAction
   
   $hEditor.Reset
-
+  
 End
 
 Public Sub mnuReload_Click()

@@ -94,11 +94,11 @@ Public Sub Form_Open()
     If Project.IsHiddenPath(sPath) Or If Project.IsPublicPath(sPath) Or If Not Project.IsSourcePath(sPath, True) Then
     
       cmbHighlighter.Add(("None"))
-      For Each sKey In Configuration.Highlighters
+      For Each sKey In TextHighlighter.List
         cmbHighlighter.Add(TextHighlighter[sKey].Name)
       Next
       sHighlightWith = Configuration[sPath, "HighlightWith"]
-      cmbHighlighter.Index = Configuration.Highlighters.Find(sHighlightWith) + 1
+      cmbHighlighter.Index = TextHighlighter.List.Find(sHighlightWith) + 1
       
       panHighlightWith.Show
       bShow = True
@@ -126,13 +126,18 @@ End
 Public Sub cmbHighlighter_Click()
 
   Dim sPath As String = fprInfo.Path
+  Dim hFile As Object
 
   If cmbHighlighter.Index = 0 Then
     Configuration[sPath, "HighlightWith"] = Null
   Else 
-    Configuration[sPath, "HighlightWith"] = Configuration.Highlighters[cmbHighlighter.Index - 1]
+    Configuration[sPath, "HighlightWith"] = TextHighlighter.List[cmbHighlighter.Index - 1]
   Endif
   Project.WriteProject
   Project.RefreshKey(sPath)
+  
+  For Each hFile In Project.Files
+    Try hFile.UpdateHighlighting()
+  Next
 
 End

@@ -84,7 +84,6 @@ Public Sub _new()
 
   Dim iInd As Integer
   Dim aColors As Integer[]
-  Dim I As Integer
 
   gvwLayout.Columns.Count = 1
 
@@ -206,17 +205,6 @@ Public Sub _new()
   
   btnVersionControl_Click
   btnAutoTrans_Click
-  
-  $aHighlightKeys = TextHighlighter.List
-  $aHighlightNames = New String[$aHighlightKeys.Count]
-  For I = 0 To $aHighlightKeys.Max
-    $aHighlightNames[I] = TextHighlighter.GetName($aHighlightKeys[I])
-  Next
-  
-  cmbHighlight.List = $aHighlightNames.Copy().Sort(gb.Language)
-  cmbHighlight.Add(("Common colors"), 0)
-  cmbHighlight.Index = 0
-  ReloadStyles
   
   Me.Utility = Settings["/UseUtilityWindows", 1]
   
@@ -1146,6 +1134,10 @@ Public Sub ipnOption_Click()
         $bSaveCurrentLayout = True
       Endif
       RefreshLayout
+      
+    Case ("Themes")
+      
+      RefreshHighlight
     
   End Select
   
@@ -1856,5 +1848,28 @@ Public Sub sldToolbarDefaultSize_Change()
 
   Settings["/ToolbarDefaultSize"] = sldToolbarDefaultSize.Value
   ToolBar.DefaultSize = Stock.Sizes[sldToolbarDefaultSize.Value]
+
+End
+
+Private Sub RefreshHighlight()
+
+  Dim I As Integer
+  Dim sCurrent As String
+  
+  sCurrent = cmbHighlight.Text
+  
+  $aHighlightKeys = TextHighlighter.List
+  $aHighlightNames = New String[$aHighlightKeys.Count]
+  For I = 0 To $aHighlightKeys.Max
+    $aHighlightNames[I] = TextHighlighter.GetName($aHighlightKeys[I])
+  Next
+  
+  cmbHighlight.List = $aHighlightNames.Copy().Sort(gb.Language)
+  cmbHighlight.Add(("Common colors"), 0)
+  
+  Try cmbHighlight.Text = sCurrent
+  If cmbHighlight.Index < 0 Then cmbHighlight.Index = 0
+  
+  ReloadStyles
 
 End

@@ -21,8 +21,12 @@ Private Sub Analyze(sDir As String)
   For Each sFile In RDir(sDir)
     If File.Ext(sFile) = "highlight" Then
       sKey = File.BaseName(sFile)
-      TextHighlighter.Register(sKey,, sDir &/ sFile)
-      $aHighlighter.Add(sKey)
+      Try TextHighlighter.Register(sKey,, sDir &/ sFile)
+      If Error Then
+        FMain.ShowErrorWith(Subst(("Unable to load custom highlighter <tt>&1</tt>"), Html(sFile)))
+      Else
+        $aHighlighter.Add(sKey)
+      Endif
     Endif
   Next
   
