@@ -898,6 +898,9 @@ void SUBR_rdir(ushort code)
 
 	FILE_recursive_dir(path, found_file, NULL, attr, follow);
 
+	if (!_result)
+		GB_ArrayNew(&_result, T_STRING, 0);
+
 	RETURN->_object.class = OBJECT_class(_result);
 	RETURN->_object.object = _result;
 
