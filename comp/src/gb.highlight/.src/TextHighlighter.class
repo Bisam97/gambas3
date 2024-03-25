@@ -19,6 +19,7 @@ Static Property Read List As String[]
 
 Static Private $cPath As New Collection
 Static Private $cNames As New Collection
+Static Private $cLines As New Collection
 
 '' Return or set if the highlighter is allowed to rewrite the text to highlight.
 Public CanRewrite As Boolean
@@ -103,7 +104,8 @@ Static Private Sub Load(Name As String) As Class
   sPath = $cPath[Name]
   If Not sPath Then Error.Raise("Unknown highlighter: " & Name)
   
-  CreateCustomHighlighter(Name, sPath)
+  CreateCustomHighlighter(Name, sPath, $cLines[Name])
+  $cLines.Remove(Name)
   Return Class.Load("_TextHighlighter_" & Name)
   
 Catch
@@ -145,6 +147,12 @@ Static Public Sub Register(Key As String, Optional Name As String, Optional Path
   Dim aLines As String[]
   Dim iLine As Integer
   Dim aInclude As String[]
+  Dim cFunc As New Collection
+  Dim sFunc As String
+  Dim iFunc As Integer
+  Dim iIndent As Integer
+  Dim I As Integer
+  Dim aFunc As String[]
   
   If Key Not Match "[a-z_]*" Then Error.Raise("Incorrect highlighter identifier")
   
@@ -164,20 +172,87 @@ Static Public Sub Register(Key As String, Optional Name As String, Optional Path
   aLines = Split(File.Load(Path), "\n")
   While iLine < aLines.Count
     
-    sLine = Trim(aLines[iLine])
+    sLine = aLines[iLine]
     Inc iLine
     
-    If sLine Begins "@include " Then
-      sLine = Trim(Mid$(sLine, 9))
-      If Not sLine Then Continue
-      aInclude = Split(File.Load(File.Dir(Path) &/ sLine), "\n")
-      aLines.Insert(aInclude, iLine)
+    sLine = RTrim(sLine)
+    If Not sLine Then Continue
+    
+    iIndent = Len(sLine)
+    sLine = LTrim(sLine)
+    iIndent -= Len(sLine)
+    
+    If sFunc And If iIndent = 0 Then
+      
+      aLines.Remove(iFunc)
+      
+      aFunc = aLines.Extract(iFunc, iLine - iFunc - 2)
+      
+      If aFunc.Count = 0 Then 
+        cFunc[sFunc] = Null
+      Else 
+        iIndent = Len(aFunc[0]) - Len(LTrim(aFunc[0]))
+        For I = 0 To aFunc.Max
+          aFunc[I] = Mid$(aFunc[I], iIndent + 1)
+        Next
+        cFunc[sFunc] = aFunc
+      Endif
+      
+      sFunc = ""
+      iLine = iFunc
+      
       Continue
+      
     Endif
     
-    If sLine Begins "@name " Then
-      Name = UnQuote(Trim(Mid$(sLine, 7)))
+    If sLine Begins "@include " Then
+      
+      sLine = Trim(Mid$(sLine, 9))
+      If Not sLine Then Error.Raise("Syntax error")
+      Dec iLine
+      aLines.Remove(iLine)
+      aInclude = Split(File.Load(File.Dir(Path) &/ sLine), "\n")
+      For I = 0 To aInclude.Max
+        aInclude[I] = Space$(iIndent) & aInclude[I]
+      Next
+      aLines.Insert(aInclude, iLine)
       Continue
+      
+    Else If sLine Begins "@declare " Then
+      
+      If sFunc Then Error.Raise("Block declaration not terminated")
+      sFunc = Trim(Mid$(sLine, 9))
+      If Not sFunc Then Error.Raise("Missing block name")
+      If cFunc.Exist(sFunc) Then Error.Raise("Block already declared")
+      iFunc = iLine - 1
+      Continue
+      
+    Else If sLine Begins "@name " Then
+      
+      Name = UnQuote(Trim(Mid$(sLine, 7)))
+      Dec iLine
+      aLines.Remove(iLine)
+      Continue
+      
+    Else If sLine Begins "(" And If sLine Ends ")" Then
+      
+      sLine = Trim(Mid$(sLine, 2, -1))
+      iPos = InStr(sLine, " ")
+      If iPos Then sLine = Trim(Left(sLine, iPos - 1))
+      If sLine Then
+        If Not cFunc.Exist(sLine) Then Error.Raise("'" & sLine & "' is not declared")
+        Dec iLine
+        aLines.Remove(iLine)
+        aInclude = cFunc[sLine]
+        aInclude = aInclude.Copy()
+        For I = 0 To aInclude.Max
+          aInclude[I] = Space$(iIndent) & aInclude[I]
+        Next
+        aLines.Insert(aInclude, iLine)
+        Continue
+      Endif
+      Error.Raise("Syntax error")
+      
     Endif
     
     If Not IsLetter(Left(sLine)) Then Continue
@@ -208,6 +283,7 @@ Static Public Sub Register(Key As String, Optional Name As String, Optional Path
   
   If Not Name Then Name = Key
   $cNames[Key] = Name
+  $cLines[Key] = aLines
   
 End
 
@@ -278,7 +354,7 @@ Public Sub Run(Text As String, State As Short[]) As Byte[]
   
 End
 
-Static Private Sub CreateCustomHighlighter(sHighlight As String, sPath As String)
+Static Private Sub CreateCustomHighlighter(sHighlight As String, sPath As String, aLines As String[])
   
   Dim iLine As Integer
   Dim sLine As String
@@ -295,9 +371,6 @@ Static Private Sub CreateCustomHighlighter(sHighlight As String, sPath As String
   Dim sDir As String
   Dim sProject As String
   Dim iPos As Integer
-  Dim aLines As String[]
-  Dim aInclude As String[]
-  Dim I As Integer
   Dim sWordRegExp As String = "[A-Za-z_][A-Za-z0-9_]*"
   Dim bNext As Boolean
   Dim cDefine As New Collection(gb.IgnoreCase)
@@ -315,9 +388,6 @@ Static Private Sub CreateCustomHighlighter(sHighlight As String, sPath As String
   hOutput = Open sOutput For Create
   Output To hOutput
 
-  Try aLines = Split(File.Load(sPath), "\n")
-  If Error Then Error.Raise(sPath & ": " & Error.Text)
-  
   Print File.Load("custom/CustomHighlighter.class")
 
   iCurrentIndent = 0
@@ -339,17 +409,7 @@ Static Private Sub CreateCustomHighlighter(sHighlight As String, sPath As String
     
     If sLine Begins "@" Then
     
-      If sLine Begins "@include " Then
-        
-        sLine = Trim(Mid$(sLine, 9))
-        If Not sLine Then Error.Raise("Syntax error")
-        aInclude = Split(File.Load(File.Dir(sPath) &/ sLine), "\n")
-        For I = 0 To aInclude.Max
-          aInclude[I] = Space$(iIndent) & aInclude[I]
-        Next
-        aLines.Insert(aInclude, iLine)
-        
-      Else If sLine Begins "@word " Then
+      If sLine Begins "@word " Then
         
         sWordRegExp = Trim(Mid$(sLine, 7))
         If sWordRegExp Begins "/" And If sWordRegExp Ends "/" Then
@@ -380,7 +440,7 @@ Static Private Sub CreateCustomHighlighter(sHighlight As String, sPath As String
           Wend
         Endif
         
-      Else If sLine = "@endif" Or If sLine Begins "@name " Then
+      Else If sLine = "@endif" Then
         
       Else
       
