@@ -99,7 +99,6 @@ Private $hDropTarget As CControl
 Private $iLockArrangement As Integer
 
 Private $cInfo As Collection
-Private $bInfoTop As Boolean
 Private $bDiffMode As Boolean
 
 Public Sub _new(sPath As String)
@@ -119,8 +118,6 @@ Public Sub _new(sPath As String)
   panBorder.Background = $hFamily.Background
 
   Container = panBorder
-  
-  Project.InitTooltip(dwgInfo)
   
 End
 
@@ -1665,20 +1662,14 @@ End
 Public Sub UpdateInfo(hCCtrl As CControl)
 
   Dim hCtrl As Control
-  Dim sText As String
 
   If Not hCCtrl Then Return
   
   hCtrl = hCCtrl.Control
-
-  dwgInfo.Refresh
-  
   $cInfo = ["Name": hCCtrl.Name, "Kind": hCCtrl.Kind, "X": hCCtrl.X, "Y": hCCtrl.Y, "Width": hCCtrl.Width, "Height": hCCtrl.Height]
   
-  dwgInfo.Resize(dwgInfo.Font.TextWidth("999999") * 4 + Desktop.Scale * 8, dwgInfo.Font.Height * 2 + Desktop.Scale * 2)
-  dwgInfo.Tag = sText
-  MoveInfo
-
+  Project.UpdateStatus(True)
+  
 End
 
 Private Sub DrawControlFrame(hCCtrl As CControl)
@@ -3339,9 +3330,6 @@ Public Sub Action_Activate((Key) As String) As Boolean
     Case ".grid"
       UpdateSnap
       
-    Case ".tooltip"
-      dwgInfo.Visible = Action[".tooltip", Me].Value
-
     Case ".move-tab-first"
       MoveTab(Master, MOVE_FIRST)
 
@@ -4009,32 +3997,6 @@ Public Sub panSelect_Draw()
   
 End
 
-Private Sub MoveInfo()
-
-  Dim X, Y As Integer
-  Dim DX As Integer
-  Dim DY As Integer
-
-  If svwWorkspace.ScrollH > svwWorkspace.ClientH Then DX = Style.ScrollbarSize
-  If svwWorkspace.ScrollW > svwWorkspace.ClientW Then DY = Style.ScrollbarSize
-
-  If System.RightToLeft Then
-    X = svwWorkspace.X + Desktop.Scale
-  Else  
-    X = svwWorkspace.X + svwWorkspace.W - dwgInfo.W - Desktop.Scale - DX
-  Endif
-  Y = svwWorkspace.Y + Desktop.Scale
-  If Not $bInfoTop Then Y = Max(Y, svwWorkspace.Y + svwWorkspace.H - dwgInfo.H - Desktop.Scale - DY)
-  dwgInfo.Move(X, Y)
-
-End
-
-Public Sub timMoveInfo_Timer()
-  
-  MoveInfo
-  
-End
-
 Public Sub svwWorkspace_Arrange()
 
   dwgBackground.Move(svwWorkspace.X, svwWorkspace.Y, svwWorkspace.W, svwWorkspace.H)
@@ -4507,52 +4469,33 @@ Public Sub lblTitle_DblClick()
 
 End
 
-Public Sub dwgInfo_Draw()
+Public Sub PaintStatus()
 
-  Dim DS As Integer = Desktop.Scale
-  Dim X As Integer
-  Dim Y As Integer
-  Dim W As Float
-  Dim H As Integer
-  Dim iCol As Integer
+  Dim hStatus As CStatus
+  Dim WD As Integer
   
   If Not $cInfo Then Return
 
-  iCol = Color.SetAlpha(Color.TextForeground, 128)
+  '$cInfo = ["Name": hCCtrl.Name, "Kind": hCCtrl.Kind, "X": hCCtrl.X, "Y": hCCtrl.Y, "Width": hCCtrl.Width, "Height": hCCtrl.Height]
   
-  H = Paint.Font.Height + DS
-  Paint.FillRect(0, 0, Paint.W, H, iCol)
-  Paint.FillRect(0, H + 1, Paint.W, Paint.H - H - 1, iCol)
-
-  Paint.ClipRect = Rect(DS, DS \ 2, Paint.W - DS * 2, Paint.H - DS)
-
-  X = DS
-  Y = DS \ 2
-  W = (Paint.W - DS * 2) / 2 - DS
   Paint.Font.Bold = True
-  Paint.DrawText($cInfo!Name, X, Y, W, Paint.Font.Height, Align.Left)
-  X += W
+  WD = Paint.Font.TextWidth("9") * 5
   Paint.Font.Bold = False
-  Paint.DrawText($cInfo!Kind, X + DS, Y, W, Paint.Font.Height, Align.Right)
-  'Y += Paint.Font.Height
-  '  Paint.DrawText($cInfo!Kind, DS, Y, Paint.W - DS * 2, Paint.Font.Height, Align.Center)
   
-  X = DS
-  Y = DS + Paint.Font.Height
-  W = (Paint.W - DS * 2) / 4
-  H = Paint.H - Y
+  hStatus = New CStatus
+  hStatus.Paint($cInfo["Height"], WD, True)
+  hStatus.Paint(" × ")
+  hStatus.Paint($cInfo["Width"], WD, True, True)
+  hStatus.Paint(" " & ("Size") & " ")
+  hStatus.Paint($cInfo["Y"], WD, True)
+  hStatus.Paint(" • ")
+  hStatus.Paint($cInfo["X"], WD, True, True)
+  hStatus.Paint(" " & ("Position") & " ")
+  hStatus.Space(3)
+  hStatus.Paint($cInfo["Name"],, True)
+  hStatus.Space()
+  hStatus.Paint($cInfo["Kind"])
   
-  Paint.DrawText($cInfo!X, X, Y, W - DS, H, Align.Right)
-  Paint.DrawText("•", X, Y, W * 2, H, Align.Center)
-  X += W
-  Paint.DrawText($cInfo!Y, X + DS, Y, W, H, Align.Left)
-  X += W
-  
-  Paint.DrawText($cInfo!Width, X, Y, W - DS, H, Align.Right)
-  Paint.DrawText("×", X, Y, W * 2, H, Align.Center)
-  X += W
-  Paint.DrawText($cInfo!Height, X + DS, Y, W, H, Align.Left)
-
 End
 
 Private Sub FindLocation(hResult As CSearchResult)
@@ -4605,13 +4548,6 @@ Private Sub FindLocation(hResult As CSearchResult)
     Endif
   Wend
   
-End
-
-Public Sub dwgInfo_Enter()
-
-  $bInfoTop = Not $bInfoTop
-  MoveInfo
-
 End
 
 Private Sub UpdateDiffAction()

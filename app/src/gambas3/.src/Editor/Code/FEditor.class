@@ -436,7 +436,6 @@ Static Public Sub PaintEditorStatus(hEditor As TextEditor)
   
   DS = Desktop.Scale
 
-  Paint.Font = Application.Font
   WC = Paint.TextSize(sTextCol).W
   WL = Paint.TextSize(sTextLine).W
   WD = Paint.TextSize("9").W
@@ -445,7 +444,7 @@ Static Public Sub PaintEditorStatus(hEditor As TextEditor)
     Paint.Font = Paint.Device.Font
     Paint.Font.Bold = True
     WO = Paint.TextSize(sTextOverwrite).W
-    W += WO + DS * 4
+    W += WO + DS * 5
   Endif
   
   H = (DS * 5) \ 2
@@ -489,12 +488,12 @@ Static Public Sub PaintEditorStatus(hEditor As TextEditor)
     If hEditor.Overwrite Then
       Paint.Font = Paint.Device.Font
       Paint.Font.Bold = True
-      Paint.Rectangle(X, Y, WO + DS * 2, H)
+      Paint.Rectangle(X, Y, WO + DS * 3, H, H)
       Paint.Background = Color.Foreground
       Paint.Fill
       Paint.Background = Color.Background
-      Paint.DrawText(sTextOverwrite, X, Y, WO + DS * 2, H, Align.Center)
-      X += WO + DS * 4
+      Paint.DrawText(sTextOverwrite, X, Y, WO + DS * 3, H, Align.Center)
+      X += WO + DS * 5
     Endif
     
     Paint.Font = Application.Font

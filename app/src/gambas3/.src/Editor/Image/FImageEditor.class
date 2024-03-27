@@ -87,8 +87,6 @@ Public Sub _new(sPath As String)
   
   dwgBackground.Lower
   
-  Project.InitTooltip(dwgInfo)
-  
   'Reload
   
   SetTool("move")
@@ -136,7 +134,6 @@ Public Sub Reload()
   $aRedo.Clear
   ZoomFit
   SetReadOnly
-  panBackground_Arrange  
   Modify(True)
   
 End
@@ -172,7 +169,6 @@ Public Sub cmbZoom_Click()
 
   imvImage.Zoom = CFloat(Trim(String.Left(cmbZoom.Text, -1)))
   imvImage.Grid = imvImage.Zoom > 8
-  panBackground_Arrange
   $hCurrentPoint = FindBestMagnet(GetImagePos())
   UpdateInfo
   DisableZoomFit
@@ -1084,12 +1080,9 @@ Private Sub UpdateInfo()
     $cInfo!Size = Util.GetFileSize($hImage.Width * $hImage.Height * 4)
   Endif
   
-  dwgInfo.Resize(dwgInfo.Font.TextWidth("9") * Max(5, 3 + Len(CStr(Max($hImage.Width, $hImage.Height)))) * 4 + Desktop.Scale * 4, dwgInfo.Font.Height * 2 + Desktop.Scale * 2)
-  MoveInfo
-  dwgInfo.Refresh
-  
-End
+  Project.UpdateStatus(True)
 
+End
 
 Private Sub GetRectLimits(hRect As RectF) As PointF[]
   
@@ -3340,8 +3333,6 @@ Public Sub Action_Activate((Key) As String) As Boolean
   Select Case Key
     Case ".locked"
       Project.SetReadOnly(Path, Action[Key, Me].Value)
-    Case ".tooltip"
-      dwgInfo.Visible = Action[".tooltip", Me].Value
     Case Else
       Return True
   End Select
@@ -3423,103 +3414,53 @@ Public Sub ExecAction(sAction As String)
   
 End
 
-Private Sub MoveInfo()
-
-  Dim X, Y As Integer
-  Dim DX As Integer
-  Dim DY As Integer
-
-  If imvImage.ScrollH > imvImage.ClientH Then DX = Style.ScrollbarSize
-  If imvImage.ScrollW > imvImage.ClientW Then DY = Style.ScrollbarSize
-  
-  If System.RightToLeft Then
-    X = Desktop.Scale
-  Else
-    X = panBackground.W - dwgInfo.W - Desktop.Scale - DX
-  Endif
-  Y = Desktop.Scale
-  If Not $bInfoTop Then Y = Max(Y, panBackground.H - dwgInfo.H - Desktop.Scale - DY)
-
-  dwgInfo.Move(X, Y)
-
-End
-
-Public Sub panBackground_Arrange()
-
-  MoveInfo
-
-End
-
-Public Sub dwgInfo_Draw()
+Public Sub PaintStatus()
 
   Dim DS As Integer = Desktop.Scale
-  Dim X As Integer
-  Dim Y As Integer
-  Dim W As Float
-  Dim H As Integer
+  Dim WD As Integer
+  Dim hStatus As CStatus
   Dim iCol As Integer
   
-  'dwgInfo.Background = 
-
   If Not $cInfo Then Return
 
-  iCol = Color.SetAlpha(Color.TextForeground, 128)
+  WD = Paint.Font.TextWidth("9") * 5
   
-  H = Paint.Font.Height + DS
-  Paint.FillRect(0, 0, Paint.W, H, iCol)
-  Paint.FillRect(0, H + 1, Paint.W, Paint.H - H - 1, iCol)
+  hStatus = New CStatus
   
-  X = DS
-  Y = DS \ 2
-  W = (Paint.W - DS * 2) / 4
-  H = Paint.Font.Height
+  If $cInfo.Exist("Size") Then
+    hStatus.Paint($cInfo["Size"],, True, True)
+  Endif
+  
+  If $cInfo.Exist("X") Then
+    hStatus.Space()
+    hStatus.Paint($cInfo!Y, WD, True)
+    hStatus.Paint(" • ")
+    hStatus.Paint($cInfo!X, WD, True, True)
+  Endif
+  
+  If $cInfo.Exist("Width") Then
+    hStatus.Space()
+    hStatus.Paint($cInfo!Height, WD, True)
+    hStatus.Paint(" × ")
+    hStatus.Paint($cInfo!Width, WD, True, True)
+  Endif
   
   If $cInfo.Exist("Color") Then
     
-    Paint.DrawText($cInfo!X, X, Y, W - DS, H, Align.Right)
-    Paint.DrawText("•", X, Y, W * 2, H, Align.Center)
-    X += W
-    Paint.DrawText($cInfo!Y, X + DS, Y, W, H, Align.Left)
-    X += W
+    iCol = $cInfo["Color"]
     
-    If $cInfo.Exist("Width") Then
-      Paint.DrawText($cInfo!Width, X, Y, W - DS, H, Align.Right)
-      Paint.DrawText("×", X, Y, W * 2, H, Align.Center)
-      X += W
-      Paint.DrawText($cInfo!Height, X + DS, Y, W, H, Align.Left)
-      X += W
-    Endif
+    hStatus.Space(16)
     
-    X = DS
-    Y += H + DS
+    Paint.Ellipse(hStatus.X - 1, Paint.H / 2 - DS - 1, DS * 2 + 2, DS * 2 + 2)
+    Paint.Background = Color.TextForeground
+    Paint.Fill
+
+    Paint.Ellipse(hStatus.X, Paint.H / 2 - DS, DS * 2, DS * 2)
+    Paint.Background = Color.SetAlpha(iCol, 0)
+    Paint.Fill
     
-    With Color[$cInfo!Color]
-      
-      X += (DS * 3) \ 2
-      Paint.DrawText(CStr(.Red), X, Y, W, H, Align.Left)
-      X += W
-      Paint.DrawText(CStr(.Green), X, Y, W, H, Align.Left)
-      X += W
-      Paint.DrawText(CStr(.Blue), X, Y, W, H, Align.Left)
-      X += W
-      Paint.DrawText(CStr(.Alpha), X, Y, W, H, Align.Left)
-      
-      X = DS
-      Y += (H - DS) / 2
-      For Each iCol In [Color.Red, Color.Green, Color.Blue, Color.White]
-        Paint.Ellipse(X, Y, DS, DS)
-        Paint.Background = Color.SetAlpha(iCol, 64)
-        Paint.Fill
-        X += W
-      Next
-      
-    End With
-    
-  Else
-    
-    Paint.DrawText($cInfo!Width & " × " & $cInfo!Height, X, Y, Paint.W - X, H, Align.Center)
-    Y += H + DS
-    Paint.DrawText($cInfo!Size, X, Y, Paint.W - X, H, Align.Center)
+    Paint.Background = Color.Default
+    Paint.DrawText(Hex$(iCol, 8), hStatus.X + DS * 3, 0, DS * 6, Paint.H, Align.Left)
     
   Endif
 
@@ -3575,7 +3516,6 @@ End
 Public Sub dwgInfo_Enter()
 
   $bInfoTop = Not $bInfoTop
-  MoveInfo
 
 End
 
