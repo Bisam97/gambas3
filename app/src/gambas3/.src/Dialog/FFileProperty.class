@@ -89,7 +89,7 @@ Public Sub Form_Open()
  
   Me.Title = Subst(("'&1' properties"), File.Name(sPath))
 
-  If Project.IsProjectPath(sPath) Then
+  If Project.IsProjectPath(sPath) And If $sPath Not Begins "$" Then
     
     If Project.IsHiddenPath(sPath) Or If Project.IsPublicPath(sPath) Or If Not Project.IsSourcePath(sPath, True) Then
     
