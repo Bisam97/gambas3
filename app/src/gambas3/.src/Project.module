@@ -2880,6 +2880,7 @@ Public Function MakeExecutable(bDoNotIncVersion As Boolean, bSilent As Boolean, 
   Dim sDir As String
   Dim sOptions As String
   Dim fTimer As Float
+  Dim sSrc As String
 
   If CheckStartupClass() Then Return True
 
@@ -2940,20 +2941,8 @@ Public Function MakeExecutable(bDoNotIncVersion As Boolean, bSilent As Boolean, 
       Next
       
     Endif
-    
-    If CompressFiles And If CompressedFiles.Count Then
-      
-      sDir = Project.Dir &/ ".uncompressed"
-      Try Mkdir sDir
-      
-      For I = 0 To CompressedFiles.Max
-        sPath = sDir &/ File.SetExt(CStr(I), File.Ext(CompressedFiles[I]))
-        Try Kill sPath
-        Copy Project.Dir &/ CompressedFiles[I] To sPath
-        MCompressFile.Compress(Project.Dir &/ CompressedFiles[I])
-      Next
-      
-    Endif
+
+    GoSub COMPRESS_FILES
     
     sOptions = ""
     If Config["/Executable/NoPublicDirectory", False] Then sOptions &= " -p"
@@ -2961,19 +2950,7 @@ Public Function MakeExecutable(bDoNotIncVersion As Boolean, bSilent As Boolean, 
     sExec = System.Path &/ "bin/gba" & System.Version & sOptions & " -o " & Shell$(sExecPath) & " " & Shell$(Project.Dir) & " > " & OUTPUT_FILE & " 2>&1"
     Shell sExec Wait
     
-    If CompressFiles And If CompressedFiles.Count Then
-      
-      sDir = Project.Dir &/ ".uncompressed"
-      
-      For I = 0 To CompressedFiles.Max
-        sPath = sDir &/ File.SetExt(CStr(I), File.Ext(CompressedFiles[I]))
-        Try Kill Project.Dir &/ CompressedFiles[I]
-        Move sPath To Project.Dir &/ CompressedFiles[I]
-      Next
-      
-      Shell.RmDir(sDir)
-      
-    Endif
+    GoSub UNCOMPRESS_FILES
     
     If Process.LastValue Then Error.Raise(Trim(File.Load(OUTPUT_FILE)))
     'SetMessage(("OK"))
@@ -3020,10 +2997,53 @@ Public Function MakeExecutable(bDoNotIncVersion As Boolean, bSilent As Boolean, 
   SetMessage(" " & Subst(("(in &1 s)"), Format(Timer - fTimer, "0.##")), True)
   
   Return Not bOK
+  
+COMPRESS_FILES:
 
+  If CompressFiles And If CompressedFiles.Count Then
+    
+    sDir = Project.Dir &/ ".uncompressed"
+    Try Mkdir sDir
+    
+    For I = 0 To CompressedFiles.Max
+      sSrc = Project.Dir &/ CompressedFiles[I]
+      If Not Exist(sSrc) Then Continue
+      sPath = sDir &/ File.SetExt(CStr(I), File.Ext(CompressedFiles[I]))
+      Try Kill sPath
+      Copy sSrc To sPath
+      MCompressFile.Compress(sSrc)
+    Next
+    
+  Endif
+  
+  Return
+  
+UNCOMPRESS_FILES:
+
+  If CompressFiles And If CompressedFiles.Count Then
+    
+    sDir = Project.Dir &/ ".uncompressed"
+    If IsDir(sDir) Then
+    
+      For I = 0 To CompressedFiles.Max
+        sPath = sDir &/ File.SetExt(CStr(I), File.Ext(CompressedFiles[I]))
+        If Not Exist(sPath) Then Continue
+        Try Kill Project.Dir &/ CompressedFiles[I]
+        Move sPath To Project.Dir &/ CompressedFiles[I]
+      Next
+      
+      Shell.RmDir(sDir)
+      
+    Endif
+    
+  Endif
+  
+  Return
+  
 Catch
 
-  FMain.ShowError(("Cannot make executable.") & "\n\n" & Error.Text & "\n" & Error.Where)
+  FMain.ShowErrorWith(("Cannot make executable."), "*")
+  GoSub UNCOMPRESS_FILES
   If bSaveDone Then 
     'Exec ["rm", "-rf", Project.Dir &/ ".gambas"] Wait
     Shell.RmDir(Project.Dir &/ ".gambas")
@@ -4001,7 +4021,11 @@ Public Sub DeleteFile(sPath As String, Optional bNoBackup As Boolean)
     Try Kill sPath
   Endif
 
-  If IsProjectPath(sPath) Then VersionControl.RemoveFile(sPath)
+  If IsProjectPath(sPath) Then
+    VersionControl.RemoveFile(sPath)
+    SetShouldCompress(sPath, False)
+    SetShouldTranslate(sPath, False)
+  Endif
 
   If bProject Then
 
