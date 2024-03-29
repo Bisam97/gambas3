@@ -5,15 +5,15 @@ Private $sMessage As String
 
 Public Sub _new()
   
-  btnDbusExplorer.Picture = Picture["img/32/dbus.png"].Stretch(Stock.GetSize("small"))
-  
+  btnDbusExplorer.Picture = Picture["img/32/dbus.png"].Stretch(Stock.GetSize("tiny"))
+
 End
 
 Public Sub ReadConfig()
   
   Project.SetSmallFont(Me)
-  Me.H = Me.Font.H + 8
-  
+  If Me.Parent Then Me.Parent.H = Stock.GetSize("tiny") + Desktop.Scale * 1.5
+
 End
 
 Public Sub UpdateView()
@@ -26,12 +26,14 @@ End
 Public Sub OnVisibilityChange()
   
   Dim hButton As ToolButton
+  Dim hCtrl As Control
   
   If FMain.IsDebugVisible() Then
     SelectButton(FDebugInfo.GetCurrentTab())
   Else
-    For Each hButton In panButton.Children
-      hButton.Value = False
+    For Each hCtrl In Me.Children
+      Try hButton = hCtrl
+      If Not Error Then hButton.Value = False
     Next
   Endif
   
@@ -47,8 +49,9 @@ Public Sub btnDebug_Click()
     
     FMain.ShowDebug(True)
     
-    For I = 0 To panButton.Children.Count - 1
-      Try hButton = panButton.Children[I]
+    For I = 0 To Me.Children.Max
+      Try hButton = Me.Children[I]
+      If Error Then Continue
       If hButton <> hLast Then
         Object.Lock(hButton)
         hButton.Value = False
@@ -64,12 +67,14 @@ Public Sub btnDebug_Click()
     
   Endif
   
-  
 End
 
 Public Sub SelectButton(iTab As Integer)
 
-  Dim hButton As ToolButton = panButton.Children[iTab]
+  Dim hButton As ToolButton
+  
+  Try hButton = Me.Children[iTab]
+  If Error Then Return
   
   If $bNoSelectButton Then Return
 
@@ -81,7 +86,11 @@ End
 
 Public Sub ShowButton(iTab As Integer, bShow As Boolean)
   
-  Dim hButton As ToolButton = panButton.Children[iTab]
+  Dim hButton As ToolButton
+  
+  Try hButton = Me.Children[iTab]
+  If Error Then Return
+  
   If hButton.Value And If Not bShow Then FMain.ShowDebug(False)
   hButton.Visible = bShow
   

@@ -109,15 +109,19 @@ Public Sub UpdateHighlighting()
     
     edtEditor.Mode = ""
     
-    sDir = Path
-    Do
-      sHighlightWith = Configuration[sDir, "HighlightWith"]
-      If sHighlightWith Then Break
-      If sDir = Project.Dir Then Break
-      sDir = File.Dir(sDir)
-    Loop
+    If Project.IsProjectPath(Path) Then
     
-    If sHighlightWith Then edtEditor.Highlight = sHighlightWith
+      sDir = Path
+      Do
+        sHighlightWith = Configuration[sDir, "HighlightWith"]
+        If sHighlightWith Then Break
+        If sDir = Project.Dir Then Break
+        sDir = File.Dir(sDir)
+      Loop
+      
+      If sHighlightWith Then edtEditor.Highlight = sHighlightWith
+      
+    Endif
     
   Endif
     
