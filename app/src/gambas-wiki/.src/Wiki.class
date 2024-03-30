@@ -257,7 +257,7 @@ Private Sub _PrintPage()
         If Main.Symbol Then
           sDefaultHelp = Main.GetDefaultHelp()
           If sDefaultHelp Begins "-->" Then
-            sPath = Main.MakeAbsolute(Trim(Mid$(sDefaultHelp, 4)), sPath)
+            sPath = Main.SolvePath(Main.MakeAbsolute(Trim(Mid$(sDefaultHelp, 4)), sPath))
             Inc nTry
             If nTry < 8 Then Goto TRY_AGAIN
           Else

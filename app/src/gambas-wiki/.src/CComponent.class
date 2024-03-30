@@ -228,6 +228,7 @@ Public Sub _new(sName As String)
   If Not sPath Or If Not Exist(sPath) Then
     sPath = Component.Path &/ sName & ".component"
   Endif
+  If Not Exist(sPath) Then Error.Raise("Unable to find component file: " & sPath)
   
   hFile = Open sPath For Input
 
@@ -537,7 +538,7 @@ End
 
 Static Private Sub SubstInfo(sKey As String) As String
   
-  If sKey Begins "gb.qt4" Then sKey = Replace(sKey, "gb.qt4", "gb.qt5")
+  If sKey Begins "gb.qt" Then sKey = Replace(sKey, "gb.qt4", "gb.qt5")
   Return sKey
   
 End

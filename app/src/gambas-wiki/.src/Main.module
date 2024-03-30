@@ -1044,14 +1044,14 @@ End
 
 Public Sub GetStat() As String[]
   
-  Dim nClass As Integer
-  Dim nSym As Integer
   Dim sFile As String
   Dim aFile As String[]
-  Dim iCpt, iComment As Integer
   Dim sLine As String
   Dim aIgnore As String[]
   Dim sDir As String
+  Dim I As Integer
+  Dim cClass As New Collection
+  Dim cSymbol As New Collection
 
   If Main.InfoDir Then
     sDir = Main.InfoDir
@@ -1063,22 +1063,30 @@ Public Sub GetStat() As String[]
 
   For Each sFile In Dir(sDir, "*.info")
     If aIgnore.Find(File.BaseName(sFile)) >= 0 Then Continue
-    aFile = Split(File.Load(sDir &/ sFile), "\n", "", True)
-    iCpt = 0
-    iComment = 0
-    For Each sLine In aFile
-      If Left(sLine) = "#" Then Inc iCpt
-      If Left(sLine) = "'" Then Inc iComment
-    Next
-    nClass += iCpt
-    nSym += ((aFile.Count - iComment) - iCpt * 3) / 4
+    aFile = Split(File.Load(sDir &/ sFile), "\n")
+    
+    I = 0
+    While I < aFile.Count
+      sLine = aFile[I]
+      If sLine Begins "#" Then
+        cClass[Mid$(sLine, 2)] = True
+        I += 3
+        Continue
+      Else If sLine Then
+        cSymbol[sLine] = True
+        I += 4
+      Else 
+        Break
+      Endif
+    Wend
+    
   Next
   
-  Return [Subst(("There are &1 classes and &2 symbols in all Gambas components."), nClass, nSym)]
+  Return [Subst(("There are &1 unique classes and &2 unique symbols in all Gambas components."), cClass.Count, cSymbol.Count)]
 
 Catch
 
-  Return ["`" & Error.Where & ": " & Error.Text & "`"]
+  Return ["`" & sFile & "." & CStr(I + 1) & "`", "`" & Error.Where & ": " & Error.Text & "`"]
 
 End
 
@@ -1211,7 +1219,7 @@ End
 
 Private Sub GetIgnore() As String[]
 
-  Return ["gb.gui", "gb.gtk", "gb.gtk.opengl", "gb.gtk3", "gb.gtk3.opengl", "gb.gui.opengl", "gb.gui.base", "gb.option", "gb.v4l", "gb.qt5", "gb.qt5.opengl", "gb.qt5.webkit", "gb.gui.qt", "gb.gui.qt.webkit", "gb.qt4.webview", "gb.qt5.webview", "gb.gtk3.webview", "gb.dbus.trayicon", "gb.qt5.ext"]
+  Return ["gb.gui", "gb.gtk", "gb.gtk.opengl", "gb.gtk3", "gb.gtk3.opengl", "gb.gui.opengl", "gb.gui.base", "gb.option", "gb.v4l", "gb.qt5", "gb.qt5.ext", "gb.qt5.opengl", "gb.qt5.webkit", "gb.qt5.webview", "gb.gui.qt", "gb.gui.qt.ext", "gb.gui.qt.opengl", "gb.gui.qt.webkit", "gb.gui.webview", "gb.qt4.webview", "gb.gtk3.webview", "gb.dbus.trayicon", "gb.qt6", "gb.qt6.ext", "gb.qt6.opengl", "gb.qt6.webview"]
 
 End
 
@@ -1429,7 +1437,7 @@ Public Sub HasDefaultHelp(Optional sComp As String, sClass As String, sSymbol As
     Try hSymbol = hClass.Symbols[sSymbol]
     If Not hSymbol Then Return
     
-    If hSymbol.Help Then Return True
+    If hSymbol.GetDescription() Then Return True
     
   Else 
     
@@ -1447,6 +1455,7 @@ Public Sub GetDefaultHelp(Optional sComp As String, sClass As String, sSymbol As
   Dim sResult As String
   Dim iPos2 As Integer
   Dim hClass As CClassInfo
+  Dim sDesc As String
   
   If Not sComp Then sComp = Main.Component
   If Not sClass Then sClass = Main.Class
@@ -1461,6 +1470,9 @@ Public Sub GetDefaultHelp(Optional sComp As String, sClass As String, sSymbol As
     If Not hSymbol Then Return
     
     If hSymbol.Help Then Return hSymbol.Help
+    
+    Try sDesc = File.Load(Main.GetPagePathFrom(LCase("/comp" &/ sComp &/ sClass)))
+    If sDesc Begins "--> " Then Return sDesc &/ Replace(LCase(sSymbol), ":", ".")
     
     sResult = "\n"
     sSign = hSymbol.Signature
@@ -1738,13 +1750,15 @@ Private Sub SearchWiki(sText As String)
   
 End
 
-Public Sub GetImageHTML(sPath As String) As String
+Public Sub GetImageHTML(sPath As String, Optional bLink As Boolean) As String
 
   Dim sAdd As String
   
   If Not ExistPage(sPath) Then
     If Not ExistPage(sPath, DEFAULT_LANG) Then
-      Return "<div class=\"unknown\">" & ("Please upload a file") & "</div>"
+      If Not bLink Then
+        Return "<div class=\"unknown\">" & ("Please upload a file") & "</div>"
+      Endif
     Else
       sAdd = "&l=en"
     Endif

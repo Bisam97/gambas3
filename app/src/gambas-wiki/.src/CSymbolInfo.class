@@ -14,7 +14,7 @@ Public LineNumber As Integer
 Public Help As String
 
 Static Public Sub _init()
-
+  
   $cTypeName["b"] = "Boolean"
   $cTypeName["c"] = "Byte"
   $cTypeName["h"] = "Short"
@@ -27,41 +27,37 @@ Static Public Sub _init()
   $cTypeName["s"] = "String"
   $cTypeName["o"] = "Object"
   $cTypeName["p"] = "Pointer"
-
+  
 End
 
 Static Public Function GetNativeType(sType As String) As String
-
+  
   Return $cTypeName[sType]
-
+  
 End
-
-
 
 Public Function IsHidden() As Boolean
-
+  
   If Left(Name) = "_" Then Return True
   Return InStr(Name, "_") > 0 And Kind <> "C"
-
+  
 End
-
 
 Public Function IsStatic() As Boolean
-
+  
   Return UCase(Kind) = Kind And Kind <> ":"
-
+  
 End
 
-
 Public Function GetIcon() As String
-
+  
   Dim bStatic As Boolean
   Dim sIcon As String
-
+  
   bStatic = UCase(Kind) = Kind
-
+  
   Select Case LCase(Kind)
-
+      
     Case "r"
       sIcon = "img/16" &/ If(bStatic, "s-property-ro.png", "property-ro.png")
     Case "p"
@@ -76,32 +72,31 @@ Public Function GetIcon() As String
       sIcon = "img/16/control.png"
     Case "m"
       sIcon = "img/16" &/ If(bStatic, "s-method.png", "method.png")
-
+      
   End Select
-
+  
   Return sIcon
-
+  
 End
 
-
 Private Function GetType(sType As String, bBalise As Boolean) As String
-
+  
   If Len(sType) = 1 Then
     sType = $cTypeName[sType]
   Else If Left$(sType) = "." Then
     sType = "Object"
   Endif
-
+  
   If bBalise Then
     Return "<B>" & sType & "</B>"
   Else
     Return sType
   Endif
-
+  
 End
 
 Public Function GetSignature(Optional bBalise As Boolean) As String
-
+  
   Dim iInd As Integer
   Dim sRes As String
   Dim sCar As String
@@ -109,97 +104,97 @@ Public Function GetSignature(Optional bBalise As Boolean) As String
   Dim bName As Boolean
   Dim bFirst As Boolean
   Dim sSign As String
-
+  
   Dim sBold As String
   Dim sNoBold As String
   Dim sName As String
-
+  
   sSign = Signature
   If Left$(sSign) = "#" Then
     Return Mid$(sSign, 2)
   Endif
-
+  
   If bBalise Then
     sBold = "<B>"
     sNoBold = "</B>"
   Endif
-
+  
   bFirst = True
-
+  
   Do
-
+    
     iInd = iInd + 1
-
+    
     If iInd > Len(sSign) Then Break
-
+    
     sCar = Mid$(sSign, iInd, 1)
-
+    
     If sCar = "'" Or sCar = "(" Then
-
+      
       If sCar = "'" Then
         iPos = InStr(sSign, "'", iInd + 1)
       Else
         iPos = InStr(sSign, ")", iInd + 1)
       Endif
-
+      
       If iPos = 0 Then Break
-
+      
       If bFirst Then
         bFirst = False
       Else
         sRes = sRes & sBold & "," & sNoBold & " "
       Endif
-
+      
       sName = Mid$(sSign, iInd + 1, iPos - iInd - 1)
       If sName Begins "&" Then
         sRes &= "BYREF " & Mid$(sName, 2)
       Else
         sRes &= sName
       Endif
-
+      
       sRes &= " " & sBold & "AS" & sNoBold & " "
-
+      
       iInd = iPos
       bName = True
-
+      
       Continue
-
+      
     Endif
-
+    
     If sCar = "<" Then
-
+      
       iPos = InStr(sSign, ">", iInd + 1)
       If iPos = 0 Then Break
       iInd = iPos
       Continue
-
+      
     Endif
-
+    
     If sCar = "[" Then
-
+      
       sRes = sRes & " " & sBold & "[" & sNoBold
       Continue
-
+      
     Endif
-
+    
     If sCar = "]" Then
-
+      
       sRes = sRes & " " & sBold & "] " & sNoBold
       Continue
-
+      
     Endif
-
+    
     If Not bName Then
-
+      
       If bFirst Then
         bFirst = False
       Else
         sRes = sRes & sBold & "," & sNoBold & " "
       Endif
-
+      
       sRes = sRes & sBold & "? AS " & sNoBold
       bName = False
-
+      
     Endif
     If iInd = Len(sSign) Then
       If sCar = "." Then
@@ -207,32 +202,32 @@ Public Function GetSignature(Optional bBalise As Boolean) As String
         Continue
       Endif
     Endif
-
+    
     If (sCar >= "A" And sCar <= "Z") Or sCar = "." Then
-
+      
       iPos = InStr(sSign, ";", iInd)
       If iPos = 0 Then iPos = Len(sSign) + 1
-
+      
       sRes = sRes & Mid$(sSign, iInd, iPos - iInd)
-
+      
       iInd = iPos
       Continue
-
+      
     Endif
-
+    
     sRes = sRes & GetType(sCar, bBalise)
-
+    
   Loop
-
+  
   If Name = "_get" Or Name = "_put" Then
     sRes = "[ " & sRes & " ]"
   Else
     sRes = "( " & sRes & " )"
   Endif
   If Type Then sRes = sRes & " AS " & GetType(Type, bBalise)
-
+  
   Return sRes
-
+  
 End
 
 Private Sub GetVirtualClass(sClass As String) As String
@@ -253,9 +248,9 @@ Private Sub GetVirtualClass(sClass As String) As String
 End
 
 Private Function GetClassVariableName(sClass As String) As String
-
+  
   Dim sRes As String
-
+  
   If sClass Begins "*" And If Main.SubstClass Then
     If sClass = "*" Then 
       sClass = Left(Main.SubstClass, -2)
@@ -263,7 +258,7 @@ Private Function GetClassVariableName(sClass As String) As String
       sClass = Main.SubstClass
     Endif
   Endif
-
+  
   If Len(sClass) = 1 Then
     sClass = CSymbolInfo.GetNativeType(sClass)
     If InStr("aeiou", LCase(Left$(sClass))) Then
@@ -280,32 +275,32 @@ Private Function GetClassVariableName(sClass As String) As String
     Endif
     sRes = "h" & sClass
   Endif
-
+  
   Return sRes
-
+  
 End
 
 Private Function Keyword(sWord As String, Optional iColor As Integer) As String
-
+  
   If iColor Then
     Return "<font color=\"#" & Hex$(iColor, 6) & "\">" & sWord & "</font>"
   Else
     Return "<font color=\"blue\">" & sWord & "</font>"
   Endif
-
+  
 End
 
 Private Function GetSymbolName(sName As String) As String
-
+  
   'sName = Replace(sName, "_", "")
   sName = Replace(sName, ":", "")
   'sName = Replace(sName, "$", "")
   Return sName
-
+  
 End
 
 Private Function GetSyntaxType(sType As String) As String
-
+  
   If Main.SubstClass And If sType Begins "*" Then
     If sType = "*" Then
       sType = Left(Main.SubstClass, -2)
@@ -313,7 +308,7 @@ Private Function GetSyntaxType(sType As String) As String
       sType = Main.SubstClass
     Endif
   Endif
-
+  
   If Len(sType) = 1 Then
     sType = CSymbolInfo.GetNativeType(sType)
   Else
@@ -321,13 +316,13 @@ Private Function GetSyntaxType(sType As String) As String
     sType = Main.GetClassLinkFromName(sType)
     'sType = "<a href=\"" & Application.Root &/ "comp" & "\">" & sType & "</a>"
   Endif
-
+  
   Return Keyword(sType, &H0080FF&)
-
+  
 End
 
 Private Function GetSyntaxSignature() As String
-
+  
   Dim sSign As String = Signature
   Dim iInd As Integer
   Dim sRes As String
@@ -339,7 +334,7 @@ Private Function GetSyntaxSignature() As String
   Dim hClass As CClassInfo
   Dim hSym As CSymbolInfo
   Dim sName As String
-
+  
   If Name = "_new" Then
     hClass = CComponent.Get(Component)[Class]
     Do
@@ -357,119 +352,118 @@ Private Function GetSyntaxSignature() As String
   Endif
   
   bFirst = True
-
+  
   Do
-
+    
     iInd = iInd + 1
-
+    
     If iInd > Len(sSign) Then Break
-
+    
     sCar = Mid$(sSign, iInd, 1)
-
+    
     If sCar = "'" Or sCar = "(" Then
-
+      
       If sCar = "'" Then
         iPos = InStr(sSign, "'", iInd + 1)
       Else
         iPos = InStr(sSign, ")", iInd + 1)
       Endif
-
+      
       If iPos = 0 Then Break
-
+      
       If bFirst Then
         bFirst = False
       Else
         sRes = sRes & Keyword(",") & " "
       Endif
-
+      
       sName = Mid$(sSign, iInd + 1, iPos - iInd - 1)
       If sName Begins "&" Then
         sRes &= Keyword("ByRef") & " "
         sName = Mid$(sName, 2)
       Endif
       sRes = sRes & "<u>" & sName & "</u> " & Keyword("As") & " "
-
+      
       iInd = iPos
       bName = True
-
+      
       Continue
-
+      
     Endif
-
+    
     If sCar = "<" Then
-
+      
       iPos = InStr(sSign, ">", iInd + 1)
       If iPos = 0 Then Break
       iInd = iPos
       Continue
-
+      
     Endif
-
+    
     If sCar = "[" Then
-
+      
       sRes = RTrim(sRes) & " <b>\\[</b> "
       Continue
-
+      
     Endif
-
+    
     If sCar = "]" Then
-
+      
       sRes = RTrim(sRes) & " <b>]</b>"
       Continue
-
+      
     Endif
-
+    
     If Not bName Then
-
+      
       If bFirst Then
         bFirst = False
       Else
         sRes = sRes & ", "
       Endif
-
+      
       sRes = sRes & "? " & Keyword("As") & " "
       bName = False
-
+      
     Endif
-
+    
     If sCar = "." Then
       sRes = sRes & ", ..."
       Continue
     Endif
-
+    
     If sCar >= "A" And sCar <= "Z" Then
-
+      
       iPos = InStr(sSign, ";", iInd)
       If iPos = 0 Then iPos = Len(sSign) + 1
-
+      
       sRes = sRes & GetSyntaxType(Mid$(sSign, iInd, iPos - iInd))
-
+      
       iInd = iPos
       Continue
-
+      
     Endif
-
+    
     sRes = sRes & GetSyntaxType(sCar)
-
+    
   Loop
-
+  
   'sRes = "( " & sRes & " )"
-
+  
   sRes = " " & sRes & " "
-
+  
   Do
     iLen = Len(sRes)
     sRes = Replace(sRes, "  ", " ")
     If Len(sRes) = iLen Then Break
   Loop
-
+  
   Return sRes
-
+  
 End
 
-
 Public Sub GetSyntax() As String[]
-
+  
   Dim sSyntax As String
   Dim sName As String
   Dim sVar As String
@@ -481,14 +475,14 @@ Public Sub GetSyntax() As String[]
   Dim aResult As String[]
   Dim iValue As Integer
   Dim sKeyword As String
-
+  
   sName = Class
   sVirtual = GetVirtualClass(sName)
-
+  
   Select Case LCase(Name)
-
+      
     Case "_get"
-
+      
       If IsStatic() Then
         sName = Class
         If sVirtual Then sName = Mid$(sName, 2)
@@ -502,18 +496,18 @@ Public Sub GetSyntax() As String[]
           sSyntax = sSyntax & Keyword("Dim") & " " & sVar & " " & Keyword("As") & " " & GetSyntaxType(Class) & "\n"
         Endif
       Endif
-
+      
       sValue = Replace(GetClassVariableName(Type), ".", "")
       If sValue = sVar Then sValue &= "2"
-
+      
       sSyntax &= Keyword("Dim") & " " & sValue & " " & Keyword("As") & " " & GetSyntaxType(Type) & "\n"
       sSyntax &= sValue & " " & Keyword("=") & " "
       sSyntax &= sName & " " & Keyword("\\[") & GetSyntaxSignature() & Keyword("]")
-
+      
     Case "_put"
-
+      
       sType = CComponent.All[Component][Class].Symbols["_get"].Type
-
+      
       If IsStatic() Then
         sName = Class
         If sVirtual Then sName = Mid$(sName, 2)
@@ -527,10 +521,10 @@ Public Sub GetSyntax() As String[]
           sSyntax = sSyntax & Keyword("Dim") & " " & sVar & " " & Keyword("As") & " " & GetSyntaxType(Class) & "\n"
         Endif
       Endif
-
+      
       sValue = Replace(GetClassVariableName(sType), ".", "")
       If sValue = sVar Then sValue &= "2"
-
+      
       sSyntax = sSyntax & Keyword("Dim") & " " & sValue & " " & Keyword("As") & " " & GetSyntaxType(sType) & "\n"
       sSign = GetSyntaxSignature()
       sKeyword = Keyword(",")
@@ -538,9 +532,9 @@ Public Sub GetSyntax() As String[]
       If iPos Then sSign = Mid$(sSign, iPos + Len(sKeyword))
       sSyntax = sSyntax & sName & " " & Keyword("\\[") & sSign & Keyword("]")
       sSyntax = sSyntax & " " & Keyword("=") & " " & sValue
-
+      
     Case "_next"
-
+      
       If IsStatic() Then
         sName = Class
         If sVirtual Then sName = Mid$(sName, 2)
@@ -554,7 +548,7 @@ Public Sub GetSyntax() As String[]
           sSyntax = sSyntax & Keyword("Dim") & " " & sVar & " " & Keyword("As") & " " & GetSyntaxType(Class) & "\n"
         Endif
       Endif
-
+      
       If Type Then
         sValue = Replace(GetClassVariableName(Type), ".", "")
         If sValue = sVar Then sValue &= "2"
@@ -563,28 +557,28 @@ Public Sub GetSyntax() As String[]
       Else
         sSyntax = sSyntax & Keyword("For Each") & " " & sName
       Endif
-
+      
       sSyntax &= "<br />&nbsp;&nbsp;...<br/>" & Keyword("Next")
-
+      
     Case "_new"
-
+      
       sName = GetClassVariableName(Class)
-
+      
       sSyntax &= Keyword("Dim") & " " & sName & " " & Keyword("As") & " " & GetSyntaxType(Class) & "\n"
       sSyntax &= sName & " " & Keyword("=") & " " & Keyword("New") & " " & GetSyntaxType(Class)
       sSyntax &= " " & Keyword("(") & GetSyntaxSignature() & Keyword(")")
       If CComponent.Get(Component)[Class].HasEvents() Then
         sSyntax &= " <b>\\[</b> " & Keyword("As") & " \"<u>EventName</u>\" <b>]</b>"
       Endif
-
+      
     Case Else
-
+      
       If IsStatic() And Kind <> "C" Then
         sSyntax = Keyword("Static") & " "
       Endif
-
+      
       Select Case LCase(Kind)
-
+          
         Case "p", "v"
           sSyntax = sSyntax & Keyword("Property") & " "
         Case "r"
@@ -599,9 +593,9 @@ Public Sub GetSyntax() As String[]
           Else
             sSyntax = sSyntax & Keyword("Sub") & " "
           Endif
-
+          
       End Select
-
+      
       If Name = "_call" Then
         If sVirtual Then
           sSyntax &= "<b>" & Replace(Mid$(Class, 2), "_", ".") & "</b>"
@@ -611,13 +605,13 @@ Public Sub GetSyntax() As String[]
       Else
         sSyntax &= "<b>" & GetSymbolName(Name) & "</b>"
       Endif
-
+      
       If InStr(":me", LCase(Kind)) Then
         sSyntax = sSyntax & " " & Keyword("(") & GetSyntaxSignature() & Keyword(")")
       Endif
-
+      
       If Type Then sSyntax = sSyntax & " " & Keyword("As") & " " & GetSyntaxType(Type)
-
+      
       If Kind = "C" Then
         sSyntax = sSyntax & " " & Keyword("=") & " "
         Select Case Type
@@ -643,16 +637,25 @@ Public Sub GetSyntax() As String[]
             sSyntax = sSyntax & Value
         End Select
       Endif
-
+      
   End Select
-
+  
   aResult = ["[[ syntax"]
   aResult.Insert(Split(Replace(sSyntax, "\n", "\\\n"), "\n"))
   aResult.Add("]]")
   Return aResult  
-
+  
 End
 
+Private Sub GetParentSymbol() As CSymbolInfo
+  
+  Dim hClass As CClassInfo
+  
+  hClass = CComponent.Get(Component)[Class]
+  If Not hClass Then Return
+  If hClass.Parent Then Return CComponent.Get(hClass.ParentComponent)[hClass.Parent].Symbols[Name]
+  
+End
 
 Public Sub GetDescription() As String
   
@@ -662,27 +665,54 @@ Public Sub GetDescription() As String
   Dim sData As String
   Dim sDesc As String
   Dim aDefaultHelp As String[]
-  Dim nTry As Integer
+  Dim sRealPath As String
+  Dim aComp As String[]
+  Dim hClass As CClassInfo
+  Dim hSymbol As CSymbolInfo
+  Dim sComponent As String
+  Dim sClass As String
+  Dim sName As String
+  
+TRY_AGAIN:
   
   sPath = "/comp" &/ LCase(Component &/ Class &/ Replace(Name, ":", "."))
   
-TRY_AGAIN:
-
   aDefaultHelp = Null
   aData = Null
-  sPath = Main.GetPagePathFrom(Main.SolvePath(sPath))
-  If Exist(sPath) Then aData = Split(File.Load(sPath), "\n")
+  sRealPath = Main.GetPagePathFrom(Main.SolvePath(sPath))
+  If Exist(sRealPath) Then aData = Split(File.Load(sRealPath), "\n")
   
   If Not aData Or If aData.Count = 0 Then 
+    
     GoSub GET_DEFAULT_HELP
-    If aDefaultHelp.Count = 1 And If aDefaultHelp[0] Begins "-->" Then
+    If aDefaultHelp.Count >= 1 And If aDefaultHelp[0] Begins "-->" Then
       sPath = Main.MakeAbsolute(Trim(Mid$(aDefaultHelp[0], 4)), sPath)
-      Inc nTry
-      If nTry < 8 Then Goto TRY_AGAIN
+      If sPath Like "/comp/*/*/*" Then
+        aComp = Split(sPath, "/")
+        sComponent = aComp[2]
+        sClass = aComp[3]
+        sName = aComp[4]
+        If sName Begins "." Then sName = ":" & Mid$(sName, 2)
+        Try hClass = CComponent.Get(sComponent)[sClass]
+        If Not hClass Then Return aDefaultHelp[0] & "?"
+        hSymbol = hClass.Symbols[sName]
+        If Not hSymbol Then Return aDefaultHelp[0] & "?"
+        Return hSymbol.GetDescription()
+      Endif
     Endif
+    
+    If Not aDefaultHelp Or If aDefaultHelp.Count = 0 Then
+      
+      hSymbol = GetParentSymbol()
+      If hSymbol Then Return hSymbol.GetDescription()
+      
+    Endif
+    
     aData = ["@{help}"]
+    
   Endif
   
+  sDesc = ""
   While iPos < aData.Count
     sData = aData[iPos]
     If Trim(sData) = "@{help}" Then 
@@ -707,8 +737,8 @@ TRY_AGAIN:
   Return sDesc
   
 GET_DEFAULT_HELP:
-
-  If Not aDefaultHelp Then aDefaultHelp = Split(Main.GetDefaultHelp(Me.Component, Me.Class, Me.Name), "\n")
+  
+  If Not aDefaultHelp Then aDefaultHelp = Split(Main.GetDefaultHelp(Component, Class, Name), "\n")
   Return
   
 End
@@ -733,7 +763,7 @@ Private Sub MergeSignature(sSign As String, sParentSign As String) As String
   
   Dim aParentSign As String[]
   Dim aSign As String[]
-
+  
   aSign = SplitSignature(sSign)
   aParentSign = SplitSignature(sParentSign)
   sSign = aParentSign[0] & aSign[0] & "[" & aParentSign[1] & aSign[1] & "]"
