@@ -30,6 +30,8 @@ Property CloseButton As Boolean
 Property Read TabBarSize As Integer
 Property TabBarPaddingStart As Integer
 Property TabBarPaddingEnd As Integer
+
+'' Return or set if the tab bar is displayed.
 Property ShowTabBar As Boolean
 
 Private $hTabBar As DrawingArea
@@ -1187,6 +1189,12 @@ Private Sub ShowTabBar_Write(Value As Boolean)
   UpdateLayout
   
 End
+
+'' Return the index of the first panel having a specific title.
+''
+'' - ~Text~ : panel title to search for.
+''
+'' '-1' is returned if no panel is found.
 
 Public Sub FindPanel(Text As String) As Integer
   

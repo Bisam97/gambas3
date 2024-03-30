@@ -9,24 +9,33 @@ Public Const _DefaultSize As String = "32,4"
 Public Const _Similar As String = "TextBox,DirBox"
 Public Const _Group As String = "Chooser"
 
+'' Raised when a file has been selected.
 Event Click
+
+'' Raised when the contents of the control has changed.
 Event Change
 
+'' Return or set the selected file.
 Property Value, Path As String
+
+'' Return or set if the control has a border.
 Property Border As Boolean
+
+'' Return or set the title of the file selection dialog.
 Property Title As String
 
-'' Use a custom image for the button. Default is a file icon.
+'' Return or set the button image. The default one is a file icon.
 Property Picture As Picture
+
+'' Return or set the placeholder tdext.
 Property Placeholder As String
 
-'' File dialog will be for saving files.  (it will give overwrite warnings for existing files)
+'' Return or set if the file dialog will be opened for saving.
 Property SaveFile As Boolean
 
 '' Return or set the optional filters of the file selection dialog.
 ''
 '' The syntax is the same as the [Dialog.Filter](/comp/gb.qt4/dialog/filter) property.
-
 Property Filter As String[]
 
 Private $aFilter As String[]
@@ -34,6 +43,8 @@ Private $bSaveFile As Boolean
 Private $sTitle As String
 
 Private $hButtonBox As ButtonBox
+
+'' Create a new FileBox control.
 
 Public Sub _new()
 

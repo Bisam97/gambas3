@@ -16,6 +16,8 @@ Property Text As String
 Property Picture As Picture
 Property TextFont As Font
 Property Border As Boolean
+
+'' Return or set the control background.
 Property Background As Integer
 
 Private $hView As GridView
@@ -386,7 +388,7 @@ Public Sub View_Draw(X As Integer, Y As Integer, Width As Integer, Height As Int
   
   If $iCurrent = Row Then
     Paint.Save
-    Paint.Rectangle(X, Y, Width, Height, Height)
+    Paint.Rectangle(X - 2, Y - 2, Width + 4, Height + 4, Height + 4)
     If $hView.HasFocus Then
       Paint.Background = Color.SetAlpha(Color.SelectedBackground, 128)
     Else
@@ -415,6 +417,12 @@ Public Sub View_Draw(X As Integer, Y As Integer, Width As Integer, Height As Int
   Endif
   
 End
+
+'' Return the index of the first panel having a specific title.
+''
+'' - ~Text~ : panel title to search for.
+''
+'' '-1' is returned if no panel is found.
 
 Public Sub FindPanel(Text As String) As Integer
 

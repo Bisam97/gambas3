@@ -40,12 +40,16 @@ Private Sub GetEditor() As Object
 
 End
 
-Public Sub _new(hCtrl As Control)
+'' Create a new automatic completion on the specified control.
+'' 
+'' ~Target~ is assigned to the [../editor] property. 
+
+Public Sub _new(Target As Control)
 
   $hTimer = New Timer As "Timer"
   $hTimer.Delay = 350
 
-  Attach(hCtrl)
+  Attach(Target)
 
 End
 
@@ -60,7 +64,6 @@ Private Sub Attach(hCtrl As Control)
   $hWatcher = New Watcher(hCtrl) As "TextBox"
 
 End
-
 
 Public Sub Open()
 

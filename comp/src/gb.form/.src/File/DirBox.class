@@ -9,12 +9,25 @@ Public Const _DefaultSize As String = "32,4"
 Public Const _Similar As String = "TextBox"
 Public Const _Group As String = "Chooser"
 
+'' Raised when a directory has been selected.
 Event Click
+
+'' Raised when the contents of the control has changed.
 Event Change
 
+'' Return or set the selected directory.
 Property Value, Path As String
+
+'' Return or set if the control has a border.
 Property Border As Boolean
+
+'' Return or set the title of the directory selection dialog.
 Property Title As String
+
+'' @{since 3.20}
+''
+'' Return or set the placeholder tdext.
+Property Placeholder As String
 
 Private $hButtonBox As ButtonBox
 Private $sTitle As String
@@ -80,7 +93,6 @@ Public Sub Button_Change()
   
 End
 
-
 Private Function Title_Read() As String
 
   Return $sTitle
@@ -90,5 +102,17 @@ End
 Private Sub Title_Write(Value As String)
 
   $sTitle = Value
+
+End
+
+Private Function Placeholder_Read() As String
+
+  Return $hButtonBox.Placeholder
+
+End
+
+Private Sub Placeholder_Write(Value As String)
+
+  $hButtonBox.Placeholder = Value
 
 End

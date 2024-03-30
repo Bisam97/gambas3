@@ -1,10 +1,152 @@
 ' Gambas class file
 
-
-Public Sub Form_Activate()
-
-  Wait 5
-  Desktop.Screenshot(Me.ScreenX, Me.ScreenY, Me.W, Me.H).Save("~/gambas/img/wiki/control/" &/ LCase(Object.Type(Me.Children[0])) & ".png")
-  Me.Close
-
+Static Public Sub _init()
+  
+  System.Language = "en_US.UTF-8"
+  Component.Load("gb.desktop")
+  Application.Theme = "Gambas-thin"
+  Application.Shadows = True
+  
 End
+
+' Public Sub _new()
+'   
+'   Dim I As Integer
+'   Dim P As Integer
+'   Dim aIcon As String[]
+'   
+'   ColumnView1.Columns[0].Text = "First column"
+'   ColumnView1.AddColumn("Second column")
+'   ColumnView1.AddColumn("Third column")
+'   
+'   ColumnView1.Add("0", "Item #1", Picture["icon:/small/directory"])
+'   
+'   aIcon = ["alarm", "cherry", "color", "info", "user-group", "star", "tag", "tools"]
+'   
+'   For I = 1 To 40
+'     P = Rand(0, ColumnView1.Count - 1)
+'     With ColumnView1.Add(I, "Item #" & CStr(I + 1), Picture["icon:/small/" & aIcon[Rand(0, aIcon.Max)]], P)
+'       .[1] = "(" & I & "," & "1)"
+'       .[2] = "(" & I & "," & "2)"
+'     End With
+'     ColumnView1[P].Picture = Picture["icon:/small/directory"]
+'   Next
+'   
+'   ColumnView1.ExpandAll
+'   
+' End
+
+' Public Sub Form_Open()
+' 
+'   Dim I As Integer
+'   
+'   For I = 1 To 20
+'     IconView1.Add(I, "Icon #" & I, Picture["icon:/large/" & Stock.Icons[Rand(0, Stock.Icons.Max)]])
+'   Next
+'   
+' End
+
+' Public Sub Form_Open()
+'   
+'   Dim I As Integer
+'   Dim P As Integer
+'   Dim aIcon As String[]
+'   
+'   aIcon = ["alarm", "cherry", "color", "info", "user-group", "star", "tag", "tools"]
+'   
+'   For I = 1 To 40
+'     ListView1.Add(I, "Item #" & I, Picture["icon:/small/" & Stock.Icons[Rand(0, Stock.Icons.Max)]])
+'   Next
+'   
+' End
+
+' Public Sub Form_Open()
+'   
+'   Dim I As Integer
+'   Dim P As Integer
+'   Dim aIcon As String[]
+'   
+'   TreeView1.Add("0", "Item #1", Picture["icon:/small/directory"])
+'   
+'   aIcon = ["alarm", "cherry", "color", "info", "user-group", "star", "tag", "tools"]
+'   
+'   For I = 1 To 20
+'     P = Rand(0, Min(3, TreeView1.Count - 1))
+'     TreeView1.Add(I, "Item #" & CStr(I + 1), Picture["icon:/small/" & aIcon[Rand(0, aIcon.Max)]], P)
+'     TreeView1[P].Picture = Picture["icon:/small/directory"]
+'   Next
+'   
+'   TreeView1.ExpandAll
+'   
+' End
+
+Public Sub Form_Open()
+  
+  'FileProperties1.Path = User.Home &/ "crazy.jpg"
+  'ImageView1.Image = Image.Load("~/Images/clovis.jpg").Stretch(128, -1)
+  'MaskBox1.Text = "192.168.  0.  1"
+  'SpinBar1.Value = 42
+  
+  ' TableView1.AddColumn("Name")
+  ' TableView1.AddColumn("Date")
+  ' TableView1.AddColumn("Color")
+  ' 
+  ' TableView1.Rows.Count = 10
+  ' 
+  ' TableView1[0, 0].Text = "Nicolas"
+  ' TableView1[0, 1].Text = Format(Date(2022, 12, 6), "dd mmm")
+  ' TableView1[0, 2].Text = "White"
+  ' 
+  ' TableView1[1, 0].Text = "Thomas"
+  ' TableView1[1, 1].Text = Format(Date(2022, 12, 22), "dd mmm")
+  ' TableView1[1, 2].Text = "Red"
+  ' 
+  ' TableView1[2, 0].Text = "John"
+  ' TableView1[2, 1].Text = Format(Date(2022, 12, 27), "dd mmm")
+  ' TableView1[2, 2].Text = "White"
+  ' 
+  ' TableView1[3, 0].Text = "Agnes"
+  ' TableView1[3, 1].Text = Format(Date(2022, 1, 21), "dd mmm")
+  ' TableView1[3, 2].Text = "Red"
+  ' 
+  ' TableView1[4, 0].Text = "Laetare"
+  ' TableView1[4, 1].Text = Format(Date(2022, 3, 19), "dd mmm")
+  ' TableView1[4, 2].Text = "Pink"
+  ' 
+  ' TableView1[5, 0].Text = "Annunciation"
+  ' TableView1[5, 1].Text = Format(Date(2024, 4, 8), "dd mmm")
+  ' TableView1[5, 2].Text = "Blue"
+  ' 
+  ' TableView1[6, 0].Text = "George"
+  ' TableView1[6, 1].Text = Format(Date(2022, 4, 23), "dd mmm")
+  ' TableView1[6, 2].Text = "Red"
+  ' 
+  ' TableView1[7, 0].Text = "Monica"
+  ' TableView1[7, 1].Text = Format(Date(2024, 5, 4), "dd mmm")
+  ' TableView1[7, 2].Text = "White"
+  ' 
+  ' TableView1.Columns.Width = -1
+  
+  ' TabPanel1.Count = 3
+  ' TabPanel1[0].Text = "First"
+  ' TabPanel1[0].Picture = Picture["icon:/tiny/gambas"]
+  ' TabPanel1[1].Text = "Second"
+  ' TabPanel1[1].Picture = Picture["icon:/tiny/linux"]
+  ' TabPanel1[2].Text = "Third"
+  ' TabPanel1[2].Picture = Picture["icon:/tiny/gnu"]
+  
+  'Wizard1[0].Text = "First step"
+
+  'Dial1.Mark = True
+  
+End
+
+Public Sub Form_KeyPress()
+  
+  If Key.Code = Key.Escape Then 
+    Desktop.Screenshot(panControl.ScreenX, panControl.ScreenY, panControl.W, panControl.H).Save("~/gambas/img/wiki/control/" &/ LCase(Object.Type(panControl.Children[0])) & ".png")
+    Quit
+  Endif
+  
+End
+

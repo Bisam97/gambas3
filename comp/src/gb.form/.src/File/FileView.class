@@ -9,7 +9,14 @@ Public Const _Properties As String = "*,Border=True,View{FileView.Normal;Compact
 Public Const _DefaultEvent As String = "Click"
 Public Const _Group As String = "View"
 
-Public Enum Normal, Compact, Detailed, Preview
+'' Constant for displaying files with the normal view.
+Public Const Normal As Integer = 0
+'' Constant for displaying files with a compact view.
+Public Const Compact As Integer = 1
+'' Constant for displaying files with a detailed view.
+Public Const Detailed As Integer = 2
+'' Constant for displaying files with their preview.
+Public Const Preview As Integer = 3
 
 Event {Select}
 Event Click
@@ -19,6 +26,11 @@ Event Icon(Path As String)
 
 '' This event is raised just after the FileView has been refreshed.
 Event Refresh
+
+
+'' This event is raised when a file is being renamed.
+''
+'' The renaming is cancelled if the event is stopped.
 
 Event Rename(OldName As String, NewName As String)
 

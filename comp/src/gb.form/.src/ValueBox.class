@@ -27,6 +27,7 @@ Private $hMaskBox As MaskBox
 
 Private $sDecimalSep As String
 Private $sLastText As String
+Private $iAlignment As Integer = Align.Normal
 
 Public Sub _new()
   
@@ -87,7 +88,7 @@ Private Sub UpdateType()
       $hMaskBox = New MaskBox(Me) As "CurrencyBox"
       $hCtrl = $hMaskBox
       $sDecimalSep = Left$(Format$(0, ".0"))
-      sMask = Replace(Format(10, "$#0.00"), "1", "########")
+      sMask = Replace(Format(10, "$#0.00"), "1", "#######")
       $hMaskBox.Mask = Replace(sMask, $sDecimalSep, "<!" & $sDecimalSep)
       If Not $hMaskBox.Font.Fixed Then $hMaskBox.Font.Name = "Monospace"
       
@@ -110,6 +111,7 @@ Private Sub UpdateType()
   
   Border_Write(bBorder)
   ReadOnly_Write(bReadOnly)
+  Alignment_Write($iAlignment)
   
   $hCtrl.Show
   
@@ -378,15 +380,14 @@ End
 
 Private Function Alignment_Read() As Integer
 
-  Dim hCtrl As Object = $hCtrl
-  Try Return hCtrl.Alignment
-  Return Align.Normal
-
+  Return $iAlignment
+  
 End
 
 Private Sub Alignment_Write(Value As Integer)
 
   Dim hCtrl As Object = $hCtrl
+  $iAlignment = Value
   Try hCtrl.Alignment = Value
 
 End
