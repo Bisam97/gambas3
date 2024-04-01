@@ -41,6 +41,25 @@ Private Sub Init()
   
 End
 
+Private Sub FindRoot()
+  
+  Dim sLine As String
+  Dim aLine As String[]
+  Dim sOutput As String
+  
+  $sRoot = ""
+  
+  Exec ["svn", "info", SvnPath$($sRealDir)] With VersionControl.LANG_ENV To sOutput With Error
+  
+  For Each sLine In Split(sOutput, "\n", "", True)
+    aLine = Scan(sLine, "*: *")
+    If Trim(aLine[0]) = "Working Copy Root Path" Then 
+      $sRoot = Trim(aLine[1])
+      Break
+    Endif
+  Next
+    
+End
 
 Public Sub Check() As Boolean
   
@@ -380,25 +399,6 @@ Public Sub HasRemote() As Boolean
   
   Return True
   
-End
-
-Private Sub FindRoot()
-  
-  Dim sLine As String
-  Dim aLine As String[]
-  
-  $sRoot = ""
-  
-  If VersionControl.Run(["svn", "info", SvnPath$($sRealDir)], False, False, VersionControl.LANG_ENV) Then Return
-  
-  For Each sLine In Split(VersionControl.Output, "\n", "", True)
-    aLine = Scan(sLine, "*: *")
-    If Trim(aLine[0]) = "Working Copy Root Path" Then 
-      $sRoot = Trim(aLine[1])
-      Break
-    Endif
-  Next
-    
 End
 
 Public Sub GetRoot() As String
