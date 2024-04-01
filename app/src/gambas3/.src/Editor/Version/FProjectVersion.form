@@ -1,0 +1,336 @@
+# Gambas Form File 3.0
+
+{ Form Form
+  MoveScaled(0,0,128,85)
+  Expand = True
+  Arrangement = Arrange.Fill
+  { tabVersion TabPanel
+    MoveScaled(1,1,126,82)
+    Arrangement = Arrange.Vertical
+    Border = False
+    Count = 4
+    Index = 0
+    Text = ("Repository")
+    Picture = Picture["icon:/small/version-control"]
+    { tlbRepository ToolBar
+      MoveScaled(1,1,108,4)
+      Key = "repository"
+      ReadOnly = True
+      Separator = True
+      { btnUpdate ToolButton
+        MoveScaled(0,0,20,4)
+        Action = ".vc-sync"
+        AutoResize = True
+        Text = ("Synchronize") & "..."
+        Picture = Picture["icon:/small/download"]
+      }
+      { btnAddAll ToolButton
+        MoveScaled(21,0,21,4)
+        Action = ".vc-add"
+        AutoResize = True
+        Text = ("Add all new files")
+        Picture = Picture["icon:/small/added"]
+      }
+      { btnAddBranch ToolButton
+        MoveScaled(43,0,24,4)
+        Action = ".vc-branch"
+        AutoResize = True
+        Text = ("Create new branch") & "..."
+        Picture = Picture["icon:/small/add"]
+      }
+      { btnBrowse ToolButton
+        MoveScaled(85,0,16,4)
+        Action = ".vc-browse"
+        AutoResize = True
+        Text = ("Browse") & "..."
+        Picture = Picture["icon:/small/file-manager"]
+      }
+      { Spring2 Spring
+        MoveScaled(71,2,11,1)
+      }
+    }
+    { panIdentity HBox
+      MoveScaled(5,7,96,6)
+      Spacing = True
+      Margin = True
+      { Label34 Label
+        MoveScaled(0,0,11,4)
+        AutoResize = True
+        Text = ("User name")
+      }
+      { txtVcName TextBox
+        MoveScaled(13,0,19,4)
+        Expand = True
+      }
+      { Label35 Label
+        MoveScaled(33,0,15,4)
+        AutoResize = True
+        Text = ("E-mail address")
+      }
+      { txtVcMail TextBox
+        MoveScaled(49,0,19,4)
+        Expand = True
+      }
+      { btnUpdateIdentity Button
+        MoveScaled(69,0,24,4)
+        AutoResize = True
+        Text = ("Update identity")
+        Picture = Picture["icon:/small/rename"]
+      }
+    }
+    { sepIdentity Separator
+      MoveScaled(5,14,35,0)
+    }
+    { gvwVcInfo GridView
+      MoveScaled(5,15,66,44)
+      Border = False
+      Padding = 4
+    }
+    { sepIdentity2 Separator
+      MoveScaled(6,61,35,0)
+    }
+    { edtStatus TextEditor
+      MoveScaled(10,63,51,12)
+      Expand = True
+      Border = False
+      ReadOnly = True
+      ShowCursor = False
+    }
+    Index = 1
+    Text = ("Changes")
+    { Splitter1 Splitter
+      MoveScaled(1,1,122,76)
+      Expand = True
+      Arrangement = Arrange.Vertical
+      { Panel1 VBox
+        MoveScaled(6,3,113,30)
+        { tlbCommit ToolBar
+          MoveScaled(1,1,118,4)
+          Key = "commit"
+          ReadOnly = True
+          Separator = True
+          { panNothing Panel
+            MoveScaled(1,0,35,4)
+            Visible = False
+            Arrangement = Arrange.Horizontal
+            AutoResize = True
+            { PictureBox1 PictureBox
+              MoveScaled(0,0,4,4)
+              Picture = Picture.Load("icon:/small/info")
+              Alignment = Align.Center
+            }
+            { lblNothingToCommit Label
+              MoveScaled(4,0,28,4)
+              Font = Font["Bold"]
+              AutoResize = True
+              Text = ("There is nothing to commit.")
+            }
+            { Panel2 Panel
+              MoveScaled(33,0,1,4)
+            }
+          }
+          { btnCommit ToolButton
+            MoveScaled(39,0,13,4)
+            Action = ".vc-commit"
+            AutoResize = True
+            Text = ("Commit")
+            Picture = Picture["icon:/small/apply"]
+          }
+          { btnCommitPush ToolButton btnCommit
+            Name = "btnCommitPush"
+            MoveScaled(53,0,21,4)
+            Action = ".vc-commit-push"
+            AutoResize = True
+            Text = ("Commit and push") & "..."
+            Picture = Picture["icon:/small/upload"]
+          }
+          { btnPush ToolButton btnCommit
+            Name = "btnPush"
+            MoveScaled(76,0,11,4)
+            Action = ".vc-push"
+            AutoResize = True
+            Text = ("Push") & "..."
+            Picture = Picture["icon:/small/upload"]
+          }
+          { btnRevert ToolButton
+            MoveScaled(87,0,18,4)
+            Action = ".vc-revert"
+            AutoResize = True
+            Text = Shortcut(("Undo changes"), "U")
+            Picture = Picture["icon:/small/undo"]
+          }
+        }
+        { edtJournal TextEditor
+          MoveScaled(3,9,38,14)
+          Expand = True
+          Border = False
+        }
+      }
+      { panDiff VBox
+        MoveScaled(9,42,111,28)
+        { tlbChange ToolBar
+          MoveScaled(1,1,86,4)
+          Key = "change"
+          ReadOnly = True
+          Separator = True
+          { btnLocateChange ToolButton
+            MoveScaled(0,0,17,4)
+            Action = ".vc-locate"
+            AutoResize = True
+            Text = ("Locate change")
+            Picture = Picture["icon:/small/find"]
+          }
+          { btnHideTrans ToggleButton
+            MoveScaled(18,0,26,4)
+            Action = ".vc-hide-translation"
+            AutoResize = True
+            Text = ("Hide translation changes")
+            Picture = Picture["icon:/small/language"]
+            Border = False
+          }
+          { btnHideSpace ToggleButton
+            MoveScaled(45,0,22,4)
+            Action = ".vc-hide-space"
+            AutoResize = True
+            Text = ("Hide space changes")
+            Picture = Picture["icon:/small/select"]
+            Border = False
+          }
+        }
+        { edtDiff TextEditor
+          MoveScaled(2,11,50,16)
+          Expand = True
+          Border = False
+          Highlight = "Diff"
+          ReadOnly = True
+          Wrap = True
+          ShowCursor = False
+        }
+      }
+    }
+    Index = 2
+    Text = ("History")
+    { panHistory HBox
+      MoveScaled(1,1,118,4)
+      { btnShowHistoryChanges ToggleButton
+        MoveScaled(0,0,29,4)
+        AutoResize = True
+        Text = ("Display changes in history")
+        Picture = Picture["icon:/small/zoom-in"]
+        Border = False
+      }
+      { Spring1 Spring
+        MoveScaled(43,1,17,2)
+      }
+      { spnChange Spinner
+        MoveScaled(100,0,4,4)
+        Margin = True
+        Type = Spinner.Circle
+      }
+    }
+    { Separator1 Separator
+      MoveScaled(29,9,22,0)
+    }
+    { edtHistory TextEditor
+      MoveScaled(8,13,83,50)
+      Expand = True
+      Border = False
+      Highlight = "Custom"
+      ReadOnly = True
+      Wrap = True
+      ShowCursor = False
+    }
+    Index = 3
+    Text = ("Terminal")
+    { trmVersionControl TerminalView
+      MoveScaled(5,9,69,27)
+      Expand = True
+      Border = False
+      Limit = 65536
+      Blink = True
+      CursorStyle = TerminalView.Underline
+      ShowLink = True
+    }
+    Index = 0
+  }
+  { btnWorkspace ToolButton
+    MoveScaled(69,1,4,4)
+    Background = Color.Background
+    ToolTip = ("Show project files")
+    Ignore = True
+    Picture = Picture["icon:/small/previous"]
+  }
+  { btnSpace ToolButton
+    MoveScaled(63,1,4,4)
+    Visible = False
+    Background = Color.Background
+    Ignore = True
+  }
+}
+
+# Gambas Action File 3.0
+
+{ Actions
+  { Action vc-add
+    Text = "Add all new files"
+    Picture = "icon:/small/added"
+  }
+  { Action vc-branch
+    Text = "Create new branch"
+    Picture = "icon:/small/add"
+  }
+  { Action vc-browse
+    Text = "Browse"
+    Picture = "icon:/small/file-manager"
+  }
+  { Action vc-commit
+    Text = "Commit"
+    Picture = "icon:/small/apply"
+  }
+  { Action vc-commit-push
+    Text = "Commit and push"
+    Picture = "icon:/small/upload"
+  }
+  { Action vc-hide-space
+    Text = "Hide space changes"
+    Picture = "icon:/small/select"
+  }
+  { Action vc-hide-translation
+    Text = "Hide translation changes"
+    Picture = "icon:/small/language"
+  }
+  { Action vc-locate
+    Text = "Locate change"
+    Picture = "icon:/small/find"
+  }
+  { Action vc-push
+    Text = "Push"
+    Picture = "icon:/small/upload"
+  }
+  { Action vc-revert
+    Text = "Undo changes"
+    Picture = "icon:/small/undo"
+  }
+  { Action vc-sync
+    Text = "Synchronize"
+    Picture = "icon:/small/download"
+  }
+}
+
+{ Toolbars
+  { Toolbar change
+    Text = ""
+    List = "vc-locate,vc-hide-translation,vc-hide-space"
+    Default = "vc-locate,vc-hide-translation,vc-hide-space"
+  }
+  { Toolbar commit
+    Text = ""
+    List = "vc-commit,vc-commit-push,vc-push,vc-revert"
+    Default = "vc-commit,vc-commit-push,vc-push,vc-revert"
+  }
+  { Toolbar repository
+    Text = ""
+    List = "vc-sync,vc-add,vc-branch,vc-browse"
+    Default = "vc-sync,vc-add,vc-branch,vc-browse,~"
+  }
+}

@@ -5,13 +5,22 @@ Static Private $aIconSize As Integer[] = [16, 22, 32, 48, 64, 96, 128, 192, 256]
 Private $bProjectHasChanged As Boolean = True
 Private $bCut As Boolean
 
-Private $iIndent As Integer
-
 Private $hView As FileView
 
 Public Sub _new()
   
+  tabBrowser.AddButton(btnSpace, Align.Left)
+  tabBrowser.AddButton(btnWorkspace, Align.Left)
+  tabBrowser.ShowButton(btnSpace, False)
+  tabBrowser.ShowButton(btnWorkspace, True)
+  
   splProject.MinSize = Desktop.Scale * 12
+  
+End
+
+Public Sub UpdateWorkspaceButtons(bShowSpace As Boolean)
+  
+  tabBrowser.ShowButton(btnSpace, bShowSpace)
   
 End
 
@@ -57,14 +66,15 @@ End
 
 Public Sub ReadConfig()
   
+  tabBrowser.TextFont = Project.GetSmallFont()
   If panProject.Visible Then Project.SetNormalFont(fvwProject)
   If panProject2.Visible Then Project.SetNormalFont(fvwProject2)
   
 End
 
-Public Sub btnClose_Click()
+Public Sub btnWorkspace_Click()
   
-  FMain.CloseProjectEditor
+  FMain.CloseCurrentWorkspace
   
 End
 
@@ -119,7 +129,6 @@ End
 Public Sub tlbProject_Configure()
   
   UpdateMenu
-  UpdateWorkspaceButtons($iIndent)
   
 End
 
@@ -596,16 +605,6 @@ Public Sub fvwProject_GotFocus()
   
 End
 
-Public Sub UpdateWorkspaceButtons(W As Integer)
-  
-  $iIndent = W
-  If tlbProject.Configuring Then Return
-  
-  panSpace.Lower
-  panSpace.W = W
-  
-End
-
 Public Sub mnuCopy_Click()
   
   CopyCut(False)
@@ -734,7 +733,7 @@ Public Sub mnuOpen_Click()
   If IsDir(sPath) Then
     SetDir(sPath)
   Else
-    FMain.CloseProjectEditor
+    FMain.CloseCurrentWorkspace
     FMain.OpenFile(sPath)
     Stop Event
   Endif

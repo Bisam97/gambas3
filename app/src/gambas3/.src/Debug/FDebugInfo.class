@@ -7,7 +7,7 @@ Class DBusProxy
 
 Public Shown As Boolean
 
-Private Enum TAB_CONSOLE, TAB_COMPILATION, TAB_TASK, TAB_TEST, TAB_VERSION_CONTROL, TAB_SEARCH, TAB_DBUS
+Private Enum TAB_CONSOLE, TAB_COMPILATION, TAB_TASK, TAB_TEST, TAB_SEARCH, TAB_DBUS
 
 Private $cRefreshTask As New Collection
 Private $aTask As CTask[]
@@ -92,12 +92,10 @@ Public Sub ReadConfig()
   
   FDebugButton.ReadConfig
   
-  Project.SetConsoleFont(trmVersionControl)
-  MTheme.InitControl(trmVersionControl)
   Project.SetConsoleFont(trmTest)
   MTheme.InitControl(trmTest)
 
-  For Each hCtrl In [panSearch, panVersionControl, panTest, panDbusExplorer, panWarning, tabBus]
+  For Each hCtrl In [panSearch, panTest, panDbusExplorer, panWarning, tabBus]
     Project.SetSmallFont(hCtrl)
   Next
   
@@ -192,23 +190,6 @@ Public Sub UpdateView()
   Endif
   
   ShowTab(TAB_CONSOLE, Not bUndock)
-  ShowTab(TAB_VERSION_CONTROL, VersionControl.Enabled)
-  
-  ' If panStack.Visible <> Project.Running Then
-  '   If Project.Running Then
-  '     panStack.Visible = True
-  '     Settings.Read(panDebug)
-  '     'Settings.Read(splDebug,, [4, 1])
-  '   Else 
-  '     Settings.Write(panDebug)
-  '     'Settings.Write(splDebug)
-  '     panStack.Visible = False
-  '   Endif
-  ' Endif
-  
-  ' panButtonCompilation.Visible = Not Project.Running
-  ' panButtonTask.Visible = Not Project.Running
-  ' panButtonSearch.Visible = Not Project.Running
   
   If Not bUndock Then 
     If Not FOutput.Parent Then 
@@ -221,9 +202,6 @@ Public Sub UpdateView()
       'Action["console"].Visible = FALSE
       'If bVisible Then FMain.ShowDebug(True)
     Endif
-    
-    'SelectTab(TAB_CONSOLE)
-    'FOutput.SetFocus
     
   Endif 
   
@@ -554,7 +532,6 @@ Public Sub OnProjectChange()
   SetCompilation()
   CloseSearch
   If Project.Dir <> Project.PreviousDir Then 
-    trmVersionControl.Clear
     trmTest.Clear
   Endif
   panTestResult.Hide
@@ -707,17 +684,11 @@ End
 
 Public Sub OnProjectDebug()
   
-  Dim hCtrl As Control
-  
   $sLastLocal = ""
   $sLastObject = ""
   If Settings["/ShowDebugPanelAutomatically", True] Then Action["console"].Value = True
   
   cmbTest.Enabled = Not Project.Running
-  
-  For Each hCtrl In [btnVcAddAll, btnVcBranch, btnVcClear, btnVcCommit, btnVcUpdate]
-    hCtrl.Enabled = Not Project.Running
-  Next
   
 End
 
@@ -744,47 +715,6 @@ Public Sub cvwVariable_Rename()
     
   End With
   
-End
-
-Public Sub btnVcCommit_Click()
-
-  If Project.Compile() Then Return
-  FVersionControl.Run
-
-End
-
-Public Sub InsertVersionControl(sText As String)
-  
-  If FMain.IsDebugVisible() Then FDebugButton.SelectButton(TAB_VERSION_CONTROL)
-  trmVersionControl.Print(Replace(sText, "\n", "\r\n"))
-  
-End
-
-Public Sub btnVcUpdate_Click()
-
-  If Message.Question(("Do you really want to synchronize the repository?"), ("Synchronize"), ("Cancel")) = 2 Then Return
-  VersionControl.Update
-
-End
-
-Public Sub btnVcAddAll_Click()
-
-  FMain.mnuAddVersionAll_Click()
-
-End
-
-Public Sub OnVersionControlChange()
-
-  UpdateView
-  btnVcBranch.Text = VersionControl.GetCurrentBranch() & "..."
-  If VersionControl.Enabled Then btnVcAddBranch.Visible = VersionControl.CanCreateBranch
-  
-End
-
-Public Sub btnVcClear_Click()
-
-  trmVersionControl.Clear
-
 End
 
 Public Sub GetTestTerminal() As TerminalView
@@ -881,13 +811,6 @@ Public Sub trmTest_GotFocus()
   Project.SetCurrentPopup(Null)
 
 End
-
-Public Sub btnVcChanges_Click()
-
-  FFileInfoVC.Run(Project.Dir)
-
-End
-
 
 Public Sub UpdateTestSuites()
 
@@ -1039,12 +962,6 @@ End
 Public Sub btnDBusId_Click()
 
   FillDBusExplorer
-
-End
-
-Public Sub btnRepository_Click()
-
-  FRepository.ShowDialog
 
 End
 

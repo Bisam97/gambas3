@@ -29,7 +29,9 @@ Private $iTabBarHeight As Integer
 
 Private $bFirstShowDebug As Boolean
 
-Private $bWorkspaceVisible As Boolean
+Private Enum WORKSPACE_PROJECT, WORKSPACE_BROWSER, WORKSPACE_VERSION
+
+Private $iCurrentWorkspace As Integer
 Private $sProjectFilter As String
 Private $aWorkspaceLayout As String[]
 'Private $sWorkspaceActive As String
@@ -43,6 +45,7 @@ Public Sub _new()
   With wrkProject.TabPanel
     .AddButton(btnWorkspaceProject, Align.Left)
     .AddButton(btnWorkspaceBrowse, Align.Left)
+    .AddButton(btnWorkspaceVersion, Align.Left)
     .AddButton(btnWorkspaceProperty, Align.Right)
   End With
   
@@ -675,7 +678,6 @@ Public Sub mnuPopup_Show()
   mnuInfoVC.Hide
   If VersionControl.Enabled Then
     If $sKey = Project.Dir Then 
-      mnuInfoVC.Show
     Else If bProject And If Not bIsDir And If Not bIsSpecial And If sRoot Not Begins "/" And If Not Project.HasFlag($sKey, Project.FLAG_ADDED) Then 
       mnuInfoVC.Show
     Endif
@@ -1321,7 +1323,7 @@ Private Sub UpdateProperty()
   
   Dim hCtrl As Control
   
-  Action["property"].Visible = (Not Project.ReadOnly) And $bNeedProperty And Not $bWorkspaceVisible
+  Action["property"].Visible = (Not Project.ReadOnly) And $bNeedProperty And $iCurrentWorkspace = WORKSPACE_PROJECT
   'Action["property"].Enabled = Not Project.Running
   For Each hCtrl In panProperty.Children
     hCtrl.Enabled = Not Project.Running
@@ -1545,6 +1547,9 @@ Public Sub OnProjectChange()
   UpdateArguments
   UpdateDebugBrowser
   
+  If VersionControl.Enabled Then FProjectVersion.Load(panWorkspace)
+  UpdateWorkspaceButtons  
+  
   'If $bInOpenExtern Then Return
   
   mnuFilterAdd.Visible = VersionControl.Enabled
@@ -1623,18 +1628,12 @@ End
 
 Public Sub ShowTool(sType As String)
   
-  $bNeedProperty = (sType = "FForm" Or sType = "FImageEditor") And Not $bWorkspaceVisible
+  $bNeedProperty = (sType = "FForm" Or sType = "FImageEditor") And $iCurrentWorkspace = WORKSPACE_PROJECT
   panTool.Visible = sType = "FForm"
   panTabProperty.Visible = panTool.Visible
-  panImageProperty.Visible = sType = "FImageEditor" And Not $bWorkspaceVisible
+  panImageProperty.Visible = sType = "FImageEditor" And $iCurrentWorkspace = WORKSPACE_PROJECT
   UpdateProperty
   UpdateWorkspaceButtons
-  
-  ' If bShow <> panProperty.Hidden Then Return
-  ' 
-  ' If Not bShow Then $bTool = Not panTool.Hidden
-  ' 
-  ' Action["property"].Value = bShow
   
 End
 
@@ -1784,7 +1783,14 @@ Public Sub Action_Activate((Key) As String) As Boolean
       Endif
       
     Case "info-vc"
-      FFileInfoVC.Run(tvwProject.Key)
+      If tvwProject.Key = Project.Dir Then
+        If $iCurrentWorkspace <> WORKSPACE_VERSION Then
+          CloseCurrentWorkspace
+          btnWorkspaceVersion_Click
+        Endif
+      Else
+        FFileInfoVC.Run(tvwProject.Key)
+      Endif
       
     Case "go-back"
       CPosition.MovePrevious
@@ -1862,23 +1868,23 @@ Public Sub Action_Activate((Key) As String) As Boolean
     Case "farm"
       FSoftwareFarm.Run
       
-    Case "vc-commit"
-      FVersionControl.Run
-      
-    Case "vc-update"
-      VersionControl.Update
-      
-    Case "vc-revert"
-      VersionControl.Revert
-      
-    Case "vc-browse"
-      Desktop.Open(VersionControl.GetRoot())
-      
-    Case "vc-open-terminal"
-      Project.OpenTerminal(VersionControl.GetRoot())
-      
-    Case "vc-repository"
-      FRepository.ShowModal
+    ' Case "vc-commit"
+    '   FVersionControl.Run
+    '   
+    ' Case "vc-update"
+    '   VersionControl.Update
+    '   
+    ' Case "vc-revert"
+    '   VersionControl.Revert
+    '   
+    ' Case "vc-browse"
+    '   Desktop.Open(VersionControl.GetRoot())
+    '   
+    ' Case "vc-open-terminal"
+    '   Project.OpenTerminal(VersionControl.GetRoot())
+    '   
+    ' Case "vc-repository"
+    '   FRepository.ShowModal
       
     Case "remove-all-profile"
       Project.RemoveAllProfile
@@ -3217,20 +3223,15 @@ Private Sub UpdateVersionControl()
   If VersionControl.Enabled And If Not Project.Running Then
     panBranchColor.Show
     sepBranchColor.Show
+    btnWorkspaceVersion.Enabled = True
   Else
     panBranchColor.Hide
     sepBranchColor.Hide
+    btnWorkspaceVersion.Enabled = False
   Endif
   
   sBranch = VersionControl.GetCurrentBranch()
-  lblBranchColor.Visible = VersionControl.Enabled
-  lblBranchColor.Text = sBranch
-  lblBranchColor.Background = VersionControl.GetBranchColor(sBranch)
-  lblBranchColor.BorderRadius = Desktop.Scale * 2
-  lblBranchColor.Foreground = Color.White
-  lblBranchColor.BorderWidth = Desktop.Scale \ 4
-  lblBranchColor.BorderColor = Color.Transparent
-  lblBranchColor.Border = Border.Plain
+  VersionControl.InitBranchLabel(lblBranchColor, sBranch)
   
 End
 
@@ -3248,7 +3249,6 @@ Public Sub OnVersionControlChange()
   mnuVersionControlWith.Visible = mnuVersionControlWith.Children.Count
   
   mnuVcAddBranch.Visible = VersionControl.CanCreateBranch
-  
   
   UpdateVersionControl
   UpdateCloseTree
@@ -3378,8 +3378,6 @@ End
 
 Private Sub UpdateWorkspaceButtons()
   
-  Dim W As Integer
-  
   With wrkProject.TabPanel
     
     If panProject.Hidden And If panProject.Visible Then
@@ -3388,9 +3386,10 @@ Private Sub UpdateWorkspaceButtons()
       .ShowButton(btnWorkspaceProject, False)
     Endif
     
-    .ShowButton(btnWorkspaceBrowse, panProject.Visible And Not $bWorkspaceVisible)
+    .ShowButton(btnWorkspaceBrowse, panProject.Visible And $iCurrentWorkspace = WORKSPACE_PROJECT)
+    .ShowButton(btnWorkspaceVersion, VersionControl.Enabled And panProject.Visible And $iCurrentWorkspace = WORKSPACE_PROJECT)
     
-    If panProperty.Hidden And If panProperty.Visible And If Not $bWorkspaceVisible Then
+    If panProperty.Hidden And If panProperty.Visible And If $iCurrentWorkspace = WORKSPACE_PROJECT Then
       .ShowButton(btnWorkspaceProperty, True)
     Else
       .ShowButton(btnWorkspaceProperty, False)
@@ -3398,10 +3397,12 @@ Private Sub UpdateWorkspaceButtons()
     
   End With
   
-  If $bWorkspaceVisible Then 
-    If btnWorkspaceProject.Visible Then W += btnWorkspaceProject.W
-    FProjectBrowser.UpdateWorkspaceButtons(W)
-  Endif
+  Select Case $iCurrentWorkspace
+    Case WORKSPACE_BROWSER
+      FProjectBrowser.UpdateWorkspaceButtons(panProject.Hidden)
+    Case WORKSPACE_VERSION
+      FProjectVersion.UpdateWorkspaceButtons(panProject.Hidden)
+  End Select
   
 End
 
@@ -3600,22 +3601,49 @@ End
 
 Public Sub btnWorkspaceBrowse_Click()
   
+  Project.SetCurrentPopup(Null)
   FProjectBrowser.Load(panWorkspace)
   wrkProject.Hide
   FProjectBrowser.Show
-  $bWorkspaceVisible = True
+  $iCurrentWorkspace = WORKSPACE_BROWSER
   UpdateProperty
   UpdateWorkspaceButtons
+  Project.UpdateStatus(True)
   
 End
 
-Public Sub CloseProjectEditor()
+Public Sub btnWorkspaceVersion_Click()
+
+  Project.SetCurrentPopup(Null)
+  wrkProject.Hide
+  FProjectVersion.Reload()
+  FProjectVersion.Show()
+  $iCurrentWorkspace = WORKSPACE_VERSION
+  UpdateProperty
+  UpdateWorkspaceButtons
+  Project.UpdateStatus(True)
+
+End
+
+Public Sub ShowVersionWorkspace()
   
-  If Not $bWorkspaceVisible Then Return
+  CloseCurrentWorkspace()
+  btnWorkspaceVersion_Click
+  
+End
+
+Public Sub CloseCurrentWorkspace()
+  
+  If $iCurrentWorkspace = WORKSPACE_PROJECT Then Return
   
   wrkProject.Show
-  FProjectBrowser.Hide
-  $bWorkspaceVisible = False
+  Select Case $iCurrentWorkspace
+    Case WORKSPACE_BROWSER
+      FProjectBrowser.Hide
+    Case WORKSPACE_VERSION
+      FProjectVersion.Hide
+  End Select
+  $iCurrentWorkspace = WORKSPACE_PROJECT
   UpdateProperty
   UpdateWorkspaceButtons
   Project.UpdateStatus(True)
@@ -3625,11 +3653,13 @@ End
 
 Public Sub PaintStatus()
   
-  If $bWorkspaceVisible Then
-    FProjectBrowser.PaintStatus()
-  Else
-    Try Project.ActiveForm.PaintStatus()
-  Endif
+  Select Case $iCurrentWorkspace
+    Case WORKSPACE_BROWSER
+      FProjectBrowser.PaintStatus()
+    Case WORKSPACE_VERSION
+    Case Else
+      Try Project.ActiveForm.PaintStatus()
+  End Select
   
 End
 
@@ -3748,5 +3778,15 @@ Private Sub RestoreWorkspaceLayout()
   wrkProject.Unlock()
   
   If hActive Then hActive.SetFocus()
+  
+End
+
+Public Sub OnProjectTimestamp()
+  
+  Select Case $iCurrentWorkspace
+    Case WORKSPACE_BROWSER
+    Case WORKSPACE_VERSION
+      FProjectVersion.Reload()
+  End Select
   
 End

@@ -1,10 +1,10 @@
 # Gambas Form File 3.0
 
 { Form Form
-  MoveScaled(0,0,121,64)
+  MoveScaled(0,0,121,81)
   Expand = True
   Persistent = True
-  Arrangement = Arrange.Vertical
+  Arrangement = Arrange.Fill
   { mnuPopup Menu
     Enabled = False
     { mnuNew Menu
@@ -137,195 +137,208 @@
       Shortcut = "Ctrl+Shift+I"
     }
   }
-  { tlbProject ToolBar
-    MoveScaled(3,1,103,4)
-    Key = "project"
+  { tabBrowser TabPanel
+    MoveScaled(1,0,117,78)
+    Arrangement = Arrange.Vertical
+    Border = False
+    Index = 0
     Text = ("Project browser")
-    Separator = True
-    { panSpace HBox
-      MoveScaled(0,0,4,4)
+    Picture = Picture["icon:/small/file-manager"]
+    { tlbProject ToolBar
+      MoveScaled(1,2,103,4)
+      Key = "project"
+      Text = ("Project browser")
+      Separator = True
+      { btnReload ToolButton
+        MoveScaled(8,0,4,4)
+        ToolTip = ("Reload")
+        Action = ".refresh"
+        Picture = Picture["icon:/small/refresh"]
+      }
+      { btnParent ToolButton
+        MoveScaled(11,0,4,4)
+        ToolTip = ("Parent directory")
+        Action = ".up"
+        Picture = Picture["icon:/small/up"]
+      }
+      { btnViewSplit ToolButton mnuViewSplit
+        Name = "btnViewSplit"
+        MoveScaled(14,0,4,4)
+        ToolTip = ("Horizontal split")
+        Action = ".view-split"
+        Picture = Picture["icon:/small/view-split-h"]
+      }
+      { btnViewSingle ToolButton mnuViewSingle
+        Name = "btnViewSingle"
+        MoveScaled(18,0,4,4)
+        ToolTip = ("No split")
+        Action = ".view-single"
+        Picture = Picture["icon:/small/view-normal"]
+      }
+      { Separator1 Separator
+        MoveScaled(22,0,1,4)
+      }
+      { btnViewNormal ToolButton btnView
+        Name = "btnViewNormal"
+        MoveScaled(25,0,4,4)
+        Tag = "0"
+        ToolTip = ("Icon view")
+        Action = ".view-normal"
+        Picture = Picture["icon:/small/view-icon"]
+        Radio = True
+        Toggle = True
+        Value = True
+      }
+      { btnViewCompact ToolButton btnView
+        Name = "btnViewCompact"
+        MoveScaled(29,0,4,4)
+        Tag = "1"
+        ToolTip = ("Compact view")
+        Action = ".view-compact"
+        Picture = Picture["icon:/small/view-compact"]
+        Radio = True
+        Toggle = True
+      }
+      { btnViewPreview ToolButton btnView
+        Name = "btnViewPreview"
+        MoveScaled(33,0,4,4)
+        Tag = "3"
+        ToolTip = ("Preview view")
+        Action = ".view-preview"
+        Picture = Picture["icon:/small/view-preview"]
+        Radio = True
+        Toggle = True
+      }
+      { btnViewDetailed ToolButton btnView
+        Name = "btnViewDetailed"
+        MoveScaled(37,0,4,4)
+        Tag = "2"
+        ToolTip = ("Detailed view")
+        Action = ".view-detailed"
+        Picture = Picture["icon:/small/view-detail"]
+        Radio = True
+        Toggle = True
+      }
+      { Separator2 Separator
+        MoveScaled(52,0,1,4)
+      }
+      { btnCopy ToolButton mnuCopy
+        Name = "btnCopy"
+        MoveScaled(53,0,4,4)
+        ToolTip = ("Copy")
+        Action = ".copy"
+        Picture = Picture["icon:/small/copy"]
+      }
+      { btnCut ToolButton mnuCut
+        Name = "btnCut"
+        MoveScaled(56,0,4,4)
+        ToolTip = ("Cut")
+        Action = ".cut"
+        Picture = Picture["icon:/small/cut"]
+      }
+      { btnPaste ToolButton mnuPaste
+        Name = "btnPaste"
+        MoveScaled(59,0,4,4)
+        ToolTip = ("Paste")
+        Action = ".paste"
+        Picture = Picture["icon:/small/paste"]
+      }
+      { btnDelete ToolButton mnuDelete
+        Name = "btnDelete"
+        MoveScaled(63,0,4,4)
+        ToolTip = ("Delete")
+        Action = ".delete"
+        Picture = Picture["icon:/small/delete"]
+      }
+      { Separator3 Separator
+        MoveScaled(67,0,1,4)
+      }
+      { btnZoomOut ToolButton
+        MoveScaled(69,0,4,4)
+        Action = ".zoom-out"
+        Picture = Picture["icon:/small/zoom-out"]
+      }
+      { sldIconSize Slider
+        MoveScaled(73,0,16,4)
+        Action = ".icon-size"
+        MaxValue = 8
+        PageStep = 1
+        Value = 3
+      }
+      { btnZoomIn ToolButton
+        MoveScaled(89,0,4,4)
+        Action = ".zoom-in"
+        Picture = Picture["icon:/small/zoom-in"]
+      }
+      { btnProperty ToolButton mnuProperty
+        Name = "btnProperty"
+        MoveScaled(97,0,4,4)
+        ToolTip = ("File properties")
+        Action = ".info"
+        Picture = Picture["icon:/small/info"]
+      }
     }
-    { btnClose ToolButton
-      MoveScaled(4,0,4,4)
-      ToolTip = ("Show project tabs")
-      Action = ".close-browser"
-      Picture = Picture["icon:/large/tabs"]
+    { splProject Splitter
+      MoveScaled(0,10,106,51)
+      Expand = True
+      { panProject VBox
+        MoveScaled(3,10,48,38)
+        { dbrProject DirBrowser
+          MoveScaled(9,2,36,3)
+          Font = Font["-1"]
+          Border = False
+          Text = ("Project data")
+          Picture = Picture["icon:/small/directory"]
+        }
+        { Separator4 Separator
+          MoveScaled(14,7,29,0)
+        }
+        { fvwProject FileView
+          MoveScaled(3,11,39,25)
+          Expand = True
+          Border = False
+          Mode = Select.Multiple
+          ShowDirectory = True
+        }
+      }
+      { panProject2 VBox
+        MoveScaled(54,10,48,38)
+        Visible = False
+        { dbrProject2 DirBrowser dbrProject
+          Name = "dbrProject2"
+          MoveScaled(9,2,36,3)
+          Font = Font["-1"]
+          Border = False
+          Text = ("Project data")
+          Picture = Picture["icon:/small/directory"]
+        }
+        { Separator5 Separator
+          MoveScaled(14,7,29,0)
+        }
+        { fvwProject2 FileView fvwProject
+          Name = "fvwProject2"
+          MoveScaled(3,11,39,25)
+          Expand = True
+          Border = False
+          Mode = Select.Multiple
+          ShowDirectory = True
+        }
+      }
     }
-    { btnReload ToolButton
-      MoveScaled(8,0,4,4)
-      ToolTip = ("Reload")
-      Action = ".refresh"
-      Picture = Picture["icon:/small/refresh"]
-    }
-    { btnParent ToolButton
-      MoveScaled(11,0,4,4)
-      ToolTip = ("Parent directory")
-      Action = ".up"
-      Picture = Picture["icon:/small/up"]
-    }
-    { btnViewSplit ToolButton mnuViewSplit
-      Name = "btnViewSplit"
-      MoveScaled(14,0,4,4)
-      ToolTip = ("Horizontal split")
-      Action = ".view-split"
-      Picture = Picture["icon:/small/view-split-h"]
-    }
-    { btnViewSingle ToolButton mnuViewSingle
-      Name = "btnViewSingle"
-      MoveScaled(18,0,4,4)
-      ToolTip = ("No split")
-      Action = ".view-single"
-      Picture = Picture["icon:/small/view-normal"]
-    }
-    { Separator1 Separator
-      MoveScaled(22,0,1,4)
-    }
-    { btnViewNormal ToolButton btnView
-      Name = "btnViewNormal"
-      MoveScaled(25,0,4,4)
-      Tag = "0"
-      ToolTip = ("Icon view")
-      Action = ".view-normal"
-      Picture = Picture["icon:/small/view-icon"]
-      Radio = True
-      Toggle = True
-      Value = True
-    }
-    { btnViewCompact ToolButton btnView
-      Name = "btnViewCompact"
-      MoveScaled(29,0,4,4)
-      Tag = "1"
-      ToolTip = ("Compact view")
-      Action = ".view-compact"
-      Picture = Picture["icon:/small/view-compact"]
-      Radio = True
-      Toggle = True
-    }
-    { btnViewPreview ToolButton btnView
-      Name = "btnViewPreview"
-      MoveScaled(33,0,4,4)
-      Tag = "3"
-      ToolTip = ("Preview view")
-      Action = ".view-preview"
-      Picture = Picture["icon:/small/view-preview"]
-      Radio = True
-      Toggle = True
-    }
-    { btnViewDetailed ToolButton btnView
-      Name = "btnViewDetailed"
-      MoveScaled(37,0,4,4)
-      Tag = "2"
-      ToolTip = ("Detailed view")
-      Action = ".view-detailed"
-      Picture = Picture["icon:/small/view-detail"]
-      Radio = True
-      Toggle = True
-    }
-    { Separator2 Separator
-      MoveScaled(52,0,1,4)
-    }
-    { btnCopy ToolButton mnuCopy
-      Name = "btnCopy"
-      MoveScaled(53,0,4,4)
-      ToolTip = ("Copy")
-      Action = ".copy"
-      Picture = Picture["icon:/small/copy"]
-    }
-    { btnCut ToolButton mnuCut
-      Name = "btnCut"
-      MoveScaled(56,0,4,4)
-      ToolTip = ("Cut")
-      Action = ".cut"
-      Picture = Picture["icon:/small/cut"]
-    }
-    { btnPaste ToolButton mnuPaste
-      Name = "btnPaste"
-      MoveScaled(59,0,4,4)
-      ToolTip = ("Paste")
-      Action = ".paste"
-      Picture = Picture["icon:/small/paste"]
-    }
-    { btnDelete ToolButton mnuDelete
-      Name = "btnDelete"
-      MoveScaled(63,0,4,4)
-      ToolTip = ("Delete")
-      Action = ".delete"
-      Picture = Picture["icon:/small/delete"]
-    }
-    { Separator3 Separator
-      MoveScaled(67,0,1,4)
-    }
-    { btnZoomOut ToolButton
-      MoveScaled(69,0,4,4)
-      Action = ".zoom-out"
-      Picture = Picture["icon:/small/zoom-out"]
-    }
-    { sldIconSize Slider
-      MoveScaled(73,0,16,4)
-      Action = ".icon-size"
-      MaxValue = 8
-      PageStep = 1
-      Value = 3
-    }
-    { btnZoomIn ToolButton
-      MoveScaled(89,0,4,4)
-      Action = ".zoom-in"
-      Picture = Picture["icon:/small/zoom-in"]
-    }
-    { btnProperty ToolButton mnuProperty
-      Name = "btnProperty"
-      MoveScaled(97,0,4,4)
-      ToolTip = ("File properties")
-      Action = ".info"
-      Picture = Picture["icon:/small/info"]
-    }
+    Index = 0
   }
-  { splProject Splitter
-    MoveScaled(2,9,106,51)
-    Expand = True
-    { panProject VBox
-      MoveScaled(3,10,48,38)
-      { dbrProject DirBrowser
-        MoveScaled(9,2,36,3)
-        Font = Font["-1"]
-        Border = False
-        Text = ("Project data")
-        Picture = Picture["icon:/small/directory"]
-      }
-      { Separator4 Separator
-        MoveScaled(14,7,29,0)
-      }
-      { fvwProject FileView
-        MoveScaled(3,11,39,25)
-        Expand = True
-        Border = False
-        Mode = Select.Multiple
-        ShowDirectory = True
-      }
-    }
-    { panProject2 VBox
-      MoveScaled(54,10,48,38)
-      Visible = False
-      { dbrProject2 DirBrowser dbrProject
-        Name = "dbrProject2"
-        MoveScaled(9,2,36,3)
-        Font = Font["-1"]
-        Border = False
-        Text = ("Project data")
-        Picture = Picture["icon:/small/directory"]
-      }
-      { Separator5 Separator
-        MoveScaled(14,7,29,0)
-      }
-      { fvwProject2 FileView fvwProject
-        Name = "fvwProject2"
-        MoveScaled(3,11,39,25)
-        Expand = True
-        Border = False
-        Mode = Select.Multiple
-        ShowDirectory = True
-      }
-    }
+  { btnWorkspace ToolButton
+    MoveScaled(38,0,4,4)
+    Background = Color.Background
+    ToolTip = ("Show project files")
+    Ignore = True
+    Picture = Picture["icon:/small/previous"]
+  }
+  { btnSpace ToolButton
+    MoveScaled(34,0,4,4)
+    Visible = False
+    Background = Color.Background
+    Ignore = True
   }
 }
 
@@ -336,10 +349,6 @@
     Text = "Duplicate"
     Shortcut = ""
     Picture = "icon:/small/clone"
-  }
-  { Action close-browser
-    Text = "Show project tabs"
-    Picture = "icon:/large/tabs"
   }
   { Action copy
     Text = "Copy"
@@ -444,7 +453,7 @@
 { Toolbars
   { Toolbar project
     Text = "Project browser"
-    List = "close-browser,refresh,up,view-split,view-single,view-normal,view-compact,view-preview,view-detailed,copy,cut,paste,delete,zoom-out,icon-size,zoom-in,info"
-    Default = "$panSpace,close-browser,refresh,up,view-split,view-single,|,view-normal,view-compact,view-preview,view-detailed,|,copy,cut,paste,delete,|,zoom-out,icon-size,zoom-in,info"
+    List = "refresh,up,view-split,view-single,view-normal,view-compact,view-preview,view-detailed,copy,cut,paste,delete,zoom-out,icon-size,zoom-in,info"
+    Default = "refresh,up,view-split,view-single,|,view-normal,view-compact,view-preview,view-detailed,|,copy,cut,paste,delete,|,zoom-out,icon-size,zoom-in,info"
   }
 }

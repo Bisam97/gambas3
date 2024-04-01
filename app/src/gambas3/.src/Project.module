@@ -833,7 +833,7 @@ _INIT_AGAIN:
   
   Dec $iNoRefresh
 
-  Inc Project.TimeStamp
+  Project.IncTimeStamp
 
   MConnection.Password.Clear
 
@@ -859,6 +859,7 @@ _INIT_AGAIN:
     FSearch.OnProjectChange
     If Class.IsLoaded("FHelpBrowser") Then FHelpBrowser.OnProjectChange
     If Class.IsLoaded("FProjectBrowser") Then FProjectBrowser.OnProjectChange
+    If Class.IsLoaded("FProjectVersion") Then FProjectVersion.OnProjectChange
     'FOpenProject.OnUpdateRecent
     
   Endif
@@ -999,7 +1000,7 @@ Public Sub ReloadFile(hForm As Object)
 
   Inc Application.Busy
   hForm.Reload
-  Inc Project.TimeStamp
+  Project.IncTimeStamp
   Dec Application.Busy
   
 Catch
@@ -1061,6 +1062,7 @@ Public Function CloseProject() As Boolean
 
     Configuration.OnProjectClose()
     FImageProperty.OnProjectClose()
+    If Class.IsLoaded("FProjectVersion") Then FProjectVersion.OnProjectClose()
 
     If Not IsFake() Then Breakpoints.Save()
 
@@ -1902,7 +1904,7 @@ Public Sub OpenFile(sPath As String, Optional iLine As Integer, Optional iColumn
   hForm = Files[sPath]
   If Not hForm Then Return
 
-  FMain.CloseProjectEditor
+  FMain.CloseCurrentWorkspace
 
   CPosition.Disable
   
@@ -2538,7 +2540,7 @@ Public Sub InsertSource(sName As String, sType As String, sDir As String, Option
   Endif
 
   VersionControl.AddFile(sPath)
-  Inc Project.TimeStamp
+  Project.IncTimeStamp
 
   Tree.Sources[sName] = sPath
   OnRefreshSources
@@ -2586,7 +2588,7 @@ Public Sub InsertFile(sName As String, sDir As String, Optional sTemplate As Str
   Endif
 
   VersionControl.AddFile(sPath)
-  Inc Project.TimeStamp
+  Project.IncTimeStamp
 
   RefreshKey(sPath)
   'RefreshLibrary
@@ -2680,7 +2682,7 @@ Public Function InsertDirectory(sDir As String, Optional bNoVerCtrl As Boolean) 
     Endif
   Next
 
-  Inc Project.TimeStamp
+  Project.IncTimeStamp
   
 End
 
@@ -4065,7 +4067,7 @@ Public Sub DeleteFile(sPath As String, Optional bNoBackup As Boolean)
   Endif
 
   Tree.RefreshKey(sPath)
-  Inc Project.TimeStamp
+  Project.IncTimeStamp
 
 End
 
@@ -4094,7 +4096,7 @@ Public Sub DeleteDir(sDir As String, Optional bNoVerCtrl As Boolean)
   Endif
 
   Tree.RefreshKey(sDir)
-  Inc Project.TimeStamp
+  Project.IncTimeStamp
 
 End
 
@@ -4393,7 +4395,7 @@ Public Sub RenameFile(sPath As String, sNewName As String) As Boolean
     
   Endif
   
-  Inc Project.TimeStamp
+  Project.IncTimeStamp
 
 Catch
 
@@ -4907,7 +4909,7 @@ Public Sub DefineStartup(sPath As String, Optional bDoNotWrite As Boolean)
   Endif
 
   Tree.SelectKey(sKey)
-  Inc Project.TimeStamp
+  Project.IncTimeStamp
 
 'Catch
 
@@ -4991,7 +4993,7 @@ Public Sub CopyFile(sSrc As String, sDst As String) As String
   
   Tree.RefreshKey(sDest)
   Tree.SelectKey(sDest)
-  Inc Project.TimeStamp
+  Project.IncTimeStamp
   
   Return sDest
 
@@ -6581,7 +6583,7 @@ Public Sub SetShouldTranslate(sPath As String, bTrans As Boolean)
     DoNotTranslate.Add(sPath)
     RefreshKey(Project.Dir &/ sPath)
   Endif
-  Inc Project.TimeStamp
+  Project.IncTimeStamp
 
 End
 
@@ -6606,7 +6608,7 @@ Public Sub SetShouldCompress(sPath As String, bCompress As Boolean)
     CompressedFiles.Add(sPath)
     RefreshKey(Project.Dir &/ sPath)
   Endif
-  Inc Project.TimeStamp
+  Project.IncTimeStamp
   
 End
 
@@ -7299,4 +7301,11 @@ Private Sub SyncVersion()
   
   File.Save(Project.Dir &/ ".project", aProject.Join("\n"))
 
+End
+
+Public Sub IncTimeStamp()
+  
+  Inc TimeStamp
+  FMain.OnProjectTimestamp
+  
 End

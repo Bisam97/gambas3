@@ -42,9 +42,7 @@ Private Const DEFAULT_BRANCH_COLOR As Integer = &H606060
 
 Private Sub OnVersionControlChange()
 
-  FMain.OnVersionControlChange
-  FDebugInfo.OnVersionControlChange  
-  FDebugButton.OnVersionControlChange
+  FMain.OnVersionControlChange()
 
 End
 
@@ -126,7 +124,7 @@ Public Sub Insert(sText As String)
   If $hEditor Then
     $hEditor.Print(DConv(sText))
   Else
-    FDebugInfo.InsertVersionControl(sText)
+    FProjectVersion.InsertVersionControl(sText)
   Endif
 
 End
@@ -603,8 +601,8 @@ Public Sub ControlProject(sType As String)
   If Not bErr Then
     Refresh
     Project.Refresh
-    FMain.OnProjectChange
-    FVersionControl.Run()
+    FMain.OnProjectChange()
+    FMain.ShowVersionWorkspace()
   Else
     ShowError(("The project could not be put under version control."))
   Endif
@@ -939,3 +937,18 @@ Public Sub AddBranch()
   
 End
 
+Public Sub InitBranchLabel(lblBranchColor As Label, sBranch As String)
+  
+  lblBranchColor.Font.Grade = -1
+  lblBranchColor.Font.Bold = True
+  lblBranchColor.Visible = VersionControl.Enabled
+  lblBranchColor.Text = sBranch
+  lblBranchColor.Background = GetBranchColor(sBranch)
+  lblBranchColor.BorderRadius = Desktop.Scale * 2
+  lblBranchColor.Foreground = Color.White
+  lblBranchColor.BorderWidth = Desktop.Scale \ 4
+  lblBranchColor.BorderColor = Color.Transparent
+  lblBranchColor.Border = Border.Plain
+  lblBranchColor.Trim = True
+  
+End

@@ -1,0 +1,410 @@
+' Gambas class file
+
+Private $iTimeStamp As Integer
+Private $bInitStatus As Boolean
+Private $bInitTerminal As Boolean
+Private $bInitChanges As Boolean
+Private $bInitHistory As Boolean
+
+Public Sub _new()
+  
+  tabVersion.AddButton(btnSpace, Align.Left)
+  tabVersion.AddButton(btnWorkspace, Align.Left)
+  tabVersion.ShowButton(btnSpace, False)
+  tabVersion.ShowButton(btnWorkspace, True)
+  
+End
+
+Public Sub Form_Open()
+  
+  ReadConfig
+  'Reload
+  
+End
+
+Public Sub Reload()
+  
+  If Project.TimeStamp = $iTimeStamp Then Return
+  
+  $iTimeStamp = Project.TimeStamp
+  
+  $bInitChanges = False
+  edtDiff.Clear()
+
+  $bInitHistory = False
+  edtHistory.Clear()
+  
+  $bInitStatus = False
+
+  $bInitTerminal = False
+  Try trmVersionControl.Kill()
+
+  tabVersion_Click
+  
+End
+
+Public Sub ReadConfig()
+  
+  tabVersion.TextFont = Project.GetSmallFont()
+  Project.SetSmallFont(tlbCommit)
+  Project.SetSmallFont(tlbChange)
+  Project.SetSmallFont(tlbRepository)
+  Project.SetSmallFont(panHistory)
+  
+  Project.SetConsoleFont(trmVersionControl)
+  MTheme.InitControl(trmVersionControl)
+  
+End
+
+Public Sub UpdateWorkspaceButtons(bShowSpace As Boolean)
+  
+  tabVersion.ShowButton(btnSpace, bShowSpace)
+  
+End
+
+Public Sub btnWorkspace_Click()
+  
+  Project.Config["/FProjectVersion/LastCommit"] = RTrim(GetChanges())
+  edtHistory.StopFillWithHistory()
+  FMain.CloseCurrentWorkspace
+  
+End
+
+Public Sub OnProjectChange()
+  
+  If Project.Dir <> Project.PreviousDir Then
+    $iTimeStamp = -1
+    Reload()
+    trmVersionControl.Clear()
+  Endif
+  
+End
+
+Public Sub OnProjectClose()
+  
+  Try trmVersionControl.Kill
+  
+End
+
+Public Sub InsertVersionControl(sText As String)
+  
+  trmVersionControl.Print(Replace(sText, "\n", "\r\n"))
+  
+End
+
+Private Sub InitEditor(hEditor As TextEditor)
+  
+  hEditor.ReadConfig()
+  hEditor.ShowLineNumber = False
+  hEditor.TabSize = 8
+  If hEditor.ReadOnly Then hEditor.ShowModified = False
+  
+End
+
+Public Sub tabVersion_Click()
+
+  Select Case tabVersion.Text
+    
+    Case ("Changes")
+      
+      If Not $bInitChanges Then
+        
+        InitEditor(edtJournal)
+        InitEditor(edtDiff)
+        
+        edtJournal.Text = RTrim(Project.Config["/FProjectVersion/LastCommit"]) & "\n\n" & VersionControl.GetDefaultJournal()
+        edtJournal.Goto(0, 0)
+        
+        LoadDiff
+        
+        btnCommit.Visible = panDiff.Visible
+        If VersionControl.DoNotPush And VersionControl.HasRemote() Then
+          btnCommitPush.Visible = panDiff.Visible
+          btnPush.Visible = Not panDiff.Visible
+        Else
+          btnCommitPush.Hide
+          btnPush.Hide
+        Endif
+        
+        $bInitChanges = True
+      Endif
+      
+      edtJournal.SetFocus()
+      
+    Case ("Repository")
+      
+      If Not $bInitStatus Then
+        UpdateInfo
+        InitEditor(edtStatus)
+        edtStatus.ShowPosition = False
+        edtStatus.Text = VersionControl.Status(VersionControl.GetRoot())
+        $bInitStatus = True
+      Endif
+      
+    Case ("History")
+      
+      If Not $bInitHistory Then
+        VersionControl.InitHistory(edtHistory)
+        InitEditor(edtHistory)
+        edtHistory.Wrap = False
+        edtHistory.FillWithHistory(Project.Dir, spnChange)
+        $bInitHistory = True
+      Endif
+    
+    Case ("Terminal")
+      
+      If Not $bInitTerminal Then
+        Try trmVersionControl.Exec(["bash"], ["PWD=" & VersionControl.GetRoot()])
+        $bInitTerminal = True
+      Endif
+    
+      trmVersionControl.SetFocus
+      
+  End Select
+
+End
+
+Private Sub UpdateInfo()
+
+  Dim cInfo As Collection
+  Dim sValue As String
+  Dim iRow As Integer
+  Dim I As Integer
+  
+  If Not VersionControl.Enabled Then Return
+  If gvwVcInfo.Rows.Count Then Return
+  
+  Inc Application.Busy
+  
+  If VersionControl.HasIdentity Then
+    panIdentity.Show
+    sepIdentity.Show
+    VersionControl.GetIdentity(ByRef txtVcName.Text, ByRef txtVcMail.Text)
+  Else 
+    panIdentity.Hide
+    sepIdentity.Hide
+  Endif
+    
+  cInfo = VersionControl.Info()
+
+  gvwVcInfo.Columns.Count = 2
+  gvwVcInfo.Rows.Count = cInfo.Count
+  
+  For Each sValue In cInfo
+    gvwVcInfo[iRow, 0].Text = cInfo.Key
+    gvwVcInfo[iRow, 0].Alignment = Align.TopNormal
+    'gvwVcInfo[iRow, 0].Foreground = Color.Merge(Color.TextBackground, Color.TextForeground, 0.7)
+    gvwVcInfo[iRow, 1].Text = sValue
+    Inc iRow
+  Next
+  
+  gvwVcInfo.Columns[0].W = -1
+  gvwVcInfo.Columns[0].W += Desktop.Scale * 2
+  
+  For I = 0 To gvwVcInfo.Rows.Count - 1
+    gvwVcInfo.Rows[I].H = -1
+  Next
+
+Finally
+  
+  Dec Application.Busy
+  
+End
+
+Public Sub btnUpdateIdentity_Click()
+
+  Dim sVcName As String
+  Dim sVcMail As String
+
+  sVcName = Trim(txtVcName.Text)
+  If sVcName Begins "-" Then Goto INVALID_VC_NAME
+  
+  sVcMail = Trim(txtVcMail.Text)
+  If sVcMail Begins "-" Then Goto INVALID_VC_MAIL
+  If Not String.IsEmail(sVcMail) Then Goto INVALID_VC_MAIL
+  
+  VersionControl.SetIdentity(sVcName, sVcMail)
+  Return
+
+INVALID_VC_NAME:
+
+  Message.Warning(("Invalid user name."))
+  txtVcName.SetFocus
+  Return
+
+INVALID_VC_MAIL:
+
+  Message.Warning(("Invalid e-mail address."))
+  txtVcMail.SetFocus
+  Return
+
+End
+
+Public Sub btnShowHistoryChanges_Click()
+
+  edtHistory.FillWithHistory(Project.Dir, spnChange,, btnShowHistoryChanges.Value)
+
+End
+
+Private Sub LoadDiff()
+
+  Dim sDiff As String
+  Dim aDiff As String[]
+  Dim sLine As String
+  Dim bHide As Boolean
+  
+  If edtDiff.IsVoid() Then
+    Inc Application.Busy
+    
+    sDiff = VersionControl.Diff(,, btnHideSpace.Value)
+    
+    If btnHideTrans.Value Then
+      
+      aDiff = New String[]
+      For Each sLine In Split(sDiff, "\n")
+        If sLine Begins "diff " Then
+          bHide = InStr(sLine, "/.lang/") > 0
+          aDiff.Add(sLine)
+        Else If Not bHide Then
+          aDiff.Add(sLine)
+        Endif
+      Next
+      sDiff = aDiff.Join("\n")
+      
+    Endif
+    
+    If sDiff Then
+      edtDiff.Text = sDiff
+      panDiff.Show
+      panNothing.Hide
+    Else
+      edtDiff.Text = "-"
+      panDiff.Hide
+      panNothing.Show
+    Endif
+    
+    edtJournal.Enabled = panDiff.Visible
+    
+    'tabVersion[0].Enabled = edtDiff.Visible
+  
+    Dec Application.Busy
+    
+  Endif
+
+End
+
+Private Sub GetChanges() As String
+
+  Dim sChange As String
+  Dim iPos As Integer
+  
+  sChange = Trim(edtJournal.Text)
+  iPos = InStr(sChange, "- " & VersionControl.DELIM_CHANGE & " -")
+  If iPos Then
+    iPos = RInStr(sChange, "\n", iPos)
+    If iPos Then
+      sChange = Left(sChange, iPos - 1)
+    Else
+      sChange = ""
+    Endif
+  Endif
+
+  Return sChange  
+  
+End
+
+Public Sub btnHideTrans_Click()
+
+  edtDiff.Clear
+  LoadDiff
+
+End
+
+Public Sub btnHideSpace_Click()
+
+  edtDiff.Clear
+  LoadDiff
+
+End
+
+Private Sub DoCommit()
+  
+  Dim sChange As String
+  Dim bCommit As Boolean
+  Dim bPush As Boolean
+  
+  If Last = btnCommit Or If Last = btnCommitPush Then bCommit = True
+  If Last = btnCommitPush Or If Last = btnPush Then bPush = True
+  
+  If bPush And If Not bCommit Then
+    
+    tabVersion.Index = 3
+    VersionControl.Commit("", False)
+    tabVersion.Index = 1
+    
+  Else
+    
+    sChange = GetChanges()
+    
+    If Not Trim(sChange) Then
+      edtJournal.Goto(0, 0)
+      edtJournal.SetFocus
+      Message.Warning(("Please enter the journal."))
+      Return
+    Endif
+    
+    tabVersion.Index = 3
+    VersionControl.Commit(sChange, Not bPush)
+    tabVersion.Index = 1
+    
+  Endif  
+  
+End
+
+Public Sub btnCommit_Click()
+  
+  DoCommit
+  
+End
+
+Public Sub btnUpdate_Click()
+
+  If Message.Question(("Do you really want to synchronize the repository?"), ("Synchronize"), ("Cancel")) = 2 Then Return
+  VersionControl.Update
+
+End
+
+Public Sub btnAddAll_Click()
+
+  FMain.mnuAddVersionAll_Click()
+
+End
+
+Public Sub btnAddBranch_Click()
+
+  VersionControl.AddBranch()
+
+End
+
+
+Public Sub btnLocateChange_Click()
+
+  Dim sPath As String
+  Dim iLine As Integer
+
+  If edtDiff.LocateChange(ByRef sPath, ByRef iLine) Then Return
+  Project.OpenFile(sPath, iLine)
+
+End
+
+Public Sub btnBrowse_Click()
+
+  Desktop.Open(VersionControl.GetRoot())
+
+End
+
+Public Sub btnRevert_Click()
+
+  VersionControl.Revert()
+
+End
