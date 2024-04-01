@@ -134,7 +134,7 @@ static bool _convert_##__name(void *a, GB_TYPE type, GB_VALUE *conv)            
 {                                                                                                                             \
   if (a)                                                                                                                      \
   {                                                                                                                           \
-    double norm = _fabs_##__name(a);                                                                                           \
+    double norm = _fabs_##__name(a);                                                                                          \
                                                                                                                               \
     switch (type)                                                                                                             \
     {                                                                                                                         \
@@ -245,8 +245,8 @@ GB_DESC __name##Desc[] =                                                        
 {                                                                                                                             \
   GB_DECLARE(#__name, sizeof(__struct)),                                                                                      \
                                                                                                                               \
-  GB_METHOD("_new", NULL, __name##_new, "[(X)" __sign "(Y)" __sign),                                                          \
-  GB_STATIC_METHOD("_call", #__name, __name##_call, "[(X)" __sign "(Y)" __sign),                                              \
+  GB_METHOD("_new", NULL, __name##_new, "[(X)" __sign "(Y)" __sign "]"),                                                      \
+  GB_STATIC_METHOD("_call", #__name, __name##_call, "[(X)" __sign "(Y)" __sign "]"),                                          \
                                                                                                                               \
   GB_PROPERTY("X", __sign, __name##_X),                                                                                       \
   GB_PROPERTY("Y", __sign, __name##_Y),                                                                                       \

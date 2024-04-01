@@ -43,6 +43,38 @@ __struct * __struct##_create(void)                                              
   return GB.New(GB.FindClass(#__name), NULL, NULL);                                                                           \
 }                                                                                                                             \
                                                                                                                               \
+static bool _convert_##__name(void *a, GB_TYPE type, GB_VALUE *conv)                                                          \
+{                                                                                                                             \
+  if (a)                                                                                                                      \
+  {                                                                                                                           \
+    if (type > GB_T_OBJECT)                                                                                                   \
+    {                                                                                                                         \
+      if (type == GB.FindClass("Rect"))                                                                                       \
+      {                                                                                                                       \
+        CRECT *crect = CRECT_create();                                                                                       \
+        crect->x = ((__struct *)a)->x;                                                                                        \
+        crect->y = ((__struct *)a)->y;                                                                                        \
+        crect->w = ((__struct *)a)->w;                                                                                        \
+        crect->h = ((__struct *)a)->h;                                                                                        \
+        conv->_object.value = crect;                                                                                          \
+        return FALSE;                                                                                                         \
+      }                                                                                                                       \
+      if (type == GB.FindClass("RectF"))                                                                                     \
+      {                                                                                                                       \
+        CRECTF *crect = CRECTF_create();                                                                                        \
+        crect->x = ((__struct *)a)->x;                                                                                        \
+        crect->y = ((__struct *)a)->y;                                                                                        \
+        crect->w = ((__struct *)a)->w;                                                                                        \
+        crect->h = ((__struct *)a)->h;                                                                                        \
+        conv->_object.value = crect;                                                                                          \
+        return FALSE;                                                                                                         \
+      }                                                                                                                       \
+    }                                                                                                                         \
+  }                                                                                                                           \
+                                                                                                                              \
+  return TRUE;                                                                                                                \
+}                                                                                                                             \
+                                                                                                                              \
                                                                                                                               \
 BEGIN_METHOD(__name##_new, __gtype x; __gtype y; __gtype w; __gtype h)                                                        \
                                                                                                                               \
@@ -422,6 +454,8 @@ GB_DESC __name##Desc[] =                                                        
   GB_METHOD("Center", #__pname, __name##_Center, NULL),                                                                       \
                                                                                                                               \
   GB_STATIC_METHOD("Stretch", #__name, __name##_Stretch, "(Width)" __sign "(Height)" __sign "(Frame)" #__name ";[(Alignment)i]"), \
+                                                                                                                              \
+  GB_INTERFACE("_convert", &_convert_##__name),                                                                               \
                                                                                                                               \
   GB_END_DECLARE                                                                                                              \
 };
