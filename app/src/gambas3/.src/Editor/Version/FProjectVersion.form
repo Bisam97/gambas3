@@ -103,34 +103,14 @@
       Expand = True
       Arrangement = Arrange.Vertical
       { Panel1 VBox
-        MoveScaled(6,3,113,30)
+        MoveScaled(6,2,113,39)
         { tlbCommit ToolBar
-          MoveScaled(1,1,118,4)
+          MoveScaled(8,1,83,4)
           Key = "commit"
           ReadOnly = True
           Separator = True
-          { panNothing Panel
-            MoveScaled(1,0,35,4)
-            Visible = False
-            Arrangement = Arrange.Horizontal
-            AutoResize = True
-            { PictureBox1 PictureBox
-              MoveScaled(0,0,4,4)
-              Picture = Picture.Load("icon:/small/info")
-              Alignment = Align.Center
-            }
-            { lblNothingToCommit Label
-              MoveScaled(4,0,28,4)
-              Font = Font["Bold"]
-              AutoResize = True
-              Text = ("There is nothing to commit.")
-            }
-            { Panel2 Panel
-              MoveScaled(33,0,1,4)
-            }
-          }
           { btnCommit ToolButton
-            MoveScaled(39,0,13,4)
+            MoveScaled(1,0,13,4)
             Action = ".vc-commit"
             AutoResize = True
             Text = ("Commit")
@@ -138,7 +118,7 @@
           }
           { btnCommitPush ToolButton btnCommit
             Name = "btnCommitPush"
-            MoveScaled(53,0,21,4)
+            MoveScaled(15,0,21,4)
             Action = ".vc-commit-push"
             AutoResize = True
             Text = ("Commit and push") & "..."
@@ -146,22 +126,34 @@
           }
           { btnPush ToolButton btnCommit
             Name = "btnPush"
-            MoveScaled(76,0,11,4)
+            MoveScaled(38,0,11,4)
             Action = ".vc-push"
             AutoResize = True
             Text = ("Push") & "..."
             Picture = Picture["icon:/small/upload"]
           }
           { btnRevert ToolButton
-            MoveScaled(87,0,18,4)
+            MoveScaled(49,0,18,4)
             Action = ".vc-revert"
             AutoResize = True
             Text = Shortcut(("Undo changes"), "U")
             Picture = Picture["icon:/small/undo"]
           }
         }
+        { panNothing VBox
+          MoveScaled(3,12,89,6)
+          Background = Color.TextBackground
+          { Label1 Label
+            MoveScaled(1,0,79,5)
+            Font = Font["+4,Bold"]
+            Foreground = Color.LightForeground
+            Expand = True
+            Padding = 16
+            Text = ("There is nothing to commit.")
+          }
+        }
         { edtJournal TextEditor
-          MoveScaled(3,9,38,14)
+          MoveScaled(3,22,38,14)
           Expand = True
           Border = False
         }

@@ -18,13 +18,12 @@ End
 Public Sub Form_Open()
   
   ReadConfig
-  'Reload
   
 End
 
-Public Sub Reload()
+Public Sub Reload(Optional bForce As Boolean)
   
-  If Project.TimeStamp = $iTimeStamp Then Return
+  If Project.TimeStamp = $iTimeStamp And If Not bForce Then Return
   
   $iTimeStamp = Project.TimeStamp
   
@@ -73,8 +72,7 @@ End
 Public Sub OnProjectChange()
   
   If Project.Dir <> Project.PreviousDir Then
-    $iTimeStamp = -1
-    Reload()
+    Reload(True)
     trmVersionControl.Clear()
   Endif
   
@@ -111,6 +109,7 @@ Public Sub tabVersion_Click()
         
         InitEditor(edtJournal)
         InitEditor(edtDiff)
+        panNothing.Background = edtJournal.Background
         
         edtJournal.Text = RTrim(Project.Config["/FProjectVersion/LastCommit"]) & "\n\n" & VersionControl.GetDefaultJournal()
         edtJournal.Goto(0, 0)
@@ -277,16 +276,20 @@ Private Sub LoadDiff()
       edtDiff.Text = sDiff
       panDiff.Show
       panNothing.Hide
+      btnRevert.Show
+      edtDiff.Show
     Else
       edtDiff.Text = "-"
       panDiff.Hide
       panNothing.Show
+      btnRevert.Hide
+      edtDiff.Hide
     Endif
     
-    edtJournal.Enabled = panDiff.Visible
+    edtJournal.ReadOnly = Not panDiff.Visible
+    edtJournal.ShowCurrent = panDiff.Visible
+    edtJournal.ShowCursor = panDiff.Visible
     
-    'tabVersion[0].Enabled = edtDiff.Visible
-  
     Dec Application.Busy
     
   Endif
@@ -357,7 +360,9 @@ Private Sub DoCommit()
     VersionControl.Commit(sChange, Not bPush)
     tabVersion.Index = 1
     
-  Endif  
+  Endif 
+  
+  Reload(True)
   
 End
 
@@ -406,5 +411,11 @@ End
 Public Sub btnRevert_Click()
 
   VersionControl.Revert()
+
+End
+
+Public Sub edtDiff_GotFocus()
+
+  edtJournal.SetFocus()
 
 End
