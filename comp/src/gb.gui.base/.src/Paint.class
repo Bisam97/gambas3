@@ -78,15 +78,22 @@ Static Public Sub TrimText(Text As String, W As Float, Optional H As Float) As S
   If N < 0 Then Return
   
   aText = Split(Text, "\n")
+  
+  ' If N = 0 Then 
+  '   aResult = TrimTextLine(aText[0], W)
+  '   If aResult.Count = 1 Then Return aResult[0]
+  '   aResult = TrimTextLine(aText[0], W, True)
+  '   Return AddThreeDots(aResult[0])
+  ' Endif
 
   Do
     If I > N Then 
       bAddDots = N < aText.Max
-      aText.Remove(N + 1, -1)
-      aResult = TrimTextLine(aText.Last, W, True)
-      aText.Last = aResult[0]
-      If aResult.Count > 1 Then bAddDots = True
-      If bAddDots Then aText.Last = AddThreeDots(aText.Last)
+      If bAddDots Then
+        aText.Remove(N + 1, -1)
+        aResult = TrimTextLine(aText.Last, W, True)
+        aText.Last = AddThreeDots(aResult[0])
+      Endif
       Break
     Endif
     If I >= aText.Count Then Break
@@ -545,3 +552,17 @@ Static Public Sub Check(X As Float, Y As Float, Width As Float, Height As Float)
   
 End
 
+'' @{since 3.20}
+''
+'' Paint a circle.
+''
+'' - ~X~, ~Y~ : The center of the circle.
+'' - ~Radius~ : The radius of the circle.
+''
+'' It's just a shortcut for `Paint.Ellipse(X - Radius, Y - Radius, Radius * 2, Radius * 2)`
+
+Static Public Sub Circle(X As Float, Y As Float, Radius As Float)
+  
+  Paint.Ellipse(X - Radius, Y - Radius, Radius * 2, Radius * 2)
+  
+End

@@ -92,6 +92,7 @@ Private Sub Alignment_Write(Value As Integer)
 
   If $iAlign = Value Then Return
   $iAlign = Value
+  _UpdateSize
   Me.Refresh
 
 End
@@ -134,28 +135,28 @@ Private Sub GetBorderWidth() As Integer
 End
 
 
-Private Sub GetPadding() As Integer
+Private Sub GetPadding(ByRef PW As Integer, ByRef PH As Integer)
 
-  Dim P As Integer
-
-  P = $iPadding
+  PH = $iPadding
   Select Case $iBorder
     Case Border.Plain
-      P += GetBorderWidth()
+      PH += GetBorderWidth()
     Case Border.Raised, Border.Sunken
-      P += Style.FrameWidth + 1
+      PH += Style.FrameWidth + 1
   End Select
-    
-  Return P  
-
+  
+  PW = PH
+  PW += Min($iBorderRadius, Me.H \ 2)
+  
 End
 
 Public Sub _UpdateSize()
   
   Dim W As Integer
   Dim H As Integer
-  Dim P As Integer
   Dim hRect As Rect
+  Dim PW As Integer
+  Dim PH As Integer
   
   $hExt = Null
   If $bLocked Then Return
@@ -165,11 +166,11 @@ Public Sub _UpdateSize()
   
   $bLocked = True
 
-  P = GetPadding()
+  GetPadding(ByRef PW, ByRef PH)
 
   If $bRichText Then
     If _Wrap Then
-      hRect = Me.Font.RichTextSize($sText, Me.W - P * 2)
+      hRect = Me.Font.RichTextSize($sText, Me.W - PW * 2)
     Else
       hRect = Me.Font.RichTextSize($sText)
     Endif
@@ -177,13 +178,14 @@ Public Sub _UpdateSize()
     hRect = Me.Font.TextSize($sText)
   Endif
   
-  W = hRect.W + P * 2
-  H = hRect.H + P * 2
+  W = hRect.W + PW * 2 + 1
+  H = hRect.H + PH * 2
   
   If Align.IsMiddle($iAlign) And If Not $bRichText Then
     If H < Me.H Then H = Me.H
   Endif
   
+  'Debug hRect.W;; "->";; W
   Me.Resize(W, H)
   
   $bLocked = False
@@ -208,13 +210,16 @@ End
 Private Sub GetExtents() As RectF
 
   Dim X As Float
+  Dim PH As Integer
+  Dim PW As Integer
 
   ' Check Paint.Scalable to workaround a QT bug with Paint.TextExtents() on such fonts
 
   If Not $hExt Then
     If $bRichText Then
       If _Wrap Then
-        $hExt = Paint.RichTextSize($sText, Me.W - GetPadding() * 2)
+        GetPadding(ByRef PW, ByRef PH)
+        $hExt = Paint.RichTextSize($sText, Me.W - PW * 2)
       Else
         $hExt = Paint.RichTextSize($sText)
       Endif
@@ -224,7 +229,7 @@ Private Sub GetExtents() As RectF
       If Paint.Font.Scalable Then X = Paint.TextExtents(LTrim($sText)).X
     Endif
     
-    'Debug Me.Name; ": "; Paint.Font.ToString();; $hExt.W;; "[";; X;; "]"
+    'Debug Me.Name; ": "; Paint.Font.ToString();; $hExt.W;; "[";; X;; "]";; $sText
     $hExt.X = X
     
   Endif
@@ -235,12 +240,13 @@ End
 
 Public Sub UserControl_Draw()
   
-  Dim P, PW As Integer
   Dim F As Integer
   Dim hExt As RectF
   Dim W As Float
   Dim X As Float
   Dim sText As String
+  Dim PW As Integer
+  Dim PH As Integer
   
   If $iBorder Then
     
@@ -292,19 +298,22 @@ Public Sub UserControl_Draw()
   If Not $sText Then Return
   
   hExt = GetExtents()
+  
+  'Debug Me.W;; hExt.W;; hExt.X
 
-  P = GetPadding()
-  PW = P + Min($iBorderRadius, Me.H \ 2)
+  GetPadding(ByRef PW, ByRef PH)
 
   If Align.IsLeft($iAlign) Then
-    X = PW - hExt.X
+    X = PW + hExt.X
+    'X = PW - Min(0, hExt.X)
   Else If Align.IsRight($iAlign) Then
     X = Me.W - hExt.W - hExt.X - PW
+    'X = Int(Me.W - hExt.W - hExt.X - PW)
   Else
-    X = PW - Int(hExt.X + 1)
+    X = PW '- Int(hExt.X + 1)
   Endif
 
-  W = Me.W - X - PW - hExt.X
+  W = Me.W - X - PW '- hExt.X
   
   'If Not _Wrap Then
     If Align.IsLeft($iAlign) Then
@@ -326,11 +335,12 @@ Public Sub UserControl_Draw()
   sText = $sText
   
   If $bRichText Then
-    If $bTrim Then sText = Paint.TrimRichText(sText, W, Me.H - P * 2)
-    Paint.DrawRichText(sText, X, P, W, Me.H - P * 2, $iAlign)
+    If $bTrim Then sText = Paint.TrimRichText(sText, W, Me.H - PH * 2)
+    Paint.DrawRichText(sText, X, PH, W, Me.H - PH * 2, $iAlign)
   Else
-    If $bTrim Then sText = Paint.TrimText(sText, W, Me.H - P * 2)
-    Paint.DrawText(sText, X, P, W, Me.H - P * 2, $iAlign)
+    'Debug X;; W
+    If $bTrim Then sText = Paint.TrimText(sText, W, Me.H - PH * 2)
+    Paint.DrawText(sText, X, PH, W, Me.H - PH * 2, $iAlign)
   Endif
   
 End
@@ -385,6 +395,7 @@ Private Sub BorderRadius_Write(Value As Integer)
   If $iBorderRadius = Value Then Return
   
   $iBorderRadius = Value
+  _UpdateSize
   Me.Refresh
   
 End
@@ -394,6 +405,7 @@ Private Sub BorderWidth_Write(Value As Integer)
   If $iBorderWidth = Value Then Return
   
   $iBorderWidth = Value
+  _UpdateSize
   Me.Refresh
   
 End
@@ -417,6 +429,7 @@ Private Sub Trim_Write(Value As Boolean)
 
   If $bTrim = Value Then Return
   $bTrim = Value
+  _UpdateSize
   Me.Refresh
 
 End
