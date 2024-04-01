@@ -28,7 +28,7 @@ GB_COMPONENT_PKG_CONFIG(
 
 GB_COMPONENT_PKG_CONFIG(
   qt6webview, QT6WEBVIEW, gb.qt6.webview, [webview],
-  Qt6Core Qt6WebEngineWidgets
+  Qt6Core Qt6WebEngineCore Qt6WebEngineWidgets
 )
 
 GB_COMPONENT_PKG_CONFIG(
