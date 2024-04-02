@@ -40,11 +40,6 @@ Public Sub Form_Open()
   
   edtChange.ReadConfig
   
-  VersionControl.InitHistory(edtHistory)
-  edtHistory.ReadConfig
-  edtHistory.ShowModified = False
-  edtHistory.Wrap = False
-  
   btnClose.SetFocus
   
   btnRevert.Enabled = Not Project.Running
@@ -153,7 +148,7 @@ Public Sub tabInfo_Click()
       btnRevert.Hide
       panChange.Show
       btnLocateChange.Hide
-      If edtHistory.IsVoid() Then edtHistory.FillWithHistory($sPath, spnChange, $sPath2)
+      If gvwHistory.Rows.Count = 0 Then gvwHistory.Fill($sPath, $sPath2)
     
   End Select
   
@@ -179,13 +174,13 @@ End
 
 Public Sub chkShowHistoryChanges_Click()
 
-  edtHistory.FillWithHistory($sPath, spnChange, $sPath2, chkShowHistoryChanges.Value)
+  gvwHistory.Fill($sPath, $sPath2, chkShowHistoryChanges.Value)
 
 End
 
 Public Sub Form_Close()
 
-  edtHistory.StopFillWithHistory
+  gvwHistory.Stop
 
 End
 

@@ -13,6 +13,8 @@ Public Sub _new()
   tabVersion.ShowButton(btnSpace, False)
   tabVersion.ShowButton(btnWorkspace, True)
   
+  gvwHistory.Columns.Count = 1
+  
 End
 
 Public Sub Form_Open()
@@ -31,7 +33,6 @@ Public Sub Reload(Optional bForce As Boolean)
   edtDiff.Clear()
 
   $bInitHistory = False
-  edtHistory.Clear()
   
   $bInitStatus = False
 
@@ -48,7 +49,7 @@ Public Sub ReadConfig()
   Project.SetSmallFont(tlbCommit)
   Project.SetSmallFont(tlbChange)
   Project.SetSmallFont(tlbRepository)
-  Project.SetSmallFont(panHistory)
+  Project.SetSmallFont(btnShowHistoryChanges)
   
   Project.SetConsoleFont(trmVersionControl)
   MTheme.InitControl(trmVersionControl)
@@ -70,7 +71,7 @@ End
 Public Sub btnWorkspace_Click()
   
   SaveLastCommitLog()
-  edtHistory.StopFillWithHistory()
+  gvwHistory.Stop()
   FMain.CloseCurrentWorkspace
   
 End
@@ -149,10 +150,8 @@ Public Sub tabVersion_Click()
     Case ("History")
       
       If Not $bInitHistory Then
-        VersionControl.InitHistory(edtHistory)
-        InitEditor(edtHistory)
-        edtHistory.Wrap = False
-        edtHistory.FillWithHistory(Project.Dir, spnChange)
+        VersionControl.FillBranchCombo(cmbBranch)
+        RefreshHistory
         $bInitHistory = True
       Endif
     
@@ -245,9 +244,16 @@ INVALID_VC_MAIL:
 
 End
 
+Private Sub RefreshHistory()
+
+  gvwHistory.Fill(Project.Dir,, btnShowHistoryChanges.Value, cmbBranch.Text, Trim(txtSearchHistory.Text))
+  txtSearchHistory.SetFocus
+
+End
+
 Public Sub btnShowHistoryChanges_Click()
 
-  edtHistory.FillWithHistory(Project.Dir, spnChange,, btnShowHistoryChanges.Value)
+  RefreshHistory
 
 End
 
@@ -425,5 +431,23 @@ End
 Public Sub edtDiff_GotFocus()
 
   edtJournal.SetFocus()
+
+End
+
+Public Sub txtSearchHistory_Filter()
+
+  RefreshHistory
+
+End
+
+Public Sub cmbBranch_Click()
+
+  RefreshHistory
+
+End
+
+Public Sub btnDefaultBranch_Click()
+
+  cmbBranch.Text = VersionControl.GetCurrentBranch()
 
 End

@@ -5,18 +5,20 @@ Inherits Task
 Private $sPath As String
 Private $sPath2 As String
 Private $bFull As Boolean
+Private $sBranch As String
 
-Public Sub _new(sPath As String, sPath2 As String, bFull As Boolean)
+Public Sub _new(sPath As String, sPath2 As String, bFull As Boolean, Optional sBranch As String)
   
   $sPath = sPath
   $sPath2 = sPath2
   $bFull = bFull
+  $sBranch = sBranch
   
 End
 
 Public Sub Main()
   
   Application.Priority = 10
-  VersionControl.History($sPath, $sPath2, $bFull)
+  VersionControl.History($sPath, $sPath2, $bFull, $sBranch)
   
 End

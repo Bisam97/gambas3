@@ -100,7 +100,7 @@ Public Sub GetCurrentBranch() As String
   
 End
 
-Public Sub GetBranches(ByRef sCurrent As String) As String[]
+Public Sub GetBranches(ByRef sCurrent As String, Optional bTags As Boolean) As String[]
   
   Dim sResult As String
   Dim sBranch As String
@@ -113,7 +113,6 @@ Public Sub GetBranches(ByRef sCurrent As String) As String[]
     
     sBranch = Trim(sBranch)
     If sBranch Begins "*" Then
-    
       sBranch = Trim(Mid$(sBranch, 2))
       bCurrent = True
     Else
@@ -131,6 +130,13 @@ Public Sub GetBranches(ByRef sCurrent As String) As String[]
     If Not aBranches.Exist(sBranch) Then aBranches.Add(sBranch)
     
   Next
+  
+  If bTags Then
+    
+    sResult = RunShell("git tag", True)
+    aBranches.Insert(Split(Trim(sResult), "\n"))
+    
+  Endif
   
   aBranches.Sort(gb.Natural)
   
@@ -179,17 +185,42 @@ Public Sub Diff(sPath As String, Optional bFull As Boolean, bNoWhiteSpace As Boo
 
 End
 
-Public Sub History(sPath As String, Optional sPath2 As String, bFull As Boolean) As String
+Private Sub GetLocalBranchName(sFind As String) As String
+
+  Dim sResult As String
+  Dim sBranch As String
+  
+  sResult = RunShell("git branch -a", True) 
+  
+  For Each sBranch In Split(Trim(sResult), "\n")
+    
+    sBranch = Trim(sBranch)
+    If sBranch Begins "*" Then
+      sBranch = Trim(Mid$(sBranch, 2))
+    Else
+      If sBranch Begins "+ " Then sBranch = Mid$(sBranch, 3)
+    Endif
+    
+    If File.Name(sBranch) = sFind Then Return sBranch
+    
+  Next
+  
+  Return sFind
+  
+End
+
+Public Sub History(sPath As String, Optional sPath2 As String, bFull As Boolean, sBranch As String) As String
   
   Dim sCmd As String
   Dim sFull As String
   
   If bFull Then sFull = "-p -b "
+  If sBranch Then sBranch = " " & Shell(GetLocalBranchName(sBranch)) & " -- "
   
   If IsDir(sPath) Then
-    sCmd = "cd " & Shell(sPath) & " && git log --date=rfc2822 " & sFull & "."
+    sCmd = "cd " & Shell(sPath) & " && git log --date=rfc2822 " & sFull & sBranch & "."
   Else
-    sCmd = "cd " & Shell(File.Dir(sPath)) & " && git log --date=rfc2822 " & sFull & Shell(File.Name(sPath))
+    sCmd = "cd " & Shell(File.Dir(sPath)) & " && git log --date=rfc2822 " & sFull & sBranch & Shell(File.Name(sPath))
     If sPath2 Then sCmd &= " " & Shell(File.Name(sPath2))
   Endif
   
@@ -502,48 +533,6 @@ Public Sub InitHistory(hEditor As TextEditor)
   hEditor.Highlight = "commit_git"
   
 End
-
-' Fast Public Sub HighlightHistory(Text As String)
-'   
-'   Dim iState As Integer
-'   Dim iLen As Integer
-' 
-'   iState = TextHighlighter.State
-'   iLen = String.Len(Text)
-' 
-'   TextHighlighter.Limit = False
-'   
-'   If $iPadHistory = 0 Then
-'     $iPadHistory = Max(Max(String.Len(("Date")), String.Len(("Author"))), String.Len("Commit"))
-'   Endif
-'   
-'   TextHighlighter.Alternate = True
-'   If Text Begins "commit " Then 
-'     TextHighlighter.TextAfter = String.PadRight("Commit", $iPadHistory) & " : " & Mid$(Text, 8)
-'     TextHighlighter.Add(Highlight.DataType, String.Len(TextHighlighter.TextAfter))
-'     'TextHighlighter.Add(Highlight.DataType, String.Len(Text))
-'     TextHighlighter.Limit = True
-'   Else If Text Begins "Merge: " Then 
-'     TextHighlighter.TextAfter = String.PadRight("Merge", $iPadHistory) & " : " & Mid$(Text, 8)
-'     TextHighlighter.Add(Highlight.Number, String.Len(TextHighlighter.TextAfter))
-'     'TextHighlighter.Add(Highlight.DataType, String.Len(Text))
-'     TextHighlighter.Limit = True
-'   Else If Text Begins "Author: " Then
-'     TextHighlighter.TextAfter = String.PadRight(("Author"), $iPadHistory) & " : " & Mid$(Text, 9)
-'     TextHighlighter.Add(Highlight.Function, String.Len(TextHighlighter.TextAfter))
-'     'TextHighlighter.Add(Highlight.Function, String.Len(Text))
-'   Else If Text Begins "Date: " Then
-'     TextHighlighter.TextAfter = String.PadRight(("Date"), $iPadHistory) & " : " & FormatDate(Mid$(Text, 7))
-'     TextHighlighter.Add(Highlight.Preprocessor, String.Len(TextHighlighter.TextAfter))
-'     'TextHighlighter.Add(Highlight.Preprocessor, String.Len(Text))
-'   Else
-'     TextHighlighter.Alternate = False
-'     If Not $hHighlightDiff Then $hHighlightDiff = TextHighlighter["diff"]
-'     $hHighlightDiff.Run(Text)
-'     'TextHighlighter.Add(Highlight.Normal, iLen)
-'   Endif
-'   
-' End
 
 Public Sub GetRoot() As String
   

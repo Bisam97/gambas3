@@ -1,0 +1,268 @@
+' Gambas class file
+
+Export
+
+Inherits GridView
+
+Property Selectable As Boolean Use $bSelectable
+
+Private $hSpinner As Spinner
+Private $hTask As CVersionControlHistoryTask
+Private $sBuffer As String
+Private $aCommit As String[]
+Private $HT As Integer
+Private $bFull As Boolean
+Private $hObs As Observer
+Private $Y As Integer
+Private $Y2 As Integer
+Private $sFilter As String
+Private $hWatcher As Watcher
+Private $iBranchColor As Integer
+
+Public Sub _new()
+  
+  Me.Grid = False
+  Me.Columns.Count = 1
+  Me.Padding = 0
+  $hObs = New Observer(Me) As "GridView"
+  Me.Font = Project.GetEditorFont()
+  $HT = Me.Font.H
+  Me.Rows.H = $HT
+  
+End
+
+Public Sub Stop()
+  
+  Dim hTask As CVersionControlHistoryTask
+  
+  If $hTask Then
+    hTask = $hTask
+    $hTask = Null
+    hTask.Kill 
+    hTask.Wait
+  Endif
+  
+End
+
+Public Sub Fill(sPath As String, Optional sPath2 As String, Optional bFull As Boolean, sBranch As String, sFilter As String)
+  
+  Stop()
+  
+  Me.Rows.Count = 0
+  $Y = 0
+  $Y2 = 0
+  $sBuffer = ""
+  $bFull = bFull
+  $sFilter = sFilter
+  $aCommit = New String[]
+  
+  $iBranchColor = VersionControl.GetBranchColor(sBranch)
+  
+  $hWatcher = New Watcher(Me) As "Watcher"
+  
+  $hSpinner = New Spinner(Me.Parent)
+  $hSpinner.Ignore = True
+  $hSpinner.Type = Spinner.Circle
+  $hSpinner.ResizeScaled(6, 6)
+  MoveSpinner
+  $hSpinner.Show
+  $hSpinner.Start
+  
+  $hTask = New CVersionControlHistoryTask(sPath, sPath2, bFull, sBranch) As "TaskVCHistory"
+  
+End
+
+Private Sub AddCommit(sData As String)
+
+  Dim aData As String[]
+  Dim R As Integer
+  Dim I As Integer
+  Dim DS As Integer
+
+  If $sFilter And If String.InStr(sData, $sFilter, 1, gb.IgnoreCase) = 0 Then Return
+
+  aData = Split(sData, "\n")
+  $aCommit.Insert(aData)
+  R = Me.Rows.Count
+  Me.Rows.Count += aData.Count
+  
+  DS = Desktop.Scale
+  Me.Rows[R].H = $HT + DS * 3
+  
+  For I = 0 To aData.Max
+    If aData[I] Begins "diff " Then
+      Me.Rows[R + I].H = $HT + DS * 2
+    Endif
+  Next
+
+End
+
+Public Sub TaskVCHistory_Read(Data As String)
+
+  Dim iPos As Integer
+  
+  If Not $hTask Then Return
+  
+  $sBuffer &= Data
+  
+  Do
+    
+    iPos = InStr($sBuffer, "\ncommit")
+    If iPos = 0 Then Return
+    
+    AddCommit(Left($sBuffer, iPos - 1))
+    $sBuffer = Mid$($sBuffer, iPos + 1)
+    
+  Loop
+  
+End
+
+Public Sub TaskVCHistory_Kill()
+  
+  AddCommit($sBuffer)
+  
+  If $hSpinner Then
+    $hSpinner.Stop
+    $hSpinner.Delete
+    $hSpinner = Null
+  Endif
+
+End
+
+Public Sub GridView_Draw(X As Integer, Y As Integer, W As Integer, H As Integer, Row As Integer, (Column) As Integer)
+
+  Dim DS As Integer
+  Dim HT As Integer = $HT
+  Dim sLine As String
+  
+  Paint.Save
+  
+  DS = Desktop.Scale
+  
+  If Row >= $Y And If Row < $Y2 Then Paint.FillRect(X, Y, W, H, Color.SetAlpha(Color.SelectedBackground, 128))
+  
+  sLine = $aCommit[Row]
+  
+  If sLine Begins "commit " Then
+    
+    If Row > 0 Then Paint.FillRect(0, Y, W, 1, Color.LightForeground)
+
+    Y += DS 
+    X += DS \ 2
+    W -= DS
+    Paint.Rectangle(X, Y, W, HT + DS, DS * 2)
+    Paint.Background = $iBranchColor
+    Paint.Fill()
+    
+    Paint.Background = Color.TextBackground
+    Paint.Font.Bold = True
+    Paint.DrawText(Mid$(sLine, 8), X + DS, Y, W, HT + DS, Align.Left)
+    
+    Paint.Restore
+    Return
+    
+  Endif
+    
+  If sLine Begins "Author: " Then
+    
+    Paint.Font.Bold = True
+    sLine = Subst("Author: &1", Mid$(sLine, 9))
+    
+  Else If sLine Begins "Date: " Then
+    
+    Paint.Font.Bold = True
+    sLine = Subst("  Date: &1", Format(Date.FromRFC822(Mid$(sLine, 7)), gb.GeneralDate))
+    
+  Else If sLine Begins "Merge: " Then
+    
+    Paint.Font.Bold = True
+    sLine = Subst(" Merge: &1", Mid$(sLine, 8), gb.GeneralDate)
+    
+  Else If sLine Begins "diff " Then
+    
+    Paint.FillRect(0, Y + DS \ 2, W, 1, Color.LightForeground)
+    Y += DS
+    Paint.Font.Bold = True
+    
+  Else If sLine Begins "index " Or If sLine Begins "@@" Then 'Or If sLine Begins "--- " Or If sLine Begins "+++ " Then
+    
+    Paint.Font.Bold = True
+    
+  Else If sLine Begins "+" Then
+    
+    Paint.Font.Bold = True
+    Paint.Background = If(Application.DarkTheme, Color.Green, Color.DarkGreen)
+    
+  Else If sLine Begins "-" Then
+    
+    Paint.Font.Bold = True
+    Paint.Background = If(Application.DarkTheme, Color.Red, Color.DarkRed)
+    
+  Endif
+  
+  Paint.DrawText(sLine, X + DS, Y, W, HT, Align.Left)
+  Paint.Restore
+  Return
+  
+End
+
+Public Sub GridView_MouseDown()
+
+  Dim Y As Integer
+  Dim YY As Integer
+  Dim Y2 As Integer
+  
+  If Me.Design Then Return
+  If Not $aCommit Then Return
+  If Not $bSelectable Then Return
+  
+  YY = Me.RowAt(Mouse.Y)
+  
+  Y = YY
+  While Y >= 0
+    If $aCommit[Y] Begins "commit " Then Break
+    Dec Y
+  Wend
+  
+  Y2 = Y + 1
+  While Y2 < $aCommit.Count
+    If $aCommit[Y2] Begins "commit " Then Break
+    Inc Y2
+  Wend
+  
+  $Y = Y
+  $Y2 = Y2
+  
+  Me.Refresh
+  
+End
+
+Private Sub MoveSpinner()
+
+  If Not $hSpinner Then Return
+  $hSpinner.Move(Me.X + (Me.W - $hSpinner.W) \ 2, Me.Y + (Me.H - $hSpinner.H) \ 2)
+
+End
+
+Public Sub Watcher_Move()
+
+  MoveSpinner
+
+End
+
+Public Sub Watcher_Resize()
+
+  MoveSpinner
+
+End
+
+Private Sub Selectable_Write(Value As Boolean)
+  
+  If $bSelectable = Value Then Return
+  $bSelectable = Value
+  $Y = 0
+  $Y2 = 0
+  Me.Refresh
+  
+End
+

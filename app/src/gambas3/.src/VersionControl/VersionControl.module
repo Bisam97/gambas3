@@ -532,10 +532,10 @@ Public Sub Diff(Optional sPath As String, Optional bFull As Boolean, bNoWhiteSpa
 
 End
 
-Public Sub History(Optional sPath As String, sPath2 As String, bFull As Boolean) As String
+Public Sub History(Optional sPath As String, sPath2 As String, bFull As Boolean, sBranch As String) As String
 
   If Not sPath Then sPath = Project.Dir
-  Return $hVC.History(sPath, sPath2, bFull)
+  Return $hVC.History(sPath, sPath2, bFull, sBranch)
 
 End
 
@@ -640,9 +640,9 @@ Public Sub GetCurrentBranch() As String
     
 End
 
-Public Sub GetBranches(ByRef sCurrent As String) As String[]
+Public Sub GetBranches(ByRef sCurrent As String, Optional bTags As Boolean) As String[]
   
-  Return $hVC.GetBranches(ByRef sCurrent)
+  Return $hVC.GetBranches(ByRef sCurrent, bTags)
   
 End
 
@@ -950,5 +950,18 @@ Public Sub InitBranchLabel(lblBranchColor As Label, sBranch As String)
   lblBranchColor.BorderColor = Color.Transparent
   lblBranchColor.Border = Border.Plain
   lblBranchColor.Trim = True
+  
+End
+
+Public Sub FillBranchCombo(cmbBranch As ComboBox)
+  
+  Dim sCurrent As String
+  Dim aBranch As String[]
+  
+  aBranch = VersionControl.GetBranches(ByRef sCurrent, True)
+  Object.Lock(cmbBranch)
+  cmbBranch.List = aBranch
+  cmbBranch.Text = sCurrent
+  Object.Unlock(cmbBranch)
   
 End

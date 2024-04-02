@@ -3,6 +3,7 @@
 { Form Form
   MoveScaled(0,0,128,85)
   Expand = True
+  Persistent = True
   Arrangement = Arrange.Fill
   { tabVersion TabPanel
     MoveScaled(1,1,126,82)
@@ -204,34 +205,48 @@
     Index = 2
     Text = ("History")
     { panHistory HBox
-      MoveScaled(1,1,118,4)
+      MoveScaled(1,1,124,4)
+      { btnDefaultBranch ToolButton
+        MoveScaled(0,0,4,4)
+        Picture = Picture["icon:/small/tag"]
+      }
+      { cmbBranch ComboBox
+        MoveScaled(6,0,32,3)
+        ReadOnly = True
+        Border = False
+      }
+      { Separator2 Separator
+        MoveScaled(43,0,0,4)
+      }
+      { txtSearchHistory ButtonBox
+        MoveScaled(44,1,41,3)
+        Foreground = Color.LightForeground
+        Expand = True
+        Picture = Picture["icon:/small/close"]
+        Placeholder = ("Enter a filter")
+        Border = False
+        Button = False
+        ClearButton = True
+        Filter = True
+      }
+      { Separator3 Separator
+        MoveScaled(88,0,0,4)
+      }
       { btnShowHistoryChanges ToggleButton
-        MoveScaled(0,0,29,4)
+        MoveScaled(95,0,28,4)
         AutoResize = True
         Text = ("Display changes in history")
         Picture = Picture["icon:/small/zoom-in"]
         Border = False
       }
-      { Spring1 Spring
-        MoveScaled(43,1,17,2)
-      }
-      { spnChange Spinner
-        MoveScaled(100,0,4,4)
-        Margin = True
-        Type = Spinner.Circle
-      }
     }
     { Separator1 Separator
       MoveScaled(29,9,22,0)
     }
-    { edtHistory TextEditor
-      MoveScaled(8,13,83,50)
+    { gvwHistory VersionControlHistoryView
+      MoveScaled(9,14,90,58)
       Expand = True
       Border = False
-      Highlight = "Custom"
-      ReadOnly = True
-      Wrap = True
-      ShowCursor = False
     }
     Index = 3
     Text = ("Terminal")

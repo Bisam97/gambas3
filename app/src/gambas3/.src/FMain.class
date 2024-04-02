@@ -1547,7 +1547,6 @@ Public Sub OnProjectChange()
   UpdateArguments
   UpdateDebugBrowser
   
-  If VersionControl.Enabled Then FProjectVersion.Load(panWorkspace)
   UpdateWorkspaceButtons  
   
   'If $bInOpenExtern Then Return
@@ -3615,6 +3614,7 @@ End
 Public Sub btnWorkspaceVersion_Click()
 
   Project.SetCurrentPopup(Null)
+  FProjectVersion.Load(panWorkspace)
   wrkProject.Hide
   FProjectVersion.Reload()
   FProjectVersion.Show()
