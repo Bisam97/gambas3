@@ -64,7 +64,7 @@ End
 
 Private Sub SaveLastCommitLog()
   
-  Project.Config["/FProjectVersion/LastCommit"] = RTrim(GetChanges())
+  If $bInitChanges Then Project.Config["/FProjectVersion/LastCommit"] = RTrim(GetChanges())
   
 End
 
@@ -404,7 +404,6 @@ Public Sub btnAddBranch_Click()
   VersionControl.AddBranch()
 
 End
-
 
 Public Sub btnLocateChange_Click()
 
