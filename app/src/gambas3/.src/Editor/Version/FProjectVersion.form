@@ -1,12 +1,12 @@
 # Gambas Form File 3.0
 
 { Form Form
-  MoveScaled(0,0,128,85)
+  MoveScaled(0,0,128,98)
   Expand = True
   Persistent = True
   Arrangement = Arrange.Fill
   { tabVersion TabPanel
-    MoveScaled(1,1,126,82)
+    MoveScaled(1,1,126,95)
     Arrangement = Arrange.Vertical
     Border = False
     Count = 4
@@ -14,7 +14,7 @@
     Text = ("Repository")
     Picture = Picture["icon:/small/version-control"]
     { tlbRepository ToolBar
-      MoveScaled(1,1,108,4)
+      MoveScaled(2,1,108,4)
       Key = "repository"
       ReadOnly = True
       Separator = True
@@ -39,15 +39,16 @@
         Text = ("Create new branch") & "..."
         Picture = Picture["icon:/small/add"]
       }
+      { Panel2 Panel
+        MoveScaled(70,1,10,2)
+        Expand = True
+      }
       { btnBrowse ToolButton
-        MoveScaled(85,0,16,4)
+        MoveScaled(89,0,16,4)
         Action = ".vc-browse"
         AutoResize = True
         Text = ("Browse") & "..."
         Picture = Picture["icon:/small/file-manager"]
-      }
-      { Spring2 Spring
-        MoveScaled(71,2,11,1)
       }
     }
     { panIdentity HBox
@@ -90,12 +91,23 @@
     { sepIdentity2 Separator
       MoveScaled(6,61,35,0)
     }
-    { edtStatus TextEditor
-      MoveScaled(10,63,51,12)
+    { svwStatus ScrollView
+      MoveScaled(5,64,93,23)
       Expand = True
+      Arrangement = Arrange.Vertical
       Border = False
-      ReadOnly = True
-      ShowCursor = False
+      { lblStatus Label
+        MoveScaled(0,0,48,4)
+        Font = Font["Bold,Underline"]
+        Padding = 2
+        Text = ("Repository status")
+      }
+      { edtStatus TextEditor
+        MoveScaled(0,5,51,12)
+        Border = False
+        ReadOnly = True
+        ShowCursor = False
+      }
     }
     Index = 1
     Text = ("Changes")
@@ -341,6 +353,6 @@
   { Toolbar repository
     Text = ""
     List = "vc-sync,vc-add,vc-branch,vc-browse"
-    Default = "vc-sync,vc-add,vc-branch,vc-browse,~"
+    Default = "vc-sync,vc-add,vc-branch,~,vc-browse"
   }
 }

@@ -143,7 +143,11 @@ Public Sub tabVersion_Click()
         UpdateInfo
         InitEditor(edtStatus)
         edtStatus.ShowPosition = False
+        edtStatus.ShowCurrent = False
         edtStatus.Text = VersionControl.Status(VersionControl.GetRoot())
+        edtStatus.H = edtStatus.ScrollH
+        lblStatus.Background = edtStatus.Background
+        lblStatus.Foreground = edtStatus.Foreground
         $bInitStatus = True
       Endif
       
@@ -208,6 +212,8 @@ Private Sub UpdateInfo()
   For I = 0 To gvwVcInfo.Rows.Count - 1
     gvwVcInfo.Rows[I].H = -1
   Next
+  
+  gvwVcInfo.H = gvwVcInfo.ScrollH
 
 Finally
   
