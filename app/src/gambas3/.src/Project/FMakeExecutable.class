@@ -9,7 +9,6 @@ Public Sub Run(sPath As String) As String
   
 End
 
-
 Public Sub Form_Open()
 
   Settings.Read(Me)
@@ -47,8 +46,18 @@ Public Sub Form_Open()
   chkShortcut.Visible = Project.Type = Project.TYPE_NORMAL
   txtCommand.Text = Project.RunAfterMakingExec
   
+  Project.SetEditorFont(txtCompilerCommand)
+  
+  UpdateCompilerCommand
+  
   tabExec.Index = 0
   
+End
+
+Private Sub UpdateCompilerCommand()
+
+  txtCompilerCommand.Text = Project.GetCompileCommand(True, chkDebug.Value, True, True, True)
+
 End
 
 Public Sub Form_Close()
@@ -123,5 +132,11 @@ Public Sub btnUndoVersion_Click()
   txtMajor.Value = Project.MajorVersion
   txtMinor.Value = Project.MinorVersion
   txtRelease.Value = Project.ReleaseVersion
+
+End
+
+Public Sub chkDebug_Click()
+
+  UpdateCompilerCommand
 
 End
