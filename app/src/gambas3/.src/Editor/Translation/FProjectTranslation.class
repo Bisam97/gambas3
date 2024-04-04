@@ -33,29 +33,17 @@ Private $bDeleteIfVoid As Boolean
 Private $cCacheImport As Collection
 Private $bStatValid As Boolean
 
-Static Private $sTranslateShell As String
-Static Private $sTranslateEngine As String
+Private $sTranslateShell As String
+Private $sTranslateEngine As String
 
-Static Public Sub Run()
-
-  If Project.GetClasses().Count = 0 Then
-    Message(("The project is void. There is nothing to translate."))
-    Return
-  Endif
-
-  If Settings["/AutomaticTranslation/Enabled"] Then
-    $sTranslateShell = System.Find("trans")
-    $sTranslateEngine = Settings["/AutomaticTranslation/Engine", "google"]
-  Else
-    $sTranslateShell = ""
-    $sTranslateEngine = ""
-  Endif
-  
-  FTranslate.ShowModal
-
-End
+Private $iTimeStamp As Integer
 
 Public Sub _new()
+
+  tabTranslate.AddButton(btnSpace, Align.Left)
+  tabTranslate.AddButton(btnWorkspace, Align.Left)
+  tabTranslate.ShowButton(btnSpace, False)
+  tabTranslate.ShowButton(btnWorkspace, True)
 
   With cvwTranslate
     .Columns.Count = 4
@@ -79,70 +67,38 @@ Public Sub _new()
     .AddColumn(("Size"),, Align.Right)
   End With
   
-  mnuAutoTrans.Enabled = $sTranslateShell
-  btnAutoTrans.Enabled = mnuAutoTrans.Enabled
-  
-  Project.SetSmallFont(panTransToolbar)
-  Project.SetSmallFont(panToolbar)
-  
 End
 
-' Private Sub GetTransCount(sLang As String) As Integer
-' 
-'   Dim hFile As File
-'   Dim iVal As Integer
-' 
-'   If Not Exist(Language.GetPath(sLang, "mo")) Then Return
-' 
-'   hFile = Open Language.GetPath(sLang, "mo")
-' 
-'   iVal = Read #hFile As Integer
-'   If (iVal = &H950412DE) Xor (System.ByteOrder = gb.BigEndian) Then
-'     hFile.ByteOrder = gb.LittleEndian
-'   Else
-'     hFile.ByteOrder = gb.BigEndian
-'   Endif
-'   iVal = Read #hFile As Integer
-'   iVal = Read #hFile As Integer
-' 
-'   Close #hFile
-' 
-'   Return iVal - 1
-' 
-' End
-
-Private Sub ComputeTransStat(sLang As String, Optional nTrans As Integer)
-
-  Dim nStr As Integer
-  Dim hTrans As CTranslation
-
-  If nTrans = 0 Then nTrans = cvwTranslateOrg.Count
-
-  hTrans = New CTranslation(sLang)
-  nStr = hTrans.Translations.Count
-
-  With cvwLang[sLang]
-    .[1] = Min(100, (nStr * 100) \ nTrans) & "% "
-    .[2] = CStr(nTrans - nStr) & " "
-    .[3] = sLang & ".po"
-    Try .[4] = Project.GetFileSize(Stat(MyLanguage.GetPath(sLang, "po")).Size)
-    .Picture = Picture["flag:/small/" & Language[sLang].Country]
-  End With
-
-End
-
-Public Sub Form_Open()
+Public Sub Reload(Optional bForce As Boolean)
 
   Dim sLang As String
   Dim sPath As String
   Dim sName As String
   Dim aName As String[]
 
+  If Project.TimeStamp = $iTimeStamp And If Not bForce And If Project.Dir = Project.PreviousDir Then Return
+  
+  $iTimeStamp = Project.TimeStamp
+  
+  ' If Project.GetClasses().Count = 0 Then
+  '   Message(("The project is void. There is nothing to translate."))
+  '   Return
+  ' Endif
+
   Inc Application.Busy
 
+  If Settings["/AutomaticTranslation/Enabled"] Then
+    $sTranslateShell = System.Find("trans")
+    $sTranslateEngine = Settings["/AutomaticTranslation/Engine", "google"]
+  Else
+    $sTranslateShell = ""
+    $sTranslateEngine = ""
+  Endif
+  
+  mnuAutoTrans.Enabled = $sTranslateShell
+  btnAutoTrans.Enabled = mnuAutoTrans.Enabled
+  
   $sLang = ""
-
-  Settings.Read(Me)
 
   $bStatValid = False
 
@@ -175,17 +131,58 @@ Public Sub Form_Open()
   If Not sPath Then sPath = System.User.Home
   pchImport.Path = sPath
   
-  Project.SetEditorFont(txtOrig)
-  Project.SetEditorFont(txtTranslate)
-
   Dec Application.Busy
 
-  If SetLang() Then
-    Me.Close
-    Return
-  Endif
+  tabTranslate.Enabled = Not SetLang()
 
   tabTranslate_Click
+
+End
+
+Public Sub OnProjectChange()
+  
+  Reload()
+  
+End
+
+Public Sub OnProjectClose()
+  
+  SaveCurrentTranslation()
+  
+End
+
+Public Sub ReadConfig()
+  
+  Project.SetSmallFont(tlbLanguage)
+  Project.SetSmallFont(tlbTranslate)
+  Project.SetEditorFont(txtOrig)
+  Project.SetEditorFont(txtTranslate)
+  
+End
+
+Private Sub ComputeTransStat(sLang As String, Optional nTrans As Integer)
+
+  Dim nStr As Integer
+  Dim hTrans As CTranslation
+
+  If nTrans = 0 Then nTrans = cvwTranslateOrg.Count
+
+  hTrans = New CTranslation(sLang)
+  nStr = hTrans.Translations.Count
+
+  With cvwLang[sLang]
+    .[1] = Min(100, (nStr * 100) \ nTrans) & "% "
+    .[2] = CStr(nTrans - nStr) & " "
+    .[3] = sLang & ".po"
+    Try .[4] = Project.GetFileSize(Stat(MyLanguage.GetPath(sLang, "po")).Size)
+    .Picture = Picture["flag:/small/" & Language[sLang].Country]
+  End With
+
+End
+
+Public Sub Form_Open()
+
+  ReadConfig()
 
 End
 
@@ -318,6 +315,7 @@ Private Sub SetLang(Optional sLang As String) As Boolean
   If Not Error Then cmbLang.Add(sName)
   'If Not Error And If chkStat.Value Then cvwLang[$sLang][1] = "0%"
 
+  picLangSource.Picture = Picture["flag:/small/" & Language[If(sLangSrc, sLangSrc, Project.DefaultLanguage)].Country]
   picLang.Picture = Picture["flag:/small/" & Language[$sLang].Country]
 
   'Try cvwLang[$sLang].Selected = True
@@ -325,7 +323,7 @@ Private Sub SetLang(Optional sLang As String) As Boolean
 
   DisplayTrans
   
-  Me.Title = ("Project translation") & " - " & cmbLang.Text & " - " & $sLang & ".po"
+  'Me.Title = ("Project translation") & " - " & cmbLang.Text & " - " & $sLang & ".po"
   
 Finally
 
@@ -1130,7 +1128,7 @@ Public Sub btnVerify_Click()
       Endif
 
       If .Item.Key = sKey Then
-        Balloon.Info(("Everything seems to be correct."), btnVerify)
+        Message.Info(("Everything seems to be correct."))
         Return
       Endif
 
@@ -1140,7 +1138,7 @@ Public Sub btnVerify_Click()
           If GetSymbols(.Item[0]) <> GetSymbols(.Item[1]) Then
             .Item.EnsureVisible
             .Item.Selected = True
-            Balloon.Warning(("Translated string symbols do not match untranslated string ones."), txtTranslate)
+            Message.Warning(("Translated string symbols do not match untranslated string ones."))
             Return
           Endif
 
@@ -1161,17 +1159,7 @@ End
 
 Private Sub DisplayTrans()
 
-  Dim nNotTrans As Integer
-
-  nNotTrans = cvwTranslate.Count - $nTrans
-
-  If nNotTrans = 0 Then
-    lblInfo.Text = Subst(("&1 strings. Everything is translated!"), Format(cvwTranslate.Count, ",0"), nNotTrans)
-  Else If nNotTrans = 1 Then
-    lblInfo.Text = Subst(("&1 strings. One is not translated. &3% done."), cvwTranslate.Count, nNotTrans, ($nTrans * 100) \ cvwTranslateOrg.Count)
-  Else
-    lblInfo.Text = Subst(("&1 strings. &2 are not translated. &3% done."), cvwTranslate.Count, nNotTrans, ($nTrans * 100) \ cvwTranslateOrg.Count)
-  Endif
+  Project.UpdateStatus(True)
   
   btnNextUntranslated.Enabled = cvwTranslate.Count - $nTrans
   btnPreviousUntranslated.Enabled = btnNextUntranslated.Enabled
@@ -1226,6 +1214,13 @@ Private Sub ResizeTable()
       .Columns[I].Width = 0
     Next
   End With
+  
+  If cvwTranslate.ScrollH > cvwTranslate.ClientH Then
+    panSpaceAfter.Show
+    panSpaceAfter.W = Style.ScrollbarSize
+  Else
+    panSpaceAfter.Hide
+  Endif
 
 End
 
@@ -1307,16 +1302,6 @@ Private Sub MergeMessage(sPath As String, sOption As String)
     Try Kill sTemp
     Error.Raise(Subst$(("The '&1' command has failed."), "msgmerge"))
   Endif
-
-End
-
-Public Sub Form_Close()
-
-  Inc Application.Busy
-  If cmbFileChoice.Index <> 0 Then ShiftToSort
-  SaveTranslate
-  Settings.Write(Me)
-  Dec Application.Busy
 
 End
 
@@ -1951,4 +1936,64 @@ Catch
   Application.Busy = 0
   FMain.ShowErrorWith(("Cannot import translation file."), Error.Text & $sErrMerge)
 
+End
+
+Public Sub PaintStatus()
+
+  Dim hStatus As New CStatus
+  
+  Dim nNotTrans As Integer
+
+  nNotTrans = cvwTranslate.Count - $nTrans
+
+  ' If nNotTrans = 0 Then
+  '   $sStatus = Subst(("&1 strings. Everything is translated!"), "<b>" & Format(cvwTranslate.Count, ",0") & "</b>", nNotTrans)
+  ' Else If nNotTrans = 1 Then
+  '   $sStatus = Subst(("&1 strings. One is not translated. &3% done."), "<b>" & Format(cvwTranslate.Count, ",0") & "</b>", nNotTrans, "<b>" & CStr(($nTrans * 100) \ cvwTranslateOrg.Count) & "</b>")
+  ' Else
+  '   $sStatus = Subst(("&1 strings. &2 are not translated. &3% done."), "<b>" & Format(cvwTranslate.Count, ",0") & "</b>", "<b>" & Format(nNotTrans, ",0") & "</b>", "<b>" & CStr(($nTrans * 100) \ cvwTranslateOrg.Count) & "</b>")
+  ' Endif
+
+  If nNotTrans = 0 Then
+    hStatus.PaintRichText("<b>" & ("Everything is translated!") & "</b>")
+  Else
+    hStatus.PaintRichText(Subst(("&1 done"), "<b>" & CStr(($nTrans * 100) \ cvwTranslateOrg.Count) & "</b> %"))
+    hStatus.Space()
+    hStatus.Paint("•")
+    hStatus.Space()
+    If nNotTrans = 1 Then
+      hStatus.Paint(("One is not translated"))
+    Else
+      hStatus.PaintRichText(Subst(("&1 are not translated"), "<b>" & Format(nNotTrans, ",0") & "</b>"))
+    Endif
+  Endif
+
+  hStatus.Space()
+  hStatus.Paint("•")
+  hStatus.Space()
+  hStatus.PaintRichText(Subst(("&1 strings"), "<b>" & Format(cvwTranslate.Count, ",0") & "</b>"))
+
+End
+
+Public Sub UpdateWorkspaceButtons(bShowSpace As Boolean)
+  
+  tabTranslate.ShowButton(btnSpace, bShowSpace)
+  
+End
+
+Private Sub SaveCurrentTranslation()
+
+  Inc Application.Busy
+  If cmbFileChoice.Index <> 0 Then ShiftToSort
+  SaveTranslate
+  Dec Application.Busy
+
+End
+
+
+Public Sub btnWorkspace_Click()
+
+  SaveCurrentTranslation()
+  FMain.CloseCurrentWorkspace
+  
 End

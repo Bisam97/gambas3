@@ -2,7 +2,6 @@
 
 Static Private $aIconSize As Integer[] = [16, 22, 32, 48, 64, 96, 128, 192, 256]
 
-Private $bProjectHasChanged As Boolean = True
 Private $bCut As Boolean
 
 Private $hView As FileView
@@ -33,9 +32,6 @@ Public Sub Form_Open()
   
   Settings.Read(fvwProject)
   
-  $bProjectHasChanged = True
-  Reload
-  
 End
 
 Private Sub SetDir(sDir As String)
@@ -45,22 +41,12 @@ Private Sub SetDir(sDir As String)
   
 End
 
-Private Sub Reload()
+Public Sub Reload()
   
-  If $bProjectHasChanged Then 
-    mnuViewSingle_Click
-    dbrProject.Root = Project.Dir
-    dbrProject2.Root = Project.Dir
-    SetDir(Project.Dir)
-    $bProjectHasChanged = False
-  Endif
-  
-End
-
-Public Sub OnProjectChange()
-  
-  $bProjectHasChanged = True
-  Reload
+  mnuViewSingle_Click
+  dbrProject.Root = Project.Dir
+  dbrProject2.Root = Project.Dir
+  SetDir(Project.Dir)
   
 End
 

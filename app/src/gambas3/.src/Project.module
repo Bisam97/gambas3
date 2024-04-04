@@ -896,8 +896,6 @@ _INIT_AGAIN:
     FMain.OnProjectChange
     FSearch.OnProjectChange
     If Class.IsLoaded("FHelpBrowser") Then FHelpBrowser.OnProjectChange
-    If Class.IsLoaded("FProjectBrowser") Then FProjectBrowser.OnProjectChange
-    If Class.IsLoaded("FProjectVersion") Then FProjectVersion.OnProjectChange
     'FOpenProject.OnUpdateRecent
     
   Endif
@@ -1100,7 +1098,7 @@ Public Function CloseProject() As Boolean
 
     Configuration.OnProjectClose()
     FImageProperty.OnProjectClose()
-    If Class.IsLoaded("FProjectVersion") Then FProjectVersion.OnProjectClose()
+    FMain.OnProjectClose()
 
     If Not IsFake() Then Breakpoints.Save()
 

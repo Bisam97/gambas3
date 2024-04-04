@@ -44,3 +44,24 @@ Public Sub Paint(sText As String, Optional iWidth As Integer, bBold As Boolean, 
   If bBold Then Paint.Font.Bold = False
   
 End
+
+Public Sub PaintRichText(sText As String, Optional iWidth As Integer, bBold As Boolean, bRight As Boolean)
+  
+  If bBold Then Paint.Font.Bold = True
+  If iWidth = 0 Then iWidth = Paint.Font.RichTextWidth(sText)
+   
+  If System.RightToLeft Then
+    
+    Paint.DrawRichText(sText, $X, 0, iWidth, Paint.H, If(bRight, Align.Left, Align.Right))
+    $X += iWidth
+    
+  Else
+    
+    $X -= iWidth
+    Paint.DrawRichText(sText, $X, 0, iWidth, Paint.H, If(bRight, Align.Right, Align.Left))
+    
+  Endif
+  
+  If bBold Then Paint.Font.Bold = False
+  
+End

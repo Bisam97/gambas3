@@ -29,7 +29,7 @@ Private $iTabBarHeight As Integer
 
 Private $bFirstShowDebug As Boolean
 
-Private Enum WORKSPACE_PROJECT, WORKSPACE_BROWSER, WORKSPACE_VERSION
+Public Enum WORKSPACE_PROJECT, WORKSPACE_BROWSER, WORKSPACE_VERSION, WORKSPACE_TRANSLATION
 
 Private $iCurrentWorkspace As Integer
 Private $sProjectFilter As String
@@ -1132,20 +1132,6 @@ Public Sub UpdateConsoleAction()
   
 End
 
-Private Sub Translate()
-  
-  If Project.Running Then Return
-  If Project.Compile() Then Return
-  
-  If Project.CheckProgram("msgmerge") Or If Project.CheckProgram("msgfmt") Then
-    Message.Warning(("The GNU translation tools are not installed on your system.\n\nPlease install them to be able to do the translation."))
-    Return
-  Endif
-  
-  FTranslate.Run
-  
-End
-
 Public Sub mnuDatabaseManager_Click()
   
   'Project.RunTool("gambas" & System.Version & "-database-manager")
@@ -1572,6 +1558,30 @@ Public Sub OnProjectChange()
   'RefreshInfo
   'IF $bHidden THEN HideAll
   
+  CloseCurrentWorkspace
+  
+  ' Select Case $iCurrentWorkspace
+  '   Case WORKSPACE_BROWSER
+  '     FProjectBrowser.OnProjectChange
+  '   Case WORKSPACE_VERSION
+  '     FProjectVersion.OnProjectChange
+  '   Case WORKSPACE_TRANSLATION
+  '     FProjectTranslation.OnProjectChange
+  ' End Select
+  
+End
+
+Public Sub OnProjectClose()
+  
+  Select Case $iCurrentWorkspace
+    Case WORKSPACE_VERSION
+      FProjectVersion.OnProjectClose
+    Case WORKSPACE_TRANSLATION
+      FProjectTranslation.OnProjectClose
+  End Select
+  
+  CloseCurrentWorkspace
+  
 End
 
 Public Sub timSetFocus_Timer()
@@ -1739,8 +1749,6 @@ Public Sub Action_Activate((Key) As String) As Boolean
       Project.RefreshAll
     Case "project-property"
       FProjectProperty.Run() 'Then Project.Refresh
-    Case "translate"
-      Translate
     Case "compile"
       Project.Compile()
     Case "compile-all"
@@ -3595,37 +3603,59 @@ Public Sub mnuDebugBrowser_Click()
   
 End
 
-Public Sub btnWorkspaceBrowse_Click()
-  
+Public Sub ShowWorkspace(iWorkspace As Integer)
+
+  CloseCurrentWorkspace()
+  If iWorkspace = WORKSPACE_PROJECT Then Return
+
   Project.SetCurrentPopup(Null)
-  FProjectBrowser.Load(panWorkspace)
+  
+  Select Case iWorkspace
+    Case WORKSPACE_BROWSER
+      FProjectBrowser.Load(panWorkspace)
+      FProjectBrowser.Reload()
+      FProjectBrowser.Show
+    Case WORKSPACE_VERSION
+      FProjectVersion.Load(panWorkspace)
+      FProjectVersion.Reload()
+      FProjectVersion.Show
+    Case WORKSPACE_TRANSLATION
+      FProjectTranslation.Load(panWorkspace)
+      FProjectTranslation.Reload()
+      FProjectTranslation.Show
+  End Select
+  
   wrkProject.Hide
-  FProjectBrowser.Show
-  $iCurrentWorkspace = WORKSPACE_BROWSER
+  $iCurrentWorkspace = iWorkspace
   UpdateProperty
   UpdateWorkspaceButtons
   Project.UpdateStatus(True)
+
+End
+
+Public Sub btnWorkspaceBrowse_Click()
+  
+  ShowWorkspace(WORKSPACE_BROWSER)
   
 End
 
 Public Sub btnWorkspaceVersion_Click()
 
-  Project.SetCurrentPopup(Null)
-  FProjectVersion.Load(panWorkspace)
-  wrkProject.Hide
-  FProjectVersion.Reload()
-  FProjectVersion.Show()
-  $iCurrentWorkspace = WORKSPACE_VERSION
-  UpdateProperty
-  UpdateWorkspaceButtons
-  Project.UpdateStatus(True)
+  ShowWorkspace(WORKSPACE_VERSION)
 
 End
 
-Public Sub ShowVersionWorkspace()
+Public Sub btnWorkspaceTranslation_Click()
   
-  CloseCurrentWorkspace()
-  btnWorkspaceVersion_Click
+  If Project.Running Then Return
+  If Project.Compile() Then Return
+  
+  If Project.CheckProgram("msgmerge") Or If Project.CheckProgram("msgfmt") Then
+    Message.Warning(("The GNU translation tools are not installed on your system.\n\nPlease install them to be able to do the translation."))
+    Return
+  Endif
+  
+  ShowWorkspace(WORKSPACE_TRANSLATION)
   
 End
 
@@ -3639,6 +3669,8 @@ Public Sub CloseCurrentWorkspace()
       FProjectBrowser.Hide
     Case WORKSPACE_VERSION
       FProjectVersion.Hide
+    Case WORKSPACE_TRANSLATION
+      FProjectTranslation.Hide
   End Select
   $iCurrentWorkspace = WORKSPACE_PROJECT
   UpdateProperty
@@ -3654,6 +3686,8 @@ Public Sub PaintStatus()
     Case WORKSPACE_BROWSER
       FProjectBrowser.PaintStatus()
     Case WORKSPACE_VERSION
+    Case WORKSPACE_TRANSLATION
+      FProjectTranslation.PaintStatus()
     Case Else
       Try Project.ActiveForm.PaintStatus()
   End Select
@@ -3784,6 +3818,8 @@ Public Sub OnProjectTimestamp()
     Case WORKSPACE_BROWSER
     Case WORKSPACE_VERSION
       FProjectVersion.Reload()
+    Case WORKSPACE_TRANSLATION
+      FProjectTranslation.Reload()
   End Select
   
 End

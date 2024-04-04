@@ -28,7 +28,7 @@ End
 
 Public Sub Reload(Optional bForce As Boolean)
   
-  If Project.TimeStamp = $iTimeStamp And If Not bForce Then Return
+  If Project.TimeStamp = $iTimeStamp And If Not bForce And If Project.Dir = Project.PreviousDir Then Return
   
   $iTimeStamp = Project.TimeStamp
   
@@ -81,15 +81,15 @@ Public Sub btnWorkspace_Click()
   
 End
 
-Public Sub OnProjectChange()
-  
-  If Project.Dir <> Project.PreviousDir Then
-    Reload(True)
-    trmVersionControl.Clear()
-  Endif
-  
-End
-
+' Public Sub OnProjectChange()
+'   
+'   If Project.Dir <> Project.PreviousDir Then
+'     Reload(True)
+'     trmVersionControl.Clear()
+'   Endif
+'   
+' End
+' 
 Public Sub OnProjectClose()
   
   Try trmVersionControl.Kill

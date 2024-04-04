@@ -1,17 +1,15 @@
 # Gambas Form File 3.0
 
 { Form Form
-  MoveScaled(0,0,116,76)
-  Text = ("Project translation")
-  Icon = Picture["icon:/small/language"]
+  MoveScaled(0,0,118,94)
+  Expand = True
   Persistent = True
-  Arrangement = Arrange.Vertical
-  Spacing = True
+  Arrangement = Arrange.Fill
   { mnuTranslation Menu
     Visible = False
     { mnuNew Menu
       Text = Shortcut(("New"), "N") & "..."
-      Picture = Picture["icon:/small/new"]
+      Picture = Picture["icon:/small/add"]
     }
     { mnuReload Menu
       Text = Shortcut(("Reload"), "R")
@@ -62,111 +60,124 @@
     }
   }
   { tabTranslate TabPanel
-    MoveScaled(2,1,107,72)
+    MoveScaled(1,2,115,86)
     Expand = True
     Arrangement = Arrange.Vertical
     Border = False
     Count = 4
     Index = 0
     Text = ("Translation")
-    { panTranslate VBox
-      MoveScaled(1,1,105,6)
-      Spacing = True
-      Margin = True
-      { HBox2 HBox
-        MoveScaled(1,0,102,4)
-        { btnMenu MenuButton
-          MoveScaled(0,0,6,4)
-          AutoResize = True
-          Picture = Picture["icon:/small/language"]
-          Border = False
-          Menu = "mnuTranslation"
-          MenuOnly = True
-        }
-        { Panel2 Panel
-          MoveScaled(6,0,1,4)
-        }
-        { cmbLangSource ComboBox
-          MoveScaled(7,0,21,4)
-          Expand = True
-          ReadOnly = True
-        }
-        { PictureBox2 PictureBox
-          MoveScaled(28,0,4,4)
-          Picture = Picture.Load("icon:/small/right")
-          Alignment = Align.Center
-        }
-        { picLang PictureBox
-          MoveScaled(33,0,3,4)
-          Alignment = Align.Center
-        }
-        { cmbLang ComboBox
-          MoveScaled(38,0,12,4)
-          Font = Font["Bold"]
-          Expand = True
-          ReadOnly = True
-        }
-        { btnNew ToolButton mnuNew
-          Name = "btnNew"
-          MoveScaled(50,0,4,4)
-          ToolTip = ("Add a new translation")
-          Picture = Picture["icon:/small/add"]
-        }
-        { Panel8 Panel
-          MoveScaled(55,0,3,4)
-        }
-        { Label1 Label
-          MoveScaled(63,0,7,4)
-          AutoResize = True
-          Text = ("Show")
-        }
-        { Panel9 Panel
-          MoveScaled(72,0,1,4)
-        }
-        { cmbFileChoice ComboBox
-          MoveScaled(76,0,24,4)
-          Expand = True
-          ReadOnly = True
-        }
+    Picture = Picture["icon:/small/language"]
+    { tlbLanguage ToolBar
+      MoveScaled(1,1,113,4)
+      Key = "language"
+      ReadOnly = True
+      { btnSave ToolButton
+        MoveScaled(0,0,9,4)
+        ToolTip = ("Save translation")
+        Action = "tr-save"
+        AutoResize = True
+        Text = ("Save")
+        Picture = Picture["icon:/small/save"]
+      }
+      { btnNew ToolButton mnuNew
+        Name = "btnNew"
+        MoveScaled(9,0,9,4)
+        ToolTip = ("Add a new translation")
+        Action = "tr-new-language"
+        AutoResize = True
+        Text = ("New") & "..."
+        Picture = Picture["icon:/small/add"]
+      }
+      { btnVerify ToolButton
+        MoveScaled(18,0,11,4)
+        ToolTip = ("Verify the translation")
+        Action = "tr-verify"
+        AutoResize = True
+        Text = ("Verify") & "..."
+        Picture = Picture["icon:/small/apply"]
+      }
+      { btnMenu MenuButton
+        MoveScaled(29,0,6,4)
+        Action = "tr-menu"
+        AutoResize = True
+        Picture = Picture["icon:/small/menu"]
+        Border = False
+        Menu = "mnuTranslation"
+        MenuOnly = True
+      }
+      { Panel9 Panel
+        MoveScaled(45,0,1,4)
+      }
+      { txtFind ButtonBox
+        MoveScaled(50,0,15,4)
+        Expand = True
+        Picture = Picture["icon:/small/find"]
+      }
+      { Panel2 HBox
+        MoveScaled(66,0,4,4)
+      }
+      { Label1 Label
+        MoveScaled(71,0,5,4)
+        AutoResize = True
+        Text = ("Show")
+      }
+      { Panel8 Panel
+        MoveScaled(76,0,1,4)
+      }
+      { cmbFileChoice ComboBox
+        MoveScaled(78,0,34,4)
+        Font = Font["Bold"]
+        ReadOnly = True
+        Border = False
       }
     }
     { Separator6 Separator
       MoveScaled(30,8,10,0)
     }
-    { panToolbar HBox
-      MoveScaled(3,10,91,4)
-      { btnSave ToolButton
-        MoveScaled(0,0,9,4)
-        ToolTip = ("Save translation")
-        AutoResize = True
-        Text = ("Save")
-        Picture = Picture["icon:/small/save"]
-      }
-      { btnVerify ToolButton
-        MoveScaled(12,0,11,4)
-        ToolTip = ("Verify the translation")
-        AutoResize = True
-        Text = ("Verify")
-        Picture = Picture["icon:/small/apply"]
-      }
-      { Separator7 Separator
-        MoveScaled(25,0,0,4)
-      }
-      { txtFind ButtonBox
-        MoveScaled(33,0,16,4)
+    { HBox2 HBox
+      MoveScaled(0,12,98,4)
+      { Panel4 HBox
+        MoveScaled(9,0,31,4)
         Expand = True
-        Picture = Picture["icon:/small/find"]
-        Border = False
+        { picLangSource PictureBox
+          MoveScaled(0,0,4,4)
+          Alignment = Align.Center
+        }
+        { cmbLangSource ComboBox
+          MoveScaled(5,0,21,4)
+          Expand = True
+          ReadOnly = True
+          Border = False
+        }
+      }
+      { Panel6 HBox
+        MoveScaled(61,0,22,4)
+        Expand = True
+        { picLang PictureBox
+          MoveScaled(0,0,4,4)
+          Alignment = Align.Center
+        }
+        { cmbLang ComboBox
+          MoveScaled(5,0,12,4)
+          Font = Font["Bold"]
+          Expand = True
+          ReadOnly = True
+          Border = False
+        }
+      }
+      { panSpaceAfter Panel
+        MoveScaled(89,0,3,4)
       }
     }
-    { Separator2 Separator
-      MoveScaled(21,15,11,0)
+    { Separator1 Separator
+      MoveScaled(39,18,21,0)
     }
     { VSplit1 VSplit
-      MoveScaled(1,17,98,44)
+      MoveScaled(1,25,98,44)
       Expand = True
       { cvwTranslate ColumnView
-        MoveScaled(7,2,70,8)
+        MoveScaled(3,4,70,8)
         Expand = True
         Sorted = True
         Header = False
@@ -199,16 +210,20 @@
         { Separator5 Separator
           MoveScaled(3,13,15,0)
         }
-        { panTransToolbar HBox
+        { tlbTranslate ToolBar
           MoveScaled(1,15,82,4)
+          Key = "translate"
+          ReadOnly = True
           { btnNextTranslated ToolButton
             MoveScaled(0,0,4,4)
             ToolTip = ("Find next translated string")
+            Action = "tr-down"
             Picture = Picture["icon:/small/down"]
           }
           { btnPreviousTranslated ToolButton
             MoveScaled(4,0,4,4)
             ToolTip = ("Find previous translated string")
+            Action = "tr-up"
             Picture = Picture["icon:/small/up"]
           }
           { Separator10 Separator
@@ -217,21 +232,25 @@
           { btnFirstUntranslated ToolButton
             MoveScaled(9.125,0,4,4)
             ToolTip = ("Find first untranslated string")
+            Action = "tr-first"
             Picture = Picture["icon:/small/start"]
           }
           { btnPreviousUntranslated ToolButton
             MoveScaled(13,0,4,4)
             ToolTip = ("Find previous untranslated string")
+            Action = "tr-previous"
             Picture = Picture["icon:/small/rewind"]
           }
           { btnNextUntranslated ToolButton
             MoveScaled(17,0,4,4)
             ToolTip = ("Find next untranslated string")
+            Action = "tr-next"
             Picture = Picture["icon:/small/forward"]
           }
           { btnLastUntranslated ToolButton
             MoveScaled(21,0,4,4)
             ToolTip = ("Find last untranslated string")
+            Action = "tr-last"
             Picture = Picture["icon:/small/end"]
           }
           { Separator9 Separator
@@ -240,20 +259,24 @@
           { btnClear ToolButton
             MoveScaled(30,0,4,4)
             ToolTip = ("Clear this translation")
+            Action = "tr-clear"
             Picture = Picture["icon:/small/delete"]
           }
           { btnDoNotTranslate ToolButton
             MoveScaled(34,0,4,4)
             ToolTip = ("This string must not be translated")
+            Action = "tr-do-not-translate"
             Picture = Picture["icon:/small/warning"]
           }
           { btnCopy ToolButton
             MoveScaled(38,0,4,4)
             ToolTip = ("Copy untranslated string")
+            Action = "tr-copy"
             Picture = Picture["icon:/small/copy"]
           }
           { btnAutoTrans ToolButton
             MoveScaled(43,0,26,4)
+            Action = "tr-auto-trans"
             AutoResize = True
             Text = ("Automatic translation")
             Picture = Picture["icon:/small/fill"]
@@ -274,34 +297,6 @@
             Border = False
           }
         }
-      }
-    }
-    { Separator1 Separator
-      MoveScaled(15,62,15,0)
-    }
-    { HBox6 Panel
-      MoveScaled(1,63,102,4)
-      Arrangement = Arrange.Horizontal
-      AutoResize = True
-      Spacing = True
-      Margin = True
-      { PictureBox3 PictureBox
-        MoveScaled(0,0,4,4)
-        Picture = Picture.Load("icon:/medium/info")
-        AutoResize = True
-        Alignment = Align.Center
-      }
-      { lblInfo Label
-        MoveScaled(11,0,9,3)
-        Expand = True
-        AutoResize = True
-      }
-      { btnOK Button
-        MoveScaled(83,0,18,4)
-        AutoResize = True
-        Text = Shortcut(("Close"), "C")
-        Picture = Picture["icon:/small/close"]
-        Cancel = True
       }
     }
     Index = 1
@@ -387,5 +382,92 @@
       }
     }
     Index = 0
+  }
+  { btnSpace ToolButton
+    MoveScaled(76,1,4,4)
+    Visible = False
+    Background = Color.Background
+    Ignore = True
+  }
+  { btnWorkspace ToolButton
+    MoveScaled(82,1,4,4)
+    Background = Color.Background
+    ToolTip = ("Show project files")
+    Ignore = True
+    Picture = Picture["icon:/small/previous"]
+  }
+}
+
+# Gambas Action File 3.0
+
+{ Actions
+  { Action tr-auto-trans
+    Text = "Automatic translation"
+    Picture = "icon:/small/fill"
+  }
+  { Action tr-clear
+    Text = "Clear this translation"
+    Picture = "icon:/small/delete"
+  }
+  { Action tr-copy
+    Text = "Copy untranslated string"
+    Picture = "icon:/small/copy"
+  }
+  { Action tr-do-not-translate
+    Text = "This string must not be translated"
+    Picture = "icon:/small/warning"
+  }
+  { Action tr-down
+    Text = "Find next translated string"
+    Picture = "icon:/small/down"
+  }
+  { Action tr-first
+    Text = "Find first untranslated string"
+    Picture = "icon:/small/start"
+  }
+  { Action tr-last
+    Text = "Find last untranslated string"
+    Picture = "icon:/small/end"
+  }
+  { Action tr-menu
+    Text = ""
+    Picture = "icon:/small/menu"
+  }
+  { Action tr-new-language
+    Text = "New"
+    Picture = "icon:/small/add"
+  }
+  { Action tr-next
+    Text = "Find next untranslated string"
+    Picture = "icon:/small/forward"
+  }
+  { Action tr-previous
+    Text = "Find previous untranslated string"
+    Picture = "icon:/small/rewind"
+  }
+  { Action tr-save
+    Text = "Save"
+    Picture = "icon:/small/save"
+  }
+  { Action tr-up
+    Text = "Find previous translated string"
+    Picture = "icon:/small/up"
+  }
+  { Action tr-verify
+    Text = "Verify"
+    Picture = "icon:/small/apply"
+  }
+}
+
+{ Toolbars
+  { Toolbar language
+    Text = ""
+    List = "tr-save,tr-new-language,tr-verify,tr-menu"
+    Default = "tr-save,tr-new-language,tr-verify,tr-menu,-,$txtFind,$Panel2,$Label1,-,$cmbFileChoice"
+  }
+  { Toolbar translate
+    Text = ""
+    List = "tr-down,tr-up,tr-first,tr-previous,tr-next,tr-last,tr-clear,tr-do-not-translate,tr-copy,tr-auto-trans"
+    Default = "tr-down,tr-up,|,tr-first,tr-previous,tr-next,tr-last,|,tr-clear,tr-do-not-translate,tr-copy,tr-auto-trans"
   }
 }
