@@ -148,7 +148,7 @@ Public Sub _new()
   
   Me.Proxy = $hView
   
-  $bNoRoot = Me Is ListView
+  $bNoRoot = True 'Me Is ListView
   GridView_Font
   
   $hRoot = New _TreeView_Item("", "") As "Item"
@@ -224,6 +224,7 @@ Public Sub _Add((Key) As String, Text As String, Optional (Picture) As Picture, 
   
   If Parent Then
     hParent = $cItem[Parent]
+    $bNoRoot = False
   Else
     hParent = $hRoot
   Endif
