@@ -2161,11 +2161,11 @@ Public Sub DeleteCompiledFiles()
 
 End
 
-Public Function GetCompileCommand(bAll As Boolean, bNoDebug As Boolean, bMakeExecutable As Boolean, bIDE As Boolean) As String
+Public Function GetCompileCommand(bAll As Boolean, bNoDebug As Boolean, bMakeExecutable As Boolean, bIDE As Boolean, Optional bShowCommand As Boolean) As String
 
   Dim sExec As String
 
-  If bIDE Then
+  If bIDE And If Not bShowCommand Then
     sExec = System.Path &/ "bin/gbc" & System.Version
   Else
     sExec = "gbc" & System.Version
@@ -2186,8 +2186,8 @@ Public Function GetCompileCommand(bAll As Boolean, bNoDebug As Boolean, bMakeExe
       sExec &= "-w "
       If CheckVariablePrefix Then sExec &= "-fcheck-prefix "
     Endif
-    sExec = sExec & Shell$(Project.Dir)
-    sExec = sExec & " > " & OUTPUT_FILE & " 2>&1"
+    sExec &= Shell$(Project.Dir)
+    If Not bShowCommand Then sExec &= " > " & OUTPUT_FILE & " 2>&1"
   Endif
 
   Return sExec
