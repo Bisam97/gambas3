@@ -1,7 +1,7 @@
 # Gambas Form File 3.0
 
 { Form Form
-  MoveScaled(0,0,128,98)
+  MoveScaled(0,0,127,98)
   Expand = True
   Persistent = True
   Arrangement = Arrange.Fill
@@ -20,21 +20,21 @@
       Separator = True
       { btnUpdate ToolButton
         MoveScaled(0,0,20,4)
-        Action = ".vc-sync"
+        Action = "vc-sync"
         AutoResize = True
         Text = ("Synchronize") & "..."
         Picture = Picture["icon:/small/download"]
       }
       { btnAddAll ToolButton
         MoveScaled(21,0,21,4)
-        Action = ".vc-add"
+        Action = "vc-add"
         AutoResize = True
         Text = ("Add all new files")
         Picture = Picture["icon:/small/added"]
       }
       { btnAddBranch ToolButton
         MoveScaled(43,0,24,4)
-        Action = ".vc-branch"
+        Action = "vc-branch"
         AutoResize = True
         Text = ("Create new branch") & "..."
         Picture = Picture["icon:/small/add"]
@@ -45,7 +45,7 @@
       }
       { btnBrowse ToolButton
         MoveScaled(89,0,16,4)
-        Action = ".vc-browse"
+        Action = "vc-browse"
         AutoResize = True
         Text = ("Browse") & "..."
         Picture = Picture["icon:/small/file-manager"]
@@ -124,7 +124,7 @@
           Separator = True
           { btnCommit ToolButton
             MoveScaled(1,0,13,4)
-            Action = ".vc-commit"
+            Action = "vc-commit"
             AutoResize = True
             Text = ("Commit")
             Picture = Picture["icon:/small/apply"]
@@ -132,7 +132,7 @@
           { btnCommitPush ToolButton btnCommit
             Name = "btnCommitPush"
             MoveScaled(15,0,21,4)
-            Action = ".vc-commit-push"
+            Action = "vc-commit-push"
             AutoResize = True
             Text = ("Commit and push") & "..."
             Picture = Picture["icon:/small/upload"]
@@ -140,14 +140,14 @@
           { btnPush ToolButton btnCommit
             Name = "btnPush"
             MoveScaled(38,0,11,4)
-            Action = ".vc-push"
+            Action = "vc-push"
             AutoResize = True
             Text = ("Push") & "..."
             Picture = Picture["icon:/small/upload"]
           }
           { btnRevert ToolButton
             MoveScaled(49,0,18,4)
-            Action = ".vc-revert"
+            Action = "vc-revert"
             AutoResize = True
             Text = Shortcut(("Undo changes"), "U")
             Picture = Picture["icon:/small/undo"]
@@ -181,14 +181,14 @@
           Separator = True
           { btnLocateChange ToolButton
             MoveScaled(0,0,17,4)
-            Action = ".vc-locate"
+            Action = "vc-locate"
             AutoResize = True
             Text = ("Locate change")
             Picture = Picture["icon:/small/find"]
           }
           { btnHideTrans ToggleButton
             MoveScaled(18,0,26,4)
-            Action = ".vc-hide-translation"
+            Action = "vc-hide-translation"
             AutoResize = True
             Text = ("Hide translation changes")
             Picture = Picture["icon:/small/language"]
@@ -196,7 +196,7 @@
           }
           { btnHideSpace ToggleButton
             MoveScaled(45,0,22,4)
-            Action = ".vc-hide-space"
+            Action = "vc-hide-space"
             AutoResize = True
             Text = ("Hide space changes")
             Picture = Picture["icon:/small/select"]
@@ -216,46 +216,42 @@
     }
     Index = 2
     Text = ("History")
-    { panHistory HBox
-      MoveScaled(0,1,126,4)
+    { tlbHistory ToolBar
+      MoveScaled(-1,1,124,4)
+      Key = "history"
+      ReadOnly = True
+      Separator = True
       { btnDefaultBranch ToolButton
-        MoveScaled(0,0,4,4)
+        MoveScaled(1,0,4,4)
+        Action = "vc-default-branch"
         Picture = Picture["icon:/small/tag"]
       }
       { cmbBranch ComboBox
-        MoveScaled(6,0,32,3)
+        MoveScaled(5,0,32,3)
         ReadOnly = True
         Border = False
       }
-      { Separator2 Separator
-        MoveScaled(43,0,0,4)
-      }
       { txtSearchHistory ButtonBox
-        MoveScaled(44,1,52,3)
+        MoveScaled(38,0,52,3)
         Foreground = Color.LightForeground
         Picture = Picture["icon:/small/close"]
         Placeholder = ("Enter a filter")
-        Border = False
         Button = False
         ClearButton = True
         Filter = True
       }
-      { Separator3 Separator
-        MoveScaled(97,0,0,4)
+      { Panel3 Panel
+        MoveScaled(92,1,4,1)
+        Expand = True
       }
-      { Spring1 Spring
-        MoveScaled(98,1,3,1)
-      }
-      { btnShowHistoryChanges ToggleButton
-        MoveScaled(102,0,23,4)
+      { btnShowHistoryChanges ToolButton
+        MoveScaled(97,0,25,4)
+        Action = "vc-history-changes"
         AutoResize = True
         Text = ("Display changes in history")
         Picture = Picture["icon:/small/zoom-in"]
-        Border = False
+        Toggle = True
       }
-    }
-    { Separator1 Separator
-      MoveScaled(29,9,22,0)
     }
     { gvwHistory VersionControlHistoryView
       MoveScaled(9,14,90,58)
@@ -313,6 +309,10 @@
     Text = "Commit and push"
     Picture = "icon:/small/upload"
   }
+  { Action vc-default-branch
+    Text = ""
+    Picture = "icon:/small/tag"
+  }
   { Action vc-hide-space
     Text = "Hide space changes"
     Picture = "icon:/small/select"
@@ -320,6 +320,10 @@
   { Action vc-hide-translation
     Text = "Hide translation changes"
     Picture = "icon:/small/language"
+  }
+  { Action vc-history-changes
+    Text = "Display changes in history"
+    Picture = "icon:/small/zoom-in"
   }
   { Action vc-locate
     Text = "Locate change"
@@ -349,6 +353,11 @@
     Text = ""
     List = "vc-commit,vc-commit-push,vc-push,vc-revert"
     Default = "vc-commit,vc-commit-push,vc-push,vc-revert"
+  }
+  { Toolbar history
+    Text = ""
+    List = "vc-default-branch,vc-history-changes"
+    Default = "vc-default-branch,$cmbBranch,$txtSearchHistory,~,vc-history-changes"
   }
   { Toolbar repository
     Text = ""

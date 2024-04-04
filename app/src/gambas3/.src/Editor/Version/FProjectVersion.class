@@ -14,6 +14,7 @@ Public Sub _new()
   tabVersion.ShowButton(btnWorkspace, True)
   
   gvwHistory.Columns.Count = 1
+  gvwHistory.Selectable = True
   
 End
 
@@ -39,6 +40,8 @@ Public Sub Reload(Optional bForce As Boolean)
   $bInitTerminal = False
   Try trmVersionControl.Kill()
 
+  tlbRepository_Configure
+
   tabVersion_Click
   
 End
@@ -49,7 +52,7 @@ Public Sub ReadConfig()
   Project.SetSmallFont(tlbCommit)
   Project.SetSmallFont(tlbChange)
   Project.SetSmallFont(tlbRepository)
-  Project.SetSmallFont(btnShowHistoryChanges)
+  Project.SetSmallFont(tlbHistory)
   
   Project.SetConsoleFont(trmVersionControl)
   MTheme.InitControl(trmVersionControl)
@@ -454,5 +457,11 @@ End
 Public Sub btnDefaultBranch_Click()
 
   cmbBranch.Text = VersionControl.GetCurrentBranch()
+
+End
+
+Public Sub tlbRepository_Configure()
+
+  btnAddBranch.Visible = VersionControl.CanCreateBranch
 
 End

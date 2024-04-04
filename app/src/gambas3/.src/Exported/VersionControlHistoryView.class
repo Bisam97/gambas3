@@ -18,6 +18,8 @@ Private $Y2 As Integer
 Private $sFilter As String
 Private $hWatcher As Watcher
 Private $iBranchColor As Integer
+Private $hMenu As Menu
+Private $hMenuCopyCommitChanges As Menu
 
 Public Sub _new()
   
@@ -266,3 +268,84 @@ Private Sub Selectable_Write(Value As Boolean)
   
 End
 
+Public Sub GridView_Menu()
+  
+  Dim hMenu As Menu
+  
+  If Not $bSelectable Then Return
+  If $Y = 0 And If $Y2 = 0 Then Return
+  
+  If Not $hMenu Then
+    
+    $hMenu = New Menu(Me.Window, True)
+    
+    hMenu = New Menu($hMenu) As "mnuCopyCommitIdentifier"
+    hMenu.Text = ("Copy commit identifier")
+    
+    hMenu = New Menu($hMenu) As "mnuCopyCommitLog"
+    hMenu.Text = ("Copy commit log")
+    
+    hMenu = New Menu($hMenu) As "mnuCopyCommitChanges"
+    hMenu.Text = ("Copy commit changes")
+    $hMenuCopyCommitChanges = hMenu
+    
+    hMenu = New Menu($hMenu)
+    
+    hMenu = New Menu($hMenu)
+    hMenu.Text = ("Cancel")
+    hMenu.Picture = Picture["icon:/small/close"]
+    
+  Endif
+  
+  $hMenuCopyCommitChanges.Visible = $bFull
+  
+  $hMenu.Popup()
+  
+End
+
+Public Sub mnuCopyCommitIdentifier_Click()
+  
+  Clipboard.Copy(Trim(Mid$($aCommit[$Y], 7)))
+  
+End
+
+Public Sub mnuCopyCommitLog_Click()
+
+  Dim Y As Integer
+  Dim YD As Integer
+  Dim aLog As String[]
+  Dim I As Integer
+  
+  Y = $Y + 1
+  While Y < $Y2
+    If Len(LTrim($aCommit[Y])) < Len($aCommit[Y]) Then Break 
+    Inc Y
+  Wend
+  
+  YD = Y
+  While Y < $Y2
+    If $aCommit[Y] Begins "diff " Then Break
+    Inc Y
+  Wend
+  
+  aLog = $aCommit.Copy(YD, Y - YD)
+  For I = 0 To aLog.Max
+    aLog[I] = LTrim(aLog[I])
+  Next
+  Clipboard.Copy(aLog.Join("\n"))
+  
+End
+
+Public Sub mnuCopyCommitChanges_Click()
+  
+  Dim Y As Integer
+  
+  Y = $Y + 1
+  While Y < $Y2
+    If $aCommit[Y] Begins "diff " Then Break
+    Inc Y
+  Wend
+  
+  Clipboard.Copy($aCommit.Copy(Y, $Y2 - Y).Join("\n"))
+  
+End

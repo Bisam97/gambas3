@@ -3238,16 +3238,9 @@ Public Sub OnVersionControlChange()
   
   Action["version-control"].Visible = VersionControl.Enabled
   
-  If VersionControl.Enabled Then
-    mnuVersionControl.Text = ("Version control") & " (" & VersionControl.Name & ")"
-    btnVersionControl.Text = VersionControl.Name
-  Endif
-  
   mnuVersionControlWith.Children.Clear
   VersionControl.InitControlProjectMenu(mnuVersionControlWith)
   mnuVersionControlWith.Visible = mnuVersionControlWith.Children.Count
-  
-  mnuVcAddBranch.Visible = VersionControl.CanCreateBranch
   
   UpdateVersionControl
   UpdateCloseTree
