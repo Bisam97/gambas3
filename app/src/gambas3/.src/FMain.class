@@ -46,6 +46,7 @@ Public Sub _new()
     .AddButton(btnWorkspaceProject, Align.Left)
     .AddButton(btnWorkspaceBrowse, Align.Left)
     .AddButton(btnWorkspaceVersion, Align.Left)
+    .AddButton(btnWorkspaceTranslation, Align.Left)
     .AddButton(btnWorkspaceProperty, Align.Right)
   End With
   
@@ -1105,7 +1106,9 @@ Public Sub UpdateTranslate()
   
   Action["translate"].Visible = Project.Localize And Not Project.ReadOnly
   Action["translate"].Enabled = Not Project.Running
-  'Action["component"].Visible = Project.CreateComponent 'AND NOT (Project.ReadOnly OR Project.Running)
+  
+  UpdateWorkspaceButtons
+  btnWorkspaceTranslation.Enabled = Not Project.Running
   
 End
 
@@ -3380,6 +3383,7 @@ Private Sub UpdateWorkspaceButtons()
     
     .ShowButton(btnWorkspaceBrowse, panProject.Visible And $iCurrentWorkspace = WORKSPACE_PROJECT)
     .ShowButton(btnWorkspaceVersion, VersionControl.Enabled And panProject.Visible And $iCurrentWorkspace = WORKSPACE_PROJECT)
+    .ShowButton(btnWorkspaceTranslation, Project.Localize And Not Project.ReadOnly And $iCurrentWorkspace = WORKSPACE_PROJECT)
     
     If panProperty.Hidden And If panProperty.Visible And If $iCurrentWorkspace = WORKSPACE_PROJECT Then
       .ShowButton(btnWorkspaceProperty, True)

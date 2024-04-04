@@ -5,6 +5,8 @@ Private $bInitStatus As Boolean
 Private $bInitTerminal As Boolean
 Private $bInitChanges As Boolean
 Private $bInitHistory As Boolean
+Private $iSaveIndex As Integer
+Private $sOldCommit As String
 
 Public Sub _new()
   
@@ -121,7 +123,8 @@ Public Sub tabVersion_Click()
         InitEditor(edtDiff)
         panNothing.Background = edtJournal.Background
         
-        edtJournal.Text = RTrim(Project.Config["/FProjectVersion/LastCommit"]) & "\n\n" & VersionControl.GetDefaultJournal()
+        $sOldCommit = RTrim(Project.Config["/FProjectVersion/LastCommit"])
+        edtJournal.Text = $sOldCommit & "\n\n" & VersionControl.GetDefaultJournal()
         edtJournal.Goto(0, 0)
         
         LoadDiff
@@ -149,8 +152,8 @@ Public Sub tabVersion_Click()
         edtStatus.ShowCurrent = False
         edtStatus.Text = VersionControl.Status(VersionControl.GetRoot())
         edtStatus.H = edtStatus.ScrollH
-        lblStatus.Background = edtStatus.Background
-        lblStatus.Foreground = edtStatus.Foreground
+        svwStatus.Background = edtStatus.Background
+        svwStatus.Foreground = edtStatus.Foreground
         $bInitStatus = True
       Endif
       
@@ -351,6 +354,17 @@ Public Sub btnHideSpace_Click()
 
 End
 
+Private Sub ShowTerminal(bShow As Boolean)
+
+  If bShow Then
+    $iSaveIndex = tabVersion.Index
+    tabVersion.Index = 3
+  Else
+    tabVersion.Index = $iSaveIndex
+  Endif
+
+End
+
 Private Sub DoCommit()
   
   Dim sChange As String
@@ -375,13 +389,20 @@ Private Sub DoCommit()
     If Not Trim(sChange) Then
       edtJournal.Goto(0, 0)
       edtJournal.SetFocus
-      Message.Warning(("Please enter the journal."))
+      Message.Warning(("Please write a commit log."))
       Return
     Endif
     
-    tabVersion.Index = 3
+    If Trim(sChange) = Trim($sOldCommit) Then
+      edtJournal.Goto(0, 0)
+      edtJournal.SetFocus
+      Message.Warning(("Please write a new commit log."))
+      Return
+    Endif
+    
+    ShowTerminal(True)
     VersionControl.Commit(sChange, Not bPush)
-    tabVersion.Index = 1
+    ShowTerminal(False)
     
   Endif 
   
@@ -398,7 +419,10 @@ End
 Public Sub btnUpdate_Click()
 
   If Message.Question(("Do you really want to synchronize the repository?"), ("Synchronize"), ("Cancel")) = 2 Then Return
+
+  ShowTerminal(True)
   VersionControl.Update
+  ShowTerminal(False)
 
 End
 
@@ -432,7 +456,9 @@ End
 
 Public Sub btnRevert_Click()
 
+  ShowTerminal(True)
   VersionControl.Revert()
+  ShowTerminal(False)
 
 End
 

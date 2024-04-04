@@ -244,9 +244,6 @@ Private $hRemoteDebugIcon As Image
 
 Public WelcomeDialog As Boolean
 
-' If GetFileIcon() has been called on an added file
-'Private $bLastAdded As Boolean
-
 Public Sub _init()
 
   ExampleTitle["Automation"] = ("Automation")
@@ -318,6 +315,7 @@ Public Sub Main()
   Dim aOpenFile As New String[]
   Dim sLang As String
   Dim bMakeIcon As Boolean
+  Dim sTarget As String
 
   'DB.Debug = True
   
@@ -327,20 +325,31 @@ Public Sub Main()
   Endif
     
   For iInd = 1 To Args.Count - 1
+    
     sArg = Args[iInd]
+    
     If sArg = "-t" Then
+      
       $bTesting = True
       Continue
+      
     Else If sArg = "--help" Or If sArg = "-h" Then
+      
       PrintUsage
       Quit
+      
     Else If sArg = "--license" Or If sArg = "-L" Then
+      
       Print Replace(File.Load("license"), "YEAR", CStr(Year(Now)))
       Quit
+      
     Else If sArg = "--version" Or If sArg = "-V" Then
+      
       Print Application.Version
       Quit
+      
     Else If sArg = "--cleanup" Then
+      
       sPath = Args[iInd + 1]
       If Not sPath Then sPath = Application.Dir
       If CleanUp(sPath, True) Then
@@ -348,22 +357,44 @@ Public Sub Main()
       Else
         Quit
       Endif
+      
+    Else If sArg = "--make" Then
+      
+      sPath = Args[iInd + 1]
+      If Not sPath Then sPath = Application.Dir
+      If File.IsRelative(sPath) Then sPath = Application.Dir &/ sPath
+      sTarget = Args[iInd + 2]
+      
+      GoSub INIT_COMMON
+      If Project.Open(sPath) Then Quit 1
+      If Project.MakeExecutable(True, False, False) Then Quit 1
+      Quit
+      
     Else If sArg = "--system-information" Or If sArg = "-i" Then
+      
       InitVersion
       Print FSystemInfo.GetInfo().Join("\n")
       Quit
+      
     Else If sArg = "--update-icon" Then
+      
       bMakeIcon = True
+      
     Else If Left(sArg) = "-" Then
+      
       Error "gambas3: unknown option: " & sArg
       Quit 1
+      
     Else
+      
       If Not sPath Then
         sPath = Args[iInd]
       Else
         aOpenFile.Add(Args[iInd])
       Endif
+      
     Endif
+    
   Next
   
   If bMakeIcon Then
@@ -394,17 +425,13 @@ Public Sub Main()
 
   'Print Application.Theme
 
-  OUTPUT_FILE = Temp$("output")
-  EXAMPLES_DIR = System.Path &/ "share/gambas" & Split(System.Version, ".")[0] & "/examples"
-
   Application.ShowTooltips = Settings["/ShowTooltip", True]
   Application.Animations = Settings["/Animations", True]
   Application.Shadows = Settings["/Shadows", True]
   ToolBar.DefaultSize = Stock.Sizes[Settings["/ToolbarDefaultSize", 0]]
-  UpdateMessageBoxStyle()
 
-  Documentation = New CDocumentation
-  
+  GoSub INIT_COMMON
+
   If $bTesting And If sPath Then
     InitVersion
     'InitWebView
@@ -439,8 +466,6 @@ Public Sub Main()
   Endif
   DEFAULT_FONT &= CStr(Application.Font.Size)
   
-  InitVersion
-  'InitWebView
   ShowFileInTitle = Settings["/ShowFileInTitle", True]
   MHelp.ReadConfig
   FDebugExpr.ReadConfig
@@ -493,6 +518,19 @@ Public Sub Main()
   If Settings["/ShowTipOnStartup", True] Then
     FTips.Show
   Endif
+  
+  Return
+  
+INIT_COMMON:
+
+  Documentation = New CDocumentation
+  OUTPUT_FILE = Temp$("output")
+  EXAMPLES_DIR = System.Path &/ "share/gambas" & Split(System.Version, ".")[0] & "/examples"
+
+  InitVersion()
+  UpdateMessageBoxStyle()
+  
+  Return
 
 End
 
@@ -7210,6 +7248,10 @@ Private Sub PrintUsage()
   Print "$ gambas3 --cleanup <"; ("project directory"); ">"
   Print
   Print "  "; ("Clean the project directory up (i.e. remove temporary, generated, and backup files).")
+  Print
+  Print "$ gambas3 --make <"; ("project directory"); "> [ <"; ("executable path"); "> ]"
+  Print
+  Print "  "; ("Make the project executable.")
   Print
   Print "$ gambas3 --system-information | -i"
   Print
