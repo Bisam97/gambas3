@@ -1627,3 +1627,9 @@ Public Sub _RaiseCellEvent(sCell As String, sEvent As String, (aArg) As Variant[
   Endif
   
 End
+
+Public Sub _EnsureVisible(hItem As _WebTreeItem)
+  
+  WebForm._AddJavascript("gw.table.ensureVisible(" & JS(Me.Name) & "," & JS(Base64(hItem.Key)) & ");")
+  
+End
