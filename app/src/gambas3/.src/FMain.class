@@ -1560,6 +1560,8 @@ Public Sub OnProjectChange()
   
   CloseCurrentWorkspace
   
+  If Class.IsLoaded("FProjectBrowser") Then FProjectBrowser.Reload()
+  
   ' Select Case $iCurrentWorkspace
   '   Case WORKSPACE_BROWSER
   '     FProjectBrowser.OnProjectChange
@@ -3613,7 +3615,7 @@ Public Sub ShowWorkspace(iWorkspace As Integer)
   Select Case iWorkspace
     Case WORKSPACE_BROWSER
       FProjectBrowser.Load(panWorkspace)
-      FProjectBrowser.Reload()
+      'FProjectBrowser.Reload()
       FProjectBrowser.Show
     Case WORKSPACE_VERSION
       FProjectVersion.Load(panWorkspace)
