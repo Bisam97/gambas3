@@ -1474,9 +1474,9 @@ Public Sub SetLayout(vLayout As Variant, Optional bInit As Boolean)
   If Not $bReadOnly Then aConfig = vLayout[1]
   
   $iIconSize = StockToToolbarSize(sSize)
+  $iButtonWidth = GetRealIconSize() * 1.2 + Desktop.Scale '12 + Max(Me.Font.Height * 0.8, GetRealIconSize())
   UpdateFontSize
-  $iButtonWidth = 12 + Max(Me.Font.Height * 0.8, GetRealIconSize())
-  
+    
   If Not aConfig Then 
     'If $iIconSize = ICON_SMALL Then
     '  If bInit Then Goto RAISE_CONFIGURE
@@ -1735,7 +1735,19 @@ Private Sub UpdateFontSize()
   iSize = $iIconSize
   If iSize = ICON_DEFAULT Then iSize = StockToToolbarSize(ToolBar.DefaultSize)
   If iSize = ICON_DEFAULT Then iSize = ICON_SMALL
-  Me.Font.Grade = iSize - 2
+  
+  Select Case iSize
+    Case ICON_TINY
+      panToolBar.Font.Grade = -1
+    Case ICON_SMALL
+      panToolBar.Font.Grade = 0
+    Case ICON_MEDIUM
+      panToolBar.Font.Grade = 1
+    Case ICON_LARGE
+      panToolBar.Font.Grade = 2
+    Case ICON_HUGE
+      panToolBar.Font.Grade = 4
+    End Select
 
 End
 
