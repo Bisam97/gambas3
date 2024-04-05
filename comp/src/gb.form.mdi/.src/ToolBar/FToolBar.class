@@ -1294,8 +1294,6 @@ Public Sub GetKey() As String
   
 End
 
-
-
 Public Sub Form_Close()
 
   UnregisterToolbar
@@ -1476,6 +1474,7 @@ Public Sub SetLayout(vLayout As Variant, Optional bInit As Boolean)
   If Not $bReadOnly Then aConfig = vLayout[1]
   
   $iIconSize = StockToToolbarSize(sSize)
+  UpdateFontSize
   $iButtonWidth = 12 + Max(Me.Font.Height * 0.8, GetRealIconSize())
   
   If Not aConfig Then 
@@ -1723,19 +1722,29 @@ Public Sub GetStockIconSize() As String
   
 End
 
-
 Public Sub GetRealIconSize() As Integer
   
   Return CalcIconSize(GetIconSize())
   
 End
 
+Private Sub UpdateFontSize()
+
+  Dim iSize As Integer
+
+  iSize = $iIconSize
+  If iSize = ICON_DEFAULT Then iSize = StockToToolbarSize(ToolBar.DefaultSize)
+  If iSize = ICON_DEFAULT Then iSize = ICON_SMALL
+  Me.Font.Grade = iSize - 2
+
+End
 
 Public Sub SetIconSize(iSize As Integer)
 
   If $iIconSize = iSize Then Return
   $iIconSize = iSize
   UpdateSize
+  UpdateFontSize
   
 End
 
