@@ -1611,6 +1611,7 @@ End
 Public Sub OnProjectDebug()
   
   If Project.Running Then
+    CloseCurrentWorkspace
     SaveWorkspaceLayout()
     tabProject.Index = 1
     btnShowDebugger.Show
@@ -3240,6 +3241,7 @@ Private Sub UpdateVersionControl()
     panBranchColor.Hide
     sepBranchColor.Hide
     btnWorkspaceVersion.Enabled = False
+    If $iCurrentWorkspace = WORKSPACE_VERSION Then CloseCurrentWorkspace
   Endif
   
   sBranch = VersionControl.GetCurrentBranch()
