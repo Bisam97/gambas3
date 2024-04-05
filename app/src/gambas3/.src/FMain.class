@@ -1104,11 +1104,11 @@ End
 
 Public Sub UpdateTranslate()
   
-  Action["translate"].Visible = Project.Localize And Not Project.ReadOnly
-  Action["translate"].Enabled = Not Project.Running
-  
   UpdateWorkspaceButtons
   btnWorkspaceTranslation.Enabled = Not Project.Running
+  If Not btnWorkspaceTranslation.Visible Or If Not btnWorkspaceTranslation.Enabled Then
+    If $iCurrentWorkspace = WORKSPACE_TRANSLATION Then CloseCurrentWorkspace
+  Endif
   
 End
 
