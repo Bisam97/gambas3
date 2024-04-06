@@ -72,7 +72,8 @@ enum {
 	RST_COLLECTION,
 	RST_EXEC,
 	RST_READ,
-	RST_DIV
+	RST_DIV,
+	RST_FLEX
 };
 
 enum {

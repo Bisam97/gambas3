@@ -179,7 +179,7 @@ COMP_INFO COMP_res_info[] =
 	{ "-",            RSF_OP2,                  OP_MINUS,   0,   5,   RST_ADD,        C_SUB         },
 	{ "*",            RSF_OP2,                  OP_STAR,    0,   6,   RST_ADD,        C_MUL         },
 	{ "/",            RSF_OP2,                  OP_SLASH,   0,   6,   RST_DIV,        C_DIV         },
-	{ "^",            RSF_OP2S,                 OP_FLEX,    0,   7,   RST_DIV,        C_POW         },
+	{ "^",            RSF_OP2S,                 OP_FLEX,    0,   7,   RST_FLEX,       C_POW         },
 	{ "&",            RSF_OPN,                  OP_AMP,     0,   9,   T_STRING,       C_CAT         },
 	{ "&/",           RSF_OPN,                  OP_FILE,    0,   8,   T_STRING,       C_FILE        },
 	{ ">",            RSF_OP2S,                 OP_GT,      0,   4,   T_BOOLEAN,      C_GT          },

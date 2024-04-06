@@ -521,6 +521,18 @@ static void trans_operation(short op, short nparam, PATTERN previous)
 
 		case RST_DIV:
 			type = Max(get_type_id(0, nparam), get_type_id(1, nparam));
+			if (type != T_SINGLE)
+			{
+				if (type <= T_FLOAT)
+					type = T_FLOAT;
+				else
+					type = T_VARIANT;
+			}
+			ftype = TYPE_make_simple(type);
+			break;
+
+		case RST_FLEX:
+			type = Max(get_type_id(0, nparam), get_type_id(1, nparam));
 			if (type <= T_FLOAT)
 				type = T_FLOAT;
 			else
@@ -617,6 +629,7 @@ static void trans_operation(short op, short nparam, PATTERN previous)
 			break;
 			
 		case OP_PLUS:
+			fprintf(stderr, "OP_PLUS: %s\n", TYPE_get_desc(ftype));
 			CODE_add_sub(info->code, info->subcode, nparam, TYPE_get_id(ftype));
 			break;
 
