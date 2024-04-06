@@ -99,34 +99,42 @@ Public Sub UpdateHighlighting()
   Dim sDir As String
   Dim sHighlightWith As String
 
+  $bNoHighlight = True
+
+  If Project.IsProjectPath(Path) Then
+  
+    sDir = Path
+    Do
+      sHighlightWith = Configuration[sDir, "HighlightWith"]
+      If sHighlightWith Then Break
+      If sDir = Project.Dir Then Break
+      sDir = File.Dir(sDir)
+    Loop
+    
+    If sHighlightWith Then
+      If sHighlightWith <> "-" Then
+        edtEditor.Highlight = sHighlightWith
+        $bNoHighlight = False
+        Return
+      Endif
+    Endif
+    
+  Endif
+
   sMode = TextEditor.GetModeFromPath(Path)
   
   If sMode Then
     
     edtEditor.Mode = sMode
+    $bNoHighlight = False
     
   Else
     
     edtEditor.Mode = ""
     
-    If Project.IsProjectPath(Path) Then
-    
-      sDir = Path
-      Do
-        sHighlightWith = Configuration[sDir, "HighlightWith"]
-        If sHighlightWith Then Break
-        If sDir = Project.Dir Then Break
-        sDir = File.Dir(sDir)
-      Loop
-      
-      If sHighlightWith Then edtEditor.Highlight = sHighlightWith
-      
-    Endif
-    
   Endif
     
 End
-
 
 Public Sub LoadFile() As Boolean
   
@@ -138,7 +146,6 @@ Public Sub LoadFile() As Boolean
   End With
   
   $bWebPage = False
-  $bNoHighlight = True
   $bConsole = False
   $bShowComment = False
   $bShowPretty = False
@@ -168,8 +175,6 @@ Public Sub LoadFile() As Boolean
     End Select
     
     $bShowComment = True
-    '$bShowPretty = True
-    $bNoHighlight = False
     
     UpdateHighlighting()
     

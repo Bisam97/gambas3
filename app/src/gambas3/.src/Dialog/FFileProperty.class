@@ -92,17 +92,36 @@ Public Sub Form_Open()
   If Project.IsProjectPath(sPath) And If $sPath Not Begins "$" Then
     
     If Project.IsHiddenPath(sPath) Or If Project.IsPublicPath(sPath) Or If Not Project.IsSourcePath(sPath, True) Then
+      If IsDir(sPath) Or If Project.IsTextFile(sPath) Then
+        
+        cmbHighlighter.Add(("Default"))
+        cmbHighlighter.Add(("None"))
+        For Each sKey In TextHighlighter.List
+          cmbHighlighter.Add(TextHighlighter[sKey].Name)
+        Next
+        sHighlightWith = Configuration[sPath, "HighlightWith"]
+        If Not sHighlightWith Then
+          cmbHighlighter.Index = 0
+        Else
+          cmbHighlighter.Index = TextHighlighter.List.Find(sHighlightWith) + 2
+        Endif
+        
+        panHighlightWith.Show
+        bShow = True
+      
+      Endif
+    Endif
     
-      cmbHighlighter.Add(("None"))
-      For Each sKey In TextHighlighter.List
-        cmbHighlighter.Add(TextHighlighter[sKey].Name)
-      Next
-      sHighlightWith = Configuration[sPath, "HighlightWith"]
-      cmbHighlighter.Index = TextHighlighter.List.Find(sHighlightWith) + 1
-      
-      panHighlightWith.Show
+    If Project.IsSourcePath(sPath, True) Then
+      panDoNotTranslate.Show
+      btnDoNotTranslate.Value = Not Project.ShouldTranslate(sPath)
       bShow = True
-      
+    Endif
+    
+    If MCompressFile.CanCompress(sPath, False) Then
+      panCompress.Show
+      btnCompress.Value = Project.ShouldCompress(sPath)
+      bShow = True
     Endif
     
     If bShow Then fprInfo.Add(panDirectory, ("Properties"))
@@ -130,8 +149,10 @@ Public Sub cmbHighlighter_Click()
 
   If cmbHighlighter.Index = 0 Then
     Configuration[sPath, "HighlightWith"] = Null
-  Else 
-    Configuration[sPath, "HighlightWith"] = TextHighlighter.List[cmbHighlighter.Index - 1]
+  Else If cmbHighlighter.Index = 1 Then
+    Configuration[sPath, "HighlightWith"] = "-"
+  Else
+    Configuration[sPath, "HighlightWith"] = TextHighlighter.List[cmbHighlighter.Index - 2]
   Endif
   Project.WriteProject
   Project.RefreshKey(sPath)
@@ -139,5 +160,17 @@ Public Sub cmbHighlighter_Click()
   For Each hFile In Project.Files
     Try hFile.UpdateHighlighting()
   Next
+
+End
+
+Public Sub btnCompress_Click()
+
+  Project.SetShouldCompress(fprInfo.Path, btnCompress.Value)
+
+End
+
+Public Sub btnDoNotTranslate_Click()
+
+  Project.SetShouldTranslate(fprInfo.Path, Not btnDoNotTranslate.Value)
 
 End

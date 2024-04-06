@@ -882,7 +882,6 @@ Public Sub GetFileIcon(sPath As String, Optional iSize As Integer, hStat As Stat
 ADD_EMBLEM:
 
   If bLink Then hImage = AddLinkEmblem(hImage)
-  If bCompressed Then hImage = AddCompressedEmblem(hImage)
   
   If Not bNoEmblem Then
     If bExported Then hImage = Project.AddEmblem(hImage, If(bExportedNamespace, "img/32/exported-namespace.png", "img/32/exported.png"), iEmblemSize)
@@ -891,8 +890,9 @@ ADD_EMBLEM:
     If bAdded Then hImage = Project.AddEmblem(hImage, "icon:/32/added", iEmblemSize)
     If bModified Then hImage = Project.AddEmblem(hImage, "icon:/32/modified", iEmblemSize)
     If bConflict Then hImage = Project.AddEmblem(hImage, "icon:/32/conflict", iEmblemSize)
-    If bLocked Or If bReadOnly Then hImage = Project.AddEmblem(hImage, "icon:/32/lock", iEmblemSize)
     If bHasHighlightWith Then hImage = Project.AddEmblem(hImage, "icon:/32/color", iEmblemSize)
+    If bCompressed Then hImage = Project.AddEmblem(hImage, "icon:/32/compress", iEmblemSize)
+    If bLocked Or If bReadOnly Then hImage = Project.AddEmblem(hImage, "icon:/32/lock", iEmblemSize)
   Endif
   
   Return
@@ -1272,21 +1272,21 @@ Private Sub AddLinkEmblem(hSource As Image) As Image
 
 End
 
-Private Sub AddCompressedEmblem(hSource As Image) As Image
-
-  Dim hImage As Image
-  
-  hImage = hSource.Copy()
-  If Application.DarkTheme Then
-    hImage.Brightness(0.5)
-  Else
-    hImage.Brightness(-0.25)
-  Endif
-
-  Return hImage
-
-End
-
+' Private Sub AddCompressedEmblem(hSource As Image) As Image
+' 
+'   Dim hImage As Image
+'   
+'   hImage = hSource.Copy()
+'   If Application.DarkTheme Then
+'     hImage.Brightness(0.5)
+'   Else
+'     hImage.Brightness(-0.25)
+'   Endif
+' 
+'   Return hImage
+' 
+' End
+' 
 Public Sub AddOtherProject(sDir As String)
   
   sDir = File.RealPath(sDir)

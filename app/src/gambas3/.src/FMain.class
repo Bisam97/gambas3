@@ -3612,8 +3612,6 @@ Public Sub ShowWorkspace(iWorkspace As Integer)
   CloseCurrentWorkspace()
   If iWorkspace = WORKSPACE_PROJECT Then Return
 
-  Project.SetCurrentPopup(Null)
-  
   Select Case iWorkspace
     Case WORKSPACE_BROWSER
       FProjectBrowser.Load(panWorkspace)
@@ -3635,6 +3633,8 @@ Public Sub ShowWorkspace(iWorkspace As Integer)
   UpdateWorkspaceButtons
   Project.UpdateStatus(True)
 
+  Project.SetCurrentPopup(Null)
+  
 End
 
 Public Sub btnWorkspaceBrowse_Click()
