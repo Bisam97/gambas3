@@ -629,7 +629,6 @@ static void trans_operation(short op, short nparam, PATTERN previous)
 			break;
 			
 		case OP_PLUS:
-			fprintf(stderr, "OP_PLUS: %s\n", TYPE_get_desc(ftype));
 			CODE_add_sub(info->code, info->subcode, nparam, TYPE_get_id(ftype));
 			break;
 
