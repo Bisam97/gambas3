@@ -3738,6 +3738,11 @@ Public Sub tvwProject_Filter((Key) As String)
   
   If tvwProject[Key].Children Then Return
   
+  If Key = CProjectTree.KEY_PROFILE Then
+    Stop Event
+    Return
+  Endif
+  
   If $sProjectFilter Then 
     If InStr(String.RemoveDiacritics(File.Name(Key)), $sProjectFilter, 1, gb.IgnoreCase) = 0 Then
       Stop Event
@@ -3812,7 +3817,7 @@ Private Sub RestoreWorkspaceLayout()
   
   wrkProject.Unlock()
   
-  If hActive Then hActive.SetFocus()
+  If Object.IsValid(hActive) Then hActive.SetFocus()
   
 End
 

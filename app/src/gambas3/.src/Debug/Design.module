@@ -598,7 +598,10 @@ Public Sub Process_Kill()
 
   $hProcess = Null
 
-  If Profiling Then Project.OpenFile($sProfilePath)
+  If Profiling Then 
+    Project.ProjectTree[Project.KEY_PROFILE].Visible = True
+    Project.OpenFile($sProfilePath)
+  Endif
 
 End
 

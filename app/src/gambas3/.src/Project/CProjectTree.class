@@ -421,7 +421,7 @@ Private Sub FillTree(Optional bDoNotRefreshCache As Boolean)
     .Add(KEY_SOURCE, ("Sources"), Picture["icon:/tiny/directory"], sKey)
     If $hInfo.Components.Exist("gb.db") Then .Add(KEY_CONNECTION, ("Connections"), Picture["icon:/tiny/folder-remote"], sKey)
     If $hInfo.Components.Exist("gb.web") Then .Add(KEY_PUBLIC, ("Public"), Picture["icon:/tiny/folder-share"], sKey)
-    .Add(KEY_PROFILE, ("Profiles"), Picture["icon:/tiny/folder-recent"], sKey)
+    .Add(KEY_PROFILE, ("Profiles"), Picture["icon:/tiny/folder-recent"], sKey).Visible = False
     .Add(KEY_MISC, ("Data"), Picture["icon:/tiny/directory"], sKey)
     
     .MoveFirst()
@@ -467,6 +467,8 @@ Private Sub FillTree(Optional bDoNotRefreshCache As Boolean)
     Next
 
   End With
+
+  $hTree[KEY_PROFILE].Visible = $hTree[KEY_PROFILE].Children > 0
 
   CollapseAll
 

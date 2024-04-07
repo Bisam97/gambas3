@@ -4101,8 +4101,11 @@ Public Sub DeleteFile(sPath As String, Optional bNoBackup As Boolean)
     Endif
     
   Endif
-
+  
   Tree.RefreshKey(sPath)
+  
+  If IsProfilePath(sPath) Then ProjectTree.Filter()
+  
   Project.IncTimeStamp
 
 End
@@ -7291,6 +7294,7 @@ Public Sub RemoveAllProfile()
   For Each sFile In Dir(Project.Dir &/ ".profile", "*.prof")
     DeleteFile(Project.Dir &/ ".profile" &/ sFile, True)
   Next
+  ProjectTree.Filter()
   Dec Application.Busy
   
 End
