@@ -4062,7 +4062,7 @@ Public Sub DeleteFile(sPath As String, Optional bNoBackup As Boolean)
   If IsProjectPath(sPath) Then
     VersionControl.RemoveFile(sPath)
     SetShouldCompress(sPath, False)
-    SetShouldTranslate(sPath, False)
+    SetShouldTranslate(sPath, True)
   Endif
 
   If bProject Then
@@ -6580,7 +6580,6 @@ Public Sub MakeRelativePath(sPath As String, Optional sDir As String) As String
   Return sPath
   
 End
-
 
 Public Sub ShouldTranslate(sPath As String, Optional bRecursive As Boolean) As Boolean
   
