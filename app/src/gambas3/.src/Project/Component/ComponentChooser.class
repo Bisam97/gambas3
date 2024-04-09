@@ -16,13 +16,13 @@ Event Select
 Event Activate
 
 Property Border As Boolean
-'Property Components As String[]
 Property Current As String
 Property ShowDeprecated As Boolean
 Property ShowCheckedOnly As Boolean
 Property Checkable As Boolean
 Property HiddenComponents As String[]
 Property CheckedComponents As String[]
+Property ManualComponents As String[]
 Property Libraries As String[]
 
 Private $hForm As FComponentChooser
@@ -163,5 +163,17 @@ End
 Private Sub Libraries_Write(Value As String[])
 
   $hForm.SetLibraries(Value)
+
+End
+
+Private Function ManualComponents_Read() As String[]
+
+  Return $hForm.GetManualComponents()
+
+End
+
+Private Sub ManualComponents_Write(Value As String[])
+
+  $hForm.SetManualComponents(Value)
 
 End

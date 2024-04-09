@@ -117,6 +117,7 @@ Public Sub Form_Open()
   
   choComponent.Checkable = True
   choComponent.CheckedComponents = Project.Components
+  choComponent.ManualComponents = Project.ManualComponents
   choComponent.Libraries = $aLibraries
   choComponent.ShowDeprecated = Project.ShowDeprecated
   
@@ -263,6 +264,7 @@ End
 Private Sub SaveComponents()
 
   Project.Components = choComponent.CheckedComponents
+  Project.ManualComponents = choComponent.ManualComponents
   'Project.RefreshComponents ' done later
 
 End
@@ -576,6 +578,7 @@ Public Sub btnReset_Click()
     
     Case ("Components")
       choComponent.CheckedComponents = Project.Components
+      choComponent.ManualComponents = Project.ManualComponents
       choComponent.Libraries = $aLibraries
       
     Case ("Libraries")

@@ -4,6 +4,7 @@ Public Struct ComponentChooserItem
   Key As String
   Checked As Boolean
   Dependencies As String[]
+  Manual As Boolean
 End Struct
 
 Static Private Const DEFAULT_ZOOM As Float = 1
@@ -31,18 +32,17 @@ Public Sub _new()
 
   Dim hBorder As Border
   
-  hBorder = Border("style:none;bottom-style:solid;padding:2 0 0 8;")
+  hBorder = Border("style:none;bottom-style:solid;padding:" & CStr(Desktop.Scale \ 4) & " 0 0 " & CStr(Desktop.Scale) & ";")
   hBorder.Color = Color.Gradient(Color.LightForeground, Color.TextBackground)
   gvwComponent.Rows.Border = hBorder
   'gvwComponent.Padding = 4
   
-  gvwComponent.Columns.Count = 5
-  gvwComponent.Columns[0].Width = 16
-  'gvwComponent.Columns[0].Expand = False
-  'gvwComponent.Columns[1].Expand = False
-  gvwComponent.Columns[2].Expand = True
-  gvwComponent.Columns[3].Width = 24
+  gvwComponent.Columns.Count = 6
+  gvwComponent.Columns[0].Width = 0
+  gvwComponent.Columns[1].Width = 0
+  gvwComponent.Columns[3].Expand = True
   gvwComponent.Columns[4].Width = 24
+  gvwComponent.Columns[5].Width = 24
   'gvwComponent.Columns[3].Expand = False
 
   SetCheckable(False)
@@ -218,15 +218,15 @@ Public Sub gvwComponent_Data(Row As Integer, Column As Integer)
         '   Endif
         ' Endif
       
-      Case 1
+      Case 2
         .Text = hComp.Key & "  "
         .Font.Bold = True
         
-      Case 2
+      Case 3
         .WordWrap = True
         .RichText = hComp.Name
         
-      Case 3
+      Case 4
         Select Case hComp.State
           Case CComponent.STABLE_NOT_FINISHED
             .Picture = Picture["img/component/unfinished.png"]
@@ -240,7 +240,7 @@ Public Sub gvwComponent_Data(Row As Integer, Column As Integer)
           '  .Picture = Picture["img/component/unknown.png"]
         End Select
         
-      Case 4
+      Case 5
         If hComp.State <> CComponent.UNKNOWN Then .Picture = Picture["icon:/small/next"]
       
     End Select
@@ -269,7 +269,7 @@ Public Sub gvwComponent_Arrange()
 
   Dim I As Integer
   
-  gvwComponent.Columns[1].Width = -1
+  gvwComponent.Columns[2].Width = -1
 
   For I = 0 To $aComp.Max
     gvwComponent.Rows[I].H = -1
@@ -338,9 +338,9 @@ Public Sub gvwComponent_MouseMove()
   iCol = gvwComponent.ColumnAt(Mouse.ScreenX - gvwComponent.ScreenX - gvwComponent.ClientX)
   If iCol < 0 Then iRow = -1
   
-  If iCol >= 3 Then Try hComp = Project.Documentation[$aComp[iRow]]
+  If iCol >= 4 Then Try hComp = Project.Documentation[$aComp[iRow]]
   
-  If iCol = 3 Then
+  If iCol = 4 Then
     
     If hComp Then
       Select Case hComp.State
@@ -369,7 +369,7 @@ Public Sub gvwComponent_MouseMove()
     
   Endif
   
-  If iCol = 4 And If hComp Then
+  If iCol = 5 And If hComp Then
     gvwComponent.Mouse = Mouse.Pointing
   Else
     gvwComponent.Mouse = Mouse.Default
@@ -387,7 +387,8 @@ End
 
 Public Sub SetCheckable(Value As Boolean)
   
-  gvwComponent.Columns[0].W = If(Value, 32, 8)
+  gvwComponent.Columns[0].W = If(Value, 32, 0)
+  gvwComponent.Columns[1].W = If(Value, 32, 0)
 
   If Value Then
     
@@ -431,7 +432,6 @@ Public Sub IsChecked(sComp As String) As Boolean
   
 End
 
-
 Public Sub gvwComponent_Leave()
 
   gvwComponent.Tooltip = ""
@@ -455,6 +455,7 @@ End
 Public Sub gvwComponent_Click()
   
   Dim sComp As String = GetCurrent()
+  Dim hComp As ComponentChooserItem
   
   If gvwComponent.Column = 0 And IsCheckable() Then 
   
@@ -469,7 +470,19 @@ Public Sub gvwComponent_Click()
         CheckComponent(sComp)
     End Select
     
-  Else If gvwComponent.Column = 4 And If Project.Documentation.Exist(sComp) Then
+  Else If gvwComponent.Column = 1 And IsCheckable() Then
+    
+    sComp = $aComp[gvwComponent.Row]
+    If sComp = "gb" Then Return
+    If Not Project.Documentation.Exist(sComp) Then Return
+    
+    If GetState(sComp) <> ComponentChooser.Unchecked Then
+      hComp = $cComp[sComp]
+      hComp.Manual = Not hComp.Manual
+      gvwComponent.Refresh
+    Endif
+    
+  Else If gvwComponent.Column = 5 And If Project.Documentation.Exist(sComp) Then
     
     webAboutComponent.ReadConfig
     webAboutComponent.Clear
@@ -501,7 +514,7 @@ Private Sub GetRequire(sComp As String) As String[]
   
 End
 
-Public Sub CheckComponent(sComp As String, Optional sParent As String)
+Public Sub CheckComponent(sComp As String, Optional sParent As String) As ComponentChooserItem
   
   Dim hComp As ComponentChooserItem
   Dim sDep As String
@@ -525,6 +538,8 @@ Public Sub CheckComponent(sComp As String, Optional sParent As String)
   For Each sDep In GetRequire(sComp)
     CheckComponent(sDep, sComp)
   Next
+  
+  Return hComp
   
   gvwComponent.Refresh
 
@@ -601,6 +616,7 @@ Public Sub UncheckComponent(sComp As String, Optional sParent As String) As Bool
     $cComp.Remove(sComp)
   Else
     hComp.Checked = False
+    hComp.Manual = False
   Endif
   
   For Each sDep In GetRequire(sComp)
@@ -613,8 +629,6 @@ Public Sub UncheckComponent(sComp As String, Optional sParent As String) As Bool
 
 End
 
-
-
 Public Sub SetCheckedComponents(aComp As String[])
   
   Dim sComp As String
@@ -626,8 +640,21 @@ Public Sub SetCheckedComponents(aComp As String[])
   For Each sComp In aComp
     CheckComponent(sComp)
   Next
+  
   RefreshList
   
+End
+
+Public Sub SetManualComponents(aComp As String[])
+  
+  Dim sComp As String
+
+  For Each sComp In aComp
+    CheckComponent(sComp).Manual = True
+  Next
+  
+  RefreshList
+
 End
 
 Public Sub GetCheckedComponents() As String[]
@@ -636,7 +663,20 @@ Public Sub GetCheckedComponents() As String[]
   Dim aComp As New String[]
   
   For Each hComp In $cComp
-    If hComp.Key <> "gb" Then aComp.Add(hComp.Key)
+    If hComp.Key <> "gb" And If Not hComp.Manual Then aComp.Add(hComp.Key)
+  Next
+  
+  Return aComp.Sort()
+  
+End
+
+Public Sub GetManualComponents() As String[]
+  
+  Dim hComp As ComponentChooserItem
+  Dim aComp As New String[]
+  
+  For Each hComp In $cComp
+    If hComp.Key <> "gb" And If hComp.Manual Then aComp.Add(hComp.Key)
   Next
   
   Return aComp.Sort()
@@ -781,37 +821,50 @@ End
 Public Sub gvwComponent_Draw(X As Integer, Y As Integer, Width As Integer, Height As Integer, Row As Integer, Column As Integer)
 
   Dim sComp As String = $aComp[Row]
-  Dim DX As Integer
-  
-  'Dim hComp As CComponent = CComponent.All[sComp]
+  Dim hComp As ComponentChooserItem
 
   If Not IsCheckable() Then Return
   
   Select Case Column
     
-    Case 0
+    Case 0, 1
       
-      DX = (Width - 16) \ 2
-      X += DX
-      Y += DX
-      'Y += (gvwComponent.Rows.Height - gvwComponent.Padding * 2 - 16) \ 2
+      X += (Width - 16) \ 2
+      Y += Desktop.Scale \ 4
       Width = 16
       Height = 16
       
-      Style.PaintBox(X - 2, Y - 2, Width + 4, Height + 4)
+      If Column = 0 Then
       
-      If sComp = "gb" Or If Not Project.Documentation.Exist(sComp) Then
-        Paint.DrawPicture(Picture["img/16/checked-lock.png"], X, Y)
+        Style.PaintBox(X - 2, Y - 2, Width + 4, Height + 4)
+      
+        If sComp = "gb" Or If Not Project.Documentation.Exist(sComp) Then
+          Paint.DrawPicture(Picture["img/16/checked-lock.png"], X, Y)
+        Else
+          Select Case GetState(sComp)
+            Case ComponentChooser.Checked
+              Paint.DrawPicture(Picture["img/16/checked.png"], X, Y)
+            Case ComponentChooser.GrayChecked
+              Paint.DrawPicture(Picture["img/16/checked-gray.png"], X, Y)
+            Case ComponentChooser.Unchecked
+          End Select
+        Endif
+        
       Else
-        Select Case GetState(sComp)
-          Case ComponentChooser.Checked
-            Paint.DrawPicture(Picture["img/16/checked.png"], X, Y)
-          Case ComponentChooser.GrayChecked
-            Paint.DrawPicture(Picture["img/16/checked-gray.png"], X, Y)
-          Case ComponentChooser.Unchecked
-        End Select
+        
+        If GetState(sComp) <> ComponentChooser.Unchecked Then Style.PaintBox(X - 2, Y - 2, Width + 4, Height + 4)
+        
+        If sComp = "gb" Or If Not Project.Documentation.Exist(sComp) Then
+          Paint.DrawPicture(Picture["img/16/checked-lock.png"], X, Y)
+        Else
+          hComp = $cComp[sComp]
+          If hComp And If hComp.Manual Then
+            Paint.DrawPicture(Picture["img/16/check-manual.png"], X, Y)
+          Endif
+        Endif
+        
       Endif
-  
+      
   End Select
 
 End

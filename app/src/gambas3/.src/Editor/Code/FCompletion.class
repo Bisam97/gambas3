@@ -122,7 +122,7 @@ Public Sub Position(hEditor As TextEditor)
   
 End
 
-Static Public Sub FixPosition(hEditor As TextEditor, Optional ByRef X As Integer, ByRef Y As Integer)
+Public Sub FixPosition(hEditor As TextEditor, Optional ByRef X As Integer, ByRef Y As Integer)
 
   Dim bCompletion As Boolean
   Dim bSignature As Boolean
@@ -146,7 +146,7 @@ Static Public Sub FixPosition(hEditor As TextEditor, Optional ByRef X As Integer
     
     'FIXME: Had a crash with Me.W inside that static function
     
-    If X < FSignature.X + FSignature.W And If X + FCompletion.W > FSignature.X Then
+    If X < FSignature.X + FSignature.W And If X + Me.W > FSignature.X Then
     
       If Y = FSignature.Y Then
         Y += FSignature.H - 1

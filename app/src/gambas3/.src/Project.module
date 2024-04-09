@@ -43,6 +43,7 @@ Public Title As String
 Public Startup As String
 Public StartupEnvironment As String[]
 Public (Components) As String[]
+Public ManualComponents As String[]
 Public Libraries As String[]
 Public ExtraReferences As String[]
 Public KeepDebugInfo As Boolean
@@ -184,7 +185,7 @@ Public ImageEditors As String[] = ["Gimp", "KIconEdit", "KolourPaint", "Krita"]
 
 Private IMAGE_EXT As String[] = ["jpg", "jpeg", "gif", "bmp", "xpm", "png", "tif", "tiff"]
 
-Private $aOldRefreshComponents As New String[]
+Private $sOldRefreshComponents As String
 
 Public ExampleTitle As New Collection
 
@@ -3170,6 +3171,7 @@ Public Sub ReadProject(Optional bConvert As Boolean)
 
   StartupEnvironment = New String[]
   Components = New String[]
+  ManualComponents = New String[]
   Libraries = New String[]
   ExtraReferences = New String[]
   LibraryPath = ""
@@ -3267,6 +3269,9 @@ Public Sub ReadProject(Optional bConvert As Boolean)
         Else If Not hComp.Hidden Then
           If Not Components.Exist(sVal) Then Components.Add(sVal)
         Endif
+        
+      Case "manualcomponents"
+        ManualComponents = Split(sVal)
 
       Case "startupenvironment"
         StartupEnvironment.Add(sVal)
@@ -3646,6 +3651,8 @@ Public Sub WriteProject(Optional bComponentDoNotChange As Boolean, Optional bMak
   Dim sVal As String
   Dim hComp As CComponent
   Dim sVersion As String
+  Dim aComp As String[]
+  Dim sComp As String
 
   If Project.ReadOnly Then Return
 
@@ -3684,11 +3691,20 @@ Public Sub WriteProject(Optional bComponentDoNotChange As Boolean, Optional bMak
   Print #hFile, "Version="; sVersion
   If VersionFile Then Print #hFile, "VersionFile=1"
 
+  aComp = New String[]
   For Each hComp In Documentation.Components
-    If Components.Find(hComp.Key) >= 0 Then
-      Print #hFile, "Component="; hComp.Key
+    aComp.Add(hComp.Key)
+  Next
+  
+  aComp.Sort()
+  
+  For Each sComp In aComp
+    If Components.Find(sComp) >= 0 Then
+      Print #hFile, "Component="; sComp
     Endif
   Next
+  
+  If ManualComponents And If ManualComponents.Count Then Print #hFile, "ManualComponents="; ManualComponents.Join()
   
   For Each sVal In StartupEnvironment
     Print #hFile, "StartupEnvironment="; sVal
@@ -4756,31 +4772,26 @@ Public Sub RefreshComponents(Optional bForce As Boolean)
   Dim hComp As CComponent
   Dim bChange As Boolean
 
-  ' Sort components
-
-  ' For Each hComp In Documentation.Components
-  '   If Components.Find(hComp.Key) >= 0 Then
-  '     aLib.Add(hComp.Key)
-  '   Endif
-  ' Next
-  ' Components = aLib.Copy()
   aLib = Components.Copy()
-
-  For Each sLib In ExtraReferences
-    aLib.Add(sLib)
-  Next
+  aLib.Insert(ManualComponents)
+  aLib.Insert(ExtraReferences)
 
   For Each sLib In Libraries
     aLib.Add(File.Name(sLib))
   Next
 
-  bChange = aLib.Join() <> $aOldRefreshComponents.Join()
+  bChange = aLib.Join() <> $sOldRefreshComponents
 
   If bForce Or bChange Then
 
     Documentation.Reset
 
     For Each sLib In Components
+      hComp = Documentation[sLib]
+      If hComp Then hComp.Load()
+    Next
+    
+    For Each sLib In ManualComponents
       hComp = Documentation[sLib]
       If hComp Then hComp.Load()
     Next
@@ -4806,7 +4817,7 @@ Public Sub RefreshComponents(Optional bForce As Boolean)
 
     If bChange Then ReloadAll(True)
 
-    $aOldRefreshComponents = aLib
+    $sOldRefreshComponents = aLib.Join()
     
     'HasTest = Components.Exist("gb.test")
     
