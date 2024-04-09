@@ -3651,8 +3651,6 @@ Public Sub WriteProject(Optional bComponentDoNotChange As Boolean, Optional bMak
   Dim sVal As String
   Dim hComp As CComponent
   Dim sVersion As String
-  Dim aComp As String[]
-  Dim sComp As String
 
   If Project.ReadOnly Then Return
 
@@ -3691,16 +3689,9 @@ Public Sub WriteProject(Optional bComponentDoNotChange As Boolean, Optional bMak
   Print #hFile, "Version="; sVersion
   If VersionFile Then Print #hFile, "VersionFile=1"
 
-  aComp = New String[]
   For Each hComp In Documentation.Components
-    aComp.Add(hComp.Key)
-  Next
-  
-  aComp.Sort()
-  
-  For Each sComp In aComp
-    If Components.Find(sComp) >= 0 Then
-      Print #hFile, "Component="; sComp
+    If Components.Find(hComp.Key) >= 0 Then
+      Print #hFile, "Component="; hComp.Key
     Endif
   Next
   
