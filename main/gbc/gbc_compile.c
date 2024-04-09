@@ -245,6 +245,17 @@ void COMPILE_add_component(const char *name)
 	}
 }
 
+static void add_components(char *list)
+{
+	char *comp;
+
+	comp = strtok(list, ",");
+	while (comp)
+	{
+		COMPILE_add_component(comp);
+		comp = strtok(NULL, ",");
+	}
+}
 
 static FILE *open_project_file()
 {
@@ -583,6 +594,8 @@ void COMPILE_init(void)
 			add_library_list_file(&line[8], FALSE);
 		else if (strncmp(line, "Reference=", 10) == 0)
 			add_library_list_file(&line[10], TRUE);
+		else if (strncmp(line, "ManualComponents=", 17) == 0)
+			add_components(&line[17]);
 	}
 
 	fclose(fp);
