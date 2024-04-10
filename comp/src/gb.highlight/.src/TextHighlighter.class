@@ -374,6 +374,10 @@ Static Private Sub CreateCustomHighlighter(sHighlight As String, sPath As String
   Dim sWordRegExp As String = "[A-Za-z_][A-Za-z0-9_]*"
   Dim bNext As Boolean
   Dim cDefine As New Collection(gb.IgnoreCase)
+  Dim bDebug As Boolean
+  
+  bDebug = Env["GB_HIGHLIGHT_DEBUG"] = "1"
+  CState.Debug = bDebug
   
   sDir = File.Dir(Temp$()) &/ "gb.highlight." & sHighlight
   
@@ -564,7 +568,12 @@ Static Private Sub CreateCustomHighlighter(sHighlight As String, sPath As String
   Output To Default
   hOutput.Close
   
-  'Print File.Load(sOutput)
+  If bDebug Then
+    Error "gb.highlight: compile: "; sHighlight
+    Error String(40, "-")
+    Error File.Load(sOutput)
+    Error String(40, "-")
+  Endif
   
   sProject = File.Load("custom/project.template")
   sProject = Replace(sProject, "$(startup)", "_TextHighlighter_" & sHighlight)
