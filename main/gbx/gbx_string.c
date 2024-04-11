@@ -244,7 +244,7 @@ void STRING_free_real(char *ptr)
 #ifdef DEBUG_ME
 	fprintf(stderr, "[%d]\n", MEMORY_count);
 		
-	int i;
+	/*int i;
 	for (i = 0; i < STRING_last_count; i++)
 	{
 		if (STRING_last[i] == ptr)
@@ -252,7 +252,7 @@ void STRING_free_real(char *ptr)
 			fprintf(stderr, "%p (%p) already free later!\n", str, ptr);
 			BREAKPOINT();
 		}
-	}
+	}*/
 #endif
 
 	if (pool < POOL_SIZE)

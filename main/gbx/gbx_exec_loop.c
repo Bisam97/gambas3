@@ -2333,7 +2333,7 @@ _DIV_FLOAT:
 
 _TRY:
 
-	EP = SP;
+	EP = sp;
 	ET = EC;
 	EC = PC + (signed short)PC[1] + 2;
 
