@@ -11,155 +11,41 @@ Public Sub _init()
   Settings.Read($hTheme, "/Editor/Styles")
   
 End
-' 
-' Public Sub IsBackgroundStyle(sKey As String) As Boolean
-'   
-'   Return ["Background", "Selection", "CurrentLine", "Current", "Breakpoint", "Highlight", "Alternate"].Exist(sKey)
-'   
-' End
-' 
-' Public Function ReadSettings(hSettings As Settings, sParent As String, Optional bDefault As Boolean) As Collection
-'   
-'   Dim cColor As New Collection
-'   Dim sKey As String
-'   Dim sColor As String
-'   Dim aColor As String[]
-'   
-'   For Each sKey In ColorKeys
-'     If bDefault Then
-'       sColor = hSettings[sParent &/ sKey, $cDefault[sKey]]
-'     Else
-'       sColor = hSettings[sParent &/ sKey]
-'     Endif
-'     cColor[sKey] = sColor
-'   Next
-'   
-'   For Each sKey In ColorKeys
-'     Do
-'       sColor = cColor[sKey]
-'       If Not sColor Then Break
-'       If Left(sColor) = "#" Then Break
-'       aColor = Split(sColor)
-'       aColor[0] = cColor[aColor[0]]
-'       cColor[sKey] = aColor.Join()
-'     Loop
-'   Next
-'   
-'   Return cColor
-'   
-' End
-' 
-' Public Sub WriteSettings(hSettings As Settings, sParent As String, cColor As Collection)
-'   
-'   Dim sKey As String
-'   
-'   For Each sKey In ColorKeys
-'     hSettings[sParent &/ sKey] = cColor[sKey]
-'   Next
-'   
-' End
-' 
-' Public Function ReadFile(sPath As String) As Collection
-'   
-'   Dim hSettings As Settings
-'   Dim sTemp As String
-'   
-'   If Left(sPath) <> "/" Then
-'     sPath = "theme" &/ sPath
-'     sTemp = Temp$()
-'     Copy sPath To sTemp
-'     sPath = sTemp
-'   Endif
-'   
-'   hSettings = New Settings(sPath)
-'   If sTemp Then Kill sTemp
-'   
-'   Return ReadSettings(hSettings, "Theme")
-'   
-' End
-' 
-' Public Sub WriteFile(sPath As String, cColor As Collection)
-'   
-'   Dim hSettings As Settings
-'   
-'   hSettings = New Settings(sPath)
-'   WriteSettings(hSettings, "Theme", cColor)  
-'   hSettings.Save
-'   
-' End
-' 
-' Public Sub Copy(cColor As Collection) As Collection
-'   
-'   Dim cNew As New Collection
-'   Dim sValue As String
-'   
-'   For Each sValue In cColor
-'     cNew[cColor.Key] = sValue
-'   Next
-'   
-'   Return cNew
-' 
-' End
-' 
-' Public Sub InvertColor(iCol As Integer, sKey As String) As Integer
-' 
-'   ' Dim R, G, B As Integer
-'   ' Dim Y, U, V As Float
-'   ' 
-'   ' With Color[iCol]
-'   '   R = .Red
-'   '   G = .Green
-'   '   B = .Blue
-'   ' End With
-'   ' 
-'   ' Y = 0.299 * R + 0.587 * G + 0.114 * B
-'   ' U = 0.436 * (B - Y) / (1 - 0.114)
-'   ' V = 0.615 * (R - Y) / (1 - 0.299)
-'   ' 
-'   ' R = Y + 1.14 * V
-'   ' G = Y - 0.395 * U - 0.581 * V
-'   ' B = Y + 2.033 * U
-'   ' 
-'   ' Return Color.RGB(R, G, B)
-'   
-'   Dim H, S, V, L As Integer
-'   
-'   With Color[iCol]
-'     H = .Hue
-'     S = .Saturation
-'     V = .Value
-'     L = .Luminance
-'   End With
-'   
-'   If sKey = "CurrentLine" Then
-'     If V > 128 Then
-'       V *= 0.5
-'       S = 255 - (255 - S) / 2
-'     Endif
-'   Else If S < 32 Or If sKey = "Background" Then 
-'     V = 255 - V
-'   Else If IsBackgroundStyle(sKey) Then
-'     V *= 0.75
-'   Endif
-'   
-'   Return Color.HSV(H, S, V)
-'   
-' End
 
 Public Sub InitEditor(hEditor As TextEditor, Optional (bDesaturate) As Boolean)
   
-  hEditor.Theme = $hTheme
-  hEditor.Background = $hTheme["Background"].Color
-  hEditor.Foreground = $hTheme["Normal"].Color
+  Dim hTheme As TextHighlighterTheme
+  
+  If Application.DarkTheme And If Settings["/Editor/InvertTheme", True] Then
+    hTheme = $hTheme.Copy()
+    hTheme.Invert()
+  Else
+    hTheme = $hTheme
+  Endif
+  
+  hEditor.Theme = hTheme
+  hEditor.Background = hTheme["Background"].Color
+  hEditor.Foreground = hTheme["Normal"].Color
   
   hEditor.Refresh
   
 End
 
 Public Sub GetColor(sStyle As String) As Integer
+
+  Dim iColor As Integer
   
-  Try Return $hTheme[sStyle].Color
-  Debug sStyle & "?"
+  Try iColor = $hTheme[sStyle].Color
+  If Error Then
+    iColor = Color.Pink
+    Debug sStyle & "?"
+  Endif
+  
+  If Application.DarkTheme And If Settings["/Editor/InvertTheme", True] Then
+    iColor = Color.Invert(iColor, True)
+  Endif
+  
+  Return iColor
   
 End
 
@@ -170,53 +56,6 @@ Public Sub InitControl(hControl As Control)
   
 End
 
-' Public Sub GetStyles() As TextHighlighterStyle[]
-'   
-'   Dim iInd As Integer  
-'   Dim hStyle As New CStyle
-'   Dim iStyle As Integer
-'   Dim iCol As Integer
-'   Dim iBg As Integer
-'   Dim bInvert As Boolean
-'   Dim sKey As String
-'   Dim aStyles As TextHighlighterStyle[]
-'   Dim hTextStyle As TextHighlighterStyle
-'   
-'   aStyles = TextHighlighter.DefaultStyle
-'   
-'   If Application.DarkTheme Then bInvert = Settings["/Editor/InvertTheme", True]
-'   For iInd = 0 To ColorKeys.Max
-'     
-'     sKey = ColorKeys[iInd]
-'     
-'     hStyle.FromString(Settings["Highlight" &/ sKey, $cDefault[sKey]])
-'     iStyle = Object.GetProperty(Classes["Highlight"], sKey)
-'     
-'     hTextStyle = aStyles[iStyle]
-'     
-'     With hTextStyle
-'       
-'       iCol = hStyle.Foreground
-'       
-'       If iInd = 0 Then 
-'         iBg = iCol
-'         If Color[iBg].Value < 128 Then bInvert = False
-'       Endif
-'       
-'       If bInvert Then iCol = InvertColor(iCol, sKey)
-'       
-'       .Color = iCol
-'       .Bold = hStyle.Bold
-'       .Underline = hStyle.Underline
-'       
-'     End With
-'     
-'   Next
-'   
-'   Return aStyles
-'   
-' End
-
 Private Function Theme_Read() As TextHighlighterTheme
 
   Return $hTheme
@@ -226,8 +65,6 @@ End
 Private Sub Theme_Write(Value As TextHighlighterTheme)
 
   $hTheme = Value.Copy()
-  If Application.DarkTheme And If Settings["/Editor/InvertTheme", True] Then $hTheme.Invert()
-  
   Settings.Write($hTheme, "/Editor/Styles")
   
 End

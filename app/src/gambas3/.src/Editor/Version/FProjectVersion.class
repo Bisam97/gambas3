@@ -69,7 +69,7 @@ End
 
 Private Sub SaveLastCommitLog()
   
-  If $bInitChanges Then Project.Config["/FProjectVersion/LastCommit"] = RTrim(GetChanges())
+  If $bInitChanges Then Project.Config["/FProjectVersion/LastCommit"] = GetChanges()
   
 End
 
@@ -336,7 +336,7 @@ Private Sub GetChanges() As String
     Endif
   Endif
 
-  Return sChange  
+  Return RTrim(sChange)
   
 End
 
@@ -396,8 +396,7 @@ Private Sub DoCommit()
     If Trim(sChange) = Trim($sOldCommit) Then
       edtJournal.Goto(0, 0)
       edtJournal.SetFocus
-      Message.Warning(("Please write a new commit log."))
-      Return
+      If Message.Warning(("The commit log had not been modified."), ("Continue"), ("Cancel")) = 2 Then Return
     Endif
     
     ShowTerminal(True)
@@ -444,6 +443,7 @@ Public Sub btnLocateChange_Click()
   Dim iLine As Integer
 
   If edtDiff.LocateChange(ByRef sPath, ByRef iLine) Then Return
+  btnWorkspace_Click
   Project.OpenFile(sPath, iLine)
 
 End
