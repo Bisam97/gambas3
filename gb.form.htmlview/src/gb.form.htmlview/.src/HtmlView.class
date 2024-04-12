@@ -1,5 +1,9 @@
 ' Gambas class file
 
+''' This class provides a lightweight HTML/CSS viewer.
+'''
+''' It supports most Of the HTML5 / CSS3 syntax.
+
 Export
 
 Inherits UserControl
@@ -8,14 +12,34 @@ Public Const _Properties As String = "*,Border=True,MonospaceFont{Font:Fixed}"
 Public Const _Group As String = "View"
 Public Const _DrawWith As String = "DrawingArea"
 
+'' This event is raised when the title of the page is defined.
+''
+'' - ~Title~: The page title
+
 Event Title(Title As String)
+
+'' This event is raised when an URL can't be handled automatically by the HtmlView.
+''
+'' - ~Url~: The URL that must be handled specifically.
+
 Event Link(Url As String)
 
+'' Return or set the HTML contents of the HtmlView.
 Property Html As String
+
+'' Return or set if the control has a border.
 Property Border As Boolean
+
+'' Return or set the root part used by relative URLs.
 Property Dir As String
+
+'' Return or set the view zoom factor.
 Property Zoom As Float
+
+'' Return or set the HTML "monospace" font.
 Property MonospaceFont As Font
+
+'' Return or set the URL displayed by the view.
 Property Url As String
 
 Private $hDoc As HtmlViewDocument
@@ -39,6 +63,8 @@ Private $sUrl As String
 Private $iNoHistory As Integer
 Private $bLoaded As Boolean
 
+'' Create a new HtmlView control.
+
 Public Sub _new()
   
   $hView = New ScrollArea(Me) As "View"
@@ -48,6 +74,7 @@ Public Sub _new()
   $hDoc = New HtmlViewDocument As "HtmlViewDocument"
   $hDoc.SetMedia(Desktop.Width, Desktop.Height, Desktop.Resolution)
   $hDoc.SetDefaultFont(Me.Font.Name, Me.Font.Size)
+  $hDoc.DarkTheme = Application.DarkTheme
   
   Me.Proxy = $hView
   
@@ -140,6 +167,10 @@ Private Sub Html_Write(Value As String)
   $hView.Refresh
 
 End
+
+'' Load the default CSS into the view.
+''
+'' - ~Css~: Optional CSS added to the default CSS.
 
 Public Sub LoadCss(Optional Css As String)
 
@@ -269,6 +300,8 @@ Private Sub Dir_Write(Value As String)
 
 End
 
+'' Move back into the view history.
+
 Public Sub Back() As Boolean
   
   If $aBack.Count > 1 Then
@@ -282,6 +315,8 @@ Public Sub Back() As Boolean
   
 End
 
+'' Move forward into the view history.
+
 Public Sub Forward()
   
   If $aForward.Count Then
@@ -292,7 +327,6 @@ Public Sub Forward()
   Endif
   
 End
-
 
 Public Sub _LoadCss(sUrl As String, sBase As String) As String
 
@@ -335,6 +369,8 @@ Private Sub Zoom_Write(Value As Float)
   $hView.Refresh
 
 End
+
+'' Reload the view contents.
 
 Public Sub Reload()
 
@@ -440,6 +476,10 @@ Private Sub Url_Write(Value As String)
   
 End
 
+'' Load a HTML file inside the view.
+''
+'' - ~Path~: The path of the HTML file.
+
 Public Sub Load(Path As String)
 
   Dim iPos As Integer
@@ -473,6 +513,8 @@ Public Sub View_Leave()
   $hDoc.OnLeave()
   
 End
+
+'' Clear the view contents.
 
 Public Sub Clear()
   

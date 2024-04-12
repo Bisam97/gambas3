@@ -36,9 +36,11 @@ DECLARE_EVENT(EVENT_Title);
 
 //-------------------------------------------------------------------------
 
-static int convert_color(const litehtml::web_color &color)
+static int convert_color(const litehtml::web_color &color, bool invert)
 {
-	return GB_COLOR_MAKE(color.red, color.green, color.blue, color.alpha);
+	GB_COLOR col = GB_COLOR_MAKE(color.red, color.green, color.blue, color.alpha);
+	if (invert) col = IMAGE.InvertColor(col, TRUE);
+	return col;
 }
 
 static int get_font_ascent(void *font)
@@ -86,6 +88,7 @@ private:
 	
 	litehtml::document::ptr m_html;
 	bool _valid;
+	bool _invert_colors;
 	int m_client_w;
 	int m_client_h;
 	int m_scroll_x;
@@ -114,11 +117,12 @@ public:
 	void rounded_rectangle(const litehtml::position &pos, const litehtml::border_radiuses &radius, bool keep = false, bool back = false);
 	void begin_clip();
 	void end_clip();
-	void set_color(const litehtml::web_color &color) { DRAW.Paint.SetBackground(convert_color(color)); }
+	void set_color(const litehtml::web_color &color) { DRAW.Paint.SetBackground(convert_color(color, _invert_colors)); }
 	void on_mouse(int event, int x = 0, int y = 0);
 	void on_media_change();
 	GB_IMG *get_image(const char *src, const char *baseurl);
 	int find_anchor(const litehtml::string& anchor);
+	void set_dark_theme(bool v) { _invert_colors = v; }
 	
 protected:
 	
@@ -385,7 +389,7 @@ void html_document::draw_list_marker(litehtml::uint_ptr hdc, const litehtml::lis
 			
 		case litehtml::list_style_type_square:
 			
-			PAINT->FillRect(CURRENT, marker.pos.x, marker.pos.y, marker.pos.width, marker.pos.height, convert_color(marker.color));
+			PAINT->FillRect(CURRENT, marker.pos.x, marker.pos.y, marker.pos.width, marker.pos.height, convert_color(marker.color, _invert_colors));
 			break;
 			
 		default:
@@ -1029,6 +1033,7 @@ static void reload_document(void *_object)
 	if (THIS->html && *THIS->html)
 	{	
 		THIS->doc = new html_document(THIS);
+		THIS->doc->set_dark_theme(THIS->dark);
 
 		if (THIS->doc->load(THIS->html, THIS->css))
 			GB.Error("Unable to parse HTML");
@@ -1189,6 +1194,19 @@ BEGIN_METHOD(HtmlDocument_FindAnchor, GB_STRING anchor)
 
 END_METHOD
 
+BEGIN_PROPERTY(HtmlDocument_DarkTheme)
+
+	if (READ_PROPERTY)
+		GB.ReturnBoolean(THIS->dark);
+	else
+	{
+		THIS->dark = VPROP(GB_BOOLEAN);
+		if (THIS->doc) THIS->doc->set_dark_theme(THIS->dark);
+	}
+
+END_PROPERTY
+
+
 //-------------------------------------------------------------------------
 
 GB_DESC HtmlDocumentDesc[] = 
@@ -1208,6 +1226,7 @@ GB_DESC HtmlDocumentDesc[] =
 	GB_METHOD("SetMedia", NULL, HtmlDocument_SetMedia, "(ScreenWidth)i(ScreenHeight)i(Resolution)i"),
 	GB_METHOD("Reload", NULL, HtmlDocument_Reload, NULL),
 	GB_METHOD("FindAnchor", "i", HtmlDocument_FindAnchor, "(Anchor)s"),
+	GB_PROPERTY("DarkTheme", "b", HtmlDocument_DarkTheme),
 	
 	GB_METHOD("OnMouseDown", NULL, HtmlDocument_OnMouseDown, "ii"),
 	GB_METHOD("OnMouseUp", NULL, HtmlDocument_OnMouseUp, "ii"),
@@ -1220,7 +1239,7 @@ GB_DESC HtmlDocumentDesc[] =
 	GB_PROPERTY_READ("H", "i", HtmlDocument_Height),
 	GB_PROPERTY_READ("Link", "s", HtmlDocument_Link),
 	GB_PROPERTY_READ("Base", "s", HtmlDocument_Base),
-						 
+
 	GB_EVENT("Link", NULL, "s", &EVENT_Link),
 	GB_EVENT("Title", NULL, "s", &EVENT_Title),
 	

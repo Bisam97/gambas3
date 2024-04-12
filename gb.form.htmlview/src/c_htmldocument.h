@@ -51,6 +51,7 @@ typedef
 		int resolution;
 		char *link;
 		char *base;
+		bool dark;
 	}
 	CHTMLDOCUMENT;
 

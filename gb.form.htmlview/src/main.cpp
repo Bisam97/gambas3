@@ -43,11 +43,8 @@ GB_DESC *GB_CLASSES[] EXPORT =
 
 int EXPORT GB_INIT(void)
 {
-	//GB.Component.Load("gb.draw");
   GB.GetInterface("gb.draw", DRAW_INTERFACE_VERSION, &DRAW);
-	//GB.Component.Load("gb.geom");
   GB.GetInterface("gb.geom", GEOM_INTERFACE_VERSION, &GEOM);
-	//GB.Component.Load("gb.image");
   GB.GetInterface("gb.image", IMAGE_INTERFACE_VERSION, &IMAGE);
 	return 0;
 }
