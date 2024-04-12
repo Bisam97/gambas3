@@ -20,7 +20,11 @@ Property Key As String
 Property Text As String
 Property Separator As Boolean
 Property Size As String
+
+'' Return or set the layout of the toolbar.
 Property Settings, Layout As String
+
+'' Return if the toolbar is being configured.
 Property Read Configuring As Boolean
 
 '' @{since 3.19}
@@ -211,15 +215,24 @@ Private Sub Settings_Write(Value As String)
 
 End
 
+'' Return the layout of a specific toolbar.
+''
+'' - ~Key~: The toolbar key whose settings will be returned.
+
 Static Public Sub GetLayout((Key) As String) As String
 
   Return LayoutToString(FToolBar.LoadLayout(Key))
   
 End
 
-Static Public Sub SetLayout((Key) As String, sLayout As String)
+'' Set the layout of a specific toolbar.
+''
+'' - ~Key~: The toolbar key whose settings will be set.
+'' - ~Layout~: The layout description.
 
-  FToolBar.SaveLayout(Key, LayoutFromString(sLayout))
+Static Public Sub SetLayout((Key) As String, Layout As String)
+
+  FToolBar.SaveLayout(Key, LayoutFromString(Layout))
   
 End
 

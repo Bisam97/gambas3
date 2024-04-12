@@ -2,17 +2,21 @@
 
 Export
 
+'' Return the list of all global actions
 Static Property Read List As String[]
 
 Static Private $aWindow As New Window[]
 Static Private $iId As Integer
 
+'' Open the action shortcut configuration dialog.
+''
+'' Returns [/lang/true] if no change were done.
 
 Static Public Sub Configure() As Boolean
-
+  
   MAction.InitAction
   Return FShortcut.Run()
-
+  
 End
 
 Static Public Sub _ConfigureToolbar(hToolbar As ToolBar) 
@@ -22,11 +26,10 @@ Static Public Sub _ConfigureToolbar(hToolbar As ToolBar)
   
 End
 
-
 Static Private Function List_Read() As String[]
-
+  
   Return MAction.GetList()
-
+  
 End
 
 Static Public Sub _Register(Control As Object, Old As String, (Key) As String)
@@ -59,13 +62,12 @@ Static Private Sub SetShortcut(hMenu As Menu)
     sShortcut = MAction.GetShortcut(hMenu.Action)
     If sShortcut Then hMenu.Shortcut = sShortcut
   Endif
-
+  
   For Each hMenu In hMenu.Children
     SetShortcut(hMenu)
   Next
   
 End
-
 
 Static Public Sub Window_Open()
   
@@ -84,20 +86,41 @@ Static Public Sub Window_Close()
   
 End
 
+'' Add a new action to the global action list.
 
 Static Public Sub Add(Action As String, Text As String, Optional (Picture) As String, Optional HasShortcut As Boolean, DefaultShortcut As String)
-
+  
   MAction.Add(Action, Text, Picture, HasShortcut, DefaultShortcut)
-
+  
 End
 
-Static Public Sub AddFrom(Control As Object)
+'' Add a new action to the global action list from the properties of a specific control.
+''
+'' - ~Control~: The control used for creating the new action.
+''
+'' The following control properties are used:
+'' [[
+'' ==
+'' [/comp/gb.qt4/control/action]
+'' --
+'' If not defined, no new action is created.
+'' ==
+'' Text
+'' --
+'' If the property is available.
+'' ==
+'' Shortcut
+'' --
+'' If the property is available.
+'' ]]
 
+Static Public Sub AddFrom(Control As Object)
+  
   Dim sAction As String
   Dim sText As String
   Dim sShortcut As String
   Dim bHasShortcut As Boolean
-
+  
   sAction = Control.Action
   If Not sAction Then Return
   
@@ -107,6 +130,5 @@ Static Public Sub AddFrom(Control As Object)
   If sShortcut Or If Control Is Menu Then bHasShortcut = True
   
   Add(sAction, sText,, bHasShortcut, sShortcut)
-
+  
 End
-
