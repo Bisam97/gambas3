@@ -335,14 +335,15 @@ GB_COLOR COLOR_darker(GB_COLOR color)
 
 GB_COLOR COLOR_invert(GB_COLOR color, bool keep_hue)
 {
+	int r, g, b, a;
+	gt_color_to_rgba(color, &r, &g, &b, &a);
+
 	if (keep_hue)
 	{
-		return COLOR_set_luminance(color, COLOR_invert_luminance(COLOR_get_luminance(color)));
+		return gt_rgba_to_color(255 - (g + r) / 2, 255 - (r + b) / 2, 255 - (r + g) / 2, a);
 	}
 	else
 	{
-		int r, g, b, a;
-		gt_color_to_rgba(color, &r, &g, &b, &a);
 		return gt_rgba_to_color(255 - r, 255 - g, 255 - b, a);
 	}
 }

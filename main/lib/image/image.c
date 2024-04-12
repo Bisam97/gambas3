@@ -2402,7 +2402,6 @@ void IMAGE_invert(GB_IMG *img, bool keep_hue) // GB_COLOR bg, GB_COLOR fg)
 	GET_POINTER(img, p, pm);
 	uint col;
 	int format = img->format;
-	int i;
 	
 	SYNCHRONIZE(img);
 	
@@ -2416,8 +2415,9 @@ void IMAGE_invert(GB_IMG *img, bool keep_hue) // GB_COLOR bg, GB_COLOR fg)
 	}
 	else
 	{
-		GB_COLOR gcol;
-		
+		/*GB_COLOR gcol;
+		int i;
+
 		if (!init_lum)
 		{
 			for (i = 0; i <= 255; i++)
@@ -2430,6 +2430,12 @@ void IMAGE_invert(GB_IMG *img, bool keep_hue) // GB_COLOR bg, GB_COLOR fg)
 			gcol = GB_COLOR_from_format(*p, format);
 			gcol = COLOR_set_luminance(gcol, lum[COLOR_get_luminance(gcol)]);
 			*p++ = GB_COLOR_to_format(gcol, format);
+		}*/
+
+		while (p != pm)
+		{
+			col = BGRA_from_format(*p, format);
+			*p++ = BGRA_to_format(RGBA(255 - (GREEN(col) + BLUE(col)) / 2, 255 - (RED(col) + BLUE(col)) / 2, 255 - (RED(col) + GREEN(col)) / 2, ALPHA(col)), format);
 		}
 	}
 	/*else
