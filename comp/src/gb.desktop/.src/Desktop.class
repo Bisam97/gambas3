@@ -24,6 +24,18 @@ Static Property Read RuntimeDir As String
 Static Property Read NetworkAvailable As Boolean
 Static Property Read RemoteDisplay As Boolean
 
+'' @{since 3.19}
+''
+'' Return or set if the [desktop portal](https://flatpak.github.io/xdg-desktop-portal/docs/introduction.html) must be used.
+''
+'' By default the desktop portal is used. Set this property to FALSE if don't want to use it for any reason.
+''
+'' The following methods use the desktop portal:
+'' - [../open]
+'' - [../pickcolor]
+'' - [../screenshot]
+'' - [../sendmail]
+
 Static Property UsePortal As Boolean Use $bUsePortal = True
 
 Static Private $cDesktop As Collection
@@ -618,6 +630,8 @@ Static Private Function RemoteDisplay_Read() As Boolean
   
 End
 
+'' --> /comp/gb.qt4/desktop/screenshot
+
 Static Public Sub Screenshot(Optional X As Integer, Y As Integer, Width As Integer, Height As Integer) As Picture
   
   Dim hScreenshot As Image
@@ -632,6 +646,12 @@ Static Public Sub Screenshot(Optional X As Integer, Y As Integer, Width As Integ
   Try Return Super.Screenshot(X, Y, Width, Height)
   
 End
+
+'' @{since 3.19}
+''
+'' Pick a color on the desktop.
+''
+'' Return a picked color, or [Color.Transparent](/comp/gb.image/color/transparent) if the user cancels the action.
 
 Static Public Sub PickColor() As Integer
   
