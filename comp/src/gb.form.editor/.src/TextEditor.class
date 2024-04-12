@@ -1259,7 +1259,7 @@ Private Sub DrawLine(X As Integer, Y As Integer, Width As Integer, Height As Int
   '   Paint.FillRect(X, Y, Width, Height, $iMarginColor)
   ' Endif
   
-  If Row = $iStopLine Then Paint.FillRect(X, Y, Width, HH, $hTheme["Current"].Color)
+  'If Row = $iStopLine Then Paint.FillRect(X, Y, Width, HH, $hTheme["Current"].Color)
   
   If $hDoc.DiffAdded And If $hDoc.IsDiffAdded(Row) Then Paint.FillRect(X, Y, Width, HH, Color.SetAlpha($hTheme["Added"].Color, 224))
   
@@ -1648,34 +1648,54 @@ Private Sub DrawMargin(X As Integer, Y As Integer, Width As Integer, Height As I
   
   Paint.FillRect(X, Y, $MW, Height, $iBackground)
   
+  ' Stop line
+  
+  If Row = $iStopLine Then
+    'Paint.FillRect(X, Y, Width, HH, $hTheme["Current"].Color)
+    X1 = X + $MW - $iWidthModified
+    X2 = X + $MW
+    Paint.MoveTo(X, Y)
+    Paint.LineTo(X1, Y)
+    Paint.LineTo(X2, Y + Height / 2)
+    Paint.LineTo(X1, Y + Height - 1)
+    Paint.LineTo(X, Y + Height - 1)
+    Paint.LineTo(X, Y)
+    Paint.Background = $hTheme["Current"].Color
+    Paint.LineWidth = H / 12
+    Paint.Stroke
+  Endif
+  
   If $bShowIcon Or If $bShowExpand Then
     
     If $hDoc.HasBreakpoint(Row) Or If $hDoc.HasBookmark(Row) Or If hInfo.Limit Then
       
-      If $hDoc.HasBookmark(Row) Then
-        ' SS = S / 3
-        ' Paint.MoveTo(0, SS)
-        ' Paint.RelLineTo(SS, SS)
-        ' Paint.RelLineTo(2 * SS, - SS * 2)
-        ' Paint.LineWidth = SS / 2
-        ' Paint.Background = $hStyles[Highlight.Current].Color
-        ' Paint.Stroke
-        X1 = X + $MW - $LH / 2 - $iWidthModified
-        X2 = X + $MW - $iWidthModified
-        Paint.MoveTo(X, Y + 2)
-        Paint.LineTo(X1, Y + 2)
-        Paint.LineTo(X2, Y + Height / 2)
-        Paint.LineTo(X1, Y + Height - 2)
-        Paint.LineTo(X, Y + Height - 2)
-        Paint.LineTo(X, Y + 2)
-        Paint.Background = $hTheme["Selection"].Color
-        Paint.Fill
-      Endif
-      
       Paint.Save
-      Paint.Translate(X + $iPosIcon + H / 4, Y + H / 4)
+      Paint.Translate(X + $iPosIcon + H / 4 + 0.5, Y + H / 4 + 0.5)
       S = H / 2
-      Paint.LineWidth = S / 6
+      Paint.LineWidth = 1
+      
+      If $hDoc.HasBookmark(Row) Then
+        ' X1 = X + $MW - $LH / 2 - $iWidthModified
+        ' X2 = X + $MW - $iWidthModified
+        ' Paint.MoveTo(X, Y + 2)
+        ' Paint.LineTo(X1, Y + 2)
+        ' Paint.LineTo(X2, Y + Height / 2)
+        ' Paint.LineTo(X1, Y + Height - 2)
+        ' Paint.LineTo(X, Y + Height - 2)
+        ' Paint.LineTo(X, Y + 2)
+        ' Paint.Background = $hTheme["Selection"].Color
+        ' Paint.Fill
+        X1 = S - 1
+        Paint.MoveTo(1, S)
+        Paint.LineTo(1, 0)
+        Paint.LineTo(X1, 0)
+        Paint.LineTo(X1, S / 2)
+        Paint.LineTo(1, S / 2)
+        Paint.Background = Color.SetAlpha($hTheme["Highlight"].Color, 128)
+        Paint.Fill(True)
+        Paint.Background = $hTheme["Highlight"].Color
+        Paint.Stroke
+      Endif
       
       If $hDoc.HasBreakpoint(Row) Then
         Paint.Ellipse(0, 0, S, S)
