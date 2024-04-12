@@ -148,6 +148,8 @@ Static Public Sub _get(Path As String, Optional Size As String) As Picture
     Endif
   Endif
   
+__LOAD_OK:
+  
   If Size Then
     Try iSize = CInt(Size)
     If Not Error Then
@@ -156,8 +158,6 @@ Static Public Sub _get(Path As String, Optional Size As String) As Picture
       Try hPict = hPict.Stretch(Stock.GetSize(Size))
     Endif
   Endif
-  
-__LOAD_OK:
   
   $cCache[sKey] = hPict
   Return hPict

@@ -7,6 +7,7 @@ Static Private $cControls As New Collection(gb.IgnoreCase)
 Static Private $cLock As New Collection
 Static Private $iGlobalLock As Integer
 
+'' Return the list of all registered actions
 Static Property Read Keys As String[]
 
 Property Enabled As Boolean
@@ -554,13 +555,7 @@ End
 
 Static Private Function Keys_Read() As String[]
 
-  Dim aKeys As New String[]
-
-  For Each $cControls
-    aKeys.Add($cControls.Key)
-  Next
-  
-  Return aKeys
+  Return $cControls.Keys
 
 End
 

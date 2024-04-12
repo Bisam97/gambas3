@@ -3,6 +3,15 @@
 Export
 
 Static Property Read Type As String
+
+'' Return all desktop types defined by the environment.
+''
+'' This is the different elements of the 'XDG_CURRENT_DESKTOP' environment variable content.
+''
+'' If 'XDG_CURRENT_DESKTOP' is not defined, several heuristics are used for detecting the current desktop:
+'' for example, checking the `KDE_FULL_SESSION` environment variable for KDE desktops, checking the 
+'' `GNOME_DESKTOP_SESSION_ID` environmental variable for Gnome desktops, and so on.
+
 Static Property Read Types As String[]
 
 Static Private $sDesktop As String
@@ -73,6 +82,10 @@ Static Private Function Types_Read() As String[]
   Return $aDesktopType
 
 End
+
+'' Return if the current desktop has a specific type.
+''
+'' - ~Type~: The desktop type to check. The tests are not case sensitive.
 
 Static Public Sub Is(Type As String) As Boolean
   
