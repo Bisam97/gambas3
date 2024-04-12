@@ -160,6 +160,8 @@ typedef
 		int (*GetLuminance)(GB_COLOR col);
 		// Invert an image, eventually preserving the color hue.
 		void (*Invert)(GB_IMG *img, bool keep_hue);
+		// Invert a color, eventually preserving the color hue.
+		GB_COLOR (*InvertColor)(GB_COLOR col, bool keep_hue);
 		}
 	IMAGE_INTERFACE;
 

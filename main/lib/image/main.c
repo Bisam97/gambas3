@@ -71,6 +71,7 @@ void *GB_IMAGE_1[] EXPORT =
 	(void *)IMAGE_format_to_string,
 	(void *)COLOR_get_luminance,
 	(void *)IMAGE_invert,
+	(void *)COLOR_invert,
   NULL
 };
 

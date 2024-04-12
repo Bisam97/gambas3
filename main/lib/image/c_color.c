@@ -333,6 +333,20 @@ GB_COLOR COLOR_darker(GB_COLOR color)
 	return v;
 }
 
+GB_COLOR COLOR_invert(GB_COLOR color, bool keep_hue)
+{
+	if (keep_hue)
+	{
+		return COLOR_set_luminance(color, COLOR_invert_luminance(COLOR_get_luminance(color)));
+	}
+	else
+	{
+		int r, g, b, a;
+		gt_color_to_rgba(color, &r, &g, &b, &a);
+		return gt_rgba_to_color(255 - r, 255 - g, 255 - b, a);
+	}
+}
+
 //-------------------------------------------------------------------------
 
 BEGIN_METHOD(Color_RGB, GB_INTEGER r; GB_INTEGER g; GB_INTEGER b; GB_INTEGER a)
@@ -615,18 +629,7 @@ END_METHOD
 
 BEGIN_METHOD(Color_Invert, GB_INTEGER color; GB_BOOLEAN keep_hue)
 
-	GB_COLOR color = VARG(color);
-
-	if (VARGOPT(keep_hue, FALSE))
-	{
-		GB.ReturnInteger(COLOR_set_luminance(color, COLOR_invert_luminance(COLOR_get_luminance(color))));
-	}
-	else
-	{
-		int r, g, b, a;
-		gt_color_to_rgba(color, &r, &g, &b, &a);
-		GB.ReturnInteger(gt_rgba_to_color(255 - r, 255 - g, 255 - b, a));
-	}
+  GB.ReturnInteger(COLOR_invert(VARG(color), VARGOPT(keep_hue, FALSE)));
 
 END_METHOD
 
