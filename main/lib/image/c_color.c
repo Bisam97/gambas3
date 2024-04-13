@@ -340,7 +340,7 @@ GB_COLOR COLOR_invert(GB_COLOR color, bool keep_hue)
 
 	if (keep_hue)
 	{
-		return gt_rgba_to_color(255 - (g + r) / 2, 255 - (r + b) / 2, 255 - (r + g) / 2, a);
+		return gt_rgba_to_color(255 - (g + b) / 2, 255 - (b + r) / 2, 255 - (r + g) / 2, a);
 	}
 	else
 	{
