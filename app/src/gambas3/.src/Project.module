@@ -244,6 +244,7 @@ Public OpenFileIgnoreUnknown As Boolean
 Private $hRemoteDebugIcon As Image
 
 Public WelcomeDialog As Boolean
+Private $aTranslationEngines As String[]
 
 Public Sub _init()
 
@@ -7004,17 +7005,23 @@ Public Sub GetTranslationEngines() As String[]
   Dim sEngine As String
   Dim aEngine As New String[]
   
-  Try Exec ["trans", "-S"] To sResult
+  If Not $aTranslationEngines Then 
   
-  For Each sEngine In Split(Trim(sResult), "\n")
-    If sEngine Begins "* " Then sEngine = Mid$(sEngine, 2)
-    sEngine = Trim(sEngine)
-    If sEngine Then aEngine.Add(sEngine)
-  Next
+    Try Exec ["trans", "-S"] To sResult
+    
+    For Each sEngine In Split(Trim(sResult), "\n")
+      If sEngine Begins "* " Then sEngine = Mid$(sEngine, 2)
+      sEngine = Trim(sEngine)
+      If sEngine Then aEngine.Add(sEngine)
+    Next
+    
+    If Not aEngine.Exist("google") Then aEngine.Add("google")
+    
+    $aTranslationEngines = aEngine.Sort()
+    
+  Endif
   
-  If Not aEngine.Exist("google") Then aEngine.Add("google")
-  
-  Return aEngine.Sort()
+  Return $aTranslationEngines
   
 End
 

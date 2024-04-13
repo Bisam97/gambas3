@@ -68,3 +68,17 @@ Private Sub Theme_Write(Value As TextHighlighterTheme)
   Settings.Write($hTheme, "/Editor/Styles")
   
 End
+
+Public Sub GetTheme() As TextHighlighterTheme
+  
+  Dim hTheme As TextHighlighterTheme
+  
+  If Application.DarkTheme Then
+    hTheme = $hTheme.Copy()
+    hTheme.Invert()
+    Return hTheme
+  Else 
+    Return $hTheme
+  Endif
+  
+End

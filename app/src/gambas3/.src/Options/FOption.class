@@ -1105,11 +1105,7 @@ Public Sub ipnOption_Click()
       
       panCompressPng.Enabled = System.Exist("pngquant")
       panAutoTrans.Enabled = System.Exist("trans")
-      If panAutoTrans.Enabled Then
-        FillAutoTransEngines
-      Else
-        btnAutoTrans.Value = False
-      Endif
+      If Not panAutoTrans.Enabled Then btnAutoTrans.Value = False
 
     Case ("Code snippets")
     
@@ -1623,28 +1619,17 @@ Public Sub btnCloseStrings_Click()
 
 End
 
+Private Sub UpdateTranslation()
+
+  If Class.IsLoaded("FProjectTranslation") Then FProjectTranslation.ReadConfig()
+
+End
+
 Public Sub btnAutoTrans_Click()
 
   Settings["/AutomaticTranslation/Enabled"] = btnAutoTrans.Value
-  panAutoTransEngine.Visible = btnAutoTrans.Value
+  UpdateTranslation
 
-End
-
-Public Sub cmbAutoTrans_Click()
-
-  Settings["/AutomaticTranslation/Engine"] = cmbAutoTrans.Text
-
-End
-
-Private Sub FillAutoTransEngines()
-
-  If cmbAutoTrans.Count Then Return
-  
-  cmbAutoTrans.List = Project.GetTranslationEngines()
-
-  cmbAutoTrans.Text = Settings["/AutomaticTranslation/Engine", "google"]
-  If cmbAutoTrans.Index < 0 Then cmbAutoTrans.Text = "google"
-  
 End
 
 Public Sub txtPrintFont_Click()

@@ -30,7 +30,11 @@ Public Sub _new(hDrawingArea As DrawingArea, Optional bHasTear As Boolean, bWith
   Dim I As Integer
   Dim dNow As Date
   
-  hDrawingArea.Background = BACKGROUND_COLOR
+  If Application.DarkTheme Then 
+    hDrawingArea.Background = Color.Invert(BACKGROUND_COLOR, True)
+  Else
+    hDrawingArea.Background = BACKGROUND_COLOR
+  Endif
   
   $hObs = New Observer(hDrawingArea) As "dwgWelcome"
   $bWithPlatform = bWithPlatform
@@ -126,6 +130,7 @@ Public Sub dwgWelcome_Draw()
     'hSvgLogo = SvgImage.Load("img/logo/gambas.svg")
     '$hLogo = New Image(hSvgLogo.Width, 256, Color.Transparent)
     $hLogo = Image.Load("img/logo/head-256.png")
+    If Application.DarkTheme Then $hLogo.Invert(True)
     'Paint.Begin($hLogo)
     'Paint.Scale(1.1, 1.1)
     'hSvgLogo.Paint
@@ -187,6 +192,8 @@ Public Sub dwgWelcome_Draw()
     Endif
     
     Paint.End
+    
+    'If Application.DarkTheme Then $hText.Invert(True)
     
     '$hLogo.Brightness(-0.1)
     

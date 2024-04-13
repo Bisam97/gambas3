@@ -71,57 +71,45 @@ End
 
 Public Sub Reload(Optional bForce As Boolean)
 
-  Dim sLang As String
-  Dim sPath As String
-  Dim sName As String
-  Dim aName As String[]
-
   If Project.TimeStamp = $iTimeStamp And If Not bForce And If Project.Dir = Project.PreviousDir Then Return
   
   $iTimeStamp = Project.TimeStamp
   
-  ' If Project.GetClasses().Count = 0 Then
-  '   Message(("The project is void. There is nothing to translate."))
-  '   Return
-  ' Endif
-
   Inc Application.Busy
-
-  If Settings["/AutomaticTranslation/Enabled"] Then
-    $sTranslateShell = System.Find("trans")
-    $sTranslateEngine = Settings["/AutomaticTranslation/Engine", "google"]
-  Else
-    $sTranslateShell = ""
-    $sTranslateEngine = ""
-  Endif
-  
-  mnuAutoTrans.Enabled = $sTranslateShell
-  btnAutoTrans.Enabled = mnuAutoTrans.Enabled
-  
-  $sLang = ""
 
   $bStatValid = False
 
-  FillTranslationEngines
+  tabTranslate.Enabled = Not SetLang($sLang)
 
-  cvwLang.Clear
-  cmbLang.Clear
-  cmbLangSource.Clear
-  cmbLangSource.Add(("(Default)"))
+  tabTranslate_Click
+
+  Dec Application.Busy
+
+End
+
+Public Sub OnProjectChange()
   
-  'For Each sLang In Language.GetAll()
+  Dim aName As String[]
+  Dim sLang As String
+  Dim sName As String
+  Dim sPath As String
+  
+  $sLang = ""
+  
+  cvwLang.Clear
   aName = New String[]
   For Each sLang In Project.GetTranslations()
     sName = MyLanguage.ToName(sLang)
     aName.Add(sName)
     cvwLang.Add(sLang, sName)
   Next
-  
   aName.Sort(gb.Natural)
+  
   cmbLang.List = aName
+  
   aName.Add(("(Default)"), 0)
   cmbLangSource.List = aName
-
+  
   sPath = Settings["/FTranslate/ImportPath"]
   If Not sPath Then sPath = System.User.Home
   dchImport.SelectedPath = sPath
@@ -130,16 +118,6 @@ Public Sub Reload(Optional bForce As Boolean)
   sPath = Settings["/FTranslate/ImportProject"]
   If Not sPath Then sPath = System.User.Home
   pchImport.Path = sPath
-  
-  Dec Application.Busy
-
-  tabTranslate.Enabled = Not SetLang()
-
-  tabTranslate_Click
-
-End
-
-Public Sub OnProjectChange()
   
   Reload()
   
@@ -158,7 +136,20 @@ Public Sub ReadConfig()
   Project.SetSmallFont(tlbTranslate)
   Project.SetEditorFont(txtOrig)
   Project.SetEditorFont(txtTranslate)
+
+  If Settings["/AutomaticTranslation/Enabled"] Then
+    $sTranslateShell = System.Find("trans")
+    $sTranslateEngine = Settings["/AutomaticTranslation/Engine", "google"]
+  Else
+    $sTranslateShell = ""
+    $sTranslateEngine = ""
+  Endif
   
+  mnuAutoTrans.Enabled = $sTranslateShell
+  btnAutoTrans.Enabled = mnuAutoTrans.Enabled
+  
+  FillTranslationEngines
+
 End
 
 Private Sub ComputeTransStat(sLang As String, Optional nTrans As Integer)
@@ -184,6 +175,7 @@ End
 Public Sub Form_Open()
 
   ReadConfig()
+  OnProjectChange()
 
 End
 
@@ -207,7 +199,7 @@ Private Sub ErrorMessage(sText As String, sDetail As String)
   
 End
 
-Private Sub SetLang(Optional sLang As String) As Boolean
+Private Sub SetLang(Optional sLang As String, bForce As Boolean) As Boolean
 
   Dim sDir As String
   Dim sPath As String
@@ -218,6 +210,8 @@ Private Sub SetLang(Optional sLang As String) As Boolean
   Dim sName As String
   Dim hTrans, hTransSrc As CTranslation
   Dim sLangSrc As String
+
+  If sLang And If sLang = $sLang And If Not bForce Then Return
 
   Inc Application.Busy
 
@@ -797,7 +791,7 @@ Public Sub mnuReload_Click()
 
   If Message.Question(("Do you really want to reload this translation ?"), ("Reload"), ("Cancel")) = 2 Then Return
 
-  SetLang($sLang)
+  SetLang($sLang, True)
 
 End
 
@@ -1063,7 +1057,7 @@ Public Sub btnImport_Click()
 
   DisplayTrans
   $bModify = True
-  SetLang($sLang)
+  SetLang($sLang, True)
 
   Dec Application.Busy
 
@@ -1570,7 +1564,7 @@ End
 
 Public Sub cmbLangSource_Click()
 
-  SetLang($sLang)
+  SetLang($sLang, True)
 
 End
 
@@ -1705,7 +1699,9 @@ Private Sub GetAutomaticTranslation(sText As String) As String
       Endif
     Loop
   
+    'Debug [$sTranslateShell, "-e", $sTranslateEngine, "-b", sText, sLangSrc & ":" & sLangDest].Join(" ")
     Exec [$sTranslateShell, "-e", $sTranslateEngine, "-b", sText, sLangSrc & ":" & sLangDest] To sResult
+    'Debug sResult
     
     iPos = 0
     Do
@@ -1849,7 +1845,7 @@ Private Sub FillTranslationEngines()
   mnuTranslator.Children.Clear
   
   For Each sEngine In aEngines
-    hMenu = New Menu(mnuTranslator) As "mnuTranslator_Click"
+    hMenu = New Menu(mnuTranslator) As "mnuTranslator"
     hMenu.Text = sEngine
     hMenu.Radio = True
     If sEngine = sCurrent Then hMenu.Value = True
@@ -1859,7 +1855,8 @@ End
 
 Public Sub mnuTranslator_Click()
   
-  Settings["/AutomaticTranslation/Engine"] = Last.Text
+  $sTranslateEngine = Last.Text
+  Settings["/AutomaticTranslation/Engine"] = $sTranslateEngine
   
 End
 
