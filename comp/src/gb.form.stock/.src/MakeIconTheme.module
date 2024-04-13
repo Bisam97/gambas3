@@ -43,6 +43,9 @@ Public Sub Run()
   Dim sOrigin As String
   Dim sFile As String
   Dim hIcon As Image
+  Dim aSize As String[]
+
+  aSize = ["16", "24", "32", "48", "64", "128"]
 
   hFile = Open "links" For Input 
   While Not Eof(hFile)
@@ -91,7 +94,7 @@ Public Sub Run()
       aTarget = Split(Trim(Mid(sLine, iPos + 1)), ";", "", True)
       If cMime.Exist(sIcon) Then aTarget.Insert(cMime[sIcon])
   
-      For Each sSize In ["16", "24", "32", "48", "64", "128"]
+      For Each sSize In aSize
         
         sIconPath = sOrigin &/ sSize &/ sIcon & ".png"
         If Not Exist(sIconPath) Then
@@ -166,13 +169,35 @@ Public Sub Run()
     For Each sFile In Dir(sOrigin &/ "app")
       If sFile Ends "~" Then Continue
       hImage = Image.Load(sOrigin &/ "app" &/ sFile)
-      For Each sSize In ["16", "24", "32", "64", "128"]
+      For Each sSize In aSize
         sTargetPath = sRoot &/ (sSize & "x" & sSize) &/ "apps" &/ sFile
         Print sTargetPath
         hIcon = hImage.Stretch(CInt(sSize), CInt(sSize))
         If bDark Then hIcon = hIcon.Invert(True)
         hIcon.Save(sTargetPath)
       Next
+    Next
+    
+    hFile = Open "app-links"
+    For Each sLine In hFile.Lines
+      
+      sLine = Trim(sLine)
+      If Not sLine Then Continue
+      
+      iPos = InStr(sLine, ": ")
+      If iPos = 0 Then Continue
+      
+      sIcon = Left(sLine, iPos - 1)
+      
+      For Each sTarget In Split(Mid$(sLine, iPos + 2), " ", "", True)
+        For Each sSize In aSize
+          sTargetPath = sRoot &/ (sSize & "x" & sSize) &/ "apps" &/ sTarget & ".png"
+          Print sTargetPath
+          Try Kill sTargetPath
+          Link sIcon & ".png" To sTargetPath
+        Next
+      Next
+      
     Next
   
     hFile = Open sRoot &/ "index.theme" For Output Create
