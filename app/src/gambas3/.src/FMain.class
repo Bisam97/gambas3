@@ -3538,7 +3538,12 @@ End
 
 Public Sub txtSearchProject_Clear()
   
-  DoFilter("")
+  If Not Project.ProjectFilter Then
+    Project.RefreshAll    
+  Else
+    DoFilter("")
+  Endif
+  
   txtSearchProject.SetFocus
   
 End
