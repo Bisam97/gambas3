@@ -831,6 +831,11 @@ End
 Public Sub MoveTo(Index As Integer)
   
   If Index = Index_Read() Then Return
+  If Index < 0 Then
+    Create()
+    Return
+  Endif
+  
   If $bCreate Then $hCtrl.Row = -1
   SetCreate(False)
   $hCtrl.Row = Index
