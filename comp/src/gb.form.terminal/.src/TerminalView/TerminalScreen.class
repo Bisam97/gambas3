@@ -24,11 +24,11 @@ Public NewlineMode As Boolean
 Public WrapMode As Boolean
 Public HideCursor As Boolean
 
-Static Private $aDarkColor As Integer[] = [
-  &H404040, &HE03737, &H37E037, &HE0C637, &H378BE0, &HE037E0, &H37E0E0, &HE0E0E0,
-  &HA0A0A0, &HFF0000, &H00FF00, &HFFDD00, &H0080FF, &HFF00FF, &H00FFFF, &HFFFFFF]
-  '&H808080, &HC00000, &H00C000, &HD0C000, &H0060C0, &H800080, &H008080, &HFFFFFF,
-  '&H000000, &HFF0000, &H00FF00, &HFFFF00, &H0080FF, &HFF00FF, &H00FFFF, &HC0C0C0]
+' Static Private $aDarkColor As Integer[] = [
+'   &H404040, &HE03737, &H37E037, &HE0C637, &H378BE0, &HE037E0, &H37E0E0, &HE0E0E0,
+'   &HA0A0A0, &HFF0000, &H00FF00, &HFFDD00, &H0080FF, &HFF00FF, &H00FFFF, &HFFFFFF]
+'   '&H808080, &HC00000, &H00C000, &HD0C000, &H0060C0, &H800080, &H008080, &HFFFFFF,
+'   '&H000000, &HFF0000, &H00FF00, &HFFFF00, &H0080FF, &HFF00FF, &H00FFFF, &HC0C0C0]
 
 Static Private $aColor As Integer[] = [
   &H000000, &HC00000, &H00C000, &HC0A300, &H0060C0, &H900090, &H009090, &HC0C0C0,
@@ -944,11 +944,8 @@ Private Sub DrawLine(hView As TerminalView, L As Integer, X As Integer, Y As Int
     If iBg < 0 Then
       iBg = hAttr.Background
       If iBg >= 0 Then
-        If iBg < 16 And If bDarkBackground Then
-          iBg = $aDarkColor[iBg]
-        Else
-          iBg = $aColor[iBg]
-        Endif
+        iBg = $aColor[iBg]
+        If bDarkBackground Then iBg = Color.Invert(iBg, True)
       Else
         iBg = hView.Background
       Endif
@@ -958,11 +955,8 @@ Private Sub DrawLine(hView As TerminalView, L As Integer, X As Integer, Y As Int
     If iFg < 0 Then
       iFg = hAttr.Foreground
       If iFg >= 0 Then
-        If iFg < 16 And If bDarkBackground Then
-          iFg = $aDarkColor[iFg]
-        Else
-          iFg = $aColor[iFg]
-        Endif
+        iFg = $aColor[iFg]
+        If bDarkBackground Then iFg = Color.Invert(iFg, True)
       Else
         iFg = hView.Foreground
       Endif
