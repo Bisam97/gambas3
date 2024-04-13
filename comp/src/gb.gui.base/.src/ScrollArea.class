@@ -93,15 +93,25 @@ Private Sub LoadFades()
   Dim iColor As Integer
   Dim S As Integer
   
-  iColor = Color.Desaturate(If(Me.Foreground = Color.Default, Color.TextForeground, Me.Foreground))
+  If Application.DarkTheme Then 
+    iColor = Color.Desaturate(Color.LightForeground)
+  Else 
+    iColor = Color.Desaturate(Color.Foreground)
+  Endif
   
   If iColor = $iFadeColor Then Return
   
   S = $iFadeSize
   hImage = New Image(32, S, Color.Transparent)
-  For Y = 0 To S - 1
-    hImage.FillRect(0, Y, hImage.W, 1, Color.SetAlpha(iColor, 255 - (Y / S) ^ 2 * 64))
-  Next
+  If Application.DarkTheme Then
+    For Y = 0 To S - 1
+      hImage.FillRect(0, Y, hImage.W, 1, Color.SetAlpha(iColor, 255 - (Y / S) * 64))
+    Next
+  Else
+    For Y = 0 To S - 1
+      hImage.FillRect(0, Y, hImage.W, 1, Color.SetAlpha(iColor, 255 - (Y / S) ^ 2 * 64))
+    Next
+  Endif
   
   $hFadeS = hImage.Copy()
   hImage.RotateLeft
