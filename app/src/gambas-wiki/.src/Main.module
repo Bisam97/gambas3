@@ -849,10 +849,11 @@ Public Sub SolvePath(sPath As String, Optional bFollowRedirect As Boolean) As St
     If Not Main.ExistPage(sPath) Then Return sPath
     
     sData = File.Load(Main.GetPagePathFrom(sPath))
-    If sData Begins "-->" Then
-      sPath = MakeAbsolute(Trim$(Mid$(sData, 4)), sPath)
-    Else If bFollowRedirect And If sData Begins "==>" Then
-      sPath = MakeAbsolute(Trim$(Mid$(sData, 4)), sPath)
+    If sData Begins "-->" Or If sData Begins "==>" Then
+      sData = Trim$(Mid$(sData, 4))
+      If Not sData Then Return sPath
+      If Not bFollowRedirect And If sData Begins "==>" Then Return sPath
+      sPath = MakeAbsolute(sData, sPath)
     Else
       Return sPath
     Endif
@@ -1246,6 +1247,8 @@ Public Sub GetToDo() As String[]
 
   For Each sComp In CComponent.ListAll()
     
+    If aIgnore.Find(sComp) >= 0 Then Continue
+
     hComp = CComponent.Get(sComp)
     hComp.Load
     If hComp.State = CComponent.DEPRECATED Then Continue
@@ -1262,7 +1265,6 @@ Public Sub GetToDo() As String[]
       bPrintClass = True
   
       'If $cCompRedirect And If $cCompRedirect.Exist(sComp) Then Continue
-      If aIgnore.Find(sComp) >= 0 Then Continue
       
       If hClass.IsRedirected() Then Continue
   

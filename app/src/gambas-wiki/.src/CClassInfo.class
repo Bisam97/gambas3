@@ -564,8 +564,10 @@ TRY_AGAIN:
       sFirst = Trim(aData[0])
       If sFirst Begins "-->" Or If sFirst Begins "==>" Then
         sPath = Trim(Mid$(sFirst, 4))
-        Inc nTry
-        If nTry < 8 Then Goto TRY_AGAIN
+        If sPath Then
+          Inc nTry
+          If nTry < 8 Then Goto TRY_AGAIN
+        Endif
       Endif
     Endif
     

@@ -357,12 +357,15 @@ DISPLAY_PAGE:
     iPos = InStr(sData, "\n")
     If iPos Then sData = Left(sData, iPos - 1)
     sData = Trim(Mid$(sData, 4))
-    Print "<tt>==>"; Html(sData); "</tt>"
-    If Not Session.Id Then
-      Response.Cancel
-      Response.Redirect(Application.Root &/ sData)
+    If sData Then
+      If Not Session.Id Then
+        Response.Cancel
+        Response.Redirect(Application.Root &/ sData)
+      Else
+        Print "<tt>==>"; Html(sData); "</tt>"
+      Endif
+      Return 
     Endif
-    Return
   Endif
   
   If Main.Class Then
