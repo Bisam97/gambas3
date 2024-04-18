@@ -919,28 +919,29 @@ void TRANS_chgrp(void)
 	CODE_drop();
 }
 
-void TRANS_inc(void)
+static void trans_inc_dec(ushort op)
 {
 	PATTERN *save = JOB->current;
+	TYPE type;
 
 	TRANS_expression(FALSE);
+	type = TRANS_get_last_type();
 	CODE_push_number(1);
-	CODE_op(C_ADD, 0, 2, TRUE);
+
+	CODE_add_sub(op, 0, 2, TYPE_get_id(type));
 
 	JOB->current = save;
 	TRANS_reference();
 }
 
+void TRANS_inc(void)
+{
+	trans_inc_dec(C_ADD);
+}
+
 void TRANS_dec(void)
 {
-	PATTERN *save = JOB->current;
-
-	TRANS_expression(FALSE);
-	CODE_push_number(1);
-	CODE_op(C_SUB, 0, 2, TRUE);
-
-	JOB->current = save;
-	TRANS_reference();
+	trans_inc_dec(C_SUB);
 }
 
 

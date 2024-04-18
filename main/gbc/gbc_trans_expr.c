@@ -473,9 +473,10 @@ static void trans_operation(short op, short nparam, PATTERN previous)
 
 		case RST_ADD:
 			type = Max(get_type_id(0, nparam), get_type_id(1, nparam));
-			ftype = TYPE_make_simple(type);
 			if (type == T_DATE)
-				type = T_FLOAT;
+				ftype = TYPE_make_simple(T_FLOAT);
+			else
+				ftype = TYPE_make_simple(type);
 			break;
 
 		case RST_AND:
@@ -625,11 +626,11 @@ static void trans_operation(short op, short nparam, PATTERN previous)
 				type = RST_SAME;
 			}
 			else
-				CODE_add_sub(info->code, info->subcode, nparam, TYPE_get_id(ftype));
+				CODE_add_sub(info->code, info->subcode, nparam, type);
 			break;
 			
 		case OP_PLUS:
-			CODE_add_sub(info->code, info->subcode, nparam, TYPE_get_id(ftype));
+			CODE_add_sub(info->code, info->subcode, nparam, type);
 			break;
 
 		case OP_AMP:
