@@ -532,7 +532,6 @@ Public Sub _new()
   $hTheme = New TextHighlighterTheme As "Theme"
   $hTheme["Background"].Color = Color.TextBackground
   $hTheme["Normal"].Color = Color.TextForeground
-  $hTheme["Selection"].Color = Color.LightBackground
   
   _SetDocument(Null)
   
@@ -1648,23 +1647,6 @@ Private Sub DrawMargin(X As Integer, Y As Integer, Width As Integer, Height As I
   
   Paint.FillRect(X, Y, $MW, Height, $iBackground)
   
-  ' Stop line
-  
-  If Row = $iStopLine Then
-    'Paint.FillRect(X, Y, Width, HH, $hTheme["Current"].Color)
-    X1 = X + $MW - $iWidthModified
-    X2 = X + $MW
-    Paint.MoveTo(X, Y)
-    Paint.LineTo(X1, Y)
-    Paint.LineTo(X2, Y + Height / 2)
-    Paint.LineTo(X1, Y + Height - 1)
-    Paint.LineTo(X, Y + Height - 1)
-    Paint.LineTo(X, Y)
-    Paint.Background = $hTheme["Current"].Color
-    Paint.LineWidth = H / 12
-    Paint.Stroke
-  Endif
-  
   If $bShowIcon Or If $bShowExpand Then
     
     If $hDoc.HasBreakpoint(Row) Or If $hDoc.HasBookmark(Row) Or If hInfo.Limit Then
@@ -1761,6 +1743,23 @@ Private Sub DrawMargin(X As Integer, Y As Integer, Width As Integer, Height As I
       '   Paint.DrawText(sStr, X + 1, Y, $iWidthLineNumber - 4, H, Align.Right)
       ' Endif
     Endif
+  Endif
+  
+  ' Stop line
+  
+  If Row = $iStopLine Then
+    'Paint.FillRect(X, Y, Width, HH, $hTheme["Current"].Color)
+    X1 = X + $MW - $iWidthModified
+    X2 = X + $MW
+    Paint.MoveTo(X, Y)
+    Paint.LineTo(X1, Y)
+    Paint.LineTo(X2, Y + Height / 2)
+    Paint.LineTo(X1, Y + Height - 1)
+    Paint.LineTo(X, Y + Height - 1)
+    Paint.LineTo(X, Y)
+    Paint.Background = $hTheme["Current"].Color
+    Paint.LineWidth = H / 12
+    Paint.Stroke
   Endif
   
 End
@@ -3549,7 +3548,7 @@ Private Sub CheckStyle()
   If $bThemeChanged Then
     $iBackground = $hTheme["Background"].Color
     $iForeground = $hTheme["Normal"].Color
-    $iSelectedBackground = $hTheme["Selection"].Color
+    $iSelectedBackground = Color.Gradient($iBackground, Color.SelectedBackground, 0.3)
     $iLimitColor = Color.Gradient($iBackground, $hTheme["Comment"].Color)
     $iIndentColor = Color.SetAlpha($iLimitColor, 160)
     $iMatchColor = $hTheme["Highlight"].Color
