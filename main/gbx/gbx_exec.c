@@ -432,7 +432,7 @@ void EXEC_enter(void)
 	int nparam = EXEC.nparam;
 	void *object = EXEC.object;
 	CLASS *class = EXEC.class;
-	int64_t optargs;
+	int64_t optargs = 0;
 
 	#if DEBUG_STACK
 	fprintf(stderr, "\n| >> EXEC_enter(%s, %d, %d)\n", EXEC.class->name, EXEC.index, nparam);
@@ -466,8 +466,6 @@ void EXEC_enter(void)
 
 	if (optional)
 	{
-		optargs = 0;
-
 		// Optional arguments
 
 		for (i = func->npmin; i < Min(func->n_param, nparam); i++)
