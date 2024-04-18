@@ -168,34 +168,36 @@ End
 
 Private Function InvertedColor_Read() As Integer
 
-  Dim H, S, V, L As Integer
-  
-  With Color[$iColor]
-    H = .Hue
-    S = .Saturation
-    V = .Value
-    L = .Luminance
-  End With
-  
-  If $sKey = "CurrentLine" Then
-    If V > 128 Then
-      V *= 0.5
-      S = 255 - (255 - S) / 2
-    Endif
-  Else If S < 32 Or If $sKey = "Background" Then
-    V = 255 - V
-  Else If Me.Background Then
-    V *= 0.75
-  Endif
-  
-  Return Color.HSV(H, S, V)
+  Return Color.Invert($iColor, True)
+
+  ' Dim H, S, V, L As Integer
+  ' 
+  ' With Color[$iColor]
+  '   H = .Hue
+  '   S = .Saturation
+  '   V = .Value
+  '   L = .Luminance
+  ' End With
+  ' 
+  ' If $sKey = "CurrentLine" Then
+  '   If V > 128 Then
+  '     V *= 0.5
+  '     S = 255 - (255 - S) / 2
+  '   Endif
+  ' Else If S < 32 Or If $sKey = "Background" Then
+  '   V = 255 - V
+  ' Else If Me.Background Then
+  '   V *= 0.75
+  ' Endif
+  ' 
+  ' Return Color.HSV(H, S, V)
 
 End
 
 
 Private Function Background_Read() As Boolean
 
-  Return ["Background", "Selection", "Current", "Breakpoint", "Highlight"].Exist($sKey)
+  If $sKey = "Background" Or If $sKey = "Highlight" Then Return True
 
 End
 
