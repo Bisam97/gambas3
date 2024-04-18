@@ -11,6 +11,7 @@ Public Const KEY_PROFILE As String = "$F"
 
 Public Sources As Collection
 
+Private $iChangeIndex As Integer
 Private $hTree As TreeView
 Private $sDir As String
 Private $bCurrentProject As Boolean
@@ -51,7 +52,6 @@ Public Sub RefreshInfo()
   $hInfo = New CProjectInfo($sDir)
   
 End
-
 
 Public Sub SetView(hTreeView As TreeView)
   
@@ -402,6 +402,12 @@ Private Sub FillTree(Optional bDoNotRefreshCache As Boolean)
   'Dim sKeyReset As String
 
   '$bDisplayForm = Settings["/DisplayForm"]
+
+  If $iChangeIndex < Project.ChangeIndex Then
+    $iChangeIndex = Project.ChangeIndex
+    $cImageCache.Clear
+    $cImageDate.Clear
+  Endif
 
   For Each $cExtern
     If Not Exist($cExtern.Key) Then $cExtern.Remove($cExtern.Key)

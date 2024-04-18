@@ -3244,8 +3244,10 @@ Private Sub UpdateVersionControl()
     If $iCurrentWorkspace = WORKSPACE_VERSION Then CloseCurrentWorkspace
   Endif
   
-  sBranch = VersionControl.GetCurrentBranch()
-  VersionControl.InitBranchLabel(lblBranchColor, sBranch)
+  If VersionControl.Enabled Then
+    sBranch = VersionControl.GetCurrentBranch()
+    VersionControl.InitBranchLabel(lblBranchColor, sBranch)
+  Endif
   
 End
 
@@ -3838,4 +3840,10 @@ Public Sub OnProjectTimestamp()
       FProjectTranslation.Reload()
   End Select
   
+End
+
+Public Sub tvwProject_LostFocus()
+
+  Project.SetCurrentPopup(Null)
+
 End

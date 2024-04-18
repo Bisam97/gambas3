@@ -25,16 +25,24 @@ Private $iTearAge As Integer
 
 Private $bWithPlatform As Boolean
 
-Public Sub _new(hDrawingArea As DrawingArea, Optional bHasTear As Boolean, bWithPlatform As Boolean)
+Public Sub UpdateColor()
+
+  Dim hDrawingArea As DrawingArea
   
-  Dim I As Integer
-  Dim dNow As Date
+  hDrawingArea = $hObs.Object
   
   If Application.DarkTheme Then 
     hDrawingArea.Background = Color.Invert(BACKGROUND_COLOR, True)
   Else
     hDrawingArea.Background = BACKGROUND_COLOR
   Endif
+  
+End
+
+Public Sub _new(hDrawingArea As DrawingArea, Optional bHasTear As Boolean, bWithPlatform As Boolean)
+  
+  Dim I As Integer
+  Dim dNow As Date
   
   $hObs = New Observer(hDrawingArea) As "dwgWelcome"
   $bWithPlatform = bWithPlatform
@@ -64,9 +72,11 @@ Public Sub _new(hDrawingArea As DrawingArea, Optional bHasTear As Boolean, bWith
     $hTimer.Delay = 50
   Endif
   
+  UpdateColor
+  
 End
 
-Static Public Sub PaintText(sText As String, X As Integer, Y As Integer, iColor As Integer) As Integer
+Static Private Sub PaintText(sText As String, X As Integer, Y As Integer, iColor As Integer, Optional iShadowColor As Integer) As Integer
   
   Dim XR As Integer
   Dim hShadow As Image
@@ -82,7 +92,11 @@ Static Public Sub PaintText(sText As String, X As Integer, Y As Integer, iColor 
   hFont = Paint.Font
   Paint.Begin(hShadow)
   Paint.Font = hFont
-  Paint.Brush = Paint.Color(Color.Black)
+  If IsMissing(iShadowColor) Then
+    Paint.Background = Color.Black
+  Else 
+    Paint.Background = iShadowColor
+  Endif
   Paint.Text(sText, iRadius, iRadius, hSize.W, hSize.H)
   Paint.Fill
   Paint.End
@@ -100,6 +114,12 @@ Static Public Sub PaintText(sText As String, X As Integer, Y As Integer, iColor 
   
 End
 
+Public Sub dwgWelcome_Change()
+  
+  $hLogo = Null
+  UpdateColor
+  
+End
 
 Public Sub dwgWelcome_Draw()
 
@@ -161,13 +181,13 @@ Public Sub dwgWelcome_Draw()
     
     Paint.Font = Font["+4,Bold"]
     Y += Paint.Font.Height
-    PaintText("https://gambas.sourceforge.net", 12, Y, TEXT_COLOR) 'Color.LightForeground)
+    PaintText("https://gambas.sourceforge.net", 12, Y, TEXT_COLOR)
     
     Paint.Font = Font["Bold"]
     Y += 16
     'PaintText(("This program is published under the GNU General Public License.") & "\n" & ("The Gambas font is published under the SIL Open Font License."), 12, Y, Color.SelectedForeground)
     sText = ("This program is published under the GNU General Public License.") & "<br>" & ("The Gambas font is published under the SIL Open Font License.")
-    Paint.Background = Color.Black
+    Paint.Background = Color.Gray
     Paint.DrawRichTextShadow(sText, 12, Y, Paint.W - 24, Paint.H - Y - 6, Align.TopNormal, Paint.Font.Height \ 4, 1)
     Paint.Background = Color.RGB(240, 240, 240)
     Paint.DrawRichText(sText, 12, Y, Paint.W - 24, Paint.H - Y - 6, Align.TopNormal)

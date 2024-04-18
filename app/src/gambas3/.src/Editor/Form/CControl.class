@@ -105,11 +105,11 @@ Static Public Sub GetIcon(sClass As String, sComp As String, Optional iSize As I
     W = Paint.Font.TextWidth(sClass)
     Paint.End
     
-    hImage = New Image(Max(DS * 8, W + DS * 2), DS * 8, Color.White)
+    hImage = New Image(Max(DS * 8, W + DS * 2), DS * 8, Color.Transparent)
     
     Paint.Begin(hImage)
     
-    Paint.DrawRect(0, 0, hImage.W, hImage.H, Color.Gray, 2)
+    Paint.DrawRect(0, 0, hImage.W, hImage.H, Color.LightForeground, 2)
     
     ' Paint.Rectangle(0.5, F + 0.5, hImage.W - 1, hImage.H - F * 2 - 1)
     ' Paint.Background = Color.Gray
@@ -120,7 +120,7 @@ Static Public Sub GetIcon(sClass As String, sComp As String, Optional iSize As I
     Paint.Clip
     
     Paint.Font.Size = DS * 2
-    Paint.Background = Color.Black
+    Paint.Background = Color.TextForeground
     Paint.DrawText(sClass, DS, 0, hImage.W - DS * 2, hImage.H, Align.Left)
     
     Paint.End
@@ -137,7 +137,7 @@ Static Public Sub GetIcon(sClass As String, sComp As String, Optional iSize As I
     If hImage.Width <> iSize Then hImage = hImage.Stretch(iSize, iSize)
   Endif
 
-  If Application.DarkTheme Then hImage = hImage.Invert(True)
+  'If Application.DarkTheme Then hImage = hImage.Invert(True)
 
   Return hImage.Picture
   

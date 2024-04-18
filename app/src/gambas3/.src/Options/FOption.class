@@ -280,31 +280,16 @@ End
 
 Private Sub RefreshEditor()
   
-  Dim hFile As Object
-
   If $bNoChange Then Return
 
   Settings["/Editor/Font"] = txtEditorFont.Value
+  Project.InitWebView
   
   RefreshStyle
   
   MTheme.Theme = $hTheme
   
-  Project.InitWebView
-  
-  For Each hFile In Project.Files
-    Try hFile.ReadConfig()
-  Next
-  
-  FSearch.ReadConfig
-  FMain.ReadConfig
-  FProperty.ReadConfig
-  FFormStack.ReadConfig
-  FOutput.ReadConfig
-  FDebugInfo.ReadConfig
-  FDebugExpr.ReadConfig
-  FCompletion.ReadConfig
-  FSignature.ReadConfig
+  Project.UpdateConfig
   
 End
 
@@ -319,7 +304,6 @@ Private Sub RefreshConsole()
   Project.InitWebView
   
 End
-
 
 Public Sub btnUndo_Click()
 
@@ -530,8 +514,6 @@ Public Sub cmbIconTheme_Click()
   Endif
   
   Project.UpdateTheme
-  Stock.Refresh
-  Project.Refresh
   'NeedRestart(cmbIcontheme)
   
 End

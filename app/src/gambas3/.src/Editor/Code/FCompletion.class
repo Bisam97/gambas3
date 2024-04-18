@@ -405,11 +405,11 @@ Private Sub AddClassesAndFill(aClass As String[], Optional sBegin As String)
   
     hPic[0] = Picture["img/logo/head-16.png"]
     hPic[1] = $hClassPicture
-    hPic[2] = Picture["$symbol:control"]
-    hPic[3] = Picture["$symbol:symbol"]
-    hPic[4] = Picture["$symbol:event"]
+    hPic[2] = CSymbolInfo.Icon["control"]
+    hPic[3] = CSymbolInfo.Icon["symbol"]
+    hPic[4] = CSymbolInfo.Icon["event"]
     hPic[5] = hPic[0]
-    hPic[6] = Picture["$symbol:special"]
+    hPic[6] = CSymbolInfo.Icon["special"]
     
   ClearRows
 
@@ -513,7 +513,7 @@ Private Sub FillWithSymbol(sClass As String, bStatic As Boolean, bPrivate As Boo
 
   For Each sSymbol In aSymbol
     hSymbol = cSymbol[sSymbol]
-    AddRow(CStr(MHelp.TYPE_SYMBOL) & sSymbol, sSymbol, Picture[hSymbol.GetIcon()], IsUCase(hSymbol.Kind))
+    AddRow(CStr(MHelp.TYPE_SYMBOL) & sSymbol, sSymbol, hSymbol.GetIcon(), IsUCase(hSymbol.Kind))
     $iMaxLen = Max($iMaxLen, String.Len(sSymbol))
   Next
 
@@ -742,7 +742,7 @@ End
 Private Sub FillWithSpecial()
 
   Dim sName As String
-  Dim hPict As Picture = Picture["$symbol:special"]
+  Dim hPict As Picture = CSymbolInfo.Icon["special"]
   
   ClearRows
   
@@ -1026,7 +1026,7 @@ Private Function InsertItem(Optional bNoSpace As Boolean, sMore As String) As Bo
   Try sText = gvwComp.Current.Text
   If Not sText Then Return True
   
-  If gvwComp[gvwComp.Row, 0].Picture = Picture["$symbol:event"] Then
+  If gvwComp[gvwComp.Row, 0].Picture = CSymbolInfo.Icon["event"] Then
     If $hForm Is FEditor And If $hForm.IsProc($hEditor[$hEditor.Line].Text) Then
       hClass = Project.Documentation.Classes[$sEventClass]
       If hClass Then ' FIXME: Why hClass can be null?

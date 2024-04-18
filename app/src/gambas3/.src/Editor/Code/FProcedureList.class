@@ -38,6 +38,8 @@ Public Sub Init(hModule As FEditor, sClass As String, aProc As String[], iCurren
     btnShowStatic.Visible = Not $bStatic
   Endif
   
+  If $sClass Then Project.Documentation.GetClassSymbols($sClass)
+    
   FilterProc
   
   Me.Resize(W, Min(H, $aProc.Count * gvwProc.Rows.H + panFilter.H + 3))
@@ -173,30 +175,34 @@ Public Sub gvwProc_Draw(X As Integer, Y As Integer, Width As Integer, Height As 
 
   Dim hSymbol As CSymbolInfo
   Dim sName As String
-  Dim WT As Float
+  Dim hPict As Picture
+  Dim D As Integer
   
   Try sName = $aProc[$aFilter[Row]]
   If Not sName Then Return
 
-  If sName Begins "-" Then 
+  ' If sName Begins "-" Then 
+  ' 
+  '   sName = Mid$(sName, 2)
+  '   
+  '   Paint.Font.Grade = -2
+  '   WT = Paint.TextSize(sName).Width + Desktop.Scale 
+  '   
+  '   Paint.FillRect(X - 2, Y + Height \ 2, Width + 4, 1, Color.Merge(Color.LightForeground, Color.TextBackground))
+  '   Paint.FillRect(X + (Width - WT) / 2, Y, WT, Height, Color.TextBackground)
+  '   
+  '   Paint.Background = Color.LightForeground
+  '   Paint.DrawText(sName, X, Y, Width, Height, Align.Center)
+  '   
+  '   Return
+  '   
+  ' Endif
   
-    sName = Mid$(sName, 2)
-    
-    Paint.Font.Grade = -2
-    WT = Paint.TextSize(sName).Width + Desktop.Scale 
-    
-    Paint.FillRect(X - 2, Y + Height \ 2, Width + 4, 1, Color.Merge(Color.LightForeground, Color.TextBackground))
-    Paint.FillRect(X + (Width - WT) / 2, Y, WT, Height, Color.TextBackground)
-    
-    Paint.Background = Color.LightForeground
-    Paint.DrawText(sName, X, Y, Width, Height, Align.Center)
-    
-    Return
-    
-  Endif
-  
-  If Row = $iCurrent Then Paint.FillRect(X, Y, Width, Height, Color.SetAlpha(Color.LightBackground, 192))
   If $aFilter[Row] = $iInit Then Paint.FillRect(X, Y, Width, Height, Color.SetAlpha(Color.LightBackground, 128))
+  If Row = $iCurrent Then 
+    Paint.FillRect(X, Y, Width, 1, Color.LightForeground)
+    Paint.FillRect(X, Y + Height - 1, Width, 1, Color.LightForeground)
+  Endif
   
   Paint.Background = Color.TextForeground
   Paint.Font.Bold = False
@@ -206,20 +212,36 @@ Public Sub gvwProc_Draw(X As Integer, Y As Integer, Width As Integer, Height As 
     
     Project.Documentation.GetClassSymbols($sClass)
     Try hSymbol = $hModule.Scan[sName]
-    If hSymbol And If hSymbol.Kind = "M" Then Paint.Font.Bold = True
-  
-  Endif
-    
-  If Left(sName) = "_" Then 
-    If CSymbolInfo.SpecialMethods.Exist(sName, gb.IgnoreCase) Then 
-      Paint.Background = Color.Blend(Color.SetAlpha(Color.TextForeground, 128), Color.SelectedBackground)
+    If hSymbol Then 
+      
+      If hSymbol.IsStatic Then Paint.Font.Bold = True
+      If hSymbol.NotPublic Then Paint.Background = Color.SetAlpha(Paint.Background, 96)
+      
+      If InStr(sName, "_") > 1 Then 
+        If hSymbol.NotPublic Then
+          If sName Ends "_Read" Then
+            hPict = CSymbolInfo.Icon[If(hSymbol.IsStatic, "s-property-ro", "property-ro")]
+          Else If sName Ends "_Write" Then
+            hPict = CSymbolInfo.Icon[If(hSymbol.IsStatic, "s-property-rw", "property-rw")]
+          Else
+            hPict = hSymbol.GetIcon()
+          Endif
+        Else
+          hPict = CSymbolInfo.Icon[If(hSymbol.IsStatic, "s-event", "event")]
+          Paint.Font.Italic = True
+        Endif
+      Else
+        hPict = hSymbol.GetIcon()
+      Endif
+      
+      D = Desktop.Scale \ 4 + 1
+
+      Paint.DrawPicture(hPict, X + D, Y + (Height - hPict.H) / 2, hPict.W, hPict.H)
+      X += hPict.W + D
+      
     Endif
-  Else If InStr(sName, "_") Then
-    'gvwProc.Data.Picture = Picture["img/16/event.png"]
-    Paint.Font.Italic = True
+    
   Endif
-  
-  If hSymbol And If hSymbol.NotPublic Then Paint.Background = Color.Merge(Paint.Background, Color.TextBackground, 0.3)
   
   If $sClass = Project.Startup And If sName = "Main" Then
     Paint.Font.Underline = True
@@ -232,7 +254,6 @@ End
 
 Private Sub FilterProc()
 
-  Dim sProc As String
   Dim bShowStatic As Boolean
   Dim bShowPublic As Boolean
   Dim bShowPrivate As Boolean
@@ -243,6 +264,8 @@ Private Sub FilterProc()
   Dim bShowHidden As Boolean
   Dim sLastGroup As String
   Dim iCurrent As Integer
+  Dim sName As String
+  Dim hSymbol As CSymbolInfo
   
   If $bNoFilter Then Return
   
@@ -272,39 +295,24 @@ Private Sub FilterProc()
     
     For I = 0 To $aProc.Max
       
-      sProc = $aProc[I]
+      sName = $aProc[I]
+      Try hSymbol = $hModule.Scan[sName]
+      If hSymbol Then 
       
-      If sProc Begins "-" Then
-        sGroup = Mid$(sProc, 2)
-        Continue
-      Endif
-      
-      If Not sGroup Then
-        $aFilter.Add(I)
-        Continue
-      Endif
-      
-      If bShowPublic And If InStr(sGroup, "PUBLIC") = 0 Then
-        Continue
-      Else If bShowPrivate And If InStr(sGroup, "PRIVATE") = 0 Then   
-        Continue
-      Else If bShowEvent And If InStr(sGroup, "EVENT") = 0 Then
-        Continue
-      Else If bShowProperty And If InStr(sGroup, "PROPERTY") = 0 Then 
-        Continue
-      Else If bShowHidden And If InStr(sGroup, "HIDDEN") = 0 Then 
-        Continue
-      Endif
-      
-      If bShowStatic Then
-        If InStr(sGroup, "STATIC") = 0 Then Continue
-      Else
-        If InStr(sGroup, "STATIC") Then Continue
-      Endif
-      
-      If sGroup <> sLastGroup Then
-        $aFilter.Add(I - 1)
-        sLastGroup = sGroup
+        If bShowPublic And If hSymbol.NotPublic Then Continue
+        If bShowPrivate And If Not hSymbol.NotPublic Then Continue
+        If bShowEvent Then
+          If hSymbol.NotPublic Then Continue
+          If InStr(sName, "_") <= 1 Then Continue
+        Endif
+        If bShowProperty Then
+          If Not hSymbol.NotPublic Then Continue
+          If sName Not Ends "_Read" And If sName Not Ends "_Write" Then Continue
+        Endif
+        If bShowHidden And If sName Not Begins "_" Then Continue 
+        
+        If bShowStatic Xor hSymbol.IsStatic Then Continue
+        
       Endif
       
       $aFilter.Add(I)

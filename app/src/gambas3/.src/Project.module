@@ -24,6 +24,8 @@
 Public Const COLOR_ORANGE As Integer = &HDF6B00
 Public Const COLOR_BLUE As Integer = &H61A7C3 '&H3398C3
 
+Public ChangeIndex As Integer
+
 Public ProjectTree As TreeView
 Public Tree As CProjectTree
 Public ProjectFilter As String
@@ -759,7 +761,7 @@ _INIT_AGAIN:
   If bConvert Then
 
     If ReadOnly Then
-      Message.Warnig(("This project is read-only.") & " " & ("It cannot be converted."))
+      Message.Warning(("This project is read-only.") & " " & ("It cannot be converted."))
       Return True
     Endif
 
@@ -5556,7 +5558,6 @@ Public Sub GetTranslations() As String[]
   
 End
 
-
 Public Sub MakeDirectoryIcon(Optional sDir As String) As Boolean
 
   Dim hDirIcon As Image
@@ -5789,6 +5790,12 @@ End
 
 Public Sub SetCurrentPopup(hMenu As Menu)
 
+  ' If hMenu Then
+  '   Debug hMenu.Window.Name; "."; hMenu.Name
+  ' Else
+  '   Debug "NULL"
+  ' Endif
+
   If hMenu = $hCurrentPopup Then
     If Not hMenu Or If hMenu.Enabled Then Return
   Endif
@@ -5989,7 +5996,6 @@ Public Sub SetConsoleFont(hCtrl As Control)
   
 End
 
-
 Public Sub UpdateLibraries(aLib As String[]) As Boolean
 
   Dim sPath As String
@@ -6067,9 +6073,9 @@ Public Sub GetBackground() As Image
     sBackground = Settings["/Background/Image", DEFAULT_BACKGROUND]
     Try $hBackground = Image.Load("img/background" &/ sBackground & ".png")
     If Not $hBackground Then $hBackground = New Image(32, 32, Color.RGB(128, 128, 128, 128))
-    If Application.DarkTheme Then $hBackground = $hBackground.Invert(True)
     iColor = GetBackgroundColor()
     $hBackground.Colorize(iColor)
+    If Application.DarkTheme Then $hBackground = $hBackground.Invert(True)
     $bBackgroundValid = True
   Endif
 
@@ -6139,6 +6145,47 @@ Public Sub Application_Error()
 
   If Project.Dir Then Try Save
 
+End
+
+Public Sub UpdateConfig()
+
+  Dim hFile As Object
+
+  For Each hFile In Project.Files
+    Try hFile.ReadConfig()
+  Next
+  
+  FSearch.ReadConfig
+  FMain.ReadConfig
+  FProperty.ReadConfig
+  FFormStack.ReadConfig
+  FOutput.ReadConfig
+  FDebugInfo.ReadConfig
+  FDebugExpr.ReadConfig
+  FCompletion.ReadConfig
+  FSignature.ReadConfig
+  
+End
+
+Public Sub Application_Change()
+
+  If Application.Change <> "color" And If Application.Change <> "theme" Then Return
+
+  Inc ChangeIndex
+  
+  Stock.Refresh
+  $cImageCache.Clear
+  
+  ChangeBackground(True)
+
+  If Not Application.MainWindow Then Return
+  
+  UpdateConfig
+  CFamily.UpdateColor()
+  FToolBox.UpdateColor()
+  FMain.OnVersionControlChange()
+  Project.Refresh(True)
+  
 End
 
 Public Sub CanUseHttpServer() As Boolean

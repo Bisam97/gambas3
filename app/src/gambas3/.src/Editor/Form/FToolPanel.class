@@ -28,11 +28,24 @@ Public Sub _new(sName As String, sType As String)
 
 End
 
+Private Sub GetIcon(sControl As String, sComp As String) As Picture
+
+  Dim hPict As Picture
+  
+  hPict = CControl.GetIcon(sControl, sComp)
+  If hPict Then
+    If hPict.Height <> $iSize Then hPict = hPict.Image.Stretch(-1, $iSize).Picture
+    Picture[".control" &/ LCase(sControl)] = hPict
+  Endif
+  Return hPict
+  
+End
+
 Public Sub Add(sControl As String, Optional sComp As String, Optional sType As String)
 
   Dim hCtrl As ToolButton
-  Dim hPict As Picture
   Dim W, H As Integer
+  Dim hPict As Picture
 
   If Not sType Then sType = "*"
 
@@ -46,17 +59,27 @@ Public Sub Add(sControl As String, Optional sComp As String, Optional sType As S
   If sControl <> SELECT_TOOL Then hCtrl.ToolTip = sControl
   hCtrl.Design = True
 
-  hPict = CControl.GetIcon(sControl, sComp)
+  hPict = GetIcon(sControl, sComp)
   If hPict Then
     If hPict.W > hPict.H Then W = ($iSize * hPict.W) \ hPict.H + 8
-    Picture[".control" &/ LCase(sControl)] = hPict
-    If hPict.Height <> $iSize Then hPict = hPict.Image.Stretch(-1, $iSize).Picture
     hCtrl.Picture = hPict
   Endif
 
   hCtrl.Move(0, 0, W, H)
   $cButton[sControl] = hCtrl
 
+End
+
+Public Sub UpdateColor()
+
+  Dim hCtrl As ToolButton
+  Dim aInfo As String[]
+  
+  For Each hCtrl In $cButton
+    aInfo = hCtrl.Tag
+    hCtrl.Picture = GetIcon(aInfo[0], aInfo[2])
+  Next
+  
 End
 
 Public Sub Exist(sControl As String) As Boolean

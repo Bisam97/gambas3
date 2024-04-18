@@ -22,10 +22,6 @@ Private $bIgnoreHide As Boolean
 Private $bIgnoreCancel As Boolean
 Private $bSort As Boolean
 
-Private $iBgDefault As Integer
-Private $iBgSet As Integer
-Private $iBgModified As Integer
-
 Static Private $aFieldUseDelete As String[] = ["Font", "Picture", "String[]", "Path", "Color", "Field", "Fields", "Field[]", "Image", "Animation", "WebImage", "SvgImage", "ReportCoord", "ReportPadding", "ReportMargin", "ReportBorder", "ReportBoxShadow", "ReportBrush", "Table", "WebCoord", "WebFont"]
 
 Private Const PADDING As Integer = 6
@@ -39,10 +35,6 @@ Public Sub _new()
   grdProperty.ScrollBar = Scroll.Vertical
   grdProperty.Columns.Resizable = True
 
-  $iBgDefault = Color.TextBackground
-  $iBgSet = Color.Merge(Color.TextBackground, Color.LightForeground, 0.25)
-  $iBgModified = Color.Merge(Color.TextBackground, Color.LightBackground, 0.25)
-  
 End
 
 Public Sub Form_Open()
@@ -80,6 +72,24 @@ Public Sub Form_Resize()
 
   'CATCH $$ Non déréférencement en cas d'erreur
 
+End
+
+Private Sub GetDefaultBackground() As Integer
+  
+  Return Color.TextBackground
+  
+End
+
+Private Sub GetSetBackground() As Integer
+  
+  Return Color.Merge(Color.TextBackground, Color.LightForeground, 0.25)
+  
+End
+
+Private Sub GetModifiedBackground() As Integer
+  
+  Return Color.Merge(Color.TextBackground, Color.LightBackground, 0.25)
+  
 End
 
 Public Sub RefreshAll()
@@ -222,10 +232,10 @@ Public Sub RefreshAll()
     grdProperty[iRow, 1].Alignment = Align.TopNormal
     
     If CControl.WasDefaultValue Then
-      iBg = $iBgDefault
+      iBg = GetDefaultBackground()
       grdProperty[iRow, 0].Font.Bold = False
     Else
-      iBg = $iBgSet
+      iBg = GetSetBackground()
       grdProperty[iRow, 0].Font.Bold = True
     Endif
 
@@ -321,10 +331,10 @@ Public Sub RefreshOne(hCtrl As CControl, sProp As String)
     grdProperty[iRow, 1].Text = sVal
 
     If sVal = $cInitialValue[sProp] Then
-      iBg = If(CControl.WasDefaultValue, $iBgDefault, $iBgSet)
+      iBg = If(CControl.WasDefaultValue, GetDefaultBackground(), GetSetBackground())
       'grdProperty[iRow, 0].Font.Bold = True
     Else
-      iBg = $iBgModified
+      iBg = GetModifiedBackground()
       'grdProperty[iRow, 0].Font.Bold = True
     Endif
     grdProperty[iRow, 0].Font.Bold = Not CControl.WasDefaultValue

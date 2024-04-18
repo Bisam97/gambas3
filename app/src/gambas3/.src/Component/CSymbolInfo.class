@@ -4,6 +4,7 @@ Static Public SpecialMethods As String[] = ["_attach", "_call", "_compare", "_ge
 
 Static Private $cTypeName As New Collection
 Static Private $cNameType As New Collection(gb.IgnoreCase)
+Static Public Icon As New Collection
 
 Public Documentation As CDocumentation
 Public Name As String
@@ -57,7 +58,7 @@ Static Public Sub _init()
     hImage = Image.Load("img/symbol" &/ sIcon)
     If Application.DarkTheme Then hImage.Invert(True)
     hImage = hImage.Stretch(iSize, iSize)
-    Picture["$symbol:" & File.BaseName(sIcon)] = hImage.Picture
+    Icon[File.BaseName(sIcon)] = hImage.Picture
   Next
 
 End
@@ -148,7 +149,7 @@ Private Sub _IsFunction() As Boolean
   
 End
 
-Public Function GetIcon() As String
+Public Function GetIcon() As Picture
 
   Dim bStatic As Boolean
   Dim sIcon As String
@@ -182,7 +183,7 @@ Public Function GetIcon() As String
 
   End Select
 
-  Return "$symbol:" & sIcon
+  Return Icon[sIcon]
 
 End
 

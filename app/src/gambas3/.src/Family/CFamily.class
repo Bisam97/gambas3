@@ -53,6 +53,21 @@ Static Public Sub Get(sFamily As String) As CFamily
   
 End
 
+Static Public Sub UpdateColor()
+
+  Dim hFamily As CFamily
+  Dim hFile As Object
+  
+  For Each hFamily In All
+    hFamily.Background = Color.Change(hFamily.Background)
+  Next
+  
+  For Each hFile In Project.Files
+    Try hFile.UpdateSnap()
+  Next
+  
+End
+
 Static Public Sub Exit()
   
   All = Null
