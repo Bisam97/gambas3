@@ -1140,8 +1140,8 @@ void gMenu::setFont()
 {
 	gMainWindow *win = window();
 #ifdef GTK3
-	if (label) gt_widget_update_css(GTK_WIDGET(label), win->font(), COLOR_DEFAULT, COLOR_DEFAULT);
-	if (shlabel) gt_widget_update_css(GTK_WIDGET(shlabel), win->font(), COLOR_DEFAULT, COLOR_DEFAULT);
+	if (label) gt_widget_update_css(GTK_WIDGET(label), win->font(), GB_COLOR_DEFAULT, GB_COLOR_DEFAULT);
+	if (shlabel) gt_widget_update_css(GTK_WIDGET(shlabel), win->font(), GB_COLOR_DEFAULT, GB_COLOR_DEFAULT);
 #else
 	if (label) gtk_widget_modify_font(GTK_WIDGET(label), win->font()->desc());
 	if (shlabel) gtk_widget_modify_font(GTK_WIDGET(shlabel), win->font()->desc());
@@ -1196,7 +1196,7 @@ void gMenu::updateFont(gMainWindow *win)
 	{
 		//fprintf(stderr, "set menu bar font\n");
 #ifdef GTK3
-		gt_widget_update_css(GTK_WIDGET(win->menuBar), win->ownFont() ? win->font() : NULL, COLOR_DEFAULT, COLOR_DEFAULT);
+		gt_widget_update_css(GTK_WIDGET(win->menuBar), win->ownFont() ? win->font() : NULL, GB_COLOR_DEFAULT, GB_COLOR_DEFAULT);
 #else
 		gtk_widget_modify_font(GTK_WIDGET(win->menuBar), win->ownFont() ? win->font()->desc() : NULL);
 #endif

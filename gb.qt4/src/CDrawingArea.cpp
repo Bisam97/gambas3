@@ -180,7 +180,7 @@ void MyDrawingArea::redraw(QRect &r, bool frame)
 	fw = frameWidth();
 
 	bg = CWIDGET_get_background((CWIDGET *)THIS);
-	if (bg != COLOR_DEFAULT)
+	if (bg != GB_COLOR_DEFAULT)
 	{
 		p->fillRect(fw, fw, width() - fw * 2, height() - fw * 2, TO_QCOLOR(bg));
 	}
@@ -560,7 +560,7 @@ BEGIN_PROPERTY(DrawingArea_Cached)
 		GB_COLOR bg = CWIDGET_get_background((CWIDGET *)THIS);
 		GB_COLOR fg = CWIDGET_get_foreground((CWIDGET *)THIS);
 
-		if (bg == COLOR_DEFAULT)
+		if (bg == GB_COLOR_DEFAULT)
 		{
 			CWIDGET_set_color((CWIDGET *)THIS, WIDGET->palette().color(WIDGET->backgroundRole()).rgb() & 0xFFFFFF, fg);
 			WIDGET->clearBackground();

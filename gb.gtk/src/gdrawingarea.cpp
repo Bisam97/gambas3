@@ -126,7 +126,7 @@ void gDrawingArea::create(void)
 #ifdef GTK3
 	if (_cached || _use_tablet || _own_window)
 #else
-	if (_cached || _use_tablet || _own_window || background() != COLOR_DEFAULT)
+	if (_cached || _use_tablet || _own_window || background() != GB_COLOR_DEFAULT)
 #endif
 	{
 		createBorder(gtk_event_box_new());
@@ -390,11 +390,11 @@ void gDrawingArea::updateFont()
 #else
 void gDrawingArea::setBackground(gColor color)
 {
-	bool set = background() != COLOR_DEFAULT;
+	bool set = background() != GB_COLOR_DEFAULT;
 	
 	gContainer::setBackground(color);
 	
-	if (set != (background() != COLOR_DEFAULT))
+	if (set != (background() != GB_COLOR_DEFAULT))
 		create();
 }
 #endif

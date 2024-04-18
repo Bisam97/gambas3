@@ -28,19 +28,20 @@
 #include "x11.h"
 #endif
 
+#include "gb.form.const.h"
 #include "gapplication.h"
 #include "gmainwindow.h"
 #include "gdesktop.h"
+#include "CScreen.h"
 
-/***********************************************************************
+static bool _updating_colors = false;
+static int _style_timeout = 0;
+static bool _colors_init = false;
+static gColor _colors[COLOR_COUNT];
+static gColor _colors_disabled[COLOR_COUNT];
+static gColor _colors_previous[COLOR_COUNT];
 
-Desktop
-
-************************************************************************/
-
-bool gDesktop::_colors_valid = false;
-gColor gDesktop::_colors[NUM_COLORS];
-gColor gDesktop::_colors_disabled[NUM_COLORS];
+//-------------------------------------------------------------------------
 
 bool gDesktop::rightToLeft()
 {
@@ -131,10 +132,35 @@ void gDesktop::availableGeometry(int screen, GdkRectangle *rect)
 #endif
 }
 
-void gDesktop::onThemeChange()
+static void update_color(gControl *control)
 {
-	gt_on_theme_change();
-	_colors_valid = false;
+	int i;
+	gColor bg = control->background();
+	gColor fg = control->foreground();
+
+	if (bg != GB_COLOR_DEFAULT)
+	{
+		for (i = 0; i < COLOR_COUNT; i++)
+		{
+			if (bg == _colors_previous[i])
+			{
+				control->setBackground(_colors[i]);
+				break;
+			}
+		}
+	}
+
+	if (fg != GB_COLOR_DEFAULT)
+	{
+		for (i = 0; i < COLOR_COUNT; i++)
+		{
+			if (fg == _colors_previous[i])
+			{
+				control->setForeground(_colors[i]);
+				break;
+			}
+		}
+	}
 }
 
 #ifdef GTK3
@@ -203,43 +229,89 @@ static gColor get_color(GType type, bool fg, GtkStateType state, bool disabled)
 
 #endif
 
-void gDesktop::calc_colors(gColor colors[], bool disabled)
+static void calc_colors(gColor colors[], bool disabled)
 {
-	colors[BACKGROUND] = get_color(GTK_TYPE_WINDOW, false, STATE_NORMAL, disabled);
-	colors[FOREGROUND] = get_color(GTK_TYPE_WINDOW, true, STATE_NORMAL, disabled);
-	colors[TEXT_BACKGROUND] = get_color(GTK_TYPE_ENTRY, false, STATE_NORMAL, disabled);
-	colors[TEXT_FOREGROUND] = get_color(GTK_TYPE_ENTRY, true, STATE_NORMAL, disabled);
-	colors[SELECTED_BACKGROUND] = get_color(GTK_TYPE_ENTRY, false, STATE_SELECTED, disabled);
-	colors[SELECTED_FOREGROUND] = get_color(GTK_TYPE_ENTRY, true, STATE_SELECTED, disabled);
-	colors[BUTTON_BACKGROUND] = get_color(GTK_TYPE_BUTTON, false, STATE_NORMAL, disabled);
-	colors[BUTTON_FOREGROUND] = get_color(GTK_TYPE_BUTTON, true, STATE_NORMAL, disabled);
-	colors[TOOLTIP_BACKGROUND] = get_color(GTK_TYPE_TOOLTIP, false, STATE_NORMAL, disabled);
-	colors[TOOLTIP_FOREGROUND] = get_color(GTK_TYPE_TOOLTIP, true, STATE_NORMAL, disabled);
+	colors[COLOR_BACKGROUND] = get_color(GTK_TYPE_WINDOW, false, STATE_NORMAL, disabled);
+	colors[COLOR_FOREGROUND] = get_color(GTK_TYPE_WINDOW, true, STATE_NORMAL, disabled);
+	colors[COLOR_TEXT_BACKGROUND] = get_color(GTK_TYPE_ENTRY, false, STATE_NORMAL, disabled);
+	colors[COLOR_TEXT_FOREGROUND] = get_color(GTK_TYPE_ENTRY, true, STATE_NORMAL, disabled);
+	colors[COLOR_SELECTED_BACKGROUND] = get_color(GTK_TYPE_ENTRY, false, STATE_SELECTED, disabled);
+	colors[COLOR_SELECTED_FOREGROUND] = get_color(GTK_TYPE_ENTRY, true, STATE_SELECTED, disabled);
+	colors[COLOR_BUTTON_BACKGROUND] = get_color(GTK_TYPE_BUTTON, false, STATE_NORMAL, disabled);
+	colors[COLOR_BUTTON_FOREGROUND] = get_color(GTK_TYPE_BUTTON, true, STATE_NORMAL, disabled);
+	colors[COLOR_TOOLTIP_BACKGROUND] = get_color(GTK_TYPE_TOOLTIP, false, STATE_NORMAL, disabled);
+	colors[COLOR_TOOLTIP_FOREGROUND] = get_color(GTK_TYPE_TOOLTIP, true, STATE_NORMAL, disabled);
 	#ifdef GTK3
 		#if GTK_CHECK_VERSION(3, 12, 0)
-			colors[LINK_FOREGROUND] = get_color(GTK_TYPE_LINK_BUTTON, true, STATE_LINK, disabled);
-			colors[VISITED_FOREGROUND] = get_color(GTK_TYPE_LINK_BUTTON, true, (STATE_T)((int)STATE_LINK + (int)STATE_VISITED), disabled);
+			colors[COLOR_LINK_FOREGROUND] = get_color(GTK_TYPE_LINK_BUTTON, true, STATE_LINK, disabled);
+			colors[COLOR_VISITED_FOREGROUND] = get_color(GTK_TYPE_LINK_BUTTON, true, (STATE_T)((int)STATE_LINK + (int)STATE_VISITED), disabled);
 		#else
-			colors[LINK_FOREGROUND] = get_color(GTK_TYPE_LINK_BUTTON, true, STATE_NORMAL, disabled);
-			colors[VISITED_FOREGROUND] = IMAGE.DarkerColor(_colors[LINK_FOREGROUND]);
+			colors[COLOR_LINK_FOREGROUND] = get_color(GTK_TYPE_LINK_BUTTON, true, STATE_NORMAL, disabled);
+			colors[COLOR_VISITED_FOREGROUND] = IMAGE.DarkerColor(_colors[COLOR_LINK_FOREGROUND]);
 		#endif
 	#else
-		colors[LINK_FOREGROUND] = IMAGE.LighterColor(_colors[SELECTED_BACKGROUND]);
-		colors[VISITED_FOREGROUND] = IMAGE.DarkerColor(_colors[LINK_FOREGROUND]);
+		colors[COLOR_LINK_FOREGROUND] = IMAGE.LighterColor(_colors[COLOR_SELECTED_BACKGROUND]);
+		colors[COLOR_VISITED_FOREGROUND] = IMAGE.DarkerColor(_colors[COLOR_LINK_FOREGROUND]);
 	#endif
-	colors[LIGHT_BACKGROUND] = IMAGE.MergeColor(_colors[SELECTED_BACKGROUND], _colors[SELECTED_FOREGROUND], 0.3);
-	colors[LIGHT_FOREGROUND] = IMAGE.MergeColor(_colors[BACKGROUND], _colors[FOREGROUND], 0.3);
+	colors[COLOR_LIGHT_BACKGROUND] = IMAGE.MergeColor(_colors[COLOR_SELECTED_BACKGROUND], _colors[COLOR_SELECTED_FOREGROUND], 0.3);
+	colors[COLOR_LIGHT_FOREGROUND] = IMAGE.MergeColor(_colors[COLOR_BACKGROUND], _colors[COLOR_FOREGROUND], 0.3);
+}
+
+
+bool gDesktop::updateColors()
+{
+	int i, j;
+	uchar r, g, b, a;
+
+	_updating_colors = true;
+
+	calc_colors(_colors, false);
+
+	for (i = 0; i < COLOR_COUNT; i++)
+	{
+		for (j = 0; j < i; j++)
+		{
+			if (_colors[i] == _colors[j])
+			{
+				GB_COLOR_SPLIT(_colors[i], r, g, b, a);
+				if (g > 127)
+					g--;
+				else
+					g++;
+				_colors[i] = GB_COLOR_MAKE(r, g, b, a);
+				j = 0;
+			}
+		}
+		//fprintf(stderr, "[%d] %08X -> %08X\n", i, _colors_previous[i], _colors[i]);
+	}
+	//fprintf(stderr, "\n");
+
+	for (i = 0; i < COLOR_COUNT; i++)
+	{
+		if (_colors[i] != _colors_previous[i])
+		{
+			calc_colors(_colors_disabled, true);
+			gt_on_theme_change();
+			gApplication::updateDarkTheme();
+			if (_colors_init)
+			{
+				//fprintf(stderr, "update controls\n");
+				gApplication::forEachControl(update_color);
+				APPLICATION_send_change_event(CHANGE_COLOR);
+			}
+			memmove(_colors_previous, _colors, COLOR_COUNT * sizeof(*_colors));
+			_colors_init = true;
+			_updating_colors = false;
+			return true;
+		}
+	}
+
+	_updating_colors = false;
+	return false;
 }
 
 gColor gDesktop::getColor(int color, bool disabled)
 {
-	if (!_colors_valid)
-	{
-		calc_colors(_colors, false);
-		calc_colors(_colors_disabled, true);
-		_colors_valid = true;
-	}
-	
 	return disabled ? _colors_disabled[color] : _colors[color];
 }
 
@@ -264,4 +336,45 @@ void gDesktop::screenResolution(int screen, double *x, double *y)
 	if (x) *x = rect.width / (gdk_screen_get_monitor_width_mm(gdk_screen_get_default(), screen) / 25.4);
 	if (y) *y = rect.height / (gdk_screen_get_monitor_height_mm(gdk_screen_get_default(), screen) / 25.4);
 #endif
+}
+
+gColor gDesktop::changeColor(gColor color)
+{
+	int i;
+
+	if (color != GB_COLOR_DEFAULT)
+	{
+		for (i = 0; i < COLOR_COUNT; i++)
+		{
+			if (color == _colors_previous[i])
+			{
+				color = _colors[i];
+				break;
+			}
+		}
+	}
+
+	return color;
+}
+
+void gDesktop::init()
+{
+	updateColors();
+}
+
+static bool cb_style_change(intptr_t)
+{
+	//fprintf(stderr, "cb_style_change\n");
+	gDesktop::updateColors();
+	_style_timeout = 0;
+	return false;
+}
+
+void gDesktop::onStyleChange()
+{
+	if (_updating_colors)
+		return;
+	if (_style_timeout)
+		g_source_remove(_style_timeout);
+	_style_timeout = g_timeout_add(50, (GSourceFunc)cb_style_change, (gpointer)0);
 }

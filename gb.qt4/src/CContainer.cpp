@@ -796,7 +796,7 @@ void MyFrame::paintEvent(QPaintEvent *e)
 	{
 		CWIDGET *window = CWidget::get(parentWidget());
 		GB_COLOR col = CWIDGET_get_background(window);
-		if (col != COLOR_DEFAULT)
+		if (col != GB_COLOR_DEFAULT)
 			painter.fillRect(e->rect(), CCOLOR_make(col));
 	}
 

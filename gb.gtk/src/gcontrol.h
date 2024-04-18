@@ -151,8 +151,8 @@ public:
 	
 	gColor background() const { return _bg; }
 	gColor foreground() const { return _fg; }
-	virtual void setBackground(gColor color = COLOR_DEFAULT);
-	virtual void setForeground(gColor color = COLOR_DEFAULT);
+	virtual void setBackground(gColor color = GB_COLOR_DEFAULT);
+	virtual void setForeground(gColor color = GB_COLOR_DEFAULT);
 	virtual gColor defaultBackground() const;
 	gColor realBackground(bool no_default = false);
 	gColor realForeground(bool no_default = false);
@@ -280,7 +280,7 @@ public:
 	unsigned _dirty_pos : 1;               // If the position of the widget has changed
 	unsigned _dirty_size : 1;              // If the size of the widget has changed
 	unsigned _inside : 1;                  // if we got an enter event, but not a leave event yet.
-	unsigned _has_border : 1;              // if the control has a border
+	unsigned _allow_show : 1;              // Allowed to be visible (after the first resize)
 
 	unsigned _locked : 4;                  // For locking events
 	unsigned frame_border : 4;
@@ -304,7 +304,6 @@ public:
 	unsigned _minimum_size_set : 1;        // If minimum size has been computed
 	unsigned _direction : 2;               // Text direction
 
-	unsigned _allow_show : 1;              // Allowed to be visible (after the first resize)
 	unsigned _ignore_mouse : 1;            // Ignore mouse events (for drawing area only)
 	
 #ifdef GTK3
@@ -332,7 +331,6 @@ public:
 	virtual void updateBorder();
 	int getFrameBorder() const { return frame_border; }
 	void setFrameBorder(int border);
-	virtual void setBorder(bool b);
 	bool hasBorder() const;
 	int getFramePadding() const { return frame_padding; }
 	void setFramePadding(int padding);

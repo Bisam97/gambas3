@@ -106,8 +106,8 @@ static CWIDGET_EXT *alloc_ext(CWIDGET *_object)
 {
 	GB.Alloc(POINTER(&(THIS->ext)), sizeof(CWIDGET_EXT));
 	CLEAR(THIS_EXT);
-	THIS_EXT->bg = COLOR_DEFAULT;
-	THIS_EXT->fg = COLOR_DEFAULT;
+	THIS_EXT->bg = GB_COLOR_DEFAULT;
+	THIS_EXT->fg = GB_COLOR_DEFAULT;
 	THIS_EXT->tag.type = GB_T_NULL;
 	return THIS_EXT;
 }
@@ -342,14 +342,14 @@ static QWidget *get_viewport(QWidget *w)
 
 void CWIDGET_init_name(CWIDGET *_object)
 {
-	static int n = 0;
+	static uint n = 0;
 	char *name = GB.GetLastEventName();
 	
 	if (!name)
 	{
-		char buffer[16];
+		char buffer[256 + 16];
 		n++;
-		sprintf(buffer, "#%d", n);
+		sprintf(buffer, "%s.%u", GB.GetClassName(THIS), n);
 		CWIDGET_set_name(THIS, buffer);
 	}
 	else
@@ -1487,7 +1487,7 @@ void CWIDGET_reset_color(CWIDGET *_object)
 	
 	w = get_color_widget(THIS);
 	
-	if (!THIS_EXT || (THIS_EXT->bg == COLOR_DEFAULT && THIS_EXT->fg == COLOR_DEFAULT))
+	if (!THIS_EXT || (THIS_EXT->bg == GB_COLOR_DEFAULT && THIS_EXT->fg == GB_COLOR_DEFAULT))
 	{
 		w->setPalette(QPalette());
 		w->setAutoFillBackground(THIS->flag.autoFillBackground); //!THIS->flag.noBackground && THIS->flag.fillBackground);
@@ -1501,14 +1501,14 @@ void CWIDGET_reset_color(CWIDGET *_object)
 		{
 			palette = QPalette();
 
-			if (bg != COLOR_DEFAULT)
+			if (bg != GB_COLOR_DEFAULT)
 			{
 				palette.setColor(QPalette::Base, TO_QCOLOR(bg));
 				palette.setColor(QPalette::Window, TO_QCOLOR(bg));
 				palette.setColor(QPalette::Button, TO_QCOLOR(bg));
 			}
 
-			if (fg != COLOR_DEFAULT)
+			if (fg != GB_COLOR_DEFAULT)
 			{
 				palette.setColor(QPalette::Text, TO_QCOLOR(fg));
 				palette.setColor(QPalette::WindowText, TO_QCOLOR(fg));
@@ -1523,7 +1523,7 @@ void CWIDGET_reset_color(CWIDGET *_object)
 		{
 			palette = QPalette();
 		
-			if (bg != COLOR_DEFAULT)
+			if (bg != GB_COLOR_DEFAULT)
 			{
 				/*if (GB.Is(THIS, CLASS_Container))
 				{
@@ -1538,7 +1538,7 @@ void CWIDGET_reset_color(CWIDGET *_object)
 			else
 				w->setAutoFillBackground(THIS->flag.autoFillBackground);
 			
-			if (fg != COLOR_DEFAULT)
+			if (fg != GB_COLOR_DEFAULT)
 			{
 				//if (GB.Is(THIS, CLASS_Container))
 				{
@@ -1585,7 +1585,7 @@ GB_COLOR CWIDGET_get_background(CWIDGET *_object, bool handle_proxy)
 {
 	if (handle_proxy) { HANDLE_PROXY(_object); }
 
-	return THIS_EXT ? THIS_EXT->bg : COLOR_DEFAULT;
+	return THIS_EXT ? THIS_EXT->bg : GB_COLOR_DEFAULT;
 }
 
 
@@ -1593,7 +1593,7 @@ GB_COLOR CWIDGET_get_real_background(CWIDGET *_object)
 {
 	GB_COLOR bg = CWIDGET_get_background(THIS);
 	
-	if (bg != COLOR_DEFAULT)
+	if (bg != GB_COLOR_DEFAULT)
 		return bg;
 
 	return WIDGET->palette().color(WIDGET->backgroundRole()).rgb() & 0xFFFFFF;
@@ -1611,7 +1611,7 @@ GB_COLOR CWIDGET_get_foreground(CWIDGET *_object, bool handle_proxy)
 {
 	if (handle_proxy) { HANDLE_PROXY(_object); }
 
-	return THIS_EXT ? THIS_EXT->fg : COLOR_DEFAULT;
+	return THIS_EXT ? THIS_EXT->fg : GB_COLOR_DEFAULT;
 }
 
 
@@ -1619,7 +1619,7 @@ GB_COLOR CWIDGET_get_real_foreground(CWIDGET *_object)
 {
 	GB_COLOR fg = CWIDGET_get_foreground(THIS);
 	
-	if (fg != COLOR_DEFAULT)
+	if (fg != GB_COLOR_DEFAULT)
 		return fg;
 
 	CWIDGET *parent = (CWIDGET *)CWIDGET_get_parent(THIS);
@@ -2381,7 +2381,8 @@ void CWidget::each(void (*func)(CWIDGET *))
 	while (i.hasNext())
 	{
 		i.next();
-		(*func)(i.value());
+		if (i.value())
+			(*func)(i.value());
 	}
 }
 

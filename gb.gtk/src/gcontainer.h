@@ -114,9 +114,9 @@ public:
 	void getMaxSize(int xc, int yc, int wc, int hc, int *w, int *h);
 
 #ifndef GTK3
-	virtual void setBackground(gColor color = COLOR_DEFAULT);
+	virtual void setBackground(gColor color = GB_COLOR_DEFAULT);
 #endif
-	virtual void setForeground(gColor color = COLOR_DEFAULT);
+	virtual void setForeground(gColor color = GB_COLOR_DEFAULT);
 	virtual void updateFont();
 	
 	bool hasBackground() const;

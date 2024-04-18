@@ -560,5 +560,5 @@ void gTextBox::onLeaveEvent()
 
 gColor gTextBox::defaultBackground() const
 {
-	return gDesktop::getColor(gDesktop::TEXT_BACKGROUND, !isEnabled());
+	return gDesktop::getColor(COLOR_TEXT_BACKGROUND, !isEnabled());
 }

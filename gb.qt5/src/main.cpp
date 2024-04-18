@@ -143,7 +143,6 @@ static int _prevent_quit = 0;
 
 static QHash<void *, void *> _link_map;
 
-
 static QByteArray _utf8_buffer[UTF8_NBUF];
 static int _utf8_count = 0;
 static int _utf8_length = 0;
@@ -360,6 +359,7 @@ MyApplication::MyApplication(int &argc, char **argv)
 	}
 
 	QObject::connect(this, SIGNAL(commitDataRequest(QSessionManager &)), SLOT(commitDataRequested(QSessionManager &)));
+	QObject::connect(this, SIGNAL(paletteChanged(const QPalette &)), SLOT(paletteHasChanged(const QPalette &)));
 }
 
 void MyApplication::initClipboard()
@@ -370,6 +370,16 @@ void MyApplication::initClipboard()
 void MyApplication::clipboardHasChanged(QClipboard::Mode m)
 {
 	CLIPBOARD_has_changed(m);
+}
+
+void MyApplication::paletteHasChanged(const QPalette &)
+{
+	if (COLOR_update_palette())
+	{
+		//fprintf(stderr, "updatePalette\n");
+		APPLICATION_update_dark_theme();
+		APPLICATION_send_change_event(CHANGE_COLOR);
+	}
 }
 
 static bool QT_EventFilter(QEvent *e)
@@ -979,6 +989,9 @@ static void QT_Init(void)
 	if (env && atoi(env) != 0)
 		MAIN_key_debug = TRUE;
 	
+	COLOR_update_palette();
+	APPLICATION_update_dark_theme();
+
 	GB.Hook(GB_HOOK_WAIT, (void *)hook_wait);
 	GB.Hook(GB_HOOK_TIMER, (void *)hook_timer);
 	GB.Hook(GB_HOOK_WATCH, (void *)hook_watch);

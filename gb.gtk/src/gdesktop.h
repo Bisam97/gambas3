@@ -33,24 +33,8 @@ class gDesktop
 {
 public:
 
-	enum {
-		BACKGROUND,
-		FOREGROUND,
-		TEXT_BACKGROUND,
-		TEXT_FOREGROUND,
-		SELECTED_BACKGROUND,
-		SELECTED_FOREGROUND,
-		BUTTON_BACKGROUND,
-		BUTTON_FOREGROUND,
-		LIGHT_BACKGROUND,
-		LIGHT_FOREGROUND,
-		TOOLTIP_BACKGROUND,
-		TOOLTIP_FOREGROUND,
-		LINK_FOREGROUND,
-		VISITED_FOREGROUND,
-		NUM_COLORS
-	};
-	
+	static void init();
+
 	static gFont* font() { return gFont::desktopFont(); }
 	static void setFont(gFont *vl) { gFont::setDesktopFont(vl); }
 	static int scale() { return gFont::desktopScale(); }
@@ -73,16 +57,10 @@ public:
 	static void screenResolution(int screen, double *x, double *y);
 	
 	static gColor getColor(int color, bool disabled = false);
+	static gColor changeColor(gColor color);
+	static bool updateColors();
 	
-	static void onThemeChange();
-	
-private:
-
-	static bool _colors_valid;
-	static gColor _colors[NUM_COLORS];
-	static gColor _colors_disabled[NUM_COLORS];
-	
-	static void calc_colors(gColor colors[], bool disabled);
+	static void onStyleChange();
 };
 
 #endif

@@ -371,7 +371,7 @@ void gControl::initAll(gContainer *parent)
 	hFree = NULL;
 	_grab = false;
 
-	_fg = _bg = COLOR_DEFAULT;
+	_fg = _bg = GB_COLOR_DEFAULT;
 #ifdef GTK3
 	_css = NULL;
 	_has_css_id = false;
@@ -1615,7 +1615,7 @@ void gControl::connectParent()
 
 gColor gControl::getFrameColor()
 {
-	return gDesktop::getColor(gDesktop::LIGHT_FOREGROUND);
+	return gDesktop::getColor(COLOR_LIGHT_FOREGROUND);
 }
 
 #ifdef GTK3
@@ -2133,13 +2133,6 @@ bool gControl::hasBorder() const
 	return getFrameBorder() != BORDER_NONE;
 }
 
-void gControl::setBorder(bool vl)
-{
-	setFrameBorder(vl ? BORDER_SUNKEN : BORDER_NONE);
-	_has_border = vl;
-}
-
-
 void gControl::setFramePadding(int padding)
 {
 	if (padding < 0)
@@ -2158,7 +2151,7 @@ void gControl::setName(char *name)
 
 gColor gControl::defaultBackground() const
 {
-	return gDesktop::getColor(gDesktop::BACKGROUND, !isEnabled());
+	return gDesktop::getColor(COLOR_BACKGROUND, !isEnabled());
 }
 
 #ifdef GTK3
@@ -2232,13 +2225,13 @@ void gControl::updateStyleSheet(bool dirty)
 	if (!isReallyVisible() || !_style_dirty)
 		return;
 
-	bg = _no_background ? background() : COLOR_DEFAULT;
+	bg = _no_background ? background() : GB_COLOR_DEFAULT;
 	fg = foreground(); //realForeground();
 
 	css = g_string_new(NULL);
 	_css_node = NULL;
 	
-	if (bg != COLOR_DEFAULT || fg != COLOR_DEFAULT)
+	if (bg != GB_COLOR_DEFAULT || fg != GB_COLOR_DEFAULT)
 	{
 		setStyleSheetNode(css, getStyleSheetColorNode());
 		gt_css_add_color(css, bg, fg);
@@ -2268,11 +2261,11 @@ void gControl::updateStyleSheet(bool dirty)
 
 gColor gControl::realBackground(bool no_default)
 {
-	if (_bg != COLOR_DEFAULT)
+	if (_bg != GB_COLOR_DEFAULT)
 		return _bg;
 	
 	if (!no_default)
-		return COLOR_DEFAULT;
+		return GB_COLOR_DEFAULT;
 	
 	if (!use_base && parent())
 		return parent()->realBackground(true);
@@ -2296,12 +2289,12 @@ void gControl::setBackground(gColor color)
 
 gColor gControl::realForeground(bool no_default)
 {
-	if (_fg != COLOR_DEFAULT)
+	if (_fg != GB_COLOR_DEFAULT)
 		return _fg;
 	else if (pr)
 		return pr->realForeground(no_default);
 	else
-		return no_default ? gDesktop::getColor(gDesktop::FOREGROUND) : COLOR_DEFAULT;
+		return no_default ? gDesktop::getColor(COLOR_FOREGROUND) : GB_COLOR_DEFAULT;
 }
 
 void gControl::setRealForeground(gColor color)
@@ -2314,7 +2307,7 @@ void gControl::setForeground(gColor color)
 		return;
 	
 	_fg = color;
-	_fg_set = color != COLOR_DEFAULT;
+	_fg_set = color != GB_COLOR_DEFAULT;
 #ifdef GTK3
 	updateStyleSheet(true);
 #endif
@@ -2328,7 +2321,7 @@ gColor gControl::realBackground(bool no_default)
 	if (_bg_set)
 		return use_base ? get_gdk_base_color(widget, isEnabled()) : get_gdk_bg_color(widget, isEnabled());
 	else
-		return no_default ? defaultBackground() : COLOR_DEFAULT;
+		return no_default ? defaultBackground() : GB_COLOR_DEFAULT;
 }
 
 static void set_background(GtkWidget *widget, gColor color, bool use_base)
@@ -2351,7 +2344,7 @@ void gControl::setRealBackground(gColor color)
 void gControl::setBackground(gColor color)
 {
 	_bg = color;
-	_bg_set = color != COLOR_DEFAULT;
+	_bg_set = color != GB_COLOR_DEFAULT;
 
 	if (!_bg_set)
 	{
@@ -2369,7 +2362,7 @@ gColor gControl::realForeground(bool no_default)
 	else if (pr)
 		return pr->realForeground(no_default);
 	else
-		return no_default ? gDesktop::getColor(gDesktop::FOREGROUND) : COLOR_DEFAULT;
+		return no_default ? gDesktop::getColor(COLOR_FOREGROUND) : GB_COLOR_DEFAULT;
 }
 
 static void set_foreground(GtkWidget *widget, gColor color, bool use_base)
@@ -2388,7 +2381,7 @@ void gControl::setRealForeground(gColor color)
 void gControl::setForeground(gColor color)
 {
 	_fg = color;
-	_fg_set = color != COLOR_DEFAULT;
+	_fg_set = color != GB_COLOR_DEFAULT;
 
 	if (!_fg_set)
 	{
@@ -2850,7 +2843,7 @@ void gControl::drawBackground(cairo_t *cr)
 {
 	gColor col= background();
 	
-	if (col == COLOR_DEFAULT)
+	if (col == GB_COLOR_DEFAULT)
 		return;
 	/*{
 		if (!gtk_widget_get_has_window(border))
@@ -2867,7 +2860,7 @@ void gControl::drawBackground(GdkEventExpose *e)
 {
 	GtkAllocation a;
 
-	if (background() == COLOR_DEFAULT)
+	if (background() == GB_COLOR_DEFAULT)
 		return;
 
 	cairo_t *cr = gdk_cairo_create(gtk_widget_get_window(border));

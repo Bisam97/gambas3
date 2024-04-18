@@ -318,7 +318,7 @@ void CB_control_finish(gControl *control)
 
 void InitControl(gControl *control, CWIDGET *widget)
 {
-	static int n = 0;
+	static uint n = 0;
 	char *name;
 	
 	if (control->hFree)
@@ -333,9 +333,9 @@ void InitControl(gControl *control, CWIDGET *widget)
 	name = GB.GetLastEventName();
 	if (!name)
 	{
-		char buffer[16];
+		char buffer[256 + 16];
 		n++;
-		sprintf(buffer, "#%d", n);
+		sprintf(buffer, "%s.%u", GB.GetClassName(widget), n);
 		control->setName(buffer);
 	}
 	else

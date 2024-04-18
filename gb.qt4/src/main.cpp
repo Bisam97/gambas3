@@ -199,6 +199,8 @@ MyApplication::MyApplication(int &argc, char **argv)
 		}
 	}
 
+	APPLICATION_update_dark_theme();
+
 	QObject::connect(this, SIGNAL(commitDataRequest(QSessionManager &)), SLOT(commitDataRequested(QSessionManager &)));
 }
 

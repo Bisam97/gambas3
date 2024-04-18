@@ -107,7 +107,10 @@ public:
 	static bool disableInputEvents(bool disable);
 	static bool areInputEventsEnabled() { return !_disable_input_events; }
 	static bool eventsPending();
-	static bool processInputEvent() { return true; };
+	static bool processInputEvent() { return true; }
+
+	static void updateDarkTheme();
+	static bool isDarkTheme() { return _dark_theme; }
 #if 0
 	static void pushInputEvent(GdkEvent *);
 #endif
@@ -149,6 +152,7 @@ public:
 	static bool _disable_mapping_events;
 	static bool _disable_input_events;
 	static GQueue *_input_events;
+	static bool _dark_theme;
 };
 
 #endif

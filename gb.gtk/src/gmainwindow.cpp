@@ -266,7 +266,7 @@ static gboolean cb_configure(GtkWidget *widget, GdkEventConfigure *event, gMainW
 #ifdef GTK3
 static gboolean cb_draw(GtkWidget *wid, cairo_t *cr, gMainWindow *data)
 {
-	if (data->background() != COLOR_DEFAULT)
+	if (data->background() != GB_COLOR_DEFAULT)
 	{
 		gt_cairo_set_source_color(cr, data->background());
 		cairo_set_operator (cr, CAIRO_OPERATOR_SOURCE);
@@ -301,7 +301,7 @@ static gboolean cb_expose(GtkWidget *wid, GdkEventExpose *e, gMainWindow *data)
 
 	if (draw_bg)
 	{
-		if (data->background() == COLOR_DEFAULT)
+		if (data->background() == GB_COLOR_DEFAULT)
 			gt_cairo_set_source_color(cr, 0xFF000000);
 		else
 			gt_cairo_set_source_color(cr, data->background());

@@ -88,7 +88,7 @@ static gboolean button_expose(GtkWidget *wid, GdkEventExpose *e, gButton *data)
 	bool rtl;
 	int x, w, wt, wp, hp;
 	int d = gDesktop::scale() / 2;
-	gColor fg = COLOR_DEFAULT;
+	gColor fg = GB_COLOR_DEFAULT;
 	
 	rtl = gtk_widget_get_direction(wid) == GTK_TEXT_DIR_RTL;
 	
@@ -122,7 +122,7 @@ static gboolean button_expose(GtkWidget *wid, GdkEventExpose *e, gButton *data)
 
 		fg = data->realForeground();
 
-		if (fg == COLOR_DEFAULT)
+		if (fg == GB_COLOR_DEFAULT)
 		{
 			g_object_set(G_OBJECT(data->rendtxt),
 				"foreground-set", FALSE,
@@ -202,7 +202,7 @@ static gboolean button_expose(GtkWidget *wid, GdkEventExpose *e, gButton *data)
 		
 			g_object_set(G_OBJECT(data->rendtxt), "sensitive", !(f & GTK_STATE_INSENSITIVE), (void *)NULL);
 			
-			if (fg != COLOR_DEFAULT)
+			if (fg != GB_COLOR_DEFAULT)
 				state = (GtkCellRendererState)0;
 			else if (f & GTK_STATE_SELECTED)
 				state = GTK_CELL_RENDERER_SELECTED;
@@ -762,5 +762,5 @@ gColor gButton::defaultBackground() const
 	if (type == Check || type == Radio)
 		return gControl::defaultBackground();
 	else
-		return gDesktop::getColor(gDesktop::BUTTON_BACKGROUND, !isEnabled());
+		return gDesktop::getColor(COLOR_BUTTON_BACKGROUND, !isEnabled());
 }

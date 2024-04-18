@@ -482,6 +482,8 @@ static void hook_main(int *argc, char ***argv)
 		gApplication::onKeyEvent = global_key_event_handler;
 	}
 
+	gApplication::updateDarkTheme();
+
 	init = true;
 
 	CALL_HOOK_MAIN(_old_hook_main, argc, argv);

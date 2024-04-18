@@ -134,7 +134,7 @@ static void set_text_color(void *_object)
 	
 	fmt = WIDGET->currentCharFormat();
 	
-	if (fg == COLOR_DEFAULT)
+	if (fg == GB_COLOR_DEFAULT)
 	{
 		fmt.clearForeground();
 		//col = WIDGET->palette().text();

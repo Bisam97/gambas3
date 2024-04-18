@@ -52,4 +52,6 @@ typedef
 	}
 	CSCREEN;
 	
+void APPLICATION_send_change_event(int change);
+
 #endif

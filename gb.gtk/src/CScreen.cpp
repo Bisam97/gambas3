@@ -30,6 +30,7 @@
 #include "CDrawingArea.h"
 #include "CScreen.h"
 
+#include "gb.form.const.h"
 #include "gtrayicon.h"
 #include "gapplication.h"
 #include "gmainwindow.h"
@@ -40,7 +41,7 @@ extern bool CWINDOW_Embedded;
 
 extern int MAIN_scale;
 
-char *CAPPLICATION_Theme = 0;
+char *CAPPLICATION_Theme = NULL;
 GB_ARRAY CAPPLICATION_Restart = NULL;
 bool CAPPLICATION_MiddleClickPaste = TRUE;
 
@@ -49,17 +50,26 @@ static int _busy = 0;
 #define MAX_SCREEN 16
 static CSCREEN *_screens[MAX_SCREEN] = { NULL };
 
-static bool _animations = FALSE;
-static bool _shadows = FALSE;
+static bool _animations = false;
+static bool _shadows = false;
+static int _change = CHANGE_NONE;
 
 //-------------------------------------------------------------------------
 
-static void send_change_event()
+void APPLICATION_send_change_event(int change)
 {
+	GB_FUNCTION func;
+
+	_change = change;
+
+	if (GB.GetFunction(&func, (void *)GB.Application.StartupClass(), "Application_Change", "", "") == 0)
+		GB.Call(&func, 0, FALSE);
+
 	CDRAWINGAREA_send_change_event();
 	CUSERCONTROL_send_change_event();
-}
 
+	_change = CHANGE_NONE;
+}
 
 static CSCREEN *get_screen(int num)
 {
@@ -256,7 +266,7 @@ BEGIN_PROPERTY(Application_Animations)
 	else if (_animations != VPROP(GB_BOOLEAN))
 	{
 		_animations = VPROP(GB_BOOLEAN);
-		send_change_event();
+		APPLICATION_send_change_event(CHANGE_ANIMATION);
 	}
 
 END_PROPERTY
@@ -279,7 +289,7 @@ BEGIN_PROPERTY(Application_Shadows)
 	else if (_shadows != VPROP(GB_BOOLEAN))
 	{
 		_shadows = VPROP(GB_BOOLEAN);
-		send_change_event();
+		APPLICATION_send_change_event(CHANGE_SHADOW);
 	}
 
 END_PROPERTY
@@ -327,35 +337,20 @@ END_PROPERTY
 
 BEGIN_PROPERTY(Application_Theme)
 
-	if (READ_PROPERTY) { GB.ReturnString(CAPPLICATION_Theme); return; }
-	GB.StoreString(PROP(GB_STRING), &CAPPLICATION_Theme);
+	if (READ_PROPERTY)
+		GB.ReturnString(CAPPLICATION_Theme);
+	else
+	{
+		GB.StoreString(PROP(GB_STRING), &CAPPLICATION_Theme);
+		APPLICATION_send_change_event(CHANGE_THEME);
+	}
 
 END_PROPERTY
 
 
 BEGIN_PROPERTY(Application_DarkTheme)
 
-	static bool _init = FALSE;
-	static bool _dark = FALSE;
-	
-	uint bg;
-	char *env;
-	
-	if (!_init)
-	{
-		_init = TRUE;
-		bg = gDesktop::getColor(gDesktop::BACKGROUND);
-		if (IMAGE.GetLuminance(bg) >= 128)
-		{
-			env = getenv("GB_GUI_DARK_THEME");
-			if (env && atoi(env))
-				_dark = TRUE;
-		}
-		else
-			_dark = TRUE;
-	}
-
-	GB.ReturnBoolean(_dark);
+	GB.ReturnBoolean(gApplication::isDarkTheme());
 
 END_PROPERTY
 
@@ -373,6 +368,21 @@ END_PROPERTY
 BEGIN_PROPERTY(Application_DblClickTime)
 
 	GB.ReturnInteger(gApplication::dblClickTime());
+
+END_PROPERTY
+
+
+BEGIN_PROPERTY(Application_Change)
+
+	switch(_change)
+	{
+		case CHANGE_FONT: GB.ReturnConstZeroString("font"); break;
+		case CHANGE_COLOR: GB.ReturnConstZeroString("color"); break;
+		case CHANGE_ANIMATION: GB.ReturnConstZeroString("animation"); break;
+		case CHANGE_SHADOW: GB.ReturnConstZeroString("shadow"); break;
+		case CHANGE_THEME: GB.ReturnConstZeroString("theme"); break;
+		default: GB.ReturnVoidString();
+	}
 
 END_PROPERTY
 
@@ -551,7 +561,8 @@ GB_DESC ApplicationDesc[] =
 	GB_STATIC_PROPERTY_READ("DarkTheme", "s", Application_DarkTheme),
 	GB_STATIC_PROPERTY("Restart", "String[]", Application_Restart),
 	GB_STATIC_PROPERTY_READ("DblClickTime", "i", Application_DblClickTime),
-	
+	GB_STATIC_PROPERTY_READ("Change", "s", Application_Change),
+
 	GB_END_DECLARE
 };
 

@@ -505,7 +505,7 @@ gTextArea::gTextArea(gContainer *parent) : gControl(parent)
 	/*gtk_text_view_set_left_margin(GTK_TEXT_VIEW(textview), 2);
 	gtk_text_view_set_right_margin(GTK_TEXT_VIEW(textview), 2);*/
 
-	setBorder(true);
+	setFrameBorder(BORDER_SUNKEN);
 	setWrap(false);
 }
 
@@ -1158,11 +1158,11 @@ void gTextArea::setFont(gFont *ft)
 
 void gTextArea::setBorder(bool b)
 {
-	gControl::setBorder(b);
+	setFrameBorder(b ? BORDER_SUNKEN : BORDER_NONE);
 	setFramePadding(hasBorder() ? gDesktop::scale() * 3 / 4 : 0);
 }
 
 gColor gTextArea::defaultBackground() const
 {
-	return gDesktop::getColor(gDesktop::TEXT_BACKGROUND, !isEnabled());
+	return gDesktop::getColor(COLOR_TEXT_BACKGROUND, !isEnabled());
 }

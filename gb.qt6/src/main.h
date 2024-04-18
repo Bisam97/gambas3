@@ -117,6 +117,7 @@ public slots:
 	void linkDestroyed(QObject *);
 	void clipboardHasChanged(QClipboard::Mode);
 	void commitDataRequested(QSessionManager &);
+	void paletteHasChanged(const QPalette &);
 
 private:
 	static bool _tooltip_disable;

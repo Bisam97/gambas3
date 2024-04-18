@@ -33,5 +33,6 @@ extern GB_DESC CColorDesc[];
 
 QColor CCOLOR_make(GB_COLOR color);
 QColor CCOLOR_light_foreground();
+bool COLOR_update_palette();
 
 #endif

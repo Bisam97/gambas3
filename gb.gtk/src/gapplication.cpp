@@ -915,6 +915,7 @@ bool gApplication::_init = false;
 bool gApplication::_busy = false;
 char *gApplication::_title = NULL;
 char *gApplication::_theme = NULL;
+bool gApplication::_dark_theme = false;
 int gApplication::_in_popup = 0;
 GtkWidget *gApplication::_popup_grab = NULL;
 int gApplication::_loopLevel = 0;
@@ -1043,12 +1044,12 @@ static void master_client_die(GnomeClient *client, gpointer user_data)
 static void cb_theme_changed(GtkSettings *settings, GParamSpec *param, gpointer data)
 {
 	gApplication::onThemeChange();
-	gDesktop::onThemeChange();
 }
 
 void gApplication::init(int *argc, char ***argv)
 {
 	GtkSettings *settings;
+	//GSettings *settings;
 	
 	#ifdef GTK3
 
@@ -1080,10 +1081,16 @@ void gApplication::init(int *argc, char ***argv)
 
 	settings = gtk_settings_get_default();
 	g_signal_connect(G_OBJECT(settings), "notify::gtk-theme-name", G_CALLBACK(cb_theme_changed), 0);
-	
+	//g_signal_connect(G_OBJECT(settings), "notify::gtk-application-prefer-dark-theme", G_CALLBACK(cb_theme_changed), 0);*/
+
+	//settings = g_settings_new("org.gnome.desktop.interface");
+	//g_signal_connect(G_OBJECT(settings), "changed::color-scheme", G_CALLBACK(cb_theme_changed), 0);
+	//g_signal_connect(G_OBJECT(settings), "changed::gtk-theme", G_CALLBACK(cb_theme_changed), 0);
+
 	gdk_event_handler_set((GdkEventFunc)gambas_handle_event, NULL, NULL);
 
 	gKey::init();
+	gDesktop::init();
 
 	onEnterEventLoop = do_nothing;
 	onLeaveEventLoop = do_nothing;
@@ -1746,7 +1753,7 @@ static void for_each_control(gContainer *cont, void (*cb)(gControl *))
 	//g_ptr_array_unref(children);
 }
 
-// Of the callback may destroy controls, the filter must be specified!
+// If the callback may destroy controls, the filter must be specified!
 
 void gApplication::forEachControl(void (*cb)(gControl *), bool (*filter)(gControl *))
 {
@@ -1846,3 +1853,20 @@ bool gApplication::hasMiddleClickPaste()
 }
 #endif
 
+void gApplication::updateDarkTheme()
+{
+	uint bg;
+	char *env;
+
+	_dark_theme = false;
+
+	bg = gDesktop::getColor(COLOR_BACKGROUND);
+	if (IMAGE.GetLuminance(bg) >= 128)
+	{
+		env = getenv("GB_GUI_DARK_THEME");
+		if (env && atoi(env))
+			_dark_theme = true;
+	}
+	else
+		_dark_theme = true;
+}

@@ -100,7 +100,7 @@ static void set_color(GtkWidget *wid, gColor color, void (*func)(GtkWidget *, Gt
 	int i;
 	GtkStateType st;
 
-	if (color == COLOR_DEFAULT)
+	if (color == GB_COLOR_DEFAULT)
 	{
 		pcol = NULL;
 	}
@@ -2163,6 +2163,11 @@ const char *gt_get_style_class(GType type)
 		return _class[index];
 }
 
+static void cb_style_changed(GtkStyleContext *style, gpointer)
+{
+	gDesktop::onStyleChange();
+}
+
 GtkStyleContext *gt_get_style(GType type, const char *node, const char *more_klass)
 {
 	int index = 0;
@@ -2180,7 +2185,7 @@ GtkStyleContext *gt_get_style(GType type, const char *node, const char *more_kla
 	const char *klass = gt_get_style_class(type);
 
 	style = gtk_style_context_new();
-	
+
 	if (klass)
 		gtk_style_context_add_class(style, klass);
 
@@ -2203,6 +2208,7 @@ GtkStyleContext *gt_get_style(GType type, const char *node, const char *more_kla
 	if (!node && !more_klass)
 		_style[index] = style;
 	
+	g_signal_connect(G_OBJECT(style), "changed", G_CALLBACK(cb_style_changed), 0);
 	return style;
 }
 
@@ -2465,7 +2471,7 @@ void gt_css_add_color(GString *css, gColor bg, gColor fg)
 {
 	char buffer[32];
 
-	if (bg != COLOR_DEFAULT)
+	if (bg != GB_COLOR_DEFAULT)
 	{
 		gt_to_css_color(buffer, bg);
 		g_string_append(css, "background-color:");
@@ -2473,7 +2479,7 @@ void gt_css_add_color(GString *css, gColor bg, gColor fg)
 		g_string_append(css, ";\nbackground-image:none;\n");
 	}
 
-	if (fg != COLOR_DEFAULT)
+	if (fg != GB_COLOR_DEFAULT)
 	{
 		gt_to_css_color(buffer, fg);
 		g_string_append(css, "color:");
@@ -2550,7 +2556,7 @@ void gt_widget_update_css(GtkWidget *widget, gFont *font, gColor bg, gColor fg)
 	
 	css = g_string_new(NULL);
 	
-	if (font || bg != COLOR_DEFAULT || fg != COLOR_DEFAULT)
+	if (font || bg != GB_COLOR_DEFAULT || fg != GB_COLOR_DEFAULT)
 	{
 		g_string_append_printf(css, "#%s {\ntransition:none;\n", name);
 		gt_css_add_color(css, bg, fg);

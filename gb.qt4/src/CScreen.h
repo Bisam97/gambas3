@@ -49,5 +49,8 @@ typedef
 		int index;
 	}
 	CSCREEN;
-	
+
+void APPLICATION_send_change_event(int change);
+void APPLICATION_update_dark_theme(void);
+
 #endif

@@ -101,7 +101,7 @@ static char *get_style_name()
 	return _style_name;
 }
 
-static void init_option(QStyleOption &opt, int x, int y, int w, int h, int state, GB_COLOR color = COLOR_DEFAULT, QPalette::ColorRole role = QPalette::Window)
+static void init_option(QStyleOption &opt, int x, int y, int w, int h, int state, GB_COLOR color = GB_COLOR_DEFAULT, QPalette::ColorRole role = QPalette::Window)
 {
 	GB_PAINT *paint = (GB_PAINT *)DRAW.Paint.GetCurrent();
 

@@ -328,8 +328,8 @@ gTabStripPage::~gTabStripPage()
 
 void gTabStripPage::updateStyleSheet()
 {
-	gt_widget_update_css(widget, NULL, parent->background(), COLOR_DEFAULT);
-	gt_widget_update_css(label, parent->textFont(), COLOR_DEFAULT, COLOR_DEFAULT);
+	gt_widget_update_css(widget, NULL, parent->background(), GB_COLOR_DEFAULT);
+	gt_widget_update_css(label, parent->textFont(), GB_COLOR_DEFAULT, GB_COLOR_DEFAULT);
 }
 
 #else
@@ -777,13 +777,13 @@ GtkWidget *gTabStrip::getContainer()
 void gTabStrip::customStyleSheet(GString *css)
 {
 	gColor bg = background();
-	if (bg == COLOR_DEFAULT)
+	if (bg == GB_COLOR_DEFAULT)
 		return;
 	
 	setStyleSheetNode(css, " > header");
-	gt_css_add_color(css, bg, COLOR_DEFAULT);
+	gt_css_add_color(css, bg, GB_COLOR_DEFAULT);
 	setStyleSheetNode(css, " > header tab:checked");
-	gt_css_add_color(css, bg, COLOR_DEFAULT);
+	gt_css_add_color(css, bg, GB_COLOR_DEFAULT);
 }
 
 void gTabStrip::updateColor()
