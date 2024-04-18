@@ -36,6 +36,7 @@ Event Scroll
 Event Draw
 Event Resize
 Event Font
+Event Change
 
 Static Private $iFadeSize As Integer
 Static Private $hFadeN As Image
@@ -137,6 +138,7 @@ Public Sub _new()
   Me.Arrangement = Arrange.None
   
   $hDrawingArea = New DrawingArea(Me) As "DrawingArea"
+  
   $hObserver = New Observer(Me) As "ScrollArea"
   
   $hHBar = New ScrollBar(Me) As "Scrollbar"
@@ -1129,7 +1131,10 @@ End
 
 Public Sub DrawingArea_Change()
   
+  $iBackground = Color.Change($iBackground)
+  _OnBackgroundChange
   UpdateShadows
+  Raise Change
   
 End
 

@@ -2579,6 +2579,21 @@ Public Sub ScrollArea_Font()
   
 End
 
+Public Sub ScrollArea_Change()
+
+  Dim hData As _GridView_Data
+  
+  $iBg = Color.Change($iBg)
+  
+  For Each hData In $cCells
+    If hData.Background <> Color.Default Or If hData.Foreground <> Color.Default Then
+      hData.Background = Color.Change(hData.Background)
+      hData.Foreground = Color.Change(hData.Foreground)
+    Endif
+  Next
+  
+End
+
 Public Sub _RefreshRow(iRow As Integer)
   
   $hView.RefreshRect(0, $hRows._GetRowY(iRow) + $hColumns.H, $hView.ScrollW, $hRows._GetRowHeight(iRow))
