@@ -36,6 +36,12 @@ Private $aHidden As Control[]
 Private $aDisabled As Control[]
 Private $hTimerUpdate As Timer
 
+Private Sub UpdateColor()
+
+  panWhere.Background = Color.SetAlpha(Color.TextForeground, 192)
+  
+End
+
 Public Sub _new()
   
   $iHandleSize = 1 'Max(4, Desktop.Scale)
@@ -47,8 +53,7 @@ Public Sub _new()
 
   $bAutoResize = True
   UpdateHandle
-  
-  panWhere.Background = Color.SetAlpha(Color.TextForeground, 192)
+  UpdateColor
   
 End
 
@@ -1801,11 +1806,6 @@ Public Sub panToolbar_Draw()
   If $bConfigure Then
     If Not $hConfigureImage Then 
       $hConfigureImage = Picture["img/configure.png"].Image
-      ' If Color[Color.Background].Luminance > 127 Then
-      '   $hConfigureImage = Image.Load("img/configure.png")
-      ' Else
-      '   $hConfigureImage = Image.Load("img/configure_dark.png")
-      ' Endif
     Endif
     Paint.Brush = Paint.Image($hConfigureImage)
     Paint.Rectangle(0, 0, panToolBar.W, panToolBar.H)
@@ -1848,4 +1848,12 @@ Static Public Sub UpdateDefaultSize()
     Next
   Next
   
+End
+
+Public Sub panToolbar_Change()
+
+  UpdateColor
+  $hConfigureImage = Null
+  panToolBar.Refresh
+
 End
