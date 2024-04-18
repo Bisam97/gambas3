@@ -2396,8 +2396,8 @@ void IMAGE_balance(GB_IMG *img, int brightness, int contrast, int gamma, int hue
 
 void IMAGE_invert(GB_IMG *img, bool keep_hue) // GB_COLOR bg, GB_COLOR fg)
 {
-	static uchar lum[256];
-	static bool init_lum = FALSE;
+	/*static uchar lum[256];
+	static bool init_lum = FALSE;*/
 
 	GET_POINTER(img, p, pm);
 	uint col;
