@@ -3397,7 +3397,7 @@ Private Sub UpdateWorkspaceButtons()
     
     .ShowButton(btnWorkspaceBrowse, panProject.Visible And $iCurrentWorkspace = WORKSPACE_PROJECT)
     .ShowButton(btnWorkspaceVersion, VersionControl.Enabled And panProject.Visible And $iCurrentWorkspace = WORKSPACE_PROJECT)
-    .ShowButton(btnWorkspaceTranslation, Project.Localize And Not Project.ReadOnly And $iCurrentWorkspace = WORKSPACE_PROJECT)
+    .ShowButton(btnWorkspaceTranslation, panProject.Visible And Project.Localize And Not Project.ReadOnly And $iCurrentWorkspace = WORKSPACE_PROJECT)
     
     If panProperty.Hidden And If panProperty.Visible And If $iCurrentWorkspace = WORKSPACE_PROJECT Then
       .ShowButton(btnWorkspaceProperty, True)
