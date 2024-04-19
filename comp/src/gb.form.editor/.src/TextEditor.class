@@ -3321,6 +3321,8 @@ Private Sub Highlight_Write(Value As String)
   
   $hDoc.Highlight = Value
   If $bShowPreview Then $hSideBarViewer.Highlight = Value
+  UpdateMargin
+  Refresh
   
 End
 
@@ -5225,9 +5227,11 @@ End
 
 Private Sub ShowExpand_Write(Value As Boolean)
   
+  If $bShowExpand = Value Then Return
   If Not Value Then ExpandAll
   $bShowExpand = Value
   UpdateMargin
+  Refresh
   
 End
 
@@ -6595,6 +6599,7 @@ End
 Private Sub Mode_Write(Value As String)
 
   $hDoc.Mode = Value
+  UpdateMargin
 
 End
 
