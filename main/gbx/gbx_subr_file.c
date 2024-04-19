@@ -143,6 +143,14 @@ static STREAM *get_default(int val)
 	return stream;
 }
 
+NORETURN static void throw_bad_stream(VALUE *value)
+{
+	if (VALUE_is_null(value))
+		THROW(E_NULL);
+	else
+		THROW_TYPE((TYPE)CLASS_Stream, (TYPE)value->type);
+}
+
 static inline STREAM *_get_stream(VALUE *value, bool can_default)
 {
 	STREAM *stream;
@@ -156,13 +164,7 @@ static inline STREAM *_get_stream(VALUE *value, bool can_default)
 		if (TYPE_is_object(value->type) && value->_object.object && OBJECT_class(value->_object.object)->is_stream)
 			stream = CSTREAM_TO_STREAM(value->_object.object);
 		else
-		{
-			if (VALUE_is_null(value))
-				THROW(E_NULL);
-			
-			VALUE_conv_object(value, (TYPE)CLASS_Stream);
-			stream = NULL;
-		}
+			throw_bad_stream(value);
 	}
 	
 	return stream;
@@ -172,7 +174,7 @@ static inline STREAM *_get_stream(VALUE *value, bool can_default)
 ({ \
 	STREAM *_stream = _get_stream(_value, _can_default); \
 	\
-	if (STREAM_is_closed(_stream)) \
+	if (!_stream || STREAM_is_closed(_stream)) \
 		THROW(E_CLOSED); \
 	\
 	_stream; \
@@ -182,7 +184,7 @@ static inline STREAM *_get_stream(VALUE *value, bool can_default)
 ({ \
 	STREAM *_stream = _get_stream(_value, _can_default); \
 	\
-	if (_stream && STREAM_is_closed_for_writing(_stream)) \
+	if (!_stream || STREAM_is_closed_for_writing(_stream)) \
 		THROW(E_CLOSED); \
 	\
 	_stream; \

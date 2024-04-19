@@ -633,7 +633,7 @@ static bool copy_remove(CARRAY *_object, int start, int length, bool copy, bool 
 		{
 			data = ARRAY_insert_many(&array->data, 0, length);
 			array->count += length;
-			memmove(data, get_data(THIS, start), length * THIS->size);
+			memmove(data, CARRAY_get_data_unsafe(THIS, start), length * THIS->size);
 			borrow(array, 0, -1);
 		}
 		
@@ -1544,7 +1544,7 @@ BEGIN_METHOD(Array_String_join, GB_STRING sep; GB_STRING esc)
 	uint lsep = 1;
 	char *esc = "";
 	uint lesc = 0;
-	char escl, escr;
+	char escl = 0, escr = 0;
 	int i;
 	char **data = (char **)THIS->data;
 	char *p, *p2;
@@ -1675,8 +1675,8 @@ BEGIN_METHOD_VOID(CARRAY_reverse)
 	if (count > 1)
 	{
 		size = THIS->size;
-		pi = get_data(THIS, 0);
-		pj = get_data(THIS, count - 1);
+		pi = CARRAY_get_data_unsafe(THIS, 0);
+		pj = CARRAY_get_data_unsafe(THIS, count - 1);
 
 		do
 		{

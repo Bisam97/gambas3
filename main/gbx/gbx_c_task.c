@@ -276,7 +276,9 @@ static bool start_task(CTASK *_object)
 	GB_VALUE *ret;
 	char buf[PATH_MAX];
 	FILE *f;
-	
+	bool close_fd_out = FALSE;
+	bool close_fd_err = FALSE;
+
 	if (EXEC_task)
 		return TRUE;
 
@@ -297,9 +299,13 @@ static bool start_task(CTASK *_object)
 	
 	if (has_read && pipe(fd_out) != 0)
 		goto __ERROR;
+	else
+		close_fd_out = TRUE;
 
 	if (has_error && pipe(fd_err) != 0)
 		goto __ERROR;
+	else
+		close_fd_err = TRUE;
 
 	COMPONENT_before_fork();
 
@@ -427,7 +433,19 @@ __ERROR:
 		err = strerror(errno);
 	fprintf(stderr, "gb.task: cannot run task: %s\n", err);
 	GB_Error("Cannot run task: &1", err);
-	
+
+	if (close_fd_out)
+	{
+		close(fd_out[0]);
+		close(fd_out[1]);
+	}
+
+	if (close_fd_err)
+	{
+		close(fd_err[0]);
+		close(fd_err[1]);
+	}
+
 	return TRUE;
 }
 

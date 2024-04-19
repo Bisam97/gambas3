@@ -633,10 +633,11 @@ void DEBUG_enum_keys(void *object, GB_DEBUG_ENUM_CB cb)
 	{
 		class = (CLASS *)object;
 		object = NULL;
+		prop_ob = class;
 	}
+	else
+		prop_ob = object;
 	
-	prop_ob = object ? object : class;
-
 	TRY
 	{
 		GB_GetProperty(prop_ob, "Key");

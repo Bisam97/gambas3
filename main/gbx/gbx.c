@@ -220,7 +220,12 @@ static bool is_option_arg(char **argv, int argc, int *i, char option, const char
 		(*i)++;
 	}
 	else
-		*param = NULL;
+	{
+		if (long_option)
+			ERROR_fatal("--%s option requires an argument", long_option);
+		else
+			ERROR_fatal("-%c option requires an argument", option);
+	}
 
 	return TRUE;
 }
@@ -330,7 +335,7 @@ int main(int argc, char *argv[])
 	if (!EXEC_arch && argc >= 2 && is_option(argv[1], 'e'))
 	{
 		if (argc < 3)
-			ERROR_fatal("-e option needs an expression.");
+			ERROR_fatal("-e option requires an expression.");
 
 		_eval = TRUE;
 
