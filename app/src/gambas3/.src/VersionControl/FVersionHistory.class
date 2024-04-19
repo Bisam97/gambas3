@@ -1,0 +1,29 @@
+' Gambas class file
+
+Public Sub Run(sCommit As String, sText As String) As Boolean
+
+  edtHistory.Text = sText
+  Me.Title = Subst(("Commit &1"), sCommit)
+  Me.ShowModal()
+
+End
+
+Public Sub Form_Open()
+
+  edtHistory.ReadConfig()
+  edtHistory.ShowLineNumber = False
+  edtHistory.TabSize = 8
+  edtHistory.ShowExpand = True
+  edtHistory.ReadOnly = True
+  VersionControl.InitHistory(edtHistory)
+  edtHistory.SetFocus
+
+  Settings.Read(Me)
+
+End
+
+Public Sub Form_Close()
+
+  Settings.Write(Me)
+
+End

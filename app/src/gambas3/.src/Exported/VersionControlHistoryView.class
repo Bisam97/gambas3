@@ -4,6 +4,8 @@ Export
 
 Inherits GridView
 
+Event Open(Commit As String)
+
 Property Selectable As Boolean Use $bSelectable
 
 Private $hSpinner As Spinner
@@ -279,6 +281,11 @@ Public Sub GridView_Menu()
     
     $hMenu = New Menu(Me.Window, True)
     
+    hMenu = New Menu($hMenu) As "mnuOpen"
+    hMenu.Text = ("Open") & "..."
+    
+    hMenu = New Menu($hMenu)
+    
     hMenu = New Menu($hMenu) As "mnuCopyCommitIdentifier"
     hMenu.Text = ("Copy commit identifier")
     
@@ -349,3 +356,16 @@ Public Sub mnuCopyCommitChanges_Click()
   Clipboard.Copy($aCommit.Copy(Y, $Y2 - Y).Join("\n"))
   
 End
+
+Public Sub GridView_DblClick()
+
+  mnuOpen_Click
+  
+End
+
+Public Sub mnuOpen_Click()
+  
+  Raise Open(Trim(Mid$($aCommit[$Y], 7)))
+  
+End
+
