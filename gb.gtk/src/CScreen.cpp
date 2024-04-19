@@ -64,6 +64,8 @@ void APPLICATION_send_change_event(int change)
 
 	if (GB.GetFunction(&func, (void *)GB.Application.StartupClass(), "Application_Change", "", "") == 0)
 		GB.Call(&func, 0, FALSE);
+	else
+		GB.Error(NULL);
 
 	CDRAWINGAREA_send_change_event();
 	CUSERCONTROL_send_change_event();
