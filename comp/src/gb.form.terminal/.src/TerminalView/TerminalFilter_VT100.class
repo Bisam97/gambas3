@@ -88,6 +88,8 @@ Public Sub OutputTo(hView As TerminalView, hScreen As TerminalScreen, hOutput As
     'If iPosEraseScreen > 0 Then Debug "erase screen at "; iPosEraseScreen
   'Endif
   
+  'Debug Quote(sData)
+  
   Do
     
     hScreen = hView._GetCurrentScreen()
@@ -211,20 +213,20 @@ Private Sub Escape(hView As TerminalView, hScreen As TerminalScreen, hOutput As 
   
   sStr = Mid$(sData, iPos, iLen)
   
-  ' If 'hScreen.DEBUG_FILTER Then
-  '   Inc $iCpt
-  '   Error Format($iCpt, "######0"); " | ";
+  ' If hScreen.DEBUG_FILTER Then
+  '   'Inc $iCpt
+  '   'Error Format($iCpt, "######0"); " | ";
   '   Error "ESC";
   '   For I = 1 To Len(sStr)
   '     Error " "; Mid$(sStr, I, 1);
   '   Next
   '   Error
-  '   If $iCpt > 5120 Then 
-  '     hScreen.DebugRefresh
-  '     hView.Suspended = True
-  '     Stop
-  '     hView.Suspended = False
-  '   Endif
+  '   ' If $iCpt > 5120 Then 
+  '   '   hScreen.DebugRefresh
+  '   '   hView.Suspended = True
+  '   '   Stop
+  '   '   hView.Suspended = False
+  '   ' Endif
   ' Endif
   
   Select Case Left(sStr)
@@ -380,6 +382,8 @@ Private Sub Escape(hView As TerminalView, hScreen As TerminalScreen, hOutput As 
           
           GoSub GET_ARGS
           
+          X = 0
+          Y = 0
           If aArg Then
             Try Y = CInt(aArg[0]) - 1
             Try X = CInt(aArg[1]) - 1

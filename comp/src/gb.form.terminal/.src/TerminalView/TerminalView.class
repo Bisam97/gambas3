@@ -144,7 +144,9 @@ Private $bSuspend As Boolean
 Private $iMouseX As Integer
 Private $iMouseY As Integer
 Private $bShowScrollBar As Boolean
+
 Private $hResizeTimer As Timer
+
 Private $sTitle As String
 Private $fLastMouseDownTime As Float
 Private $nClick As Integer
@@ -157,7 +159,6 @@ Private mnuCopy As Menu
 Private mnuOpen As Menu
 Private mnuPaste As Menu
 Private mnuSelectAll As Menu
-
 
 Private $iScrollY As Integer
 Private $iTargetY As Integer
@@ -223,9 +224,6 @@ Public Sub _new()
   $aScreen[1] = New TerminalScreen As "TerminalScreen"
   $hScreen = $aScreen[0]
   
-  UpdateFont
-  UpdateScreen
-  
   '$hRefreshTimer = New Timer As "RefreshTimer"
   '$hRefreshTimer.Delay = 50
   
@@ -236,7 +234,10 @@ Public Sub _new()
   $hBlinkTimer.Delay = 500
   
   $hResizeTimer = New Timer As "ResizeTimer"
-  $hResizeTimer.Delay = 100
+  $hResizeTimer.Delay = 50
+  
+  UpdateFont
+  UpdateScreen
   
 End
 
@@ -313,11 +314,17 @@ End
 
 Public Sub _UpdateSize()
 
+  Dim bBottom As Boolean
+  
   If $iDisableUpdateSize Then Return
+  
+  bBottom = $hScroll.Value = $hScroll.MaxValue
   
   $hScroll.MinValue = 0
   $hScroll.MaxValue = Max(0, $hScreen.Lines.Count - $H)
   $hScroll.PageStep = $H
+  
+  If bBottom Then $hScroll.Value = $hScroll.MaxValue
   
 End
 
@@ -346,8 +353,7 @@ Private Sub UpdateScreen()
     $H = H
     _UpdateSize
     Refresh
-    'If $hProcess Then $hProcess.Term.Resize($hScreen.Width, $hScreen.Height)
-    If $hProcess Then $hResizeTimer.Restart
+    $hResizeTimer.Restart()
     Raise Resize(W, H)
   Endif
   
@@ -357,6 +363,7 @@ Public Sub ResizeTimer_Timer()
   
   If $hProcess Then Try $hProcess.Term.Resize($hScreen.Width, $hScreen.Height)
   $hResizeTimer.Stop
+  $hScreen.StartRelayout()
 
 End
 
@@ -584,6 +591,13 @@ Public Sub _EnsureVisibleAt((X) As Integer, Y As Integer)
   Endif
   
 End
+
+Public Sub _EnsureScreen()
+  
+  $hScroll.Value = $hScroll.MaxValue
+  
+End
+
 
 '' Ensure that the cursor position is visible, by scrolling the screen if necessary.
 
@@ -1300,6 +1314,8 @@ Public Sub Process_Read()
     $sBuffer &= sData
   Endif
   
+  $hScreen.StopRelayout()
+  
   If TerminalScreen.DEBUG_FILTER Then
     If _DisableFilter = 0 Then $hOutputTimer.Trigger
   Else
@@ -1352,10 +1368,12 @@ Public Sub OutputTimer_Timer()
   
   If bEnsureVisible Then 
     $bIgnoreNextAnimation = True
-    EnsureVisible
+    _EnsureScreen()
   Endif
   
   $iLinkLastY = -1
+  
+  $hScreen.StartRelayout()
   
 End
 

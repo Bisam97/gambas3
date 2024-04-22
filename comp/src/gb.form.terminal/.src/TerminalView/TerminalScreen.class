@@ -130,6 +130,10 @@ Private $aCharset As New Byte[4]
 Private $iCurrentCharset As Integer
 Private $bGraphicCharset As Boolean
 
+Private $hTimerRelayout As Timer
+Private $bMustRelayout As Boolean
+Private $iDoNotRelayoutAfter As Integer
+
 Public Sub _new()
   
   Dim I As Integer
@@ -139,6 +143,9 @@ Public Sub _new()
       $sControlChar &= Chr$(I)
     Next
   Endif
+  
+  $hTimerRelayout = New Timer As "TimerRelayout"
+  $hTimerRelayout.Delay = 50
   
   Reset
   
@@ -160,7 +167,7 @@ Public Sub Clear()
 End
 
 'Fast 
-Private Sub Relayout(W As Integer)
+Public Sub Relayout()
 
   Dim aAttr As Long[]
   Dim aLines As String[]
@@ -172,6 +179,12 @@ Private Sub Relayout(W As Integer)
   Dim sLine As String
   Dim hView As TerminalView
   Dim D As Integer
+  Dim X, Y As Integer
+  Dim M As Integer
+  Dim aAfter As CTerminalLine[]
+
+  'Debug "W =";; $W;; "("; $X;; $Y; ")"
+  'Sleep 10
 
   hView = GetView()
 
@@ -183,9 +196,16 @@ Private Sub Relayout(W As Integer)
   If D < 0 Then D = 0
   
   SY = -1
+  
+  M = Lines.Count
+  If $iDoNotRelayoutAfter >= 0 Then M = $iDoNotRelayoutAfter
+  'Debug D; " -> "; M - 1
 
-  For I = D To Lines.Max
-    If I = $Y Then SY = aLines.Count
+  For I = D To M - 1
+    If I = $Y Then
+      SY = aLines.Count
+      X = $X + String.Len(sText)
+    Endif
     hLine = Lines[I]
     ' Print I; " = ";
     ' hLine._Dump()
@@ -200,69 +220,112 @@ Private Sub Relayout(W As Integer)
     Endif
   Next
   
-  aLines.Add(sText)
-  'Debug "#1 "; Timer - fTimer;; $X;; $Y
+  If I = $Y Then
+    SY = aLines.Count
+    X = $X + String.Len(sText)
+  Endif
+  If sText Then aLines.Add(sText)
   
-  'fTimer = Timer
-  
-  'SX = $X
-  'SY = $Y
-
   hView._DisableUpdateSize()
 
-  Lines.Remove(D, -1)
-  If D = 0 Then $bBrokenLine = False
-  'GetView()._UpdateSize
-  'Goto(0, D)
+  If M < Lines.Count Then aAfter = Lines.Extract(M, -1)
 
+  If D = 0 Then 
+    $bBrokenLine = False
+    Lines.Clear
+  Else
+    Lines.Remove(D, -1)
+  Endif
+
+  Y = -1
   L = D
   For I = 0 To aLines.Max
     
-    If I = SY Then $Y = L
+    If I = SY Then
+      Y = L
+    Endif
     
     sLine = aLines[I]
-    While String.Len(sLine) > W
+    While String.Len(sLine) > $W
       With GetLine(L)
-        .Text = String.Left(sLine, W)
-        .Length = W
+        .Text = String.Left(sLine, $W)
+        .Length = $W
+        .NewLine = False
       End With
-      sLine = String.Mid$(sLine, W + 1)
+      sLine = String.Mid$(sLine, $W + 1)
       Inc L
       $bBrokenLine = True
-      
-      If I = SY Then
-        If $X >= W Then
-          $X -= W
-          $Y = L
-        Endif
-      Endif
-      
     Wend
 
     With GetLine(L)
       .Text = sLine
       .Length = String.Len(sLine)
-      .NewLine = I < aLines.Max
+      .NewLine = True
     End With
+    
     Inc L
     
   Next
+  
+  If Y < 0 And If $Y >= M Then
+    X = $X
+    Y = $Y + L - M
+  Endif
   
   'Debug "#2 "; Timer - fTimer;; $X;; $Y
   
   'fTimer = Timer
   
-  For I = D To Lines.Max
-    Lines[I].InitAttr(aAttr)
+  For I = D To L - 1
+    hLine = Lines[I]
+    If hLine Then hLine.InitAttr(aAttr)
     ' Print I; " => ";
     ' Lines[I]._Dump()
   Next
   
+  If aAfter Then Lines.Insert(aAfter)
+  
+  If Y >= 0 Then 
+    'CursorGoto(X, Y)
+    
+    While X >= $W
+      Inc Y
+      X -= $W
+    Wend
+    
+    MoveCursor(X, Y)
+  
+    'Debug $Y * $W + $X
+    'Debug $Y;; $X;; "(";; $W;; ") -->";; $Y * $W + $X
+  Endif
   'Debug "#3 "; Timer - fTimer
 
   hView._EnableUpdateSize()
   hView._UpdateSize
+  hView.Refresh
+  
+  $iDoNotRelayoutAfter = -1
   'hView.EnsureVisible()
+  
+End
+
+Public Sub TimerRelayout_Timer()
+  
+  $hTimerRelayout.Stop
+  $bMustRelayout = False
+  If Not GetView().AlternateScreen And If Lines.Count < 100000 Then Relayout()
+  
+End
+
+Public Sub StopRelayout()
+  
+  If $bMustRelayout Then $hTimerRelayout.Stop()
+  
+End
+
+Public Sub StartRelayout()
+  
+  If $bMustRelayout Then $hTimerRelayout.Restart()
   
 End
 
@@ -270,14 +333,8 @@ Public Sub Resize(W As Integer, H As Integer) As Boolean
   
   If W <> $W Or If H <> $H Then
     
-    If Not GetView().AlternateScreen And If Lines.Count < 100000 Then
-      If $bBrokenLine Or If W < $W Then
-        Relayout(W)
-      Endif
-    Endif
-      
-    $W = W
-    $H = H
+    Swap $W, W
+    Swap $H, H
 
     $X1 = 0
     $Y1 = 0
@@ -292,11 +349,16 @@ Public Sub Resize(W As Integer, H As Integer) As Boolean
         Lines.Resize($H)
         'GetView()._UpdateSize
       Endif
+    Else 
+      If Not $bMustRelayout And If W <> $W And If Lines.Count Then
+        $bMustRelayout = True
+        $iDoNotRelayoutAfter = -1
+      Endif
     Endif
     $hLineCache = Null
     
-    $X = Min($X, $W - 1)
-    $Y = ScreenTop() + Max(0, Min($Y - ScreenTop(), $H - 1))
+    '$X = Min($X, $W - 1)
+    '$Y = ScreenTop() + Max(0, Min($Y - ScreenTop(), $H - 1))
 
     Return True
     
@@ -307,6 +369,12 @@ End
 Fast Public Sub GetLine(Y As Integer) As CTerminalLine
   
   Dim hLine As CTerminalLine
+  
+  If $bMustRelayout Then 
+    If $iDoNotRelayoutAfter < 0 Or If $iDoNotRelayoutAfter > Y Then
+      $iDoNotRelayoutAfter = Y
+    Endif
+  Endif
   
   If Y > Lines.Max Then
     Lines.Resize(Y + 1)
@@ -356,8 +424,8 @@ Private Sub Insert(sText As String, Optional X As Integer = $X)
   If (X + iLen) > $W Then
     If X >= $W Then
       If Not WrapMode Then Return
-      Index()
       $X = 0
+      Index()
       Insert(sText)
       Return
     Endif
@@ -373,6 +441,7 @@ Private Sub Insert(sText As String, Optional X As Integer = $X)
     Endif
     If WrapMode Then
       $bBrokenLine = True
+      GetLine($Y).NewLine = False
       Index()
       $X = 0
       Insert(sText)
@@ -401,6 +470,8 @@ Private Sub Insert(sText As String, Optional X As Integer = $X)
   GetView()._RefreshLine($Y)
   
   If IsMissing(X) Then $X += iLen
+  
+  'Goto($X, $Y)
   
 End
 
@@ -440,7 +511,7 @@ Public Sub Print(sText As String)
       Case 7
         Bell
       Case 8
-        CursorLeft
+        CursorLeft()
       Case 9
         Tab()
       Case 10, 11, 12
@@ -468,7 +539,6 @@ Private Sub NewLine()
   
   hLine = GetLine($Y)
   hLine.NewLine = True
-  
   If NewlineMode Then $X = 0
   Index()
   
@@ -480,18 +550,8 @@ Private Sub Tab()
   
 End
 
-Public Sub Goto(X As Integer, Y As Integer)
-  
-  If X >= $W Then
-    X = 0
-    Inc Y
-  Else If X < 0 Then
-    X = $W - 1
-    Dec Y
-  Endif
-  
-  If Y < 0 Then Y = 0
-  
+Private Sub MoveCursor(X As Integer, Y As Integer)
+
   With GetView()
     
     ._ShowCursor()
@@ -507,6 +567,24 @@ Public Sub Goto(X As Integer, Y As Integer)
     '.EnsureVisible
     
   End With
+  
+  'Debug $X;; $Y
+
+End
+
+Public Sub Goto(X As Integer, Y As Integer)
+  
+  If X >= $W Then
+    X = 0
+    Inc Y
+  Else If X < 0 Then
+    X = $W - 1
+    Dec Y
+  Endif
+  
+  If Y < 0 Then Y = 0
+  
+  MoveCursor(X, Y)
   
 End
 
@@ -549,14 +627,6 @@ Public Sub CursorGoto(X As Integer, Y As Integer)
   
   'Debug X;; Y
   
-  ' If X >= $W Then
-  '   X = 0
-  '   Inc Y
-  ' Else If X < 0 Then
-  '   X = $W - 1
-  '   Dec Y
-  ' Endif
-  
   If X < 0 Then
     X = 0
   Else If X >= $W
@@ -569,23 +639,8 @@ Public Sub CursorGoto(X As Integer, Y As Integer)
     Y = $H - 1
   Endif
   
-  With GetView()
-    
-    ._ShowCursor()
-    ._RefreshLine($Y)
-    
-    $X = X
-    Y += ScreenTop()
-    
-    If Y <> $Y Then
-      $Y = Y
-      'Debug "$Y = "; $Y
-      'If $Y = 50 Then Stop
-      ._RefreshLine($Y)
-    Endif
-    '.EnsureVisible
-    
-  End With
+  MoveCursor(X, Y + ScreenTop())
+  GetView()._EnsureScreen()
   
 End
 
@@ -681,6 +736,7 @@ Public Sub EraseEndOfLine()
   Endif
   hLine.Length = $X
   If Not $hAttr.IsVoid() Then Insert(Space$($W - $X), $X)
+  hLine.NewLine = False
   GetView()._RefreshLine($Y)
   
 End
@@ -709,6 +765,7 @@ Public Sub EraseLine()
   Else
     Insert(Space$($W), 0)
   Endif
+  'hLine.NewLine = False
   
   GetView()._RefreshLine($Y)
   
@@ -724,6 +781,7 @@ Public Sub EraseScreen()
   
   CursorHome
   GetView()._ShowScreen()
+  GetView().EnsureVisible()
   
 End
 
@@ -999,7 +1057,7 @@ Private Sub DrawLine(hView As TerminalView, L As Integer, X As Integer, Y As Int
   
   If Paint.W > X Then Paint.FillRect(X, Y, Paint.W - X, LH, hView.Background)
   
-  'If hLine.NewLine Then Paint.FillRect(Paint.W - 1, Y, 1, 4, Color.Yellow)
+  'If hLine.NewLine Then Paint.FillRect(Paint.W - 2, Y, 2, LH - 4, Color.Yellow)
   
   Return
   
@@ -1373,6 +1431,7 @@ End
 
 Public Sub DebugRefresh()
   
+  Return
   If DEBUG_FILTER Then
     If GetView()._DisableFilter Then Return
     GetView().Refresh
@@ -2412,7 +2471,7 @@ Public Sub SelectCurrentWord(X As Integer, Y As Integer)
   Dim bCheck As Boolean
 
   Try hLine = Lines[Y]
-  If Error Then Return
+  If Not hLine Then Return
   If X < 0 Or If X >= $W Or If X >= hLine.Length Then Return
   
   C = String.Mid$(hLine.Text, X, 1)
