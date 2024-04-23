@@ -167,7 +167,7 @@ Public Sub Clear()
 End
 
 'Fast 
-Public Sub Relayout()
+Private Sub Relayout()
 
   Dim aAttr As Long[]
   Dim aLines As String[]
@@ -200,6 +200,8 @@ Public Sub Relayout()
   M = Lines.Count
   If $iDoNotRelayoutAfter >= 0 Then M = $iDoNotRelayoutAfter
   'Debug D; " -> "; M - 1
+
+  'Debug "Lines.Count = "; Lines.Count; " M = "; M
 
   For I = D To M - 1
     If I = $Y Then
@@ -300,6 +302,8 @@ Public Sub Relayout()
   Endif
   'Debug "#3 "; Timer - fTimer
 
+  'Debug "Lines.Count -> "; Lines.Count
+
   hView._EnableUpdateSize()
   hView._UpdateSize
   hView.Refresh
@@ -319,13 +323,19 @@ End
 
 Public Sub StopRelayout()
   
-  If $bMustRelayout Then $hTimerRelayout.Stop()
+  If $bMustRelayout Then 
+    'Debug
+    $hTimerRelayout.Stop()
+  Endif
   
 End
 
 Public Sub StartRelayout()
   
-  If $bMustRelayout Then $hTimerRelayout.Restart()
+  If $bMustRelayout Then 
+    'Debug
+    $hTimerRelayout.Restart()
+  Endif
   
 End
 
@@ -727,6 +737,8 @@ Public Sub EraseEndOfLine()
   
   Dim hLine As CTerminalLine
   
+  'Debug $Y;; $X
+  
   hLine = GetLine($Y)
   If hLine.Length <= $X Then 
     If $hAttr.IsVoid() Then Return
@@ -1056,6 +1068,12 @@ Private Sub DrawLine(hView As TerminalView, L As Integer, X As Integer, Y As Int
   Endif
   
   If Paint.W > X Then Paint.FillRect(X, Y, Paint.W - X, LH, hView.Background)
+  
+  ' Paint.Background = Color.Black
+  ' Paint.DrawTextShadow(CStr(L), Paint.X, Y, Paint.W, LH, Align.Right, 4)
+  ' Paint.DrawTextShadow(CStr(L), Paint.X, Y, Paint.W, LH, Align.Right, 4)
+  ' Paint.Background = Color.Yellow
+  ' Paint.DrawText(CStr(L), Paint.X, Y, Paint.W, LH, Align.Right)
   
   'If hLine.NewLine Then Paint.FillRect(Paint.W - 2, Y, 2, LH - 4, Color.Yellow)
   

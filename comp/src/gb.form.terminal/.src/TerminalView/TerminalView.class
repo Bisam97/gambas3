@@ -361,6 +361,7 @@ End
 
 Public Sub ResizeTimer_Timer()
   
+  'Debug
   If $hProcess Then Try $hProcess.Term.Resize($hScreen.Width, $hScreen.Height)
   $hResizeTimer.Stop
   $hScreen.StartRelayout()
@@ -1516,7 +1517,7 @@ Public Sub Paste()
 
   Dim sText As String
   
-  Try sText = Clipboard.Paste()
+  Try sText = Clipboard.Paste("text/plain")
   If sText Then PasteText(sText)
   
 End
