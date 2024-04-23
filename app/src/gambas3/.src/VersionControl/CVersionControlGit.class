@@ -340,17 +340,46 @@ End
 
 Public Sub Revert(Optional sPath As String) As Boolean
   
+  Dim sStatus As String
+  
   If sPath Then 
-    RunShell("git checkout " & Shell(sPath))
+    
+    GoSub GET_STATUS
+    If sStatus Then
+      RunShell("git checkout " & Shell(sPath))
+      GoSub GET_STATUS
+      If sStatus Then
+        RunShell("git restore " & Shell(sPath))
+        GoSub GET_STATUS
+        If sStatus Then
+          RunShell("git restore --staged " & Shell(sPath))
+          GoSub GET_STATUS
+          If sStatus Then
+            RunShell("git rm -f " & Shell(sPath))
+            Try Kill sPath
+            GoSub GET_STATUS
+            If sStatus Then Error.Raise(Subst(("Unable to revert file <tt>&1</tt>."), Project.MakeRelativePath(sPath)))
+          Endif
+        Endif
+      Endif
+    Endif
+    
   Else
     RunShell("git checkout " & Shell(Project.Dir))
   Endif
+  
+  Return
+  
+GET_STATUS:
+
+  sStatus = Trim(RunShell("git status --porcelain " & Shell(sPath)))
+  Return
   
 End
 
 Public Sub RemoveFile(sPath As String, Optional (bForce) As Boolean)
 
-  RunShell("git rm " & Shell(sPath))
+  RunShell("git rm -f " & Shell(sPath))
   
 End
 
