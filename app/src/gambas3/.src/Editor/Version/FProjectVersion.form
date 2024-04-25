@@ -221,18 +221,8 @@
       Key = "history"
       ReadOnly = True
       Separator = True
-      { btnDefaultBranch ToolButton
-        MoveScaled(1,0,4,4)
-        Action = "vc-default-branch"
-        Picture = Picture["icon:/small/tag"]
-      }
-      { cmbBranch ComboBox
-        MoveScaled(5,0,32,3)
-        ReadOnly = True
-        Border = False
-      }
       { txtSearchHistory ButtonBox
-        MoveScaled(38,0,52,3)
+        MoveScaled(2,0,54,3)
         Foreground = Color.LightForeground
         Picture = Picture["icon:/small/close"]
         Placeholder = ("Enter a filter")
@@ -241,16 +231,30 @@
         Filter = True
       }
       { Panel3 Panel
-        MoveScaled(92,1,4,1)
+        MoveScaled(57,1,2,1)
         Expand = True
       }
       { btnShowHistoryChanges ToolButton
-        MoveScaled(97,0,25,4)
+        MoveScaled(60,0,20,4)
         Action = "vc-history-changes"
         AutoResize = True
         Text = ("Display changes in history")
         Picture = Picture["icon:/small/zoom-in"]
         Toggle = True
+      }
+      { Separator1 Separator
+        MoveScaled(83,0,1,4)
+      }
+      { btnDefaultBranch ToolButton
+        MoveScaled(87,0,4,4)
+        Action = "vc-default-branch"
+        Picture = Picture["icon:/small/tag"]
+      }
+      { cmbBranch ComboBox
+        MoveScaled(91,0,32,3)
+        Background = Color.Background
+        ReadOnly = True
+        Border = False
       }
     }
     { gvwHistory VersionControlHistoryView
@@ -356,8 +360,8 @@
   }
   { Toolbar history
     Text = ""
-    List = "vc-default-branch,vc-history-changes"
-    Default = "vc-default-branch,$cmbBranch,$txtSearchHistory,~,vc-history-changes"
+    List = "vc-history-changes,vc-default-branch"
+    Default = "$txtSearchHistory,~,vc-history-changes,|,vc-default-branch,$cmbBranch"
   }
   { Toolbar repository
     Text = ""

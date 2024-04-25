@@ -34,7 +34,7 @@ End
 
 Private Sub RunShell(sCmd As String, Optional bSilent As Boolean) As String
   
-  Return VersionControl.Shell("cd " & Shell(Project.Dir) & " && " & sCmd, bSilent)
+  Return VersionControl.Shell(sCmd, bSilent,, "cd " & Shell(Project.Dir) & " && ")
   
 End
 
@@ -606,5 +606,11 @@ Public Sub SetIdentity(sName As String, sMail As String)
   Else 
     RunShell("git config user.email --unset")
   Endif
+  
+End
+
+Public Sub GetDefaultBranch() As String
+  
+  Return Trim(RunShell("git var GIT_DEFAULT_BRANCH"))
   
 End

@@ -39,6 +39,7 @@ Private $cBranchColor As New Collection
 Private $aBranchColor As Integer[] = [&HE00000, &HE00070, &HE000E0, &H6C00E0, &H0000E0, &H0060C0, &H00C0C0, &H00C000, &HC0C000, &HE0A400, &HC05C00, &HA00000, &HA00050, &HA000A0, &H008080, &H008000, &H808000, &HA07800, &HA04A00]
 
 Private Const DEFAULT_BRANCH_COLOR As Integer = &H606060
+Private $sDefaultBranch As String
 
 Private Sub OnVersionControlChange()
 
@@ -89,6 +90,7 @@ Public Sub Refresh()
   Endif
   
   $sCurrentBranch = ""
+  $sDefaultBranch = ""
   $bAuth = False
   CheckPaths
   OnVersionControlChange
@@ -129,11 +131,12 @@ Public Sub Insert(sText As String)
 
 End
 
-Public Sub Shell(sCmd As String, Optional bSilent As Boolean, Optional aEnv As String[]) As String
+Public Sub Shell(sCmd As String, Optional bSilent As Boolean, Optional aEnv As String[], Optional sBefore As String) As String
   
   Dim sResult As String
   
   If Not bSilent Then Insert(sCmd & "\n")
+  If sBefore Then sCmd = sBefore & " " & sCmd
   Shell sCmd With aEnv To sResult
   If Process.LastValue Then 
     $sLastResult = sResult
@@ -700,6 +703,14 @@ Public Sub RevertNotImportantFiles()
   Endif
 
 End
+
+Public Sub GetDefaultBranch() As String
+  
+  If Not $sDefaultBranch Then $sDefaultBranch = $hVC.GetDefaultBranch()
+  Return $sDefaultBranch
+  
+End
+
 
 Public Sub SetBranch(sBranch As String)
 

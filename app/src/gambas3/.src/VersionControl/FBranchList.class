@@ -9,7 +9,7 @@ Private $aBranches As String[]
 
 Public Sub Init()
 
-  txtFilter.H = FMain.GetTabBarHeight()
+  'txtFilter.H = FMain.GetTabBarHeight()
 
   $sBranch = ""
   $aBranches = VersionControl.GetBranches(ByRef $sCurrent)
@@ -36,17 +36,22 @@ Private Sub FillBranch()
   Dim H As Integer
   
   sFilter = Trim(txtFilter.Text)
-  lstBranch.Clear
+  lvwBranch.Clear
   
   For Each sBranch In $aBranches
     If sFilter And InStr(sBranch, sFilter) = 0 Then Continue
-    lstBranch.Add(sBranch)
-    If sBranch = $sCurrent Then iCurrent = lstBranch.Count - 1
+    With lvwBranch.Add(sBranch, sBranch)
+      If sBranch = VersionControl.GetDefaultBranch() Or If sBranch = $sCurrent Then
+        .Font = Application.Font
+        If sBranch = VersionControl.GetDefaultBranch() Then .Font.Underline = True
+        If sBranch = $sCurrent Then .Font.Bold = True
+      Endif
+    End With
   Next
   
-  lstBranch.Index = iCurrent
+  lvwBranch.Key = $sCurrent
   
-  H = Max(Min(Desktop.Scale * 3 * MAX_ROW, lstBranch.ScrollHeight), Desktop.Scale * 3)
+  H = Max(Min(Desktop.Scale * 3 * MAX_ROW, lvwBranch.ScrollHeight), Desktop.Scale * 3)
   If txtFilter.Visible Then H += txtFilter.H + sepFilter.H
   Me.Parent.H = H + 2
   
@@ -58,9 +63,9 @@ Public Sub txtFilter_Filter()
 
 End
 
-Public Sub lstBranch_Activate()
+Public Sub lvwBranch_Activate()
 
-  VersionControl.SetBranch(lstBranch.Text)
+  VersionControl.SetBranch(lvwBranch.Current.Text)
 
 End
 
@@ -72,17 +77,17 @@ End
 
 Public Sub txtFilter_KeyPress()
 
-  If Not Key.Text Then Object.Raise(lstBranch.Children[0].Proxy, "KeyPress")
+  If Not Key.Text Then Object.Raise(lvwBranch.Children[0].Proxy, "KeyPress")
   
 End
 
 Public Sub txtFilter_Activate()
 
-  lstBranch_Activate
+  lvwBranch_Activate
 
 End
 
-Public Sub lstBranch_GotFocus()
+Public Sub lvwBranch_GotFocus()
 
   txtFilter.SetFocus
 
@@ -90,6 +95,6 @@ End
 
 Public Sub txtFilter_Click()
 
-  lstBranch_Activate
+  lvwBranch_Activate
 
 End
