@@ -152,6 +152,7 @@ Public Sub Diff(sPath As String, Optional bFull As Boolean, bNoWhiteSpace As Boo
   Dim sFull As String
   Dim iPos As Integer
   Dim sOption As String
+  Dim sBefore As String
 
   'If VersionControl.Shell("cd " & Shell(Project.Dir) & " && git log -1", True) Then
   If RunShell("git log -1", True) Then
@@ -165,12 +166,14 @@ Public Sub Diff(sPath As String, Optional bFull As Boolean, bNoWhiteSpace As Boo
   If bNoWhiteSpace Then sOption = " -b --ignore-blank-lines"
 
   If IsDir(sPath) Then
-    sCmd = "cd " & Shell(sPath) & " && git diff" & sOption & sFull & " " & sHead & " ."
+    sBefore = "cd " & Shell(sPath) & " && "
+    sCmd = "git diff" & sOption & sFull & " " & sHead & " ."
   Else
-    sCmd = "cd " & Shell(File.Dir(sPath)) & " && git diff" & sOption & sFull & " " & sHead & " " & Shell(File.Name(sPath))
+    sBefore = "cd " & Shell(File.Dir(sPath)) & " && "
+    sCmd = "git diff" & sOption & sFull & " " & sHead & " " & Shell(File.Name(sPath))
   Endif
   
-  sDiff = VersionControl.Shell(sCmd)
+  sDiff = VersionControl.Shell(sCmd,,, sBefore)
   
   If bFull Then
     iPos = InStr(sDiff, "@@\n")
@@ -213,6 +216,7 @@ Public Sub History(bPrint As Boolean, sPath As String, Optional sPath2 As String
   
   Dim sCmd As String
   Dim sFull As String
+  Dim sBefore As String
   
   If bFull Then sFull = "-p -b "
   If sBranch Then
@@ -225,16 +229,18 @@ Public Sub History(bPrint As Boolean, sPath As String, Optional sPath2 As String
   Endif
   
   If IsDir(sPath) Then
-    sCmd = "cd " & Shell(sPath) & " && git log --date=rfc2822 " & sFull & sBranch & "."
+    sBefore = "cd " & Shell(sPath) & " && "
+    sCmd = "git log --date=rfc2822 " & sFull & sBranch & "."
   Else
-    sCmd = "cd " & Shell(File.Dir(sPath)) & " && git log --date=rfc2822 " & sFull & sBranch & Shell(File.Name(sPath))
+    sBefore = "cd " & Shell(File.Dir(sPath)) & " && "
+    sCmd = "git log --date=rfc2822 " & sFull & sBranch & Shell(File.Name(sPath))
     If sPath2 Then sCmd &= " " & Shell(File.Name(sPath2))
   Endif
   
   If bPrint Then 
-    Shell sCmd Wait
+    Shell sBefore & sCmd Wait
   Else
-    Return VersionControl.Shell(sCmd)
+    Return VersionControl.Shell(sCmd,,, sBefore)
   Endif
 
 End
@@ -424,7 +430,8 @@ Public Sub Info() As Collection
   
   cInfo[("Local root path")] = $sRoot
   
-  aResult = Split(VersionControl.Shell("cd " & Shell(Project.Dir) & " && git log -n1"), "\n")
+  aResult = Split(RunShell("git log -n1"), "\n")
+  
   cInfo[("Last commit")] = Trim(Mid$(aResult[0], InStr(aResult[0], " ") + 1))
   cInfo[("Last commit author")] = Trim(Mid$(aResult[1], InStr(aResult[1], " ") + 1))
   cInfo[("Last commit date")] = Trim(Mid$(aResult[2], InStr(aResult[2], " ") + 1))
