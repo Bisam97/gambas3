@@ -4,8 +4,6 @@ Export
 
 Inherits GridView
 
-Event Open(Commit As String)
-
 Property Selectable As Boolean Use $bSelectable
 
 Private $hSpinner As Spinner
@@ -364,8 +362,11 @@ Public Sub GridView_DblClick()
 End
 
 Public Sub mnuOpen_Click()
+
+  Dim sCommit As String
   
-  Raise Open(Trim(Mid$($aCommit[$Y], 7)))
+  sCommit = Trim(Mid$($aCommit[$Y], 7))
+  FVersionHistory.Run(sCommit, VersionControl.History(False, Project.Dir,, True, "@" & sCommit))
   
 End
 
