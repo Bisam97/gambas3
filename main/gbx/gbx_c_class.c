@@ -64,11 +64,15 @@ static bool check_null(const void *object)
 
 BEGIN_METHOD(Components_get, GB_STRING name)
 
-	const char *name = GB_ToZeroString(ARG(name));
-	COMPONENT *comp;
-
-	comp = COMPONENT_find(name);
+	COMPONENT *comp = COMPONENT_find(GB_ToZeroString(ARG(name)));
 	GB_ReturnObject(comp);
+
+END_METHOD
+
+BEGIN_METHOD(Components_Exist, GB_STRING name)
+
+	COMPONENT *comp = COMPONENT_find(GB_ToZeroString(ARG(name)));
+	GB_ReturnBoolean(comp != NULL);
 
 END_METHOD
 
@@ -939,6 +943,7 @@ GB_DESC NATIVE_Components[] =
 
 	GB_STATIC_METHOD("_next", "Component", Components_next, NULL),
 	GB_STATIC_METHOD("_get", "Component", Components_get, "(Name)s"),
+	GB_STATIC_METHOD("Exist", "b", Components_Exist, "(Name)s"),
 	GB_STATIC_PROPERTY_READ("Count", "i", Components_Count),
 
 	GB_END_DECLARE
