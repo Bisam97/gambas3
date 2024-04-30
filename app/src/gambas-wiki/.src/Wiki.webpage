@@ -8,9 +8,11 @@
   <%If System.RightToLeft Then%>
   <link rel="stylesheet" href="<%/%>/style-rtl.css">
   <%Endif%>
+  <link rel="stylesheet" href="<%/%>/split.css">
   <link rel="icon" href="<%/%>/logo.png" type="image/png">
   <title><%_PrintTitle%> - <%=("Gambas Documentation")%></title>
   <script type="text/javascript" src="<%/%>/common.js"></script>
+  <script type="text/javascript" src="<%/%>/split.js"></script>
   <script type="text/javascript" src="<%/%>/playground.js?l=<%=Request["l"]%>"></script>
   <%If Request["ht"]%>
   <script type="text/javascript" src="<%/%>/highlight.js"></script>
@@ -47,7 +49,7 @@ H1 { display: none; }
 
 <%Else%>
 
-<div class="index-frame">
+<div class="index-frame" id="index-frame">
   
   <!--<div class="root-title"><%=("Gambas Documentation")%></div>-->
   
@@ -60,7 +62,7 @@ H1 { display: none; }
   
 </div>
 
-<div class="page-frame">
+<div class="page-frame" id="page-frame">
 
 <%If Not Request.Exist("nl") And If Not Request.Exist("nh") Then%>
 
@@ -228,6 +230,27 @@ H1 { display: none; }
 </form>
 
 <script type="text/javascript">
+  
+  if (document.getElementById('index-frame'))
+  {
+    var sizes = localStorage.getItem('split-sizes');
+
+    if (sizes)
+      sizes = JSON.parse(sizes);
+    else
+      sizes = [25, 75];
+
+    console.log(sizes);
+
+    Split(['#index-frame','#page-frame'], 
+      { 
+        sizes: sizes, 
+        maxSize: [512, Infinity], 
+        gutterSize: 4,
+        onDragEnd: function (sizes) { localStorage.setItem('split-sizes', JSON.stringify(sizes)); }
+      });
+  }
+  
   try {
   <%If Main.Edit Then%>
   document.getElementById('page-editor').focus();
