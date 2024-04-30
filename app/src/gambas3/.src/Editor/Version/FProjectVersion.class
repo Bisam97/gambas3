@@ -75,26 +75,19 @@ Private Sub SaveLastCommitLog()
   
 End
 
+Public Sub OnProjectClose()
+  
+  trmVersionControl.Kill()
+  $bInitTerminal = False
+  
+End
+
 Public Sub btnWorkspace_Click()
   
   SaveLastCommitLog()
   gvwHistory.Stop()
+  OnProjectClose()
   FMain.CloseCurrentWorkspace
-  
-End
-
-' Public Sub OnProjectChange()
-'   
-'   If Project.Dir <> Project.PreviousDir Then
-'     Reload(True)
-'     trmVersionControl.Clear()
-'   Endif
-'   
-' End
-' 
-Public Sub OnProjectClose()
-  
-  Try trmVersionControl.Kill
   
 End
 
@@ -170,7 +163,7 @@ Public Sub tabVersion_Click()
     Case ("Terminal")
       
       If Not $bInitTerminal Then
-        Try trmVersionControl.Exec(["bash"], ["PWD=" & VersionControl.GetRoot()])
+        Try trmVersionControl.Exec([System.User.Shell], ["PWD=" & VersionControl.GetRoot()])
         $bInitTerminal = True
       Endif
     
