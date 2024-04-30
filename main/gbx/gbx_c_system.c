@@ -73,6 +73,7 @@ static const SYSLOG_PREFIX _syslog_prefix[] =
 	{ NULL, 0 }
 };
 
+//-------------------------------------------------------------------------
 
 BEGIN_PROPERTY(User_Home)
 
@@ -106,6 +107,21 @@ BEGIN_PROPERTY(User_Group)
 
 END_PROPERTY
 
+
+BEGIN_PROPERTY(User_Shell)
+
+	struct passwd *info = getpwuid(getuid());
+
+	if (info)
+		GB_ReturnNewZeroString(info->pw_shell);
+	else
+		GB_Error((char *)E_MEMORY);
+
+END_PROPERTY
+
+
+
+//-------------------------------------------------------------------------
 
 BEGIN_PROPERTY(System_Language)
 
@@ -401,6 +417,7 @@ GB_DESC NATIVE_User[] =
 	GB_STATIC_PROPERTY_READ("Id", "i", User_Id),
 	GB_STATIC_PROPERTY_READ("Group", "i", User_Group),
 	GB_STATIC_PROPERTY_READ("Home", "s", User_Home),
+	GB_STATIC_PROPERTY_READ("Shell", "s", User_Shell),
 
 	GB_END_DECLARE
 };
