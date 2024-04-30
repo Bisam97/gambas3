@@ -2415,3 +2415,15 @@ Fast Unsafe Public Sub IntegerOverflowsUnsafe()
     Endif
 
 End
+
+''Bug 2884
+
+Public Sub BugSingleToInt()
+
+    Dim weight As Single = 0.07
+    Dim maxweight As Single = 30
+
+    Assert.Equals(Int(weight / maxweight), 0)
+    Assert.Equals(Int(weight / maxweight) + 1, 1)
+
+End
