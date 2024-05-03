@@ -421,12 +421,22 @@ Public Sub Main()
   If Not Settings["/ShowMenus", True] Then Env["APPMENU_DISPLAY_BOTH"] = "1"
   Env["QT_LOGGING_RULES"] = "*.debug=false"
   
-  RegisterHighlight
-  UpdateTheme
-  DESKTOP_FONT = Application.Font.ToString()
-
   Try Application.Font = Font[Settings["/Font"]]
 
+  DESKTOP_FONT = Application.Font.ToString()
+
+  If Fonts.Exist("Gambas") Then
+    DEFAULT_FONT = "Gambas,"
+  Else If Fonts.Exist("Terminus") Then
+    DEFAULT_FONT = "Terminus,"
+  Else
+    DEFAULT_FONT = "Monospace,"
+  Endif
+  DEFAULT_FONT &= CStr(Application.Font.Size)
+  
+  RegisterHighlight
+  UpdateTheme
+  
   'Print Application.Theme
 
   Application.ShowTooltips = Settings["/ShowTooltip", True]
@@ -461,15 +471,6 @@ Public Sub Main()
     Return
   Endif
 
-  If Fonts.Exist("Gambas") Then
-    DEFAULT_FONT = "Gambas,"
-  Else If Fonts.Exist("Terminus") Then
-    DEFAULT_FONT = "Terminus,"
-  Else
-    DEFAULT_FONT = "Monospace,"
-  Endif
-  DEFAULT_FONT &= CStr(Application.Font.Size)
-  
   ShowFileInTitle = Settings["/ShowFileInTitle", True]
   MHelp.ReadConfig
   FDebugExpr.ReadConfig
