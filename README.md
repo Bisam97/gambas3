@@ -2,6 +2,8 @@
 <a href="http://gambaswiki.org/wiki/screenshot/webform-ide.png?v"><img src="http://gambaswiki.org/wiki/screenshot/t-webform-ide.png?v"></a>&nbsp;&nbsp;&nbsp;&nbsp;-->
 <a href="http://gambas.sf.net/2014-07-26.png"><img src="http://gambas.sf.net/t-2014-07-26.png"></a>
 
+[![Please don't upload to GitHub](https://nogithub.codeberg.page/badge.svg)](https://nogithub.codeberg.page)
+
 # Gambas Almost Means BASIC
 
 WELCOME TO GAMBAS!
