@@ -109,7 +109,7 @@ Private Sub AddFile(sDir As String, sFile As String, Optional bAfter As Boolean,
     sParent = KEY_PROFILE
   Else If $cExtern.Exist(sPath) Then
     sParent = KEY_EXTERN
-    If Not $hTree.Exist(sParent) Then $hTree.Add(sParent, ("Files"), Picture["icon:/tiny/link"], $sDir)
+    If Not $hTree.Exist(sParent) Then $hTree.Add(sParent, ("Files"), Picture["icon:/small/link"], $sDir)
     bExtern = True
     Try sTitle = Project.Files[sPath].GetTitle()
     If sTitle Then sFile = sTitle
@@ -422,13 +422,13 @@ Private Sub FillTree(Optional bDoNotRefreshCache As Boolean)
     sKey = $sDir
     .Add(sKey, File.Name($sDir), Project.GetIcon($sDir, iSize))
 
-    .Add(KEY_PROJECT, ("Project"), Picture["icon:/tiny/folder-template"], sKey)
-    .Add(KEY_CONFIG, ("Configuration"), Picture["icon:/tiny/folder-template"], sKey)
-    .Add(KEY_SOURCE, ("Sources"), Picture["icon:/tiny/directory"], sKey)
-    If $hInfo.Components.Exist("gb.db") Then .Add(KEY_CONNECTION, ("Connections"), Picture["icon:/tiny/folder-remote"], sKey)
-    If $hInfo.Components.Exist("gb.web") Then .Add(KEY_PUBLIC, ("Public"), Picture["icon:/tiny/folder-share"], sKey)
-    .Add(KEY_PROFILE, ("Profiles"), Picture["icon:/tiny/folder-recent"], sKey).Visible = False
-    .Add(KEY_MISC, ("Data"), Picture["icon:/tiny/directory"], sKey)
+    .Add(KEY_PROJECT, ("Project"), Picture["icon:/small/folder-template"], sKey)
+    .Add(KEY_CONFIG, ("Configuration"), Picture["icon:/small/folder-template"], sKey)
+    .Add(KEY_SOURCE, ("Sources"), Picture["icon:/small/directory"], sKey)
+    If $hInfo.Components.Exist("gb.db") Then .Add(KEY_CONNECTION, ("Connections"), Picture["icon:/small/folder-remote"], sKey)
+    If $hInfo.Components.Exist("gb.web") Then .Add(KEY_PUBLIC, ("Public"), Picture["icon:/small/folder-share"], sKey)
+    .Add(KEY_PROFILE, ("Profiles"), Picture["icon:/small/folder-recent"], sKey).Visible = False
+    .Add(KEY_MISC, ("Data"), Picture["icon:/small/directory"], sKey)
     
     .MoveFirst()
     .MoveChild()
@@ -453,13 +453,13 @@ Private Sub FillTree(Optional bDoNotRefreshCache As Boolean)
     For Each sDir In $aOtherProjects
       
       .Add(sDir, File.Name(sDir), Project.GetIcon(sDir, iSize))
-      .Add(sDir &/ ".src", ("Project"), Picture["icon:/tiny/directory"], sDir)
+      .Add(sDir &/ ".src", ("Project"), Picture["icon:/small/directory"], sDir)
       
       sDir &/= ".src"
       
       For Each sFile In RDir(sDir, "*", gb.Directory).Sort(gb.Natural + gb.IgnoreCase)
         sPath = sDir &/ sFile
-        .Add(sPath, File.Name(sFile), Picture["icon:/tiny/directory"], File.Dir(sPath))
+        .Add(sPath, File.Name(sFile), Picture["icon:/small/directory"], File.Dir(sPath))
       Next
       
       For Each sFile In RDir(sDir, "*", gb.File).Sort(gb.Natural + gb.IgnoreCase)
@@ -647,9 +647,9 @@ Public Sub GetFileIcon(sPath As String, Optional iSize As Integer, hStat As Stat
     sPrefix = "icon:/" & iSize
     sLocalPrefix = "img/" & iSize
   Else
-    sPrefix = "icon:/tiny"
+    sPrefix = "icon:/small"
     sLocalPrefix = "img/16"
-    iSize = Stock.GetSize("tiny")
+    iSize = Stock.GetSize("small")
   Endif
 
   If Not hStat Then 

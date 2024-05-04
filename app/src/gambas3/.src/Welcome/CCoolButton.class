@@ -17,7 +17,7 @@ Private $iHighlight As Integer = Color.SelectedBackground
 
 Event Click
 
-Public Sub _new(hContainer As Container, W As Integer, H As Integer, sText As String, vIcon As Variant, Optional sFont As String)
+Public Sub _new(hContainer As Container, W As Integer, H As Integer, sText As String, sIcon As String, Optional sFont As String)
 
   $hPanel = New DrawingArea(hContainer) As "Panel"
   $hPanel.Resize(W, H)
@@ -26,11 +26,7 @@ Public Sub _new(hContainer As Container, W As Integer, H As Integer, sText As St
   $hPanel.Spacing = True
   $hPanel.Focus = True
 
-  If TypeOf(vIcon) = gb.String Then
-    $hPict = Picture[vIcon]
-  Else
-    $hPict = vIcon
-  Endif
+  $hPict = Picture["icon:/" & CInt(H * 0.7) &/ sIcon]
   
   $sText = sText
 
