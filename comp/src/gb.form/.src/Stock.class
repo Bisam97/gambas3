@@ -374,23 +374,38 @@ End
 
 Static Public Function GetSize(Size As String) As Integer
 
+  Dim S As Integer
   Dim iSize As Integer
+  Dim F As Float
+
+  S = Desktop.Scale * 2
+  F = 2 ^ (1 / 3)
 
   Select Case LCase(Size)
-    Case "tiny"
-      iSize = (CInt(Desktop.Scale * 2) \ 4) * 4 '16 'CInt(Desktop.Scale * 5 / 8 + 0.5) * 4
+    Case "xx-small"
+      iSize = S / F ^ 2
+    Case "tiny", "x-small"
+      iSize = S / F
     Case "small"
-      iSize = (CInt(Desktop.Scale * 2.5) \ 4) * 4 '16 'CInt(Desktop.Scale * 5 / 8 + 0.5) * 4
-    Case "medium"
-      iSize = (CInt(Desktop.Scale * 2.5) \ 4) * 5.5  '22 'CInt(Desktop.Scale * 5 / 8 * 1.5 + 0.5) * 4
+      iSize = S
+    Case "medium", "0", ""
+      iSize = S * F
     Case "large"
-      iSize = (CInt(Desktop.Scale * 2.5) \ 4) * 8  '32 'CInt(Desktop.Scale * 5 / 8 + 0.5) * 8
-    Case "huge"
-      iSize = (CInt(Desktop.Scale * 2.5) \ 4) * 12  '48 'CInt(Desktop.Scale * 5 / 8 * 1.5 + 0.5) * 8
+      iSize = S * F ^ 2
+    Case "huge", "x-large"
+      iSize = S * F ^ 3
+    Case "xx-large"
+      iSize = S * F ^ 4
     Case Else
-      Try iSize = CInt(Size)
+      If Size Begins "+" Or If Size Begins "-" Then
+        iSize = S * F ^ CInt(Size)
+      Else
+        Try iSize = CInt(Size)
+      Endif
   End Select
 
+  iSize = BClr(iSize + 1, 0)
+  
   Return iSize
 
 End
