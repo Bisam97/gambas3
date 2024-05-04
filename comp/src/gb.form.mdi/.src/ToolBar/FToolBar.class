@@ -1432,16 +1432,16 @@ End
 Private Sub StockToToolbarSize(sSize As String) As Integer
   
   Select Case LCase(sSize)
+    Case "tiny"
+      Return ICON_TINY
+    Case "small"
+      Return ICON_SMALL
     Case "medium"
       Return ICON_MEDIUM
     Case "large"
       Return ICON_LARGE
     Case "huge"
       Return ICON_HUGE
-    Case "tiny"
-      Return ICON_TINY
-    Case "small"
-      Return ICON_SMALL
     Case Else 
       Return ICON_DEFAULT
   End Select
@@ -1743,15 +1743,15 @@ Private Sub UpdateFontSize()
   
   Select Case iSize
     Case ICON_TINY
-      panToolBar.Font.Grade = -1
+      panToolBar.Font.Grade = -2
     Case ICON_SMALL
-      panToolBar.Font.Grade = 0
+      panToolBar.Font.Grade = -1
     Case ICON_MEDIUM
-      panToolBar.Font.Grade = 1
+      panToolBar.Font.Grade = 0
     Case ICON_LARGE
-      panToolBar.Font.Grade = 2
+      panToolBar.Font.Grade = 1
     Case ICON_HUGE
-      panToolBar.Font.Grade = 4
+      panToolBar.Font.Grade = 2
     End Select
 
 End
