@@ -390,10 +390,10 @@ static void abort_child(int error)
 	int save_errno;
 	char path[PATH_MAX];
 
+	save_errno = errno;
+
 	fflush(stdout);
 	fflush(stderr);
-
-	save_errno = errno;
 
 	#ifdef DEBUG_ME
 	fprintf(stderr, "abort_child: %d %d\n", error, save_errno);
