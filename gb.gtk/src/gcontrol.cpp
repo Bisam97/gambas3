@@ -1327,16 +1327,23 @@ void gControl::setCanFocus(bool vl)
 void gControl::setFocus()
 {
 	#if DEBUG_FOCUS
-	fprintf(stderr, "setFocus %s ?\n", name());
+	fprintf(stderr, "setFocus %s / activeControl = %s ?\n", name(), gApplication::activeControl() ? gApplication::activeControl()->name() : "NULL");
 	#endif
-	
+
 	if (_proxy)
 	{
+		#if DEBUG_FOCUS
+		fprintf(stderr, "-> proxy\n");
+		#endif
 		_proxy->setFocus();
 		return;
 	}
 
-	if (!canFocus() || hasFocus())
+	#if DEBUG_FOCUS
+	fprintf(stderr, "canFocus() = %d hasFocus() = %d\n", canFocus(), hasFocus());
+	#endif
+
+	if (!canFocus()) // || hasFocus())
 		return;
 	
 	gMainWindow *win = window();
