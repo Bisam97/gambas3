@@ -440,6 +440,18 @@ AC_DEFUN([GB_INIT],
     AC_DEFINE(HAVE_GCC_STD_CPP17, 1, [Whether g++ supports -std=c++17])
   fi
   
+  dnl ---- check for -std=c++20 compiler flag
+
+  GB_CXXFLAGS_GCC_OPTION([-std=c++20],,
+    [
+      GB_CXXFLAGS_STD_CPP20=" -std=c++20"
+      have_gcc_std_cpp20x=yes
+    ])
+
+  if test "$have_gcc_std_cpp20" = "yes"; then
+    AC_DEFINE(HAVE_GCC_STD_CPP20, 1, [Whether g++ supports -std=c++20])
+  fi
+
   dnl ---- Debug flags
 
   if test "$gambas_debug" = "yes"; then
@@ -478,6 +490,7 @@ AC_DEFUN([GB_INIT],
   AC_SUBST(GB_CFLAGS_NOCTE)
   AC_SUBST(GB_CXXFLAGS_STD_CPP11)
   AC_SUBST(GB_CXXFLAGS_STD_CPP17)
+  AC_SUBST(GB_CXXFLAGS_STD_CPP20)
 
   rm -f DISABLED DISABLED.* FAILED
 ])
