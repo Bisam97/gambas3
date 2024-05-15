@@ -5,14 +5,14 @@ Private $sMessage As String
 
 Public Sub _new()
   
-  btnDbusExplorer.Picture = Picture["img/32/dbus.png"].Stretch(Stock.GetSize("tiny"))
+  btnDbusExplorer.Picture = Picture["img/32/dbus.png"].Stretch(Stock.GetSize("small"))
 
 End
 
 Public Sub ReadConfig()
   
   Project.SetSmallFont(Me)
-  If Me.Parent Then Me.Parent.H = Stock.GetSize("tiny") + Desktop.Scale * 1.5
+  If Me.Parent Then Me.Parent.H = Stock.GetSize("small") + Desktop.Scale * 1.5
 
 End
 
@@ -129,11 +129,11 @@ Public Sub dwgStatus_Draw()
     'Paint.Font.Bold = True
     W = Paint.RichTextSize($sMessage).W + DS * 3
     X = Max(0, dwgStatus.W - W - DS \ 2)
-    Paint.Rectangle(X, DS \ 2, W, dwgStatus.H - DS, DS * 2)
+    Paint.Rectangle(X, DS \ 4, W, dwgStatus.H - DS \ 2, DS * 2)
     Paint.Background = Color.SelectedBackground
     Paint.Fill
     Paint.Background = Color.SelectedForeground
-    Paint.DrawRichText($sMessage, X, DS \ 2, W, dwgStatus.H - DS, Align.Center)
+    Paint.DrawRichText($sMessage, X, DS \ 4, W, dwgStatus.H - DS \ 2, Align.Center)
   Else
     Paint.Font = Application.Font
     FMain.PaintStatus()
