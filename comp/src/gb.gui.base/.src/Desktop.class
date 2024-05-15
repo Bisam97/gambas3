@@ -52,10 +52,8 @@ Static Private Sub GetDesktop() As String
   If $aDesktopType.Count Then 
   
     If $aDesktopType[0] = "KDE" Then
-      If Env["KDE_SESSION_VERSION"] = "4" Then
-        $aDesktopType.Add("KDE4")
-      Else If Env["KDE_SESSION_VERSION"] = "5" Then
-        $aDesktopType.Add("KDE5")
+      If Env["KDE_SESSION_VERSION"] Then
+        $aDesktopType.Add("KDE" & Env["KDE_SESSION_VERSION"])
       Endif
     Endif
     
