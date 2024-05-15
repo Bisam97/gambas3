@@ -263,7 +263,7 @@ Private Sub Escape(hView As TerminalView, hScreen As TerminalScreen, hOutput As 
                   hAttr.Background = iArg - 40
                   hAttr.BackgroundRGB = -1
                 Case 100 To 107
-                  hAttr.Background = iArg - 40 + 8
+                  hAttr.Background = iArg - 100 + 8
                   hAttr.BackgroundRGB = -1
                 Case 49
                   hAttr.Background = -1
@@ -290,10 +290,6 @@ Private Sub Escape(hView As TerminalView, hScreen As TerminalScreen, hOutput As 
                   hAttr.Blink = False
                 Case 27
                   hAttr.Reverse = False
-                Case 90 To 97
-                  hAttr.Foreground = iArg - 90
-                Case 100 To 107
-                  hAttr.Background = iArg - 100
                 Case 38
                   If (aArg.max - I) >= 2 And If aArg[I + 1] = "5" Then
                     Try hAttr.Foreground = CInt(aArg[I + 2])
