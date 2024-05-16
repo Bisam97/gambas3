@@ -1976,7 +1976,6 @@ BEGIN_PROPERTY(CWIDGET_border_simple)
 		if (VPROP(GB_BOOLEAN))
 		{
 			wid->setFrameStyle(QFrame::StyledPanel | QFrame::Sunken);
-			//wid->setFrameStyle(QFrame::LineEditPanel);
 			wid->setLineWidth(2);
 		}
 		else

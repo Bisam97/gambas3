@@ -327,14 +327,18 @@ static void style_box(QPainter *p, int x, int y, int w, int h, int state, GB_COL
 	opt.state |= QStyle::State_Sunken;
 	p->save();
 	p->setBrush(Qt::NoBrush);
-	//opt.features = QStyleOptionFrameV2::None;
 	
 	if (color == GB_COLOR_DEFAULT)
 		QApplication::style()->drawPrimitive(QStyle::PE_FrameLineEdit, &opt, p);
 	else
 	{
 		get_style_name();
-		if (_is_gtk)
+
+		if (_is_breeze)
+		{
+			QApplication::style()->drawPrimitive(QStyle::PE_FrameLineEdit, &opt, p);
+		}
+		else if (_is_gtk)
 		{
 			QWidget *w = get_fake_widget();
 			w->setAttribute(Qt::WA_SetPalette, true);
@@ -342,7 +346,9 @@ static void style_box(QPainter *p, int x, int y, int w, int h, int state, GB_COL
 			w->setAttribute(Qt::WA_SetPalette, false);
 		}
 		else
+		{
 			QApplication::style()->drawPrimitive(QStyle::PE_PanelLineEdit, &opt, p);
+		}
 	}
 
 	p->restore();
@@ -373,21 +379,21 @@ BEGIN_PROPERTY(Style_FrameWidth)
 	if (_is_breeze)
 		GB.ReturnInteger(2);
 	else
-		GB.ReturnInteger(qApp->style()->pixelMetric(QStyle::QStyle::PM_ComboBoxFrameWidth));
+		GB.ReturnInteger(qMax(2, qApp->style()->pixelMetric(QStyle::QStyle::PM_ComboBoxFrameWidth)));
 
 END_PROPERTY
 
 BEGIN_PROPERTY(Style_BoxFrameWidth)
 
 	int w = qApp->style()->pixelMetric(QStyle::QStyle::PM_ComboBoxFrameWidth);
-	GB.ReturnInteger(w);
+	GB.ReturnInteger(qMax(2, w));
 
 END_PROPERTY
 
 BEGIN_PROPERTY(Style_BoxFrameHeight)
 
 	int w = qApp->style()->pixelMetric(QStyle::QStyle::PM_ComboBoxFrameWidth);
-	GB.ReturnInteger(w);
+	GB.ReturnInteger(qMax(2, w));
 
 END_PROPERTY
 

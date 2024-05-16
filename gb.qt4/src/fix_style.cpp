@@ -27,6 +27,7 @@
 #include <QStyleOptionSpinBox>
 #include <QPainter>
 #include <QApplication>
+#include <QAbstractScrollArea>
 
 #include "gb_common.h"
 #include "CStyle.h"
@@ -231,7 +232,26 @@ void FixBreezeStyle::drawControl(ControlElement element, const QStyleOption *opt
 		QProxyStyle::drawControl(element, option, painter, widget);
 		return;
 	}
+	else if (element == CE_ShapedFrame && qobject_cast<const QAbstractScrollArea *>(widget))
+	{
+    if (const QStyleOptionFrame *f = qstyleoption_cast<const QStyleOptionFrame *>(option))
+		{
+	    if (f->frameShape == QFrame::StyledPanel)
+			{
+				drawPrimitive(QStyle::PE_Frame, option, painter, widget);
+				return;
+			}
+		}
+	}
 	
 	FixStyle::drawControl(element, option, painter, widget);
+}
+
+int FixBreezeStyle::pixelMetric(PixelMetric metric, const QStyleOption *option, const QWidget *widget) const
+{
+	if (metric == PM_DefaultFrameWidth && qobject_cast<const QAbstractScrollArea *>(widget))
+		return 2;
+
+	return QProxyStyle::pixelMetric(metric, option, widget);
 }
 

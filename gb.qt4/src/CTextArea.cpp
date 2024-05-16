@@ -199,6 +199,8 @@ BEGIN_METHOD(TextArea_new, GB_OBJECT parent)
 	THIS->length = -1;
 	THIS->align = ALIGN_NORMAL;
 
+	wid->setFrameStyle(QFrame::StyledPanel | QFrame::Sunken);
+	wid->setLineWidth(2);
 	wid->document()->setDocumentMargin(MAIN_scale * 3 / 4);
 	
 END_METHOD
