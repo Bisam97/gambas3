@@ -232,6 +232,7 @@ void FixBreezeStyle::drawControl(ControlElement element, const QStyleOption *opt
 		QProxyStyle::drawControl(element, option, painter, widget);
 		return;
 	}
+#ifdef QT5
 	else if (element == CE_ShapedFrame && qobject_cast<const QAbstractScrollArea *>(widget))
 	{
     if (const QStyleOptionFrame *f = qstyleoption_cast<const QStyleOptionFrame *>(option))
@@ -243,6 +244,7 @@ void FixBreezeStyle::drawControl(ControlElement element, const QStyleOption *opt
 			}
 		}
 	}
+#endif
 	
 	FixStyle::drawControl(element, option, painter, widget);
 }
