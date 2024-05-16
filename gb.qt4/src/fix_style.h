@@ -51,7 +51,7 @@ public:
 	QRect centerRect(const QRect &rect, int width, int height) const
 	{ return QRect(rect.left() + (rect.width() - width)/2, rect.top() + (rect.height() - height)/2, width, height); }
 
-	int pixelMetric(PixelMetric, const QStyleOption * = nullptr, const QWidget * = nullptr) const;
+	int pixelMetric(PixelMetric, const QStyleOption *, const QWidget *) const;
 
 private:
 	static QFontMetrics *fm;
