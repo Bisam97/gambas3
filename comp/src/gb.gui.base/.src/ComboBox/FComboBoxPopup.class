@@ -4,6 +4,7 @@ Private Const MAX_ITEMS As Integer = 10
 Private $aList As String[]
 Private $sFind As String
 Private $hCombo As ComboBox
+Private $bDown As Boolean
 
 Public Sub UpdateComboSize(Optional aList As String[])
 
@@ -15,12 +16,15 @@ Public Sub UpdateComboSize(Optional aList As String[])
   Me.Arrangement = Arrange.None
   
   gvwPopup.Rows.Count = $aList.Count
-  W = $hCombo.W - Style.FrameWidth * 2
-  WM = gvwPopup.Columns[0].W + 2
+  W = $hCombo.W '- Style.FrameWidth * 2
+  
+  If Style.Name = "breeze" Then W -= 2
+  
+  WM = gvwPopup.Columns[0].W '+ 2
   If $aList.Count > MAX_ITEMS Then WM += Style.ScrollbarSize
   
-  W = Max(W, WM) + 2
-  H = (gvwPopup.Font.TextHeight(" ") + 6) * Min(MAX_ITEMS, $aList.Count) + 2
+  W = Max(W, WM)
+  H = (gvwPopup.Font.TextHeight(" ") + 6) * Min(MAX_ITEMS, $aList.Count) + dwgFrame.Padding * 2
   
   Me.Arrangement = Arrange.Fill
   
@@ -42,6 +46,9 @@ Public Sub Open(aList As String[], iIndex As Integer, hCtrl As ComboBox) As Inte
   
   $aList = aList
   
+  dwgFrame.Padding = Style.FrameWidth
+  Debug dwgFrame.Padding
+  
   gvwPopup.Columns.Count = 1
   'gvwPopup.Columns[0].Expand = True
   gvwPopup.Columns[0].W = -1
@@ -49,15 +56,18 @@ Public Sub Open(aList As String[], iIndex As Integer, hCtrl As ComboBox) As Inte
   $hCombo = hCtrl
   UpdateComboSize()
   
-  X = hCtrl.ScreenX + Style.FrameWidth
+  X = hCtrl.ScreenX '+ Style.FrameWidth
+  If Style.Name = "breeze" Then Inc X
   
   W = Me.W
   H = Me.H
   
   If hCtrl.ScreenY + hCtrl.H + H > hScreen.AvailableHeight Then 
-    Y = hCtrl.ScreenY - H
+    Y = hCtrl.ScreenY - H + Style.FrameWidth
+    $bDown = False
   Else 
-    Y = hCtrl.ScreenY + hCtrl.H
+    Y = hCtrl.ScreenY + hCtrl.H - Style.FrameWidth - 1
+    $bDown = True
   Endif
   
   If X + W > hScreen.AvailableX + hScreen.AvailableWidth Then X = hScreen.AvailableX + hScreen.AvailableWidth - W
@@ -133,6 +143,18 @@ Public Sub Form_KeyPress()
   Else If Key.Text Then
     $sFind &= Key.Text
     FindItem
+  Endif
+
+End
+
+Public Sub dwgFrame_Draw()
+
+  If $bDown Then
+    Style.PaintBox(0, -Style.FrameWidth * 2, Paint.W, Paint.H + Style.FrameWidth * 2, Style.Normal, Color.TextBackground)
+    Paint.FillRect(0, 0, Paint.W, 1, Color.LightForeground)
+  Else 
+    Style.PaintBox(0, 0, Paint.W, Paint.H + Style.FrameWidth * 2, Style.Normal)
+    Paint.FillRect(Style.FrameWidth, Paint.H - Style.FrameWidth - 1, Paint.W - Style.FrameWidth * 2, 1, Color.LightForeground)
   Endif
 
 End
