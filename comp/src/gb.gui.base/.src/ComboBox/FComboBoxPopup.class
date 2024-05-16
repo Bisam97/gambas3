@@ -10,6 +10,7 @@ Public Sub UpdateComboSize(Optional aList As String[])
 
   Dim W, H As Integer
   Dim WM As Integer
+  Dim DY As Integer
   
   If aList Then $aList = aList
   
@@ -18,7 +19,7 @@ Public Sub UpdateComboSize(Optional aList As String[])
   gvwPopup.Rows.Count = $aList.Count
   W = $hCombo.W '- Style.FrameWidth * 2
   
-  If Style.Name = "breeze" Then W -= 2
+  If Style.Name = "breeze" And If $hCombo.ReadOnly Then W -= 2
   
   WM = gvwPopup.Columns[0].W '+ 2
   If $aList.Count > MAX_ITEMS Then WM += Style.ScrollbarSize
@@ -30,7 +31,12 @@ Public Sub UpdateComboSize(Optional aList As String[])
   
   W = Min(W, Screens[$hCombo.Window.Screen].AvailableWidth)
   
+  If Not $bDown Then
+    DY = Me.H - H
+  Endif
+  
   Me.Resize(W, H)
+  If DY Then Me.Y += DY
   
   gvwPopup.Refresh
   
@@ -57,7 +63,7 @@ Public Sub Open(aList As String[], iIndex As Integer, hCtrl As ComboBox) As Inte
   UpdateComboSize()
   
   X = hCtrl.ScreenX '+ Style.FrameWidth
-  If Style.Name = "breeze" Then Inc X
+  If Style.Name = "breeze" And If $hCombo.ReadOnly Then Inc X
   
   W = Me.W
   H = Me.H
@@ -154,7 +160,7 @@ Public Sub dwgFrame_Draw()
     Paint.FillRect(0, 0, Paint.W, 1, Color.LightForeground)
   Else 
     Style.PaintBox(0, 0, Paint.W, Paint.H + Style.FrameWidth * 2, Style.Normal)
-    Paint.FillRect(Style.FrameWidth, Paint.H - Style.FrameWidth - 1, Paint.W - Style.FrameWidth * 2, 1, Color.LightForeground)
+    Paint.FillRect(0, Paint.H - 1, Paint.W, 1, Color.LightForeground)
   Endif
 
 End
