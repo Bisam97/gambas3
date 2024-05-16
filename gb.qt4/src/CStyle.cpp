@@ -105,8 +105,6 @@ static void init_option(QStyleOption &opt, int x, int y, int w, int h, int state
 {
 	GB_PAINT *paint = (GB_PAINT *)DRAW.Paint.GetCurrent();
 
-	opt.rect = QRect(x, y, w ,h);
-
 	if (state == GB_DRAW_STATE_DEFAULT && paint)
 		opt.initFrom(((CWIDGET *)paint->device)->widget);
 	else
@@ -130,6 +128,8 @@ static void init_option(QStyleOption &opt, int x, int y, int w, int h, int state
 	
 	if (state & GB_DRAW_STATE_DISABLED)
 		opt.palette.setCurrentColorGroup(QPalette::Disabled);
+
+	opt.rect = QRect(x, y, w ,h);
 }
 
 static void paint_focus(QPainter *p, int x, int y, int w, int h, int state)
@@ -379,7 +379,7 @@ BEGIN_PROPERTY(Style_FrameWidth)
 	if (_is_breeze)
 		GB.ReturnInteger(2);
 	else
-		GB.ReturnInteger(qMax(2, qApp->style()->pixelMetric(QStyle::QStyle::PM_ComboBoxFrameWidth)));
+		GB.ReturnInteger(qMax(2, qApp->style()->pixelMetric(QStyle::QStyle::PM_DefaultFrameWidth)));
 
 END_PROPERTY
 
