@@ -1717,17 +1717,24 @@ void MyMainWindow::showEvent(QShowEvent *e)
 }
 
 
-void MyMainWindow::initProperties(int which)
+void MyMainWindow::initProperties(int which, bool force)
 {
 	CWIDGET *_object = CWidget::get(this);
 
 	if (!THIS->toplevel) // || effectiveWinId() == 0)
 		return;
 
+	if (!force && !isVisible())
+		return;
+
 	if (!THIS->title && _border)
 		setWindowTitle(TO_QSTRING(GB.Application.Title()));
 
+	if (effectiveWinId() == 0)
+		createWinId();
+
 	#ifdef QT5
+
 		QT_WINDOW_PROP prop;
 		
 		prop.stacking = THIS->stacking;
@@ -1736,9 +1743,9 @@ void MyMainWindow::initProperties(int which)
 		prop.sticky = THIS->sticky;
 		
 		PLATFORM.Window.SetProperties(this, which, &prop);
+
 	#else
-		if (effectiveWinId() == 0)
-			return;
+
 		X11_flush();
 
 		if (which & (PROP_STACKING | PROP_SKIP_TASKBAR))
@@ -1767,6 +1774,7 @@ void MyMainWindow::initProperties(int which)
 			X11_window_set_desktop(effectiveWinId(), isVisible(), THIS->sticky ? 0xFFFFFFFF : X11_get_current_desktop());
 
 		X11_flush();
+
 	#endif
 }
 
@@ -1831,15 +1839,25 @@ void MyMainWindow::present(QWidget *parent)
 
 		setAttribute(Qt::WA_ShowWithoutActivating, THIS->noTakeFocus);
 
-#ifdef QT5
+/*#ifdef QT5
 		if (MAIN_platform_is_wayland)
-			initProperties(PROP_ALL);
+			initProperties(PROP_ALL, true);
 #else
 		if (effectiveWinId() == 0)
 		{
 			createWinId();
 		}
-		initProperties(PROP_ALL);
+		initProperties(PROP_ALL, true);
+#endif*/
+
+#ifdef QT5
+		if (THIS->noTakeFocus)
+			PLATFORM.Window.SetUserTime(this, 0);
+#endif
+		initProperties(PROP_ALL, true);
+#ifdef QT5
+		if (THIS->noTakeFocus)
+			PLATFORM.Window.SetUserTime(this, 0);
 #endif
 
 		if (getState() & Qt::WindowMinimized)
@@ -1851,18 +1869,23 @@ void MyMainWindow::present(QWidget *parent)
 		else
 			show();
 
-#ifdef QT5
+/*#ifdef QT5
 		if (!MAIN_platform_is_wayland)
 		{
 			//qDebug("createWinId: %p", (void *)effectiveWinId());
 			if (THIS->noTakeFocus)
 				PLATFORM.Window.SetUserTime(this, 0);
-			initProperties(PROP_ALL);
+			initProperties(PROP_ALL, true);
 			if (THIS->noTakeFocus)
 				PLATFORM.Window.SetUserTime(this, 0);
 		}
 #else
-		initProperties(PROP_SKIP_TASKBAR);
+		initProperties(PROP_SKIP_TASKBAR, true);
+#endif*/
+
+#ifdef QT5
+#else
+		initProperties(PROP_SKIP_TASKBAR, true);
 #endif
 
 		/*if (isUtility() && _resizable)
@@ -2073,165 +2096,6 @@ void MyMainWindow::doShowModal(bool popup, const QPoint *p)
 	}
 }
 
-#if 0
-void MyMainWindow::showModal(void)
-{
-	//Qt::WindowFlags flags = windowFlags() & ~Qt::WindowType_Mask;
-	CWIDGET *_object = CWidget::get(this);
-	CWINDOW *parent;
-	bool persistent = CWIDGET_test_flag(THIS, WF_PERSISTENT);
-	//QPoint p = pos();
-	QEventLoop eventLoop;
-	GB_ERROR_HANDLER handler;
-	MODAL_INFO info;
-
-	if (THIS->modal)
-		return;
-
-	CWIDGET_finish_focus();
-
-	info.that = this;
-	info.old = MyApplication::eventLoop;
-	info.save = CWINDOW_Current;
-
-	MyApplication::eventLoop = &eventLoop;
-
-	setWindowModality(Qt::ApplicationModal);
-
-	if (_resizable && _border)
-	{
-		setMinimumSize(THIS->minw, THIS->minh);
-		setSizeGrip(true);
-	}
-
-	_enterLoop = false; // Do not call exitLoop() if we do not entered the loop yet!
-
-	parent = CWINDOW_Current;
-	if (!parent)
-	{
-		parent = CWINDOW_Main;
-		if (!parent)
-			parent = CWINDOW_Active;
-	}
-
-	present(parent ? CWidget::getTopLevel((CWIDGET *)parent)->widget.widget : 0);
-	setEventLoop();
-
-	THIS->loopLevel++;
-	CWINDOW_Current = THIS;
-
-	_enterLoop = true;
-
-	GB.Debug.EnterEventLoop();
-
-	handler.handler = (GB_CALLBACK)on_error_show_modal;
-	handler.arg1 = (intptr_t)&info;
-
-	GB.OnErrorBegin(&handler);
-
-	eventLoop.exec();
-
-	GB.OnErrorEnd(&handler);
-
-	GB.Debug.LeaveEventLoop();
-	
-	//eventLoop.processEvents(QEventLoop::ExcludeUserInputEvents | QEventLoop::DeferredDeletion, 0);
-
-	MyApplication::eventLoop = info.old;
-	CWINDOW_Current = info.save;
-
-	if (persistent)
-	{
-		setSizeGrip(false);
-		setWindowModality(Qt::NonModal);
-	}
-
-	CWINDOW_ensure_active_window();
-}
-
-void MyMainWindow::showPopup(QPoint &pos)
-{
-	Qt::WindowFlags flags = windowFlags() & ~Qt::WindowType_Mask;
-	CWIDGET *_object = CWidget::get(this);
-	bool persistent = CWIDGET_test_flag(THIS, WF_PERSISTENT);
-	CWINDOW *save = CWINDOW_Current;
-	void *save_popup;
-	QEventLoop eventLoop;
-	QEventLoop *old;
-
-	if (THIS->modal)
-		return;
-
-	CWIDGET_finish_focus();
-
-	setWindowFlags(Qt::Popup | flags);
-	setWindowModality(Qt::ApplicationModal);
-	THIS->popup = true;
-
-	/*if (_resizable && _border)
-	{
-		setMinimumSize(THIS->minw, THIS->minh);
-		setSizeGrip(true);
-	}*/
-
-	_enterLoop = false; // Do not call exitLoop() if we do not entered the loop yet!
-
-	move(0, 0);
-	move(pos);
-	setFocus();
-	show();
-	raise();
-	setEventLoop();
-	//QTimer::singleShot(50, this, SLOT(activateLater()));
-
-	THIS->loopLevel++;
-	CWINDOW_Current = THIS;
-
-	//handle_focus(THIS);
-	//activateWindow();
-
-	save_popup = CWIDGET_enter_popup();
-
-	_enterLoop = true;
-
-	old = MyApplication::eventLoop;
-	MyApplication::eventLoop = &eventLoop;
-	GB.Debug.EnterEventLoop();
-	eventLoop.exec();
-	GB.Debug.LeaveEventLoop();
-	MyApplication::eventLoop = old;
-	//eventLoop.exec();
-	//eventLoop.processEvents(QEventLoop::ExcludeUserInputEvents | QEventLoop::DeferredDeletion, 0);
-
-	CWINDOW_Current = save;
-
-	if (persistent)
-	{
-		setWindowModality(Qt::NonModal);
-		setWindowFlags(Qt::Window | flags);
-		THIS->popup = false;
-	}
-
-	CWIDGET_leave_popup(save_popup);
-
-	//CWIDGET_check_hovered();
-}
-#endif
-
-#if 0
-void MyMainWindow::setTool(bool t)
-{
-	WFlags f = getWFlags();
-
-	if (t)
-		f |=  WStyle_Tool | WStyle_Customize;
-	else
-		f &= ~WStyle_Tool;
-
-	doReparent(CWINDOW_Main ? (MyMainWindow *)QWIDGET(CWINDOW_Main) : 0, f, pos());
-}
-#endif
-
 void MyMainWindow::moveSizeGrip()
 {
 	CWINDOW *window;
@@ -2286,16 +2150,18 @@ void MyMainWindow::setBorder(bool b)
 	bool visible = isVisible();
 	void *_object = CWidget::get(this);;
 	
-	if (_border)
+	/*if (_border)
 		setWindowFlags(windowFlags() & ~Qt::FramelessWindowHint);
 	else
-		setWindowFlags(windowFlags() | Qt::FramelessWindowHint);
+		setWindowFlags(windowFlags() | Qt::FramelessWindowHint);*/
 	
-	if (visible) 
+	/*if (visible)
 	{
 		show();
 		move(THIS->x, THIS->y);
-	}
+	}*/
+
+	initProperties(PROP_ALL);
 
 #else
 

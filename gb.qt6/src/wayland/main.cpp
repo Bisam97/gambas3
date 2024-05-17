@@ -24,6 +24,7 @@
 #define __MAIN_C
 
 #include "main.h"
+#include "../gb.qt.h"
 
 #include <QAbstractNativeEventFilter>
 #include <QPointer>
@@ -135,7 +136,7 @@ static void window_set_properties(QWidget *window, int which, QT_WINDOW_PROP *pr
 	
 	if (prop->stacking && !warn_stacking)
 	{
-		fprintf(stderr, "gb.qt5.wayland: warning: stacking windows is not supported.\n");
+		fprintf(stderr, QT_NAME ".wayland: warning: stacking windows is not supported.\n");
 		warn_stacking = true;
 	}
 

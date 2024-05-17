@@ -229,7 +229,7 @@ public:
 	
 	virtual void setVisible(bool visible);
 
-	void initProperties(int which);
+	void initProperties(int which, bool force = false);
 	void present(QWidget *parent = 0);
 	void showActivate(QWidget *parent = 0);
 	//void activateLater() { _activate = true; }
