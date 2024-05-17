@@ -831,6 +831,7 @@ Private Sub UpdateEvent()
     
     hButton = New Button(panEvent) As "btnEvent"
     hButton.Text = sName
+    hButton.Tag = sName
     hButton.AutoResize = True
     
     If sName == "Click" Then $hButtonClick = hButton
@@ -839,7 +840,7 @@ Private Sub UpdateEvent()
       'hButton.Font.Bold = True 'Picture = Picture["icon:/small/ok"]
       hButton.Background = Color.SelectedBackground
     Endif
-
+    
   Next
 
   If panEvent.Children.Count = 0 Then Return
@@ -1268,9 +1269,9 @@ Public Sub gvwMenu_Activate()
 End
 
 Public Sub btnEvent_Click()
-  
+
   If WriteMenu() Then Return
-  EventName = Last.Text
+  EventName = Last.Tag
   Try OpenEventHandlerFor = $aMenu[$iCurrent].Name
   If Not Error Then
     Me.Close()
