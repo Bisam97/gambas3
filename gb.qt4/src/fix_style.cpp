@@ -30,6 +30,7 @@
 #include <QAbstractScrollArea>
 
 #include "gb_common.h"
+#include "gb.qt.h"
 #include "CStyle.h"
 #include "fix_style.h"
 
@@ -245,7 +246,7 @@ void FixBreezeStyle::drawControl(ControlElement element, const QStyleOption *opt
 		}
 	}
 #endif
-	
+
 	FixStyle::drawControl(element, option, painter, widget);
 }
 
