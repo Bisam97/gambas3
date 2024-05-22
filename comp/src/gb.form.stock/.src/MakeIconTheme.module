@@ -44,6 +44,8 @@ Public Sub Run()
   Dim sFile As String
   Dim hIcon As Image
   Dim aSize As String[]
+  Dim sTargetRoot As String
+  Dim sPath As String
 
   aSize = ["16", "24", "32", "48", "64", "128"]
 
@@ -74,8 +76,10 @@ Public Sub Run()
 
   For Each sStyle In ["gambas", "gambas-mono", "gambas-dark", "gambas-mono-dark", "gambas-thin", "gambas-thin-dark"]
 
-    sRoot = "~/.local/share/icons/" & sStyle
+    sTargetRoot = "~/.local/share/icons/" & sStyle
+    sRoot = sTargetRoot & ".tmp"
     Shell "rm -rf " & sRoot Wait
+    
     bDark = sStyle Ends "-dark"
     sOrigin = sStyle
     If bDark Then sOrigin = Left(sOrigin, -5)
@@ -199,6 +203,14 @@ Public Sub Run()
       Next
       
     Next
+    
+    ' For Each sFile In RDir(sRoot, "*.png")
+    '   sIcon = File.BaseName(sFile)
+    '   If sIcon Ends "-symbolic" Then Continue
+    '   sPath = sRoot &/ File.Dir(sFile) &/ File.BaseName(sFile) & "-symbolic.png"
+    '   If Exist(sPath) Then Continue
+    '   Link File.Name(sFile) To sPath
+    ' Next
   
     hFile = Open sRoot &/ "index.theme" For Output Create
     
@@ -209,8 +221,10 @@ Public Sub Run()
     Select Case sStyle
       Case "gambas", "gambas-thin"
         Print #hFile, "Papirus,breeze,hicolor"
+        'Print #hFile, "breeze,hicolor"
       Case "gambas-dark", "gambas-thin-dark"
         Print #hFile, "Papirus-Dark,breeze-dark,hicolor"
+        'Print #hFile, "breeze-dark,hicolor"
       Case "gambas-mono", "gambas-mono-dark"
         Print #hFile, "HighContrast"
     End Select
@@ -245,6 +259,9 @@ Public Sub Run()
     Next
     
     Close #hFile
+    
+    Shell "rm -rf " & sTargetRoot Wait
+    Move sRoot To sTargetRoot
     
   Next
 
