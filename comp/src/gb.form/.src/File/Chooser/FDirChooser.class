@@ -1819,9 +1819,14 @@ Public Sub mnuPopup_Show()
 End
 
 Public Sub mnuView_Click()
+
+  Static bLock As Boolean
   
+  If bLock Then Return
+  bLock = True  
   fvwChoose.View = Last.Tag
   UpdateZoom
+  bLock = False
 
 End
 
