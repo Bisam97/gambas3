@@ -150,6 +150,7 @@ void FixBreezeStyle::drawPrimitive( PrimitiveElement element, const QStyleOption
 	QProxyStyle::drawPrimitive(element, option, painter, widget);
 }
 
+#if 0
 void FixBreezeStyle::drawComplexControl(ComplexControl element, const QStyleOptionComplex* option, QPainter* painter, const QWidget* widget) const
 {
 	/*if (element == CC_SpinBox)
@@ -194,7 +195,7 @@ void FixBreezeStyle::drawComplexControl(ComplexControl element, const QStyleOpti
 			}
 		}
 	}
-	else*/
+	else
 	if (element == CC_Slider)
 	{
 		//QStyleOptionSlider newOption;
@@ -218,10 +219,11 @@ void FixBreezeStyle::drawComplexControl(ComplexControl element, const QStyleOpti
 			painter->restore();
 			return;
 		}
-	}
+	}*/
 	
 	QProxyStyle::drawComplexControl(element, option, painter, widget);
 }
+#endif
 
 void FixBreezeStyle::drawControl(ControlElement element, const QStyleOption *option, QPainter * painter, const QWidget * widget) const
 {

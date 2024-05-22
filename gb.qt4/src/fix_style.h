@@ -41,7 +41,7 @@ public:
 	QRect subControlRect(ComplexControl, const QStyleOptionComplex*, SubControl, const QWidget*) const;
 	QRect subElementRect(SubElement, const QStyleOption*, const QWidget*) const;
 	
-	void drawComplexControl(ComplexControl, const QStyleOptionComplex*, QPainter*, const QWidget*) const;
+	//void drawComplexControl(ComplexControl, const QStyleOptionComplex*, QPainter*, const QWidget*) const;
 	void drawPrimitive(PrimitiveElement, const QStyleOption*, QPainter*, const QWidget*) const;
 	void drawControl(ControlElement, const QStyleOption *, QPainter *, const QWidget *) const;
 
