@@ -348,33 +348,42 @@ Public Sub Revert(Optional sPath As String) As Boolean
   
   Dim sStatus As String
   
-  If sPath Then 
-    
+  If Not sPath Then sPath = Project.Dir
+  
+  GoSub GET_STATUS
+  If Not sStatus Then Return
+  
+  RunShell("git checkout " & Shell(sPath))
+  GoSub GET_STATUS
+  If Not sStatus Then Return
+  
+  RunShell("git restore " & Shell(sPath))
+  GoSub GET_STATUS
+  If Not sStatus Then Return
+  
+  RunShell("git restore --staged " & Shell(sPath))
+  GoSub GET_STATUS
+  If Not sStatus Then Return
+  
+  RunShell("git checkout " & Shell(sPath))
+  GoSub GET_STATUS
+  If Not sStatus Then Return
+  
+  If sPath <> Project.Dir Then
+  
+    RunShell("git rm -f " & Shell(sPath))
+    Try Kill sPath
     GoSub GET_STATUS
-    If sStatus Then
-      RunShell("git checkout " & Shell(sPath))
-      GoSub GET_STATUS
-      If sStatus Then
-        RunShell("git restore " & Shell(sPath))
-        GoSub GET_STATUS
-        If sStatus Then
-          RunShell("git restore --staged " & Shell(sPath))
-          GoSub GET_STATUS
-          If sStatus Then
-            RunShell("git rm -f " & Shell(sPath))
-            Try Kill sPath
-            GoSub GET_STATUS
-            If sStatus Then Error.Raise(Subst(("Unable to revert file <tt>&1</tt>."), Project.MakeRelativePath(sPath)))
-          Endif
-        Endif
-      Endif
-    Endif
+    If Not sStatus Then Return
+    
+    Error.Raise(Subst(("Unable to revert file <tt>&1</tt>."), Project.MakeRelativePath(sPath)))
     
   Else
-    RunShell("git checkout " & Shell(Project.Dir))
+    
+    Error.Raise(("Unable to revert project."))
+
   Endif
   
-  Return
   
 GET_STATUS:
 

@@ -467,13 +467,19 @@ End
 
 Public Sub Revert(Optional sPath As String) As Boolean
 
+  Dim sErr As String
+  
   If sPath Then Return $hVC.Revert(sPath)
 
   If Message.Warning(("You are going to cancel your changes!"), ("Continue"), ("Cancel")) = 2 Then Return
 
   Inc Application.Busy
   
-  $hVC.Revert()
+  Try $hVC.Revert()
+  If Error Then 
+    sErr = Error.Text
+    FCommandError.Run(sErr, Status())
+  Endif
   'Project.Refresh
   Project.Reload
   

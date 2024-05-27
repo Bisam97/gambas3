@@ -19,28 +19,35 @@
       ReadOnly = True
       Separator = True
       { btnUpdate ToolButton
-        MoveScaled(0,0,20,4)
+        MoveScaled(0,0,17,4)
         Action = "vc-sync"
         AutoResize = True
         Text = ("Synchronize") & "..."
         Picture = Picture["icon:/small/download"]
       }
       { btnAddAll ToolButton
-        MoveScaled(21,0,21,4)
+        MoveScaled(18,0,18,4)
         Action = "vc-add"
         AutoResize = True
         Text = ("Add all new files")
         Picture = Picture["icon:/small/added"]
       }
       { btnAddBranch ToolButton
-        MoveScaled(43,0,24,4)
+        MoveScaled(37,0,21,4)
         Action = "vc-branch"
         AutoResize = True
         Text = ("Create new branch") & "..."
         Picture = Picture["icon:/small/add"]
       }
+      { btnRefresh ToolButton
+        MoveScaled(58,0,14,4)
+        Action = "vc-refresh"
+        AutoResize = True
+        Text = ("Refresh")
+        Picture = Picture["icon:/small/refresh"]
+      }
       { Panel2 Panel
-        MoveScaled(70,1,10,2)
+        MoveScaled(77,1,10,2)
         Expand = True
       }
       { btnBrowse ToolButton
@@ -337,6 +344,10 @@
     Text = "Push"
     Picture = "icon:/small/upload"
   }
+  { Action vc-refresh
+    Text = "Refresh"
+    Picture = "icon:/small/refresh"
+  }
   { Action vc-revert
     Text = "Undo changes"
     Picture = "icon:/small/undo"
@@ -365,7 +376,7 @@
   }
   { Toolbar repository
     Text = ""
-    List = "vc-sync,vc-add,vc-branch,vc-browse"
-    Default = "vc-sync,vc-add,vc-branch,~,vc-browse"
+    List = "vc-sync,vc-add,vc-branch,vc-refresh,vc-browse"
+    Default = "vc-sync,vc-add,vc-branch,vc-refresh,~,vc-browse"
   }
 }

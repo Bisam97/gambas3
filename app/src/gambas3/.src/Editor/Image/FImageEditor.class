@@ -186,18 +186,15 @@ Public Sub dwgBackground_Draw()
   Dim hTopLeft As Point
   Dim hBottomRight As Point
 
-  Project.DrawBackground()
+  Project.DrawBackground(imvImage.View)
   
   hTopLeft = imvImage.ImageToView(Point(0, 0))
   If Not hTopLeft Then Return
   hBottomRight = imvImage.ImageToView(Point(imvImage.Image.W, imvImage.Image.H))
 
-  Paint.Background = Color.SetAlpha(Color.Black, 192)
-  Paint.Rectangle(hTopLeft.X - 2, hTopLeft.Y - 2, hBottomRight.X - hTopLeft.X + 4, 2)
-  Paint.Rectangle(hTopLeft.X - 2, hBottomRight.Y, hBottomRight.X - hTopLeft.X + 4, 2)
-  Paint.Rectangle(hTopLeft.X - 2, hTopLeft.Y, 2, hBottomRight.Y - hTopLeft.Y)
-  Paint.Rectangle(hBottomRight.X, hTopLeft.Y, 2, hBottomRight.Y - hTopLeft.Y)
-  Paint.Fill
+  Paint.Rectangle(hTopLeft.X - 0.5, hTopLeft.Y - 0.5, hBottomRight.X - hTopLeft.X + 1, hBottomRight.Y - hTopLeft.Y + 1)
+  Paint.Background = Color.Foreground
+  Paint.Stroke
 
 End
 
@@ -3573,5 +3570,11 @@ End
 Public Sub Form_Arrange()
 
   If btnZoomFit.Value Then ZoomFit
+
+End
+
+Public Sub imvImage_Resize()
+
+  dwgBackground.Refresh
 
 End

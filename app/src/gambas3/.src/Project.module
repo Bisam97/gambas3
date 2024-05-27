@@ -6084,7 +6084,7 @@ Public Sub GetBackground() As Image
 
 End
 
-Public Sub DrawBackground()
+Public Sub DrawBackground(Optional hScrollArea As ScrollArea)
 
   Dim hBrush As PaintBrush
 
@@ -6096,6 +6096,24 @@ Public Sub DrawBackground()
     Paint.Rectangle(0, 0, Paint.W, Paint.H)
     Paint.Fill
     Paint.Brush = hBrush
+  Endif
+  
+  If hScrollArea Then
+    With hScrollArea
+      
+      If .ClientW < .W Then
+        If .RightToLeft Then
+          Paint.FillRect(0, 0, .W - .ClientW, .H, Color.Background)
+        Else
+          Paint.FillRect(.ClientW, 0, .W - .ClientW, .H, Color.Background)
+        Endif
+      Endif
+      
+      If .ClientH < .H Then
+        Paint.FillRect(0, .ClientH, .W, .H - .ClientH, Color.Background)
+      Endif
+      
+    End With
   Endif
 
 End
