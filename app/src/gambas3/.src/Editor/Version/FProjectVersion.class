@@ -28,7 +28,7 @@ End
 
 Public Sub Reload(Optional bForce As Boolean)
   
-  If Project.TimeStamp = $iTimeStamp And If Not bForce And If Project.Dir = Project.PreviousDir Then Return
+  If Project.TimeStamp = $iTimeStamp And If Not bForce And If Project.Dir = Project.PreviousDir Then Goto NO_RELOAD
   
   $iTimeStamp = Project.TimeStamp
   
@@ -45,6 +45,8 @@ Public Sub Reload(Optional bForce As Boolean)
   If Project.Dir <> Project.PreviousDir Then $sOldCommit = ""
 
   tlbRepository_Configure
+
+NO_RELOAD:
 
   tabVersion_Click
   
@@ -84,9 +86,6 @@ End
 
 Public Sub btnWorkspace_Click()
   
-  SaveLastCommitLog()
-  gvwHistory.Stop()
-  OnProjectClose()
   FMain.CloseCurrentWorkspace
   
 End
@@ -163,6 +162,7 @@ Public Sub tabVersion_Click()
     Case ("Terminal")
       
       If Not $bInitTerminal Then
+        If trmVersionControl.Column Then trmVersionControl.Print("\r\n")
         Try trmVersionControl.Exec([System.User.Shell], ["PWD=" & VersionControl.GetRoot()])
         $bInitTerminal = True
       Endif
@@ -491,5 +491,13 @@ End
 Public Sub btnRefresh_Click()
 
   Reload(True)
+
+End
+
+Public Sub Form_Hide()
+
+  SaveLastCommitLog()
+  gvwHistory.Stop()
+  OnProjectClose()
 
 End
