@@ -61,7 +61,8 @@ call-stop               actions/call-stop
 cap-butt                actions/stroke-cap-butt
 cap-round               actions/stroke-cap-round
 cap-square              actions/stroke-cap-square
-camera                  devices/camera-photo;;apps/spectacle;apps/shutter
+camera                  devices/camera-photo;;apps/spectacle;apps/shutter;status/camera-on
+camera-off              status/camera-off
 cancel                  actions/dialog-cancel
 car                     places/poi-car
 card                    categories/applications-cardgames;apps/kpatience;apps/gnome-freecell;;apps/gnome-aisleriot
@@ -142,6 +143,7 @@ emote-wink              emotes/face-wink
 end                     actions/media-skip-forward
 energy                  apps/utilities-energy-monitor;;preferences/preferences-system-power;apps/preferences-system-power;preferences/preferences-system-power-management;apps/preferences-system-power-management;actions/quickopen
 epub                    $(mime)/application-epub+zip;;apps/accessories-ebook-reader;apps/calibre-viewer
+equalizer               actions/view-media-equalizer
 erase                   actions/draw-eraser
 error                   status/dialog-error
 exclusive               #
@@ -217,7 +219,7 @@ insert-image            actions/insert-image
 insert-link             actions/insert-link
 insert-table            actions/insert-table
 insert-text             actions/insert-text
-internet                [breeze*!32]categories/applications-internet;categories/applications-internet;places/folder-html;;apps/konqueror;
+internet                [breeze*!32]categories/applications-internet;categories/applications-internet;places/folder-html;;apps/konqueror;preferences/preferences-online-accounts;apps/preferences-desktop-online-accounts
 intersection            #
 invert                  actions/edit-select-invert
 java                    $(mime)/application-java;$(mime)/text-x-java
@@ -249,7 +251,7 @@ lower                   actions/object-order-lower
 love                    actions/love
 lyx                     $(mime)/application-x-lyx;$(mime)/text-x-lyx;;apps/lyx
 magnet                  actions/kt-magnet
-mail                    apps/evolution-mail;actions/mail-mark-unread;;preferences/preferences-mail;apps/preferences-mail
+mail                    apps/evolution-mail;actions/mail-mark-unread;;preferences/preferences-mail;apps/preferences-mail;;;apps/preferences-mail-accounts
 mahjongg                apps/kmahjongg;apps/gnome-mahjongg;;apps/org.gnome.Mahjongg
 make                    #
 make-all                #
@@ -264,7 +266,7 @@ message                 status/applications-chat-panel;;apps/konversation;apps/s
 microphone              devices/audio-input-microphone
 microphone-off          status/audio-input-microphone-muted;status/microphone-disabled
 modem                   devices/modem;devices/network-modem
-modified                emblems/vcs-locally-modified;emblems/emblem-csv-modified
+modified                emblems/vcs-locally-modified;emblems/emblem-csv-modified;;status/arch-uptodate;status/pamac-tray-noupdate
 money                   status/emblem-money
 monitor                 apps/utilities-system-monitor;;apps/org.gnome.SystemMonitor;apps/htop
 moon                    applets/weather-clear-night;status/weather-clear-night
@@ -288,7 +290,8 @@ new-user                actions/list-add-user
 new-window              actions/window-new
 news                    actions/news-subscribe
 next                    actions/arrow-right
-notification            actions/notifications;;preferences/preferences-desktop-notifications;apps/preferences-desktop-notifications;preferences/preferences-desktop-notification;apps/preferences-desktop-notification;preferences/preferences-desktop-notification-bell;apps/preferences-desktop-notification-bell;apps/notification-applet;;actions/notification-inactive
+notification            actions/notifications;;preferences/preferences-desktop-notifications;apps/preferences-desktop-notifications;preferences/preferences-desktop-notification;apps/preferences-desktop-notification;preferences/preferences-desktop-notification-bell;apps/preferences-desktop-notification-bell;apps/notification-applet;actions/notification-active
+notification-off        actions/notifications-disabled;;actions/notification-inactive
 office                  $(mime)/x-office-document;;apps/libreoffice;apps/libreoffice-writer;categories/applications-office;apps/libreoffice-main
 office-base             $(mime)/libreoffice-database;;apps/libreoffice-base
 office-calc             $(mime)/x-office-spreadsheet;;apps/libreoffice-calc
@@ -318,7 +321,7 @@ phone                   devices/phone;;preferences/preferences-kde-connect
 pin                     actions/pin;actions/view-pin
 pointer                 actions/tools-pointer;;preferences/preferences-desktop-cursors;apps/preferences-desktop-cursors;apps/kmag
 play                    actions/media-playback-start
-plane                   places/poi-airport
+plane                   places/poi-airport;;status/flightmode-on;status/network-flightmode-on;status/flightmode-off;status/network-flightmode-off
 plugin                  preferences/preferences-plugin;apps/preferences-plugin;categories/applications-puzzles;apps/preferences-system-sharing
 preview                 actions/document-print-preview
 previous                actions/arrow-left
@@ -453,13 +456,13 @@ union                   #
 unlock                  actions/object-unlocked
 unselect                actions/edit-select-none
 up                      actions/go-up
-update                  apps/system-software-update;;status/arch-update;panel/mintupdate-up-to-date;panel/pamac-tray-no-update
+update                  apps/system-software-update;;status/arch-updates;status/pamac-tray-update
 upload                  [breeze*]actions/cloud-upload
 user                    [breeze*]actions/user-identity;stock/stock_person;status/avatar-default;;preferences/preferences-desktop-user;apps/preferences-desktop-user
 user-group              [-breeze*]actions/user-group-new;apps/system-users
 vector                  $(mime)/image-x-svg+xml
 version-control         actions/vcs-branch;;apps/gitg;apps/git-cola
-video                   $(mime)/video-x-generic;;apps/kdenlive;apps/simplescreenrecorder
+video                   $(mime)/video-x-generic;;apps/kdenlive;apps/simplescreenrecorder;devices/camera-video
 view-compact            actions/view-list-details
 view-detail             actions/view-list-text
 view-icon               actions/view-list-icons;;preferences/preferences-desktop-icons
@@ -477,10 +480,11 @@ walk                    #
 warning                 status/dialog-warning
 watch                   [breeze*]actions/visibility;actions/view-visible
 webcam                  devices/camera-web;;apps/org.gnome.Cheese
-wifi                    devices/network-wireless
+wifi                    devices/network-wireless;;status/wireless;status/network-wireless
 wifi-high               status/network-wireless-connected-100;status/network-wireless-100
 wifi-low                status/network-wireless-connected-50;status/network-wireless-50
 wifi-medium             status/network-wireless-connected-75;status/network-wireless-75
+wifi-off                status/wireless-off;status/network-wireless-disabled;status-network-wireless-0
 window                  actions/window;;preferences/preferences-system-windows;apps/preferences-system-windows;;preferences/preferences-desktop-theme-windowdecorations
 windows                 $(mime)/application-x-ms-dos-executable
 wizard                  actions/tools-wizard
