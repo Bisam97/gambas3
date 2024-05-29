@@ -344,14 +344,14 @@ Public Sub DrawingArea_Draw()
     Paint.Font.Grade = -1
     'Style.PaintButton(X + 2, Y + 2, W - 4, H - 4, Mouse.Button = Mouse.Left, Style.Normal, Not $bInsideButton, Color.ButtonBackground)
     Paint.Background = Color.ButtonForeground
+    Paint.FillRect(X + 4, Y + 4, W - 8, H - 8, If($iPressed = BUTTON_OPEN And $iInside = BUTTON_OPEN, Color.LightBackground, Color.TextBackground))
     If $iInside = BUTTON_OPEN Then
-      Paint.FillRect(X + 4, Y + 4, W - 8, H - 8, If($iPressed = $iInside, Color.LightBackground, Color.Merge(Color.LightBackground, Color.TextBackground)))
+      'Paint.FillRect(X + 4, Y + 4, W - 8, H - 8, If($iPressed = $iInside, Color.LightBackground, Color.Merge(Color.LightBackground, Color.TextBackground)))
       'Paint.Background = Color.SelectedBackground
       Paint.DrawTextShadow(("Open in another window") & "…", X + P, Y, W - P * 2, H, Align.Center)
-    Else
-      Paint.DrawRect(X + 4, Y + 4, W - 8, H - 8, Color.LightBackground, 1)
     Endif
     Paint.DrawText(("Open in another window") & "…", X + P, Y, W - P * 2, H, Align.Center)
+    Paint.DrawRect(X + 4, Y + 4, W - 8, H - 8, Color.LightBackground, 1)
   Else If Not Template Then
     Paint.Font.Grade = -1
     Paint.Background = Color.LightForeground
