@@ -64,6 +64,7 @@ private:
 	static int _valid;
 	
 	static void initContext();
+	static void resetContext();
 };
 
 void gcb_im_commit(GtkIMContext *context, const char *str, gControl *control);

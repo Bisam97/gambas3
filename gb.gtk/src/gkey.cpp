@@ -67,7 +67,7 @@ static bool _im_got_commit = FALSE;
 
 const char *gKey::text()
 {
-	if (!_valid) 
+	if (!_valid || _event.length == 0)
 		return 0;
 	else
 		return _event.string;
@@ -244,10 +244,17 @@ bool gKey::enable(gControl *control, GdkEventKey *event)
 
 bool gKey::mustIgnoreEvent(GdkEventKey *event)
 {
+	bool ignore;
+
 	if (!_im_has_input_method)
-		return false;
+		ignore =  false;
 	else
-		return (event->type == GDK_KEY_PRESS) && (event->keyval == 0 || !event->string || ((uchar)*event->string >= 32 && ((event->keyval & 0xFF00) != 0xFF00)));
+		ignore = (event->type == GDK_KEY_PRESS) && (event->keyval == 0 || !event->string || ((uchar)*event->string >= 32 && ((event->keyval & 0xFF00) != 0xFF00)));
+
+#if DEBUG_IM
+	fprintf(stderr, "gKey::mustIgnoreEvent -> %d  event = { keyval = %08X, string = %s }\n", ignore, event->keyval, event->string);
+#endif
+	return ignore;
 }
 
 void gcb_im_commit(GtkIMContext *context, const char *str, gControl *control)
@@ -257,14 +264,14 @@ void gcb_im_commit(GtkIMContext *context, const char *str, gControl *control)
 	if (!control)
 		control = _im_control;
 	
+	#if DEBUG_IM
+	fprintf(stderr, "cb_im_commit: \"%s\"  control = %p  _im_no_commit = %d  gKey::valid = %d\n", str, control, _im_no_commit, gKey::isValid());
+	#endif
+
 	// Not called from a key press event!
 	if (!control)
 		return;
 
-	#if DEBUG_IM
-	fprintf(stderr, "cb_im_commit: \"%s\"  _im_no_commit = %d  gKey::valid = %d\n", str, _im_no_commit, gKey::isValid());
-	#endif
-	
 	if (!gKey::isValid())
 	{
 		gKey::enable(control, NULL);
@@ -294,6 +301,10 @@ void gKey::initContext()
 	if (_im_context)
 		return;
 
+#if DEBUG_IM
+	fprintf(stderr ,"gKey::initContext\n");
+#endif
+
 	_im_context = gtk_im_multicontext_new();
 	gtk_im_context_set_client_window (_im_context, _im_window);
 
@@ -302,6 +313,16 @@ void gKey::initContext()
   g_signal_connect(_im_context, "commit", G_CALLBACK(gcb_im_commit), NULL);
 
 	g_signal_add_emission_hook(g_signal_lookup("commit", GTK_TYPE_IM_CONTEXT), (GQuark)0, hook_commit, (gpointer)0, NULL);
+}
+
+void gKey::resetContext()
+{
+	initContext();
+	gtk_im_context_reset(_im_context);
+	gtk_im_context_set_client_window (_im_context, 0);
+	gtk_im_context_reset(_im_context);
+	gtk_im_context_focus_out(_im_context);
+	gtk_im_context_reset(_im_context);
 }
 
 void gKey::init()
@@ -337,15 +358,7 @@ void gKey::setActiveControl(gControl *control)
 		fprintf(stderr, "gtk_im_context_focus_out\n");
 #endif
 		if (!_im_has_input_method)
-		{
-			initContext();
-			gtk_im_context_reset(_im_context);
-			gtk_im_context_set_client_window (_im_context, 0);
-			gtk_im_context_reset(_im_context);
-			gtk_im_context_focus_out(_im_context);
-			gtk_im_context_reset(_im_context);
-		}
-
+			resetContext();
 		_im_control = NULL;
 	}
 	
@@ -355,6 +368,9 @@ void gKey::setActiveControl(gControl *control)
 		
 		if (!control->hasInputMethod())
 		{
+#if DEBUG_IM
+			fprintf(stderr, "no input method\n");
+#endif
 			initContext();
 			_im_has_input_method = FALSE;
 			gtk_im_context_reset(_im_context);
@@ -367,15 +383,22 @@ void gKey::setActiveControl(gControl *control)
 		}
 		else
 		{
+			resetContext();
 			_im_has_input_method = TRUE;
 			context = control->getInputMethod();
 			if (context && GTK_IS_IM_MULTICONTEXT(context))
 			{
+#if DEBUG_IM
+				fprintf(stderr, "multiple input method\n");
+#endif
 				slave = gtk_im_multicontext_get_context_id(GTK_IM_MULTICONTEXT(context));
 				_im_is_xim = slave && strcmp(slave, "xim") == 0;
 			}
 			else
 			{
+#if DEBUG_IM
+				fprintf(stderr, "single input method\n");
+#endif
 				_im_is_xim = FALSE;
 			}
 		}
@@ -546,7 +569,12 @@ gboolean gcb_key_event(GtkWidget *widget, GdkEvent *event, gControl *control)
 	{
 		_im_ignore_event = !_im_ignore_event;
 		if (_im_ignore_event)
+		{
+#if DEBUG_IM
+			fprintf(stderr, "...but ignore it\n");
+#endif
 			return false;
+		}
 	}
 
 	type =  (event->type == GDK_KEY_PRESS) ? gEvent_KeyPress : gEvent_KeyRelease;
