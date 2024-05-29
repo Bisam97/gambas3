@@ -53,8 +53,10 @@ Static Public Sub FromKey() As String
   sName = $cNameFromKey[Key.Code]
   If sName Then
     Return sShortcut & sName
+  Else If Key.Text Then
+    Return sShortcut & Key.Text
   Else
-    Return sShortcut & String.Chr(Key.Code)
+    Return sShortcut & "[" & Hex$(Key.Code) & "]"
   Endif
   
 End
