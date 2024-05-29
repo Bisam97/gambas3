@@ -697,7 +697,8 @@ int WATCH_process(int fd_end, int fd_output, int fd_error, int timeout)
 	for(;;)
 	{
 		FD_ZERO(&rfd);
-		FD_SET(fd_end, &rfd);
+		if (fd_end >= 0)
+			FD_SET(fd_end, &rfd);
 		if (fd_output >= 0)
 			FD_SET(fd_output, &rfd);
 		if (fd_error >= 0)
@@ -726,7 +727,7 @@ int WATCH_process(int fd_end, int fd_output, int fd_error, int timeout)
 
 	ret = timeout > 0 ? WP_TIMEOUT : WP_NOTHING;
 	
-	if (FD_ISSET(fd_end, &rfd)) ret += WP_END;
+	if (fd_end >= 0 && FD_ISSET(fd_end, &rfd)) ret += WP_END;
 	if (fd_output >= 0 && FD_ISSET(fd_output, &rfd)) ret += WP_OUTPUT;
 	if (fd_error >= 0 && FD_ISSET(fd_error, &rfd)) ret += WP_ERROR;
 	return ret;
