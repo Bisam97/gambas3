@@ -51,6 +51,10 @@
 #define getCString c_str
 #endif
 
+#if POPPLER_VERSION_24_05_0
+#include "UTF.h"
+#endif
+
 /***************************************************************************/
 
 static CPDFRECT *create_rect(void)
@@ -172,7 +176,11 @@ static void aux_return_string_info(void *_object, const char *key)
 	else {
 		goo_value = dst.getString();
 
+#if POPPLER_VERSION_24_05_0
+		if (hasUnicodeByteOrderMark(goo_value->toStr()))
+#else
 		if (goo_value->hasUnicodeMarker())
+#endif
 		{
 			GB.ConvString (&tmpstr,goo_value->getCString()+2,goo_value->getLength()-2,"UTF-16BE","UTF-8");
 			GB.ReturnNewZeroString(tmpstr);		
@@ -216,7 +224,11 @@ static void aux_return_date_info(void *_object, const char *key)
 	if (dst.isString ())
 	{
 		goo = dst.getString();
+#if POPPLER_VERSION_24_05_0
+		if (hasUnicodeByteOrderMark(goo->toStr()))
+#else
 		if (goo->hasUnicodeMarker())
+#endif
 			GB.ConvString (&datestr,goo->getCString()+2,goo->getLength()-2,"UTF-16BE","UTF-8");
 		else
 		{
@@ -371,7 +383,11 @@ static char* aux_get_target_from_action(const_LinkAction *act)
 
 	if (!tmp) return NULL;
 
+#if POPPLER_VERSION_24_05_0
+	if (hasUnicodeByteOrderMark(tmp->toStr()))
+#else
 	if (tmp->hasUnicodeMarker())
+#endif
 	{
 			GB.ConvString (&uni,tmp->getCString()+2,tmp->getLength()-2,"UTF-16BE","UTF-8");
 			vl = GB.AddString(vl, uni, 0);	
