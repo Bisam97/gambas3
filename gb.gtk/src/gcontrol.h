@@ -191,6 +191,7 @@ public:
 	
 	gControl *proxy() const { return _proxy; }
 	bool setProxy(gControl *proxy);
+	gControl *proxyFor() const { return _proxy_for; }
 
 	int scrollX();
 	int scrollY();

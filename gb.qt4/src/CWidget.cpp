@@ -1807,6 +1807,13 @@ BEGIN_PROPERTY(Control_Proxy)
 END_PROPERTY
 
 
+BEGIN_PROPERTY(Control_ProxyFor)
+
+	GB.ReturnObject(THIS_EXT ? THIS_EXT->proxy_for : NULL);
+
+END_PROPERTY
+
+
 BEGIN_PROPERTY(Control_PopupMenu)
 
 	if (READ_PROPERTY)
@@ -3522,6 +3529,7 @@ GB_DESC CControlDesc[] =
 	GB_PROPERTY("Action", "s", Control_Action),
 	GB_PROPERTY("PopupMenu", "s", Control_PopupMenu),
 	GB_PROPERTY("Proxy", "Control", Control_Proxy),
+	GB_PROPERTY_READ("ProxyFor", "Control", Control_ProxyFor),
 	GB_PROPERTY("NoTabFocus", "b", Control_NoTabFocus),
 	GB_PROPERTY("Direction", "i", Control_Direction),
 	GB_PROPERTY_READ("RightToLeft", "b", Control_RightToLeft),
