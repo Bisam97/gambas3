@@ -1,0 +1,62 @@
+' Gambas class file
+
+Public Sub _new()
+  
+  tabTerminal.AddButton(btnSpace, Align.Left)
+  tabTerminal.AddButton(btnWorkspace, Align.Left)
+  tabTerminal.ShowButton(btnSpace, False)
+  tabTerminal.ShowButton(btnWorkspace, True)
+  
+End
+
+Public Sub Form_Open()
+  
+  ReadConfig
+  
+End
+
+Public Sub Reload()
+
+  If trmTerminal.Column Then trmTerminal.Print("\r\n")
+  trmTerminal.Exec([System.User.Shell], ["PWD=" & Project.Dir])
+  trmTerminal.SetFocus()
+  
+End
+
+Public Sub ReadConfig()
+  
+  tabTerminal.TextFont = Project.GetSmallFont()
+  Project.SetConsoleFont(trmTerminal)
+  MTheme.InitControl(trmTerminal)
+
+End
+
+Public Sub UpdateWorkspaceButtons(bShowSpace As Boolean)
+  
+  tabTerminal.ShowButton(btnSpace, bShowSpace)
+  
+End
+
+Public Sub OnProjectClose()
+  
+  trmTerminal.Kill()
+  
+End
+
+Public Sub btnWorkspace_Click()
+  
+  FMain.CloseCurrentWorkspace
+  
+End
+
+Public Sub Form_Hide()
+
+  OnProjectClose()
+
+End
+
+Public Sub trmTerminal_GotFocus()
+
+  Project.SetCurrentPopup(Null)
+
+End
