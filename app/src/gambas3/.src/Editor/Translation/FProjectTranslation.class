@@ -37,6 +37,7 @@ Private $sTranslateShell As String
 Private $sTranslateEngine As String
 
 Private $iTimeStamp As Integer
+Private $bSaving As Boolean
 
 Public Sub _new()
 
@@ -71,6 +72,7 @@ End
 
 Public Sub Reload(Optional bForce As Boolean)
 
+  If $bSaving Then Return
   If Project.TimeStamp = $iTimeStamp And If Not bForce And If Project.Dir = Project.PreviousDir Then Return
   
   $iTimeStamp = Project.TimeStamp
@@ -506,6 +508,8 @@ Private Sub SaveTranslate(Optional bForce As Boolean)
     If Not ($bModify Or bForce) Then Return
   Endif
 
+  $bSaving = True
+  
   UpdateOrg()
 
   Project.CreateLangDirectory()
@@ -564,6 +568,7 @@ Private Sub SaveTranslate(Optional bForce As Boolean)
 Finally
 
   Dec Application.Busy
+  $bSaving = False
 
 Catch
 
@@ -603,7 +608,7 @@ End
 
 Public Sub btnSave_Click()
 
-  SaveTranslate(True)
+  SaveCurrentTranslation(True)
 
 End
 
@@ -1979,15 +1984,12 @@ Public Sub UpdateWorkspaceButtons(bShowSpace As Boolean)
   
 End
 
-Private Sub SaveCurrentTranslation()
+Private Sub SaveCurrentTranslation(Optional bForce As Boolean)
 
-  Inc Application.Busy
   If cmbFileChoice.Index <> 0 Then ShiftToSort
-  SaveTranslate
-  Dec Application.Busy
+  SaveTranslate(bForce)
 
 End
-
 
 Public Sub btnWorkspace_Click()
 
