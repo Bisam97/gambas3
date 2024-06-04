@@ -383,6 +383,9 @@ Static Public Sub GetModeFromPath(sPath As String) As String
 
   Dim sMode As String
   Dim sExt As String
+  Dim hFile As File
+  Dim sStart As String
+  Dim iPos As Integer
   
   sExt = File.Ext(sPath)
   
@@ -412,6 +415,28 @@ Static Public Sub GetModeFromPath(sPath As String) As String
     Case "module", "test", "class"
       If Project.IsSourcePath(sPath) Then sMode = "gambas"
       If Project.IsHiddenPath(sPath) Then sMode = "gambas"
+    
+    Case Else 
+      
+      hFile = Open sPath
+      sStart = Read #hFile, -256
+      Close #hFile
+      
+      If sStart Begins "#!" Then
+        sStart = Mid$(sStart, 3)
+        iPos = InStr(sStart, "\n")
+        If iPos Then
+          sStart = Left(sStart, iPos - 1)
+          If sStart Ends "/sh" Or If sStart Ends "/bash" Then
+            sMode = "sh"
+          Else If sStart Like "/usr/bin/env gbs[3-9]" Then
+            sMode = "gambas"
+          Endif
+        Endif
+      Else If sStart Begins "<!DOCTYPE" Then
+        sMode = "html"
+      Endif
+      
   End Select
 
   Return sMode
