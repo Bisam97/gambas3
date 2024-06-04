@@ -164,6 +164,7 @@ Private Sub RefreshStock(Optional bClear As Boolean)
   Endif
   
   hIconView.Clear
+  hIconView.Sorted = False
 
   For Each sIcon In aIcons
     If sFilter And If InStr(sIcon, LCase(sFilter)) = 0 Then Continue
@@ -175,6 +176,8 @@ Private Sub RefreshStock(Optional bClear As Boolean)
     Endif
     hIconView.Add(sIcon, sIcon, hPict)
   Next
+  
+  hIconView.Sorted = True
   
   If hIconView.Exist(sLastIcon) Then
     hIconView[sLastIcon].Selected = True

@@ -177,6 +177,9 @@ Public Sub Form_Open()
   txtAppImageRepository.Text = Project.AppImageRepository
   cmbAppImageDistribution.Text = Project.AppImageDistribution
   txtAppImageGambasRepository.Text = Project.AppImageGambasRepository
+  
+  chkAppImageSignature.Value = Settings["/Packager/AppImage/Sign", False]
+  txtAppImageSignatureKey.Text = Settings["/Packager/AppImage/SignKey"]
 
 End
 
@@ -1497,5 +1500,19 @@ Private Sub IsCurrentSystemUbuntu() As Boolean
   
   Try sData = File.Load("/etc/lsb_release")
   If Not Error Then Return InStr(sData, "DISTRIB_ID=Ubuntu\n")
+
+End
+
+Public Sub chkAppImageSignature_Click()
+
+  txtAppImageSignatureKey.Enabled = chkAppImageSignature.Value
+  Settings["/Packager/AppImage/Sign"] = CBool(chkAppImageSignature.Value)
+  If chkAppImageSignature.Value Then txtAppImageSignatureKey.SetFocus
+
+End
+
+Public Sub txtAppImageSignatureKey_LostFocus()
+
+  Settings["/Packager/AppImage/SignKey"] = Trim(txtAppImageSignatureKey.Text)
 
 End

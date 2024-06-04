@@ -282,7 +282,6 @@ Private Sub ExitMake(sSys As String)
   
 End
 
-
 Public Function Make() As Boolean
 
   Dim sSys As String
@@ -2827,6 +2826,7 @@ Private Sub MakeAppImagePackage(sSys As String)
   Dim sSource As String
   Dim iPos As Integer
   Dim sName As String
+  Dim sSignKey As String
   
   AddLog(("Making build directory.")) 
   
@@ -2870,6 +2870,13 @@ Private Sub MakeAppImagePackage(sSys As String)
   sAppImageBuilder = Replace(sAppImageBuilder, "$(icon)", sName & ".png")
   sAppImageBuilder = Replace(sAppImageBuilder, "$(exec)", sName)
   sAppImageBuilder = Replace(sAppImageBuilder, "$(version)", $sVersion)
+  
+  If Settings["/Packager/AppImage/Sign", False] Then sSignKey = Trim(Settings["/Packager/AppImage/SignKey"])
+  If sSignKey Then
+    sAppImageBuilder = Replace(sAppImageBuilder, "$(signature)", "sign-key: " & sSignKey)
+  Else
+    sAppImageBuilder = Replace(sAppImageBuilder, "$(signature)", "")
+  Endif
   
   ' 7. Package sources
   
