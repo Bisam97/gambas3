@@ -351,7 +351,7 @@ Private Sub UpdateFilterPicture()
   If $hFilterPicture Then
     $hFilter.Picture = $hFilterPicture
   Else
-    $hFilter.Picture = Picture[If($sMenu, "img/32/filter-menu.png", "img/32/filter.png")]
+    $hFilter.Picture = Picture[If($sMenu, "img/small/filter-menu.png", "img/small/filter.png")]
   Endif
   $hFilter.Mouse = If($sMenu, Mouse.Pointing, Mouse.Default)
 
@@ -365,8 +365,8 @@ Private Sub Filter_Write(Value As Boolean)
   
   If $bFilter Then
     $hFilter = New PictureBox($hBackground) As "FilterPictureBox"
-    $hFilter.Stretch = True
-    $hFilter.Padding = Desktop.Scale \ 3
+    $hFilter.Alignment = Align.Center
+    '$hFilter.Padding = Desktop.Scale \ 3
     UpdateFilterPicture
     $hTimer = New Timer As "FilterTimer"
     $hTimer.Delay = 500
