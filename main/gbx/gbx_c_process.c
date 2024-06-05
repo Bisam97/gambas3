@@ -999,7 +999,8 @@ void CPROCESS_wait_for(CPROCESS *process, int timeout)
 			#ifdef DEBUG_ME
 			fprintf(stderr, "Watch process %d (end = %d)\n", process->pid, sigfd);
 			#endif
-			SIGNAL_check(SIGCHLD);
+			if (_init)
+				SIGNAL_check(SIGCHLD);
 			ret = WATCH_process(sigfd, process->out, process->err, timeout);
 			#ifdef DEBUG_ME
 			fprintf(stderr, "Watch process %d ->%s%s%s%s\n", process->pid, ret & WP_END ? " END" : "", ret & WP_OUTPUT ? " OUTPUT" : "", ret & WP_ERROR ? " ERROR" : "", ret & WP_TIMEOUT ? " TIMEOUT" : "");

@@ -144,7 +144,6 @@ typedef
 #define NORETURN __attribute__((noreturn))
 #define CONST __attribute__((const))
 
-
 #if __WORDSIZE == 64
 #define OS_64BITS 1
 #endif
