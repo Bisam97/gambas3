@@ -53,6 +53,7 @@ GB_CONFIG_SUBDIRS(httpd, gb.httpd)
 GB_CONFIG_SUBDIRS(openssl, gb.openssl)
 GB_CONFIG_SUBDIRS(openal, gb.openal)
 GB_CONFIG_SUBDIRS(htmlview, gb.form.htmlview)
+GB_CONFIG_SUBDIRS(mongodb, gb.mongodb)
 
 AC_CONFIG_SUBDIRS(comp)
 AC_CONFIG_SUBDIRS(app)

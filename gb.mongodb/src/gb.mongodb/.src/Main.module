@@ -1,0 +1,15 @@
+' Gambas module file
+
+Public Sub Main()
+
+  Dim hClient As MongoClient
+  Dim cResult As Collection
+
+  hClient = New MongoClient("mongodb://10.254.16.28")
+
+  Print hClient.Databases.Join()
+  
+  hClient.Database = "omogen-test-mongo"
+  Print hClient["ordre de travail"].Name
+
+End
