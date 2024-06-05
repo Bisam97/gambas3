@@ -12,7 +12,7 @@ build:archlinux:
        pkg-config poppler poppler-glib postgresql postgresql-libs qt5-svg
        qt5-x11extras sdl2 sdl2_gfx sdl2_image sdl2_mixer sdl2_net
        sdl2_ttf sdl_mixer sdl_ttf smpeg sqlite unixodbc v4l-utils xdg-utils
-       zlib gettext qt5-webengine webkit2gtk qt6-svg qt6-webengine
+       zlib gettext qt5-webengine webkit2gtk qt6-svg qt6-webengine mongodb-client
   script:
     - ./reconf-all
     - GAMBAS_CONFIG_FAILURE=1 ./configure -C --disable-sqlite2 --disable-qt4 --disable-pdf --disable-qt5webkit
@@ -59,7 +59,7 @@ build:debian-bullseye:
        libgmp-dev libgtk-3-dev libsdl2-dev libsdl2-mixer-dev libsdl2-ttf-dev
        libsdl2-image-dev sane-utils libdumb1-dev libqt5opengl5-dev
        libqt5svg5-dev libqt5webkit5-dev libqt5x11extras5-dev qtbase5-dev
-       qtwebengine5-dev libwebkit2gtk-4.0-dev git libssl-dev
+       qtwebengine5-dev libwebkit2gtk-4.0-dev git libssl-dev libmongoc-dev
   script:
     - ./reconf-all
     - GAMBAS_CONFIG_FAILURE=1 ./configure -C --disable-keyring --disable-sqlite2 --disable-qt4 --disable-qt6
@@ -85,7 +85,7 @@ build:debian-bookworm:
        libsdl2-image-dev sane-utils libdumb1-dev libqt5opengl5-dev 
        libqt5svg5-dev libqt5webkit5-dev libqt5x11extras5-dev qtbase5-dev 
        qtwebengine5-dev libwebkit2gtk-4.0-dev git libssl-dev qt6-base-dev qt6-webengine-dev
-       qt6-svg-dev
+       qt6-svg-dev libmongoc-dev
   script:
     - ./reconf-all
     - GAMBAS_CONFIG_FAILURE=1 ./configure -C --disable-keyring --disable-sqlite2 --disable-qt4
@@ -110,7 +110,8 @@ build:debian-trixie:
        libgmp-dev libgtk-3-dev libsdl2-dev libsdl2-mixer-dev libsdl2-ttf-dev 
        libsdl2-image-dev sane-utils libdumb1-dev libqt5opengl5-dev 
        libqt5svg5-dev libqt5webkit5-dev libqt5x11extras5-dev qtbase5-dev 
-       qtwebengine5-dev libwebkit2gtk-4.1-dev git libssl-dev qt6-base-dev qt6-webengine-dev qt6-svg-dev
+       qtwebengine5-dev libwebkit2gtk-4.1-dev git libssl-dev qt6-base-dev qt6-webengine-dev
+       qt6-svg-dev libmongoc-dev
   script:
     - ./reconf-all
     - GAMBAS_CONFIG_FAILURE=1 ./configure -C --disable-keyring --disable-sqlite2 --disable-qt4 --disable-gtkopengl
@@ -122,7 +123,7 @@ build:debian-sid:
   image: debian:sid
   before_script:
     - >
-       apt-get update && apt-get install -y build-essential g++ automake autoconf libbz2-dev libzstd-dev default-libmysqlclient-dev unixodbc-dev libpq-dev libsqlite3-dev libglib2.0-dev libgtk2.0-dev libcurl4-gnutls-dev libgtkglext1-dev libpcre3-dev libsdl-sound1.2-dev libsdl-mixer1.2-dev libsdl-image1.2-dev libxml2-dev libxslt1-dev librsvg2-dev libpoppler-dev libpoppler-glib-dev libpoppler-private-dev libpoppler-cpp-dev libasound2-dev libdirectfb-dev libxtst-dev libffi-dev libglew-dev libimlib2-dev libv4l-dev libsdl-ttf2.0-dev libgdk-pixbuf2.0-dev linux-libc-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev libcairo2-dev libgsl-dev libncurses-dev libgmime-3.0-dev libalure-dev libgmp-dev libgtk-3-dev libsdl2-dev libsdl2-mixer-dev libsdl2-ttf-dev libsdl2-image-dev sane-utils libdumb1-dev libqt5opengl5-dev libqt5svg5-dev libqt5webkit5-dev libqt5x11extras5-dev qtbase5-dev qtwebengine5-dev libwebkit2gtk-4.1-dev git libssl-dev qt6-base-dev qt6-webengine-dev qt6-svg-dev
+       apt-get update && apt-get install -y build-essential g++ automake autoconf libbz2-dev libzstd-dev default-libmysqlclient-dev unixodbc-dev libpq-dev libsqlite3-dev libglib2.0-dev libgtk2.0-dev libcurl4-gnutls-dev libgtkglext1-dev libpcre3-dev libsdl-sound1.2-dev libsdl-mixer1.2-dev libsdl-image1.2-dev libxml2-dev libxslt1-dev librsvg2-dev libpoppler-dev libpoppler-glib-dev libpoppler-private-dev libpoppler-cpp-dev libasound2-dev libdirectfb-dev libxtst-dev libffi-dev libglew-dev libimlib2-dev libv4l-dev libsdl-ttf2.0-dev libgdk-pixbuf2.0-dev linux-libc-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev libcairo2-dev libgsl-dev libncurses-dev libgmime-3.0-dev libalure-dev libgmp-dev libgtk-3-dev libsdl2-dev libsdl2-mixer-dev libsdl2-ttf-dev libsdl2-image-dev sane-utils libdumb1-dev libqt5opengl5-dev libqt5svg5-dev libqt5webkit5-dev libqt5x11extras5-dev qtbase5-dev qtwebengine5-dev libwebkit2gtk-4.1-dev git libssl-dev qt6-base-dev qt6-webengine-dev qt6-svg-dev libmongoc-dev
   script:
     - ./reconf-all
     - GAMBAS_CONFIG_FAILURE=1 ./configure -C --disable-keyring --disable-qt4 --disable-sqlite2
@@ -133,7 +134,7 @@ build:ubuntu-noble:
   image: ubuntu:noble
   before_script:
     - >
-       apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential g++ automake autoconf libtool libbz2-dev libzstd-dev libmysqlclient-dev unixodbc-dev libpq-dev libsqlite3-dev libglib2.0-dev libgtk2.0-dev libcurl4-gnutls-dev libgtkglext1-dev libpcre3-dev libsdl-sound1.2-dev libsdl-mixer1.2-dev libsdl-image1.2-dev libxml2-dev libxslt1-dev librsvg2-dev libpoppler-dev libpoppler-private-dev libpoppler-glib-dev libpoppler-cpp-dev libasound2-dev libdirectfb-dev libxtst-dev libffi-dev libglew-dev libimlib2-dev libv4l-dev libsdl-ttf2.0-dev libgdk-pixbuf2.0-dev linux-libc-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev libcairo2-dev libgsl-dev libncurses5-dev libgmime-3.0-dev llvm-dev llvm libalure-dev libgmp-dev libgtk-3-dev libsdl2-dev libsdl2-mixer-dev libsdl2-ttf-dev libsdl2-image-dev sane-utils libdumb1-dev libssl-dev libqt5opengl5-dev libqt5svg5-dev libqt5webkit5-dev libqt5x11extras5-dev qtbase5-dev qtwebengine5-dev libwebkit2gtk-4.1-dev git qt6-svg-dev qt6-base-dev qt6-webengine-dev
+       apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential g++ automake autoconf libtool libbz2-dev libzstd-dev libmysqlclient-dev unixodbc-dev libpq-dev libsqlite3-dev libglib2.0-dev libgtk2.0-dev libcurl4-gnutls-dev libgtkglext1-dev libpcre3-dev libsdl-sound1.2-dev libsdl-mixer1.2-dev libsdl-image1.2-dev libxml2-dev libxslt1-dev librsvg2-dev libpoppler-dev libpoppler-private-dev libpoppler-glib-dev libpoppler-cpp-dev libasound2-dev libdirectfb-dev libxtst-dev libffi-dev libglew-dev libimlib2-dev libv4l-dev libsdl-ttf2.0-dev libgdk-pixbuf2.0-dev linux-libc-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev libcairo2-dev libgsl-dev libncurses5-dev libgmime-3.0-dev llvm-dev llvm libalure-dev libgmp-dev libgtk-3-dev libsdl2-dev libsdl2-mixer-dev libsdl2-ttf-dev libsdl2-image-dev sane-utils libdumb1-dev libssl-dev libqt5opengl5-dev libqt5svg5-dev libqt5webkit5-dev libqt5x11extras5-dev qtbase5-dev qtwebengine5-dev libwebkit2gtk-4.1-dev git qt6-svg-dev qt6-base-dev qt6-webengine-dev libmongoc-dev
 
   script:
     - ./reconf-all
@@ -145,7 +146,7 @@ build:ubuntu-lunar:
   image: ubuntu:lunar
   before_script:
     - >
-       apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential g++ automake autoconf libtool libbz2-dev libzstd-dev libmysqlclient-dev unixodbc-dev libpq-dev libsqlite3-dev libglib2.0-dev libgtk2.0-dev libcurl4-gnutls-dev libgtkglext1-dev libpcre3-dev libsdl-sound1.2-dev libsdl-mixer1.2-dev libsdl-image1.2-dev libxml2-dev libxslt1-dev librsvg2-dev libpoppler-dev libpoppler-private-dev libpoppler-glib-dev libpoppler-cpp-dev libasound2-dev libdirectfb-dev libxtst-dev libffi-dev libglew-dev libimlib2-dev libv4l-dev libsdl-ttf2.0-dev libgdk-pixbuf2.0-dev linux-libc-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev libcairo2-dev libgsl-dev libncurses5-dev libgmime-3.0-dev llvm-dev llvm libalure-dev libgmp-dev libgtk-3-dev libsdl2-dev libsdl2-mixer-dev libsdl2-ttf-dev libsdl2-image-dev sane-utils libdumb1-dev libssl-dev libqt5opengl5-dev libqt5svg5-dev libqt5webkit5-dev libqt5x11extras5-dev qtbase5-dev qtwebengine5-dev libwebkit2gtk-4.0-dev git qt6-svg-dev qt6-base-dev qt6-webengine-dev
+       apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential g++ automake autoconf libtool libbz2-dev libzstd-dev libmysqlclient-dev unixodbc-dev libpq-dev libsqlite3-dev libglib2.0-dev libgtk2.0-dev libcurl4-gnutls-dev libgtkglext1-dev libpcre3-dev libsdl-sound1.2-dev libsdl-mixer1.2-dev libsdl-image1.2-dev libxml2-dev libxslt1-dev librsvg2-dev libpoppler-dev libpoppler-private-dev libpoppler-glib-dev libpoppler-cpp-dev libasound2-dev libdirectfb-dev libxtst-dev libffi-dev libglew-dev libimlib2-dev libv4l-dev libsdl-ttf2.0-dev libgdk-pixbuf2.0-dev linux-libc-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev libcairo2-dev libgsl-dev libncurses5-dev libgmime-3.0-dev llvm-dev llvm libalure-dev libgmp-dev libgtk-3-dev libsdl2-dev libsdl2-mixer-dev libsdl2-ttf-dev libsdl2-image-dev sane-utils libdumb1-dev libssl-dev libqt5opengl5-dev libqt5svg5-dev libqt5webkit5-dev libqt5x11extras5-dev qtbase5-dev qtwebengine5-dev libwebkit2gtk-4.0-dev git qt6-svg-dev qt6-base-dev qt6-webengine-dev libmongoc-dev
 
   script:
     - ./reconf-all
@@ -157,7 +158,7 @@ build:ubuntu-jammy:
   image: ubuntu:jammy
   before_script:
     - >
-       apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential git g++ automake autoconf libtool libbz2-dev libzstd-dev libmysqlclient-dev unixodbc-dev libpq-dev libsqlite0-dev libsqlite3-dev libglib2.0-dev libgtk2.0-dev libcurl4-gnutls-dev libgtkglext1-dev libpcre3-dev libsdl-sound1.2-dev libsdl-mixer1.2-dev libsdl-image1.2-dev libxml2-dev libxslt1-dev librsvg2-dev libpoppler-dev libpoppler-private-dev libpoppler-glib-dev libpoppler-cpp-dev libasound2-dev libdirectfb-dev libxtst-dev libffi-dev libglew-dev libimlib2-dev libv4l-dev libsdl-ttf2.0-dev libgdk-pixbuf2.0-dev linux-libc-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev libcairo2-dev libgsl-dev libncurses5-dev libgmime-3.0-dev llvm-dev llvm libalure-dev libgmp-dev libgtk-3-dev libsdl2-dev libsdl2-mixer-dev libsdl2-ttf-dev libsdl2-image-dev sane-utils libdumb1-dev libssl-dev libqt5opengl5-dev libqt5svg5-dev libqt5webkit5-dev libqt5x11extras5-dev qtbase5-dev qtwebengine5-dev libwebkit2gtk-4.0-dev libfribidi-dev
+       apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential git g++ automake autoconf libtool libbz2-dev libzstd-dev libmysqlclient-dev unixodbc-dev libpq-dev libsqlite0-dev libsqlite3-dev libglib2.0-dev libgtk2.0-dev libcurl4-gnutls-dev libgtkglext1-dev libpcre3-dev libsdl-sound1.2-dev libsdl-mixer1.2-dev libsdl-image1.2-dev libxml2-dev libxslt1-dev librsvg2-dev libpoppler-dev libpoppler-private-dev libpoppler-glib-dev libpoppler-cpp-dev libasound2-dev libdirectfb-dev libxtst-dev libffi-dev libglew-dev libimlib2-dev libv4l-dev libsdl-ttf2.0-dev libgdk-pixbuf2.0-dev linux-libc-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev libcairo2-dev libgsl-dev libncurses5-dev libgmime-3.0-dev llvm-dev llvm libalure-dev libgmp-dev libgtk-3-dev libsdl2-dev libsdl2-mixer-dev libsdl2-ttf-dev libsdl2-image-dev sane-utils libdumb1-dev libssl-dev libqt5opengl5-dev libqt5svg5-dev libqt5webkit5-dev libqt5x11extras5-dev qtbase5-dev qtwebengine5-dev libwebkit2gtk-4.0-dev libfribidi-dev libmongoc-dev
 
   script:
     - ./reconf-all
@@ -169,7 +170,7 @@ build:ubuntu-focal:
   image: ubuntu:focal
   before_script:
     - >
-       apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential git g++ automake autoconf libtool libbz2-dev libzstd-dev libmysqlclient-dev unixodbc-dev libpq-dev libsqlite0-dev libsqlite3-dev libglib2.0-dev libgtk2.0-dev libcurl4-gnutls-dev libgtkglext1-dev libpcre3-dev libsdl-sound1.2-dev libsdl-mixer1.2-dev libsdl-image1.2-dev libxml2-dev libxslt1-dev librsvg2-dev libpoppler-dev libpoppler-private-dev libpoppler-glib-dev libpoppler-cpp-dev libasound2-dev libdirectfb-dev libxtst-dev libffi-dev libglew-dev libimlib2-dev libv4l-dev libsdl-ttf2.0-dev libgdk-pixbuf2.0-dev linux-libc-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev libcairo2-dev libgsl-dev libncurses5-dev libgmime-2.6-dev llvm-dev llvm libalure-dev libgmp-dev libgtk-3-dev libsdl2-dev libsdl2-mixer-dev libsdl2-ttf-dev libsdl2-image-dev sane-utils libdumb1-dev libssl-dev libqt5opengl5-dev libqt5svg5-dev libqt5webkit5-dev libqt5x11extras5-dev qtbase5-dev qtwebengine5-dev libwebkit2gtk-4.0-dev libfribidi-dev
+       apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential git g++ automake autoconf libtool libbz2-dev libzstd-dev libmysqlclient-dev unixodbc-dev libpq-dev libsqlite0-dev libsqlite3-dev libglib2.0-dev libgtk2.0-dev libcurl4-gnutls-dev libgtkglext1-dev libpcre3-dev libsdl-sound1.2-dev libsdl-mixer1.2-dev libsdl-image1.2-dev libxml2-dev libxslt1-dev librsvg2-dev libpoppler-dev libpoppler-private-dev libpoppler-glib-dev libpoppler-cpp-dev libasound2-dev libdirectfb-dev libxtst-dev libffi-dev libglew-dev libimlib2-dev libv4l-dev libsdl-ttf2.0-dev libgdk-pixbuf2.0-dev linux-libc-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev libcairo2-dev libgsl-dev libncurses5-dev libgmime-2.6-dev llvm-dev llvm libalure-dev libgmp-dev libgtk-3-dev libsdl2-dev libsdl2-mixer-dev libsdl2-ttf-dev libsdl2-image-dev sane-utils libdumb1-dev libssl-dev libqt5opengl5-dev libqt5svg5-dev libqt5webkit5-dev libqt5x11extras5-dev qtbase5-dev qtwebengine5-dev libwebkit2gtk-4.0-dev libfribidi-dev libmongoc-dev
 
   script:
     - ./reconf-all
@@ -181,7 +182,7 @@ build:ubuntu-bionic:
   image: ubuntu:bionic
   before_script:
     - >
-       apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential git g++ automake autoconf libtool libbz2-dev libzstd-dev libmysqlclient-dev unixodbc-dev libpq-dev libsqlite0-dev libsqlite3-dev libglib2.0-dev libgtk2.0-dev libcurl4-gnutls-dev libgtkglext1-dev libpcre3-dev libsdl-sound1.2-dev libsdl-mixer1.2-dev libsdl-image1.2-dev libxml2-dev libxslt1-dev librsvg2-dev libpoppler-dev libpoppler-private-dev libpoppler-glib-dev libpoppler-cpp-dev libasound2-dev libdirectfb-dev libxtst-dev libffi-dev libqt4-dev libqtwebkit-dev libqt4-opengl-dev libglew-dev libimlib2-dev libv4l-dev libsdl-ttf2.0-dev libgdk-pixbuf2.0-dev linux-libc-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev libcairo2-dev libgsl-dev libncurses5-dev libgmime-2.6-dev llvm-dev llvm libalure-dev libgmp-dev libgtk-3-dev libsdl2-dev libsdl2-mixer-dev libsdl2-ttf-dev libsdl2-image-dev sane-utils libdumb1-dev libssl-dev libqt5opengl5-dev libqt5svg5-dev libqt5webkit5-dev libqt5x11extras5-dev qtbase5-dev qtwebengine5-dev libwebkit2gtk-4.0-dev libfribidi-dev
+       apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential git g++ automake autoconf libtool libbz2-dev libzstd-dev libmysqlclient-dev unixodbc-dev libpq-dev libsqlite0-dev libsqlite3-dev libglib2.0-dev libgtk2.0-dev libcurl4-gnutls-dev libgtkglext1-dev libpcre3-dev libsdl-sound1.2-dev libsdl-mixer1.2-dev libsdl-image1.2-dev libxml2-dev libxslt1-dev librsvg2-dev libpoppler-dev libpoppler-private-dev libpoppler-glib-dev libpoppler-cpp-dev libasound2-dev libdirectfb-dev libxtst-dev libffi-dev libqt4-dev libqtwebkit-dev libqt4-opengl-dev libglew-dev libimlib2-dev libv4l-dev libsdl-ttf2.0-dev libgdk-pixbuf2.0-dev linux-libc-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev libcairo2-dev libgsl-dev libncurses5-dev libgmime-2.6-dev llvm-dev llvm libalure-dev libgmp-dev libgtk-3-dev libsdl2-dev libsdl2-mixer-dev libsdl2-ttf-dev libsdl2-image-dev sane-utils libdumb1-dev libssl-dev libqt5opengl5-dev libqt5svg5-dev libqt5webkit5-dev libqt5x11extras5-dev qtbase5-dev qtwebengine5-dev libwebkit2gtk-4.0-dev libfribidi-dev libmongoc-dev
 
   script:
     - ./reconf-all
@@ -193,7 +194,7 @@ build:ubuntu-xenial:
   image: ubuntu:xenial
   before_script:
     - >
-       apt-get update && apt-get install -y build-essential g++ git automake autoconf libtool libbz2-dev libmysqlclient-dev unixodbc-dev libpq-dev libsqlite0-dev libsqlite3-dev libglib2.0-dev libgtk2.0-dev libcurl4-gnutls-dev libgtkglext1-dev libpcre3-dev libsdl-sound1.2-dev libsdl-mixer1.2-dev libsdl-image1.2-dev libxml2-dev libxslt1-dev librsvg2-dev libpoppler-dev libpoppler-glib-dev libpoppler-private-dev libpoppler-cpp-dev libasound2-dev libdirectfb-dev libxtst-dev libffi-dev libqt4-dev libqtwebkit-dev libqt4-opengl-dev libglew-dev libimlib2-dev libv4l-dev libsdl-ttf2.0-dev libgnome-keyring-dev libgdk-pixbuf2.0-dev linux-libc-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev libcairo2-dev libgsl-dev libncurses5-dev libgmime-2.6-dev llvm-dev llvm libalure-dev libgmp-dev libgtk-3-dev libsdl2-dev libsdl2-mixer-dev libsdl2-ttf-dev libsdl2-image-dev sane-utils libdumb1-dev libssl-dev libqt5opengl5-dev libqt5svg5-dev libqt5webkit5-dev libqt5x11extras5-dev qtbase5-dev libwebkit2gtk-3.0-dev libfribidi-dev
+       apt-get update && apt-get install -y build-essential g++ git automake autoconf libtool libbz2-dev libmysqlclient-dev unixodbc-dev libpq-dev libsqlite0-dev libsqlite3-dev libglib2.0-dev libgtk2.0-dev libcurl4-gnutls-dev libgtkglext1-dev libpcre3-dev libsdl-sound1.2-dev libsdl-mixer1.2-dev libsdl-image1.2-dev libxml2-dev libxslt1-dev librsvg2-dev libpoppler-dev libpoppler-glib-dev libpoppler-private-dev libpoppler-cpp-dev libasound2-dev libdirectfb-dev libxtst-dev libffi-dev libqt4-dev libqtwebkit-dev libqt4-opengl-dev libglew-dev libimlib2-dev libv4l-dev libsdl-ttf2.0-dev libgnome-keyring-dev libgdk-pixbuf2.0-dev linux-libc-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev libcairo2-dev libgsl-dev libncurses5-dev libgmime-2.6-dev llvm-dev llvm libalure-dev libgmp-dev libgtk-3-dev libsdl2-dev libsdl2-mixer-dev libsdl2-ttf-dev libsdl2-image-dev sane-utils libdumb1-dev libssl-dev libqt5opengl5-dev libqt5svg5-dev libqt5webkit5-dev libqt5x11extras5-dev qtbase5-dev libwebkit2gtk-3.0-dev libfribidi-dev libmongoc-dev
 
   script:
     - ./reconf-all
@@ -205,7 +206,7 @@ build:ubuntu-trusty:
   image: ubuntu:trusty
   before_script:
     - >
-       apt-get update && apt-get install -y build-essential git g++ automake autoconf libtool libbz2-dev libmysqlclient-dev unixodbc-dev libpq-dev libsqlite0-dev libsqlite3-dev libglib2.0-dev libgtk2.0-dev libcurl4-gnutls-dev libgtkglext1-dev libpcre3-dev libsdl-sound1.2-dev libsdl-mixer1.2-dev libsdl-image1.2-dev libxml2-dev libxslt1-dev librsvg2-dev libpoppler-dev libpoppler-glib-dev libpoppler-private-dev libpoppler-cpp-dev libasound2-dev libdirectfb-dev libxtst-dev libffi-dev libqt4-dev libqtwebkit-dev libqt4-opengl-dev libglew-dev libimlib2-dev libv4l-dev libsdl-ttf2.0-dev libgnome-keyring-dev libgdk-pixbuf2.0-dev linux-libc-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev libcairo2-dev libgsl0-dev libncurses5-dev libgmime-2.6-dev llvm-dev llvm libalure-dev libgmp-dev libgtk-3-dev libsdl2-dev libsdl2-mixer-dev libsdl2-ttf-dev libsdl2-image-dev sane-utils libdumb1-dev libssl-dev libglu1-mesa-dev libglu1-mesa-dev libglew1.10 libglu1-mesa libgles2-mesa-dev libwebkit2gtk-3.0-dev libfribidi-dev
+       apt-get update && apt-get install -y build-essential git g++ automake autoconf libtool libbz2-dev libmysqlclient-dev unixodbc-dev libpq-dev libsqlite0-dev libsqlite3-dev libglib2.0-dev libgtk2.0-dev libcurl4-gnutls-dev libgtkglext1-dev libpcre3-dev libsdl-sound1.2-dev libsdl-mixer1.2-dev libsdl-image1.2-dev libxml2-dev libxslt1-dev librsvg2-dev libpoppler-dev libpoppler-glib-dev libpoppler-private-dev libpoppler-cpp-dev libasound2-dev libdirectfb-dev libxtst-dev libffi-dev libqt4-dev libqtwebkit-dev libqt4-opengl-dev libglew-dev libimlib2-dev libv4l-dev libsdl-ttf2.0-dev libgnome-keyring-dev libgdk-pixbuf2.0-dev linux-libc-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev libcairo2-dev libgsl0-dev libncurses5-dev libgmime-2.6-dev llvm-dev llvm libalure-dev libgmp-dev libgtk-3-dev libsdl2-dev libsdl2-mixer-dev libsdl2-ttf-dev libsdl2-image-dev sane-utils libdumb1-dev libssl-dev libglu1-mesa-dev libglu1-mesa-dev libglew1.10 libglu1-mesa libgles2-mesa-dev libwebkit2gtk-3.0-dev libfribidi-dev libmongoc-dev
 
   script:
     - ./reconf-all
@@ -224,7 +225,7 @@ build:alpine:
        libsm-dev libxcursor-dev libxml2-dev libxslt-dev libxtst-dev make ncurses-dev pcre-dev pkgconf
        poppler-dev postgresql-dev qt5-qtsvg-dev qt5-qtx11extras-dev qt5-qtwebengine-dev 
        sdl2-dev sdl2_image-dev sdl2_mixer-dev sdl2_ttf-dev sqlite-dev unixodbc-dev xdg-utils 
-       zlib-dev webkit2gtk-dev qt6-qtsvg-dev qt6-qtwebengine-dev
+       zlib-dev webkit2gtk-dev qt6-qtsvg-dev qt6-qtwebengine-dev mongo-c-driver-dev
   script:
     - ./reconf-all
     - GAMBAS_CONFIG_FAILURE=1 ./configure -C --disable-openal --disable-qt4 --disable-sdl --disable-sdlsound --disable-sqlite2 --disable-v4l --disable-gtkopengl --disable-zstd  --disable-qt5webkit --disable-pdf --disable-keyring
@@ -235,7 +236,7 @@ build:fedora-latest:
   image: fedora:latest
   before_script:
     - >
-       dnf install -y libtool libtool-ltdl-devel gcc make autoconf dumb-devel gmime-devel gmime30-devel libffi-devel mariadb-devel postgresql-devel unixODBC-devel sqlite2-devel libsqlite3x-devel libxslt-devel libv4l-devel glew-devel poppler-devel poppler-glib-devel poppler-cpp-devel qt-devel qt5-qtbase-devel qt5-qtbase-private-devel qt5-qtwebengine-devel qt5-qtx11extras-devel qt5-qtsvg-devel SDL_ttf-devel SDL_mixer-devel SDL-devel SDL2_ttf-devel SDL2_mixer-devel SDL2_image-devel SDL2-devel cairo-devel gtk2-devel gtk3-devel imlib2-devel librsvg2-devel qt-webkit-devel qt5-qtwebkit qt5-qtwebkit-devel openal-soft-devel libjpeg-turbo-devel gtkglext-devel gmp-devel libxml2-devel libXtst-devel gsl-devel pcre-devel dbus-devel libcurl-devel alure-devel gstreamermm-devel libgnome-keyring-devel bzip2-devel libzstd-devel webkit2gtk3-devel ncurses-devel qt6-qtbase-devel qt6-qtwebengine-devel qt6-qtsvg-devel
+       dnf install -y libtool libtool-ltdl-devel gcc make autoconf dumb-devel gmime-devel gmime30-devel libffi-devel mariadb-devel postgresql-devel unixODBC-devel sqlite2-devel libsqlite3x-devel libxslt-devel libv4l-devel glew-devel poppler-devel poppler-glib-devel poppler-cpp-devel qt-devel qt5-qtbase-devel qt5-qtbase-private-devel qt5-qtwebengine-devel qt5-qtx11extras-devel qt5-qtsvg-devel SDL_ttf-devel SDL_mixer-devel SDL-devel SDL2_ttf-devel SDL2_mixer-devel SDL2_image-devel SDL2-devel cairo-devel gtk2-devel gtk3-devel imlib2-devel librsvg2-devel qt-webkit-devel qt5-qtwebkit qt5-qtwebkit-devel openal-soft-devel libjpeg-turbo-devel gtkglext-devel gmp-devel libxml2-devel libXtst-devel gsl-devel pcre-devel dbus-devel libcurl-devel alure-devel gstreamermm-devel libgnome-keyring-devel bzip2-devel libzstd-devel webkit2gtk3-devel ncurses-devel qt6-qtbase-devel qt6-qtwebengine-devel qt6-qtsvg-devel mongo-c-driver-devel
   script:
     - ./reconf-all
     - GAMBAS_CONFIG_FAILURE=1 ./configure -C --disable-pdf
@@ -249,6 +250,6 @@ build:opensuse-tumbleweed:
        zypper update -y && zypper install -y libtool gawk gcc glew-devel gmime-devel gtk2-devel gtk3-devel libqt5-qtx11extras-devel libqt5-qtwebengine-devel libQt5Xml-devel libQt5Sql-devel libqt5-qtsvg-devel libQt5Gui-devel libQt5Core-devel libQt5Sql5-postgresql libQt5Sql5-unixODBC libQt5Sql5-mysql libQt5Sql5-sqlite webkit2gtk3-devel libICE-devel libSM-devel unixODBC-devel libzip-devel libzstd-devel libmariadb-devel gsl-devel libopenssl-devel alure-devel postgresql-devel libcurl-devel libSDL_ttf-devel libSDL_mixer-devel libSDL-devel libSDL2_ttf-devel libSDL2_mixer-devel libSDL2_image-devel libSDL2-devel libxslt-devel libv4l-devel librsvg-devel gtkglext-devel libgnome-keyring-devel libjpeg62-devel libpoppler-devel libpoppler-glib-devel imlib2-devel gmp-devel gstreamermm-devel qt6-webenginewidgets-devel qt6-svg-devel qt6-gui-devel qt6-core-devel qt6-openglwidgets-devel
   script:
     - ./reconf-all
-    - GAMBAS_CONFIG_FAILURE=1 ./configure -C --disable-qt4 --disable-sqlite2 --disable-qt5webkit --disable-pdf
+    - GAMBAS_CONFIG_FAILURE=1 ./configure -C --disable-qt4 --disable-sqlite2 --disable-qt5webkit --disable-pdf --disable-mongodb
     - make -j$(nproc)
     - make install
