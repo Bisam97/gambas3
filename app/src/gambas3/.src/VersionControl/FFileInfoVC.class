@@ -154,7 +154,8 @@ Public Sub tabInfo_Click()
       btnRevert.Hide
       panChange.Show
       btnLocateChange.Hide
-      If gvwHistory.Rows.Count = 0 Then gvwHistory.Fill($sPath, $sPath2)
+      If gvwHistory.Rows.Count = 0 Then UpdateHistory
+      txtFilter.SetFocus
     
   End Select
   
@@ -178,9 +179,16 @@ Public Sub edtHistory_KeyPress()
 
 End
 
+Private Sub UpdateHistory()
+
+  gvwHistory.Fill($sPath, $sPath2, chkShowHistoryChanges.Value,, Trim(txtFilter.Text))
+
+End
+
+
 Public Sub chkShowHistoryChanges_Click()
 
-  gvwHistory.Fill($sPath, $sPath2, chkShowHistoryChanges.Value)
+  UpdateHistory
 
 End
 
@@ -202,5 +210,11 @@ Public Sub Form_Arrange()
 
   lblVersioning.H = tabInfo.TabBarSize
   lblVersioning.Move(Me.W - lblVersioning.W - Desktop.Scale, 0)
+
+End
+
+Public Sub txtFilter_Filter()
+
+  UpdateHistory
 
 End
