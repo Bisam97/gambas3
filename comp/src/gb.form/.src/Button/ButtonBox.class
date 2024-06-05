@@ -287,6 +287,8 @@ Public Sub Background_Arrange()
     Endif
   Endif
   
+  If $hFilter And If Not $hFilterPicture Then UpdateFilterPicture
+  
 End
 
 Public Sub _AddButton(hButton As ToolButton)
@@ -351,7 +353,7 @@ Private Sub UpdateFilterPicture()
   If $hFilterPicture Then
     $hFilter.Picture = $hFilterPicture
   Else
-    $hFilter.Picture = Picture[If($sMenu, "img/small/filter-menu.png", "img/small/filter.png")]
+    $hFilter.Picture = Picture[If($sMenu, "img/filter/filter-menu.png", "img/filter/filter.png")].Stretch(Me.H - Desktop.Scale \ 2)
   Endif
   $hFilter.Mouse = If($sMenu, Mouse.Pointing, Mouse.Default)
 
