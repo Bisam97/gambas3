@@ -1751,14 +1751,14 @@ Private Sub DrawMargin(X As Integer, Y As Integer, Width As Integer, Height As I
     'Paint.FillRect(X, Y, Width, HH, $hTheme["Current"].Color)
     X1 = X + $MW - $iWidthModified
     X2 = X + $MW
-    Paint.MoveTo(X, Y)
-    Paint.LineTo(X1, Y)
+    Paint.LineWidth = H / 12
+    Paint.MoveTo(X, Y + Paint.LineWidth / 2)
+    Paint.LineTo(X1, Y + Paint.LineWidth / 2)
     Paint.LineTo(X2, Y + Height / 2)
-    Paint.LineTo(X1, Y + Height - 1)
-    Paint.LineTo(X, Y + Height - 1)
+    Paint.LineTo(X1, Y + Height - Paint.LineWidth / 2)
+    Paint.LineTo(X, Y + Height - Paint.LineWidth / 2)
     Paint.LineTo(X, Y)
     Paint.Background = $hTheme["Current"].Color
-    Paint.LineWidth = H / 12
     Paint.Stroke
   Endif
   
@@ -1987,7 +1987,7 @@ Public Sub View_KeyPress()
   bCancel = Raise KeyPress
   If bCancel Then Return
 
-  Try sAction = $cShortcut[String.UCase(Shortcut.FromKey())]
+  Try sAction = $cShortcut[String.UCase(Key.Shortcut)]
   If sAction Then
     Select Case sAction
       Case "Copy"
