@@ -26,7 +26,7 @@
 #ifndef __MAIN_H
 #define __MAIN_H
 
-#include <mongoc/mongoc.h>
+#include "mongoc.h"
 
 #include "gambas.h"
 #include "gb_common.h"
