@@ -341,7 +341,11 @@ Private Sub GrepFile(hFile As Object, Optional sPath As String, Optional bUseRep
       hResult.File = If(Project.IsSourcePath(sPath), File.BaseName(sPath), File.Name(sPath))
     Endif
     
-    hResult.Highlight = TextEditor.GetModeFromPath(sPath)
+    If hFile Then 
+      Try hResult.Highlight = hFile.GetEditor().Mode
+    Else If sPath Then
+      hResult.Highlight = TextEditor.GetModeFromPath(sPath)
+    Endif
 
     iPos = InStr(sFind, ":")
     If iPos = 0 Then Continue
