@@ -54,8 +54,8 @@
 
 #include "gbx_local.h"
 
-//#define DEBUG_LANG
-//#define DEBUG_DATE
+#define DEBUG_LANG
+#define DEBUG_DATE
 
 static void add_string(const char *src, int len, bool quote);
 static void add_string_thousand(const char *src, int len, int *before);
@@ -469,7 +469,6 @@ static void fill_local_info(void)
 	char last;
 	uchar last_elt;
 	char *codeset;
-	const char *lang;
 	int len;
 	int last_long_date;
 
@@ -917,11 +916,13 @@ static void fill_local_info(void)
 		stradd_sep(long_time, "ss", ':');
 	}*/
 
-	// Fix the french date separator
+	#if 0
+	// Do not fix the french date separator anymore
 
 	lang = LOCAL_get_lang();
 	if (strcmp(lang, "fr") == 0 || strncmp(lang, "fr_", 3) == 0)
 		LOCAL_local.date_sep[LO_DAY] = LOCAL_local.date_sep[LO_MONTH] = '/';
+	#endif
 
 	/*stradd_sep(general_date, LOCAL_local.long_time, ' ');
 	am_pm = nl_langinfo(AM_STR);
@@ -1009,19 +1010,16 @@ void LOCAL_set_lang(const char *lang)
 	char **l;
 	int rtl;
 	char *var;
+	bool set_lang;
 
 	if (lang && (strlen(lang) > MAX_LANG))
 		THROW_ARG();
 	
 	#ifdef DEBUG_LANG
-	fprintf(stderr, "******** LOCAL_set_lang: %s\n", lang ? lang : "(null)");
+	fprintf(stderr, "******** LOCAL_set_lang: %s / LC_ALL = %s\n", lang ? lang : "(null)", getenv("LC_ALL"));
 	#endif
 
-	if (lang && *lang)
-	{
-		my_setenv("LANG", lang, env_LANG);
-		my_setenv("LC_ALL", lang, env_LC_ALL);
-	}
+	set_lang = lang && *lang;
 	
 	STRING_free(&_lang);
 	lang = LOCAL_get_lang();
@@ -1030,11 +1028,15 @@ void LOCAL_set_lang(const char *lang)
 	fprintf(stderr, "lang = %s\n", lang);
 	#endif
 
-	my_setenv("LANG", lang, env_LANG);
-	my_setenv("LC_ALL", lang, env_LC_ALL);
-
-	if (getenv("LANGUAGE"))
+	if (set_lang)
+	{
+		#ifdef DEBUG_LANG
+		fprintf(stderr, "LOCAL_set_lang: set LC_ALL=%s\n", lang);
+		#endif
+		my_setenv("LC_ALL", lang, env_LC_ALL);
 		my_setenv("LANGUAGE", lang, env_LANGUAGE);
+		my_setenv("LANG", lang, env_LANG);
+	}
 	
 	if (setlocale(LC_ALL, ""))
 	{

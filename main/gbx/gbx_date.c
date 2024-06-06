@@ -312,6 +312,23 @@ void DATE_from_time(time_t time, int usec, VALUE *val)
 		VALUE_default(val, T_DATE);
 }
 
+void DATE_to_time(VALUE *val, time_t *time, int *usec)
+{
+	DATE_SERIAL *date;
+	static struct tm tm;
+	
+	date = DATE_split_local(val, TRUE);
+	
+	tm.tm_year = date->year - 1900;
+	tm.tm_mon = date->month - 1;
+	tm.tm_mday = date->day;
+	tm.tm_hour = date->hour;
+	tm.tm_min = date->min;
+	tm.tm_sec = date->sec;
+	
+	*usec = date->msec * 1000;
+	*time = mktime(&tm);
+}
 
 void DATE_now(VALUE *val)
 {

@@ -1129,6 +1129,7 @@ typedef
 		GB_DATE_SERIAL *(*SplitDate)(GB_DATE *);
 		bool (*MakeDate)(GB_DATE_SERIAL *, GB_DATE *);
 		void (*MakeDateFromTime)(time_t, int, GB_DATE *);
+		void (*GetTimeFromDate)(GB_DATE *, time_t *, int *);
 		bool (*GetTime)(double *, int);
 		bool (*DateFromString)(const char *str, int len, GB_VALUE *val, bool local);
 

@@ -91,6 +91,7 @@ bool DATE_make_local(DATE_SERIAL *date, VALUE *val, bool local);
 #define DATE_make(_date, _value) DATE_make_local(_date, _value, TRUE)
 
 void DATE_from_time(time_t time, int usec, VALUE *val);
+void DATE_to_time(VALUE *val, time_t *time, int *usec);
 void DATE_now(VALUE *val);
 
 int DATE_to_string(char *buffer, VALUE *value);
