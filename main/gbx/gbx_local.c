@@ -1018,6 +1018,13 @@ void LOCAL_set_lang(const char *lang)
 	fprintf(stderr, "******** LOCAL_set_lang: %s / LC_ALL = %s\n", lang ? lang : "(null)", getenv("LC_ALL"));
 	#endif
 
+	if (lang && *lang)
+	{
+		my_setenv("LC_ALL", lang, env_LC_ALL);
+		my_setenv("LANG", lang, env_LANG);
+		my_setenv("LANGUAGE", lang, env_LANGUAGE);
+	}
+	
 	STRING_free(&_lang);
 	lang = LOCAL_get_lang();
 
