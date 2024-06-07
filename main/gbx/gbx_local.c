@@ -54,8 +54,8 @@
 
 #include "gbx_local.h"
 
-#define DEBUG_LANG
-#define DEBUG_DATE
+//#define DEBUG_LANG
+//#define DEBUG_DATE
 
 static void add_string(const char *src, int len, bool quote);
 static void add_string_thousand(const char *src, int len, int *before);
