@@ -422,8 +422,11 @@ Static Public Sub GetModeFromPath(sPath As String) As String
         iPos = InStr(sStart, "\n")
         If iPos Then
           aStart = Split(Left(sStart, iPos - 1), " ")
-          If aStart[0] Ends "/bin/env" Then aStart.Remove(0)
-          sStart = aStart[0]
+          If aStart[0] Ends "/bin/env" And If aStart.Count >= 2 Then 
+            sStart = "/" & aStart[1]
+          Else
+            sStart = aStart[0]
+          Endif
           If sStart Ends "/sh" Or If sStart Ends "/bash" Then
             sMode = "sh"
           Else If sStart Ends "/gbs[3-9]" Then
