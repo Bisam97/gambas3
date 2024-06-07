@@ -54,8 +54,8 @@
 
 #include "gbx_local.h"
 
-//#define DEBUG_LANG
-//#define DEBUG_DATE
+#define DEBUG_LANG
+#define DEBUG_DATE
 
 static void add_string(const char *src, int len, bool quote);
 static void add_string_thousand(const char *src, int len, int *before);
@@ -1010,7 +1010,6 @@ void LOCAL_set_lang(const char *lang)
 	char **l;
 	int rtl;
 	char *var;
-	bool set_lang;
 
 	if (lang && (strlen(lang) > MAX_LANG))
 		THROW_ARG();
@@ -1019,8 +1018,6 @@ void LOCAL_set_lang(const char *lang)
 	fprintf(stderr, "******** LOCAL_set_lang: %s / LC_ALL = %s\n", lang ? lang : "(null)", getenv("LC_ALL"));
 	#endif
 
-	set_lang = lang && *lang;
-	
 	STRING_free(&_lang);
 	lang = LOCAL_get_lang();
 
@@ -1028,16 +1025,6 @@ void LOCAL_set_lang(const char *lang)
 	fprintf(stderr, "lang = %s\n", lang);
 	#endif
 
-	if (set_lang)
-	{
-		#ifdef DEBUG_LANG
-		fprintf(stderr, "LOCAL_set_lang: set LC_ALL=%s\n", lang);
-		#endif
-		my_setenv("LC_ALL", lang, env_LC_ALL);
-		my_setenv("LANGUAGE", lang, env_LANGUAGE);
-		my_setenv("LANG", lang, env_LANG);
-	}
-	
 	if (setlocale(LC_ALL, ""))
 	{
 		_translation_loaded = FALSE;
@@ -1054,6 +1041,10 @@ void LOCAL_set_lang(const char *lang)
 	DATE_init_local();
 	fill_local_info();
 
+	my_setenv("LC_ALL", lang, env_LC_ALL);
+	my_setenv("LANG", lang, env_LANG);
+	my_setenv("LANGUAGE", lang, env_LANGUAGE);
+	
 	/* If language is right to left written */
 
 	rtl = FALSE;
