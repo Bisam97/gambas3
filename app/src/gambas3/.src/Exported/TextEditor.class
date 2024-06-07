@@ -386,32 +386,27 @@ Static Public Sub GetModeFromPath(sPath As String) As String
   Dim hFile As File
   Dim sStart As String
   Dim iPos As Integer
+  Dim aStart As String[]
   
   sExt = File.Ext(sPath)
   
   Select Case sExt
-    Case "css"
-      sMode = "css"
-    Case "webpage"
-      sMode = "webpage"
+    
+    Case "css", "webpage", "c", "html", "sh", "sql", "diff", "highlight"
+      sMode = sExt
+      
     Case "js"
       sMode = "javascript"
-    Case "c"
-      sMode = "c"
+      
     Case "cpp", "h"
       sMode = "cplusplus"
+      
     Case "gbs"
       sMode = "gambas"
-    Case "html", "htm", "xml", "kml", "rss", "svg"
+      
+    Case "htm", "xml", "kml", "rss", "svg"
       sMode = "html"
-    Case "sql"
-      sMode = "sql"
-    Case "sh"
-      sMode = "sh"
-    Case "diff"
-      sMode = "diff"
-    Case "highlight"
-      sMode = "highlight"
+    
     Case "module", "test", "class"
       If Project.IsSourcePath(sPath) Then sMode = "gambas"
       If Project.IsHiddenPath(sPath) Then sMode = "gambas"
@@ -426,10 +421,12 @@ Static Public Sub GetModeFromPath(sPath As String) As String
         sStart = Mid$(sStart, 3)
         iPos = InStr(sStart, "\n")
         If iPos Then
-          sStart = Left(sStart, iPos - 1)
+          aStart = Split(Left(sStart, iPos - 1), " ")
+          If aStart[0] Ends "/bin/env" Then aStart.Remove(0)
+          sStart = aStart[0]
           If sStart Ends "/sh" Or If sStart Ends "/bash" Then
             sMode = "sh"
-          Else If sStart Like "/usr/bin/env gbs[3-9]" Then
+          Else If sStart Ends "/gbs[3-9]" Then
             sMode = "gambas"
           Endif
         Endif
