@@ -130,14 +130,28 @@ static void window_remap(QWidget *window)
 static void window_set_properties(QWidget *window, int which, QT_WINDOW_PROP *prop)
 {
 	static bool warn_stacking = false;
+	static bool warn_skip_taskbar = false;
+	static bool warn_sticky = false;
 
 	Qt::WindowFlags flags = window->windowFlags();
 	bool visible = window->isVisible();
 	
-	if (prop->stacking && !warn_stacking)
+	if ((which & PROP_STACKING) && prop->stacking && !warn_stacking)
 	{
 		fprintf(stderr, QT_NAME ".wayland: warning: stacking windows is not supported.\n");
 		warn_stacking = true;
+	}
+
+	if ((which & PROP_SKIP_TASKBAR) && prop->skipTaskbar && !warn_skip_taskbar)
+	{
+		fprintf(stderr, QT_NAME ".wayland: warning: skipping taskbar is not supported.\n");
+		warn_skip_taskbar = true;
+	}
+
+	if ((which & PROP_STICKY) && prop->sticky && !warn_sticky)
+	{
+		fprintf(stderr, QT_NAME ".wayland: warning: sticky windows are not supported.\n");
+		warn_skip_taskbar = true;
 	}
 
 	if (prop->stacking == 1)
