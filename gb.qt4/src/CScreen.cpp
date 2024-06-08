@@ -72,10 +72,11 @@ GB_ARRAY CAPPLICATION_Restart = NULL;
 static int screen_busy = 0;
 static CSCREEN *_screens[MAX_SCREEN] = { NULL };
 
-static bool _animations = FALSE;
-static bool _shadows = FALSE;
-static bool _middle_click_paste = TRUE;
-static bool _dark_theme = FALSE;
+static bool _animations = false;
+static bool _shadows = false;
+static bool _middle_click_paste = true;
+static bool _dark_theme = false;
+static bool _dark_theme_set = false;
 static int _change = CHANGE_NONE;
 
 void APPLICATION_update_dark_theme(void)
@@ -83,16 +84,18 @@ void APPLICATION_update_dark_theme(void)
 	uint bg;
 	char *env;
 
-	_dark_theme = FALSE;
-	bg = QApplication::palette().color(QPalette::Window).rgb() & 0xFFFFFF;
-	if (IMAGE.GetLuminance(bg) >= 128)
+	if (_dark_theme_set)
+		return;
+	
+	env = getenv("GB_GUI_DARK_THEME");
+	if (env && *env)
 	{
-		env = getenv("GB_GUI_DARK_THEME");
-		if (env && atoi(env))
-			_dark_theme = TRUE;
+		_dark_theme = atoi(env);
+		return;
 	}
-	else
-		_dark_theme = TRUE;
+	
+	bg = QApplication::palette().color(QPalette::Window).rgb() & 0xFFFFFF;
+	_dark_theme = IMAGE.GetLuminance(bg) < 128;
 }
 
 static CSCREEN *get_screen(int num)
@@ -403,7 +406,13 @@ END_PROPERTY
 
 BEGIN_PROPERTY(Application_DarkTheme)
 
-	GB.ReturnBoolean(_dark_theme);
+	if (READ_PROPERTY)
+		GB.ReturnBoolean(_dark_theme);
+	else
+	{
+		_dark_theme = VPROP(GB_BOOLEAN);
+		_dark_theme_set = true;
+	}
 
 END_PROPERTY
 
@@ -619,7 +628,7 @@ GB_DESC ApplicationDesc[] =
 	GB_STATIC_PROPERTY("Shadows", "b", Application_Shadows),
 	GB_STATIC_PROPERTY("Embedder", "i", Application_Embedder),
 	GB_STATIC_PROPERTY("Theme", "s", Application_Theme),
-	GB_STATIC_PROPERTY_READ("DarkTheme", "b", Application_DarkTheme),
+	GB_STATIC_PROPERTY("DarkTheme", "b", Application_DarkTheme),
 	GB_STATIC_PROPERTY("Restart", "String[]", Application_Restart),
 	GB_STATIC_PROPERTY_READ("DblClickTime", "i", Application_DblClickTime),
 	GB_STATIC_PROPERTY_READ("Change", "s", Application_Change),

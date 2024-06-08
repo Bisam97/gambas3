@@ -352,7 +352,10 @@ END_PROPERTY
 
 BEGIN_PROPERTY(Application_DarkTheme)
 
-	GB.ReturnBoolean(gApplication::isDarkTheme());
+	if (READ_PROPERTY)
+		GB.ReturnBoolean(gApplication::isDarkTheme());
+	else
+		gApplication::setDarkTheme(VPROP(GB_BOOLEAN));
 
 END_PROPERTY
 
@@ -560,7 +563,7 @@ GB_DESC ApplicationDesc[] =
 	GB_STATIC_PROPERTY("MiddleClickPaste", "b", Application_MiddleClickPaste),
 	GB_STATIC_PROPERTY("Embedder", "i", Application_Embedder),
 	GB_STATIC_PROPERTY("Theme", "s", Application_Theme),
-	GB_STATIC_PROPERTY_READ("DarkTheme", "s", Application_DarkTheme),
+	GB_STATIC_PROPERTY("DarkTheme", "s", Application_DarkTheme),
 	GB_STATIC_PROPERTY("Restart", "String[]", Application_Restart),
 	GB_STATIC_PROPERTY_READ("DblClickTime", "i", Application_DblClickTime),
 	GB_STATIC_PROPERTY_READ("Change", "s", Application_Change),

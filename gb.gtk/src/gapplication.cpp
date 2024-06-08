@@ -916,6 +916,7 @@ bool gApplication::_busy = false;
 char *gApplication::_title = NULL;
 char *gApplication::_theme = NULL;
 bool gApplication::_dark_theme = false;
+bool gApplication::_dark_theme_set = false;
 int gApplication::_in_popup = 0;
 GtkWidget *gApplication::_popup_grab = NULL;
 int gApplication::_loopLevel = 0;
@@ -1858,15 +1859,23 @@ void gApplication::updateDarkTheme()
 	uint bg;
 	char *env;
 
-	_dark_theme = false;
+	if (_dark_theme_set)
+		return;
+	
+	env = getenv("GB_GUI_DARK_THEME");
+	if (env && *env)
+	{
+		_dark_theme = atoi(env);
+		return;
+	}
+	
 
 	bg = gDesktop::getColor(COLOR_BACKGROUND);
-	if (IMAGE.GetLuminance(bg) >= 128)
-	{
-		env = getenv("GB_GUI_DARK_THEME");
-		if (env && atoi(env))
-			_dark_theme = true;
-	}
-	else
-		_dark_theme = true;
+	_dark_theme = IMAGE.GetLuminance(bg) < 128;
+}
+
+void gApplication::setDarkTheme(bool v)
+{
+	_dark_theme = v;
+	_dark_theme_set = true;
 }

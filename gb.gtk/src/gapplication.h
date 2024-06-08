@@ -111,6 +111,7 @@ public:
 
 	static void updateDarkTheme();
 	static bool isDarkTheme() { return _dark_theme; }
+	static void setDarkTheme(bool v);
 #if 0
 	static void pushInputEvent(GdkEvent *);
 #endif
@@ -153,6 +154,7 @@ public:
 	static bool _disable_input_events;
 	static GQueue *_input_events;
 	static bool _dark_theme;
+	static bool _dark_theme_set;
 };
 
 #endif
