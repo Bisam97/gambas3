@@ -937,7 +937,7 @@ static void QT_Init(void)
 		{
 			CSTYLE_fix_breeze = TRUE;
 			qApp->setStyle(new FixBreezeStyle);
-		fix_style = true;
+			fix_style = true;
 		}
 	}
 	else if (::strcmp(qApp->style()->metaObject()->className(), "Oxygen::Style") == 0)
