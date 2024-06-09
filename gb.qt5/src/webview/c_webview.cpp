@@ -307,6 +307,8 @@ END_METHOD
 
 BEGIN_METHOD(WebView_new, GB_OBJECT parent)
 
+	static bool force_init = false;
+
 	/*int fd_save = -1;
 	
 	if (!_ignore_png_warnings)
@@ -345,6 +347,13 @@ BEGIN_METHOD(WebView_new, GB_OBJECT parent)
 	//QObject::connect(wid, SIGNAL(destroyed()), &WebViewSignalManager::manager, SLOT(destroy()));
 
 	wid->clearPage(false);
+	
+	if (!force_init)
+	{
+		wid->setHtml("");
+		force_init = true;
+	}
+	
 	update_language(THIS);
 
 	//QObject::connect(wid, SIGNAL(linkClicked(const QUrl &)), &CWebView::manager, SLOT(linkClicked(const QUrl &)));
