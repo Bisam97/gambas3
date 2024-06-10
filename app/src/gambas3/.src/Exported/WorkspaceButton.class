@@ -99,15 +99,19 @@ End
 Public Sub DrawingArea_Draw()
 
   Dim D As Integer
-  Dim iBg As Integer
   Dim X As Integer
   Dim Y As Integer
   
   D = Desktop.Scale \ 4
+
   Paint.Rectangle(D, D, Paint.W - D * 2, Paint.H - D * 2, Max(Paint.W, Paint.H) - D * 2)
-  iBg = If(Application.DarkTheme, &HA0A0A0, &H606060)
-  'If $bInside Then iBg = Color.Merge(iBg, Color.TextBackground, 0.1)
-  Paint.Background = iBg
+  Paint.Background = Color.Background
+  Paint.Fill
+
+  Inc D
+
+  Paint.Rectangle(D, D, Paint.W - D * 2, Paint.H - D * 2, Max(Paint.W, Paint.H) - D * 2)
+  Paint.Background = If(Application.DarkTheme, &HA0A0A0, &H606060)
   Paint.Fill
 
   If $hPicture Then
