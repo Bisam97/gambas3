@@ -156,12 +156,12 @@ Public Sub ButtonBox_Click()
     $hPopup.Resize(Desktop.Scale * 32 + 2, ((Desktop.Scale * 32) \ 12) * 12 + 2)
   Endif
 
-  iPad = If($hButtonBox.Border, 3, 0)
-  X = $hButtonBox.ScreenX + $hButtonBox.W - $hPopup.W - iPad
+  iPad = If($hButtonBox.Border, Style.FrameWidth, 0)
+  X = $hButtonBox.ScreenX + $hButtonBox.W - $hPopup.W
   Y = $hButtonBox.ScreenY + $hButtonBox.H - iPad
   
   If (Y + $hPopup.H) > Desktop.H Then
-    Y = $hButtonBox.ScreenY - $hPopup.H
+    Y = $hButtonBox.ScreenY - $hPopup.H + iPad
   Endif
   
   dDate = Me.Value
