@@ -1,0 +1,137 @@
+' Gambas class file
+
+Export
+
+Inherits UserControl
+
+Public Const _Properties As String = "*,Picture"
+Public Const _DefaultSize As String = "6,4"
+Public Const _Similar As String = "Button"
+Public Const _DefaultEvent As String = "Click"
+Public Const _DrawWith As String = "ToolButton"
+
+Event Click
+
+Property Picture As Picture
+
+Private $hView As DrawingArea
+Private $hPicture As Picture
+Private $bInside As Boolean
+Private $bPressed As Boolean
+Private $hWatcher As Watcher
+Private $hImage As Image
+
+Public Sub _new()
+  
+  $hView = New DrawingArea(Me) As "DrawingArea"
+  $hView.Focus = True
+  $hView.Mouse = Cursor.Pointing
+  $hWatcher = New Watcher(Me) As "DrawingArea"
+    
+  Me.Proxy = $hView
+  
+End
+
+Private Function Picture_Read() As Picture
+
+  Return $hPicture
+
+End
+
+Private Sub Picture_Write(Value As Picture)
+
+  $hPicture = Value
+  If $hPicture Then
+    $hImage = $hPicture.Image.Brightness(1)
+    $hImage.Colorize(If(Application.DarkTheme, Color.Black, Color.White))
+  Else 
+    $hImage = Null
+  Endif
+  $hView.Refresh
+
+End
+
+Public Sub DrawingArea_Enter()
+  
+  $bInside = True
+  $hView.Refresh
+  
+End
+
+Public Sub DrawingArea_Leave()
+  
+  $bInside = False
+  $hView.Refresh
+  
+End
+
+Public Sub DrawingArea_MouseDown()
+  
+  If Not Me.Enabled Or If Me.Design Then Return
+  If Mouse.Left Then $bPressed = True
+  
+End
+
+Public Sub DrawingArea_MouseUp()
+  
+  If Not Me.Enabled Or If Me.Design Then Return
+  If Mouse.Left Then 
+    If $bInside Then Raise Click
+    $bPressed = False
+  Endif
+  
+End
+
+Public Sub DrawingArea_MouseMove()
+  
+  Dim bPressed As Boolean
+  
+  If Not Me.Enabled Or If Me.Design Then Return
+  bPressed = Mouse.Inside($hView)
+  
+  If $bPressed <> bPressed Then
+    $bPressed = bPressed
+    $hView.Refresh
+  Endif
+  
+End
+
+Public Sub DrawingArea_Draw()
+
+  Dim D As Integer
+  Dim iBg As Integer
+  Dim X As Integer
+  Dim Y As Integer
+  
+  D = Desktop.Scale \ 4
+  Paint.Rectangle(D, D, Paint.W - D * 2, Paint.H - D * 2, Max(Paint.W, Paint.H) - D * 2)
+  iBg = If(Application.DarkTheme, &HA0A0A0, &H606060)
+  'If $bInside Then iBg = Color.Merge(iBg, Color.TextBackground, 0.1)
+  Paint.Background = iBg
+  Paint.Fill
+
+  If $hPicture Then
+    X = (Me.W - $hPicture.W) \ 2
+    Y = (Me.H - $hPicture.H) \ 2
+    Paint.DrawImage($hImage, X, Y,,, If($bInside, 1, 0.6))
+  Endif
+  
+End
+
+Public Sub DrawingArea_Move()
+
+  Dim bInside As Boolean
+  
+  bInside = Mouse.Inside($hView)
+  If bInside <> $bInside Then
+    $bInside = bInside
+    $hView.Refresh
+  Endif
+  
+End
+
+Public Sub DrawingArea_Resize()
+  
+  DrawingArea_Move
+  
+End

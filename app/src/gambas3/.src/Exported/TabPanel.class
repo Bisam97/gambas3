@@ -2,19 +2,19 @@
 
 Export
 
-Private $aButtonLeft As ToolButton[]
-Private $aButtonRight As ToolButton[]
+Private $aButtonLeft As Control[]
+Private $aButtonRight As Control[]
 Private $hObs As Observer
 Private $bUpdateButtons As Boolean
 
-Public Sub AddButton(hButton As ToolButton, iAlign As Integer)
+Public Sub AddButton(hButton As Control, iAlign As Integer)
 
-  Dim aButton As ToolButton[]
+  Dim aButton As Control[]
   
   aButton = If((iAlign = Align.Right) Xor System.RightToLeft, $aButtonRight, $aButtonLeft)
   
   If Not aButton Then 
-    aButton = New ToolButton[]
+    aButton = New Control[]
     If iAlign = Align.Right Then
       $aButtonRight = aButton
     Else
@@ -32,7 +32,7 @@ Public Sub AddButton(hButton As ToolButton, iAlign As Integer)
   
 End
 
-Public Sub ShowButton(hButton As ToolButton, bVisible As Boolean)
+Public Sub ShowButton(hButton As Control, bVisible As Boolean)
   
   If hButton.Visible = bVisible Then Return
   hButton.Visible = bVisible
@@ -43,7 +43,7 @@ End
 Private Sub UpdateButtons()
   
   Dim I As Integer
-  Dim hButton As ToolButton
+  Dim hButton As Control
   Dim X As Integer
   Dim H As Integer
   Dim Y As Integer
