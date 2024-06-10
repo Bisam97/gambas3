@@ -1301,6 +1301,8 @@ Public Sub ReadConfig()
   
   FDebugger.ReadConfig
   
+  Try GetWorkspace().ReadConfig()
+  
 End
 
 ' PUBLIC SUB mnuViewDebug_Click()
@@ -1577,15 +1579,7 @@ End
 
 Public Sub OnProjectClose()
   
-  Select Case $iCurrentWorkspace
-    Case WORKSPACE_VERSION
-      FProjectVersion.OnProjectClose
-    Case WORKSPACE_TRANSLATION
-      FProjectTranslation.OnProjectClose
-    Case WORKSPACE_TERMINAL
-      FProjectTerminal.OnProjectClose
-  End Select
-  
+  Try GetWorkspace().OnProjectClose()
   CloseCurrentWorkspace
   
 End
@@ -3419,16 +3413,7 @@ Private Sub UpdateWorkspaceButtons()
     
   End With
   
-  Select Case $iCurrentWorkspace
-    Case WORKSPACE_BROWSER
-      FProjectBrowser.UpdateWorkspaceButtons(panProject.Hidden)
-    Case WORKSPACE_TERMINAL
-      FProjectTerminal.UpdateWorkspaceButtons(panProject.Hidden)
-    Case WORKSPACE_VERSION
-      FProjectVersion.UpdateWorkspaceButtons(panProject.Hidden)
-    Case WORKSPACE_TRANSLATION
-      FProjectTranslation.UpdateWorkspaceButtons(panProject.Hidden)
-  End Select
+  If $iCurrentWorkspace <> WORKSPACE_PROJECT Then GetWorkspace().UpdateWorkspaceButtons(panProject.Hidden)
   
 End
 
@@ -3548,7 +3533,11 @@ End
 
 Public Sub btnCloseTree_Click()
   
-  txtSearchProject_Click
+  If panBranchList.Visible Then
+    ToggleBranchList
+  Else
+    txtSearchProject_Click
+  Endif
   
 End
 
@@ -3630,6 +3619,21 @@ Public Sub mnuDebugBrowser_Click()
   
 End
 
+Public Sub GetWorkspace() As Object
+  
+  Select Case $iCurrentWorkspace
+    Case WORKSPACE_BROWSER
+      Return FProjectBrowser
+    Case WORKSPACE_TERMINAL
+      Return FProjectTerminal
+    Case WORKSPACE_TRANSLATION
+      Return FProjectTranslation
+    Case WORKSPACE_VERSION
+      Return FProjectVersion
+  End Select
+  
+End
+
 Public Sub ShowWorkspace(iWorkspace As Integer)
 
   CloseCurrentWorkspace()
@@ -3656,6 +3660,7 @@ Public Sub ShowWorkspace(iWorkspace As Integer)
   
   wrkProject.Hide
   $iCurrentWorkspace = iWorkspace
+  GetWorkspace().ReadConfig()
   UpdateProperty
   UpdateWorkspaceButtons
   Project.UpdateStatus(True)
@@ -3695,16 +3700,7 @@ Public Sub CloseCurrentWorkspace()
   If $iCurrentWorkspace = WORKSPACE_PROJECT Then Return
   
   wrkProject.Show
-  Select Case $iCurrentWorkspace
-    Case WORKSPACE_BROWSER
-      FProjectBrowser.Hide
-    Case WORKSPACE_TERMINAL
-      FProjectTerminal.Hide
-    Case WORKSPACE_VERSION
-      FProjectVersion.Hide
-    Case WORKSPACE_TRANSLATION
-      FProjectTranslation.Hide
-  End Select
+  GetWorkspace().Hide()
   $iCurrentWorkspace = WORKSPACE_PROJECT
   UpdateProperty
   UpdateWorkspaceButtons
@@ -3714,16 +3710,15 @@ Public Sub CloseCurrentWorkspace()
 End
 
 Public Sub PaintStatus()
-  
-  Select Case $iCurrentWorkspace
-    Case WORKSPACE_BROWSER
-      FProjectBrowser.PaintStatus()
-    Case WORKSPACE_VERSION
-    Case WORKSPACE_TRANSLATION
-      FProjectTranslation.PaintStatus()
-    Case Else
-      Try Project.ActiveForm.PaintStatus()
-  End Select
+
+  Dim hWorkspace As Object
+
+  hWorkspace = GetWorkspace()
+  If hWorkspace Then
+    Try hWorkspace.PaintStatus()
+  Else
+    Try Project.ActiveForm.PaintStatus()
+  Endif
   
 End
 

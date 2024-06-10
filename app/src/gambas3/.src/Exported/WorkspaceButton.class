@@ -30,6 +30,8 @@ Public Sub _new()
     
   Me.Proxy = $hView
   
+  Picture_Write(Picture["img/workspace/previous.png"])
+  
 End
 
 Private Function Picture_Read() As Picture
@@ -42,7 +44,7 @@ Private Sub Picture_Write(Value As Picture)
 
   $hPicture = Value
   If $hPicture Then
-    $hImage = $hPicture.Image.Brightness(1)
+    $hImage = $hPicture.Image.Brightness(1).Stretch(Stock.GetSize("small"), Stock.GetSize("small"))
     $hImage.Colorize(If(Application.DarkTheme, Color.Black, Color.White))
   Else 
     $hImage = Null
@@ -114,9 +116,9 @@ Public Sub DrawingArea_Draw()
   Paint.Background = If(Application.DarkTheme, &HA0A0A0, &H606060)
   Paint.Fill
 
-  If $hPicture Then
-    X = (Me.W - $hPicture.W) \ 2
-    Y = (Me.H - $hPicture.H) \ 2
+  If $hImage Then
+    X = (Me.W - $hImage.W) \ 2
+    Y = (Me.H - $hImage.H) \ 2
     Paint.DrawImage($hImage, X, Y,,, If($bInside, 1, 0.6))
   Endif
   
