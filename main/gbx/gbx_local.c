@@ -1010,6 +1010,7 @@ void LOCAL_set_lang(const char *lang)
 	char **l;
 	int rtl;
 	char *var;
+	bool set_lang = FALSE;
 
 	if (lang && (strlen(lang) > MAX_LANG))
 		THROW_ARG();
@@ -1023,6 +1024,7 @@ void LOCAL_set_lang(const char *lang)
 		my_setenv("LC_ALL", lang, env_LC_ALL);
 		my_setenv("LANG", lang, env_LANG);
 		my_setenv("LANGUAGE", lang, env_LANGUAGE);
+		set_lang = TRUE;
 	}
 	
 	STRING_free(&_lang);
@@ -1048,7 +1050,7 @@ void LOCAL_set_lang(const char *lang)
 	DATE_init_local();
 	fill_local_info();
 
-	my_setenv("LC_ALL", lang, env_LC_ALL);
+	if (set_lang) my_setenv("LC_ALL", lang, env_LC_ALL);
 	my_setenv("LANG", lang, env_LANG);
 	my_setenv("LANGUAGE", lang, env_LANGUAGE);
 	
