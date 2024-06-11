@@ -47,7 +47,9 @@ BEGIN_METHOD(MongoClient_new, GB_STRING url)
 
 	mongoc_client_set_appname(THIS->client, GB.Application.Name());
 	
-	THIS->database = mongoc_client_get_database(THIS->client, "admin");
+	THIS->database = mongoc_client_get_default_database(THIS->client);
+	if (!THIS->database)
+		THIS->database = mongoc_client_get_database(THIS->client, "admin");
 
 END_METHOD
 
@@ -79,10 +81,10 @@ BEGIN_METHOD(MongoClient_Exec, GB_OBJECT command)
 	bson_error_t error;
 	bool ret;
 	
-	if (GB.CheckObject(command))
+	bson_command = HELPER_to_bson(command, FALSE);
+	if (!bson_command)
 		return;
 	
-	bson_command = HELPER_to_bson(command);
 	ret = mongoc_client_command_simple(THIS->client, mongoc_database_get_name(THIS->database), bson_command, NULL, &reply, &error);
 	bson_destroy(bson_command);
 	

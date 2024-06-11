@@ -29,10 +29,13 @@
 #include "main.h"
 #include "c_mongoclient.h"
 #include "c_mongocollection.h"
+#include "c_mongoresult.h"
 
-bson_t *HELPER_to_bson(GB_COLLECTION col);
-GB_COLLECTION HELPER_from_bson(bson_t *bson);
+bson_t *HELPER_to_bson(GB_COLLECTION col, bool null_is_void);
+bson_t *HELPER_to_bson_with_id(GB_COLLECTION col, char *id, int len);
+GB_COLLECTION HELPER_from_bson(const bson_t *bson);
 
 CMONGOCOLLECTION *HELPER_create_collection(CMONGOCLIENT *client, const char *name);
+CMONGORESULT *HELPER_create_result(CMONGOCLIENT *client, mongoc_cursor_t *cursor);
 
 #endif /* __MAIN_H */

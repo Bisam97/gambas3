@@ -1,6 +1,6 @@
 /***************************************************************************
 
-  main.c
+  c_mongoresult.h
 
   gb.mongodb component
 
@@ -23,32 +23,28 @@
 
 ***************************************************************************/
 
-#define __MAIN_C
+#ifndef __C_MONGORESULT_H
+#define __C_MONGORESULT_H
 
-#include "c_mongoresult.h"
-#include "c_mongocollection.h"
-#include "c_mongoclient.h"
 #include "main.h"
+#include "c_mongoclient.h"
 
-GB_INTERFACE GB EXPORT;
+#ifndef __C_MONGORESULT_C
 
-GB_DESC *GB_CLASSES[] EXPORT =
-{
-	MongoResultDesc,
-	MongoCollectionDesc,
-	MongoClientDesc,
-	NULL
-};
+extern GB_DESC MongoResultDesc[];
 
-// TODO: mongoc_client_reset() on fork.
+#else
 
-int EXPORT GB_INIT()
-{
-	mongoc_init();
-	return 0;
-}
+#define THIS ((CMONGORESULT *)_object)
 
-void EXPORT GB_EXIT()
-{
-	mongoc_cleanup();
-}
+#endif
+
+typedef
+	struct {
+		GB_BASE ob;
+		CMONGOCLIENT *client;
+		mongoc_cursor_t *cursor;
+	}
+	CMONGORESULT;
+
+#endif /* __MAIN_H */

@@ -4,12 +4,28 @@ Public Sub Main()
 
   Dim hClient As MongoClient
   Dim cResult As Collection
+  Dim hResult As MongoResult
+  Dim cDoc As Collection
+  Dim hTable As MongoCollection
+  Dim N As Integer
+  Dim vVal As Variant
 
   hClient = New MongoClient("mongodb://10.254.16.28")
 
-  Print hClient.Databases.Join()
+  'Print hClient.Databases.Join()
   
-  hClient.Database = "omogen-test-mongo"
-  Print hClient["ordre de travail"].Name
+  hClient.Database = "omogen_test_mongo"
+
+  Print hClient.Collections.Join()
+
+  'hClient["test"].Insert(["_id": "ACT.A", "classe": "activité"])
+  'hClient["test"].Insert(["_id": "ACT.B", "classe": "activité"])
+
+  hTable = hClient["test"]
+  
+  hTable["ACT.Z"] = ["_id": "ACT.Z", "classe": "activité", "nom": "Activité Zarbi"]
+  
+  Print hTable.Count
+  Print hTable.Find().Join()
 
 End

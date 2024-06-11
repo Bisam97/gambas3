@@ -8,6 +8,7 @@ gb_mongodb_la_CPPFLAGS = @MONGODB_INC@
 gb_mongodb_la_SOURCES = \
 	main.c main.h \
 	helper.c helper.h \
+	c_mongoresult.h c_mongoresult.c \
 	c_mongocollection.c c_mongocollection.h \
 	c_mongoclient.c c_mongoclient.h
 

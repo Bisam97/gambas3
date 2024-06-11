@@ -27,7 +27,10 @@
 
 #include "helper.h"
 
-bson_t *HELPER_to_bson(void *col)
+static const char *_force_id = NULL;
+static int _force_len = 0;
+
+bson_t *HELPER_to_bson(void *col, bool null_is_void)
 {
 	bool is_collection;
 	bson_t *bson;
@@ -37,7 +40,18 @@ bson_t *HELPER_to_bson(void *col)
 	int len;
 	char buffer[16];
 	int i, count = 0;
+	bool ok = FALSE;
 
+	if (null_is_void && !col)
+	{
+		return bson_new();
+	}
+	else
+	{
+		if (GB.CheckObject(col))
+			return NULL;
+	}
+	
 	is_collection = GB.Is(col, GB.FindClass("Collection"));
 	if (!is_collection && !GB.Is(col, GB.FindClass("Array")))
 		return NULL;
@@ -60,13 +74,19 @@ bson_t *HELPER_to_bson(void *col)
 		{
 			if (GB.Collection.Enum(col, &iter, (GB_VARIANT *)&value, &key, &len))
 				break;
+			if (_force_id && _force_len > 0 && len == 3 && strncmp(key, "_id", 3) == 0)
+			{
+				ok = bson_append_utf8(bson, key, len, _force_id, _force_len);
+				goto CHECK_ERROR;
+			}
 		}
 		else
 		{
 			if (i >= count)
 				break;
-			len = sprintf(buffer, "%d", i);
-			key = buffer;
+			len = bson_uint32_to_string((uint)i, (const char **)&key, buffer, 15);
+			value.type = GB.Array.Type(col);
+			GB.ReadValue(&value, GB.Array.Get(col, i), value.type);			
 			i++;
 		}
 	
@@ -76,32 +96,42 @@ bson_t *HELPER_to_bson(void *col)
 		switch(value.type)
 		{
 			case GB_T_BOOLEAN:
-				bson_append_bool(bson, key, len, value._boolean.value);
+				ok = bson_append_bool(bson, key, len, value._boolean.value);
 				break;
 				
 			case GB_T_BYTE:
 			case GB_T_SHORT:
 			case GB_T_INTEGER:
-				bson_append_int32(bson, key, len, value._integer.value);
+				ok = bson_append_int32(bson, key, len, value._integer.value);
 				break;
 				
 			case GB_T_LONG:
 			case GB_T_POINTER:
-				bson_append_int64(bson, key, len, value._long.value);
+				ok = bson_append_int64(bson, key, len, value._long.value);
 				break;
 				
 			case GB_T_SINGLE:
-				bson_append_double(bson, key, len, (double)value._single.value);
+				ok = bson_append_double(bson, key, len, (double)value._single.value);
 				break;
 				
 			case GB_T_FLOAT:
-				bson_append_double(bson, key, len, value._float.value);
+				ok = bson_append_double(bson, key, len, value._float.value);
 				break;
 				
 			case GB_T_CSTRING:
 			case GB_T_STRING:
-				bson_append_utf8(bson, key, len, value._string.value.addr + value._string.value.start, value._string.value.len);
+				ok = bson_append_utf8(bson, key, len, value._string.value.addr + value._string.value.start, value._string.value.len);
 				break;
+				
+			case GB_T_DATE:
+			{
+				time_t time;
+				int usec;
+				
+				GB.GetTimeFromDate(&value._date, &time, &usec);
+				ok = bson_append_date_time(bson, key, len, (int64_t)time * 1000 + usec / 1000);
+				break;
+			}
 			
 			default:
 				
@@ -110,20 +140,20 @@ bson_t *HELPER_to_bson(void *col)
 					void *ob = value._object.value;
 					if (GB.Is(ob, GB.FindClass("Collection")))
 					{
-						bson_t *doc = HELPER_to_bson(ob);
+						bson_t *doc = HELPER_to_bson(ob, FALSE);
 						if (!doc)
 							return NULL;
 						
-						bson_append_document(bson, key, len, doc);
+						ok = bson_append_document(bson, key, len, doc);
 						break;
 					}
 					else if (GB.Is(ob, GB.FindClass("Array")))
 					{
-						bson_t *doc = HELPER_to_bson(ob);
+						bson_t *doc = HELPER_to_bson(ob, FALSE);
 						if (!doc)
 							return NULL;
 						
-						bson_append_array(bson, key, len, doc);
+						ok = bson_append_array(bson, key, len, doc);
 						break;
 					}
 				}
@@ -131,9 +161,27 @@ bson_t *HELPER_to_bson(void *col)
 				GB.Error("Unsupported datatype");
 				return NULL;
 		}
-	}
 
+	CHECK_ERROR:
+	
+		if (!ok)
+		{
+			GB.Error("Too big object");
+			return NULL;
+		}
+	}
+	
   return bson;
+}
+
+bson_t *HELPER_to_bson_with_id(GB_COLLECTION col, char *id, int len)
+{
+	_force_id = id;
+	_force_len = len;
+	bson_t *result = HELPER_to_bson(col, TRUE);
+	_force_id = NULL;
+	
+	return result;
 }
 
 /*
@@ -158,6 +206,7 @@ static GB_COLLECTION from_bson(bson_iter_t *iter, bool collection)
 	void *result;
 	GB_VALUE val;
 	bson_type_t type;
+	char oid_buffer[25];
 
 	if (collection)
 		GB.Collection.New(&result, FALSE);
@@ -167,9 +216,11 @@ static GB_COLLECTION from_bson(bson_iter_t *iter, bool collection)
 	while (bson_iter_next(iter))
 	{
 		type = bson_iter_type(iter);
+		
 		switch (type)
 		{
 			case BSON_TYPE_DOUBLE:
+				
 				val.type = GB_T_FLOAT;
 				val._float.value = bson_iter_double(iter);
 				break;
@@ -186,23 +237,32 @@ static GB_COLLECTION from_bson(bson_iter_t *iter, bool collection)
 			}
 			
 			case BSON_TYPE_BOOL:
+				
 				val.type = GB_T_BOOLEAN;
 				val._boolean.value = bson_iter_bool(iter);
 				break;
 				
-			case BSON_TYPE_NULL:
-				continue;
-				
 			case BSON_TYPE_INT32:
+				
 				val.type = GB_T_INTEGER;
 				val._integer.value = bson_iter_int32(iter);
 				break;
 				
 			case BSON_TYPE_INT64:
+				
 				val.type = GB_T_LONG;
 				val._integer.value = bson_iter_int64(iter);
 				break;
 				
+			case BSON_TYPE_DATE_TIME:
+			{
+				int64_t time = bson_iter_date_time(iter);
+				
+				val.type = GB_T_DATE;
+				GB.MakeDateFromTime((time_t)(time / 1000), (time % 1000) * 1000, &val._date);
+				break;
+			}
+			
 			case BSON_TYPE_DOCUMENT:
 			{
 				bson_iter_t child;
@@ -224,6 +284,21 @@ static GB_COLLECTION from_bson(bson_iter_t *iter, bool collection)
 				val._object.value = from_bson(&child, FALSE);
 				break;
 			}
+			
+			case BSON_TYPE_OID:
+
+				bson_oid_to_string(bson_iter_oid(iter), oid_buffer);
+				
+				val.type = GB_T_CSTRING;
+				val._string.value.addr = oid_buffer;
+				val._string.value.start = 0;
+				val._string.value.len = 24;
+				
+				break;
+			
+			case BSON_TYPE_NULL:
+				
+				continue;
 				
 			default:
 				fprintf(stderr, "gb.mongodb: warning: unsupported datatype ignored: 0x%02X\n", type);
@@ -244,7 +319,7 @@ static GB_COLLECTION from_bson(bson_iter_t *iter, bool collection)
 }
 
 
-GB_COLLECTION HELPER_from_bson(bson_t *bson)
+GB_COLLECTION HELPER_from_bson(const bson_t *bson)
 {
 	bson_iter_t iter;
 	
@@ -263,6 +338,18 @@ CMONGOCOLLECTION *HELPER_create_collection(CMONGOCLIENT *client, const char *nam
 	GB.Ref(client);
 	
 	ob->collection = mongoc_database_get_collection(client->database, name);
+	
+	return ob;
+}
+
+CMONGORESULT *HELPER_create_result(CMONGOCLIENT *client, mongoc_cursor_t *cursor)
+{
+	CMONGORESULT *ob = GB.New(GB.FindClass("MongoResult"), NULL, NULL);
+	
+	ob->client = client;
+	GB.Ref(client);
+	
+	ob->cursor = cursor;
 	
 	return ob;
 }
