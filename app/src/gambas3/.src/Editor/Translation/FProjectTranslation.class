@@ -1284,16 +1284,60 @@ Public Sub btnPreviousUntranslated_Click()
 
 End
 
+Private Sub CompareMessageFiles(sPath As String, sPath2 As String) As Boolean
+
+  Dim aLine As String[]
+  Dim aLine2 As String[]
+  Dim sLine As String
+  Dim I As Integer
+  Dim I2 As Integer
+  
+  aLine = Split(File.Load(sPath), "\n")
+  aLine2 = Split(File.Load(sPath2), "\n")
+  
+  I = aLine.Find("") + 1
+  I2 = aLine2.Find("") + 1
+  
+  Do
+  
+    While I < aLine.Count
+      sLine = Trim(aLine[I])
+      If sLine And If sLine Not Begins "#" Then Break
+      Inc I
+    Wend
+    
+    While I2 < aLine2.Count
+      sLine = Trim(aLine[I2])
+      If sLine And If sLine Not Begins "#" Then Break
+      Inc I2
+    Wend
+    
+    If I >= aLine.Count And If I2 >= aLine2.Count Then Return
+    If aLine[I] <> aLine2[I2] Then Return True
+    
+    Inc I
+    Inc I2
+    
+  Loop
+  
+End
+
+
 Private Sub MergeMessage(sPath As String, sOption As String)
 
   Dim sTemp As String
+  Dim sPathNew As String
 
   sTemp = Temp$
+  sPathNew = sPath & ".new"
 
-  Shell "msgmerge --no-wrap -F -o " & Shell$(sPath & ".new") & " " & sOption & " > " & Shell$(sTemp) & " 2>&1" Wait
-  If Exist(sPath & ".new") Then
-    Kill sPath
-    Move sPath & ".new" To sPath
+  Shell "msgmerge --no-wrap -F -o " & Shell$(sPathNew) & " " & sOption & " > " & Shell$(sTemp) & " 2>&1" Wait
+  If Exist(sPathNew) Then
+    If CompareMessageFiles(sPath, sPathNew) Then
+      Move sPathNew Kill sPath
+    Else
+      Kill sPathNew
+    Endif
     $sErrMerge = ""
     Try Kill sTemp
   Else
