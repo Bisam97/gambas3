@@ -25,6 +25,7 @@ Property Image As Image
 Property Picture As Picture
 Property CloseWithMouse As Boolean
 Property CloseButton As Boolean ''if false the close all tabs button is not shown
+Property Design As Boolean
 
 '' Return the Workspace's inner TabPanel control.
 Property Read TabPanel As TabPanel
@@ -283,4 +284,17 @@ Public Sub _RefreshPicture()
 
   ' Prevent the Workspace Picture property to be refreshed.
   
+End
+
+Private Function Design_Read() As Boolean
+
+  Return Super.Design  
+
+End
+
+Private Sub Design_Write(Value As Boolean)
+
+  Super.Design = Value
+  If Value Then $hWorkspace.DisableMenu()
+
 End
