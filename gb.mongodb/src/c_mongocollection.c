@@ -155,17 +155,26 @@ BEGIN_METHOD(MongoCollection_Add, GB_OBJECT doc; GB_OBJECT options)
 
 END_METHOD
 
-BEGIN_METHOD(MongoCollection_Remove, GB_OBJECT filter; GB_OBJECT options)
+BEGIN_METHOD(MongoCollection_Delete, GB_OBJECT filter; GB_OBJECT options)
 
 	bson_error_t error;
-	bson_t *filter = HELPER_to_bson(VARGOPT(filter, NULL), TRUE);
-	bson_t *options = HELPER_to_bson(VARGOPT(options, NULL), TRUE);
-
-	if (!mongoc_collection_delete_many(THIS->collection, filter, options, NULL, &error))
-		GB.Error("&1", error.message);
 	
-	bson_destroy(filter);
-	bson_destroy(options);
+	if (MISSING(filter))
+	{
+		if (!mongoc_collection_drop(THIS->collection, &error))
+			GB.Error("&1", error.message);
+	}
+	else
+	{
+		bson_t *filter = HELPER_to_bson(VARGOPT(filter, NULL), TRUE);
+		bson_t *options = HELPER_to_bson(VARGOPT(options, NULL), TRUE);
+
+		if (!mongoc_collection_delete_many(THIS->collection, filter, options, NULL, &error))
+			GB.Error("&1", error.message);
+		
+		bson_destroy(filter);
+		bson_destroy(options);
+	}
 
 END_METHOD
 
@@ -192,15 +201,6 @@ BEGIN_METHOD(MongoCollection_Replace, GB_OBJECT filter; GB_OBJECT doc; GB_OBJECT
 	
 	bson_destroy(filter);
 	bson_destroy(options);
-
-END_METHOD
-
-BEGIN_METHOD_VOID(MongoCollection_Delete)
-
-	bson_error_t error;
-	
-	if (!mongoc_collection_drop(THIS->collection, &error))
-		GB.Error("&1", error.message);
 
 END_METHOD
 
@@ -313,6 +313,24 @@ BEGIN_METHOD(MongoCollection_Find, GB_OBJECT filter)
 
 END_METHOD
 
+BEGIN_METHOD(MongoCollection_Remove, GB_STRING id)
+
+	bool ok;
+	bson_t *filter;
+	bson_error_t error;
+	
+	filter = bson_new();
+	bson_append_utf8(filter, "_id", 3, STRING(id), LENGTH(id));
+	
+	ok = mongoc_collection_delete_one(THIS->collection, filter, NULL, NULL, &error);
+	
+	if (!ok)
+		GB.Error("&1", error.message);
+
+	bson_destroy(filter);
+
+END_METHOD
+
 //--------------------------------------------------------------------------
 
 BEGIN_METHOD(MongoCollection_Indexes_Add, GB_OBJECT keys; GB_OBJECT options)
@@ -395,11 +413,10 @@ GB_DESC MongoCollectionDesc[] = {
 	GB_PROPERTY_READ("Name", "s", MongoCollection_Name),
 	GB_PROPERTY_READ("Count", "l", MongoCollection_Count),
 	
-	GB_METHOD("Delete", NULL, MongoCollection_Delete, NULL),
-	
 	GB_METHOD("Query", "MongoResult", MongoCollection_Query, "[(Filter)Collection;(Options)Collection;]"),
-	GB_METHOD("Remove", NULL, MongoCollection_Remove, "[(Filter)Collection;(Options)Collection;]"),
+	GB_METHOD("Delete", NULL, MongoCollection_Delete, "[(Filter)Collection;(Options)Collection;]"),
 	GB_METHOD("Add", NULL, MongoCollection_Add, "(Document)Collection;[(Options)Collection;]"),
+	GB_METHOD("Remove", NULL, MongoCollection_Remove, "(Id)s"),
 	GB_METHOD("Replace", NULL, MongoCollection_Replace, "(Filter)Collection;(Document)Collection;[(Options)Collection;]"),
 	//GB_METHOD("Rename", NULL, MongoCollection_Rename, "(NewName)s[]")
 	GB_METHOD("Find", "String[]", MongoCollection_Find, "[(Filter)Collection;]"),
