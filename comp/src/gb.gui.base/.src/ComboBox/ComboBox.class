@@ -98,16 +98,19 @@ Public Sub UserControl_Draw()
     YB = 0
     WB = Paint.W
     HB = Paint.H
+    Paint.ClipRect = Rect(XB, YB, WB, HB)
+    Paint.Save
     If $hPopup Then
       iState = iState And Not Style.Hovered
-      HB += Style.FrameWidth
-      If $hPopup.ScreenY < Me.ScreenY Then YB -= Style.FrameWidth
+      HB += Style.FrameWidth * 2
+      If $hPopup.ScreenY < Me.ScreenY Then YB -= Style.FrameWidth * 2
     Endif
     If $bReadOnly Then
       Style.PaintButton(XB, YB, WB, HB, False, iState, False, iBg)
     Else
       Style.PaintBox(XB, YB, WB, HB, iState, iBg)
     Endif
+    Paint.Restore
   Else
     Paint.FillRect(0, 0, Paint.W, Paint.H, iBg)
   Endif
