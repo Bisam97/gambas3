@@ -31,7 +31,7 @@
 
 //--------------------------------------------------------------------------
 
-#if MONGOC_CHECK_VERSION(1,8,0)
+#if MONGOC_CHECK_VERSION(1,24,0)
 #else
 
 static bool is_key(const char *key, int len, const char *check)
@@ -337,19 +337,24 @@ BEGIN_METHOD(MongoCollection_Indexes_Add, GB_OBJECT keys; GB_OBJECT options)
 
 	bson_t *keys;
 	bson_error_t error;
+	bool err = FALSE;
 
 	keys = HELPER_to_bson(VARG(keys), FALSE);
 	if (!keys)
 		return;
 
-#if MONGOC_CHECK_VERSION(1,8,0)
+#if MONGOC_CHECK_VERSION(1,24,0)
 	
 	bson_t *options = HELPER_to_bson(VARGOPT(options, NULL), TRUE);
 	mongoc_index_model_t *model = mongoc_index_model_new(keys, options);
 	
 	if (!mongoc_collection_create_indexes_with_opts(THIS->collection, &model, 1, NULL, NULL, &error))
+	{
+		err = TRUE;
 		GB.Error("&1", error.message);
+	}
 	
+	mongoc_index_model_destroy(model);
 	bson_destroy(options);
 
 #else
@@ -361,11 +366,15 @@ BEGIN_METHOD(MongoCollection_Indexes_Add, GB_OBJECT keys; GB_OBJECT options)
 		return;
 	
 	if (!mongoc_collection_create_index_with_opts(THIS->collection, keys, &index_opts, NULL, NULL, &error))
+	{
+		err = TRUE;
 		GB.Error("&1", error.message);
+	}
 	
 #endif
 	
-	GB.ReturnNewZeroString(mongoc_collection_keys_to_index_string(keys));
+	if (!err)
+		GB.ReturnNewZeroString(mongoc_collection_keys_to_index_string(keys));
 	
 	bson_destroy(keys);
 	
