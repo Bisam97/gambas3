@@ -23,6 +23,14 @@ Public Sub Main()
 
   hTable = hClient["test"]
   
+  hTable.Indexes.Remove("index_activité")
+  hTable.Indexes.Add(["activité": 1, "nom": 1])
+  
+  hResult = hTable.Indexes.Query()
+  For Each cDoc In hResult
+    Print JSON.ToString(cDoc)
+  Next
+  
   hTable["ACT.Z"] = ["_id": "ACT.Z", "classe": "activité", "nom": "Activité Zarbi"]
   
   Print hTable.Count

@@ -184,7 +184,9 @@ BEGIN_METHOD(MongoCollection_put, GB_OBJECT doc; GB_STRING id)
 		return;
 	}
 	
-	doc = HELPER_to_bson_with_id(VARG(doc), STRING(id), LENGTH(id));
+	doc = HELPER_to_bson_except(VARG(doc), "_id");
+	if (HELPER_bson_add_string(doc, "_id", STRING(id), LENGTH(id)))
+		return;
 	
 	filter = bson_new();
 	bson_append_utf8(filter, "_id", 3, STRING(id), LENGTH(id));
@@ -246,6 +248,65 @@ END_METHOD
 
 //--------------------------------------------------------------------------
 
+BEGIN_METHOD(MongoCollection_Indexes_Add, GB_OBJECT keys; GB_OBJECT options)
+
+	bson_t *keys;
+	bson_t *options;
+	mongoc_index_model_t *model;
+	bson_error_t error;
+
+	keys = HELPER_to_bson(VARG(keys), FALSE);
+	if (!keys)
+		return;
+
+	options = HELPER_to_bson(VARGOPT(options, NULL), TRUE);
+	/*if (!MISSING(name) && !HELPER_bson_add_string(options, "name", STRING(name), LENGTH(name)))
+		return;*/
+
+	model = mongoc_index_model_new(keys, options);
+	
+	if (!mongoc_collection_create_indexes_with_opts(THIS->collection, &model, 1, NULL, NULL, &error))
+		GB.Error("&1", error.message);
+	
+	GB.ReturnNewZeroString(mongoc_collection_keys_to_index_string(keys));
+	
+	bson_destroy(keys);
+	bson_destroy(options);
+	
+END_METHOD
+
+BEGIN_METHOD(MongoCollection_Indexes_Remove, GB_STRING name)
+
+	bson_error_t error;
+	
+	if (!mongoc_collection_drop_index_with_opts(THIS->collection, GB.ToZeroString(ARG(name)), NULL, &error)) 
+		GB.Error("&1", error.message);
+
+END_METHOD
+
+BEGIN_METHOD_VOID(MongoCollection_Indexes_Query)
+
+	mongoc_cursor_t *cursor;
+
+	cursor = mongoc_collection_find_indexes_with_opts(THIS->collection, NULL);
+	
+	GB.ReturnObject(HELPER_create_result(THIS->client, cursor));
+
+END_METHOD
+
+//--------------------------------------------------------------------------
+
+GB_DESC MongoCollectionIndexesDesc[] = {
+	
+	GB_DECLARE_VIRTUAL(".MongoCollection.Indexes"),
+	
+	GB_METHOD("Add", "s", MongoCollection_Indexes_Add, "(Keys)Collection;[(Name)s(Options)Collection;]"),
+	GB_METHOD("Remove", NULL, MongoCollection_Indexes_Remove, "(Name)s"),
+	GB_METHOD("Query", "MongoResult", MongoCollection_Indexes_Query, NULL),
+	
+	GB_END_DECLARE
+};
+
 GB_DESC MongoCollectionDesc[] = {
 
 	GB_DECLARE("MongoCollection", sizeof(CMONGOCOLLECTION)),
@@ -267,6 +328,8 @@ GB_DESC MongoCollectionDesc[] = {
 
 	GB_METHOD("_get", "Collection", MongoCollection_get, "(Id)s"),
 	GB_METHOD("_put", NULL, MongoCollection_put, "(Document)Collection;(Id)s"),
+	
+	GB_PROPERTY_SELF("Indexes", ".MongoCollection.Indexes"),
 	
 	GB_END_DECLARE
 };

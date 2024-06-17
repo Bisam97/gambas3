@@ -32,6 +32,7 @@
 #ifndef __C_MONGOCOLLECTION_C
 
 extern GB_DESC MongoCollectionDesc[];
+extern GB_DESC MongoCollectionIndexesDesc[];
 
 #else
 

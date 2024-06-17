@@ -35,6 +35,7 @@ GB_INTERFACE GB EXPORT;
 GB_DESC *GB_CLASSES[] EXPORT =
 {
 	MongoResultDesc,
+	MongoCollectionIndexesDesc,
 	MongoCollectionDesc,
 	MongoClientDesc,
 	NULL
