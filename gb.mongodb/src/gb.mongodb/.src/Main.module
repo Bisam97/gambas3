@@ -9,6 +9,7 @@ Public Sub Main()
   Dim hTable As MongoCollection
   Dim N As Integer
   Dim vVal As Variant
+  Dim sId As String
 
   hClient = New MongoClient("mongodb://10.254.16.28")
 
@@ -23,17 +24,24 @@ Public Sub Main()
 
   hTable = hClient["test"]
   
-  hTable.Indexes.Remove("index_activité")
-  hTable.Indexes.Add(["activité": 1, "nom": 1])
+  Try hTable.Indexes.Remove("activité_1_nom_1")
+  Try hTable.Indexes.Remove("classe_1_nom_1")
+  Print hTable.Indexes.Add(["classe": 1, "nom": 1], ["unique": True])
   
   hResult = hTable.Indexes.Query()
   For Each cDoc In hResult
     Print JSON.ToString(cDoc)
   Next
   
-  hTable["ACT.Z"] = ["_id": "ACT.Z", "classe": "activité", "nom": "Activité Zarbi"]
+  Print JSON.ToString(hTable["ACT.Z"])
+  Print JSON.ToString(hTable["ACT.Z2"])
+  
+  'hTable["ACT.Z"] = ["_id": "ACT.Z", "classe": "activité", "nom": "Activité Zarbi"]
+  'hTable["ACT.Z2"] = ["_id": "ACT.Z2", "classe": "activité", "nom": "Activité Zarbi"]
   
   Print hTable.Count
-  Print hTable.Find().Join()
+  For Each sId In hTable.Find()
+    Print JSON.ToString(hTable[sId])
+  Next
 
 End
