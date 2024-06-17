@@ -5,6 +5,17 @@ Private $aList As String[]
 Private $sFind As String
 Private $hCombo As ComboBox
 Private $bDown As Boolean
+Private $bFixBreeze As Boolean
+
+Public Sub _new()
+
+  If Component.IsLoaded("gb.qt5") Or If Component.IsLoaded("gb.qt6") Then
+    If Style.Name = "breeze" Then
+      $bFixBreeze = True
+    Endif
+  Endif
+  
+End
 
 Public Sub UpdateComboSize(Optional aList As String[])
 
@@ -19,7 +30,7 @@ Public Sub UpdateComboSize(Optional aList As String[])
   gvwPopup.Rows.Count = $aList.Count
   W = $hCombo.W '- Style.FrameWidth * 2
   
-  If Style.Name = "breeze" And If $hCombo.ReadOnly Then W -= 2
+  If $bFixBreeze And If $hCombo.ReadOnly Then W -= 2
   
   WM = gvwPopup.Columns[0].W '+ 2
   If $aList.Count > MAX_ITEMS Then WM += Style.ScrollbarSize
@@ -62,16 +73,16 @@ Public Sub Open(aList As String[], iIndex As Integer, hCtrl As ComboBox) As Inte
   UpdateComboSize()
   
   X = hCtrl.ScreenX '+ Style.FrameWidth
-  If Style.Name = "breeze" And If $hCombo.ReadOnly Then Inc X
+  If $bFixBreeze And If $hCombo.ReadOnly Then Inc X
   
   W = Me.W
   H = Me.H
   
   If hCtrl.ScreenY + hCtrl.H + H > hScreen.AvailableHeight Then 
-    Y = hCtrl.ScreenY - H + Style.FrameWidth
+    Y = hCtrl.ScreenY - H
     $bDown = False
   Else 
-    Y = hCtrl.ScreenY + hCtrl.H - Style.FrameWidth - 1
+    Y = hCtrl.ScreenY + hCtrl.H - 1
     $bDown = True
   Endif
   
