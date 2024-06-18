@@ -27,21 +27,23 @@ End
 
 Public Sub Form_Open()
 
-  Dim sText As String
-  Dim iInd As Integer
+  ' Dim sText As String
+  ' Dim iInd As Integer
   Dim hConn As Connection
 
   lblSource.Text = $hSrc.GetDescription()
   lblDest.Text = $hDest.GetDescription()
 
   hConn = $hDest.GetConnection()
-  For iInd = 0 To 99
-    sText = $sTable
-    If iInd Then sText &= CStr(iInd + 1)
-    If Not hConn.Tables.Exist(sText) Then Break
-  Next
+  chkOverwrite.Visible = hConn.Tables.Exist($sTable)
 
-  txtName.Text = sText
+  ' For iInd = 0 To 99
+  '   sText = $sTable
+  '   If iInd Then sText &= CStr(iInd + 1)
+  '   If Not hConn.Tables.Exist(sText) Then Break
+  ' Next
+
+  txtName.Text = $sTable
   txtName.SetFocus
   txtName.SelectAll
 
@@ -78,12 +80,9 @@ Private Sub CopyTable(sDestTable As String)
   hSrc = $hSrc.GetConnection()
   hDst = $hDest.GetConnection()
 
-  'hSrc.Open
-  'hDst.Open
-
   $iTotal = 0
 
-  If optCopyData.Value Then
+  If chkCopyData.Value Then
 
     rSrc = hSrc.Exec("SELECT COUNT(*) FROM " & hSrc.Quote($sTable))
     $iTotal += rSrc[0]
@@ -121,11 +120,16 @@ Private Sub DoCopyTable(hSrc As Connection, hDst As Connection, sSrc As String, 
   Dim sSrcCharset As String
   Dim sDstCharset As String
   Dim sName As String
+  Dim sSerial As String
+  Dim iSerial As Long
 
   sSrcCharset = hSrc.Charset
   sDstCharset = hDst.Charset
 
-  If hDst.Tables.Exist(sDst) Then Error.Raise(("Table already exists"))
+  If hDst.Tables.Exist(sDst) Then
+    If Not chkOverwrite.Value Then Error.Raise(("Table already exists"))
+    hDst.Tables.Remove(sDst)
+  Endif
 
   hTableSrc = hSrc.Tables[sSrc]
   hTableDst = hDst.Tables.Add(sDst, hTableSrc.Type)
@@ -133,6 +137,7 @@ Private Sub DoCopyTable(hSrc As Connection, hDst As Connection, sSrc As String, 
   For Each hField In hTableSrc.Fields
     With hField
       hTableDst.Fields.Add(.Name, .Type, .Length, .Default)
+      If .Type = db.Serial Then sSerial = .Name
     End With
   Next
 
@@ -148,22 +153,39 @@ Private Sub DoCopyTable(hSrc As Connection, hDst As Connection, sSrc As String, 
     End With
   Next
 
-  If optCopyData.Value Then
+  If chkCopyData.Value Then
 
     hDst.Begin
 
-    rSrc = hSrc.Find(sSrc)
+    If sSerial Then
+      rSrc = hSrc.Find(sSrc, "ORDER BY " & hSrc.Quote(sSerial))
+    Else
+      rSrc = hSrc.Find(sSrc)
+    Endif
 
     If sSrcCharset = sDstCharset Then
 
       For Each rSrc
-        rDst = hDst.Create(sdST)
+        
+        If sSerial Then
+          Do
+            Inc iSerial
+            If rSrc[sSerial] = iSerial Then Break
+            rDst = hDst.Create(sDst)
+            rDst.Update()
+            hDst.Exec("DELETE FROM " & hDst.Quote(sDst, True) & " WHERE " & hDst.Quote(sSerial) & " = " & CStr(iSerial))
+          Loop 
+        Endif
+        
+        rDst = hDst.Create(sDst)
         For iInd = 0 To rSrc.Fields.Count - 1
           rDst[iInd] = rSrc[iInd]
         Next
         rDst.Update
         Inc $iCpt
+        
         UpdateProgress
+        
       Next
 
     Else
@@ -189,7 +211,7 @@ Private Sub DoCopyTable(hSrc As Connection, hDst As Connection, sSrc As String, 
 
 Catch
 
-  sMsg = Subst("Cannot copy table &1.", sSrc) & " " & Error.Text
+  sMsg = Subst(("Cannot copy table '&1'."), sSrc) & " " & Error.Text
   Try hDst.Rollback
   Try hDst.Tables.Remove(sDst)
   Error.Raise(sMsg)
