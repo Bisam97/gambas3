@@ -1452,10 +1452,11 @@ Public Sub Kill()
   If $hProcess Then 
     
     Try $hProcess.Kill
-    For I = 1 To 10
+    For I = 1 To 100
       Wait 0.01
       If Not $hProcess Then Break
     Next
+    If $hProcess Then Error.Raise("Unable to kill the terminal process")
     
   Else If $hPipeIn Then
     
