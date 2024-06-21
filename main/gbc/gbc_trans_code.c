@@ -97,7 +97,10 @@ static void check_local(CLASS_SYMBOL *sym)
 	if (!sym->local_used)
 	{
 		if (sym->local.value < 0)
-			COMPILE_print(MSG_WARNING, sym->local.line, "unused argument: &1", SYMBOL_get_name(&sym->symbol));
+		{
+			if (JOB->func->ncode)
+				COMPILE_print(MSG_WARNING, sym->local.line, "unused argument: &1", SYMBOL_get_name(&sym->symbol));
+		}
 		else
 			COMPILE_print(MSG_WARNING, sym->local.line, "unused variable: &1", SYMBOL_get_name(&sym->symbol));
 	}
@@ -670,6 +673,8 @@ void TRANS_code(void)
 
 		translate_body();
 
+		remove_local();
+		
 		CODE_return(2); // Return from function, ignore Gosub stack
 
 		CODE_end_function(_func);
@@ -685,7 +690,6 @@ void TRANS_code(void)
 			printf("\n");
 		}
 
-		remove_local();
 	}
 
 	CLASS_check_properties(JOB->class);
