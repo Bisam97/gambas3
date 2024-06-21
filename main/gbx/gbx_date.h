@@ -55,19 +55,6 @@ typedef
 
 #endif
 
-enum {
-	DP_MILLISECOND = 1,
-  DP_SECOND = 2,
-  DP_MINUTE = 3,
-  DP_HOUR = 4,
-  DP_DAY = 5,
-  DP_WEEK = 6,
-  DP_WEEKDAY = 7,
-  DP_MONTH = 8,
-  DP_QUARTER = 9,
-  DP_YEAR = 10,
-  };
-
 #ifndef GBX_INFO
 
 #define DATE_YEAR_MIN  -4801

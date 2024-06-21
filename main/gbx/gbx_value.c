@@ -738,14 +738,14 @@ __l2s:
 
 __g2s:
 
-	LOCAL_format_number(value->_single.value, LF_GENERAL_NUMBER, NULL, 0, &addr, &len, FALSE);
+	LOCAL_format_number(value->_single.value, GB_LF_GENERAL_NUMBER, NULL, 0, &addr, &len, FALSE);
 	STRING_new_temp_value(value, addr, len);
 	BORROW(value);
 	return;
 
 __f2s:
 
-	LOCAL_format_number(value->_float.value, LF_GENERAL_NUMBER, NULL, 0, &addr, &len, FALSE);
+	LOCAL_format_number(value->_float.value, GB_LF_GENERAL_NUMBER, NULL, 0, &addr, &len, FALSE);
 	STRING_new_temp_value(value, addr, len);
 	BORROW(value);
 	return;
@@ -1471,18 +1471,18 @@ __LONG:
 __DATE:
 	{
 		const DATE_SERIAL *date = DATE_split(value);
-		LOCAL_format_date(date, DATE_SERIAL_has_no_date(date) ? LF_LONG_TIME : LF_STANDARD, NULL, 0, addr, len);
+		LOCAL_format_date(date, DATE_SERIAL_has_no_date(date) ? GB_LF_LONG_TIME : GB_LF_STANDARD, NULL, 0, addr, len);
 		return;
 	}
 
 __SINGLE:
 
-	LOCAL_format_number(value->_single.value, LF_SHORT_NUMBER, NULL, 0, addr, len, TRUE);
+	LOCAL_format_number(value->_single.value, GB_LF_SHORT_NUMBER, NULL, 0, addr, len, TRUE);
 	return;
 
 __FLOAT:
 
-	LOCAL_format_number(value->_float.value, LF_STANDARD, NULL, 0, addr, len, TRUE);
+	LOCAL_format_number(value->_float.value, GB_LF_STANDARD, NULL, 0, addr, len, TRUE);
 	return;
 
 __STRING:
@@ -2070,14 +2070,14 @@ __l2s:
 
 __g2s:
 
-	LOCAL_format_number(value->_single.value, LF_GENERAL_NUMBER, NULL, 0, &addr, &len, FALSE);
+	LOCAL_format_number(value->_single.value, GB_LF_GENERAL_NUMBER, NULL, 0, &addr, &len, FALSE);
 	STRING_new_temp_value(value, addr, len);
 	BORROW(value);
 	return;
 
 __f2s:
 
-	LOCAL_format_number(value->_float.value, LF_GENERAL_NUMBER, NULL, 0, &addr, &len, FALSE);
+	LOCAL_format_number(value->_float.value, GB_LF_GENERAL_NUMBER, NULL, 0, &addr, &len, FALSE);
 	STRING_new_temp_value(value, addr, len);
 	BORROW(value);
 	return;

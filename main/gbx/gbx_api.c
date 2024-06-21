@@ -2099,7 +2099,7 @@ bool GB_NumberToString(int local, double value, const char *format, char **str, 
 		LOCAL_format_number
 		(
 			value,
-			format ? LF_USER : LF_GENERAL_NUMBER,
+			format ? GB_LF_USER : GB_LF_GENERAL_NUMBER,
 			format,
 			format ? strlen(format) : 0,
 			str, len, local != 0

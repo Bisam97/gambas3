@@ -193,7 +193,7 @@ void SUBR_format(ushort code)
 	SUBR_ENTER();
 
 	if (NPARAM == 1)
-		fmt_type = LF_STANDARD;
+		fmt_type = GB_LF_STANDARD;
 	else
 	{
 		if (PARAM[1].type == T_VARIANT)
@@ -201,15 +201,15 @@ void SUBR_format(ushort code)
 
 		if (TYPE_is_string(PARAM[1].type))
 		{
-			fmt_type = LF_USER;
+			fmt_type = GB_LF_USER;
 			VALUE_get_string(&PARAM[1], &format, &len);
 			if (!len)
-				fmt_type = LF_STANDARD;
+				fmt_type = GB_LF_STANDARD;
 		}
 		else if (TYPE_is_integer(PARAM[1].type))
 		{
 			fmt_type = PARAM[1]._integer.value;
-			if (fmt_type <= LF_USER || fmt_type >= LF_MAX)
+			if (fmt_type <= GB_LF_USER || fmt_type >= GB_LF_MAX)
 				THROW_ARG();
 		}
 		else

@@ -35,6 +35,9 @@
 #include "gbc_trans.h"
 #include "gb_code.h"
 
+#define NO_GAMBAS_CASE_REPLACEMENT
+#include "gambas.h"
+
 
 //#define DEBUG 1
 
@@ -43,6 +46,19 @@
 TRANS_CONST_VALUE _stack[MAX_STACK];
 int _stack_ptr = 0;
 
+typedef
+	struct {
+		const char *name;
+		int value;
+	}
+	TRANS_CONST_DEF;
+	
+TRANS_CONST_DEF _const_gb[] = {
+	#undef GB_CONSTANT
+	#define GB_CONSTANT(_name, _type, _value) { _name, _value }
+	#include "gb_constant_temp.h"
+	{ NULL, 0}
+};
 
 static void throw_error(void)
 {
@@ -274,6 +290,7 @@ static void trans_operation(short op, short nparam)
 	int64_t v1 = 0, v2 = 0;
 	TRANS_CONST_VALUE *sp = pop_stack(nparam);
 	const char *name;
+	TRANS_CONST_DEF *p;
 
 	if (nparam >= 1)
 	{
@@ -370,22 +387,17 @@ static void trans_operation(short op, short nparam)
 			
 			name = TABLE_get_symbol_name(JOB->class->table, v2);
 			
-			if (!strcasecmp(name, "byte") || !strcasecmp(name, "boolean"))
-				push_integer(1);
-			else if (!strcasecmp(name, "short"))
-				push_integer(2);
-			else if (!strcasecmp(name, "integer"))
-				push_integer(4);
-			else if (!strcasecmp(name, "long"))
-				push_integer(8);
-			else if (!strcasecmp(name, "single"))
-				push_integer(4);
-			else if (!strcasecmp(name, "float"))
-				push_integer(8);
-			else if (!strcasecmp(name, "date"))
-				push_integer(8);
-			else
-				throw_error();
+			for (p = _const_gb; p->name; p++)
+			{
+				if (!strcasecmp(name, p->name))
+				{
+					push_integer(p->value);
+					break;
+				}
+			}
+			
+			if (!p->name)
+				THROW("Unknown constant: gb.&1", name);
 			
 			break;
 			

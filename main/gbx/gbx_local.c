@@ -1125,20 +1125,20 @@ const char *LOCAL_get_format(LOCAL_INFO *info, int type)
 {
 	switch(type)
 	{
-		case LF_GENERAL_NUMBER: return "0.###############E@#";
-		case LF_SHORT_NUMBER: return "0.#######E@#";
-		case LF_FIXED: return "0.00";
-		case LF_PERCENT: return "###%";
-		case LF_SCIENTIFIC: return "0.################E+0";
-		case LF_CURRENCY: return info->general_currency;
-		case LF_INTERNATIONAL: return info->intl_currency;
-		case LF_GENERAL_DATE: return info->general_date;
-		case LF_LONG_DATE: return info->long_date;
-		case LF_MEDIUM_DATE: return info->medium_date;
-		case LF_SHORT_DATE: return info->short_date;
-		case LF_LONG_TIME: return info->long_time;
-		case LF_MEDIUM_TIME: return info->medium_time;
-		case LF_SHORT_TIME: return info->short_time;
+		case GB_LF_GENERAL_NUMBER: return "0.###############E@#";
+		case GB_LF_SHORT_NUMBER: return "0.#######E@#";
+		case GB_LF_FIXED: return "0.00";
+		case GB_LF_PERCENT: return "###%";
+		case GB_LF_SCIENTIFIC: return "0.################E+0";
+		case GB_LF_CURRENCY: return info->general_currency;
+		case GB_LF_INTERNATIONAL: return info->intl_currency;
+		case GB_LF_GENERAL_DATE: return info->general_date;
+		case GB_LF_LONG_DATE: return info->long_date;
+		case GB_LF_MEDIUM_DATE: return info->medium_date;
+		case GB_LF_SHORT_DATE: return info->short_date;
+		case GB_LF_LONG_TIME: return info->long_time;
+		case GB_LF_MEDIUM_TIME: return info->medium_time;
+		case GB_LF_SHORT_TIME: return info->short_time;
 		default: return NULL;
 	}
 }
@@ -1180,11 +1180,11 @@ bool LOCAL_format_number(double number, int fmt_type, const char *fmt, int len_f
 
 	switch(fmt_type)
 	{
-		case LF_USER:
+		case GB_LF_USER:
 			break;
 			
-		case LF_STANDARD:
-			fmt_type = LF_GENERAL_NUMBER;
+		case GB_LF_STANDARD:
+			fmt_type = GB_LF_GENERAL_NUMBER;
 			// continue
 
 		default:
@@ -1849,14 +1849,14 @@ bool LOCAL_format_date(const DATE_SERIAL *date, int fmt_type, const char *fmt, i
 
 	switch(fmt_type)
 	{
-		case LF_USER:
+		case GB_LF_USER:
 			break;
 
-		case LF_STANDARD:
+		case GB_LF_STANDARD:
 			fmt = local_current->standard_date;
 			break;
 			
-		case LF_GENERAL_DATE:
+		case GB_LF_GENERAL_DATE:
 			if (date->year == 0)
 			{
 				if (date->hour == 0 && date->min == 0 && date->sec == 0)
