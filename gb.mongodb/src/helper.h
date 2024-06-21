@@ -32,7 +32,9 @@
 #include "c_mongoresult.h"
 
 bson_t *HELPER_to_bson(GB_COLLECTION col, bool null_is_void);
-bson_t *HELPER_to_bson_with_id(GB_COLLECTION col, char *id, int len);
+bson_t *HELPER_to_bson_except(GB_COLLECTION col, const char *key);
+bool HELPER_bson_add_string(bson_t *bson, const char *key, char *str, int len);
+
 GB_COLLECTION HELPER_from_bson(const bson_t *bson);
 
 CMONGOCOLLECTION *HELPER_create_collection(CMONGOCLIENT *client, const char *name);

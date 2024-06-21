@@ -714,7 +714,6 @@ char *STRING_subst(const char *str, int len, SUBST_FUNC get_param)
 	if (len <= 0)
 		len = strlen(str);
 
-	// Comment to force a commit because svn unexpectedly lost my log
 	if (len == 0)
 		return NULL;
 

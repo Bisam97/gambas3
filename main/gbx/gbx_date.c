@@ -790,31 +790,31 @@ void DATE_add(VALUE *date, int period, int val)
 
 	switch(period)
 	{
-		case DP_MILLISECOND:
+		case GB_DP_MILLISECOND:
 			add_date = val / 86400000;
 			add_time = val % 86400000 ;
 			goto __ADD_DATE_TIME;
 
-		case DP_SECOND:
+		case GB_DP_SECOND:
 			add_date = val / 86400;
 			add_time = (val % 86400) * 1000;
 			goto __ADD_DATE_TIME;
 
-		case DP_MINUTE:
+		case GB_DP_MINUTE:
 			add_date = val / 1440;
 			add_time = (val % 1440) * 60000;
 			goto __ADD_DATE_TIME;
 
-		case DP_HOUR:
+		case GB_DP_HOUR:
 			add_date = val / 24;
 			add_time = (val % 24) * 3600000;
 			goto __ADD_DATE_TIME;
 
-		case DP_DAY:
+		case GB_DP_DAY:
 			add_date = val;
 			goto __ADD_DATE_TIME;
 
-		case DP_WEEK:
+		case GB_DP_WEEK:
 			add_date = val * 7;
 			goto __ADD_DATE_TIME;
 
@@ -826,7 +826,7 @@ void DATE_add(VALUE *date, int period, int val)
 
 	switch(period)
 	{
-		case DP_WEEKDAY:
+		case GB_DP_WEEKDAY:
 			add_date = (val / 5) * 7;
 			ds.weekday += val % 5;
 			if (ds.weekday > 5)
@@ -836,11 +836,11 @@ void DATE_add(VALUE *date, int period, int val)
 			add_date += val % 5;
 			goto __ADD_DATE_TIME;
 
-		case DP_QUARTER:
+		case GB_DP_QUARTER:
 			val *= 3;
 			/* continue; */
 
-		case DP_MONTH:
+		case GB_DP_MONTH:
 			y = ((ds.year * 12) + (ds.month - 1) + val) / 12;
 			m = ((ds.month - 1) + val) % 12;
 			if (m < 0) m += 12;
@@ -852,7 +852,7 @@ void DATE_add(VALUE *date, int period, int val)
 			ds.year = y;
 			goto __MAKE_DATE;
 
-		case DP_YEAR:
+		case GB_DP_YEAR:
 			ds.year += val;
 			if (ds.month == 2 && ds.day == 29)
 			{
@@ -909,8 +909,8 @@ int DATE_diff(VALUE *date1, VALUE *date2, int period)
 
 	switch (period)
 	{
-		case DP_DAY:
-		case DP_WEEK:
+		case GB_DP_DAY:
+		case GB_DP_WEEK:
 			diff = date1->_date.date - date2->_date.date;
 			if (diff)
 			{
@@ -920,22 +920,22 @@ int DATE_diff(VALUE *date1, VALUE *date2, int period)
 			}
 			break;
 
-		case DP_MILLISECOND:
-		case DP_SECOND:
-		case DP_MINUTE:
-		case DP_HOUR:
+		case GB_DP_MILLISECOND:
+		case GB_DP_SECOND:
+		case GB_DP_MINUTE:
+		case GB_DP_HOUR:
 			diff = date1->_date.date - date2->_date.date;
 			diff = diff * 86400000 + (date1->_date.time - date2->_date.time);
 			break;
 
-		case DP_MONTH:
-		case DP_QUARTER:
-		case DP_YEAR:
+		case GB_DP_MONTH:
+		case GB_DP_QUARTER:
+		case GB_DP_YEAR:
 			ds1 = *DATE_split(date1);
 			ds2 = *DATE_split(date2);
 			break;
 
-		case DP_WEEKDAY:
+		case GB_DP_WEEKDAY:
 			diff = date1->_date.date - date2->_date.date;
 			if (diff)
 			{
@@ -953,26 +953,26 @@ int DATE_diff(VALUE *date1, VALUE *date2, int period)
 
 	switch (period)
 	{
-		case DP_DAY:
+		case GB_DP_DAY:
 			break;
 
-		case DP_WEEK:
+		case GB_DP_WEEK:
 			diff /= 7;
 			break;
 
-		case DP_SECOND:
+		case GB_DP_SECOND:
 			diff /= 1000;
 			break;
 
-		case DP_MINUTE:
+		case GB_DP_MINUTE:
 			diff /= 60000;
 			break;
 
-		case DP_HOUR:
+		case GB_DP_HOUR:
 			diff /= 3600000;
 			break;
 
-		case DP_WEEKDAY:
+		case GB_DP_WEEKDAY:
 
 			neg = (diff < 0);
 			if (neg)
@@ -1001,19 +1001,19 @@ int DATE_diff(VALUE *date1, VALUE *date2, int period)
 
 			break;
 
-		case DP_MONTH:
+		case GB_DP_MONTH:
 			diff = (ds1.year - ds2.year) * 12 + ds1.month - ds2.month;
 			break;
 
-		case DP_QUARTER:
+		case GB_DP_QUARTER:
 			diff = (ds1.year - ds2.year) * 4 + (ds1.month - ds2.month) / 3;
 			break;
 
-		case DP_YEAR:
+		case GB_DP_YEAR:
 			diff = ds1.year - ds2.year;
 			break;
 
-		case DP_MILLISECOND:
+		case GB_DP_MILLISECOND:
 			break;
 	}
 

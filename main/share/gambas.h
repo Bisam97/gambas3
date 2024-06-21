@@ -108,6 +108,48 @@
 #define GB_T_NULL         15
 #define GB_T_OBJECT       16
 
+/* Endianness */
+
+enum { GB_LITTLE_ENDIAN = 0, GB_BIG_ENDIAN = 1 };
+
+
+/* Date constants */
+
+enum {
+	GB_DP_MILLISECOND = 1,
+	GB_DP_SECOND = 2,
+	GB_DP_MINUTE = 3,
+	GB_DP_HOUR = 4,
+	GB_DP_DAY = 5,
+	GB_DP_WEEK = 6,
+	GB_DP_WEEKDAY = 7,
+	GB_DP_MONTH = 8,
+	GB_DP_QUARTER = 9,
+	GB_DP_YEAR = 10,
+	};
+
+/* Default formats */
+
+enum {
+	GB_LF_USER = 0,
+	GB_LF_STANDARD = 1,
+	GB_LF_GENERAL_NUMBER = 2,
+	GB_LF_SHORT_NUMBER = 3,
+	GB_LF_FIXED = 4,
+	GB_LF_PERCENT = 5,
+	GB_LF_SCIENTIFIC = 6,
+	GB_LF_CURRENCY = 7,
+	GB_LF_INTERNATIONAL = 8,
+	GB_LF_GENERAL_DATE = 9,
+	GB_LF_LONG_DATE = 10,
+	GB_LF_MEDIUM_DATE = 11,
+	GB_LF_SHORT_DATE = 12,
+	GB_LF_LONG_TIME = 13,
+	GB_LF_MEDIUM_TIME = 14,
+	GB_LF_SHORT_TIME = 15,
+	GB_LF_MAX
+	};
+
 
 /* This type represents a Gambas datatype identifier */
 

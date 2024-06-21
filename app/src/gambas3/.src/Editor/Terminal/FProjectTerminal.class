@@ -15,6 +15,12 @@ Public Sub Form_Open()
   
 End
 
+Public Sub Form_Close()
+  
+  trmTerminal.Kill()
+  
+End
+
 Public Sub Reload()
 
   If trmTerminal.Column Then trmTerminal.Print("\r\n")
@@ -48,12 +54,6 @@ Public Sub btnWorkspace_Click()
   
   FMain.CloseCurrentWorkspace
   
-End
-
-Public Sub Form_Hide()
-
-  OnProjectClose()
-
 End
 
 Public Sub trmTerminal_GotFocus()

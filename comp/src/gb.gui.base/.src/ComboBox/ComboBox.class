@@ -68,6 +68,10 @@ Public Sub UserControl_Draw()
   Dim iBg, iFg As Integer
   Dim bHovered As Boolean
   Dim bHasFocus As Boolean
+  Dim XB As Integer
+  Dim YB As Integer
+  Dim WB As Float
+  Dim HB As Integer
   
   iState = Style.StateOf(Me)
   
@@ -90,11 +94,23 @@ Public Sub UserControl_Draw()
   If Not Me.Enabled And Not $bReadOnly Then iBg = Style.BackgroundOf($hTextBox) 'Color.Merge(iBg, Color.TextForeground)
   
   If $bBorder Or If bHovered Or If bHasFocus Or If $hPopup Then
-    If $bReadOnly Then
-      Style.PaintButton(0, 0, Paint.W, Paint.H, False, iState, False, iBg)
-    Else
-      Style.PaintBox(0, 0, Paint.W, Paint.H, iState, iBg)
+    XB = 0
+    YB = 0
+    WB = Paint.W
+    HB = Paint.H
+    Paint.ClipRect = Rect(XB, YB, WB, HB)
+    Paint.Save
+    If $hPopup Then
+      iState = iState And Not Style.Hovered
+      HB += Style.FrameWidth * 2
+      If $hPopup.ScreenY < Me.ScreenY Then YB -= Style.FrameWidth * 2
     Endif
+    If $bReadOnly Then
+      Style.PaintButton(XB, YB, WB, HB, False, iState, False, iBg)
+    Else
+      Style.PaintBox(XB, YB, WB, HB, iState, iBg)
+    Endif
+    Paint.Restore
   Else
     Paint.FillRect(0, 0, Paint.W, Paint.H, iBg)
   Endif
@@ -333,7 +349,7 @@ Public Sub ComboBox_KeyPress()
       
     Case Key.Space
       If Key.Normal And If $bReadOnly Then
-        ArrowBox_MouseDown
+        Popup()
         Stop Event 
       Endif
       

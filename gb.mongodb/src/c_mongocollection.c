@@ -29,6 +29,69 @@
 #include "c_mongocollection.h"
 
 
+//--------------------------------------------------------------------------
+
+#if MONGOC_CHECK_VERSION(1,24,0)
+#else
+
+static bool is_key(const char *key, int len, const char *check)
+{
+	int len_check = strlen(check);
+	if (len_check != len)
+		return FALSE;
+	return strncmp(key, check, len) == 0;
+}
+
+static bool fill_index_opts_from_collection(mongoc_index_opt_t *opts, GB_COLLECTION col)
+{
+	GB_COLLECTION_ITER iter;
+	GB_VALUE val;
+	char *key;
+	int len;
+	
+	mongoc_index_opt_init(opts);
+	if (!col)
+		return FALSE;
+	
+	GB.Collection.Enum(col, &iter, NULL, NULL, NULL);
+
+	for(;;)
+	{
+		if (GB.Collection.Enum(col, &iter, (GB_VARIANT *)&val, &key, &len))
+			break;
+		
+		if (is_key(key, len, "unique"))
+		{
+			GB.Conv(&val, GB_T_BOOLEAN);
+			opts->unique = val._boolean.value;
+			fprintf(stderr, "unique = %d\n", opts->unique);
+		}
+		else if (is_key(key, len, "name"))
+		{
+			GB.Conv(&val, GB_T_STRING);
+			opts->name = GB.TempString(val._string.value.addr + val._string.value.start, val._string.value.len);
+		}
+		else if (is_key(key, len, "default_language"))
+		{
+			GB.Conv(&val, GB_T_STRING);
+			opts->default_language = GB.TempString(val._string.value.addr + val._string.value.start, val._string.value.len);
+		}
+		else if (is_key(key, len, "language_override"))
+		{
+			GB.Conv(&val, GB_T_STRING);
+			opts->language_override = GB.TempString(val._string.value.addr + val._string.value.start, val._string.value.len);
+		}
+		else
+		{
+			GB.Error("Unsupported index option: &1", GB.TempString(key, len));
+			return TRUE;
+		}
+	}
+	
+	return FALSE;
+}
+
+#endif
 
 //--------------------------------------------------------------------------
 
@@ -92,17 +155,26 @@ BEGIN_METHOD(MongoCollection_Add, GB_OBJECT doc; GB_OBJECT options)
 
 END_METHOD
 
-BEGIN_METHOD(MongoCollection_Remove, GB_OBJECT filter; GB_OBJECT options)
+BEGIN_METHOD(MongoCollection_Delete, GB_OBJECT filter; GB_OBJECT options)
 
 	bson_error_t error;
-	bson_t *filter = HELPER_to_bson(VARGOPT(filter, NULL), TRUE);
-	bson_t *options = HELPER_to_bson(VARGOPT(options, NULL), TRUE);
-
-	if (!mongoc_collection_delete_many(THIS->collection, filter, options, NULL, &error))
-		GB.Error("&1", error.message);
 	
-	bson_destroy(filter);
-	bson_destroy(options);
+	if (MISSING(filter))
+	{
+		if (!mongoc_collection_drop(THIS->collection, &error))
+			GB.Error("&1", error.message);
+	}
+	else
+	{
+		bson_t *filter = HELPER_to_bson(VARGOPT(filter, NULL), TRUE);
+		bson_t *options = HELPER_to_bson(VARGOPT(options, NULL), TRUE);
+
+		if (!mongoc_collection_delete_many(THIS->collection, filter, options, NULL, &error))
+			GB.Error("&1", error.message);
+		
+		bson_destroy(filter);
+		bson_destroy(options);
+	}
 
 END_METHOD
 
@@ -132,15 +204,6 @@ BEGIN_METHOD(MongoCollection_Replace, GB_OBJECT filter; GB_OBJECT doc; GB_OBJECT
 
 END_METHOD
 
-BEGIN_METHOD_VOID(MongoCollection_Delete)
-
-	bson_error_t error;
-	
-	if (!mongoc_collection_drop(THIS->collection, &error))
-		GB.Error("&1", error.message);
-
-END_METHOD
-
 BEGIN_METHOD(MongoCollection_get, GB_STRING id)
 
 	mongoc_cursor_t *cursor;
@@ -165,6 +228,8 @@ BEGIN_METHOD(MongoCollection_get, GB_STRING id)
 		GB.ReturnObject(HELPER_from_bson(doc));
 	else if (mongoc_cursor_error(cursor, &error))
 		GB.Error("&1", error.message);
+	else
+		GB.ReturnNull();
 	
 	mongoc_cursor_destroy(cursor);
 
@@ -184,21 +249,25 @@ BEGIN_METHOD(MongoCollection_put, GB_OBJECT doc; GB_STRING id)
 		return;
 	}
 	
-	doc = HELPER_to_bson_with_id(VARG(doc), STRING(id), LENGTH(id));
-	
 	filter = bson_new();
 	bson_append_utf8(filter, "_id", 3, STRING(id), LENGTH(id));
 	
-	if (doc)
+	if (!VARG(doc))
 	{
-		options = BCON_NEW("upsert", BCON_BOOL(TRUE));
-		ok = mongoc_collection_replace_one(THIS->collection, filter, doc, options, NULL, &error);
-		bson_destroy(doc);
-		bson_destroy(options);
+		ok = mongoc_collection_delete_one(THIS->collection, filter, NULL, NULL, &error);
 	}
 	else
 	{
-		ok = mongoc_collection_delete_one(THIS->collection, filter, NULL, NULL, &error);
+		options = BCON_NEW("upsert", BCON_BOOL(TRUE));
+		
+		doc = HELPER_to_bson_except(VARG(doc), "_id");
+		if (!HELPER_bson_add_string(doc, "_id", STRING(id), LENGTH(id)))
+			ok = mongoc_collection_replace_one(THIS->collection, filter, doc, options, NULL, &error);
+		else
+			ok = TRUE;
+		
+		bson_destroy(options);
+		bson_destroy(doc);
 	}
 
 	if (!ok)
@@ -244,7 +313,104 @@ BEGIN_METHOD(MongoCollection_Find, GB_OBJECT filter)
 
 END_METHOD
 
+BEGIN_METHOD(MongoCollection_Remove, GB_STRING id)
+
+	bool ok;
+	bson_t *filter;
+	bson_error_t error;
+	
+	filter = bson_new();
+	bson_append_utf8(filter, "_id", 3, STRING(id), LENGTH(id));
+	
+	ok = mongoc_collection_delete_one(THIS->collection, filter, NULL, NULL, &error);
+	
+	if (!ok)
+		GB.Error("&1", error.message);
+
+	bson_destroy(filter);
+
+END_METHOD
+
 //--------------------------------------------------------------------------
+
+BEGIN_METHOD(MongoCollection_Indexes_Add, GB_OBJECT keys; GB_OBJECT options)
+
+	bson_t *keys;
+	bson_error_t error;
+	bool err = FALSE;
+
+	keys = HELPER_to_bson(VARG(keys), FALSE);
+	if (!keys)
+		return;
+
+#if MONGOC_CHECK_VERSION(1,24,0)
+	
+	bson_t *options = HELPER_to_bson(VARGOPT(options, NULL), TRUE);
+	mongoc_index_model_t *model = mongoc_index_model_new(keys, options);
+	
+	if (!mongoc_collection_create_indexes_with_opts(THIS->collection, &model, 1, NULL, NULL, &error))
+	{
+		err = TRUE;
+		GB.Error("&1", error.message);
+	}
+	
+	mongoc_index_model_destroy(model);
+	bson_destroy(options);
+
+#else
+	
+	mongoc_index_opt_t index_opts;
+	GB_COLLECTION options = VARGOPT(options, NULL);
+	
+	if (fill_index_opts_from_collection(&index_opts, options))
+		return;
+	
+	if (!mongoc_collection_create_index_with_opts(THIS->collection, keys, &index_opts, NULL, NULL, &error))
+	{
+		err = TRUE;
+		GB.Error("&1", error.message);
+	}
+	
+#endif
+	
+	if (!err)
+		GB.ReturnNewZeroString(mongoc_collection_keys_to_index_string(keys));
+	
+	bson_destroy(keys);
+	
+END_METHOD
+
+BEGIN_METHOD(MongoCollection_Indexes_Remove, GB_STRING name)
+
+	bson_error_t error;
+	
+	if (!mongoc_collection_drop_index_with_opts(THIS->collection, GB.ToZeroString(ARG(name)), NULL, &error)) 
+		GB.Error("&1", error.message);
+
+END_METHOD
+
+BEGIN_METHOD_VOID(MongoCollection_Indexes_Query)
+
+	mongoc_cursor_t *cursor;
+
+	cursor = mongoc_collection_find_indexes_with_opts(THIS->collection, NULL);
+	
+	GB.ReturnObject(HELPER_create_result(THIS->client, cursor));
+
+END_METHOD
+
+//--------------------------------------------------------------------------
+
+GB_DESC MongoCollectionIndexesDesc[] = {
+	
+	GB_DECLARE_VIRTUAL(".MongoCollection.Indexes"),
+	
+	GB_METHOD("Add", "s", MongoCollection_Indexes_Add, "(Keys)Collection;[(Options)Collection;]"),
+	GB_METHOD("Remove", NULL, MongoCollection_Indexes_Remove, "(Name)s"),
+	GB_METHOD("Query", "MongoResult", MongoCollection_Indexes_Query, NULL),
+	
+	GB_END_DECLARE
+};
 
 GB_DESC MongoCollectionDesc[] = {
 
@@ -256,17 +422,18 @@ GB_DESC MongoCollectionDesc[] = {
 	GB_PROPERTY_READ("Name", "s", MongoCollection_Name),
 	GB_PROPERTY_READ("Count", "l", MongoCollection_Count),
 	
-	GB_METHOD("Delete", NULL, MongoCollection_Delete, NULL),
-	
 	GB_METHOD("Query", "MongoResult", MongoCollection_Query, "[(Filter)Collection;(Options)Collection;]"),
-	GB_METHOD("Remove", NULL, MongoCollection_Remove, "[(Filter)Collection;(Options)Collection;]"),
+	GB_METHOD("Delete", NULL, MongoCollection_Delete, "[(Filter)Collection;(Options)Collection;]"),
 	GB_METHOD("Add", NULL, MongoCollection_Add, "(Document)Collection;[(Options)Collection;]"),
+	GB_METHOD("Remove", NULL, MongoCollection_Remove, "(Id)s"),
 	GB_METHOD("Replace", NULL, MongoCollection_Replace, "(Filter)Collection;(Document)Collection;[(Options)Collection;]"),
 	//GB_METHOD("Rename", NULL, MongoCollection_Rename, "(NewName)s[]")
 	GB_METHOD("Find", "String[]", MongoCollection_Find, "[(Filter)Collection;]"),
 
 	GB_METHOD("_get", "Collection", MongoCollection_get, "(Id)s"),
 	GB_METHOD("_put", NULL, MongoCollection_put, "(Document)Collection;(Id)s"),
+	
+	GB_PROPERTY_SELF("Indexes", ".MongoCollection.Indexes"),
 	
 	GB_END_DECLARE
 };

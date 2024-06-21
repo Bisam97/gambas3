@@ -1447,9 +1447,19 @@ End
 
 Public Sub Kill()
   
+  Dim I As Integer
+  
   If $hProcess Then 
+    
     Try $hProcess.Kill
+    For I = 1 To 100
+      Wait 0.01
+      If Not $hProcess Then Break
+    Next
+    If $hProcess Then Error.Raise("Unable to kill the terminal process")
+    
   Else If $hPipeIn Then
+    
     Process_Read()        ' Get the last data in stream and display it
     
     If Object.Class($hPipeIn).name <> "Socket" Then
@@ -1460,7 +1470,8 @@ Public Sub Kill()
     
     $oPreprocess = Null
     $hPipeIn = Null       ' dont close the pipes its the owners problem
-    $hPipeOut = Null    
+    $hPipeOut = Null
+    
   Endif
   
 End

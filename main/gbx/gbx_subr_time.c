@@ -281,7 +281,7 @@ void SUBR_week(ushort code)
 	}
 
 	RETURN->type = T_INTEGER;
-	RETURN->_integer.value = (DATE_diff(&date, &first, DP_DAY) - n + 7) / 7;
+	RETURN->_integer.value = (DATE_diff(&date, &first, GB_DP_DAY) - n + 7) / 7;
 
 	SUBR_LEAVE();
 }

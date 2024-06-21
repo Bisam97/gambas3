@@ -27,8 +27,8 @@
 
 #include "helper.h"
 
-static const char *_force_id = NULL;
-static int _force_len = 0;
+static const char *_ignore_key = NULL;
+static int _ignore_len = 0;
 
 bson_t *HELPER_to_bson(void *col, bool null_is_void)
 {
@@ -74,11 +74,8 @@ bson_t *HELPER_to_bson(void *col, bool null_is_void)
 		{
 			if (GB.Collection.Enum(col, &iter, (GB_VARIANT *)&value, &key, &len))
 				break;
-			if (_force_id && _force_len > 0 && len == 3 && strncmp(key, "_id", 3) == 0)
-			{
-				ok = bson_append_utf8(bson, key, len, _force_id, _force_len);
-				goto CHECK_ERROR;
-			}
+			if (_ignore_key && len == _ignore_len && strncmp(_ignore_key, key, len) == 0)
+				continue;
 		}
 		else
 		{
@@ -162,8 +159,6 @@ bson_t *HELPER_to_bson(void *col, bool null_is_void)
 				return NULL;
 		}
 
-	CHECK_ERROR:
-	
 		if (!ok)
 		{
 			GB.Error("Too big object");
@@ -174,14 +169,25 @@ bson_t *HELPER_to_bson(void *col, bool null_is_void)
   return bson;
 }
 
-bson_t *HELPER_to_bson_with_id(GB_COLLECTION col, char *id, int len)
+bson_t *HELPER_to_bson_except(GB_COLLECTION col, const char *key)
 {
-	_force_id = id;
-	_force_len = len;
+	_ignore_key = key;
+	_ignore_len = strlen(key);
 	bson_t *result = HELPER_to_bson(col, TRUE);
-	_force_id = NULL;
+	_ignore_key = NULL;
 	
 	return result;
+}
+
+bool HELPER_bson_add_string(bson_t *bson, const char *key, char *str, int len)
+{
+	if (!bson_append_utf8(bson, key, strlen(key), str, len))
+	{
+		GB.Error("Too big object");
+		return TRUE;
+	}
+	else
+		return FALSE;
 }
 
 /*

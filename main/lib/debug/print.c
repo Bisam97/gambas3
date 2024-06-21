@@ -215,17 +215,17 @@ __LONG:
 
 __DATE:
 
-	GB_DEBUG.FormatDate(GB.SplitDate((GB_DATE *)value), LF_STANDARD, NULL, 0, &addr, &len);
+	GB_DEBUG.FormatDate(GB.SplitDate((GB_DATE *)value), GB_LF_STANDARD, NULL, 0, &addr, &len);
 	goto __PRINT;
 
 __SINGLE:
 
-	GB_DEBUG.FormatNumber(value->_single.value, LF_SHORT_NUMBER, NULL, 0, &addr, &len, TRUE);
+	GB_DEBUG.FormatNumber(value->_single.value, GB_LF_SHORT_NUMBER, NULL, 0, &addr, &len, TRUE);
 	goto __PRINT;
 	
 __FLOAT:
 
-	GB_DEBUG.FormatNumber(value->_float.value, LF_STANDARD, NULL, 0, &addr, &len, TRUE);
+	GB_DEBUG.FormatNumber(value->_float.value, GB_LF_STANDARD, NULL, 0, &addr, &len, TRUE);
 	
 __PRINT:
 	
