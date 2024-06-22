@@ -8,6 +8,7 @@ SUBDIRS = \
  @postgresql_dir@ \
  @sqlite2_dir@ \
  @sqlite3_dir@ \
+ @dbsqlite3_dir@ \
  @net_dir@ \
  @curl_dir@ \
  @mime_dir@ \
