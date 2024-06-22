@@ -138,13 +138,14 @@ BEGIN_PROPERTY(MongoCollection_Count)
 	
 END_PROPERTY
 
-BEGIN_METHOD(MongoCollection_Add, GB_OBJECT doc; GB_OBJECT options)
+BEGIN_METHOD(MongoCollection_Add, GB_STRING id; GB_OBJECT doc; GB_OBJECT options)
 
 	bson_error_t error;
-	bson_t *doc = HELPER_to_bson(VARG(doc), FALSE);
+	bson_t *doc;
 	bson_t *options = HELPER_to_bson(VARGOPT(options, NULL), TRUE);
 	
-	if (doc)
+	doc = HELPER_to_bson_except(VARG(doc), "_id");
+	if (!HELPER_bson_add_string(doc, "_id", STRING(id), LENGTH(id)))
 	{
 		if (!mongoc_collection_insert_one(THIS->collection, doc, options, NULL, &error))
 			GB.Error("&1", error.message);
@@ -424,7 +425,7 @@ GB_DESC MongoCollectionDesc[] = {
 	
 	GB_METHOD("Query", "MongoResult", MongoCollection_Query, "[(Filter)Collection;(Options)Collection;]"),
 	GB_METHOD("Delete", NULL, MongoCollection_Delete, "[(Filter)Collection;(Options)Collection;]"),
-	GB_METHOD("Add", NULL, MongoCollection_Add, "(Document)Collection;[(Options)Collection;]"),
+	GB_METHOD("Add", NULL, MongoCollection_Add, "(Id)s(Document)Collection;[(Options)Collection;]"),
 	GB_METHOD("Remove", NULL, MongoCollection_Remove, "(Id)s"),
 	GB_METHOD("Replace", NULL, MongoCollection_Replace, "(Filter)Collection;(Document)Collection;[(Options)Collection;]"),
 	//GB_METHOD("Rename", NULL, MongoCollection_Rename, "(NewName)s[]")
