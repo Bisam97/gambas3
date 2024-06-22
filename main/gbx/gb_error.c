@@ -116,7 +116,7 @@ static const char *const _message[79] =
 	/* 62 E_BYREF       */ "Argument cannot be passed by reference",
 	/* 63 E_OVERRIDE    */ ".3'&1.&2' is incorrectly overridden in class '&3'",
 	/* 64 E_NKEY        */ "Void key",
-	/* 65 E_SARRAY      */ "Read-only array",
+	/* 65 E_READONLY    */ "Read-only object",
 	/* 66 E_EXTCB       */ ".1Cannot create callback: &1",
 	/* 67 E_SERIAL      */ "Serialization error",
 	/* 68 E_CHILD       */ ".2Cannot run child process: &1&2",

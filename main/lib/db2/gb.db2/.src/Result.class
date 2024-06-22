@@ -1,0 +1,202 @@
+' Gambas class file
+
+Export
+
+Property Read Count, Length As Integer
+Property Read Max As Integer
+Property Read Available As Boolean
+Property Read Index As Long Use $iIndex = 0
+Property Read Editable As Boolean
+Property Read Connection As Connection
+Property Read Fields As Collection
+
+Private $hDriver As _DatabaseDriver
+Private $pHandle As Pointer
+Private $iCount As Integer
+Private $vBuffer As Variant[]
+Private $aField As String[]
+Private $cFieldIndex As Collection
+Private $cFields As Collection
+
+' GB_DESC CResultDesc[] =
+' {
+'   GB_DECLARE("Result", sizeof(CRESULT)), GB_NOT_CREATABLE(),
+' 
+'   GB_HOOK_CHECK(check_result),
+' 
+'   GB_METHOD("_free", NULL, Result_free, NULL),
+' 
+'   GB_PROPERTY_READ("Count", "i", Result_Count),
+'   GB_PROPERTY_READ("Length", "i", Result_Count),
+'   GB_PROPERTY_READ("Available", "b", Result_Available),
+'   GB_PROPERTY_READ("Index", "i", Result_Index),
+'   GB_PROPERTY_READ("Max", "i", Result_Max),
+'   GB_PROPERTY_READ("Editable", "b", Result_Editable),
+' 
+'   GB_METHOD("_get", "v", Result_get, "(Field)s"),
+'   GB_METHOD("_put", NULL, Result_put, "(Value)v(Field)s"),
+'   GB_METHOD("_next", NULL, Result_next, NULL),
+' 
+'   GB_METHOD("MoveFirst", "b", Result_MoveFirst, NULL),
+'   GB_METHOD("MoveLast", "b", Result_MoveLast, NULL),
+'   GB_METHOD("MovePrevious", "b", Result_MovePrevious, NULL),
+'   GB_METHOD("MoveNext", "b", Result_MoveNext, NULL),
+'   GB_METHOD("MoveTo", "b", Result_MoveTo, "(Index)i"),
+' 
+'   GB_METHOD("Update", NULL, Result_Update, NULL),
+'   GB_METHOD("Delete", NULL, Result_Delete, "[(Keep)b]"),
+'   
+'   GB_METHOD("All", "Array", Result_GetAll, "(Field)s"),
+'   
+'   GB_PROPERTY_READ("Fields", ".Result.Fields", Result_Fields),
+'   GB_PROPERTY_READ("Connection", "Connection", Result_Connection),
+' 
+'   GB_END_DECLARE
+' };
+' 
+
+Public Sub _free()
+  
+  $hDriver.FreeResult($pHandle)
+  
+End
+
+Public Sub _Fill(hDriver As _DatabaseDriver, pHandle As Pointer)
+  
+  Dim I As Integer
+  
+  $hDriver = hDriver
+  $pHandle = pHandle
+  $iCount = $hDriver.GetResultCount(pHandle)
+  $aField = $hDriver.GetResultFields(pHandle)
+  
+  $cFieldIndex = New Collection
+  $cFieldIndex.Default = -1
+  For I = 0 To $aField.Max
+    $cFieldIndex[$aField[I]] = I
+  Next
+  
+  MoveFirst()
+  
+End
+
+Private Function Count_Read() As Integer
+
+  Return $iCount
+
+End
+
+Private Function Max_Read() As Integer
+
+  Return $iCount - 1
+
+End
+
+Private Function Available_Read() As Boolean
+
+  Return $iIndex >= $iCount
+
+End
+
+Private Function Editable_Read() As Boolean
+
+  
+
+End
+
+Public Sub MoveTo(Index As Long) As Boolean
+  
+  If Index < 0 Or If Index >= $iCount Then Return True
+  $vBuffer = $hDriver.FillResult($pHandle, Index, Index = $iIndex + 1)
+  $iIndex = Index
+  
+End
+
+Public Sub MoveFirst() As Boolean
+  
+  Return MoveTo(0)
+  
+End
+
+Public Sub MoveLast() As Boolean
+
+  Return MoveTo($iCount - 1)  
+  
+End
+
+Public Sub MovePrevious() As Boolean
+
+  Return MoveTo($iIndex - 1)  
+  
+End
+
+Public Sub MoveNext() As Boolean
+
+  Return MoveTo($iIndex + 1)
+  
+End
+
+Public Sub _next()
+  
+  If IsNull(Enum.Index) Then
+    If MoveFirst() Then Enum.Stop
+    Enum.Index = 1
+  Else
+    If MoveTo(Enum.Index) Then Enum.Stop
+    Inc Enum.Index
+  Endif
+  
+End
+
+Public Sub _get(Field As String) As Variant
+  
+  Dim iPos As Integer
+  
+  If IsInteger(Field) Then
+    iPos = CInt(Field)
+  Else 
+    iPos = $cFieldIndex[Field]
+  Endif
+  
+  Try Return $vBuffer[iPos]
+  Error.Raise("Unknown field: " & Field)
+  
+End
+
+Public Sub _put(Value As Variant, Field As String)
+  
+  
+  
+End
+
+Private Function Connection_Read() As Connection
+
+  Return Object.Parent($hDriver)
+
+End
+
+Private Function Fields_Read() As Collection
+
+  Dim hResultField As ResultField
+  Dim aTypes As Integer[]
+  Dim aLength As Integer[]
+  Dim I As Integer
+  
+  If Not $cFields Then 
+    
+    aTypes = $hDriver.GetResultTypes($pHandle)
+    aLength = $hDriver.GetResultLengths($pHandle)
+    
+    $cFields = New Collection
+    For I = 0 To $aField.Max
+      hResultField = New ResultField
+      Object.Attach(hResultField, Me, "ResultField")
+      hResultField._Fill($aField[I], aTypes[I], aLength[I])
+      $cFields[$aField[I]] = hResultField
+    Next
+    $cFields.ReadOnly = True
+  Endif
+  
+  Return $cFields
+
+End

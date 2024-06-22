@@ -45,6 +45,7 @@ typedef
 		short mode;
 		unsigned locked : 1;
 		unsigned has_default : 1;
+		unsigned read_only : 1;
 		}
 	CCOLLECTION;
 

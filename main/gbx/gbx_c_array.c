@@ -59,7 +59,7 @@ void *CARRAY_out_of_bounds()
 
 void CARRAY_static_array()
 {
-	GB_Error((char *)E_SARRAY);
+	GB_Error((char *)E_READONLY);
 }
 
 

@@ -1,0 +1,207 @@
+' Gambas class file
+
+Export
+
+Public Const Boolean As Integer = gb.Boolean
+Public Const Integer As Integer = gb.Integer
+Public Const Long As Integer = gb.Long
+Public Const Float As Integer = gb.Float
+Public Const Date As Integer = gb.Date
+'Public Const String As Integer = gb.String
+Public Const Serial As Integer = -1
+Public Const Blob As Integer = -2
+
+Static Property Current As Connection Use $hCurrent
+
+Static Property Type As String
+Static Property Host As String
+Static Property User, Login As String
+Static Property Password As String
+Static Property Name As String
+Static Property Port As String
+Static Property Timeout As Integer
+
+Static Property Read Charset As String
+Static Property Read Version As Integer
+Static Property Read FullVersion As String
+Static Property Read Opened As Boolean
+Static Property Read Error As Integer
+Static Property IgnoreCharset As Boolean
+Static Property Read Collations As String[]
+Static Property Read Handle As Pointer
+Static Property Read LastInsertId As Long
+
+Static Private Sub Check()
+  
+  If Not $hCurrent Then Error.Raise("No current connection")
+  
+End
+
+
+Static Private Function Type_Read() As String
+
+  Check()
+  Return $hCurrent.Type
+
+End
+
+Static Private Sub Type_Write(Value As String)
+
+  Check()
+  $hCurrent.Type = Value
+
+End
+
+Static Private Function Host_Read() As String
+
+  Check()
+  Return $hCurrent.Host  
+
+End
+
+Static Private Sub Host_Write(Value As String)
+
+  Check()
+  $hCurrent.Host = Value
+
+End
+
+Static Private Function User_Read() As String
+
+  Check()
+  Return $hCurrent.User  
+
+End
+
+Static Private Sub User_Write(Value As String)
+
+  Check()
+  $hCurrent.User = Value
+
+End
+
+Static Private Function Password_Read() As String
+
+  Check()
+  Return $hCurrent.Password
+
+End
+
+Static Private Sub Password_Write(Value As String)
+
+  Check()
+  $hCurrent.Password = Value  
+
+End
+
+Static Private Function Name_Read() As String
+
+  Check()
+  Return $hCurrent.Name
+
+End
+
+Static Private Sub Name_Write(Value As String)
+
+  Check()
+  $hCurrent.Name = Value  
+
+End
+
+Static Private Function Port_Read() As String
+
+  Check()
+  Return $hCurrent.Port  
+
+End
+
+Static Private Sub Port_Write(Value As String)
+
+  Check()
+  $hCurrent.Port = Value  
+
+End
+
+Static Private Function Timeout_Read() As Integer
+
+  Check()
+  Return $hCurrent.Timeout  
+
+End
+
+Static Private Sub Timeout_Write(Value As Integer)
+
+  Check()
+  $hCurrent.Timeout = Value  
+
+End
+
+Static Private Function Charset_Read() As String
+
+  Check()
+  Return $hCurrent.Charset  
+
+End
+
+Static Private Function Version_Read() As Integer
+
+  Check()
+  Return $hCurrent.Version  
+
+End
+
+Static Private Function FullVersion_Read() As String
+
+  Check()
+  Return $hCurrent.FullVersion  
+
+End
+
+Static Private Function Opened_Read() As Boolean
+
+  Check()
+  Return $hCurrent.Opened  
+
+End
+
+Static Private Function Error_Read() As Integer
+
+  Check()
+  Return $hCurrent.Error  
+
+End
+
+Static Private Function IgnoreCharset_Read() As Boolean
+
+  Check()
+  Return $hCurrent.IgnoreCharset  
+
+End
+
+Static Private Sub IgnoreCharset_Write(Value As Boolean)
+
+  Check()
+  $hCurrent.IgnoreCharset = Value  
+
+End
+
+Static Private Function Collations_Read() As String[]
+
+  Check()
+  Return $hCurrent.Collations  
+
+End
+
+Static Private Function Handle_Read() As Pointer
+
+  Check()
+  Return $hCurrent.Handle  
+
+End
+
+Static Private Function LastInsertId_Read() As Long
+
+  Check()
+  Return $hCurrent.LastInsertId  
+
+End

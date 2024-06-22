@@ -35,9 +35,10 @@
 #include "gbx_api.h"
 #include "gbx_class.h"
 #include "gbx_object.h"
-
+#include "gbx_c_array.h"
 #include "gbx_c_collection.h"
 
+#define check_not_read_only(_object) ((((CCOLLECTION *)_object)->read_only) ? CARRAY_static_array(), TRUE : FALSE)
 
 static void clear(CCOLLECTION *col)
 {
@@ -63,7 +64,19 @@ static void clear(CCOLLECTION *col)
 
 #define get_key(_col, _key, _len, _set_last) HASH_TABLE_lookup((_col)->hash_table, (_key), (_len), _set_last)
 
-#define add_key(_col, _key, _len) ((_len) == 0 ? (GB_Error((char *)E_VKEY), NULL) : HASH_TABLE_insert(((CCOLLECTION *)(_col))->hash_table, (_key), (_len)))
+static inline void *add_key(CCOLLECTION *col, const char *key, int len)
+{
+	if (len == 0)
+	{
+		GB_Error((char *)E_VKEY);
+		return NULL;
+	}
+	
+	if (check_not_read_only(col))
+		return NULL;
+	
+	return HASH_TABLE_insert(col->hash_table, key, len);
+}
 
 static void remove_key(CCOLLECTION *col, const char *key, int len)
 {
@@ -77,6 +90,9 @@ static void remove_key(CCOLLECTION *col, const char *key, int len)
 		GB_Error((char *)E_VKEY);
 		return;
 	}
+	
+	if (check_not_read_only(col))
+		return;
 
 	save = col->hash_table->last;
 	
@@ -191,6 +207,9 @@ BEGIN_METHOD_VOID(Collection_Clear)
 
 	int mode = THIS->hash_table->mode;
 
+	if (check_not_read_only(THIS))
+		return;
+
 	/* Stops all iterators */
 	GB_StopAllEnum(THIS);
 
@@ -303,6 +322,8 @@ BEGIN_PROPERTY(Collection_Default)
 		GB_ReturnVariant(&THIS->default_value);
 	else
 	{
+		if (check_not_read_only(THIS))
+			return;
 		GB_StoreVariant(PROP(GB_VARIANT), POINTER(&THIS->default_value));
 		THIS->has_default = THIS->default_value.type != GB_T_NULL;
 	}
@@ -334,6 +355,25 @@ BEGIN_PROPERTY(Collection_Last)
 
 END_PROPERTY
 
+BEGIN_PROPERTY(Collection_ReadOnly)
+
+	if (READ_PROPERTY)
+		GB_ReturnBoolean(THIS->read_only);
+	else
+	{
+		bool read_only = VPROP(GB_BOOLEAN);
+		if (THIS->read_only == read_only)
+			return;
+		
+		if (THIS->read_only)
+			CARRAY_static_array();
+		else
+			THIS->read_only = TRUE;
+	}
+
+END_PROPERTY
+
+
 #endif
 
 
@@ -352,6 +392,7 @@ GB_DESC NATIVE_Collection[] =
 	GB_PROPERTY("Key", "s", Collection_Key),
 	GB_PROPERTY("Default", "v", Collection_Default),
 	GB_PROPERTY_READ("Keys", "String[]", Collection_Keys),
+	GB_PROPERTY("ReadOnly", "b", Collection_ReadOnly),
 
 	GB_METHOD("Add", NULL, Collection_Add, "(Value)v(Key)s"),
 	GB_METHOD("Exist", "b", Collection_Exist, "(Key)s"),

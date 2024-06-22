@@ -1,0 +1,132 @@
+' Gambas class file
+
+Export
+
+Event _Fake
+
+' typedef
+'   struct {
+'     void *handle;                   /* Connection handle */
+'     int version;                    /* Version of the database server */
+'     char *full_version;             /* Full version of the database server */
+'     char *charset;                  /* Charset used by the database server */
+'     void *data;                     /* Can be used by the driver for storing its own private data */
+'     int error;                      /* Last SQL error code raise by a query */
+'     int timeout;                    /* Connection timeout */
+'     int timezone;                   /* Timezone of dates (default to local timezone) */
+'     unsigned ignore_case : 1;       /* If table, field and index names are case sensitive */
+'     struct {
+'       unsigned no_table_type : 1;   /* Tables do not have types */
+'       unsigned no_serial : 1;       /* Serial fields are not supported */
+'       unsigned no_blob : 1;         /* Blob fields are not supported */
+'       unsigned no_seek : 1;         /* Cannot seek anywhere in a Result */
+'       unsigned no_nest : 1;         /* Cannot nest transactions */
+'       //unsigned no_case : 1;         /* table, field and index names must be converted to lower case */
+'       unsigned schema : 1;          /* If table names can be prefixed by a schema name and a dot */
+'       unsigned no_collation : 1;    /* No collation support at field level */
+'       unsigned no_returning : 1;    /* Database does not support RETURNING keyword */
+'       unsigned system : 1;          /* system database */
+'       unsigned if_not_exist : 2;    // INSERT if not exist syntax type
+'       }
+'       flags;
+'     struct {
+'       const char *keyword;          /* keyword for limiting the result of a query */
+'       int pos;                      /* position of 'limit' keyword */
+'       }
+'       limit;
+'     const char *db
+
+Public Version As Integer
+Public FullVersion As String
+Public Charset As String
+Public LastError As Integer
+Public Timeout As Integer
+Public IgnoreCase As Boolean
+Public NoTableType As Boolean
+Public NoSerial As Boolean
+Public NoBlob As Boolean
+Public NoResultSeek As Boolean
+Public NoTransactionNest As Boolean
+Public HasSchema As Boolean
+Public NoCollation As Boolean
+Public NoReturning As Boolean
+Public IsSystem As Boolean
+Public InsertIfNotExist As Integer
+Public Limit As String
+Public LimitPos As Integer
+Public AllowedCharsInDatabaseName As String
+
+Public Enum IGNORE_NONE, IGNORE_INSERT, IGNORE_ON_CONFLICT
+Public Enum LIMIT_NONE, LIMIT_AT_BEGIN, LIMIT_AT_END
+
+Public Sub Open(Host As String, Port As String, Name As String, (User) As String, Password As String) As Pointer
+  
+End
+
+Public Sub Close()
+  
+End
+
+Public Sub Format(Value As Variant) As String
+  
+  If IsNull(Value) Then Return "NULL"
+  
+  Select Case TypeOf(Value)
+    
+    Case gb.Boolean
+      Return If(Value, "TRUE", "FALSE")
+      
+    Case gb.String
+      Return "'" & Replace(Value, "'", "''") & "'"
+      
+    Case gb.Byte, gb.Short, gb.Integer, gb.Long, gb.Single, gb.Float
+      Return CStr(Value)
+      
+    Default
+      Error "gb.db2: warning: unsupported datatype"
+      
+  End Select
+  
+End
+
+Public Sub Query(Request As String) As Pointer
+  
+End
+
+Public Sub Exec(Request As String)
+
+  FreeResult(Query(Request))
+  
+End
+
+Public Sub GetResultCount(Result As Pointer) As Long
+  
+End
+
+Public Sub GetError() As Integer
+  
+End
+
+Public Sub FreeResult(Result As Pointer)
+  
+End
+
+Public Sub GetVersion() As String
+  
+End
+
+Public Sub FillResult(Result As Pointer, Index As Long, Next As Boolean) As Variant[]
+  
+End
+
+Public Sub GetResultFields(Result As Pointer) As String[]
+  
+End
+
+Public Sub GetResultTypes(Result As Pointer) As Integer[]
+  
+End
+
+Public Sub GetResultLengths(Result As Pointer) As Integer[]
+  
+End

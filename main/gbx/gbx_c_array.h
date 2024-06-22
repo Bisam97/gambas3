@@ -122,7 +122,7 @@ void CARRAY_release_static(CLASS *class, CLASS_ARRAY *desc, void *data);
 ({ \
 	CARRAY *__object = (CARRAY *)(_object); \
 	if (__object->read_only) \
-		THROW(E_SARRAY); \
+		THROW(E_READONLY); \
 })
 
 

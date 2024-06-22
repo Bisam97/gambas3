@@ -1,0 +1,159 @@
+' Gambas class file
+
+Export
+
+Property Type As String Use $sType
+Property Host As String Use $sHost
+Property Login, User As String Use $sUser
+Property Password As String Use $sPassword
+Property Name As String Use $Name
+Property Port As String Use $sPort
+Property Timeout As Integer Use $iTimeout
+
+Property Read Charset As String
+Property Read Version As Integer
+Property Read FullVersion As String
+Property Read Opened As Boolean
+Property Read Error As Integer
+Property IgnoreCharset As Boolean Use $bIgnoreCharset
+Property Read Collations As String[]
+Property Read Handle As Pointer
+Property Read LastInsertId As Long
+
+Private $hDriver As _DatabaseDriver
+Private $sVersion As String
+
+'   GB_DECLARE("_Connection", sizeof(CCONNECTION)),
+' 
+'   GB_METHOD("_new", NULL, Connection_new, NULL),
+'   GB_METHOD("_free", NULL, Connection_free, NULL),
+' 
+'   GB_METHOD("Limit", "Connection", Connection_Limit, "(Limit)i"),
+'   GB_METHOD("Exec", "Result", Connection_Exec, "(Request)s(Arguments)."),
+'   GB_METHOD("Create", "Result", Connection_Create, "(Table)s[(Return)b(IfNotExist)b]"),
+'   GB_METHOD("Find", "Result", Connection_Find, "(Table)s[(Request)s(Arguments).]"),
+'   GB_METHOD("Edit", "Result", Connection_Edit, "(Table)s[(Request)s(Arguments).]"),
+'   GB_METHOD("Delete", NULL, Connection_Delete, "(Table)s[(Request)s(Arguments).]"),
+'   GB_METHOD("Subst", "s", Connection_Subst, "(Format)s(Arguments)."),
+' 
+'   GB_METHOD("Begin", NULL, Connection_Begin, NULL),
+'   GB_METHOD("Commit", NULL, Connection_Commit, NULL),
+'   GB_METHOD("Rollback", NULL, Connection_Rollback, NULL),
+' 
+'   GB_METHOD("Quote", "s", Connection_Quote, "(Name)s[(Table)b]"),
+'   GB_METHOD("FormatBlob", "s", Connection_FormatBlob, "(Data)s"),
+' 
+'   GB_PROPERTY("Tables", ".Connection.Tables", Connection_Tables),
+'   GB_PROPERTY("Databases", ".Connection.Databases", Connection_Databases),
+'   GB_PROPERTY("Users", ".Connection.Users", Connection_Users),
+'   //GB_PROPERTY("Views", ".ConnectionViews", CCONNECTION_views),
+' 
+'   GB_CONSTANT("_Properties", "s", "Type,Host,Login,Password,Name,Port"),
+' 
+'   GB_END_DECLARE
+
+Public Sub _new()
+  
+  If Not DB.Current Then DB.Current = Me
+  
+End
+
+Private Function Charset_Read() As String
+
+  Return $hDriver.Charset
+
+End
+
+Private Function Version_Read() As Integer
+
+  Return $hDriver.Version
+
+End
+
+Private Function FullVersion_Read() As String
+
+  Return $hDriver.FullVersion
+
+End
+
+Private Function Opened_Read() As Boolean
+
+  Return $hDriver
+
+End
+
+Private Function Error_Read() As Integer
+
+  Return $hDriver.GetError()
+
+End
+
+Private Function Collations_Read() As String[]
+
+  
+
+End
+
+Private Function Handle_Read() As Pointer
+
+  
+
+End
+
+Private Function LastInsertId_Read() As Long
+
+  
+
+End
+
+Public Sub Open()
+  
+  If $hDriver Then Error.Raise("Connection already opened")
+  
+  Try Component.Load("gb.db2." & LCase($sType))
+  If Error Then Error.Raise("Unable to load database driver")
+  
+  $hDriver = Object.New("_DatabaseDriver_" & LCase($sType)) 
+  Object.Attach($hDriver, Me, "DatabaseDriver")
+  $hDriver.Open(Me.Host, Me.Port, Me.Name, Me.User, Me.Password)
+  
+  $sVersion = $hDriver.GetVersion()
+  
+End
+
+Public Sub Close()
+  
+  If Not $hDriver Then Return
+  $hDriver.Close()
+  
+End
+
+Public Sub Subst(Format As String, ...) As String
+
+  Dim I As Integer
+  Dim aArg As String[]
+
+  If Param.Count = 0 Then Return Format
+
+  aArg = New String[Param.Count]
+  For I = 0 To Param.Max
+    aArg[I] = $hDriver.Format(Param[I])
+  Next
+  
+  Return String.Subst(Format, aArg)
+  
+End
+
+Public Sub Exec(Request As String, ...) As Result
+  
+  Dim pHandle As Pointer
+  Dim hResult As Result
+  
+  pHandle = $hDriver.Query(Me.Subst(Request, ...))
+  
+  hResult = New Result
+  hResult._Fill($hDriver, pHandle)
+  Return hResult
+  
+End
+

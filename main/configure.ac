@@ -134,6 +134,7 @@ lib/Makefile \
 lib/debug/Makefile \
 lib/eval/Makefile \
 lib/db/Makefile \
+lib/db2/Makefile \
 lib/vb/Makefile \
 lib/compress/Makefile \
 lib/option/Makefile \
