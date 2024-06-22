@@ -1,11 +1,11 @@
 dnl ---- configure.ac for __COMPONENT
 
 m4_include([../version.m4])
-AC_INIT(gambas3-__COMPONENT_DASH, [GB_VERSION], [GB_MAIL], [], [GB_URL])
+AC_INIT(gambas3-__COMPONENT_DASH,[GB_VERSION],[GB_MAIL],[],[GB_URL])
 AC_CONFIG_MACRO_DIR([m4])
 
 GB_INIT(__COMPONENT)
-AC_PROG_LIBTOOL
+LT_INIT
 
 #if __USE_XWINDOW || __USE_QT
 GB_CHECK_XWINDOW
@@ -64,9 +64,10 @@ GB_COMPONENT(
   
 #endif
   
-AC_OUTPUT( \
+AC_CONFIG_FILES( \
 Makefile \
 src/Makefile \
 )
+AC_OUTPUT
 
 GB_PRINT_MESSAGES
