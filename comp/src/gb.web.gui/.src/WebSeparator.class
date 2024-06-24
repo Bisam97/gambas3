@@ -10,9 +10,13 @@ Public Const _DefaultSize As String = "24,4"
 Public Sub _Render()
   
   If Me.Parent.Arrangement = Arrange.Horizontal Then
-    Print "<div class=\"gw-separator-vline\"><div></div></div>"
+    Print "<div class=\"gw-separator-vline\"><div";
   Else
-    Print "<div class=\"gw-separator-hline\"><div></div></div>"
+    Print "<div class=\"gw-separator-hline\"><div";
   Endif
+  
+  If Me.Foreground <> Color.Default Then Print " style=\"background-color:"; Color.ToHTML(Me.Foreground); ";\"";
+  
+  Print "></div></div>"
   
 End
