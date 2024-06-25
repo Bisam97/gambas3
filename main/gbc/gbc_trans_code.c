@@ -39,6 +39,7 @@
 //ushort *TRANS_labels = NULL;
 
 static FUNCTION *_func;
+static bool _no_warnings = FALSE;
 
 static CLASS_SYMBOL *add_local(int sym_index, TYPE type, int value, bool used)
 {
@@ -98,7 +99,7 @@ static void check_local(CLASS_SYMBOL *sym)
 	{
 		if (sym->local.value < 0)
 		{
-			if (JOB->func->ncode)
+			if (!_no_warnings)
 				COMPILE_print(MSG_WARNING, sym->local.line, "unused argument: &1", SYMBOL_get_name(&sym->symbol));
 		}
 		else
@@ -622,6 +623,7 @@ static void trans_call(const char *name, int nparam)
 void TRANS_code(void)
 {
 	int i, j, n;
+	int ncode;
 
 	// We must compile initialization functions at the end, because static local variables can modify them.
 	
@@ -669,10 +671,14 @@ void TRANS_code(void)
 			continue;
 		}
 		
+		ncode = _func->ncode;
+		
 		create_local_from_param();
 
 		translate_body();
 
+		_no_warnings = _func->ncode == ncode;
+		
 		remove_local();
 		
 		CODE_return(2); // Return from function, ignore Gosub stack
