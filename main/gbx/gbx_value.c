@@ -1730,7 +1730,7 @@ void VALUE_convert_boolean(VALUE *value)
 	static const void *jump[16] =
 	{
 		&&__NR, &&__OK, &&__c2b, &&__h2b, &&__i2b, &&__l2b, &&__g2b, &&__f2b,
-		&&__d2b, &&__s2b, &&__s2b, &&__N, &&__v2, &&__func, &&__N, &&__n2b
+		&&__d2b, &&__s2b, &&__s2b, &&__p2b, &&__v2, &&__func, &&__N, &&__n2b
 	};
 
 	char *addr;
@@ -1787,6 +1787,12 @@ __s2b:
 	value->_integer.value = ((addr != NULL) && (value->_string.len != 0)) ? -1 : 0;
 	if (value->type == T_STRING)
 		STRING_unref(&addr);
+	value->type = T_BOOLEAN;
+	return;
+	
+__p2b:
+
+	value->_integer.value = -(value->_pointer.value != NULL);
 	value->type = T_BOOLEAN;
 	return;
 
