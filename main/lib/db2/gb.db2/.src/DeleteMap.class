@@ -1,0 +1,76 @@
+' Gambas class file
+
+Private $aDelete As New Integer[]
+Private $aLength As New Integer[]
+
+Public Sub FromReal(iPos As Integer) As Integer
+
+  Dim I As Integer
+  Dim P As Integer
+  
+  P = iPos
+  
+  For I = 0 To $aDelete.Max
+    If iPos < $aDelete[I] Then Break
+    If iPos < $aDelete[I] + $aLength[I] Then Return -1
+    P -= $aLength[I]
+  Next
+  
+  Return P
+  
+End
+
+Public Sub ToReal(iPos As Integer) As Integer
+  
+  Dim I As Integer
+  Dim P As Integer
+  
+  P = iPos
+  
+  For I = 0 To $aDelete.Max
+    If P < $aDelete[I] Then Break
+    P += $aLength[I]
+  Next
+  
+  Return P
+  
+End
+
+Public Sub Add(iPos As Integer)
+
+  Dim P As Integer
+  Dim bBreak As Boolean
+  
+  If $aDelete.Count = 0 Then
+    $aDelete.Add(iPos)
+    $aLength.Add(1)
+    Return
+  Endif
+  
+  P = $aDelete.FindSorted(iPos)
+  If P < 0 Then P = -1 - P
+  
+  If P And If iPos >= $aDelete[P - 1] And If iPos < $aDelete[P - 1] + $aLength[P - 1] Then Return
+  If P < $aDelete.Count And If $aDelete[P] = iPos Then Return
+  
+  $aDelete.Add(iPos, P)
+  $aLength.Add(1, P)
+
+  If P = 0 Then Inc P
+
+  While P < $aDelete.Count
+
+    If $aDelete[P - 1] + $aLength[P - 1] < $aDelete[P] Then 
+      If bBreak Then Break
+      Inc P
+      bBreak = True
+      Continue
+    Endif
+
+    $aLength[P - 1] += $aLength[P]
+    $aDelete.Remove(P)
+    $aLength.Remove(P)
+    
+  Wend
+
+End

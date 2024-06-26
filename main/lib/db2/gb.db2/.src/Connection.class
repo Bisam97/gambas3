@@ -17,11 +17,16 @@ Property Read Opened As Boolean
 Property Read Error As Integer
 Property IgnoreCharset As Boolean Use $bIgnoreCharset
 Property Read Collations As String[]
-Property Read Handle As Pointer
+Property Read Handle As Pointer Use $pHandle
 Property Read LastInsertId As Long
+
+Property Read Tables As _ConnectionTables
 
 Private $hDriver As _DatabaseDriver
 Private $sVersion As String
+Private $hTables As _ConnectionTables
+Private $iLimit As Integer
+Private $iTrans As Integer
 
 '   GB_DECLARE("_Connection", sizeof(CCONNECTION)),
 ' 
@@ -90,19 +95,13 @@ End
 
 Private Function Collations_Read() As String[]
 
-  
-
-End
-
-Private Function Handle_Read() As Pointer
-
-  
+  Return $hDriver.GetCollations()
 
 End
 
 Private Function LastInsertId_Read() As Long
 
-  
+  Return $hDriver.GetLastInsertId()
 
 End
 
@@ -111,13 +110,16 @@ Public Sub Open()
   If $hDriver Then Error.Raise("Connection already opened")
   
   Try Component.Load("gb.db2." & LCase($sType))
-  If Error Then Error.Raise("Unable to load database driver")
+  If Error Then Error.Raise("Unable to load database driver: " & Error.Text)
   
   $hDriver = Object.New("_DatabaseDriver_" & LCase($sType)) 
   Object.Attach($hDriver, Me, "DatabaseDriver")
-  $hDriver.Open(Me.Host, Me.Port, Me.Name, Me.User, Me.Password)
+  $pHandle = $hDriver.Open(Me.Host, Me.Port, Me.Name, Me.User, Me.Password)
   
   $sVersion = $hDriver.GetVersion()
+  
+  $iLimit = 0
+  $iTrans = 0
   
 End
 
@@ -144,12 +146,36 @@ Public Sub Subst(Format As String, ...) As String
   
 End
 
+Private Sub GetQuery(sQuery As String) As String
+  
+  Dim sKeyword As String
+  
+  If $iLimit > 0 And If UCase(Left(sQuery, 7)) = "SELECT " Then
+    
+    sKeyword = $hDriver.Limit
+    If Not sKeyword Then sKeyword = "LIMIT"
+    
+    Select Case $hDriver.LimitPos
+      Case _DatabaseDriver.LIMIT_AT_BEGIN
+        Return "SELECT " & sKeyword & " " & CStr($iLimit) & Mid$(sQuery, 7)
+      Default
+        Return sQuery & " " & sKeyword & " " & CStr($iLimit)
+    End Select
+    
+  Else 
+    
+    Return sQuery
+    
+  Endif
+  
+End
+
 Public Sub Exec(Request As String, ...) As Result
   
   Dim pHandle As Pointer
   Dim hResult As Result
   
-  pHandle = $hDriver.Query(Me.Subst(Request, ...))
+  pHandle = $hDriver.Query(GetQuery(Me.Subst(Request, ...)))
   
   hResult = New Result
   hResult._Fill($hDriver, pHandle)
@@ -157,3 +183,124 @@ Public Sub Exec(Request As String, ...) As Result
   
 End
 
+Public Sub Quote(Name As String, Optional Table As Boolean) As String
+  
+  Dim sQuote As String = $hDriver.QuoteCharacter
+  Dim iPos As Integer
+  
+  If Table Then
+    
+    If $hDriver.HasSchema Then iPos = InStr(Table, ".")
+    If iPos Then Return sQuote & Left(Table, iPos - 1) & sQuote & "." & sQuote & Mid(Table, iPos + 1) & sQuote
+    
+  Endif
+    
+  Return sQuote & Name & sQuote
+  
+End
+
+Private Function Tables_Read() As _ConnectionTables
+
+  If Not $hTables Then 
+    $hTables = New _ConnectionTables
+    $hTables._Driver = $hDriver
+    $hTables.Refresh()
+  Endif 
+  
+  Return $hTables
+
+End
+
+Public Sub Create(Table As String, Optional {Return} As Boolean, IfNotExist As Boolean) As Result
+
+  Dim hResult As Result
+  
+  If Not Table Then Error.Raise("Void table name")
+  
+  hResult = New Result
+  hResult._Create($hDriver, Table, {Return}, IfNotExist)
+  Return hResult
+  
+End
+
+Public Sub Find(Table As String, Optional Request As String, ...) As Result
+  
+  Dim sReq As String = "SELECT * FROM " & Me.Quote(Table, True)
+  
+  If Request Then 
+    sReq &= " "
+    If UCase(Left(Request, 6)) <> "WHERE " And If UCase(Left(Request, 9)) <> "ORDER BY " Then sReq &= "WHERE "
+    sReq &= Me.Subst(Request, ...)
+  Endif
+  
+  Return Me.Exec(GetQuery(sReq))
+  
+End
+
+Public Sub Edit(Table As String, Optional Request As String, ...) As Result
+  
+  Dim sReq As String = "SELECT * FROM " & Me.Quote(Table, True)
+  Dim hResult As Result
+  Dim pHandle As Pointer
+  
+  If Request Then 
+    sReq &= " "
+    If UCase(Left(Request, 6)) <> "WHERE " And If UCase(Left(Request, 9)) <> "ORDER BY " Then sReq &= "WHERE "
+    sReq &= Me.Subst(Request, ...)
+  Endif
+  
+  pHandle = $hDriver.Query(GetQuery(sReq))
+  hResult = New Result
+  hResult._Edit($hDriver, Table, pHandle)
+  Return hResult
+
+End
+
+Public Sub Delete(Table As String, Optional Request As String, ...)
+  
+  Dim sReq As String = "DELETE * FROM " & Me.Quote(Table, True)
+  
+  If Request Then 
+    sReq &= " "
+    If UCase(Left(Request, 6)) <> "WHERE " And If UCase(Left(Request, 9)) <> "ORDER BY " Then sReq &= "WHERE "
+    sReq &= Me.Subst(Request, ...)
+  Endif
+  
+  $hDriver.Exec(GetQuery(sReq))
+
+End
+
+Public Sub Begin()
+  
+  If $iTrans = 0 Or If Not $hDriver.NoTransactionNest Then $hDriver.Begin()
+  Inc $iTrans
+  
+End
+
+Public Sub Commit()
+  
+  Dec $iTrans
+  If $iTrans = 0 Or If Not $hDriver.NoTransactionNest Then $hDriver.Commit()
+  
+End
+
+Public Sub Rollback()
+  
+  Dec $iTrans
+  If $iTrans = 0 Or If Not $hDriver.NoTransactionNest Then $hDriver.Rollback()
+  
+End
+
+Public Sub Limit((Limit) As Integer) As Connection
+  
+  $iLimit = Limit
+  Return Me
+  
+End
+
+' Private Sub Type_Write(Value As String)
+'   
+'   If $hDriver Then Error.Raise("Connection is opened")
+'   $sType = Value
+'   
+' End

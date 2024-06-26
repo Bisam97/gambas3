@@ -1,0 +1,76 @@
+' Gambas class file
+
+Export
+
+Public _Driver As _DatabaseDriver
+
+Property Read Count As Integer
+
+Private $aTables As New String[]
+Private $cTables As New Collection
+
+Public Sub _get(Name As String) As Table
+
+  Dim hTable As Table
+  
+  Try hTable = $cTables[Name]
+  If Error Then 
+    hTable = New Table
+    hTable._Fill(_Driver, Name)
+    $cTables[Name] = hTable
+  Endif
+
+  Return hTable  
+  
+End
+
+Public Sub _next() As Table
+  
+  Dim hTable As Table
+  
+  If IsNull(Enum.Index) Then Enum.Index = 0
+  Try hTable = _get($aTables[Enum.Index])
+  If hTable Then
+    Inc Enum.Index
+    Return hTable
+  Else
+    Enum.Stop
+  Endif
+  
+End
+
+Public Sub Exist(Name As String) As Boolean
+  
+  Return $cTables.Exist(Name)
+
+End
+
+Private Function Count_Read() As Integer
+
+  Return $cTables.Count
+
+End
+
+Public Sub Add(Name As String, Optional Type As String)
+  
+  
+  
+End
+
+Public Sub Remove(Name As String)
+  
+  
+  
+End
+
+Public Sub Refresh()
+
+  Dim sTable As String
+  
+  $cTables.Clear
+  $aTables = _Driver.GetTables()
+  For Each sTable In $aTables
+    $cTables[sTable] = True
+  Next
+  
+End

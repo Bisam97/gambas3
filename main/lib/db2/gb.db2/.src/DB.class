@@ -7,11 +7,12 @@ Public Const Integer As Integer = gb.Integer
 Public Const Long As Integer = gb.Long
 Public Const Float As Integer = gb.Float
 Public Const Date As Integer = gb.Date
-'Public Const String As Integer = gb.String
+Public Const String As Integer = gb.String
 Public Const Serial As Integer = -1
 Public Const Blob As Integer = -2
 
 Static Property Current As Connection Use $hCurrent
+Static Property Debug As Boolean Use $bDebug
 
 Static Property Type As String
 Static Property Host As String
@@ -31,12 +32,38 @@ Static Property Read Collations As String[]
 Static Property Read Handle As Pointer
 Static Property Read LastInsertId As Long
 
+Static Property Read Tables As _ConnectionTables
+
+'   GB_STATIC_PROPERTY_READ("LastInsertId", "l", Connection_LastInsertId),
+' 
+'   GB_STATIC_PROPERTY("Debug", "b", Connection_Debug),
+' 
+'   GB_STATIC_METHOD("Limit", "Connection", Connection_Limit, "(Limit)i"),
+'   GB_STATIC_METHOD("Exec", "Result", Connection_Exec, "(Request)s(Arguments)."),
+'   GB_STATIC_METHOD("Create", "Result", Connection_Create, "(Table)s[(Return)b]"),
+'   GB_STATIC_METHOD("Find", "Result", Connection_Find, "(Table)s[(Request)s(Arguments).]"),
+'   GB_STATIC_METHOD("Edit", "Result", Connection_Edit, "(Table)s[(Request)s(Arguments).]"),
+'   GB_STATIC_METHOD("Delete", NULL, Connection_Delete, "(Table)s[(Request)s(Arguments).]"),
+'   GB_STATIC_METHOD("Subst", "s", Connection_Subst, "(Format)s(Arguments)."),
+' 
+'   GB_STATIC_METHOD("Begin", NULL, Connection_Begin, NULL),
+'   GB_STATIC_METHOD("Commit", NULL, Connection_Commit, NULL),
+'   GB_STATIC_METHOD("Rollback", NULL, Connection_Rollback, NULL),
+' 
+'   GB_STATIC_METHOD("Quote", "s", Connection_Quote, "(Name)s[(Table)b]"),
+'   GB_STATIC_METHOD("FormatBlob", "s", Connection_FormatBlob, "(Data)s"),
+' 
+'   GB_STATIC_PROPERTY("Tables", ".Connection.Tables", Connection_Tables),
+'   //GB_STATIC_PROPERTY("Views", ".ConnectionViews", CCONNECTION_views),
+'   GB_STATIC_PROPERTY("Databases", ".Connection.Databases", Connection_Databases),
+'   GB_STATIC_PROPERTY("Users", ".Connection.Users", Connection_Users),
+
+
 Static Private Sub Check()
   
   If Not $hCurrent Then Error.Raise("No current connection")
   
 End
-
 
 Static Private Function Type_Read() As String
 
@@ -204,4 +231,102 @@ Static Private Function LastInsertId_Read() As Long
   Check()
   Return $hCurrent.LastInsertId  
 
+End
+
+Static Public Sub Open()
+  
+  Check()
+  $hCurrent.Open()
+  
+End
+
+Static Public Sub Close()
+  
+  Check()
+  $hCurrent.Close()
+  
+End
+
+Static Public Sub Subst(Format As String, ...) As String
+
+  Check()
+  Return $hCurrent.Subst(Format, ...)
+  
+End
+
+Static Public Sub Exec(Request As String, ...) As Result
+  
+  Check()
+  Return $hCurrent.Exec(Request, ...)
+  
+End
+
+Static Public Sub Quote(Name As String, Optional Table As Boolean) As String
+  
+  Check()
+  Return $hCurrent.Quote(Name, Table)
+  
+End
+
+Static Private Function Tables_Read() As _ConnectionTables
+
+  Check()
+  Return $hCurrent.Tables
+
+End
+
+Static Public Sub Create(Table As String, Optional {Return} As Boolean, IfNotExist As Boolean) As Result
+
+  Check()
+  Return $hCurrent.Create(Table, {Return}, IfNotExist)
+  
+End
+
+Static Public Sub Find(Table As String, Optional Request As String, ...) As Result
+  
+  Check()
+  Return $hCurrent.Find(Table, Request, ...)
+  
+End
+
+Static Public Sub Edit(Table As String, Optional Request As String, ...) As Result
+  
+  Check()
+  Return $hCurrent.Edit(Table, Request, ...)
+
+End
+
+Static Public Sub Delete(Table As String, Optional Request As String, ...)
+
+  Check()
+  $hCurrent.Delete(Table, Request, ...)  
+
+End
+
+Static Public Sub Begin()
+  
+  Check()
+  $hCurrent.Begin()
+  
+End
+
+Static Public Sub Commit()
+  
+  Check()
+  $hCurrent.Commit()
+  
+End
+
+Static Public Sub Rollback()
+  
+  Check()
+  $hCurrent.Rollback()
+  
+End
+
+Static Public Sub Limit((Limit) As Integer) As Connection
+  
+  Check()
+  Return $hCurrent.Limit(Limit)
+  
 End

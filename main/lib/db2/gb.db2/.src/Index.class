@@ -1,0 +1,39 @@
+' Gambas class file
+
+Export
+
+'   GB_DECLARE("Index", sizeof(CINDEX)),
+'   GB_NOT_CREATABLE(),
+'   GB_HOOK_CHECK(valid_index),
+' 
+'   GB_METHOD("_free", NULL, CINDEX_free, NULL),
+' 
+'   GB_PROPERTY_READ("Name", "s", CINDEX_name),
+'   GB_PROPERTY_READ("Unique", "b", CINDEX_unique),
+'   GB_PROPERTY_READ("Primary", "b", CINDEX_primary),
+'   GB_PROPERTY_READ("Fields", "String[]", CINDEX_fields),
+' 
+'   GB_PROPERTY_READ("Table", "Table", CINDEX_table),
+' 
+'   GB_END_DECLARE
+' };
+' 
+
+Property Read Name As String Use $sName
+Property Read Unique As Boolean Use $bUnique
+Property Read Primary As Boolean Use $bPrimary
+Property Read Fields As String[] Use $aFields
+Property Read Table As Table
+
+Public Sub _Fill(hDriver As _DatabaseDriver, sTable As String, sName As String)
+  
+  $sName = sName
+  hDriver.GetTableIndexInfo(sTable, sName, ByRef $aFields, ByRef $bUnique, ByRef $bPrimary)
+  
+End
+
+Private Function Table_Read() As Table
+
+  Return Object.Parent(Object.Parent(Me))
+
+End

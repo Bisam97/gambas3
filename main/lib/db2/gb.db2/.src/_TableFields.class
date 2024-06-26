@@ -1,0 +1,75 @@
+' Gambas class file
+
+Export
+
+Event _Fake
+
+Property Read Count As Integer
+
+Private $hDriver As _DatabaseDriver
+Private $sTable As String
+Private $aFields As String[]
+Private $cFields As New Collection
+
+Public Sub _Fill(hDriver As _DatabaseDriver, sTable As String)
+  
+  $hDriver = hDriver
+  $sTable = sTable
+  Refresh()
+  
+End
+
+Public Sub Refresh()
+  
+  Dim sField As String
+  
+  $cFields.Clear
+  $aFields = $hDriver.GetTableFields($sTable)
+  For Each sField In $aFields
+    $cFields[sField] = True
+  Next
+  
+End
+
+Public Sub _get(Name As String) As Field
+
+  Dim hField As Field
+  
+  Try hField = $cFields[Name]
+  If Error Then 
+    hField = New Field As "Field"
+    hField._Fill($hDriver, $sTable, Name)
+    $cFields[Name] = hField
+  Endif
+
+  Return hField
+  
+End
+
+Public Sub _next() As Field
+  
+  Dim hField As Field
+  
+  If IsNull(Enum.Index) Then Enum.Index = 0
+  Try hField = _get($aFields[Enum.Index])
+  If hField Then
+    Inc Enum.Index
+  Else
+    Enum.Stop
+  Endif
+  Return hField
+  
+End
+
+Public Sub Exist(Name As String) As Boolean
+  
+  Return $cFields.Exist(Name)
+
+End
+
+Private Function Count_Read() As Integer
+
+  Return $cFields.Count
+
+End
+

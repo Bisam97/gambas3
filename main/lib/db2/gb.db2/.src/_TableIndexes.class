@@ -1,0 +1,84 @@
+' Gambas class file
+
+Export
+
+Property Read Count As Integer
+
+Private $hDriver As _DatabaseDriver
+Private $sTable As String
+Private $aIndexes As String[]
+Private $cIndexes As New Collection
+
+Public Sub _Fill(hDriver As _DatabaseDriver, sTable As String)
+  
+  $hDriver = hDriver
+  $sTable = sTable
+  Refresh()
+  
+End
+
+Public Sub Refresh()
+  
+  Dim sIndex As String
+  
+  $cIndexes.Clear
+  $aIndexes = $hDriver.GetTableIndexes($sTable)
+  For Each sIndex In $aIndexes
+    $cIndexes[sIndex] = True
+  Next
+
+End
+
+Public Sub _get(Name As String) As Index
+
+  Dim hIndex As Index
+  
+  Try hIndex = $cIndexes[Name]
+  If Error Then 
+    hIndex = New Index As "Index"
+    hIndex._Fill($hDriver, $sTable, Name)
+    $cIndexes[Name] = hIndex
+  Endif
+
+  Return hIndex
+  
+End
+
+Public Sub _next() As Index
+  
+  Dim hIndex As Index
+  
+  If IsNull(Enum.Index) Then Enum.Index = 0
+  Try hIndex = _get($aIndexes[Enum.Index])
+  If hIndex Then
+    Inc Enum.Index
+  Else
+    Enum.Stop
+  Endif
+  Return hIndex
+  
+End
+
+Public Sub Exist(Name As String) As Boolean
+  
+  Return $cIndexes.Exist(Name)
+
+End
+
+Private Function Count_Read() As Integer
+
+  Return $cIndexes.Count
+
+End
+
+Public Sub Add(Name As String, Fields As String[], Optional Unique As Boolean)
+  
+  
+  
+End
+
+Public Sub Remove(Name As String)
+  
+  
+  
+End

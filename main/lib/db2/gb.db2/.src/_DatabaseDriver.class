@@ -4,6 +4,8 @@ Export
 
 Event _Fake
 
+Public Const QuoteCharacter As String = ""
+
 ' typedef
 '   struct {
 '     void *handle;                   /* Connection handle */
@@ -83,7 +85,7 @@ Public Sub Format(Value As Variant) As String
       Return CStr(Value)
       
     Default
-      Error "gb.db2: warning: unsupported datatype"
+      Error "gb.db: warning: unsupported datatype"
       
   End Select
   
@@ -95,7 +97,7 @@ End
 
 Public Sub Exec(Request As String)
 
-  FreeResult(Query(Request))
+  Me.FreeResult(Me.Query(Request))
   
 End
 
@@ -115,7 +117,11 @@ Public Sub GetVersion() As String
   
 End
 
-Public Sub FillResult(Result As Pointer, Index As Long, Next As Boolean) As Variant[]
+Public Sub GetResultData(Result As Pointer, Index As Long, Next As Boolean) As Variant[]
+  
+End
+
+Public Sub GetResultBlob(Result As Pointer, Index As Long, Field As Integer) As String 
   
 End
 
@@ -128,5 +134,62 @@ Public Sub GetResultTypes(Result As Pointer) As Integer[]
 End
 
 Public Sub GetResultLengths(Result As Pointer) As Integer[]
+  
+End
+
+Public Sub GetTables() As String[]
+  
+End
+
+Public Sub IsSystemTable(Table As String) As Boolean
+
+End
+
+Public Sub GetTableType(Table As String)
+  
+End
+
+Public Sub SetTableType(Table As String, Type As String)
+  
+End
+
+Public Sub GetTableFields(Table As String) As String[]
+  
+End
+
+Public Sub GetTableFieldInfo(Table As String, Field As String, ByRef Type As Integer, ByRef Length As Integer, ByRef {Default} As Variant, ByRef Collation As String)
+  
+End
+
+Public Sub GetTableIndexes(Table As String) As String[]
+  
+End
+
+Public Sub GetTableIndexInfo(Table As String, Index As String, ByRef Fields As String[], ByRef Unique As Boolean, ByRef Primary As Boolean)
+
+End
+
+Public Sub GetTablePrimaryKey(Table As String) As String[]
+  
+End
+
+
+Public Sub GetCollations() As String[]
+  
+End
+
+Public Sub GetLastInsertId() As Long
+  
+End
+
+Public Sub Begin()
+  
+End
+
+Public Sub Commit()
+  
+End
+
+Public Sub Rollback()
   
 End

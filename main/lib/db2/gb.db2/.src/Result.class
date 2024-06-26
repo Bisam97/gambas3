@@ -5,18 +5,28 @@ Export
 Property Read Count, Length As Integer
 Property Read Max As Integer
 Property Read Available As Boolean
-Property Read Index As Long Use $iIndex = 0
+Property Read Index As Long Use $iIndex = -1
 Property Read Editable As Boolean
 Property Read Connection As Connection
 Property Read Fields As Collection
 
+Private Enum MODE_FIND, MODE_EDIT, MODE_CREATE
+
+Private $iMode As Integer
 Private $hDriver As _DatabaseDriver
 Private $pHandle As Pointer
-Private $iCount As Integer
+Private $iCount As Long
 Private $vBuffer As Variant[]
+Private $cBuffer As Collection
 Private $aField As String[]
 Private $cFieldIndex As Collection
 Private $cFields As Collection
+Private $aTypes As Integer[]
+Private $sTable As String
+Private $bReturning As Boolean
+Private $bNotExist As Boolean
+Private $aKey As String[]
+Private $hDeleteMap As New DeleteMap
 
 ' GB_DESC CResultDesc[] =
 ' {
@@ -57,7 +67,7 @@ Private $cFields As Collection
 
 Public Sub _free()
   
-  $hDriver.FreeResult($pHandle)
+  If $pHandle Then $hDriver.FreeResult($pHandle)
   
 End
 
@@ -69,6 +79,7 @@ Public Sub _Fill(hDriver As _DatabaseDriver, pHandle As Pointer)
   $pHandle = pHandle
   $iCount = $hDriver.GetResultCount(pHandle)
   $aField = $hDriver.GetResultFields(pHandle)
+  $aTypes = $hDriver.GetResultTypes(pHandle)
   
   $cFieldIndex = New Collection
   $cFieldIndex.Default = -1
@@ -77,6 +88,39 @@ Public Sub _Fill(hDriver As _DatabaseDriver, pHandle As Pointer)
   Next
   
   MoveFirst()
+  
+End
+
+Public Sub _Create(hDriver As _DatabaseDriver, sTable As String, bReturning As Boolean, bNotExist As Boolean)
+  
+  $iMode = MODE_CREATE
+  $hDriver = hDriver
+  $iCount = 1
+  $sTable = sTable
+  $cBuffer = New Collection
+  
+  If bReturning And If $hDriver.NoReturning Then
+    ' debug message
+    bReturning = False
+  Endif
+  
+  If bNotExist And If $hDriver.InsertIfNotExist = _DatabaseDriver.IGNORE_NONE Then
+    Error.Raise("INSERT cannot ignore already existing rows for this connection")
+  Endif
+  
+  $bReturning = bReturning
+  $bNotExist = bNotExist
+  
+End
+
+Public Sub _Edit(hDriver As _DatabaseDriver, sTable As String, pHandle As Pointer)
+
+  _Fill(hDriver, pHandle)
+  $iMode = MODE_EDIT
+  $sTable = sTable
+  $cBuffer = New Collection
+  $aKey = $hDriver.GetTablePrimaryKey(sTable)
+  If Not $aKey Then Error.Raise("Table '" & sTable & "' has no primary key")
   
 End
 
@@ -94,20 +138,27 @@ End
 
 Private Function Available_Read() As Boolean
 
-  Return $iIndex >= $iCount
+  If $iIndex >= 0 And If $iIndex < $iCount Then Return True
 
 End
 
 Private Function Editable_Read() As Boolean
 
-  
+  Return $iMode <> MODE_FIND
 
 End
 
 Public Sub MoveTo(Index As Long) As Boolean
   
+  Dim iRealIndex As Integer
+  
   If Index < 0 Or If Index >= $iCount Then Return True
-  $vBuffer = $hDriver.FillResult($pHandle, Index, Index = $iIndex + 1)
+  If Index = $iIndex Then Return
+  
+  iRealIndex = $hDeleteMap.ToReal(Index)
+  $vBuffer = $hDriver.GetResultData($pHandle, iRealIndex, iRealIndex = $hDeleteMap.ToReal($iIndex) + 1)
+  If $cBuffer Then $cBuffer.Clear
+  
   $iIndex = Index
   
 End
@@ -148,24 +199,46 @@ Public Sub _next()
   
 End
 
+Private Sub CheckAvailable()
+
+  If $iIndex >= $iCount Then Error.Raise("Result not available")
+
+End
+
 Public Sub _get(Field As String) As Variant
   
   Dim iPos As Integer
   
-  If IsInteger(Field) Then
-    iPos = CInt(Field)
-  Else 
-    iPos = $cFieldIndex[Field]
+  CheckAvailable()
+  
+  If $cBuffer And If $cBuffer.Exist(Field) Then Return $cBuffer[Field]
+  
+  If $vBuffer Then
+  
+    If IsInteger(Field) Then
+      iPos = CInt(Field)
+    Else 
+      iPos = $cFieldIndex[Field]
+    Endif
+    
+    If iPos >= 0 And If iPos < $cFieldIndex.Count Then
+      If $aTypes[iPos] = db.Blob And If IsNull($vBuffer[iPos]) Then $vBuffer[iPos] = $hDriver.GetBlob($pHandle, iPos)
+      Return $vBuffer[iPos]
+    Endif
+    
   Endif
   
-  Try Return $vBuffer[iPos]
-  Error.Raise("Unknown field: " & Field)
+  Error.Raise("Unknown field: " & Me.Connection.Quote(Field))
   
 End
 
 Public Sub _put(Value As Variant, Field As String)
   
+  If $iMode = MODE_FIND Then Error.Raise("Read-only result")
   
+  CheckAvailable()
+  
+  $cBuffer[Field] = Value
   
 End
 
@@ -178,25 +251,383 @@ End
 Private Function Fields_Read() As Collection
 
   Dim hResultField As ResultField
-  Dim aTypes As Integer[]
   Dim aLength As Integer[]
   Dim I As Integer
   
   If Not $cFields Then 
     
-    aTypes = $hDriver.GetResultTypes($pHandle)
     aLength = $hDriver.GetResultLengths($pHandle)
     
     $cFields = New Collection
     For I = 0 To $aField.Max
       hResultField = New ResultField
       Object.Attach(hResultField, Me, "ResultField")
-      hResultField._Fill($aField[I], aTypes[I], aLength[I])
+      hResultField._Fill($aField[I], $aTypes[I], aLength[I])
       $cFields[$aField[I]] = hResultField
     Next
     $cFields.ReadOnly = True
+    
   Endif
   
   Return $cFields
 
+End
+
+Private Sub GetKeyRequest() As String
+
+  Dim bComma As Boolean
+  Dim sKey As String
+  Dim sReq As String
+
+  bComma = False
+  For Each sKey In $aKey
+    If bComma Then
+      sReq &= " AND "
+    Else
+      bComma = True
+    Endif
+    sReq &= Me.Connection.Quote(sKey) & " = " & $hDriver.Format(Me[sKey])
+  Next
+  
+  Return sReq
+
+End
+
+
+Public Sub Update()
+  
+  Dim sReq As String
+  Dim bComma As Boolean
+  Dim vVal As Variant
+  Dim pResult As Pointer
+  
+  CheckAvailable()
+
+  Select Case $iMode
+    
+    Case MODE_CREATE
+      
+      sReq = "INSERT"
+      
+      If $bNotExist And If $hDriver.InsertIfNotExist = _DatabaseDriver.IGNORE_INSERT Then sReq &= " IGNORE"
+      
+      sReq &= " INTO " & Me.Connection.Quote($sTable, True) 
+      
+      If $cBuffer.Count Then
+      
+        sReq &= " ( "
+        
+        sReq &= $cBuffer.Keys.Join(", ")
+        
+        sReq &= " ) VALUES ( "
+        
+        For Each vVal In $cBuffer
+          If Not bComma Then
+            bComma = True
+          Else
+            sReq &= ", "
+          Endif
+          sReq &= $hDriver.Format(vVal)
+        Next
+        
+        sReq &= " )"
+      
+      Endif
+      
+      If $bNotExist And If $hDriver.InsertIfNotExist = _DatabaseDriver.IGNORE_ON_CONFLICT Then sReq &= " ON CONFLICT DO NOTHING"
+      
+    '       if (BARRAY_is_void(THIS->changed, THIS->info.nfield))
+    '         break;
+    '       
+    '       if (THIS->if_not_exist && THIS->conn->db.flags.if_not_exist == DB_IGNORE_INSERT)
+    '         q_add("INSERT IGNORE INTO ");
+    '       else
+    '         q_add("INSERT INTO ");
+    '       q_add(DB_GetQuotedTable(THIS->driver, DB_CurrentDatabase, info->table, -1));
+    '       q_add(" ( ");
+    '       
+    '       comma = FALSE;
+    '       for (i = 0; i < info->nfield; i++)
+    '       {
+    '         if (THIS->buffer[i].type == GB_T_NULL)
+    '           continue;
+    '         if (!BARRAY_test(THIS->changed, i))
+    '           continue;
+    '         if (comma) q_add(", ");
+    '         q_add(THIS->driver->GetQuote());
+    '         q_add(info->field[i].name);
+    '         q_add(THIS->driver->GetQuote());
+    '         comma = TRUE;
+    '       }
+    '       
+    '       if (!comma)
+    '       {
+    '         q_add(THIS->driver->GetQuote());
+    '         q_add(info->field[0].name);
+    '         q_add(THIS->driver->GetQuote());
+    '       }
+    ' 
+    '       q_add(" ) VALUES ( ");
+    ' 
+    '       comma = FALSE;
+    '       for (i = 0; i < info->nfield; i++)
+    '       {
+    '         if (THIS->buffer[i].type == GB_T_NULL)
+    '           continue;
+    '         if (!BARRAY_test(THIS->changed, i))
+    '           continue;
+    '         if (comma) q_add(", ");
+    '         DB_FormatVariant(THIS->driver, &THIS->buffer[i], q_add_length);
+    '         comma = TRUE;
+    '       }
+    '       
+    '       if (!comma)
+    '       {
+    '         DB_FormatVariant(THIS->driver, &THIS->buffer[0], q_add_length);
+    '       }
+    ' 
+    '       q_add(" )");
+    ' 
+    '       if (THIS->if_not_exist && THIS->conn->db.flags.if_not_exist == DB_IGNORE_ON_CONFLICT)
+    '         q_add(" ON CONFLICT DO NOTHING");
+    ' 
+    
+    If $bReturning Then
+    
+      Try pResult = $hDriver.Query(sReq)
+      If Error Then Error.Raise("Cannot create record: " & Error.Text)
+      
+      $hDriver.FreeResult(pResult)
+      
+    Else
+    
+      Try $hDriver.Exec(sReq)
+      If Error Then Error.Raise("Cannot create record: " & Error.Text)
+      $cBuffer.Clear
+    
+    Endif
+    
+    
+    '       if (THIS->returning)
+    '       {
+    '         comma = FALSE;
+    '         for (i = 0; i < info->nfield; i++)
+    '         {
+    '           if (info->field[i].type == DB_T_SERIAL)
+    '           {
+    '             ret_count++;
+    '             if (comma)
+    '               q_add(", ");
+    '             else
+    '             {
+    '               q_add(" RETURNING ");
+    '               ret_first = i;
+    '             }
+    '             q_add(THIS->driver->GetQuote());
+    '             q_add(info->field[i].name);
+    '             q_add(THIS->driver->GetQuote());
+    '             comma = TRUE;
+    '           }
+    '         }
+    ' 
+    '         GB.Alloc(POINTER(&ret_buffer), sizeof(GB_VARIANT_VALUE) * ret_count);
+    '         for (i = 0; i < ret_count; i++)
+    '           ret_buffer[i].type = GB_T_NULL;
+    '       }
+    ' 
+    '       if (ret_count)
+    '         err = THIS->driver->Exec(&THIS->conn->db, q_get(), &res, "Cannot create record: &1");
+    '       else
+    '         err = THIS->driver->Exec(&THIS->conn->db, q_get(), NULL, "Cannot create record: &1");
+    ' 
+    '       if (!err)
+    '       {
+    '         if (!THIS->returning)
+    '           void_buffer(THIS);
+    '         else if (ret_count)
+    '         {
+    '           if (THIS->driver->Result.Fill(&THIS->conn->db, res, 0, ret_buffer, FALSE) == DB_OK)
+    '           {
+    '             THIS->buffer[ret_first] = ret_buffer[0];
+    '             for (i = ret_first + 1, j = 1; i < info->nfield; i++)
+    '             {
+    '               if (info->field[i].type == DB_T_SERIAL)
+    '                 THIS->buffer[i] = ret_buffer[j++];
+    '             }
+    '           }
+    ' 
+    '           THIS->driver->Result.Release(res, NULL, FALSE);
+    '         }
+    '       }
+    ' 
+    '       GB.Free(POINTER(&ret_buffer));
+    ' 
+    '       break;
+    
+    Case MODE_EDIT
+      
+      If $cBuffer.Count = 0 Then Return
+      
+      sReq = "UPDATE " & Me.Connection.Quote($sTable, True) & " SET "
+      
+      For Each vVal In $cBuffer
+        If Not bComma Then
+          bComma = True
+        Else
+          sReq &= ", "
+        Endif
+        sReq &= Me.Connection.Quote($cBuffer.Key) & " = " & $hDriver.Format(vVal)
+      Next
+      
+      sReq &= " WHERE " & GetKeyRequest()
+      
+      Try $hDriver.Exec(sReq)
+      If Error Then Error.Raise("Cannot modify record: " & Error.Text)
+      
+      '       if (BARRAY_is_void(THIS->changed, THIS->info.nfield))
+      '         break;
+      '       
+      '       q_add("UPDATE ");
+      '       q_add(DB_GetQuotedTable(THIS->driver, DB_CurrentDatabase, info->table, -1));
+      '       q_add(" SET ");
+      ' 
+      '       comma = FALSE;
+      '       for (i = 0; i < info->nfield; i++)
+      '       {
+      '         if (!BARRAY_test(THIS->changed, i))
+      '           continue;
+      '         if (comma) q_add(", ");
+      '         q_add(THIS->driver->GetQuote());
+      '         q_add(THIS->info.field[i].name);
+      '         q_add(THIS->driver->GetQuote());
+      '         q_add(" = ");
+      '         DB_FormatVariant(THIS->driver, &THIS->buffer[i], q_add_length);
+      '         comma = TRUE;
+      '       }
+      ' 
+      '       q_add(" WHERE ");
+      '       q_add(THIS->edit);
+      ' 
+      '       THIS->driver->Exec(&THIS->conn->db, q_get(), NULL, "Cannot modify record: &1");
+      ' 
+      '       break;
+      
+    
+    Case Else 
+      
+      Error.Raise("Read-only result")
+    
+  End Select
+  
+End
+
+Public Sub All(Field As String) As Array
+  
+  Dim iPos As Integer
+  Dim I As Integer
+  Dim aBoolean As Boolean[]
+  Dim aInteger As Integer[]
+  Dim aLong As Long[]
+  Dim aFloat As Float[]
+  Dim aDate As Date[]
+  Dim aString As String[]
+  
+  CheckAvailable()
+
+  If IsInteger(Field) Then
+    iPos = CInt(Field)
+  Else 
+    iPos = $cFieldIndex[Field]
+  Endif
+  
+  Select Case $aTypes[iPos]
+    
+    Case db.Boolean
+      aBoolean = New Boolean[$iCount]
+      For I = 0 To $iCount - 1
+        aBoolean[I] = $hDriver.GetResultData($pHandle, I, True)[iPos]
+      Next
+      Return aBoolean
+    
+    Case db.Integer, db.Serial
+      aInteger = New Integer[$iCount]
+      For I = 0 To $iCount - 1
+        aInteger[I] = $hDriver.GetResultData($pHandle, I, True)[iPos]
+      Next
+      Return aInteger
+    
+    Case db.Long
+      aLong = New Long[$iCount]
+      For I = 0 To $iCount - 1
+        aLong[I] = $hDriver.GetResultData($pHandle, I, True)[iPos]
+      Next
+      Return aLong
+    
+    Case db.Float
+      aFloat = New Float[$iCount]
+      For I = 0 To $iCount - 1
+        aFloat[I] = $hDriver.GetResultData($pHandle, I, True)[iPos]
+      Next
+      Return aFloat
+    
+    Case db.Date
+      aDate = New Date[$iCount]
+      For I = 0 To $iCount - 1
+        aDate[I] = $hDriver.GetResultData($pHandle, I, True)[iPos]
+      Next
+      Return aDate
+      
+    Case db.Blob
+      aString = New String[$iCount]
+      For I = 0 To $iCount - 1
+        aString[I] = $hDriver.GetResultBlob($pHandle, I, iPos)
+      Next
+      Return aString
+    
+    Case Else
+      aString = New String[$iCount]
+      For I = 0 To $iCount - 1
+        aString[I] = $hDriver.GetResultData($pHandle, I, True)[iPos]
+      Next
+      Return aString
+    
+  End Select
+  
+End
+
+Public Sub Delete(Optional Keep As Boolean)
+  
+  CheckAvailable()
+  
+  Select Case $iMode
+    
+    Case MODE_CREATE
+      
+      $cBuffer.Clear
+      
+    Case MODE_EDIT
+      
+      $hDriver.Exec("DELETE * FROM " & Me.Quote($sTable, True) & " WHERE " & GetKeyRequest())
+      
+      If Not Keep Then
+        
+        $hDeleteMap.Add($hDeleteMap.ToReal($iIndex))
+        Dec $iCount
+        
+        For Each Enum
+          If IsNull(Enum.Index) Then Continue
+          If Enum.Index > $iIndex Then
+            Dec Enum.Index
+            If Enum.Index < 0 Then Enum.Stop
+          Endif
+        Next
+        
+      Endif
+      
+    Case Else
+      
+      Error.Raise("Read-only result")
+    
+  End Select
+  
 End

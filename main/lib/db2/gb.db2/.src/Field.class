@@ -1,0 +1,25 @@
+' Gambas class file
+
+Export
+
+Event _Fake
+
+Property Read Name As String Use $sName
+Property Read Type As Integer Use $iType
+Property Read Length As Integer Use $iLength
+Property Read Default As Variant Use $vDefault
+Property Read Collation As String Use $sCollation
+Property Read Table As Table
+
+Public Sub _Fill(hDriver As _DatabaseDriver, sTable As String, sName As String)
+  
+  $sName = sName
+  hDriver.GetTableFieldInfo(sTable, sName, ByRef $iType, ByRef $iLength, ByRef $vDefault, ByRef $sCollation)
+  
+End
+
+Private Function Table_Read() As Table
+
+  Return Object.Parent(Object.Parent(Me))
+
+End
