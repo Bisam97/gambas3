@@ -94,6 +94,7 @@ typedef
 			} flag;
 		char *name;
 		void *font;
+		uint key;
 		}
 	CWIDGET; // BEWARE: gb.qt.h MUST be updated accordingly!
 

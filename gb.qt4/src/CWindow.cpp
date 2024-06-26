@@ -403,6 +403,29 @@ static int get_screen_number(QWidget *widget)
 #endif
 }
 
+void CWINDOW_add_control(CWIDGET *ob)
+{
+	static uint n = 0;
+	CWINDOW *_object;
+	
+	_object = CWidget::getWindow(ob);
+	if (THIS && WINDOW)
+	{
+		n++;
+		ob->key = n;
+		WINDOW->controls.insert(n, ob);
+	}
+}
+
+void CWINDOW_remove_control(CWIDGET *ob)
+{
+	CWINDOW *_object;
+	
+	_object = CWidget::getWindow(ob);
+	if (THIS && WINDOW)
+		WINDOW->controls.remove(ob->key);
+}
+
 //-- Window ---------------------------------------------------------------
 
 BEGIN_METHOD(Window_new, GB_OBJECT parent)
@@ -1187,26 +1210,14 @@ END_PROPERTY
 
 BEGIN_PROPERTY(Window_Controls_Count)
 
-	QList<QWidget *> list = WINDOW->findChildren<QWidget *>();
-	int i;
-	int n = 0;
-	CWIDGET *control;
-
-	for (i = 0; i < list.count(); i++)
-	{
-		control = CWidget::getReal(list.at(i));
-		if (control && !CWIDGET_check(control))
-			n++;
-	}
-
-	GB.ReturnInteger(n);
+	GB.ReturnInteger(WINDOW->controls.count());
 
 END_PROPERTY
 
 
 BEGIN_METHOD_VOID(Window_Controls_next)
 
-	QList<QWidget *> children = WINDOW->findChildren<QWidget *>();
+	QList<uint> keys = WINDOW->controls.keys();
 	CWIDGET *control;
 	int index;
 
@@ -1216,13 +1227,13 @@ BEGIN_METHOD_VOID(Window_Controls_next)
 
 	do
 	{
-		if (index >= children.count())
+		if (index >= keys.count())
 		{
 			GB.StopEnum();
 			return;
 		}
 
-		control = CWidget::getReal(children.at(index));
+		control = WINDOW->controls[keys.at(index)];
 		index++;
 	}
 	while (!control || CWIDGET_check(control));

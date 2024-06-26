@@ -344,7 +344,7 @@ void CWIDGET_init_name(CWIDGET *_object)
 {
 	static uint n = 0;
 	char *name = GB.GetLastEventName();
-	
+
 	if (!name)
 	{
 		char buffer[256 + 16];
@@ -448,7 +448,10 @@ void CWIDGET_new(QWidget *w, void *_object, bool no_show, bool no_filter, bool n
 	//THIS->level = MAIN_loop_level;
 
 	if (!no_init)
-		CWIDGET_init_name(THIS);	
+	{
+		CWIDGET_init_name(THIS);
+		CWINDOW_add_control(THIS);
+	}
 
 	if (qobject_cast<QAbstractScrollArea *>(w)) // || qobject_cast<Q3ScrollView *>(w))
 		THIS->flag.scrollview = TRUE;
@@ -581,6 +584,7 @@ void CWIDGET_destroy(CWIDGET *_object)
 	//qDebug("CWIDGET_destroy: %s %p", GB.GetClassName(THIS), THIS);
 
 	CWIDGET_set_visible(THIS, false);
+	CWINDOW_remove_control(THIS);
 	THIS->flag.deleted = true;
 
 	WIDGET->deleteLater();

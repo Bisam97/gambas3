@@ -93,6 +93,7 @@ typedef
 		int _r2;
 		void *_r3;
 		void *_r4;
+		uint _r5;
 		}
 	QT_WIDGET;
 

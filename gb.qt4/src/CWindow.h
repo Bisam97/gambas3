@@ -222,6 +222,7 @@ public:
 
 	enum { BorderNone = 0, BorderFixed = 1, BorderResizable = 2 };
 	QHash<QString, CWIDGET *> names;
+	QHash<uint, CWIDGET *> controls;
 	void *_object;
 
 	explicit MyMainWindow(QWidget *parent, const char *name, bool embedded = false);
@@ -289,5 +290,7 @@ bool CWINDOW_must_quit();
 bool CWINDOW_close_all(bool main);
 void CWINDOW_delete_all(bool main);
 void CWINDOW_move_resize(void *_object, int x, int y, int w, int h);
+void CWINDOW_add_control(CWIDGET *ob);
+void CWINDOW_remove_control(CWIDGET *ob);
 
 #endif
