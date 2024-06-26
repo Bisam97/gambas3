@@ -27,6 +27,7 @@
 #include "main.h"
 
 GB_INTERFACE GB EXPORT;
+static int _type_length = 0;
 
 //-------------------------------------------------------------------------
 
@@ -251,7 +252,7 @@ BEGIN_METHOD(Sqlite3Helper_GetResultCount, GB_POINTER result)
 
 END_METHOD
 
-BEGIN_METHOD(Sqlite3Helper_FillResult, GB_POINTER result; GB_LONG pos; GB_BOOLEAN next)
+BEGIN_METHOD(Sqlite3Helper_GetResultData, GB_POINTER result; GB_LONG pos; GB_BOOLEAN next)
 
 	SQLITE_RESULT *res = (SQLITE_RESULT *)VARG(result);
 	int64_t pos = VARG(pos);
@@ -289,6 +290,19 @@ BEGIN_METHOD(Sqlite3Helper_FillResult, GB_POINTER result; GB_LONG pos; GB_BOOLEA
 	
 	GB.ReturnObject(buffer);
 
+END_METHOD
+
+BEGIN_METHOD(Sqlite3Helper_GetResultBlob, GB_POINTER result; GB_LONG pos; GB_INTEGER field)
+
+	SQLITE_RESULT *res = (SQLITE_RESULT *)VARG(result);
+	int64_t pos = VARG(pos);
+	int field = VARG(field);
+	char *data;
+	int len;
+
+	sqlite_query_get(res, pos, field, &data, &len);
+	GB.ReturnConstString(data, len);
+	
 END_METHOD
 
 BEGIN_METHOD(Sqlite3Helper_GetResultFields, GB_POINTER result)
@@ -333,6 +347,27 @@ BEGIN_METHOD(Sqlite3Helper_GetResultLengths, GB_POINTER result)
 
 END_METHOD
 
+BEGIN_METHOD(Sqlite3Helper_GetType, GB_STRING name)
+
+	GB.ReturnInteger(sqlite_get_type(GB.ToZeroString(ARG(name)), &_type_length));
+
+END_METHOD
+
+BEGIN_METHOD_VOID(Sqlite3Helper_GetTypeLength)
+
+	GB.ReturnInteger(_type_length);
+
+END_METHOD
+
+BEGIN_METHOD(Sqlite3Helper_GetValue, GB_STRING value; GB_INTEGER type)
+
+	GB_VARIANT_VALUE value;
+	
+	conv_data(STRING(value), LENGTH(value), &value, VARG(type));
+	GB.ReturnVariant(&value);
+	
+END_METHOD
+
 //-------------------------------------------------------------------------
 
 GB_DESC Sqlite3HelperDesc[] =
@@ -347,10 +382,14 @@ GB_DESC Sqlite3HelperDesc[] =
 	GB_STATIC_METHOD("GetError", "i", Sqlite3Helper_GetError, "(Database)p"),
 	GB_STATIC_METHOD("GetErrorMessage", "s", Sqlite3Helper_GetErrorMessage, "(Database)p"),
 	GB_STATIC_METHOD("GetResultCount", "l", Sqlite3Helper_GetResultCount, "(Result)p"),
-	GB_STATIC_METHOD("FillResult","Variant[]",Sqlite3Helper_FillResult,"(Result)p(Index)l(Next)b"),
+	GB_STATIC_METHOD("GetResultData", "Variant[]", Sqlite3Helper_GetResultData,"(Result)p(Index)l(Next)b"),
+	GB_STATIC_METHOD("GetResultBlob", "s", Sqlite3Helper_GetResultBlob,"(Result)p(Index)l(Field)i"),
 	GB_STATIC_METHOD("GetResultFields", "String[]", Sqlite3Helper_GetResultFields, "(Result)p"),
 	GB_STATIC_METHOD("GetResultTypes", "Integer[]", Sqlite3Helper_GetResultTypes, "(Result)p"),
 	GB_STATIC_METHOD("GetResultLengths", "Integer[]", Sqlite3Helper_GetResultLengths, "(Result)p"),
+	GB_STATIC_METHOD("GetType", "i", Sqlite3Helper_GetType, "(Type)s"),
+	GB_STATIC_METHOD("GetTypeLength", "i", Sqlite3Helper_GetTypeLength, NULL),
+	GB_STATIC_METHOD("GetValue", "v", Sqlite3Helper_GetValue, "(Value)s(Type)i"),
 	
 	GB_END_DECLARE
 };
