@@ -1,0 +1,431 @@
+' Gambas class file
+
+Export
+Inherits _DatabaseDriver
+
+Public Const QuoteCharacter As String = "\""
+
+Static Private $aCollations As String[] = ["BINARY", "NOCASE", "RTRIM"]
+
+Private $pHandle As Pointer
+
+Private Sub IsDatabaseFile(sPath As String) As Boolean
+
+  Dim hFile As File
+  Dim sMagic As String
+  
+  hFile = Open sPath
+  sMagic = Read #hFile, -15
+  Return sMagic == "sqlite format 3"
+  
+End
+
+Private Sub FindDatabase(sName As String, sHost As String) As String
+  
+  Dim sPath As String
+  
+  If Not File.IsRelative(sName) Then
+    If IsDatabaseFile(sName) Then Return sName
+  Endif
+  
+  sPath = sHost &/ sName
+  If IsDatabaseFile(sPath) Then Return sPath
+  
+End
+
+Public Sub Open(Host As String, (Port) As String, Name As String, (User) As String, (Password) As String) As Pointer
+
+  Dim sPath As String
+  Dim sVersion As String
+  Dim aVersion As String[]
+  
+  If Name Then
+    sPath = FindDatabase(Name, Host)
+    If Not sPath Then Error.Raise("Unable to locate database")
+  Endif
+  
+  $pHandle = _Sqlite3Helper.Open(sPath, Host)
+  If IsNull($pHandle) Then Error.Raise("Unable to open database")
+  
+  sVersion = _Sqlite3Helper.GetVersion()
+  Me.FullVersion = sVersion
+
+  aVersion = Split(sVersion, ".")
+  Me.Version = CInt(aVersion[0]) * 10000 + CInt(aVersion[1]) * 100 + CInt(aVersion[2])
+  
+  Me.Exec("PRAGMA empty_result_callbacks = ON")
+  ' [NG 29/12/2005] 3.2.1 introduced a problem with columns names which is resolved by setting short columns off first.
+  If Me.Version < 30803 Then Me.Exec("PRAGMA short_column_names = OFF")
+  Me.Exec("PRAGMA full_column_names = ON")
+  
+  Me.Charset = "UTF-8"
+  
+  Me.NoTableType = True
+  Me.NoTransactionNest = True
+  Me.NoReturning = Me.Version < 33500
+  Me.InsertIfNotExist = If(Me.Version < 32400, _DatabaseDriver.IGNORE_NONE, _DatabaseDriver.IGNORE_ON_CONFLICT)  
+  Me.AllowedCharsInDatabaseName = "."
+  Me.LimitPos = _DatabaseDriver.LIMIT_AT_END
+  
+  Return $pHandle
+  
+End
+
+Public Sub Close()
+
+  _Sqlite3Helper.Close($pHandle)
+  
+End
+
+Public Sub Format(Value As Variant) As String
+
+  Select Case TypeOf(Value)
+    
+    Case gb.Boolean
+      Return If(Value, "1", "0")
+    
+    Case gb.Date
+      Return Date.ToISO8601(Value, "GMT")
+      
+    Default
+      Return Super.Format(Value)
+    
+  End Select
+  
+End
+
+Public Sub Query(Request As String) As Pointer
+
+  Dim pResult As Pointer
+
+  If DB.Debug Then Error "gb.db.sqlite3: " & Request
+  pResult = _Sqlite3Helper.Query($pHandle, Request, Me.Timeout, True)
+  If IsNull(pResult) Then Error.Raise(_Sqlite3Helper.GetErrorMessage($pHandle))
+  Return pResult
+  
+End
+
+Public Sub GetError() As Integer
+  
+  Return _Sqlite3Helper.GetError($pHandle)
+  
+End
+
+Public Sub GetResultCount((Result) As Pointer) As Long
+
+  Return _Sqlite3Helper.GetResultCount(Result)
+  
+End
+
+Public Sub FreeResult((Result) As Pointer)
+  
+  If IsNull(Result) Then Return
+  _Sqlite3Helper.FreeResult(Result)
+  
+End
+
+Public Sub GetResultData((Result) As Pointer, Index As Long, Next As Boolean) As Variant[]
+  
+  Return _Sqlite3Helper.GetResultData(Result, Index, Next)
+  
+End
+
+Public Sub GetResultBlob((Result) As Pointer, Index As Long, Field As Integer) As String
+  
+  Return _Sqlite3Helper.GetResultBlob(Result, Index, Field)
+  
+End
+
+Public Sub GetResultFields((Result) As Pointer) As String[]
+  
+  Return _Sqlite3Helper.GetResultFields(Result)
+  
+End
+
+Public Sub GetResultTypes((Result) As Pointer) As Integer[]
+  
+  Return _Sqlite3Helper.GetResultTypes(Result)
+  
+End
+
+Public Sub GetResultLengths((Result) As Pointer) As Integer[]
+  
+  Return _Sqlite3Helper.GetResultLengths(Result)
+  
+End
+
+Public Sub GetTables() As String[]
+  
+  Dim aTables As New String[]
+  Dim pResult As Pointer
+  Dim I As Integer
+  
+  pResult = Query("SELECT tbl_name FROM (SELECT tbl_name FROM sqlite_master WHERE Type = 'table' UNION SELECT tbl_name FROM sqlite_temp_master WHERE type = 'table')")
+  
+  For I = 0 To GetResultCount(pResult) - 1
+    aTables.Add(GetResultData(pResult, I, True)[0])
+  Next
+  
+  FreeResult(pResult)
+  
+  aTables.Add("sqlite_master")
+  aTables.Add("sqlite_temp_master")
+  
+  Return aTables
+  
+End
+
+Public Sub IsSystemTable(Table As String) As Boolean
+  
+  Return Table Begins "sqlite_"
+  
+End
+
+Public Sub GetTableFields(Table As String) As String[]
+
+  Dim aFields As New String[]
+  Dim pResult As Pointer
+  Dim I As Integer
+  
+  pResult = Query("PRAGMA table_info('" & Table & "')")
+  
+  For I = 0 To GetResultCount(pResult) - 1
+    aFields.Add(GetResultData(pResult, I, True)[1])
+  Next
+  
+  FreeResult(pResult)
+  
+  Return aFields
+
+End
+
+Private Sub GetSchema(Table As String) As String
+
+  Dim pResult As Pointer
+  Dim sSchema As String
+  
+  pResult = Query("SELECT sql FROM sqlite_master WHERE type = 'table' AND tbl_name = '" & Table & "'")
+  sSchema = GetResultData(pResult, 0, False)[0]
+  FreeResult(pResult)
+  Return sSchema
+  
+End
+
+Public Sub GetTableFieldInfo(Table As String, Field As String, ByRef Type As Integer, ByRef Length As Integer, ByRef {Default} As Variant, ByRef Collation As String)
+
+  Dim pResult As Pointer
+  Dim I As Integer
+  Dim vRow As Variant[]
+  Dim sType As String
+  Dim bNotNull As Boolean
+  Dim sDefault As String
+  Dim sSchema As String
+  Dim iPos As Integer
+  Dim aSchema As String[]
+  Dim sDef As String
+  Dim aField As String[]
+  Dim sField As String
+  Dim bAutoInc As Boolean
+
+  pResult = Query("PRAGMA table_info('" & Table & "')")
+  
+  For I = 0 To GetResultCount(pResult) - 1
+    
+    vRow = GetResultData(pResult, I, True)
+    
+    If vRow[1] = Field Then
+      sType = vRow[2]
+      bNotNull = vRow[3]
+      sDefault = vRow[4]
+      Break
+    Endif
+    
+  Next
+  
+  FreeResult(pResult)
+  
+  If Not sType Then Error.Raise("Unable to find field " & Table & "." & Field)
+  
+  sSchema = Trim(GetSchema(Table))
+  
+  If sSchema Then
+    ' CREATE TABLE "diary" ( "iCodeDiary" INT4 NOT NULL , "sName" TEXT, "sDescription" TEXT, "iLength" INT4 NOT NULL DEFAULT 0, "iTime" INT4 NOT NULL DEFAULT 0, "iWeekDay" INT4 NOT NULL DEFAULT 0, "iDay" INT4 NOT NULL DEFAULT 0, "iMonth" INT4 NOT NULL DEFAULT 0, "iYear" INT4 NOT NULL DEFAULT 0, "dStart" DATETIME, "dEnd" DATETIME, "iCodeShow" INT4 NOT NULL DEFAULT 0, "bRepeat" BOOL NOT NULL DEFAULT '0', "iCodeGroup" INT4 NOT NULL DEFAULT 0, "iCodeFile" INT4 NOT NULL DEFAULT 0, "iCodeJingle" INT4 NOT NULL DEFAULT 0, "sFileList" TEXT, "iRandomType" INT4 NOT NULL DEFAULT 0, "iRandomAfter" INT4 NOT NULL DEFAULT 0, "sTagFilter" TEXT, "bPlayRandomOnce" BOOL NOT NULL DEFAULT '0', "bCheck" BOOL NOT NULL DEFAULT '0', "iColor" INT4, "sWarning" TEXT, "dWarning" DATETIME, PRIMARY KEY ("iCodeDiary") )
+  
+    iPos = InStr(sSchema, "(")
+    If iPos Then
+      
+      sSchema = Mid$(sSchema, iPos + 1, -1)
+      aSchema = Split(sSchema, ",", "\"", True, True)
+      
+      For Each sDef In aSchema
+        aField = Split(Trim(sDef), " ", Chr$(34), True, True)
+        sField = aField[0]
+        If InStr("'\"`", Left(sField)) And If Right(sField) = Left(sField) Then 
+          sField = Mid$(sField, 2, -1)
+          If sField == Field Then
+            If sType Begins "INT" And If aField.Exist("AUTOINCREMENT", gb.IgnoreCase) Then bAutoInc = True
+            iPos = aField.Find("COLLATE", gb.IgnoreCase)
+            If iPos >= 0 Then Collation = aField[iPos + 1]
+            Break
+          Endif
+        Endif
+      Next
+      
+    Endif
+    
+  Endif
+  
+  Type = _Sqlite3Helper.GetType(sType)
+  Length = _Sqlite3Helper.GetTypeLength()
+  
+  If bNotNull Then 
+    If sDefault Begins "'" Then sDefault = Replace(Mid$(sDefault, 2, -1), "''", "'")
+    If sDefault Then {Default} = _Sqlite3Helper.GetValue(sDefault, Type)
+  Endif
+  
+  If bAutoInc Then Type = db.Serial
+    
+End
+
+Public Sub GetTableIndexes(Table As String) As String[]
+
+  Dim aIndexes As New String[]
+  Dim pResult As Pointer
+  Dim I As Integer
+  
+  pResult = Query("PRAGMA index_list('" & Table & "')")
+  
+  For I = 0 To GetResultCount(pResult) - 1
+    aIndexes.Add(GetResultData(pResult, I, True)[1])
+  Next
+  
+  FreeResult(pResult)
+  
+  Return aIndexes
+
+End
+
+Public Sub GetTableIndexInfo(Table As String, Index As String, ByRef Fields As String[], ByRef Unique As Boolean, ByRef Primary As Boolean)
+
+  Dim pResult As Pointer
+  Dim I As Integer
+  Dim vRow As Variant[]
+
+  pResult = Query("PRAGMA index_list('" & Table & "')")
+  
+  For I = 0 To GetResultCount(pResult) - 1
+    vRow = GetResultData(pResult, I, True)
+    If vRow[1] = Index Then
+      Unique = vRow[2] <> "0"
+      Primary = InStr(vRow[3], "p")
+    Endif
+  Next
+  
+  FreeResult(pResult)
+  
+  pResult = Query("PRAGMA index_info('" & Index & "')")
+  
+  Fields = New String[]
+  For I = 0 To GetResultCount(pResult) - 1
+    vRow = GetResultData(pResult, I, True)
+    If vRow[2] Then Fields.Add(vRow[2])
+  Next
+
+  FreeResult(pResult)
+
+End
+
+Public Sub GetTablePrimaryKey(Table As String) As String[]
+  
+  Dim pResult As Pointer
+  Dim I As Integer
+  Dim vRow As Variant[]
+  Dim sIndex As String
+  Dim aFields As String[]
+
+  pResult = Query("PRAGMA index_list('" & Table & "')")
+  
+  For I = 0 To GetResultCount(pResult) - 1
+    vRow = GetResultData(pResult, I, True)
+    If InStr(vRow[3], "p") Then
+      sIndex = vRow[1]
+      Break
+    Endif
+  Next
+  
+  FreeResult(pResult)
+  
+  If Not sIndex Then 
+    
+    ' [BM] If there is no primary key, we suppose that the first field of INTEGER datatype is the primary key.
+    ' Because we use INTEGER only when creating the AUTOINCREMENT field.
+    
+    pResult = Query("PRAGMA table_info('" & Table & "')")
+  
+    For I = 0 To GetResultCount(pResult) - 1
+      
+      vRow = GetResultData(pResult, I, True)
+      
+      If vRow[2] = "INTEGER" Then
+        aFields = [CStr(vRow[1])]
+        Break
+      Endif
+      
+    Next
+  
+    FreeResult(pResult)
+    
+    Return aFields
+    
+  Endif
+  
+  pResult = Query("PRAGMA index_info('" & sIndex & "')")
+  
+  aFields = New String[]
+  For I = 0 To GetResultCount(pResult) - 1
+    vRow = GetResultData(pResult, I, True)
+    If vRow[2] Then aFields.Add(vRow[2])
+  Next
+
+  FreeResult(pResult)
+  
+  Return aFields
+
+End
+
+Public Sub GetCollations() As String[]
+  
+  $aCollations.ReadOnly = True
+  Return $aCollations
+  
+End
+
+Public Sub GetLastInsertId() As Long
+  
+  Dim pResult As Pointer
+  Dim iLastId As Long
+  
+  pResult = Query("SELECT last_insert_rowid()")
+  iLastId = GetResultData(pResult, 0, 0)[0]
+  FreeResult(pResult)
+  Return iLastId
+  
+End
+
+Public Sub Begin()
+  
+  Me.Exec("BEGIN")
+  
+End
+
+Public Sub Commit()
+  
+  Me.Exec("COMMIT")
+  
+End
+
+Public Sub Rollback()
+  
+  Me.Exec("ROLLBACK")
+  
+End
