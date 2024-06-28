@@ -91,6 +91,38 @@ Public Sub Close()
   
 End
 
+Private Sub DateToUTC({Date} As Date) As Date
+
+  Return {Date} + System.TimeZone / 86400
+
+End
+
+Private Sub DateToISO8601({Date} As Date) As String
+
+  Dim iYear As Integer
+  Dim sResult As String
+  Dim sMicroseconds As String
+  
+  {Date} = DateToUTC({Date})
+
+  iYear = Year({Date})
+  
+  If iYear Then
+    
+    If iYear < 0 Then sResult = "B"
+    sResult &= Format(iYear, "0000") & "-" & Format(Month({Date}), "00") & "-" & Format(Day({Date}), "00")
+    
+  Endif
+  
+  sResult &= "T" & Format({Date}, "hhnnss")
+  
+  sMicroseconds = Format({Date}, "uuu")
+  If sMicroseconds <> "000" Then sResult &= "." & sMicroseconds
+  
+  Return sResult & "Z"
+  
+End
+
 Public Sub Format(Value As Variant) As String
 
   Select Case TypeOf(Value)
@@ -99,7 +131,7 @@ Public Sub Format(Value As Variant) As String
       Return If(Value, "1", "0")
     
     Case gb.Date
-      Return Date.ToISO8601(Value, "GMT")
+      Return DateToISO8601(Value, "GMT")
       
     Default
       Return Super.Format(Value)
