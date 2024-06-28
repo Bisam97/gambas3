@@ -31,7 +31,7 @@
 
 static int _last_error = SQLITE_OK;
 
-SQLITE_DATABASE *sqlite_open_database(const char *path, const char *host)
+SQLITE_DATABASE *sqlite_open_database(const char *path)
 {
 	SQLITE_DATABASE *db;
 	sqlite3 *handle;
@@ -46,7 +46,7 @@ SQLITE_DATABASE *sqlite_open_database(const char *path, const char *host)
 		GB.Alloc(POINTER(&db), sizeof(SQLITE_DATABASE));
 		db->handle = handle;
 		db->path = GB.NewZeroString(path);
-		db->host = GB.NewZeroString(host);
+		//db->host = GB.NewZeroString(host);
 		db->error = SQLITE_OK;
 		return db;
 	}
@@ -58,7 +58,7 @@ void sqlite_close_database(SQLITE_DATABASE *db)
 {
 	sqlite3_close(db->handle);
 	GB.FreeString(&db->path);
-	GB.FreeString(&db->host);
+	//GB.FreeString(&db->host);
 	GB.Free(POINTER(&db));
 }
 

@@ -5,6 +5,7 @@ Export
 Public _Driver As _DatabaseDriver
 
 Property Read Count As Integer
+Property Read List As String[]
 
 Private $aTables As New String[]
 Private $cTables As New Collection
@@ -20,6 +21,7 @@ Public Sub _get(Name As String) As Table
     $cTables[Name] = hTable
   Endif
 
+  If Not hTable Then Error.Raise("Unknown table")
   Return hTable  
   
 End
@@ -51,15 +53,28 @@ Private Function Count_Read() As Integer
 
 End
 
-Public Sub Add(Name As String, Optional Type As String)
+Public Sub Add(Name As String, Optional Type As String) As Table
   
+  Dim hTable As Table
   
+  Main.CheckNameWith(Name, "table", ".")
+  If Me.Exist(Name) Then Error.Raise("Table already exists")
+  
+  hTable = New Table
+  hTable._Create(_Driver, Name)
+  hTable.Type = Type
+  
+  $cTables[Name] = hTable
+  $aTables.Add(Name)
+  
+  Return hTable
   
 End
 
 Public Sub Remove(Name As String)
   
-  
+  _Driver.DropTable(Name)
+  Refresh()
   
 End
 
@@ -69,8 +84,15 @@ Public Sub Refresh()
   
   $cTables.Clear
   $aTables = _Driver.GetTables()
+  $aTables.ReadOnly = True
   For Each sTable In $aTables
     $cTables[sTable] = True
   Next
   
+End
+
+Private Function List_Read() As String[]
+
+  Return $aTables
+
 End

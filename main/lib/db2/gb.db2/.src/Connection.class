@@ -21,12 +21,15 @@ Property Read Handle As Pointer Use $pHandle
 Property Read LastInsertId As Long
 
 Property Read Tables As _ConnectionTables
+Property Read Databases As _ConnectionDatabases
+Property Read Users As _ConnectionUsers
 
 Private $hDriver As _DatabaseDriver
 Private $sVersion As String
 Private $hTables As _ConnectionTables
 Private $iLimit As Integer
 Private $iTrans As Integer
+Private $hDatabases As _ConnectionDatabases
 
 '   GB_DECLARE("_Connection", sizeof(CCONNECTION)),
 ' 
@@ -304,3 +307,21 @@ End
 '   $sType = Value
 '   
 ' End
+
+Private Function Databases_Read() As _ConnectionDatabases
+
+  If Not $hDatabases Then 
+    $hDatabases = New _ConnectionDatabases
+    $hDatabases._Driver = $hDriver
+    $hDatabases.Refresh()
+  Endif 
+  
+  Return $hDatabases
+
+End
+
+Private Function Users_Read() As _ConnectionUsers
+
+  
+
+End

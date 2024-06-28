@@ -1,5 +1,22 @@
 ' Gambas module file
 
+Public Sub CheckNameWith(sName As String, sMsg As String, Optional sMore As String)
+  
+  Dim I As Integer
+  Dim sCar As String
+  
+  If Not sName Then Error.Raise("Void " & sMsg & " name")
+  
+  For I = 1 To Len(sName)
+    sCar = Mid$(sName, I, 1)
+    If IsLetter(sCar) Or If IsDigit(sCar) Or If sCar = "_" Then Continue
+    If sMore And If InStr(sMore, sCar) Then Continue
+    Error.Raise("Bad " & sMsg & " name: " & sName)
+  Next
+  
+End
+
+
 Public Sub Main()
 
   Dim hMap As New DeleteMap

@@ -1,0 +1,86 @@
+' Gambas class file
+
+Export
+
+Public _Driver As _DatabaseDriver
+
+Property Read Count As Integer
+Property Read List As String[]
+
+Private $aDatabaseUsers As New String[]
+Private $cDatabaseUsers As New Collection
+
+Public Sub _get(Name As String) As DatabaseUser
+
+  Dim hDatabaseUser As DatabaseUser
+  
+  Try hDatabaseUser = $cDatabaseUsers[Name]
+  If Error Then 
+    hDatabaseUser = New DatabaseUser
+    hDatabaseUser._Fill(_Driver, Name)
+    $cDatabaseUsers[Name] = hDatabaseUser
+  Endif
+
+  Return hDatabaseUser
+  
+End
+
+Public Sub _next() As DatabaseUser
+  
+  Dim hDatabaseUser As DatabaseUser
+  
+  If IsNull(Enum.Index) Then Enum.Index = 0
+  Try hDatabaseUser = _get($aDatabaseUsers[Enum.Index])
+  If hDatabaseUser Then
+    Inc Enum.Index
+    Return hDatabaseUser
+  Else
+    Enum.Stop
+  Endif
+  
+End
+
+Public Sub Exist(Name As String) As Boolean
+  
+  Return $cDatabaseUsers.Exist(Name)
+
+End
+
+Private Function Count_Read() As Integer
+
+  Return $cDatabaseUsers.Count
+
+End
+
+Public Sub Add(Name As String, Optional Password As String, Admin As Boolean)
+  
+  _Driver.CreateUser(Name, Password, Admin)
+  Refresh()
+  
+End
+
+Public Sub Remove(Name As String)
+  
+  _Driver.DropUser(Name)
+  Refresh()
+  
+End
+
+Public Sub Refresh()
+
+  Dim sDatabaseUser As String
+  
+  $cDatabaseUsers.Clear
+  $aDatabaseUsers = _Driver.GetUsers()
+  $aDatabaseUsers.ReadOnly = True
+  For Each sDatabaseUser In $aDatabaseUsers
+    $cDatabaseUsers[sDatabaseUser] = True
+  Next
+  
+End
+
+Private Function List_Read() As String[]
+
+  Return $aDatabaseUsers
+
+End

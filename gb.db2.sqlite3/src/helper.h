@@ -31,12 +31,12 @@ typedef
 	struct {
 		sqlite3 *handle;
 		char *path;
-		char *host;
+		//char *host;
 		int error;
 	}
 	SQLITE_DATABASE;
 
-SQLITE_DATABASE *sqlite_open_database(const char *name, const char *host);
+SQLITE_DATABASE *sqlite_open_database(const char *name);
 void sqlite_close_database(SQLITE_DATABASE *db);
 const char *sqlite_get_error_message(SQLITE_DATABASE *db);
 

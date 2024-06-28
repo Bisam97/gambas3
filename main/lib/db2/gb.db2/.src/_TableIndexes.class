@@ -2,6 +2,8 @@
 
 Export
 
+Event _Fake
+
 Property Read Count As Integer
 
 Private $hDriver As _DatabaseDriver
@@ -72,13 +74,21 @@ Private Function Count_Read() As Integer
 End
 
 Public Sub Add(Name As String, Fields As String[], Optional Unique As Boolean)
+
+  Dim hTable As Table = Object.Parent(Me)
   
+  Main.CheckNameWith(Name, "index")
+  If Me.Exist(Name) Then Error.Raise("Index already exists")
   
+  $hDriver.CreateIndex(hTable.Name, Name, Fields, Unique)
+  Refresh()
   
 End
 
 Public Sub Remove(Name As String)
   
-  
+  Dim hTable As Table = Object.Parent(Me)
+  $hDriver.DropIndex(hTable.Name, Name) 
+  Refresh()
   
 End

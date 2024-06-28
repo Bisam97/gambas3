@@ -8,13 +8,15 @@ Property Read Count As Integer
 
 Private $hDriver As _DatabaseDriver
 Private $sTable As String
-Private $aFields As String[]
+Private $aFields As New String[]
 Private $cFields As New Collection
+Private $bCreate As Boolean
 
-Public Sub _Fill(hDriver As _DatabaseDriver, sTable As String)
+Public Sub _Fill(hDriver As _DatabaseDriver, sTable As String, bCreate As Boolean)
   
   $hDriver = hDriver
   $sTable = sTable
+  $bCreate = bCreate
   Refresh()
   
 End
@@ -22,6 +24,8 @@ End
 Public Sub Refresh()
   
   Dim sField As String
+  
+  If $bCreate Then Return 
   
   $cFields.Clear
   $aFields = $hDriver.GetTableFields($sTable)
@@ -32,7 +36,7 @@ Public Sub Refresh()
 End
 
 Public Sub _get(Name As String) As Field
-
+  
   Dim hField As Field
   
   Try hField = $cFields[Name]
@@ -41,7 +45,7 @@ Public Sub _get(Name As String) As Field
     hField._Fill($hDriver, $sTable, Name)
     $cFields[Name] = hField
   Endif
-
+  
   Return hField
   
 End
@@ -64,12 +68,41 @@ End
 Public Sub Exist(Name As String) As Boolean
   
   Return $cFields.Exist(Name)
-
+  
 End
 
 Private Function Count_Read() As Integer
-
+  
   Return $cFields.Count
+  
+End
+
+Private Sub CheckType(iType As Integer)
+
+  Select Case iType
+    Case db.Blob, db.Boolean, db.Date, db.Float, db.Integer, db.Long, db.Serial, db.String
+    Case Else 
+      Error.Raise("Bad field type")
+  End Select
 
 End
 
+Public Sub Add(Name As String, Type As Integer, Optional Length As Integer, {Default} As Variant, Collation As String) As Field
+  
+  Dim hField As Field
+  
+  Main.CheckNameWith(Name, "field")
+  If Me.Exist(Name) Then Error.Raise("Field already exists")
+  CheckType(Type)
+  
+  Length = Max(0, Min(65535, Length))
+  
+  hField = New Field
+  hField._Create($hDriver, $sTable, Name, Type, Length, {Default}, Collation)
+  
+  $cFields[Name] = hField
+  $aFields.Add(Name)
+  
+  Return hField
+  
+End

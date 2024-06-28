@@ -8,6 +8,7 @@ Public Const QuoteCharacter As String = "\""
 Static Private $aCollations As String[] = ["BINARY", "NOCASE", "RTRIM"]
 
 Private $pHandle As Pointer
+Private $sHost As String
 
 Private Sub IsDatabaseFile(sPath As String) As Boolean
 
@@ -18,18 +19,29 @@ Private Sub IsDatabaseFile(sPath As String) As Boolean
   sMagic = Read #hFile, -15
   Return sMagic == "sqlite format 3"
   
+Catch
+  
 End
 
-Private Sub FindDatabase(sName As String, sHost As String) As String
+Private Sub FindDatabase(sHost As String, sName As String, Optional bCreate As Boolean) As String
   
   Dim sPath As String
   
   If Not File.IsRelative(sName) Then
-    If IsDatabaseFile(sName) Then Return sName
+    If bCreate Then 
+      If Not Exist(sName) Then Return sName
+    Else
+      If IsDatabaseFile(sName) Then Return sName
+    Endif
+  Else
+    If Not sHost Then sHost = User.Home
+    sPath = sHost &/ sName
+    If bCreate Then
+      If Not Exist(sPath) Then Return sPath
+    Else
+      If IsDatabaseFile(sPath) Then Return sPath
+    Endif
   Endif
-  
-  sPath = sHost &/ sName
-  If IsDatabaseFile(sPath) Then Return sPath
   
 End
 
@@ -39,12 +51,14 @@ Public Sub Open(Host As String, (Port) As String, Name As String, (User) As Stri
   Dim sVersion As String
   Dim aVersion As String[]
   
+  $sHost = Host
+  
   If Name Then
-    sPath = FindDatabase(Name, Host)
+    sPath = FindDatabase($sHost, Name)
     If Not sPath Then Error.Raise("Unable to locate database")
   Endif
   
-  $pHandle = _Sqlite3Helper.Open(sPath, Host)
+  $pHandle = _Sqlite3Helper.Open(sPath)
   If IsNull($pHandle) Then Error.Raise("Unable to open database")
   
   sVersion = _Sqlite3Helper.GetVersion()
@@ -429,3 +443,180 @@ Public Sub Rollback()
   Me.Exec("ROLLBACK")
   
 End
+
+Public Sub GetDatabases() As String[]
+  
+  Dim aDatabases As New String[]
+  Dim sFile As String
+  Dim sDir As String
+  
+  sDir = $sHost
+  If Not sDir Then sDir = User.Home
+    
+  For Each sFile In Dir(sDir)
+    If IsDatabaseFile(sDir &/ sFile) Then aDatabases.Add(sFile)
+  Next
+  
+  Return aDatabases
+  
+End
+
+Public Sub IsSystemDatabase((Database) As String) As Boolean
+  
+  Return False
+  
+End
+
+Public Sub CreateDatabase(Database As String)
+
+  Dim sPath As String
+  Dim pSaveHandle As Pointer
+  Dim pDatabase As Pointer
+  
+  sPath = FindDatabase($sHost, Database, True)
+  If Not sPath Then Return
+
+  pDatabase = _Sqlite3Helper.Open(sPath)
+  If IsNull(pDatabase) Then Error.Raise("Unable to create database: " & sPath)
+
+  pSaveHandle = $pHandle
+  $pHandle = pDatabase
+  
+  Try Me.Exec("CREATE TABLE _gambas (field TEXT)")
+  Try Me.Exec("DROP TABLE _gambas")
+  
+  _Sqlite3Helper.Close(pDatabase)
+  
+Finally 
+  
+  If pSaveHandle Then $pHandle = pSaveHandle
+
+End
+
+Public Sub DropDatabase(Database As String)
+
+  Dim sPath As String
+
+  sPath = FindDatabase($sHost, Database)
+  If Not sPath Then Return 
+  
+  Kill sPath
+  Try Kill sPath & "-shm"
+  Try Kill sPath & "-wal"
+  
+End
+
+Public Sub GetUsers() As String[]
+
+  Return New String[]
+  
+End
+
+Public Sub CreateUser((User) As String, (Password) As String, (Admin) As Boolean)
+
+  Error.Raise("Cannot create user")
+  
+End
+
+Public Sub DropUser(User As String)
+  
+End
+
+Public Sub GetUserInfo(User As String, ByRef Password As String, ByRef Admin As Boolean)
+  
+End
+
+Public Sub SetUserPassword(User As String, Password As String)
+
+End
+
+Public Sub CreateTable(Table As String, Fields As Field[], (Type) As String, PrimaryKey As String[])
+
+  Dim sReq As String
+  Dim hField As Field
+  Dim bComma As Boolean
+  Dim bNoPrimaryKey As Boolean
+
+  sReq = "CREATE TABLE " & Me.Quote(Table, True) & " ("
+  
+  For Each hField In Fields
+    
+    If bComma Then 
+      sReq &= ","
+    Else
+      bComma = True
+    Endif
+    
+    sReq &= " " & Me.Quote(hField.Name) & " "
+    
+    Select Case hField.Type
+      
+      Case db.Serial
+        sReq &= "INTEGER PRIMARY KEY AUTOINCREMENT"
+        bNoPrimaryKey = True
+      Case db.Blob
+        sReq &= "BLOB"
+      Case db.Boolean
+        sReq &= "BOOL"
+      Case db.Integer
+        sReq &= "INT4"
+      Case db.Long
+        sReq &= "BIGINT"
+      Case db.Float
+        sReq &= "FLOAT8"
+      Case db.Date
+        sReq &= "DATETIME"
+      Case db.String
+        If hField.Length <= 0 Then
+          sReq &= "TEXT"
+        Else
+          sReq &= "VARCHAR(" & CStr(hField.Length) & ")"
+        Endif
+      Case Else
+        sReq &= "TEXT"
+    End Select
+    
+  Next
+  
+  If hField.Collation Then sReq &= " COLLATION " & hField.Collation
+  
+  If Not IsNull(hField.Default) Then
+    sReq &= " NOT NULL DEFAULT " & Me.Format(hField.Default)
+  Else If PrimaryKey.Exist(hField.Name) Then
+    sReq &= " NOT NULL"
+  Endif
+
+  If PrimaryKey.Count And If Not bNoPrimaryKey Then
+    sReq &= ", PRIMARY KEY (" & Me.MakeFieldList(PrimaryKey) & ")"
+  Endif
+
+  sReq &= ")"
+  
+  Me.Exec(sReq)
+  
+End
+
+Public Sub DropTable(Table As String)
+
+  Me.Exec("DROP TABLE " & Me.Quote(Table, True))
+  
+End
+
+Public Sub CreateIndex(Table As String, Index As String, Fields As String[], Unique As Boolean)
+
+  Dim sReq As String
+
+  sReq = "CREATE"
+  If Unique Then sReq &= " UNIQUE"
+  sReq &= " INDEX" & Me.Quote(Index) & " ON " & Me.Quote(Table, True) & " (" & Me.MakeFieldList(Fields) & ")"
+  
+  Me.Exec(sReq)
+  
+End
+
+Public Sub DropIndex((Table) As String, Index As String)
+  
+  Me.Exec("DROP INDEX " & Me.Quote(Index))
+  
+End
+

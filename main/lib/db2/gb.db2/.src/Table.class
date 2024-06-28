@@ -2,23 +2,6 @@
 
 Export
 
-'   GB_METHOD("_free", NULL, CTABLE_free, NULL),
-' 
-'   //GB_METHOD("AddField", NULL, CTABLE_add_field, "(Name)s(Type)i[(Length)i(Default)v"])
-' 
-'   GB_PROPERTY_READ("Name", "s", CTABLE_name),
-'   GB_PROPERTY_READ("System", "b", CTABLE_system),
-'   GB_PROPERTY("PrimaryKey", "String[]", CTABLE_primary_key),
-'   GB_PROPERTY("Type", "s", CTABLE_type),
-'   GB_PROPERTY_READ("Connection", "Connection", CTABLE_connection),
-' 
-'   GB_METHOD("Update", NULL, CTABLE_update, NULL),
-' 
-'   GB_PROPERTY_READ("Fields", ".Table.Fields", CTABLE_fields),
-'   GB_PROPERTY_READ("Indexes", ".Table.Indexes", CTABLE_indexes),
-' 
-'   GB_END_DECLARE
-
 Property Read Name As String Use $sName
 Property Read System As Boolean Use $bSystem
 Property PrimaryKey As String[]
@@ -31,6 +14,10 @@ Private $hDriver As _DatabaseDriver
 Private $hFields As _TableFields
 Private $hIndexes As _TableIndexes
 
+Private $bCreate As Boolean
+Private $sType As String
+Private $aPrimaryKey As New String[]
+
 Public Sub _Fill(hDriver As _DatabaseDriver, sName As String)
   
   $hDriver = hDriver
@@ -39,33 +26,60 @@ Public Sub _Fill(hDriver As _DatabaseDriver, sName As String)
   
 End
 
+Public Sub _Create(hDriver As _DatabaseDriver, sName As String)
+  
+  $hDriver = hDriver
+  $sName = sName
+  $aPrimaryKey = New String[]
+  $bCreate = True
+  
+End
+
 Public Sub Update()
   
+  Dim aFields As Field[]
+  Dim hField As Field
   
+  If Not $bCreate Then Return
+  
+  If Me.Fields.Count = 0 Then Error.Raise("A table must have at least one field")
+  
+  aFields = New Field[]
+  For Each hField In Me.Fields
+    aFields.Add(hField)
+  Next
+  
+  $hDriver.CreateTable($sName, aFields, $sType, $aPrimaryKey)
   
 End
 
 Private Function PrimaryKey_Read() As String[]
 
+  If Not $bCreate Then Return $hDriver.GetTablePrimaryKey($sName)
   
-
+  $aPrimaryKey.ReadOnly = True
+  Return $aPrimaryKey
+  
 End
 
 Private Sub PrimaryKey_Write(Value As String[])
 
-  
+  If Not $bCreate Then Error.Raise("Read-only property")
+  $aPrimaryKey = Value.Copy()
 
 End
 
 Private Function Type_Read() As String
 
-  
+  If Not $bCreate Then Return $hDriver.GetTableType($sName)
+  Return $sType
 
 End
 
 Private Sub Type_Write(Value As String)
 
-  
+  If Not $bCreate Then Error.Raise("Read-only property")
+  $sType = Value
 
 End
 
@@ -79,7 +93,7 @@ Private Function Fields_Read() As _TableFields
 
   If Not $hFields Then 
     $hFields = New _TableFields As "TableFields"
-    $hFields._Fill($hDriver, $sName)
+    $hFields._Fill($hDriver, $sName, $bCreate)
   Endif 
   
   Return $hFields
@@ -89,7 +103,7 @@ End
 Private Function Indexes_Read() As _TableIndexes
 
   If Not $hIndexes Then 
-    $hIndexes = New _TableIndexes
+    $hIndexes = New _TableIndexes As "TableIndexes"
     $hIndexes._Fill($hDriver, $sName)
   Endif 
   

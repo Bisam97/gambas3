@@ -1,0 +1,30 @@
+' Gambas class file
+
+Export
+
+Property Read Name As String Use $sName
+Property Read Password As String Use $sPassword
+Property Read Administrator As Boolean Use $bAdmin
+Property Read Connection As Connection
+
+Private $hDriver As _DatabaseDriver
+
+Public Sub _Fill(hDriver As _DatabaseDriver, sName As String)
+  
+  $hDriver = hDriver
+  $sName = sName
+  $hDriver.GetUserInfo(sName, ByRef $sPassword, ByRef $bAdmin)
+  
+End
+
+Private Function Connection_Read() As Connection
+
+  Return Object.Parent($hDriver)
+
+End
+
+Public Sub Delete()
+  
+  Me.Connection.Users.Remove($sName)
+  
+End

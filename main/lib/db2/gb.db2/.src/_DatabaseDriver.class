@@ -58,8 +58,50 @@ Public Limit As String
 Public LimitPos As Integer
 Public AllowedCharsInDatabaseName As String
 
+Property Read Connection As Connection
+
 Public Enum IGNORE_NONE, IGNORE_INSERT, IGNORE_ON_CONFLICT
 Public Enum LIMIT_NONE, LIMIT_AT_BEGIN, LIMIT_AT_END
+
+
+Private Function Connection_Read() As Connection
+
+  Return Object.Parent(Me)
+
+End
+
+Public Sub Quote(Name As String, Optional Table As Boolean) As String
+  
+  Return Me.Connection.Quote(Name, Table)
+  
+End
+
+Public Sub Exec(Request As String)
+
+  Me.FreeResult(Me.Query(Request))
+  
+End
+
+Public Sub MakeFieldList(aField As String[]) As String
+
+  Dim sField As String
+  Dim sReq As String
+  Dim bComma As Boolean
+  
+  For Each sField In aField
+    If bComma Then 
+      sReq &= ", "
+    Else
+      bComma = True
+    Endif
+    sReq &= Me.Quote(sField)
+  Next
+  
+  Return sReq
+  
+End
+
+' Functions must be implemented from here
 
 Public Sub Open(Host As String, Port As String, Name As String, (User) As String, Password As String) As Pointer
   
@@ -92,12 +134,6 @@ Public Sub Format(Value As Variant) As String
 End
 
 Public Sub Query(Request As String) As Pointer
-  
-End
-
-Public Sub Exec(Request As String)
-
-  Me.FreeResult(Me.Query(Request))
   
 End
 
@@ -145,7 +181,7 @@ Public Sub IsSystemTable(Table As String) As Boolean
 
 End
 
-Public Sub GetTableType(Table As String)
+Public Sub GetTableType(Table As String) As String
   
 End
 
@@ -173,7 +209,6 @@ Public Sub GetTablePrimaryKey(Table As String) As String[]
   
 End
 
-
 Public Sub GetCollations() As String[]
   
 End
@@ -191,5 +226,57 @@ Public Sub Commit()
 End
 
 Public Sub Rollback()
+  
+End
+
+Public Sub GetDatabases() As String[]
+  
+End
+
+Public Sub IsSystemDatabase(Database As String) As Boolean
+  
+End
+
+Public Sub CreateDatabase(Database As String)
+  
+End
+
+Public Sub DropDatabase(Database As String)
+  
+End
+
+Public Sub GetUsers() As String[]
+  
+End
+
+Public Sub CreateUser(User As String, Password As String, Admin As Boolean)
+  
+End
+
+Public Sub DropUser(User As String)
+  
+End
+
+Public Sub GetUserInfo(User As String, ByRef Password As String, ByRef Admin As Boolean)
+  
+End
+
+Public Sub SetUserPassword(User As String, Password As String)
+  
+End
+
+Public Sub CreateTable(Table As String, Fields As Field[], Type As String, PrimaryKey As String[])
+  
+End
+
+Public Sub DropTable(Table As String)
+  
+End
+
+Public Sub CreateIndex(Table As String, Index As String, Fields As String[], Unique As Boolean)
+  
+End
+
+Public Sub DropIndex(Table As String, Index As String)
   
 End

@@ -1,0 +1,33 @@
+' Gambas class file
+
+Export
+
+Property Read Name As String Use $sName
+Property Read System As Boolean
+Property Read Connection As Connection
+Private $hDriver As _DatabaseDriver
+
+Public Sub _Fill(hDriver As _DatabaseDriver, sName As String)
+  
+  $hDriver = hDriver
+  $sName = sName
+  
+End
+
+Private Function Connection_Read() As Connection
+
+  Return Object.Parent($hDriver)
+
+End
+
+Private Function System_Read() As Boolean
+
+  Return $hDriver.IsSystemDatabase($sName)
+
+End
+
+Public Sub Delete()
+  
+  Me.Connection.Databases.Remove($sName)
+  
+End

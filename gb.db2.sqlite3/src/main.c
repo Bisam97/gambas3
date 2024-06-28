@@ -166,9 +166,9 @@ static void conv_data(const char *data, int len, GB_VARIANT_VALUE *val, int type
 
 //-------------------------------------------------------------------------
 
-BEGIN_METHOD(Sqlite3Helper_Open, GB_STRING path; GB_STRING host)
+BEGIN_METHOD(Sqlite3Helper_Open, GB_STRING path)
 
-	GB.ReturnPointer(sqlite_open_database(GB.ToZeroString(ARG(path)), GB.ToZeroString(ARG(host))));
+	GB.ReturnPointer(sqlite_open_database(GB.ToZeroString(ARG(path))));
 
 END_METHOD
 
@@ -374,7 +374,7 @@ GB_DESC Sqlite3HelperDesc[] =
 {
 	GB_DECLARE_STATIC("_Sqlite3Helper"),
 	
-	GB_STATIC_METHOD("Open", "p", Sqlite3Helper_Open, "(Path)s(Host)s"),
+	GB_STATIC_METHOD("Open", "p", Sqlite3Helper_Open, "(Path)s"),
 	GB_STATIC_METHOD("GetVersion", "s", Sqlite3Helper_GetVersion, NULL),
 	GB_STATIC_METHOD("Close", NULL, Sqlite3Helper_Close, "(Database)p"),
 	GB_STATIC_METHOD("Query", "p", Sqlite3Helper_Query, "(Database)p(Query)s(Timeout)i[(WithTypes)b]"),
