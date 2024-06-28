@@ -38,6 +38,12 @@ Private Sub RunShell(sCmd As String, Optional bSilent As Boolean) As String
   
 End
 
+Private Sub RunExec(aCmd As String[], Optional bSilent As Boolean) As String
+  
+  Return VersionControl.Exec(aCmd, bSilent, ["PWD=" & Project.Dir])
+  
+End
+
 Static Public Sub FindRoot(Optional sDir As String) As String
 
   Dim sPath As String
@@ -96,7 +102,7 @@ Public Sub GetCurrentBranch() As String
 
   ' Works only with git > 2.22
   ' Return Trim(RunShell("git branch --show-current"))
-  Return Trim(RunShell("git rev-parse --abbrev-ref HEAD"))
+  Return Trim(RunExec(["git", "rev-parse", "--abbrev-ref", "HEAD"]))
   
 End
 
@@ -107,7 +113,7 @@ Public Sub GetBranches(ByRef sCurrent As String, Optional bTags As Boolean) As S
   Dim aBranches As New String[]
   Dim bCurrent As Boolean
   
-  sResult = RunShell("git branch -a", True) 
+  sResult = RunExec(["git", "branch", "-a"], True)
   
   For Each sBranch In Split(Trim(sResult), "\n")
     
@@ -133,7 +139,7 @@ Public Sub GetBranches(ByRef sCurrent As String, Optional bTags As Boolean) As S
   
   If bTags Then
     
-    sResult = RunShell("git tag", True)
+    sResult = RunExec(["git", "tag"], True)
     aBranches.Insert(Split(Trim(sResult), "\n"))
     
   Endif
@@ -155,7 +161,7 @@ Public Sub Diff(sPath As String, Optional bFull As Boolean, bNoWhiteSpace As Boo
   Dim sBefore As String
 
   'If VersionControl.Shell("cd " & Shell(Project.Dir) & " && git log -1", True) Then
-  If RunShell("git log -1", True) Then
+  If RunExec(["git", "log", "-1"], True) Then
     sHead = "HEAD"
   Else
     sHead = "--staged"
@@ -193,7 +199,7 @@ Private Sub GetLocalBranchName(sFind As String) As String
   Dim sResult As String
   Dim sBranch As String
   
-  sResult = RunShell("git branch -a", True) 
+  sResult = RunExec(["git", "branch", "-a"], True) 
   
   For Each sBranch In Split(Trim(sResult), "\n")
     
@@ -250,7 +256,7 @@ Public Sub Status(Optional sPath As String) As String
   Dim sStatus As String
 
   If Not sPath Then sPath = Project.Dir
-  sStatus = VersionControl.Shell("cd " & Shell$(sPath) & " && git status .", True)
+  sStatus = RunExec(["git", "status", "."], True) 'VersionControl.Shell("cd " & Shell$(sPath) & " && git status .", True)
   Return sStatus
   
 End
@@ -303,7 +309,7 @@ Public Sub CheckPaths()
   Dim sStatus As String
 
   'sStatus = VersionControl.Shell("cd " & Shell$(Project.Dir) & " && git status -uall --porcelain -z .", True)
-  sStatus = RunShell("git status -uall --porcelain -z .", True)
+  sStatus = RunExec(["git", "status", "-uall", "--porcelain", "-z", "."], True)
   UpdatePathFromStatus(sStatus)
 
 End
@@ -333,7 +339,7 @@ End
 
 Public Sub AddFile(sPath As String, Optional (bForce) As Boolean)
 
-  RunShell("git add " & Shell(sPath))
+  RunExec(["git", "add", sPath])
   
 End
 
@@ -353,25 +359,25 @@ Public Sub Revert(Optional sPath As String) As Boolean
   GoSub GET_STATUS
   If Not sStatus Then Return
   
-  RunShell("git checkout " & Shell(sPath))
+  RunExec(["git", "checkout", sPath])
   GoSub GET_STATUS
   If Not sStatus Then Return
   
-  RunShell("git restore " & Shell(sPath))
+  RunExec(["git", "restore", sPath])
   GoSub GET_STATUS
   If Not sStatus Then Return
   
-  RunShell("git restore --staged " & Shell(sPath))
+  RunExec(["git", "restore", "--staged", sPath])
   GoSub GET_STATUS
   If Not sStatus Then Return
   
-  RunShell("git checkout " & Shell(sPath))
+  RunExec(["git", "checkout", sPath])
   GoSub GET_STATUS
   If Not sStatus Then Return
   
   If sPath <> Project.Dir Then
   
-    RunShell("git rm -f " & Shell(sPath))
+    RunExec(["git", "rm", "-f", sPath])
     Try Kill sPath
     GoSub GET_STATUS
     If Not sStatus Then Return
@@ -387,20 +393,20 @@ Public Sub Revert(Optional sPath As String) As Boolean
   
 GET_STATUS:
 
-  sStatus = Trim(RunShell("git status --porcelain " & Shell(sPath)))
+  sStatus = Trim(RunExec(["git", "status", "--porcelain", sPath]))
   Return
   
 End
 
 Public Sub RemoveFile(sPath As String, Optional (bForce) As Boolean)
 
-  RunShell("git rm -f " & Shell(sPath))
+  RunExec(["git", "rm", "-f", sPath])
   
 End
 
 Public Sub RemoveDir(sPath As String)
 
-  RunShell("git rm -rf --cached " & Shell(sPath))
+  RunExec(["git", "rm", "-rf", "--cached", sPath])
   Shell.RmDir(sPath)
 
 End
@@ -439,13 +445,13 @@ Public Sub Info() As Collection
   
   cInfo[("Local root path")] = $sRoot
   
-  aResult = Split(RunShell("git log -n1"), "\n")
+  aResult = Split(RunExec(["git", "log", "-n1"]), "\n")
   
   cInfo[("Last commit")] = Trim(Mid$(aResult[0], InStr(aResult[0], " ") + 1))
   cInfo[("Last commit author")] = Trim(Mid$(aResult[1], InStr(aResult[1], " ") + 1))
   cInfo[("Last commit date")] = Trim(Mid$(aResult[2], InStr(aResult[2], " ") + 1))
   
-  aResult = Split(RunShell("git branch -vv"), "\n")
+  aResult = Split(RunExec(["git", "branch", "-vv"]), "\n")
   For Each sResult In aResult
     If sResult Begins "*" Then
       aResult = Scan(sResult, "* * * [[]*] *")
@@ -456,7 +462,7 @@ Public Sub Info() As Collection
     Endif
   Next
   
-  Try nModif = Split(Trim(RunShell("git status --porcelain")), "\n").Count
+  Try nModif = Split(Trim(RunExec(["git", "status", "--porcelain"])), "\n").Count
   If nModif = 0 Then
     sText = ("The current branch is up to date.")
   Else If nModif = 1 Then
@@ -466,7 +472,7 @@ Public Sub Info() As Collection
   Endif
   
   If nModif Then  
-    Try nModif = Split(Trim(RunShell("git status --porcelain " & Shell(Project.Dir))), "\n").Count
+    Try nModif = Split(Trim(RunExec(["git", "status", "--porcelain", Project.Dir])), "\n").Count
     sText &= "\n"
     If nModif = 0 Then
       sText &= ("None in the current project.")
@@ -479,7 +485,7 @@ Public Sub Info() As Collection
   
   cInfo[("Status")] = sText
   
-  aResult = Split(RunShell("git remote -vv"), "\n")
+  aResult = Split(RunExec(["git", "remote", "-vv"]), "\n")
   Try cInfo[("Remote repository URL")] = Scan(aResult[0], "* * *")[1]
   
   Return cInfo
@@ -533,12 +539,13 @@ Public Sub ControlProject() As Boolean
     
     If Message.Warning(("A new Git repository will be created for this project."), ("OK"), ("Cancel")) = 2 Then Return
     
-    RunShell("git init && git add .")
+    RunExec(["git", "init"])
+    RunExec(["git", "add", "."])
     If Process.LastValue Then Return True
   
   Else
     
-    RunShell("git add .")
+    RunExec(["git", "add", "."])
   
   Endif
   
@@ -555,21 +562,21 @@ Public Sub SolveConflict(sPath As String, Optional iAccept As Integer) As Boolea
   If iAccept Then
     Select iAccept
       Case VersionControl.ACCEPT_OURS
-        RunShell("git checkout --ours " & Shell$(sPath))
+        RunExec(["git", "checkout", "--ours", sPath])
       Case VersionControl.ACCEPT_THEIRS
-        RunShell("git checkout --theirs " & Shell$(sPath))
+        RunExec(["git", "checkout", "--theirs", sPath])
     End Select
     Return Process.LastValue
   Endif
   
-  RunShell("git add " & Shell$(sPath))
+  RunExec(["git", "add", sPath])
   If Process.LastValue Then Return True
   
   VersionControl.CheckPaths()
   If Project.HasConflict Then Return
   
   'FVersionControl.Run(True)
-  RunShell("git commit -m " & Shell$(("Solve conflict."))) ', Project.Dir)
+  RunExec(["git", "commit", "-m", ("Solve conflict.")]) ', Project.Dir)
   
 End
 
@@ -597,7 +604,7 @@ End
 
 Public Sub CreateBranch(sNewBranch As String) As Boolean
   
-  RunShell("git branch " & Shell(sNewBranch))
+  RunExec(["git", "branch", sNewBranch])
   If Process.LastValue Then Return True
   
 End
@@ -605,28 +612,28 @@ End
 
 Public Sub GetIdentity(ByRef sName As String, ByRef sEmail As String)
   
-  Try sName = Trim(RunShell("git config user.name"))
-  Try sEmail = Trim(RunShell("git config user.email"))
+  Try sName = Trim(RunExec(["git", "config", "user.name"]))
+  Try sEmail = Trim(RunExec(["git", "config", "user.email"]))
   
 End
 
 Public Sub SetIdentity(sName As String, sMail As String)
   
   If sName Then
-    RunShell("git config user.name " & Shell$(sName))
+    RunExec(["git", "config", "user.name", sName])
   Else
-    RunShell("git config user.name --unset")
+    RunExec(["git", "config", "user.name", "--unset"])
   Endif
   If sMail Then
-    RunShell("git config user.email " & Shell$(sMail))
+    RunExec(["git", "config", "user.email", sMail])
   Else 
-    RunShell("git config user.email --unset")
+    RunExec(["git", "config", "user.email", "--unset"])
   Endif
   
 End
 
 Public Sub GetDefaultBranch() As String
   
-  Return Trim(RunShell("git var GIT_DEFAULT_BRANCH"))
+  Return Trim(RunExec(["git", "var", "GIT_DEFAULT_BRANCH"]))
   
 End
