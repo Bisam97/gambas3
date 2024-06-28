@@ -26,6 +26,9 @@ Private $iFirstLine As Integer
 
 Private Const FUNC_EVENT_LOOP As String = "@"
 
+Private $sFindFunc As String
+Private $fFindFuncTimer As Float
+
 Public Sub _new(sPath As String)
 
   Dim hScrollArea As ScrollArea
@@ -187,7 +190,7 @@ Public Sub gvwProfile_Sort()
   $aFunc.Sort
   gvwProfile_Select
   
-  'If sCurrent Then gvwProfile.Row = $aFunc.Find($cFunc[sCurrent])
+  If sCurrent Then gvwProfile.Row = $aFunc.Find($cFunc[sCurrent])
 
 End
 
@@ -750,4 +753,26 @@ Public Sub PaintStatus()
   Paint.Font = Application.Font
   Paint.DrawRichText(sTitle, 0, 0, Paint.W - Desktop.Scale, Paint.H, Align.Right)
 
+End
+
+Public Sub gvwProfile_KeyPress()
+
+  Dim sText As String
+  Dim iRow As Integer
+
+  sText = Key.Text
+  If IsAlnum(sText) Or If InStr("@_$", sText) Then
+    If Timer - $fFindFuncTimer > 2 Then $sFindFunc = ""
+    $fFindFuncTimer = Timer
+    $sFindFunc &= sText
+    iRow = Max(0, gvwProfile.Row)
+    Repeat
+      If Left($aFunc[iRow].Name, Len($sFindFunc)) == $sFindFunc Then
+        gvwProfile.Row = iRow
+        Break
+      Endif
+      Inc iRow
+    Until iRow >= $aFunc.Count
+  Endif
+    
 End
