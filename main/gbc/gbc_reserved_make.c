@@ -295,6 +295,11 @@ int main(int argc, char **argv)
 	}
 	
 	out = fopen("../share/gb_reserved_temp.h.tmp", "w");
+	if (!out)
+	{
+		fprintf(stderr, "unable to create '../share/gb_reserved_temp.h.tmp': %s\n", strerror(errno));
+		exit(1);
+	}
 	
 	read_write_until(in, out, "int RESERVED_find_word(const char *word, int len)");
 

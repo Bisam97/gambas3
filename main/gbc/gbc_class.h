@@ -96,7 +96,8 @@ typedef
 		unsigned unsafe : 1;           // If this function is unsafe
 		unsigned use_is_missing : 1;   // If this function uses IsMissing()
 		unsigned no_debug : 1;         // Do not output deubgging information
-		unsigned _reserved : 11;
+		unsigned no_code : 1;          // The function has no explicit code
+		unsigned _reserved : 10;
 		short nlocal;                  // Local variable count
 		short nctrl;                   // Control structure variable count
 		

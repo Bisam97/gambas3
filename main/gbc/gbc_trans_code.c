@@ -39,7 +39,6 @@
 //ushort *TRANS_labels = NULL;
 
 static FUNCTION *_func;
-static bool _no_warnings = FALSE;
 
 static CLASS_SYMBOL *add_local(int sym_index, TYPE type, int value, bool used)
 {
@@ -99,7 +98,7 @@ static void check_local(CLASS_SYMBOL *sym)
 	{
 		if (sym->local.value < 0)
 		{
-			if (!_no_warnings)
+			if (!_func->no_code)
 				COMPILE_print(MSG_WARNING, sym->local.line, "unused argument: &1", SYMBOL_get_name(&sym->symbol));
 		}
 		else
@@ -395,6 +394,27 @@ void TRANS_statement(void)
 }
 
 
+static bool is_void_body()
+{
+	bool is_proc = (TYPE_get_id(_func->type) == T_VOID);
+	PATTERN *look = JOB->current;
+	bool is_void = TRUE;
+	
+	for(look = JOB->current;; look++)
+	{
+		if (PATTERN_is(look[0], RS_END) && TRANS_is_end_function(is_proc, &look[1]))
+			break;
+		
+		if (PATTERN_is_newline(*look))
+			continue;
+			
+		is_void = FALSE;
+		break;
+	}
+	
+	return is_void;
+}
+
 static void translate_body()
 {
 	PATTERN *look, *save;
@@ -623,7 +643,6 @@ static void trans_call(const char *name, int nparam)
 void TRANS_code(void)
 {
 	int i, j, n;
-	int ncode;
 
 	// We must compile initialization functions at the end, because static local variables can modify them.
 	
@@ -671,14 +690,12 @@ void TRANS_code(void)
 			continue;
 		}
 		
-		ncode = _func->ncode;
+		_func->no_code = is_void_body();
 		
 		create_local_from_param();
 
 		translate_body();
 
-		_no_warnings = _func->ncode == ncode;
-		
 		remove_local();
 		
 		CODE_return(2); // Return from function, ignore Gosub stack

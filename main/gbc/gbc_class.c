@@ -188,11 +188,11 @@ CLASS_SYMBOL *CLASS_declare(CLASS *class, int index, int type, bool global)
 		name = SYMBOL_get_name(&sym->symbol);
 		if (global)
 			COMPILE_print(MSG_WARNING, -1, "class name hidden by global declaration: &1", name);
-		else
+		else if (!JOB->func->no_code)
 			COMPILE_print(MSG_WARNING, -1, "class name hidden by local declaration: &1", name);
 	}
 
-	if (!global && !TYPE_is_null(sym->global.type))
+	if (!global && !TYPE_is_null(sym->global.type) && !JOB->func->no_code)
 	{
 		name = SYMBOL_get_name(&sym->symbol);
 

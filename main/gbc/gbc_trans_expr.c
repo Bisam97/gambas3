@@ -285,7 +285,7 @@ static void trans_identifier(int index, bool point, PATTERN next)
 		{
 			TRANS_LABEL *info = TRANS_get_label_info(sym->local.value);
 			if (info->ctrl_id)
-				THROW("Label is not top-level");
+				THROW("Label must be top-level");
 
 			CODE_push_number(sym->local.value + 1);
 			push_type_id(T_INTEGER);
