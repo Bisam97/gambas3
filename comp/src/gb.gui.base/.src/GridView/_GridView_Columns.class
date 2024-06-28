@@ -32,7 +32,6 @@ Private Sub GetView() As GridView
   
 End
 
-
 Private Function Count_Read() As Integer
 
   Return $aColumns.Count
@@ -270,5 +269,16 @@ Private Sub Padding_Write(Value As Integer)
   If $iPadding = Value Then Return
   $iPadding = Value
   _Layout
+  
+End
+
+Public Sub _GetLastVisible() As Integer
+
+  Dim I As Integer
+  
+  For I = $aColumns.Max DownTo 0
+    If $aColumns[I].W > 0 Then Break
+  Next
+  Return I
   
 End

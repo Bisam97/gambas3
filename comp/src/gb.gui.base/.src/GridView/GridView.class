@@ -1600,11 +1600,14 @@ Public Sub TimerEnsureVisible_Timer()
   $iRowEV = -1
   $iColEV = -1
 
+  iColEV = Min($hColumns._GetLastVisible(), iColEV)
+
   With $hColumns[iColEV]
     W = .Width
     H = $hRows._GetRowHeight(iRowEV)
     If W <= 0 Or If H <= 0 Then Return
-    $hView.EnsureVisible(.X, $hRows._GetRowY(iRowEV) + F, Min($hView.ClientW - $hRows.W, W + $hRows.Width), H + $hColumns.Height + F, iDir)
+    '$hView.EnsureVisible(.X, $hRows._GetRowY(iRowEV) + F, Min($hView.ClientW - $hRows.W, W + $hRows.Width), H + $hColumns.Height + F, iDir)
+    $hView.EnsureVisible(.X + F, $hRows._GetRowY(iRowEV) + F, W + $hRows.W + F, H + $hColumns.H + F, iDir)
   End With
   
 Catch
@@ -1904,7 +1907,7 @@ Public Sub ScrollArea_KeyPress()
     
     Case Key.Home
       If Key.Control Or If Not $bShowCursor Then
-        MoveTo(0, 0)
+        MoveTo(0, If(Key.Control, 0, $iCol))
       Else
         MoveTo($iRow, 0)
       Endif
@@ -1912,7 +1915,7 @@ Public Sub ScrollArea_KeyPress()
     
     Case Key.End
       If Key.Control Or If Not $bShowCursor Then
-        MoveTo($hRows.Count - 1, $hColumns.Count - 1)
+        MoveTo($hRows.Count - 1, If(Key.Control, $hColumns.Count - 1, $iCol))
       Else
         MoveTo($iRow, $hColumns.Count - 1)
       Endif
