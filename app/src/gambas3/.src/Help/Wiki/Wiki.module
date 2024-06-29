@@ -808,6 +808,8 @@ Public Sub PrintPage()
     Return
   Endif
   
+  If Wiki.Symbol = "addcolumn" Then Stop
+  
   sPath = Wiki.SolvePath(Wiki.Path)
   
   If Not Wiki.ExistPage(sPath) Then
@@ -824,7 +826,7 @@ Public Sub PrintPage()
     
   Endif
 
-  If Not Wiki.ExistPage(sPath) And If Not Wiki.HasDefaultHelp() Then
+  If Not Wiki.ExistPage(sPath) And If Not Wiki.HasDefaultHelp() And If Not Wiki.ExistPage(sPath, Wiki.DEFAULT_LANG) Then
   
     If Wiki.Symbol Then
     
@@ -837,7 +839,7 @@ Public Sub PrintPage()
         Wiki.Class = hClass.Parent
 
         sPath = SolvePath("/comp/" & LCase(Wiki.Component &/ Wiki.Class &/ Wiki.Symbol))
-        If Wiki.ExistPage(sPath) Or If Wiki.HasDefaultHelp() Then Break
+        If Not Wiki.ExistPage(sPath) And If Not Wiki.HasDefaultHelp() And If Not Wiki.ExistPage(sPath, Wiki.DEFAULT_LANG) Then Break
         
       Loop
       
@@ -886,7 +888,7 @@ Public Sub PrintPage()
     If Not Documentation.Exist(Wiki.Component) Or If Not Documentation[Wiki.Component].Loaded Then Documentation.Reset
   Endif
   
-  sData = LTrim(File.Load(Wiki.GetPagePathFrom(sPath)))
+  Try sData = LTrim(File.Load(Wiki.GetPagePathFrom(sPath)))
   If Wiki.Class Then
     If sData Begins "# " Then
       iPos = InStr(sData, "\n")
