@@ -1603,9 +1603,9 @@ Public Sub TimerEnsureVisible_Timer()
   iColEV = Min($hColumns._GetLastVisible(), iColEV)
 
   With $hColumns[iColEV]
-    W = .Width
-    H = $hRows._GetRowHeight(iRowEV)
-    If W <= 0 Or If H <= 0 Then Return
+    W = Max(1, .Width)
+    H = Max(1, $hRows._GetRowHeight(iRowEV))
+    'If W <= 0 Or If H <= 0 Then Return
     '$hView.EnsureVisible(.X, $hRows._GetRowY(iRowEV) + F, Min($hView.ClientW - $hRows.W, W + $hRows.Width), H + $hColumns.Height + F, iDir)
     $hView.EnsureVisible(.X + F, $hRows._GetRowY(iRowEV) + F, W + $hRows.W + F, H + $hColumns.H + F, iDir)
   End With
