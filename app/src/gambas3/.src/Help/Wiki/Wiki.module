@@ -808,8 +808,6 @@ Public Sub PrintPage()
     Return
   Endif
   
-  If Wiki.Symbol = "addcolumn" Then Stop
-  
   sPath = Wiki.SolvePath(Wiki.Path)
   
   If Not Wiki.ExistPage(sPath) Then
@@ -839,7 +837,8 @@ Public Sub PrintPage()
         Wiki.Class = hClass.Parent
 
         sPath = SolvePath("/comp/" & LCase(Wiki.Component &/ Wiki.Class &/ Wiki.Symbol))
-        If Not Wiki.ExistPage(sPath) And If Not Wiki.HasDefaultHelp() And If Not Wiki.ExistPage(sPath, Wiki.DEFAULT_LANG) Then Break
+        
+        If Wiki.ExistPage(sPath) Or If Wiki.HasDefaultHelp() Or If Wiki.ExistPage(sPath, Wiki.DEFAULT_LANG) Then Break
         
       Loop
       
