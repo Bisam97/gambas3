@@ -31,6 +31,7 @@
 #include "gb_error.h"
 
 #include "gbx_variant.h"
+#include "gbx_exec.h"
 #include "gambas.h"
 #include "gbx_api.h"
 #include "gbx_class.h"
@@ -495,6 +496,25 @@ bool GB_CollectionEnum(GB_COLLECTION col, GB_COLLECTION_ITER *iter, GB_VARIANT *
 
 	HASH_TABLE_get_last_key(hash_table, key, len);
 	return FALSE;
+}
+
+void GB_CollectionBrowse(GB_COLLECTION col, GB_COLLECTION_BROWSE_CALLBACK func)
+{
+	GB_COLLECTION_ITER iter;
+	GB_VALUE value;
+	char *key;
+	int len;
+	
+	GB_CollectionEnum(col, &iter, NULL, NULL, NULL);
+	for(;;)
+	{
+		if (GB_CollectionEnum(col, &iter, (GB_VARIANT *)&value, &key, &len))
+			break;
+		
+		BORROW((VALUE *)&value);
+		(*func)(key, len, &value);
+		RELEASE((VALUE *)&value);
+	}
 }
 
 #endif

@@ -45,12 +45,12 @@
 #include <sys/types.h>
 #include <sys/time.h>
 
-/* Gambas API Version */
+// Gambas API Version
 
 #define GB_VERSION  1
 
 
-/* Useful macros */
+// Useful macros
 
 #ifndef CLEAR
 #define CLEAR(s) (memset(s, 0, sizeof(*s)))
@@ -88,7 +88,7 @@
 #define PACKED __attribute__((packed))
 #endif
 
-/* Gambas datatypes identifiers */
+// Gambas datatypes identifiers
 
 #define GB_T_VOID         0
 #define GB_T_BOOLEAN      1
@@ -108,12 +108,12 @@
 #define GB_T_NULL         15
 #define GB_T_OBJECT       16
 
-/* Endianness */
+// Endianness
 
 enum { GB_LITTLE_ENDIAN = 0, GB_BIG_ENDIAN = 1 };
 
 
-/* Date constants */
+// Date constants
 
 enum {
 	GB_DP_MILLISECOND = 1,
@@ -128,7 +128,7 @@ enum {
 	GB_DP_YEAR = 10,
 	};
 
-/* Default formats */
+// Default formats
 
 enum {
 	GB_LF_USER = 0,
@@ -151,13 +151,13 @@ enum {
 	};
 
 
-/* This type represents a Gambas datatype identifier */
+// This type represents a Gambas datatype identifier
 
 typedef
 	uintptr_t GB_TYPE;
 
 
-/* This opaque type represents a Gambas class identifier */
+// This opaque type represents a Gambas class identifier
 
 typedef
 	GB_TYPE GB_CLASS;
@@ -176,7 +176,7 @@ typedef
 	GB_BASE;
 
 
-/* Gambas STRING datatype definition */
+// Gambas STRING datatype definition
 
 typedef
   struct {
@@ -193,7 +193,7 @@ typedef
   GB_STRING;
 
 
-/* Gambas INTEGER datatype definition */
+// Gambas INTEGER datatype definition
 
 typedef
   struct {
@@ -207,7 +207,7 @@ typedef
   GB_INTEGER;
 
 
-/* Gambas LONG datatype definition */
+// Gambas LONG datatype definition
 
 typedef
   struct {
@@ -223,7 +223,7 @@ typedef
   GB_LONG;
 
 
-/* Gambas POINTER datatype definition */
+// Gambas POINTER datatype definition
 
 typedef
   struct {
@@ -234,7 +234,7 @@ typedef
   GB_POINTER;
 
 
-/* Gambas BOOLEAN datatype definition */
+// Gambas BOOLEAN datatype definition
 
 typedef
   struct {
@@ -248,7 +248,7 @@ typedef
   GB_BOOLEAN;
 
 
-/* Gambas SINGLE datatype definition */
+// Gambas SINGLE datatype definition
 
 typedef
   struct {
@@ -262,7 +262,7 @@ typedef
   GB_SINGLE;
 
 
-/* Gambas FLOAT datatype definition */
+// Gambas FLOAT datatype definition
 
 typedef
   struct {
@@ -278,7 +278,7 @@ typedef
   GB_FLOAT;
 
 
-/* Gambas DATE datatype definition */
+// Gambas DATE datatype definition
 
 typedef
   struct {
@@ -300,7 +300,7 @@ typedef
   GB_DATE;
 
 
-/* Gambas OBJECT datatype definition */
+// Gambas OBJECT datatype definition
 
 typedef
   struct {
@@ -311,7 +311,7 @@ typedef
   GB_OBJECT;
 
 
-/* Gambas VARIANT datatype definition */
+// Gambas VARIANT datatype definition
 
 typedef
   struct {
@@ -346,7 +346,7 @@ typedef
   GB_VARIANT;
 
 
-/* Gambas common value definition */
+// Gambas common value definition
 
 typedef
 	union {
@@ -365,7 +365,7 @@ typedef
 	GB_VALUE;
 
 
-/* Predefined errors constants */
+// Predefined errors constants
 
 #define GB_ERR_TYPE       ((char *)6)
 #define GB_ERR_OVERFLOW   ((char *)7)
@@ -379,18 +379,18 @@ typedef
 #define GB_ERR_ZERO       ((char *)26)
 
 
-/* Gambas description start macro */
+// Gambas description start macro
 
 #define GB_DECLARE(name, size) \
 	{ name, (intptr_t)GB_VERSION, (intptr_t)size }
 
 
-/* Gambas description end macro */
+// Gambas description end macro
 
 #define GB_END_DECLARE  { (char *)0 }
 
 
-/* Special description identifiers */
+// Special description identifiers
 
 #define GB_VIRTUAL_CLASS_ID     ((char *)1)
 #define GB_HOOK_CHECK_ID        ((char *)2)
@@ -399,14 +399,14 @@ typedef
 #define GB_INHERITS_ID          ((char *)5)
 
 
-/* Description hook macros */
+// Description hook macros
 
 //#define GB_HOOK_NEW(hook)    { GB_HOOK_NEW_ID, (int)hook }
 //#define GB_HOOK_FREE(hook)   { GB_HOOK_FREE_ID, (int)hook }
 #define GB_HOOK_CHECK(hook)  { GB_HOOK_CHECK_ID, (intptr_t)hook }
 
 
-/* Virtual class description macro */
+// Virtual class description macro
 
 #define GB_VIRTUAL_CLASS() { GB_VIRTUAL_CLASS_ID }, { GB_NOT_CREATABLE_ID }
 
@@ -414,7 +414,7 @@ typedef
 	{ name, (intptr_t)GB_VERSION, (intptr_t)0 }, GB_VIRTUAL_CLASS()
 
 
-/* Not creatable class macro */
+// Not creatable class macro
 
 #define GB_NOT_CREATABLE() { GB_NOT_CREATABLE_ID }
 
@@ -422,12 +422,12 @@ typedef
 	{ name, (intptr_t)GB_VERSION, (intptr_t)0 }, GB_NOT_CREATABLE()
 
 
-/* Auto creatable class macro */
+// Auto creatable class macro
 
 #define GB_AUTO_CREATABLE() { GB_AUTO_CREATABLE_ID }
 
 
-/* Symbol description prefixes */
+// Symbol description prefixes
 
 #define GB_PROPERTY_ID          'p'
 #define GB_METHOD_ID            'm'
@@ -438,7 +438,7 @@ typedef
 #define GB_STATIC_METHOD_ID     'M'
 
 
-/* Symbol description macros */
+// Symbol description macros
 
 #define GB_CONSTANT(symbol, type, value) \
 	{ "C" symbol, (intptr_t)type, (intptr_t)value }
@@ -489,7 +489,7 @@ typedef
 	{ "C_@" symbol, (intptr_t)"p", (intptr_t)pointer } 
 
 
-/* Method implementation begin macro */
+// Method implementation begin macro
 
 #define BEGIN_METHOD(_name, par) \
 typedef \
@@ -503,98 +503,98 @@ void _name(void *_object, void *_param) \
 _##_name *_p = (_##_name *)_param;
 
 
-/* Parameter-less Method implementation begin macro */
+// Parameter-less Method implementation begin macro
 
 #define BEGIN_METHOD_VOID(_name) \
 void _name(void *_object, void *_param) { \
 
 
-/* Parameter access macro */
+// Parameter access macro
 
 #define ARG(_name) (&(_p)->_name)
 
 
-/* Testing if a argument is missing */
+// Testing if a argument is missing
 
 #define MISSING(_name) ((_p)->_name.type == GB_T_VOID)
 
 
-/* Method implementation end macro */
+// Method implementation end macro
 
 #define END_METHOD }
 
 
-/* Macro used for calling a parameter-less implementation method */
+// Macro used for calling a parameter-less implementation method
 
 #define CALL_METHOD_VOID(_name) _name(_object, NULL)
 
 
-/* Property implementation begin macro */
+// Property implementation begin macro
 
 #define BEGIN_PROPERTY(_name) \
 void _name(void *_object, void *_param) {
 
 
-/* Macro indicating if the property implementation is called for reading or writing */
+// Macro indicating if the property implementation is called for reading or writing
 
 #define READ_PROPERTY  (_param == NULL)
 
 
-/* Macro to get the value written to a property */
+// Macro to get the value written to a property
 
 #define PROP(_type) ((_type *)_param)
 
 
-/* Property implementation end macro */
+// Property implementation end macro
 
 #define END_PROPERTY }
 
 
-/* Macros to get the value of an argument or a property */
+// Macros to get the value of an argument or a property
 
 #define VALUE(_arg) ((_arg)->value)
 #define VARG(_p) VALUE(ARG(_p))
 #define VPROP(_p) VALUE(PROP(_p))
 
 
-/* Macros to get a string argument */
+// Macros to get a string argument
 
 #define STRING(_arg) (VARG(_arg).addr + VARG(_arg).start)
 #define LENGTH(_arg) (VARG(_arg).len)
 
 
-/* Macros to get a string property */
+// Macros to get a string property
 
 #define PSTRING() (VPROP(GB_STRING).addr + VPROP(GB_STRING).start)
 #define PLENGTH() (VPROP(GB_STRING).len)
 
 
-/* Macro to get an optional argument */
+// Macro to get an optional argument
 
 #define VARGOPT(_arg, _default) (MISSING(_arg) ? (_default) : VARG(_arg))
 
 
-/* Casting macro. Usable only in an implementation function */
+// Casting macro. Usable only in an implementation function
 
 #define OBJECT(type) ((type *)_object)
 
 
-/* Macro for returning itself. Usable only in an implementation function */
+// Macro for returning itself. Usable only in an implementation function
 
 #define RETURN_SELF()  GB.ReturnSelf(_object)
 
 
-/* Macro for declaring a variable used for storing an event identifier */
+// Macro for declaring a variable used for storing an event identifier
 
 #define DECLARE_EVENT(_event) static int _event
 
 
-/* Macro to help accessing enumeration index. Use only in an enumeration method implementation */
+// Macro to help accessing enumeration index. Use only in an enumeration method implementation
 
 #define ENUM(_type)  (*((_type *)GB.GetEnum()))
 
 
-/* Structure used for describing a class */
+// Structure used for describing a class
 
 typedef
 	struct {
@@ -612,29 +612,29 @@ typedef
 	GB_DESC;
 
 
-/* Type of a method implementation function */
+// Type of a method implementation function
 
 typedef
 	void GB_METHOD_FUNC(void *, void *);
 
 
-/* Type of a property implementation function */
+// Type of a property implementation function
 
 typedef
 	void GB_PROPERTY_FUNC(void *, void *);
 
 
-/* Macro for declaring a method implementation function */
+// Macro for declaring a method implementation function
 
 #define DECLARE_METHOD(_method) GB_METHOD_FUNC _method
 
 
-/* Macro for declaring a property implementation function */
+// Macro for declaring a property implementation function
 
 #define DECLARE_PROPERTY(_property) GB_PROPERTY_FUNC _property
 
 
-/* Constants used with the GB.Hook() API function */
+// Constants used with the GB.Hook() API function
 
 #define GB_HOOK_MAX 10
 
@@ -649,73 +649,73 @@ typedef
 #define GB_HOOK_ERROR     9
 #define GB_HOOK_TIMEOUT   10
 
-/* Macro for calling the previous hook */
+// Macro for calling the previous hook
 
 #define CALL_HOOK_MAIN(_hook, _pargc, _pargv) do { if (_hook) { ((void (*)(int *, char ***))(_hook))((_pargc), (_pargv)); } } while (0);
 
-/* Constants that represent interpreter signals caught by GB_SIGNAL function */
+// Constants that represent interpreter signals caught by GB_SIGNAL function
 
 #define GB_SIGNAL_DEBUG_BREAK         1
 #define GB_SIGNAL_DEBUG_CONTINUE      2
 #define GB_SIGNAL_DEBUG_FORWARD				3
 
 
-/* Constants used with the GB.Watch() API function */
+// Constants used with the GB.Watch() API function
 
 #define GB_WATCH_NONE         0
 #define GB_WATCH_READ         1
 #define GB_WATCH_WRITE        2
 
 
-/* Type of a generic callback */
+// Type of a generic callback
 
 typedef
 	void (*GB_CALLBACK)();
 
 
-/* Type of a watch callback function */
+// Type of a watch callback function
 
 typedef
 	void (*GB_WATCH_CALLBACK)(int, int, intptr_t);
 
 
-/* Type of the GB.SubstString() callback */
+// Type of the GB.SubstString() callback
 
 typedef
 	void (*GB_SUBST_CALLBACK)(int, char **, int *);
 
 
-/* Type of the GB.SubstStringAdd() callback */
+// Type of the GB.SubstStringAdd() callback
 
 typedef
 	void (*GB_SUBST_ADD_CALLBACK)(int, char, char);
 
 
-/* Type of the GB.BrowseProject() callback */
+// Type of the GB.BrowseProject() callback
 
 typedef
 	void (*GB_BROWSE_PROJECT_CALLBACK)(const char *, int64_t);
 
 
-/* Type of the GB.BrowseDirectory() callback */
+// Type of the GB.BrowseDirectory() callback
 
 typedef
-	void (*GB_BROWSE_CALLBACK)(const char *);
+	void (*GB_BROWSE_DIRECTORY_CALLBACK)(const char *);
 
 
-/* Type of a timer callback */
+// Type of a timer callback
 
 typedef
 	int (*GB_TIMER_CALLBACK)(intptr_t);
 
 
-/* Type of a signal callback */
+// Type of a signal callback
 
 typedef
 	void (*GB_SIGNAL_CALLBACK)(int, intptr_t);
 
 
-/* A structure for the components of a date */
+// A structure for the components of a date
 
 typedef
 	struct {
@@ -731,7 +731,7 @@ typedef
 	GB_DATE_SERIAL;
 
 
-/* Opaque type of a Gambas interpreted or native function */
+// Opaque type of a Gambas interpreted or native function
 
 typedef
 	struct {
@@ -743,7 +743,7 @@ typedef
 #define GB_FUNCTION_IS_VALID(_func) ((_func)->index != 0)
 
 
-/* Opaque type of a Gambas Array */
+// Opaque type of a Gambas Array
 
 typedef
 	void *GB_ARRAY;
@@ -763,13 +763,13 @@ typedef
 	GB_ARRAY_BASE;
 
 
-/* Opaque type of a Gambas Collection */
+// Opaque type of a Gambas Collection
 
 typedef
 	void *GB_COLLECTION;
 
 
-/* Opaque type of a Gambas Collection iterator */
+// Opaque type of a Gambas Collection iterator
 
 typedef
 	struct {
@@ -778,27 +778,31 @@ typedef
 		}
 	GB_COLLECTION_ITER;
 
+// Collection browse function
+	
+typedef
+	void (*GB_COLLECTION_BROWSE_CALLBACK)(const char *, int, GB_VALUE *);
 
-/* opaque type of an hash table */
+// opaque type of an hash table
 
 typedef
 	void *GB_HASHTABLE;
 
 
-/* hash table enumeration function */
+// hash table enumeration function
 
 typedef
 	void (*GB_HASHTABLE_ENUM_FUNC)(void *);
 
 
-/* Constants for end-of-line format */
+// Constants for end-of-line format
 
 #define GB_EOL_UNIX      0
 #define GB_EOL_WINDOWS   1
 #define GB_EOL_MAC       2
 
 
-/* opaque type for a Stream object */
+// opaque type for a Stream object
 
 struct GB_STREAM;
 
@@ -848,7 +852,7 @@ typedef
 	GB_STREAM;
 
 
-/* File constants */
+// File constants
 
 #define GB_ST_READ         1
 #define GB_ST_WRITE        2
@@ -867,7 +871,7 @@ typedef
 #define GB_ST_NULL         1024
 
 
-/* Constants used by the GB.NumberFromString() API function */
+// Constants used by the GB.NumberFromString() API function
 
 #define GB_NB_READ_INTEGER    1
 #define GB_NB_READ_LONG       2
@@ -878,7 +882,7 @@ typedef
 #define GB_NB_LOCAL           16
 
 
-/* Comparison constants. Used by the GB.Collection.New() and GB.HashTable.New() API function */
+// Comparison constants. Used by the GB.Collection.New() and GB.HashTable.New() API function
 
 #define GB_COMP_BINARY        0
 #define GB_COMP_NOCASE        1
@@ -893,12 +897,12 @@ typedef
 #define GB_COMP_DESCENT       16
 
 
-/* Constant used by GB.ConvString to convert to 32 bits Unicode (it needs some special processing) */
+// Constant used by GB.ConvString to convert to 32 bits Unicode (it needs some special processing)
 
 #define GB_SC_UNICODE ((char *)-1)
 
 
-/* Timer object */
+// Timer object
 
 typedef
 	struct {
@@ -912,7 +916,8 @@ typedef
 		}
 	GB_TIMER;
 
-/* Structure for GB.OnErrorBegin() handler */
+
+// Structure for GB.OnErrorBegin() handler
 
 typedef
 	struct {
@@ -924,7 +929,8 @@ typedef
 		}
 	GB_ERROR_HANDLER;
 	
-/* Structure for GB.RaiseBegin handler */
+
+// Structure for GB.RaiseBegin handler
 
 typedef
 	struct {
@@ -935,12 +941,13 @@ typedef
 	}
 	GB_RAISE_HANDLER;
 
-/* A macro for preventing gcc from warning about breaks in the
-   strict aliasing rules */
+
+// A macro for preventing gcc from warning about breaks in the strict aliasing rules
 	
 #define POINTER(_pointer) (void **)(void *)_pointer
 
-/* For classes that implements arithmetic operators (e.g. complex numbers...) */
+
+// For classes that implements arithmetic operators (e.g. complex numbers...)
 
 typedef
 	struct {
@@ -973,7 +980,8 @@ typedef
 	}
 	GB_OPERATOR_DESC;
 
-/* Double-linked list API */
+
+// Double-linked list API
 
 typedef
 	struct {
@@ -982,7 +990,8 @@ typedef
 	}
 	GB_LIST;
 
-/* Information about a file */
+
+// Information about a file
 	
 typedef
 	struct {
@@ -1001,7 +1010,8 @@ typedef
 		}
 	GB_FILE_STAT;
 
-/* Constants for the GB_FILE_STAT structure */
+
+// Constants for the GB_FILE_STAT structure
 	
 #define GB_STAT_FILE        1
 #define GB_STAT_DIRECTORY   2
@@ -1010,7 +1020,8 @@ typedef
 #define GB_STAT_SOCKET      5
 #define GB_STAT_LINK        6
 	
-/* Gambas Application Programming Interface */
+
+// Gambas Application Programming Interface
 
 typedef
 	struct {
@@ -1156,7 +1167,7 @@ typedef
 		char *(*TempFile)(const char *);
 		bool (*CopyFile)(const char *, const char *);
 		void (*BrowseProject)(GB_BROWSE_PROJECT_CALLBACK);
-		void (*BrowseDirectory)(const char *, GB_BROWSE_CALLBACK, GB_BROWSE_CALLBACK);
+		void (*BrowseDirectory)(const char *, GB_BROWSE_DIRECTORY_CALLBACK, GB_BROWSE_DIRECTORY_CALLBACK);
 		bool (*StatFile)(const char *, GB_FILE_STAT *, bool);
 
 		void (*Store)(GB_TYPE, GB_VALUE *, void *);
@@ -1235,6 +1246,7 @@ typedef
 			bool (*Set)(GB_COLLECTION, const char *, int, GB_VARIANT *);
 			bool (*Get)(GB_COLLECTION, const char *, int, GB_VARIANT *);
 			bool (*Enum)(GB_COLLECTION, GB_COLLECTION_ITER *, GB_VARIANT *, char **key, int *len);
+			void (*Browse)(GB_COLLECTION, GB_COLLECTION_BROWSE_CALLBACK func);
 			}
 		Collection;
 

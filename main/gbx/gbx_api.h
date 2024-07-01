@@ -123,7 +123,7 @@ char *GB_TempFile(const char *pattern);
 bool GB_CopyFile(const char *src, const char *dst);
 //int GB_FindFile(const char *dir, int recursive, int follow, void (*found)(const char *));
 void GB_BrowseProject(GB_BROWSE_PROJECT_CALLBACK func);
-void GB_BrowseDirectory(const char *dir, GB_BROWSE_CALLBACK before, GB_BROWSE_CALLBACK after);
+void GB_BrowseDirectory(const char *dir, GB_BROWSE_DIRECTORY_CALLBACK before, GB_BROWSE_DIRECTORY_CALLBACK after);
 
 int GB_IsMissing(int param);
 
@@ -175,6 +175,7 @@ int GB_CollectionCount(GB_COLLECTION col);
 bool GB_CollectionSet(GB_COLLECTION col, const char *key, int len, GB_VARIANT *value);
 bool GB_CollectionGet(GB_COLLECTION col, const char *key, int len, GB_VARIANT *value);
 bool GB_CollectionEnum(GB_COLLECTION col, GB_COLLECTION_ITER *iter, GB_VARIANT *value, char **key, int *len);
+void GB_CollectionBrowse(GB_COLLECTION col, GB_COLLECTION_BROWSE_CALLBACK func);
 
 void GB_Alloc(void **addr, int len);
 void GB_AllocZero(void **addr, int len);

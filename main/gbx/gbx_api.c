@@ -278,6 +278,7 @@ const void *const GAMBAS_Api[] =
 	(void *)GB_CollectionSet,
 	(void *)GB_CollectionGet,
 	(void *)GB_CollectionEnum,
+	(void *)GB_CollectionBrowse,
 
 	(void *)GB_HashTableNew,
 	(void *)HASH_TABLE_delete,
@@ -2453,7 +2454,7 @@ void GB_BrowseProject(GB_BROWSE_PROJECT_CALLBACK func)
 		ARCHIVE_browse(arch, func);
 }
 
-void GB_BrowseDirectory(const char *dir, GB_BROWSE_CALLBACK before, GB_BROWSE_CALLBACK after)
+void GB_BrowseDirectory(const char *dir, GB_BROWSE_DIRECTORY_CALLBACK before, GB_BROWSE_DIRECTORY_CALLBACK after)
 {
 	FILE_recursive_dir(dir, before, after, 0, FALSE);
 }
