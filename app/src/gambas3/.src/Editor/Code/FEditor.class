@@ -427,88 +427,39 @@ End
 
 Static Public Sub PaintEditorStatus(hEditor As TextEditor)
   
-  Dim sTextCol As String = ("Column")
-  Dim sTextLine As String = ("Line")
   Dim sTextOverwrite As String = ("Overwrite")
   Dim DS As Integer
   Dim WC, WL, WO, WD As Integer
   Dim X, Y, W, H As Integer
+  Dim hStatus As CStatus
+  Dim iColor As Integer
   
+  hStatus = New CStatus
   DS = Desktop.Scale
 
-  WC = Paint.TextSize(sTextCol).W
-  WL = Paint.TextSize(sTextLine).W
   WD = Paint.TextSize("9").W
-  W = WC + DS + WD * 4 + DS + WL + DS + WD * 7
-  If hEditor.Overwrite Then
-    Paint.Font = Paint.Device.Font
-    Paint.Font.Bold = True
-    WO = Paint.TextSize(sTextOverwrite).W
-    W += WO + DS * 5
+
+  hStatus.Paint(CStr(hEditor.Line + 1), WD * 6, True, True)
+  hStatus.Space()
+
+  hStatus.Paint(("Line"))
+  hStatus.Space()
+
+  hStatus.Paint(CStr(hEditor.Column + 1), WD * 6, True, True)
+  hStatus.Space()
+
+  hStatus.Paint(("Column"))
+  hStatus.Space()
+  
+  If hEditor.Overwrite Then 
+    hStatus.Space()
+    hStatus.PaintLabel(("Overwrite"))
   Endif
   
-  H = (DS * 5) \ 2
-  Y = (Paint.H - H) / 2
-  
-  If System.RightToLeft Then
-    
-    X = DS
-    Paint.Font = Application.Font
-
-    Paint.Font.Bold = True
-    Paint.DrawText(CStr(hEditor.Line + 1), X, Y, WD * 6, H, Align.Left)
-    X += WD * 6 + DS
-    
-    Paint.Font.Bold = False
-    Paint.DrawText(sTextLine, X, Y, WL, H, Align.Normal)
-    X += WL + DS
-
-    Paint.Font.Bold = True
-    Paint.DrawText(CStr(hEditor.Column + 1), X, Y, WD * 4, H, Align.Left)
-    X += WD * 4 + DS
-    
-    Paint.Font.Bold = False
-    Paint.DrawText(sTextCol, X, Y, WC, H, Align.Normal)
-    X += WC + DS
-    
-    If hEditor.Overwrite Then
-      Paint.Font = Paint.Device.Font
-      Paint.Font.Bold = True
-      Paint.Rectangle(X, Y, WO + DS * 2, H)
-      Paint.Background = Color.Foreground
-      Paint.Fill
-      Paint.Background = Color.Background
-      Paint.DrawText(sTextOverwrite, X, Y, WO + DS * 2, H, Align.Center)
-    Endif
-    
-  Else
-  
-    X = Paint.W - W
-
-    If hEditor.Overwrite Then
-      Paint.Font = Paint.Device.Font
-      Paint.Font.Bold = True
-      Paint.Rectangle(X, Y, WO + DS * 3, H, H)
-      Paint.Background = Color.Foreground
-      Paint.Fill
-      Paint.Background = Color.Background
-      Paint.DrawText(sTextOverwrite, X, Y, WO + DS * 3, H, Align.Center)
-      X += WO + DS * 5
-    Endif
-    
-    Paint.Font = Application.Font
-    Paint.Background = Color.Foreground
-    Paint.DrawText(sTextCol, X, Y, WC, H, Align.Normal)
-    X += WC + DS
-    Paint.Font.Bold = True
-    Paint.DrawText(CStr(hEditor.Column + 1), X, Y, WD * 4, H, Align.Right)
-    X += WD * 4 + DS
-    Paint.Font.Bold = False
-    Paint.DrawText(sTextLine, X, Y, WL, H, Align.Normal)
-    X += WL + DS
-    Paint.Font.Bold = True
-    Paint.DrawText(CStr(hEditor.Line + 1), X, Y, WD * 6, H, Align.Right)
-    
+  iColor = hEditor.GetCurrentColor()
+  If iColor <> Color.Default Then
+    hStatus.Space()
+    hStatus.PaintColor(iColor)
   Endif
   
 End

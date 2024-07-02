@@ -658,3 +658,17 @@ Public Sub LocateChange(ByRef sPath As String, ByRef iLine As Integer) As Boolea
   Return True
   
 End
+
+Public Sub GetCurrentColor() As Integer
+
+  Dim sWord As String
+
+  sWord = Me.CurrentWord
+  If sWord Begins "H" Then sWord = Mid$(sWord, 2)
+  If Len(sWord) = 6 Or If Len(sWord) = 8 Then
+    If IsHexa(sWord) Then Try Return Val("&H" & sWord & "&")
+  Endif
+ 
+  Return Color.Default
+  
+End

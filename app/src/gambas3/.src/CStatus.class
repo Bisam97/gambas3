@@ -65,3 +65,58 @@ Public Sub PaintRichText(sText As String, Optional iWidth As Integer, bBold As B
   If bBold Then Paint.Font.Bold = False
   
 End
+
+Public Sub PaintColor(iColor As Integer)
+
+  Dim DS As Integer
+  Dim W As Integer
+  
+  DS = Desktop.Scale
+  W = Paint.TextSize("FFFFFFFF").W + DS * 3
+  
+  If Not System.RightToLeft Then $X -= W
+  
+  Paint.Ellipse($X - 1, Paint.H / 2 - DS - 1, DS * 2 + 2, DS * 2 + 2)
+  Paint.Background = Color.TextForeground
+  Paint.Fill
+
+  Paint.Ellipse($X, Paint.H / 2 - DS, DS * 2, DS * 2)
+  Paint.Background = Color.SetAlpha(iColor, 0)
+  Paint.Fill
+  
+  Paint.Background = Color.Default
+  Paint.DrawText(Hex$(iColor, 8), $X + DS * 3, 0, DS * 6, Paint.H, Align.Left)
+  
+  If System.RightToLeft Then $X += W
+  
+End
+
+Public Sub PaintLabel(sText As String)
+
+  Dim DS As Integer
+  Dim W As Integer
+  Dim F As Integer
+  
+  DS = Desktop.Scale
+  F = DS \ 2
+  
+  Paint.Save
+  
+  Paint.Font.Grade = -1
+  Paint.Font.Bold = True
+  
+  W = Paint.TextSize(sText).W + DS * 4
+  
+  If Not System.RightToLeft Then $X -= W
+  
+  Paint.Rectangle($X, F, W, Paint.H - F * 2, Paint.H)
+  Paint.Background = Color.Foreground
+  Paint.Fill
+  Paint.Background = Color.Background
+  Paint.DrawText(sText, $X, 0, W, Paint.H, Align.Center)
+  
+  If System.RightToLeft Then $X += W
+  
+  Paint.Restore
+  
+End
