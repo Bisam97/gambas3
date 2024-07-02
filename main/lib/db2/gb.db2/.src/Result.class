@@ -14,6 +14,7 @@ Private Enum MODE_FIND, MODE_EDIT, MODE_CREATE
 
 Private $iMode As Integer
 Private $hDriver As _DatabaseDriver
+
 Private $pHandle As Pointer
 Private $iCount As Long
 Private $vBuffer As Variant[]
@@ -22,6 +23,8 @@ Private $aField As String[]
 Private $cFieldIndex As Collection
 Private $cFields As Collection
 Private $aTypes As Integer[]
+Private $aLengths As Integer[]
+
 Private $sTable As String
 Private $bReturning As Boolean
 Private $bNotExist As Boolean
@@ -74,12 +77,24 @@ End
 Public Sub _Fill(hDriver As _DatabaseDriver, pHandle As Pointer)
   
   Dim I As Integer
+  Dim sName As String
+  Dim iType As Integer
+  Dim iLength As Integer
   
   $hDriver = hDriver
   $pHandle = pHandle
   $iCount = $hDriver.GetResultCount(pHandle)
-  $aField = $hDriver.GetResultFields(pHandle)
-  $aTypes = $hDriver.GetResultTypes(pHandle)
+  
+  $aField = New String[]
+  $aTypes = New Integer[]
+  $aLengths = New Integer[]
+  
+  While Not $hDriver.GetResultField(pHandle, I, ByRef sName, ByRef iType, ByRef iLength)
+    $aField.Add(sName)
+    $aTypes.Add(iType)
+    $aLengths.Add(iLength)
+    Inc I
+  Wend
   
   $cFieldIndex = New Collection
   $cFieldIndex.Default = -1
@@ -251,18 +266,15 @@ End
 Private Function Fields_Read() As Collection
 
   Dim hResultField As ResultField
-  Dim aLength As Integer[]
   Dim I As Integer
   
   If Not $cFields Then 
-    
-    aLength = $hDriver.GetResultLengths($pHandle)
     
     $cFields = New Collection
     For I = 0 To $aField.Max
       hResultField = New ResultField
       Object.Attach(hResultField, Me, "ResultField")
-      hResultField._Fill($aField[I], $aTypes[I], aLength[I])
+      hResultField._Fill($aField[I], $aTypes[I], $aLengths[I])
       $cFields[$aField[I]] = hResultField
     Next
     $cFields.ReadOnly = True

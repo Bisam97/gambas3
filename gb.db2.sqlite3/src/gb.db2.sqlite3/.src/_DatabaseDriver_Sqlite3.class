@@ -45,16 +45,16 @@ Private Sub FindDatabase(sHost As String, sName As String, Optional bCreate As B
   
 End
 
-Public Sub Open(Host As String, (Port) As String, Name As String, (User) As String, (Password) As String) As Pointer
+Public Sub Open(Conn As Connection) As Pointer
 
   Dim sPath As String
   Dim sVersion As String
   Dim aVersion As String[]
   
-  $sHost = Host
+  $sHost = Conn.Host
   
-  If Name Then
-    sPath = FindDatabase($sHost, Name)
+  If Conn.Name Then
+    sPath = FindDatabase($sHost, Conn.Name)
     If Not sPath Then Error.Raise("Unable to locate database")
   Endif
   
@@ -157,11 +157,22 @@ Public Sub GetError() As Integer
   
 End
 
-Public Sub GetResultCount((Result) As Pointer) As Long
+Public Sub GetResultCount((Result) As Pointer) As Integer
 
   Return _Sqlite3Helper.GetResultCount(Result)
   
 End
+
+Public Sub GetResultField((Result) As Pointer, Field As Integer, ByRef Name As String, ByRef Type As Integer, ByRef Length As Integer) As Boolean
+
+  Name = _Sqlite3Helper.GetResultField(Result, Field)
+  If Not Name Then Return True
+  
+  Type = _Sqlite3Helper.Type
+  Length = _Sqlite3Helper.Length
+  
+End
+
 
 Public Sub FreeResult((Result) As Pointer)
   
@@ -179,24 +190,6 @@ End
 Public Sub GetResultBlob((Result) As Pointer, Index As Long, Field As Integer) As String
   
   Return _Sqlite3Helper.GetResultBlob(Result, Index, Field)
-  
-End
-
-Public Sub GetResultFields((Result) As Pointer) As String[]
-  
-  Return _Sqlite3Helper.GetResultFields(Result)
-  
-End
-
-Public Sub GetResultTypes((Result) As Pointer) As Integer[]
-  
-  Return _Sqlite3Helper.GetResultTypes(Result)
-  
-End
-
-Public Sub GetResultLengths((Result) As Pointer) As Integer[]
-  
-  Return _Sqlite3Helper.GetResultLengths(Result)
   
 End
 

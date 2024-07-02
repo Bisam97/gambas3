@@ -4,7 +4,7 @@ Export
 
 Event _Fake
 
-Public Const QuoteCharacter As String = ""
+Public Const QuoteCharacter As String = "\""
 
 ' typedef
 '   struct {
@@ -103,7 +103,7 @@ End
 
 ' Functions must be implemented from here
 
-Public Sub Open(Host As String, Port As String, Name As String, (User) As String, Password As String, Options As Collection) As Pointer
+Public Sub Open(Conn As Connection) As Pointer
   
 End
 
@@ -133,15 +133,11 @@ Public Sub Format(Value As Variant) As String
   
 End
 
-Public Sub Query(Request As String) As Pointer
-  
-End
-
-Public Sub GetResultCount(Result As Pointer) As Long
-  
-End
-
 Public Sub GetError() As Integer
+  
+End
+
+Public Sub Query(Request As String) As Pointer
   
 End
 
@@ -149,7 +145,11 @@ Public Sub FreeResult(Result As Pointer)
   
 End
 
-Public Sub GetVersion() As String
+Public Sub GetResultCount(Result As Pointer) As Integer
+  
+End
+
+Public Sub GetResultField(Result As Pointer, Field As Integer, ByRef Name As String, ByRef Type As Integer, ByRef Length As Integer) As Boolean
   
 End
 
@@ -158,18 +158,6 @@ Public Sub GetResultData(Result As Pointer, Index As Long, Next As Boolean) As V
 End
 
 Public Sub GetResultBlob(Result As Pointer, Index As Long, Field As Integer) As String 
-  
-End
-
-Public Sub GetResultFields(Result As Pointer) As String[]
-  
-End
-
-Public Sub GetResultTypes(Result As Pointer) As Integer[]
-  
-End
-
-Public Sub GetResultLengths(Result As Pointer) As Integer[]
   
 End
 

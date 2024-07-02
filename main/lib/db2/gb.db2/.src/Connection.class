@@ -37,7 +37,6 @@ Private Const TEMPLATE_MAGIC As String = "# Gambas Database Template File 3.0"
 Private DEBUG_ME As Boolean
 
 Private $hDriver As _DatabaseDriver
-Private $sVersion As String
 Private $hTables As _ConnectionTables
 Private $iLimit As Integer
 Private $iTrans As Integer
@@ -166,6 +165,7 @@ End
 
 Private Function Collations_Read() As String[]
 
+  If $hDriver.NoCollation Then Return
   Return $hDriver.GetCollations()
 
 End
@@ -185,9 +185,7 @@ Public Sub Open()
   
   $hDriver = Object.New("_DatabaseDriver_" & LCase($sType)) 
   Object.Attach($hDriver, Me, "DatabaseDriver")
-  $pHandle = $hDriver.Open(Me.Host, Me.Port, Me.Name, Me.User, Me.Password, Me.Options)
-  
-  $sVersion = $hDriver.GetVersion()
+  $pHandle = $hDriver.Open(Me)
   
   $iLimit = 0
   $iTrans = 0
@@ -261,8 +259,8 @@ Public Sub Quote(Name As String, Optional Table As Boolean) As String
   
   If Table Then
     
-    If $hDriver.HasSchema Then iPos = InStr(Table, ".")
-    If iPos Then Return sQuote & Left(Table, iPos - 1) & sQuote & "." & sQuote & Mid(Table, iPos + 1) & sQuote
+    If $hDriver.HasSchema Then iPos = InStr(Name, ".")
+    If iPos Then Return sQuote & Left(Name, iPos - 1) & sQuote & "." & sQuote & Mid(Name, iPos + 1) & sQuote
     
   Endif
     

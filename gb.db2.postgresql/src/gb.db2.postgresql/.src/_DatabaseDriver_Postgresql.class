@@ -1,0 +1,351 @@
+' Gambas class file
+
+Export
+
+Inherits _DatabaseDriver
+
+Public Const QuoteCharacter As String = "\""
+
+Private $pHandle As Pointer
+
+' static bool get_table_schema(const char **table, char **schema)
+' {
+'   char *point;
+'   int len;
+' 
+'   //fprintf(stderr, "get_table_schema: %s\n", *table);
+' 
+'   *schema = NULL;
+' 
+'   if (!*table || !**table)
+'   {
+'     //fprintf(stderr, "get_table_schema: -> NULL\n");
+'     return TRUE;
+'   }
+' 
+'   point = strchr(*table, '.');
+'   if (!point)
+'   {
+'     *schema = "public";
+'   }
+'   else
+'   {
+'     len = point - *table;
+'     if (len >= 3 && **table == '"' && (*table)[len - 1] == '"')
+'       *schema = GB.TempString(*table + 1, len - 2);
+'     else
+'       *schema = GB.TempString(*table, len);
+'     
+'     *table = point + 1;
+'   }
+'     
+'   return FALSE;
+' }
+' 
+
+Private Sub GetTableSchema(ByRef sTable As String, ByRef sSchema As String)
+
+  Dim iPos As Integer
+  
+  iPos = InStr(sTable, ".")
+  If iPos <= 1 Then 
+    sSchema = "public"
+  Else
+    sSchema = Left(sTable, iPos - 1)
+    If sSchema Begins Chr$(34) And If sSchema Ends Chr$(34) Then sSchema = Mid$(sSchema, 2, -1)
+    sTable = Mid$(sTable, iPos + 1)
+  Endif
+  
+End
+
+Public Sub Open(Conn As Connection) As Pointer
+
+  Dim sVersion As String
+  Dim I As Integer
+  Dim aVersion As String[]
+  Dim iPos As Integer
+  Dim pResult As Pointer
+  
+  $pHandle = _PostgresqlHelper.Open(Conn.Host, Conn.Port, Conn.Name, Conn.User, Conn.Password, Conn.Timeout, Conn.Options)
+  
+  sVersion = _PostgresqlHelper.GetVersion($pHandle)
+  For I = 1 To Len(sVersion)
+    If IsDigit(Mid$(sVersion, I, 1)) Then
+      sVersion = Mid$(sVersion, I)
+      Break
+    Endif
+  Next
+  
+  iPos = InStr(sVersion, " ")
+  If iPos > 0 Then sVersion = Left(sVersion, iPos - 1)
+
+  Me.FullVersion = sVersion
+
+  aVersion = Split(sVersion, ".")
+  Me.Version = CInt(aVersion[0]) * 10000 + CInt(aVersion[1]) * 100
+  Try Me.Version += CInt(aVersion[2])
+  
+  Me.Exec("SET datestyle=ISO")
+  
+  If Me.Version >= 90000 Then Me.Exec("SET bytea_output=escape")
+  
+  pResult = Me.Query("SHOW client_encoding")
+  Me.Charset = GetResultData(pResult, 0, False)[0]
+  
+  ' TODO: Get charset with the request "show client_encoding"
+  'Me.Charset = "UTF-8"
+   
+  '   // datatypes
+  '   
+  '   db->data = (void *)0; // transaction level
+  ' 
+  
+  Me.NoTableType = True
+  Me.HasSchema = True
+  Me.NoCollation = Me.Version < 90100
+  Me.NoReturning = Me.Version < 80200 ' It seems that RETURNING has been introduced in PostgreSQL 8.2
+  Me.InsertIfNotExist = If(Me.Version < 90500, _DatabaseDriver.IGNORE_NONE, _DatabaseDriver.IGNORE_ON_CONFLICT)
+  Me.AllowedCharsInDatabaseName = "."
+  Me.LimitPos = _DatabaseDriver.LIMIT_AT_END
+  
+  Return $pHandle
+  
+End
+
+Public Sub Close()
+  
+  If Not $pHandle Then Return
+  _PostgresqlHelper.Close($pHandle)
+  $pHandle = Null
+  
+End
+
+Public Sub Format(Value As Variant) As String
+  
+  Dim iYear As Integer
+  Dim sResult As String
+  
+  Select Case TypeOf(Value)
+    
+    Case gb.String
+      
+      Return _PostgresqlHelper.QuoteString(Value, Me.Version > 80200)
+    
+    Case gb.Date
+      
+      iYear = Year(Value)
+      sResult = Format(CDate(Value), "'yyyy-mm-dd hh:nn:ss.uuu'")
+      If Year(Value) < 0 Then sResult &= " BC"
+      sResult &= "'"
+      Return sResult
+      
+    Case Else
+      
+      Return Super.Format(Value)
+
+  End Select
+  
+End
+
+Public Sub Query(Request As String) As Pointer
+
+  If DB.Debug Then Error "gb.db.postgresql: " & Request
+  Return _PostgresqlHelper.Query($pHandle, Request)
+  
+End
+
+Public Sub GetError() As Integer
+  
+End
+
+Public Sub FreeResult((Result) As Pointer)
+  
+  _PostgresqlHelper.FreeResult(Result)
+  
+End
+
+Public Sub GetResultCount((Result) As Pointer) As Integer
+
+  Return _PostgresqlHelper.GetResultCount(Result)
+  
+End
+
+Public Sub GetResultData((Result) As Pointer, Index As Long, Next As Boolean) As Variant[]
+  
+  Return _PostgresqlHelper.GetResultData(Result, Index, Next)
+  
+End
+
+Public Sub GetResultField((Result) As Pointer, Field As Integer, ByRef Name As String, ByRef Type As Integer, ByRef Length As Integer) As Boolean
+  
+  Name = _PostgresqlHelper.GetResultField(Result, Field)
+  If Not Name Then Return True
+  Type = _PostgresqlHelper.Type
+  Length = _PostgresqlHelper.Length
+  
+End
+
+Public Sub GetResultBlob(Result As Pointer, Index As Long, Field As Integer) As String 
+  
+End
+
+Public Sub GetTables() As String[]
+
+  Dim pResult As Pointer
+  Dim aTables As String[]
+  Dim I As Integer
+  Dim aRow As Variant[]
+  Dim sSchema As String
+  
+  pResult = Query("select pg_class.relname,pg_namespace.nspname from pg_class,pg_namespace where (pg_class.relkind in ('r', 'v', 'm', 'p')) and (pg_namespace.oid = pg_class.relnamespace) and (pg_namespace.oid not in (select oid from pg_namespace where nspname = 'information_schema'))")
+  
+  aTables = New String[]
+  
+  For I = 0 To GetResultCount(pResult) - 1
+    aRow = GetResultData(pResult, I, True)
+    sSchema = aRow[1]
+    If sSchema = "public" Then
+      aTables.Add(aRow[0])
+    Else
+      aTables.Add(sSchema & "." & aRow[0])
+    Endif
+  Next
+  
+  FreeResult(pResult)
+  Return aTables
+  
+End
+
+Public Sub IsSystemTable(Table As String) As Boolean
+
+  Dim sSchema As String
+  Dim pResult As Pointer
+  Dim bSystem As Boolean
+  
+  GetTableSchema(ByRef Table, ByRef sSchema)
+  
+  If sSchema Then Return sSchema = "pg_catalog"
+  
+  pResult = Query(Subst("select 1 from pg_class where (relkind in ('r', 'v', 'm', 'p')) and (relname = '&1') and (relnamespace in (select oid from pg_namespace where nspname = 'pg_catalog'))", Table))
+  bSystem = GetResultCount(pResult) > 0
+  FreeResult(pResult)
+  If bSystem Then Return True
+  
+  pResult = Query(Subst("select 1 from pg_views where viewname = '&1' and schemaname = 'pg_catalog'", Table))
+  bSystem = GetResultCount(pResult) > 0
+  FreeResult(pResult)
+  If bSystem Then Return True
+
+End
+
+Public Sub GetTableType(Table As String) As String
+  
+End
+
+Public Sub SetTableType(Table As String, Type As String)
+  
+End
+
+Public Sub GetTableFields(Table As String) As String[]
+  
+End
+
+Public Sub GetTableFieldInfo(Table As String, Field As String, ByRef Type As Integer, ByRef Length As Integer, ByRef {Default} As Variant, ByRef Collation As String)
+  
+End
+
+Public Sub GetTableIndexes(Table As String) As String[]
+  
+End
+
+Public Sub GetTableIndexInfo(Table As String, Index As String, ByRef Fields As String[], ByRef Unique As Boolean, ByRef Primary As Boolean)
+
+End
+
+Public Sub GetTablePrimaryKey(Table As String) As String[]
+  
+End
+
+Public Sub GetCollations() As String[]
+
+  Dim pResult As Pointer
+  Dim aCollations As String[]
+  Dim I As Integer
+
+  pResult = Query("select collname from pg_collation")
+  aCollations = New String[]
+  For I = 0 To GetResultCount(pResult) - 1
+    aCollations.Add(GetResultData(pResult, I, True)[0])
+  Next
+  FreeResult(pResult)
+  Return aCollations
+  
+End
+
+Public Sub GetLastInsertId() As Long
+  
+End
+
+Public Sub Begin()
+  
+End
+
+Public Sub Commit()
+  
+End
+
+Public Sub Rollback()
+  
+End
+
+Public Sub GetDatabases() As String[]
+  
+End
+
+Public Sub IsSystemDatabase(Database As String) As Boolean
+  
+End
+
+Public Sub CreateDatabase(Database As String)
+  
+End
+
+Public Sub DropDatabase(Database As String)
+  
+End
+
+Public Sub GetUsers() As String[]
+  
+End
+
+Public Sub CreateUser(User As String, Password As String, Admin As Boolean)
+  
+End
+
+Public Sub DropUser(User As String)
+  
+End
+
+Public Sub GetUserInfo(User As String, ByRef Password As String, ByRef Admin As Boolean)
+  
+End
+
+Public Sub SetUserPassword(User As String, Password As String)
+  
+End
+
+Public Sub CreateTable(Table As String, Fields As Field[], Type As String, PrimaryKey As String[])
+  
+End
+
+Public Sub DropTable(Table As String)
+  
+End
+
+Public Sub CreateIndex(Table As String, Index As String, Fields As String[], Unique As Boolean)
+  
+End
+
+Public Sub DropIndex(Table As String, Index As String)
+  
+End

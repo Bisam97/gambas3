@@ -27,7 +27,9 @@
 #include "main.h"
 
 GB_INTERFACE GB EXPORT;
-static int _type_length = 0;
+
+static int _type = 0;
+static int _length = 0;
 
 //-------------------------------------------------------------------------
 
@@ -248,14 +250,30 @@ END_METHOD
 
 BEGIN_METHOD(Sqlite3Helper_GetResultCount, GB_POINTER result)
 
-	GB.ReturnLong(((SQLITE_RESULT *)VARG(result))->nrow);
+	GB.ReturnInteger(((SQLITE_RESULT *)VARG(result))->nrow);
 
 END_METHOD
 
-BEGIN_METHOD(Sqlite3Helper_GetResultData, GB_POINTER result; GB_LONG pos; GB_BOOLEAN next)
+BEGIN_METHOD(Sqlite3Helper_GetResultField, GB_POINTER result; GB_INTEGER field)
 
 	SQLITE_RESULT *res = (SQLITE_RESULT *)VARG(result);
-	int64_t pos = VARG(pos);
+	int i = VARG(field);
+	
+	if (i >= res->ncol)
+		GB.ReturnNull();
+	else
+	{
+		_type = res->types[i];
+		_length = res->lengths[i];
+		GB.ReturnConstZeroString(res->names[i]);
+	}
+
+END_METHOD
+
+BEGIN_METHOD(Sqlite3Helper_GetResultData, GB_POINTER result; GB_INTEGER pos; GB_BOOLEAN next)
+
+	SQLITE_RESULT *res = (SQLITE_RESULT *)VARG(result);
+	int pos = VARG(pos);
 	int i;
 	char *data;
 	int len;
@@ -273,8 +291,7 @@ BEGIN_METHOD(Sqlite3Helper_GetResultData, GB_POINTER result; GB_LONG pos; GB_BOO
 			data = NULL;
 		else
 		{
-			// TODO: make result position an int64_t
-			sqlite_query_get(res, (int)pos, i, &data, &len);
+			sqlite_query_get(res, pos, i, &data, &len);
 			if (len == 0)
 				data = NULL;
 		}
@@ -292,10 +309,10 @@ BEGIN_METHOD(Sqlite3Helper_GetResultData, GB_POINTER result; GB_LONG pos; GB_BOO
 
 END_METHOD
 
-BEGIN_METHOD(Sqlite3Helper_GetResultBlob, GB_POINTER result; GB_LONG pos; GB_INTEGER field)
+BEGIN_METHOD(Sqlite3Helper_GetResultBlob, GB_POINTER result; GB_INTEGER pos; GB_INTEGER field)
 
 	SQLITE_RESULT *res = (SQLITE_RESULT *)VARG(result);
-	int64_t pos = VARG(pos);
+	int pos = VARG(pos);
 	int field = VARG(field);
 	char *data;
 	int len;
@@ -305,57 +322,9 @@ BEGIN_METHOD(Sqlite3Helper_GetResultBlob, GB_POINTER result; GB_LONG pos; GB_INT
 	
 END_METHOD
 
-BEGIN_METHOD(Sqlite3Helper_GetResultFields, GB_POINTER result)
-
-	SQLITE_RESULT *res = (SQLITE_RESULT *)VARG(result);
-	int i;
-	GB_ARRAY fields;
-
-	GB.Array.New(&fields, GB_T_STRING, res->ncol);
-	for (i = 0; i < res->ncol; i++)
-		*(char **)GB.Array.Get(fields, i) = GB.NewZeroString(res->names[i]);
-	
-	GB.ReturnObject(fields);
-
-END_METHOD
-
-BEGIN_METHOD(Sqlite3Helper_GetResultTypes, GB_POINTER result)
-
-	SQLITE_RESULT *res = (SQLITE_RESULT *)VARG(result);
-	int i;
-	GB_ARRAY types;
-
-	GB.Array.New(&types, GB_T_INTEGER, res->ncol);
-	for (i = 0; i < res->ncol; i++)
-		*(int *)GB.Array.Get(types, i) = res->types[i];
-	
-	GB.ReturnObject(types);
-
-END_METHOD
-
-BEGIN_METHOD(Sqlite3Helper_GetResultLengths, GB_POINTER result)
-
-	SQLITE_RESULT *res = (SQLITE_RESULT *)VARG(result);
-	int i;
-	GB_ARRAY lengths;
-
-	GB.Array.New(&lengths, GB_T_INTEGER, res->ncol);
-	for (i = 0; i < res->ncol; i++)
-		*(int *)GB.Array.Get(lengths, i) = res->lengths[i];
-	
-	GB.ReturnObject(lengths);
-
-END_METHOD
-
 BEGIN_METHOD(Sqlite3Helper_GetType, GB_STRING name)
 
-	GB.ReturnInteger(sqlite_get_type(GB.ToZeroString(ARG(name)), &_type_length));
-
-END_METHOD
-
-BEGIN_METHOD_VOID(Sqlite3Helper_GetTypeLength)
-
-	GB.ReturnInteger(_type_length);
+	GB.ReturnInteger(sqlite_get_type(GB.ToZeroString(ARG(name)), &_length));
 
 END_METHOD
 
@@ -367,6 +336,18 @@ BEGIN_METHOD(Sqlite3Helper_GetValue, GB_STRING value; GB_INTEGER type)
 	GB.ReturnVariant(&value);
 	
 END_METHOD
+
+BEGIN_PROPERTY(Sqlite3Helper_Type)
+
+	GB.ReturnInteger(_type);
+
+END_PROPERTY
+
+BEGIN_PROPERTY(Sqlite3Helper_Length)
+
+	GB.ReturnInteger(_length);
+
+END_PROPERTY
 
 //-------------------------------------------------------------------------
 
@@ -381,15 +362,15 @@ GB_DESC Sqlite3HelperDesc[] =
 	GB_STATIC_METHOD("FreeResult", NULL, Sqlite3Helper_FreeResult, "(Result)p"),
 	GB_STATIC_METHOD("GetError", "i", Sqlite3Helper_GetError, "(Database)p"),
 	GB_STATIC_METHOD("GetErrorMessage", "s", Sqlite3Helper_GetErrorMessage, "(Database)p"),
-	GB_STATIC_METHOD("GetResultCount", "l", Sqlite3Helper_GetResultCount, "(Result)p"),
-	GB_STATIC_METHOD("GetResultData", "Variant[]", Sqlite3Helper_GetResultData,"(Result)p(Index)l(Next)b"),
-	GB_STATIC_METHOD("GetResultBlob", "s", Sqlite3Helper_GetResultBlob,"(Result)p(Index)l(Field)i"),
-	GB_STATIC_METHOD("GetResultFields", "String[]", Sqlite3Helper_GetResultFields, "(Result)p"),
-	GB_STATIC_METHOD("GetResultTypes", "Integer[]", Sqlite3Helper_GetResultTypes, "(Result)p"),
-	GB_STATIC_METHOD("GetResultLengths", "Integer[]", Sqlite3Helper_GetResultLengths, "(Result)p"),
+	GB_STATIC_METHOD("GetResultCount", "i", Sqlite3Helper_GetResultCount, "(Result)p"),
+	GB_STATIC_METHOD("GetResultField", "s", Sqlite3Helper_GetResultField, "(Result)p(Field)i"),
+	GB_STATIC_METHOD("GetResultData", "Variant[]", Sqlite3Helper_GetResultData,"(Result)p(Index)i(Next)b"),
+	GB_STATIC_METHOD("GetResultBlob", "s", Sqlite3Helper_GetResultBlob,"(Result)p(Index)i(Field)i"),
 	GB_STATIC_METHOD("GetType", "i", Sqlite3Helper_GetType, "(Type)s"),
-	GB_STATIC_METHOD("GetTypeLength", "i", Sqlite3Helper_GetTypeLength, NULL),
 	GB_STATIC_METHOD("GetValue", "v", Sqlite3Helper_GetValue, "(Value)s(Type)i"),
+	
+	GB_STATIC_PROPERTY_READ("Type", "i", Sqlite3Helper_Type),
+	GB_STATIC_PROPERTY_READ("Length", "i", Sqlite3Helper_Length),
 	
 	GB_END_DECLARE
 };
