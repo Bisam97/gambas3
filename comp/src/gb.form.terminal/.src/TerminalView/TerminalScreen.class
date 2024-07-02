@@ -24,12 +24,6 @@ Public NewlineMode As Boolean
 Public WrapMode As Boolean
 Public HideCursor As Boolean
 
-' Static Private $aDarkColor As Integer[] = [
-'   &H404040, &HE03737, &H37E037, &HE0C637, &H378BE0, &HE037E0, &H37E0E0, &HE0E0E0,
-'   &HA0A0A0, &HFF0000, &H00FF00, &HFFDD00, &H0080FF, &HFF00FF, &H00FFFF, &HFFFFFF]
-'   '&H808080, &HC00000, &H00C000, &HD0C000, &H0060C0, &H800080, &H008080, &HFFFFFF,
-'   '&H000000, &HFF0000, &H00FF00, &HFFFF00, &H0080FF, &HFF00FF, &H00FFFF, &HC0C0C0]
-
 Static Private $aColor As Integer[] = [
   &H000000, &HC00000, &H00C000, &HC0A300, &H0060C0, &H900090, &H009090, &HC0C0C0,
   &H808080, &H800000, &H008000, &H606000, &H004080, &H600060, &H006060, &HF0F0F0,
@@ -1015,7 +1009,7 @@ Private Sub DrawLine(hView As TerminalView, L As Integer, X As Integer, Y As Int
       iBg = hAttr.Background
       If iBg >= 0 Then
         iBg = $aColor[iBg]
-        If bDarkBackground Then iBg = Color.Invert(iBg, True)
+        'If bDarkBackground Then iBg = Color.Invert(iBg, True)
       Else
         iBg = hView.Background
       Endif
@@ -1026,7 +1020,7 @@ Private Sub DrawLine(hView As TerminalView, L As Integer, X As Integer, Y As Int
       iFg = hAttr.Foreground
       If iFg >= 0 Then
         iFg = $aColor[iFg]
-        If bDarkBackground Then iFg = Color.Invert(iFg, True)
+        'If bDarkBackground Then iFg = Color.Invert(iFg, True)
       Else
         iFg = hView.Foreground
       Endif
@@ -1119,7 +1113,11 @@ DRAW_TEXT:
           hRect.Move((C - &H2500 + 256) * CW, HC)
           Paint.DrawImage(hFontCache, XT, 0, CW, LH,, hRect)
         Endif
-        
+      
+      Else If C >= &HE0B0& And If C <= &HE0BF& Then
+      
+        DrawLineChar(C, XT, 0, CW, LH, XT, Y, hAttr.Bold)
+          
       Else
         
         If $cCharCache.Exist(C) Then
@@ -1563,7 +1561,11 @@ Static Public Sub DrawLineChar(C As Integer, X As Integer, Y As Integer, W As In
   XC = W \ 2
   YC = H \ 2
   
-  If C <= &H256F Then
+  If C >= &HE0B0& And If C <= &HE0BF& Then
+  
+    On C - &HE0B0& GoSub _E0B0, _E0B1, _E0B2, _E0B3, _E0B4, _E0B5, _E0B6, _E0B7, _E0B8, _E0B9, _E0BA, _E0BB, _E0BC, _E0BD, _E0BE, _E0BF
+  
+  Else If C <= &H256F Then
     
     On C - &H2500 GoSub _2500, _2501, _2502, _2503, _2504, _2505, _2506, _2507, _2508, _2509, _250A, _250B, _250C, _250D, _250E, _250F, _2510, _2511, _2512, _2513, _2514, _2515, _2516, _2517, _2518, _2519, _251A, _251B, _251C, _251D, _251E, _251F, _2520, _2521, _2522, _2523, _2524, _2525, _2526, _2527, _2528, _2529, _252A, _252B, _252C, _252D, _252E, _252F, _2530, _2531, _2532, _2533, _2534, _2535, _2536, _2537, _2538, _2539, _253A, _253B, _253C, _253D, _253E, _253F, _2540, _2541, _2542, _2543, _2544, _2545, _2546, _2547, _2548, _2549, _254A, _254B, _254C, _254D, _254E, _254F, _2550, _2551, _2552, _2553, _2554, _2555, _2556, _2557, _2558, _2559, _255A, _255B, _255C, _255D, _255E, _255F, _2560, _2561, _2562, _2563, _2564, _2565, _2566, _2567, _2568, _2569, _256A, _256B, _256C, _256D, _256E, _256F
     
@@ -2399,7 +2401,106 @@ _259F:
   Paint.FillRect(W, 0, -W / 2, H, iBg)
   Paint.FillRect(0, H, W, -H / 2, iBg)
   Return
+
+_E0B0:
+  Paint.MoveTo(0, 0)
+  Paint.LineTo(W, H / 2)
+  Paint.LineTo(0, H)
+  Paint.LineTo(0, 0)
+  Paint.Fill()
+  Return
   
+_E0B1:
+  Paint.MoveTo(0, 0)
+  Paint.LineTo(W, H / 2)
+  Paint.LineTo(0, H)
+  Paint.LineWidth = L
+  Paint.Stroke()
+  Return
+
+_E0B2:
+  Paint.MoveTo(W, 0)
+  Paint.LineTo(0, H / 2)
+  Paint.LineTo(W, H)
+  Paint.LineTo(W, 0)
+  Paint.Fill()
+  Return
+
+_E0B3:
+  Paint.MoveTo(W, 0)
+  Paint.LineTo(0, H / 2)
+  Paint.LineTo(W, H)
+  Paint.LineWidth = L
+  Paint.Stroke()
+  Return
+
+_E0B4:
+  Paint.Ellipse(-W, 0, W * 2, H, -Pi / 2, Pi)
+  Paint.Fill
+  Return
+
+_E0B5:
+  Paint.Ellipse(-W, 0, W * 2, H, -Pi / 2, Pi)
+  Paint.Stroke
+  Return
+
+_E0B6:
+  Paint.Ellipse(0, 0, W * 2, H, Pi / 2, Pi)
+  Paint.Fill
+  Return
+
+_E0B7:
+  Paint.Ellipse(0, 0, W * 2, H, Pi / 2, Pi)
+  Paint.Stroke
+  Return
+
+_E0B8:
+  Paint.MoveTo(0, 0)
+  Paint.LineTo(0, H)
+  Paint.LineTo(W, H)
+  Paint.LineTo(0, 0)
+  Paint.Fill
+  Return
+  
+_E0B9:
+_E0BF:
+  Paint.MoveTo(0, 0)
+  Paint.LineTo(W, H)
+  Paint.Stroke
+  Return
+  
+_E0BA:
+  Paint.MoveTo(W, 0)
+  Paint.LineTo(W, H)
+  Paint.LineTo(0, H)
+  Paint.LineTo(W, 0)
+  Paint.Fill
+  Return
+
+_E0BB:
+_E0BD:
+  Paint.MoveTo(W, 0)
+  Paint.LineTo(0, H)
+  Paint.Stroke
+  Return
+  
+_E0BC:
+  Paint.MoveTo(0, 0)
+  Paint.LineTo(W, 0)
+  Paint.LineTo(0, H)
+  Paint.LineTo(0, 0)
+  Paint.Fill
+  Return
+
+  
+_E0BE:
+  Paint.MoveTo(0, 0)
+  Paint.LineTo(W, 0)
+  Paint.LineTo(W, H)
+  Paint.LineTo(0, 0)
+  Paint.Fill
+  Return
+
 _DRAW_BRUSH:  
   
   Paint.Rectangle(0, 0, W, H)
