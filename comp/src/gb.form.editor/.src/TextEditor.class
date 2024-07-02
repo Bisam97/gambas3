@@ -302,6 +302,12 @@ Property Theme As TextHighlighterTheme
 
 Property Rewrite As Boolean
 
+'' @{since 3.20}
+''
+'' Return the current word around the cursor.
+
+Property Read CurrentWord As String
+
 Private Const MATCH_STRING As String = "()[]{}"
 
 Static Private $cShortcut As Collection
@@ -7099,4 +7105,19 @@ Private Sub Rewrite_Write(Value As Boolean)
 
   $hDoc.CanRewrite = Value
 
+End
+
+Private Function CurrentWord_Read() As String
+
+  Dim X As Integer
+  Dim X2 As Integer
+
+  X = $X
+  X2 = $X
+  
+  If X > 0 Then X = $hDoc.WordLeft(X, $Y, True)
+  If X2 < $hDoc.LineLength[$Y] Then X2 = $hDoc.WordRight(X, $Y, True)
+  
+  Return String.Mid$($hDoc.Lines[$Y], X + 1, X2 - X)
+  
 End
