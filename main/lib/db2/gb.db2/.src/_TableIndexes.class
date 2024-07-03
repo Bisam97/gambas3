@@ -5,6 +5,7 @@ Export
 Event _Fake
 
 Property Read Count As Integer
+Property Read List As String[]
 
 Private $hDriver As _DatabaseDriver
 Private $sTable As String
@@ -25,6 +26,7 @@ Public Sub Refresh()
   
   $cIndexes.Clear
   $aIndexes = $hDriver.GetTableIndexes($sTable)
+  $aIndexes.ReadOnly = True
   For Each sIndex In $aIndexes
     $cIndexes[sIndex] = True
   Next
@@ -51,8 +53,8 @@ Public Sub _next() As Index
   Dim hIndex As Index
   
   If IsNull(Enum.Index) Then Enum.Index = 0
-  Try hIndex = _get($aIndexes[Enum.Index])
-  If hIndex Then
+  If Enum.Index < $aIndexes.Count Then
+    hIndex = _get($aIndexes[Enum.Index])
     Inc Enum.Index
   Else
     Enum.Stop
@@ -91,4 +93,10 @@ Public Sub Remove(Name As String)
   $hDriver.DropIndex(hTable.Name, Name) 
   Refresh()
   
+End
+
+Private Function List_Read() As String[]
+
+  Return $aIndexes
+
 End

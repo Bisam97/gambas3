@@ -5,7 +5,7 @@ Export
 Property Read Count, Length As Integer
 Property Read Max As Integer
 Property Read Available As Boolean
-Property Read Index As Long Use $iIndex = -1
+Property Read Index As Integer Use $iIndex = -1
 Property Read Editable As Boolean
 Property Read Connection As Connection
 Property Read Fields As Collection
@@ -16,7 +16,7 @@ Private $iMode As Integer
 Private $hDriver As _DatabaseDriver
 
 Private $pHandle As Pointer
-Private $iCount As Long
+Private $iCount As Integer
 Private $vBuffer As Variant[]
 Private $cBuffer As Collection
 Private $aField As String[]
@@ -237,7 +237,7 @@ Public Sub _get(Field As String) As Variant
     Endif
     
     If iPos >= 0 And If iPos < $cFieldIndex.Count Then
-      If $aTypes[iPos] = db.Blob And If IsNull($vBuffer[iPos]) Then $vBuffer[iPos] = $hDriver.GetBlob($pHandle, iPos)
+      If $aTypes[iPos] = db.Blob And If IsNull($vBuffer[iPos]) Then $vBuffer[iPos] = $hDriver.GetResultBlob($pHandle, $iIndex, iPos)
       Return $vBuffer[iPos]
     Endif
     

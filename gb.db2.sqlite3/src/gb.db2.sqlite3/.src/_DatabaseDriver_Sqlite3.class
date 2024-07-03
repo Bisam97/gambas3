@@ -181,13 +181,13 @@ Public Sub FreeResult((Result) As Pointer)
   
 End
 
-Public Sub GetResultData((Result) As Pointer, Index As Long, Next As Boolean) As Variant[]
+Public Sub GetResultData((Result) As Pointer, Index As Integer, Next As Boolean) As Variant[]
   
   Return _Sqlite3Helper.GetResultData(Result, Index, Next)
   
 End
 
-Public Sub GetResultBlob((Result) As Pointer, Index As Long, Field As Integer) As String
+Public Sub GetResultBlob((Result) As Pointer, Index As Integer, Field As Integer) As String
   
   Return _Sqlite3Helper.GetResultBlob(Result, Index, Field)
   
@@ -315,7 +315,7 @@ Public Sub GetTableFieldInfo(Table As String, Field As String, ByRef Type As Int
   Endif
   
   Type = _Sqlite3Helper.GetType(sType)
-  Length = _Sqlite3Helper.GetTypeLength()
+  Length = _Sqlite3Helper.Length
   
   If bNotNull Then 
     If sDefault Begins "'" Then sDefault = Replace(Mid$(sDefault, 2, -1), "''", "'")
@@ -567,12 +567,12 @@ Public Sub CreateTable(Table As String, Fields As Field[], (Type) As String, Pri
   For Each hField In Fields
     
     If bComma Then 
-      sReq &= ","
+      sReq &= ", "
     Else
       bComma = True
     Endif
     
-    sReq &= " " & Me.Quote(hField.Name) & " "
+    sReq &= Me.Quote(hField.Name) & " "
     
     Select Case hField.Type
       
@@ -601,16 +601,16 @@ Public Sub CreateTable(Table As String, Fields As Field[], (Type) As String, Pri
         sReq &= "TEXT"
     End Select
     
+    If hField.Collation Then sReq &= " COLLATION " & hField.Collation
+    
+    If Not IsNull(hField.Default) Then
+      sReq &= " NOT NULL DEFAULT " & Me.Format(hField.Default)
+    Else If PrimaryKey.Exist(hField.Name) Then
+      sReq &= " NOT NULL"
+    Endif
+  
   Next
   
-  If hField.Collation Then sReq &= " COLLATION " & hField.Collation
-  
-  If Not IsNull(hField.Default) Then
-    sReq &= " NOT NULL DEFAULT " & Me.Format(hField.Default)
-  Else If PrimaryKey.Exist(hField.Name) Then
-    sReq &= " NOT NULL"
-  Endif
-
   If PrimaryKey.Count And If Not bNoPrimaryKey Then
     sReq &= ", PRIMARY KEY (" & Me.MakeFieldList(PrimaryKey) & ")"
   Endif
@@ -633,7 +633,7 @@ Public Sub CreateIndex(Table As String, Index As String, Fields As String[], Uni
 
   sReq = "CREATE"
   If Unique Then sReq &= " UNIQUE"
-  sReq &= " INDEX" & Me.Quote(Index) & " ON " & Me.Quote(Table, True) & " (" & Me.MakeFieldList(Fields) & ")"
+  sReq &= " INDEX " & Me.Quote(Index) & " ON " & Me.Quote(Table, True) & " (" & Me.MakeFieldList(Fields) & ")"
   
   Me.Exec(sReq)
   

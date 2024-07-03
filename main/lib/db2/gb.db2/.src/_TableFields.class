@@ -5,6 +5,7 @@ Export
 Event _Fake
 
 Property Read Count As Integer
+Property Read List As String[]
 
 Private $hDriver As _DatabaseDriver
 Private $sTable As String
@@ -29,6 +30,7 @@ Public Sub Refresh()
   
   $cFields.Clear
   $aFields = $hDriver.GetTableFields($sTable)
+  $aFields.ReadOnly = True
   For Each sField In $aFields
     $cFields[sField] = True
   Next
@@ -55,8 +57,8 @@ Public Sub _next() As Field
   Dim hField As Field
   
   If IsNull(Enum.Index) Then Enum.Index = 0
-  Try hField = _get($aFields[Enum.Index])
-  If hField Then
+  If Enum.Index < $aFields.Count Then
+    hField = _get($aFields[Enum.Index])
     Inc Enum.Index
   Else
     Enum.Stop
@@ -95,14 +97,26 @@ Public Sub Add(Name As String, Type As Integer, Optional Length As Integer, {Def
   If Me.Exist(Name) Then Error.Raise("Field already exists")
   CheckType(Type)
   
-  Length = Max(0, Min(65535, Length))
+  If Type = db.String Then
+    Length = Max(0, Min(65535, Length))
+  Else 
+    Length = 0
+  Endif
   
   hField = New Field
   hField._Create($hDriver, $sTable, Name, Type, Length, {Default}, Collation)
   
   $cFields[Name] = hField
+  $aFields = $aFields.Copy()
   $aFields.Add(Name)
+  $aFields.ReadOnly = True
   
   Return hField
   
+End
+
+Private Function List_Read() As String[]
+
+  Return $aFields
+
 End

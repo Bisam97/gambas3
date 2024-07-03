@@ -58,7 +58,7 @@
 
 GB_INTERFACE GB EXPORT;
 
-static int _last_error;
+static int _last_error = 0;
 static const char **_options_keys;
 static const char **_options_values;
 
@@ -77,8 +77,10 @@ static const char *_oid_names[] = {
 
 static int _oid[OID_COUNT] = { 0 };
 
-static int _type;
-static int _length;
+static GB_TYPE _type = 0;
+static int _length = 0;
+static GB_VARIANT_VALUE _default = { GB_T_NULL };
+static char *_collation = NULL;
 
 //-------------------------------------------------------------------------
 
@@ -319,7 +321,93 @@ static char *quote_string(const char *data, int len, bool add_e)
 	return GB.FreeStringLater(result);
 }
 
+static char *quote_blob(const char *data, int len, bool add_e)
+{
+	char *result = NULL;
+	int i;
+	unsigned char c;
+	char buffer[8];
+
+	if (add_e)
+		result = GB.AddChar(result, 'E');
+
+	result = GB.AddChar(result, '\'');
+	for (i = 0; i < len; i++)
+	{
+		c = (unsigned char)data[i];
+		if (c == '\\')
+			result = GB.AddString(result, "\\\\\\\\", 4);
+		else if (c == '\'')
+			result = GB.AddString(result, "\\'", 2);
+		else if (c < 32 || c > 127)
+		{
+			buffer[0] = '\\';
+			buffer[1] = '\\';
+			buffer[2] = '0' + ((c >> 6) & 0x7);
+			buffer[3] = '0' + ((c >> 3) & 0x7);
+			buffer[4] = '0' + (c & 0x7);
+			result = GB.AddString(result, buffer, 5);
+		}
+		else
+			result = GB.AddChar(result, c);
+	}
+	result = GB.AddChar(result, '\'');
+	
+	return GB.FreeStringLater(result);
+}
+
+/* internal function to unquote a value stored as a string */
+
+static void unquote_string(char **pdata, int *plen)
+{
+	char *data = *pdata;
+	int len = *plen;
+	char *result;
+	int i;
+	char c;
+
+	if (!data || *data != '\'')
+		return;
+
+	data++;
+	len--;
+	
+	result = NULL;
+	
+	for (i = 0;; i++)
+	{
+		c = data[i];
+		if (c == '\'')
+		{
+			i++;
+			if (data[i] != '\'')
+				break;
+		}
+		else if (c == '\\')
+			i++;
+		result = GB.AddChar(result, c);
+	}
+
+	GB.FreeStringLater(result);
+	
+	*pdata = result;
+	*plen = GB.StringLength(result);
+}
+
+static void free_field_info()
+{
+	GB.StoreVariant(NULL, &_default);
+	GB.FreeString(&_collation);
+}
+
+
 //-------------------------------------------------------------------------
+
+BEGIN_METHOD_VOID(PostgresqlHelper_exit)
+
+	free_field_info();
+
+END_METHOD
 
 BEGIN_METHOD(PostgresqlHelper_Open, GB_STRING host; GB_STRING port; GB_STRING name; GB_STRING user; GB_STRING password; GB_INTEGER timeout; GB_OBJECT options)
 
@@ -484,7 +572,7 @@ END_METHOD
 
 BEGIN_PROPERTY(PostgresqlHelper_Type)
 
-	GB.ReturnInteger(_type);
+	GB.ReturnInteger((int)_type);
 
 END_PROPERTY
 
@@ -500,11 +588,119 @@ BEGIN_METHOD(PostgresqlHelper_QuoteString, GB_STRING value; GB_BOOLEAN add_e)
 
 END_METHOD
 
+BEGIN_METHOD(PostgresqlHelper_QuoteBlob, GB_STRING value; GB_BOOLEAN add_e)
+
+	GB.ReturnString(quote_blob(STRING(value), LENGTH(value), VARG(add_e)));
+
+END_METHOD
+
+BEGIN_METHOD(PostgresqlHelper_GetResultBlob, GB_POINTER result; GB_INTEGER pos; GB_INTEGER field)
+
+	PGresult *res = (PGresult *)VARG(result);
+	int pos = VARG(pos);
+	int i = VARG(field);
+	char *data;
+	int len;
+
+	data = PQgetvalue(res, pos, i);
+	len = PQgetlength(res, pos, i);
+	GB.ReturnConstString(data, len);
+	
+END_METHOD
+
+BEGIN_METHOD(PostgresqlHelper_GetFieldInfo, GB_POINTER result; GB_BOOLEAN no_collation)
+
+	PGresult *res = (PGresult *)VARG(result);
+	bool no_collation = VARG(no_collation);
+	Oid type;
+	char *val;
+	int len;
+	GB_VARIANT def;
+
+	free_field_info();
+	
+	type = atoi(PQgetvalue(res, 0, 1));
+	_type = conv_type(type);
+
+	_length = 0;
+	if (_type == GB_T_STRING)
+	{
+		_length = atoi(PQgetvalue(res, 0, 2));
+		if (_length < 0)
+			_length = 0;
+		else
+			_length -= 4;
+	}
+
+	if (conv_boolean(PQgetvalue(res, 0, 5)) && conv_boolean(PQgetvalue(res, 0, 3)))
+	{
+		def.type = GB_T_VARIANT;
+		def.value.type = GB_T_NULL;
+
+		val = PQgetvalue(res, 0, 4);
+		if (val && *val)
+		{
+			if (strncmp(val, "nextval(", 8) == 0)
+			{
+				if (_type == GB_T_LONG)
+					_type = DB_T_SERIAL;
+			}
+			else
+			{
+				switch(_type)
+				{
+					case GB_T_BOOLEAN:
+						def.value.type = GB_T_BOOLEAN;
+						def.value.value._boolean = (val[1] == 't');
+						break;
+
+					default:
+						len = PQgetlength(res, 0, 4);
+						//fprintf(stderr, "«%.*s»", len, val);
+						unquote_string(&val, &len);
+						//fprintf(stderr, " ==> «%.*s»", len, val);
+						conv_data(val, len, &def.value, type);
+				}
+
+				GB.StoreVariant(&def, &_default);
+			}
+		}
+	}
+
+	if (!no_collation)
+	{
+		const char *coll = PQgetvalue(res, 0, 6);
+		if (strcmp(coll, "default"))
+			_collation = GB.NewZeroString(coll);
+	}
+
+END_METHOD
+
+BEGIN_PROPERTY(PostgresqlHelper_Default)
+
+	GB.ReturnVariant(&_default);
+
+END_PROPERTY
+
+BEGIN_PROPERTY(PostgresqlHelper_Collation)
+
+	GB.ReturnString(_collation);
+
+END_PROPERTY
+
+BEGIN_METHOD_VOID(PostgresqlHelper_GetLastError)
+
+	GB.ReturnInteger(_last_error);
+
+END_METHOD
+
 //-------------------------------------------------------------------------
 
 GB_DESC PostgresqlHelperDesc[] =
 {
 	GB_DECLARE_STATIC("_PostgresqlHelper"),
+	
+	GB_STATIC_METHOD("_exit", NULL, PostgresqlHelper_exit, NULL),
 	
 	GB_STATIC_METHOD("Open", "p", PostgresqlHelper_Open, "(Host)s(Port)s(Name)s(User)s(Password)s(Timeout)i(Options)Collection;"),
 	GB_STATIC_METHOD("Close", NULL, PostgresqlHelper_Close, "(Database)p"),
@@ -515,9 +711,15 @@ GB_DESC PostgresqlHelperDesc[] =
 	GB_STATIC_METHOD("GetResultField", "s", PostgresqlHelper_GetResultField, "(Result)p(Field)i"),
 	GB_STATIC_METHOD("GetResultData", "Variant[]", PostgresqlHelper_GetResultData,"(Result)p(Index)l(Next)b"),
 	GB_STATIC_METHOD("QuoteString", "s", PostgresqlHelper_QuoteString, "(Value)s(AddE)b"),
+	GB_STATIC_METHOD("GetResultBlob", "s", PostgresqlHelper_GetResultBlob,"(Result)p(Index)i(Field)i"),
+	GB_STATIC_METHOD("QuoteBlob", "s", PostgresqlHelper_QuoteBlob, "(Value)s(AddE)b"),
+	GB_STATIC_METHOD("GetFieldInfo", NULL, PostgresqlHelper_GetFieldInfo, "(Result)p(NoCollation)b"),
+	GB_STATIC_METHOD("GetLastError", "i", PostgresqlHelper_GetLastError, NULL),
 	
 	GB_STATIC_PROPERTY_READ("Type", "i", PostgresqlHelper_Type),
 	GB_STATIC_PROPERTY_READ("Length", "i", PostgresqlHelper_Length),
+	GB_STATIC_PROPERTY_READ("Default", "v", PostgresqlHelper_Default),
+	GB_STATIC_PROPERTY_READ("Collation", "s", PostgresqlHelper_Collation),
 	
 	GB_END_DECLARE
 };

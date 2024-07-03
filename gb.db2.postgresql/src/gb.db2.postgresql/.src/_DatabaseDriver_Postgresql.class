@@ -7,41 +7,7 @@ Inherits _DatabaseDriver
 Public Const QuoteCharacter As String = "\""
 
 Private $pHandle As Pointer
-
-' static bool get_table_schema(const char **table, char **schema)
-' {
-'   char *point;
-'   int len;
-' 
-'   //fprintf(stderr, "get_table_schema: %s\n", *table);
-' 
-'   *schema = NULL;
-' 
-'   if (!*table || !**table)
-'   {
-'     //fprintf(stderr, "get_table_schema: -> NULL\n");
-'     return TRUE;
-'   }
-' 
-'   point = strchr(*table, '.');
-'   if (!point)
-'   {
-'     *schema = "public";
-'   }
-'   else
-'   {
-'     len = point - *table;
-'     if (len >= 3 && **table == '"' && (*table)[len - 1] == '"')
-'       *schema = GB.TempString(*table + 1, len - 2);
-'     else
-'       *schema = GB.TempString(*table, len);
-'     
-'     *table = point + 1;
-'   }
-'     
-'   return FALSE;
-' }
-' 
+Private $iTrans As Integer
 
 Private Sub GetTableSchema(ByRef sTable As String, ByRef sSchema As String)
 
@@ -56,6 +22,16 @@ Private Sub GetTableSchema(ByRef sTable As String, ByRef sSchema As String)
     sTable = Mid$(sTable, iPos + 1)
   Endif
   
+End
+
+Private Sub GetDefaultValue(sOldWay As String) As String
+
+  If Me.Version >= 90600 Then
+    Return "pg_get_expr(adbin, adrelid) AS adsrc"
+  Else
+    Return sOldWay
+  Endif
+
 End
 
 Public Sub Open(Conn As Connection) As Pointer
@@ -91,10 +67,8 @@ Public Sub Open(Conn As Connection) As Pointer
   
   pResult = Me.Query("SHOW client_encoding")
   Me.Charset = GetResultData(pResult, 0, False)[0]
+  FreeResult(pResult)
   
-  ' TODO: Get charset with the request "show client_encoding"
-  'Me.Charset = "UTF-8"
-   
   '   // datatypes
   '   
   '   db->data = (void *)0; // transaction level
@@ -138,7 +112,11 @@ Public Sub Format(Value As Variant) As String
       If Year(Value) < 0 Then sResult &= " BC"
       sResult &= "'"
       Return sResult
+    
+    Case gb.Blob
       
+      Return _PostgresqlHelper.QuoteBlob(Value, Me.Version > 80200)
+    
     Case Else
       
       Return Super.Format(Value)
@@ -156,6 +134,8 @@ End
 
 Public Sub GetError() As Integer
   
+  Return _PostgresqlHelper.GetLastError()
+  
 End
 
 Public Sub FreeResult((Result) As Pointer)
@@ -170,7 +150,7 @@ Public Sub GetResultCount((Result) As Pointer) As Integer
   
 End
 
-Public Sub GetResultData((Result) As Pointer, Index As Long, Next As Boolean) As Variant[]
+Public Sub GetResultData((Result) As Pointer, Index As Integer, Next As Boolean) As Variant[]
   
   Return _PostgresqlHelper.GetResultData(Result, Index, Next)
   
@@ -185,7 +165,9 @@ Public Sub GetResultField((Result) As Pointer, Field As Integer, ByRef Name As S
   
 End
 
-Public Sub GetResultBlob(Result As Pointer, Index As Long, Field As Integer) As String 
+Public Sub GetResultBlob((Result) As Pointer, Index As Integer, Field As Integer) As String 
+  
+  Return _PostgresqlHelper.GetResultBlob(Result, Index, Field)
   
 End
 
@@ -238,32 +220,171 @@ Public Sub IsSystemTable(Table As String) As Boolean
 
 End
 
-Public Sub GetTableType(Table As String) As String
-  
-End
-
-Public Sub SetTableType(Table As String, Type As String)
-  
-End
-
 Public Sub GetTableFields(Table As String) As String[]
+
+  Dim sSchema As String
+  Dim pResult As Pointer
+  Dim aFields As String[]
+  Dim I As Integer
+
+  GetTableSchema(ByRef Table, ByRef sSchema)
+  
+  pResult = Query(Subst("select pg_attribute.attname from pg_class, pg_attribute where pg_class.relname = '&1' and (pg_class.relnamespace in (select oid from pg_namespace where nspname = '&2')) and pg_attribute.attnum > 0 and not pg_attribute.attisdropped and pg_attribute.attrelid = pg_class.oid", Table, sSchema))
+  
+  aFields = New String[]
+  For I = 0 To GetResultCount(pResult) - 1
+    aFields.Add(GetResultData(pResult, I, True)[0])
+  Next
+  
+  FreeResult(pResult)
+  Return aFields
+  
+End
+
+Public Sub GetTablePrimaryKey(Table As String) As String[]
+
+  Dim sSchema As String
+  Dim pResult As Pointer
+  Dim I As Integer
+  Dim sQuery As String
+  Dim aPrimaryKey As String[]
+  
+  GetTableSchema(ByRef Table, ByRef sSchema)
+  
+  If Me.Version < 80200 Then
+    
+    sQuery = "select pg_att1.attname, pg_att1.atttypid::int, pg_cl.relname from pg_attribute pg_att1, pg_attribute pg_att2, pg_class pg_cl, pg_index pg_ind where pg_cl.relname = '&1_pkey' AND pg_cl.oid = pg_ind.indexrelid and (pg_cl.relnamespace in (select oid from pg_namespace where nspname = '&2')) and pg_att2.attrelid = pg_ind.indexrelid and pg_att1.attrelid = pg_ind.indrelid and pg_att1.attnum = pg_ind.indkey[pg_att2.attnum-1] order by pg_att2.attnum"
+    
+  Else
+    
+    sQuery = "select pg_att1.attname, pg_att1.atttypid::int, pg_cl.relname from pg_attribute pg_att1, pg_attribute pg_att2, pg_class pg_cl, pg_index pg_ind, pg_class pg_table where pg_table.relname = '&1' AND pg_table.oid = pg_att1.attrelid AND pg_cl.oid = pg_ind.indexrelid and (pg_cl.relnamespace in (select oid from pg_namespace where nspname = '&2')) and pg_ind.indisprimary and pg_att2.attrelid = pg_ind.indexrelid and pg_att1.attrelid = pg_ind.indrelid and pg_att1.attnum = pg_ind.indkey[pg_att2.attnum-1] order by pg_att2.attnum"
+    
+  Endif
+  
+  pResult = Query(Subst(sQuery, Table, sSchema))
+
+  aPrimaryKey = New String[]
+  For I = 0 To GetResultCount(pResult) - 1
+    aPrimaryKey.Add(GetResultData(pResult, I, True)[0])
+  Next
+  
+  FreeResult(pResult)
+  Return aPrimaryKey
   
 End
 
 Public Sub GetTableFieldInfo(Table As String, Field As String, ByRef Type As Integer, ByRef Length As Integer, ByRef {Default} As Variant, ByRef Collation As String)
+
+  Dim sQuery As String
+  Dim sSchema As String
+  Dim pResult As Pointer
+  
+  If Me.NoCollation Then
+    
+    sQuery = "select pg_attribute.attname, pg_attribute.atttypid::int, "
+      "pg_attribute.atttypmod, pg_attribute.attnotnull, &1, pg_attribute.atthasdef "
+      "from pg_class, pg_attribute "
+      "left join pg_attrdef on (pg_attrdef.adrelid = pg_attribute.attrelid and pg_attrdef.adnum = pg_attribute.attnum) "
+      "where pg_class.relname = '&2' "
+      "and (pg_class.relnamespace in (select oid from pg_namespace where nspname = '&4')) "
+      "and pg_attribute.attname = '&3' "
+      "and pg_attribute.attnum > 0 and not pg_attribute.attisdropped "
+      "and pg_attribute.attrelid = pg_class.oid"
+    
+  Else
+    
+    sQuery = "select pg_attribute.attname, pg_attribute.atttypid::int, "
+      "pg_attribute.atttypmod, pg_attribute.attnotnull, &1, pg_attribute.atthasdef, pg_collation.collname "
+      "from pg_class, pg_attribute "
+      "left join pg_attrdef on (pg_attrdef.adrelid = pg_attribute.attrelid and pg_attrdef.adnum = pg_attribute.attnum) "
+      "left join pg_collation on (pg_collation.oid = pg_attribute.attcollation) "
+      "where pg_class.relname = '&2' "
+      "and (pg_class.relnamespace in (select oid from pg_namespace where nspname = '&4')) "
+      "and pg_attribute.attname = '&3' "
+      "and pg_attribute.attnum > 0 and not pg_attribute.attisdropped "
+      "and pg_attribute.attrelid = pg_class.oid"
+    
+  Endif
+
+  GetTableSchema(ByRef Table, ByRef sSchema)
+
+  pResult = Query(Subst(sQuery, GetDefaultValue("pg_attrdef.adsrc"), Table, Field, sSchema))
+  
+  _PostgresqlHelper.GetFieldInfo(pResult, Me.NoCollation)
+
+  Type = _PostgresqlHelper.Type
+  Length = _PostgresqlHelper.Length
+  {Default} = _PostgresqlHelper.Default
+  Collation = _PostgresqlHelper.Collation
+  
+  FreeResult(pResult)
   
 End
 
 Public Sub GetTableIndexes(Table As String) As String[]
+
+  Dim sSchema As String
+  Dim I As Integer
+  Dim pResult As Pointer
+  Dim aIndexes As String[]
+  
+  GetTableSchema(ByRef Table, ByRef sSchema)
+  
+  pResult = Query(Subst("select pg_class.relname from pg_class, pg_index, pg_class pg_class2 "
+    "where pg_class2.relname = '&1' "
+    "and (pg_class2.relnamespace in (select oid from pg_namespace where nspname = '&2')) "
+    "and pg_index.indrelid = pg_class2.oid "
+    "and pg_index.indexrelid = pg_class.oid ", Table, sSchema))
+  
+  aIndexes = New String[]
+  For I = 0 To GetResultCount(pResult) - 1
+    aIndexes.Add(GetResultData(pResult, I, True)[0])
+  Next
+  
+  FreeResult(pResult)
+  Return aIndexes
   
 End
 
 Public Sub GetTableIndexInfo(Table As String, Index As String, ByRef Fields As String[], ByRef Unique As Boolean, ByRef Primary As Boolean)
 
-End
+  Dim sSchema As String
+  Dim vRow As Variant[]
+  Dim sIndexRelId As String
+  Dim I As Integer
+  Dim pResult As Pointer
 
-Public Sub GetTablePrimaryKey(Table As String) As String[]
+  GetTableSchema(ByRef Table, ByRef sSchema)
   
+  pResult = Query(Subst("select indisunique, indisprimary, indexrelid from pg_class, pg_index, pg_class pg_class2 "
+    "where pg_class2.relname = '&1' "
+    "and (pg_class2.relnamespace in (select oid from pg_namespace where nspname = '&3')) "
+    "and pg_index.indrelid = pg_class2.oid "
+    "and pg_index.indexrelid = pg_class.oid "
+    "and pg_class.relname = '&2'", Table, Index, sSchema))
+
+  vRow = GetResultData(pResult, 0, False)
+  Unique = vRow[0]
+  Primary = vRow[1]
+  sIndexRelId = vRow[2]
+  
+  FreeResult(pResult)
+
+  pResult = Query(Subst("select pg_att1.attname "
+    "from pg_attribute pg_att1, pg_attribute pg_att2, pg_index pg_ind "
+    "where pg_ind.indexrelid = &1 "
+    "and pg_att2.attrelid = pg_ind.indexrelid "
+    "and pg_att1.attrelid = pg_ind.indrelid "
+    "and pg_att1.attnum = pg_ind.indkey[pg_att2.attnum-1] "
+    "order by pg_att2.attnum", sIndexRelId))
+
+  Fields = New String[]
+  For I = 0 To GetResultCount(pResult) - 1
+    Fields.Add(GetResultData(pResult, I, True)[0])
+  Next
+
+  FreeResult(pResult)
+
 End
 
 Public Sub GetCollations() As String[]
@@ -283,69 +404,235 @@ Public Sub GetCollations() As String[]
 End
 
 Public Sub GetLastInsertId() As Long
+
+  Dim pResult As Pointer
+  Dim iLastId As Long
+  
+  pResult = Query("select lastval()")
+  iLastId = GetResultData(pResult, 0, False)[0]
+  FreeResult(pResult)
+  Return iLastId
   
 End
 
 Public Sub Begin()
+
+  Inc $iTrans
+  If $iTrans = 1 Then
+    Me.Exec("BEGIN")
+  Else 
+    Me.Exec("SAVEPOINT t" & CStr($iTrans))
+  Endif
   
 End
 
 Public Sub Commit()
   
+  Dec $iTrans
+  If $iTrans = 0 Then
+    Me.Exec("COMMIT")
+  Else
+    Me.Exec("RELEASE SAVEPOINT t" & CStr($iTrans))
+  Endif
+  
 End
 
 Public Sub Rollback()
   
+  Dec $iTrans
+  If $iTrans = 0 Then
+    Me.Exec("ROLLBACK")
+  Else
+    Me.Exec("ROLLBACK TO SAVEPOINT t" & CStr($iTrans))
+  Endif
+  
 End
 
 Public Sub GetDatabases() As String[]
+
+  Dim pResult As Pointer
+  Dim I As Integer
+  Dim aDatabases As String[]
+  
+  pResult = Query("select datname from pg_database where datallowconn and datname <> 'template1'")
+  
+  aDatabases = New String[]
+  For I = 0 To GetResultCount(pResult) - 1
+    aDatabases.Add(GetResultData(pResult, 0, True)[0])
+  Next
+  
+  FreeResult(pResult)
+  Return aDatabases
   
 End
 
 Public Sub IsSystemDatabase(Database As String) As Boolean
+
+  Dim pResult As Pointer
+  Dim bIsSystem As Boolean
+  
+  pResult = Query(Subst("select datname from pg_database where datallowconn and (datname = '&1') and datistemplate", Database))
+  bIsSystem = GetResultCount(pResult) = 1  
+  FreeResult(pResult)
+  Return bIsSystem
   
 End
 
 Public Sub CreateDatabase(Database As String)
   
+  Me.Exec(Subst("CREATE DATABASE \"&1\"", Database))
+  
 End
 
 Public Sub DropDatabase(Database As String)
   
+  Me.Exec(Subst("DROP DATABASE \"&1\"", Database))
+  
 End
 
 Public Sub GetUsers() As String[]
+
+  Dim pResult As Pointer
+  Dim I As Integer
+  Dim aUsers As String[]
+  
+  pResult = Query("select usename from pg_user")
+  
+  aUsers = New String[]
+  For I = 0 To GetResultCount(pResult) - 1
+    aUsers.Add(GetResultData(pResult, I, True)[0])
+  Next
+  
+  FreeResult(pResult)
+  Return aUsers
   
 End
 
-Public Sub CreateUser(User As String, Password As String, Admin As Boolean)
+Public Sub CreateUser((User) As String, Password As String, Admin As Boolean)
+
+  Dim sQuery As String
+  
+  sQuery = "CREATE USER \"" & User & "\""
+  If Admin Then
+    sQuery &= " CREATEDB CREATEUSER"
+  Else
+    sQuery &= " NOCREATEDB NOCREATEUSER"
+  Endif
+  If Password Then sQuery &= " PASSWORD \"" & Replace(Password, "\"", "\"\"") & "\""
+  
+  Me.Exec(sQuery)
   
 End
 
-Public Sub DropUser(User As String)
+Public Sub DropUser((User) As String)
+  
+  Me.Exec(Subst("DROP USER \"&1\"", User))
   
 End
 
-Public Sub GetUserInfo(User As String, ByRef Password As String, ByRef Admin As Boolean)
+Public Sub GetUserInfo((User) As String, ByRef Password As String, ByRef Admin As Boolean)
+  
+  Dim pResult As Pointer
+
+  pResult = Query(Subst("select usecreatedb, usesuper from pg_user where usename = '&1'", User))
+  Try Admin = GetResultData(pResult, 0, False)[1]
+  FreeResult(pResult)
+  
+  pResult = Query(Subst("select passwd from pg_shadow where usename = '&1'", User))
+  Try Password = GetResultData(pResult, 0, False)[0]
+  FreeResult(pResult)
   
 End
 
-Public Sub SetUserPassword(User As String, Password As String)
+Public Sub SetUserPassword((User) As String, Password As String)
+  
+  Me.Exec(Subst("ALTER USER \"&1\" PASSWORD &2", User, Me.Format(Password)))
   
 End
 
-Public Sub CreateTable(Table As String, Fields As Field[], Type As String, PrimaryKey As String[])
+Public Sub CreateTable(Table As String, Fields As Field[], (Type) As String, PrimaryKey As String[])
+  
+  Dim sReq As String
+  Dim hField As Field
+  Dim bComma As Boolean
+  
+  sReq = "CREATE TABLE " & Me.Quote(Table, True) & " ("
+  
+  For Each hField In Fields
+    
+    If bComma Then
+      sReq &= ", "
+    Else
+      bComma = True
+    Endif
+    
+    sReq &= Me.Quote(hField.Name) & " "
+    
+    Select Case hField.Type
+      Case db.Serial
+        sReq &= "BIGSERIAL"
+      Case db.Blob
+        sReq &= "BYTEA"
+      Case db.Boolean
+        sReq &= "BOOL"
+      Case db.Integer
+        sReq &= "INT"
+      Case db.Long
+        sReq &= "BIGINT"
+      Case db.Float
+        sReq &= "FLOAT8"
+      Case gb.Date
+        sReq &= "TIMESTAMP"
+      Case db.String
+        If hField.Length <= 0 Then
+          sReq &= "TEXT"
+        Else
+          sReq &= "VARCHAR(" & CStr(hField.Length) & ")"
+        Endif
+      Case Else
+        sReq &= "TEXT"
+    End Select
+    
+    If hField.Collation Then sReq &= " COLLATE \"" & hField.Collation & "\""
+    
+    If Not IsNull(hField.Default) Then
+      sReq &= " NOT NULL DEFAULT " & Me.Format(hField.Default)
+    Else If PrimaryKey.Exist(hField.Name) Then
+      sReq &= " NOT NULL"
+    Endif
+    
+  Next
+  
+  If PrimaryKey.Count Then 'And If Not bNoPrimaryKey Then
+    sReq &= ", PRIMARY KEY (" & Me.MakeFieldList(PrimaryKey) & ")"
+  Endif
+
+  sReq &= ")"
+  
+  Me.Exec(sReq)
   
 End
 
 Public Sub DropTable(Table As String)
   
+  Me.Exec("DROP TABLE " & Me.Quote(Table, True))
+  
 End
 
 Public Sub CreateIndex(Table As String, Index As String, Fields As String[], Unique As Boolean)
   
+  Dim sReq As String
+
+  sReq = "CREATE"
+  If Unique Then sReq &= " UNIQUE"
+  sReq &= " INDEX " & Me.Quote(Index) & " ON " & Me.Quote(Table, True) & " (" & Me.MakeFieldList(Fields) & ")"
+  
+  Me.Exec(sReq)
+
 End
 
-Public Sub DropIndex(Table As String, Index As String)
+Public Sub DropIndex((Table) As String, Index As String)
   
+  Me.Exec("DROP INDEX " & Me.Quote(Index))
+
 End
