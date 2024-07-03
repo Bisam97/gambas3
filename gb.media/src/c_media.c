@@ -198,6 +198,7 @@ static GB_TYPE to_gambas_type(const GValue *value)
 		case G_TYPE_BOOLEAN: return GB_T_BOOLEAN;
 		case G_TYPE_INT: return GB_T_INTEGER;
 		case G_TYPE_UINT: return GB_T_INTEGER;
+		case G_TYPE_INT64: return GB_T_LONG;
 		case G_TYPE_UINT64: return GB_T_LONG;
 		case G_TYPE_STRING: return GB_T_STRING;
 		case G_TYPE_FLOAT: return GB_T_FLOAT;
@@ -340,6 +341,7 @@ static void return_value(const GValue *value)
 		case G_TYPE_BOOLEAN: GB.ReturnBoolean(g_value_get_boolean(value)); break;
 		case G_TYPE_INT: GB.ReturnInteger(g_value_get_int(value)); break;
 		case G_TYPE_UINT: GB.ReturnInteger(g_value_get_uint(value)); break;
+		case G_TYPE_INT64: GB.ReturnLong(g_value_get_int64(value)); break;
 		case G_TYPE_UINT64: GB.ReturnLong(g_value_get_uint64(value)); break;
 		case G_TYPE_STRING: GB.ReturnNewZeroString(g_value_get_string(value)); break;
 		case G_TYPE_FLOAT: GB.ReturnFloat(g_value_get_float(value)); break;
@@ -499,6 +501,12 @@ static bool set_value(GValue *value, GB_VALUE *v, GParamSpec *desc)
 			if (GB.Conv(v, GB_T_INTEGER))
 				return TRUE;
 			g_value_set_uint(value, (uint)v->_integer.value);
+			break;
+			
+		case G_TYPE_INT64:
+			if (GB.Conv(v, GB_T_LONG))
+				return TRUE;
+			g_value_set_int64(value, (gint64)v->_long.value);
 			break;
 			
 		case G_TYPE_UINT64:
