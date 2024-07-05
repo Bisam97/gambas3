@@ -1792,7 +1792,6 @@ Private Sub Header_Write(Value As Integer)
 
 End
 
-
 Private Sub MoveToRelative(DR As Integer, DC As Integer) As Boolean
 
   Dim iRow As Integer
@@ -1800,7 +1799,12 @@ Private Sub MoveToRelative(DR As Integer, DC As Integer) As Boolean
 
   If $hRows.Count = 0 Or If $hColumns.Count = 0 Then Return True
 
-  If DC = 0 And If Not Me[$iRow, $iCol].Visible Then MoveToRelative(0, 1)
+  If $iRow < 0 Then
+    $iCol = $hColumns._GetFirstVisible()
+  Else
+    If DC = 0 And If Not Me[$iRow, $iCol].Visible Then MoveToRelative(0, 1)
+  Endif
+  
   
   iRow = $iRow + DR
   iCol = $iCol + DC

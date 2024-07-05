@@ -272,13 +272,25 @@ Private Sub Padding_Write(Value As Integer)
   
 End
 
+Public Sub _GetFirstVisible() As Integer
+
+  Dim I As Integer
+  
+  For I = 0 To $aColumns.Max
+    If $aColumns[I].W > 0 Then Return I
+  Next
+  Return -1
+  
+End
+
+
 Public Sub _GetLastVisible() As Integer
 
   Dim I As Integer
   
   For I = $aColumns.Max DownTo 0
-    If $aColumns[I].W > 0 Then Break
+    If $aColumns[I].W > 0 Then Return I
   Next
-  Return I
+  Return -1
   
 End
