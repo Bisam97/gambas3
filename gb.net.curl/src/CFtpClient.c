@@ -89,7 +89,7 @@ static void ftp_reset(void *_object)
 }
 
 
-static void ftp_initialize_curl_handle(void *_object)
+static bool ftp_initialize_curl_handle(void *_object)
 {
 	#if DEBUG
 	fprintf(stderr, "ftp_initialize_curl_handle: %p\n", THIS_CURL);
@@ -120,60 +120,79 @@ static void ftp_initialize_curl_handle(void *_object)
 	fprintf(stderr, "ftp_initialize_curl_handle: --> %p\n", THIS_CURL);
 	#endif
 
-	CURL_init_options(THIS);
+	if (CURL_init_options(THIS))
+		return TRUE;
 
-	curl_easy_setopt(THIS_CURL, CURLOPT_FTP_USE_EPSV, (long)(THIS_FTP->no_epsv ? 0 : 1));
-	curl_easy_setopt(THIS_CURL, CURLOPT_QUOTE, NULL);
-	curl_easy_setopt(THIS_CURL, CURLOPT_NOBODY, 0);
+	if (CURL_set_option(THIS_CURL, CURLOPT_FTP_USE_EPSV, (long)(THIS_FTP->no_epsv ? 0 : 1)))
+		return TRUE;
+	
+	if (CURL_set_option(THIS_CURL, CURLOPT_QUOTE, NULL))
+		return TRUE;
+	
+	if (CURL_set_option(THIS_CURL, CURLOPT_NOBODY, 0))
+		return TRUE;
 
 	ftp_reset(THIS_FTP);
 	THIS_STATUS = NET_CONNECTING;
 	
 	CURL_init_stream(THIS);
+	return FALSE;
 }
 
 
-static int ftp_exec(void *_object, int what, GB_ARRAY commands)
+static bool ftp_exec(void *_object, int what, GB_ARRAY commands)
 {
 	struct stat info;
 	struct curl_slist *list;
 	int i;
 
 	if (THIS_STATUS > 0)
-		return 1;
+	{
+		GB.Error("Still active");
+		return TRUE;
+	}
 
 	THIS->method = what == EXEC_PUT ? 1 : 0;
 	
-	ftp_initialize_curl_handle(THIS);
+	if (ftp_initialize_curl_handle(THIS))
+		return TRUE;
 	
 	switch(what)
 	{
 		case EXEC_GET:
 			
-			curl_easy_setopt(THIS_CURL, CURLOPT_WRITEFUNCTION , (curl_write_callback)ftp_write_curl);
-			curl_easy_setopt(THIS_CURL, CURLOPT_WRITEDATA     , _object);
-			curl_easy_setopt(THIS_CURL, CURLOPT_UPLOAD        , 0);
+			if (CURL_set_option(THIS_CURL, CURLOPT_WRITEFUNCTION, (curl_write_callback)ftp_write_curl)
+					|| CURL_set_option(THIS_CURL, CURLOPT_WRITEDATA, _object)
+					|| CURL_set_option(THIS_CURL, CURLOPT_UPLOAD, 0))
+				return TRUE;
 			
-			CURL_set_progress(THIS, TRUE, NULL);
+			if (CURL_set_progress(THIS, TRUE, NULL))
+				return TRUE;
 			
 			break;
 			
 		case EXEC_PUT:
 			
 			if (THIS_FILE && fstat(fileno(THIS_FILE), &info) == 0)
-				curl_easy_setopt(THIS_CURL, CURLOPT_INFILESIZE_LARGE, (curl_off_t)info.st_size);
+			{
+				if (CURL_set_option(THIS_CURL, CURLOPT_INFILESIZE_LARGE, (curl_off_t)info.st_size))
+					return TRUE;
+			}
 			
-			curl_easy_setopt(THIS_CURL, CURLOPT_READFUNCTION , (curl_read_callback)ftp_read_curl);
-			curl_easy_setopt(THIS_CURL, CURLOPT_READDATA     , _object);
-			curl_easy_setopt(THIS_CURL, CURLOPT_UPLOAD       , 1);
+			if (CURL_set_option(THIS_CURL, CURLOPT_READFUNCTION, (curl_read_callback)ftp_read_curl)
+					|| CURL_set_option(THIS_CURL, CURLOPT_READDATA, _object)
+					|| CURL_set_option(THIS_CURL, CURLOPT_UPLOAD, 1))
+				return TRUE;
 			
-			CURL_set_progress(THIS, TRUE, NULL);
+			if (CURL_set_progress(THIS, TRUE, NULL))
+				return TRUE;
 			
 			break;
 			
 		case EXEC_CMD:
 			
-			curl_easy_setopt(THIS_CURL, CURLOPT_NOBODY, 1);
+			if (CURL_set_option(THIS_CURL, CURLOPT_NOBODY, 1))
+				return TRUE;
 			
 			if (commands)
 			{
@@ -190,8 +209,8 @@ static int ftp_exec(void *_object, int what, GB_ARRAY commands)
 						continue;
 					list = curl_slist_append(list, cmd);
 				}
-				if (list)
-					curl_easy_setopt(THIS_CURL, CURLOPT_QUOTE, list);
+				if (list && CURL_set_option(THIS_CURL, CURLOPT_QUOTE, list))
+					return TRUE;
 			}
 			
 			break;
@@ -203,11 +222,11 @@ static int ftp_exec(void *_object, int what, GB_ARRAY commands)
 		fprintf(stderr, "-- [%p] curl_multi_add_handle(%p)\n", THIS, THIS_CURL);
 		#endif
 		CURL_start_post(THIS);
-		return 0;
+		return FALSE;
 	}
 	
 	CURL_manage_error(_object, curl_easy_perform(THIS_CURL));
-	return 0;
+	return FALSE;
 }
 
 
@@ -222,12 +241,6 @@ BEGIN_METHOD(FtpClient_Get, GB_STRING target)
 
 	if (target && *target)
 	{
-		/*if (THIS_STATUS > 0)
-		{
-			GB.Error("Still active");
-			return;
-		}*/
-		
 		THIS_FILE = fopen(target, "w");
 		
 		if (!THIS_FILE)
@@ -237,8 +250,7 @@ BEGIN_METHOD(FtpClient_Get, GB_STRING target)
 		}
 	}
 
-	if (ftp_exec(THIS, EXEC_GET, NULL)) 
-		GB.Error("Still active");
+	ftp_exec(THIS, EXEC_GET, NULL);
 
 END_METHOD
 
@@ -258,8 +270,7 @@ BEGIN_METHOD(FtpClient_Put, GB_STRING SourceFile)
 		return;
 	}
 
-	if (ftp_exec(THIS, EXEC_PUT, NULL)) 
-		GB.Error("Still active");
+	ftp_exec(THIS, EXEC_PUT, NULL);
 
 END_METHOD
 

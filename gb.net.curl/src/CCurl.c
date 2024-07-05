@@ -48,6 +48,8 @@ DECLARE_EVENT(EVENT_Cancel);
 
 static CCURL *_async_list = NULL;
 
+//-------------------------------------------------------------------------
+
 static void add_to_async_list(CCURL *_object)
 {
 	if (THIS->in_list)
@@ -75,6 +77,8 @@ static void remove_from_async_list(CCURL *_object)
 	THIS->in_list = FALSE;
 	GB.Unref(POINTER(&_object));
 }
+
+//-------------------------------------------------------------------------
 
 /*****************************************************
 CURLM : a pointer to use curl_multi interface,
@@ -165,6 +169,8 @@ int CCURL_stream_read(GB_STREAM *stream, char *buffer, int len)
 	return len;
 }
 
+//-------------------------------------------------------------------------
+
 static void raise_event(void *_object, int event)
 {
 	GB.Raise(THIS, event, 0);
@@ -207,6 +213,19 @@ void CURL_raise_read(void *_object)
 	GB.Unref(POINTER(&_object));
 }
 
+//-------------------------------------------------------------------------
+
+bool CURL_manage_option(int err, const char *option)
+{
+	if (err != CURLE_OK)
+	{
+		GB.Error("Unable to set option '&1': &2", option, curl_easy_strerror(err));
+		return TRUE;
+	}
+	else
+		return FALSE;
+}
+
 void CURL_manage_error(void *_object, int error)
 {
 	if (THIS_FILE)
@@ -235,7 +254,10 @@ void CURL_manage_error(void *_object, int error)
 	if (error == CURLE_OK)
 		THIS_STATUS = NET_INACTIVE;
 	else
+	{
 		THIS_STATUS = (- (1000 + error));
+		GB.Error("&1", curl_easy_strerror(error));
+	}
 }
 
 void CURL_init_stream(void *_object)
@@ -245,22 +267,48 @@ void CURL_init_stream(void *_object)
 	GB.Stream.SetAvailableNow(&THIS->stream, TRUE);
 }
 
-void CURL_init_options(void *_object)
+bool CURL_init_options(void *_object)
 {
-	curl_easy_setopt(THIS_CURL, CURLOPT_NOSIGNAL, 1);
-	curl_easy_setopt(THIS_CURL, CURLOPT_TIMEOUT, THIS->timeout);
-	curl_easy_setopt(THIS_CURL, CURLOPT_VERBOSE, (bool)THIS->debug);
-	curl_easy_setopt(THIS_CURL, CURLOPT_PRIVATE, (char*)_object);
+	if (CURL_set_option(THIS_CURL, CURLOPT_NOSIGNAL, 1))
+		return TRUE;
+	
+	if (CURL_set_option(THIS_CURL, CURLOPT_TIMEOUT, THIS->timeout))
+		return TRUE;
+	
+	if (CURL_set_option(THIS_CURL, CURLOPT_VERBOSE, (bool)THIS->debug))
+		return TRUE;
+	
+	if (CURL_set_option(THIS_CURL, CURLOPT_PRIVATE, (char*)_object))
+		return TRUE;
 	
 	if (THIS->buffer_size)
-		curl_easy_setopt(THIS_CURL, CURLOPT_BUFFERSIZE, THIS->buffer_size);
+	{
+		if (CURL_set_option(THIS_CURL, CURLOPT_BUFFERSIZE, THIS->buffer_size))
+			return TRUE;
+	}
 	
-	curl_easy_setopt(THIS_CURL, CURLOPT_SSL_VERIFYPEER, THIS->ssl_verify_peer ? 1 : 0);
-	curl_easy_setopt(THIS_CURL, CURLOPT_SSL_VERIFYHOST , THIS->ssl_verify_host ? 2 : 0);
+	if (CURL_set_option(THIS_CURL, CURLOPT_SSL_VERIFYPEER, THIS->ssl_verify_peer ? 1 : 0))
+		return TRUE;
+	
+	if (CURL_set_option(THIS_CURL, CURLOPT_SSL_VERIFYHOST , THIS->ssl_verify_host ? 2 : 0))
+		return TRUE;
+	
+	if (THIS->ssl_ca_path && CURL_set_option(THIS_CURL, CURLOPT_CAPATH, THIS->ssl_ca_path))
+		return TRUE;
 
-	CURL_proxy_set(&THIS->proxy, THIS_CURL);
-	CURL_user_set(&THIS->user, THIS_CURL);
-	curl_easy_setopt(THIS_CURL, CURLOPT_URL, THIS_URL);
+	if (THIS->ssl_ca_info && CURL_set_option(THIS_CURL, CURLOPT_CAINFO, THIS->ssl_ca_info))
+		return TRUE;
+
+	if (CURL_proxy_set(&THIS->proxy, THIS_CURL))
+		return TRUE;
+	
+	if (CURL_user_set(&THIS->user, THIS_CURL))
+		return TRUE;
+	
+	if (CURL_set_option(THIS_CURL, CURLOPT_URL, THIS_URL))
+		return TRUE;
+	
+	return FALSE;
 }
 
 #define CHECK_PROGRESS_VAL(_var) if (THIS->_var != (int64_t)_var) { THIS->_var = (int64_t)_var; raise = TRUE; }
@@ -397,30 +445,34 @@ bool CURL_check_active(void *_object)
 		return FALSE;
 }
 
-void CURL_set_progress(void *_object, bool progress, CURL_FIX_PROGRESS_CB cb)
+bool CURL_set_progress(void *_object, bool progress, CURL_FIX_PROGRESS_CB cb)
 {
 	#ifdef DEBUG
 	fprintf(stderr, "CURL_set_progress: %p %d\n", _object, progress);
 	#endif
 	
-	curl_easy_setopt(THIS_CURL, CURLOPT_NOPROGRESS, progress ? 0 : 1);
+	if (CURL_set_option(THIS_CURL, CURLOPT_NOPROGRESS, progress ? 0 : 1))
+		return TRUE;
 
 	if (progress)
 	{
 		#if LIBCURL_VERSION_NUM < 0x073200
 
-		curl_easy_setopt(THIS_CURL, CURLOPT_PROGRESSFUNCTION , curl_progress);
-		curl_easy_setopt(THIS_CURL, CURLOPT_PROGRESSDATA , _object);
+		if (CURL_set_option(THIS_CURL, CURLOPT_PROGRESSFUNCTION , curl_progress)
+				|| CURL_set_option(THIS_CURL, CURLOPT_PROGRESSDATA , _object))
+			return TRUE;
 
 		#else
 
-		curl_easy_setopt(THIS_CURL, CURLOPT_XFERINFOFUNCTION , curl_progress);
-		curl_easy_setopt(THIS_CURL, CURLOPT_XFERINFODATA , _object);
+		if (CURL_set_option(THIS_CURL, CURLOPT_XFERINFOFUNCTION , curl_progress)
+				|| CURL_set_option(THIS_CURL, CURLOPT_XFERINFODATA , _object))
+			return TRUE;
 
 		#endif
 	}
 
 	THIS->progresscb = cb;
+	return FALSE;
 }
 
 #define COPY_STRING(_field) \
@@ -486,7 +538,7 @@ void CURL_reset(void *_object)
 }
 
 
-static void CURL_init_handle(void *_object)
+static bool CURL_init_handle(void *_object)
 {
 	if (THIS_CURL)
 	{
@@ -503,15 +555,20 @@ static void CURL_init_handle(void *_object)
 		THIS_CURL = curl_easy_init();
 	}
 
-	CURL_init_options(THIS);
+	if (CURL_init_options(THIS))
+		return TRUE;
 
-	curl_easy_setopt(THIS_CURL, CURLOPT_WRITEFUNCTION, (curl_write_callback)curl_write_cb);
-	curl_easy_setopt(THIS_CURL, CURLOPT_WRITEDATA, THIS);
+	if (CURL_set_option(THIS_CURL, CURLOPT_WRITEFUNCTION, (curl_write_callback)curl_write_cb))
+		return TRUE;
+	
+	if (CURL_set_option(THIS_CURL, CURLOPT_WRITEDATA, THIS))
+		return TRUE;
 
 	CURL_reset(THIS);
 	THIS_STATUS = NET_CONNECTING;
 
 	CURL_init_stream(THIS);
+	return FALSE;
 }
 
 
@@ -531,7 +588,9 @@ static void CURL_get(void *_object, char *target)
 		}
 	}
 
-	CURL_init_handle(_object);
+	if (CURL_init_handle(_object))
+		return;
+	
 	CURL_set_progress(THIS, TRUE, NULL);
 
 	if (THIS->async)
@@ -543,8 +602,7 @@ static void CURL_get(void *_object, char *target)
 	CURL_manage_error(THIS, curl_easy_perform(THIS_CURL));
 }
 
-//---------------------------------------------------------------------------
-
+//-------------------------------------------------------------------------
 
 BEGIN_PROPERTY(Curl_User)
 
@@ -699,6 +757,9 @@ BEGIN_METHOD_VOID(Curl_free)
 	CURL_user_clear(&THIS->user);
 	CURL_proxy_clear(&THIS->proxy);
 	
+	GB.FreeString(&THIS->ssl_ca_path);
+	GB.FreeString(&THIS->ssl_ca_info);
+	
 END_METHOD
 
 BEGIN_METHOD_VOID(Curl_init)
@@ -817,7 +878,6 @@ BEGIN_METHOD(Curl_Get, GB_STRING target)
 
 END_METHOD
 
-
 //---------------------------------------------------------------------------
 
 BEGIN_PROPERTY(Curl_SSL_VerifyPeer)
@@ -825,10 +885,7 @@ BEGIN_PROPERTY(Curl_SSL_VerifyPeer)
 	if (READ_PROPERTY)
 		GB.ReturnBoolean(THIS->ssl_verify_peer);
 	else
-	{
 		THIS->ssl_verify_peer = VPROP(GB_BOOLEAN);
-		curl_easy_setopt(THIS_CURL, CURLOPT_SSL_VERIFYPEER, THIS->ssl_verify_peer ? 1 : 0);
-	}
 
 END_PROPERTY
 
@@ -837,10 +894,25 @@ BEGIN_PROPERTY(Curl_SSL_VerifyHost)
 	if (READ_PROPERTY)
 		GB.ReturnBoolean(THIS->ssl_verify_host);
 	else
-	{
 		THIS->ssl_verify_host = VPROP(GB_BOOLEAN);
-		curl_easy_setopt(THIS_CURL, CURLOPT_SSL_VERIFYHOST , THIS->ssl_verify_host ? 2 : 0);
-	}
+
+END_PROPERTY
+
+BEGIN_PROPERTY(Curl_SSL_CAPath)
+	
+	if (READ_PROPERTY)
+		GB.ReturnString(THIS->ssl_ca_path);
+	else
+		GB.StoreString(PROP(GB_STRING), &THIS->ssl_ca_path);
+
+END_PROPERTY
+
+BEGIN_PROPERTY(Curl_SSL_CAInfo)
+	
+	if (READ_PROPERTY)
+		GB.ReturnString(THIS->ssl_ca_info);
+	else
+		GB.StoreString(PROP(GB_STRING), &THIS->ssl_ca_info);
 
 END_PROPERTY
 
@@ -852,6 +924,8 @@ GB_DESC CurlSSLDesc[] =
 
 	GB_PROPERTY("VerifyPeer", "b", Curl_SSL_VerifyPeer),
 	GB_PROPERTY("VerifyHost", "b", Curl_SSL_VerifyHost),
+	GB_PROPERTY("CAPath", "s", Curl_SSL_CAPath),
+	GB_PROPERTY("CAInfo", "s", Curl_SSL_CAInfo),
 
 	GB_END_DECLARE
 };

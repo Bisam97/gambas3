@@ -82,6 +82,8 @@ typedef
 		int64_t ultotal;
 		int64_t ulnow;
 		CURL_FIX_PROGRESS_CB progresscb;
+		char *ssl_ca_path;
+		char *ssl_ca_info;
 		unsigned async : 1;
 		unsigned in_list : 1;
 		unsigned debug : 1;
@@ -118,12 +120,16 @@ void CURL_reset(void *_object);
 void CURL_manage_error(void *_object, int error);
 
 void CURL_init_stream(void *_object);
-void CURL_init_options(void *_object);
+bool CURL_init_options(void *_object);
 
 bool CURL_check_active(void *_object);
 
-void CURL_set_progress(void *_object, bool progress, CURL_FIX_PROGRESS_CB cb);
+bool CURL_set_progress(void *_object, bool progress, CURL_FIX_PROGRESS_CB cb);
 
 bool CURL_copy_from(CCURL *dest, CCURL *src);
+
+bool CURL_manage_option(int err, const char *option);
+
+#define CURL_set_option(_handle, _option, ...) CURL_manage_option(curl_easy_setopt(_handle, _option, __VA_ARGS__), #_option)
 
 #endif

@@ -179,7 +179,7 @@ static void http_reset(void *_object)
 }
 
 
-static void http_initialize_curl_handle(void *_object, GB_ARRAY custom_headers)
+static bool http_initialize_curl_handle(void *_object, GB_ARRAY custom_headers)
 {
 	if (THIS_CURL)
 	{
@@ -196,21 +196,29 @@ static void http_initialize_curl_handle(void *_object, GB_ARRAY custom_headers)
 		THIS_CURL = curl_easy_init();
 	}
 	
-	CURL_init_options(THIS);
+	if (CURL_init_options(THIS))
+		return TRUE;
 
-	curl_easy_setopt(THIS_CURL, CURLOPT_USERAGENT, THIS_HTTP->sUserAgent);
-	curl_easy_setopt(THIS_CURL, CURLOPT_ENCODING, THIS_HTTP->encoding);
-	curl_easy_setopt(THIS_CURL, CURLOPT_HEADERFUNCTION, (curl_write_callback)http_header_curl);
-	curl_easy_setopt(THIS_CURL, CURLOPT_WRITEFUNCTION, (curl_write_callback)http_write_curl);
-	curl_easy_setopt(THIS_CURL, CURLOPT_WRITEDATA, _object);
-	curl_easy_setopt(THIS_CURL, CURLOPT_WRITEHEADER, _object);
-	curl_easy_setopt(THIS_CURL, CURLOPT_COOKIEFILE, THIS_HTTP->cookiesfile);
-	curl_easy_setopt(THIS_CURL, CURLOPT_FOLLOWLOCATION, (long)THIS_HTTP->redirect);
+	if (CURL_set_option(THIS_CURL, CURLOPT_USERAGENT, THIS_HTTP->sUserAgent)
+			|| CURL_set_option(THIS_CURL, CURLOPT_ENCODING, THIS_HTTP->encoding)
+			|| CURL_set_option(THIS_CURL, CURLOPT_HEADERFUNCTION, (curl_write_callback)http_header_curl)
+			|| CURL_set_option(THIS_CURL, CURLOPT_WRITEFUNCTION, (curl_write_callback)http_write_curl)
+			|| CURL_set_option(THIS_CURL, CURLOPT_WRITEDATA, _object)
+			|| CURL_set_option(THIS_CURL, CURLOPT_WRITEHEADER, _object)
+			|| CURL_set_option(THIS_CURL, CURLOPT_COOKIEFILE, THIS_HTTP->cookiesfile)
+			|| CURL_set_option(THIS_CURL, CURLOPT_FOLLOWLOCATION, (long)THIS_HTTP->redirect))
+		return TRUE;
 	
 	if (THIS_HTTP->updatecookies)
-		curl_easy_setopt(THIS_CURL, CURLOPT_COOKIEJAR, THIS_HTTP->cookiesfile);
+	{
+		if (CURL_set_option(THIS_CURL, CURLOPT_COOKIEJAR, THIS_HTTP->cookiesfile))
+			return TRUE;
+	}
 	else
-		curl_easy_setopt(THIS_CURL, CURLOPT_COOKIEJAR, NULL);
+	{
+		if (CURL_set_option(THIS_CURL, CURLOPT_COOKIEJAR, NULL))
+			return TRUE;
+	}
 
 	THIS_HTTP->return_code = 0;
 	GB.FreeString(&THIS_HTTP->return_string);
@@ -226,6 +234,8 @@ static void http_initialize_curl_handle(void *_object, GB_ARRAY custom_headers)
 	}
 	
 	CURL_init_stream(THIS);
+	
+	return FALSE;
 }
 
 
@@ -297,9 +307,11 @@ static void http_get(void *_object, GB_ARRAY custom_headers, char *target, CURLo
 
 	THIS->method = 0;
 	
-	http_initialize_curl_handle(_object, custom_headers);
+	if (http_initialize_curl_handle(_object, custom_headers))
+		return;
 	
-	curl_easy_setopt(THIS_CURL, method, 1);
+	if (CURL_set_option(THIS_CURL, method, 1))
+		return;
 	
 	if (THIS_HTTP->sent_headers)
 	{
@@ -307,8 +319,11 @@ static void http_get(void *_object, GB_ARRAY custom_headers, char *target, CURLo
 			headers = curl_slist_append(headers, *(char **)GB.Array.Get(THIS_HTTP->sent_headers, i));
 	}
 	
-	curl_easy_setopt(THIS_CURL, CURLOPT_HTTPHEADER, headers);
-	CURL_set_progress(THIS, TRUE, NULL);
+	if (CURL_set_option(THIS_CURL, CURLOPT_HTTPHEADER, headers))
+		return;
+	
+	if (CURL_set_progress(THIS, TRUE, NULL))
+		return;
 
 	if (THIS->async)
 	{
@@ -343,7 +358,8 @@ static void http_send(void *_object, int type, char *sContent, char *sData, int 
 		}
 	}
 	
-	http_initialize_curl_handle(_object, custom_headers);
+	if (http_initialize_curl_handle(_object, custom_headers))
+		return;
 
 	if (type & SEND_FILE)
 	{
@@ -386,23 +402,28 @@ static void http_send(void *_object, int type, char *sContent, char *sData, int 
 			headers = curl_slist_append(headers, *(char **)GB.Array.Get(THIS_HTTP->sent_headers, i));
 	}
 	
-	curl_easy_setopt(THIS_CURL, CURLOPT_HTTPHEADER, headers);
+	if (CURL_set_option(THIS_CURL, CURLOPT_HTTPHEADER, headers))
+		return;
 	
 	if (type == SEND_PUT)
 	{
-		curl_easy_setopt(THIS_CURL, CURLOPT_INFILESIZE_LARGE, (curl_off_t)lendata);
-		curl_easy_setopt(THIS_CURL, CURLOPT_UPLOAD, 1);
+		if (CURL_set_option(THIS_CURL, CURLOPT_INFILESIZE_LARGE, (curl_off_t)lendata)
+				|| CURL_set_option(THIS_CURL, CURLOPT_UPLOAD, 1))
+			return;
 	}
 	else // SEND_POST
 	{
-		curl_easy_setopt(THIS_CURL, CURLOPT_POSTFIELDSIZE, lendata);
-		curl_easy_setopt(THIS_CURL, CURLOPT_POSTFIELDS, NULL);
+		if (CURL_set_option(THIS_CURL, CURLOPT_POSTFIELDSIZE, lendata)
+				|| CURL_set_option(THIS_CURL, CURLOPT_POSTFIELDS, NULL))
+			return;
 	}
 
-	curl_easy_setopt(THIS_CURL, CURLOPT_READFUNCTION, http_read_curl);
-	curl_easy_setopt(THIS_CURL, CURLOPT_READDATA, _object);
+	if (CURL_set_option(THIS_CURL, CURLOPT_READFUNCTION, http_read_curl)
+			|| CURL_set_option(THIS_CURL, CURLOPT_READDATA, _object))
+		return;
 
-	CURL_set_progress(THIS, TRUE, http_fix_progress_cb);
+	if (CURL_set_progress(THIS, TRUE, http_fix_progress_cb))
+		return;
 
 	if (THIS->async)
 	{

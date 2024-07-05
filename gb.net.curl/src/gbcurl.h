@@ -62,7 +62,7 @@ bool CURL_check_userpwd(CURL_USER *user);
 
 void CURL_proxy_init(CURL_PROXY *proxy);
 void CURL_proxy_clear(CURL_PROXY *proxy);
-void CURL_proxy_set(CURL_PROXY *proxy, CURL *curl);
+bool CURL_proxy_set(CURL_PROXY *proxy, CURL *curl);
 bool CURL_proxy_set_auth(CURL_PROXY *user, int auth);
 bool CURL_proxy_set_type(CURL_PROXY *proxy, int type);
 
@@ -70,7 +70,7 @@ void CURL_default_proxy_clear();
 
 void CURL_user_init(CURL_USER *user);
 void CURL_user_clear(CURL_USER *user);
-void CURL_user_set(CURL_USER *user,CURL *curl);
+bool CURL_user_set(CURL_USER *user,CURL *curl);
 bool CURL_user_set_auth(CURL_USER *user,int auth);
 
 #endif

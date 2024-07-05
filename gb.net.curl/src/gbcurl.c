@@ -250,7 +250,7 @@ void CURL_default_proxy_clear()
 }
 
 
-void CURL_proxy_set(CURL_PROXY *proxy, CURL *curl)
+bool CURL_proxy_set(CURL_PROXY *proxy, CURL *curl)
 {
 	GB.FreeString(&proxy->userpwd);
 	
@@ -263,21 +263,30 @@ void CURL_proxy_set(CURL_PROXY *proxy, CURL *curl)
 	
 	if (!proxy->host)
 	{
-		curl_easy_setopt(curl, CURLOPT_PROXY, NULL);
+		if (CURL_set_option(curl, CURLOPT_PROXY, NULL))
+			return TRUE;
+		
 		if ( LIBCURL_VERSION_NUM >= 0x070a08 )
-			curl_easy_setopt(curl, 111, CURLAUTH_NONE);
-		return;
+		{
+			if (CURL_set_option(curl, 111, CURLAUTH_NONE))
+				return TRUE;
+		}
+		
+		return FALSE;
 	}
 
-	curl_easy_setopt(curl, CURLOPT_PROXYTYPE, proxy->type);
-	curl_easy_setopt(curl, CURLOPT_PROXY, proxy->host);
+	if (CURL_set_option(curl, CURLOPT_PROXYTYPE, proxy->type) || CURL_set_option(curl, CURLOPT_PROXY, proxy->host))
+		return TRUE;
+	
 	if ( LIBCURL_VERSION_NUM >= 0x070a08 )
 	{
-		curl_easy_setopt(curl, CURLOPT_PROXYUSERPWD, proxy->userpwd);
-		curl_easy_setopt(curl, 111, proxy->auth);
+		if (CURL_set_option(curl, CURLOPT_PROXYUSERPWD, proxy->userpwd) || CURL_set_option(curl, 111, proxy->auth))
+			return TRUE;
 	}
 	else
 		warning_proxy_auth();
+	
+	return FALSE;
 }
 
 bool CURL_proxy_set_auth(CURL_PROXY *proxy, int auth)
@@ -337,26 +346,21 @@ void CURL_user_clear(CURL_USER *user)
 }
 
 
-void CURL_user_set(CURL_USER *user, CURL *curl)
+bool CURL_user_set(CURL_USER *user, CURL *curl)
 {
 	#ifdef LACKS_AUTH
 	return;
 	#else
 	
 	if (user->auth == CURLAUTH_NONE)
-	{
-		curl_easy_setopt(curl, CURLOPT_USERPWD, NULL);
-		curl_easy_setopt(curl, CURLOPT_HTTPAUTH, CURLAUTH_NONE);
-		return;
-	}
+		return CURL_set_option(curl, CURLOPT_USERPWD, NULL) || CURL_set_option(curl, CURLOPT_HTTPAUTH, CURLAUTH_NONE);
 	
 	GB.FreeString(&user->userpwd);
 	user->userpwd = GB.AddString(user->userpwd, user->user, 0);
 	user->userpwd = GB.AddChar(user->userpwd, ':');
 	user->userpwd = GB.AddString(user->userpwd, user->pwd, 0);
 
-	curl_easy_setopt(curl, CURLOPT_USERPWD, user->userpwd);
-	curl_easy_setopt(curl, CURLOPT_HTTPAUTH, user->auth);
+	return CURL_set_option(curl, CURLOPT_USERPWD, user->userpwd) || CURL_set_option(curl, CURLOPT_HTTPAUTH, user->auth);
 	
 	#endif
 }
