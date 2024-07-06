@@ -681,7 +681,7 @@ End
 Public Sub AddLog(sText As String, Optional bNoNewLine As Boolean)
 
   If Not bNoNewLine Then sText &= "\r\n"
-  trmLog.Print(sText)
+  trmLog.Print(Replace(Replace(sText, "\r", ""), "\n", "\r\n"))
   Wait
 
 End
