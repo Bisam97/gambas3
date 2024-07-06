@@ -24,6 +24,7 @@ Private $cFieldIndex As Collection
 Private $cFields As Collection
 Private $aTypes As Integer[]
 Private $aLengths As Integer[]
+Private $cIsBlob As Collection
 
 Private $sTable As String
 Private $bReturning As Boolean
@@ -74,22 +75,18 @@ Public Sub _free()
   
 End
 
-Public Sub _Fill(hDriver As _DatabaseDriver, pHandle As Pointer)
+Private Sub InitFields()
   
   Dim I As Integer
   Dim sName As String
   Dim iType As Integer
   Dim iLength As Integer
   
-  $hDriver = hDriver
-  $pHandle = pHandle
-  $iCount = $hDriver.GetResultCount(pHandle)
-  
   $aField = New String[]
   $aTypes = New Integer[]
   $aLengths = New Integer[]
   
-  While Not $hDriver.GetResultField(pHandle, I, ByRef sName, ByRef iType, ByRef iLength)
+  While Not $hDriver.GetResultField($pHandle, I, ByRef sName, ByRef iType, ByRef iLength)
     $aField.Add(sName)
     $aTypes.Add(iType)
     $aLengths.Add(iLength)
@@ -98,15 +95,30 @@ Public Sub _Fill(hDriver As _DatabaseDriver, pHandle As Pointer)
   
   $cFieldIndex = New Collection
   $cFieldIndex.Default = -1
+  If $hDriver.MustQuoteBlob Then $cIsBlob = New Collection
+  
   For I = 0 To $aField.Max
     $cFieldIndex[$aField[I]] = I
+    If $aTypes[I] = db.Blob Then $cIsBlob[$aField[I]] = True
   Next
+  
+End
+
+Public Sub _Fill(hDriver As _DatabaseDriver, pHandle As Pointer)
+  
+  $hDriver = hDriver
+  $pHandle = pHandle
+  $iCount = $hDriver.GetResultCount(pHandle)
+  
+  InitFields()
   
   MoveFirst()
   
 End
 
 Public Sub _Create(hDriver As _DatabaseDriver, sTable As String, bReturning As Boolean, bNotExist As Boolean)
+  
+  Dim hField As Field
   
   $iMode = MODE_CREATE
   $hDriver = hDriver
@@ -125,6 +137,13 @@ Public Sub _Create(hDriver As _DatabaseDriver, sTable As String, bReturning As B
   
   $bReturning = bReturning
   $bNotExist = bNotExist
+  
+  If $hDriver.MustQuoteBlob Then
+    $cIsBlob = New Collection
+    For Each hField In Me.Connection.Tables[sTable].Fields
+      If hField.Type = db.Blob Then $cIsBlob[hField.Name] = True
+    Next
+  Endif
   
 End
 
@@ -305,13 +324,13 @@ Private Sub GetKeyRequest() As String
 
 End
 
-
 Public Sub Update()
   
   Dim sReq As String
   Dim bComma As Boolean
   Dim vVal As Variant
   Dim pResult As Pointer
+  Dim bBlob As Boolean
   
   CheckAvailable()
 
@@ -333,13 +352,19 @@ Public Sub Update()
         
         sReq &= " ) VALUES ( "
         
+        ' TODO: Manage blob fields that have special quoting on Postgresql
+        
         For Each vVal In $cBuffer
+          
           If Not bComma Then
             bComma = True
           Else
             sReq &= ", "
           Endif
-          sReq &= $hDriver.Format(vVal)
+          
+          If $hDriver.MustQuoteBlob Then bBlob = $cIsBlob.Exist($cBuffer.Key)
+          sReq &= $hDriver.Format(vVal, bBlob)
+          
         Next
         
         sReq &= " )"
@@ -419,6 +444,7 @@ Public Sub Update()
     
     Endif
     
+    ' TODO: Returning
     
     '       if (THIS->returning)
     '       {
@@ -482,13 +508,20 @@ Public Sub Update()
       
       sReq = "UPDATE " & Me.Connection.Quote($sTable, True) & " SET "
       
+      ' TODO: Manage blob fields
+      
       For Each vVal In $cBuffer
+        
         If Not bComma Then
           bComma = True
         Else
           sReq &= ", "
         Endif
-        sReq &= Me.Connection.Quote($cBuffer.Key) & " = " & $hDriver.Format(vVal)
+        
+        sReq &= Me.Connection.Quote($cBuffer.Key) & " = "
+        If $hDriver.MustQuoteBlob Then bBlob = $cIsBlob.Exist($cBuffer.Key)
+        sReq &= $hDriver.Format(vVal, bBlob)
+        
       Next
       
       sReq &= " WHERE " & GetKeyRequest()

@@ -549,7 +549,7 @@ BEGIN_METHOD(PostgresqlHelper_GetResultField, GB_POINTER result; GB_INTEGER fiel
 	int len = 0;
 
 	if (i >= PQnfields(res))
-		GB.ReturnNull();
+		GB.ReturnVoidString();
 	else
 	{
 		_type = conv_type(PQftype(res, i));
@@ -704,7 +704,6 @@ GB_DESC PostgresqlHelperDesc[] =
 	
 	GB_STATIC_METHOD("Open", "p", PostgresqlHelper_Open, "(Host)s(Port)s(Name)s(User)s(Password)s(Timeout)i(Options)Collection;"),
 	GB_STATIC_METHOD("Close", NULL, PostgresqlHelper_Close, "(Database)p"),
-	GB_STATIC_METHOD("GetVersion", "s", PostgresqlHelper_GetVersion, "(Database)p"),
 	GB_STATIC_METHOD("Query", "p", PostgresqlHelper_Query, "(Database)p(Query)s"),
 	GB_STATIC_METHOD("FreeResult", NULL, PostgresqlHelper_FreeResult, "(Result)p"),
 	GB_STATIC_METHOD("GetResultCount", "i", PostgresqlHelper_GetResultCount, "(Result)p"),

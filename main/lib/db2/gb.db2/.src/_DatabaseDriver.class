@@ -57,6 +57,7 @@ Public InsertIfNotExist As Integer
 Public Limit As String
 Public LimitPos As Integer
 Public AllowedCharsInDatabaseName As String
+Public MustQuoteBlob As Boolean
 
 Property Read Connection As Connection
 
@@ -111,7 +112,7 @@ Public Sub Close()
   
 End
 
-Public Sub Format(Value As Variant) As String
+Public Sub Format(Value As Variant, Optional (Blob) As Boolean) As String
   
   If IsNull(Value) Then Return "NULL"
   

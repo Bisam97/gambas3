@@ -44,7 +44,12 @@ Public Sub Open(Conn As Connection) As Pointer
   
   $pHandle = _PostgresqlHelper.Open(Conn.Host, Conn.Port, Conn.Name, Conn.User, Conn.Password, Conn.Timeout, Conn.Options)
   
-  sVersion = _PostgresqlHelper.GetVersion($pHandle)
+  pResult = Query("select version()")
+  sVersion = GetResultData(pResult, 0, 0)[0]
+  FreeResult(pResult)
+  
+  Me.FullVersion = sVersion
+
   For I = 1 To Len(sVersion)
     If IsDigit(Mid$(sVersion, I, 1)) Then
       sVersion = Mid$(sVersion, I)
@@ -54,8 +59,6 @@ Public Sub Open(Conn As Connection) As Pointer
   
   iPos = InStr(sVersion, " ")
   If iPos > 0 Then sVersion = Left(sVersion, iPos - 1)
-
-  Me.FullVersion = sVersion
 
   aVersion = Split(sVersion, ".")
   Me.Version = CInt(aVersion[0]) * 10000 + CInt(aVersion[1]) * 100
@@ -81,6 +84,7 @@ Public Sub Open(Conn As Connection) As Pointer
   Me.InsertIfNotExist = If(Me.Version < 90500, _DatabaseDriver.IGNORE_NONE, _DatabaseDriver.IGNORE_ON_CONFLICT)
   Me.AllowedCharsInDatabaseName = "."
   Me.LimitPos = _DatabaseDriver.LIMIT_AT_END
+  Me.MustQuoteBlob = True
   
   Return $pHandle
   
@@ -94,7 +98,7 @@ Public Sub Close()
   
 End
 
-Public Sub Format(Value As Variant) As String
+Public Sub Format(Value As Variant, Optional Blob As Boolean) As String
   
   Dim iYear As Integer
   Dim sResult As String
@@ -103,19 +107,23 @@ Public Sub Format(Value As Variant) As String
     
     Case gb.String
       
-      Return _PostgresqlHelper.QuoteString(Value, Me.Version > 80200)
+      If Blob Then
+        Return _PostgresqlHelper.QuoteBlob(Value, Me.Version > 80200)
+      Else
+        Return _PostgresqlHelper.QuoteString(Value, Me.Version > 80200)
+      Endif
     
     Case gb.Date
       
       iYear = Year(Value)
-      sResult = Format(CDate(Value), "'yyyy-mm-dd hh:nn:ss.uuu'")
+      sResult = Format(CDate(Value), "'yyyy-mm-dd hh:nn:ss.uuu")
       If Year(Value) < 0 Then sResult &= " BC"
       sResult &= "'"
       Return sResult
     
-    Case gb.Blob
-      
-      Return _PostgresqlHelper.QuoteBlob(Value, Me.Version > 80200)
+    ' Case gb.Blob
+    '   
+    '   Return _PostgresqlHelper.QuoteBlob(Value, Me.Version > 80200)
     
     Case Else
       
