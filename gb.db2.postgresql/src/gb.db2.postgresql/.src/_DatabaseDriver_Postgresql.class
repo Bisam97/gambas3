@@ -10,7 +10,7 @@ Private $pHandle As Pointer
 Private $iTrans As Integer
 
 Private Sub GetTableSchema(ByRef sTable As String, ByRef sSchema As String)
-
+  
   Dim iPos As Integer
   
   iPos = InStr(sTable, ".")
@@ -25,17 +25,17 @@ Private Sub GetTableSchema(ByRef sTable As String, ByRef sSchema As String)
 End
 
 Private Sub GetDefaultValue(sOldWay As String) As String
-
+  
   If Me.Version >= 90600 Then
     Return "pg_get_expr(adbin, adrelid) AS adsrc"
   Else
     Return sOldWay
   Endif
-
+  
 End
 
 Public Sub Open(Conn As Connection) As Pointer
-
+  
   Dim sVersion As String
   Dim I As Integer
   Dim aVersion As String[]
@@ -49,7 +49,7 @@ Public Sub Open(Conn As Connection) As Pointer
   FreeResult(pResult)
   
   Me.FullVersion = sVersion
-
+  
   For I = 1 To Len(sVersion)
     If IsDigit(Mid$(sVersion, I, 1)) Then
       sVersion = Mid$(sVersion, I)
@@ -59,7 +59,7 @@ Public Sub Open(Conn As Connection) As Pointer
   
   iPos = InStr(sVersion, " ")
   If iPos > 0 Then sVersion = Left(sVersion, iPos - 1)
-
+  
   aVersion = Split(sVersion, ".")
   Me.Version = CInt(aVersion[0]) * 10000 + CInt(aVersion[1]) * 100
   Try Me.Version += CInt(aVersion[2])
@@ -104,7 +104,7 @@ Public Sub Format(Value As Variant, Optional Blob As Boolean) As String
   Dim sResult As String
   
   Select Case TypeOf(Value)
-    
+      
     Case gb.String
       
       If Blob Then
@@ -112,7 +112,7 @@ Public Sub Format(Value As Variant, Optional Blob As Boolean) As String
       Else
         Return _PostgresqlHelper.QuoteString(Value, Me.Version > 80200)
       Endif
-    
+      
     Case gb.Date
       
       iYear = Year(Value)
@@ -120,21 +120,21 @@ Public Sub Format(Value As Variant, Optional Blob As Boolean) As String
       If Year(Value) < 0 Then sResult &= " BC"
       sResult &= "'"
       Return sResult
-    
-    ' Case gb.Blob
-    '   
-    '   Return _PostgresqlHelper.QuoteBlob(Value, Me.Version > 80200)
-    
+      
+      ' Case gb.Blob
+      '   
+      '   Return _PostgresqlHelper.QuoteBlob(Value, Me.Version > 80200)
+      
     Case Else
       
       Return Super.Format(Value)
-
+      
   End Select
   
 End
 
 Public Sub Query(Request As String) As Pointer
-
+  
   If DB.Debug Then Error "gb.db.postgresql: " & Request
   Return _PostgresqlHelper.Query($pHandle, Request)
   
@@ -153,7 +153,7 @@ Public Sub FreeResult((Result) As Pointer)
 End
 
 Public Sub GetResultCount((Result) As Pointer) As Integer
-
+  
   Return _PostgresqlHelper.GetResultCount(Result)
   
 End
@@ -180,7 +180,7 @@ Public Sub GetResultBlob((Result) As Pointer, Index As Integer, Field As Integer
 End
 
 Public Sub GetTables() As String[]
-
+  
   Dim pResult As Pointer
   Dim aTables As String[]
   Dim I As Integer
@@ -207,7 +207,7 @@ Public Sub GetTables() As String[]
 End
 
 Public Sub IsSystemTable(Table As String) As Boolean
-
+  
   Dim sSchema As String
   Dim pResult As Pointer
   Dim bSystem As Boolean
@@ -225,16 +225,16 @@ Public Sub IsSystemTable(Table As String) As Boolean
   bSystem = GetResultCount(pResult) > 0
   FreeResult(pResult)
   If bSystem Then Return True
-
+  
 End
 
 Public Sub GetTableFields(Table As String) As String[]
-
+  
   Dim sSchema As String
   Dim pResult As Pointer
   Dim aFields As String[]
   Dim I As Integer
-
+  
   GetTableSchema(ByRef Table, ByRef sSchema)
   
   pResult = Query(Subst("select pg_attribute.attname from pg_class, pg_attribute where pg_class.relname = '&1' and (pg_class.relnamespace in (select oid from pg_namespace where nspname = '&2')) and pg_attribute.attnum > 0 and not pg_attribute.attisdropped and pg_attribute.attrelid = pg_class.oid", Table, sSchema))
@@ -250,7 +250,7 @@ Public Sub GetTableFields(Table As String) As String[]
 End
 
 Public Sub GetTablePrimaryKey(Table As String) As String[]
-
+  
   Dim sSchema As String
   Dim pResult As Pointer
   Dim I As Integer
@@ -270,7 +270,7 @@ Public Sub GetTablePrimaryKey(Table As String) As String[]
   Endif
   
   pResult = Query(Subst(sQuery, Table, sSchema))
-
+  
   aPrimaryKey = New String[]
   For I = 0 To GetResultCount(pResult) - 1
     aPrimaryKey.Add(GetResultData(pResult, I, True)[0])
@@ -282,7 +282,7 @@ Public Sub GetTablePrimaryKey(Table As String) As String[]
 End
 
 Public Sub GetTableFieldInfo(Table As String, Field As String, ByRef Type As Integer, ByRef Length As Integer, ByRef {Default} As Variant, ByRef Collation As String)
-
+  
   Dim sQuery As String
   Dim sSchema As String
   Dim pResult As Pointer
@@ -313,13 +313,13 @@ Public Sub GetTableFieldInfo(Table As String, Field As String, ByRef Type As Int
       "and pg_attribute.attrelid = pg_class.oid"
     
   Endif
-
+  
   GetTableSchema(ByRef Table, ByRef sSchema)
-
+  
   pResult = Query(Subst(sQuery, GetDefaultValue("pg_attrdef.adsrc"), Table, Field, sSchema))
   
   _PostgresqlHelper.GetFieldInfo(pResult, Me.NoCollation)
-
+  
   Type = _PostgresqlHelper.Type
   Length = _PostgresqlHelper.Length
   {Default} = _PostgresqlHelper.Default
@@ -330,7 +330,7 @@ Public Sub GetTableFieldInfo(Table As String, Field As String, ByRef Type As Int
 End
 
 Public Sub GetTableIndexes(Table As String) As String[]
-
+  
   Dim sSchema As String
   Dim I As Integer
   Dim pResult As Pointer
@@ -355,13 +355,13 @@ Public Sub GetTableIndexes(Table As String) As String[]
 End
 
 Public Sub GetTableIndexInfo(Table As String, Index As String, ByRef Fields As String[], ByRef Unique As Boolean, ByRef Primary As Boolean)
-
+  
   Dim sSchema As String
   Dim vRow As Variant[]
   Dim sIndexRelId As String
   Dim I As Integer
   Dim pResult As Pointer
-
+  
   GetTableSchema(ByRef Table, ByRef sSchema)
   
   pResult = Query(Subst("select indisunique, indisprimary, indexrelid from pg_class, pg_index, pg_class pg_class2 "
@@ -370,14 +370,14 @@ Public Sub GetTableIndexInfo(Table As String, Index As String, ByRef Fields As S
     "and pg_index.indrelid = pg_class2.oid "
     "and pg_index.indexrelid = pg_class.oid "
     "and pg_class.relname = '&2'", Table, Index, sSchema))
-
+  
   vRow = GetResultData(pResult, 0, False)
   Unique = vRow[0]
   Primary = vRow[1]
   sIndexRelId = vRow[2]
   
   FreeResult(pResult)
-
+  
   pResult = Query(Subst("select pg_att1.attname "
     "from pg_attribute pg_att1, pg_attribute pg_att2, pg_index pg_ind "
     "where pg_ind.indexrelid = &1 "
@@ -385,22 +385,22 @@ Public Sub GetTableIndexInfo(Table As String, Index As String, ByRef Fields As S
     "and pg_att1.attrelid = pg_ind.indrelid "
     "and pg_att1.attnum = pg_ind.indkey[pg_att2.attnum-1] "
     "order by pg_att2.attnum", sIndexRelId))
-
+  
   Fields = New String[]
   For I = 0 To GetResultCount(pResult) - 1
     Fields.Add(GetResultData(pResult, I, True)[0])
   Next
-
+  
   FreeResult(pResult)
-
+  
 End
 
 Public Sub GetCollations() As String[]
-
+  
   Dim pResult As Pointer
   Dim aCollations As String[]
   Dim I As Integer
-
+  
   pResult = Query("select collname from pg_collation")
   aCollations = New String[]
   For I = 0 To GetResultCount(pResult) - 1
@@ -412,7 +412,7 @@ Public Sub GetCollations() As String[]
 End
 
 Public Sub GetLastInsertId() As Long
-
+  
   Dim pResult As Pointer
   Dim iLastId As Long
   
@@ -424,7 +424,7 @@ Public Sub GetLastInsertId() As Long
 End
 
 Public Sub Begin()
-
+  
   Inc $iTrans
   If $iTrans = 1 Then
     Me.Exec("BEGIN")
@@ -457,7 +457,7 @@ Public Sub Rollback()
 End
 
 Public Sub GetDatabases() As String[]
-
+  
   Dim pResult As Pointer
   Dim I As Integer
   Dim aDatabases As String[]
@@ -475,7 +475,7 @@ Public Sub GetDatabases() As String[]
 End
 
 Public Sub IsSystemDatabase(Database As String) As Boolean
-
+  
   Dim pResult As Pointer
   Dim bIsSystem As Boolean
   
@@ -499,7 +499,7 @@ Public Sub DropDatabase(Database As String)
 End
 
 Public Sub GetUsers() As String[]
-
+  
   Dim pResult As Pointer
   Dim I As Integer
   Dim aUsers As String[]
@@ -517,7 +517,7 @@ Public Sub GetUsers() As String[]
 End
 
 Public Sub CreateUser((User) As String, Password As String, Admin As Boolean)
-
+  
   Dim sQuery As String
   
   sQuery = "CREATE USER \"" & User & "\""
@@ -541,7 +541,7 @@ End
 Public Sub GetUserInfo((User) As String, ByRef Password As String, ByRef Admin As Boolean)
   
   Dim pResult As Pointer
-
+  
   pResult = Query(Subst("select usecreatedb, usesuper from pg_user where usename = '&1'", User))
   Try Admin = GetResultData(pResult, 0, False)[1]
   FreeResult(pResult)
@@ -614,7 +614,7 @@ Public Sub CreateTable(Table As String, Fields As Field[], (Type) As String, Pri
   If PrimaryKey.Count Then 'And If Not bNoPrimaryKey Then
     sReq &= ", PRIMARY KEY (" & Me.MakeFieldList(PrimaryKey) & ")"
   Endif
-
+  
   sReq &= ")"
   
   Me.Exec(sReq)
@@ -630,17 +630,17 @@ End
 Public Sub CreateIndex(Table As String, Index As String, Fields As String[], Unique As Boolean)
   
   Dim sReq As String
-
+  
   sReq = "CREATE"
   If Unique Then sReq &= " UNIQUE"
   sReq &= " INDEX " & Me.Quote(Index) & " ON " & Me.Quote(Table, True) & " (" & Me.MakeFieldList(Fields) & ")"
   
   Me.Exec(sReq)
-
+  
 End
 
 Public Sub DropIndex((Table) As String, Index As String)
   
   Me.Exec("DROP INDEX " & Me.Quote(Index))
-
+  
 End

@@ -15,7 +15,7 @@ Private Sub IsMariaDB() As Boolean
 End
 
 Private Sub SearchResult((Result) As Pointer, Value As String) As Variant[]
-
+  
   Dim I As Integer
   Dim vRow As Variant[]
   
@@ -47,7 +47,7 @@ Private Sub SetCharacterSet()
 End
 
 Public Sub Open(Conn As Connection) As Pointer
-
+  
   Dim pResult As Pointer
   Dim sVersion As String
   Dim I As Integer
@@ -61,7 +61,7 @@ Public Sub Open(Conn As Connection) As Pointer
   FreeResult(pResult)
   
   Me.FullVersion = sVersion
-
+  
   For I = 1 To Len(sVersion)
     If IsDigit(Mid$(sVersion, I, 1)) Then
       sVersion = Mid$(sVersion, I)
@@ -71,11 +71,11 @@ Public Sub Open(Conn As Connection) As Pointer
   
   iPos = InStr(sVersion, " ")
   If iPos > 0 Then sVersion = Left(sVersion, iPos - 1)
-
+  
   aVersion = Split(sVersion, ".")
   Me.Version = CInt(aVersion[0]) * 10000 + CInt(aVersion[1]) * 100
   Try Me.Version += CInt(aVersion[2])
-
+  
   If IsMariaDB() Then
     Me.NoReturning = Me.Version >= 100500
   Else
@@ -91,7 +91,7 @@ Public Sub Open(Conn As Connection) As Pointer
 End
 
 Public Sub Close()
-
+  
   _MySqlHelper.Close($pHandle)
   
 End
@@ -99,24 +99,25 @@ End
 Public Sub Format(Value As Variant, Optional (Blob) As Boolean) As String
   
   Select Case TypeOf(Value)
-    
+      
     Case gb.Boolean
       
       Return If(Value, "'1'", "'0'")
-    
+      
     Case gb.String
       
       Return _MySqlHelper.QuoteString(Value)
-    
+      
     Case gb.Date
       
       Return Format(CDate(Value), "'yyyy-mm-dd hh:nn:ss.uuu'")
-    
+      
     Case Else
       
       Return Super.Format(Value)
-
+      
   End Select
+  
 End
 
 Public Sub GetError() As Integer
@@ -132,7 +133,7 @@ Public Sub Query(Request As String) As Pointer
 End
 
 Public Sub FreeResult((Result) As Pointer)
-
+  
   _MySqlHelper.FreeResult(Result)
   
 End
@@ -162,11 +163,11 @@ End
 Public Sub GetResultBlob((Result) As Pointer, Index As Integer, Field As Integer) As String 
   
   Return _MySqlHelper.GetResultBlob(Result, Index, Field)
-
+  
 End
 
 Public Sub GetTables() As String[]
-
+  
   Dim pResult As Pointer
   Dim I As Integer
   Dim aTables As String[]
@@ -182,16 +183,16 @@ Public Sub GetTables() As String[]
 End
 
 Public Sub IsSystemTable((Table) As String) As Boolean
-
+  
   Dim sDatabase As String
-
+  
   sDatabase = Me.Connection.Name
   If Not sDatabase Or If IsSystemDatabase(sDatabase) Then Return True
-
+  
 End
 
 Public Sub GetTableType(Table As String) As String
-
+  
   Dim pResult As Pointer
   Dim vRow As Variant[]
   Dim sType As String
@@ -221,22 +222,22 @@ Public Sub GetTableFields(Table As String) As String[]
   Dim pResult As Pointer
   
   pResult = Query("SHOW FULL COLUMNS FROM " & Me.Quote(Table, True))
-
+  
   aFields = New String[]
   For I = 0 To GetResultCount(pResult) - 1
     aFields.Add(GetResultData(pResult, I, True)[0])
   Next
-
+  
   FreeResult(pResult)
   Return aFields
-
+  
 End
 
 Public Sub GetTableFieldInfo(Table As String, Field As String, ByRef Type As Integer, ByRef Length As Integer, ByRef {Default} As Variant, ByRef Collation As String)
-
+  
   Dim pResult As Pointer
   Dim I As Integer
-
+  
   pResult = Query("SHOW FULL COLUMNS FROM " & Me.Quote(Table))
   
   For I = 0 To GetResultCount(pResult) - 1
@@ -249,18 +250,18 @@ Public Sub GetTableFieldInfo(Table As String, Field As String, ByRef Type As Int
       Break
     Endif
   Next
-
+  
   FreeResult(pResult)
   
 End
 
 Public Sub GetTableIndexes(Table As String) As String[]
-
+  
   Dim pResult As Pointer
   Dim aIndexes As String[]
   Dim I As Integer
   Dim vRow As Variant[]
-
+  
   pResult = Query("SHOW INDEX FROM " & Me.Quote(Table, True))
   
   aIndexes = New String[]
@@ -272,15 +273,15 @@ Public Sub GetTableIndexes(Table As String) As String[]
   
   FreeResult(pResult)
   Return aIndexes
-
+  
 End
 
 Public Sub GetTableIndexInfo(Table As String, Index As String, ByRef Fields As String[], ByRef Unique As Boolean, ByRef Primary As Boolean)
-
+  
   Dim pResult As Pointer
   Dim I, N As Integer
   Dim vRow As Variant[]
-
+  
   pResult = Query("SHOW INDEX FROM " & Me.Quote(Table, True))
   
   N = GetResultCount(pResult)
@@ -292,7 +293,7 @@ Public Sub GetTableIndexInfo(Table As String, Index As String, ByRef Fields As S
       
       Unique = vRow[1] = 0
       Primary = vRow[2] = "PRIMARY"
-  
+      
       Fields = New String[]
       Do
         Fields.Add(vRow[4])
@@ -302,16 +303,16 @@ Public Sub GetTableIndexInfo(Table As String, Index As String, ByRef Fields As S
         If vRow[2] <> Index Then Break
       Loop
       Break
-  
+      
     Endif
   Next
   
   FreeResult(pResult)
-
+  
 End
 
 Public Sub GetTablePrimaryKey(Table As String) As String[]
-
+  
   Dim bPrimary As Boolean
   Dim bUnique As Boolean
   Dim aFields As String[]
@@ -322,7 +323,7 @@ Public Sub GetTablePrimaryKey(Table As String) As String[]
 End
 
 Public Sub GetCollations() As String[]
-
+  
   Dim I As Integer
   Dim aCollations As String[]
   Dim pResult As Pointer
@@ -340,7 +341,7 @@ Public Sub GetCollations() As String[]
 End
 
 Public Sub GetLastInsertId() As Long
-
+  
   Dim pResult As Pointer
   Dim iLastInsertId As Long
   
@@ -370,7 +371,7 @@ Public Sub Rollback()
 End
 
 Public Sub GetDatabases() As String[]
-
+  
   Dim pResult As Pointer
   Dim I As Integer
   Dim aDatabases As String[]
@@ -406,7 +407,7 @@ Public Sub DropDatabase(Database As String)
 End
 
 Public Sub GetUsers() As String[]
-
+  
   Dim aUsers As String[]
   Dim pResult As Pointer
   Dim I As Integer
@@ -428,9 +429,9 @@ End
 Public Sub CreateUser((User) As String, Password As String, Admin As Boolean)
   
   Dim sReq As String
-
+  
   If InStr(User, "@") = 0 Then User &= "@localhost"
-
+  
   sReq = "GRANT"
   
   If Admin Then 
@@ -440,19 +441,19 @@ Public Sub CreateUser((User) As String, Password As String, Admin As Boolean)
   Endif
   
   sReq &= " " & User
-
+  
   If Password Then sReq &= " IDENTIFIED BY " & Me.Format(Password)
   
   If Admin Then sReq &= " WITH GRANT OPTION"
   
   Me.Exec(sReq)
-
+  
 End
 
 Private Sub GetUserHost(ByRef sUser As String, ByRef sHost As String)
-
+  
   Dim iPos As Integer
-
+  
   iPos = InStr(sUser, "@")
   If iPos Then 
     sHost = Mid$(sUser, iPos + 1)
@@ -460,12 +461,11 @@ Private Sub GetUserHost(ByRef sUser As String, ByRef sHost As String)
   Else 
     sHost = "localhost"
   Endif
-
+  
 End
 
-
 Public Sub DropUser((User) As String)
-
+  
   Dim sHost As String
   
   GetUserHost(ByRef User, ByRef sHost)
@@ -474,7 +474,7 @@ Public Sub DropUser((User) As String)
 End
 
 Public Sub GetUserInfo((User) As String, ByRef Password As String, ByRef Admin As Boolean)
-
+  
   Dim pResult As Pointer
   Dim sHost As String
   Dim vRow As Variant[]
@@ -501,7 +501,7 @@ Public Sub SetUserPassword((User) As String, Password As String)
 End
 
 Public Sub CreateTable(Table As String, Fields As Field[], Type As String, PrimaryKey As String[])
-
+  
   Dim sReq As String
   Dim hField As Field
   Dim bComma As Boolean
@@ -510,7 +510,7 @@ Public Sub CreateTable(Table As String, Fields As Field[], Type As String, Prima
   Dim sField As String
   
   If Me.Version < 40100 And If Type = "MEMORY" Then Type = "HEAP"
-
+  
   sReq = "CREATE TABLE " & Me.Quote(Table, True) & " ( "
   
   For Each hField In Fields
@@ -565,11 +565,11 @@ Public Sub CreateTable(Table As String, Fields As Field[], Type As String, Prima
     Endif
     
   Next
-
+  
   If PrimaryKey.Count Then
-
+    
     sReq &= ", PRIMARY KEY (" 
-
+    
     bComma = False
     For Each sField In PrimaryKey
       If bComma Then 
@@ -592,7 +592,7 @@ Public Sub CreateTable(Table As String, Fields As Field[], Type As String, Prima
   Endif
   
   sReq &= ")"
-
+  
   If Type Then 
     If Me.Version < 40018 Then
       sReq &= " TYPE = "
@@ -601,7 +601,7 @@ Public Sub CreateTable(Table As String, Fields As Field[], Type As String, Prima
     Endif
     sReq &= Type
   Endif
-
+  
   Me.Exec(sReq)
   
 End
@@ -615,13 +615,13 @@ End
 Public Sub CreateIndex(Table As String, Index As String, Fields As String[], Unique As Boolean)
   
   Dim sReq As String
-
+  
   sReq = "CREATE"
   If Unique Then sReq &= " UNIQUE"
   sReq &= " INDEX " & Me.Quote(Index) & " ON " & Me.Quote(Table, True) & " (" & Me.MakeFieldList(Fields) & ")"
   
   Me.Exec(sReq)
-
+  
 End
 
 Public Sub DropIndex(Table As String, Index As String)
