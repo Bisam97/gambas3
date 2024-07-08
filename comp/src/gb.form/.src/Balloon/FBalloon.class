@@ -15,6 +15,7 @@ Private $DY As Integer
 Private $AH As Integer
 Private $iAlign As Integer
 Private $hIcon As Picture
+Private $hWatcher As Watcher
 
 Private Sub GetTopLevel(hCtrl As Control) As Window
   
@@ -68,18 +69,23 @@ Public Sub Run(sMsg As String, hCtrl As Control, hIcon As Picture, DX As Integer
   Y = $hCtrl.ScreenY + $DY - H
   $iAlign = Align.Top
   
-  If X + W > hScreen.W Then X = hScreen.W - W
-  If Y < 0 Then 
+  If X < hScreen.AvailableX Then X = hScreen.AvailableX
+  If X + W > (hScreen.AvailableX + hScreen.AvailableWidth) Then X = hScreen.AvailableX + hScreen.AvailableWidth - W
+  If Y < hScreen.AvailableY Then 
     Y = $hCtrl.ScreenY + $DY
     $iAlign = Align.Bottom
   Endif
   
   Me.Resize(W, H)
   
+  $hWatcher = New Watcher($hCtrl) As "Watcher"
+  
   timClose.Delay = $iDelay
   timClose.Start
   
   Me.ShowPopup(X, Y)
+  
+  $hWatcher = Null
   $hCtrl.SetFocus
   
 End
@@ -124,6 +130,7 @@ Public Sub dwgBorder_Draw()
   Endif
   
   XA = $hCtrl.ScreenX + $hCtrl.W \ 2 - Me.ScreenX
+  XA = Min(Max(XA, DS * 2), Paint.W - $AH - DS * 2)
   
   Paint.Background = Color.TooltipBackground
   
@@ -198,4 +205,16 @@ Public Sub Form_KeyPress()
   Me.Close
   Stop Event
 
+End
+
+Public Sub Watcher_Move()
+  
+  Me.Close
+  
+End
+
+Public Sub Watcher_Resize()
+  
+  Me.Close
+  
 End
