@@ -3,3 +3,167 @@
 Export
 
 Inherits _DatabaseDriver
+
+Private $pHandle As Pointer
+
+Public Sub Open(Conn As Connection) As Pointer
+  
+  $pHandle = _OdbcHelper.Open(Conn.Host, Conn.Port, Conn.Name, Conn.User, Conn.Password, Conn.Timeout, Conn.Options)
+
+  Me.Version = 3
+  Me.FullVersion = "3"
+  
+  Me.NoTableType = True
+  Me.NoResultSeek = _OdbcHelper.CanFetchScroll($pHandle)
+  Me.NoSerial = True
+  Me.NoCollation = True
+  
+  Return $pHandle
+  
+End
+
+Public Sub Close()
+  
+  _OdbcHelper.Close($pHandle)
+  
+End
+
+Public Sub Format(Value As Variant, Optional (Blob) As Boolean) As String
+  
+End
+
+Public Sub GetError() As Integer
+  
+End
+
+Public Sub Query(Request As String) As Pointer
+  
+End
+
+Public Sub FreeResult(Result As Pointer)
+  
+End
+
+Public Sub GetResultCount(Result As Pointer) As Integer
+  
+End
+
+Public Sub GetResultField(Result As Pointer, Field As Integer, ByRef Name As String, ByRef Type As Integer, ByRef Length As Integer) As Boolean
+  
+End
+
+Public Sub GetResultData(Result As Pointer, Index As Integer, Next As Boolean) As Variant[]
+  
+End
+
+Public Sub GetResultBlob(Result As Pointer, Index As Integer, Field As Integer) As String 
+  
+End
+
+Public Sub GetTables() As String[]
+  
+End
+
+Public Sub IsSystemTable(Table As String) As Boolean
+
+End
+
+Public Sub GetTableType(Table As String) As String
+  
+End
+
+Public Sub SetTableType(Table As String, Type As String)
+  
+End
+
+Public Sub GetTableFields(Table As String) As String[]
+  
+End
+
+Public Sub GetTableFieldInfo(Table As String, Field As String, ByRef Type As Integer, ByRef Length As Integer, ByRef {Default} As Variant, ByRef Collation As String)
+  
+End
+
+Public Sub GetTableIndexes(Table As String) As String[]
+  
+End
+
+Public Sub GetTableIndexInfo(Table As String, Index As String, ByRef Fields As String[], ByRef Unique As Boolean, ByRef Primary As Boolean)
+
+End
+
+Public Sub GetTablePrimaryKey(Table As String) As String[]
+  
+End
+
+Public Sub GetCollations() As String[]
+  
+End
+
+Public Sub GetLastInsertId() As Long
+  
+End
+
+Public Sub Begin()
+  
+End
+
+Public Sub Commit()
+  
+End
+
+Public Sub Rollback()
+  
+End
+
+Public Sub GetDatabases() As String[]
+  
+End
+
+Public Sub IsSystemDatabase(Database As String) As Boolean
+  
+End
+
+Public Sub CreateDatabase(Database As String)
+  
+End
+
+Public Sub DropDatabase(Database As String)
+  
+End
+
+Public Sub GetUsers() As String[]
+  
+End
+
+Public Sub CreateUser(User As String, Password As String, Admin As Boolean)
+  
+End
+
+Public Sub DropUser(User As String)
+  
+End
+
+Public Sub GetUserInfo(User As String, ByRef Password As String, ByRef Admin As Boolean)
+  
+End
+
+Public Sub SetUserPassword(User As String, Password As String)
+  
+End
+
+Public Sub CreateTable(Table As String, Fields As Field[], Type As String, PrimaryKey As String[])
+  
+End
+
+Public Sub DropTable(Table As String)
+  
+End
+
+Public Sub CreateIndex(Table As String, Index As String, Fields As String[], Unique As Boolean)
+  
+End
+
+Public Sub DropIndex(Table As String, Index As String)
+  
+End
