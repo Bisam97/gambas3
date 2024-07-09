@@ -11,8 +11,9 @@ LT_INIT
 
 dnl ---- ODBC driver
 
-GB_COMPONENT(
+GB_COMPONENT_SEARCH(
   odbc, ODBC, gb.db2.odbc, [src],
+  odbc, 
   [GB_FIND(sql.h sqlext.h sqltypes.h, $prefix /usr/local/lib /usr/local /opt /usr/lib /usr, include odbc*/include)],
   [GB_FIND(libodbc.$SHLIBEXT, $prefix /usr/local /opt /usr /opt/local, lib odbc*/lib )],
   [$C_LIB -lodbc])
