@@ -135,18 +135,21 @@ End
 
 Private Function Charset_Read() As String
 
+  CheckOpen()
   Return $hDriver.Charset
 
 End
 
 Private Function Version_Read() As Integer
 
+  CheckOpen()
   Return $hDriver.Version
 
 End
 
 Private Function FullVersion_Read() As String
 
+  CheckOpen()
   Return $hDriver.FullVersion
 
 End
@@ -159,12 +162,14 @@ End
 
 Private Function Error_Read() As Integer
 
+  CheckOpen()
   Return $hDriver.GetError()
 
 End
 
 Private Function Collations_Read() As String[]
 
+  CheckOpen()
   If $hDriver.NoCollation Then Return
   Return $hDriver.GetCollations()
 
@@ -172,6 +177,7 @@ End
 
 Private Function LastInsertId_Read() As Long
 
+  CheckOpen()
   Return $hDriver.GetLastInsertId()
 
 End
@@ -192,6 +198,12 @@ Public Sub Open()
   
 End
 
+Private Sub CheckOpen()
+  
+  If Not $hDriver Or If Not $pHandle Then Error.Raise("Connection is not opened")
+  
+End
+
 Public Sub Close()
   
   If Not $hDriver Then Return
@@ -204,6 +216,8 @@ Public Sub Subst(Format As String, ...) As String
   Dim I As Integer
   Dim aArg As String[]
 
+  CheckOpen()
+  
   If Param.Count = 0 Then Return Format
 
   aArg = New String[Param.Count]
@@ -244,6 +258,8 @@ Public Sub Exec(Request As String, ...) As Result
   Dim pHandle As Pointer
   Dim hResult As Result
   
+  CheckOpen()
+  
   pHandle = $hDriver.Query(GetQuery(Me.Subst(Request, ...)))
   
   hResult = New Result
@@ -254,8 +270,12 @@ End
 
 Public Sub Quote(Name As String, Optional Table As Boolean) As String
   
-  Dim sQuote As String = $hDriver.QuoteCharacter
+  Dim sQuote As String
   Dim iPos As Integer
+  
+  CheckOpen()
+  
+  sQuote = $hDriver.QuoteCharacter
   
   If Table Then
     
@@ -269,6 +289,8 @@ Public Sub Quote(Name As String, Optional Table As Boolean) As String
 End
 
 Private Function Tables_Read() As _ConnectionTables
+
+  CheckOpen()
 
   If Not $hTables Then 
     $hTables = New _ConnectionTables
@@ -284,6 +306,8 @@ Public Sub Create(Table As String, Optional {Return} As Boolean, IfNotExist As B
 
   Dim hResult As Result
   
+  CheckOpen()
+
   If Not Table Then Error.Raise("Void table name")
   
   hResult = New Result
@@ -294,7 +318,11 @@ End
 
 Public Sub Find(Table As String, Optional Request As String, ...) As Result
   
-  Dim sReq As String = "SELECT * FROM " & Me.Quote(Table, True)
+  Dim sReq As String
+  
+  CheckOpen()
+
+  sReq = "SELECT * FROM " & Me.Quote(Table, True)
   
   If Request Then 
     sReq &= " "
@@ -308,9 +336,13 @@ End
 
 Public Sub Edit(Table As String, Optional Request As String, ...) As Result
   
-  Dim sReq As String = "SELECT * FROM " & Me.Quote(Table, True)
   Dim hResult As Result
   Dim pHandle As Pointer
+  Dim sReq As String
+  
+  CheckOpen()
+
+  sReq = "SELECT * FROM " & Me.Quote(Table, True)
   
   If Request Then 
     sReq &= " "
@@ -327,7 +359,11 @@ End
 
 Public Sub Delete(Table As String, Optional Request As String, ...)
   
-  Dim sReq As String = "DELETE * FROM " & Me.Quote(Table, True)
+  Dim sReq As String
+  
+  CheckOpen()
+
+  sReq = "DELETE * FROM " & Me.Quote(Table, True)
   
   If Request Then 
     sReq &= " "
@@ -341,6 +377,7 @@ End
 
 Public Sub Begin()
   
+  CheckOpen()
   If $iTrans = 0 Or If Not $hDriver.NoTransactionNest Then $hDriver.Begin()
   Inc $iTrans
   
@@ -348,6 +385,7 @@ End
 
 Public Sub Commit()
   
+  CheckOpen()
   Dec $iTrans
   If $iTrans = 0 Or If Not $hDriver.NoTransactionNest Then $hDriver.Commit()
   
@@ -355,6 +393,7 @@ End
 
 Public Sub Rollback()
   
+  CheckOpen()
   Dec $iTrans
   If $iTrans = 0 Or If Not $hDriver.NoTransactionNest Then $hDriver.Rollback()
   
@@ -376,6 +415,8 @@ End
 
 Private Function Databases_Read() As _ConnectionDatabases
 
+  CheckOpen()
+
   If Not $hDatabases Then 
     $hDatabases = New _ConnectionDatabases
     $hDatabases._Driver = $hDriver
@@ -388,6 +429,8 @@ End
 
 Private Function Users_Read() As _ConnectionUsers
 
+  CheckOpen()
+  
   If Not $hUsers Then 
     $hUsers = New _ConnectionUsers
     $hUsers._Driver = $hDriver

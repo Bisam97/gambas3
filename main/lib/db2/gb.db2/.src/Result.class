@@ -27,47 +27,12 @@ Private $aLengths As Integer[]
 Private $cIsBlob As Collection
 
 Private $sTable As String
-Private $bReturning As Boolean
 Private $bNotExist As Boolean
 Private $aKey As String[]
 Private $hDeleteMap As New DeleteMap
 
-' GB_DESC CResultDesc[] =
-' {
-'   GB_DECLARE("Result", sizeof(CRESULT)), GB_NOT_CREATABLE(),
-' 
-'   GB_HOOK_CHECK(check_result),
-' 
-'   GB_METHOD("_free", NULL, Result_free, NULL),
-' 
-'   GB_PROPERTY_READ("Count", "i", Result_Count),
-'   GB_PROPERTY_READ("Length", "i", Result_Count),
-'   GB_PROPERTY_READ("Available", "b", Result_Available),
-'   GB_PROPERTY_READ("Index", "i", Result_Index),
-'   GB_PROPERTY_READ("Max", "i", Result_Max),
-'   GB_PROPERTY_READ("Editable", "b", Result_Editable),
-' 
-'   GB_METHOD("_get", "v", Result_get, "(Field)s"),
-'   GB_METHOD("_put", NULL, Result_put, "(Value)v(Field)s"),
-'   GB_METHOD("_next", NULL, Result_next, NULL),
-' 
-'   GB_METHOD("MoveFirst", "b", Result_MoveFirst, NULL),
-'   GB_METHOD("MoveLast", "b", Result_MoveLast, NULL),
-'   GB_METHOD("MovePrevious", "b", Result_MovePrevious, NULL),
-'   GB_METHOD("MoveNext", "b", Result_MoveNext, NULL),
-'   GB_METHOD("MoveTo", "b", Result_MoveTo, "(Index)i"),
-' 
-'   GB_METHOD("Update", NULL, Result_Update, NULL),
-'   GB_METHOD("Delete", NULL, Result_Delete, "[(Keep)b]"),
-'   
-'   GB_METHOD("All", "Array", Result_GetAll, "(Field)s"),
-'   
-'   GB_PROPERTY_READ("Fields", ".Result.Fields", Result_Fields),
-'   GB_PROPERTY_READ("Connection", "Connection", Result_Connection),
-' 
-'   GB_END_DECLARE
-' };
-' 
+Private $bReturning As Boolean
+Private $aReturning As String[]
 
 Public Sub _free()
   
@@ -119,6 +84,7 @@ End
 Public Sub _Create(hDriver As _DatabaseDriver, sTable As String, bReturning As Boolean, bNotExist As Boolean)
   
   Dim hField As Field
+  Dim hConn As Connection
   
   $iMode = MODE_CREATE
   $hDriver = hDriver
@@ -135,15 +101,25 @@ Public Sub _Create(hDriver As _DatabaseDriver, sTable As String, bReturning As B
     Error.Raise("INSERT cannot ignore already existing rows for this connection")
   Endif
   
-  $bReturning = bReturning
-  $bNotExist = bNotExist
+  hConn = Me.Connection
   
   If $hDriver.MustQuoteBlob Then
     $cIsBlob = New Collection
-    For Each hField In Me.Connection.Tables[sTable].Fields
+    For Each hField In hConn.Tables[sTable].Fields
       If hField.Type = db.Blob Then $cIsBlob[hField.Name] = True
     Next
   Endif
+  
+  If bReturning Then
+    $aReturning = New String[]
+    For Each hField In hConn.Tables[sTable].Fields
+      If hField.Type = db.Serial Then $aReturning.Add(hField.Name)
+    Next
+    If $aReturning.Count = 0 Then bReturning = False
+  Endif
+  
+  $bReturning = bReturning
+  $bNotExist = bNotExist
   
 End
 
@@ -246,6 +222,7 @@ Public Sub _get(Field As String) As Variant
   CheckAvailable()
   
   If $cBuffer And If $cBuffer.Exist(Field) Then Return $cBuffer[Field]
+  If $iMode = MODE_CREATE Then Return Null
   
   If $vBuffer Then
   
@@ -331,6 +308,9 @@ Public Sub Update()
   Dim vVal As Variant
   Dim pResult As Pointer
   Dim bBlob As Boolean
+  Dim vReturn As Variant[]
+  Dim I As Integer
+  Dim hConn As Connection
   
   CheckAvailable()
 
@@ -352,8 +332,6 @@ Public Sub Update()
         
         sReq &= " ) VALUES ( "
         
-        ' TODO: Manage blob fields that have special quoting on Postgresql
-        
         For Each vVal In $cBuffer
           
           If Not bComma Then
@@ -373,142 +351,39 @@ Public Sub Update()
       
       If $bNotExist And If $hDriver.InsertIfNotExist = _DatabaseDriver.IGNORE_ON_CONFLICT Then sReq &= " ON CONFLICT DO NOTHING"
       
-    '       if (BARRAY_is_void(THIS->changed, THIS->info.nfield))
-    '         break;
-    '       
-    '       if (THIS->if_not_exist && THIS->conn->db.flags.if_not_exist == DB_IGNORE_INSERT)
-    '         q_add("INSERT IGNORE INTO ");
-    '       else
-    '         q_add("INSERT INTO ");
-    '       q_add(DB_GetQuotedTable(THIS->driver, DB_CurrentDatabase, info->table, -1));
-    '       q_add(" ( ");
-    '       
-    '       comma = FALSE;
-    '       for (i = 0; i < info->nfield; i++)
-    '       {
-    '         if (THIS->buffer[i].type == GB_T_NULL)
-    '           continue;
-    '         if (!BARRAY_test(THIS->changed, i))
-    '           continue;
-    '         if (comma) q_add(", ");
-    '         q_add(THIS->driver->GetQuote());
-    '         q_add(info->field[i].name);
-    '         q_add(THIS->driver->GetQuote());
-    '         comma = TRUE;
-    '       }
-    '       
-    '       if (!comma)
-    '       {
-    '         q_add(THIS->driver->GetQuote());
-    '         q_add(info->field[0].name);
-    '         q_add(THIS->driver->GetQuote());
-    '       }
-    ' 
-    '       q_add(" ) VALUES ( ");
-    ' 
-    '       comma = FALSE;
-    '       for (i = 0; i < info->nfield; i++)
-    '       {
-    '         if (THIS->buffer[i].type == GB_T_NULL)
-    '           continue;
-    '         if (!BARRAY_test(THIS->changed, i))
-    '           continue;
-    '         if (comma) q_add(", ");
-    '         DB_FormatVariant(THIS->driver, &THIS->buffer[i], q_add_length);
-    '         comma = TRUE;
-    '       }
-    '       
-    '       if (!comma)
-    '       {
-    '         DB_FormatVariant(THIS->driver, &THIS->buffer[0], q_add_length);
-    '       }
-    ' 
-    '       q_add(" )");
-    ' 
-    '       if (THIS->if_not_exist && THIS->conn->db.flags.if_not_exist == DB_IGNORE_ON_CONFLICT)
-    '         q_add(" ON CONFLICT DO NOTHING");
-    ' 
-    
-    If $bReturning Then
-    
-      Try pResult = $hDriver.Query(sReq)
-      If Error Then Error.Raise("Cannot create record: " & Error.Text)
+      If $bReturning Then
       
-      $hDriver.FreeResult(pResult)
+        hConn = Me.Connection
+        
+        sReq &= " RETURNING " & hConn.Quote($aReturning[0])
+        
+        For I = 1 To $aReturning.Max
+          sReq &= ", " & hConn.Quote($aReturning[I])
+        Next
       
-    Else
-    
-      Try $hDriver.Exec(sReq)
-      If Error Then Error.Raise("Cannot create record: " & Error.Text)
-      $cBuffer.Clear
-    
-    Endif
-    
-    ' TODO: Returning
-    
-    '       if (THIS->returning)
-    '       {
-    '         comma = FALSE;
-    '         for (i = 0; i < info->nfield; i++)
-    '         {
-    '           if (info->field[i].type == DB_T_SERIAL)
-    '           {
-    '             ret_count++;
-    '             if (comma)
-    '               q_add(", ");
-    '             else
-    '             {
-    '               q_add(" RETURNING ");
-    '               ret_first = i;
-    '             }
-    '             q_add(THIS->driver->GetQuote());
-    '             q_add(info->field[i].name);
-    '             q_add(THIS->driver->GetQuote());
-    '             comma = TRUE;
-    '           }
-    '         }
-    ' 
-    '         GB.Alloc(POINTER(&ret_buffer), sizeof(GB_VARIANT_VALUE) * ret_count);
-    '         for (i = 0; i < ret_count; i++)
-    '           ret_buffer[i].type = GB_T_NULL;
-    '       }
-    ' 
-    '       if (ret_count)
-    '         err = THIS->driver->Exec(&THIS->conn->db, q_get(), &res, "Cannot create record: &1");
-    '       else
-    '         err = THIS->driver->Exec(&THIS->conn->db, q_get(), NULL, "Cannot create record: &1");
-    ' 
-    '       if (!err)
-    '       {
-    '         if (!THIS->returning)
-    '           void_buffer(THIS);
-    '         else if (ret_count)
-    '         {
-    '           if (THIS->driver->Result.Fill(&THIS->conn->db, res, 0, ret_buffer, FALSE) == DB_OK)
-    '           {
-    '             THIS->buffer[ret_first] = ret_buffer[0];
-    '             for (i = ret_first + 1, j = 1; i < info->nfield; i++)
-    '             {
-    '               if (info->field[i].type == DB_T_SERIAL)
-    '                 THIS->buffer[i] = ret_buffer[j++];
-    '             }
-    '           }
-    ' 
-    '           THIS->driver->Result.Release(res, NULL, FALSE);
-    '         }
-    '       }
-    ' 
-    '       GB.Free(POINTER(&ret_buffer));
-    ' 
-    '       break;
+        Try pResult = $hDriver.Query(sReq)
+        If Error Then Error.Raise("Cannot create record: " & Error.Text)
+        
+        vReturn = $hDriver.GetResultData(pResult, 0, False)
+        For I = 0 To $aReturning.Max
+          $cBuffer[$aReturning[I]] = vReturn[I]
+        Next
+        
+        $hDriver.FreeResult(pResult)
+        
+      Else
+      
+        Try $hDriver.Exec(sReq)
+        If Error Then Error.Raise("Cannot create record: " & Error.Text)
+        $cBuffer.Clear
+      
+      Endif
     
     Case MODE_EDIT
       
       If $cBuffer.Count = 0 Then Return
       
       sReq = "UPDATE " & Me.Connection.Quote($sTable, True) & " SET "
-      
-      ' TODO: Manage blob fields
       
       For Each vVal In $cBuffer
         
@@ -529,35 +404,6 @@ Public Sub Update()
       Try $hDriver.Exec(sReq)
       If Error Then Error.Raise("Cannot modify record: " & Error.Text)
       
-      '       if (BARRAY_is_void(THIS->changed, THIS->info.nfield))
-      '         break;
-      '       
-      '       q_add("UPDATE ");
-      '       q_add(DB_GetQuotedTable(THIS->driver, DB_CurrentDatabase, info->table, -1));
-      '       q_add(" SET ");
-      ' 
-      '       comma = FALSE;
-      '       for (i = 0; i < info->nfield; i++)
-      '       {
-      '         if (!BARRAY_test(THIS->changed, i))
-      '           continue;
-      '         if (comma) q_add(", ");
-      '         q_add(THIS->driver->GetQuote());
-      '         q_add(THIS->info.field[i].name);
-      '         q_add(THIS->driver->GetQuote());
-      '         q_add(" = ");
-      '         DB_FormatVariant(THIS->driver, &THIS->buffer[i], q_add_length);
-      '         comma = TRUE;
-      '       }
-      ' 
-      '       q_add(" WHERE ");
-      '       q_add(THIS->edit);
-      ' 
-      '       THIS->driver->Exec(&THIS->conn->db, q_get(), NULL, "Cannot modify record: &1");
-      ' 
-      '       break;
-      
-    
     Case Else 
       
       Error.Raise("Read-only result")
@@ -671,6 +517,20 @@ Public Sub Delete(Optional Keep As Boolean)
       
     Case Else
       
+      Error.Raise("Read-only result")
+    
+  End Select
+  
+End
+
+Public Sub Reset()
+  
+  Select Case $iMode
+    
+    Case MODE_CREATE, MODE_EDIT
+      $cBuffer.Clear
+      
+    Case Else
       Error.Raise("Read-only result")
     
   End Select
