@@ -274,22 +274,30 @@ Private Sub Escape(hView As TerminalView, hScreen As TerminalScreen, hOutput As 
                 Case 2
                   hAttr.Dim = True
                 Case 4
-                  hAttr.Underscore = True
+                  hAttr.Underline = True
                 Case 5
                   hAttr.Blink = True
+                Case 6
+                  hAttr.FastBlink = True
                 Case 7
                   hAttr.Reverse = True
+                Case 9
+                  hAttr.Strike = True
                 Case 21
-                  ' double underline
+                  hAttr.DoubleUnderline = True
                 Case 22
                   hAttr.Dim = False
                   hAttr.Bold = False
                 Case 24
-                  hAttr.Underscore = False
+                  hAttr.Underline = False
+                  hAttr.DoubleUnderline = False
                 Case 25
                   hAttr.Blink = False
+                  hAttr.FastBlink = False
                 Case 27
                   hAttr.Reverse = False
+                Case 29
+                  hAttr.Strike = False
                 Case 38
                   If (aArg.max - I) >= 2 And If aArg[I + 1] = "5" Then
                     Try hAttr.Foreground = CInt(aArg[I + 2])
@@ -329,8 +337,6 @@ Private Sub Escape(hView As TerminalView, hScreen As TerminalScreen, hOutput As 
                   
                 Case 3
                   ' Italic on
-                Case 6
-                  ' Fast blink on
                 Case 20
                   ' Fraktur on
                 Case 23

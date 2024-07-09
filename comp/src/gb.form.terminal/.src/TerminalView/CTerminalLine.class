@@ -6,6 +6,7 @@ Public Text As String
 Public Length As Integer
 
 Private Attr As New Long[]
+Private AttrLen As New Byte[]
 
 Public NewLine As Boolean = True
 
@@ -21,8 +22,7 @@ Private Sub Uncompress()
 
   For I = 0 To Attr.Max
     iAttr = Attr[I]
-    iCount = (Lsr(iAttr, 9) And 127) + 1
-    iAttr = iAttr And &HFFFFFFFFFFFF01FF
+    iCount = AttrLen[I] + 1 '(Lsr(iAttr, 9) And 127) + 1
     aTemp = New Long[iCount]
     aTemp.Fill(iAttr)
     aAttr.Insert(aTemp)
@@ -31,6 +31,7 @@ Private Sub Uncompress()
   'If aAttr.Count > Length Then Stop
   
   Attr = aAttr
+  AttrLen = Null
   $bCompressed = False
 
 End
@@ -42,37 +43,47 @@ Private Sub Compress(bFull As Boolean)
   Dim iOldAttr As Long
   Dim iCount As Integer
   Dim aAttr As New Long[]
+  Dim aAttrLen As New Byte[]
   
   For I = 0 To Min(Length - 1, Attr.Max)
     
     iAttr = Attr[I]
-    If iAttr = iOldAttr And If iCount < 128 Then
+    If iAttr = iOldAttr And If iCount < 256 Then
       Inc iCount
       Continue
     Endif
     
     If iCount Then 
-      aAttr.Add(iOldAttr Or Lsl(iCount - 1, 9))
+      aAttr.Add(iOldAttr)
+      aAttrLen.Add(iCount - 1)
     Endif
     iCount = 1
     iOldAttr = iAttr
     
   Next
   
-  If iCount Then aAttr.Add(iOldAttr Or Lsl(iCount - 1, 9))
+  If iCount Then 
+    aAttr.Add(iOldAttr)
+    aAttrLen.Add(iCount - 1)
+  Endif
   
   If bFull And If Attr.Count < Length Then
     iCount = Length - Attr.Count
-    While iCount > 128
-      aAttr.Add(Lsl(127, 9))
-      iCount -= 128
+    While iCount >= 256
+      aAttr.Add(0)
+      aAttrLen.Add(255)
+      iCount -= 256
     Wend
-    aAttr.Add(Lsl(iCount - 1, 9))
+    If iCount Then
+      aAttr.Add(0)
+      aAttrLen.Add(iCount - 1)
+    Endif
   Endif
   
   $bCompressed = True
   
   Attr = aAttr
+  AttrLen = aAttrLen
   
 End
 
@@ -119,7 +130,13 @@ Public Sub GetFullAttr() As Long[]
   
 End
 
-Public Sub InitAttr(aInit As Long[])
+Public Sub GetAttrLength() As Byte[]
+  
+  Return AttrLen
+  
+End
+
+Public Sub InitAttr(aInit As Long[], aInitLen As Byte[])
 
   Dim L As Integer
   Dim I As Integer
@@ -137,9 +154,8 @@ Public Sub InitAttr(aInit As Long[])
     If L = 0 Then Break
     
     iAttr = aInit[0]
-    iCount = (Lsr(iAttr, 9) And 127) + 1
+    iCount = aInitLen[0] + 1
     C = Min(L, iCount)
-    iAttr = iAttr And &HFFFFFFFFFFFF01FF
     aTemp = New Long[C]
     aTemp.Fill(iAttr)
     aAttr.Insert(aTemp)
@@ -147,9 +163,9 @@ Public Sub InitAttr(aInit As Long[])
     L -= C
     If C = iCount Then
       aInit.Remove(0)
+      aInitLen.Remove(0)
     Else
-      iCount -= C
-      aInit[0] = iAttr Or Lsl(iCount - 1, 9)
+      aInitLen[0] -= C
     Endif
     
   Next
@@ -161,6 +177,7 @@ Public Sub InitAttr(aInit As Long[])
   If I < aAttr.Max Then aAttr.Remove(I + 1, -1)
   
   Attr = aAttr
+  AttrLen = Null
   $bCompressed = False
   
 End
@@ -172,6 +189,7 @@ Public Sub Clear()
   Length = 0
   NewLine = True
   Attr.Clear
+  AttrLen = Null
   $bCompressed = False
   
 End

@@ -136,7 +136,7 @@ Private $sBuffer As String
 Private $hOutputTimer As Timer
 
 Public _HasBlink As Boolean
-Public _Blink As Boolean
+Public _Blink As Byte
 Private $hBlinkTimer As Timer
 
 Private $bSuspend As Boolean
@@ -231,7 +231,7 @@ Public Sub _new()
   $hOutputTimer.Delay = 50
   
   $hBlinkTimer = New Timer As "BlinkTimer"
-  $hBlinkTimer.Delay = 500
+  $hBlinkTimer.Delay = 250
   
   $hResizeTimer = New Timer As "ResizeTimer"
   $hResizeTimer.Delay = 50
@@ -520,7 +520,8 @@ End
 
 Public Sub BlinkTimer_Timer()
   
-  _Blink = Not _Blink
+  Inc _Blink
+  If _Blink > 3 Then _Blink = 0
   Refresh
   
 End

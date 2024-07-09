@@ -5,7 +5,7 @@
 Export
 Fast
 
-Private Enum FLAG_BG, FLAG_FG, FLAG_BOLD, FLAG_DIM, FLAG_REV, FLAG_UND, FLAG_BLK, FLAG_BG_RGB, FLAG_FG_RGB
+Private Enum FLAG_BG, FLAG_FG, FLAG_BG_RGB, FLAG_FG_RGB, FLAG_BOLD, FLAG_DIM, FLAG_REVERSE, FLAG_UNDERLINE, FLAG_BLINK, FLAG_STRIKE, FLAG_DOUBLE_UNDERLINE, FLAG_FAST_BLINK
 
 '' Return or set the character foreground color index.
 Public Foreground As Integer = -1
@@ -19,12 +19,20 @@ Public BackgroundRGB As Integer = -1
 Public Bold As Boolean
 '' Return or set the character "dim" attribute.
 Public Dim As Boolean
-'' Return or set the character "underscore" attribute.
-Public Underscore As Boolean
+'' Return or set the character "underline" attribute.
+Public Underline As Boolean
+'' Return or set the character "double-underline" attribute.
+Public DoubleUnderline As Boolean
 '' Return or set the character "reverse" attribute.
 Public Reverse As Boolean
+'' Return or set the character "strike" attribute.
+Public Strike As Boolean
 '' Return or set the character "blink" attribute.
 Public Blink As Boolean
+'' Return or set the character "fast blink" attribute.
+Public FastBlink As Boolean
+
+Property Underscore As Boolean
 
 '' Reset the character flags.
 
@@ -36,9 +44,12 @@ Public Sub Reset()
   BackgroundRGB = -1
   Bold = False
   {Dim} = False
-  Underscore = False
+  Underline = False
+  DoubleUnderline = False
   Reverse = False
+  Strike = False
   Blink = False
+  FastBlink = False
   
 End
 
@@ -50,12 +61,12 @@ Public Sub IsVoid() As Boolean
   If Background >= 0 Then Return
   If ForegroundRGB >= 0 Then Return
   If BackgroundRGB >= 0 Then Return
-  If Bold Or If {Dim} Or If Underscore Or If Reverse Or If Blink Then Return
+  If Bold Or If {Dim} Or If Underline Or If DoubleUnderline Or If Reverse Or If Strike Or If Blink Or If FastBlink Then Return
   Return True
   
 End
 
-Public Sub _FillFrom(iAttr As Long) As Integer
+Public Sub _FillFrom(iAttr As Long)
 
   Background = Color.Default
   BackgroundRGB = Color.Default
@@ -77,11 +88,12 @@ Public Sub _FillFrom(iAttr As Long) As Integer
   
   Bold = BTst(iAttr, FLAG_BOLD)
   {Dim} = BTst(iAttr, FLAG_DIM)
-  Reverse = BTst(iAttr, FLAG_REV)
-  Underscore = BTst(iAttr, FLAG_UND)
-  Blink = BTst(iAttr, FLAG_BLK)
-  
-  Return (Lsr(iAttr, 9) And 127) + 1
+  Reverse = BTst(iAttr, FLAG_REVERSE)
+  Strike = BTst(iAttr, FLAG_STRIKE)
+  Underline = BTst(iAttr, FLAG_UNDERLINE)
+  DoubleUnderline = BTst(iAttr, FLAG_DOUBLE_UNDERLINE)
+  Blink = BTst(iAttr, FLAG_BLINK)
+  FastBlink = BTst(iAttr, FLAG_FAST_BLINK)
   
 End
 
@@ -106,10 +118,25 @@ Public Sub _ToValue() As Long
   
   If Bold Then iAttr = BSet(iAttr, FLAG_BOLD)
   If {Dim} Then iAttr = BSet(iAttr, FLAG_DIM)
-  If Reverse Then iAttr = BSet(iAttr, FLAG_REV)
-  If Underscore Then iAttr = BSet(iAttr, FLAG_UND)
-  If Blink Then iAttr = BSet(iAttr, FLAG_BLK)
+  If Reverse Then iAttr = BSet(iAttr, FLAG_REVERSE)
+  If Strike Then iAttr = BSet(iAttr, FLAG_STRIKE)
+  If Underline Then iAttr = BSet(iAttr, FLAG_UNDERLINE)
+  If DoubleUnderline Then iAttr = BSet(iAttr, FLAG_DOUBLE_UNDERLINE)
+  If Blink Then iAttr = BSet(iAttr, FLAG_BLINK)
+  If FastBlink Then iAttr = BSet(iAttr, FLAG_FAST_BLINK)
   
   Return iAttr
   
+End
+
+Private Function Underscore_Read() As Boolean
+
+  Return Underline
+
+End
+
+Private Sub Underscore_Write(Value As Boolean)
+
+  Underline = Value
+
 End

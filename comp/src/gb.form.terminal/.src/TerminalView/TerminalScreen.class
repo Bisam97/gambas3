@@ -164,6 +164,9 @@ End
 Private Sub Relayout()
 
   Dim aAttr As Long[]
+  Dim aAttrLen As Byte[]
+  Dim aAttrInsert As Long[]
+  Dim aAttrLenInsert As Byte[]
   Dim aLines As String[]
   Dim I As Integer
   Dim hLine As CTerminalLine
@@ -184,6 +187,7 @@ Private Sub Relayout()
 
   'fTimer = Timer
   aAttr = New Long[]
+  aAttrLen = New Byte[]
   aLines = New String[]
   
   D = Lines.Count - 10000
@@ -207,7 +211,13 @@ Private Sub Relayout()
     ' hLine._Dump()
     If hLine Then
       sText &= hLine.Text
-      aAttr.Insert(hLine.GetFullAttr())
+      
+      aAttrInsert = hLine.GetFullAttr()
+      aAttrLenInsert = hLine.GetAttrLength()
+      
+      aAttr.Insert(aAttrInsert)
+      aAttrLen.Insert(aAttrLenInsert)
+      
       If hLine.NewLine Then 
         aLines.Add(sText)
         sText = ""
@@ -274,7 +284,7 @@ Private Sub Relayout()
   
   For I = D To L - 1
     hLine = Lines[I]
-    If hLine Then hLine.InitAttr(aAttr)
+    If hLine Then hLine.InitAttr(aAttr, aAttrLen)
     ' Print I; " => ";
     ' Lines[I]._Dump()
   Next
@@ -989,6 +999,7 @@ Private Sub DrawLine(hView As TerminalView, L As Integer, X As Integer, Y As Int
   Dim I, J, K As Integer
   'Dim sText As String
   Dim aAttr As Long[]
+  Dim aAttrLen As Byte[]
   Dim hAttr As New TerminalAttr
   Dim iFg As Integer = hView.Foreground
   Dim iBg As Integer = hView.Background
@@ -1016,6 +1027,7 @@ Private Sub DrawLine(hView As TerminalView, L As Integer, X As Integer, Y As Int
   
   hFont = Paint.Font
   aAttr = hLine.GetAttr()
+  aAttrLen = hLine.GetAttrLength()
   
   P = 1
   
@@ -1023,15 +1035,24 @@ Private Sub DrawLine(hView As TerminalView, L As Integer, X As Integer, Y As Int
     
     If P > iMaxLen Then Break
     
-    iLen = hAttr._FillFrom(aAttr[I])
+    hAttr._FillFrom(aAttr[I])
+    iLen = aAttrLen[I] + 1
+    
     iLen = Min(iLen, iMaxLen - P + 1)
     
     iBg = hAttr.BackgroundRGB
     If iBg < 0 Then
       iBg = hAttr.Background
       If iBg >= 0 Then
-        iBg = $aColor[iBg]
-        'If bDarkBackground Then iBg = Color.Invert(iBg, True)
+        If hAttr.Bold Then
+          If iBg < 8 Then
+            iBg = $aColor[iBg + 8]
+          Else 
+            iBg = Color.Lighter($aColor[iBg])
+          Endif
+        Else
+          iBg = $aColor[iBg]
+        Endif
       Else
         iBg = hView.Background
       Endif
@@ -1041,8 +1062,15 @@ Private Sub DrawLine(hView As TerminalView, L As Integer, X As Integer, Y As Int
     If iFg < 0 Then
       iFg = hAttr.Foreground
       If iFg >= 0 Then
-        iFg = $aColor[iFg]
-        'If bDarkBackground Then iFg = Color.Invert(iFg, True)
+        If hAttr.Bold Then
+          If iFg < 8 Then
+            iFg = $aColor[iFg + 8]
+          Else 
+            iFg = Color.Lighter($aColor[iFg])
+          Endif
+        Else
+          iFg = $aColor[iFg]
+        Endif
       Else
         iFg = hView.Foreground
       Endif
@@ -1052,22 +1080,25 @@ Private Sub DrawLine(hView As TerminalView, L As Integer, X As Integer, Y As Int
     
     bNoText = False
     
-    If hAttr.Blink Then
+    If hAttr.FastBlink Then
       hView._HasBlink = True
-      If hView._Blink Then 
+      If hView._Blink And 1 Then 
+        GoSub DRAW_NO_TEXT
+        Continue
+      Endif
+    Else If hAttr.Blink Then
+      hView._HasBlink = True
+      If hView._Blink And 2 Then 
         GoSub DRAW_NO_TEXT
         Continue
       Endif
     Endif
     
-    If hAttr.Dim Then iFg = Color.Merge(iFg, hView.Background)
-    
-    'Paint.Background = Color.White
-    
     If hAttr.Bold Then
       HC = LH
     Else
       HC = 0
+      If hAttr.Dim Then iFg = Color.Merge(iFg, hView.Background)
     Endif
     
     GoSub DRAW_TEXT
@@ -1226,7 +1257,16 @@ DRAW_TEXT:
     
   Endif
   
-  If hAttr.Underscore Then Paint.FillRect(X, Y + LH - 1, W, 1, Color.SetAlpha(iFg, 64))
+  If hAttr.DoubleUnderline Then
+    Paint.FillRect(X, Y + LH - 1, W, 1, Color.SetAlpha(iFg, 64))
+    Paint.FillRect(X, Y + LH - 3, W, 1, Color.SetAlpha(iFg, 64))
+  Else If hAttr.Underline Then 
+    Paint.FillRect(X, Y + LH - 1, W, 1, Color.SetAlpha(iFg, 64))
+  Endif
+  
+  If hAttr.Strike Then
+    Paint.FillRect(X, Y + LH \ 2, W, 1, Color.SetAlpha(iFg, 64))
+  Endif
   
   X += W
   P += iLen
