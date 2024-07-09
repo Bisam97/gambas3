@@ -97,6 +97,8 @@ Public RuntimeVersion As String
 Public AppImageRepository As String
 Public AppImageDistribution As String
 Public AppImageGambasRepository As String
+Public AppImagePacmanRepository As String
+Public AppImageDoNotUseEmbedProg As Boolean
 
 Public PublishTags As String[]
 Public PublishDependencies As String[]
@@ -3212,6 +3214,8 @@ Public Sub ReadProject(Optional bConvert As Boolean)
   AppImageRepository = ""
   AppImageDistribution = ""
   AppImageGambasRepository = ""
+  AppImagePacmanRepository = ""
+  AppImageDoNotUseEmbedProg = False
   Prefix = False
   PackageName = ""
   PackageVersion = 1
@@ -3552,11 +3556,17 @@ Public Sub ReadProject(Optional bConvert As Boolean)
       Case "appimagerepository"
         AppImageRepository = sVal
         
+      Case "appimagepacmanrepository"
+        AppImagePacmanRepository = sVal
+        
       Case "appimagedistribution"
         AppImageDistribution = sVal
         
       Case "appimagegambasrepository"
         AppImageGambasRepository = sVal
+        
+      Case "appimagedonotuseembedprog"
+        AppImageDoNotUseEmbedProg = CInt(sVal) <> 0
       
       Case "fileproperties"
         Try FileProperties = JSON.FromString(sVal)
@@ -3762,6 +3772,8 @@ Public Sub WriteProject(Optional bComponentDoNotChange As Boolean, Optional bMak
   If AppImageRepository Then Print #hFile, "AppImageRepository="; AppImageRepository
   If AppImageDistribution Then Print #hFile, "AppImageDistribution="; AppImageDistribution
   If AppImageGambasRepository Then Print #hFile, "AppImageGambasRepository="; AppImageGambasRepository
+  If AppImagePacmanRepository Then Print #hFile, "AppImagePacmanRepository="; AppImagePacmanRepository
+  If AppImageDoNotUseEmbedProg Then Print #hFile, "AppImageDoNotUseEmbedProg=1"
 
   For Each sSys In $aSystems
     If Menus[sSys] Then Print #hFile, "Menus="; sSys; ":"; Quote(Menus[sSys])

@@ -10,7 +10,7 @@ AppDir:
     exec: usr/bin/gbr3
     exec_args: $APPDIR/usr/bin/$(exec) $@
   apt:
-    arch: amd64
+    arch: $(package-arch)
     allow_unauthenticated: true
     sources:
 $(sources)
@@ -32,8 +32,8 @@ $(packages)
     - usr/share/doc/*/TODO.*
   runtime:
     env:
-      PATH: '${APPDIR}/usr/bin:${APPDIR}/bin:${PATH}'
       GB_PATH: $APPDIR/usr/bin/gbr3
+      $(pathenv)
   test:
     fedora-30:
       image: appimagecrafters/tests-env:fedora-30
@@ -51,6 +51,6 @@ $(packages)
       image: appimagecrafters/tests-env:ubuntu-xenial
       command: ./AppRun
 AppImage:
-  arch: x86_64
+  arch: $(arch)
   update-information: guess
   $(signature)

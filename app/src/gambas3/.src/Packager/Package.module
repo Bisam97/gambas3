@@ -63,6 +63,7 @@ Private DATABASE_DRIVERS As String[] = ["gb.db.sqlite3", "gb.db.mysql", "gb.db.o
 Private GUI_COMPONENTS_USING_WAYLAND As String[] = ["gb.qt5", "gb.gtk3", "gb.gui"]
 
 Private GENERIC_GUI_COMPONENT As String[] = ["gb.gui", "gb.gui.opengl", "gb.gui.webview", "gb.gui.qt", "gb.gui.qt.ext", "gb.gui.qt.opengl", "gb.gui.qt.webkit"]
+Private $sPassword As String
 
 Private Sub CheckProgram(sProg As String) As String
   
@@ -115,6 +116,7 @@ Public Sub CheckSystem(sSys As String) As String
     
     Case "appimage"
       If Not APPIMAGE_PROG Then Return ("Cannot create AppImage.") & " " & Subst(("'&1' is missing."), "appimage-builder")
+      If Not GetAppImageSystem() Then Return ("Cannot create AppImage.") & " " & (("'apt' or 'pacman' are missing."))
       If Project.Type <> Project.TYPE_NORMAL Then Return ("Cannot create an AppImage of a library or a component.")
       'If Project.Components.Exist("*.opengl*", gb.Like) Then Return ("AppImage does not support OpenGL.")
 
@@ -733,6 +735,7 @@ End
 Private Sub RunCommand(sCmd As String, Optional sDir As String, Optional bIgnoreStderr As Boolean)
 
   Dim aCmd As New String[]
+  Dim hProcess As Process
   
   $sOutput = ""
   $bEnd = False
@@ -743,9 +746,10 @@ Private Sub RunCommand(sCmd As String, Optional sDir As String, Optional bIgnore
   AddLog(sCmd)
   aCmd.Push(sCmd)
   If bIgnoreStderr = False Then aCmd.Last &= " 2>&1"
-  Shell aCmd.Join(" && ") For Input As "Process"
+  hProcess = Shell aCmd.Join(" && ") With VersionControl.LANG_ENV For Input Output As "Process"
+  If sCmd Begins "sudo " Then hProcess.Expect("password*:")
   Repeat
-    Sleep 0.02 
+    Sleep 0.05
     Wait
   Until $bEnd
   
@@ -2740,6 +2744,28 @@ Public Sub Process_Read()
   
 End
 
+Public Sub Process_Prompt((Prompt) As String, (Answer) As String)
+
+  Dim hProcess As Process
+  
+  hProcess = Last
+  
+  If Not $sPassword Then
+
+    Dialog.NoUser = True
+    If Dialog.AskPassword() Then
+      hProcess.Kill
+      Return 
+    Endif
+    
+    $sPassword = Dialog.Password
+    
+  Endif
+  
+  Print #hProcess, $sPassword
+
+End
+
 Public Sub Process_Error(sData As String)
 
   FMakeInstall.AddLog(sData, True)
@@ -2805,6 +2831,13 @@ Public Sub GetPackageFullName(sVendor As String, sVendorPrefix As String, bPrefi
   
 End
 
+Public Sub GetAppImageSystem() As String
+  
+  If System.Exist("apt") And If Exist("/etc/apt/sources.list") Then Return "apt"
+  If System.Exist("pacman") And If Exist("/etc/pacman.d/mirrorlist") Then Return "pacman"
+  
+End
+
 Private Sub MakeAppImagePackage(sSys As String)
 
   Dim sRoot As String
@@ -2827,6 +2860,12 @@ Private Sub MakeAppImagePackage(sSys As String)
   Dim iPos As Integer
   Dim sName As String
   Dim sSignKey As String
+  Dim sAppImageType As String
+  Dim sArch As String
+  Dim sSudo As String
+  
+  sAppImageType = GetAppImageSystem()
+  If Settings["/Packager/AppImage/BuildAsRoot", False] Then sSudo = "sudo "
   
   AddLog(("Making build directory.")) 
   
@@ -2834,7 +2873,9 @@ Private Sub MakeAppImagePackage(sSys As String)
   sRoot = User.Home &/ ".var/tmp/AppImage"
   sAppDir = sRoot &/ "AppDir"
   
-  RunCommand("rm -rf " & Shell(sAppDir))
+  RunCommand(sSudo & "rm -rf " & Shell(sAppDir))
+  If sSudo And If Not $sPassword Then Goto __ERROR
+    
   RunCommand("mkdir -p " & Shell(sAppDir &/ "usr/bin"))
   RunCommand("mkdir -p " & Shell(sAppDir &/ "usr/share/icons/hicolor/256x256/apps"))
 
@@ -2857,12 +2898,18 @@ Private Sub MakeAppImagePackage(sSys As String)
   
   AddLog(("Generating 'AppImageBuilder' configuration file...")) 
   
-  sAppImageBuilder = File.Load("install/AppImageBuilder.yml")
+  sAppImageBuilder = File.Load("install/AppImageBuilder-" & sAppImageType & ".yml")
   
   ' 6. Fill the application details
   
   sAppId = Project.AppId
   If Not sAppId Then sAppId = "org.gambas-basic." & LCase(sName)
+  
+  sArch = System.Architecture
+  Select Case sArch
+    Case "x86_64"
+      If sAppImageType = "apt" Then sArch = "amd64"
+  End Select
   
   sAppImageBuilder = Replace(sAppImageBuilder, "$(appdir)", sAppDir)
   sAppImageBuilder = Replace(sAppImageBuilder, "$(id)", sAppId)
@@ -2870,6 +2917,8 @@ Private Sub MakeAppImagePackage(sSys As String)
   sAppImageBuilder = Replace(sAppImageBuilder, "$(icon)", sName & ".png")
   sAppImageBuilder = Replace(sAppImageBuilder, "$(exec)", sName)
   sAppImageBuilder = Replace(sAppImageBuilder, "$(version)", $sVersion)
+  sAppImageBuilder = Replace(sAppImageBuilder, "$(package-arch)", sArch)
+  sAppImageBuilder = Replace(sAppImageBuilder, "$(arch)", System.Architecture)
   
   If Settings["/Packager/AppImage/Sign", False] Then sSignKey = Trim(Settings["/Packager/AppImage/SignKey"])
   If sSignKey Then
@@ -2878,29 +2927,50 @@ Private Sub MakeAppImagePackage(sSys As String)
     sAppImageBuilder = Replace(sAppImageBuilder, "$(signature)", "")
   Endif
   
+  If Not Project.AppImageDoNotUseEmbedProg Then
+    sAppImageBuilder = Replace(sAppImageBuilder, "$(pathenv)", "PATH: '${APPDIR}/usr/bin:${APPDIR}/bin:${PATH}'")
+  Else
+    sAppImageBuilder = Replace(sAppImageBuilder, "$(pathenv)", "")
+  Endif
+  
   ' 7. Package sources
   
   aSources = New String[]
   
-  sDistrib = LCase(Project.AppImageDistribution)
-  If Not sDistrib Then 
-    sDistrib = "jammy"
-  Else
-    iPos = InStr(sDistrib, "(")
-    If iPos Then sDistrib = Trim(Left(sDistrib, iPos - 1))
-  Endif
-  
-  For Each sSource In ["&1 &2 main restricted", "&1 &2-updates main restricted", "&1 &2 universe", "&1 &2-updates universe", "&1 &2 multiverse", "&1 &2-updates multiverse", "&3 &2-security main restricted", "&3 &2-security universe", "&3 &2-security multiverse", "&4 &2 main restricted universe multiverse"]
+  Select Case sAppImageType
     
-    sSource = "deb " & Subst(sSource, Project.AppImageRepository, sDistrib, "http://security.ubuntu.com/ubuntu/", "http://ddebs.ubuntu.com")
-    aSources.Add("    - sourceline: " & sSource)
-    
-  Next
+    Case "apt"
   
-  sGambasPPA = Project.AppImageGambasRepository
-  If Not sGambasPPA Then sGambasPPA = "http://ppa.launchpad.net/gambas-team/gambas3/ubuntu/"
-  sSource = Subst("deb &1 &2 main", sGambasPPA, sDistrib)
-  aSources.Add("    - sourceline: " & sSource)
+      sDistrib = LCase(Project.AppImageDistribution)
+      If Not sDistrib Then 
+        sDistrib = "jammy"
+      Else
+        iPos = InStr(sDistrib, "(")
+        If iPos Then sDistrib = Trim(Left(sDistrib, iPos - 1))
+      Endif
+      
+      For Each sSource In ["&1 &2 main restricted", "&1 &2-updates main restricted", "&1 &2 universe", "&1 &2-updates universe", "&1 &2 multiverse", "&1 &2-updates multiverse", "&3 &2-security main restricted", "&3 &2-security universe", "&3 &2-security multiverse", "&4 &2 main restricted universe multiverse"]
+        
+        sSource = "deb " & Subst(sSource, Project.AppImageRepository, sDistrib, "http://security.ubuntu.com/ubuntu/", "http://ddebs.ubuntu.com")
+        aSources.Add("    - sourceline: " & sSource)
+        
+      Next
+      
+      sGambasPPA = Project.AppImageGambasRepository
+      If Not sGambasPPA Then sGambasPPA = "http://ppa.launchpad.net/gambas-team/gambas3/ubuntu/"
+      sSource = Subst("deb &1 &2 main", sGambasPPA, sDistrib)
+      aSources.Add("    - sourceline: " & sSource)
+      
+    Case "pacman"
+      
+      aSources.Add("      core:")
+      aSources.Add("        - " & Project.AppImagePacmanRepository)
+      aSources.Add("      extra:")
+      aSources.Add("        - " & Project.AppImagePacmanRepository)
+      aSources.Add("      multilib:")
+      aSources.Add("        - " & Project.AppImagePacmanRepository)
+      
+  End Select
   
   sAppImageBuilder = Replace(sAppImageBuilder, "$(sources)", aSources.Join("\n"))
   
@@ -2961,7 +3031,10 @@ Private Sub MakeAppImagePackage(sSys As String)
   
   AddLog(("Creating AppImage..."))
   
-  RunCommand(APPIMAGE_PROG & " --skip-script --skip-tests", sRoot)
+  RunCommand(sSudo & APPIMAGE_PROG & " --skip-script --skip-tests", sRoot)
+  If sSudo And If $sPassword Then RunCommand(sSudo & "chown -R " & User.Name & ":" & User.Name & " " & Shell$(sRoot))
+  
+__ERROR:
   
   aDir = Dir(sRoot, "*.AppImage")
   If aDir.Count = 1 Then

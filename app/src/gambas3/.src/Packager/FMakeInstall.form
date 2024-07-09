@@ -79,40 +79,40 @@
       }
     }
     { HBox8 HBox
-      MoveScaled(1,14,70,4)
+      MoveScaled(1,14,84,4)
       Spacing = True
       { Label3 Label
-        MoveScaled(0,0,23,4)
+        MoveScaled(0,0,25,4)
         Text = ("Vendor name")
       }
       { txtVendor MaskBox
-        MoveScaled(24,0,44,4)
+        MoveScaled(27,0,44,4)
         Expand = True
         Filter = "[A-Za-z0-9_-]"
       }
     }
     { HBox20 HBox
-      MoveScaled(1,19,70,4)
+      MoveScaled(1,19,84,4)
       Spacing = True
       { Label9 Label
-        MoveScaled(0,0,23,4)
+        MoveScaled(0,0,25,4)
         Text = ("Vendor prefix")
       }
       { txtVendorPrefix MaskBox
-        MoveScaled(24,0,44,4)
+        MoveScaled(27,0,44,4)
         Expand = True
         Filter = "[A-Za-z0-9]"
       }
     }
     { HBox22 HBox
-      MoveScaled(1,24,70,4)
+      MoveScaled(1,24,84,4)
       Spacing = True
       { Label11 Label
-        MoveScaled(0,0,23,4)
+        MoveScaled(0,0,25,4)
         Text = ("Application identifier")
       }
       { txtIdentifier MaskBox
-        MoveScaled(24,0,44,4)
+        MoveScaled(27,0,44,4)
         Expand = True
         Filter = "[A-Za-z0-9.]"
       }
@@ -125,47 +125,47 @@
       Alignment = Align.BottomNormal
     }
     { HBox1 HBox
-      MoveScaled(1,33,71,4)
+      MoveScaled(1,33,84,4)
       Spacing = True
       { Label1 Label
-        MoveScaled(0,0,23,4)
+        MoveScaled(0,0,25,4)
         Text = ("Name")
       }
       { txtName TextBox
-        MoveScaled(24,0,44,4)
+        MoveScaled(27,0,44,4)
         Expand = True
       }
     }
     { HBox2 HBox
-      MoveScaled(1,38,70,4)
+      MoveScaled(1,38,84,4)
       Spacing = True
       { Label2 Label
-        MoveScaled(0,0,23,4)
+        MoveScaled(0,0,25,4)
         Text = ("E-mail")
       }
       { txtMail TextBox
-        MoveScaled(24,0,44,4)
+        MoveScaled(27,0,44,4)
         Expand = True
       }
     }
     { HBox16 HBox
-      MoveScaled(1,43,70,4)
+      MoveScaled(1,43,84,4)
       Spacing = True
       { Label7 Label
-        MoveScaled(0,0,23,4)
+        MoveScaled(0,0,25,4)
         Text = ("URL")
       }
       { txtUrl TextBox
-        MoveScaled(24,0,44,4)
+        MoveScaled(27,0,44,4)
         Expand = True
       }
     }
     { Panel1 HBox
-      MoveScaled(1,48,72,11)
+      MoveScaled(1,48,84,11)
       Expand = True
       Spacing = True
       { Panel4 VBox
-        MoveScaled(0,0,23,7)
+        MoveScaled(0,0,25,7)
         { Label6 Label
           MoveScaled(0,0,23,4)
           Font = Font["Bold"]
@@ -173,21 +173,21 @@
         }
       }
       { txtDescribe TextArea
-        MoveScaled(24,0,46,11)
+        MoveScaled(27,0,46,11)
         Expand = True
         Wrap = True
       }
     }
     { Panel2 HBox
-      MoveScaled(1,60,73,4)
+      MoveScaled(1,60,84,4)
       Spacing = True
       { Label5 Label
-        MoveScaled(0,0,23,4)
+        MoveScaled(0,0,25,4)
         Font = Font["Bold"]
         Text = ("License")
       }
       { txtLicense ComboBox
-        MoveScaled(25,0,46,4)
+        MoveScaled(27,0,46,4)
         #Translate = False
         Expand = True
         List = ["General Public License", "Public Domain", "Lesser General Public License", "Other License(s)", "Non-free License", "General Public License V2 only", "Lesser General Public License V2 only", "General Public License V3", "Lesser General Public License V3", "General Public License V2 or any later version", "Lesser General Public License V2 or any later version"]
@@ -218,7 +218,7 @@
       Visible = False
       Font = Font["Italic,-1"]
       Background = Color.TextBackground
-      Foreground = Color.TextForeground
+      Foreground = Color.Red
       Padding = 8
       AutoResize = True
       Border = Border.Plain
@@ -453,62 +453,128 @@
     }
     Index = 3
     Text = ("AppImageBuilder configuration")
-    { HBox23 HBox
-      MoveScaled(0,1,63,4)
+    { Label16 Label
+      MoveScaled(0,0,23,4)
+      Font = Font["Bold"]
+      Text = ("Repositories")
+    }
+    { panAppImageApt VBox
+      MoveScaled(0,5,89,14)
+      Visible = False
       Spacing = True
-      { Label12 Label
-        MoveScaled(0,0,28,4)
-        Text = ("Ubuntu repository")
+      { HBox23 HBox
+        MoveScaled(0,0,63,4)
+        Spacing = True
+        Indent = True
+        { Label12 Label
+          MoveScaled(0,0,28,4)
+          Text = ("Ubuntu repository")
+        }
+        { txtAppImageRepository TextBox
+          MoveScaled(32,0,25,4)
+          Expand = True
+        }
       }
-      { txtAppImageRepository TextBox
-        MoveScaled(32,0,25,4)
-        Expand = True
+      { HBox24 HBox
+        MoveScaled(0,5,88,4)
+        Spacing = True
+        Indent = True
+        { Label13 Label
+          MoveScaled(0,0,28,4)
+          Text = ("Ubuntu distribution")
+        }
+        { cmbAppImageDistribution ComboBox
+          MoveScaled(29,0,24,4)
+          #Translate = False
+          List = ["trusty (14.04)", "xenial (16.04)", "bionic (18.04)", "focal (20.04)", "jammy (22.04)", "lunar (23.04)"]
+          Placeholder = "jammy (22.04)"
+        }
+      }
+      { HBox26 HBox
+        MoveScaled(0,10,63,4)
+        Spacing = True
+        Indent = True
+        { Label14 Label
+          MoveScaled(0,0,28,4)
+          Text = ("Gambas repository")
+        }
+        { txtAppImageGambasRepository TextBox
+          MoveScaled(32,0,25,4)
+          #Translate = False
+          Expand = True
+          Placeholder = "http://ppa.launchpad.net/gambas-team/gambas3/ubuntu/"
+        }
       }
     }
-    { HBox24 HBox
-      MoveScaled(0,6,88,4)
+    { panAppImagePacman VBox
+      MoveScaled(0,20,89,4)
+      Visible = False
       Spacing = True
-      { Label13 Label
-        MoveScaled(0,0,28,4)
-        Text = ("Ubuntu distribution")
+      { HBox28 HBox
+        MoveScaled(0,0,63,4)
+        Spacing = True
+        Indent = True
+        { Label15 Label
+          MoveScaled(0,0,28,4)
+          Text = ("ArchLinux repository")
+        }
+        { txtAppImagePacmanRepository TextBox
+          MoveScaled(32,0,25,4)
+          Expand = True
+        }
       }
-      { cmbAppImageDistribution ComboBox
-        MoveScaled(29,0,24,4)
-        #Translate = False
-        List = ["trusty (14.04)", "xenial (16.04)", "bionic (18.04)", "focal (20.04)", "jammy (22.04)", "lunar (23.04)"]
-        Placeholder = "jammy (22.04)"
-      }
+    }
+    { HBox29 HBox
+      MoveScaled(0,25,88,4)
+      Spacing = True
+      Indent = True
+      Invert = True
       { btnAppImageFromSystem Button
-        MoveScaled(58,0,29,4)
+        MoveScaled(9,0,29,4)
         AutoResize = True
         Text = ("Get current system configuration")
       }
     }
-    { HBox26 HBox
-      MoveScaled(0,12,63,4)
-      Spacing = True
-      { Label14 Label
-        MoveScaled(0,0,28,4)
-        Text = ("Gambas repository")
+    { Label17 Label
+      MoveScaled(0,29,23,4)
+      Font = Font["Bold"]
+      Text = ("Options")
+    }
+    { HBox27 HBox
+      MoveScaled(1,33,82,4)
+      Indent = True
+      { chkAppImageDoNotUseEmbedProg CheckBox
+        MoveScaled(2,0,55,4)
+        Text = ("Do not use the embedded external programs")
       }
-      { txtAppImageGambasRepository TextBox
-        MoveScaled(32,0,25,4)
-        #Translate = False
-        Expand = True
-        Placeholder = "http://ppa.launchpad.net/gambas-team/gambas3/ubuntu/"
+    }
+    { HBox30 HBox
+      MoveScaled(1,38,82,4)
+      Indent = True
+      { chkAppImageBuildAsRoot CheckBox
+        MoveScaled(2,0,55,4)
+        Text = ("Build package with 'root' account")
       }
     }
     { HBox25 HBox
-      MoveScaled(0,18,92,4)
+      MoveScaled(1,43,84,4)
       Spacing = True
+      Indent = True
       { chkAppImageSignature CheckBox
         MoveScaled(1,0,37,4)
         AutoResize = True
         Text = ("Sign Appimage file with GPG key")
       }
+    }
+    { panAppImageSignatureKey HBox
+      MoveScaled(2,48,83,4)
+      Visible = False
+      Indent = True
+      { Panel20 Panel
+        MoveScaled(4,0,3,4)
+      }
       { txtAppImageSignatureKey TextBox
-        MoveScaled(46,0,25,4)
-        Enabled = False
+        MoveScaled(15,0,25,4)
         Expand = True
         Placeholder = ("Enter GPG signature key")
       }

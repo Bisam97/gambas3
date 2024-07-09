@@ -48,6 +48,8 @@ End
 
 Public Sub Form_Open()
   
+  Dim sAppImageType As String
+  
   If Project.Maintainer Then
     txtName.Text = Project.Maintainer
   Else 
@@ -180,6 +182,14 @@ Public Sub Form_Open()
   
   chkAppImageSignature.Value = Settings["/Packager/AppImage/Sign", False]
   txtAppImageSignatureKey.Text = Settings["/Packager/AppImage/SignKey"]
+  
+  sAppImageType = Package.GetAppImageSystem()
+  panAppImageApt.Visible = sAppImageType = "apt"
+  panAppImagePacman.Visible = sAppImageType = "pacman"
+  
+  txtAppImagePacmanRepository.Text = Project.AppImagePacmanRepository
+  chkAppImageDoNotUseEmbedProg.Value = Project.AppImageDoNotUseEmbedProg
+  chkAppImageBuildAsRoot.Value = Settings["/Packager/AppImage/BuildAsRoot", False]
 
 End
 
@@ -453,23 +463,23 @@ Public Sub wizInstall_BeforeChange()
       Project.AppImageRepository = Trim(txtAppImageRepository.Text)
       Project.AppImageDistribution = Trim(cmbAppImageDistribution.Text)
       Project.AppImageGambasRepository = Trim(txtAppImageGambasRepository.Text)
+      Project.AppImagePacmanRepository = Trim(txtAppImagePacmanRepository.Text)
+      Project.AppImageDoNotUseEmbedProg = chkAppImageDoNotUseEmbedProg.Value
       
-      If Not Project.AppImageRepository Then
-        Message.Warning(("Please enter the Ubuntu repository used for generating the AppImage."))
+      If panAppImageApt.Visible And If Not Project.AppImageRepository Then
+        Message.Warning(("Please enter the repository used for generating the AppImage."))
         txtAppImageRepository.SetFocus
         Stop Event
         Return
       Endif
       
-      btnAppImageFromSystem.Enabled = IsCurrentSystemUbuntu()
-    
-      ' If Not Project.AppImageDistribution Then
-      '   Message.Warning(("Please choose the Ubuntu distribution used for generating the AppImage."))
-      '   cmbAppImageDistribution.SetFocus
-      '   Stop Event
-      '   Return
-      ' Endif
-    
+      If panAppImagePacman.Visible And If Not Project.AppImagePacmanRepository Then
+        Message.Warning(("Please enter the repository used for generating the AppImage."))
+        txtAppImagePacmanRepository.SetFocus
+        Stop Event
+        Return
+      Endif
+      
     Case TAB_GROUP
       
       If CheckSys(Project.Groups) Then
@@ -605,7 +615,7 @@ Public Sub wizInstall_Change()
       txtChange.SetFocus
     
     Case TAB_APPIMAGE
-      btnAppImageFromSystem.Enabled = Exist("/etc/apt/sources.list")
+      btnAppImageFromSystem.Enabled = Package.GetAppImageSystem()
     
     Case TAB_GROUP
       InitGroupTree
@@ -682,7 +692,8 @@ Public Sub AddLog(sText As String, Optional bNoNewLine As Boolean)
 
   If Not bNoNewLine Then sText &= "\r\n"
   trmLog.Print(Replace(Replace(sText, "\r", ""), "\n", "\r\n"))
-  Wait
+  trmLog.SetFocus
+  'Wait
 
 End
 
@@ -1440,7 +1451,7 @@ Public Sub btnOpenFolder_Click()
 
 End
 
-Private Sub GetAppImageConfigFromSystem()
+Private Sub GetAppImageConfigFromApt()
 
   Dim hFile As File
   Dim sLine As String
@@ -1482,30 +1493,61 @@ Catch
 
 End
 
+Private Sub GetAppImageConfigFromPacman()
+
+  Dim hFile As File
+  Dim sLine As String
+  Dim iPos As Integer
+
+  hFile = Open "/etc/pacman.d/mirrorlist"
+  For Each sLine In hFile.Lines
+    sLine = Trim(sLine)
+    If sLine Not Begins "Server" Then Continue
+    iPos = InStr(sLine, "=")
+    If iPos = 0 Then Continue
+    sLine = Trim(Mid$(sLine, iPos + 1))
+    If Not sLine Then Continue
+      
+    txtAppImagePacmanRepository.Text = sLine
+    Break
+    
+  Next
+
+Catch
+  
+  txtAppImagePacmanRepository.Text = ""
+  Message.Warning(("Unable to get AppImageBuilder configuration from current system."))
+
+End
 
 Public Sub btnAppImageFromSystem_Click()
 
-  GetAppImageConfigFromSystem()
+  Select Case Package.GetAppImageSystem()
+    Case "apt"
+      GetAppImageConfigFromApt()
+    Case "pacman"
+      GetAppImageConfigFromPacman()
+  End Select
 
 End
 
-Private Sub IsCurrentSystemUbuntu() As Boolean
-
-  Dim sData As String
-  
-  If Not Exist("/etc/apt/sources.list") Then Return
-
-  Try sData = File.Load("/etc/os-release")
-  If Not Error Then Return InStr(sData, "ID=ubuntu\n")
-  
-  Try sData = File.Load("/etc/lsb_release")
-  If Not Error Then Return InStr(sData, "DISTRIB_ID=Ubuntu\n")
-
-End
+' Private Sub IsCurrentSystemUbuntu() As Boolean
+' 
+'   Dim sData As String
+'   
+'   If Not Exist("/etc/apt/sources.list") Then Return
+' 
+'   Try sData = File.Load("/etc/os-release")
+'   If Not Error Then Return InStr(sData, "ID=ubuntu\n")
+'   
+'   Try sData = File.Load("/etc/lsb_release")
+'   If Not Error Then Return InStr(sData, "DISTRIB_ID=Ubuntu\n")
+' 
+' End
 
 Public Sub chkAppImageSignature_Click()
 
-  txtAppImageSignatureKey.Enabled = chkAppImageSignature.Value
+  panAppImageSignatureKey.Visible = chkAppImageSignature.Value
   Settings["/Packager/AppImage/Sign"] = CBool(chkAppImageSignature.Value)
   If chkAppImageSignature.Value Then txtAppImageSignatureKey.SetFocus
 
@@ -1514,5 +1556,11 @@ End
 Public Sub txtAppImageSignatureKey_LostFocus()
 
   Settings["/Packager/AppImage/SignKey"] = Trim(txtAppImageSignatureKey.Text)
+
+End
+
+Public Sub chkAppImageBuildAsRoot_Click()
+
+  Settings["/Packager/AppImage/BuildAsRoot"] = CBool(chkAppImageBuildAsRoot.Value)
 
 End
