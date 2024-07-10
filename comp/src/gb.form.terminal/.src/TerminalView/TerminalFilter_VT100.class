@@ -298,6 +298,10 @@ Private Sub Escape(hView As TerminalView, hScreen As TerminalScreen, hOutput As 
                   hAttr.Reverse = False
                 Case 29
                   hAttr.Strike = False
+                Case 53
+                  hAttr.Overline = True
+                Case 55
+                  hAttr.Overline = False
                 Case 38
                   If (aArg.max - I) >= 2 And If aArg[I + 1] = "5" Then
                     Try hAttr.Foreground = CInt(aArg[I + 2])

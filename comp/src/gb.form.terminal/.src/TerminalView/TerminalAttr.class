@@ -5,7 +5,7 @@
 Export
 Fast
 
-Private Enum FLAG_BG, FLAG_FG, FLAG_BG_RGB, FLAG_FG_RGB, FLAG_BOLD, FLAG_DIM, FLAG_REVERSE, FLAG_UNDERLINE, FLAG_BLINK, FLAG_STRIKE, FLAG_DOUBLE_UNDERLINE, FLAG_FAST_BLINK
+Private Enum FLAG_BG, FLAG_FG, FLAG_BG_RGB, FLAG_FG_RGB, FLAG_BOLD, FLAG_DIM, FLAG_REVERSE, FLAG_UNDERLINE, FLAG_BLINK, FLAG_STRIKE, FLAG_DOUBLE_UNDERLINE, FLAG_FAST_BLINK, FLAG_OVERLINE
 
 '' Return or set the character foreground color index.
 Public Foreground As Integer = -1
@@ -31,7 +31,10 @@ Public Strike As Boolean
 Public Blink As Boolean
 '' Return or set the character "fast blink" attribute.
 Public FastBlink As Boolean
+'' Return or set the character "overline" attribute.
+Public Overline As Boolean
 
+'' A deprecated synonymous of the [../underline] property.
 Property Underscore As Boolean
 
 '' Reset the character flags.
@@ -50,6 +53,7 @@ Public Sub Reset()
   Strike = False
   Blink = False
   FastBlink = False
+  Overline = False
   
 End
 
@@ -61,7 +65,7 @@ Public Sub IsVoid() As Boolean
   If Background >= 0 Then Return
   If ForegroundRGB >= 0 Then Return
   If BackgroundRGB >= 0 Then Return
-  If Bold Or If {Dim} Or If Underline Or If DoubleUnderline Or If Reverse Or If Strike Or If Blink Or If FastBlink Then Return
+  If Bold Or If {Dim} Or If Underline Or If DoubleUnderline Or If Reverse Or If Strike Or If Blink Or If FastBlink Or If Overline Then Return
   Return True
   
 End
@@ -94,6 +98,7 @@ Public Sub _FillFrom(iAttr As Long)
   DoubleUnderline = BTst(iAttr, FLAG_DOUBLE_UNDERLINE)
   Blink = BTst(iAttr, FLAG_BLINK)
   FastBlink = BTst(iAttr, FLAG_FAST_BLINK)
+  Overline = BTst(iAttr, FLAG_OVERLINE)
   
 End
 
@@ -124,6 +129,7 @@ Public Sub _ToValue() As Long
   If DoubleUnderline Then iAttr = BSet(iAttr, FLAG_DOUBLE_UNDERLINE)
   If Blink Then iAttr = BSet(iAttr, FLAG_BLINK)
   If FastBlink Then iAttr = BSet(iAttr, FLAG_FAST_BLINK)
+  If Overline Then iAttr = BSet(iAttr, FLAG_OVERLINE)
   
   Return iAttr
   
