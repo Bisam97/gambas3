@@ -3021,6 +3021,7 @@ Public Sub UpdateBorder()
   Dim hCtrl As CControl
   Dim H As Integer
   Dim HM As Integer = 0
+  Dim hPict As Picture
 
   hCtrl = RootControl
   If Not hCtrl Then Return
@@ -3047,9 +3048,7 @@ Public Sub UpdateBorder()
 
     Else
 
-      H = lblTitle.Font.Height + 10 '+ 4
-      'btnCloseWindow.W = 18 'H - 4
-      'btnMaxWindow.W = 17 'H - 4
+      H = lblTitle.Font.Height + Desktop.Scale
       panBorder.Move(0, H + HM, .Width + 4, .Height + 2 - HM)
       $bBorder = True
       'panBorder.Border = Border.Raised
@@ -3061,6 +3060,14 @@ Public Sub UpdateBorder()
       .Move(2, 0)
 
     Endif
+    
+    hPict = Picture["img/32/close-window.png"]
+    btnCloseWindow.Padding = Desktop.Scale \ 2
+    btnCloseWindow.Picture = hPict.Image.Colorize(Color.SelectedForeground).Opacity(0.8).Picture
+
+    hPict = Picture["img/32/max-window.png"]
+    btnMaxWindow.Padding = Desktop.Scale \ 2
+    btnMaxWindow.Picture = hPict.Image.Colorize(Color.SelectedForeground).Opacity(0.8).Picture
 
     panBorder.Refresh
 
@@ -3095,7 +3102,7 @@ Public Sub UpdateTitle()
 
     Try hPict = $hFamily.GetPicture(sPict)
     If Not hPict Then hPict = Picture["icon:/32/gambas"]
-    If hPict.Width <> imgIcon.W Or If hPict.Height <> imgIcon.H Then hPict = hPict.Stretch(imgIcon.W, imgIcon.H)
+    'If hPict.Width <> imgIcon.W Or If hPict.Height <> imgIcon.H Then hPict = hPict.Stretch(imgIcon.W, imgIcon.H)
     imgIcon.Picture = hPict
     imgIcon.Show
 
@@ -4659,5 +4666,12 @@ End
 Public Sub svwWorkspace_Resize()
 
   dwgBackground.Refresh
+
+End
+
+Public Sub panTitle_Change()
+
+  If Application.Change <> "color" And If Application.Change <> "theme" Then Return
+  UpdateBorder()
 
 End
