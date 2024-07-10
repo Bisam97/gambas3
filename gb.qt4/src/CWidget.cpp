@@ -584,7 +584,6 @@ void CWIDGET_destroy(CWIDGET *_object)
 	//qDebug("CWIDGET_destroy: %s %p", GB.GetClassName(THIS), THIS);
 
 	CWIDGET_set_visible(THIS, false);
-	CWINDOW_remove_control(THIS);
 	THIS->flag.deleted = true;
 
 	WIDGET->deleteLater();
@@ -2372,6 +2371,7 @@ void CWidget::destroy()
 	}
 	
 	CWIDGET_set_name(THIS, 0);
+	CWINDOW_remove_control(THIS);
 
 	dict.remove(w);
 

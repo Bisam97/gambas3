@@ -422,7 +422,7 @@ void CWINDOW_remove_control(CWIDGET *ob)
 	CWINDOW *_object;
 	
 	_object = CWidget::getWindow(ob);
-	if (THIS && WINDOW)
+	if (THIS && WINDOW && !WINDOW->isDeleted())
 		WINDOW->controls.remove(ob->key);
 }
 

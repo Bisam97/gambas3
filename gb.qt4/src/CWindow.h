@@ -277,6 +277,8 @@ public:
 	friend void on_error_show_modal(MODAL_INFO *info);
 	
 	virtual bool focusNextPrevChild(bool next);
+	
+	bool isDeleted() const { return _deleted; }
 };
 
 
