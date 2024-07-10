@@ -1,6 +1,6 @@
 /***************************************************************************
 
-	main.c
+	gb.db.h
 
 	(c) Benoît Minisini <benoit.minisini@gambas-basic.org>
 
@@ -21,47 +21,14 @@
 
 ***************************************************************************/
 
-#define __MAIN_C
+#ifndef __GB_DB_H
+#define __GB_DB_H
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdarg.h>
-#include <string.h>
-#include <ctype.h>
-#include <sys/time.h>
+#include "gambas.h"
 
-#include "gb_common.h"
+// Field datatypes
 
-#include "main.h"
+#define DB_T_SERIAL ((GB_TYPE)-1)
+#define DB_T_BLOB   ((GB_TYPE)-2)
 
-GB_INTERFACE GB EXPORT;
-
-//-------------------------------------------------------------------------
-
-//-------------------------------------------------------------------------
-
-/*GB_DESC CDBDesc[] = {
-	
-	GB_DECLARE_VIRTUAL("_DB"),
-	
-	GB_END_DECLARE()
-};*/
-
-//-------------------------------------------------------------------------
-
-GB_DESC *GB_CLASSES [] EXPORT =
-{
-	NULL
-};
-
-
-int EXPORT GB_INIT(void)
-{
-	return 0;
-}
-
-
-void EXPORT GB_EXIT()
-{
-}
-
+#endif /* __MAIN_H */

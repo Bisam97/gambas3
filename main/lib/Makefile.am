@@ -1,2 +1,2 @@
-SUBDIRS = debug eval db db2 compress vb option geom draw image gui gui.opengl gui.qt gui.qt.webkit gui.qt.opengl gui.qt.ext image.effect signal term complex data clipper gui.trayicon gui.webview @INOTIFY_DIR@ jit test hash
+SUBDIRS = debug eval db compress vb option geom draw image gui gui.opengl gui.qt gui.qt.webkit gui.qt.opengl gui.qt.ext image.effect signal term complex data clipper gui.trayicon gui.webview @INOTIFY_DIR@ jit test hash
 EXTRA_DIST = gb.component

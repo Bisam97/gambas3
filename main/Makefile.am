@@ -1,5 +1,5 @@
 ACLOCAL_AMFLAGS = -I m4 --install
-SUBDIRS = gbc gbx . lib share man
+SUBDIRS = gbc gbx . lib comp share man
 EXTRA_DIST = TODO reconf tools spec README mime gb.*.h
 
 install-exec-local:

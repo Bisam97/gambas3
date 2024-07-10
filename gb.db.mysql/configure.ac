@@ -6,7 +6,6 @@ AC_CONFIG_MACRO_DIR([m4])
 
 GB_INIT(gb.db.mysql)
 LT_INIT
-dnl LT_INIT
 
 GB_COMPONENT(
   mysql, MYSQL, gb.db.mysql, [src],

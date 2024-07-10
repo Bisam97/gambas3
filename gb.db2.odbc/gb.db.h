@@ -1,1 +1,1 @@
-../main/lib/db2/gb.db.h
+../main/comp/gb.db2/gb.db.h

@@ -134,7 +134,6 @@ lib/Makefile \
 lib/debug/Makefile \
 lib/eval/Makefile \
 lib/db/Makefile \
-lib/db2/Makefile \
 lib/vb/Makefile \
 lib/compress/Makefile \
 lib/option/Makefile \
@@ -159,6 +158,7 @@ lib/inotify/Makefile \
 lib/jit/Makefile \
 lib/test/Makefile \
 lib/hash/Makefile \
+comp/Makefile \
 ])
 AC_OUTPUT
 
