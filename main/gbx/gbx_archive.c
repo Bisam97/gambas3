@@ -451,7 +451,7 @@ bool ARCHIVE_find_from_path(ARCHIVE **parch, const char **ppath)
 		}
 	}
 
-	if (*parch == NULL && EXEC_arch)
+	if (*parch == NULL && FLAG.arch)
 		*parch = ARCHIVE_main;
 
 	//fprintf(stderr, "--> '%s' / %s\n", *parch ? (*parch)->name : "(null)", *ppath);

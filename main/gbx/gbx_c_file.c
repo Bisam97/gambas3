@@ -815,7 +815,7 @@ END_PROPERTY
 
 BEGIN_PROPERTY(Stream_ByteOrder)
 
-	bool endian = EXEC_big_endian;
+	bool endian = FLAG.big_endian;
 
 	if (READ_PROPERTY)
 	{

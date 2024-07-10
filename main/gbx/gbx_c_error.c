@@ -63,7 +63,7 @@ BEGIN_PROPERTY(Error_Text)
 
 	if (ERROR_last.code && ERROR_last.msg)
 	{
-		if (EXEC_debug)
+		if (FLAG.debug)
 		{
 			GB_ARRAY array;
 			char *result;
@@ -114,7 +114,7 @@ END_PROPERTY
 BEGIN_METHOD_VOID(Error_Clear)
 
 	ERROR_reset(&ERROR_last);
-	EXEC_got_error = FALSE;
+	FLAG.got_error = FALSE;
 
 END_METHOD
 

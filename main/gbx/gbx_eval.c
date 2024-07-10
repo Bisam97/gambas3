@@ -107,8 +107,8 @@ bool EVAL_expression(EXPRESSION *expr, EVAL_FUNCTION func)
 	#endif
 
 	STACK_enable_for_eval();
-	debug = EXEC_debug;
-	EXEC_debug = FALSE;
+	debug = FLAG.debug;
+	FLAG.debug = FALSE;
 	error = FALSE;
 
 	nvar = EVAL->nvar;
@@ -156,7 +156,7 @@ bool EVAL_expression(EXPRESSION *expr, EVAL_FUNCTION func)
 __LEAVE:
 	
 	STACK_disable_for_eval();
-	EXEC_debug = debug;
+	FLAG.debug = debug;
 	EVAL = save_eval;
 	return error;
 }

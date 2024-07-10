@@ -170,7 +170,7 @@ void THROW_BOUND(void) NORETURN;
 void THROW_CLASS(void *class, char *arg1, char *arg2) NORETURN;
 void THROW_MATH(bool zero) NORETURN;
 void THROW_OVERFLOW_(void) NORETURN;
-#define THROW_OVERFLOW() ({ if (EXEC_check_overflow) THROW_OVERFLOW_(); })
+#define THROW_OVERFLOW() ({ if (FLAG.check_overflow) THROW_OVERFLOW_(); })
 //#define THROW_OVERFLOW THROW_OVERFLOW_
 void THROW_ARG(void) NORETURN;
 

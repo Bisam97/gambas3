@@ -1289,7 +1289,7 @@ void SUBR_swap(ushort code)
 
 	SUBR_ENTER();
 
-	if (NPARAM == 2 && (SUBR_get_integer(&PARAM[1]) == GB_BIG_ENDIAN) == EXEC_big_endian)
+	if (NPARAM == 2 && (SUBR_get_integer(&PARAM[1]) == GB_BIG_ENDIAN) == FLAG.big_endian)
 	{
 		SP--;
 		return;

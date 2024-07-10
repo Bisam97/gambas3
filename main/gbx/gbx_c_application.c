@@ -341,7 +341,7 @@ END_PROPERTY
 
 BEGIN_PROPERTY(Application_Task)
 
-  GB_ReturnBoolean(EXEC_task);
+  GB_ReturnBoolean(FLAG.task);
 
 END_PROPERTY
 

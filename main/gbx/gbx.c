@@ -75,7 +75,7 @@ static void NORETURN do_exit(int ret, bool immediate)
 {
 	fflush(NULL);
 
-	if (EXEC_debug_hold)
+	if (FLAG.debug_hold)
 	{
 		if (ret) ERROR_warning("The process returned %d", ret);
 		sleep(86400);
@@ -124,7 +124,7 @@ static void init(const char *file, int argc, char **argv)
 		DEBUG_init();
 
 
-	if (EXEC_debug)
+	if (FLAG.debug)
 	{
 		DEBUG.Welcome();
 		DEBUG.Main(FALSE);
@@ -135,7 +135,7 @@ static void init(const char *file, int argc, char **argv)
 
 void main_exit(bool silent)
 {
-	silent |= EXEC_task;
+	silent |= FLAG.task;
 	
 	// If the stack has not been initialized because the project could not be started, do it now
 	if (!SP)
@@ -266,7 +266,7 @@ int main(int argc, char *argv[])
 	COMMON_init();
 	//STRING_init();
 
-	EXEC_arch = (strcmp(FILE_get_name(argv[0]), "gbr" GAMBAS_VERSION_STRING) == 0);
+	FLAG.arch = (strcmp(FILE_get_name(argv[0]), "gbr" GAMBAS_VERSION_STRING) == 0);
 
 	if (argc == 2)
 	{
@@ -274,7 +274,7 @@ int main(int argc, char *argv[])
 		{
 			print_title();
 			
-			if (EXEC_arch)
+			if (FLAG.arch)
 			{
 				printf(
 					"\nExecute a Gambas executable.\n"
@@ -297,7 +297,7 @@ int main(int argc, char *argv[])
 				"  -a <path>       override application path\n"
 			);
 			
-			if (!EXEC_arch)
+			if (!FLAG.arch)
 				printf("  -e              evaluate an expression\n");
 			
 			printf(
@@ -332,7 +332,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if (!EXEC_arch && argc >= 2 && is_option(argv[1], 'e'))
+	if (!FLAG.arch && argc >= 2 && is_option(argv[1], 'e'))
 	{
 		if (argc < 3)
 			ERROR_fatal("-e option requires an expression.");
@@ -359,20 +359,20 @@ int main(int argc, char *argv[])
 	{
 		if (is_option(argv[i], 'g'))
 		{
-			EXEC_debug = TRUE;
+			FLAG.debug = TRUE;
 		}
 		else if (is_option_arg(argv, argc, &i, 'p', NULL, &EXEC_profile_path))
 		{
-			EXEC_debug = TRUE;
-			EXEC_profile = TRUE;
+			FLAG.debug = TRUE;
+			FLAG.profile = TRUE;
 		}
 		else if (is_long_option(argv[i], 't', "trace"))
 		{
-			EXEC_trace = TRUE;
+			FLAG.trace = TRUE;
 		}
 		else if (is_option_arg(argv, argc, &i, 'f', NULL, &EXEC_fifo_name))
 		{
-			EXEC_fifo = TRUE;
+			FLAG.fifo = TRUE;
 		}
 		else if (is_option_arg(argv, argc, &i, 's', NULL, &PROJECT_startup))
 		{
@@ -387,7 +387,7 @@ int main(int argc, char *argv[])
 		}
 		else if (is_option(argv[i], 'k'))
 		{
-			EXEC_keep_library = TRUE;
+			FLAG.keep_library = TRUE;
 		}
 		else if (is_option(argv[i], 'q'))
 		{
@@ -416,11 +416,11 @@ int main(int argc, char *argv[])
 		else
 		{
 			if (file)
-				ERROR_fatal("too many %s.", EXEC_arch ? "executable files" : "project directories");
+				ERROR_fatal("too many %s.", FLAG.arch ? "executable files" : "project directories");
 
 			file = argv[i];
 
-			if (EXEC_arch)
+			if (FLAG.arch)
 			{
 				i++;
 				break;
@@ -432,7 +432,7 @@ int main(int argc, char *argv[])
 	if (!file)
 		file = ".";
 
-	if (EXEC_arch)
+	if (FLAG.arch)
 		argv[0] = file;
 
 	for (i = 1; i <= (argc - n); i++)
@@ -444,11 +444,11 @@ int main(int argc, char *argv[])
 	{
 		init(file, argc, argv);
 
-		if (!EXEC_arch)
+		if (!FLAG.arch)
 			argv[0] = PROJECT_name;
 
 		HOOK(main)(&argc, &argv);
-		EXEC_main_hook_done = TRUE;
+		FLAG.main_hook_done = TRUE;
 
 		/* Startup class */
 		
@@ -467,7 +467,7 @@ int main(int argc, char *argv[])
 	{
 		ERROR_hook();
 
-		if (EXEC_debug && DEBUG_is_init())
+		if (FLAG.debug && DEBUG_is_init())
 		{
 			if (!_welcome)
 				DEBUG.Main(TRUE);
@@ -527,7 +527,7 @@ int main(int argc, char *argv[])
 
 			ERROR_hook();
 
-			if (EXEC_debug)
+			if (FLAG.debug)
 			{
 				DEBUG.Main(TRUE);
 				MAIN_exit(TRUE, 0);
@@ -543,7 +543,7 @@ int main(int argc, char *argv[])
 
 	main_exit(FALSE);
 
-	if (!EXEC_task)
+	if (!FLAG.task)
 		MEMORY_exit();
 
 	do_exit(ret, FALSE);

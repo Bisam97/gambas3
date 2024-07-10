@@ -96,7 +96,7 @@ static EVAL_INTERFACE EVAL;
 
 static int _fdr;
 static int _fdw;
-static FILE *_out;
+static FILE *_out = NULL;
 static FILE *_in = NULL;
 static bool _fifo;
 static bool _debug = FALSE;
@@ -107,8 +107,8 @@ static bool _debug = FALSE;
 #define WARNING(_msg, ...) fprintf(stderr, "W\t" _msg "\n", ##__VA_ARGS__)
 #define INFO(_msg, ...) fprintf(stderr, "I\t" _msg "\n", ##__VA_ARGS__)
 #else
-#define WARNING(_msg, ...) fprintf(_out, "W\t" _msg "\n", ##__VA_ARGS__)
-#define INFO(_msg, ...) fprintf(_out, "I\t" _msg "\n", ##__VA_ARGS__)
+#define WARNING(_msg, ...) _out && fprintf(_out, "W\t" _msg "\n", ##__VA_ARGS__)
+#define INFO(_msg, ...) _out && fprintf(_out, "I\t" _msg "\n", ##__VA_ARGS__)
 #endif
 
 static void init_eval_interface()
@@ -229,12 +229,21 @@ static bool calc_position_from_line(CLASS *class, ushort line, FUNCTION **functi
 }
 
 
-DEBUG_INFO *DEBUG_init(GB_DEBUG_INTERFACE *debug, bool fifo, const char *fifo_name)
+DEBUG_INFO *DEBUG_init(GB_DEBUG_INTERFACE *debug)
+{
+	DEBUG_interface = debug;
+
+	GB.NewArray(&_breakpoints, sizeof(DEBUG_BREAK), 16);
+	GB.NewArray(&_watches, sizeof(DEBUG_WATCH), 0);
+	
+	return &DEBUG_info;
+}
+
+bool DEBUG_init_fifo(bool fifo, const char *fifo_name)
 {
 	char *env;
 	char path[DEBUG_FIFO_PATH_MAX];
 
-	DEBUG_interface = debug;
 	_fifo = fifo;
 
 	if (_fifo)
@@ -251,7 +260,7 @@ DEBUG_INFO *DEBUG_init(GB_DEBUG_INTERFACE *debug, bool fifo, const char *fifo_na
 			if (errno != EAGAIN && errno != EINTR)
 			{
 				fprintf(stderr, "gb.debug: unable to open input fifo: %s: %s\n", strerror(errno), path);
-				return NULL;
+				return TRUE;
 			}
 		}
 		
@@ -261,7 +270,7 @@ DEBUG_INFO *DEBUG_init(GB_DEBUG_INTERFACE *debug, bool fifo, const char *fifo_na
 		if (!_out)
 		{
 			fprintf(stderr, "gb.debug: unable to create stream on input fifo: %s: %s\n", strerror(errno), path);
-			return NULL;
+			return TRUE;
 		}
 	}
 	else
@@ -270,9 +279,6 @@ DEBUG_INFO *DEBUG_init(GB_DEBUG_INTERFACE *debug, bool fifo, const char *fifo_na
 	}
 
 	//ARRAY_create(&_breakpoints);
-	GB.NewArray(&_breakpoints, sizeof(DEBUG_BREAK), 16);
-	GB.NewArray(&_watches, sizeof(DEBUG_WATCH), 0);
-	
 	signal(SIGUSR2, signal_user);
 	signal(SIGPIPE, SIG_IGN);
 
@@ -282,7 +288,7 @@ DEBUG_INFO *DEBUG_init(GB_DEBUG_INTERFACE *debug, bool fifo, const char *fifo_na
 	if (env && env[0] == '1' && env[1] == 0)
 		_debug = TRUE;
 
-	return &DEBUG_info;
+	return FALSE;
 }
 
 void DEBUG_exit(void)
@@ -632,18 +638,14 @@ static void command_from(char *cmd)
 	}
 }
 
-
-static void command_breakpoint(char *cmd)
+void DEBUG_set_breakpoint(bool set, char *cmd)
 {
 	char *comp = NULL;
 	char class_name[256];
 	ushort line;
-	bool unset = *cmd == '-';
 	char *p;
 
-	cmd++;
-
-	if (unset && cmd[0] == '*' && cmd[1] == 0)
+	if (!set && cmd[0] == '*' && cmd[1] == 0)
 	{
 		unset_all_breakpoints();
 		return;
@@ -664,13 +666,75 @@ static void command_breakpoint(char *cmd)
 	}
 
 	if (sscanf(cmd, "%256[^.].%hu", class_name, &line) != 2)
-		WARNING("Cannot %s breakpoint: syntax error", unset ? "remove" : "add");
-	else if (unset)
-		unset_breakpoint((CLASS *)GB_DEBUG.FindClass(comp, class_name), line);
-	else
+		WARNING("Cannot %s breakpoint: syntax error", set ? "add" : "remove");
+	else if (set)
 		set_breakpoint((CLASS *)GB_DEBUG.FindClass(comp, class_name), line);
+	else
+		unset_breakpoint((CLASS *)GB_DEBUG.FindClass(comp, class_name), line);
 }
 
+static void command_breakpoint(char *cmd)
+{
+	DEBUG_set_breakpoint(*cmd == '+', &cmd[1]);
+}
+
+void DEBUG_set_breakpoints_from_file(const char *path)
+{
+	int fd;
+	struct stat info;
+	char *data;
+	int len, lenr;
+	char *p;
+	char *cmd;
+	
+	fd = open(path, O_RDONLY);
+	if (fd < 0) 
+		return;
+	
+	if (fstat(fd, &info))
+	{
+		close(fd);
+		return;
+	}
+	
+	len = info.st_size;
+	GB.Alloc(POINTER(&data), len + 1);
+	
+	p = data;
+	
+	for(;;)
+	{
+		lenr = read(fd, p, len);
+		if (lenr < 0)
+		{
+			close(fd);
+			return;
+		}
+		
+		if (lenr == len)
+			break;
+			
+		p += lenr;
+		len -= lenr;
+	}
+
+	close(fd);
+	
+	data[len] = 0;
+	p = data;
+	
+	cmd = strtok(data, ",");
+	for (;;)
+	{
+		if (!cmd)
+			break;
+		if (*cmd == '+')
+			DEBUG_set_breakpoint(TRUE, &cmd[1]);
+		cmd = strtok(NULL, ",");
+	}
+	
+	GB.Free(POINTER(&data));
+}
 
 void DEBUG_backtrace(FILE *out)
 {

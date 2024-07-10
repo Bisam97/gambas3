@@ -137,7 +137,7 @@ static void project_startup(char *name, int len)
 
 static void project_library_path(char *name, int len)
 {
-	if (!EXEC_debug)
+	if (!FLAG.debug)
 	{
 		ARCHIVE_path = STRING_new_zero(STRING_conv_file_name(name, len));
 		if (*name != '/')
@@ -286,7 +286,7 @@ void PROJECT_init(const char *file)
 	if (*file == '.' && file[1] == '/')
 		file += 2;
 
-	if (EXEC_arch)
+	if (FLAG.arch)
 	{
 		if (FILE_is_relative(file))
 		{
@@ -338,14 +338,14 @@ void PROJECT_init(const char *file)
 
 	/* Project name */
 
-	if (EXEC_arch)
+	if (FLAG.arch)
 		PROJECT_name = STRING_new_zero(FILE_get_basename(file));
 	else
 		PROJECT_name = STRING_new_zero(FILE_get_name(PROJECT_path));
 
 	/* Main archive creation */
 
-	ARCHIVE_create_main(EXEC_arch ? FILE_get_name(file) : NULL);
+	ARCHIVE_create_main(FLAG.arch ? FILE_get_name(file) : NULL);
 
 	return;
 
@@ -363,7 +363,7 @@ void PROJECT_load()
 
 	STACK_init();
 
-	if (EXEC_arch)
+	if (FLAG.arch)
 		file = ".startup";
 	else
 		file = FILE_cat(PROJECT_path, ".startup", NULL);
@@ -391,7 +391,7 @@ void PROJECT_load()
 	}
 	END_TRY
 
-	if (EXEC_arch)
+	if (FLAG.arch)
 		file = ".environment";
 	else
 		file = FILE_cat(PROJECT_path, ".environment", NULL);

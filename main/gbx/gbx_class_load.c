@@ -653,7 +653,7 @@ static void load_and_relocate(CLASS *class, int len_data, CLASS_DESC **pstart, i
 
 	// Profile information
 
-	if (EXEC_profile)
+	if (FLAG.profile)
 		ALLOC_ZERO(&class->load->prof, sizeof(uint) * (class->debug ? (1 + class->load->n_func) : 1));
 
 	/* Source file path, ignored now! */
@@ -1297,7 +1297,7 @@ static void load_without_inits(CLASS *class)
 	
 	// Init breakpoints
 
-	if (EXEC_debug)
+	if (FLAG.debug || FLAG.debug_wait)
 		DEBUG.InitBreakpoints(class);
 
 	//total += MEMORY_size - alloc;

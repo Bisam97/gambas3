@@ -348,7 +348,7 @@ static int get_message_length(const char *pattern, char *arg[], int narg)
 			len += strlen(arg[i]);
 	}
 
-	if (!EXEC_debug)
+	if (!FLAG.debug)
 		len -= narg * 3;
 
 	return len;
@@ -414,7 +414,7 @@ void ERROR_define(const char *pattern, char *arg[])
 			ERROR_current->info.msg = msg;
 			ERROR_current->info.free = TRUE;
 
-			if (EXEC_debug)
+			if (FLAG.debug)
 			{
 				int i;
 				strcpy(msg, pattern);
@@ -601,7 +601,7 @@ void ERROR_fatal(const char *error, ...)
 	va_list args;
 
 	va_start(args, error);
-	fputs(EXEC_arch ? "gbr" GAMBAS_VERSION_STRING : "gbx" GAMBAS_VERSION_STRING, stderr);
+	fputs(FLAG.arch ? "gbr" GAMBAS_VERSION_STRING : "gbx" GAMBAS_VERSION_STRING, stderr);
 	fputs(": ", stderr);
 	vfprintf(stderr, error, args);
 	va_end(args);
@@ -695,7 +695,7 @@ bool ERROR_print(bool can_ignore)
 		DEBUG_print_backtrace(ERROR_backtrace);
 	}
 
-	if (EXEC_main_hook_done && !EXEC_debug && EXEC_Hook.error && !lock)
+	if (FLAG.main_hook_done && !FLAG.debug && EXEC_Hook.error && !lock)
 	{
 		lock = TRUE;
 		GAMBAS_DoNotRaiseEvent = TRUE;

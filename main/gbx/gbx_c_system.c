@@ -191,7 +191,7 @@ END_PROPERTY
 
 BEGIN_PROPERTY(System_ByteOrder)
 
-	GB_ReturnInteger(EXEC_big_endian);
+	GB_ReturnInteger(FLAG.big_endian);
 
 END_PROPERTY
 
@@ -245,9 +245,9 @@ END_PROPERTY
 BEGIN_PROPERTY(System_Profile)
 
 	if (READ_PROPERTY)
-		GB_ReturnBoolean(EXEC_profile_instr);
+		GB_ReturnBoolean(FLAG.profile_instr);
 	else
-		EXEC_profile_instr = EXEC_profile && VPROP(GB_BOOLEAN);
+		FLAG.profile_instr = FLAG.profile && VPROP(GB_BOOLEAN);
 
 END_PROPERTY
 
@@ -255,9 +255,9 @@ END_PROPERTY
 BEGIN_PROPERTY(System_Trace)
 
 	if (READ_PROPERTY)
-		GB_ReturnBoolean(EXEC_trace);
+		GB_ReturnBoolean(FLAG.trace);
 	else
-		EXEC_trace = VPROP(GB_BOOLEAN);
+		FLAG.trace = VPROP(GB_BOOLEAN);
 
 END_PROPERTY
 
@@ -279,9 +279,9 @@ END_PROPERTY
 BEGIN_PROPERTY(System_BreakOnError)
 
 	if (READ_PROPERTY)
-		GB_ReturnBoolean(EXEC_break_on_error);
-	else if (EXEC_debug)
-		EXEC_break_on_error = VPROP(GB_BOOLEAN);
+		GB_ReturnBoolean(FLAG.break_on_error);
+	else if (FLAG.debug)
+		FLAG.break_on_error = VPROP(GB_BOOLEAN);
 
 END_METHOD
 
@@ -379,9 +379,9 @@ BEGIN_PROPERTY(System_IgnoreOverflow)
 #else
 
 	if (READ_PROPERTY)
-		GB_ReturnBoolean(!EXEC_check_overflow);
+		GB_ReturnBoolean(!FLAG.check_overflow);
 	else
-		EXEC_check_overflow = !VPROP(GB_BOOLEAN);
+		FLAG.check_overflow = !VPROP(GB_BOOLEAN);
 
 #endif
 

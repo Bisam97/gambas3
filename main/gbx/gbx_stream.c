@@ -100,7 +100,7 @@ bool STREAM_in_archive(const char *path)
 	if (FILE_is_relative(path))
 	{
 		ARCHIVE_get_current(&arch);
-		if (arch->name || EXEC_arch) // || !FILE_exist_real(path)) - Why that test ?
+		if (arch->name || FLAG.arch) // || !FILE_exist_real(path)) - Why that test ?
 			return TRUE;
 	}
 
@@ -206,10 +206,10 @@ void STREAM_open(STREAM *stream, const char *path, int mode)
 
 			if (strncmp(path, "../", 3))
 				ARCHIVE_get_current(&arch);
-			else if (!EXEC_arch)
+			else if (!FLAG.arch)
 				path += 3;
 
-			if ((arch && arch->name) || EXEC_arch) // || !FILE_exist_real(path)) - Why that test ?
+			if ((arch && arch->name) || FLAG.arch) // || !FILE_exist_real(path)) - Why that test ?
 			{
 				sclass = &STREAM_arch;
 				goto _OPEN;
@@ -1041,7 +1041,7 @@ static int read_length(STREAM *stream)
 			STREAM_read(stream, &buffer._data[1], 1);
 			buffer._data[0] &= 0x3F;
 
-			if (!EXEC_big_endian)
+			if (!FLAG.big_endian)
 				SWAP_short(&buffer._short);
 
 			len = buffer._short;
@@ -1051,7 +1051,7 @@ static int read_length(STREAM *stream)
 			STREAM_read(stream, &buffer._data[1], 3);
 			buffer._data[0] &= 0x3F;
 
-			if (!EXEC_big_endian)
+			if (!FLAG.big_endian)
 				SWAP_int(&buffer._int);
 
 			len = buffer._int;
@@ -1590,14 +1590,14 @@ static void write_length(STREAM *stream, int len)
 	else if (len < 0x4000)
 	{
 		buffer._short = (short)len | 0x8000;
-		if (!EXEC_big_endian)
+		if (!FLAG.big_endian)
 			SWAP_short(&buffer._short);
 		STREAM_write(stream, &buffer._short, sizeof(short));
 	}
 	else
 	{
 		buffer._int = len | 0xC0000000;
-		if (!EXEC_big_endian)
+		if (!FLAG.big_endian)
 			SWAP_int(&buffer._int);
 		STREAM_write(stream, &buffer._int, sizeof(int));
 	}

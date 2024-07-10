@@ -1000,14 +1000,14 @@ static iconv_t my_iconv_open(const char *dst, const char *src)
 	odst = dst;
 
 	if (dst == SC_UNICODE)
-		dst = EXEC_big_endian ? "UCS-4BE" : "UCS-4LE";
+		dst = FLAG.big_endian ? "UCS-4BE" : "UCS-4LE";
 	else if (dst == SC_UTF8)
 		dst = "UTF-8";
 	else if (!dst || *dst == 0)
 		dst = "ASCII";
 
 	if (src == SC_UNICODE)
-		src = EXEC_big_endian ? "UCS-4BE" : "UCS-4LE";
+		src = FLAG.big_endian ? "UCS-4BE" : "UCS-4LE";
 	else if (src == SC_UTF8)
 		src = "UTF-8";
 	else if (!src || *src == 0)

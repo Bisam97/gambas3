@@ -112,28 +112,95 @@ const char *DEBUG_get_current_position(void)
 	return DEBUG_get_position(CP, FP, PC);
 }
 
+static const char *get_wait_path(const char *pattern)
+{
+	const char *project = PROJECT_source;
+	if (!project)
+		project = PROJECT_name;
+
+	sprintf(COMMON_buffer, pattern, project);
+	return COMMON_buffer;
+}
+
+static bool check_ide_wait(int *pid)
+{
+	const char *dir;
+	int fd_lock;
+	
+	dir = FILE_readlink(get_wait_path(DEBUG_WAIT_LINK));
+	if (!dir)
+		return FALSE;
+	
+	if (pid)
+	{
+		if (unlink(COMMON_buffer))
+			return FALSE;
+		
+		*pid = atoi(FILE_get_name(dir));
+		if (!*pid)
+			return FALSE;
+
+		sprintf(COMMON_buffer, DEBUG_FIFO_PATTERN, getuid(), *pid, "lock");
+		fd_lock = open(COMMON_buffer, O_CREAT | O_WRONLY | O_CLOEXEC, 0666);
+		if (fd_lock < 1)
+			return FALSE;
+		
+		STREAM_lock_all_fd(fd_lock); // On program end, that file will be automatically closed, and the lock released.
+	}
+	
+	return TRUE;
+}
+
+static void start_debug()
+{
+	const char *fifo_name;
+	int pid;
+	
+	if (FLAG.debug_wait)
+	{
+		if (!check_ide_wait(&pid))
+			return;
+		
+		FLAG.debug_wait = FALSE;
+		FLAG.debug = TRUE;
+		FLAG.fifo = TRUE;
+
+		sprintf(COMMON_buffer, DEBUG_FIFO_PATTERN, getuid(), pid, "");
+		fifo_name = COMMON_buffer;
+	}
+	else
+		fifo_name = EXEC_fifo_name;
+	
+	if (DEBUG.InitFifo(FLAG.fifo, fifo_name))
+		ERROR_panic("Cannot initialize debugging mode");
+
+	if (FLAG.profile)
+	{
+		FLAG.profile_instr = TRUE;
+		DEBUG.Profile.Init(EXEC_profile_path, PROJECT_name);
+	}
+}
 
 void DEBUG_init(void)
 {
-	const char *project;
-	const char *dir;
-	const char *fifo_name;
-	int pid;
-	int fd_lock;
-	int n;
-	
-	if (!EXEC_debug)
+	if (!FLAG.debug)
 	{
-		project = PROJECT_source;
-		if (!project)
-			project = PROJECT_name;
-
-		sprintf(COMMON_buffer, DEBUG_WAIT_LINK, project);
-
-		dir = FILE_readlink(COMMON_buffer);
-		if (!dir)
+		if (!check_ide_wait(NULL))
 			return;
 		
+		FLAG.debug_wait = TRUE;
+	}
+		
+	COMPONENT_load(COMPONENT_create("gb.debug"));
+	LIBRARY_get_interface_by_name("gb.debug", DEBUG_INTERFACE_VERSION, &DEBUG);
+	DEBUG_info = DEBUG.Init((GB_DEBUG_INTERFACE *)(void *)GAMBAS_DebugApi);
+
+	if (FLAG.debug_wait)
+		DEBUG.SetBreakpointsFromFile(get_wait_path(DEBUG_WAIT_CONF));
+	else
+		start_debug();
+	
+#if 0
 		for (n = DEBUG_WAIT_IGNORE_MAX; n >= 1; n--)
 		{
 			sprintf(COMMON_buffer, DEBUG_WAIT_IGNORE, project, n);
@@ -162,45 +229,29 @@ void DEBUG_init(void)
 		
 		sprintf(COMMON_buffer, DEBUG_FIFO_PATTERN, getuid(), pid, "");
 		fifo_name = COMMON_buffer;
-	}
-	else
-		fifo_name = EXEC_fifo_name;
-
-	COMPONENT_load(COMPONENT_create("gb.debug"));
-	LIBRARY_get_interface_by_name("gb.debug", DEBUG_INTERFACE_VERSION, &DEBUG);
-
-	DEBUG_info = DEBUG.Init((GB_DEBUG_INTERFACE *)(void *)GAMBAS_DebugApi, EXEC_fifo, fifo_name);
-
-	if (!DEBUG_info)
-		ERROR_panic("Cannot initialize debug mode");
-
-	if (EXEC_profile)
-	{
-		EXEC_profile_instr = TRUE;
-		DEBUG.Profile.Init(EXEC_profile_path, PROJECT_name);
-	}
+#endif
 }
 
 
 void DEBUG_exit(void)
 {
-	if (!EXEC_debug || !DEBUG_is_init())
+	if (!FLAG.debug || !DEBUG_is_init())
 		return;
 
 	DEBUG.Exit();
-	if (EXEC_profile)
+	if (FLAG.profile)
 		DEBUG.Profile.Exit();
 }
 
 void DEBUG_enter_event_loop(void)
 {
-	if (EXEC_profile)
+	if (FLAG.profile)
 		DEBUG.Profile.Begin(NULL, NULL);
 }
 
 void DEBUG_leave_event_loop(void)
 {
-	if (EXEC_profile)
+	if (FLAG.profile)
 		DEBUG.Profile.End(NULL, NULL);
 }
 
@@ -704,7 +755,7 @@ void DEBUG_leave_eval()
 
 void DEBUG_breakpoint(ushort code)
 {
-	if (EXEC_trace)
+	if (FLAG.trace)
 	{
 		double timer;
 		int i;
@@ -718,25 +769,33 @@ void DEBUG_breakpoint(ushort code)
 		fflush(stderr);
 	}
 
-	if (EXEC_debug)
+	if (FLAG.debug_wait)
+	{
+		if ((uchar)code)
+			start_debug();
+		else
+			return;
+	}
+	
+	if (FLAG.debug)
 	{
 		/*TC = PC + 1;
 		TP = SP;*/
 
 		//fprintf(stderr, "%s %d\n", DEBUG_get_current_position(), DEBUG_info->watch);
 
-		if (CP && (EXEC_debug_inside || !CP->component))
+		if (CP && (FLAG.debug_inside || !CP->component))
 		{
-			if (EXEC_profile_instr)
+			if (FLAG.profile_instr)
 				DEBUG.Profile.Add(CP, FP, PC);
+
+			code = (uchar)code;
 
 			if (DEBUG_info->watch)
 			{
 				if (DEBUG.CheckWatches())
 					return;
 			}
-
-			code = (uchar)code;
 
 			if (code == 0)
 			{

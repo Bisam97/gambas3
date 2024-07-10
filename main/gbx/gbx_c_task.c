@@ -81,12 +81,12 @@ static void has_forked(void)
 	STREAM *stream;
 	
 	FILE_init();
-	EXEC_debug = FALSE;
-	EXEC_task = TRUE;
-	if (EXEC_profile)
+	FLAG.debug = FALSE;
+	FLAG.task = TRUE;
+	if (FLAG.profile)
 		DEBUG.Profile.Cancel();
-	EXEC_profile = FALSE;
-	EXEC_profile_instr = FALSE;
+	FLAG.profile = FALSE;
+	FLAG.profile_instr = FALSE;
 
 	EXEC_Hook.loop = NULL;
 	EXEC_Hook.wait = NULL;
@@ -279,7 +279,7 @@ static bool start_task(CTASK *_object)
 	bool close_fd_out = FALSE;
 	bool close_fd_err = FALSE;
 
-	if (EXEC_task)
+	if (FLAG.task)
 		return TRUE;
 
 	if (THIS->stopped)
@@ -610,7 +610,7 @@ BEGIN_METHOD_VOID(Task_new)
 	
 	THIS->ret.type = GB_T_NULL;
 
-	if (EXEC_task)
+	if (FLAG.task)
 	{
 		GB_Error("A task cannot create other tasks");
 		return;

@@ -63,26 +63,6 @@ uint64_t EXEC_byref = 0;
 
 unsigned char EXEC_quit_value = 0; // interpreter return value
 
-#if 0
-bool EXEC_big_endian; // CPU endianness
-bool EXEC_debug_inside = FALSE; // debug inside components
-bool EXEC_debug_hold = FALSE; // hold execution at program end
-bool EXEC_task = FALSE; // I am a background task
-bool EXEC_profile = FALSE; // profiling mode
-bool EXEC_profile_instr = FALSE; // profiling mode at instruction level
-bool EXEC_trace = FALSE; // tracing mode
-bool EXEC_arch = FALSE; // executing an archive
-bool EXEC_fifo = FALSE; // debugging through a fifo
-bool EXEC_keep_library = FALSE; // do not unload libraries
-bool EXEC_main_hook_done = FALSE;
-bool EXEC_break_on_error = FALSE; // if we must break into the debugger as soon as there is an error.
-bool EXEC_in_event_loop = FALSE; // if we are in the event loop
-#if DO_NOT_CHECK_OVERFLOW
-#else
-bool EXEC_check_overflow = TRUE; // if we should check for overflow
-#endif
-#endif
-
 const char EXEC_should_borrow[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 2, 2, 0, 0, 1 };
 
 const char *EXEC_unknown_name;
@@ -933,7 +913,7 @@ void EXEC_function_loop()
 					PROPAGATE();
 				}
 
-				if (EXEC_break_on_error && EXEC_debug)
+				if (FLAG.break_on_error && FLAG.debug)
 					DEBUG.Main(TRUE);
 
 				if (ERROR->info.code == E_ASSERT)
@@ -1005,7 +985,7 @@ void EXEC_function_loop()
 
 				ERROR_set_last(TRUE);
 
-				if (EXEC_debug && !FP->fast_linked && !STACK_has_error_handler())
+				if (FLAG.debug && !FP->fast_linked && !STACK_has_error_handler())
 				{
 					ERROR_hook();
 					
@@ -2058,7 +2038,7 @@ void EXEC_drop_vargs(void)
 
 void EXEC_set_got_error(bool err)
 {
-	EXEC_got_error = err;
+	FLAG.got_error = err;
 }
 
 PCODE *EXEC_on_goto_gosub(PCODE *pc)

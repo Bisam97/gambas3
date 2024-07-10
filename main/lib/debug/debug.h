@@ -61,10 +61,12 @@ const char *DEBUG_get_position(CLASS *cp, FUNCTION *fp, PCODE *pc);
 const char *DEBUG_get_profile_position(CLASS *cp, FUNCTION *fp, PCODE *pc);
 const char *DEBUG_get_current_position(void);
 void DEBUG_init_breakpoints(CLASS *class);
+void DEBUG_set_breakpoints_from_file(const char *path);
 
 void DEBUG_break_on_next_line(void);
 
-DEBUG_INFO *DEBUG_init(GB_DEBUG_INTERFACE *debug, bool fifo, const char*fifo_name);
+DEBUG_INFO *DEBUG_init(GB_DEBUG_INTERFACE *debug);
+bool DEBUG_init_fifo(bool fifo, const char *fifo_name);
 void DEBUG_exit(void);
 void DEBUG_welcome(void);
 void DEBUG_where(void);

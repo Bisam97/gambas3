@@ -93,7 +93,8 @@ typedef
 typedef
 	struct {
 		intptr_t version;
-		DEBUG_INFO *(*Init)(GB_DEBUG_INTERFACE *debug, int fifo, const char *fifo_name);
+		DEBUG_INFO *(*Init)(GB_DEBUG_INTERFACE *debug);
+		bool (*InitFifo)(int fifo, const char *fifo_name);
 		void (*Exit)(void);
 		void (*Welcome)(void);
 		void (*Main)(int error);
@@ -104,6 +105,7 @@ typedef
 		const char *(*GetPosition)(void *klass, void *func, void *pcode);
 		const char *(*GetCurrentPosition)(void);
 		void (*InitBreakpoints)(void *klass);
+		void (*SetBreakpointsFromFile)(const char *path);
 		bool (*CheckWatches)(void);
 		struct {
 			void (*Init)(const char *path, const char *project_name);
@@ -122,7 +124,6 @@ typedef
 #define DEBUG_FIFO_PATTERN FILE_TEMP_PREFIX "/gambas" GAMBAS_VERSION_STRING "-ide-debug-%u.%s"
 #define DEBUG_FIFO_PATH_MAX 64
 #define DEBUG_WAIT_LINK "/tmp/gambas-%s.debug"
-#define DEBUG_WAIT_IGNORE "/tmp/gambas-%s.debug.%d"
-#define DEBUG_WAIT_IGNORE_MAX 8
+#define DEBUG_WAIT_CONF "/tmp/gambas-%s.debug.conf"
 	
 #endif

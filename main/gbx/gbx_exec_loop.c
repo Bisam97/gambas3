@@ -2353,7 +2353,7 @@ _END_TRY:
 	#endif
 
 	// If EP was reset to null, then an error occurred
-	EXEC_got_error = (EP == NULL);
+	FLAG.got_error = (EP == NULL);
 	EP = NULL;
 	EC = ET;
 	ET = NULL;
@@ -2384,7 +2384,7 @@ _CATCH:
 
 _BREAK:
 
-	if (!EXEC_trace && !EXEC_debug)
+	if (!FLAG.trace && !FLAG.debug && !FLAG.debug_wait)
 	{
 		/*static int n = 0;
 		fprintf(stderr, "[%d], break: %p / %p\n", n++, pc, EXEC_current.pc);*/
@@ -4757,7 +4757,7 @@ void EXEC_quit(ushort code)
 			break;
 
 		case 1: // STOP
-			if (EXEC_debug && CP) // && CP->component == COMPONENT_main)
+			if (FLAG.debug && CP) // && CP->component == COMPONENT_main)
 				DEBUG.Breakpoint(0);
 			break;
 

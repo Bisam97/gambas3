@@ -69,7 +69,7 @@ CTIMER *CTIMER_every(int delay, GB_TIMER_CALLBACK callback, intptr_t param)
 	OBJECT_REF(timer);
 	
 	timer->delay = delay;
-	timer->task = EXEC_task;
+	timer->task = FLAG.task;
 	timer->ignore = TRUE;
 
 	ALLOC_ZERO(&timer->ext, sizeof(CTIMER_EXT));
@@ -84,7 +84,7 @@ CTIMER *CTIMER_every(int delay, GB_TIMER_CALLBACK callback, intptr_t param)
 
 void CTIMER_raise(void *_object)
 {
-	if (THIS->task == EXEC_task)
+	if (THIS->task == FLAG.task)
 	{
 		if (THIS_EXT && THIS_EXT->callback)
 		{
@@ -112,7 +112,7 @@ BEGIN_METHOD(Timer_new, GB_INTEGER delay)
 	if (delay < 0)
 		delay = 1000;
 	
-	THIS->task = EXEC_task;
+	THIS->task = FLAG.task;
 	THIS->delay = delay;
 	if (!MISSING(delay))
 		enable_timer(THIS, TRUE);

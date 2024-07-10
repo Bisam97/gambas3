@@ -121,7 +121,7 @@ void COMPONENT_load_all(void)
 {
 	COMPONENT *comp;
 
-	if (EXEC_debug)
+	if (FLAG.debug)
 	{
 		COMPONENT_create("gb.eval");
 		COMPONENT_create("gb.debug");

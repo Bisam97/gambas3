@@ -867,7 +867,7 @@ static bool raise_event(OBJECT *observer, void *object, int func_id, int nparam,
 		{
 			ERROR_hook();
 
-			if (EXEC_debug)
+			if (FLAG.debug)
 			{
 				DEBUG.Main(TRUE);
 				MAIN_exit(TRUE, 0);
@@ -1318,7 +1318,7 @@ char *GB_GetErrorMessage()
 
 void GB_Deprecated(const char *msg, const char *func, const char *repl)
 {
-	if (EXEC_debug)
+	if (FLAG.debug)
 	{
 		if (repl)
 			GB_Error("&1: &2 is deprecated. Use &3 instead", msg, func, repl);
@@ -2445,7 +2445,7 @@ void GB_BrowseProject(GB_BROWSE_PROJECT_CALLBACK func)
 	ARCHIVE *arch = NULL;
 
 	ARCHIVE_get_current(&arch);
-	if (!arch || (arch == ARCHIVE_main && !EXEC_arch))
+	if (!arch || (arch == ARCHIVE_main && !FLAG.arch))
 	{
 		_browse_project_func = func;
 		FILE_recursive_dir(PROJECT_path, project_file_found, NULL, 0, FALSE);
@@ -2476,22 +2476,22 @@ void *GB_DebugGetExec(void)
 
 void GB_DebugBreakOnError(bool b)
 {
-	EXEC_break_on_error = b;
+	FLAG.break_on_error = b;
 }
 
 void GB_DebugInside(bool b)
 {
-	EXEC_debug_inside = b;
+	FLAG.debug_inside = b;
 }
 
 void GB_DebugHold(void)
 {
-	EXEC_debug_hold = TRUE;
+	FLAG.debug_hold = TRUE;
 }
 
 bool GB_SystemDebug(void)
 {
-	return EXEC_debug;
+	return FLAG.debug;
 }
 
 void GB_SystemHasForked(void)
@@ -2500,10 +2500,10 @@ void GB_SystemHasForked(void)
 	FILE_init();
 	LOCAL_init();
 	
-	if (EXEC_profile)
+	if (FLAG.profile)
 		DEBUG.Profile.Cancel();
-	EXEC_profile = FALSE;
-	EXEC_profile_instr = FALSE;
+	FLAG.profile = FALSE;
+	FLAG.profile_instr = FALSE;
 
 	SIGNAL_has_forked();
 

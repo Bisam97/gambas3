@@ -80,11 +80,11 @@ void DEBUG_enter_eval(void);
 void DEBUG_leave_eval(void);
 
 #define PROFILE_ENTER_FUNCTION() \
-	if (EXEC_profile && CP && (EXEC_debug_inside || CP->component == NULL)) \
+	if (FLAG.profile && CP && (FLAG.debug_inside || CP->component == NULL)) \
 		DEBUG.Profile.Begin(CP, FP); \
 
 #define PROFILE_LEAVE_FUNCTION() \
-	if (EXEC_profile && CP && (EXEC_debug_inside || CP->component == NULL)) \
+	if (FLAG.profile && CP && (FLAG.debug_inside || CP->component == NULL)) \
 		DEBUG.Profile.End(CP, FP); \
 
 #endif
