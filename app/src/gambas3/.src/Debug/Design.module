@@ -6,7 +6,6 @@ Public TerminalNames As String[] = [("(Default)"), "KDE terminal", "Gnome termin
 Public Browsers As String[] = ["", "firefox", "chromium"]
 Public BrowserNames As String[] = [("(Internal)"), "Firefox", "Chromium"]
 
-Private Const MAX_IGNORE_EXTERN As Integer = 8
 Private Const DEBUG_REMOTE As Boolean = False
 
 Private UseTerminal As Boolean
@@ -608,7 +607,6 @@ End
 Private Sub AfterStop()
 
   Dim hForm As Object
-  Dim I As Integer
 
   If $iState = STATE_STOP Then Return
 
@@ -666,9 +664,7 @@ Private Sub AfterStop()
     $hTimerExtern.Stop
     $hTimerExtern = Null
     Try Kill $sExternLink
-    For I = 1 To MAX_IGNORE_EXTERN
-      Try Kill $sExternLink & ".*"
-    Next
+    Try Kill $sExternLink & ".conf"
     FDebugger.StopWaitForRemote
     $bExtern = False
   Endif
@@ -1396,6 +1392,8 @@ Public Sub RunExtern()
     Return
   Endif
   
+  File.Save($sExternLink & ".conf", Breakpoints.GetCommands().Join())
+
   Try Kill $sExternLink
   Try Link sDir To $sExternLink
   If Error Then 
@@ -1403,16 +1401,17 @@ Public Sub RunExtern()
     Return
   Endif
   
-  SetExternIgnore(0)
+  'SetExternIgnore(0)
 
   $bConsole = Action["console"].Value  
 
   ClearOutput
 
-  ProcessId = 0
-  MakeInitialCommands("g")
-
   $bExtern = True
+
+  ProcessId = 0
+  MakeInitialCommands()
+
   $bStart = True
   Project.Running = True
 
@@ -1442,44 +1441,21 @@ Public Sub RunExtern()
   $hTimerExtern = New Timer As "TimerExtern"
   $hTimerExtern.Delay = 500
   $hTimerExtern.Start
-  ' 
-  ' 'If Project.Profiling Then FProfile.CleanProfileFiles
-  ' 
-  ' SetState(STATE_STARTING)
-  ' Balloon.Hide
-  ' 
-  ' 
+
 End
-
-Public Sub SetExternIgnore(iNum As Integer)
-
-  Dim I As Integer
-  Dim sPath As String
-  
-  For I = 1 To MAX_IGNORE_EXTERN
-    sPath = $sExternLink & "." & CStr(I)
-    If I <= iNum Then
-      Try File.Save(sPath, "")
-    Else
-      Try Kill sPath
-    Endif
-  Next
-  
-End
-
 
 Public Sub TimerExtern_Timer()
   
   Dim sPath As String
   Dim hLock As File
-  Dim I As Integer
+  ' Dim I As Integer
   
-  For I = 1 To MAX_IGNORE_EXTERN
-    sPath = $sExternLink & "." & CStr(I)
-    If Not Exist(sPath) Then Break
-  Next
+  ' For I = 1 To MAX_IGNORE_EXTERN
+  '   sPath = $sExternLink & "." & CStr(I)
+  '   If Not Exist(sPath) Then Break
+  ' Next
   
-  FDebugger.SetExternIgnore(I - 1)
+  'FDebugger.SetExternIgnore(I - 1)
 
   If ProcessId Then
     sPath = File.SetExt($sFifo, "lock")
@@ -1865,7 +1841,7 @@ Public Sub SetDebugInside(bVal As Boolean)
   
 End
 
-Private Sub MakeInitialCommands(sCmd As String)
+Private Sub MakeInitialCommands(Optional sCmd As String)
 
   $aCmdStart = New String[]
 
@@ -1873,11 +1849,15 @@ Private Sub MakeInitialCommands(sCmd As String)
 
   If DebugInside Then $aCmdStart.Add("og+")
 
-  $aCmdStart.Insert(Breakpoints.GetCommands())
+  If Not $bExtern Then 
   
-  If $sAddBreakpoint Then
-    $aCmdStart.Add($sAddBreakpoint)
-    $sAddBreakpoint = ""
+    $aCmdStart.Insert(Breakpoints.GetCommands())
+    
+    If $sAddBreakpoint Then
+      $aCmdStart.Add($sAddBreakpoint)
+      $sAddBreakpoint = ""
+    Endif
+    
   Endif
   
   If Not $bRemote Then $aCmdStart.Add("?$\tApplication.TempDir")
@@ -1886,7 +1866,7 @@ Private Sub MakeInitialCommands(sCmd As String)
 
   'If Project.BreakOnError Then $aCmdStart.Add("o+")
   
-  $aCmdStart.Add(sCmd)
+  If sCmd Then $aCmdStart.Add(sCmd)
 
 End
 
