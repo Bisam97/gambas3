@@ -105,10 +105,10 @@ static GB_COLOR get_color(int color)
 		case COLOR_TEXT_FOREGROUND: return get_role_color(QPalette::Text);
 		case COLOR_BUTTON_BACKGROUND: return get_role_color(QPalette::Button);
 		case COLOR_BUTTON_FOREGROUND: return get_role_color(QPalette::ButtonText);
-		case COLOR_TOOLTIP_BACKGROUND: return get_color(QPalette::ToolTipBase);
+		case COLOR_TOOLTIP_BACKGROUND: return get_role_color(QPalette::ToolTipBase);
 		case COLOR_TOOLTIP_FOREGROUND: return get_tooltip_foreground();
-		case COLOR_LINK_FOREGROUND: return get_color(QPalette::Link);
-		case COLOR_VISITED_FOREGROUND: return get_color(QPalette::LinkVisited);
+		case COLOR_LINK_FOREGROUND: return get_role_color(QPalette::Link);
+		case COLOR_VISITED_FOREGROUND: return get_role_color(QPalette::LinkVisited);
 		default: return get_role_color(QPalette::Window);
 	}
 }
@@ -123,7 +123,10 @@ static void handle_color(void *_param, int color, GB_COLOR *var)
 	if (READ_PROPERTY)
 		GB.ReturnInteger(*var == GB_COLOR_DEFAULT ? _palette[color] : *var);
 	else
+	{
 		*var = VPROP(GB_INTEGER);
+		COLOR_update_palette();
+	}
 }
 
 static void update_color(CWIDGET *widget)
@@ -178,6 +181,7 @@ bool COLOR_update_palette()
 	{
 		_palette_previous[i] = _palette[i];
 		_palette[i] = get_color(i);
+		//fprintf(stderr, "[%d] = %08X\n", i, _palette[i]);
 
 		for (j = 0; j < i; j++)
 		{
@@ -198,6 +202,7 @@ bool COLOR_update_palette()
 			//fprintf(stderr, "[%d] = %08X -> %08X\n", i, _palette_previous[i], _palette[i]);
 			update = true;
 		}
+		
 	}
 
 	if (update)
