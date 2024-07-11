@@ -85,10 +85,10 @@ Public Sub Form_Open()
   btnExample.Tag = LIST_EXAMPLE
   btnSoft.Tag = LIST_SOFTWARE
   
-  For Each hCtrl In [btnNew, btnOpen, btnRecent, btnExample, btnSoft, btnFarm, btnOpenExtern, btnAbout, btnQuit]
-    hCtrl.Foreground = Color.Foreground
-    'hCtrl.Highlight = &H61A7C3&
-  Next
+  ' For Each hCtrl In [btnNew, btnOpen, btnRecent, btnExample, btnSoft, btnFarm, btnOpenExtern, btnAbout, btnQuit]
+  '   hCtrl.Foreground = Color.Foreground
+  '   'hCtrl.Highlight = &H61A7C3&
+  ' Next
   
   ' Fill recent list
   
@@ -252,8 +252,9 @@ Private Sub Toggle(iState As Integer)
   End Select
   
   For Each hCtrl In [btnRecent, btnExample, btnSoft]
-    hCtrl.Background = If($iRecent = hCtrl.Tag, Color.SetAlpha(Color.TextForeground, 240), Color.Default)
-    'hCtrl.Foreground = If($iRecent = hCtrl.Tag, Color.TextForeground, Color.White)
+    hCtrl.Selected = $iRecent = hCtrl.Tag
+    'hCtrl.Background = If($iRecent = hCtrl.Tag, Color.SetAlpha(Color.SelectedBackground, 128), Color.Default)
+    'hCtrl.Foreground = If($iRecent = hCtrl.Tag, Color.SelectedForeground, Color.Default)
   Next
   
   btnSort.Visible = $iRecent = LIST_RECENT

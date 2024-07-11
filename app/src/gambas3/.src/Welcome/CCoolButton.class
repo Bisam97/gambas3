@@ -5,6 +5,7 @@ Property ToolTip As String
 Property Foreground As Integer
 Property Background As Integer
 Property Highlight As Integer
+Property Selected As Boolean
 
 Public Tag As Variant
 
@@ -16,6 +17,7 @@ Private $bInside As Boolean
 Private $iHighlight As Integer = Color.SelectedBackground
 
 Event Click
+Private $bSelected As Boolean
 
 Public Sub _new(hContainer As Container, W As Integer, H As Integer, sText As String, sIcon As String, Optional sFont As String)
 
@@ -55,14 +57,15 @@ Public Sub Panel_Draw()
     Paint.FillRect(0, 0, Paint.W, Paint.H, $iBackground)
   Endif
   
-  If $bInside And If Me.Enabled Then
-    Paint.FillRect(0, 0, Paint.W, Paint.H, Color.SetAlpha(Color.TextForeground, 224))
+  If Me.Enabled Then
+    If $bSelected Then Paint.FillRect(0, 0, Paint.W, Paint.H, Color.SetAlpha(Color.SelectedBackground, 128))
+    If $bInside Then Paint.FillRect(0, 0, Paint.W, Paint.H, Color.SetAlpha(Color.SelectedBackground, 192))
   Endif
   
   Paint.DrawPicture($hPict, 16, ($hPanel.H - $hPict.H) \ 2)
-  'If $bInside Then Draw.Foreground = Color.Gradient($hPanel.Foreground, $iHighlight)
-  Paint.Background = If(Me.Enabled, $hPanel.Foreground, Color.Merge($hPanel.Foreground, $hPanel.Background))
-  'Paint.DrawTextShadow($sText, $hPict.W + 24, 0, $hPanel.W - $hPict.W - 32, $hPanel.H, Align.Normal)
+  
+  Paint.Background = If($bSelected, Color.SelectedForeground, Color.TextForeground)
+  If Not Me.Enabled Then Paint.Background = Color.SetAlpha(Paint.Background, 128)
   Paint.DrawText($sText, $hPict.W + 24, 0, $hPanel.W - $hPict.W - 32, $hPanel.H, Align.Normal)
   
   ' If $bArrow Then
@@ -70,14 +73,7 @@ Public Sub Panel_Draw()
   '   'Draw.Style.Arrow(Draw.W - 32, (Draw.H - 32) \ 2, 32, 32, Align.Right)
   ' Endif
   
-  If $hPanel.HasFocus Then
-    Paint.AntiAlias = False
-    Paint.LineWidth = 2
-    Paint.Background = Color.SetAlpha($iHighlight, 128)
-    Paint.Rectangle(2, 2, Paint.W - 4, Paint.H - 4)
-    Paint.Stroke
-    Paint.AntiAlias = True
-  Endif
+  If $hPanel.HasFocus Then Paint.DrawRect(0, 0, Paint.W, Paint.H, Color.SetAlpha($iHighlight, 128), Desktop.Scale / 3)
   
 End
 
@@ -231,6 +227,19 @@ End
 Private Sub Background_Write(Value As Integer)
 
   $iBackground = Value
+  $hPanel.Refresh
+
+End
+
+Private Function Selected_Read() As Boolean
+
+  Return $bSelected
+
+End
+
+Private Sub Selected_Write(Value As Boolean)
+
+  $bSelected = Value
   $hPanel.Refresh
 
 End
