@@ -366,8 +366,8 @@ static void http_send(void *_object, int type, char *sContent, char *sData, int 
 		if (GB.LoadFile(sData, lendata, &THIS_HTTP->data, &mylen))
 			return;
 		
-		THIS_HTTP->len_data = mylen;
 		THIS_HTTP->send_file = TRUE;
+		THIS_HTTP->len_data = mylen;
 	}
 	else
 	{
@@ -407,13 +407,13 @@ static void http_send(void *_object, int type, char *sContent, char *sData, int 
 	
 	if (type == SEND_PUT)
 	{
-		if (CURL_set_option(THIS_CURL, CURLOPT_INFILESIZE_LARGE, (curl_off_t)lendata)
+		if (CURL_set_option(THIS_CURL, CURLOPT_INFILESIZE_LARGE, (curl_off_t)THIS_HTTP->len_data)
 				|| CURL_set_option(THIS_CURL, CURLOPT_UPLOAD, 1))
 			return;
 	}
 	else // SEND_POST
 	{
-		if (CURL_set_option(THIS_CURL, CURLOPT_POSTFIELDSIZE, lendata)
+		if (CURL_set_option(THIS_CURL, CURLOPT_POSTFIELDSIZE, THIS_HTTP->len_data)
 				|| CURL_set_option(THIS_CURL, CURLOPT_POSTFIELDS, NULL))
 			return;
 	}
