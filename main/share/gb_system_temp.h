@@ -24,7 +24,9 @@
 #include "config.h"
 #include "gb_system.h"
 
-#if OS_LINUX || defined(OS_CYGWIN)
+#include <stdio.h>
+
+#if OS_LINUX || defined(OS_CYGWIN) || defined(__GLIBC__)
 
 #include <sys/sysinfo.h>
 
@@ -52,8 +54,6 @@ int SYSTEM_get_cpu_count(void)
 }
 
 #else
-
-#include <stdio.h>
 
 int SYSTEM_get_cpu_count(void)
 {
