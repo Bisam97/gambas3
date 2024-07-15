@@ -189,10 +189,10 @@ Static Public Sub GetInfo(Optional bBackground As Boolean) As String[]
     Else
       aSearchPath = New String[]
       If SizeOf(gb.Pointer) = SizeOf(gb.Long) Then
-        If Stat("/lib64", False).Type = gb.Directory Then aSearchPath.Add("/lib64")
+        If Exist("/lib64") And If Stat("/lib64", False).Type = gb.Directory Then aSearchPath.Add("/lib64")
         aSearchPath.Add("/usr/lib64")
       Endif
-      If Stat("/lib", False).Type = gb.Directory Then aSearchPath.Add("/lib")
+      If Exist("/lib") And If Stat("/lib", False).Type = gb.Directory Then aSearchPath.Add("/lib")
       aSearchPath.Add("/usr/lib")
     Endif
     
