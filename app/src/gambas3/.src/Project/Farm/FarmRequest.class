@@ -162,12 +162,23 @@ Catch
   
 End
 
+Private Sub MakeURL(sPath As String) As String
+
+  Dim sUrl As String
+  
+  sUrl = Farm
+  If Farm Not Begins "http://" And If Farm Not Begins "https://" Then sUrl = "http://" & sUrl
+  Return sUrl &/ "farm" &/ sPath
+  
+End
+
+
 Public Sub RegisterUser(sLogin As String, sPassword As String, sEmail As String)
   
   $sTitle = ("Register user")
   $iProgress = PROGRESS_NONE
   
-  $hForm.URL = "http://" & Farm &/ "farm/register"
+  $hForm.URL = MakeURL("/register")
   $hForm.Add("login", sLogin)
   $hForm.Add("password", sPassword)
   $hForm.Add("email", sEmail)
@@ -277,7 +288,7 @@ Public Sub PublishSoftware(sVendor As String, sScreenshot As String, sGambasVers
   
   System.Language = sSave
 
-  $hForm.URL = "http://" & Farm &/ "/farm/publish"
+  $hForm.URL = MakeURL("/publish")
   '$hForm.Add("login", Login)
   '$hForm.Add("password", Password)
   $hForm.Add("name", Project.Name)
@@ -307,7 +318,7 @@ End
 
 Public Sub GetSoftware(iId As Integer)
   
-  $hForm.URL = "http://" & Farm &/ "farm/get"
+  $hForm.URL = MakeURL("/get")
   $hForm.Add("id", CStr(iId))
   FarmRequestManager.Add($hForm)
   
@@ -315,7 +326,7 @@ End
 
 Public Sub GetSoftwareIcon(iId As Integer)
 
-  $hForm.URL = "http://" & Farm &/ "farm/get?icon"
+  $hForm.URL = MakeURL("/get?icon")
   $hForm.Add("id", CStr(iId))
   $hForm.TargetFile = Temp$()
   $bFile = True
@@ -325,7 +336,7 @@ End
 
 Public Sub SearchSoftware(sSort As String, sVendor As String, sFilter As String, aTag As String[])
   
-  $hForm.URL = "http://" & Farm &/ "farm/search"
+  $hForm.URL = MakeURL("/search")
   $hForm["sort"] = sSort
   $hForm["vendor"] = sVendor
   $hForm["filter"] = sFilter
@@ -336,7 +347,7 @@ End
 
 Public Sub CheckAuth(sLogin As String, sPassword As String)
   
-  $hForm.URL = "http://" & Farm &/ "farm/ident"
+  $hForm.URL = MakeURL("/ident")
   $hForm["login"] = sLogin
   $hForm["password"] = sPassword
   FarmRequestManager.Add($hForm)
@@ -345,7 +356,7 @@ End
 
 Public Sub VoteForSoftware(iId As Integer, iVote As Integer)
   
-  $hForm.URL = "http://" & Farm &/ "farm/vote"
+  $hForm.URL = MakeURL("/vote")
   $hForm["id"] = CStr(iId)
   $hForm["vote"] = CStr(iVote)
   FarmRequestManager.Add($hForm)
@@ -363,7 +374,7 @@ Public Sub DownloadSoftware(iId As Integer)
   $sTitle = ("Download software")
   $iProgress = PROGRESS_DOWNLOAD
 
-  $hForm.URL = "http://" & Farm &/ "farm/download"
+  $hForm.URL = MakeURL("/download")
   $hForm.Add("id", CStr(iId))
   $hForm.TargetFile = Temp$()
   $bFile = True
@@ -376,7 +387,7 @@ Public Sub DownloadScreenshot(iId As Integer)
   '$sTitle = ("Download screenshot")
   '$iProgress = PROGRESS_DOWNLOAD
 
-  $hForm.URL = "http://" & Farm &/ "farm/get?screenshot"
+  $hForm.URL = MakeURL("/get?screenshot")
   $hForm.Add("id", CStr(iId))
   $hForm.TargetFile = Temp$()
   $bFile = True
@@ -388,7 +399,7 @@ Public Sub DeleteSoftware(iId As Integer)
 
   $sTitle = ("Delete software")
 
-  $hForm.URL = "http://" & Farm &/ "farm/remove"
+  $hForm.URL = MakeURL("/remove")
   $hForm.Add("id", CStr(iId))
   FarmRequestManager.Add($hForm)
 
