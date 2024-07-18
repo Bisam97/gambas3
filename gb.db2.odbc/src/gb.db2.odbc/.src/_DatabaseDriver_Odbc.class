@@ -5,15 +5,39 @@ Export
 Inherits _DatabaseDriver
 
 Private $pHandle As Pointer
+
+Private $sType As String
+Private $sName As String
+Private $sUser As String
+
 Private $cStatCache As Collection
 Private $cPrimaryKeyName As Collection
 
 Public Sub Open(Conn As Connection) As Pointer
   
+  Dim sVersion As String
+  Dim I As Integer
+  Dim iPos As Integer
+  Dim aVersion As String[]
+  
   $pHandle = _OdbcHelper.Open(Conn.Host, Conn.Port, Conn.Name, Conn.User, Conn.Password, Conn.Timeout, Conn.Options)
 
-  Me.Version = 3
-  Me.FullVersion = "3"
+  sVersion = _OdbcHelper.GetVersion($pHandle)
+  Me.FullVersion = sVersion
+  
+  For I = 1 To Len(sVersion)
+    If IsDigit(Mid$(sVersion, I, 1)) Then
+      sVersion = Mid$(sVersion, I)
+      Break
+    Endif
+  Next
+  
+  iPos = InStr(sVersion, " ")
+  If iPos > 0 Then sVersion = Left(sVersion, iPos - 1)
+  
+  aVersion = Split(sVersion, ".")
+  Me.Version = CInt(aVersion[0]) * 10000 + CInt(aVersion[1]) * 100
+  Try Me.Version += CInt(aVersion[2])
   
   Me.NoTableType = True
   Me.NoResultSeek = _OdbcHelper.CanFetchScroll($pHandle)
@@ -21,7 +45,12 @@ Public Sub Open(Conn As Connection) As Pointer
   Me.NoCollation = True
   Me.QuoteCharacter = _OdbcHelper.GetQuoteCharacter($pHandle)
   
-  Print _OdbcHelper.GetDatabaseType($pHandle)
+  $sType = LCase(_OdbcHelper.GetDatabaseType($pHandle))
+  $sName = _OdbcHelper.GetDatabaseName($pHandle)
+  $sUser = _OdbcHelper.GetDatabaseUser($pHandle)
+  
+  Conn.Name = $sName
+  Conn.User = $sUser
   
   $cStatCache = New Collection
   $cPrimaryKeyName = New Collection
@@ -183,6 +212,7 @@ Public Sub GetTableFieldInfo(Table As String, Field As String, ByRef Type As Int
     Length = vRow[6]
   Else 
     Length = 0
+    If Type = db.Long And If vRow[5] = "BIGINT UNSIGNED" Then Type = db.Serial
   Endif
   
   sDefault = vRow[12]
@@ -238,7 +268,7 @@ Private Sub GetTableStat(sTable As String, Optional bForce As Boolean) As Varian
     FreeResult(pResult)
     
     pResult = _OdbcHelper.GetPrimaryKey($pHandle, sTable)
-    Try $cPrimaryKeyName[Table] = _OdbcHelper.GetResultData(pResult, 0, True)[5]
+    Try $cPrimaryKeyName[sTable] = _OdbcHelper.GetResultData(pResult, 0, True)[5]
     FreeResult(pResult)
     
   Endif
@@ -280,18 +310,14 @@ Public Sub GetTableIndexInfo(Table As String, Index As String, ByRef Fields As S
   Fields = New String[]
   
   aRows = GetTableStat(Table)
-  
+
   For Each vRow In aRows
     
     If vRow[2] = Table And If vRow[5] = Index Then
       Fields.Add(vRow[8])
       If Fields.Count = 1 Then
+        Primary = Index = $cPrimaryKeyName[Table]
         Unique = vRow[3] = 0
-        If Unique Then
-          Primary = Index = $cPrimaryKeyName[Table]
-        Else 
-          Primary = False
-        Endif
       Endif
     Endif
     
@@ -325,21 +351,30 @@ End
 
 Public Sub GetLastInsertId() As Long
   
-End
-
-Public Sub Begin()
+  Dim pResult As Pointer
+  Dim iLastId As Long
+  Dim sReq As String
   
-End
-
-Public Sub Commit()
+  Select Case $sType
+    
+    Case "mysql"
+      sReq = "SELECT last_insert_id()"
+      
+    Case Else 
+      Error.Raise("Cannot get last insert id")
+    
+  End Select
   
-End
-
-Public Sub Rollback()
+  pResult = Query(sReq)
+  iLastId = GetResultData(pResult, 0, True)[0]
+  FreeResult(pResult)
+  Return iLastId
   
 End
 
 Public Sub GetDatabases() As String[]
+  
+  Return [$sName]
   
 End
 
@@ -347,23 +382,33 @@ Public Sub IsSystemDatabase(Database As String) As Boolean
   
 End
 
-Public Sub CreateDatabase(Database As String)
+Public Sub CreateDatabase((Database) As String)
+  
+  Error.Raise("Cannot create database")
   
 End
 
-Public Sub DropDatabase(Database As String)
+Public Sub DropDatabase((Database) As String)
+  
+  Error.Raise("Cannot delete database")
   
 End
 
 Public Sub GetUsers() As String[]
   
-End
-
-Public Sub CreateUser(User As String, Password As String, Admin As Boolean)
+  Return [$sUser]
   
 End
 
-Public Sub DropUser(User As String)
+Public Sub CreateUser((User) As String, (Password) As String, (Admin) As Boolean)
+  
+  Error.Raise("Cannot create user")
+  
+End
+
+Public Sub DropUser((User) As String)
+  
+  Error.Raise("Cannot delete user")
   
 End
 
@@ -371,22 +416,71 @@ Public Sub GetUserInfo(User As String, ByRef Password As String, ByRef Admin As 
   
 End
 
-Public Sub SetUserPassword(User As String, Password As String)
+Public Sub SetUserPassword((User) As String, (Password) As String)
   
+  Error.Raise("Cannot change password")
+
 End
 
-Public Sub CreateTable(Table As String, Fields As Field[], Type As String, PrimaryKey As String[])
+Public Sub CreateTable(Table As String, Fields As Field[], (Type) As String, PrimaryKey As String[])
   
-End
-
-Public Sub DropTable(Table As String)
+  Dim sReq As String
+  Dim hField As Field
+  Dim bComma As Boolean
   
-End
-
-Public Sub CreateIndex(Table As String, Index As String, Fields As String[], Unique As Boolean)
+  sReq = "CREATE TABLE " & Me.Quote(Table, True) & " ("
   
-End
-
-Public Sub DropIndex(Table As String, Index As String)
+  For Each hField In Fields
+    
+    If bComma Then
+      sReq &= ", "
+    Else
+      bComma = True
+    Endif
+    
+    sReq &= Me.Quote(hField.Name) & " "
+    
+    Select Case hField.Type
+      Case db.Serial
+        sReq &= "INTEGER"
+      Case db.Blob
+        sReq &= "BYTEA"
+      Case db.Boolean
+        sReq &= "TINYINT"
+      Case db.Integer
+        sReq &= "INTEGER"
+      Case db.Long
+        sReq &= "BIGINT"
+      Case db.Float
+        sReq &= "DOUBLE"
+      Case gb.Date
+        sReq &= "DATE"
+      Case db.String
+        If hField.Length <= 0 Then
+          sReq &= "TEXT"
+        Else
+          sReq &= "VARCHAR(" & CStr(hField.Length) & ")"
+        Endif
+      Case Else
+        sReq &= "TEXT"
+    End Select
+    
+    'If hField.Collation Then sReq &= " COLLATE \"" & hField.Collation & "\""
+    
+    If Not IsNull(hField.Default) Then
+      sReq &= " NOT NULL DEFAULT " & Me.Format(hField.Default)
+    Else If PrimaryKey.Exist(hField.Name) Then
+      sReq &= " NOT NULL"
+    Endif
+    
+  Next
+  
+  If PrimaryKey.Count Then 'And If Not bNoPrimaryKey Then
+    sReq &= ", PRIMARY KEY (" & Me.MakeFieldList(PrimaryKey) & ")"
+  Endif
+  
+  sReq &= ")"
+  
+  Me.Exec(sReq)
   
 End

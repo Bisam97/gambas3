@@ -207,14 +207,20 @@ End
 
 Public Sub Begin()
   
+  Me.Exec("BEGIN")
+  
 End
 
 Public Sub Commit()
   
+  Me.Exec("COMMIT")
+
 End
 
 Public Sub Rollback()
   
+  Me.Exec("ROLLBACK")
+
 End
 
 Public Sub GetDatabases() As String[]
@@ -259,12 +265,24 @@ End
 
 Public Sub DropTable(Table As String)
   
+  Me.Exec("DROP TABLE " & Me.Quote(Table, True))
+
 End
 
 Public Sub CreateIndex(Table As String, Index As String, Fields As String[], Unique As Boolean)
+  
+  Dim sReq As String
+  
+  sReq = "CREATE"
+  If Unique Then sReq &= " UNIQUE"
+  sReq &= " INDEX " & Me.Quote(Index) & " ON " & Me.Quote(Table, True) & " (" & Me.MakeFieldList(Fields) & ")"
+  
+  Me.Exec(sReq)
   
 End
 
 Public Sub DropIndex(Table As String, Index As String)
   
+  Me.Exec("DROP INDEX " & Me.Quote(Index) & " ON TABLE " & Me.Quote(Table, True))
+
 End

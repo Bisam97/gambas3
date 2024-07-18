@@ -615,27 +615,3 @@ Public Sub CreateTable(Table As String, Fields As Field[], (Type) As String, Pri
   Me.Exec(sReq)
   
 End
-
-Public Sub DropTable(Table As String)
-  
-  Me.Exec("DROP TABLE " & Me.Quote(Table, True))
-  
-End
-
-Public Sub CreateIndex(Table As String, Index As String, Fields As String[], Unique As Boolean)
-  
-  Dim sReq As String
-  
-  sReq = "CREATE"
-  If Unique Then sReq &= " UNIQUE"
-  sReq &= " INDEX " & Me.Quote(Index) & " ON " & Me.Quote(Table, True) & " (" & Me.MakeFieldList(Fields) & ")"
-  
-  Me.Exec(sReq)
-  
-End
-
-Public Sub DropIndex((Table) As String, Index As String)
-  
-  Me.Exec("DROP INDEX " & Me.Quote(Index))
-  
-End

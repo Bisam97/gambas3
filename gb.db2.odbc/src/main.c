@@ -589,7 +589,6 @@ BEGIN_METHOD(OdbcHelper_Open, GB_STRING host; GB_STRING port; GB_STRING name; GB
 
 	if (handle_error(retcode, conn_handle, SQL_HANDLE_DBC))
 		goto __ERROR;
-	
 
 	if (handle_error(SQLSetConnectAttr(conn_handle, SQL_ATTR_AUTOCOMMIT, (void *) SQL_AUTOCOMMIT_ON, SQL_NTS), conn_handle, SQL_HANDLE_DBC))
 		goto __ERROR;
@@ -657,6 +656,24 @@ END_METHOD
 BEGIN_METHOD(OdbcHelper_GetDatabaseType, GB_POINTER database)
 
 	return_info((ODBC_CONN *)VARG(database), SQL_DBMS_NAME);
+	
+END_METHOD
+
+BEGIN_METHOD(OdbcHelper_GetDatabaseName, GB_POINTER database)
+
+	return_info((ODBC_CONN *)VARG(database), SQL_DATABASE_NAME);
+	
+END_METHOD
+
+BEGIN_METHOD(OdbcHelper_GetDatabaseUser, GB_POINTER database)
+
+	return_info((ODBC_CONN *)VARG(database), SQL_USER_NAME);
+	
+END_METHOD
+
+BEGIN_METHOD(OdbcHelper_GetVersion, GB_POINTER database)
+
+	return_info((ODBC_CONN *)VARG(database), SQL_DBMS_VER);
 	
 END_METHOD
 
@@ -942,6 +959,9 @@ GB_DESC OdbcHelperDesc[] =
 	GB_STATIC_METHOD("CanFetchScroll", "b", OdbcHelper_CanFetchScroll, "(Database)p"),
 	GB_STATIC_METHOD("GetQuoteCharacter", "s",OdbcHelper_GetQuoteCharacter, "(Database)p"),
 	GB_STATIC_METHOD("GetDatabaseType", "s", OdbcHelper_GetDatabaseType, "(Database)p"),
+	GB_STATIC_METHOD("GetDatabaseName", "s", OdbcHelper_GetDatabaseName, "(Database)p"),
+	GB_STATIC_METHOD("GetDatabaseUser", "s", OdbcHelper_GetDatabaseUser, "(Database)p"),
+	GB_STATIC_METHOD("GetVersion", "s", OdbcHelper_GetVersion, "(Database)p"),
 	GB_STATIC_METHOD("Query", "p", OdbcHelper_Query, "(Database)p(Query)s"),
 	GB_STATIC_METHOD("FreeResult", NULL, OdbcHelper_FreeResult, "(Result)p"),
 	GB_STATIC_METHOD("GetResultCount", "i", OdbcHelper_GetResultCount, "(Result)p"),
