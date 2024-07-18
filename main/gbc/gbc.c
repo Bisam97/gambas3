@@ -71,6 +71,7 @@ static bool main_compile_all = FALSE;
 static bool main_trans = FALSE;
 static bool main_warnings = FALSE;
 static bool main_swap = FALSE;
+static bool main_quiet = FALSE;
 
 static bool _opt_no_old_read_syntax = FALSE;
 static bool _opt_check_prefix = FALSE;
@@ -92,6 +93,7 @@ static struct option _long_options[] =
 	{ "all", 0, NULL, 'a' },
 	{ "translate-errors", 0, NULL, 'e' },
 	{ "warnings", 0, NULL, 'w' },
+	{ "quiet", 0, NULL, 'q' },
 	
 	{ "jobs", 1, NULL, 'j' },
 	{ "root", 1, NULL, 'r' },
@@ -150,9 +152,9 @@ static void get_arguments(int argc, char **argv)
 	for(;;)
 	{
 		#if HAVE_GETOPT_LONG
-			opt = getopt_long(argc, argv, "gxvaVhj:Lwtser:f:n:F:b:", _long_options, &index);
+			opt = getopt_long(argc, argv, "gxvaVhj:Lwtser:f:n:F:b:q", _long_options, &index);
 		#else
-			opt = getopt(argc, argv, "gxvaVhj:Lwtser:f:n:F:b:");
+			opt = getopt(argc, argv, "gxvaVhj:Lwtser:f:n:F:b:q");
 		#endif
 		if (opt < 0) break;
 
@@ -191,6 +193,11 @@ static void get_arguments(int argc, char **argv)
 			case 'w':
 				
 				main_warnings = TRUE;
+				break;
+				
+			case 'q':
+				
+				main_quiet = TRUE;
 				break;
 
 			case 's':
@@ -245,6 +252,7 @@ static void get_arguments(int argc, char **argv)
 					"  -j --jobs <count>                     number of background jobs (default: %d)\n"
 					"  -L --license                          display license\n"
 					"  -n --default-namespace <namespace>    default namespace for exported classes\n"
+					"  -q --quiet                            do not print anything if compilation succeeds\n"
 					"  -r --root <directory>                 gives the gambas installation directory\n"
 					"  -s --swap                             swap endianness\n"
 					"  -t --translate                        output translation files and compile them if needed\n"
@@ -267,6 +275,7 @@ static void get_arguments(int argc, char **argv)
 					"  -j <count>           number of background jobs (default: %d)\n"
 					"  -L                   display license\n"
 					"  -n <namespace>       default namespace for exported classes\n"
+					"  -q                   do not print anything if compilation succeeds\n"
 					"  -r <directory>       gives the gambas installation directory\n"
 					"  -s                   swap endianness\n"
 					"  -t                   output translation files and compile them if needed\n"
@@ -855,7 +864,8 @@ int main(int argc, char **argv)
 			COMPILE_exit(_ntask_max == 1);
 			FILE_exit();
 
-			puts("OK");
+			if (!main_quiet)
+				puts("OK");
 		}
 	}
 	CATCH
