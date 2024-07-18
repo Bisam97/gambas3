@@ -4,8 +4,6 @@ Export
 
 Inherits _DatabaseDriver
 
-Public Const QuoteCharacter As String = "\""
-
 Private $pHandle As Pointer
 Private $iTrans As Integer
 
@@ -77,6 +75,7 @@ Public Sub Open(Conn As Connection) As Pointer
   '   db->data = (void *)0; // transaction level
   ' 
   
+  Me.QuoteCharacter = "\""
   Me.NoTableType = True
   Me.HasSchema = True
   Me.NoCollation = Me.Version < 90100
@@ -120,10 +119,6 @@ Public Sub Format(Value As Variant, Optional Blob As Boolean) As String
       If Year(Value) < 0 Then sResult &= " BC"
       sResult &= "'"
       Return sResult
-      
-      ' Case gb.Blob
-      '   
-      '   Return _PostgresqlHelper.QuoteBlob(Value, Me.Version > 80200)
       
     Case Else
       

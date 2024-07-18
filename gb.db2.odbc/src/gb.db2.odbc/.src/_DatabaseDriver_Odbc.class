@@ -5,6 +5,8 @@ Export
 Inherits _DatabaseDriver
 
 Private $pHandle As Pointer
+Private $cStatCache As Collection
+Private $cPrimaryKeyName As Collection
 
 Public Sub Open(Conn As Connection) As Pointer
   
@@ -17,86 +19,307 @@ Public Sub Open(Conn As Connection) As Pointer
   Me.NoResultSeek = _OdbcHelper.CanFetchScroll($pHandle)
   Me.NoSerial = True
   Me.NoCollation = True
+  Me.QuoteCharacter = _OdbcHelper.GetQuoteCharacter($pHandle)
+  
+  Print _OdbcHelper.GetDatabaseType($pHandle)
+  
+  $cStatCache = New Collection
+  $cPrimaryKeyName = New Collection
   
   Return $pHandle
   
 End
 
 Public Sub Close()
-  
+
+  $cStatCache = Null
+  $cPrimaryKeyName = Null
   _OdbcHelper.Close($pHandle)
   
 End
 
 Public Sub Format(Value As Variant, Optional (Blob) As Boolean) As String
   
+  Dim iYear As Integer
+  Dim sResult As String
+  
+  Select Case TypeOf(Value)
+    
+    Case gb.Boolean
+      Return If(Value, "'1'", "'0'")
+    
+    Case gb.Date
+      
+      iYear = Year(Value)
+      sResult = Format(CDate(Value), "'yyyy-mm-dd hh:nn:ss.uuu")
+      If Year(Value) < 0 Then sResult &= " BC"
+      sResult &= "'"
+      Return sResult
+      
+    Case Else
+      
+      Return Super.Format(Value)
+      
+  End Select
+  
 End
 
 Public Sub GetError() As Integer
+  
+  Return _OdbcHelper.GetLastError()
   
 End
 
 Public Sub Query(Request As String) As Pointer
   
-End
-
-Public Sub FreeResult(Result As Pointer)
+  Return _OdbcHelper.Query($pHandle, Request)
   
 End
 
-Public Sub GetResultCount(Result As Pointer) As Integer
+Public Sub FreeResult((Result) As Pointer)
+  
+  _OdbcHelper.FreeResult(Result)
   
 End
 
-Public Sub GetResultField(Result As Pointer, Field As Integer, ByRef Name As String, ByRef Type As Integer, ByRef Length As Integer) As Boolean
+Public Sub GetResultCount((Result) As Pointer) As Integer
+  
+  Return _OdbcHelper.GetResultCount(Result)
   
 End
 
-Public Sub GetResultData(Result As Pointer, Index As Integer, Next As Boolean) As Variant[]
+Public Sub GetResultField((Result) As Pointer, Field As Integer, ByRef Name As String, ByRef Type As Integer, ByRef Length As Integer) As Boolean
+  
+  Name = _OdbcHelper.GetResultField(Result, Field)
+  If Not Name Then Return True
+  Type = _OdbcHelper.Type
+  Length = _OdbcHelper.Length
+
+End
+
+Public Sub GetResultData((Result) As Pointer, Index As Integer, Next As Boolean) As Variant[]
+  
+  Return _OdbcHelper.GetResultData(Result, Index, Next)
   
 End
 
-Public Sub GetResultBlob(Result As Pointer, Index As Integer, Field As Integer) As String 
+Public Sub GetResultBlob((Result) As Pointer, Index As Integer, Field As Integer) As String 
+
+  Return _OdbcHelper.GetResultBlob(Result, Index, Field)
   
 End
 
 Public Sub GetTables() As String[]
   
-End
-
-Public Sub IsSystemTable(Table As String) As Boolean
-
-End
-
-Public Sub GetTableType(Table As String) As String
+  Dim pResult As Pointer
+  Dim aTables As String[]
+  Dim I As Integer
+  Dim vRow As Variant[]
+  
+  aTables = New String[]
+  
+  pResult = _OdbcHelper.GetTables($pHandle)
+  
+  Do
+    vRow = _OdbcHelper.GetResultData(pResult, I, True)
+    If IsNull(vRow) Then Break 
+    If vRow[3] = "TABLE" Then aTables.Add(vRow[2])
+    Inc I
+  Loop
+  
+  FreeResult(pResult)
+  
+  Return aTables
   
 End
 
-Public Sub SetTableType(Table As String, Type As String)
-  
-End
+' Public Sub IsSystemTable(Table As String) As Boolean
+' 
+' End
+' 
+' Public Sub GetTableType(Table As String) As String
+'   
+' End
+' 
+' Public Sub SetTableType(Table As String, Type As String)
+'   
+' End
 
 Public Sub GetTableFields(Table As String) As String[]
   
+  Dim pResult As Pointer
+  Dim aFields As String[]
+  Dim I As Integer
+  Dim vRow As Variant[]
+  
+  aFields = New String[]
+  
+  pResult = _OdbcHelper.GetFieldInfo($pHandle, Table)
+  
+  Do
+    vRow = _OdbcHelper.GetResultData(pResult, I, True)
+    If IsNull(vRow) Then Break
+    aFields.Add(vRow[3])
+    Inc I
+  Loop
+  
+  FreeResult(pResult)
+  
+  Return aFields
+
 End
 
 Public Sub GetTableFieldInfo(Table As String, Field As String, ByRef Type As Integer, ByRef Length As Integer, ByRef {Default} As Variant, ByRef Collation As String)
+
+  Dim pResult As Pointer
+  Dim vRow As Variant[]
+  Dim sDefault As String
+
+  pResult = _OdbcHelper.GetFieldInfo($pHandle, Table, Field)
+  
+  vRow = _OdbcHelper.GetResultData(pResult, 0, True)
+  Type = _OdbcHelper.ConvType(vRow[4])
+  If Type = db.String Then
+    Length = vRow[6]
+  Else 
+    Length = 0
+  Endif
+  
+  sDefault = vRow[12]
+  
+  If sDefault Then
+    Select Case Type
+      Case db.Boolean
+        {Default} = sDefault <> "0"
+      Case db.Integer
+        {Default} = CInt(sDefault)
+      Case db.Long, db.Serial
+        {Default} = CLong(sDefault)
+      Case db.Float
+        {Default} = CFloat(sDefault)
+      Case db.Date
+        {Default} = _OdbcHelper.ConvDate(sDefault)
+      Case Else
+        If sDefault Begins "'" And If sDefault Ends "'" Then sDefault = Mid$(sDefault, 2, -1)
+        {Default} = sDefault
+    End Select
+  Else 
+    {Default} = Null
+  Endif
+  
+  Collation = ""
+  
+  FreeResult(pResult)
   
 End
 
+Private Sub GetTableStat(sTable As String, Optional bForce As Boolean) As Variant[][]
+
+  Dim pResult As Pointer
+  Dim aRows As Variant[][]
+  Dim I As Integer
+  Dim vRow As Variant[]
+  
+  If Not bForce Then aRows = $cStatCache[sTable]
+  
+  If Not aRows Then
+  
+    aRows = New Variant[][]
+    pResult = _OdbcHelper.GetIndexInfo($pHandle, sTable)
+    
+    Do
+      vRow = _OdbcHelper.GetResultData(pResult, I, True)
+      If IsNull(vRow) Then Break 
+      aRows.Add(vRow)
+      Inc I
+    Loop
+    
+    $cStatCache[sTable] = aRows
+    FreeResult(pResult)
+    
+    pResult = _OdbcHelper.GetPrimaryKey($pHandle, sTable)
+    Try $cPrimaryKeyName[Table] = _OdbcHelper.GetResultData(pResult, 0, True)[5]
+    FreeResult(pResult)
+    
+  Endif
+  
+  Return aRows
+  
+End
+
+
 Public Sub GetTableIndexes(Table As String) As String[]
+
+  Dim aIndexes As String[]
+  Dim aRows As New Variant[][]
+  Dim vRow As Variant[]
+  Dim sIndex As String
+  
+  aIndexes = New String[]
+  
+  aRows = GetTableStat(Table, True)
+  
+  For Each vRow In aRows
+    
+    If vRow[2] = Table Then
+      sIndex = vRow[5]
+      If sIndex And If Not aIndexes.Exist(sIndex) Then aIndexes.Add(sIndex)
+    Endif
+    
+  Next
+  
+  Return aIndexes
   
 End
 
 Public Sub GetTableIndexInfo(Table As String, Index As String, ByRef Fields As String[], ByRef Unique As Boolean, ByRef Primary As Boolean)
 
+  Dim vRow As Variant[]
+  Dim aRows As Variant[][]
+  
+  Fields = New String[]
+  
+  aRows = GetTableStat(Table)
+  
+  For Each vRow In aRows
+    
+    If vRow[2] = Table And If vRow[5] = Index Then
+      Fields.Add(vRow[8])
+      If Fields.Count = 1 Then
+        Unique = vRow[3] = 0
+        If Unique Then
+          Primary = Index = $cPrimaryKeyName[Table]
+        Else 
+          Primary = False
+        Endif
+      Endif
+    Endif
+    
+  Next
+  
 End
 
 Public Sub GetTablePrimaryKey(Table As String) As String[]
   
-End
-
-Public Sub GetCollations() As String[]
+  Dim pResult As Pointer
+  Dim I As Integer
+  Dim vRow As Variant[]
+  Dim aPrimaryKey As String[]
+  
+  pResult = _OdbcHelper.GetPrimaryKey($pHandle, Table)
+  
+  aPrimaryKey = New String[]
+  
+  Do
+    vRow = _OdbcHelper.GetResultData(pResult, I, True)
+    If IsNull(vRow) Then Break
+    aPrimaryKey.Add(vRow[3])
+    Inc I
+  Loop
+  
+  FreeResult(pResult)
+  
+  Return aPrimaryKey
   
 End
 

@@ -4,8 +4,6 @@ Export
 
 Inherits _DatabaseDriver
 
-Public Const QuoteCharacter As String = "`"
-
 Private $pHandle As Pointer
 
 Private Sub IsMariaDB() As Boolean
@@ -83,6 +81,7 @@ Public Sub Open(Conn As Connection) As Pointer
   Endif
   
   Me.InsertIfNotExist = _DatabaseDriver.IGNORE_INSERT
+  Me.QuoteCharacter = "`"
   
   SetCharacterSet()
   

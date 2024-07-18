@@ -60,12 +60,17 @@ Private Sub InitFields()
   
   $cFieldIndex = New Collection
   $cFieldIndex.Default = -1
-  If $hDriver.MustQuoteBlob Then $cIsBlob = New Collection
   
   For I = 0 To $aField.Max
     $cFieldIndex[$aField[I]] = I
-    If $aTypes[I] = db.Blob Then $cIsBlob[$aField[I]] = True
   Next
+  
+  If $hDriver.MustQuoteBlob Then
+    $cIsBlob = New Collection
+    For I = 0 To $aField.Max
+      If $aTypes[I] = db.Blob Then $cIsBlob[$aField[I]] = True
+    Next
+  Endif
   
 End
 
@@ -148,8 +153,12 @@ End
 
 Private Function Available_Read() As Boolean
 
-  If $iIndex >= 0 And If $iIndex < $iCount Then Return True
-
+  If $iCount < 0 Then 
+    If $vBuffer Then Return True
+  Else
+    If $iIndex >= 0 And If $iIndex < $iCount Then Return True
+  Endif
+  
 End
 
 Private Function Editable_Read() As Boolean
@@ -162,13 +171,18 @@ Public Sub MoveTo(Index As Long) As Boolean
   
   Dim iRealIndex As Integer
   
-  If Index < 0 Or If Index >= $iCount Then Return True
+  If $iCount >= 0 Then
+    If Index < 0 Or If Index >= $iCount Then Return True
+  Endif
+  
   If Index = $iIndex Then Return
   
   iRealIndex = $hDeleteMap.ToReal(Index)
-  $vBuffer = $hDriver.GetResultData($pHandle, iRealIndex, iRealIndex = $hDeleteMap.ToReal($iIndex) + 1)
-  If $cBuffer Then $cBuffer.Clear
   
+  $vBuffer = $hDriver.GetResultData($pHandle, iRealIndex, iRealIndex = $hDeleteMap.ToReal($iIndex) + 1)
+  If Not $vBuffer Then Return True
+  
+  If $cBuffer Then $cBuffer.Clear
   $iIndex = Index
   
 End
@@ -211,7 +225,13 @@ End
 
 Private Sub CheckAvailable()
 
-  If $iIndex >= $iCount Then Error.Raise("Result not available")
+  If $iCount >= 0 Then
+    If $iIndex < $iCount Then Return
+  Else
+    If $vBuffer Then Return
+  Endif
+  
+  Error.Raise("Result not available")
 
 End
 
@@ -423,6 +443,8 @@ Public Sub All(Field As String) As Array
   Dim aDate As Date[]
   Dim aString As String[]
   
+  ' TODO: Handle $iCount = -1
+  
   CheckAvailable()
 
   If IsInteger(Field) Then
@@ -503,7 +525,7 @@ Public Sub Delete(Optional Keep As Boolean)
       If Not Keep Then
         
         $hDeleteMap.Add($hDeleteMap.ToReal($iIndex))
-        Dec $iCount
+        If $iCount >= 0 Then Dec $iCount
         
         For Each Enum
           If IsNull(Enum.Index) Then Continue

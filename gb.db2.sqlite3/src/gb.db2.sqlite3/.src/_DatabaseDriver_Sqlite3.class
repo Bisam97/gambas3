@@ -3,8 +3,6 @@
 Export
 Inherits _DatabaseDriver
 
-Public Const QuoteCharacter As String = "\""
-
 Static Private $aCollations As String[] = ["BINARY", "NOCASE", "RTRIM"]
 
 Private $pHandle As Pointer
@@ -80,6 +78,7 @@ Public Sub Open(Conn As Connection) As Pointer
   Me.InsertIfNotExist = If(Me.Version < 32400, _DatabaseDriver.IGNORE_NONE, _DatabaseDriver.IGNORE_ON_CONFLICT)  
   Me.AllowedCharsInDatabaseName = "."
   Me.LimitPos = _DatabaseDriver.LIMIT_AT_END
+  Me.QuoteCharacter = "\""
   
   Return $pHandle
   
@@ -123,7 +122,7 @@ Private Sub DateToISO8601({Date} As Date) As String
   
 End
 
-Public Sub Format(Value As Variant, Optional Blob As Boolean) As String
+Public Sub Format(Value As Variant, Optional (Blob) As Boolean) As String
 
   Select Case TypeOf(Value)
     
