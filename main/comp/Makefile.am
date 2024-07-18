@@ -12,7 +12,7 @@ install-exec-local:
 	@(cd $(srcdir); d=`pwd`; for p in `cat order`; do \
 	  echo "Compiling '$$p' component..."; \
 	  cd $$d/$$p; \
-	  $(DESTDIR)$(bindir)/gbc$(GAMBAS_VERSION) -agt -r $(DESTDIR)$(prefix); \
+	  $(DESTDIR)$(bindir)/gbc$(GAMBAS_VERSION) -agtq -r $(DESTDIR)$(prefix); \
 	  if test $$? -eq 0; then \
 	    $(DESTDIR)$(bindir)/gba$(GAMBAS_VERSION); \
 	    rm -rf .gambas; \

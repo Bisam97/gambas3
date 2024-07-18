@@ -14,7 +14,7 @@ install-exec-local:
 	@(cd $(srcdir)/src; d=`pwd`; \
 	  for p in `cat INSTALL`; do \
 	    echo "Compiling $$p..."; cd $$d/$$p; \
-	    $(DESTDIR)$(bindir)/gbc$(GAMBAS_VERSION) -agt -r $(DESTDIR)$(prefix); \
+	    $(DESTDIR)$(bindir)/gbc$(GAMBAS_VERSION) -agtq -r $(DESTDIR)$(prefix); \
 	    if test $$? -eq 0; then \
 	      $(DESTDIR)$(bindir)/gba$(GAMBAS_VERSION); \
 	      rm -rf .gambas; \
