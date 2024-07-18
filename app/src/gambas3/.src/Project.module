@@ -5597,8 +5597,11 @@ Public Sub MakeDirectoryIcon(Optional sDir As String) As Boolean
     hDirIcon.PaintImage(hIcon, hDirIcon.W - hIcon.W, hDirIcon.H - hIcon.H)
   Endif
   
-  Try Kill sDir &/ ".icon.png"
-  hDirIcon.Save(sDir &/ ".icon.png")
+  sPath = sDir &/ ".icon.png"
+  bExist = Exist(sPath)
+  Try Kill sPath
+  hDirIcon.Save(sPath)
+  If Not bExist Then VersionControl.AddFile(sPath)
 
   sPath = sDir &/ ".directory"
   bExist = Exist(sPath)
