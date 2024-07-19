@@ -61,7 +61,6 @@ Private $iSaveY As Integer
 'PRIVATE $iIndent AS INTEGER
 Private $iSaveLevel As Integer
 Private $bSelectNew As Boolean
-Private $bDoNotArrange As Boolean
 Private $cAction As Collection
 Private $cToolbar As Collection
 
@@ -255,7 +254,9 @@ Private Sub FromString(sData As String, Optional hParent As CControl) As String
   Dim DS As Integer
   Dim aBounds As Integer[]
   Dim DX, DY As Integer
+  Dim iSaveLockArrangement As Integer
 
+  iSaveLockArrangement = $iLockArrangement
   Inc $iLockArrangement
 
   DS = Desktop.Scale
@@ -576,6 +577,11 @@ Private Sub FromString(sData As String, Optional hParent As CControl) As String
   If Not hParent Then hParent = RootControl
   ArrangeContainerByDefault(hParent, True, True)
   SetMissingControls
+  
+Catch 
+  
+  $iLockArrangement = iSaveLockArrangement
+  Error.Propagate()
 
 End
 
@@ -783,7 +789,7 @@ Public Function GetChildren(sName As String) As CControl[]
 
 End
 
-Private Sub SaveOne(hCtrl As CControl)
+Private Sub SaveOne(hCtrl As CControl, Optional bDoNotArrange As Boolean)
 
   Dim hChild As Control
   Dim sLine As String
@@ -840,12 +846,12 @@ Private Sub SaveOne(hCtrl As CControl)
 
   If hCtrl.IsContainer() Then
 
-    If Not $bDoNotArrange Then ArrangeContainerByDefault(hCtrl)
+    If Not bDoNotArrange Then ArrangeContainerByDefault(hCtrl)
 
     If hCtrl.Kind = $hFamily.Name Then
 
       For Each hMenuCtrl In AllMenus
-        SaveOne(hMenuCtrl)
+        SaveOne(hMenuCtrl, bDoNotArrange)
       Next
       
     Endif
@@ -872,7 +878,7 @@ Private Sub SaveOne(hCtrl As CControl)
 
         For Each hChild In hTab[iTab].Children
           hCChild = GetControl(hChild)
-          If hCChild Then SaveOne(hCChild)
+          If hCChild Then SaveOne(hCChild, bDoNotArrange)
         Next
 
       Next
@@ -883,14 +889,14 @@ Private Sub SaveOne(hCtrl As CControl)
     Else If hCtrl.Kind = $hFamily.MenuClass Then
 
       For Each hMenu In hCtrl.Control.Children
-        SaveOne(Control[hMenu.Tag])
+        SaveOne(Control[hMenu.Tag], bDoNotArrange)
       Next
 
     Else
 
       For Each hChild In hCtrl.Control.Children
         hCChild = GetControl(hChild)
-        If hCChild Then SaveOne(hCChild)
+        If hCChild Then SaveOne(hCChild, bDoNotArrange)
       Next
 
       If hCtrl.Kind = $hFamily.ToolBarClass Then
@@ -1863,19 +1869,17 @@ Public Sub GetSelection(Optional bAbsolute As Boolean, Optional aSelection As CC
 
   Endif
 
-  $bDoNotArrange = True
   If aSelection Then
     For Each hCtrl In aSelection
-      SaveOne(hCtrl)
+      SaveOne(hCtrl, True)
       If Not bAbsolute Then GoSub ADD_BOUNDS
     Next
   Else
     For Each hCtrl In Selection
-      SaveOne(hCtrl)
+      SaveOne(hCtrl, True)
       If Not bAbsolute Then GoSub ADD_BOUNDS
     Next
   Endif
-  $bDoNotArrange = False
 
   $iSaveX = 0
   $iSaveY = 0
