@@ -1279,8 +1279,11 @@ Private Sub Sorted_Write(Value As Boolean)
 End
 
 Public Sub ButtonBox_Click()
+
+  Dim sBlob As String
   
-  If FBlobEditor.Run($hTable[$hCtrl.Row][$aColumnsIndex[$hCtrl.Column]].Data, $aColumns[$hCtrl.Column], CanEdit()) Then Return
+  sBlob = $hTable[$hCtrl.Row][$aColumnsIndex[$hCtrl.Column]]
+  If FBlobEditor.Run(sBlob, $aColumns[$hCtrl.Column], CanEdit()) Then Return
   Inc Application.Busy
   TableView_Save($hCtrl.Row, $hCtrl.Column, FBlobEditor.Data)
   FBlobEditor.Data = ""

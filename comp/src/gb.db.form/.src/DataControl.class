@@ -186,12 +186,12 @@ Private Function Modified_Read() As Boolean
   
   Try vVal = GetValue()
   If Error Then Return
-  If TypeOf($vVal) = gb.Object And If $vVal Is Blob Then
-    If Len(vVal) <> $vVal.Length Then Return True
-    Return vVal <> $vVal.Data
-  Else
+  ' If TypeOf($vVal) = gb.Object And If $vVal Is Blob Then
+  '   If Len(vVal) <> $vVal.Length Then Return True
+  '   Return vVal <> $vVal.Data
+  ' Else
     Return vVal <> $vVal  
-  Endif
+  ' Endif
   
 End
 
@@ -295,11 +295,11 @@ Private Sub SetValue(vVal As Variant)
       $hCtrl.Text = vVal
       
     Case db.Blob
-      If vVal Is Blob Then
-        $sBlob = vVal.Data
-      Else
+      ' If vVal Is Blob Then
+      '   $sBlob = vVal.Data
+      ' Else
         $sBlob = vVal
-      Endif
+      ' Endif
   
   End Select
   
