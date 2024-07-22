@@ -38,6 +38,7 @@ static void conv_data(const char *data, int len, GB_VARIANT_VALUE *val, int type
 	GB_VALUE conv;
 	GB_DATE_SERIAL date;
 	double sec;
+	bool gmt;
 
 	switch (type)
 	{
@@ -83,6 +84,14 @@ static void conv_data(const char *data, int len, GB_VARIANT_VALUE *val, int type
 			// TODO: Handle timezone
 			
 			memset(&date, 0, sizeof(date));
+			
+			if (len >= 9 && data[len - 1] == 'Z')
+			{
+				len--;
+				gmt = TRUE;
+			}
+			else
+				gmt = FALSE;
 
 			switch (len)
 			{
@@ -146,7 +155,7 @@ static void conv_data(const char *data, int len, GB_VARIANT_VALUE *val, int type
 			if (date.year < 100)
 				date.year += 1900;
 
-			GB.MakeDate(&date, (GB_DATE *)&conv);
+			GB.MakeDate(&date, (GB_DATE *)&conv, !gmt);
 
 			val->type = GB_T_DATE;
 			val->value._date.date = conv._date.value.date;
@@ -164,6 +173,34 @@ static void conv_data(const char *data, int len, GB_VARIANT_VALUE *val, int type
 			val->type = GB_T_CSTRING;
 			val->value._string = (char *)data;
 	}
+}
+
+static char *quote_blob(const char *data, int len)
+{
+	static const char *hexa_digit = "0123456789ABCDEF";
+
+	char *result = NULL;
+	int i;
+	unsigned char c;
+
+	if (len == 0)
+	{
+		result = GB.AddString(result, "NULL", 4);
+	}
+	else
+	{
+		result = GB.AddChar(result, 'X');
+		result = GB.AddChar(result, '\'');
+		for (i = 0; i < len; i++)
+		{
+			c = (unsigned char) data[i];
+			result = GB.AddChar(result, hexa_digit[c >> 4]);
+			result = GB.AddChar(result, hexa_digit[c & 15]);
+		}
+		result = GB.AddChar(result, '\'');
+	}
+	
+	return GB.FreeStringLater(result);
 }
 
 //-------------------------------------------------------------------------
@@ -349,6 +386,12 @@ BEGIN_PROPERTY(Sqlite3Helper_Length)
 
 END_PROPERTY
 
+BEGIN_METHOD(Sqlite3Helper_QuoteBlob, GB_STRING value)
+
+	GB.ReturnString(quote_blob(STRING(value), LENGTH(value)));
+
+END_METHOD
+
 //-------------------------------------------------------------------------
 
 GB_DESC Sqlite3HelperDesc[] =
@@ -368,6 +411,7 @@ GB_DESC Sqlite3HelperDesc[] =
 	GB_STATIC_METHOD("GetResultBlob", "s", Sqlite3Helper_GetResultBlob,"(Result)p(Index)i(Field)i"),
 	GB_STATIC_METHOD("GetType", "i", Sqlite3Helper_GetType, "(Type)s"),
 	GB_STATIC_METHOD("GetValue", "v", Sqlite3Helper_GetValue, "(Value)s(Type)i"),
+	GB_STATIC_METHOD("QuoteBlob", "s", Sqlite3Helper_QuoteBlob, "(Value)s"),
 	
 	GB_STATIC_PROPERTY_READ("Type", "i", Sqlite3Helper_Type),
 	GB_STATIC_PROPERTY_READ("Length", "i", Sqlite3Helper_Length),
