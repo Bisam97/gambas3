@@ -190,12 +190,17 @@ End
 
 Public Sub Open()
   
+  Dim sType As String
+  
   If $hDriver Then Error.Raise("Connection already opened")
   
-  Try Component.Load("gb.db2." & LCase($sType))
+  sType = $sType
+  If sType = "sqlite" Then sType = "sqlite3"
+  
+  Try Component.Load("gb.db2." & LCase(sType))
   If Error Then Error.Raise("Unable to load database driver: " & Error.Text)
   
-  $hDriver = Object.New("_DatabaseDriver_" & LCase($sType)) 
+  $hDriver = Object.New("_DatabaseDriver_" & LCase(sType)) 
   Object.Attach($hDriver, Me, "DatabaseDriver")
   $pHandle = $hDriver.Open(Me)
   

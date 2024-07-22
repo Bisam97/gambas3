@@ -126,6 +126,9 @@ Public Sub Format(Value As Variant, Optional (Blob) As Boolean) As String
     Case gb.Byte, gb.Short, gb.Integer, gb.Long, gb.Single, gb.Float
       Return CStr(Value)
       
+    Case gb.Pointer
+      Return "NULL"
+      
     Default
       Error "gb.db: warning: unsupported datatype"
       

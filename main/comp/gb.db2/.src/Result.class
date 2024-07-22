@@ -15,6 +15,8 @@ Private Enum MODE_FIND, MODE_EDIT, MODE_CREATE
 Private $iMode As Integer
 Private $hDriver As _DatabaseDriver
 
+Static Private $pNull As Pointer = VarPtr($pNull)
+
 Private $pHandle As Pointer
 Private $iCount As Integer
 Private $vBuffer As Variant[]
@@ -46,24 +48,27 @@ Private Sub InitFields()
   Dim sName As String
   Dim iType As Integer
   Dim iLength As Integer
+  Dim iPos As Integer
   
   $aField = New String[]
   $aTypes = New Integer[]
   $aLengths = New Integer[]
   
+  $cFieldIndex = New Collection
+  $cFieldIndex.Default = -1
+  
   While Not $hDriver.GetResultField($pHandle, I, ByRef sName, ByRef iType, ByRef iLength)
     $aField.Add(sName)
     $aTypes.Add(iType)
     $aLengths.Add(iLength)
+    $cFieldIndex[sName] = $aField.Max
+    iPos = InStr(sName, ".")
+    If iPos > 1 Then
+      sName = Mid$(sName, iPos + 1)
+      If sName And If Not $cFieldIndex.Exist(sName) Then $cFieldIndex[sName] = $aField.Max
+    Endif
     Inc I
   Wend
-  
-  $cFieldIndex = New Collection
-  $cFieldIndex.Default = -1
-  
-  For I = 0 To $aField.Max
-    $cFieldIndex[$aField[I]] = I
-  Next
   
   If $hDriver.MustQuoteBlob Then
     $cIsBlob = New Collection
@@ -96,6 +101,7 @@ Public Sub _Create(hDriver As _DatabaseDriver, sTable As String, bReturning As B
   $iCount = 1
   $sTable = sTable
   $cBuffer = New Collection
+  $vBuffer = Null
   
   If bReturning And If $hDriver.NoReturning Then
     ' debug message
@@ -172,7 +178,10 @@ Public Sub MoveTo(Index As Long) As Boolean
   Dim iRealIndex As Integer
   
   If $iCount >= 0 Then
-    If Index < 0 Or If Index >= $iCount Then Return True
+    If Index < 0 Or If Index >= $iCount Then 
+      $iIndex = -1
+      Return True
+    Endif
   Endif
   
   If Index = $iIndex Then Return
@@ -238,10 +247,16 @@ End
 Public Sub _get(Field As String) As Variant
   
   Dim iPos As Integer
+  Dim vVal As Variant
   
   CheckAvailable()
   
-  If $cBuffer And If $cBuffer.Exist(Field) Then Return $cBuffer[Field]
+  If $cBuffer And If $cBuffer.Exist(Field) Then 
+    vVal = $cBuffer[Field]
+    If TypeOf(vVal) = gb.Pointer Then vVal = Null
+    Return vVal
+  Endif
+  
   If $iMode = MODE_CREATE Then Return Null
   
   If $vBuffer Then
@@ -265,10 +280,27 @@ End
 
 Public Sub _put(Value As Variant, Field As String)
   
+  Dim iPos As Integer
+  
   If $iMode = MODE_FIND Then Error.Raise("Read-only result")
   
   CheckAvailable()
   
+  If $iMode = MODE_EDIT Then
+    If IsInteger(Field) Then
+      iPos = CInt(Field)
+    Else 
+      iPos = $cFieldIndex[Field]
+    Endif
+    If $vBuffer[iPos] = Value Then Return
+  Endif
+  
+  If IsInteger(Field) Then 
+    Try Field = $aField[Field]
+    If Error Then Return
+  Endif
+  
+  If IsNull(Value) Then Value = $pNull
   $cBuffer[Field] = Value
   
 End
