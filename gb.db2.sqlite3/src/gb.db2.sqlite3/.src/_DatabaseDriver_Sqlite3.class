@@ -52,12 +52,12 @@ Public Sub Open(Conn As Connection) As Pointer
   $sHost = Conn.Host
   
   If Conn.Name Then
-    sPath = FindDatabase($sHost, Conn.Name)
+    sPath = File.RealPath(FindDatabase($sHost, Conn.Name))
     If Not sPath Then Error.Raise("Unable to locate database")
   Endif
   
   $pHandle = _Sqlite3Helper.Open(sPath)
-  If IsNull($pHandle) Then Error.Raise("Unable to open database")
+  If IsNull($pHandle) Then Error.Raise("Unable to open database: " & _Sqlite3Helper.GetErrorMessage(Null))
   
   sVersion = _Sqlite3Helper.GetVersion()
   Me.FullVersion = sVersion
@@ -79,6 +79,7 @@ Public Sub Open(Conn As Connection) As Pointer
   Me.AllowedCharsInDatabaseName = "."
   Me.LimitPos = _DatabaseDriver.LIMIT_AT_END
   Me.QuoteCharacter = "\""
+  Me.MustQuoteBlob = True
   
   Return $pHandle
   
@@ -116,13 +117,13 @@ Private Sub DateToISO8601({Date} As Date) As String
   sResult &= "T" & Format({Date}, "hhnnss")
   
   sMicroseconds = Format({Date}, "uuu")
-  If sMicroseconds <> "000" Then sResult &= "." & sMicroseconds
+  If sMicroseconds And If sMicroseconds <> "000" Then sResult &= "." & sMicroseconds
   
   Return sResult & "Z"
   
 End
 
-Public Sub Format(Value As Variant, Optional (Blob) As Boolean) As String
+Public Sub Format(Value As Variant, Optional Blob As Boolean) As String
 
   Select Case TypeOf(Value)
     
@@ -130,7 +131,14 @@ Public Sub Format(Value As Variant, Optional (Blob) As Boolean) As String
       Return If(Value, "1", "0")
     
     Case gb.Date
-      Return DateToISO8601(Value, "GMT")
+      Return "'" & DateToISO8601(Value) & "'"
+      
+    Case gb.String
+      If Blob Then 
+        Return _Sqlite3Helper.QuoteBlob(Value)
+      Else
+        Return Super.Format(Value)
+      Endif
       
     Default
       Return Super.Format(Value)
