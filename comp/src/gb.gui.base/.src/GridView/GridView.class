@@ -1607,7 +1607,13 @@ Public Sub TimerEnsureVisible_Timer()
     H = Max(1, $hRows._GetRowHeight(iRowEV))
     'If W <= 0 Or If H <= 0 Then Return
     '$hView.EnsureVisible(.X, $hRows._GetRowY(iRowEV) + F, Min($hView.ClientW - $hRows.W, W + $hRows.Width), H + $hColumns.Height + F, iDir)
-    $hView.EnsureVisible(.X + F, $hRows._GetRowY(iRowEV) + F, W + $hRows.W + F, H + $hColumns.H + F, iDir)
+    If Align.IsLeft(.Alignment) Then
+      $hView.EnsureVisible(.X + F, $hRows._GetRowY(iRowEV) + F, F, H + $hColumns.H + F, iDir)
+    Else If Align.IsRight(.Alignment) Then
+      $hView.EnsureVisible(.X + F + W, $hRows._GetRowY(iRowEV) + F, F, H + $hColumns.H + F, iDir)
+    Else
+      $hView.EnsureVisible(.X + F, $hRows._GetRowY(iRowEV) + F, W + $hRows.W + F, H + $hColumns.H + F, iDir)
+    Endif
   End With
   
 Catch
