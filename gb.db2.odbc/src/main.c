@@ -193,7 +193,7 @@ static bool conv_date(char *data, int len, int *pdate, int *ptime)
 			if (bc)
 				date.year = (-date.year);
 			
-			GB.MakeDate(&date, (GB_DATE *)&conv);
+			GB.MakeDate(&date, (GB_DATE *)&conv, TRUE);
 		}
 		else if (GB.DateFromString(data, len, &conv, TRUE))
 		{

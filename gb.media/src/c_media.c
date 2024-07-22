@@ -277,7 +277,7 @@ static void to_gambas_value(const GValue *value, GB_VALUE *gvalue)
 					ds.day = 1;
 				}
 				
-				GB.MakeDate(&ds, (GB_DATE *)gvalue);
+				GB.MakeDate(&ds, (GB_DATE *)gvalue, TRUE);
 				break;
 			}
 			else if (GST_VALUE_HOLDS_DATE_TIME(value))
@@ -307,7 +307,7 @@ static void to_gambas_value(const GValue *value, GB_VALUE *gvalue)
 					ds.msec = gst_date_time_get_microsecond(date);
 				}
 				
-				GB.MakeDate(&ds, (GB_DATE *)gvalue);
+				GB.MakeDate(&ds, (GB_DATE *)gvalue, TRUE);
 				break;
 			}
 			else

@@ -464,7 +464,7 @@ static void conv_data(const char *data, int len, GB_VARIANT_VALUE *val, Oid type
 		if (date.year == -4713 && date.month == 1 && date.day == 1)
 			date.year = date.month = date.day = 0;
 
-		GB.MakeDate(&date, (GB_DATE *)&conv);
+		GB.MakeDate(&date, (GB_DATE *)&conv, TRUE);
 
 		val->type = GB_T_DATE;
 		val->value._date.date = conv._date.value.date;

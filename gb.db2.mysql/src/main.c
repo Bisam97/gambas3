@@ -572,7 +572,7 @@ static void conv_data(int version, const char *data, long data_length, GB_VARIAN
 				break;
 			}
 
-			GB.MakeDate(&date, (GB_DATE *)&conv);
+			GB.MakeDate(&date, (GB_DATE *)&conv, TRUE);
 
 			val->type = GB_T_DATE;
 			val->value._date.date = conv._date.value.date;

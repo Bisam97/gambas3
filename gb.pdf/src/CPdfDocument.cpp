@@ -242,7 +242,7 @@ static void aux_return_date_info(void *_object, const char *key)
 			nnum=sscanf(datestr, "%4d%2d%2d%2d%2d%2d",&ds.year, &ds.month, &ds.day, &ds.hour, &ds.min, &ds.sec);
 			if (nnum == 6)
 			{
-				if (!GB.MakeDate(&ds,&ret))
+				if (!GB.MakeDate(&ds, &ret, true))
 					GB.ReturnDate(&ret);
 			}		
 		}

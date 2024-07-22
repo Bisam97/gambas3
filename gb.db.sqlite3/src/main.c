@@ -166,7 +166,7 @@ static void conv_data(const char *data, GB_VARIANT_VALUE * val, int type)
 			if (date.year < 100)
 				date.year += 1900;
 
-			GB.MakeDate(&date, (GB_DATE *)&conv);
+			GB.MakeDate(&date, (GB_DATE *)&conv, TRUE);
 
 			val->type = GB_T_DATE;
 			val->value._date.date = conv._date.value.date;

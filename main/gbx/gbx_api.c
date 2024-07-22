@@ -222,7 +222,7 @@ const void *const GAMBAS_Api[] =
 	(void *)COMPARE_variant,
 
 	(void *)GB_SplitDate,
-	(void *)GB_MakeDate,
+	(void *)DATE_make_local,
 	(void *)DATE_from_time,
 	(void *)DATE_to_time,
 	(void *)DATE_timer,
@@ -2082,10 +2082,10 @@ DATE_SERIAL *GB_SplitDate(GB_VALUE *arg)
 	return DATE_split((VALUE *)arg);
 }
 
-bool GB_MakeDate(DATE_SERIAL *date, GB_DATE *arg)
+/*bool GB_MakeDate(DATE_SERIAL *date, GB_DATE *arg, bool local)
 {
-	return DATE_make(date, (VALUE *)arg);
-}
+	return DATE_make_local(date, (VALUE *)arg, local);
+}*/
 
 
 int GB_StringLength(const char *str)

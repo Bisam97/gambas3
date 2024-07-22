@@ -1180,7 +1180,7 @@ typedef
 		int (*CompVariant)(GB_VARIANT_VALUE *, GB_VARIANT_VALUE *);
 
 		GB_DATE_SERIAL *(*SplitDate)(GB_DATE *);
-		bool (*MakeDate)(GB_DATE_SERIAL *, GB_DATE *);
+		bool (*MakeDate)(GB_DATE_SERIAL *date, GB_DATE *val, bool local);
 		void (*MakeDateFromTime)(time_t, int, GB_DATE *);
 		void (*GetTimeFromDate)(GB_DATE *, time_t *, int *);
 		bool (*GetTime)(double *, int);

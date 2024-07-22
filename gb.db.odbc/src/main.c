@@ -619,7 +619,7 @@ static void conv_data(char *data, int len, GB_VARIANT_VALUE * val, int type)
 						if (bc)
 							date.year = (-date.year);
 						
-						GB.MakeDate(&date, (GB_DATE *)&conv);
+						GB.MakeDate(&date, (GB_DATE *)&conv, TRUE);
 					}
 					else if (GB.DateFromString(data, len, &conv, TRUE))
 					{

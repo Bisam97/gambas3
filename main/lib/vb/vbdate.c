@@ -26,6 +26,7 @@
 #include "vbdate.h"
 #include <stdio.h>
 #include <string.h>
+#include "gb_common.h"
 
 
 #define DATE_YEAR_MIN  -4801
@@ -92,7 +93,7 @@ void DATE_adjust( GB_DATE *vdate, int period, int interval) /* Adjust the date b
 		  date->day = day;
 		  date->month = month;
 		  date->year = year;
-                  GB.MakeDate(date, vdate);
+			GB.MakeDate(date, vdate, TRUE);
 		  break;
 	  case 1: /* days */
 		  vdate->value.date += interval;
