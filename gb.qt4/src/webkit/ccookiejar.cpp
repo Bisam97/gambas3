@@ -60,7 +60,7 @@ BEGIN_PROPERTY(Cookie_ExpirationDate)
 		ds.sec = d.time().second();
 		ds.msec = d.time().msec();
 		
-		GB.MakeDate(&ds, &date);
+		GB.MakeDate(&ds, &date, TRUE);
 		GB.ReturnDate(&date);
 	}
 	else
