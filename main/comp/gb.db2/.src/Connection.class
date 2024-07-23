@@ -194,7 +194,9 @@ Public Sub Open()
   
   If $hDriver Then Error.Raise("Connection already opened")
   
-  sType = $sType
+  sType = Trim($sType)
+  If Not sType Then Error.Raise("Missing connection type")
+
   If sType = "sqlite" Then sType = "sqlite3"
   
   Try Component.Load("gb.db2." & LCase(sType))
@@ -219,6 +221,8 @@ Public Sub Close()
   
   If Not $hDriver Then Return
   $hDriver.Close()
+  $hDriver = Null
+  $pHandle = Null
   
 End
 

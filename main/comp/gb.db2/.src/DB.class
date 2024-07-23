@@ -33,31 +33,8 @@ Static Property Read Handle As Pointer
 Static Property Read LastInsertId As Long
 
 Static Property Read Tables As _ConnectionTables
-
-'   GB_STATIC_PROPERTY_READ("LastInsertId", "l", Connection_LastInsertId),
-' 
-'   GB_STATIC_PROPERTY("Debug", "b", Connection_Debug),
-' 
-'   GB_STATIC_METHOD("Limit", "Connection", Connection_Limit, "(Limit)i"),
-'   GB_STATIC_METHOD("Exec", "Result", Connection_Exec, "(Request)s(Arguments)."),
-'   GB_STATIC_METHOD("Create", "Result", Connection_Create, "(Table)s[(Return)b]"),
-'   GB_STATIC_METHOD("Find", "Result", Connection_Find, "(Table)s[(Request)s(Arguments).]"),
-'   GB_STATIC_METHOD("Edit", "Result", Connection_Edit, "(Table)s[(Request)s(Arguments).]"),
-'   GB_STATIC_METHOD("Delete", NULL, Connection_Delete, "(Table)s[(Request)s(Arguments).]"),
-'   GB_STATIC_METHOD("Subst", "s", Connection_Subst, "(Format)s(Arguments)."),
-' 
-'   GB_STATIC_METHOD("Begin", NULL, Connection_Begin, NULL),
-'   GB_STATIC_METHOD("Commit", NULL, Connection_Commit, NULL),
-'   GB_STATIC_METHOD("Rollback", NULL, Connection_Rollback, NULL),
-' 
-'   GB_STATIC_METHOD("Quote", "s", Connection_Quote, "(Name)s[(Table)b]"),
-'   GB_STATIC_METHOD("FormatBlob", "s", Connection_FormatBlob, "(Data)s"),
-' 
-'   GB_STATIC_PROPERTY("Tables", ".Connection.Tables", Connection_Tables),
-'   //GB_STATIC_PROPERTY("Views", ".ConnectionViews", CCONNECTION_views),
-'   GB_STATIC_PROPERTY("Databases", ".Connection.Databases", Connection_Databases),
-'   GB_STATIC_PROPERTY("Users", ".Connection.Users", Connection_Users),
-
+Static Property Read Databases As _ConnectionDatabases
+Static Property Read Users As _ConnectionUsers
 
 Static Private Sub Check()
   
@@ -329,4 +306,18 @@ Static Public Sub Limit((Limit) As Integer) As Connection
   Check()
   Return $hCurrent.Limit(Limit)
   
+End
+
+Static Private Function Databases_Read() As _ConnectionDatabases
+
+  Check()
+  Return $hCurrent.Databases
+
+End
+
+Static Private Function Users_Read() As _ConnectionUsers
+
+  Check()
+  Return $hCurrent.Users
+
 End

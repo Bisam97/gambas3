@@ -25,6 +25,7 @@ Private $aField As String[]
 Private $cFieldIndex As Collection
 Private $cFields As Collection
 Private $aTypes As Integer[]
+Private $cTypes As Collection
 Private $aLengths As Integer[]
 Private $cIsBlob As Collection
 
@@ -52,21 +53,32 @@ Private Sub InitFields()
   
   $aField = New String[]
   $aTypes = New Integer[]
+  $cTypes = New Collection
   $aLengths = New Integer[]
   
   $cFieldIndex = New Collection
   $cFieldIndex.Default = -1
   
   While Not $hDriver.GetResultField($pHandle, I, ByRef sName, ByRef iType, ByRef iLength)
+    
     $aField.Add(sName)
     $aTypes.Add(iType)
     $aLengths.Add(iLength)
+    
+    $cTypes[I] = iType
+    
     $cFieldIndex[sName] = $aField.Max
+    $cTypes[sName] = iType
+
     iPos = InStr(sName, ".")
     If iPos > 1 Then
       sName = Mid$(sName, iPos + 1)
-      If sName And If Not $cFieldIndex.Exist(sName) Then $cFieldIndex[sName] = $aField.Max
+      If sName And If Not $cFieldIndex.Exist(sName) Then
+        $cFieldIndex[sName] = $aField.Max
+        $cTypes[sName] = iType
+      Endif
     Endif
+    
     Inc I
   Wend
   
@@ -95,6 +107,8 @@ Public Sub _Create(hDriver As _DatabaseDriver, sTable As String, bReturning As B
   
   Dim hField As Field
   Dim hConn As Connection
+  Dim iField As Integer
+  Dim iType As Integer
   
   $iMode = MODE_CREATE
   $hDriver = hDriver
@@ -113,13 +127,16 @@ Public Sub _Create(hDriver As _DatabaseDriver, sTable As String, bReturning As B
   Endif
   
   hConn = Me.Connection
+  If $hDriver.MustQuoteBlob Then $cIsBlob = New Collection
   
-  If $hDriver.MustQuoteBlob Then
-    $cIsBlob = New Collection
-    For Each hField In hConn.Tables[sTable].Fields
-      If hField.Type = db.Blob Then $cIsBlob[hField.Name] = True
-    Next
-  Endif
+  $cTypes = New Collection
+  For Each hField In hConn.Tables[sTable].Fields
+    iType = hField.Type
+    If $hDriver.MustQuoteBlob And If iType = db.Blob Then $cIsBlob[hField.Name] = True
+    $cTypes[iField] = iType
+    $cTypes[hField.Name] = iType
+    Inc iField
+  Next
   
   If bReturning Then
     $aReturning = New String[]
@@ -281,6 +298,7 @@ End
 Public Sub _put(Value As Variant, Field As String)
   
   Dim iPos As Integer
+  Dim iType As Integer
   
   If $iMode = MODE_FIND Then Error.Raise("Read-only result")
   
@@ -292,15 +310,39 @@ Public Sub _put(Value As Variant, Field As String)
     Else 
       iPos = $cFieldIndex[Field]
     Endif
-    If $vBuffer[iPos] = Value Then Return
+    If $vBuffer[iPos] = Value Then
+      $cBuffer.Remove(Field)
+      Return
+    Endif
   Endif
   
   If IsInteger(Field) Then 
     Try Field = $aField[Field]
-    If Error Then Return
+    If Error Then Error.Raise("Unknow field: " & Me.Connection.Quote(Field))
   Endif
   
-  If IsNull(Value) Then Value = $pNull
+  Try iType = $cTypes[Field]
+  If Error Then Error.Raise("Unknow field: " & Me.Connection.Quote(Field))
+  
+  If IsNull(Value) Then 
+    Value = $pNull
+  Else If TypeOf(Value) <> iType Then
+    Select Case iType
+      Case gb.Boolean
+        Value = CBool(Value)
+      Case gb.Integer
+        Value = CInt(Value)
+      Case gb.Long, db.Serial
+        Value = CLong(Value)
+      Case gb.Float
+        Value = CFloat(Value)
+      Case gb.Date
+        Value = CDate(Value)
+      Case Else 
+        Value = CStr(Value)
+    End Select
+  Endif
+  
   $cBuffer[Field] = Value
   
 End
