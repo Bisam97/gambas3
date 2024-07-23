@@ -1,0 +1,28 @@
+' Gambas module file
+
+Public Sub Main()
+
+  Dim hConn As Connection
+  Dim rResult As Result
+  
+  ' hConn = New Connection("mysql://root@localhost/test")
+  ' hConn.Password = "mysql"
+
+  hConn = New Connection("sqlite://:memory/")
+
+  hConn.Open
+  
+  Print DB.Version
+  Print DB.FullVersion
+  Print DB.FormatBlob("'gambas' is not a blob\n")
+  
+  rResult = DB.Create("Test", True)
+  
+  ' rResult = hConn.Find("test")
+  ' For Each rResult
+  '   Print rResult["image"].Length;; Len(rResult["image"].Data)
+  ' Next
+  
+  hConn.Close
+
+End
