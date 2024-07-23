@@ -304,18 +304,6 @@ Public Sub _put(Value As Variant, Field As String)
   
   CheckAvailable()
   
-  If $iMode = MODE_EDIT Then
-    If IsInteger(Field) Then
-      iPos = CInt(Field)
-    Else 
-      iPos = $cFieldIndex[Field]
-    Endif
-    If $vBuffer[iPos] = Value Then
-      $cBuffer.Remove(Field)
-      Return
-    Endif
-  Endif
-  
   If IsInteger(Field) Then 
     Try Field = $aField[Field]
     If Error Then Error.Raise("Unknow field: " & Me.Connection.Quote(Field))
@@ -323,6 +311,14 @@ Public Sub _put(Value As Variant, Field As String)
   
   Try iType = $cTypes[Field]
   If Error Then Error.Raise("Unknow field: " & Me.Connection.Quote(Field))
+  
+  If $iMode = MODE_EDIT And If iType <> db.Blob Then
+    iPos = $cFieldIndex[Field]
+    If $vBuffer[iPos] = Value Then
+      $cBuffer.Remove(Field)
+      Return
+    Endif
+  Endif
   
   If IsNull(Value) Then 
     Value = $pNull
