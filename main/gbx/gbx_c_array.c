@@ -559,7 +559,7 @@ BEGIN_PROPERTY(Array_ReadOnly)
 	else
 	{
 		bool read_only = VPROP(GB_BOOLEAN);
-		if (THIS->read_only == read_only)
+		if (THIS->read_only == !!read_only)
 			return;
 		
 		if (THIS->read_only)
