@@ -106,7 +106,7 @@ void MAIN_return_qvariant(const QVariant &result)
 			ds.min = qdate.time().minute();
 			ds.sec = qdate.time().second();
 			ds.msec = qdate.time().msec();
-			GB.MakeDate(&ds, &date);
+			GB.MakeDate(&ds, &date, TRUE);
 			GB.ReturnDate(&date);
 			break;
 			
