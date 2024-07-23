@@ -80,81 +80,91 @@ static void conv_data(const char *data, int len, GB_VARIANT_VALUE *val, int type
 
 		case GB_T_DATE:
 
-			// TODO: Handle ISO6801 dates
 			// TODO: Handle timezone
+			
+			//fprintf(stderr, "conv_data: date = %.*s\n", len, data);
 			
 			memset(&date, 0, sizeof(date));
 			
-			if (len >= 9 && data[len - 1] == 'Z')
+			if (len >= 18 && data[len - 1] == 'Z')
 			{
-				len--;
-				gmt = TRUE;
+				gmt = FALSE;
+				
+				CLEAR(&date);
+				
+				if (len == 18)
+				{
+					sscanf(data, "%4d-%2d-%2dT%2d%2d%2dZ", &date.year, &date.month, &date.day, &date.hour, &date.min, &date.sec);
+				}
+				else if (len == 22)
+					sscanf(data, "%4d-%2d-%2dT%2d%2d%2d.%3dZ", &date.year, &date.month, &date.day, &date.hour, &date.min, &date.sec, &date.msec);
 			}
 			else
-				gmt = FALSE;
-
-			switch (len)
 			{
-				case 14:
-					sscanf(data, "%4d%2d%2d%2d%2d%lf", &date.year, &date.month,
-								&date.day, &date.hour, &date.min, &sec);
-					date.sec = (short) sec;
-					date.msec = (short) ((sec - date.sec) * 1000 + 0.5);
-					break;
-				case 12:
-					sscanf(data, "%2d%2d%2d%2d%2d%lf", &date.year, &date.month,
-								&date.day, &date.hour, &date.min, &sec);
-					date.sec = (short) sec;
-					date.msec = (short) ((sec - date.sec) * 1000 + 0.5);
-					break;
-				case 10:
-					if (sscanf(data, "%4d-%2d-%2d", &date.year, &date.month,
-										&date.day) != 3)
-					{
-						if (sscanf(data, "%4d/%2d/%2d", &date.year, &date.month,
+				gmt = TRUE;
+
+				switch (len)
+				{
+					case 14:
+						sscanf(data, "%4d%2d%2d%2d%2d%lf", &date.year, &date.month, &date.day, &date.hour, &date.min, &sec);
+						date.sec = (short) sec;
+						date.msec = (short) ((sec - date.sec) * 1000 + 0.5);
+						break;
+					case 12:
+						sscanf(data, "%2d%2d%2d%2d%2d%lf", &date.year, &date.month,
+									&date.day, &date.hour, &date.min, &sec);
+						date.sec = (short) sec;
+						date.msec = (short) ((sec - date.sec) * 1000 + 0.5);
+						break;
+					case 10:
+						if (sscanf(data, "%4d-%2d-%2d", &date.year, &date.month,
 											&date.day) != 3)
 						{
-							if (sscanf(data, "%4d:%2d:%lf", &date.hour, &date.min,
-												&sec) == 3)
+							if (sscanf(data, "%4d/%2d/%2d", &date.year, &date.month,
+												&date.day) != 3)
 							{
-								date.sec = (short) sec;
-								date.msec = (short) ((sec - date.sec) * 1000 + 0.5);
-							}
-							else
-							{
-								sscanf(data, "%2d%2d%2d%2d%2d", &date.year,
-											&date.month, &date.day, &date.hour, &date.min);
+								if (sscanf(data, "%4d:%2d:%lf", &date.hour, &date.min,
+													&sec) == 3)
+								{
+									date.sec = (short) sec;
+									date.msec = (short) ((sec - date.sec) * 1000 + 0.5);
+								}
+								else
+								{
+									sscanf(data, "%2d%2d%2d%2d%2d", &date.year,
+												&date.month, &date.day, &date.hour, &date.min);
+								}
 							}
 						}
-					}
 
-					break;
-				case 8:
-					if (sscanf(data, "%4d%2d%2d", &date.year, &date.month,
-										&date.day) != 3)
-					{
-						sscanf(data, "%2d/%2d/%2d", &date.year, &date.month,
-									&date.day);
-					}
-					break;
-				case 6:
-					sscanf(data, "%2d%2d%2d", &date.year, &date.month, &date.day);
-					break;
-				case 4:
-					sscanf(data, "%2d%2d", &date.year, &date.month);
-					break;
-				case 2:
-					sscanf(data, "%2d", &date.year);
-					break;
-				default:
-					sscanf(data, "%4d-%2d-%2d %2d:%2d:%lf", &date.year,
-								&date.month, &date.day, &date.hour, &date.min, &sec);
-					date.sec = (short)sec;
-					date.msec = (short)((sec - date.sec) * 1000 + 0.5);
+						break;
+					case 8:
+						if (sscanf(data, "%4d%2d%2d", &date.year, &date.month,
+											&date.day) != 3)
+						{
+							sscanf(data, "%2d/%2d/%2d", &date.year, &date.month,
+										&date.day);
+						}
+						break;
+					case 6:
+						sscanf(data, "%2d%2d%2d", &date.year, &date.month, &date.day);
+						break;
+					case 4:
+						sscanf(data, "%2d%2d", &date.year, &date.month);
+						break;
+					case 2:
+						sscanf(data, "%2d", &date.year);
+						break;
+					default:
+						sscanf(data, "%4d-%2d-%2d %2d:%2d:%lf", &date.year,
+									&date.month, &date.day, &date.hour, &date.min, &sec);
+						date.sec = (short)sec;
+						date.msec = (short)((sec - date.sec) * 1000 + 0.5);
+				}
+				if (date.year < 100)
+					date.year += 1900;
 			}
-			if (date.year < 100)
-				date.year += 1900;
-
+			
 			GB.MakeDate(&date, (GB_DATE *)&conv, !gmt);
 
 			val->type = GB_T_DATE;
