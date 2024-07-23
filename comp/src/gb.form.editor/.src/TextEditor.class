@@ -1165,7 +1165,7 @@ Private Sub PaintMultiLine(Row As Integer, P As Integer, X As Integer, Y As Inte
     
     X += Width - Height \ 2
     
-    Paint.FillRect(X, Y, Height \ 2, Height, $iBackground)
+    'Paint.FillRect(X, Y, Height \ 2, Height, $iBackground)
     
     GetSelection(ByRef X1, ByRef Y1, ByRef X2, ByRef Y2)
     If P < 0 Then P = $hDoc.LineLength[Row]
@@ -1175,7 +1175,7 @@ Private Sub PaintMultiLine(Row As Integer, P As Integer, X As Integer, Y As Inte
       If Row = Y2 And If P > X2 Then bDrawBg = False
     Endif
     
-    If bDrawBg Then Paint.FillRect(X, Y, Height \ 2, Height, Color.SetAlpha($iSelectedBackground, 32))
+    'If bDrawBg Then Paint.FillRect(X, Y, Height \ 2, Height, Color.SetAlpha($iSelectedBackground, 32))
     Paint.DrawImage($hMultiLineImage, X, Y, Height \ 2, Height)
 
   Endif
@@ -1214,7 +1214,7 @@ Private Sub DrawLine(X As Integer, Y As Integer, Width As Integer, Height As Int
   Dim Y1 As Integer
   Dim X2 As Integer
   Dim Y2 As Integer
-  Dim iCol As Integer
+  Dim iCol, iColInside As Integer
   Dim hInfo As CLineInfo
   Dim WC As Integer
   Dim sCar As String
@@ -1238,6 +1238,10 @@ Private Sub DrawLine(X As Integer, Y As Integer, Width As Integer, Height As Int
   Dim HH As Integer
   Dim aDiffLayout As Integer[][]
   Dim aText As String[]
+  Dim XR As Integer
+  Dim WR As Integer
+  Dim YR As Integer
+  Dim HR As Integer
   
   H = $LH
 
@@ -1323,7 +1327,7 @@ Private Sub DrawLine(X As Integer, Y As Integer, Width As Integer, Height As Int
       XY2Y = .Y
     End With
     
-    iCol = Color.SetAlpha($iMatchColor, 32)
+    iCol = $iMatchColor
     GoSub HIGHLIGHT_RECT
     
   Endif
@@ -1342,7 +1346,7 @@ Private Sub DrawLine(X As Integer, Y As Integer, Width As Integer, Height As Int
     XY2X = $SXY.X
     XY2Y = $SXY.Y
     
-    iCol = Color.SetAlpha($iSelectedBackground, 32)
+    iCol = $iSelectedBackground
     GoSub HIGHLIGHT_RECT
     
   Endif
@@ -1544,14 +1548,67 @@ HIGHLIGHT_RECT:
       XY2Y = HH
     Endif
     
-    If XY2Y = XY1Y Then
-      Paint.FillRect(X + XY1X, Y + XY1Y, XY2X - XY1X, H, iCol)
+    iColInside = Color.SetAlpha(iCol, 128)
+    iCol = Color.Blend(Color.SetAlpha($iForeground, 224), iCol)
+    
+    'Debug Row;; ":";; XY1X;; XY1Y;; "/";; XY2X;; XY2Y
+      
+    If XY1Y = XY2Y Then
+      
+      XR = XY1X
+      YR = XY1Y
+      WR = XY2X - XY1X
+      HR = H
+      GoSub FILL_RECT
+      
     Else
-      Paint.FillRect(X + XY1X, Y + XY1Y, Width, H, iCol)
-      Paint.FillRect(X, Y + XY1Y + H, Width, XY2Y - XY1Y - H, iCol)
-      If XY2Y < HH Then Paint.FillRect(X, Y + XY2Y, XY2X, H, iCol)
+      
+      XR = XY1X
+      YR = XY1Y
+      WR = Width
+      HR = H
+      GoSub FILL_RECT
+      
+      If XY2Y - XY1Y > H Then
+        
+        XR = 0
+        YR = H
+        WR = Width
+        HR = XY2Y - XY1Y - H
+        GoSub FILL_RECT
+        
+      Endif
+      
+      XR = 0
+      YR = XY2Y
+      WR = XY2X
+      HR = H
+      GoSub FILL_RECT
+      
     Endif
     
+  Endif
+
+  Return
+  
+FILL_RECT:
+
+  'If WR = 0 Then Return
+
+  Paint.FillRect(X + XR, Y + YR, WR, HR, iColInside)
+
+  If WR > 0 Then
+    Paint.FillRect(X + XR, Y + YR, 1, HR, iCol)
+    Paint.FillRect(X + XR + WR - 1, Y + YR, 1, HR, iCol)
+  Endif
+  
+  If Row = Y1 And If YR = XY1Y Then 
+    Paint.FillRect(X + XR, Y + YR, WR, 1, iCol)
+    If XY2Y > XY1Y Then Paint.FillRect(X, Y + YR + H - 1, XR, 1, iCol)
+  Endif
+  If Row = Y2 And If YR + HR = XY2Y + H Then 
+    Paint.FillRect(X + XR, Y + YR + HR - 1, WR, 1, iCol)
+    If XY2Y > XY1Y Or If Y2 > Y1 Then Paint.FillRect(X + XR + WR, Y + YR, Width, 1, iCol)
   Endif
 
   Return
@@ -1959,8 +2016,6 @@ Private Sub UpdateWidth(Optional Y As Integer = -1)
   
 UPDATE_WIDTH: 
 
-
-  
   $iWidth = Max($hView.ClientWidth, W)
   _ResizeContents
   
@@ -1969,8 +2024,11 @@ End
 Public Sub TimerCursor_Timer()
   
   If $bMouseDown Then Return
+  If $bHideCursor Then Return
+  
   $bShowCursor = Not $bShowCursor
   _RefreshLine($Y)
+  
   If $YM >= 0 Then
     If $YM <> $Y Then _RefreshLine($YM)
     If $YMO <> $Y Then _RefreshLine($YMO)
@@ -3650,7 +3708,7 @@ Public Sub View_Draw()
     
     H = $hRows._GetRowHeight(iRow)
     
-    If $bShowCurrent And If iRow = $Y Then
+    If $bShowCurrent And If iRow = $Y And If Not HasSelection() Then
       YR = Y
       HR = H
     Endif
