@@ -1548,8 +1548,7 @@ HIGHLIGHT_RECT:
       XY2Y = HH
     Endif
     
-    iColInside = Color.SetAlpha(iCol, 128)
-    iCol = Color.Blend(Color.SetAlpha($iForeground, 224), iCol)
+    iColInside = Color.SetAlpha(iCol, If($hView.HasFocus, &HA0, &HC0))
     
     'Debug Row;; ":";; XY1X;; XY1Y;; "/";; XY2X;; XY2Y
       
@@ -1596,6 +1595,7 @@ FILL_RECT:
   'If WR = 0 Then Return
 
   Paint.FillRect(X + XR, Y + YR, WR, HR, iColInside)
+  If Not Style.FramedSelection Then Return
 
   If WR > 0 Then
     Paint.FillRect(X + XR, Y + YR, 1, HR, iCol)
@@ -3614,8 +3614,8 @@ Private Sub CheckStyle()
   If $bThemeChanged Then
     $iBackground = $hTheme["Background"].Color
     $iForeground = $hTheme["Normal"].Color
-    $iSelectedBackground = Color.Gradient($iBackground, Color.SelectedBackground, 0.3)
-    $iLimitColor = Color.Gradient($iBackground, $hTheme["Comment"].Color)
+    $iSelectedBackground = Color.SelectedBackground
+    $iLimitColor = Color.Blend(Color.SetAlpha($hTheme["Comment"].Color, 128), $iBackground)
     $iIndentColor = Color.SetAlpha($iLimitColor, 160)
     $iMatchColor = $hTheme["Highlight"].Color
     '$iIndentColor = Color.Gradient($iBackground, $iForeground)
