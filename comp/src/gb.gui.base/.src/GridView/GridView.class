@@ -426,7 +426,7 @@ Public Sub ScrollArea_Draw()
   Dim hBottomRowBorder As Border
   Dim hRowBorderRect As Rect
   Dim hRectF As RectF
-  Dim iBgSel As Integer
+  Dim iBgSel, iBgSelFrame As Integer
   Dim iPadding As Integer
   Dim iFg As Integer
   
@@ -449,6 +449,7 @@ Public Sub ScrollArea_Draw()
   Else
     iBgSel = Color.SetAlpha(Color.SelectedBackground, &HC0)
   Endif
+  iBgSelFrame = Color.SelectedBackground
   
   If $hColumns.Count = 0 And If $hRows.Count = 0 Then Return
   
@@ -785,9 +786,17 @@ Public Sub ScrollArea_Draw()
       
       If Not hRowBorder And If $iMode Then
         If _DoNotDrawSelection Then
-          If I = $iRow And If $iMode = Select.Multiple Then Paint.FillRect(0, Y, Paint.W, H, iBgSel)
+          If I = $iRow And If $iMode = Select.Multiple Then
+            Paint.FillRect(0, Y, Paint.W, H, iBgSel)
+            Paint.FillRect(0, Y, Paint.W, 1, iBgSelFrame)
+            Paint.FillRect(0, Y + H - 1, Paint.W, 1, iBgSelFrame)
+          Endif
         Else
-          If _IsRowSelected(I) Then Paint.FillRect(0, Y, Paint.W, H, iBgSel)
+          If _IsRowSelected(I) Then 
+            Paint.FillRect(0, Y, Paint.W, H, iBgSel)
+            If Not _IsRowSelected(I - 1) Then Paint.FillRect(0, Y, Paint.W, 1, iBgSelFrame)
+            If Not _IsRowSelected(I + 1) Then Paint.FillRect(0, Y + H - 1, Paint.W, 1, iBgSelFrame)
+          Endif
         Endif
       Endif
       
