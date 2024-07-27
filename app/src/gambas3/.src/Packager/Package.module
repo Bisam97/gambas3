@@ -58,7 +58,7 @@ Private DEBIAN_ICON_SIZES As Integer[] = [16, 22, 32, 48, 64, 128, 256, 512, 102
 
 Private RUNTIME_COMPONENTS As String[] = ["gb.debug", "gb.draw", "gb.eval", "gb.geom", "gb.gui", "gb.gui.base", "gb.gui.opengl", "gb.gui.qt", "gb.gui.qt.opengl", "gb.gui.qt.webkit", "gb.gui.trayicon", "gb.gui.webview", "gb.hash", "gb.test"]
 
-Private DATABASE_DRIVERS As String[] = ["gb.db.sqlite3", "gb.db.mysql", "gb.db.odbc", "gb.db.postgresql"]
+Private DATABASE_DRIVERS As String[] = [".sqlite3", ".mysql", ".odbc", ".postgresql"]
 
 Private GUI_COMPONENTS_USING_WAYLAND As String[] = ["gb.qt5", "gb.gtk3", "gb.gui"]
 
@@ -2847,7 +2847,6 @@ Private Sub MakeAppImagePackage(sSys As String)
   Dim aSources As String[]
   Dim sGambasPPA As String
   Dim sComp As String
-  Dim bHasDatabaseComponent As Boolean
   Dim aPackages As String[]
   Dim aGenericGuiComp As String[]
   Dim I As Integer
@@ -2863,6 +2862,7 @@ Private Sub MakeAppImagePackage(sSys As String)
   Dim sAppImageType As String
   Dim sArch As String
   Dim sSudo As String
+  Dim sDatabaseComponent As String
   
   sAppImageType = GetAppImageSystem()
   If Settings["/Packager/AppImage/BuildAsRoot", False] Then sSudo = "sudo "
@@ -2980,9 +2980,11 @@ Private Sub MakeAppImagePackage(sSys As String)
   aGenericGuiComp = New String[]
   
   For Each sComp In Project.Components
-    If sComp = "gb.db" Then
-      bHasDatabaseComponent = True
-    Else If sComp Begins "gb.db." And If DATABASE_DRIVERS.Exist(sComp) Then
+    If sComp = "gb.db" Or If sComp = "gb.db2" Then
+      sDatabaseComponent = sComp
+    Else If sComp Begins "gb.db." And If DATABASE_DRIVERS.Exist(Mid$(sComp, 6)) Then
+      bHasDatabaseDriver = True
+    Else If sComp Begins "gb.db2." And If DATABASE_DRIVERS.Exist(Mid$(sComp, 7)) Then
       bHasDatabaseDriver = True
     Else If sComp Begins "gb.gui" And If GENERIC_GUI_COMPONENT.Exist(sComp) Then
       aGenericGuiComp.Add(sComp)
@@ -2992,9 +2994,9 @@ Private Sub MakeAppImagePackage(sSys As String)
     aPackages.Add("gambas3-" & Replace(sComp, ".", "-"))
   Next
   
-  If bHasDatabaseComponent And If Not bHasDatabaseDriver Then
+  If sDatabaseComponent And If Not bHasDatabaseDriver Then
     For Each sComp In DATABASE_DRIVERS
-      aPackages.Add("gambas3-" & Replace(sComp, ".", "-"))
+      aPackages.Add("gambas3-" & Replace(sDatabaseComponent & sComp, ".", "-"))
     Next
   Endif
   

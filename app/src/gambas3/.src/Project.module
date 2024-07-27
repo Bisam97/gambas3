@@ -4772,6 +4772,13 @@ Public Sub OnRefreshComponents()
 
 End
 
+Public Sub HasDatabaseComponent() As Boolean
+  
+  If Components.Exist("gb.db") Or If Components.Exist("gb.db2") Then Return True
+  
+End
+
+
 Public Sub RefreshComponents(Optional bForce As Boolean)
 
   Dim sLib As String
@@ -4819,7 +4826,7 @@ Public Sub RefreshComponents(Optional bForce As Boolean)
       Tree.RefreshInfo
     Endif
 
-    If Components.Exist("gb.db") And If Not Exist(Project.Dir &/ ".connection") Then InsertDirectory(Project.Dir &/ ".connection")
+    If HasDatabaseComponent() And If Not Exist(Project.Dir &/ ".connection") Then InsertDirectory(Project.Dir &/ ".connection")
     If Components.Exist("gb.web") And If Not Exist(Project.Dir &/ ".public") Then InsertDirectory(Project.Dir &/ ".public")
 
     If bChange Then ReloadAll(True)

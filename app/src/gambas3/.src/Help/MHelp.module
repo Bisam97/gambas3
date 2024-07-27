@@ -195,7 +195,7 @@ Public Function GetSymbolHelpPath(hSymbol As CSymbolInfo) As String
   
   Dim sLink As String
   Dim sName As String
-  Dim Result As String
+  Dim sResult As String
   Dim sComp As String
   
   sName = LCase(hSymbol.Name)
@@ -213,25 +213,25 @@ Public Function GetSymbolHelpPath(hSymbol As CSymbolInfo) As String
   sLink &/= sName 
   sLink = FormatName(sLink)
   
-  Result = GetPath(sLink) & ".html"
+  sResult = GetPath(sLink) & ".html"
   
   If Not Exist(Result) Then 
     If hSymbol.Kind Then 
       'Try looking for the property in the object that this object inherits from
       hSymbol.Class = hSymbol.Kind
       hSymbol.Kind = ""
-      Result = GetSymbolHelpPath(hsymbol)
+      sResult = GetSymbolHelpPath(hsymbol)
       If Not Exist(Result) Then 
         'Try looking for the property in the Control object
         hSymbol.Class = "Control"
-        Result = GetSymbolHelpPath(hsymbol)
+        sResult = GetSymbolHelpPath(hsymbol)
       Endif   
     Endif 
   Endif 
   
-  Result = LCase(Result)
+  sResult = LCase(sResult)
   
-  Return Result
+  Return sResult
   
 End
 
