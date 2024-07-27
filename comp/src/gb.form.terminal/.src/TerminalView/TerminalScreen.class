@@ -1389,6 +1389,7 @@ Public Sub Paint(SY As Integer, LH As Integer, CW As Float, LA As Integer, bHide
     If GetSelection(ByRef X1, ByRef Y1, ByRef X2, ByRef Y2) Then
       
       If L >= Y1 And If L <= Y2 Then
+        
         If L = Y1 Then
           X1 *= CW
         Else
@@ -1397,9 +1398,26 @@ Public Sub Paint(SY As Integer, LH As Integer, CW As Float, LA As Integer, bHide
         If L = Y2 Then
           X2 *= CW
         Else
-          X2 = Paint.W
+          X2 = $W * CW 'Paint.W
         Endif
+        
         If X2 > X1 Then Paint.FillRect(X1, Y, X2 - X1, LH, Color.SetAlpha(Color.SelectedBackground, 128))
+        
+        If Style.FramedSelection Then
+          If X2 > X1 Then
+            Paint.FillRect(X1, Y, 1, LH, Color.SelectedBackground)
+            Paint.FillRect(X2 - 1, Y, 1, LH, Color.SelectedBackground)
+          Endif
+          If L = Y1 Then 
+            Paint.FillRect(X1, Y, X2 - X1, 1, Color.SelectedBackground)
+            If X1 > 0 And If Y2 > Y1 Then Paint.FillRect(0, Y + LH - 1, X1, 1, Color.SelectedBackground)
+          Endif
+          If L = Y2 Then
+            Paint.FillRect(X1, Y + LH - 1, X2 - X1, 1, Color.SelectedBackground)
+            If Y2 > Y1 Then Paint.FillRect(X2, Y, $W * CW - X2, 1, Color.SelectedBackground)
+          Endif
+        Endif
+        
       Endif
       
     Endif
