@@ -965,7 +965,7 @@ Public Sub ToANSI(Text As String, Optional Theme As TextHighlighterTheme) As Str
       
       If $hStyle.Bold Then sANSI = "\e[1m" & sANSI & "\e[22m" ' "\e[21m" some terminal don't regognize this
       If $hStyle.Underline Then sANSI = "\e[4m" & sANSI & "\e[24m"
-      ' TODO: Implement strikeout
+      If $hStyle.Strikeout Then sANSI = "\e[9m" & sANSI & "\e[29m"
       
       If $iBackground <> iBackground Then 
         iBackground = $iBackground
