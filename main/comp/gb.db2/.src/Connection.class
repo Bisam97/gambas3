@@ -191,6 +191,7 @@ End
 Public Sub Open()
   
   Dim sType As String
+  Dim hDriver As _DatabaseDriver
   
   If $hDriver Then Error.Raise("Connection already opened")
   
@@ -202,9 +203,11 @@ Public Sub Open()
   Try Component.Load("gb.db2." & LCase(sType))
   If Error Then Error.Raise("Unable to load database driver: " & Error.Text)
   
-  $hDriver = Object.New("_DatabaseDriver_" & LCase(sType)) 
-  Object.Attach($hDriver, Me, "DatabaseDriver")
-  $pHandle = $hDriver.Open(Me)
+  hDriver = Object.New("_DatabaseDriver_" & LCase(sType)) 
+  Object.Attach(hDriver, Me, "DatabaseDriver")
+  
+  $pHandle = hDriver.Open(Me)
+  $hDriver = hDriver
   
   $iLimit = 0
   $iTrans = 0
@@ -219,7 +222,7 @@ End
 
 Public Sub Close()
   
-  If Not $hDriver Then Return
+  If Not $hDriver Or If Not $pHandle Then Return
   $hDriver.Close()
   $hDriver = Null
   $pHandle = Null
