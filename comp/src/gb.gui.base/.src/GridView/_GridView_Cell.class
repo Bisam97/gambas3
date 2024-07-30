@@ -34,6 +34,8 @@ Property Read X, {Left} As Integer
 Property Read Y, {Top} As Integer
 Property Read Width, W As Integer
 Property Read Height, H As Integer
+Property Read ScreenX As Integer
+Property Read ScreenY As Integer
 
 Public _Row As Integer
 Public _Column As Integer
@@ -81,7 +83,7 @@ End
 
 Private Function Y_Read() As Integer
 
-  Return _View.Rows[_Row].Y
+  Return _View.Rows[_Row].Y + _View.Proxy.Proxy.Y
 
 End
 
@@ -279,5 +281,17 @@ End
 Private Function Visible_Read() As Boolean
 
   If Width_Read() > 0 And If Height_Read() > 0 Then Return True
+
+End
+
+Private Function ScreenX_Read() As Integer
+
+  Return Me.X + _View.ScreenX + _View.Rows.Width - _View.ScrollX '+ _View.ClientX
+
+End
+
+Private Function ScreenY_Read() As Integer
+
+  Return Me.Y + _View.ScreenY + _View.Columns.Height - _View.ScrollY '+ _View.ClientY
 
 End

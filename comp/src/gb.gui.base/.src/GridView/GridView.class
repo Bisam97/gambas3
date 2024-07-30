@@ -788,14 +788,18 @@ Public Sub ScrollArea_Draw()
         If _DoNotDrawSelection Then
           If I = $iRow And If $iMode = Select.Multiple Then
             Paint.FillRect(0, Y, Paint.W, H, iBgSel)
-            Paint.FillRect(0, Y, Paint.W, 1, iBgSelFrame)
-            Paint.FillRect(0, Y + H - 1, Paint.W, 1, iBgSelFrame)
+            If Style.FramedSelection And If Not $bGrid Then
+              Paint.FillRect(0, Y, Paint.W, 1, iBgSelFrame)
+              Paint.FillRect(0, Y + H - 1, Paint.W, 1, iBgSelFrame)
+            Endif
           Endif
         Else
           If _IsRowSelected(I) Then 
             Paint.FillRect(0, Y, Paint.W, H, iBgSel)
-            If Not _IsRowSelected(I - 1) Then Paint.FillRect(0, Y, Paint.W, 1, iBgSelFrame)
-            If Not _IsRowSelected(I + 1) Then Paint.FillRect(0, Y + H - 1, Paint.W, 1, iBgSelFrame)
+            If Style.FramedSelection And If Not $bGrid Then
+              If I > 0 And If Not _IsRowSelected(I - 1) Then Paint.FillRect(0, Y, Paint.W, 1, iBgSelFrame)
+              If Not _IsRowSelected(I + 1) Then Paint.FillRect(0, Y + H - 1, Paint.W, 1, iBgSelFrame)
+            Endif
           Endif
         Endif
       Endif
@@ -1615,8 +1619,9 @@ Public Sub TimerEnsureVisible_Timer()
     W = Max(1, .Width)
     H = Max(1, $hRows._GetRowHeight(iRowEV))
     'If W <= 0 Or If H <= 0 Then Return
-    '$hView.EnsureVisible(.X, $hRows._GetRowY(iRowEV) + F, Min($hView.ClientW - $hRows.W, W + $hRows.Width), H + $hColumns.Height + F, iDir)
-    If Align.IsLeft(.Alignment) Then
+    If W < Me.ClientW - $hRows.W Or If Align.IsCenter(.Alignment) Then
+      $hView.EnsureVisible(.X + F, $hRows._GetRowY(iRowEV) + F, W + $hRows.W, H + $hColumns.H, iDir)
+    Else If Align.IsLeft(.Alignment) Then
       $hView.EnsureVisible(.X + F, $hRows._GetRowY(iRowEV) + F, F, H + $hColumns.H + F, iDir)
     Else If Align.IsRight(.Alignment) Then
       $hView.EnsureVisible(.X + F + W, $hRows._GetRowY(iRowEV) + F, F, H + $hColumns.H + F, iDir)

@@ -15,6 +15,8 @@ Public Sub _new()
     Endif
   Endif
   
+  gvwPopup._DoNotDrawSelection = True
+  
 End
 
 Public Sub UpdateComboSize(Optional aList As String[])
@@ -171,6 +173,22 @@ Public Sub dwgFrame_Draw()
   Else 
     Style.PaintBox(0, 0, Paint.W, Paint.H + Style.FrameWidth * 2, Style.Normal)
     Paint.FillRect(0, Paint.H - 1, Paint.W, 1, Color.LightForeground)
+  Endif
+
+End
+
+Public Sub gvwPopup_Draw(X As Integer, Y As Integer, Width As Integer, Height As Integer, Row As Integer, (Column) As Integer)
+
+  Dim P As Integer
+  
+  If Row = gvwPopup.Row Then
+    P = gvwPopup.Padding
+    X -= P
+    Y -= P
+    Width += P * 2
+    Height += P * 2
+    Paint.FillRect(X, Y, Width, Height, Color.SetAlpha(Color.SelectedBackground, 128))
+    If Style.FramedSelection Then Paint.DrawRect(X, Y, Width, Height, Color.SelectedBackground)
   Endif
 
 End

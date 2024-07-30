@@ -86,33 +86,33 @@ Private Sub _UpdateSize()
   
 End
 
-Private Sub GetExtents() As RectF
-
-  Dim X As Float
-
-  ' Check Paint.Scalable to workaround a QT bug with Paint.TextExtents() on such fonts
-
-  If Not $hExt Then
-    If $bRichText Then
-      'If _Wrap Then
-      '  $hExt = Paint.RichTextSize($sText, Me.W - GetPadding() * 2)
-      'Else
-        $hExt = Paint.RichTextSize($sText)
-      'Endif
-      If Paint.Font.Scalable Then X = Paint.RichTextExtents($sText).X
-    Else
-      $hExt = Paint.TextSize($sText)
-      If Paint.Font.Scalable Then X = Paint.TextExtents(LTrim($sText)).X
-    Endif
-    
-    'Debug Me.Name; ": "; Paint.Font.ToString();; $hExt.W;; "[";; X;; "]"
-    $hExt.X = X
-    
-  Endif
-  
-  Return $hExt
-
-End
+' Private Sub GetExtents() As RectF
+' 
+'   Dim X As Float
+' 
+'   ' Check Paint.Scalable to workaround a QT bug with Paint.TextExtents() on such fonts
+' 
+'   If Not $hExt Then
+'     If $bRichText Then
+'       'If _Wrap Then
+'       '  $hExt = Paint.RichTextSize($sText, Me.W - GetPadding() * 2)
+'       'Else
+'         $hExt = Paint.RichTextSize($sText)
+'       'Endif
+'       If Paint.Font.Scalable Then X = Paint.RichTextExtents($sText).X
+'     Else
+'       $hExt = Paint.TextSize($sText)
+'       If Paint.Font.Scalable Then X = Paint.TextExtents(LTrim($sText)).X
+'     Endif
+'     
+'     'Debug Me.Name; ": "; Paint.Font.ToString();; $hExt.W;; "[";; X;; "]"
+'     $hExt.X = X
+'     
+'   Endif
+'   
+'   Return $hExt
+' 
+' End
 
 
 
