@@ -15,19 +15,22 @@ Public Sub Form_Open()
   
   tvwMain.Columns[0].Title = "Name"
   tvwMain.Columns[0].Width = 400
+  tvwMain.Columns[0].Alignment = Align.Center
   tvwMain.Columns[1].Title = "Size"
+  'tvwMain.Columns[1].Alignment = Align.Right
   tvwMain.Columns[2].Title = "Done"
   tvwMain.Columns[3].Title = "Error"
   
   For Y = 0 To aDir.Max
     tvwMain[Y, 0].Text = String.UCaseFirst(File.BaseName(aDir[Y]))
-    tvwMain[Y, 0].Padding = 4
+    'tvwMain[Y, 0].Padding = 4
     tvwMain[Y, 1].Text = Stat("~/Musique" &/ aDir[Y]).Size
-    tvwMain[Y, 1].Padding = 4
-    tvwMain[Y, 1].Background = Color.Yellow
+    tvwMain[Y, 1].Padding = 6
+    'tvwMain[Y, 1].Background = Color.Yellow
   Next
   
   tvwMain.Rows.H = -1
+  tvwMain.Columns.W = -1
 
 End
 
@@ -47,5 +50,19 @@ End
 Public Sub tvwMain_Save(r As Integer, c As Integer, v As String)
 
   tvwMain[r, c].Text = v
+
+End
+
+Public Sub tvwMain_Click()
+
+  tvwMain.Edit()
+
+End
+
+Public Sub Button1_Click()
+
+  tvwMain.Border = Not tvwMain.Border
+  
+  Debug tvwMain.Columns[0].X
 
 End

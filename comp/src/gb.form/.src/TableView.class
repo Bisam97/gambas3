@@ -120,9 +120,11 @@ End
 Private Sub MoveEditor()
   
   Dim X, Y, W, H As Integer
-  Dim MX, MY As Integer
   Dim hEditor As Object
   Dim PX, PY As Integer
+  Dim iBg As Integer
+  Dim D As Integer
+  Dim DX As Integer
   
   If Not $hEditor Then Return 
   
@@ -130,42 +132,40 @@ Private Sub MoveEditor()
   
   ' $bDoNotHideEditor can be set to FALSE during the WAIT instruction
   hEditor = $hEditor
-  Me[$iRow, $iCol].EnsureVisible
-  'Wait
-  If Not $hEditor Then $hEditor = hEditor
   
-  X = Me.ScreenX - Me.Window.ScreenX - Me.Window.ClientX + Me.Rows.Width - Me.ScrollX + Me.ClientX
-  Y = Me.ScreenY - Me.Window.ScreenY - Me.Window.ClientY + Me.Columns.Height - Me.ScrollY + Me.ClientY
-  
-  MX = Me.ScreenX - Me.Window.ScreenX - Me.Window.ClientX + Me.Rows.Width - Me.ScrollX + Me.ClientX
-  MY = Me.ScreenY - Me.Window.ScreenY - Me.Window.ClientY + Me.Columns.Height - Me.ScrollY + Me.ClientY
+  ' MX = Me.ScreenX - Me.Window.ScreenX - Me.Window.ClientX + Me.Rows.Width - Me.ScrollX + Me.ClientX
+  ' MY = Me.ScreenY - Me.Window.ScreenY - Me.Window.ClientY + Me.Columns.Height - Me.ScrollY + Me.ClientY
   
   $bDoNotHideEditor = False
   
   With Me[$iRow, $iCol]
     
-    X += .X - 1
-    Y += .Y
-    W = Min(Me.ClientW - Me.Rows.W, .Width)
-    H = Min(Me.ClientH - Me.Columns.H, .Height)
+    X = .ScreenX - Me.Window.ScreenX - Me.Window.ClientX
+    Y = .ScreenY - Me.Window.ScreenY - Me.Window.ClientY
+    W = .Width
+    H = .Height
     
-    X += 2
-    Y += 2
-    W -= 4
-    H -= 4
-    
-    ' If Not Me.Grid Then
-    '   Inc W
-    '   Inc H
-    ' Endif
-    
-    PX = Max(Me.Padding, .Padding)
-    PX = Max(0, PX - 3)
+    PX = Max(.Padding, Me.Padding) + Me.Columns.Padding
+    PY = Max(.Padding, Me.Padding) + Me.Rows.Padding
     If $hEditor Is TextBox Then
+      PX = Max(0, PX - Style.FrameWidth + 1)
     Else If $hEditor = $hComboBox Then
-      If $hComboBox.ReadOnly Then PX = 0
-    Else 
-      PY = PX
+      If $hComboBox.ReadOnly Then
+        PX = 0
+      Else
+        PX = Max(0, PX - Style.FrameWidth + 1)
+      Endif
+    Endif
+    
+    D = .X - Me.ScrollX - Me.ClientX
+    If D < 0 Then 
+      X -= D
+      W += D
+    Endif
+    
+    D = Me.ClientW - Me.Rows.W - (.X + .Width - Me.ScrollX - Me.ClientX)
+    If D < 0 Then
+      W += D
     Endif
 
     If (W - PX * 2) < 4 Or If (H - PY * 2) < 4 Then
@@ -173,19 +173,26 @@ Private Sub MoveEditor()
       Return
     Endif
     
-    If $hEditor.Background = Color.Default Then
-      If Me.Background = Color.Default Then
-        $hPanel.Background = Color.TextBackground
-      Else
-        $hPanel.Background = Me.Background
+    iBg = $hEditor.Background
+    If iBg = Color.Default Then
+      iBg = .Background
+      If iBg = Color.Default Then
+        iBg = Me.Background
+        If iBg = Color.Default Then iBg = Color.TextBackground
       Endif
-    Else
-      $hPanel.Background = $hEditor.Background
     Endif
     
-    'UpdateShowCursor
+    $hPanel.Background = iBg
     
-    $hEditor.Move(PX, PY, W - PX * 2, H - PY * 2)
+    If $hEditor Is TextBox Then
+      If Align.IsRight($hEditor.Alignment) Then
+        DX = 3
+      Else If Align.IsCenter($hEditor.Alignment) Then
+        DX = 1
+      Endif
+    Endif
+    
+    $hEditor.Move(PX + DX, PY, W - PX * 2, H - PY * 2)
     $hEditor.Show
     $hEditor.Raise
 
@@ -217,11 +224,7 @@ End
 
 Public Sub GridView_Scroll()
   
-  If $bDoNotHideEditor Then
-    MoveEditor
-  Else
-    HideEditor
-  Endif
+  MoveEditor
   
 End
 
@@ -266,6 +269,7 @@ Private Sub InitEditor()
     $hEditor.Background = .Background
     Try $hEditor.Alignment = .Alignment
     Try $hEditor.WordWrap = .WordWrap
+    .EnsureVisible()
   End With
 
 End
