@@ -1,6 +1,6 @@
 ' Gambas class file
 
-Inherits Task
+'Inherits Task
 
 Class Hash
 Class PdfDocument
@@ -18,6 +18,7 @@ Private $bIgnoreCache As Boolean
 
 Public Sub _new(sDir As String, iSize As Integer, iMaxFileSize As Integer, aPreview As String[], sTempDir As String, bIgnoreCache As Boolean)
   
+  Component.Load("gb.hash")
   $sDir = sDir
   $iSize = iSize
   $iMaxFileSize = iMaxFileSize
@@ -521,13 +522,47 @@ Public Sub Main()
       Print sRect;
     Endif 
     Print
+    Flush
     
   Next
   
   Print "."
+  Flush
   
   Do
     Sleep 3600
   Loop
+  
+End
+
+Static Public Sub Run()
+
+  Dim aArgs As String[]
+  Dim iPos As Integer
+  Dim aFiles As String[]
+  Dim I As Integer
+  Dim hPreview As CTaskPreview
+  Dim bIgnoreCache As Boolean
+  
+  aArgs = Args.Copy()
+  aArgs.Remove(0, 2)
+  
+  iPos = aArgs.Find("--force")
+  If iPos >= 0 Then 
+    bIgnoreCache = True
+    aArgs.Remove(iPos)
+  Endif
+  
+  aFiles = Split(File.Load(aArgs[3]), "\n", "", True)
+  For I = 0 To aFiles.Max
+    aFiles[I] = UnQuote(aFiles[I])
+  Next
+  
+  hPreview = New CTaskPreview(aArgs[0], CInt(aArgs[1]), CInt(aArgs[2]), aFiles, aArgs[4], bIgnoreCache)
+  hPreview.Main()
+    
+Catch
+    
+  Error "gb.form.dialog: preview: error: "; Error.Where; ": "; Error.Text
   
 End

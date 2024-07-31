@@ -234,6 +234,21 @@ End
 
 Public Sub Main()
 
+  If Args[1] == "--preview" Then
+    
+    CTaskPreview.Run()
+    
+  Else 
+    
+    Error "Unknown command"
+    Quit 1
+    
+  Endif
+  
+End
+
+Public Sub Test()
+
   'MakeColorMap
   'InputBox("<b></b>Please enter your age.<br><b>Do not lie!</b><br>", "Important request")
   Application.Theme = "gambas-thin"
@@ -290,7 +305,7 @@ Public Sub UseGTK() As Boolean
   
 End
 
-Private Sub MakeColorMap()
+Public Sub MakeColorMap()
 
   Dim hImage As Image
   Dim X As Integer

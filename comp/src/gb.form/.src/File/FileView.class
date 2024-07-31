@@ -125,9 +125,10 @@ Private $bDesktopIsLoaded As Boolean
 
 Private $aIconSize As New Integer[4]
 
-Private $hPreview As CTaskPreview
+Private $hPreview As Process
 Private $iPreviewMax As Integer
 Private $iPreviewCount As Integer
+Private $aPreview As String[]
 
 Private $hEnsureVisible As Timer
 Private $hWatch As Watch
@@ -609,24 +610,29 @@ End
 Private Sub StopPreview()
   
   If $hPreview Then
-    $hPreview.Stop
+    $hPreview.Kill
     'Debug Me.Name
   Endif
   $hProgress.Hide
   $sLastPreview = ""
+  $aPreview = Null
   
 End
 
 Private Sub StartPreview(aPreview As String[])
 
   Dim sDir As String
+  Dim aExec As String[]
+  Dim sPreview As String
+  Dim hFile As File
+  Dim sPath As String
   
   If Not $bVisible Then Return
   If Not $bShowPreview Then Return
   
   StopPreview
-  Component.Load("gb.hash")
   $hProgress.Show
+  $aPreview = aPreview
   $iPreviewMax = aPreview.Count
   $iPreviewCount = 0
   
@@ -637,9 +643,22 @@ Private Sub StartPreview(aPreview As String[])
   ' Endif
   
   $sTaskPreviewBuffer = ""
-  $hPreview = New CTaskPreview(GetCurrentDir(), GetIconSize(), $iMaxPreviewSize, aPreview, sDir, $bIgnorePreviewCache) As "TaskPreview"
-  'Debug Me.Name;; System.Backtrace.Join(" ")
-
+  'System._Breakpoint
+  
+  sPreview = Temp$()
+  hFile = Open sPreview For Create 
+  For Each sPath In aPreview
+    Print #hFile, Quote(sPath)
+  Next
+  hFile.Close
+  
+  aExec = [Component.Path &/ "gb.form.gambas", "--preview", GetCurrentDir(), CStr(GetIconSize()), CStr($iMaxPreviewSize), sPreview, sDir]
+  If $bIgnorePreviewCache Then aExec.Add("--force")
+  
+  Try $hPreview = Exec aExec For Read As "TaskPreview" 
+  If Error Then Error "gb.form: cannot run preview: "; Error.Text
+  '$hPreview = New CTaskPreview(GetCurrentDir(), GetIconSize(), $iMaxPreviewSize, aPreview, sDir, $bIgnorePreviewCache) As "TaskPreview"
+  
 End
 
 Private Sub PaintImageWithOutline(hImage As Image, X As Float, Y As Float, W As Integer, H As Integer)
@@ -659,7 +678,7 @@ Private Sub PaintImageWithOutline(hImage As Image, X As Float, Y As Float, W As 
 
 End
 
-Public Sub TaskPreview_Read(Data As String)
+Public Sub TaskPreview_Read()
   
   Dim sPath As String
   Dim sPreview As String
@@ -674,18 +693,21 @@ Public Sub TaskPreview_Read(Data As String)
   Dim hRect As Rect
   Dim iPos As Integer
   Dim sData As String
+  Dim sRead As String
   
   If Not $bShowPreview Then Return
   
+  sRead = Read #Last, Lof(Last)
+  
   DS = Desktop.Scale
   
-  iPos = RInStr(Data, "\n")
+  iPos = RInStr(sRead, "\n")
   If iPos = 0 Then
-    $sTaskPreviewBuffer &= Data
+    $sTaskPreviewBuffer &= sRead
     Return
   Else
-    sData = $sTaskPreviewBuffer & Left(Data, iPos)
-    $sTaskPreviewBuffer = Mid$(Data, iPos + 1)
+    sData = $sTaskPreviewBuffer & Left(sRead, iPos)
+    $sTaskPreviewBuffer = Mid$(sRead, iPos + 1)
   Endif
   
   For Each sLine In Split(sData, "\n", "", True)
@@ -733,6 +755,12 @@ Public Sub TaskPreview_Read(Data As String)
     $sLastPreview = sPath
     
   Next
+  
+End
+
+Public Sub TaskPreview_Error(Data As String)
+  
+  Error Data;
   
 End
 
