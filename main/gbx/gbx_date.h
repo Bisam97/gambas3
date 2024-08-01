@@ -62,11 +62,13 @@ typedef
 
 #define DATE_NDAY_BC 1753350
 
+#define DATE_UNIX_EPOCH 2472692
+
 #define DATE_SERIAL_has_no_date(_date) ((_date)->year == 0)
 #define DATE_SERIAL_has_no_time(_date) ((_date)->hour == 0 && (_date)->min == 0 && (_date)->sec == 0 && (_date)->msec == 0)
 
 #define DATE_void_value(_value) ((_value)->type = T_DATE, (_value)->_date.time = (_value)->_date.date = 0)
-
+	
 void DATE_init(void);
 void DATE_init_local(void);
 int DATE_get_timezone(void);

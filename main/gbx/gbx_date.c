@@ -289,45 +289,15 @@ static int get_current_year(void)
 
 void DATE_from_time(time_t time, int usec, VALUE *val)
 {
-	static struct tm tm;
-	static time_t last_time = (time_t)-1;
-
-	DATE_SERIAL date;
-
-	if (time != last_time)
-	{
-		localtime_r(&time, &tm);
-		last_time = time;
-	}
-
-	date.year = tm.tm_year + 1900;
-	date.month = tm.tm_mon + 1;
-	date.day = tm.tm_mday;
-	date.hour = tm.tm_hour;
-	date.min = tm.tm_min;
-	date.sec = tm.tm_sec;
-	date.msec = usec / 1000;
-
-	if (DATE_make(&date, val))
-		VALUE_default(val, T_DATE);
+	val->type = T_DATE;
+	val->_date.date = time / 86400 + DATE_UNIX_EPOCH;
+	val->_date.time = (time % 86400) * 1000 + usec / 1000;
 }
 
 void DATE_to_time(VALUE *val, time_t *time, int *usec)
 {
-	DATE_SERIAL *date;
-	static struct tm tm;
-	
-	date = DATE_split_local(val, TRUE);
-	
-	tm.tm_year = date->year - 1900;
-	tm.tm_mon = date->month - 1;
-	tm.tm_mday = date->day;
-	tm.tm_hour = date->hour;
-	tm.tm_min = date->min;
-	tm.tm_sec = date->sec;
-	
-	*usec = date->msec * 1000;
-	*time = mktime(&tm);
+	*time = (val->_date.date - DATE_UNIX_EPOCH) * 86400 + val->_date.time / 1000;
+	*usec = (val->_date.time % 1000) * 1000;
 }
 
 void DATE_now(VALUE *val)
