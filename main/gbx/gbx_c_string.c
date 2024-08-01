@@ -878,38 +878,6 @@ _INVALID:
 
 END_METHOD
 
-static int _subst_count;
-static char **_subst_array;
-
-static void get_subst(int np, char **str, int *len)
-{
-	if (np > 0 && np <= _subst_count)
-	{
-		*str = _subst_array[np - 1];
-		*len = STRING_length(*str);
-	}
-	else
-	{
-		*str = NULL;
-		*len = 0;
-	}
-}
-
-BEGIN_METHOD(String_Subst, GB_STRING format; GB_OBJECT patterns)
-
-	CARRAY *patterns = (CARRAY *)VARG(patterns);
-	
-	if (patterns && patterns->count)
-	{
-		_subst_count = patterns->count;
-		_subst_array = patterns->data;
-		GB_ReturnString(STRING_subst(STRING(format), LENGTH(format), get_subst));
-	}
-	else
-		GB_ReturnNewString(STRING(format), LENGTH(format));
-
-END_METHOD
-
 //-----------------------------------------------------------------------------
 
 BEGIN_PROPERTY(BoxedString_Len)
@@ -1022,8 +990,6 @@ GB_DESC StringDesc[] =
 	GB_STATIC_METHOD("Code", "i", String_Code, "(String)s[(Index)i]"),
 
 	GB_STATIC_METHOD("IsValid", "b", String_IsValid, "(String)s"),
-
-	GB_STATIC_METHOD("Subst", "s", String_Subst, "(Format)s(Patterns)String[]"),
 
 	GB_END_DECLARE
 };

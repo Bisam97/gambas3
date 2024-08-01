@@ -39,6 +39,13 @@
 #include "gbx_local.h"
 #include "gbx_compare.h"
 
+
+//---------------------------------------------------------------------------
+
+static int _subst_count;
+static VALUE *_subst_param;
+static char **_subst_array;
+
 //---------------------------------------------------------------------------
 
 void SUBR_cat(ushort code)
@@ -551,13 +558,12 @@ __RETURN:
 	SUBR_LEAVE();
 }
 
-static int subst_nparam;
-static VALUE *subst_param;
 
-static void get_subst(int np, char **str, int *len)
+
+static void get_subst_param(int np, char **str, int *len)
 {
-	if (np > 0 && np < subst_nparam)
-		VALUE_get_string(&subst_param[np], str, len);
+	if (np > 0 && np < _subst_count)
+		VALUE_get_string(&_subst_param[np], str, len);
 	else
 	{
 		*str = NULL;
@@ -565,26 +571,58 @@ static void get_subst(int np, char **str, int *len)
 	}
 }
 
+
+static void get_subst_array(int np, char **str, int *len)
+{
+	if (np > 0 && np <= _subst_count)
+	{
+		*str = _subst_array[np - 1];
+		*len = STRING_length(*str);
+	}
+	else
+	{
+		*str = NULL;
+		*len = 0;
+	}
+}
+
+
 void SUBR_subst(ushort code)
 {
 	char *string;
 	int len;
 	int np;
+	CARRAY *array;
+	SUBST_FUNC func = NULL;
 
 	SUBR_ENTER();
 
 	SUBR_get_string_len(&PARAM[0], &string, &len);
 
-	for (np = 1; np < NPARAM; np++)
-		VALUE_conv_string(&PARAM[np]);
+	if (NPARAM == 2)
+	{
+		VARIANT_undo(&PARAM[1]);
+		if (VALUE_is_object(&PARAM[1]))
+		{
+			VALUE_conv_object(&PARAM[1], (TYPE)CLASS_StringArray);
+			array = (CARRAY *)PARAM[1]._object.object;
+			_subst_count = array->count;
+			_subst_array = array->data;
+			func = get_subst_array;
+		}
+	}
+	
+	if (!func)
+	{
+		for (np = 1; np < NPARAM; np++)
+			VALUE_conv_string(&PARAM[np]);
 
-	subst_param = PARAM;
-	subst_nparam = NPARAM;
+		_subst_param = PARAM;
+		_subst_count = NPARAM;
+		func = get_subst_param;
+	}
 
-	string = STRING_subst(string, len, get_subst);
-
-	/*for (np = 0; np < NPARAM; np++)
-		RELEASE_STRING(&PARAM[np]);*/
+	string = STRING_subst(string, len, func);
 
 	RETURN->type = T_STRING;
 	RETURN->_string.addr = (char *)string;
