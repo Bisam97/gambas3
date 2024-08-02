@@ -247,6 +247,10 @@ Public Sub Background_Arrange()
   Dim hCtrl As Control
   Dim aCtrl As New Control[]
   Dim X, H As Integer
+  Dim DS As Integer
+  Dim W As Integer
+  
+  DS = Desktop.Scale
   
   If $bBorder Then
     FW = Min(3, Style.BoxFrameWidth)
@@ -258,32 +262,31 @@ Public Sub Background_Arrange()
   Next
   
   H = Me.H - FH * 2
+  W = DS * 3 * Me.Font.Height / Application.Font.Height
   
   If Me.RightToLeft Then
     X = FW
     For Each hCtrl In aCtrl
-      hCtrl.W = Desktop.Scale * 3
-      hCtrl.Move(X, FH, H, H)
-      X += H
+      hCtrl.Move(X, FH, W, H)
+      X += W
     Next
     If $hFilter Then
       $hTextBox.Move(X, FH, Me.W - FW - X - H, H)
       $hFilter.Move(Me.W - H - FW, FH, H, H)
     Else
-      $hTextBox.Move(X, FH, Me.W - Style.BoxFrameWidth - X, H)
+      $hTextBox.Move(X, FH, Me.W - FW - X, H)
     Endif
   Else
     X = Me.W - FW
     For Each hCtrl In aCtrl
-      hCtrl.W = Desktop.Scale * 3
-      X -= H
-      hCtrl.Move(X, FH, H, H)
+      X -= W
+      hCtrl.Move(X, FH, W, H)
     Next
     If $hFilter Then 
       $hFilter.Move(FW, FH, H, H)
-      $hTextBox.Move(FW + H, FH, X - Style.BoxFrameWidth - H, H)
+      $hTextBox.Move(FW + H, FH, X - FW - H, H)
     Else
-      $hTextBox.Move(Style.BoxFrameWidth, FH, X - Style.BoxFrameWidth, H)
+      $hTextBox.Move(FW, FH, X - FW, H)
     Endif
   Endif
   
