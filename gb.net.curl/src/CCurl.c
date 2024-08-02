@@ -256,7 +256,8 @@ void CURL_manage_error(void *_object, int error)
 	else
 	{
 		THIS_STATUS = (- (1000 + error));
-		GB.Error("&1", curl_easy_strerror(error));
+		if (!THIS->async)
+			GB.Error("&1", curl_easy_strerror(error));
 	}
 }
 
