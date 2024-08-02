@@ -14,12 +14,20 @@ Property Value As Float
 Property Pulse As Boolean
 Property Border As Boolean
 
+'' @{since 3.20}
+'' Return or set the text displayed in the progress bar.
+''
+'' If not set, which is the default, the [../value] property is displayed as a percentage.
+
+Property Text As String
+
 Private $fValue As Float
 Private $bLabel As Boolean = True
 Private $bPulse As Boolean
 Private $iPulse As Integer
 Private $hTimerPulse As Timer
 Private $bBorder As Boolean = True
+Private $sText As String
 
 Private Function Label_Read() As Boolean
 
@@ -60,6 +68,7 @@ Public Sub UserControl_Draw()
   Dim W As Float
   Dim iCol As Integer
   Dim I As Integer
+  Dim sText As String
   
   iCol = Color.Merge(Color.Background, Color.LightForeground)
   If Not Me.Enabled Then iCol = Color.Desaturate(iCol)
@@ -107,9 +116,18 @@ Public Sub UserControl_Draw()
     Next
     Paint.Restore
     
+    sText = $sText
+    Paint.Background = Color.SelectedBackground
+    Paint.DrawTextShadow(sText, 0, 0, Paint.W, Paint.H, Align.Center, 1)    
+    Paint.Background = Color.Foreground
+    GoSub DRAW_LABEL
+    
   Else
   
     W = Paint.W * $fValue
+  
+    sText = $sText
+    If Not sText Then sText = Format($fValue, "0%")
   
     If Me.RightToLeft Then
       
@@ -121,14 +139,14 @@ Public Sub UserControl_Draw()
         Paint.Rectangle(Paint.W - W, 0, W, Paint.H)
         Paint.Clip
         Paint.Background = Color.SelectedForeground
-        Paint.DrawText(Format($fValue, "0%"), 0, 0, Paint.W, Paint.H, Align.Center)
+        GoSub DRAW_LABEL
         Paint.Restore
     
         Paint.Save
         Paint.Rectangle(0, 0, Paint.W - W, Paint.H)
         Paint.Clip
         Paint.Background = Color.Foreground
-        Paint.DrawText(Format($fValue, "0%"), 0, 0, Paint.W, Paint.H, Align.Center)
+        GoSub DRAW_LABEL
         Paint.Restore
     
       Endif
@@ -143,14 +161,14 @@ Public Sub UserControl_Draw()
         Paint.Rectangle(0, 0, W, Paint.H)
         Paint.Clip
         Paint.Background = Color.SelectedForeground
-        Paint.DrawText(Format($fValue, "0%"), 0, 0, Paint.W, Paint.H, Align.Center)
+        GoSub DRAW_LABEL
         Paint.Restore
     
         Paint.Save
         Paint.Rectangle(W, 0, Paint.W - W, Paint.H)
         Paint.Clip
         Paint.Background = Color.Foreground
-        Paint.DrawText(Format($fValue, "0%"), 0, 0, Paint.W, Paint.H, Align.Center)
+        GoSub DRAW_LABEL
         Paint.Restore
     
       Endif
@@ -158,6 +176,13 @@ Public Sub UserControl_Draw()
     Endif
     
   Endif
+  
+  Return 
+  
+DRAW_LABEL:
+
+  If sText Then Paint.DrawText(sText, 0, 0, Paint.W, Paint.H, Align.Center)    
+  Return 
   
 End
 
@@ -204,6 +229,19 @@ End
 Private Sub Border_Write(Value As Boolean)
 
   $bBorder = Value
+  Me.Refresh
+
+End
+
+Private Function Text_Read() As String
+
+  Return $sText
+
+End
+
+Private Sub Text_Write(Value As String)
+
+  $sText = Value
   Me.Refresh
 
 End
