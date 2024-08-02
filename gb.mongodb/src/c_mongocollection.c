@@ -291,25 +291,27 @@ BEGIN_METHOD(MongoCollection_Find, GB_OBJECT filter)
 
 	filter = HELPER_to_bson(VARGOPT(filter, NULL), TRUE);
 	options = BCON_NEW("projection", "{", "_id", BCON_BOOL(TRUE), "}");
-	
+
 	cursor = mongoc_collection_find_with_opts(THIS->collection, filter, options, NULL);
-	
+
 	bson_destroy(filter);
 	bson_destroy(options);
 
 	GB.Array.New(&result, GB_T_STRING, 0);
-	
+
 	while (mongoc_cursor_next(cursor, &doc))
 	{
 		if (!bson_iter_init_find_w_len(&iter, doc, "_id", 3))
-			continue;
+				continue;
 		if (!BSON_ITER_HOLDS_UTF8(&iter))
-			continue;
-		
+				continue;
+
 		id = bson_iter_utf8(&iter, &len);
 		*(char **)GB.Array.Add(result) = GB.NewString(id, len);
 	}
-	
+
+	mongoc_cursor_destroy(cursor);
+
 	GB.ReturnObject(result);
 
 END_METHOD
@@ -329,6 +331,29 @@ BEGIN_METHOD(MongoCollection_Remove, GB_STRING id)
 		GB.Error("&1", error.message);
 
 	bson_destroy(filter);
+
+END_METHOD
+
+BEGIN_METHOD(MongoCollection_Exist, GB_STRING id)
+
+	mongoc_cursor_t *cursor;
+	bson_t *filter;
+	bson_t *options;
+	const bson_t *doc;
+
+	filter = bson_new();
+	bson_append_utf8(filter, "_id", 3, STRING(id), LENGTH(id));
+
+	options = BCON_NEW("projection", "{", "_id", BCON_BOOL(TRUE), "}");
+
+	cursor = mongoc_collection_find_with_opts(THIS->collection, filter, options, NULL);
+
+	bson_destroy(filter);
+	bson_destroy(options);
+
+	GB.ReturnBoolean(mongoc_cursor_next(cursor, &doc));
+
+	mongoc_cursor_destroy(cursor);
 
 END_METHOD
 
@@ -427,6 +452,7 @@ GB_DESC MongoCollectionDesc[] = {
 	GB_METHOD("Delete", NULL, MongoCollection_Delete, "[(Filter)Collection;(Options)Collection;]"),
 	GB_METHOD("Add", NULL, MongoCollection_Add, "(Id)s(Document)Collection;[(Options)Collection;]"),
 	GB_METHOD("Remove", NULL, MongoCollection_Remove, "(Id)s"),
+	GB_METHOD("Exist", "b", MongoCollection_Exist, "(Id)s"),
 	GB_METHOD("Replace", NULL, MongoCollection_Replace, "(Filter)Collection;(Document)Collection;[(Options)Collection;]"),
 	//GB_METHOD("Rename", NULL, MongoCollection_Rename, "(NewName)s[]")
 	GB_METHOD("Find", "String[]", MongoCollection_Find, "[(Filter)Collection;]"),
