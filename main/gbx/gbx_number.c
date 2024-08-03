@@ -357,7 +357,11 @@ static bool read_float(double *result, bool local)
 		if (n > MAX_FLOAT_DIGIT)
 		{
 			if (n == (MAX_FLOAT_DIGIT + 1) && (c >= '5'))
+			{
+				if (ndigit_frac_zero)
+					mantisse *= _pow_10[ndigit_frac_zero - 1];
 				mantisse++;
+			}
 			if (!frac)
 				ndigit_frac--;
 			c = get_char();
