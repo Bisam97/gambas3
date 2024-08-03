@@ -258,12 +258,14 @@ Public Sub DrawingArea_Draw()
       sText = .GetTranslatedDescription()
       Paint.Font = Font["-1"]
       
-      HT = Paint.Font.Height * 2
+      HT = Paint.Font.H
       
+      Y += Max(ICON_SIZE, HT * 2) + P
       W = W - X - P * 2
-      H = H - Y - HT - P * 2
+      H = H - Y 
+      
       sText = Paint.TrimText(sText, W, H)
-      Paint.DrawText(sText, X, Y + HT + P * 2, W, H)
+      Paint.DrawText(sText, X, Y, W, H)
       
     Else If bSmall Then
       
@@ -320,10 +322,11 @@ Public Sub DrawingArea_Draw()
       If Not sText Then sText = .GetTranslatedTitle()
       Paint.Font = Font["-1"]
       
+      Y += Max(ICON_SIZE, HT * 2) + P
       W = W - X - P * 2
-      H = H - Y - ICON_SIZE
+      H = H - Y
       sText = Paint.TrimText(sText, W, H)
-      Paint.DrawText(sText, X, Y + ICON_SIZE + P, W, H)
+      Paint.DrawText(sText, X, Y, W, H)
       
     Endif
     
