@@ -119,23 +119,23 @@ Public Sub UserControl_Draw()
   If Not Me.Enabled Then iFg = Color.Merge(iFg, iBg)
   Paint.Background = iFg
   
-  D = Desktop.Scale
-  If Not $bBorder Then D \= 2
-  
   If $bReadOnly And If $iIndex >= 0 Then
     Paint.Save
-    Paint.ClipRect = Rect(0, 0, Paint.W - Desktop.Scale * 3 - D, Paint.H)
-    Paint.DrawText($aList[$iIndex], D, 0, Paint.W - Desktop.Scale * 3 - D, Paint.H, Align.Normal)
+    Paint.ClipRect = Rect(0, 0, Paint.W - Desktop.Scale * 2.5, Paint.H)
+    D = Desktop.Scale
+    Paint.DrawText($aList[$iIndex], D, 0, Paint.W - Desktop.Scale * 2.5 - D, Paint.H, Align.Normal)
     Paint.Restore
   Endif
   
   If $aList.Count = 0 Then Paint.Background = Color.Merge(Style.ForegroundOf(Me), iBg)
   
-  If $bReadOnly Then
-    Paint.Arrow($hArrowBox.X + $hArrowBox.W - Desktop.Scale * 2 - D, $hArrowBox.Y, Desktop.Scale * 1.5, $hArrowBox.H, Align.Bottom)
-  Else
-    Paint.Arrow($hArrowBox.X, $hArrowBox.Y, Desktop.Scale * 1.5, $hArrowBox.H, Align.Bottom)
-  Endif
+  ' If $bReadOnly Then
+  '   Paint.Arrow($hArrowBox.X + $hArrowBox.W - Desktop.Scale * 2 - D \ 2, $hArrowBox.Y, Desktop.Scale * 1.5, $hArrowBox.H, Align.Bottom)
+  ' Else
+  '   Paint.Arrow($hArrowBox.X, $hArrowBox.Y, Desktop.Scale * 1.5, $hArrowBox.H, Align.Bottom)
+  ' Endif
+  
+  Paint.Arrow(Paint.W - Desktop.Scale * 2.5, 0, Desktop.Scale * 1.5, Paint.H, Align.Bottom)
   
   Paint.LineWidth = 1.5
   Paint.Stroke
@@ -193,6 +193,11 @@ Private Sub ReadOnly_Write(Value As Boolean)
     $hTextBox.Border = False
     $hTextBox.Expand = True
     $hTextBox.Background = $iBg
+    If $iIndex >= 0 Then
+      Object.Lock($hTextBox)
+      $hTextBox.Text = $aList[$iIndex]
+      Object.Unlock($hTextBox)
+    Endif
     Me.Proxy = $hTextBox
   Endif
   
@@ -201,7 +206,7 @@ Private Sub ReadOnly_Write(Value As Boolean)
   If bHasFocus Then Me.SetFocus
   
   $hArrowBox.Expand = $bReadOnly
-  $hArrowBox.Width = Desktop.Scale * 2
+  $hArrowBox.Width = Desktop.Scale * 2.5
   
   Me.Refresh
   
